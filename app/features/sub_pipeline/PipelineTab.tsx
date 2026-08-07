@@ -2,21 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, BookmarkPlus, CalendarClock, CheckSquare, Link2, Play, Sparkles, Timer, X } from "lucide-react";
+import { AlertTriangle, BookmarkPlus, CalendarClock, CheckSquare, Link2, Play, Timer, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
 import { useSimulation } from "@/app/features/simulation/SimulationProvider";
 import { useTasks } from "@/app/features/tasks/TasksProvider";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/live-refresh";
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
+import { Select } from "@/app/_components/Select";
+import { TextInput } from "@/app/_components/TextInput";
 import { CHIP_TOGGLE, EYEBROW, INTRO, PAGE_HEADER, SECTION, STAT, STAT_LABEL, STAT_VALUE, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { CandidateDrawer } from "./CandidateDrawer";
-import { PassPreviewModal } from "./PassPreviewModal";
 import { PipelineBoard } from "./PipelineBoard";
-import { CommandBar } from "./CommandBar";
-import { SchedulerControl } from "./SchedulerControl";
 import { EventDot, useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./TodayRail";
 import { recordRecent } from "@/app/features/recents";
@@ -88,27 +88,15 @@ export function PipelineTab() {
   const enumLabel = useEnumLabel();
   const eventVerb = useEventVerb();
   const relativeTime = useRelativeTime();
+  // REC-10 — "invited to schedule" only reads as delivered when a relay exists;
+  // without one the bulk invites are terminal outbox rows.
+  const relayConfigured = useDeliveryCapability();
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Activity-feed health is tracked separately from the board: a failed events
   // fetch must read as "couldn't load activity", never as a genuine empty feed.
   const [eventsError, setEventsError] = useState<string | null>(null);
-  const [running, setRunning] = useState(false);
-  const [passSummary, setPassSummary] = useState<{
-    advanced: number;
-    rejected: number;
-    held: number;
-    alerts: number;
-  } | null>(null);
-  // AUTO3 — the dry-run preview the "Run pass" button now opens before anything
-  // commits (mirrors the screening wave's DEC2 gate: the pass auto-rejects AND
-  // emails candidates, so it gets the same look-before-commit grammar).
-  const [preview, setPreview] = useState<{
-    summary: { advanced: number; rejected: number; held: number; alerts: number; errors: number; evaluated: number };
-    decisions: { entryId: string; action: string; toStage: string | null; reason: string }[];
-  } | null>(null);
-  const [previewing, setPreviewing] = useState(false);
   const [drawerEntry, setDrawerEntry] = useState<Entry | null>(null);
   // Board search/filter (PIPE2): a free-text candidate/role query + one active
   // quick-filter chip. Client-side — the board already holds every entry.
@@ -191,10 +179,9 @@ export function PipelineTab() {
       /* storage unavailable — in-memory override still applies this session */
     }
   };
-  const { startTask, findActive, tasks } = useTasks();
+  const { tasks } = useTasks();
   // 5d2e0998 — the empty board offers the guided tour (simulation start).
   const sim = useSimulation();
-  const batch = findActive((t) => t.kind === "batch_screen");
   const lastBatchDone = useRef<string | null>(null);
 
   // load() fires from many triggers (mount, live refresh, batch-done, the pass,
@@ -606,54 +593,6 @@ export function PipelineTab() {
   // "Rank candidates" → the Fit matrix scoped to this position (a per-position ranking).
   const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "matrix", job: jobId }, search.toString()));
 
-  // AUTO3 — "Run pass" opens a preview first: identical decisions, nothing
-  // applied, no candidate emailed. The commit happens only from the modal.
-  const previewPass = async () => {
-    setPreviewing(true);
-    setPassSummary(null);
-    try {
-      const r = await fetch("/api/automation/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dryRun: true }),
-      });
-      const p = await r.json().catch(() => null);
-      if (r.ok && p) {
-        setError(null);
-        setPreview({ summary: p.summary, decisions: p.decisions ?? [] });
-      } else {
-        setError(t("passFailed"));
-      }
-    } catch {
-      setError(t("passFailedNetwork"));
-    } finally {
-      setPreviewing(false);
-    }
-  };
-
-  const runPass = async () => {
-    setRunning(true);
-    setPassSummary(null);
-    try {
-      const r = await fetch("/api/automation/run", { method: "POST" });
-      const p = await r.json().catch(() => null);
-      if (r.ok) {
-        setError(null); // a clean pass clears any prior transient error
-        setPassSummary(p.summary);
-        setPreview(null);
-        load();
-      } else {
-        // A failing pass used to read identically to a successful no-op (empty
-        // else, no catch) — the operator believed the funnel was processed.
-        setError(t("passFailed"));
-      }
-    } catch {
-      setError(t("passFailedNetwork"));
-    } finally {
-      setRunning(false);
-    }
-  };
-
   return (
     <div className={`stagger-children ${SECTION}`} aria-busy={entries == null}>
       <header className={PAGE_HEADER}>
@@ -691,65 +630,25 @@ export function PipelineTab() {
         ) : null}
       </header>
 
-      {/* NL command bar (#7): type an action over the board; preview-then-confirm. */}
-      <CommandBar onExecuted={load} />
-
-      {/* One action row: the manual triggers sit alongside the Automation clock. */}
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => startTask("batch_screen")}
-          disabled={!!batch}
-          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-coral bg-coral/10 px-3 text-base font-semibold text-coral transition-colors hover:bg-coral/15 disabled:opacity-60"
-          title={t("batchTitle")}
-        >
-          <Sparkles size={14} />
-          {batch ? t("batchScreening", { done: batch.progressDone, total: batch.progressTotal }) : t("batchScreenAll")}
-        </button>
-        <button
-          type="button"
-          onClick={previewPass}
-          disabled={running || previewing}
-          className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md bg-ink px-3 text-base font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          title={t("runPassTitle")}
-        >
-          {previewing ? t("previewingPass") : running ? t("runningPass") : t("runPass")}
-        </button>
-        <SchedulerControl
-          onRan={load}
-          className="flex-1 min-w-[20rem]"
-          labelFor={(entryId) => entries?.find((e) => e.id === entryId)?.candidateLabel}
-        />
-      </div>
+      {/* Command line, AI screen, automation pass and the scheduler moved to the
+          bottom Control Center (app/features/simulation/ControlDock.tsx) — they're
+          workspace-level automation, so the pipeline page stays focused on the
+          board and the day's work, not the machinery. */}
 
       {/* 8f8f578d — candidate-driven work narrated with names + destinations,
           on the landing surface (badges only carry counts). */}
       {entries && entries.length > 0 ? <TodayRail entries={entries} onShowStage={showStage} /> : null}
 
-      {passSummary ? (
-        <div className="animate-fade-in rounded-md border border-moss/30 bg-moss/5 px-4 py-2 text-base text-ink">
-          {t("passSummaryLead")} · <span className="font-semibold text-moss">{t("passAdvanced", { n: passSummary.advanced })}</span> ·{" "}
-          <span className="font-semibold">{t("passRejected", { n: passSummary.rejected })}</span> · {t("passHeld", { n: passSummary.held })} ·{" "}
-          {t("passAlerts", { n: passSummary.alerts })}{" "}
-          <span className="text-steel">{t("passEarlyCareer")}</span>
-        </div>
-      ) : null}
-
-      {preview ? (
-        <PassPreviewModal
-          preview={preview}
-          entries={entries ?? []}
-          committing={running}
-          onCommit={runPass}
-          onClose={() => setPreview(null)}
-        />
-      ) : null}
-
       {moveError ? (
         <p role="alert" className="flex items-center justify-between gap-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
           <span>{moveError}</span>
-          <button type="button" onClick={() => setMoveError(null)} className="focus-ring shrink-0 font-semibold hover:underline">
-            ✕
+          <button
+            type="button"
+            onClick={() => setMoveError(null)}
+            aria-label={t("moveErrorDismiss")}
+            className="focus-ring shrink-0 rounded p-0.5 hover:opacity-70"
+          >
+            <X size={14} aria-hidden />
           </button>
         </p>
       ) : null}
@@ -815,13 +714,14 @@ export function PipelineTab() {
 
           <div className="flex flex-wrap items-center gap-2">
             <label htmlFor="pipeline-search" className="sr-only">{t("searchLabel")}</label>
-            <input
+            <TextInput
               id="pipeline-search"
               type="search"
               value={query}
               onChange={(e) => setQueryAndSync(e.target.value)}
               placeholder={t("searchPlaceholder")}
-              className="focus-ring h-9 min-w-[200px] flex-1 rounded-md border border-stone-200 px-3 text-base"
+              sizeVariant="sm"
+              className="min-w-[200px] flex-1"
             />
             {(
               [
@@ -932,18 +832,14 @@ export function PipelineTab() {
               ) : null}
               <label className="ml-auto flex items-center gap-1.5 text-sm font-medium text-steel">
                 {t("bulkMoveLabel")}
-                <select
+                <Select
+                  ariaLabel={t("bulkMoveLabel")}
                   value={bulkStage}
-                  onChange={(ev) => setBulkStage(ev.target.value)}
-                  className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
-                >
-                  <option value="">—</option>
-                  {STAGES.map((s) => (
-                    <option key={s} value={s}>
-                      {enumLabel("stage", s)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setBulkStage}
+                  size="sm"
+                  className="h-8"
+                  options={[{ value: "", label: "—" }, ...STAGES.map((s) => ({ value: s, label: enumLabel("stage", s) }))]}
+                />
               </label>
               <button
                 type="button"
@@ -973,7 +869,9 @@ export function PipelineTab() {
                         : bulkResult.verb === "accepted"
                           ? "bulkAccepted"
                           : bulkResult.verb === "invited"
-                            ? "bulkInvited"
+                            ? relayConfigured === false
+                              ? "bulkInvitedQueued"
+                              : "bulkInvited"
                             : "bulkRejected",
                       { count: bulkResult.ok }
                     )}
@@ -1058,7 +956,7 @@ export function PipelineTab() {
                       const n = parseInt(ev.target.value, 10);
                       setStageSla(stage, Number.isFinite(n) ? n : null);
                     }}
-                    className="focus-ring mt-0.5 h-8 w-16 rounded-md border border-stone-200 px-2 text-sm nums text-ink"
+                    className="focus-ring mt-0.5 h-8 w-16 rounded-md border border-stone-200 bg-white px-2 text-sm nums text-ink caret-coral"
                   />
                 </label>
               ))}

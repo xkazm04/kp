@@ -13,11 +13,15 @@ import {
   setApproval,
   storePromptCache,
 } from "./db";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { meterAllows } from "./billing";
 import { buildLlmConfigEnv } from "./llm-config";
 import { computeAutomationCacheKey, computeCorpusFingerprint, GITHUB_EVIDENCE_TASKS } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
+import { resolveCommsLocale } from "./comms-locale";
+import { getWorkspaceDefaultLocale } from "./db/workspaces";
+import { isLocale, type Locale } from "@/i18n/locales";
 import { dispatchOutreach } from "./comms-dispatch";
 import {
   coerceInterviewRecommendation,
@@ -31,13 +35,31 @@ import {
 // configured provider per KP_LLM_CONFIG (Claude CLI when unconfigured).
 export const AUTOMATION_VERSION: Record<string, string> = {
   screen: "screening-v1",
-  outreach: "outreach-v1",
-  rejection: "rejection-v1",
+  // v2 — the candidate-facing letter tasks take an explicit --lang (the entry's
+  // resolved comms locale) and their prompts carry the gender-neutral-Czech +
+  // no-invented-terms directives; bumped so cached v1 letters self-invalidate.
+  outreach: "outreach-v2",
+  rejection: "rejection-v2",
   prep: "interview-prep-v1",
   scorecard: "scorecard-v3",
   rematch: "rematch-v1",
-  offer: "offer-v1",
+  // v3 — the offer payload carries its structured pricing basis (matchBasis, the
+  // draft-time fresh fit check) and a rationale that names that producer
+  // (REC-01/OO-L2-10); bumped so cached v2 payloads self-invalidate.
+  offer: "offer-v3",
 };
+// The tasks whose output is a candidate-facing LETTER: their language is the
+// entry's resolved comms locale (explicit apply choice, else the workspace
+// default — comms-locale.resolveCommsLocale), passed to Python as --lang so the
+// letter and its deterministic chrome (subject fallback, offer terms/response
+// footers, GDPR footer) can never disagree (OO-L1-03's two-authorities defect).
+const LETTER_TASKS = new Set(["outreach", "rejection", "offer"]);
+// The tasks whose output is recruiter-facing NARRATIVE (screening rationale,
+// interview prep, scorecard summary — all surfaced in Decisions): their language
+// is the recruiter's UI locale (getServerLocale = the org's app language), passed
+// as --lang. It is also a cache axis so a locale change can't serve a cached
+// wrong-language narrative for the 168h TTL.
+const UI_LANG_TASKS = new Set(["prep", "screen", "scorecard"]);
 // Event kind for the generic "drafted" tasks — ONLY those that fall through to the
 // catch-all branch below (currently rejection + prep). screen/scorecard/offer/
 // rematch/outreach each have their own branch and record their own event, so they
@@ -84,12 +106,23 @@ function readRecommendation(result: Record<string, unknown>, task: string): stri
   return coerceInterviewRecommendation(raw);
 }
 
-export async function runAutomationTask(entryId: string, task: string, notes = "", signal?: AbortSignal, lang?: string): Promise<AutomationResult> {
+export async function runAutomationTask(
+  entryId: string,
+  task: string,
+  notes = "",
+  signal?: AbortSignal,
+  lang?: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+): Promise<AutomationResult> {
   if (!(task in AUTOMATION_VERSION)) throw new AutomationError(`unknown task: ${task}`, 404);
-  const entry = getPipelineEntry(entryId);
+  // Tenant (P1): the entry read + every downstream mutation scope to the entry's own team
+  // (passed by the batch sweep as entry.workspaceId, or by the route as currentWorkspace()).
+  // The recordAutomationEvent calls' EVENTS auto-derive their tenant from the entry, so they
+  // stay correct regardless; threading workspaceId keeps their label/title enrichment right.
+  const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) throw new AutomationError("entry not found", 404);
   if (!entry.candidateId) throw new AutomationError("entry has no candidate profile", 400);
-  const rec = getProfileRecord(entry.candidateId);
+  const rec = getProfileRecord(entry.candidateId, workspaceId);
   if (!rec) throw new AutomationError("candidate profile not found", 400);
 
   // Rematch REDIRECTS a candidate to a better-fit role and closes out their current
@@ -125,6 +158,19 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
   // the AI formed without it. Mirrors the profileJson serialize-once pattern.
   const githubEvidenceJson =
     GITHUB_EVIDENCE_TASKS.has(task) && entry.githubEvidence ? JSON.stringify(entry.githubEvidence) : null;
+  // Letter tasks render in the entry's resolved comms locale (pa-l2-null-locale):
+  // resolved HERE — not left to the CV-language guess inside Python — so the
+  // letter provably matches the locale comms-dispatch wraps it in.
+  const letterLang = LETTER_TASKS.has(task) ? resolveCommsLocale(entry.locale) : undefined;
+  // Recruiter-narrative tasks (prep/screen/scorecard) render in the caller's UI
+  // locale when it passed one (getServerLocale, request scope), else the org's
+  // configured language (the workspace default) — so a background pass localizes
+  // too, never a silent English default. Mirrors resolveCommsLocale's fallback.
+  const uiLang: Locale | undefined = UI_LANG_TASKS.has(task)
+    ? isLocale(lang)
+      ? lang
+      : getWorkspaceDefaultLocale()
+    : undefined;
   const cacheKey = computeAutomationCacheKey({
     version,
     task,
@@ -134,8 +180,11 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     stage: entry.stage,
     notes,
     corpusFingerprint: corpusJobs ? computeCorpusFingerprint(corpusJobs.map((j) => j.id)) : undefined,
-    // PREP2 — the prep narrative locale is a cache axis (other tasks ignore it).
-    lang: task === "prep" ? (lang === "cs" ? "cs" : "en") : undefined,
+    // PREP2 — the recruiter-narrative locale (prep/screen/scorecard, uiLang) is a
+    // cache axis; for the letter tasks the RESOLVED letter locale is one too (a
+    // locale fix must not serve a cached wrong-language output for up to 7 days).
+    // Tasks in neither set (rematch) ignore it.
+    lang: uiLang ?? letterLang,
     githubEvidenceJson: githubEvidenceJson ?? undefined,
   });
 
@@ -167,9 +216,13 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         await writeFile(notesPath, notes, "utf-8");
         args.push("--notes-file", notesPath);
       }
-      // PREP2 — only `prep` consumes --lang (the CLI accepts it globally and the
-      // other commands ignore it); pass it so the prep narrative is localized.
-      if (task === "prep") args.push("--lang", lang === "cs" ? "cs" : "en");
+      // PREP2 — the recruiter-narrative tasks (prep/screen/scorecard) render in the
+      // resolved uiLang (the org's app language); the LETTER tasks
+      // (outreach/rejection/offer) render in the CANDIDATE'S resolved comms locale,
+      // so the Python-drafted letter and the TS-rendered chrome around it are one
+      // language authority. The two sets are disjoint — at most one --lang is pushed.
+      if (uiLang) args.push("--lang", uiLang);
+      if (letterLang) args.push("--lang", letterLang);
       // GH7 — hand the persisted GitHub evidence to the screen/prep/scorecard
       // prompts (mirrors the --notes-file pattern). Python renders it as a
       // compact "Public repo evidence" block; null (bare entry or a task that
@@ -213,7 +266,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     // it meanwhile. A stale screen verdict must no-op instead of moving whatever stage
     // the entry is in NOW — mirrors the policy-pass hardening (automation-pass.ts).
     if (advance) {
-      const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage, actor: "system" });
+      const moved = actOnPipelineEntry(entry.id, "accept", undefined, { expectedStage: entry.stage, actor: "system" }, workspaceId);
       if (!moved) {
         // Stage changed mid-hop — skip the move AND the dependent approval/event so
         // the screening_review can't land on a now-unexpected (or terminal) stage.
@@ -221,17 +274,17 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
       }
     }
     if (holdForReview) {
-      setApproval(entry.id, "screening_review", JSON.stringify(result));
-      recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task));
+      setApproval(entry.id, "screening_review", JSON.stringify(result), workspaceId);
+      recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task), workspaceId);
     }
     applied = screenApplied;
   } else if (task === "scorecard") {
-    setApproval(entry.id, "scorecard_review", JSON.stringify(result));
-    recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task));
+    setApproval(entry.id, "scorecard_review", JSON.stringify(result), workspaceId);
+    recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task), workspaceId);
     applied = "scorecard_ready";
   } else if (task === "offer") {
-    setApproval(entry.id, "offer_review", JSON.stringify(result));
-    recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""));
+    setApproval(entry.id, "offer_review", JSON.stringify(result), workspaceId);
+    recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""), workspaceId);
     applied = "offer_ready";
   } else if (task === "rematch") {
     if (result.found && result.jobId) {
@@ -249,6 +302,12 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         jobTitle: (result.jobTitle as string) ?? (result.jobId as string),
         matchScore: (result.score as number) ?? null,
         stage: "Screened",
+        // The redirected person is the SAME candidate — their language choice
+        // (captured at apply) must follow them onto the target entry, or the
+        // rematch would silently flip their comms back to the workspace default.
+        locale: entry.locale,
+        // …and the target lands in the SAME team as the source (one candidate, one team).
+        workspaceId,
       });
       if (created) {
         // Define what rematch does to the SOURCE entry (idea-9ad8a777): close it so
@@ -258,8 +317,8 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
         // moved or closed it during the LLM hop, that branch is handled atomically
         // (already-terminal links only; Hired is left untouched). The source-side
         // `rematched` event is recorded inside rematchSourceEntry.
-        rematchSourceEntry(entry.id, target.id, result.jobId as string);
-        recordAutomationEvent(target.id, "rematched_from", `${entry.id} (${entry.jobId ?? "?"})`);
+        rematchSourceEntry(entry.id, target.id, result.jobId as string, workspaceId);
+        recordAutomationEvent(target.id, "rematched_from", `${entry.id} (${entry.jobId ?? "?"})`, workspaceId);
         applied = "rematched";
       } else {
         applied = "already_rematched";
@@ -278,7 +337,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
     // otherwise re-fire the send every time. Gate the dispatch on the durable
     // per-entry "outreach_sent" marker that dispatchOutreach itself records, so an
     // outreach is delivered at most once per entry — first-contact, not a resend.
-    if (hasEvent(entry.id, "outreach_sent") || outreachInFlight.has(entry.id)) {
+    if (hasEvent(entry.id, "outreach_sent", workspaceId) || outreachInFlight.has(entry.id)) {
       applied = "already_sent";
     } else {
       outreachInFlight.add(entry.id);
@@ -299,7 +358,7 @@ export async function runAutomationTask(entryId: string, task: string, notes = "
       }
     }
   } else {
-    recordAutomationEvent(entry.id, DRAFT_EVENT[task] ?? task, "");
+    recordAutomationEvent(entry.id, DRAFT_EVENT[task] ?? task, "", workspaceId);
     applied = "drafted";
   }
 

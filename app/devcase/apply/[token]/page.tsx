@@ -3,13 +3,11 @@ import { getTranslations } from "next-intl/server";
 import { Markdown } from "@/app/_components/Markdown";
 import { getDevCase, getPostingByToken } from "@/app/_lib/db";
 import { caseToMarkdown } from "@/app/features/sub_dev/DevHelpers";
-import type { CaseScenario, RoleSpec } from "@/app/features/sub_dev/DevTypes";
+import type { CaseScenario, RoleSpec, SeedFile } from "@/app/features/sub_dev/DevTypes";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { DevApplyForm } from "./DevApplyForm";
-import { type SeedFile } from "./SeedFiles";
 import { LiveWorkSurface } from "./LiveWorkSurface";
 
-export const dynamic = "force-dynamic";
 
 // W5-1 (DEVS1+DEVO1) — the candidate-facing page behind the dev-case apply
 // token. The link recruiters copied used to be the POST-only inbound webhook
@@ -20,6 +18,10 @@ export const dynamic = "force-dynamic";
 // construction — never render the raw case object here), offer the
 // materialized starter seed, and submit through the same inbound webhook
 // external channels use (ack comms + lifecycle resume come free).
+// Blocked under Cache Components: dynamic per-request route (previously
+// force-dynamic) with no useful static shell to prerender.
+export const instant = false;
+
 export default async function DevCaseApplyPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const posting = getPostingByToken(token);

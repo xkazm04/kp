@@ -1,0 +1,203 @@
+{
+  "job": {
+    "id": "cal-059",
+    "title": "Sr. Director/Head of Strategy and Business Operations",
+    "company": "Resilience",
+    "role_family": "operations",
+    "seniority": "lead",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Program Management Office (PMO) tooling and project-portfolio digital platforms for cross-functional transparency",
+      "Master data management (MDM) systems across the manufacturing value chain",
+      "Advanced analytics / BI platforms feeding the TechOps digital and data agenda",
+      "Lean operating model and Six Sigma toolkit — DMAIC, Master Black Belt / belting certification programs",
+      "Business Process Management (BPM) and governance frameworks (decision rights, interface management, capability programs)",
+      "Strategic-investment business cases and financial models for IT/digital and capex budget allocation and review",
+      "Strategy-development and performance-monitoring apparatus (goal-setting, cascading targets, KPI/OKR dashboards)",
+      "Business continuity and risk-management processes and platforms with corporate-level commitments",
+      "Consultancy / external-vendor management and triage (managing key consulting-firm relationships and budget)",
+      "GxP / regulated-biopharma operating context (CDMO quality and validation constraints that bound any change)",
+      "Executive collaboration surfaces with CMO, functional/site leaders, R&D, process development, commercial and corporate teams"
+    ],
+    "coreResponsibilities": [
+      "Set TechOps strategic goals and performance targets with the CMO and functional/site leaders, balancing interdependencies and trade-offs",
+      "Orchestrate sustainable transformation of TechOps — operating-model changes, governance improvements, and stakeholder influence",
+      "Lead design, orchestration and execution of strategic initiatives that move TechOps top and bottom line across all org levels",
+      "Drive the digital and data transformation across the value chain (master data, advanced analytics, digital platform, enablement programs)",
+      "Identify, evaluate and implement cross-industry innovation in process, tools and technology for efficiency, quality and engagement",
+      "Own the storyline and business cases for strategic investments; enable portfolio allocation and review IT/digital/capex budgets",
+      "Lead TechOps business-continuity and risk-management processes with corporate-level accountability",
+      "Drive the global operational-excellence agenda — continuous improvement, savings, Lean capabilities and Six Sigma certification",
+      "Design and run governance and BPM to create an agile, fit-for-future org and simplified interface management with key stakeholders",
+      "Build and sustain PMO capabilities, processes and digital platform for performance, risk and resource-allocation transparency",
+      "Lead the consultancy budget process, triaging external support and managing key consultancy relationships",
+      "Lead and develop a team of professionals to run TechOps business processes and partner with corporate functions"
+    ],
+    "statedVsRealGaps": [
+      "Titled 'Strategy & Business Operations,' but the responsibility set is really an enterprise transformation / chief-of-staff-to-CMO mandate — org change, governance design and influence dominate over day-to-day operations management",
+      "Preferred qualifications over-index on continuous-improvement pedigree (Master Black Belt, DMAIC, Lean) while the actual work is mostly strategy-setting, digital/data transformation and stakeholder influence — the credential filter and the real job diverge",
+      "The digital and data transformation is named as 'executional' (MDM, advanced analytics, digital platform) yet no concrete systems are specified — unclear whether this is a hands-on builder, an orchestrator dependent on corporate IT, or a buyer steering consultancies",
+      "Authority is ambiguous: 'Head of' + Sr. Director reporting to the CMO and leading a team, but most outcomes must be achieved by influence across sites, R&D, PD, commercial and corporate — heavy responsibility, unclear line control",
+      "Scope is unusually broad (strategy + digital/data + OpEx + BCM/risk + PMO + governance + consultancy + budgets) — breadth-vs-depth tension and catch-all risk for a single role",
+      "Success is framed only as 'top and bottom line' with no team size, comp band, or concrete success metrics — the bar for 'good' is left implicit"
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Influence-without-authority: the role must drive change across sites and functions it does not directly own, so execution can stall on stakeholder alignment",
+      "Scope sprawl / role overload: bundling strategy, digital/data transformation, OpEx, risk, PMO, governance and vendor management into one seat dilutes focus and invites burnout",
+      "Narrow credential filter (PhD/MBA + Master Black Belt) likely shrinks the candidate pool and risks selecting for Lean pedigree over the transformation-leadership and influence skills that actually dominate the day-to-day",
+      "Unscoped digital/data ambition: no named platforms and unclear build-vs-buy-vs-orchestrate, creating dependency on corporate IT and external consultancies the role is also asked to manage",
+      "Regulated CDMO environment: GxP/validation and quality constraints cap transformation speed, so an aggressive change agenda can collide with compliance reality",
+      "Young, fast-scaling company: foundational MDM, analytics and PMO layers may not yet exist, meaning the leader is building the rails while running on them",
+      "Matrixed reporting (to CMO but partnering with corporate, R&D, PD, commercial) makes outcomes hinge on relationships outside the formal chain"
+    ],
+    "reflection": "This is a genuine, well-formed senior-leadership JD — the need is real and the responsibilities are richly specified, so the analysis is grounded rather than thin. Functionally this is a 'Head of Strategy + Transformation/Operations lead for Technical Operations,' reporting to the Chief Manufacturing Officer at a fast-scaling biopharma CDMO. The dominant capability the role actually demands is orchestrating cross-functional change through influence — setting strategy with the CMO and site leaders, redesigning operating model and governance, standing up PMO and master-data/analytics foundations, and steering investment and consultancy spend — all inside a regulated GxP manufacturing context. The sharpest divergence between the stated need and the real evidence is the framing: the preferred-qualifications section (Master Black Belt, DMAIC, Lean record) presents this as a continuous-improvement role, but the body of work is overwhelmingly strategy, digital/data transformation, governance and stakeholder influence, with OpEx as one lever among many. A hiring team should screen primarily for enterprise-transformation and influence-without-authority track record (ideally in regulated manufacturing/pharma), treating belt certification as a useful-but-secondary signal, and should pin down the role's real authority, team size and success metrics before going to market, since those are the biggest unknowns and the biggest execution risks. trueComplexity is high: the scope is enterprise-wide, multi-stakeholder, regulation-constrained, and ambiguous in authority.",
+    "confidence": 0.78,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Sr. Director / Head of Strategy & Business Operations (TechOps)",
+    "seniority": "lead",
+    "roleFamily": "operations",
+    "mustHaves": [
+      "Proven track record (lead/executive level) setting enterprise strategy and orchestrating sustainable operating-model transformation in a large, complex, fast-changing organization",
+      "Deep operational-excellence leadership: Lean operating model and Six Sigma / DMAIC, driving continuous improvement, cost savings and capability programs across globally distributed cross-functional teams",
+      "Strong change-management capability — redesigning governance, decision rights and interface management, role-modelling leadership behaviors and driving the agenda for senior leaders",
+      "Influence and stakeholder management without direct line control across R&D, process development, commercial, corporate functions and functional/site leaders, up to and including C-level (CMO)",
+      "Strategy-development and performance-management discipline: setting strategic goals and performance targets, cascading goals, and standing up KPI/OKR monitoring",
+      "Building and running PMO capabilities, processes and a project-portfolio digital platform to create transparency on projects, performance, risk and resource allocation",
+      "Leading digital and data transformation across a value chain — master data management, advanced analytics, digital platform adoption and enablement/change programs",
+      "Financial and investment acumen: authoring the storyline and business cases for strategic investments, enabling portfolio-level allocation and reviewing IT/digital and capex budgets",
+      "Business-continuity and risk-management leadership with accountability for corporate-level commitments",
+      "People leadership — building, leading and developing a team of professionals running TechOps business processes"
+    ],
+    "niceToHaves": [
+      "Master Black Belt or formal Six Sigma belting certification and ownership of certification/management programs",
+      "Experience in biopharma / CDMO / GxP-regulated manufacturing (TechOps) or an equally regulated, validation-bound operating context",
+      "Management-consulting background, or experience managing key consultancy relationships and triaging/budgeting external support",
+      "Hands-on or close-orchestration experience with master data management, advanced analytics and BPM/governance tooling",
+      "Track record identifying and importing cross-industry innovation in process, tools and technology",
+      "MBA or advanced degree, or equivalent depth in strategy and business operations leadership",
+      "Experience based in or relocating to San Diego, CA / comfort with an on-site executive role"
+    ],
+    "responsibilities": [
+      "Set TechOps strategic goals and supporting performance targets with the CMO and functional/site leaders, balancing interdependencies and trade-offs in a fast-changing competitive environment",
+      "Orchestrate the sustainable transformation of TechOps through operating-model changes, governance improvements and influence of key stakeholders",
+      "Lead the design, orchestration and execution of strategic initiatives that move TechOps top and bottom line across all levels of the organization and with corporate teams",
+      "Drive the digital and data transformation of TechOps across the value chain — master data management, advanced analytics, digital platform, change management and enablement programs, and external-partner support",
+      "Identify, evaluate and implement cross-industry innovation in process, tools and technology to improve efficiency, effectiveness, service quality and people engagement",
+      "Own the business storyline and cases for strategic investments, enable portfolio-level allocation and review critical IT/digital and capex budgets against strategy and technology roadmaps",
+      "Lead TechOps business-continuity and risk-management processes and platforms with responsibility for corporate-level commitments",
+      "Drive the global operational-excellence agenda — continuous improvement, savings, Lean capabilities, Six Sigma certification programs, and the processes for strategy development, goal-setting and performance monitoring/cascading",
+      "Design and run governance, business process management and key capability programs to shape an agile, fit-for-future organization with effective decision making and simplified interface management",
+      "Build and sustain PMO capabilities, processes and a digital platform for transparent performance, risk management and resource allocation across all TechOps functions",
+      "Lead the TechOps consultancy budget process, balancing business needs and triaging external support capabilities",
+      "Lead and develop a team of professionals, partnering with corporate functions to run TechOps business processes"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "TechOps Strategy & Business Operations: first read, portfolio triage, and the investment call",
+    "brief": "You're joining as Sr. Director / Head of Strategy & Business Operations for TechOps at a young, fast-scaling regulated CDMO (GxP biopharma). TechOps reports to the CMO and partners with corporate teams, R&D, process development, commercial and the sites — most of which you influence rather than own. The CMO has handed you a starter pack of the function's actual working materials and asked for your first read and a plan: a thin FY strategy one-pager, the PMO portfolio tracker, the Lean/Six Sigma savings log, a draft business case for a digital (MDM + advanced-analytics) platform, a half-finished decision-rights RACI, the risk register and a stakeholder map. The materials are inconsistent and incomplete on purpose — foundational MDM, analytics and PMO layers are only partly in place, consultancy spend is climbing, and any change is bounded by GxP validation and quality constraints. In ~2 hours, produce four short judgment artifacts (1–2 page memos / a marked-up tracker / a one-pager), not a polished deck. We care about the calls you make under ambiguity and the reasoning behind them — assume any drafting help is fair game, so what we are actually reading is your judgment, sequencing and trade-offs, not your formatting. Where the brief is silent, decide, note it, and move on. The provided materials fit this role; act on them as a strategy & business-operations leader would. Time is the hard constraint — favor depth on a few calls over covering everything.",
+    "repoSeed": "A 'TechOps Strategy & BizOps' starter pack (synthetic but representative of this role's day-to-day) handed over as a shared folder:\n- `Context_Memo.md` — 1 page: young, fast-scaling GxP CDMO; TechOps reports to the CMO and partners with corporate IT, R&D, process development and commercial; foundational MDM / advanced-analytics / PMO layers only partly built; external-consultancy spend rising and largely unmanaged.\n- `TechOps_Strategy_FY-onepager.md` — a buzzword-heavy one-pager naming a headline '~20% efficiency improvement' ambition with no baseline, no scope boundary and no timeframe.\n- `Portfolio_Tracker.xlsx` — ~18 initiatives with inconsistent status fields, missing or duplicated owners, RAG ratings that contradict their % complete, two or three stalled 'zombie' projects, and dependency notes buried in cell comments (one comment references 'Project Atlas').\n- `OpEx_Savings_Tracker.xlsx` — a Lean/Six Sigma (DMAIC) savings log that mixes one-off and run-rate savings in one column and books savings on a process change that has not yet completed validation.\n- `Digital_Platform_BusinessCase_DRAFT.xlsx` — a draft MDM + advanced-analytics platform case whose payback / NPV model re-counts headcount savings already claimed in the OpEx tracker, treats one-off implementation capex as if it recurs annually, and omits GxP validation cost and lead time.\n- `Governance_DecisionRights_RACI_draft.docx` — a partial RACI with overlapping decision rights across sites and corporate, and no escalation or interface-management path.\n- `Risk_Register.xlsx` — a business-continuity / risk register including one corporate-level commitment and several open GxP / validation risks.\n- `Stakeholder_Map.md` — CMO, site leaders, corporate IT, R&D, PD, commercial and the incumbent consulting firm, with a note that the previous transformation effort, 'Project Atlas', stalled on site adoption.",
+    "tasks": [
+      "Diagnosis & portfolio triage (≈45 min). Working from `Context_Memo.md`, `TechOps_Strategy_FY-onepager.md` and `Portfolio_Tracker.xlsx`, write a 1–2 page TechOps diagnosis memo. State in your own words what the FY 'efficiency' goal actually means and against what baseline (the one-pager does not say), then triage the ~18 initiatives into continue / reshape / stop — naming at least two you would kill or merge and why. Flag any initiative whose RAG status contradicts its % complete, and any whose claimed savings you would not yet trust.",
+      "Investment storyline & the delivery call (≈40 min). Take the MDM + advanced-analytics 'digital platform' initiative. Review `Digital_Platform_BusinessCase_DRAFT.xlsx` and decide whether you would build it with corporate IT, buy and configure a vendor platform, or orchestrate it through the consultancy already on contract — and justify the choice in this CDMO / GxP context, naming the dependency or conflict each path creates. Then pressure-test the draft's payback/NPV: if a number does not hold, correct it and show the corrected logic in 4–6 lines.",
+      "Operating-model & influence plan (≈25 min). On one page, design how you would actually land your top-priority initiative across sites and functions you do not directly own. Drawing on `Governance_DecisionRights_RACI_draft.docx`, `Stakeholder_Map.md` and `Risk_Register.xlsx`, name the 3–4 decisions that need a clear single owner, the key stakeholders you must move and how, and one risk or continuity commitment you would not compromise to hit a date. Account for what happened to the prior transformation.",
+      "DECISIONS log (keep as you go; ≈10 min to tidy). A short running list — every place the brief was open and you made a call: what you chose, the option you rejected, and the one question you would have put to the CMO or the site leaders if they were in the room. This is simply how we work; treat it as part of the deliverable, not an extra."
+    ],
+    "coverProbes": [
+      {
+        "id": "efficiency-target-undefined",
+        "kind": "ambiguity",
+        "where": "The '~20% efficiency improvement' headline in `TechOps_Strategy_FY-onepager.md` has no baseline, scope or timeframe; Task 1 forces the candidate to commit to a reading of it.",
+        "reveals": "A strong candidate refuses to take the number at face value — they define a baseline and scope boundary, say what is and isn't in TechOps' control, and note what they'd confirm with the CMO. A naive response adopts '20%' as a given and builds a plan on sand.",
+        "decisionSpace": [
+          "Read it as run-rate cost-per-unit across the whole value chain — ambitious and comparable, but partly outside TechOps' direct control.",
+          "Scope it to controllable OpEx at the named sites — ownable and defensible, but looks less bold and sidesteps cross-functional spend.",
+          "Define it as a blended cost + service-quality / effectiveness target — truer to the role's mandate, but harder to measure and to cascade."
+        ]
+      },
+      {
+        "id": "project-atlas-adoption",
+        "kind": "legacy_trap",
+        "where": "Project Atlas — the prior transformation noted in `Stakeholder_Map.md` and a buried cell comment in `Portfolio_Tracker.xlsx` — stalled on site adoption; surfaces in Tasks 1 and 3.",
+        "reveals": "A strong candidate reads the materials, finds Atlas, and designs explicitly for adoption and influence-without-authority. A naive candidate misses it and proposes a fresh top-down rollout that repeats the exact failure mode.",
+        "decisionSpace": [
+          "Relaunch Atlas's intent under new governance with site co-ownership — preserves prior investment, but inherits its credibility baggage.",
+          "Quietly retire Atlas and reframe a smaller lighthouse win first — builds proof and momentum, but loses scope and can look slow.",
+          "Fold Atlas's still-live workstreams into the new portfolio and stop the rest — pragmatic, but risks importing the same adoption debt."
+        ]
+      },
+      {
+        "id": "business-case-double-count",
+        "kind": "verification_trap",
+        "where": "`Digital_Platform_BusinessCase_DRAFT.xlsx` re-books headcount savings already claimed in `OpEx_Savings_Tracker.xlsx`, treats one-off capex as recurring, and omits GxP validation cost/time — so the payback looks roughly twice as good as reality.",
+        "reveals": "A strong candidate cross-checks the case against the savings tracker, catches the double-count / capex error / missing validation line, and re-derives. A naive one-shot accepts the headline NPV because it is internally consistent on its own tab.",
+        "decisionSpace": [
+          "Strip the double-counted savings and re-baseline — kills the easy payback but makes the case honest and defensible to corporate.",
+          "Keep the savings but reattribute them and add a validation-cost line — preserves the story while fixing the math, at the cost of a messier narrative.",
+          "Reframe the case on effectiveness / quality / optionality rather than headcount savings — sidesteps the contested number, but is harder to defend on hard ROI."
+        ]
+      },
+      {
+        "id": "build-buy-orchestrate",
+        "kind": "underspecified",
+        "where": "The digital-platform delivery model is unspecified in Task 2; the role both depends on corporate IT and is meant to triage the consultancy budget, so the choice encodes a real conflict.",
+        "reveals": "A strong candidate names the corporate-IT dependency and the consultancy-spend conflict and chooses deliberately for this GxP, young-estate context. A naive candidate defaults to 'build a platform' with no view on authority, lock-in or who actually delivers.",
+        "decisionSpace": [
+          "Build with corporate IT — best fit and data control, but slow and hostage to a roadmap and team the role has no authority over.",
+          "Buy and configure a vendor MDM + BI platform — fastest to value and cleanly GxP-validatable, but lock-in and integration risk in an immature estate.",
+          "Orchestrate through the incumbent consultancy — fast capability and capacity, but grows the very spend this role is meant to triage and deepens dependency."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

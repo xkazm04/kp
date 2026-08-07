@@ -125,6 +125,33 @@ export function calibrationPairs(workspaceId: string = DEFAULT_WORKSPACE_ID): Ca
     }));
 }
 
+// Canonical match-score read path (REC-01 / OO-L2-10, see app/_lib/match-score.ts):
+// every scored, JD-tagged analysis, newest first, so the resolver
+// (match-score-resolve.ts) can keep the FRESHEST fit per (candidate label, jd slug)
+// with a single query instead of a per-entry N+1. Bounded: the resolver only needs
+// the newest row per pair, and pairs beyond the cap are older than anything a live
+// pipeline entry would reference.
+export type JdFitRow = {
+  candidate_label: string;
+  jd_slug: string;
+  score: number;
+  created_at: string;
+  slug: string;
+};
+
+export function listJdFitRows(workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 1000): JdFitRow[] {
+  const db = ensureDb();
+  return db
+    .prepare(
+      `SELECT candidate_label, jd_slug, score, created_at, slug
+       FROM analyses
+       WHERE jd_slug IS NOT NULL AND score IS NOT NULL AND workspace_id = ?
+       ORDER BY created_at DESC
+       LIMIT ?`
+    )
+    .all(workspaceId, limit) as JdFitRow[];
+}
+
 // Every analysis tagged with a JD slug, ordered best-score-first. Uses the
 // idx_analyses_jd_slug index — no row cap and no in-memory filter, so the JD
 // page's candidate count stays correct even past 500 total analyses.

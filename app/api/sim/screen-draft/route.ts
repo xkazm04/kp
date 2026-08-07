@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPipelineEntry, setApproval } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Deterministic screening recommendation for the simulation — NO LLM. Sets the
 // screening_review approval so a real card appears in the Decisions queue for the

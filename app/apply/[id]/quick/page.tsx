@@ -4,15 +4,19 @@ import { getJob } from "@/app/_lib/db";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { applyKoSteps } from "@/app/_lib/apply";
 import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
+import { isRelayConfigured } from "@/app/_lib/comms-truth";
 import { QuickApplyForm } from "./QuickApplyForm";
 
-export const dynamic = "force-dynamic";
 
 // E2 (Erika gap) — public quick-apply LEAD form: the ≤30-second, mobile-first
 // intake for ad/social traffic. Three fields (name, email, this job's own
 // knockout questions), one tap, done — the full conversational apply at
 // /apply/[id] stays the rich path and doubles as this form's enrichment
 // follow-up (linked from the acknowledgement email and the success screen).
+// Blocked under Cache Components: dynamic per-request route (previously
+// force-dynamic) with no useful static shell to prerender.
+export const instant = false;
+
 export default async function QuickApplyPage({
   params,
   searchParams,
@@ -63,7 +67,7 @@ export default async function QuickApplyPage({
       {job.company ? <p className="mt-1 text-body text-steel">{job.company}</p> : null}
       <p className="mt-2 text-body text-steel">{t("quick.subtitle")}</p>
       <div className="mt-6 rounded-lg border border-stone-200 bg-paper/40 p-4">
-        <QuickApplyForm jobId={job.id} koSteps={koSteps} campaign={campaign} variant={variant} />
+        <QuickApplyForm jobId={job.id} koSteps={koSteps} campaign={campaign} variant={variant} relayConfigured={isRelayConfigured()} />
       </div>
     </main>
   );

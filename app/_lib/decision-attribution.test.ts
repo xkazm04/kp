@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  AUTOMATION_ALERT_KINDS,
   COMM_SENT_KINDS,
   DECISION_META,
   decisionAttribution,
@@ -26,14 +27,29 @@ test("the kinds the writers produce are all mapped (the drift this module exists
     "scheduled", "rejected", "auto_rejected", "intake_degraded", "intake_resolved",
     "screening_hold", "interview_scorecard", "interview_prep_generated",
     "interview_scheduled", "interview_invite_sent", "schedule_invite_sent", "interview_reminder_sent",
+    "interviewer_brief_sent", "interviewer_brief_skipped", "onboarding_reminder_sent",
     "outreach_sent", "rejection_sent", "rejection_comms_failed",
     "acknowledgement_sent", "comm_resent", "offer_drafted", "offer_sent",
-    "offer_accepted", "offer_declined", "onboarding_started", "onboarding_failed",
+    "offer_accepted", "offer_declined", "offer_expired", "onboarding_started", "onboarding_failed",
     "rematched", "rematched_from", "fairness_gate_unknown_archetype", "observed_minted",
-    "ko_declined",
+    "ko_declined", "role_reopened",
+    // Policy-pass alert kinds — derived from the shared source the writer itself
+    // consumes (not a hand-copied literal), so a NEW alert kind forces a
+    // DECISION_META mapping instead of silently rendering UNKNOWN and falling out of
+    // the attribution rollup (bug-ui-scan §hiring-automation #4).
+    ...AUTOMATION_ALERT_KINDS,
   ];
   for (const kind of written) {
     assert.ok(DECISION_META[kind], `${kind} is written but unmapped — add it to DECISION_META`);
+  }
+});
+
+test("every policy-pass alert kind attributes to automation (never UNKNOWN)", () => {
+  // aging_alert / stale_alert (evaluate_entry) + fairness_gate_blocked_reject (the
+  // fairness backstop) are automation-authored — they must fold into the auto count,
+  // not render an UNKNOWN badge and vanish from the rollup.
+  for (const kind of AUTOMATION_ALERT_KINDS) {
+    assert.equal(decisionAttribution(kind), "auto", `${kind} must attribute to automation`);
   }
 });
 

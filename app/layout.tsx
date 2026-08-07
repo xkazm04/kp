@@ -3,6 +3,11 @@ import { Bricolage_Grotesque, Fraunces, Inter } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { DevInspector } from "./_dev-inspector/DevInspector";
+import { Toaster } from "./_components/Toast";
+import { BrandStyle } from "./_components/BrandStyle";
+import { BrandProvider } from "./_components/BrandProvider";
+import { getBrand } from "./_lib/brand-store";
+import { DEFAULT_BRAND } from "./_lib/brand-config";
 import "./globals.css";
 
 // SHELL5 — `latin-ext` carries the Czech diacritics (ě š č ř ž ů, all over
@@ -113,17 +118,14 @@ export async function generateMetadata(): Promise<Metadata> {
 // string evaluated synchronously; a React effect would run after paint.
 // The marketing surfaces are hard-exempt (docs/DESIGN.md): a fixed Spark art
 // direction in literal hexes that must always render in the light register, so
-// the dark attribute is never set there regardless of the visitor's stored
-// choice or OS preference. Those surfaces are the public /about page (always)
-// and the home landing at '/', which in development is served to signed-out
-// visitors via the localStorage dev gate (app/_lib/auth/devAuth.ts) — so '/' is
-// treated as landing until the kp_dev_authed flag is set. (/landing now just
-// redirects to '/', so it no longer renders and needs no exemption.) Keep the
-// kp_dev_authed key in lockstep with devAuth.ts.
-const THEME_SKIP_DARK =
-  process.env.NODE_ENV !== "production"
-    ? `var p=location.pathname;if(p.indexOf("/about")===0||(p==="/"&&localStorage.getItem("kp_dev_authed")!=="1"))return;`
-    : `if(location.pathname.indexOf("/about")===0)return;`;
+// the dark attribute is never set there regardless of the visitor's stored choice
+// or OS preference. Those surfaces are the public /about page (always) and the
+// home landing at '/' whenever the visitor hasn't entered the workspace. "Entered"
+// is the readable kp_entered cookie (app/_lib/auth/session.ts) — set on sign-in,
+// cleared on sign-out — the SAME signal the '/' server gate uses (in open mode),
+// so this pre-paint choice can't disagree with what the server actually renders.
+// Env-agnostic now that '/' serves the landing in both dev and prod.
+const THEME_SKIP_DARK = `var p=location.pathname;if(p.indexOf("/about")===0||(p==="/"&&!/(?:^|; )kp_entered=1/.test(document.cookie)))return;`;
 const THEME_INIT = `(function(){try{${THEME_SKIP_DARK}var t=localStorage.getItem("kp-theme");if(t!=="dark"&&t!=="light")t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";if(t==="dark")document.documentElement.dataset.theme="dark"}catch(e){}})()`;
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -132,14 +134,32 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // catalog to every client component's useTranslations().
   const locale = await getLocale();
   const messages = await getMessages();
+  // White-label brand (E3/E-BRD-3), read ONCE here: the accent goes to BrandStyle
+  // (CSS-var override) and the whole config seeds BrandProvider so client components
+  // (both sidebars, candidate headers) render the name/logo with no fetch/flash. A
+  // brand-read fault must never break the shell.
+  let brand = DEFAULT_BRAND;
+  try {
+    brand = getBrand();
+  } catch (error) {
+    console.error("[layout] brand read failed", error);
+  }
   // suppressHydrationWarning: the theme script mutates <html data-theme> before
   // React hydrates, so the server/client attribute mismatch is expected.
   return (
     <html lang={locale} className={`${inter.variable} ${fraunces.variable} ${bricolage.variable}`} suppressHydrationWarning>
       <body className="font-sans">
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+        {/* White-label accent override (E3) — after globals.css so it wins by source order. */}
+        <BrandStyle accent={brand.accentColor} />
         <NextIntlClientProvider locale={locale} messages={messages}>
-          {children}
+          <BrandProvider brand={brand}>
+            {children}
+            {/* Feedback layer — one portal stack for the whole app (workspace AND
+                the public token pages), inside the intl provider so the dismiss
+                label localizes. See app/_components/Toast.tsx. */}
+            <Toaster />
+          </BrandProvider>
         </NextIntlClientProvider>
         {process.env.NODE_ENV === "development" && <DevInspector />}
       </body>

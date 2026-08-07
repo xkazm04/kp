@@ -121,7 +121,7 @@ class _PartialAnalyzeProvider:
     """Succeeds for the analyze step only; role/case design raise -> deterministic fallback."""
 
     def complete_json(self, prompt, system=None):
-        if "REFLECT it against the actual codebase" in prompt:
+        if "REFLECT it against the actual body of work" in prompt:  # analyze prompt (need-analysis-v3)
             return {
                 "realStack": ["Python"],
                 "coreResponsibilities": ["own ingest"],

@@ -20,7 +20,7 @@
 
 ## Observability — LightTrack (`pipeline/jobfit/llm/monitor.py`)
 
-LLM telemetry goes to **LightTrack** (sibling repo `../LightTrack` — the
+LLM telemetry goes to **LightTrack** (sibling repo `../tracklight` — the
 self-hosted LLM observability + scoring service; kp and LightTrack are
 developed together toward prod). The seam:
 
@@ -38,6 +38,14 @@ developed together toward prod). The seam:
   slicing is tag-filtered). The Claude CLI engine additionally carries
   `engine:claude_cli` (it reports as provider `anthropic` — it *is* Anthropic
   spend — so subscription vs metered stays separable).
+- The direct Gemini paths (`gemini.py` grounded/CV analysis and the opt-in
+  `embedding_bridge.py` embeddings) meter through the same
+  `monitor.emit_result` seam, so no Python provider call escapes it.
+- The one provider call that originates in **TypeScript**, not Python — the
+  github-analysis deep review (`app/api/github-analysis/route.ts`) — mirrors
+  the seam via `app/_lib/llm-lighttrack.ts`, the TS counterpart to `monitor.py`.
+  (The voice adapters mint credentials only; the model runs browser-side and is
+  metered by minutes, not tokens — it stays in the app's own cost ledger.)
 - Activation is double-gated (SDK importable AND `LIGHTTRACK_URL` set);
   emission is fire-and-forget on a daemon thread and exception-swallowed — an
   observability outage can never fail an LLM call.
@@ -160,7 +168,11 @@ envelopes, retries, and cost extraction):
 
 - `anthropic_api.py` — Anthropic Messages API (haiku-class default for the small reasoning
   calls; structured output via JSON schema).
-- `openai_api.py` — OpenAI chat/responses with JSON schema mode.
+- `openai_api.py` — OpenAI chat/responses with JSON schema mode. Also serves any
+  **OpenAI-compatible** endpoint via an optional `base_url` (vLLM / Ollama / LiteLLM /
+  in-VPC proxy) and runs keyless against them — the enterprise self-host path
+  (E-SH-5; `OPENAI_BASE_URL` env or `KP_LLM_CONFIG` `keys.openai.baseUrl`). See
+  docs/SELF_HOSTING.md §5.
 - `azure_openai.py` — same surface as OpenAI but config carries `endpoint`, `deployment`,
   `api_version` (from `provider_keys.meta_json`).
 - `gemini_api.py` — refactor of `gemini.py`: keep `_generate_with_retry`, `_usage_metadata`,

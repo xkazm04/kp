@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { TextArea } from "@/app/_components/TextArea";
 
 const OPTIONS = [
   { value: "advance", labelKey: "dispAdvance", on: "bg-moss text-white", off: "text-moss hover:bg-moss/10" },
@@ -88,7 +89,9 @@ export function DispositionEditor({
   // save (e.g. type a reason, then immediately close the report). Flush the latest value
   // on real unmount with a keepalive PATCH so the in-flight note survives navigation.
   const latest = useRef({ disposition, note });
-  latest.current = { disposition, note };
+  useEffect(() => {
+    latest.current = { disposition, note };
+  }, [disposition, note]);
   useEffect(() => {
     return () => {
       const { disposition: d, note: n } = latest.current;
@@ -132,7 +135,7 @@ export function DispositionEditor({
         {error ? <span className="text-sm text-coral">{t("saveFailed")}</span> : null}
       </div>
       {disposition ? (
-        <textarea
+        <TextArea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           onBlur={() => {
@@ -140,7 +143,8 @@ export function DispositionEditor({
           }}
           rows={2}
           placeholder={t("notePlaceholder")}
-          className="focus-ring mt-2 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+          sizeVariant="sm"
+          className="mt-2"
         />
       ) : null}
     </div>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams, type TabScopedParamKey, type WorkspaceTabId } from "@/app/features/tabs";
+import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
 
 // c91ec8b1 — the job modal's mission-control strip: this role's lifecycle as
 // live counts, each segment deep-linking to the tab that owns it. The chain it
@@ -67,7 +68,7 @@ export function JobLifecycleStrip({ jobId, jobTitle }: { jobId: string; jobTitle
   const toSchedule = active.filter((e) => e.approvalKind === "calendar").length;
   const offersOut = active.filter((e) => e.stage === "Offer").length;
   const hired = (entries ?? []).filter((e) => e.stage === "Hired").length;
-  const jdSlug = jobId.startsWith("jd-") ? jobId.slice(3) : null;
+  const jdSlug = jdSlugOfJobId(jobId);
 
   const segs: (Seg | null)[] = [
     jdSlug ? { key: "jd", label: t("jd"), href: `/jds/${encodeURIComponent(jdSlug)}` } : null,

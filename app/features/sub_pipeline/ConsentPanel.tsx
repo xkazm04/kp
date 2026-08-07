@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import type { ConsentStatus } from "@/app/_lib/consent";
 
 type ConsentView = {
@@ -23,6 +24,9 @@ type ConsentView = {
 export function ConsentPanel({ entryId }: { entryId: string }) {
   const t = useTranslations("pipeline.drawer.consent");
   const locale = useLocale();
+  // REC-10 — "Expiry reminder sent" is only claimed when a relay can deliver
+  // one; without it the reminder is a terminal local-outbox row.
+  const relayConfigured = useDeliveryCapability();
   const [view, setView] = useState<ConsentView | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -67,7 +71,7 @@ export function ConsentPanel({ entryId }: { entryId: string }) {
   const eventLabels: Record<string, string> = {
     granted: t("event.granted"),
     renewed: t("event.renewed"),
-    expiring_notified: t("event.expiring_notified"),
+    expiring_notified: relayConfigured === false ? t("event.expiring_notified_queued") : t("event.expiring_notified"),
     expired: t("event.expired"),
     anonymized: t("event.anonymized"),
     erasure_requested: t("event.erasure_requested"),

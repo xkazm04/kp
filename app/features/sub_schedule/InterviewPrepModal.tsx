@@ -10,6 +10,9 @@ import type { RunOfShow } from "@/app/_lib/run-of-show";
 import type { InterviewPrepProgress } from "@/app/_lib/interview-prep";
 import { Modal } from "@/app/_components/Modal";
 import { Meter } from "@/app/_components/Meter";
+import { Checkbox } from "@/app/_components/Checkbox";
+import { TextInput } from "@/app/_components/TextInput";
+import { TextArea } from "@/app/_components/TextArea";
 import { PrepSourceBadge, isPrepFallback } from "@/app/_components/Badge";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
@@ -329,14 +332,13 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                 return (
                   <li key={key} className={`rounded-md border p-2.5 transition-colors ${on ? "border-moss/40 bg-moss/5" : "border-stone-200"}`}>
                     <label className="flex cursor-pointer items-start gap-2.5">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={on}
                         onChange={(e) => {
                           markEdited();
                           setChecked((s) => ({ ...s, [key]: e.target.checked }));
                         }}
-                        className="mt-0.5 h-4 w-4 shrink-0 accent-coral"
+                        className="mt-0.5"
                       />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-baseline justify-between gap-2">
@@ -368,14 +370,13 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                   return (
                     <li key={key}>
                       <label className="flex cursor-pointer items-start gap-2 text-sm text-ink">
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={Boolean(checked[key])}
                           onChange={(e) => {
                             markEdited();
                             setChecked((s) => ({ ...s, [key]: e.target.checked }));
                           }}
-                          className="mt-0.5 h-4 w-4 shrink-0 accent-coral"
+                          className="mt-0.5"
                         />
                         <span className={checked[key] ? "text-steel line-through" : ""}>{it}</span>
                       </label>
@@ -393,7 +394,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
             <label htmlFor="prep-interviewer" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
               <UserRound size={13} /> {t("interviewer")}
             </label>
-            <input
+            <TextInput
               id="prep-interviewer"
               type="text"
               value={interviewer}
@@ -402,7 +403,8 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
                 setInterviewer(e.target.value);
               }}
               placeholder={t("interviewerPlaceholder")}
-              className="focus-ring mt-1.5 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+              sizeVariant="sm"
+              className="mt-1.5"
             />
           </section>
 
@@ -412,7 +414,7 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
             <label htmlFor="prep-notes" className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
               <NotebookPen size={13} /> {t("interviewerNotes")}
             </label>
-            <textarea
+            <TextArea
               id="prep-notes"
               value={notes}
               onChange={(e) => {
@@ -421,7 +423,8 @@ export function InterviewPrepModal({ entry, onClose }: { entry: SchedEntry; onCl
               }}
               rows={3}
               placeholder={t("notesPlaceholder")}
-              className="focus-ring mt-1.5 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+              sizeVariant="sm"
+              className="mt-1.5"
             />
           </section>
 

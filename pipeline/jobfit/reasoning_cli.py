@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 
 from ._cli import configure_stdio, emit_error, load_candidate_arg, load_jobs_arg
-from .llm import resolve_provider
+from .llm import emit_deterministic, resolve_provider
 from .match_reasoning import REASONING_PROMPT_VERSION, generate
 from .matching import score_job
 
@@ -58,6 +58,10 @@ def main(argv: list[str] | None = None) -> int:
         if provider is not None and not provider.available():
             provider = None
         reasoning, source = generate(candidate, job, m, lang=lang, provider=provider)
+        if source == "deterministic":
+            # Keyless/failed fallback served — record it in the usage ledger so
+            # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG).
+            emit_deterministic("match_reasoning")
     except Exception as exc:
         return emit_error(exc)
 

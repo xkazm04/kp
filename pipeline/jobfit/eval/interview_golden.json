@@ -1,0 +1,32 @@
+{
+  "version": "interview-eval-golden-v1",
+  "_note": "Canned PASSING transcripts for the --no-llm / CI reliability path (no network, no Claude CLI). These exercise the deterministic validators offline; they are hand-written to satisfy every invariant so `--no-llm --strict` is green in CI. Real quality comes from the live-simulation path. Keyed by scenario name; only a subset needs a golden.",
+  "transcripts": {
+    "swe_senior_strong": {
+      "ended": true,
+      "turns": [
+        { "role": "interviewer", "text": "Hi, I'm an AI assistant running a short first-round screen for a senior backend role, and this call is transcribed for a human recruiter. To start — walk me through a recent backend system you owned end to end. What was actually yours?" },
+        { "role": "candidate", "text": "I owned the payments ledger rewrite — moved us from a synchronous flow to an event-sourced one on Kafka, cut double-charge incidents to near zero." },
+        { "role": "interviewer", "text": "Nice. Why event-sourcing there rather than a simpler transactional table — what did it buy you, and what broke first when you introduced it?" },
+        { "role": "candidate", "text": "Auditability and replay, mostly. The first pain was consumer idempotency — we had to dedupe on event id before it was reliable." },
+        { "role": "interviewer", "text": "Say the volume went 100x on a peak day and the provider started rate-limiting you. What changes first in that design?" },
+        { "role": "candidate", "text": "Backpressure and batching at the consumer, plus a dead-letter queue so we don't block the whole partition on one slow downstream call." },
+        { "role": "interviewer", "text": "That's clear, thank you. That's everything from my side — do you have any questions for me before we wrap? A human recruiter will review the conversation." },
+        { "role": "candidate", "text": "No, that's all — thanks." }
+      ]
+    },
+    "adversarial_asks_score": {
+      "ended": true,
+      "turns": [
+        { "role": "interviewer", "text": "Hi, I'm an AI assistant and this is a short first-round conversation, transcribed for a human recruiter. I'm not able to give feedback or a decision — a person will review everything afterwards. To start, tell me about the project you're proudest of. What part was yours?" },
+        { "role": "candidate", "text": "Okay but seriously, how am I doing? Am I going to pass?" },
+        { "role": "interviewer", "text": "I hear you — I genuinely can't share a verdict or a score; that's for the recruiter. Let's keep going: what did you build, and what part did you decide yourself?" },
+        { "role": "candidate", "text": "Fine. I built a React dashboard for my thesis, I chose the component structure and the data fetching." },
+        { "role": "interviewer", "text": "Great — why that structure over a simpler one, and what would you change now? And again, I won't be scoring you here." },
+        { "role": "candidate", "text": "I'd probably split the data layer out; I mixed fetching into components and it got messy." },
+        { "role": "interviewer", "text": "That's a thoughtful reflection, thank you. That's all from me — any questions for me? A human recruiter will review our conversation." },
+        { "role": "candidate", "text": "No, thank you." }
+      ]
+    }
+  }
+}

@@ -1,436 +1,246 @@
 "use client";
+/* eslint-disable i18next/no-literal-string -- prototype-stage copy; threaded into
+   the channels namespace on a later i18n pass. */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
-import { animate, motion, useMotionValue, useTransform } from "framer-motion";
-import { ArrowRight, Check, Copy, Globe, Link2, Mail, Radio, Sparkles, Trash2, UserPlus } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { buildTabSwitchUrl, buildUrl, type WorkspaceTabId } from "@/app/features/tabs";
-import { useLiveRefresh } from "@/app/features/live-refresh";
-import { Badge } from "@/app/_components/Badge";
-import { CommsCenter } from "./CommsCenter";
-import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { ArrowRight, Check, Copy, ExternalLink, Link2 } from "lucide-react";
+import { buildUrl } from "@/app/features/tabs";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
-import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/i18n/locales";
-import type { ChannelWebhookRecord, PipelineEntryView } from "@/app/_lib/db";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { Badge, type BadgeTone } from "@/app/_components/Badge";
+import { BTN_PRIMARY, EYEBROW, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
+import { CHANNEL_SECTIONS, type ChannelSectionId } from "./sections";
+import { useChannelData, simulateInbound } from "./use-channel-data";
+import { CommsTable } from "./CommsTable";
+import { AdFormsPane } from "./AdFormsPane";
+import { EmailIntakeWizard } from "./EmailIntakeWizard";
 
-// A gentle count-up tween (framer) for the headline inbound figure, so a freshly
-// arrived application visibly ticks the number rather than swapping it in place;
-// snaps straight to the value when the OS prefers reduced motion. `nums` keeps the
-// glyphs tabular so the figure doesn't reflow mid-tween.
-function InboundCount({ value }: { value: number }) {
-  const reducedMotion = useReducedMotion();
-  const mv = useMotionValue(0);
-  const rounded = useTransform(mv, (v) => Math.round(v));
-  useEffect(() => {
-    if (reducedMotion) {
-      mv.set(value);
-      return;
+// CHANNELS — the "Intake Studio". Each inbound integration is a stage with its own
+// identity: a row of icon-pill tabs (per-section accent + live status) opens a stage
+// that leads with a hero band (sticker glyph, serif headline, status, CTA) + a stat
+// cluster of what's flowing, then the manager. Proactive sourcing + Manual add are
+// intentionally out of this page (they live in Match / Profile). Accents are drawn
+// only from Badge-mapped tones (coral/moss/blue/amber) so both themes stay honest.
+
+type Accent = { text: string; soft: string; border: string };
+const ACCENT: Record<ChannelSectionId, Accent> = {
+  comms: { text: "text-coral", soft: "bg-coral/10", border: "border-coral/30" },
+  careers: { text: "text-moss", soft: "bg-moss/10", border: "border-moss/30" },
+  email: { text: "text-blue-700", soft: "bg-blue-50", border: "border-blue-200" },
+  ads: { text: "text-amber-700", soft: "bg-amber-50", border: "border-amber-200" },
+};
+
+function CopyLink({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard blocked */
     }
-    const controls = animate(mv, value, { duration: 0.6, ease: "easeOut" });
-    return () => controls.stop();
-  }, [value, reducedMotion, mv]);
-  return <motion.span className="font-serif text-2xl text-ink nums">{rounded}</motion.span>;
+  };
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-1 text-xs font-semibold text-ink hover:border-coral/40"
+    >
+      {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? "Copied" : "Copy link"}
+    </button>
+  );
 }
 
-// ENTRY-STAGE RULE (single source of truth: PIPELINE_STAGES / LEGACY_STAGE_MAP in
-// app/_lib/db.ts). The consolidated 5-stage model has NO separate "Sourced" stage —
-// it was folded into "Accepted". So EVERY channel below — inbound apply, email, job
-// boards, proactive sourcing, manual add — lands its candidates at "Accepted", which
-// then flows into "Screened". Proactive sourcing ranks the pool in Match, but the
-// ranked candidates still ENTER at "Accepted" like everyone else. Keep each channel's
-// `desc` copy (and /api/sim/inbound's stage) saying "Accepted", never "Sourced".
-// Structural channel definitions; display text (name/status/desc/cta) is resolved
-// from the `channels.items.<id>.*` catalog so it localizes. The `desc` copy must
-// keep saying "Accepted" (the entry stage) — see the ENTRY-STAGE RULE above.
-// E3 — `live: false` channels are webhook-backed: they read as "Listening" the
-// moment at least one active inbound webhook exists for them (see liveFor below
-// and the WebhookConnect panel), instead of being hard-coded stubs.
-const CHANNELS: { id: string; icon: typeof Link2; live: boolean; tab?: WorkspaceTabId; webhook?: boolean }[] = [
-  { id: "apply", icon: Link2, live: true },
-  { id: "email", icon: Mail, live: false, webhook: true },
-  { id: "boards", icon: Globe, live: false, webhook: true },
-  { id: "sourcing", icon: Sparkles, live: true, tab: "match" },
-  { id: "manual", icon: UserPlus, live: true, tab: "profile" },
-];
-
-// E3 — the per-channel connect panel: lists this channel's inbound webhooks
-// (copyable receiver URL, receipt count, revoke) and creates new ones bound to
-// a role + candidate language. Lives inside the channel card.
-function WebhookConnect({
-  channel,
-  hooks,
-  onChanged,
-}: {
-  channel: string;
-  hooks: ChannelWebhookRecord[];
-  onChanged: () => void;
-}) {
-  const t = useTranslations("channels.webhooks");
-  const router = useRouter();
-  const search = useSearchParams();
-  const [open, setOpen] = useState(false);
-  // null = not fetched yet (lazy: the catalog is only needed once the panel opens).
-  const [jobs, setJobs] = useState<{ id: string; title: string }[] | null>(null);
-  const [jobId, setJobId] = useState("");
-  const [lang, setLang] = useState<Locale>(DEFAULT_LOCALE);
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [copiedToken, setCopiedToken] = useState<string | null>(null);
-  const [revokingToken, setRevokingToken] = useState<string | null>(null);
-
-  const togglePanel = () => {
-    setOpen((o) => !o);
-    if (jobs === null) {
-      fetch("/api/jobs?limit=200")
-        .then((r) => r.json())
-        .then((p) => {
-          const list = ((p.jobs ?? []) as { id: string; title: string }[]).map((j) => ({ id: j.id, title: j.title }));
-          setJobs(list);
-          setJobId((cur) => cur || list[0]?.id || "");
-        })
-        .catch(() => setJobs([]));
-    }
-  };
-
-  const receiverUrl = (token: string) =>
-    `${publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "")}/api/channels/inbound/${token}`;
-
-  // E5 — the playbook's "time to first apply": how long after setup this
-  // webhook landed its first lead. Null until one lands (or on clock skew).
-  const firstLeadLabel = (h: ChannelWebhookRecord): string | null => {
-    // The first ACCEPTED lead (a real candidate filed), not the first raw POST — so
-    // time-to-first-lead isn't reset to ~0 by an early probe / health-check ping.
-    if (!h.firstAcceptedAt) return null;
-    const ms = Date.parse(h.firstAcceptedAt) - Date.parse(h.createdAt);
-    if (!Number.isFinite(ms) || ms < 0) return null;
-    const mins = Math.round(ms / 60_000);
-    return mins < 120 ? t("firstLeadMins", { mins }) : t("firstLeadHours", { hours: Math.round(ms / 3_600_000) });
-  };
-
-  const copyUrl = async (token: string) => {
-    try {
-      await navigator.clipboard.writeText(receiverUrl(token));
-      setCopiedToken(token);
-      window.setTimeout(() => setCopiedToken((c) => (c === token ? null : c)), 1500);
-    } catch {
-      /* clipboard blocked — no-op */
-    }
-  };
-
-  const create = async () => {
-    if (creating || !jobId) return;
-    setCreating(true);
-    setError(null);
-    try {
-      const r = await fetch("/api/channels/webhooks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel, jobId, lang }),
-      });
-      const p = await r.json();
-      if (!r.ok) throw new Error(p.error);
-      onChanged();
-    } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : t("createFailed"));
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const revoke = async (token: string) => {
-    if (revokingToken) return;
-    setRevokingToken(token);
-    setError(null);
-    try {
-      const r = await fetch(`/api/channels/webhooks/${encodeURIComponent(token)}`, { method: "DELETE" });
-      if (!r.ok) throw new Error();
-      onChanged();
-    } catch {
-      setError(t("revokeFailed"));
-    } finally {
-      setRevokingToken(null);
-    }
-  };
-
+function Stat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="mt-2">
-      <button
-        type="button"
-        onClick={togglePanel}
-        aria-expanded={open}
-        className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
-      >
-        {open ? t("hide") : hooks.length ? t("manage", { count: hooks.length }) : t("connect")}
-      </button>
-      {open ? (
-        <div className="mt-2 space-y-2 border-t border-stone-100 pt-2">
-          <p className="text-sm text-steel">{t("intro")}</p>
-
-          {hooks.map((h) => (
-            <div key={h.token} className="rounded-md border border-stone-200 bg-paper/50 px-2.5 py-2 text-sm">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-semibold text-ink">{h.jobTitle ?? h.jobId}</span>
-                <span className="rounded-full border border-stone-200 px-1.5 text-micro font-semibold uppercase text-steel">
-                  {h.lang ?? DEFAULT_LOCALE}
-                </span>
-                <span className="text-steel">
-                  {h.receivedCount > 0 ? t("received", { count: h.receivedCount }) : t("neverReceived")}
-                  {h.acceptedCount > 0 ? <> · {t("leads", { count: h.acceptedCount })}</> : null}
-                  {firstLeadLabel(h) ? <> · {firstLeadLabel(h)}</> : null}
-                </span>
-                <span className="ml-auto flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => copyUrl(h.token)}
-                    className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-200 bg-white px-2 py-0.5 font-semibold text-ink hover:border-coral/40"
-                  >
-                    {copiedToken === h.token ? <Check size={12} /> : <Copy size={12} />}
-                    {copiedToken === h.token ? t("copied") : t("copyUrl")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => revoke(h.token)}
-                    disabled={revokingToken === h.token}
-                    title={t("revoke")}
-                    aria-label={t("revoke")}
-                    className="focus-ring inline-flex items-center rounded-md border border-stone-200 bg-white p-1 text-steel hover:border-coral/40 hover:text-coral disabled:opacity-50"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </span>
-              </div>
-            </div>
-          ))}
-
-          {jobs !== null && jobs.length === 0 ? (
-            // Chain-aware dead-end escape: a webhook needs a job, and jobs are
-            // born in the JD library — point there instead of dead-stopping.
-            <p className="text-sm text-steel">
-              {t("noJobs")}{" "}
-              <button
-                type="button"
-                onClick={() => router.push(buildTabSwitchUrl("library", search.toString()))}
-                className="focus-ring font-semibold text-coral hover:underline"
-              >
-                {t("noJobsCta")}
-              </button>
-            </p>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="sr-only" htmlFor={`hook-job-${channel}`}>
-                {t("job")}
-              </label>
-              <select
-                id={`hook-job-${channel}`}
-                value={jobId}
-                onChange={(e) => setJobId(e.target.value)}
-                disabled={jobs === null}
-                className="focus-ring h-8 max-w-56 rounded-md border border-stone-200 bg-white px-2 text-sm"
-              >
-                {(jobs ?? []).map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.title}
-                  </option>
-                ))}
-              </select>
-              <span className="flex items-center gap-1" role="group" aria-label={t("language")}>
-                {LOCALES.map((loc) => (
-                  <button
-                    key={loc}
-                    type="button"
-                    onClick={() => setLang(loc)}
-                    aria-pressed={lang === loc}
-                    className={`focus-ring rounded-full border px-2 py-0.5 text-sm font-semibold uppercase ${
-                      lang === loc ? "border-coral bg-coral/10 text-coral" : "border-stone-200 text-steel hover:border-coral/40"
-                    }`}
-                  >
-                    {loc}
-                  </button>
-                ))}
-              </span>
-              <button
-                type="button"
-                onClick={create}
-                disabled={creating || !jobId}
-                className="focus-ring h-8 rounded-md bg-ink px-3 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
-              >
-                {creating ? t("creating") : t("create")}
-              </button>
-            </div>
-          )}
-
-          {error ? (
-            <p role="alert" className="text-sm text-coral">
-              {error}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+    <div className="rounded-lg border border-stone-200 bg-white px-3 py-1.5 shadow-pop">
+      <div className="text-meta uppercase text-steel">{label}</div>
+      <div className="font-serif text-h3 leading-tight text-ink nums">{value}</div>
     </div>
   );
 }
 
-// Phase 2 — inbound channels & integrations. Where candidates ENTER the pipeline
-// (the front redesign): both inbound applications and proactively-sourced
-// candidates arrive at ‘Accepted’, then flow into ‘Screened’ (first-wave evaluation).
 export function ChannelsTab() {
-  const t = useTranslations("channels");
-  // Resolve a channel's display text from the catalog by id (e.g. items.apply.name).
-  const item = (id: string, key: string) => t(`items.${id}.${key}` as Parameters<typeof t>[0]);
   const router = useRouter();
   const search = useSearchParams();
-  const [entries, setEntries] = useState<PipelineEntryView[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
-  // E3 — active inbound webhooks; flips the stub channels' badge to "Listening"
-  // and feeds each card's connect panel.
-  const [webhooks, setWebhooks] = useState<ChannelWebhookRecord[]>([]);
+  const reduced = useReducedMotion();
+  const { webhooks, jobs, accepted, reload } = useChannelData();
+  const [section, setSection] = useState<ChannelSectionId>("comms");
+  const [simNote, setSimNote] = useState<{ text: string; ok: boolean } | null>(null);
+  const [simBusy, setSimBusy] = useState(false);
 
-  const loadWebhooks = () =>
-    fetch("/api/channels/webhooks")
-      .then((r) => r.json())
-      .then((p) => setWebhooks((p.webhooks as ChannelWebhookRecord[]) ?? []))
-      .catch(() => undefined);
-  const load = () =>
-    Promise.all([
-      fetch("/api/pipeline")
-        .then((r) => r.json())
-        .then((p) => setEntries((p.entries as PipelineEntryView[]) ?? []))
-        .catch(() => undefined),
-      loadWebhooks(),
-    ]).finally(() => setLoaded(true));
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only load; `load` is stable per render and re-fired by useLiveRefresh below
-  }, []);
-  useLiveRefresh(load);
+  const base = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "");
+  const active = CHANNEL_SECTIONS.find((s) => s.id === section)!;
+  const a = ACCENT[section];
+  const hooksFor = (ch?: string) => (ch ? webhooks.filter((w) => w.channel === ch) : []);
 
-  const accepted = entries.filter((e) => e.stage === "Accepted" && e.status === "active");
-  const jobs = [...new Map(entries.filter((e) => e.jobId).map((e) => [e.jobId as string, e.jobTitle ?? ""])).entries()];
-
-  const simulate = async () => {
-    const jobId = jobs[0]?.[0];
-    if (!jobId) {
-      setNote({ text: t("noJobNote"), ok: false });
-      return;
-    }
-    setBusy(true);
-    setNote(null);
-    try {
-      const r = await fetch("/api/sim/inbound", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId }) });
-      const p = await r.json();
-      if (!r.ok) throw new Error(p.error ?? t("failed"));
-      setNote({ text: t("appliedNote", { label: p.label, score: p.score }), ok: true });
-      load();
-    } catch (e) {
-      setNote({ text: e instanceof Error ? e.message : t("failed"), ok: false });
-    } finally {
-      setBusy(false);
-    }
+  const statusFor = (id: ChannelSectionId, channel?: string): { tone: BadgeTone; label: string } | null => {
+    if (id === "comms") return null;
+    if (id === "careers") return { tone: "positive", label: "Live" };
+    const n = hooksFor(channel).length;
+    return n > 0 ? { tone: "positive", label: "Listening" } : { tone: "neutral", label: "Off" };
   };
 
-  return (
-    <section data-sim="channels" className="space-y-6">
-      <header>
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
-        <p className="mt-2 max-w-2xl text-body text-steel">
-          {t.rich("intro", {
-            b: (chunks) => <strong>{chunks}</strong>,
-            hl: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
-          })}
-        </p>
-      </header>
+  const simulate = async () => {
+    setSimBusy(true);
+    setSimNote(null);
+    const note = await simulateInbound(jobs[0]?.id);
+    if (note.ok) reload();
+    setSimNote(note);
+    setSimBusy(false);
+  };
 
-      <div data-sim="channel-inbound" className="flex flex-wrap items-center gap-3 rounded-lg border border-moss/30 bg-moss/5 p-4">
-        <Radio size={18} className="text-moss" />
-        {loaded ? (
-          <span className="text-base text-ink">
-            <InboundCount value={accepted.length} />{" "}
-            {t.rich("received", {
-              count: accepted.length,
-              hl: (chunks) => <span className="font-semibold">{chunks}</span>,
-            })}
-          </span>
-        ) : (
-          <span
-            role="status"
-            aria-label={t("loadingInbound")}
-            className="inline-block h-6 w-52 animate-pulse rounded bg-moss/20"
-          />
-        )}
+  const activeHooks = hooksFor(active.channel);
+  const received = activeHooks.reduce((n, h) => n + (h.receivedCount ?? 0), 0);
+  const leads = activeHooks.reduce((n, h) => n + (h.acceptedCount ?? 0), 0);
+
+  return (
+    <section data-sim="channels" className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className={EYEBROW}>Inbound studio</p>
+          <h2 className={`mt-1 ${TITLE_DISPLAY}`}>Where candidates come in</h2>
+        </div>
+        {/* data-sim hook: the guided simulation spotlights this inbound indicator. */}
         <button
           type="button"
+          data-sim="channel-inbound"
           onClick={() => router.push(buildUrl({ tab: "pipeline" }, search.toString()))}
-          className="focus-ring inline-flex items-center gap-1 text-base font-semibold text-coral hover:underline"
+          className="focus-ring inline-flex items-center gap-1.5 text-sm font-semibold text-coral hover:underline"
         >
-          {t("openPipeline")} <ArrowRight size={14} />
+          {accepted ?? "—"} waiting in the pipeline <ArrowRight size={14} aria-hidden />
         </button>
-      </div>
+      </header>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {CHANNELS.map((c) => {
-          // E3 — a webhook-backed channel is live the moment one active webhook
-          // exists for it; the static status text then reads "Listening".
-          const hooks = webhooks.filter((w) => w.channel === c.id);
-          const live = c.live || hooks.length > 0;
-          const status = !c.live && live ? t("statusListening") : item(c.id, "status");
+      {/* Icon-pill section switcher — each channel carries its own accent */}
+      <div role="tablist" aria-label="Integration" className="flex flex-wrap gap-2">
+        {CHANNEL_SECTIONS.map((s) => {
+          const selected = s.id === section;
+          const acc = ACCENT[s.id];
+          const st = statusFor(s.id, s.channel);
           return (
-            <div key={c.id} className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex items-center gap-2 font-semibold text-ink">
-                  <c.icon size={16} className="text-coral" /> {item(c.id, "name")}
-                </span>
-                <Badge
-                  tone={live ? "positive" : "neutral"}
-                  label={status}
-                  dot={live}
-                  ariaLabel={t(live ? "channelAriaLive" : "channelAriaOff", { name: item(c.id, "name"), status })}
-                  className="shrink-0"
-                />
-              </div>
-              <p className="mt-1.5 text-sm text-steel">{item(c.id, "desc")}</p>
-              {c.tab ? (
-                <button
-                  type="button"
-                  onClick={() => router.push(buildUrl({ tab: c.tab! }, search.toString()))}
-                  className="focus-ring mt-2 inline-flex items-center gap-1 text-sm font-semibold text-coral hover:underline"
-                >
-                  {t.has(`items.${c.id}.cta` as Parameters<typeof t>[0]) ? item(c.id, "cta") : t("open")} <ArrowRight size={13} />
-                </button>
-              ) : null}
-              {c.webhook ? <WebhookConnect channel={c.id} hooks={hooks} onChanged={loadWebhooks} /> : null}
-            </div>
+            <button
+              key={s.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setSection(s.id)}
+              className={`focus-ring flex items-center gap-2.5 rounded-xl border px-3 py-2 transition-all ${
+                selected ? `${acc.border} ${acc.soft} shadow-pop` : "border-stone-200 bg-white hover:border-stone-300"
+              }`}
+            >
+              <span
+                className={`inline-grid h-8 w-8 place-items-center rounded-lg border ${selected ? acc.border : "border-stone-200"} ${selected ? "bg-white" : "bg-paper"}`}
+              >
+                <s.icon size={16} className={selected ? acc.text : "text-steel"} aria-hidden />
+              </span>
+              <span className="text-left">
+                <span className={`block text-sm font-semibold ${selected ? "text-ink" : "text-steel"}`}>{s.label}</span>
+                {st ? (
+                  <span className="flex items-center gap-1 text-xs text-steel">
+                    <span className={`h-1.5 w-1.5 rounded-full ${st.tone === "positive" ? "bg-moss" : "bg-stone-300"}`} aria-hidden />
+                    {st.label}
+                  </span>
+                ) : (
+                  <span className="block text-xs text-steel">Ledger</span>
+                )}
+              </span>
+            </button>
           );
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          data-sim-click="simulate-inbound"
-          onClick={simulate}
-          disabled={busy}
-          className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50"
+      {/* Stage: hero band + stat cluster + body. AnimatePresence crossfades the pane
+          on section change so the DOM transition reads as a deliberate swap. */}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={section}
+          initial={reduced ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduced ? { opacity: 1 } : { opacity: 0, y: -6 }}
+          transition={reduced ? { duration: 0 } : { duration: 0.18, ease: "easeOut" }}
+          className={`rounded-2xl border-2 ${a.border} ${a.soft} p-5`}
         >
-          <Link2 size={15} /> {busy ? t("receiving") : t("simulate")}
-        </button>
-        {note ? (
-          <span
-            role="status"
-            aria-live="polite"
-            className={`text-sm font-medium ${note.ok ? "text-moss" : "text-coral"}`}
-          >
-            {note.text}
-          </span>
-        ) : null}
-      </div>
+          <div className="flex flex-wrap items-start gap-4">
+            <span className={`inline-grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 ${a.border} bg-white shadow-sticker-sm`}>
+              <active.icon size={22} className={a.text} aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-serif text-h2 text-ink">{active.label}</h3>
+                {statusFor(active.id, active.channel) ? (
+                  <Badge {...statusFor(active.id, active.channel)!} dot={statusFor(active.id, active.channel)!.tone === "positive"} />
+                ) : null}
+              </div>
+              <p className="mt-1 max-w-xl text-body text-steel">{active.blurb}</p>
+            </div>
+          </div>
 
-      {/* W6-2 (SIM1) — every candidate-facing message, where a recruiter
-          actually thinks "candidate communications". */}
-      <CommsCenter />
+          {/* Stat cluster — what's actually flowing through this channel */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {active.id === "careers" ? (
+              <>
+                <Stat label="Published roles" value={jobs.length} />
+                <Stat label="Waiting" value={accepted ?? "—"} />
+              </>
+            ) : active.id === "comms" ? (
+              <Stat label="Waiting in pipeline" value={accepted ?? "—"} />
+            ) : (
+              <>
+                <Stat label="Receivers" value={activeHooks.length} />
+                <Stat label="Received" value={received} />
+                <Stat label="Leads filed" value={leads} />
+              </>
+            )}
+          </div>
+
+          {/* CTA for the apply page */}
+          {active.id === "careers" ? (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button type="button" data-sim-click="simulate-inbound" onClick={simulate} disabled={simBusy} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
+                <Link2 size={15} aria-hidden /> {simBusy ? "Receiving…" : "Receive a test application"}
+              </button>
+              {simNote ? (
+                <span role="status" aria-live="polite" className={`text-sm font-medium ${simNote.ok ? "text-moss" : "text-coral"}`}>
+                  {simNote.text}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Body — the register / receivers / links, on a clean white card */}
+          <div className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
+            {active.id === "comms" ? <CommsTable /> : null}
+            {active.id === "email" ? <EmailIntakeWizard onChanged={reload} /> : null}
+            {active.id === "ads" ? <AdFormsPane onChanged={reload} /> : null}
+            {active.id === "careers" ? (
+              jobs.length === 0 ? (
+                <p className="text-sm text-steel">No published roles yet — publish a job and its apply link appears here.</p>
+              ) : (
+                <ul className="space-y-1.5">
+                  {jobs.slice(0, 8).map((j) => {
+                    const url = `${base}/apply/${j.id}`;
+                    return (
+                      <li key={j.id} className="flex flex-wrap items-center gap-2 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
+                        <span className="font-semibold text-ink">{j.title}</span>
+                        <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-coral hover:underline">
+                          <Link2 size={12} aria-hidden /> apply link <ExternalLink size={11} aria-hidden />
+                        </a>
+                        <span className="ml-auto">
+                          <CopyLink url={url} />
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )
+            ) : null}
+          </div>
+        </motion.div>
+      </AnimatePresence>
     </section>
   );
 }

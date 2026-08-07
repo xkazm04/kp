@@ -1,0 +1,185 @@
+{
+  "job": {
+    "id": "cal-032",
+    "title": "Career Advisor (Career Coach)",
+    "company": "Rora (Formerly Ralph)",
+    "role_family": "hr",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Tech compensation benchmarking data and tools (Levels.fyi, Pave, Radford, market salary databases) used to anchor a client's target",
+      "Equity instruments and leveling fluency — RSUs, options, vesting schedules, refreshers, sign-on/relocation, and company leveling frameworks",
+      "Offer letters and total-comp breakdowns as the primary documents the role reads, models, and rewrites",
+      "Negotiation playbooks, counter-offer scripts, and email/written drafts produced on the client's behalf",
+      "Insider knowledge of recruiting workflows, ATS pipelines, and how compensation teams/recruiters actually operate and set bands",
+      "A client CRM / case-management system to track engagements, offers, and outcomes",
+      "Video-call coaching as the core delivery surface for 1:1 advisory sessions",
+      "Self-knowledge / coaching practice (the JD explicitly weights inner work and the 'legacy' reflection) as a working instrument, not just a value"
+    ],
+    "coreResponsibilities": [
+      "Advise clients through live job offers, promotions, internal moves, and project negotiations to the best decision for their career",
+      "Build the negotiation strategy and coach or draft the counter — converting market data and leverage into concrete asks and terms",
+      "Correct the worker–employer information asymmetry by translating insider recruiting and comp-team knowledge to the candidate's side of the table",
+      "Hold clients emotionally through high-stakes, anxiety-laden decisions — the 'spiritual capitalist' framing makes this an explicit part of the job, not a soft skill",
+      "Support the nonprofit arm's mission of educating underserved workers who don't know they can negotiate",
+      "Contribute to client acquisition and retention — implied by a profitable advisory business and the 'bonus: sales' line, despite being underweighted in the JD"
+    ],
+    "statedVsRealGaps": [
+      "The title and framing ('career coaching', 'passion', 'deep understanding of yourself') read as soft life-coaching, but the qualification bar — technical recruiting, compensation teams, or tech-industry management — reveals the real role is an ex-insider who flips to the worker's side. The hard quant skill (modeling equity, leveling, multi-offer leverage) is underdescribed relative to the spiritual framing.",
+      "The experience requirement is redacted in the source ('you have  years of experience'), so the actual seniority bar is undefined. A medior target is an inference, not something the JD states; this is the single biggest calibration gap.",
+      "Sales is listed only as a 'bonus,' but in a profitable, small-team advisory business, client acquisition and retention are likely closer to core than the JD admits — under-stating it risks hiring strong advisors who can't sustain a book.",
+      "Domain scope is implicitly tech-industry-bound (the entire qualification path runs through tech recruiting/comp), yet 'workers' and 'millions of professionals' imply a broader market the nonprofit arm targets — advisors trained only on tech comp may not generalize.",
+      "Mission language (democratize negotiation, nonprofit) sits alongside 'we are a profitable business' and 'spiritual capitalists' — a real tension the role-holder must hold daily, not a contradiction the JD resolves.",
+      "Several concrete facts are blanked (years, nonprofit launch year, team size, website), so parts of the need are asserted but not evidenced."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Mis-leveling: with the years-of-experience figure redacted, recruiters can't calibrate seniority — easy to over- or under-hire for a role where comp expertise depth is the differentiator.",
+      "Values-over-competence screening: the 'legacy' essay and 'deep understanding of yourself' criteria can select warm, mission-aligned coaches who can't actually move a number in a real negotiation.",
+      "Conflict-of-interest and trust: advising workers against employers using insider recruiter knowledge is reputationally sensitive; mishandling erodes the brand the whole business rests on.",
+      "Domain narrowness: tech-only background may not transfer to non-tech clients the nonprofit arm aims to serve.",
+      "Revenue dependency understated: treating sales as a 'bonus' risks an advisory team that delivers well but doesn't grow or retain the client base.",
+      "Emotional labor and throughput: high-stakes client outcomes plus a deliberately slow, no-Friday-meetings, weekend-protected culture cap capacity — burnout and scale limits are real constraints, not perks.",
+      "Small, two-office team (LA + Vancouver) means the role almost certainly wears extra hats (content, intake, ops) beyond pure advising."
+    ],
+    "reflection": "Reflected against its own materials rather than a codebase (none exists, which is normal for this advisory role), the need is coherent but mis-labeled. Rora is selling expert, adversarial-when-needed compensation negotiation, and the real role is a former tech recruiter or comp-team insider who now represents the worker — someone who can model equity and leveling, read an offer letter for leverage, and coach an anxious client to a concrete counter. The JD's softer 'career coach / spiritual capitalist' framing accurately captures the emotional and ethical posture but undersells the hard, tech-specific comp expertise that actually produces results, and it leaves the seniority bar undefined by redacting the years figure. Complexity is genuinely at the top of medium: no scaled systems, but real domain mastery, high-stakes outcomes, an adversarial counterparty, and heavy emotional load. The principal hiring risks are calibrating level against a blanked requirement, letting mission-fit screening crowd out demonstrable negotiation competence, and underweighting the sales/retention reality that keeps a profitable advisory business alive.",
+    "confidence": 0.63,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Career Advisor (Career Coach)",
+    "seniority": "medior",
+    "roleFamily": "hr",
+    "mustHaves": [
+      "Several years of hands-on experience in technical recruiting, on a compensation team, or managing teams in the tech industry — i.e. a former insider to how companies hire and set pay, who can now flip to the worker's side of the table",
+      "Working fluency in tech total-compensation structure: base, bonus, equity (RSUs, options, vesting schedules, refreshers), sign-on/relocation, and how company leveling frameworks map to bands",
+      "Ability to read, model, and rewrite offer letters and total-comp breakdowns — turning market data and a client's leverage into concrete, defensible asks and terms",
+      "Compensation benchmarking judgment using market data and tools (e.g. Levels.fyi, Pave, Radford, salary databases) to anchor a client's target credibly",
+      "Insider understanding of recruiting workflows, ATS pipelines, and how recruiters/comp teams actually operate, so the advisor can correct the worker–employer information asymmetry",
+      "Negotiation strategy and execution: design the counter, then coach the client to deliver it or draft the scripts and written messages on their behalf",
+      "Genuine career-coaching ability — the person friends turn to for job and career decisions — including holding clients emotionally through high-stakes, anxiety-laden moments",
+      "Clear, persuasive written and verbal communication, with 1:1 video coaching as the core delivery surface",
+      "Demonstrated self-awareness and investment in inner work (the JD weights this explicitly and ends on a 'legacy' reflection) — treated as a working instrument of the coaching, not a slogan"
+    ],
+    "niceToHaves": [
+      "Sales experience — client acquisition and retention matter more in a small profitable advisory business than the JD's 'bonus' framing implies",
+      "Comp and negotiation experience beyond tech, to serve the broader 'millions of workers' the nonprofit arm targets",
+      "Comfort with a client CRM / case-management system to track engagements, offers, and outcomes",
+      "Alignment with the nonprofit / 'democratize negotiation' mission and any experience educating underserved workers",
+      "Resonance with the 'spiritual capitalist' culture (no-Friday-meetings, grow-slower-and-closer pace)"
+    ],
+    "responsibilities": [
+      "Advise clients through live job offers, promotions, internal moves, and project negotiations to the best decision for their career",
+      "Build the negotiation strategy and coach or draft the counter — converting market data and leverage into specific asks and terms",
+      "Translate insider recruiting and compensation-team knowledge to the candidate's side to even out the information asymmetry",
+      "Hold clients emotionally through high-stakes, high-anxiety decisions as an explicit part of the work",
+      "Support the nonprofit arm's mission of educating workers who don't know they can negotiate",
+      "Contribute to client acquisition and retention so the advisory book stays sustainable"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Counter a Live Offer: Reprice, Re-level, and Coach Maya Through Northwind",
+    "brief": "You are the Career Advisor assigned to Maya, a client who just received a written offer for a Senior Product Manager role at Northwind (a late-stage private tech company) and has ~5 days to respond. The provided context fits this role directly, so you'll work the real materials a client hands you: an offer letter, a total-comp breakdown, a market-benchmark export, intake notes from the discovery call, the company's leveling framework, and one off-the-record note from a recruiter contact. Your job is the actual advisory work — figure out what the offer is truly worth, decide where the leverage is, build the ask, draft the counter Maya will actually send, and plan how you'll hold her through the conversation. Maya is capable but anxious and is leaning toward just accepting because she likes the team. The packet is deliberately the way real client packets are: the headline numbers are framed to flatter the offer, the leveling is not as settled as the title suggests, and Maya's own objective is not crisply stated. Treat clarifying assumptions, separating one-time from recurring money, and pricing equity on a defensible basis as the core of the work, not housekeeping. Timebox is 1.5 hours — go for depth on the few decisions that move the outcome, not coverage of every line item. Keep a short decisions log as you go; it's normal practice and it's how we review each other's calls.",
+    "repoSeed": "A client case packet for Maya's Northwind offer: (1) offer_letter_northwind.pdf — the written offer, titled 'Senior Product Manager (L5)', base $170,000, '$320,000 in equity', $40,000 sign-on bonus, standard benefits, 5-day response window, plus a one-paragraph scope-of-role description. (2) total_comp_breakdown.xlsx — Northwind's recruiter-supplied summary leading with 'Year-1 total compensation: $290,000'; equity shown as '$80,000/yr' valued at the $25.00/share last-preferred-round price; vesting noted in fine print as a 1-year cliff then monthly over 4 years; the $40k sign-on folded into the year-1 total. (3) market_benchmarks.csv — a Levels.fyi/Pave-style export for comparable Senior PM and the next level up at peer companies (base, equity/yr, sign-on percentiles), plus Northwind's most recent 409A common-share price of $9.00. (4) intake_call_notes.md — discovery-call notes: Maya 'doesn't want to leave money on the table,' 'really likes the team and the manager,' 'is anxious and might just accept to avoid the friction,' competing situation unclear, current comp partially redacted, years-of-experience not stated. (5) leveling_framework_northwind.md — Northwind's published PM leveling rubric (L4/L5/L6) with scope, ownership, and base-band ranges per level. (6) insider_note.txt — an off-the-record line from a recruiter contact: 'For this level the base band tops out around $185k; comp team usually holds ~12% equity flex for candidates who push, and they fully expect one counter.'",
+    "tasks": [
+      "Reprice the offer. Using total_comp_breakdown.xlsx and market_benchmarks.csv, rebuild what Maya's Northwind offer is actually worth in steady state: separate one-time money from recurring, value the equity on a basis you can defend to a nervous client, and state the single anchor number you'd give Maya. Call out anything in the '$290,000 year-1 total comp' headline you would not repeat to her, and why.",
+      "Set the leveling and the strategy. Read leveling_framework_northwind.md against the scope paragraph in offer_letter_northwind.pdf and the intake notes; decide whether Maya is correctly leveled at L5. Then pick the ONE or TWO highest-leverage asks (level, base, equity, sign-on, start date, or terms) — for each, give the target number, the specific market evidence behind it, and the BATNA you're assuming. State, in one sentence, what you've decided Maya's primary objective is.",
+      "Draft the counter and the coaching. Write the actual counter Maya will use — an email or a live-call script, your choice — calibrated to the asks above. Then write a 5–8 line plan for the 1:1 video session: how you prepare an anxious client who is inclined to just accept, and how (or whether) you use the off-the-record line in insider_note.txt without exposing Maya or your source.",
+      "Keep a DECISIONS.md alongside your work. For every open call — which anchor number you chose, how you valued the equity, your leveling read, which asks you dropped and why, and how you handled the insider note — record what you chose, the alternative you rejected, and the one question you'd put to the Northwind recruiter or to Maya if you could ask right now."
+    ],
+    "coverProbes": [
+      {
+        "id": "equity-headline-revaluation",
+        "kind": "verification_trap",
+        "where": "total_comp_breakdown.xlsx '$290k year-1 total comp' and the '$80k/yr equity at $25.00 preferred price', versus the $9.00 409A common price in market_benchmarks.csv and the $40k one-time sign-on",
+        "reveals": "A naive, one-shot response anchors on the $290k headline and counters upward from it. A strong response recomputes steady-state comp — strips the one-time sign-on, reprices the equity off the 409A/common basis (or at least flags the preferred-price inflation) and accounts for the 1-year cliff — and realizes the recurring offer is far below the headline, which changes the entire counter.",
+        "decisionSpace": [
+          "Value equity at the $25 last-preferred price — optimistic, client-pleasing, but overstates real value and risks anchoring Maya to a number she may never realize",
+          "Value equity at the $9 409A/common price — conservative and defensible, but may underclaim genuine upside and feel deflating to the client",
+          "Present a downside-to-upside range with the basis stated, and coach Maya to the conservative end — most honest, but more to explain and requires holding her through the lower number"
+        ]
+      },
+      {
+        "id": "leveling-vs-title",
+        "kind": "legacy_trap",
+        "where": "leveling_framework_northwind.md compared against the scope-of-role paragraph in offer_letter_northwind.pdf and the unstated experience in intake_call_notes.md",
+        "reveals": "A naive response takes the 'Senior PM / L5' title at face value and negotiates only on base. A strong response actually reads the rubric, notices the described scope and ownership map to a higher band (or that the L5 base band has clear headroom above $170k), and makes leveling — not just the salary number — the real lever.",
+        "decisionSpace": [
+          "Push for an L6/level change up front — largest long-term upside but slower, riskier, and can stall an offer Maya already likes",
+          "Accept L5 and maximize base + equity to the top of the band — faster and lower-risk, but leaves the bigger title/scope value on the table",
+          "Accept the level now with a written 6-month re-leveling review as a term — a hedge that captures some upside while protecting the relationship, but depends on a soft future promise"
+        ]
+      },
+      {
+        "id": "undefined-client-objective",
+        "kind": "underspecified",
+        "where": "intake_call_notes.md — 'doesn't want to leave money on the table' but 'really likes the team' and 'might just accept to avoid the friction'; no clear priority, BATNA, or competing offer",
+        "reveals": "A naive response silently optimizes the total-comp number for everyone. A strong response notices the objective is genuinely undefined, names the assumption it's making (or flags it as the first thing to confirm with Maya), and lets that choice drive which asks to make and how aggressively — because the right move for 'max cash' differs sharply from 'don't blow up an offer I love'.",
+        "decisionSpace": [
+          "Optimize for cash now (base + sign-on) — concrete and easy to defend, but may underweight what Maya actually values and overexpose a relationship she prizes",
+          "Optimize for equity/long-term upside — fits a high-conviction client, but adds risk and anxiety for someone already inclined to just accept",
+          "De-risk: protect the relationship and the offer with one modest, high-confidence ask — lowest stress and high hit-rate, but likely leaves real money unclaimed"
+        ]
+      },
+      {
+        "id": "insider-note-ethics",
+        "kind": "ambiguity",
+        "where": "insider_note.txt — off-the-record recruiter intel on the ~$185k band cap and ~12% equity flex — and how it surfaces in Task 3's counter draft and coaching plan",
+        "reveals": "A naive response quotes the insider numbers straight into the counter to maximize pressure, exposing the source and Maya and trading on intel she shouldn't be seen to have. A strong response uses the intel privately to calibrate a defensible, independently-justifiable ask and/or coaches Maya to surface the same information openly, protecting both the source and the client's standing.",
+        "decisionSpace": [
+          "Cite the insider figures directly in the counter for maximum leverage — strongest short-term pressure, but burns the recruiter relationship and the trust the business rests on",
+          "Use the intel silently to set the ask at a defensible market-backed number, never quoting it — clean and safe, but forgoes some leverage and is harder for Maya to push on alone",
+          "Coach Maya to elicit the band/flex herself in conversation so the leverage is openly obtained — most durable and ethical, but slower and depends on Maya executing well live"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -3,7 +3,6 @@ import { listPipelineEvents, listPipelineEventsForEntry, listPipelineEventsSince
 import { toPublicPipelineEvent } from "@/app/_lib/pipeline-events-public";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // The Activity feed's poll contract (idea-85f043ea). The old shape — "the 40
 // newest rows, every poll" — silently LOST events: a burst (an automation pass

@@ -52,6 +52,20 @@ class KoFilterTest(unittest.TestCase):
         passed, _ = ko_filter(JUNIOR, job)
         self.assertTrue(passed)
 
+    def test_unclassified_archetype_not_seniority_blocked(self) -> None:
+        # A saved analysis matched without a detected v2 profile arrives as the
+        # "unknown" archetype. It must FAIL CLOSED on the seniority floor — i.e.
+        # NOT be auto-KO'd — unlike a classified BAU junior at the same level.
+        job = mkjob(seniority="senior", description="Seasoned engineer to own the platform.")
+        bau_junior = MatchCandidate(seniority="junior", languages=["English"], archetype="bau")
+        passed_bau, reasons_bau = ko_filter(bau_junior, job)
+        self.assertFalse(passed_bau)
+        self.assertTrue(any(r.key == "seniority" for r in reasons_bau))
+        unknown_junior = MatchCandidate(seniority="junior", languages=["English"], archetype="unknown")
+        passed_unknown, reasons_unknown = ko_filter(unknown_junior, job)
+        self.assertTrue(passed_unknown)
+        self.assertFalse(any(r.key == "seniority" for r in reasons_unknown))
+
     def test_medior_to_senior_allowed(self) -> None:
         cand = MatchCandidate(seniority="medior", languages=["English"])
         job = mkjob(seniority="senior", description="Owns a service.")
@@ -90,6 +104,23 @@ class KoFilterTest(unittest.TestCase):
         self.assertFalse(passed)
         self.assertTrue(any(r.key == "work_mode" for r in reasons))
 
+    def test_phantom_work_mode_does_not_ko_remote_candidate(self) -> None:
+        # An ad that states NO work mode: normalize_job stamps the DEFAULT_POLICY
+        # phantom "onsite" and records "work_mode" in defaulted_fields. A remote-only
+        # candidate must NOT be hard-KO'd on an assumption the ad never made — the
+        # phantom is treated as absent, exactly as campaign.py / the salary coach do.
+        job = mkjob(languages=["English"])  # no work_mode stated
+        self.assertIn("work_mode", job.defaulted_fields)  # a phantom, not a stated mode
+        self.assertEqual(job.work_mode, "onsite")
+        cand = MatchCandidate(seniority="senior", languages=["English"], preferred_work_modes=["remote", "hybrid"])
+        passed, reasons = ko_filter(cand, job)
+        self.assertTrue(passed)  # survives; not gated on an unstated mode
+        self.assertFalse(any(r.key == "work_mode" for r in reasons))
+        # A STATED onsite (not defaulted) still gates the same candidate.
+        stated = mkjob(work_mode="onsite", languages=["English"])
+        self.assertNotIn("work_mode", stated.defaulted_fields)
+        self.assertFalse(ko_filter(cand, stated)[0])
+
 
 class ScoringTest(unittest.TestCase):
     def test_skills_score_and_matched(self) -> None:
@@ -125,6 +156,26 @@ class ScoringTest(unittest.TestCase):
         job = mkjob(requirements=[{"skill": "Go", "kind": "must_have", "hardness": "prerequisite"}])
         _, _, missing, _ = score_skills(cand, job)
         self.assertIn("Go", missing)
+
+    def test_self_declared_exact_must_have_is_not_missing(self) -> None:
+        # An early-career candidate self-declares the role's EXACT must-have (Python).
+        # skill_match_score = 1.0 (exact) * 0.4 (self_declared provenance) = 0.4,
+        # below the 0.5 partial-match threshold — so it is not a "matched" partial —
+        # but the candidate DID name it, so it must NEVER read as an absent/missing
+        # must-have (which would emit "missing must-have: Python" and widen the band
+        # for the fairness-protected cohort). `missing` is reserved for a true zero.
+        cand = MatchCandidate(
+            skills=["Python"], seniority="junior", languages=["English"], provenance_default="self_declared"
+        )
+        job = mkjob(requirements=[{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}])
+        score, matched, missing, _strength = score_skills(cand, job)
+        self.assertNotIn("Python", missing)  # named -> never "missing"
+        self.assertNotIn("Python", matched)  # but below threshold -> not a matched partial either
+        self.assertAlmostEqual(score, 0.4, places=4)  # the provenance discount still lowers the sub-score
+        # A must-have the candidate makes NO claim to at all (best == 0.0) is still missing.
+        absent = mkjob(requirements=[{"skill": "Go", "kind": "must_have", "hardness": "prerequisite"}])
+        _, _, absent_missing, _ = score_skills(cand, absent)
+        self.assertIn("Go", absent_missing)
 
     def test_career_same_family_beats_different(self) -> None:
         same = score_career(SENIOR_PY, mkjob(role_family="software_engineering", seniority="senior"))
@@ -173,8 +224,10 @@ class ScorePersonalOverlapTest(unittest.TestCase):
 
     @staticmethod
     def _personal(skills: list[str], description: str) -> float:
-        # No job languages -> language coverage is a constant 1.0, isolating the
-        # 0.5 * overlap term so any phantom hit shows up directly in the score.
+        # No job languages -> language is not a signal, imputed NEUTRAL (0.5) rather
+        # than the old free full-credit 1.0, so personal = 0.5*0.5 + 0.5*overlap =
+        # 0.25 + 0.5*overlap. mkjob has 1 must-have, so the overlap denominator
+        # floors at 5; the overlap term is thus isolated as 0.25 + 0.5*(hits/5).
         cand = MatchCandidate(skills=skills, seniority="senior", languages=["English"])
         job = mkjob(languages=[], description=description)
         return score_personal(cand, job)
@@ -182,24 +235,66 @@ class ScorePersonalOverlapTest(unittest.TestCase):
     def test_short_tokens_do_not_match_as_substrings(self) -> None:
         # "go" in "good", "ai" in "training", "c" in "category" were all bogus
         # substring hits. Word-boundary matching (not the removed length guard)
-        # rejects them now: none is a standalone word -> pure 0.5 * lang_cov.
-        self.assertEqual(self._personal(["Go", "AI", "C"], "Good engineers training for any category."), 0.5)
+        # rejects them now: none is a standalone word -> 0 hits -> personal is the
+        # neutral-language floor 0.25 with no overlap credit.
+        self.assertEqual(self._personal(["Go", "AI", "C"], "Good engineers training for any category."), 0.25)
 
     def test_short_skill_matches_as_a_whole_word(self) -> None:
         # Regression for the fairness fix: short skill names (Go, SQL) used to be
         # dropped by a len>3 guard, so they never scored even against an ad built
         # around them. Now they match on word boundaries -> 2 of 5 overlap ->
-        # 0.5 * 1.0 + 0.5 * (2/5) = 0.7.
-        self.assertEqual(self._personal(["Go", "SQL", "Rust"], "Backend in Go and SQL."), 0.7)
+        # 0.25 + 0.5*(2/5) = 0.45.
+        self.assertEqual(self._personal(["Go", "SQL", "Rust"], "Backend in Go and SQL."), 0.45)
 
     def test_substring_inside_a_longer_word_is_not_a_hit(self) -> None:
-        # "Rust" (len 4, survives the guard) must not match the "rust" in "trust".
-        self.assertEqual(self._personal(["Rust"], "A team you can trust."), 0.5)
+        # "Rust" (len 4, survives the guard) must not match the "rust" in "trust":
+        # 0 hits -> the neutral-language floor 0.25, no overlap credit.
+        self.assertEqual(self._personal(["Rust"], "A team you can trust."), 0.25)
 
     def test_whole_word_skill_still_counts(self) -> None:
         # The same skill as a standalone word is a genuine overlap hit: one of five
-        # -> overlap 0.2 -> 0.5 * 1.0 + 0.5 * 0.2.
-        self.assertEqual(self._personal(["Rust"], "We build core services in Rust."), 0.6)
+        # -> overlap 0.2 -> 0.25 + 0.5*0.2 = 0.35.
+        self.assertEqual(self._personal(["Rust"], "We build core services in Rust."), 0.35)
+
+
+class ScorePersonalCalibrationTest(unittest.TestCase):
+    """The overlap denominator scales with the ad's must-have count (no fixed /5.0
+    saturation) and an ad that states no language requirement imputes a NEUTRAL
+    language coverage instead of a free full-credit 1.0."""
+
+    def test_overlap_desaturates_beyond_five_hits(self) -> None:
+        # A keyword-rich ad (10 must-haves -> denominator 10) must SEPARATE a
+        # candidate overlapping 8 tokens from one overlapping 5 — the old /5.0 cap
+        # maxed BOTH at overlap 1.0 (personal 0.9-vs-0.9 tie). The must-have skill
+        # names only set the denominator; overlap is candidate-tokens-in-description.
+        desc = "alpha beta gamma delta epsilon zeta eta theta iota kappa"
+        reqs = [{"skill": f"req{i}", "kind": "must_have", "hardness": "prerequisite"} for i in range(10)]
+        job = mkjob(languages=["English"], description=desc, requirements=reqs)
+        eight = MatchCandidate(
+            skills=["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta"],
+            seniority="senior",
+            languages=["English"],
+        )
+        five = MatchCandidate(
+            skills=["alpha", "beta", "gamma", "delta", "epsilon"], seniority="senior", languages=["English"]
+        )
+        p8 = score_personal(eight, job)
+        p5 = score_personal(five, job)
+        self.assertGreater(p8, p5)  # 8 hits out-scores 5 (was a tie under /5.0)
+        self.assertEqual(p8, 0.9)   # 0.5*1.0 + 0.5*(8/10)
+        self.assertEqual(p5, 0.75)  # 0.5*1.0 + 0.5*(5/10); neither saturates to 1.0
+
+    def test_empty_language_requirement_is_neutral_not_free_credit(self) -> None:
+        # A no-overlap candidate on an ad that STATES no language requirement no
+        # longer collects the old free 0.5 (full-credit language). The absent signal
+        # is imputed NEUTRAL (0.5 coverage -> 0.25 of personal), strictly less than
+        # the 0.5 a candidate who actually MEETS a stated language earns.
+        cand = MatchCandidate(skills=["Rust"], seniority="senior", languages=["English"])
+        no_lang = score_personal(cand, mkjob(languages=[], description="A team you can trust."))
+        stated_met = score_personal(cand, mkjob(languages=["English"], description="A team you can trust."))
+        self.assertEqual(no_lang, 0.25)  # neutral language, zero overlap -> no free credit
+        self.assertEqual(stated_met, 0.5)  # earned full language credit
+        self.assertLess(no_lang, stated_met)
 
 
 class MatchTest(unittest.TestCase):
@@ -402,10 +497,17 @@ class PotentialScoreClampTest(unittest.TestCase):
             {"archetype": "student", "potentialScore": 9, "skills": ["Python"], "languages": ["English"]}
         )
         m = score_job(cand, job)
-        self.assertLessEqual(m.total, 100)
-        self.assertGreaterEqual(m.total, 0)
         potential_bar = next(d for d in m.score_breakdown if d.key == "career")
-        self.assertLessEqual(potential_bar.percent, 100)
+        # Non-vacuous: the clamped potential paints the Potential bar EXACTLY full
+        # (round(100 * 1.0)), proving 9 was mapped to 1.0 and flowed through — an
+        # unclamped 9 would paint 900.
+        self.assertEqual(potential_bar.percent, 100)
+        # A real in-range headline, strictly BELOW 100 (skills/personal aren't
+        # maxed). The old `assertGreaterEqual(m.total, 0)` was true by construction
+        # — m.total = max(0, min(100, ...)) — so it asserted nothing; `assertLess(.,
+        # 100)` instead FAILS if a broken clamp let an unclamped >100 total cap at
+        # exactly 100, so it actually exercises the 0-100 guarantee.
+        self.assertLess(m.total, 100)
 
 
 if __name__ == "__main__":

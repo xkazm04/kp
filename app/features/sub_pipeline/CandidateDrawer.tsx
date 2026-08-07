@@ -6,9 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, ArrowLeftRight, Ban, Banknote, Calendar, ClipboardList, ExternalLink, FileText, GitBranch, History, Mail, NotebookPen, Pencil, Phone, Shuffle, Sparkles, UserCheck, Wrench, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
+import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import type { CandidateTimelineItem } from "@/app/_lib/candidate-timeline";
 import { buildUrl } from "@/app/features/tabs";
 import { useTasks, useTaskResult } from "@/app/features/tasks/TasksProvider";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
+import { toast } from "@/app/_components/toast-store";
+import { Select } from "@/app/_components/Select";
+import { TextArea } from "@/app/_components/TextArea";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ResultView } from "./CandidateResultView";
 import { ConsentPanel } from "./ConsentPanel";
@@ -23,6 +28,7 @@ import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard"
 import { buildGithubEvidenceSummary, type GithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import { initials } from "@/app/_lib/initials";
+import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
 
 const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] | "all"; note?: string }[] = [
@@ -42,6 +48,18 @@ const ACTIONS: { id: TaskId; label: string; icon: typeof Mail; stages: string[] 
 // Client-side cap for the persistent candidate note — mirrors MAX_NOTES_LENGTH
 // on /api/pipeline/[id] so the textarea can never assemble a note the route rejects.
 const NOTE_MAX = 4000;
+
+// REC-10 — the truthful delivery claim from a token-link POST response. The
+// invite routes now return `delivery` (sent = relayed 2xx · queued = local
+// outbox row, nothing will deliver it · failed = dead-lettered/threw); an older
+// response shape without it degrades through the legacy boolean, where `true`
+// only ever meant "an outbox row was recorded" — shown as queued, never as a
+// false green "sent".
+function deliveryClaimOf(data: Record<string, unknown>, legacyFlag: "delivered" | "dispatched"): "sent" | "queued" | "failed" {
+  const d = data.delivery;
+  if (d === "sent" || d === "queued" || d === "failed") return d;
+  return data[legacyFlag] ? "queued" : "failed";
+}
 
 const REC_STYLE: Record<string, string> = {
   advance: "bg-moss/15 text-moss",
@@ -71,6 +89,9 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   const enumLabel = useEnumLabel();
   const eventVerb = useEventVerb();
   const relativeTime = useRelativeTime();
+  // Canonical match-score provenance label (REC-01), shared wording with the
+  // board tooltip and the decisions queue.
+  const provenanceText = useScoreProvenanceText();
   const { startTask } = useTasks();
   const [busy, setBusy] = useState<TaskId | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -343,7 +364,11 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   // same pass, so this runs once per task); only the parent notification stays
   // in an effect below, because onChanged touches PARENT state and render-phase
   // updates are legal only for this component's own.
-  const { status: actionStatus, error: actionError, full: actionFull } = useTaskResult(pendingId);
+  // OO-L2-12 — one-shot trigger for the give-up toast below: bumped in the
+  // render-phase branch (own state, legal there), consumed by an effect (the
+  // toast store is external state, so it must not be poked during render).
+  const [resultLostCount, setResultLostCount] = useState(0);
+  const { status: actionStatus, error: actionError, full: actionFull, resultUnavailable } = useTaskResult(pendingId);
   if (pendingId && actionStatus === "succeeded" && actionFull) {
     const data = actionFull.result as { result: Record<string, unknown>; source: string; applied: string } | null;
     const sub = (((actionFull.params as { task?: string } | null)?.task ?? busy) ?? "screen") as TaskId;
@@ -356,6 +381,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
     setError(actionError ?? t("taskIncomplete"));
     setBusy(null);
     setPendingId(null);
+  } else if (pendingId && resultUnavailable) {
+    // OO-L2-12 — the task finished server-side but its result record can't be
+    // fetched (useTaskResult gave up after RESULT_FETCH_MAX_ATTEMPTS). Without
+    // this the drawer spun "Working…" forever with no error and no way out.
+    // Resolve the busy state and surface the inline error; the action button
+    // unlocking again is the retry affordance.
+    setError(t("resultLoadFailed"));
+    setBusy(null);
+    setPendingId(null);
+    setResultLostCount((n) => n + 1);
   }
 
   // Post-commit parent notification: an applied action changed the entry, so the
@@ -366,6 +401,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
   useEffect(() => {
     onChangedRef.current = onChanged;
   });
+  // OO-L2-12 — post-commit toast for the result-lost path (the toast store is
+  // an external system, so it's updated from an effect, keyed on the one-shot
+  // counter; `t` through the latest-ref so a locale swap can't re-fire it).
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  });
+  useEffect(() => {
+    if (resultLostCount > 0) toast.error(tRef.current("resultLoadFailed"));
+  }, [resultLostCount]);
   const appliedResult =
     result && ["advanced", "held_for_review", "scorecard_ready", "offer_ready", "rematched"].includes(result.applied)
       ? result
@@ -450,10 +495,17 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {entry.sourceChannel ? <> · {t("via", { channel: channelName(entry.sourceChannel) })}</> : null}
             </p>
           </div>
-          {entry.matchScore != null ? (
-            <span className="rounded-md bg-white px-2 py-1 text-center">
-              <span className="block font-serif text-lg leading-none text-ink">{entry.matchScore}</span>
-              <span className="text-sm uppercase text-steel">{t("match")}</span>
+          {/* Canonical match score (REC-01 / OO-L2-10): the SAME number the board
+              and the decisions queue show, with its provenance named — so this
+              header can no longer contradict the "CV analysis saved — score N"
+              item in the timeline below without saying why. */}
+          {canonicalScoreOf(entry) != null ? (
+            <span className="rounded-md bg-white px-2 py-1 text-center" title={provenanceText(provenanceOf(entry)) ?? undefined}>
+              <span className="block font-serif text-lg leading-none text-ink">{canonicalScoreOf(entry)}</span>
+              <span className="block text-sm uppercase text-steel">{t("match")}</span>
+              <span className="block max-w-[7rem] text-meta normal-case leading-tight text-steel">
+                {provenanceText(provenanceOf(entry))}
+              </span>
             </span>
           ) : null}
           <button type="button" onClick={onClose} className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100">
@@ -694,20 +746,19 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 <ArrowLeftRight size={13} /> {t("moveStage")}
               </label>
               <p className="mt-1 text-sm text-steel">{t("moveStageHelp")}</p>
-              <select
+              <Select
                 id="move-stage"
+                ariaLabel={t("moveStage")}
                 value={entry.stage}
                 disabled={movingStage}
-                onChange={(e) => moveStage(e.target.value)}
-                className="focus-ring mt-2 w-full rounded-md border border-stone-200 bg-white p-2 text-sm font-semibold text-ink disabled:opacity-50"
-              >
-                {PIPELINE_STAGES.map((s) => (
-                  <option key={s} value={s}>
-                    {enumLabel("stage", s)}
-                    {s === entry.stage ? t("current") : ""}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => moveStage(v)}
+                size="sm"
+                className="mt-2 w-full"
+                options={PIPELINE_STAGES.map((s) => ({
+                  value: s,
+                  label: `${enumLabel("stage", s)}${s === entry.stage ? t("current") : ""}`,
+                }))}
+              />
               {moveErr ? <p role="alert" className="mt-1.5 text-sm text-red-700">{moveErr}</p> : null}
             </div>
           ) : null}
@@ -727,7 +778,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
                 {noteStatus === "error" ? t("candidateNotesSaveFailed") : null}
               </span>
             </label>
-            <textarea
+            <TextArea
               id="candidate-note"
               value={candNote}
               onChange={(e) => {
@@ -738,7 +789,8 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               rows={3}
               maxLength={NOTE_MAX}
               placeholder={t("candidateNotesPlaceholder")}
-              className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+              sizeVariant="sm"
+              className="mt-1"
             />
           </div>
 
@@ -770,12 +822,13 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
           {actions.some((act) => act.id === "scorecard") ? (
             <div>
               <label className="text-sm font-semibold uppercase tracking-wide text-steel">{t("notesLabel")}</label>
-              <textarea
+              <TextArea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
                 placeholder={t("notesPlaceholder")}
-                className="focus-ring mt-1 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+                sizeVariant="sm"
+                className="mt-1"
               />
             </div>
           ) : null}
@@ -816,10 +869,16 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {voice.data ? (
                 <div className="mt-2 space-y-1.5">
                   <TokenLinkPanel link={voice} />
-                  {Boolean(voice.data.configured) && Boolean(voice.data.delivered) ? (
+                  {/* REC-10 — the note reflects the outbox row's REAL status: green
+                      "sent" only for a relayed send; a queued row (no relay) says so
+                      honestly and keeps the copy panel as the delivery path. */}
+                  {Boolean(voice.data.configured) && deliveryClaimOf(voice.data, "delivered") === "sent" ? (
                     <p className="text-sm text-moss">{t("inviteSent")}</p>
                   ) : null}
-                  {Boolean(voice.data.configured) && !voice.data.delivered ? (
+                  {Boolean(voice.data.configured) && deliveryClaimOf(voice.data, "delivered") === "queued" ? (
+                    <p className="text-sm text-steel">{t("inviteQueued")}</p>
+                  ) : null}
+                  {Boolean(voice.data.configured) && deliveryClaimOf(voice.data, "delivered") === "failed" ? (
                     <p className="text-sm text-amber-700">{t("inviteNotSent")}</p>
                   ) : null}
                   {Number(voice.data.revoked ?? 0) > 0 ? (
@@ -880,8 +939,13 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
               {sched.data ? (
                 <div className="mt-2 space-y-1.5">
                   <TokenLinkPanel link={sched} />
-                  {Boolean(sched.data.dispatched) ? (
+                  {/* REC-10 — same truth-language as the voice invite: `dispatched`
+                      only ever meant "an outbox row was recorded", which is not
+                      delivery when no relay is configured. */}
+                  {deliveryClaimOf(sched.data, "dispatched") === "sent" ? (
                     <p className="text-sm text-moss">{t("schedInviteSent")}</p>
+                  ) : deliveryClaimOf(sched.data, "dispatched") === "queued" ? (
+                    <p className="text-sm text-steel">{t("schedInviteQueued")}</p>
                   ) : (
                     <p className="text-sm text-amber-700">{t("schedInviteNotSent")}</p>
                   )}
@@ -892,7 +956,7 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
 
           {error ? <p role="alert" className="rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
 
-          {result ? <ResultView result={result} /> : null}
+          {result ? <ResultView result={result} roleFamily={entry.roleFamily} /> : null}
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <button
@@ -926,6 +990,10 @@ export function CandidateDrawer({ entry, onClose, onChanged }: { entry: Entry; o
 function TimelineItemRow({ item }: { item: CandidateTimelineItem }) {
   const t = useTranslations("pipeline.drawer.timeline");
   const tDisposition = useTranslations("history.disposition");
+  // REC-10 — with no delivery relay a dispatched invite is a terminal outbox
+  // row, so the chapter reads "queued", not "sent" (null = unknown keeps the
+  // optimistic label rather than accusing a configured relay).
+  const relayConfigured = useDeliveryCapability();
   const Icon =
     item.kind === "analysis" ? FileText : item.kind === "interview" ? Phone : item.kind === "invite" ? Calendar : Banknote;
   const label = (() => {
@@ -935,7 +1003,9 @@ function TimelineItemRow({ item }: { item: CandidateTimelineItem }) {
       case "interview":
         return item.status === "completed" ? t("interviewCompleted") : t("interviewCreated");
       case "invite":
-        return item.status === "confirmed" ? `${t("inviteConfirmed")}${item.slot ? ` — ${item.slot}` : ""}` : t("inviteSent");
+        return item.status === "confirmed"
+          ? `${t("inviteConfirmed")}${item.slot ? ` — ${item.slot}` : ""}`
+          : t(relayConfigured === false ? "inviteQueued" : "inviteSent");
       case "offer":
         return item.status === "accepted" ? t("offerAccepted") : item.status === "declined" ? t("offerDeclined") : t("offerExtended");
       default:

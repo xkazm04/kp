@@ -9,11 +9,23 @@
 ## Design
 
 Pricing model (see memory/pricing-design and the landing page): Free / Starter
-490 Kč / Growth 1 190 Kč / BYOM 120 Kč ≈ $5, metered in **AI candidates, case
-designs, interview minutes** — never tokens — plus one-time **minute packs**
-(100 min / 790 Kč) on any tier. Polar is the Merchant of Record (EU VAT is
+240 Kč ≈ $10 / Growth 480 Kč ≈ $20 / BYOM 120 Kč ≈ $5, metered in **AI
+candidates, case designs, interview minutes** — never tokens — plus one-time
+**minute packs** (100 min / 790 Kč) on any tier. (Starter/Growth were tuned down
+from 490/1 190 Kč to $10/$20 on 2026-07-05; CZK is the primary display currency
+at the app's implied ~24 Kč/$ rate.) Polar is the Merchant of Record (EU VAT is
 theirs); we chose it over Paddle for native usage meters/credits, token-based
 headless management, and no seller-approval friction at zero users.
+
+**Enterprise** is a fifth, **contact-sales** tier (`plans.ts`, `contactSales:
+true`): custom-priced, unlimited meters, granted per signed contract — never sold
+through self-serve Polar checkout (the checkout route rejects it with a "talk to
+sales" 400, and `isSelfServePlan()` gates it out everywhere). In-product it shows
+in the Billing tab and the landing pricing band as a "Custom" price with a "Talk
+to sales" mailto (`app/_lib/sales-contact.ts`, `NEXT_PUBLIC_SALES_EMAIL`). What it
+takes to actually deliver that tier to a corporate buyer — SOC 2, enterprise SSO,
+audit expansion, brand customization, a licensed self-host option, GDPR/DPA — is
+the sequenced backlog in **docs/ENTERPRISE_READINESS.md**.
 
 **The hedge:** everything Polar-specific lives in ONE file (`polar.ts`) behind
 `BillingGateway` (`gateway.ts`): `createCheckout`, `createPortalSession`,

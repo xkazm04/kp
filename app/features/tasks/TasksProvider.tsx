@@ -206,6 +206,11 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
  * `full.params`). A transient fetch failure leaves `full` null and retries on the
  * next poll tick. Pass null to watch nothing (e.g. before a task is started).
  */
+/** OO-L2-12 — how many failed full-record fetches (for a KNOWN-terminal task)
+ *  the hook tolerates before giving up. Retries ride the ~2s poll tick, so this
+ *  bounds the silent-spinner window to roughly 10s instead of forever. */
+export const RESULT_FETCH_MAX_ATTEMPTS = 5;
+
 export function useTaskResult(taskId: string | null): {
   /** Live status from the poll (null when not watching a task). */
   status: TaskStatus | null;
@@ -219,6 +224,10 @@ export function useTaskResult(taskId: string | null): {
   full: Task | null;
   /** True from when the task finishes until its full result has been fetched. */
   loading: boolean;
+  /** OO-L2-12 — the task reached a terminal state but its full record could not
+   *  be fetched after RESULT_FETCH_MAX_ATTEMPTS tries. Consumers MUST resolve
+   *  their busy state and surface an error instead of spinning forever. */
+  resultUnavailable: boolean;
 } {
   const { tasks, fetchTask } = useTasks();
   const polled = taskId ? tasks.find((t) => t.id === taskId) ?? null : null;
@@ -236,22 +245,50 @@ export function useTaskResult(taskId: string | null): {
   // The id we currently have a request in flight for (or null) — blocks overlapping
   // or duplicate fetches while still allowing a retry after a transient failure.
   const inFlight = useRef<string | null>(null);
+  // OO-L2-12 — consecutive failed fetches for the CURRENT id, and the id we gave
+  // up on. Before this, a persistently failing GET /api/tasks/[id] retried forever
+  // and silently: the task was done server-side while the UI spun "Working…" with
+  // no error and no way out.
+  const failedAttempts = useRef(0);
+  const attemptsFor = useRef<string | null>(null);
+  const [gaveUpId, setGaveUpId] = useState<string | null>(null);
+  const resultUnavailable = taskId != null && gaveUpId === taskId && full === null;
 
   useEffect(() => {
     // Fetch the result/params the poll omits, once the task is done. Depending on
-    // `polled` lets a transient failure retry on the next poll tick; the `full` and
-    // inFlight guards stop that from looping once the result is in hand.
-    if (!taskId || !terminal || full || inFlight.current === taskId) return;
+    // `polled` lets a transient failure retry on the next poll tick; the `full`,
+    // inFlight and give-up guards stop that from looping once the result is in
+    // hand — or once it's clearly not coming.
+    if (attemptsFor.current !== taskId) {
+      attemptsFor.current = taskId;
+      failedAttempts.current = 0;
+    }
+    if (!taskId || !terminal || full || inFlight.current === taskId || gaveUpId === taskId) return;
     inFlight.current = taskId;
     let cancelled = false;
     void fetchTask(taskId).then((t) => {
       if (inFlight.current === taskId) inFlight.current = null;
-      if (!cancelled && t) setFetched(t);
+      if (cancelled) return;
+      if (t) {
+        failedAttempts.current = 0;
+        setFetched(t);
+      } else if (attemptsFor.current === taskId) {
+        failedAttempts.current += 1;
+        if (failedAttempts.current >= RESULT_FETCH_MAX_ATTEMPTS) setGaveUpId(taskId);
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [taskId, terminal, full, fetchTask, polled]);
+  }, [taskId, terminal, full, fetchTask, polled, gaveUpId]);
 
-  return { status, active, error, progressMsg, full, loading: terminal && full === null };
+  return {
+    status,
+    active,
+    error,
+    progressMsg,
+    full,
+    loading: terminal && full === null && !resultUnavailable,
+    resultUnavailable,
+  };
 }

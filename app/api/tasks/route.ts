@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { listRecentTasks } from "@/app/_lib/db";
 import { ensureRecovered, isKnownKind, recentTaskCutoffIso, startTask } from "@/app/_lib/tasks";
 
-export const runtime = "nodejs";
 
 // GET: active tasks + those finished within the recent window (the client polls
 // this). Older finished tasks are paged in separately via /api/tasks/history so

@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
+import { labelize } from "@/app/_lib/format";
+import { Select } from "@/app/_components/Select";
 // `import type` only — calibration.ts is pure (no server imports), erased at compile.
 import type { CalibrationResult } from "@/app/_lib/calibration";
 
@@ -23,6 +26,7 @@ function py(prob: number): number {
 }
 
 function ReliabilityDiagram({ result, labels }: { result: CalibrationResult; labels: { x: string; y: string; perfect: string } }) {
+  const t = useTranslations("analytics.calibration");
   const filled = result.bins.filter((b) => b.count > 0);
   const maxCount = filled.reduce((m, b) => Math.max(m, b.count), 1);
   return (
@@ -33,7 +37,13 @@ function ReliabilityDiagram({ result, labels }: { result: CalibrationResult; lab
       <ul className="sr-only">
         {filled.map((b, i) => (
           <li key={i}>
-            {labels.x} {b.predicted.toFixed(2)}, {labels.y} {b.observed.toFixed(2)} (n={b.count})
+            {t("srBin", {
+              x: labels.x,
+              predicted: b.predicted.toFixed(2),
+              y: labels.y,
+              observed: b.observed.toFixed(2),
+              count: b.count,
+            })}
           </li>
         ))}
       </ul>
@@ -83,12 +93,56 @@ function ReliabilityDiagram({ result, labels }: { result: CalibrationResult; lab
 
 export function CalibrationPanel() {
   const t = useTranslations("analytics.calibration");
-  const { data, error } = useJsonFetch<CalibrationResult>("/api/analytics/calibration");
+  // Per-role-family reliability (the route's headline use case: "how accurate are you
+  // for backend roles?") — was computed-capable (?roleFamily) but had no UI selector.
+  const [family, setFamily] = useState("");
+  // REC-02 — the curve names WHICH score it measures. Default: the pipeline
+  // match score, i.e. the number screening auto-decisions actually act on
+  // (see pipelineCalibrationPairs). The CV-analysis × disposition pairing —
+  // a score that never gates pipeline decisions — stays available, labeled.
+  const [source, setSource] = useState<"pipeline" | "analysis">("pipeline");
+  const url = `/api/analytics/calibration?source=${source}${family ? `&roleFamily=${encodeURIComponent(family)}` : ""}`;
+  const { data, error } = useJsonFetch<CalibrationResult & { families?: string[]; measures?: string }>(url);
+  const families = data?.families ?? [];
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-      <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
-      <p className="mt-1 max-w-prose text-sm text-stone-500">{t("blurb")}</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
+          <p className="mt-1 max-w-prose text-sm text-stone-500">{t("blurb")}</p>
+          {/* What this curve measures — the score + the outcome, explicit. */}
+          <p className="mt-1 max-w-prose text-sm font-medium text-stone-600">
+            {source === "analysis" ? t("measuresAnalysis") : t("measuresPipeline")}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Select
+            value={source}
+            onChange={(v) => {
+              setSource(v === "analysis" ? "analysis" : "pipeline");
+              setFamily(""); // families differ per source — a stale filter would silently empty the curve
+            }}
+            ariaLabel={t("sourceLabel")}
+            size="sm"
+            className="shrink-0"
+            options={[
+              { value: "pipeline", label: t("sourcePipeline") },
+              { value: "analysis", label: t("sourceAnalysis") },
+            ]}
+          />
+          {families.length > 1 ? (
+            <Select
+              value={family}
+              onChange={setFamily}
+              ariaLabel={t("familyLabel")}
+              size="sm"
+              className="shrink-0"
+              options={[{ value: "", label: t("familyAll") }, ...families.map((f) => ({ value: f, label: labelize(f) }))]}
+            />
+          ) : null}
+        </div>
+      </div>
 
       {error ? (
         <p className="mt-4 text-sm text-stone-500" role="status">

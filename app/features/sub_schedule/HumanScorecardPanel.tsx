@@ -7,6 +7,7 @@ import { rubricForArchetype, localizedRubric, localizedRatingAnchors } from "@/a
 import { RATING_MAX } from "@/app/_lib/format";
 import { INTERVIEW_RECOMMENDATIONS, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { TextArea } from "@/app/_components/TextArea";
 import type { Scorecard } from "@/app/_lib/interview-scorecard";
 
 const REC_STYLE: Record<InterviewRecommendation, string> = {
@@ -146,12 +147,13 @@ export function HumanScorecardPanel({
                 ))}
                 {anchorText ? <span className="ml-2 text-meta text-steel">{anchorText}</span> : null}
               </div>
-              <textarea
+              <TextArea
                 value={evidence[c.competency] ?? ""}
                 onChange={(e) => setEvidence(c.competency, e.target.value)}
                 rows={2}
                 placeholder={t("evidencePlaceholder")}
-                className="focus-ring mt-2 w-full rounded-md border border-stone-200 bg-white p-1.5 text-sm text-ink"
+                sizeVariant="sm"
+                className="mt-2 p-1.5"
               />
             </div>
           );
@@ -174,12 +176,13 @@ export function HumanScorecardPanel({
           </button>
         ))}
       </div>
-      <textarea
+      <TextArea
         value={summary}
         onChange={(e) => setSummary(e.target.value)}
         rows={2}
         placeholder={t("summaryPlaceholder")}
-        className="focus-ring mt-2 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+        sizeVariant="sm"
+        className="mt-2"
       />
 
       <div className="mt-2 flex flex-wrap items-center gap-2">

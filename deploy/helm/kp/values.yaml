@@ -1,0 +1,102 @@
+# KP self-host Helm values. See docs/SELF_HOSTING.md.
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: kp            # push the built image (docs/SELF_HOSTING.md §9) to your registry and set this
+  tag: ""                  # defaults to Chart.appVersion
+  pullPolicy: IfNotPresent
+imagePullSecrets: []        # e.g. [{ name: my-regcred }]
+
+# HARD single replica. State is a single SQLite file on a ReadWriteOnce volume, so
+# two pods cannot serve one database — a second replica would contend/corrupt it
+# (docs/POSTGRES_BACKEND.md). The Deployment pins replicas: 1 and strategy: Recreate;
+# this value exists only for visibility. Multi-replica HA needs the Postgres backend.
+replicaCount: 1
+
+# --- Required secrets --------------------------------------------------------------
+# KP_OPERATOR_PASSWORD: UNSET ⇒ the app runs OPEN (no login). KP_SECRET: encrypts
+# stored provider keys. Both are required unless you point at an existing Secret.
+auth:
+  operatorPassword: ""     # required (or set existingSecret)
+  secret: ""               # required (or set existingSecret)
+# Reference a pre-created Secret instead (keys: KP_OPERATOR_PASSWORD, KP_SECRET, and
+# any provider keys). Recommended for real deployments so secrets aren't in values.
+existingSecret: ""
+
+# Optional provider/integration keys — only what you use. Added to the chart's Secret
+# (ignored when existingSecret is set). e.g. { GEMINI_API_KEY: "...", OPENAI_API_KEY: "..." }
+providerKeys: {}
+
+# --- Non-secret config (ConfigMap) -------------------------------------------------
+env:
+  NEXT_PUBLIC_APP_BASE_URL: ""   # your public origin — candidate links resolve to it
+  NEXT_PUBLIC_SITE_URL: ""       # OG/metadata origin
+  # KP_OFFLINE: "1"              # hard no-egress mode (docs/SELF_HOSTING.md §7)
+  # OPENAI_BASE_URL: "http://ollama.default.svc.cluster.local:11434/v1"  # self-hosted model
+extraEnv: {}                     # any additional non-secret env, merged in
+
+persistence:
+  enabled: true
+  size: 5Gi
+  accessMode: ReadWriteOnce      # SQLite is single-writer — RWO is correct
+  storageClass: ""               # "" = cluster default
+  existingClaim: ""              # reuse a PVC instead of creating one
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: http
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: kp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []                        # [{ secretName: kp-tls, hosts: [kp.example.com] }]
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 1Gi                  # the Python pipeline spawns subprocesses — cap memory
+
+# The image runs as uid 10001 and must write /data (the DB). fsGroup makes the
+# mounted volume group-writable by that user.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false  # Next + the python spawn write /tmp; keep false
+  capabilities:
+    drop: ["ALL"]
+
+# httpGet probes: any 2xx–3xx is healthy, so `/` works even with auth on (it 307s to /login).
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 25
+  periodSeconds: 20
+  timeoutSeconds: 5
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

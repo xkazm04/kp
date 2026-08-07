@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { candidateOutcomes } from "@/app/_lib/db";
 import { listJobStatuses } from "@/app/_lib/job-ingest";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { filterRelevantAlerts, sweepRediscoveryAlerts } from "@/app/_lib/rediscover";
 import {
@@ -8,19 +9,24 @@ import {
   listRediscoveryAlerts,
 } from "@/app/_lib/rediscovery-alert-store";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Standing silver-medalist feed (idea-fdb45cd0). GET = the active, still-relevant
 // alerts; PATCH {id} dismisses one; POST runs a pool-change sweep over published
 // roles and returns the refreshed feed (the "a strong candidate entered the pool"
 // trigger, on demand from the feed's Refresh).
 
+// The POST sweep fans out recruiter_cli rankings (now bounded by a worker pool +
+// per-role timeout + a roles-per-sweep ceiling in sweepRediscoveryAlerts). Give it
+// the same generous provider budget the single-CLI campaign/outreach routes use so
+// a legitimately busy sweep isn't killed at the platform's default serverless
+// timeout mid-run (bug-ui-scan #2).
+export const maxDuration = 180;
+
 // Relevance is filtered at read time against LIVE state — an alert for a role
 // since unpublished, or a candidate since pipelined into it, is no longer a
 // silver medalist even though its row persists (dismissed state is sticky).
-function relevantAlerts() {
-  const statuses = listJobStatuses();
+function relevantAlerts(workspaceId: string) {
+  const statuses = listJobStatuses(workspaceId);
   const outcomes = candidateOutcomes();
   return filterRelevantAlerts(
     listRediscoveryAlerts(),
@@ -32,7 +38,7 @@ function relevantAlerts() {
 
 export async function GET() {
   try {
-    const alerts = relevantAlerts();
+    const alerts = relevantAlerts(await currentWorkspace());
     return NextResponse.json({ alerts, count: alerts.length });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
@@ -53,9 +59,9 @@ export async function PATCH(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { jobsSwept, newAlerts } = await sweepRediscoveryAlerts({ signal: request.signal });
-    const alerts = relevantAlerts();
-    return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts });
+    const { jobsSwept, newAlerts, truncated } = await sweepRediscoveryAlerts({ signal: request.signal });
+    const alerts = relevantAlerts(await currentWorkspace());
+    return NextResponse.json({ alerts, count: alerts.length, jobsSwept, newAlerts, truncated });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");
   }

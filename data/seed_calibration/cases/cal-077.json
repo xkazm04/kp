@@ -1,0 +1,179 @@
+{
+  "job": {
+    "id": "cal-077",
+    "title": "Customer Channel Service Representative",
+    "company": "strategic HR inc.",
+    "role_family": "customer_success",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Order-entry / order-management business systems (the JD's \"various business systems\")",
+      "Microsoft Office — Outlook for partner correspondence, Excel for order/issue tracking, Word",
+      "Microsoft Dynamics ERP (listed as \"a plus\" — not required)",
+      "Oracle JD Edwards ERP (listed as \"a plus\" — legacy manufacturing/distribution backbone)",
+      "Inbound phone/call-handling system (queue for branch offices and dealers)",
+      "Channel-partner order records and delivery-coordination workflow with the factory",
+      "Vendor and channel-partner contact/account data (an informal CRM layer, even if just within the ERP)"
+    ],
+    "coreResponsibilities": [
+      "Provide front-line customer service to channel partners — branch offices and dealers — by phone and in writing",
+      "Accurately enter and maintain channel-partner orders across multiple business systems in a timely manner",
+      "Act as the liaison between vendors and channel partners, owning the back-and-forth on each order/issue",
+      "Coordinate order delivery with the factory so partner orders are fulfilled on schedule",
+      "Triage incoming requests: quickly identify the issue, determine the appropriate action, and resolve or route it",
+      "Prioritize a mixed queue of calls and data-entry work and assist other departments as needed"
+    ],
+    "statedVsRealGaps": [
+      "JD asks for \"strong analytical and research skills,\" but the real work is order entry, status look-ups, and issue triage — pattern-matching and accuracy, not analysis; the analytical bar is modest.",
+      "Dynamics / JD Edwards are framed as \"a plus,\" so the genuine systems bar is data-entry competence plus MS Office; the differentiated skill is attention to detail, not ERP expertise.",
+      "\"Direct impact on the success of an organization\" is aspirational framing; in evidence the role is operational order-processing whose impact is fulfillment accuracy and partner satisfaction, not strategy.",
+      "Title (\"Customer Channel Service Representative\") reads consultative, but the responsibilities describe an inside-sales-support / order-management liaison tethered to a single product line (PARCS parking equipment) and a domestic factory.",
+      "\"Medior\" seniority target sits above the actual skill ceiling of the described tasks — this is an entry-to-early-career role that rewards reliability and tenure more than seniority."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Order-entry accuracy is the load-bearing skill: a mistake propagates straight to the factory and delivery, creating fulfillment and cost errors — low glamour, high consequence.",
+      "Concentration risk on legacy ERP (JD Edwards): tribal, training-heavy knowledge; a single trained rep can become an undocumented bottleneck.",
+      "The rep is a single human relay between vendors, partners, and the factory — escalations and ambiguity converge on this seat, inviting overload and queue backlog.",
+      "High-volume calls + repetitive data entry is a classic high-turnover profile; mis-hiring on temperament (not skill) is the main staffing risk.",
+      "\"Assist other departments as necessary\" is open-ended scope creep that can crowd out the core order/queue responsibilities if unmanaged."
+    ],
+    "reflection": "Reflected against the work it actually touches — channel-partner orders moving through ERP and out to a factory — this is an operational inside-customer-service / order-management role, not the analytically-driven position the wording implies. The honest center of gravity is three things: accurate, fast data entry across several business systems; clear written and verbal communication with dealers and branch offices; and reliable liaison/coordination with vendors and the factory. The JD's \"strong analytical and research skills\" and \"direct impact on the success of an organization\" oversell a job whose value is consistency and care, not insight. There is no codebase and none is expected; the real \"stack\" is an order-management system, MS Office (especially Outlook and Excel), and — as a bonus, not a requirement — Dynamics or JD Edwards. Complexity is genuinely medium but at the lower end: difficulty comes from juggling multiple systems and parties under queue pressure, not from any deep skill. Hire for attention to detail, composure on the phone, and systems-comfort, and treat the \"medior\" target and ERP experience as nice-to-haves rather than gates — over-indexing on either will screen out the dependable, detail-oriented candidate this role actually needs.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Customer Channel Service Representative",
+    "seniority": "junior",
+    "roleFamily": "customer_success",
+    "mustHaves": [
+      "Front-line customer service to channel partners (branch offices and dealers) over phone and in writing, with a professional, solution-oriented manner",
+      "Accurate, high-attention-to-detail data entry — entering and maintaining partner orders across multiple business systems with low error rates",
+      "Strong written and verbal communication, including clear status updates and order correspondence",
+      "Issue triage and problem-solving: quickly identify what is wrong, decide the appropriate action, and resolve or route it",
+      "Ability to prioritize and manage a mixed queue of inbound calls and order/data-entry work under time pressure",
+      "Proficiency with Microsoft Office (Outlook for partner correspondence, Excel for order/issue tracking, Word)",
+      "Coordinating order delivery and follow-up with internal teams (e.g., the factory) to keep orders on schedule"
+    ],
+    "niceToHaves": [
+      "Experience with Microsoft Dynamics ERP",
+      "Experience with Oracle JD Edwards ERP",
+      "Prior order-management, inside-sales-support, or dealer/channel-partner service experience",
+      "Familiarity with manufacturing or distribution fulfillment workflows",
+      "Comfort working in a CRM or account/contact record system"
+    ],
+    "responsibilities": [
+      "Provide exceptional service to channel partners — branch offices and dealers — by answering incoming calls and written requests",
+      "Accurately enter and maintain channel-partner orders across the company's various business systems in a timely manner",
+      "Act as the liaison between vendors and channel partners, owning the back-and-forth on each order and issue",
+      "Coordinate order delivery with the factory so partner orders are fulfilled on schedule",
+      "Triage incoming requests: identify the issue, determine the appropriate action, and resolve or escalate it",
+      "Prioritize a mixed workload of calls and data entry and assist other departments as needed"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Channel Partner Order Queue — Morning Shift Triage & Order Entry",
+    "brief": "You're a Customer Channel Service Representative at a manufacturer that sells through branch offices and dealers. You've just logged in for your shift and inherited a mixed queue: written requests from partners, a couple of voicemail transcripts, a vendor note, and the shared open-orders tracker the team works from. Your job for the next hour is to do what the seat does every day — read the queue, decide what each item needs, enter/correct the order actions accurately across the right system, coordinate one delivery with the factory, and reply to partners — while keeping a short record of the calls you made. This is not a typing test: most items contain a small judgment trap (an ambiguous instruction, a legacy-system quirk, a date that can't actually be promised, a request that isn't really yours). We care about how you read before acting, what you choose when the request is underspecified, and whether your order entries are right — because an order-entry mistake here propagates straight to the factory and to delivery. Work in the role's own materials (Excel tracker, Outlook-style replies, the systems cheat-sheet). Use the provided reference docs; where they don't answer a question, make a defensible call and log it. Prefer being right and explicit over being fast and silent.",
+    "repoSeed": "A small 'shift folder' representative of a real morning queue:\n- queue_2026-06-23.txt — six incoming items in plain text: (1) Email, Northgate Supply (dealer): 'Please add 10 more units to my last order, need it soon.' — Northgate has TWO open orders in the tracker (NG-4471 and NG-4488). (2) Email, Westbrook Branch Office: reorder of 120 units of part FLT-220 (a filter), to be keyed into JD Edwards. (3) Voicemail transcript, Cedar Valley Dealers: 'Can our order CV-3310 arrive this Friday?' (today is Thursday 2026-06-23 in the scenario; the request landed at 13:10). (4) Email, vendor Pelham Components: SKU FLT-220 is on backorder ~6 business days, affecting at least one partner order. (5) Email, Finance dept: 'When you get a sec, can you also pull last month's order volume by dealer into a spreadsheet for us?' (6) Email, Westbrook again: routine address-on-file update.\n- open_orders.xlsx (described as a table) — columns: Order ID, Partner, SKU, Qty, Unit of Measure, System (New OMS / JD Edwards), Order Date, Promised Date, Factory Lead Time, Status, Notes. Pre-filled rows include NG-4471, NG-4488, CV-3310, and others.\n- systems_and_jde_cheatsheet.md — the SOP. Key facts: the New OMS auto-converts units and accepts 'eaches'. JD Edwards (legacy) does NOT auto-convert: FLT-220 is stored in CASES OF 12, and JDE order IDs carry a legacy prefix (e.g. '00-'). A footnote notes only one teammate is fully JDE-trained.\n- factory_lead_times.md — delivery rules: standard factory lead time is 5 business days from a confirmed order; same-day orders only count if confirmed before the 12:00 cutoff; weekends are not business days; rush/expedite exists but adds cost and needs factory sign-off.\n- decisions_log_template.md — an empty 3-column template: Decision | What I chose & why | Alternative rejected / what I'd ask the team.",
+    "tasks": [
+      "Triage the queue in queue_2026-06-23.txt: produce a short prioritized worklist (a table) that classifies each of the six items as enter-order / correct-order / reply-to-partner / coordinate-with-factory / escalate / defer, with a priority (P1–P3) and a one-line rationale. Make the order-critical work win over the rest.",
+      "Process the two order actions and write the partner replies: (a) handle Northgate Supply's 'add 10 to my last order' request — state exactly which order you act on and show the corrected tracker row(s); (b) key Westbrook's 120-unit FLT-220 reorder into JD Edwards — show the exact Qty and Unit of Measure value you would enter and the resulting tracker row, given the cheat-sheet. Draft the Outlook-style reply to each partner.",
+      "Coordinate the Cedar Valley delivery: using factory_lead_times.md and the order/voicemail timing, work out the real earliest date you can commit for CV-3310, then draft the message to the dealer (and a note to the factory if you need one). Don't promise a date the rules can't support.",
+      "Keep the DECISIONS log (decisions_log_template.md): for every point where the request was open, record what you chose, the alternative you rejected, and the one question you'd put to the team. This is normal handover practice — the next rep should be able to pick up your queue."
+    ],
+    "coverProbes": [
+      {
+        "id": "northgate-which-order",
+        "kind": "ambiguity",
+        "where": "queue item 1 — Northgate Supply 'add 10 more units to my last order'; Northgate has two open orders (NG-4471, NG-4488) in open_orders.xlsx.",
+        "reveals": "A good candidate notices there are two candidate orders and the instruction is genuinely ambiguous, so they either confirm with the partner or proceed on a clearly-stated, reversible assumption — and they log it. A naive one-shot edit silently picks one order (often whichever appears first) and pushes a quantity change that may hit the wrong order and the factory.",
+        "decisionSpace": [
+          "Proceed on the most recent / still-open order, explicitly flagging the assumption in the reply and tracker note — fast, keeps the partner moving, but risks editing the wrong order.",
+          "Hold the change and send a one-line clarifying reply ('which order — NG-4471 or NG-4488?') before touching anything — safest for accuracy, costs a round-trip and time.",
+          "Infer the target order from other detail in the email (SKU/product mentioned) and confirm only if the inference is weak — balances speed and accuracy but depends on the email actually containing a tell."
+        ]
+      },
+      {
+        "id": "jde-unit-of-measure",
+        "kind": "legacy_trap",
+        "where": "queue item 2 — keying Westbrook's 120-unit FLT-220 reorder into JD Edwards; systems_and_jde_cheatsheet.md says JDE stores FLT-220 in cases of 12 and does NOT auto-convert.",
+        "reveals": "A good candidate reads the cheat-sheet before entering anything and converts 120 eaches to 10 cases for JDE (or routes it where conversion is handled), preserving the partner's true intent. A naive candidate types '120' into JDE as-is, producing a 12x over-order (1,440 eaches) that flows to the factory — passes a shallow 'number was entered' check but is badly wrong.",
+        "decisionSpace": [
+          "Convert to JDE's unit (10 cases of 12) and record both the eaches intent and the cases entered in the note — correct, but relies on the rep getting the conversion right every time.",
+          "Enter the order in the New OMS instead, which auto-converts, and avoid JDE entirely for this item — removes the conversion risk but may break a convention if that SKU/partner is supposed to live in JDE.",
+          "Stage the entry but route the JDE keying to the one JDE-trained teammate / confirm the case factor first — safest against a costly error, but creates a dependency and delay."
+        ]
+      },
+      {
+        "id": "friday-delivery-promise",
+        "kind": "verification_trap",
+        "where": "queue item 3 — Cedar Valley voicemail 'can CV-3310 arrive this Friday?'; today is Thursday 13:10 (after the 12:00 cutoff), factory lead time is 5 business days.",
+        "reveals": "A good candidate actually checks order date + 5 business days + the 12:00 cutoff + weekends and sees Friday (next day) is impossible, then commits the true earliest feasible date or offers a costed rush with factory sign-off. A naive candidate answers 'yes, Friday works' because Friday is simply a future date — a confident but unkeepable promise that surfaces as a missed delivery.",
+        "decisionSpace": [
+          "Reply with the real earliest feasible date computed from the rules and a brief why — honest and keepable, but it's a 'no' to what the dealer asked for.",
+          "Offer Friday only as a rush/expedite option, naming the added cost and that it needs factory sign-off — preserves the dealer's goal, but introduces cost and an approval dependency.",
+          "Don't commit any date yet; confirm capacity with the factory first, then reply — most defensible for a tight ask, but slower and leaves the dealer waiting."
+        ]
+      },
+      {
+        "id": "finance-scope-creep",
+        "kind": "underspecified",
+        "where": "queue item 5 — Finance asks the rep to also pull a monthly order-volume report, with no priority stated, while order-critical items are open.",
+        "reveals": "A good candidate recognizes this is the 'assist other departments as necessary' scope-creep risk and places it correctly — deferring it behind the order/queue work with a committed time or a clarifying ask — rather than letting it crowd out the load-bearing order work. A naive candidate either does it immediately (starving P1 order entry) or drops it without acknowledgement.",
+        "decisionSpace": [
+          "Defer with a committed time ('after the open orders are cleared, by EOD') and acknowledge Finance — protects core queue while not ignoring the ask, but delays Finance.",
+          "Do it now because it's quick — keeps Finance happy but risks pushing order-critical, time-sensitive items past their cutoffs.",
+          "Redirect / ask for priority: confirm with manager or point Finance to the report owner if one exists — protects boundaries, but can read as unhelpful if mishandled."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

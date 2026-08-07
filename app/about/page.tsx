@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   }
 };
 
+// Renders the marketing AboutHome tree under the per-request locale layout; it
+// was already dynamically rendered (layout cookies()), so Block it under Cache
+// Components rather than prerender a skeleton flash.
+export const instant = false;
+
 export default function AboutPage() {
   return <AboutHome />;
 }

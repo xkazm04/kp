@@ -9,6 +9,8 @@ import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { toCsv, downloadFile } from "@/app/_lib/export-utils";
 import { DECISION_META, kindLabel } from "@/app/_lib/decision-attribution";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
+import { Select } from "@/app/_components/Select";
 
 type Decision = {
   id: number;
@@ -97,6 +99,9 @@ function DecisionLogList({
   const t = useTranslations("analytics.log");
   const enumLabel = useEnumLabel();
   const reduced = useReducedMotion();
+  // REC-10 — with no delivery relay, every "…sent" event is really a terminal
+  // local-outbox row; the labels (rows, filter, CSV) must say so.
+  const relayConfigured = useDeliveryCapability();
   const buildUrl = useCallback(
     (offset: number, limit: number) => {
       const params = new URLSearchParams({ offset: String(offset), limit: String(limit) });
@@ -125,7 +130,7 @@ function DecisionLogList({
       ...items.map((d) => [
         d.createdAt,
         t(`attribution.${decisionMeta(d.kind).attribution}` as Parameters<typeof t>[0]),
-        kindLabel(t, d.kind),
+        kindLabel(t, d.kind, { relayConfigured }),
         d.candidateLabel,
         d.jobTitle,
         d.detail,
@@ -165,19 +170,17 @@ function DecisionLogList({
             {t(`attribution.${a}`)}
           </button>
         ))}
-        <select
+        <Select
           value={kind}
-          onChange={(e) => setKind(e.target.value)}
-          aria-label={t("filterKindAria")}
-          className="focus-ring h-8 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
-        >
-          <option value="">{t("allKinds")}</option>
-          {Object.keys(DECISION_META).map((k) => (
-            <option key={k} value={k}>
-              {t(`kinds.${k}` as Parameters<typeof t>[0])}
-            </option>
-          ))}
-        </select>
+          onChange={setKind}
+          ariaLabel={t("filterKindAria")}
+          size="sm"
+          className="h-8"
+          options={[
+            { value: "", label: t("allKinds") },
+            ...Object.keys(DECISION_META).map((k) => ({ value: k, label: kindLabel(t, k, { relayConfigured }) })),
+          ]}
+        />
         <button
           type="button"
           onClick={exportCsv}
@@ -201,7 +204,7 @@ function DecisionLogList({
           {items.map((d, i) => {
             const m = decisionMeta(d.kind);
             const badgeCls = ATTRIBUTION_BADGE[m.attribution];
-            const label = kindLabel(t, d.kind);
+            const label = kindLabel(t, d.kind, { relayConfigured });
             // Cascade rows within each freshly loaded page; CSS animations only
             // fire when a node mounts, so already-present rows never re-animate.
             const animate = !reduced;

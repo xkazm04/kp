@@ -65,10 +65,7 @@ test("automation: required entryId+task, optional notes flag appended only after
   assert.equal(buildDedupeKey("automation", { entryId: "e1" }), null, "missing task fails");
 });
 
-test("commit_reflection / jd_build keep required identity but allow empty optional discriminators", () => {
-  assert.equal(buildDedupeKey("commit_reflection", { repoRef: "r1" }), "commit_reflection:r1:");
-  assert.equal(buildDedupeKey("commit_reflection", { repoRef: "r1", caseId: "c1" }), "commit_reflection:r1:c1");
-  assert.equal(buildDedupeKey("commit_reflection", {}), null);
+test("jd_build keeps required identity but allows empty optional discriminators", () => {
   assert.equal(buildDedupeKey("jd_build", { title: "Eng" }), "jd_build:Eng:0:");
   assert.equal(buildDedupeKey("jd_build", { title: "Eng", needText: "hello", repoUrl: "u" }), "jd_build:Eng:5:u");
   assert.equal(buildDedupeKey("jd_build", {}), null);
@@ -87,6 +84,22 @@ test("need_analysis / design_artifacts require a present need object", () => {
 
 test("batch_screen is an intentional singleton constant", () => {
   assert.equal(buildDedupeKey("batch_screen", {}), "batch_screen");
+});
+
+test("jd_build keys by jdSlug in the backgrounded flow, by input otherwise", () => {
+  // Backgrounded generate: the placeholder JD's slug is the identity, so each
+  // Generate is a distinct build and a retry (same slug) dedupes onto it.
+  assert.equal(buildDedupeKey("jd_build", { jdSlug: "abcd2345", title: "Eng" }), "jd_build:abcd2345");
+  // Legacy (no slug): the historical input-shaped key is byte-identical.
+  assert.equal(
+    buildDedupeKey("jd_build", { title: "Backend Engineer", needText: "hello world", repoUrl: "" }),
+    "jd_build:Backend Engineer:11:"
+  );
+  // Two placeholder JDs with identical inputs must NOT collapse into one build.
+  assert.notEqual(
+    buildDedupeKey("jd_build", { jdSlug: "aaaa1111", title: "Eng", needText: "x" }),
+    buildDedupeKey("jd_build", { jdSlug: "bbbb2222", title: "Eng", needText: "x" })
+  );
 });
 
 test("an unknown kind has no builder and yields null (safe: forces a unique key)", () => {

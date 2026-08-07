@@ -1,0 +1,189 @@
+{
+  "job": {
+    "id": "cal-084",
+    "title": "Environmental Project Manager",
+    "company": "Atlas",
+    "role_family": "project_management",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Microsoft Office suite — Excel, Word, PowerPoint, Outlook, and PDF tools (the JD's literal 'tech stack' for day-to-day deliverable production)",
+      "BUSTR tiered reporting framework — Tier 1 / Tier 2 / Tier 3 risk-based corrective-action evaluations for underground storage tank sites (Ohio Bureau of Underground Storage Tank Regulations)",
+      "ASTM Environmental Site Assessment standards (Phase I / Phase II ESA, e.g. E1527/E1903) for site investigation and remediation work",
+      "Multi-jurisdiction regulatory bodies of rules — local, regional, state, and federal environmental compliance, with BUSTR as the named program",
+      "Fate & transport / contaminant-plume modeling tools (listed as a plus, not core)",
+      "HAZWOPER (OSHA 40-hr) health & safety protocols governing hazardous-site fieldwork",
+      "Project documents as the real 'codebase' — proposals, scopes/work assignments, field data, technical reports, regulatory submittals, and invoices spanning proposal-through-final-invoice",
+      "PE or PG professional certification (a plus, not required)"
+    ],
+    "coreResponsibilities": [
+      "Own environmental projects end-to-end across the full commercial lifecycle, from proposal through final invoice",
+      "Author and complete BUSTR tiered reporting (Tier 1/2/3 evaluations) accurately and efficiently",
+      "Direct support staff — issue work assignments and supervise execution of fieldwork and project deliverables",
+      "Maintain and grow relationships with existing clients, including in-person meetings",
+      "Advise clients on compliance with local/regional/state/federal regulations under the BUSTR program",
+      "Implement and supervise health & safety requirements on (likely HAZWOPER-governed) sites",
+      "Produce and edit high-quality technical reports while juggling multiple tasks largely independently"
+    ],
+    "statedVsRealGaps": [
+      "The structured need (stack[], responsibilities[]) is empty — every requirement was extracted from JD prose, so the analysis is grounded in the posting alone, not a real body of work or sample deliverables.",
+      "Key quantitative thresholds are redacted/garbled in the source ('minimum  years', 'minimum of  year of supervisory', 'tier  tier  and tier', 'five year MVR') — the true experience and seniority bar cannot be read with confidence.",
+      "Titled 'Environmental Project Manager' with a 'senior' target, but the minimum supervisory bar appears to be a single year and the degree requirement is 'any science or engineering field' — that reads more mid-level player-coach than senior leader.",
+      "PE/PG is only 'a plus,' yet the core deliverables are regulator-facing tiered reports; if any submittals require a licensed professional's stamp, a non-certified hire becomes a sign-off bottleneck.",
+      "The Office suite is framed as the 'technical' requirement, but the actual difficulty lives in regulatory/scientific judgment (BUSTR, ASTM, remediation, fate & transport) — proficiency in Excel/Word says little about fitness for the hard part of the job.",
+      "BUSTR is an Ohio-specific program while the company is HQ'd in Austin, TX — the posting assumes Ohio regulatory fluency that the generic 'any science degree' requirement does not guarantee."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Regulatory and legal liability — BUSTR/ASTM tiered reports carry real compliance, environmental, and financial exposure; errors are costly and hard to reverse.",
+      "Certification gap — PE/PG being optional risks hiring someone who cannot independently sign deliverables that may need a licensed stamp, creating delivery bottlenecks.",
+      "Ambiguous seniority bar — redacted experience/supervisory numbers plus a 'senior' title and a 1-year supervisory floor invite both under- and over-qualified mismatches.",
+      "Geographic/regulatory mismatch — Ohio-specific BUSTR expertise is assumed but not enforced by the broad degree requirement; a candidate strong in another state's program may not transfer cleanly.",
+      "Safety exposure — HAZWOPER-governed hazardous fieldwork with this role accountable for H&S supervision; weak oversight is a worker-safety and compliance risk.",
+      "Capacity/overload — one person carrying client management, technical delivery, staff direction, and reporting ('multiple tasks, work independently') risks throughput and quality strain."
+    ],
+    "reflection": "Reflected against the role's real body of work — regulatory deliverables, not code — this is a genuine, high-complexity environmental PM position whose hard core is BUSTR tiered reporting, ASTM site-assessment practice, and multi-jurisdiction compliance, all delivered through Office tools and client relationships from proposal to final invoice. The posting itself is the main constraint on confidence: its structured fields are empty, its key numbers are redacted, and it leans on a generic 'any science or engineering degree' while assuming Ohio-specific BUSTR fluency and treating PE/PG licensure and fate-and-transport modeling as mere pluses. The result is a 'senior'-titled role with a surprisingly soft enforced bar (one year of supervision, broad degree, optional license) sitting atop genuinely high-stakes regulatory, safety, and client-liability responsibilities. The clearest divergence between stated need and evidence is altitude: the title and lifecycle ownership say senior, but the minimum requirements as written would admit a mid-level generalist — so screening should prioritize demonstrated BUSTR/ASTM report authorship and a licensure/stamp plan over the Office-suite checkboxes the JD foregrounds.",
+    "confidence": 0.7,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Environmental Project Manager",
+    "seniority": "senior",
+    "roleFamily": "project_management",
+    "mustHaves": [
+      "BS in a science or engineering discipline (any field qualifies, per the posting)",
+      "Several years of environmental experience covering site investigation and remediation",
+      "Demonstrated supervisory experience directing field and technical support staff",
+      "Owns environmental projects end-to-end across the commercial lifecycle — proposal, scoping, execution, deliverables, through final invoice",
+      "Authors and completes BUSTR tiered reporting (Tier 1 / Tier 2 / Tier 3 risk-based corrective-action evaluations) accurately and efficiently",
+      "Working knowledge of ASTM Environmental Site Assessment standards (Phase I / Phase II ESA) for investigation and remediation work",
+      "Advises clients on compliance with local, regional, state, and federal environmental regulations, with the BUSTR program as the core focus",
+      "Implements and supervises health & safety requirements on hazardous-site fieldwork",
+      "Strong technical report writing and editing — produces and edits regulator-facing deliverables",
+      "Proficiency with Microsoft Office (Excel, Word, PowerPoint, Outlook) and PDF tools for deliverable production",
+      "Manages multiple concurrent projects and works independently with sound problem-solving judgment",
+      "Can pass an initial drug screen and a five-year motor-vehicle background check"
+    ],
+    "niceToHaves": [
+      "PE (Professional Engineer) or PG (Professional Geologist) certification",
+      "Ohio-specific BUSTR regulatory fluency (underground storage tank program)",
+      "Experience with contaminant fate & transport / plume modeling",
+      "Current OSHA HAZWOPER (40-hr) training",
+      "Experience meeting and growing relationships with existing clients in person"
+    ],
+    "responsibilities": [
+      "Serve as project manager for environmental projects, owning them from proposal through final invoice",
+      "Prepare and complete BUSTR tiered reports (Tier 1/2/3 evaluations) to regulatory standard",
+      "Issue work assignments to support staff and supervise execution of fieldwork and project deliverables",
+      "Meet with and maintain relationships with existing clients",
+      "Assist clients in complying with local, regional, state, and federal regulations under the BUSTR program",
+      "Implement and supervise site health & safety requirements on HAZWOPER-governed work",
+      "Produce and edit high-quality technical reports while managing multiple tasks largely independently"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Inherited BUSTR Release: Step In as PM on the Former Buckeye Fuel & Go Site",
+    "brief": "You are taking over as senior project manager for an open BUSTR underground storage tank (UST) release project. The site is the Former Buckeye Fuel & Go, a closed retail gasoline station in a mixed-use area of central Ohio (BUSTR Incident No. 14-09-2231). The PM who ran it left the firm mid-project, and you are inheriting the file cold. A Tier 1 submittal deadline is approaching, the client wants the site closed before a pending property sale, and the budget is most of the way spent with field work still outstanding. Your job for the next ~2 hours is what this role does every day: read the inherited project record, decide the corrective-action path, produce the next technical deliverable to regulatory standard, direct the field crew, and have a straight conversation with the client about money and schedule. The provided materials fit this role directly — treat the project file as your working reality and act on it. Assume you can use any drafting tool you like to produce polished text; that is not what we are evaluating. We are evaluating the calls you make where the file is incomplete, inconsistent, or silent — so keep a short running record of those calls as you go (Task 4), the way any PM would when handing a defensible file to a principal. The prior PM's draft conclusion is in the file; you are not required to agree with it.",
+    "repoSeed": "A typical mid-project environmental site file (the project 'codebase' for this role), provided as a folder of documents and spreadsheets:\n- 00_Proposal_and_Scope_BuckeyeFuelGo_2023-08.pdf — signed proposal with a lump-sum Tier 1 task plus a time-and-materials delineation allowance ($48,500 total), assumptions, and exclusions.\n- 01_BUSTR_Release_Confirmation_Incident_14-09-2231.pdf — release confirmation letter and the regulatory submittal clock.\n- 02_PhaseII_Boring_Logs_MW-1_to_MW-6.pdf — soil boring logs, lithology, and monitoring-well screened intervals.\n- 03_LabReport_PaceAnalytical_GW_2024-03.pdf — groundwater VOC results (benzene, toluene, ethylbenzene, xylenes, MTBE, naphthalene); several results carry 'J' (estimated) qualifiers, and the reporting units on the lab PDF do not match the units in the spreadsheet EDD.\n- 04_GW_Gauging_and_Elevations.xlsx — depth-to-water readings, computed groundwater elevations, and an inferred flow direction toward the southeast.\n- 05_DRAFT_Tier1_Evaluation_priorPM.docx — the departed PM's incomplete draft, including a data-summary table and a 'No Further Action recommended' conclusion.\n- 06_PhaseI_ESA_E1527.pdf — Phase I report whose appendix notes a private water-supply well at a residence roughly 400 ft southeast (downgradient) and historical industrial use to the north.\n- 07_Client_Emails_thread.pdf — the property owner pressing on cost and timeline and asking for closure ahead of a sale.\n- 08_Budget_Tracker.xlsx — fee/hours burndown showing ~85% of budget spent with delineation not yet performed.\n- 09_SiteMap_Figures.pdf — well locations, property boundary, and adjacent parcels.\n- 10_BUSTR_ActionLevels_GenericNumericalStandards_excerpt.pdf — the applicable Tier 1 action-level / Generic Numerical Standards reference, with separate residential and commercial/industrial columns.",
+    "tasks": [
+      "Triage the inherited file and write a one-page project status & path-forward memo to your principal: where the site actually stands in the BUSTR process, which deadline is at risk, the two or three most important data gaps or inconsistencies you found while reading the record, and your recommended corrective-action path (which tier, what happens next, and why).",
+      "Produce the core technical deliverable: a groundwater data-summary / Tier 1 comparison table that tabulates the detected constituents of concern against the applicable BUSTR Tier 1 action levels. Normalize the reporting units, state the land-use basis you applied, mark exceedances, carry through the lab data qualifiers, and give a defensible determination — does the site support a Tier 1 No Further Action, or must it escalate to Tier 2? Do not simply adopt the prior PM's draft conclusion.",
+      "Direct the next phase and square the money: write a work assignment to a staff geologist for the field event you recommend (objectives, locations/scope, and a site-specific health & safety section under HAZWOPER — hazards, PPE level, and field action levels). Then draft a short client-facing note reconciling the budget (~85% spent, key work outstanding) that proposes how to proceed before the deadline — change order, phasing, or scope reduction.",
+      "Keep a short DECISIONS log alongside your deliverables: for every call you had to make where the file was open or silent — the tier path, the land-use basis, the off-site receptor, the field scope under budget pressure, the health & safety level — record what you chose, the alternative you rejected and why, and the one question you would put to BUSTR/your principal before this leaves the door."
+    ],
+    "coverProbes": [
+      {
+        "id": "offsite-receptor",
+        "kind": "legacy_trap",
+        "where": "The private water-supply well ~400 ft downgradient is buried in the appendix of 06_PhaseI_ESA_E1527.pdf and is absent from 05_DRAFT_Tier1_Evaluation_priorPM.docx, whose conclusion assumes no complete exposure pathway.",
+        "reveals": "A strong candidate cross-reads the whole file, surfaces the downgradient potable well, and recognizes it can create a complete pathway that undermines a Tier 1 No Further Action and points toward Tier 2 / off-site work. A naive candidate builds on the prior PM's draft, never opens the Phase I appendix, and recommends closure on a pathway that was never verified.",
+        "decisionSpace": [
+          "Treat the well as a complete or potential receptor and escalate to Tier 2 with off-site delineation — most protective and defensible, but costlier and slower.",
+          "Verify the well first (active/potable status, depth, whether the residence is on municipal water) via a records check and well survey before fixing the tier — balanced, defers the decision but adds a step.",
+          "Document the receptor but argue distance and plume stability show no complete pathway and stay Tier 1 — cheapest and fastest, but carries real liability if the pathway is later shown complete."
+        ]
+      },
+      {
+        "id": "units-and-landuse",
+        "kind": "verification_trap",
+        "where": "Task 2's comparison table, where 03_LabReport_PaceAnalytical_GW_2024-03.pdf and its EDD report constituents in mismatched units (mg/L vs µg/L) and 10_BUSTR_ActionLevels excerpt has separate residential and commercial/industrial columns.",
+        "reveals": "A strong candidate normalizes every result to one unit before comparing, explicitly states and justifies the land-use column applied, and carries the 'J' qualifiers — and finds benzene actually exceeds. A naive one-shot table passes a shallow visual check but compares mismatched units against the wrong land-use column and wrongly reports 'no exceedances'.",
+        "decisionSpace": [
+          "Normalize all results to one unit and compare against the residential action levels — most conservative, hardest for an agency to reject.",
+          "Apply commercial/industrial action levels consistent with current zoning/use plus a documented institutional control — defensible and cheaper to close, but only if the control basis is stated.",
+          "Place the analytical data on a quality hold and request a corrected lab report/EDD before any determination — most rigorous, but spends schedule against the deadline."
+        ]
+      },
+      {
+        "id": "scope-under-budget",
+        "kind": "underspecified",
+        "where": "Task 3's field scope and client note, against 08_Budget_Tracker.xlsx (~85% spent), 00_Proposal exclusions, and 07_Client_Emails pressing for fast, cheap closure before a sale.",
+        "reveals": "A strong candidate names the tension out loud — regulatory rigor vs client cost vs the deadline — and proposes a scope with an explicit financial mechanism rather than quietly absorbing or quietly cutting work. A naive candidate either promises closure that the data and budget cannot support or silently descopes required delineation to stay under budget.",
+        "decisionSpace": [
+          "Full delineation now via a change order — regulatory-defensible, but exceeds budget and needs client buy-in the client is resisting.",
+          "Minimum scope to meet the BUSTR submittal deadline and defer delineation to a later phase — protects schedule and budget, risks agency rejection and rework.",
+          "A phased work assignment with a decision gate after the first results — balances cost and risk, but adds coordination overhead and a second mobilization."
+        ]
+      },
+      {
+        "id": "field-hs-level",
+        "kind": "ambiguity",
+        "where": "The site-specific health & safety section of the Task 3 work assignment; the file does not state whether dispensers/USTs are decommissioned, and 02_Boring_Logs and 09_SiteMap imply well vaults and an active roadway frontage.",
+        "reveals": "A strong candidate scales HAZWOPER provisions to the actual site (vapor/PID action levels, traffic control, well-vault confined-space consideration, ignition sources) and flags the unknowns as assumptions to confirm. A naive candidate drops in a boilerplate Level D HASP with no site-specific hazard reasoning.",
+        "decisionSpace": [
+          "Specify a baseline Level D HASP for routine UST monitoring — fast, but may under-protect if residual vapors, active fueling, or confined spaces are present.",
+          "Require a site-specific hazard assessment (PID action levels, traffic control, well-vault entry evaluation, ignition controls) and scale PPE to findings — most protective, more field prep.",
+          "Defer detail to the crew's standard HASP and list site assumptions to verify on arrival — common shortcut, defensible only if the standard HASP is robust and the site is confirmed low-hazard."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

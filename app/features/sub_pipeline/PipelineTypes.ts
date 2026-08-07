@@ -1,5 +1,7 @@
 import { Briefcase, GraduationCap, Repeat, type LucideIcon } from "lucide-react";
 import type { GithubEvidenceSummary } from "@/app/_lib/github-summary";
+import type { MatchScoreProvenance } from "@/app/_lib/match-score";
+import { PIPELINE_STAGES } from "@/app/_lib/pipeline-stages";
 
 export type Entry = {
   id: string;
@@ -34,6 +36,12 @@ export type Entry = {
   // "analyze", "sourcing", "devcase", or a webhook channel id). Null on legacy
   // and unattributed entries. Rendered as the drawer's origin chip.
   sourceChannel?: string | null;
+  // Canonical match-score read path (REC-01 / OO-L2-10) — stamped by
+  // GET /api/pipeline (match-score-resolve.ts): THE score to display (freshest
+  // job-matched analysis > matchScore snapshot > null) plus where it came from.
+  // Optional so locally-constructed entries degrade to the matchScore fallback.
+  canonicalScore?: number | null;
+  scoreProvenance?: MatchScoreProvenance | null;
 };
 
 // One job "lane" on the pipeline board: PipelineTab builds Position[] (via
@@ -64,11 +72,15 @@ export type PipelineEvent = {
   createdAt: string;
 };
 
-// Consolidated 5-stage board model (mirrors db.ts PIPELINE_STAGES). "Accepted"
-// = CV received (inbound application OR proactively sourced), waiting to be
-// screened; "Screened" = run through the first wave of evaluation (matching +
-// AI screening). Must match db.ts; legacy stages are remapped on boot.
-export const STAGES = ["Accepted", "Screened", "Interview", "Offer", "Hired"];
+// Consolidated 5-stage board model. Single-sourced from the canonical
+// PIPELINE_STAGES axis (pipeline-stages.ts is DB-free, so it's safe in the client
+// bundle — CandidateDrawer already imports it) instead of a hand-maintained literal
+// copy that could drift from the drawer's move dropdown. "Accepted" = CV received
+// (inbound application OR proactively sourced), waiting to be screened; "Screened"
+// = run through the first wave of evaluation (matching + AI screening). Typed as
+// readonly string[] so the existing `.includes(someString)` call sites keep
+// working without per-site narrowing.
+export const STAGES: readonly string[] = PIPELINE_STAGES;
 
 // One-line, new-user-friendly explanation of what each board stage represents,
 // surfaced as the column-header tooltip so the funnel is self-explaining.

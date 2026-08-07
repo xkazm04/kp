@@ -1,0 +1,201 @@
+{
+  "job": {
+    "id": "cal-090",
+    "title": "Chief Financial Officer",
+    "company": "Utica Mutual Insurance Company",
+    "role_family": "finance",
+    "seniority": "lead",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Statutory Accounting Principles (SAP/NAIC) alongside US GAAP — dual-basis financial reporting for a P&C insurer",
+      "NAIC Annual/Quarterly Statement filings ('Yellow Book') and state Department of Insurance regulatory submissions",
+      "Risk-Based Capital (RBC) and capital-adequacy modeling; AM Best BCAR / rating-agency capital models and submissions",
+      "General ledger / insurance ERP and consolidation system across multiple legal entities",
+      "FP&A forecasting and financial models (Excel/EPM-class tooling) for results analysis, P&L planning, and long-range planning",
+      "Investment-portfolio reporting and external investment-manager oversight (yield, allocation, asset-liability interaction)",
+      "Multi-entity tax compliance under IRS rules (insurance tax) and coordination with external tax consultants",
+      "Internal-controls framework (insurer Model Audit Rule / SOX-style controls) and independent-auditor workpapers",
+      "Board and executive reporting packages; rating-agency, regulator, and auditor relationship correspondence",
+      "Dependency on actuarial reserve/loss-development data feeding the financials (implied, not named in JD)"
+    ],
+    "coreResponsibilities": [
+      "Set and continuously evaluate short- and long-term strategic financial objectives as a member of the executive team",
+      "Own accounting and finance operations end-to-end and guarantee integrity, accuracy, and timeliness of all internal/external reporting",
+      "Lead, supervise, develop, and build the finance team (reviews, improvement plans, team-building)",
+      "Build and run financial models/systems for proactive results analysis and forecasting; partner with business-unit leaders on their P&Ls",
+      "Manage external investment firms and pursue higher investment yield",
+      "Own external-stakeholder reporting and relationships: AM Best, state DOIs, independent auditors, tax consultants; tax filings for all entities",
+      "Lead enterprise risk areas — monitor and report capital adequacy and profitability trends to management, board, and external constituents",
+      "Present financial updates at board meetings; advise on long-range planning, new programs/strategies, and rating/regulatory actions",
+      "Ensure effective internal controls and full regulatory/tax compliance; modernize the accounting function for efficiency"
+    ],
+    "statedVsRealGaps": [
+      "The JD repeatedly demands modernizing the accounting function and staying 'current on new technology,' yet names no actual systems, ERP, or platform — the real tooling and the starting state (likely legacy) are invisible, so the modernization mandate is undefined and unscoped.",
+      "Actuarial reserving — the single largest and most judgmental driver of a P&C insurer's financials — is absent from the JD. The CFO's reported numbers will hinge on loss-reserve adequacy and coordination with the Chief Actuary, but that critical interface is never stated.",
+      "The investment mandate is framed as upside ('actively pursues additional opportunities to drive further investment yield') with no mention of asset-liability matching, liquidity, or the capital/RBC guardrails that constrain an insurer's portfolio — yield-seeking is stated without its risk counterweight.",
+      "The JD pairs C-suite strategic leadership with 'exceptional hands-on quantitative skills' and 'minimum supervision,' signaling a lean finance org where the CFO still does detail-level work — a real gap between the 'lead/executive' framing and the hands-on operator the role actually expects.",
+      "Material P&C-CFO domains — reinsurance/ceded-reserve accounting, capital management, and any M&A or surplus strategy — are not mentioned, though they are core to the function; coverage of the role's true scope is partial.",
+      "Utica is a mutual, so capital management is about policyholder surplus, not shareholder equity; the JD never makes this structural framing explicit even though it shapes every capital and rating-agency conversation.",
+      "Grounding caveat: no codebase, models, filings, or other real materials were supplied, so this reflection is inferred from the JD plus P&C-insurer domain norms rather than verified against the role's actual body of work."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Loss-reserve adequacy and over-reliance on the actuarial function — reserve misstatement is the dominant financial-integrity risk and the JD does not surface it",
+      "AM Best rating maintenance — a downgrade directly affects competitiveness and capital cost; the CFO owns this relationship",
+      "Statutory capital adequacy / RBC across all entities under regulatory and rating-agency scrutiny",
+      "Multi-state DOI regulatory and insurance-tax compliance — breadth and filing cadence create deadline and accuracy exposure",
+      "Investment-portfolio risk if 'driving yield' outruns ALM/liquidity discipline",
+      "Key-person/lean-team risk implied by the hands-on, minimum-supervision expectation",
+      "Execution risk on the accounting-modernization mandate against likely legacy systems with no named target stack",
+      "Internal-control / Model Audit Rule failures given the breadth of reporting the CFO personally attests to"
+    ],
+    "reflection": "This is a genuine senior finance role — CFO of a multi-entity mutual property & casualty insurer — and should be judged in finance terms, not for any absence of code. Reflected against the real body of work an insurance CFO acts on (statutory and GAAP financials, NAIC/DOI filings, AM Best capital models, investment and tax reporting, board packages, and an internal-controls regime), the JD is broad and largely well-formed: it correctly centers statutory accounting, rating-agency and regulator relationships, capital-adequacy monitoring, and team leadership, and the qualifications (10+ years, P&C industry, SAP, IRS rules) match that scope. The honest divergences are about what the JD leaves unsaid rather than overreach. It loudly asks to 'modernize' and stay 'current on technology' while naming no systems, so the real tooling and its legacy starting point are invisible; it omits actuarial reserving even though loss reserves are the largest and most judgmental input to the very reporting integrity it makes the CFO accountable for; and it frames investment work as yield-seeking without the asset-liability and capital guardrails an insurer requires. The blend of executive strategy with 'exceptional hands-on quantitative skills' and 'minimum supervision' points to a lean shop where the CFO is also an operator. Because no actual filings, models, or documents were provided, this assessment is inferred from the JD plus domain norms — well-grounded directionally, but not verified against the role's concrete materials.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Chief Financial Officer",
+    "seniority": "lead",
+    "roleFamily": "finance",
+    "mustHaves": [
+      "10+ years in increasingly responsible accounting/finance roles, including 10+ years leading and building finance teams",
+      "Property & Casualty insurance industry experience — fluency in the economics and reporting cadence of a P&C carrier",
+      "Statutory Accounting Principles (SAP/NAIC) applied alongside US GAAP — dual-basis financial reporting and reconciliation",
+      "NAIC Annual/Quarterly Statement filings and state Department of Insurance regulatory submissions for all entities",
+      "Capital-adequacy and Risk-Based Capital (RBC) monitoring; ownership of rating-agency relationships and capital models (AM Best / BCAR)",
+      "Builds and operates financial models and forecasting systems for proactive results analysis and short/long-range planning",
+      "Designs and enforces effective internal controls and ensures full compliance with financial and tax regulatory laws (incl. insurance/IRS rules)",
+      "Owns integrity, accuracy, and timeliness of all internal and external financial reporting",
+      "Multi-entity tax reporting/filings and management of external auditors and tax consultants",
+      "Board-level financial reporting and executive-team partnership; strong oral and written communication",
+      "Exceptional hands-on quantitative skills with the judgment to operate strategically and self-directed in a lean finance org",
+      "Bachelor's degree in finance, accounting, or business"
+    ],
+    "niceToHaves": [
+      "Advanced degree (MBA/MS) and/or CPA",
+      "Investment-portfolio oversight and external investment-manager management, including asset-liability matching, liquidity, and yield optimization within capital guardrails",
+      "Reinsurance / ceded-reserve accounting and capital/surplus strategy experience",
+      "Coordination with the Chief Actuary on loss-reserve adequacy and reserving's impact on the financials",
+      "Track record modernizing the accounting function — ERP/EPM consolidation across multiple legal entities and driving process efficiency",
+      "Mutual-insurer experience — managing policyholder surplus rather than shareholder equity in capital and rating-agency conversations",
+      "M&A, new-program, and growth-strategy financial evaluation"
+    ],
+    "responsibilities": [
+      "Provide leadership in developing and continuously evaluating short- and long-term strategic financial objectives as a member of the executive team",
+      "Manage and oversee all accounting and finance functions and guarantee the integrity, accuracy, and timeliness of all internal and external financial reporting",
+      "Lead, supervise, and develop the finance teams through progress reviews, improvement plans, and team-building",
+      "Build and utilize financial models and systems for proactive analysis of results and forecasting; collaborate with and educate business-unit leaders on their P&Ls to surface productivity and profitability opportunities",
+      "Manage external investment firms and actively pursue opportunities to drive further investment yield",
+      "Own reporting and relationships with outside organizations — coordinating with the CEO — including rating agencies (e.g., AM Best), state Departments of Insurance, independent auditors, and tax consultants, and tax filings for all entities",
+      "Lead key enterprise risk-management areas, monitoring and reporting capital adequacy and profitability trends to management, the board, and external constituents",
+      "Attend board meetings and hold primary responsibility for financial updates and reports",
+      "Evaluate and advise on the impact of long-range planning, new programs/strategies, and rating/regulatory actions",
+      "Ensure effective internal controls are in place and full compliance with all regulatory and tax laws, while modernizing the accounting function to drive efficiency"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Capital, Reserves, and the Rating Conversation — CFO Work-Sample (P&C Insurer)",
+    "brief": "You are stepping in as CFO of Cardinal Mutual Insurance Company, a mid-size single-state-plus property & casualty mutual (commercial auto, commercial property, small BOP). Cardinal is rated A- (Excellent) by AM Best and files dual-basis: Statutory (SAP/NAIC) for regulators and rating agencies, US GAAP for management. Two things land on your desk in your first week: the board meets in two weeks, and AM Best's annual rating review is six weeks out. The interim controller has handed you a packet (see repoSeed) and is treating booked surplus as solid and the 'drive investment yield' mandate from the board as a green light. Your job is not to rebuild the close — it is to form and defend a CFO-level view of capital adequacy, reserve risk, and the yield decision, and to write the position the board and AM Best will see. This case is grounded in the real materials your role acts on; the provided insurance-finance context fits the role directly, so work on it as given. Treat any number you can't reconcile as a question for the actuary, the CEO, or the board — not as a fact. We care more about the judgment and the trail of choices than about polished spreadsheets; assume formatting and arithmetic are cheap and that your reasoning is what's scarce. Hard cap ~2 hours — go deep on the few decisions that matter, not wide.",
+    "repoSeed": "A CFO desk packet for Cardinal Mutual (synthetic but representative of the named context):\n- `STAT_2025_AnnualStatement_excerpt.xlsx` — Yellow Book pages: Page 3 (Liabilities, Surplus & Other Funds), Five-Year Historical Data, Schedule P (loss & LAE development triangles showing two recent accident years developing adversely), Schedule F (ceded reinsurance — note a large recoverable concentrated in a single reinsurer currently rated A-), and the Notes (an admitted Deferred Tax Asset sitting near the SAP admissibility limit).\n- `Actuary_ReserveOpinion_memo.pdf` — Appointed Actuary's Statement of Actuarial Opinion plus a one-page memo giving a central estimate and a reasonable range; a footnote states booked reserves are currently held near the LOW end of that range.\n- `GAAP_to_SAP_bridge_2025.xlsx` — reconciliation of GAAP equity to statutory surplus (non-admitted assets, DTA admissibility haircut, reserve discounting differences).\n- `RBC_worksheet_2025.xlsx` — Authorized Control Level RBC build-up and the current RBC ratio; input cells are editable.\n- `BCAR_inputs_AMBest.xlsx` — AM Best BCAR capital-model inputs and current scores at the published VaR confidence levels.\n- `Investment_Portfolio_Summary_Q4.xlsx` — current allocation, book yield, and duration vs. a `Proposal_ExtendYield` tab (extend duration and add BBB / private-credit to lift book yield ~40 bps).\n- `Board_FinancePackage_draft.pptx` — the controller's draft board deck (financial highlights, no risk narrative).\n- `FP&A_LRP_model_v3.xlsx` — three-year long-range plan with premium growth, combined-ratio, and surplus projections.",
+    "tasks": [
+      "Capital-adequacy assessment (~40 min): Using `Actuary_ReserveOpinion_memo.pdf`, `STAT_2025_AnnualStatement_excerpt.xlsx` (Page 3, Schedule P, Schedule F, Notes), and `RBC_worksheet_2025.xlsx`, produce a one-page view of where Cardinal's capital really stands. State the current RBC ratio and the BCAR position from `BCAR_inputs_AMBest.xlsx`, then re-run both under a reserve scenario that moves booked reserves from their current near-low-end level to the actuarial central estimate and to the high end of the range. Quantify the surplus and RBC-ratio impact, and say plainly whether the A- rating's implied capital cushion survives — and what else in surplus you do or don't trust.",
+      "Investment yield vs. ALM decision (~35 min): Evaluate the `Proposal_ExtendYield` tab in `Investment_Portfolio_Summary_Q4.xlsx` against asset-liability match to the loss-reserve duration, liquidity needs for claim payment, and the incremental RBC C1 asset charge it creates. Recommend accept / modify / decline, with the numbers behind the call and the conditions you'd attach.",
+      "Board / rating memo (~30 min): Draft the one-page CFO memo that accompanies `Board_FinancePackage_draft.pptx`. Synthesize the capital position, the reserve risk, and your investment recommendation into a single clear position and one recommended action. State explicitly who you wrote it for and exactly what decision you are asking of them.",
+      "DECISIONS.md (~15 min): As you go, keep a short decisions log — normal practice, not a deliverable for show. For each call you made where the packet was silent, ambiguous, or internally inconsistent, record what you chose, the alternative you rejected and why, and the one question you would put to the Appointed Actuary, the CEO, or the board before finalizing."
+    ],
+    "coverProbes": [
+      {
+        "id": "reserve-surplus-quality",
+        "kind": "verification_trap",
+        "where": "`Actuary_ReserveOpinion_memo.pdf` footnote (booked near low end of range) cross-read with `STAT_2025_AnnualStatement_excerpt.xlsx` Page 3 surplus and `RBC_worksheet_2025.xlsx`",
+        "reveals": "A naive one-shot read takes booked surplus and the RBC ratio at face value and pronounces capital 'strong' — passing a shallow check. A CFO-grade read recognizes that reserves are the dominant financial-integrity risk in a P&C insurer, that booking near the low end inflates surplus, and re-prices RBC/BCAR under reserve strengthening to see how thin the real cushion is.",
+        "decisionSpace": [
+          "Book to the actuarial central estimate now: report a lower but defensible surplus and absorb the rating-cushion hit transparently",
+          "Hold at the low end but disclose the range, management's rationale, and a sensitivity table — accept the optics risk for retained surplus",
+          "Phase reserve strengthening over several quarters to smooth the RBC/BCAR and rating impact, accepting a period of known under-reserving"
+        ]
+      },
+      {
+        "id": "yield-vs-alm",
+        "kind": "ambiguity",
+        "where": "`Investment_Portfolio_Summary_Q4.xlsx` tab `Proposal_ExtendYield`, weighed against the board's open 'drive further investment yield' mandate",
+        "reveals": "Whether the candidate treats 'drive yield' as a literal instruction or as a constrained optimization — trading yield against ALM, liquidity, and the C1 capital charge. A good answer sizes the capital cost of the yield; a naive one books the 40 bps and moves on.",
+        "decisionSpace": [
+          "Modest yield pickup that stays inside current duration and RBC C1 asset charge — protect capital and liquidity",
+          "Accept the full reach-for-yield (longer duration, BBB/private credit), explicitly funding the higher C1 charge and liquidity buffer with capital",
+          "Decline / de-risk now and defer the yield play until reserve adequacy and the rating review are resolved"
+        ]
+      },
+      {
+        "id": "memo-audience-ask",
+        "kind": "underspecified",
+        "where": "Task 3 memo accompanying `Board_FinancePackage_draft.pptx` — the brief never fixes the audience or the specific decision being requested",
+        "reveals": "Whether the candidate clarifies (or explicitly assumes and states) audience and ask before drafting. The right framing differs sharply by reader; a strong candidate names the choice rather than writing a generic update.",
+        "decisionSpace": [
+          "Internal board memo recommending a concrete capital/reserve action and a vote",
+          "Proactive AM Best pre-brief framed to protect the A- rating ahead of the review",
+          "Conservative regulator/DOI-facing posture emphasizing controls and compliance over narrative"
+        ]
+      },
+      {
+        "id": "surplus-fragility-buried",
+        "kind": "legacy_trap",
+        "where": "`STAT_2025_AnnualStatement_excerpt.xlsx` Schedule F (single-reinsurer recoverable concentration, reinsurer at A-) and the Notes (admitted DTA near SAP admissibility limit), reconciled in `GAAP_to_SAP_bridge_2025.xlsx`",
+        "reveals": "Whether the candidate actually reads the statutory detail before generating, or treats SAP surplus as GAAP equity. The trap: part of reported surplus rests on a DTA near its admissibility cap and on a recoverable from one reinsurer whose own downgrade would trigger a Schedule F penalty — both fragilities invisible unless you read the schedules.",
+        "decisionSpace": [
+          "Flag both as contingent surplus, haircut them in the capital assessment, and raise diversification/DTA-cushion actions",
+          "Note them as disclosed risks but leave surplus as reported, arguing the triggers are low-probability",
+          "Treat them as out of scope for a 2-hour review and explicitly defer to a deeper credit/tax workpaper review"
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

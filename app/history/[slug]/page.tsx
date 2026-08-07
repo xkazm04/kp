@@ -11,7 +11,6 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { analysisSchema } from "@/app/_lib/schemas";
 import type { ResultPanelGithub } from "@/app/_components/results/ResultPanel";
 
-export const dynamic = "force-dynamic";
 
 // GH1 — revive the persisted GitHub deep-dive for the saved report. Defensive
 // end to end (parse + schema-validate + log via the shared
@@ -23,6 +22,10 @@ function parseGithub(githubJson: string | null | undefined, slug: string): Resul
   if (!analysis) return undefined;
   return { status: "done", analysis, error: null, warning: null };
 }
+
+// Blocked under Cache Components: dynamic per-request route (previously
+// force-dynamic) with no useful static shell to prerender.
+export const instant = false;
 
 export default async function HistoryDetailPage({
   params,

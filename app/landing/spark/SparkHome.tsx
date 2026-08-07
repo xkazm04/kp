@@ -4,7 +4,7 @@ import SparkLanding from "./SparkLanding";
 /*
  * Spark landing + its scoped type system. The fonts load here (not in the route
  * page) so the same wrapper can be reused both at /landing/spark and as the
- * signed-out homepage slot ('/', via app/page.tsx → HomeGate). The font
+ * signed-out homepage slot ('/', server-gated in app/page.tsx). The font
  * variables are scoped to this subtree so the workspace fonts stay untouched:
  * Bricolage for display punch, Gabarito for friendly body text, Shantell for
  * the hand-drawn margin notes.

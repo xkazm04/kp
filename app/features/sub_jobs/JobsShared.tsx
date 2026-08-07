@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Select as UiSelect } from "@/app/_components/Select";
 import type { JobRequirement, SkippedCandidate } from "./JobsTypes";
 
 // Amber disclosure listing candidates the ranker couldn't score (malformed
@@ -73,30 +74,24 @@ export function Chip({ label, value, tone = "neutral" }: { label: string; value:
   );
 }
 
+// The Jobs filter dropdown: delegates to the shared dual-theme Select (a custom
+// listbox, so the option list re-skins in Spark Dark unlike a native <select>).
+// Keeps the local `all` (leading "All …" row) + `label`/`options` API its
+// callers use, prepending the "all" row itself.
 export function Select({
   value,
   onChange,
   all,
   label,
-  children,
+  options,
 }: {
   value: string;
   onChange: (v: string) => void;
   all: string;
   label: string;
-  children: React.ReactNode;
+  options: { value: string; label: string }[];
 }) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label={label}
-      className="focus-ring h-10 rounded-md border border-stone-200 bg-white px-2 text-base capitalize text-ink"
-    >
-      <option value="">{all}</option>
-      {children}
-    </select>
-  );
+  return <UiSelect ariaLabel={label} value={value} onChange={onChange} options={[{ value: "", label: all }, ...options]} />;
 }
 
 export function Meta({ k, v }: { k: string; v: string }) {

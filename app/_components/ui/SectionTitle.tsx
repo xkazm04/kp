@@ -6,8 +6,7 @@ import { TITLE_DISPLAY } from "./recipes";
  * the plain serif heading; Spark Dark adds the landing hero's hand-drawn
  * amber underline (and the title face itself flips to Bricolage via the
  * --font-serif token). The swap is pure CSS (`hidden dark:block` on the
- * squiggle), so this stays server-safe — no ThemeSplit needed when only a
- * decoration differs.
+ * squiggle), so this stays server-safe.
  */
 export function SectionTitle({ className = "", children }: { className?: string; children: ReactNode }) {
   return (

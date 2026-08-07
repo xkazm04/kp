@@ -2,11 +2,25 @@ import { missingVoiceEnv, type OpenAiConnect, type VoiceAdapter } from "./types.
 
 // OpenAI Realtime (gpt-realtime, GA). Browser uses WebRTC; the server mints an
 // ephemeral client secret via /v1/realtime/client_secrets and the browser POSTs
-// its SDP offer to /v1/realtime/calls. Model/voice are env-overridable because
-// the realtime model line moves quickly.
+// its SDP offer to /v1/realtime/calls. Model/voice/transcription are env-overridable
+// because the realtime model line moves quickly.
 
-const MODEL = process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime";
+/** The realtime model this adapter serves (env-overridable because the realtime
+ *  model line moves quickly). Resolved at CALL time (not module load) and
+ *  exported so the usage ledger can attribute a completed session's minutes to
+ *  the model that served them (see voice/minute-prices.ts). */
+export function openAiRealtimeModel(): string {
+  return process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime";
+}
+
 const VOICE = process.env.OPENAI_REALTIME_VOICE ?? "marin";
+// Input transcription model. Defaults to a STREAMING model (emits `.delta`s) so the
+// finalize fallback for a candidate's last answer still in flight at hang-up — which
+// reads from the streamed delta buffer — actually has content. whisper-1 emits ONLY
+// the final `.completed` (no deltas), so under it that fallback was provably empty
+// and a slow closing answer could be silently dropped from the scored transcript.
+// Override (incl. back to "whisper-1") via the env when needed.
+const TRANSCRIPTION_MODEL = process.env.OPENAI_REALTIME_TRANSCRIPTION_MODEL ?? "gpt-4o-transcribe";
 const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets";
 
@@ -85,6 +99,7 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
   async connect({ instructions }: { instructions: string; language?: string | null }): Promise<OpenAiConnect> {
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("OPENAI_API_KEY is not set");
+    const model = openAiRealtimeModel();
 
     const res = await fetch(SECRETS_URL, {
       method: "POST",
@@ -92,10 +107,10 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
       body: JSON.stringify({
         session: {
           type: "realtime",
-          model: MODEL,
+          model,
           instructions,
           audio: {
-            input: { transcription: { model: "whisper-1" } },
+            input: { transcription: { model: TRANSCRIPTION_MODEL } },
             output: { voice: VOICE },
           },
         },
@@ -112,6 +127,6 @@ export class OpenAiVoiceAdapter implements VoiceAdapter {
       data.value ?? (typeof data.client_secret === "string" ? data.client_secret : data.client_secret?.value);
     if (!clientSecret) throw new Error("OpenAI did not return a client secret");
 
-    return { provider: "openai", model: MODEL, clientSecret, callsUrl: CALLS_URL };
+    return { provider: "openai", model, clientSecret, callsUrl: CALLS_URL };
   }
 }

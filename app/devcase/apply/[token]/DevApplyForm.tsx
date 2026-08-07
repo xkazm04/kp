@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Check, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { TextInput } from "@/app/_components/TextInput";
+import { TextArea } from "@/app/_components/TextArea";
 
 type SubmitState =
   | { kind: "idle" }
@@ -63,42 +65,39 @@ export function DevApplyForm({ token }: { token: string }) {
     );
   }
 
-  const inputClass =
-    "focus-ring mt-1 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-base text-ink";
-
   return (
     <form onSubmit={submit} className="mt-4 space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-medium text-ink">
           {t("fieldName")} <span className="text-coral">*</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} required className={inputClass} />
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} required className="mt-1" />
         </label>
         <label className="block text-sm font-medium text-ink">
           {t("fieldContact")} <span className="text-coral">*</span>
-          <input
+          <TextInput
             type="email"
             value={contact}
             onChange={(e) => setContact(e.target.value)}
             required
             placeholder={t("fieldContactPlaceholder")}
-            className={inputClass}
+            className="mt-1"
           />
           <span className="mt-1 block text-xs font-normal text-steel">{t("fieldContactHint")}</span>
         </label>
       </div>
       <label className="block text-sm font-medium text-ink">
         {t("fieldRepo")} <span className="text-coral">*</span>
-        <input
+        <TextInput
           value={repoRef}
           onChange={(e) => setRepoRef(e.target.value)}
           required
           placeholder="https://github.com/you/solution"
-          className={inputClass}
+          className="mt-1"
         />
       </label>
       <label className="block text-sm font-medium text-ink">
         {t("fieldNotes")}
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="focus-ring mt-1 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-base text-ink" />
+        <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="mt-1" />
       </label>
       {state.kind === "error" ? (
         <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">

@@ -5,8 +5,10 @@ import { AlertTriangle, ArrowUpRight, BellRing, Clock, History, Loader2, Pause, 
 import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { useEngineAvailability } from "@/app/features/useEngineAvailability";
 import { deriveDecisionOutcome, type DecisionOutcome } from "@/app/_lib/decision-attribution";
+import { isCurrentRunError } from "@/app/_lib/scheduler-health";
 import { useRelativeTime } from "./PipelineShared";
 
 type Summary = { advanced?: number; rejected?: number; held?: number; alerts?: number; errors?: number; evaluated?: number };
@@ -26,9 +28,6 @@ type SchedulerRun = {
 type Schedule = {
   enabled: boolean;
   intervalMinutes: number;
-  // AUTO1 — "approve" queues clock rejects on the Decisions gate; "auto" is the
-  // opt-in fully autonomous posture.
-  rejectMode?: "auto" | "approve";
   lastRunAt: string | null;
   lastSummary: Summary | null;
 };
@@ -124,6 +123,9 @@ export function SchedulerControl({
   // DATA4 — flag the silent-fallback mode (no Claude CLI on PATH) at the
   // surface that triggers the automation.
   const engines = useEngineAvailability();
+  // REC-10 — "{n} sent" for reminder sweeps only reads as delivered when a
+  // relay exists; without one those sends are terminal outbox rows.
+  const relayConfigured = useDeliveryCapability();
   // Turn a tick outcome into a short, legible chip: the real summary on success, a
   // neutral no-op, or the error verbatim. The per-bucket parts come from
   // SUMMARY_COUNTS so the chip and the badges never drift. Local (not module) so
@@ -199,7 +201,7 @@ export function SchedulerControl({
     return () => clearTimeout(h);
   }, [result]);
 
-  const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean; remindersEnabled?: boolean; rejectMode?: "auto" | "approve" }) => {
+  const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean; remindersEnabled?: boolean }) => {
     if (inFlightRef.current) return; // a concurrent schedule op is already running
     inFlightRef.current = true;
     setBusy(true);
@@ -310,7 +312,7 @@ export function SchedulerControl({
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
           }}
-          className="focus-ring w-14 rounded border border-stone-200 px-1 py-0.5 text-center nums"
+          className="focus-ring w-14 rounded border border-stone-200 bg-white px-1 py-0.5 text-center text-ink caret-coral nums"
         />
         {t("min")}
       </label>
@@ -473,19 +475,27 @@ export function SchedulerControl({
             ? t("remindersChecked", { time: relativeTime(reminders.lastRunAt) })
             : t("remindersNever")}
         </span>
+        {/* OO-L2-15 — an error row renders as a live problem ONLY while it is
+            current: recent (24h TTL) and not superseded by a later check
+            (zero-send sweeps record no rows, so the newest ROW can be weeks old
+            while last_run_at proves the job healthy). Current errors carry
+            their timestamp so "failing" is never confused with "failed once,
+            back in June". Historic errors fall through to the last-success line
+            (or nothing) instead of masquerading as today's status. */}
         {reminderRuns[0] ? (
-          reminderRuns[0].status === "error" ? (
+          isCurrentRunError(reminderRuns[0], { lastRunAt: reminders.lastRunAt }) ? (
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-coral">
               <XCircle size={12} aria-hidden /> {reminderRuns[0].error ?? t("runFailed")}
+              <span className="font-normal text-steel">· {relativeTime(reminderRuns[0].startedAt)}</span>
             </span>
-          ) : (
+          ) : reminderRuns[0].status !== "error" ? (
             <span className="text-xs">
-              {t("remindersLastSent", {
+              {t(relayConfigured === false ? "remindersLastQueued" : "remindersLastSent", {
                 n: Number((reminderRuns[0].summary as { sent?: number } | null)?.sent ?? 0),
                 time: relativeTime(reminderRuns[0].startedAt),
               })}
             </span>
-          )
+          ) : null
         ) : null}
       </div>
     ) : null}

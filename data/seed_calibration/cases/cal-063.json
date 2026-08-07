@@ -1,0 +1,194 @@
+{
+  "job": {
+    "id": "cal-063",
+    "title": "Administrative Executive Assistant - Building Operations",
+    "company": "Hispanic Outlook",
+    "role_family": "administration",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Microsoft Office Suite — Word, Excel, PowerPoint, and Access (the named Access requirement implies maintaining legacy department databases/logs)",
+      "Calendar & scheduling systems — appointment/meeting calendars plus an ongoing tracker of reports, deadlines, and key dates",
+      "Email and written correspondence management — logs and follow-up records for routing and tracking communications",
+      "Management reporting — production and distribution of complex unit reports requiring high accuracy",
+      "Procurement/purchasing process for internal and external resources and services (CUNY public-sector purchasing context implied, though no named system)",
+      "CUNY enterprise systems — unnamed but signaled by 'willingness to learn new systems' (in practice CUNYfirst for HR/finance/procurement) and the CUNYedu employment portal",
+      "Building Operations department records — work scheduling, vendor/contractor coordination, and event logistics for a facilities unit (implied by the department, not enumerated in the JD)",
+      "Basic HR tooling/process for recruiting, interviewing, and supervising office staff"
+    ],
+    "coreResponsibilities": [
+      "Provide high-level day-to-day support to the Buildings Operations Director and run the executive office's logistics",
+      "Build and manage appointment/meeting schedules and prepare and coordinate special events",
+      "Maintain an ongoing calendar of reports, deadlines, and key dates and fold them into a working schedule",
+      "Coordinate executive communications, including correspondence requiring a high degree of sensitivity and confidentiality",
+      "Field public inquiries and internal campus/university requests on behalf of the director",
+      "Organize, create, and distribute complex management reports with high accuracy",
+      "Track written and email correspondence, maintaining logs and records of follow-up activity",
+      "Procure internal and external resources and services and manage their utilization",
+      "Possibly supervise office staff and perform basic HR functions (recruiting, interviewing)",
+      "Take on special projects aimed at improving unit effectiveness"
+    ],
+    "statedVsRealGaps": [
+      "Titled 'Building Operations' but the required competencies and tools are entirely generic executive-assistant skills — no facilities/CMMS/work-order/vendor-management skill is named, so the real job is administrative coordination layered onto a facilities department rather than facilities operations itself.",
+      "'Strong supervisory skills' is listed as preferred and the CUNY title says 'supervising unit activities' / 'may supervise office staff,' yet the seniority is medior and the line role is non-exempt — actual people-management scope is left soft ('may'), a likely expectation mismatch.",
+      "Procurement of internal/external resources is a core duty, but no purchasing system or public-sector procurement-rule familiarity (CUNYfirst, RFP/PO process) is required despite CUNY being a process-heavy public employer.",
+      "The stated tech requirement stops at MS Office (incl. Access), while the day-to-day clearly depends on CUNY-specific enterprise systems the JD only gestures at via 'willingness to learn new systems.'",
+      "Bachelor's + 4 years is required, but the listed qualifications are soft/behavioral (organization, discretion, initiative); little in the JD distinguishes the bar from a general senior administrative assistant."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Domain gap: a candidate hired on generic EA credentials may lack the facilities/vendor/work-order fluency the Buildings Operations setting actually demands day to day.",
+      "Supervisory ambiguity: 'may supervise office staff' and 'basic HR functions' could mean real line management or none — under-specifying this risks a bad seniority/comp fit.",
+      "Confidentiality and judgment are heavily emphasized (sensitive executive communications, discretion, tact); weak judgment here is a high-cost failure mode for the director's office.",
+      "Procurement and resource utilization in a public university imply purchasing-policy and budget-tracking exposure the JD doesn't screen for.",
+      "Tooling risk: reliance on MS Access suggests legacy departmental databases that few generalist EAs maintain well, plus a learning curve on unnamed CUNY systems.",
+      "Conflicting priorities, tight deadlines, and 'high degree of accuracy' on complex reports raise the throughput/error-tolerance bar above a routine clerical role."
+    ],
+    "reflection": "With no codebase supplied, the 'real body of work' this role acts on is its own administrative substrate — the director's calendar, meeting and event logistics, sensitive correspondence and follow-up logs, complex management reports, and procurement/resource records for a Buildings Operations unit at a CUNY (LaGuardia) campus. The JD is detailed enough (the CUNY title overview enumerates concrete duties) to ground the responsibilities confidently, and absence of a tech stack is normal for this office role rather than a defect. The central divergence is between framing and substance: the posting is anchored to 'Building Operations' but asks for no facilities, vendor, work-order, or procurement-system skill — only generic MS Office (notably Access) and behavioral traits. So the true job is a discreet, high-accuracy executive-support and coordination role attached to a facilities department, not a facilities-operations role. Two soft spots deserve clarification before hiring: the real supervisory/people-management scope ('may supervise') and the unnamed CUNY enterprise/procurement systems the work actually runs on. Judged in its own terms, complexity is medium — elevated by sensitivity, accuracy, procurement, and conflicting-deadline demands, but not by specialized technical or large-team management requirements.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Administrative Executive Assistant - Building Operations",
+    "seniority": "medior",
+    "roleFamily": "administration",
+    "mustHaves": [
+      "Bachelor's degree plus four years of relevant administrative/executive-support experience",
+      "Direct executive support: managing a director's day-to-day operations, appointment and meeting scheduling, and special-event preparation",
+      "Proficiency with Microsoft Office Suite — Word, Excel, PowerPoint, and Access (including maintaining databases/logs in Access)",
+      "Calendar and deadline management: maintaining an ongoing calendar of reports, deadlines, and key dates and folding them into a working schedule",
+      "Coordinating executive communications and correspondence requiring a high degree of sensitivity, confidentiality, discretion, and tact",
+      "Producing, organizing, and distributing complex management reports with a high degree of accuracy",
+      "Tracking written and email correspondence and maintaining logs and records of follow-up activity",
+      "Strong organizational ability to juggle multiple assignments and projects with conflicting priorities and tight deadlines",
+      "Sound judgment, initiative, and creative, diplomatic problem-solving while working well under pressure",
+      "Ability to work effectively and collaboratively with diverse staff and upper-level administrators",
+      "Willingness to learn new enterprise systems beyond MS Office"
+    ],
+    "niceToHaves": [
+      "Supervisory experience overseeing office staff and unit activities",
+      "Familiarity with public-sector / CUNY enterprise systems (e.g., CUNYfirst) for HR, finance, and procurement",
+      "Procurement experience: sourcing internal and external resources and services and managing their utilization, including PO/RFP process familiarity",
+      "Basic HR functions such as recruiting and interviewing office staff",
+      "Event logistics and special-project coordination aimed at improving unit effectiveness",
+      "Exposure to a facilities / building-operations department (vendor and contractor coordination, work scheduling)"
+    ],
+    "responsibilities": [
+      "Provide high-level day-to-day support to the Buildings Operations Director and run the executive office's logistics",
+      "Build and manage appointment and meeting schedules and prepare and coordinate special events",
+      "Maintain an ongoing calendar of reports, deadlines, and key dates and incorporate them into a working schedule",
+      "Coordinate executive communications, including correspondence requiring a high degree of sensitivity and confidentiality",
+      "Field public inquiries and internal campus/university requests on behalf of the director",
+      "Organize, create, and distribute complex management reports with high accuracy",
+      "Track written and email correspondence, maintaining logs and records of follow-up activity",
+      "Procure internal and external resources and services and manage their utilization",
+      "Possibly supervise office staff and perform basic HR functions such as recruiting and interviewing",
+      "Take on special projects aimed at improving unit effectiveness"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Buildings Operations Executive Office — One Morning in the Director's Queue",
+    "brief": "You've just stepped in as Administrative Executive Assistant to Director R. Mensah, head of Buildings Operations at Hartley College (a CUNY campus). It's the start of the day and the director is off-site until 1 p.m. You have the executive office's working materials in front of you: the director's inbox queue, the shared master calendar, a legacy correspondence/follow-up log inherited from the previous EA, the reports-and-key-dates tracker, and a half-finished quarterly vendor report due to the director this afternoon. The materials are a representative snapshot of how this office actually runs (the Access log, the coded statuses, and the report quirks are real-world messy on purpose); they fit the role directly, so work them as the EA would. Your job for the next 90 minutes: get the director's day organized, keep the correspondence record trustworthy, and hand back a vendor report the director can forward without getting burned. Several requests are deliberately open-ended or under-specified — that is normal for this office. Use your judgment, make the call you'd defend, and keep a short running DECISIONS log as you go (see the last task) so whoever picks this up after you understands why you did what you did. Timebox is a hard 90 minutes — prefer doing three things well over touching everything. You are not expected to finish every record; you ARE expected to make sound, traceable calls.",
+    "repoSeed": "A working folder for the Buildings Operations executive office: (1) `Director_Inbox_Queue.pdf` — nine email threads waiting on the director, mixed in urgency: a campus facilities VP asking for the quarterly facilities review to be set up ('invite the usual people' — no date, attendees, or room given), a vendor invoice dispute, a routine room-booking request, a student-affairs request for the Building 7 reopening date, two scheduling conflicts, a press inquiry to route, an HVAC contractor follow-up, and one clearly sensitive thread (a confidential complaint about a contractor that names a staff member). (2) `BldgOps_Master_Calendar.xlsx` — June–July appointment/meeting calendar with two double-bookings (one is the director physically in two places; one is a room conflict). (3) `Correspondence_Log.accdb` — the legacy MS Access follow-up log (~120 records) the prior EA maintained, with a `Status` field that uses single-letter codes (O=open, C=closed, P=pending-reply, H=hold/confidential), a `FollowUpDue` date field, and a `MigratedFlag` — a data-migration artifact left ~15 truly-closed items showing as `O`. A flat `Correspondence_Log_export.xlsx` and a one-page `Log_Legend.txt` are included for anyone who can't open Access. (4) `Reports_and_KeyDates_Tracker.xlsx` — recurring reports, deadlines, and key dates. (5) `Q3_Vendor_Utilization_Report_DRAFT.xlsx` — a half-built management report: a `LineItems` tab of vendor invoices, a `Summary` tab whose grand-total SUM range stops three rows short of the data, a duplicated 'Apex Mechanical' invoice (same work, two invoice numbers), one credit memo entered as a positive amount, and a separate `PO_Control` tab giving the true encumbrance control total to reconcile against.",
+    "tasks": [
+      "Triage `Director_Inbox_Queue.pdf` into a prioritized action list for the director's day/week (what they handle, what you handle, what waits). Resolve the two double-bookings on `BldgOps_Master_Calendar.xlsx`, and act on the 'set up the quarterly facilities review — invite the usual people' thread in whatever way you judge best given that the date, attendees, and room are unspecified. Add any new deadlines or key dates you surface (e.g., the Building 7 reopening) to `Reports_and_KeyDates_Tracker.xlsx`.",
+      "Bring the `Correspondence_Log` up to date (use the Access file or the `Correspondence_Log_export.xlsx` — check `Log_Legend.txt` first): record the new inbound items from the inbox, flag the overdue follow-ups, and decide how to record the confidential complaint thread. Leave the log in a state the next person can trust and keep using.",
+      "Finish and quality-check `Q3_Vendor_Utilization_Report_DRAFT.xlsx` so the vendor-spend grand total is correct and reconciles to the figure on the `PO_Control` tab, then write a 4–6 line cover note for the director summarizing utilization and flagging anything they should act on before forwarding it (for example, a vendor approaching its PO ceiling).",
+      "Keep a short DECISIONS log (half a page is plenty) as you work: for every call you made where the brief was open or the materials were ambiguous, note what you chose, the alternative you rejected, and the one question you'd put to the director or the team. This is just how we hand off work in this office."
+    ],
+    "coverProbes": [
+      {
+        "id": "cp1-quarterly-review-setup",
+        "kind": "ambiguity",
+        "where": "Director_Inbox_Queue.pdf — the 'set up the quarterly facilities review — invite the usual people' thread, against BldgOps_Master_Calendar.xlsx and the prior review entry in Correspondence_Log",
+        "reveals": "A strong EA notices that 'the usual people', the date, and the room are all unspecified, derives a defensible attendee list from last quarter's review record rather than inventing one, and either proposes options or books-with-a-flag instead of silently hard-committing the director to a single slot (possibly onto a conflict). A naive response fabricates an attendee list and books one fixed slot with no confirmation path.",
+        "decisionSpace": [
+          "Book a specific open slot and room now, list the assumed attendees, and flag everything for the director's confirmation — biases to momentum, risks rework if assumptions are wrong.",
+          "Propose 2–3 candidate slots plus a draft attendee list reconstructed from last quarter's review, and hold the actual booking until the director confirms — biases to accuracy and low rework, costs a round-trip.",
+          "Reply to the VP/director with targeted clarifying questions before touching the calendar — maximizes certainty, slowest, may read as not taking initiative."
+        ]
+      },
+      {
+        "id": "cp2-legacy-correspondence-log",
+        "kind": "legacy_trap",
+        "where": "Correspondence_Log.accdb / Correspondence_Log_export.xlsx — coded Status field, FollowUpDue, and the MigratedFlag rows stuck showing 'O'",
+        "reveals": "A strong EA reads Log_Legend.txt first, appends new records in the existing single-letter code scheme, and recognizes the ~15 migrated rows as a data artifact rather than genuinely open work. A naive response writes free-text statuses ('Done', 'Waiting'), breaks the coded scheme, and/or re-opens or duplicates the migrated-closed items — corrupting a log other people depend on.",
+        "decisionSpace": [
+          "Preserve the existing code scheme exactly, append new rows in-format, and leave the migrated rows untouched but annotated — minimal disruption, leaves the stale data in place.",
+          "Clean the legacy quirks too (resolve the migrated-open rows, dedupe) and document the cleanup — better data quality, more time and more risk of overstepping on inherited records.",
+          "Stop and ask the team for the migration history / code authority before editing migrated rows — safest, costs time and defers part of the task."
+        ]
+      },
+      {
+        "id": "cp3-vendor-report-reconciliation",
+        "kind": "verification_trap",
+        "where": "Q3_Vendor_Utilization_Report_DRAFT.xlsx — Summary grand-total SUM range stops short of the data, duplicated Apex Mechanical invoice, mis-signed credit memo, reconciled against PO_Control",
+        "reveals": "A strong EA reconciles the line items against the PO_Control total, which surfaces the truncated SUM range, the duplicate invoice, and the positive-signed credit memo — and reports the corrected figure with the fix noted. A naive one-shot pass trusts the draft because it 'already has a grand total', passes a shallow eyeball check, and forwards a number that doesn't reconcile.",
+        "decisionSpace": [
+          "Correct the formula range, the duplicate, and the credit-memo sign, reconcile to PO_Control, and footnote each correction — transparent and audit-ready, but the EA is editing accounting figures.",
+          "Flag the discrepancies to the director/finance and hold the report rather than altering financial numbers unilaterally — respects data ownership, doesn't deliver a clean report this afternoon.",
+          "Present both the raw draft total and the corrected reconciled total side by side and let the director decide — maximal transparency, pushes the judgment back onto the reader."
+        ]
+      },
+      {
+        "id": "cp4-confidential-thread-handling",
+        "kind": "underspecified",
+        "where": "Director_Inbox_Queue.pdf — the confidential contractor-complaint thread that names a staff member, and how/whether it lands in the shared Correspondence_Log and the action list",
+        "reveals": "A strong EA contains the sensitive item: records it under the confidential 'H' status with minimal detail (or keeps it out of widely-shared outputs), routes it only to the director, and does not expose names in the distributed action list. A naive response logs the full sensitive details into the shared log and/or surfaces them in the action list anyone in the office can see.",
+        "decisionSpace": [
+          "Log a minimal/redacted entry under the 'H' confidential code and route only to the director — protects confidentiality, leaves a thinner audit trail for others.",
+          "Keep it out of the shared log entirely and raise it in a separate private note to the director — maximum confidentiality, weakest formal record.",
+          "Log it in full but restrict the file's distribution/access list — complete record, relies on access controls actually holding."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

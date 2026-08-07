@@ -1,0 +1,185 @@
+{
+  "job": {
+    "id": "cal-000",
+    "title": "Administrative assistant",
+    "company": "Centers Health CARE",
+    "role_family": "administration",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Multi-line phone / PBX console (answering, screening, routing calls to associates)",
+      "Calendar & room-booking software (Outlook / shared conference-room scheduling)",
+      "Microsoft Office — Outlook for mail & calendar, Word for correspondence, Excel for basic tracking",
+      "Shipping & courier portals (FedEx, UPS) for express mail pickup/delivery",
+      "Incoming-mail intake/sorting and internal distribution workflow",
+      "Visitor reception & sign-in (greeting candidates/visitors, front-desk log/badging)",
+      "Payroll / timekeeping system for facility workers (e.g., ADP / Kronos-style time entry, hours review)",
+      "Basic arithmetic for hours, timesheets, and payroll verification",
+      "General office equipment (printer/copier/scanner, fax)"
+    ],
+    "coreResponsibilities": [
+      "Front-desk reception: greet visitors and prospective candidates, screen and direct phone callers to the right associate",
+      "Manage shared calendars and booking for conference rooms",
+      "Handle incoming mail end-to-end — receive, sort, forward — and coordinate inbound/outbound express courier shipments",
+      "Support the payroll process for facility workers (collecting/checking hours, data entry, basic calculations)",
+      "Provide general clerical/office support in a fast-paced healthcare facility setting"
+    ],
+    "statedVsRealGaps": [
+      "Titled 'Administrative assistant' but the duty mix is really a front-desk receptionist/office coordinator with a payroll-support add-on — the public-facing reception and call-routing load is the dominant day-to-day reality, not back-office admin.",
+      "Payroll for facility workers is the one genuinely consequential, error-sensitive task, yet it's listed almost in passing ('assisting in the payroll process') with no named system, no scope (how many workers), and only 'basic mathematical skills' as the bar — that understates the accuracy and confidentiality demands of payroll.",
+      "'Solid computer skills' is vague: the JD never names the actual systems (phone console, scheduling tool, timekeeping/payroll platform), so the real software competency required is unspecified and likely underdescribed.",
+      "'Flexible schedule is a must' hints at coverage/shift demands (early/late front-desk hours) that aren't spelled out — a real constraint hidden behind one phrase.",
+      "Healthcare-facility context implies handling of worker and possibly patient-adjacent information (confidentiality / HIPAA awareness), but the JD doesn't mention compliance at all despite the payroll and reception exposure."
+    ],
+    "trueComplexity": "low",
+    "riskAreas": [
+      "Payroll accuracy & confidentiality — the highest-stakes duty; data-entry or hours errors directly hit workers' pay, and it's the least-detailed part of the JD.",
+      "Single point of front-desk coverage — call routing, visitor greeting, mail, and courier all converge on one person; gaps when absent or during peaks degrade the whole office (the 'flexible schedule' hint).",
+      "Underspecified tooling — without naming the phone, scheduling, and timekeeping systems, hiring may misjudge required proficiency and onboarding time.",
+      "Confidentiality/compliance in a healthcare setting — handling worker payroll data and facility visitors without any stated privacy expectations is a latent risk.",
+      "Role-scope drift — a 'positive attitude, fast-paced' generalist framing invites scope creep where reception, mailroom, and payroll-support all compete for the same attention."
+    ],
+    "reflection": "This is a grounded, if thinly written, JD for a healthcare-facility front-desk administrative assistant in the Bronx — not a software role, so the absence of any tech stack is expected and normal. The real body of work is people- and process-facing: a reception/switchboard hub (greeting candidates and visitors, routing calls), light office logistics (conference-room calendars, mail sorting, FedEx/UPS coordination), and a payroll-support sliver for facility workers. Reflected against that evidence, the title oversells 'administrative' breadth: in practice this is a receptionist/office-coordinator whose single weighty responsibility — payroll assistance — is also the most underspecified and the one carrying genuine accuracy and confidentiality risk. The requirements (HS diploma, prior front-desk experience, communication, 'solid computer and basic math skills') match a low-complexity, medior-by-experience clerical role, but the JD leaves the actual systems unnamed and is silent on the healthcare-setting confidentiality and scheduling-coverage realities that would most distinguish a strong hire. Honest read: legitimate and fillable need, low true complexity, with payroll handling and front-desk coverage as the two areas where vague wording hides real expectations.",
+    "confidence": 0.78,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Administrative Assistant",
+    "seniority": "medior",
+    "roleFamily": "administration",
+    "mustHaves": [
+      "Prior front-desk, administrative, or office support experience in a comparable fast-paced setting",
+      "Professional reception skills: greeting visitors and prospective candidates and managing a visitor sign-in/badging flow with a consistently positive, service-oriented demeanor",
+      "Multi-line phone / PBX handling — answering, screening, and accurately routing callers to the correct associate",
+      "Calendar and conference-room scheduling (Outlook or an equivalent shared room-booking tool), including resolving booking conflicts",
+      "End-to-end incoming-mail handling (receive, sort, forward) plus coordinating inbound/outbound express courier shipments (FedEx, UPS)",
+      "Solid Microsoft Office competency — Outlook for mail/calendar, Word for correspondence, Excel for basic tracking",
+      "Payroll-support accuracy: collecting and verifying facility-worker hours, careful data entry, and basic arithmetic (timesheets, hours, pay calculations) with attention to detail",
+      "Discretion and confidentiality when handling payroll, worker, and other sensitive information",
+      "Excellent verbal and written communication skills",
+      "Ability to multitask and stay organized under interruption in a high-traffic front-desk environment",
+      "Availability for a flexible schedule to cover required front-desk hours",
+      "High school diploma or equivalent"
+    ],
+    "niceToHaves": [
+      "Experience in a healthcare or clinical-facility setting",
+      "Awareness of healthcare confidentiality / HIPAA expectations",
+      "Hands-on experience with a timekeeping/payroll platform (e.g., ADP, Kronos)",
+      "Familiarity with FedEx/UPS shipping portals and courier coordination",
+      "Experience with visitor-management or badging systems",
+      "Bilingual English/Spanish (relevant to the Bronx, NY location)"
+    ],
+    "responsibilities": [
+      "Staff the front desk: greet visitors and prospective candidates, and screen and direct phone callers to the appropriate associate",
+      "Maintain and manage calendars and booking for conference rooms",
+      "Receive, sort, and forward incoming mail, and coordinate pickup/delivery of express courier shipments (FedEx, UPS)",
+      "Assist in the payroll process for facility workers — gather and check hours, enter data, and perform basic pay calculations accurately",
+      "Provide general clerical and office support, maintaining professionalism and confidentiality in a fast-paced healthcare-facility environment"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Monday at the Front Desk: Payroll Run, Room Conflicts, and the Morning Queue",
+    "brief": "You're the medior administrative assistant for a mid-size healthcare facility's front office. It's a normal Monday morning and three things need to happen before lunch: the facility-worker payroll has to be entered, a tangled conference-room day has to be untangled, and the front-desk queue has to be worked while you also step out briefly for an appointment. You've been handed the shared front-desk working folder exactly as it stands. The materials are realistic and intentionally imperfect — some are incomplete, some contradict each other, and some calls simply aren't spelled out for you. That's the job: act professionally and accurately, keep confidential data confidential, and make your judgment visible. The provided tools and materials fit this role, so work directly on them. There is no phone or live payroll system to click — where a step would normally happen on the PBX or in ADP, describe in writing what you'd do. Scope your work to roughly 1.5 hours; depth and good judgment matter more than touching everything.",
+    "repoSeed": "A shared front-desk working folder mirroring a single Monday morning. Contents:\n- `timesheets_week24/` — nine weekly timesheets for facility workers (housekeeping, maintenance, grounds) for the week of June 8. Most are clean; a handful carry an incomplete or unusual entry (e.g., a missing clock-out, an overnight shift that crosses midnight, a worker over 40 hours, and one who worked the Monday holiday).\n- `pay_rules_summary.md` — one page of pay rules: unpaid 30-minute meal deduction, overtime over 40 hrs/week paid at 1.5×, how holiday hours are recorded, and a quarter-hour rounding policy.\n- `payroll_entry_template.xlsx` — the entry sheet to fill: Worker ID, Name, Reg Hrs, OT Hrs, Holiday Hrs, Gross, Exceptions.\n- `conference_rooms.csv` — this week's shared room calendar (rooms Aspen, Cedar, Birchwood, Maple), with two meetings double-booked into the same room on Wednesday and a late VIP-client meeting that has no room assigned.\n- `incoming_queue.md` — the front-desk state at 10:15: an interview candidate (J. Okafor) due at 10:30 for a 10:45 meeting, an express FedEx envelope that must ship out today, two trays of incoming mail to sort, two voicemail transcripts to route, and a vendor waiting at the desk.\n- `front_desk_quick_reference.pdf` — an older desk SOP that lists Birchwood as a bookable conference room and states a FedEx pickup cutoff of 5:30 PM.\n- `office_updates.eml` — recent facilities/HR notices: Birchwood was converted to storage last month; the daily FedEx pickup moved to 4:00 PM; and payroll is due to ADP by Tuesday noon.",
+    "tasks": [
+      "Process the Week 24 facility-worker timesheets in `timesheets_week24/` into `payroll_entry_template.xlsx`. Using `pay_rules_summary.md`, compute regular, overtime, and holiday hours and gross pay for each worker. Several entries are incomplete or unusual — verify each timesheet before entering it rather than summing the visible hours at face value. For any line you can't complete cleanly, put it in the Exceptions column with what's missing and how you'd resolve it. Treat all pay data as confidential and note how you'd handle and route the finished sheet (it's due to ADP by Tuesday noon).",
+      "Fix the Wednesday conference-room schedule in `conference_rooms.csv`: resolve the two room conflicts and place the unassigned VIP-client meeting. Produce a corrected Wednesday booking grid and draft the brief emails you'd send to any organizer who has to move. State the priority rule you used to decide who keeps which room.",
+      "From `incoming_queue.md`, lay out how you'd work the front desk starting at 10:15: put the queue items (interview candidate at 10:30, the express FedEx envelope that must ship today, incoming-mail sorting, two voicemails to route, and the waiting vendor) in the order you'd handle them and explain the sequencing. You also have a 30-minute appointment away from the desk at 11:00–11:30 — describe how you'll keep reception, phones, and the shipment covered across that gap.",
+      "Keep a short DECISIONS note as you go (about 5–8 bullets): wherever the materials were unclear, contradictory, or silent, record what you chose, the option you rejected, and the one question you'd put to the office manager or HR before finalizing. Write it as the handoff note you'd leave for whoever covers the desk next."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1",
+        "kind": "verification_trap",
+        "where": "Task 1 — the incomplete and unusual timesheets in `timesheets_week24/` against the overtime, holiday, meal-deduction, and rounding rules in `pay_rules_summary.md`.",
+        "reveals": "Good: treats the missing-punch, overnight, over-40, and holiday entries as exceptions, applies the OT-over-40 and holiday rules explicitly, and surfaces unresolved lines for supervisor confirmation rather than guessing. Naive: sums the visible hours, silently 'fixes' the missing clock-out, mishandles the meal deduction or the midnight crossover, and produces a clean-looking but wrong gross that passes a casual totals check.",
+        "decisionSpace": [
+          "Hold each problematic line as an exception and pay it only after the supervisor confirms the missing/ambiguous hours — accuracy-first, but delays those workers' pay past the Tuesday deadline.",
+          "Estimate the missing punches from the worker's scheduled shift or prior-week pattern, enter the line, and flag it for review — keeps payroll on time, but assumes risk on workers' actual pay.",
+          "Enter only the cleanly verifiable hours up to the last good punch and reconcile any shortfall next cycle — conservative and auditable, but may underpay this period."
+        ]
+      },
+      {
+        "id": "P2",
+        "kind": "ambiguity",
+        "where": "Task 2 — the two Wednesday double-bookings and the unassigned VIP-client meeting in `conference_rooms.csv`, with no stated tie-break rule.",
+        "reveals": "Good: names an explicit priority rule, applies it consistently across all three meetings, and communicates the bump to whoever moves. Naive: reassigns rooms arbitrarily with no rationale, or quietly books the VIP into a room that no longer exists.",
+        "decisionSpace": [
+          "First-come-first-served by the original booking timestamp — predictable and defensible, but can bump a high-stakes client or all-hands meeting.",
+          "Business-priority order (external client / VIP and all-hands over internal 1:1s), relocating the lower-priority meeting — serves the business, but is a judgment call that needs the rule stated.",
+          "Send the conflicting organizers the open alternatives and let them self-resolve, only stepping in if they don't — minimizes overreach, but may not resolve before the meetings start."
+        ]
+      },
+      {
+        "id": "P3",
+        "kind": "legacy_trap",
+        "where": "`front_desk_quick_reference.pdf` versus `office_updates.eml` — the stale Birchwood room (surfaces in Task 2) and the stale 5:30 PM FedEx cutoff (surfaces in Task 3).",
+        "reveals": "Good: notices the SOP contradicts the recent notices and acts on current reality — skips Birchwood when placing meetings and treats the courier cutoff as 4:00 PM — then flags the outdated doc. Naive: follows the quick-reference verbatim, books storage as a meeting room and plans the shipment around a 5:30 cutoff, missing today's pickup.",
+        "decisionSpace": [
+          "Trust the recent notices over the older SOP and proceed on current reality, noting the doc is out of date — correct, but assumes the email signals are authoritative.",
+          "Follow the documented SOP as the official source for consistency — auditable, but books a nonexistent room and risks missing the courier cutoff.",
+          "Act on the safer interpretation now (avoid Birchwood, aim for the earlier cutoff) and ask the office manager to confirm and update the reference — balances speed with correctness."
+        ]
+      },
+      {
+        "id": "P4",
+        "kind": "underspecified",
+        "where": "Task 3 — the 11:00–11:30 away-from-desk window relative to the unspecified backup, overlapping the candidate arrival and the courier cutoff.",
+        "reveals": "Good: protects the highest-stakes moments (greeting the candidate, getting the shipment out before cutoff) with a concrete coverage plan before stepping away, and makes the trade-offs explicit. Naive: treats every queue item as equal priority, or leaves the desk and phones unmanned across a window when something time-critical lands.",
+        "decisionSpace": [
+          "Arrange a named backup to physically cover reception and phones for the 30 minutes — best continuity, but depends on a colleague being free and briefed.",
+          "Post a 'back at 11:30' sign, forward phones to voicemail or a colleague, and batch the deferrable items on return — low-overhead, but leaves a real coverage gap.",
+          "Shift the personal appointment so the desk is staffed through the candidate arrival and the courier handoff, taking the break only once the critical moments pass — prioritizes the stakes over schedule flexibility."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

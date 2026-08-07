@@ -40,9 +40,9 @@ export function SubmissionForm({ postingId, onDone }: { postingId: string; onDon
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-stone-100 pt-2">
       <input value={candidate} onChange={(e) => setCandidate(e.target.value)} placeholder="candidate"
-        className="focus-ring h-7 w-24 rounded border border-stone-200 px-1.5 text-micro" />
+        className="focus-ring h-7 w-24 rounded border border-stone-200 bg-white px-1.5 text-micro text-ink caret-coral placeholder:text-steel" />
       <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="submission repo URL"
-        className="focus-ring h-7 min-w-0 flex-1 rounded border border-stone-200 px-1.5 text-micro" />
+        className="focus-ring h-7 min-w-0 flex-1 rounded border border-stone-200 bg-white px-1.5 text-micro text-ink caret-coral placeholder:text-steel" />
       <button type="button" onClick={send} disabled={busy}
         className="focus-ring inline-flex h-7 items-center gap-1 rounded border border-stone-200 px-2 text-micro font-semibold text-coral hover:bg-coral/5 disabled:opacity-50">
         <Inbox size={11} /> {busy ? "…" : "Record"}

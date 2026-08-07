@@ -1,0 +1,196 @@
+{
+  "job": {
+    "id": "cal-042",
+    "title": "Data Management Analyst for Netsmart",
+    "company": "Rising Ground, Inc",
+    "role_family": "data_ai",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Netsmart myEvolv (EHR/EMR for human services) — primary application platform",
+      "myEvolv configuration tooling: file/screen building, master files, profiles, forms",
+      "Report writer / user-defined custom reports (operational & billing reporting)",
+      "Ticketing / issue-tracking software for EMR support",
+      "Requirements documentation: business, functional and technical requirements (BRD/FRD/tech specs)",
+      "Billing data capture & reporting workflows (revenue-cycle adjacent)",
+      "Microsoft Remote Desktop Services / Terminal Services",
+      "Remote-access & network security: VPN, firewall (Cisco, SonicWall, Fortinet)",
+      "Backup / DR tooling: Datto, Quest Rapid Recovery, Veeam, Veritas BackupExec",
+      "Networking & storage: iSCSI / SAN",
+      "ISMS / information-security policies & compliance (healthcare PHI context)"
+    ],
+    "coreResponsibilities": [
+      "Assess, design, build, test and implement data-capture and reporting processes in myEvolv/Netsmart",
+      "Configure myEvolv features (file/screen build, master files, profiles, forms) to drive adoption of existing functionality",
+      "Triage and resolve EMR issues via ticketing; act as liaison among staff, leadership and Netsmart through training, go-live and post-go-live",
+      "Produce user-defined custom reports, especially data capture/reporting that supports the billing process",
+      "Gather needs from user departments and author business/functional/technical requirements documents per departmental standards",
+      "Troubleshoot application problems, monitor system updates for QA, and track system traffic/activity",
+      "Work directly with end users to evaluate requests, implement appropriate changes, and coordinate training with the training department",
+      "Document all problems, solutions and outcomes for reuse"
+    ],
+    "statedVsRealGaps": [
+      "Title/family say 'Data Management Analyst' / 'data_ai', but the real work is an EHR application/business-systems analyst — config, build, requirements, troubleshooting and stakeholder liaison, not data science, statistics or ML.",
+      "'Data analysis' here means operational/billing report writing inside one vendor EHR, not analytics, modeling or BI pipelines; a candidate sourced as a 'data analyst' would be mis-fit.",
+      "seniorityTarget is 'medior', yet the scope (liaise with leadership AND the vendor, lead workgroups, build + report + troubleshoot + own QA + know infra) reads closer to a senior, single-owner generalist role.",
+      "Years-of-experience requirement is literally blank ('or more years of experience'), so the stated seniority bar is unspecified/ungrounded.",
+      "The JD bundles substantial infrastructure/sysadmin knowledge (VPN, firewall, backup/DR, iSCSI/SAN, RDS) that has little to do with EHR data work — a sign of a blended small-IT-shop role rather than a focused analyst role.",
+      "Master's degree 'preferred' is high for a configuration/support role and conflicts with the medior framing."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Mis-sourcing: marketing this as a 'data analyst / data_ai' role will attract analytics/ML candidates, while the job needs an EHR config + requirements + support specialist.",
+      "Niche platform dependency: myEvolv experience is a small candidate pool; 'preferred' may still gate practical productivity, lengthening time-to-effective.",
+      "Billing-critical reporting: report/config errors directly affect revenue cycle and regulatory reporting — high blast radius for mistakes.",
+      "Scope creep / single point of failure: one person expected to own build, reporting, troubleshooting, QA and infra awareness for the EHR — burnout and bus-factor risk.",
+      "Compliance exposure: human-services PHI plus ISMS obligations mean security/privacy mistakes carry legal and contractual weight.",
+      "Stated stress profile ('time-critical deadlines, high expectations') paired with broad scope is a retention/burnout flag.",
+      "Ungrounded experience bar (blank YOE) makes screening and leveling inconsistent."
+    ],
+    "reflection": "This is an EHR application/business-systems analyst role wearing a 'data analyst' label. The real body of work is owning Netsmart myEvolv at Rising Ground: configuring the application, building screens/forms/master files, writing user-defined and billing-supporting reports, capturing requirements, triaging tickets, and acting as the bridge between user departments, leadership and the vendor across training, go-live and post-go-live. The 'data' in the title is operational reporting tied to the billing process, not analytics, statistics or AI — so the data_ai family tag is misleading and the most likely hiring failure is sourcing the wrong profile. Complexity is medium: nothing is algorithmically hard, but the role spans application config, requirements engineering, revenue-critical reporting, heavy stakeholder management, and a healthcare/PHI compliance overlay, which together demand judgment and breadth. The JD also overreaches — folding in network/firewall/backup-DR/SAN infrastructure knowledge and a 'preferred' master's while labeling the level medior and leaving years-of-experience blank — which signals a small-IT-shop generalist role that in practice leans senior and single-owner. Hire for myEvolv (or comparable EHR) configuration and report-writing depth plus strong requirements and stakeholder skills; treat the infrastructure list as nice-to-have, fix the title/level mismatch, and define a concrete experience bar.",
+    "confidence": 0.79,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Data Management Analyst (EMR/EHR — Netsmart myEvolv)",
+    "seniority": "medior",
+    "roleFamily": "data_ai",
+    "mustHaves": [
+      "Hands-on configuration and support of an EMR/EHR (or comparable enterprise vendor application): file/screen building, master files, profiles and forms",
+      "Report writing — building user-defined custom operational reports, including data capture/reporting that supports the billing process",
+      "Authoring business, functional and technical requirements documents (BRD/FRD/tech specs) to departmental standards",
+      "EMR/application issue triage and resolution using ticketing software, with timely follow-through to resolution",
+      "Stakeholder liaison — translating needs across end users, department leadership and the vendor (Netsmart) through training, go-live and post-go-live",
+      "Application troubleshooting plus QA validation of system updates before they reach users",
+      "Working directly with user departments to evaluate requests and implement appropriate, well-documented changes",
+      "Bachelor's degree in Computer Science, Information Technology, Informatics or Business — or equivalent applied experience"
+    ],
+    "niceToHaves": [
+      "Netsmart myEvolv specifically",
+      "Healthcare / human-services (behavioral health) domain and PHI-handling experience",
+      "SQL for ad-hoc querying and report authoring (transfers directly from general data-analyst backgrounds)",
+      "Revenue-cycle / billing data familiarity",
+      "Microsoft Remote Desktop Services / Terminal Services",
+      "Remote-access and network security exposure: VPN and firewalls (Cisco, SonicWall, Fortinet)",
+      "Backup / DR tooling: Datto, Quest Rapid Recovery, Veeam, Veritas BackupExec",
+      "Networking and storage: iSCSI / SAN",
+      "ISMS / information-security policy awareness (security training, policy adherence, incident reporting)",
+      "Master's degree"
+    ],
+    "responsibilities": [
+      "Assess, design, build, test and implement data-capture and reporting processes in Netsmart myEvolv",
+      "Configure myEvolv features (file/screen build, master files, profiles, forms) to drive adoption of existing functionality",
+      "Triage and resolve EMR issues via ticketing and act as liaison among staff, leadership and Netsmart through training, go-live and post-go-live",
+      "Produce user-defined custom reports, including data capture and reporting that supports the billing process",
+      "Gather needs from user departments and author business, functional and technical requirements documents per departmental protocol",
+      "Troubleshoot application problems, monitor system updates for QA, and track system traffic and activity",
+      "Work directly with end users to evaluate requests, implement appropriate changes, and coordinate training with the training department",
+      "Document all problems, solutions and outcomes for future reference"
+    ],
+    "languages": [
+      "SQL"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "myEvolv Data Management Analyst: unbilled-events report, an intake follow-up request, and a screen build",
+    "brief": "You are joining a human-services agency as a medior Data Management Analyst supporting Netsmart myEvolv (the agency's EHR/EMR). Heads-up on scope: although this opening is tagged as a 'data ai' function, the actual work — and this exercise — is EHR configuration, requirements authoring, operational/billing report design, and application support. It is NOT an analytics or machine-learning role; do not build models, notebooks, or statistical analyses. You will not have a live myEvolv instance, which is realistic — most of this work happens against specs, data dictionaries, tickets and requirements docs before anyone touches the build. All the materials handed to you (`config/`, `data/`, `reports/`, `requests/`, `tickets/`, `templates/`) are synthetic and contain no real PHI, but treat them as if they did. Time box is 1.5 hours — this is deliberately more than you can do perfectly, so triage: depth and correct judgment on the billing-critical report matter more than touching every file. We assume any drafting tool (including an LLM) is fair game; we are evaluating the decisions you make where the materials are ambiguous, the legacy quirks you catch by reading first, and what you choose to verify before something hits the revenue cycle. Keep your outputs as plain documents in the role's normal forms (BRD/FRD, a report specification, a build spec, ticket dispositions). Save a `DECISIONS.md` as you go.",
+    "repoSeed": "A folder of synthetic agency artifacts mirroring a real myEvolv support handoff:\n\n- `config/myevolv_config_notes.md` — configuration reference for the agency's tenant: the event-driven data model (an *event* is the unit of service; each event ties to a *form*, one or more *service codes*, a *program enrollment*, and a *provider*); the key master files (Program/Service master, Service Code master, Charge Code master, Diagnosis master, Staff/Provider master); how service codes map to billing via Charge Codes; and a 'gotchas' section. Buried in the gotchas: service code `OP-90` ('Group — Substance Use') was *repurposed* in 2022 to 'Care Coordination' but the old rows were never re-coded; and the program picklist still shows `PRG-CRISIS-OLD` (set Inactive, not deleted) which a handful of historical enrollments still point to.\n- `data/data_dictionary.md` — table/field excerpts for events, service lines, claims, program enrollments, and the appointment/scheduling tables, including status fields (e.g. event status `draft|signed|voided`; appointment status `kept|no_show|cancelled|rescheduled`; service-line `billable` flag and `claim_id` nullable).\n- `reports/unbilled_events_draft.md` — a half-finished user-defined report spec, 'Billable service events not yet on a claim (current month)', written by a departing analyst. Its selection logic joins events to service lines and counts them, but it does not exclude `voided` or `draft` events, and it counts at the service-line grain so any multi-line event is counted more than once. It also has no date-boundary definition.\n- `requests/intake_followup_request.eml` — an email from the Intake department lead: \"Can you build us a report of clients who missed their appointments so the team can follow up? We need it weekly. Thanks.\" Nothing else specified.\n- `tickets/T-4471.md` — 'Report Writer error when running Monthly Service Summary' with a partial screenshot and the line 'it worked last month'. No repro steps, no program/date range, no user role noted.\n- `tickets/T-4488.md` — 'New SDOH screening fields needed on the intake form before go-live next month' from a program director, cc'ing leadership.\n- `templates/BRD_FRD_template.md` — the agency's required business/functional/technical requirements skeleton (Background, Scope in/out, Data sources, Definitions, Functional requirements, Access/PHI & role-based security, Acceptance criteria, Open questions).\n- `templates/report_spec_template.md` and `templates/build_spec_template.md` — the agency's formats for a report specification and a configuration/build spec.",
+    "tasks": [
+      "Fix and finalize the billing report. Take `reports/unbilled_events_draft.md` and produce a corrected, build-ready report specification (use `templates/report_spec_template.md`) for 'billable service events not yet on a claim'. Read the draft critically against `data/data_dictionary.md` and `config/myevolv_config_notes.md` before regenerating it: state the exact criteria that make an event billable, the grain you count at, which event/appointment statuses you include or exclude, how you define the reporting period boundary, and how the result would be reconciled so it can be trusted by the billing team. Call out anything in the draft you changed and why.",
+      "Author requirements for the Intake follow-up request. Using `templates/BRD_FRD_template.md` and `requests/intake_followup_request.eml`, write a Business + Functional Requirements document for the 'missed-appointment follow-up' need. The request is intentionally thin — your document should pin down a working definition of 'missed' (and which appointment statuses qualify), scope (which programs, what timeframe, recurring cadence), data sources, role-based access / PHI handling for who may see client follow-up lists, delivery, and acceptance criteria. Put every assumption you had to make into the template's Open Questions section.",
+      "Design the SDOH screening build (ticket T-4488). Write a configuration/build spec (use `templates/build_spec_template.md`) for capturing new Social Determinants of Health screening data on the intake form so it can later be reported on and, where applicable, support billing. Specify the master-file / service-code / form / screen / profile / event-definition changes required, the order of operations, and what to do about existing records (backfill vs. effective-dated going forward). Reconcile your design with the legacy quirks in `config/myevolv_config_notes.md`.",
+      "Triage the two open tickets and keep a decision trail. For `tickets/T-4471.md` and `tickets/T-4488.md`, give each a disposition: priority/severity with reasoning, your root-cause hypothesis, the next concrete step, who you'd involve (end user / department lead / leadership / Netsmart), and what you'd validate before and after any change. Separately, maintain a short `DECISIONS.md` across all four tasks — this is normal practice here: for each call you made where the materials were open-ended, record what you chose, the alternative you rejected, and the one question you'd put to the team."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1-missed-definition",
+        "kind": "underspecified",
+        "where": "Task 2 — the Intake follow-up requirements, driven by requests/intake_followup_request.eml",
+        "reveals": "A strong candidate refuses to treat 'missed' as self-evident and writes a precise, defensible definition plus the questions that would settle it (no_show only? include cancelled/rescheduled? client-cancelled vs agency-cancelled? what lookback window? which programs? who is allowed to see a follow-up list that names clients?). A naive candidate silently equates 'missed' with a single status, omits PHI/role-based access on a client-identifying list, and produces a report that follows up on the wrong people.",
+        "decisionSpace": [
+          "Narrow: 'missed' = appointment status no_show only, last 7 days, all programs — simplest, fastest to ship, but under-counts clients who cancelled-and-never-rebooked.",
+          "Broad: 'missed' = no_show OR client-initiated cancelled OR rescheduled-and-not-rebooked — better clinical follow-up coverage, but risks contacting clients who already rescheduled and inflates the list.",
+          "Defer-and-confirm: ship a parameterized definition (status set + window as report parameters) and flag it as an Open Question for Intake to confirm — slower to 'done' but avoids re-work and mis-targeted outreach."
+        ]
+      },
+      {
+        "id": "P2-unbilled-double-count",
+        "kind": "verification_trap",
+        "where": "Task 1 — correcting reports/unbilled_events_draft.md against the event/service-line grain and status fields",
+        "reveals": "The draft 'works' and returns a plausible row count, so a one-shot regeneration that keeps its shape passes a shallow eyeball check while double-counting multi-service-line events and including voided/draft events — directly distorting the revenue-cycle picture (over- or under-stated unbilled dollars). A strong candidate notices the grain mismatch and the missing status filters, counts billable signed events at the event grain (or de-duplicates), and proposes a reconciliation check (e.g. tie totals back to claims) rather than trusting the row count.",
+        "decisionSpace": [
+          "Count distinct events with at least one billable, non-voided, signed service line — cleanest for an 'events not yet claimed' headcount, but loses per-line charge detail.",
+          "Keep service-line grain for charge accuracy but exclude voided/draft and de-duplicate the event count in a separate measure — more faithful to dollars, more complex spec.",
+          "Two-section report: one event-level 'work list' and one line-level 'charge detail', each with explicit status filters — most useful to billing, costs the most build time within the 1.5h box."
+        ]
+      },
+      {
+        "id": "P3-repurposed-service-code",
+        "kind": "legacy_trap",
+        "where": "Task 3 (and feeds Task 1) — config/myevolv_config_notes.md gotchas: OP-90 repurposed to 'Care Coordination', PRG-CRISIS-OLD inactive-but-referenced",
+        "reveals": "Whoever reads the config notes before generating catches that adding/reporting on service or program codes naively will mis-map historical OP-90 rows (substance-use vs care-coordination) and will silently drop or mis-handle enrollments still pointing at the inactive PRG-CRISIS-OLD. A candidate who generates from the happy-path model alone proposes a build that corrupts historical reporting or breaks on the legacy enrollments.",
+        "decisionSpace": [
+          "Effective-dated handling: leave historical OP-90/PRG-CRISIS-OLD rows as-is and apply new mappings only going forward — safe, non-destructive, but historical reports stay ambiguous until documented.",
+          "Backfill/re-code the legacy rows to the correct current codes — gives clean historical reporting but is a high-blast-radius data change that needs sign-off and a rollback plan.",
+          "Quarantine: exclude the known-ambiguous legacy codes from the new build's scope and explicitly document them as a follow-up cleanup — fastest and lowest-risk now, defers the mess."
+        ]
+      },
+      {
+        "id": "P4-thin-ticket",
+        "kind": "ambiguity",
+        "where": "Task 4 — triaging tickets/T-4471.md, which has no repro steps, no date range, no user role",
+        "reveals": "A strong candidate resists 'fixing' a ticket they can't reproduce: they assign priority based on billing/operational impact, list the specific missing facts (which report parameters, which user/role, what changed since last month), and name who to pull in (the reporting user, then Netsmart if it's a platform-update regression) before changing anything. A naive candidate invents a root cause and proposes a config change against an unconfirmed problem.",
+        "decisionSpace": [
+          "Information-first: hold the fix, request exact repro (parameters, role, error text) and check the recent myEvolv update log — slowest to visible action but avoids changing the wrong thing.",
+          "Impact-triage: treat it as high priority because the Monthly Service Summary likely feeds billing, escalate to Netsmart in parallel while gathering repro — faster mitigation, risk of escalating a self-inflicted parameter error.",
+          "Reproduce-locally: attempt to recreate with a best-guess parameter set first, then decide — pragmatic, but guesses can mask the user's actual (different) inputs."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

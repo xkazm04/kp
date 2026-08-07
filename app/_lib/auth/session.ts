@@ -18,7 +18,33 @@ export const DEFAULT_WORKSPACE = "workspace";
 export const DEMO_WORKSPACE = "demo";
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 
-export type SessionPayload = { workspace: string; iat: number; exp: number; epoch?: number };
+// Non-httpOnly companion marker set alongside the session on sign-in ("entered
+// the workspace"). Read by the pre-paint theme script (app/layout.tsx, which can't
+// see the httpOnly session cookie) and by the '/' gate in OPEN mode, where no
+// signed session may exist (KP_SECRET can be unset) so this plain flag drives the
+// landing↔dashboard toggle. It is NOT a security token — the signed session is.
+export const ENTERED_COOKIE = "kp_entered";
+
+export type SessionPayload = {
+  workspace: string;
+  iat: number;
+  exp: number;
+  epoch?: number;
+  // Identity (P0): the signed-in user (`sub`), their org, and their role on
+  // `workspace`. ABSENT on operator-password and demo sessions (no per-user
+  // identity) — so pre-P0 cookies keep verifying unchanged.
+  sub?: string;
+  org?: string;
+  role?: string;
+  // The operator-password login, marked EXPLICITLY (`op: true`) rather than inferred
+  // from the absence of `sub`. Absence of identity must never imply privilege: a
+  // claim-less cookie used to resolve to full owner capabilities, so any re-mint that
+  // dropped `sub` (see /api/auth/switch-workspace) escalated a member to owner.
+  op?: true;
+};
+
+/** Optional identity claims stamped into a session at login. */
+export type SessionClaims = { sub?: string; org?: string; role?: string; op?: true };
 
 function key(): string {
   const s = process.env.KP_SECRET;
@@ -41,10 +67,28 @@ export function sessionEpoch(): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-export function signSession(workspace: string = DEFAULT_WORKSPACE, now: number = Date.now()): string {
+export function signSession(workspace: string = DEFAULT_WORKSPACE, now: number = Date.now(), claims: SessionClaims = {}): string {
   const payload: SessionPayload = { workspace, iat: now, exp: now + SESSION_TTL_MS, epoch: sessionEpoch() };
+  // Identity claims (P0) — omitted when absent so operator/demo tokens stay compact
+  // and the edge verifier (which only reads workspace/exp/epoch) is unaffected.
+  if (claims.sub) payload.sub = claims.sub;
+  if (claims.org) payload.org = claims.org;
+  if (claims.role) payload.role = claims.role;
+  if (claims.op) payload.op = true;
   const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${body}.${hmac(body)}`;
+}
+
+/** True only for a session minted by the operator-password login, which carries no
+ *  per-user identity but holds full privilege.
+ *
+ *  Read this instead of testing `!currentUserId(session)`. A session can lack `sub` for
+ *  reasons that have nothing to do with being the operator — most importantly a re-mint
+ *  that forgot to carry the claims forward — and treating that as "operator" turns a
+ *  dropped field into a privilege grant. Fails closed: an older operator cookie predating
+ *  this claim resolves to no capabilities until the operator signs in again. */
+export function isOperatorSession(session: SessionPayload | null | undefined): boolean {
+  return session?.op === true;
 }
 
 /** Verify a session token: signature recomputes under KP_SECRET AND not expired.
@@ -81,4 +125,14 @@ export function verifySession(token: string | undefined | null, now: number = Da
  *  default workspace; real multi-tenancy will resolve it from the session. */
 export function currentWorkspaceId(session: SessionPayload | null | undefined): string {
   return session?.workspace ?? DEFAULT_WORKSPACE;
+}
+
+/** The signed-in user id, or null on an operator/demo/anonymous session. */
+export function currentUserId(session: SessionPayload | null | undefined): string | null {
+  return session?.sub ?? null;
+}
+
+/** The signed-in user's org id, or null when the session carries no identity. */
+export function currentOrgId(session: SessionPayload | null | undefined): string | null {
+  return session?.org ?? null;
 }

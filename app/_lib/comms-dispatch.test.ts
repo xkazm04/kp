@@ -39,6 +39,8 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["koDecline.subject", { role: "Backend Engineer" }],
   ["koDecline.body", { name: "Jane", role: "Backend Engineer", team: "The hiring team" }],
   ["offer.subjectFallback", { role: "Backend Engineer" }],
+  ["offer.deadlineLine", { deadline: "Jun 21, 5:00 PM" }],
+  ["offer.startLine", { date: "1 Sep 2026" }],
   ["offer.responseFooter", { link: "https://x/offer/abc" }],
   ["scheduleInvite.subject", { role: "Backend Engineer" }],
   ["scheduleInvite.length", { minutes: 22 }],
@@ -51,6 +53,13 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["interviewReminder.subject", { slot: "Mon 10:00" }],
   ["interviewReminder.length", { minutes: 22 }],
   ["interviewReminder.body", { name: "Jane", role: "Backend Engineer", slot: "Mon 10:00", length: " (22m)", team: "The hiring team" }],
+  ["interviewerBrief.subject", { candidate: "Jane", role: "Backend Engineer" }],
+  ["interviewerBrief.length", { minutes: 22 }],
+  ["interviewerBrief.focusFallback", {}],
+  ["interviewerBrief.scenarioFallback", {}],
+  ["interviewerBrief.icsTitle", { candidate: "Jane", role: "Backend Engineer" }],
+  ["interviewerBrief.calendarHeader", {}],
+  ["interviewerBrief.body", { name: "Alice", candidate: "Jane", role: "Backend Engineer", slot: "Mon 10:00", length: " (~22 min)", scenario: "A 30-minute structured interview.", focus: "Go, k8s" }],
   ["offerReminder.subject", { role: "Backend Engineer" }],
   ["offerReminder.body", { name: "Jane", role: "Backend Engineer", deadline: "Jun 21, 5:00 PM", link: "https://x/offer/abc", team: "The hiring team" }],
   ["interviewInvite.subject", { role: "Backend Engineer" }],
@@ -59,6 +68,8 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["onboarding.subject", { role: "Backend Engineer" }],
   ["onboarding.body", { name: "Jane", role: "Backend Engineer", team: "The hiring team" }],
   ["onboarding.linkFooter", { link: "https://x/onboarding/abc" }],
+  ["onboardingReminder.subject", { role: "Backend Engineer" }],
+  ["onboardingReminder.body", { name: "Jane", role: "Backend Engineer", link: "https://x/onboarding/abc", team: "The hiring team" }],
 ];
 
 for (const locale of ["en", "cs"] as const) {

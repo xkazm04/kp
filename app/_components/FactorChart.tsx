@@ -6,10 +6,26 @@ import type { Analysis } from "@/app/_lib/schemas";
 import { scoreTone, scoreToneColor } from "@/app/_lib/format";
 import { DARK, INK, STEEL } from "@/app/_lib/brand";
 import { useTheme } from "@/app/_components/ui/useTheme";
+import { factorPoints, FACTOR_DOMAIN, type FactorId } from "@/app/_lib/factor-points";
+
+// Re-exported so existing importers keep working; the contract lives in _lib so it can be
+// unit-tested without loading recharts.
+export { FACTOR_MAXES, FACTOR_DOMAIN, factorPoints, type FactorId, type FactorPoint } from "@/app/_lib/factor-points";
 
 type FactorChartProps = {
   score: Analysis["score"];
 };
+
+// Localized axis-label key per factor id (i18n preserved from the prior wave).
+// `as const` matters: next-intl's `t()` rejects a widened `string` key, so the map's
+// values must stay a literal union (the repo's standing template-literal-key gotcha).
+const FACTOR_LABEL_KEYS = {
+  experience: "factorExperience",
+  skills: "factorSkills",
+  role: "factorRole",
+  education: "factorEducation",
+  traits: "factorTraits",
+} as const satisfies Record<FactorId, string>;
 
 // Mirror the score->color language used by ScoreBadge and ScoreDial so a bar's
 // height AND hue both encode fit: weak when a factor fills little of its max, mid
@@ -33,14 +49,11 @@ const CHROME = {
 export function FactorChart({ score }: FactorChartProps) {
   const chrome = CHROME[useTheme()];
   const t = useTranslations("report");
-  // Stable `id` keys the Cells (locale-independent); `factor` is the localized axis label.
-  const data = [
-    { id: "experience", factor: t("factorExperience"), value: score.experience, max: 25 },
-    { id: "skills", factor: t("factorSkills"), value: score.skills, max: 30 },
-    { id: "role", factor: t("factorRole"), value: score.roleSeniority, max: 23 },
-    { id: "education", factor: t("factorEducation"), value: score.education, max: 12 },
-    { id: "traits", factor: t("factorTraits"), value: score.traits, max: 10 },
-  ];
+  // Stable `id` keys the Cells (locale-independent); `factor` is the localized axis
+  // label; `ratio` (value/max in [0,1]) is what the bar height encodes so bars are
+  // comparable across factors AND across candidates. Raw `value`/`max` ride along
+  // for the tooltip.
+  const data = factorPoints(score).map((p) => ({ ...p, factor: t(FACTOR_LABEL_KEYS[p.id]) }));
 
   // Recharts logs a "width(-1) / height(-1)" warning on the first render pass
   // before its internal ResizeObserver has measured the parent. We've tried
@@ -53,7 +66,14 @@ export function FactorChart({ score }: FactorChartProps) {
         <BarChart data={data} margin={{ top: 8, right: 4, left: -24, bottom: 0 }}>
           <CartesianGrid stroke={chrome.grid} vertical={false} />
           <XAxis dataKey="factor" tick={{ fill: chrome.tick, fontSize: 12 }} tickLine={false} axisLine={false} />
-          <YAxis tick={{ fill: chrome.tick, fontSize: 12 }} tickLine={false} axisLine={false} />
+          <YAxis
+            domain={[FACTOR_DOMAIN[0], FACTOR_DOMAIN[1]]}
+            ticks={[0, 0.25, 0.5, 0.75, 1]}
+            tickFormatter={(v: number) => `${Math.round(v * 100)}%`}
+            tick={{ fill: chrome.tick, fontSize: 12 }}
+            tickLine={false}
+            axisLine={false}
+          />
           <Tooltip
             cursor={{ fill: chrome.cursor }}
             contentStyle={{
@@ -62,11 +82,13 @@ export function FactorChart({ score }: FactorChartProps) {
               color: chrome.tooltipText,
               backgroundColor: chrome.tooltipBg
             }}
-            formatter={(value, _name, item) => [`${value}/${item.payload.max}`, t("factorPoints")]}
+            // Bars encode the ratio, but the tooltip shows the TRUE raw figure "N/max"
+            // (from the payload), so height/color and the number tell one story.
+            formatter={(_value, _name, item) => [`${item.payload.value}/${item.payload.max}`, t("factorPoints")]}
           />
-          <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+          <Bar dataKey="ratio" radius={[6, 6, 0, 0]}>
             {data.map((d) => (
-              <Cell key={d.id} fill={barColor(d.value / d.max)} />
+              <Cell key={d.id} fill={barColor(d.ratio)} />
             ))}
           </Bar>
         </BarChart>

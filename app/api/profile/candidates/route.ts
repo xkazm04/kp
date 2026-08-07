@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { listAnalysisRecords } from "@/app/_lib/db";
 
-export const runtime = "nodejs";
 
 // Candidate overview for the Profile tab matrix: every saved CV analysis with
 // the archetype it was routed to (read off its v2Profile), so the UI can group

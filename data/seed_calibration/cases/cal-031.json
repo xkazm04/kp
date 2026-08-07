@@ -1,0 +1,184 @@
+{
+  "job": {
+    "id": "cal-031",
+    "title": "Accounting Clerk",
+    "company": "Church & Dwight Careers",
+    "role_family": "finance",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "SAP ERP — PP/PC modules (Production Planning / Product Costing): semi & finished product setup, bills of materials (BOMs), routings, cost collectors, cost object hierarchy",
+      "SAP monthly close + standard/actual cost and variance analysis",
+      "SAP planning: annual plan and quarterly PPR budgets (with analysis & presentation), product cost estimates",
+      "Production-order mechanics: daily labor confirmations, machine run-time capture from production reports, posting to production orders",
+      "Microsoft Excel (the real workhorse for the reporting suite, charts, and variance models)",
+      "Microsoft Access (departmental data files behind the periodic reports)",
+      "Microsoft Word",
+      "General-ledger accounting: journal entries, AP data gathering, period-end support",
+      "Manufacturing/operations reporting artifacts: overfill, display, machine downtime, OEE, line-efficiency charts & reports, changeover/washout cost variance, monthly G-to-G tracking, weekly/monthly/YTD production files"
+    ],
+    "coreResponsibilities": [
+      "Produce and maintain the recurring plant reporting suite (overfill, display, downtime, OEE, line efficiency, weekly ops summary, weekly/monthly/YTD production files) and changeover/washout variance and G-to-G tracking",
+      "Own day-to-day SAP PP/PC product-costing data: create/maintain semi & finished products, BOMs, routings, cost collectors, and the cost object hierarchy",
+      "Execute the monthly SAP close and the associated cost and variance analyses",
+      "Build the SAP annual plan and quarterly PPR budgets, including the analysis and presentation of them; prepare cost estimates / product costs",
+      "Run daily labor confirmations and post machine run-time to production orders",
+      "Support the monthly financial close — gather data and execute journal entries for the AP Supervisor, and feed cost/variance reports to the Sr. Cost Accountant",
+      "Comply with and train on plant safety policies"
+    ],
+    "statedVsRealGaps": [
+      "Title vs. work: 'Accounting Clerk' signals AP/AR clerical entry, but the actual scope is hands-on manufacturing COST accounting — product-cost setup, BOM/routing/cost-object maintenance, monthly close, and variance analysis. That is cost-accountant work wearing a clerk's title.",
+      "Level vs. requirements mismatch: seniorityTarget is 'medior' and the JD lists genuinely medior tasks (SAP close, budget analysis & presentation, variance analysis), yet the qualifications asked for are entry-level — a candidate still 'pursuing' a degree with only Accounting I & II and a few years of experience. The pay/profile bar and the task surface diverge.",
+      "Skill stated generically, used specifically: the JD lists 'SAP or other ERP system' as one line item among Excel/Word/Access, but the role's hardest, highest-stakes work is specifically SAP PP/PC product costing. A generic-ERP or AP-clerk hire will not have that depth, and the posting underweights the one skill that actually gates success.",
+      "'Assist' framing understates ownership: the role is described as assisting the AP Supervisor and Sr. Cost Accountant, but it independently owns the entire periodic reporting suite and the daily PP/PC data — more autonomous than 'assist' implies.",
+      "Manufacturing-floor literacy is assumed but unstated: OEE, line efficiency, downtime, overfill, changeover/washout all require reading plant/production data, which academic accounting coursework does not teach and the JD does not flag as a gap to coach."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Bimodal difficulty → mis-hire risk: hiring to the 'clerk / degree-in-progress' bar but expecting reliable SAP PP/PC costing, close, and variance work. The cheap profile that fits the title may not carry the costing load; the person who can carry it is underpriced and may leave.",
+      "SAP PP/PC depth is the true make-or-break and is buried — screen for actual PP/PC product-costing experience, not just 'an ERP'.",
+      "High error blast radius for a junior: journal entries, product costs, and close outputs feed the financials; accuracy under multitasking pressure is repeatedly emphasized for a reason.",
+      "Knowledge-transfer / bus-factor dependency: success leans on the Sr. Cost Accountant and AP Supervisor for guidance; if they are unavailable or the handoff is thin, the role stalls at close.",
+      "Breadth overload: a long recurring report cadence + daily production-order posting + monthly close + budget cycles is a wide surface for one part-time-degree-pursuing hire to keep accurate and on time.",
+      "Tooling fragility: much of the reporting likely lives in Excel/Access workbooks rather than SAP, which tends to accumulate undocumented, single-owner spreadsheets (manual, audit-weak)."
+    ],
+    "reflection": "Reflected against the role's own body of work (inferred from the JD only — no actual spreadsheets, SAP configuration, or report files were supplied, so this is a read of the stated need, not of verified artifacts), this is not really an 'Accounting Clerk' role; it is an entry-priced manufacturing cost-accounting role. The center of gravity is SAP PP/PC product costing — maintaining BOMs, routings, cost collectors, and the cost object hierarchy, then driving the monthly close, variance analyses, and the annual/quarterly budgets off that foundation — wrapped in a heavy recurring plant-reporting cadence (OEE, line efficiency, downtime, overfill, changeover/washout variance) that runs largely on Excel and Access. The honest divergence is one of altitude: the title and the qualifications point at an entry-level co-op/student, while the responsibilities point at a developing cost accountant. trueComplexity is medium rather than low precisely because of the SAP PP/PC and close/variance work; it is held down from high only by the 'assist'/supervised framing and the seniors backstopping the close. The single most important screening signal is concrete SAP PP/PC product-costing experience (ideally in a manufacturing plant) — far more predictive here than the generic 'accounting + Excel + ERP' the posting leads with.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Accounting Clerk",
+    "seniority": "medior",
+    "roleFamily": "finance",
+    "mustHaves": [
+      "Hands-on SAP ERP, specifically the PP/PC (Production Planning / Product Costing) area: setting up and maintaining semi & finished products, bills of materials (BOMs), routings, cost collectors, and the cost object hierarchy",
+      "Cost-accounting fundamentals applied to a manufacturing setting: standard vs. actual product cost, variance analysis (changeover/washout, material/labor), and ownership of the monthly cost close",
+      "Month-end close execution — preparing and posting journal entries, and gathering/reconciling data to support the AP Supervisor and Sr. Cost Accountant",
+      "Advanced Microsoft Excel as the day-to-day workhorse: building the recurring reporting suite, variance models, and line-efficiency charts (lookups, pivots, large-data hygiene)",
+      "Accuracy and detail orientation under a fixed close calendar; able to multitask across daily PP/PC postings and the weekly/monthly/YTD reporting cadence",
+      "Accounting education baseline (Accounting I & II coursework or an Associate's/Bachelor's in progress) plus roughly two years of accounting experience"
+    ],
+    "niceToHaves": [
+      "Prior accounting experience in a manufacturing / plant environment",
+      "Microsoft Access for maintaining the departmental data files behind the periodic reports",
+      "Literacy in plant operational metrics — OEE, line efficiency, downtime, overfill — and comfort reading raw production-floor data",
+      "Experience building annual and quarterly budgets and presenting the analysis to stakeholders",
+      "Bachelor's degree in Accounting or Finance",
+      "Exposure to another ERP system (e.g. Oracle) that transfers conceptually to SAP"
+    ],
+    "responsibilities": [
+      "Produce and maintain the recurring plant reporting suite — overfill, display, machine downtime, OEE, line-efficiency charts, the weekly operations summary, and weekly/monthly/YTD production files — plus changeover/washout cost variance and the monthly G-to-G tracking report",
+      "Own day-to-day SAP PP/PC product-costing data: create and maintain semi & finished products, BOMs, routings, cost collectors, and the cost object hierarchy",
+      "Execute the monthly SAP close and the associated cost and variance analyses",
+      "Build the SAP annual plan and quarterly PPR budgets — including the analysis and presentation — and prepare product cost estimates",
+      "Run daily labor confirmations, capture machine run-time from production reports, and post it to production orders",
+      "Support the monthly financial close by gathering data and executing journal entries for the AP Supervisor and feeding cost/variance reports to the Sr. Cost Accountant",
+      "Complete all safety-related training and personally comply with plant safety policies and procedures"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Plant cost accounting: May close — variance, reporting suite, and a new product standard",
+    "brief": "You are the new Accounting Clerk at a consumer-goods fill/pack plant, supporting the Sr. Cost Accountant and the AP Supervisor through the May close. The provided context fits this role directly, so you will do the role's real work on a representative set of period-end materials exported from the plant's systems (we can't hand you a live SAP login, so the SAP PP/PC data is given as system extracts; the reporting suite and departmental files are the actual Excel/Access artifacts). Nothing here requires you to be fast at data entry — assume any spreadsheet formula, query, or write-up can be machine-produced. What we are watching is judgment: whether you read the existing workbooks before regenerating them, reconcile SAP actuals against the production reports before you trust a variance, resolve an underspecified standard-cost question instead of guessing, and know which postings are yours versus the Sr. Cost Accountant's / AP Supervisor's. Several inputs are deliberately incomplete or internally inconsistent, the way a real close is. Where the brief is open, make a defensible call, keep moving, and record the call — do not stall waiting for clarification you can reason about. Timebox is a hard 1.5 hours; go for depth on the four tasks, not extra coverage. Deliver corrected/annotated workbooks (or clearly described changes), a one-page variance note, a standard-cost build, and a DECISIONS.md.",
+    "repoSeed": "A period-end working folder for plant May reporting and close:\n- `Plant_Reporting_Suite_2026-05.xlsx` — the recurring suite. Tabs: `OEE`, `Line_Efficiency`, `Downtime`, `Overfill`, `Display`, `Weekly_Ops_Summary`, `Prod_MTD_YTD`. The `OEE` and `Line_Efficiency` tabs disagree on Line 2's availability for the last week; there is also a hidden `_helper` tab that hardcodes a downtime adjustment for Line 2 with no note explaining it, and the live OEE number depends on it.\n- `SAP_PPC_Variance_Extract_May.csv` — SAP PP/PC standard vs. actual by cost collector / production order: order #, line, product, output qty, standard cost, actual cost, and a changeover/washout flag. Sign convention (favorable vs. unfavorable) is not labeled. One Line 2 order appears twice; a separate order was reversed/cancelled in SAP but its actuals are still present in this flat extract.\n- `Production_Reports_Access_export.csv` — the Access departmental file behind the periodic reports: daily labor confirmations and captured machine run-time by order and shift. This is the source of truth for run-time and confirmations and does NOT fully tie to the variance extract.\n- `New_FG_Cost_Estimate_request.xlsx` — a request to set the standard for a new finished good on the fill line: BOM (components + quantities) and routing (operations + run times). The BOM lists no scrap/loss allowance, but the line runs a target overfill and a between-product washout; the overfill target is stated one way on the spec sheet and a different way in the `Overfill` tab of the suite.\n- `Close_Checklist_and_JE_handoff.docx` — partial month-end close checklist (one step is undated and unowned) plus a short, ambiguous note from the Sr. Cost Accountant and three draft journal entries — the note does not make clear which entries you should post and which are theirs/the AP Supervisor's.\n- `DECISIONS.md` — empty template to fill in.",
+    "tasks": [
+      "Investigate the changeover/washout cost variance for Line 2 in `SAP_PPC_Variance_Extract_May.csv`. Before attributing it, reconcile the extract's labor and run-time against `Production_Reports_Access_export.csv`. Identify the real drivers, state the favorable/unfavorable sign convention you adopted and why, and write a one-page variance note for the Sr. Cost Accountant that someone could act on — including any orders you had to back out, quarantine, or flag rather than explain.",
+      "The `OEE` and `Line_Efficiency` tabs in `Plant_Reporting_Suite_2026-05.xlsx` give inconsistent Line 2 numbers. Make the suite compute OEE = Availability × Performance × Quality consistently from the captured run-time, so the weekly operations summary is defensible. Read the existing workbook (including the hidden `_helper` tab) before you change anything: if a number moves, reconcile and explain the delta rather than silently overwriting it.",
+      "Build the standard product cost estimate for the new finished good in `New_FG_Cost_Estimate_request.xlsx` from its BOM and routing. The BOM carries no scrap allowance while the line runs target overfill and a washout, and the overfill target is stated two different ways across the materials. Resolve this into a defensible standard, show the build (material + the routing-driven conversion cost), and note exactly what you would confirm before it is released.",
+      "Keep `DECISIONS.md` as you go: for every open call (sign convention, the `_helper` adjustment, overfill/scrap treatment, suspect orders, JE ownership), record what you chose, the alternative you rejected, and the one question you would put to the team. Then add a five-line close-readiness note: of the three draft journal entries in `Close_Checklist_and_JE_handoff.docx`, which you would post yourself and which you would route back to the AP Supervisor / Sr. Cost Accountant — and why."
+    ],
+    "coverProbes": [
+      {
+        "id": "p1-overfill-scrap-costing",
+        "kind": "underspecified",
+        "where": "Task 3 — standard build in `New_FG_Cost_Estimate_request.xlsx`; the BOM has no scrap allowance and the overfill target conflicts between the spec sheet and the `Overfill` tab.",
+        "reveals": "A strong candidate notices the BOM-vs-reality gap (theoretical BOM ignores overfill give-away and washout loss) and the two conflicting overfill figures, states a costing policy, and flags it for confirmation. A naive one-shot just costs the BOM at theoretical quantities and produces a clean-looking standard that will under-cost every unit built.",
+        "decisionSpace": [
+          "Cost at theoretical BOM quantities and carry overfill give-away and washout as a separate usage/efficiency variance — keeps the standard clean and the loss visible, but the released unit cost is knowingly light.",
+          "Bake the target overfill and a washout loss factor into the standard so it absorbs the real give-away — unit cost is realistic, but it buries the loss and depends on which overfill figure is correct.",
+          "Build both (theoretical and overfill-adjusted), release neither, and ask the Sr. Cost Accountant which figure and which plant policy govern before setting the standard — safest, costs a confirmation round."
+        ]
+      },
+      {
+        "id": "p2-oee-helper-hardcode",
+        "kind": "legacy_trap",
+        "where": "Task 2 — the hidden `_helper` tab in `Plant_Reporting_Suite_2026-05.xlsx` that hardcodes the Line 2 downtime adjustment the live OEE depends on.",
+        "reveals": "A strong candidate finds the hidden tab, understands the live OEE rides on it, and decides deliberately (preserve, replace, or escalate) with the delta reconciled. A naive regeneration rebuilds 'clean' OEE formulas, silently drops the undocumented adjustment, and changes a reported KPI with no trail.",
+        "decisionSpace": [
+          "Preserve the existing adjustment, document what it appears to do, and footnote it — protects continuity of the reported series, but perpetuates an unaudited manual override.",
+          "Replace it with a clean formula computed from raw run-time and explicitly reconcile/escalate the resulting delta — auditable and correct, but it moves a previously reported number and needs sign-off.",
+          "Flag the hardcode as unverifiable, recompute OEE from `Production_Reports_Access_export.csv` run-time, and present both old and new side by side pending the report owner's confirmation — most defensible, slowest."
+        ]
+      },
+      {
+        "id": "p3-double-confirmation-reconcile",
+        "kind": "verification_trap",
+        "where": "Task 1 — the duplicated Line 2 order and the reversed/cancelled-but-still-present order in `SAP_PPC_Variance_Extract_May.csv` vs. `Production_Reports_Access_export.csv`.",
+        "reveals": "The headline variance can be made to 'tie' to the extract totals, so a shallow check passes — but the duplicate confirmation and the stale reversed order inflate the actuals and mis-attribute the driver. A strong candidate reconciles to the production reports first and backs out the bad rows; a naive one explains a variance that is partly an artifact of dirty data.",
+        "decisionSpace": [
+          "Take the extract at face value, tie to the suite totals, and explain the headline number — fastest, but the variance is overstated and the driver story is wrong.",
+          "Reconcile confirmations and run-time to `Production_Reports_Access_export.csv`, remove the double-post and the reversed order, then attribute the corrected variance — correct, costs reconciliation time and a note on what was removed.",
+          "Quarantine the two suspect orders, report the variance as a range with and without them, and escalate the data-quality issue — defensible under time pressure, leaves the precise number open."
+        ]
+      },
+      {
+        "id": "p4-je-ownership",
+        "kind": "ambiguity",
+        "where": "Task 4 — the ambiguous Sr. Cost Accountant note and the three draft journal entries in `Close_Checklist_and_JE_handoff.docx`; ownership of the postings is not spelled out.",
+        "reveals": "High-blast-radius judgment: a strong candidate posts only what is clearly theirs, parks the ambiguous entry with a specific question, and respects the close deadline without overstepping into the Sr. Cost Accountant's / AP Supervisor's postings. A naive candidate posts all three to 'finish the close' and risks wrong or duplicate GL entries that feed the financials.",
+        "decisionSpace": [
+          "Post all three to keep the close on schedule — meets the deadline, but risks posting an entry that was not yours and that hits the financials.",
+          "Post only the clearly-owned entries, draft the ambiguous one, and route it back with a precise question — protects the GL, but may slip a checklist step if no one answers in time.",
+          "Draft all three but hold every posting pending the Sr. Cost Accountant's sign-off — zero overreach, but stalls the close and leans hardest on the bus-factor person the brief warns about."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -13,7 +13,7 @@ function inline(text: string, keyBase: string): ReactNode[] {
   // markers. The old `[^*]+` dropped any bold/italic that contained a `*` (rendering the raw
   // asterisks). Bold and italic recurse into their content so nested emphasis renders; code
   // is literal (no recursion). Still builds React elements, never dangerouslySetInnerHTML.
-  const re = /\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`/;
+  const re = /\*\*([\s\S]+?)\*\*|\*([\s\S]+?)\*|`([^`]+)`|<u>([\s\S]*?)<\/u>/;
   let rest = text;
   let n = 0;
   while (rest.length) {
@@ -26,6 +26,9 @@ function inline(text: string, keyBase: string): ReactNode[] {
     const key = `${keyBase}-m${n++}`;
     if (m[1] !== undefined) out.push(<strong key={key} className="font-semibold text-ink">{inline(m[1], key)}</strong>);
     else if (m[2] !== undefined) out.push(<em key={key}>{inline(m[2], key)}</em>);
+    // <u>…</u> — the one HTML tag the RichTextEditor round-trips (markdown has no
+    // native underline); rendered as a real <u>, still React elements (safe).
+    else if (m[4] !== undefined) out.push(<u key={key}>{inline(m[4], key)}</u>);
     else out.push(<code key={key} className="rounded bg-stone-100 px-1 py-0.5 text-[0.9em]">{m[3]}</code>);
     rest = rest.slice(m.index + m[0].length);
   }

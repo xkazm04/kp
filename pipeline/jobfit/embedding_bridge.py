@@ -25,6 +25,7 @@ from __future__ import annotations
 import hashlib
 import math
 import os
+import time
 import weakref
 from typing import Any, Protocol
 
@@ -57,8 +58,43 @@ class GeminiEmbeddingProvider:
             from google import genai
 
             self._client = genai.Client()
+        started = time.monotonic()
         result = self._client.models.embed_content(model=self.model, contents=texts)
+        _meter_embeddings(self.model, result, int((time.monotonic() - started) * 1000))
         return [list(e.values) for e in result.embeddings]
+
+
+def _meter_embeddings(model: str, result: Any, duration_ms: int) -> None:
+    """Route one embeddings call through the shared monitor seam (usage ledger +
+    LightTrack), so this opt-in path stops being the one provider call in the app
+    with zero observability. Fire-and-forget and fully swallowed — embeddings are
+    a fail-open enrichment (``semantic_overlap`` returns ``None`` on any error),
+    and metering must never be the thing that changes that. The monitor writes
+    the durable ledger only when ``KP_LLM_USAGE_LOG`` is set, so keyless/offline
+    runs are untouched. Cost is left to LightTrack's price book — embeddings
+    aren't in the completion ``MTOK_PRICES`` table, so we report the tokens +
+    latency the embeddings API actually meters and let the server price them."""
+    try:
+        from .llm import monitor
+
+        # google-genai reports embeddings usage (when present) as a prompt/total
+        # token count; an embedding has no output tokens.
+        um = getattr(result, "usage_metadata", None)
+        input_tokens = 0
+        if um is not None:
+            input_tokens = int(
+                getattr(um, "prompt_token_count", None) or getattr(um, "total_token_count", None) or 0
+            )
+        monitor.emit_result(
+            provider="gemini",
+            model=model,
+            use_case="embedding",
+            usage={"input_tokens": input_tokens, "output_tokens": 0},
+            cost_usd=None,
+            duration_ms=duration_ms,
+        )
+    except Exception:
+        pass  # metering must never break (or degrade) the fail-open host call
 
 
 def default_provider() -> GeminiEmbeddingProvider | None:

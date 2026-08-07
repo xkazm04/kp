@@ -1,0 +1,192 @@
+{
+  "job": {
+    "id": "cal-025",
+    "title": "Analytics Manager",
+    "company": "Facebook App",
+    "role_family": "software_engineering",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "SQL (primary quantitative analysis language called out in min quals)",
+      "Python / R (alternative analysis languages)",
+      "Statistics: hypothesis testing, regression, experiment/impact analysis",
+      "BI & topline KPI reporting / dashboards",
+      "Large-scale internal data warehouse & query tooling (Meta-style Hive/Presto/Daiquery-class platforms implied by 'our data')",
+      "A/B testing & quantitative opportunity-sizing methods",
+      "People-management & coaching practice (career development, technical mentorship, leader development)",
+      "Cross-functional partnership with Product & Engineering leadership",
+      "Trust & Safety / integrity 'enforcement' measurement domain knowledge"
+    ],
+    "coreResponsibilities": [
+      "Manage and coach a team of data analysts — career, skill, and personal development with an explicit emphasis on technical mentorship",
+      "Build and develop leaders on the team and scale the team to upcoming opportunities (manager-of-managers trajectory)",
+      "Drive data discovery and translate findings into improvements to partner experience and increased platform impact",
+      "Own topline KPI reporting and surface actionable insights from product data",
+      "Scope the quantitative impact of potential opportunities and identify ways to improve enforcement on the platform",
+      "Become a trusted partner to product and engineering teams in service of the quality and measurement mission",
+      "Apply structured, strategic thinking to advance org strategy and execution, and influence change by identifying trends",
+      "Juggle multiple competing priorities with sound judgment across a global base of partners"
+    ],
+    "statedVsRealGaps": [
+      "roleFamily is tagged 'software_engineering' but the JD is an analytics/data people-leadership role (manager of analysts, not an IC software engineer) — the tag will mis-route matching toward hands-on coders.",
+      "need.stack and need.responsibilities are empty; the JD itself supplies a clear stack (SQL/Python/R/statistics/BI) and a rich responsibility set — the structured need under-represents the JD.",
+      "The center of gravity is leadership and strategy (coaching, developing leaders, cross-functional influence), while coding is framed as 'knowledge of … SQL or Python R' — i.e. analytical credibility, not a build mandate; a SWE-stack reading overstates the hands-on engineering bar.",
+      "Minimum qualifications have redacted year counts ('  years of people management', '  years … supporting … in an analytical capacity'), so the exact seniority bar is unstated; 'seasoned manager' + 'build and develop leaders' implies senior / manager-of-managers, consistent with seniorityTarget 'senior'.",
+      "No codebase was supplied (codebases: null), so the need cannot be reflected against any real body of work — this analysis is JD-only and rests entirely on the employer's self-description."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Mis-tagged roleFamily (software_engineering) risks sourcing IC engineers instead of analytics leaders, the opposite of what the JD asks.",
+      "The role demands a rare blend: genuine people-leadership AND hands-on quantitative credibility (SQL/stats) AND executive cross-functional influence at global scale — thin candidate pool.",
+      "'Improve enforcement on our platform' situates this in Trust & Safety / integrity work — policy-sensitive, ambiguity-heavy, and emotionally demanding in ways the title 'Analytics Manager' hides.",
+      "Redacted experience thresholds leave the leveling ambiguous (line manager vs. manager-of-managers), risking a mismatch on scope expectations.",
+      "With no codebase or work-product evidence supplied, every capability claim is unverifiable against real artifacts; the assessment is grounded only in the JD's own language."
+    ],
+    "reflection": "This is an Analytics Manager role inside what reads as Meta/Facebook's data-reporting & integrity-measurement org, and the honest headline is a framing mismatch: the structured need carries empty stack/responsibilities arrays and a 'software_engineering' roleFamily, but the JD plainly describes a data-analytics people-leadership role. The real 'stack' is SQL/Python/R plus statistics and KPI/BI reporting — yet these are stated as analytical fluency a leader must have, not an engineering build remit. The job's true weight sits in leadership: coaching analysts, developing other leaders, scaling teams, and earning trusted-partner status with product and engineering to drive a quality-and-measurement mission, including 'enforcement' on the platform. That last phrase quietly places the work in Trust & Safety, which raises the real difficulty beyond what the neutral title suggests. Because no codebase or work product was provided, there is nothing concrete to reflect the claims against — this is a JD-only read, and the redacted years-of-experience fields leave the exact seniority bar fuzzy (though 'seasoned' and 'build and develop leaders' point to a senior, likely manager-of-managers level, matching the senior target). Net: complexity is high in the role's own terms (leadership + quantitative rigor + global cross-functional influence under ambiguity), but the software-engineering tagging and blank skill arrays would, if taken literally, steer matching the wrong way.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Analytics Manager",
+    "seniority": "senior",
+    "roleFamily": "data_analytics",
+    "mustHaves": [
+      "People management and coaching of a data-analyst team (career, skill, and personal development, with explicit technical mentorship)",
+      "Strategic, structured thinking that turns ambiguous problems into recommendations and concrete action plans",
+      "Hands-on quantitative analysis fluency in SQL",
+      "Quantitative analysis in Python or R",
+      "Applied statistics for product data: hypothesis testing, regression, and impact/opportunity sizing",
+      "Topline KPI reporting and the ability to surface actionable insights from large product datasets",
+      "Cross-functional partnership and influence with Product and Engineering leadership, including global teams",
+      "Sound judgment and prioritization across many competing priorities and a broad partner base",
+      "BA/BS degree (or equivalent professional experience)"
+    ],
+    "niceToHaves": [
+      "Degree in Computer Science, Math, Physics, Engineering, or Statistics, or equivalent professional experience",
+      "Deeper statistics or computer-science knowledge (experiment design, advanced regression/causal methods)",
+      "Track record building and developing leaders and scaling teams (manager-of-managers trajectory)",
+      "Experience teaching and guiding others in quantitative concepts",
+      "Communicating complex quantitative topics to both technical and non-technical audiences",
+      "Trust & Safety / integrity-enforcement measurement domain experience",
+      "Experience with large-scale internal data-warehouse and query tooling (Hive/Presto/Daiquery-class platforms)",
+      "A/B testing and experimentation methodology"
+    ],
+    "responsibilities": [
+      "Manage and coach a team of data analysts, driving career, skill, and personal development with an emphasis on technical mentorship",
+      "Build and develop leaders on the team and scale the team to the opportunities ahead",
+      "Drive data discovery and translate findings into improvements to partner experience and increased platform impact",
+      "Own topline KPI reporting and surface actionable insights from product data",
+      "Scope the quantitative impact of potential opportunities and identify ways to improve enforcement on the platform",
+      "Be a trusted partner to Product and Engineering teams in service of the quality and measurement mission",
+      "Apply structured, strategic thinking to advance org strategy and execution, identifying trends and influencing change",
+      "Juggle multiple competing priorities with sound judgment across a global base of partners"
+    ],
+    "languages": [
+      "SQL",
+      "Python",
+      "R"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Analytics Manager work-sample: Trust & Safety enforcement metrics, an experiment readout, and an opportunity-sizing ask",
+    "brief": "You are stepping in as Analytics Manager for a Trust & Safety / integrity analytics team that measures enforcement on a large global platform. You own the topline enforcement KPI that leadership watches weekly, you manage a small team of analysts, and Product and Engineering treat you as the quantitative partner on what to build and what it's worth. This case hands you three live situations a manager in this seat faces in the same week: a topline number you're not sure you trust, a junior analyst's experiment readout sitting in your queue for sign-off, and a vague opportunity-sizing request from a Product partner. None of these is a typing test — assume any SQL, Python, or R you produce can be generated for you in seconds, so what's being assessed is your judgment: what you read before you trust it, how you verify a 'significant' result, how you size an under-specified ask, and how you coach versus do-it-yourself. NOTE ON MATERIALS: the role's own context (SQL/stats/BI/A-B/enforcement) fits this exercise, but no real dashboard or warehouse was supplied with the JD, so the starting materials below are synthetic but representative of a Meta-style internal analytics environment (Hive/Presto/Daiquery-class warehouse, weekly KPI dashboards, experiment platform). Treat them as your real inbox. Hard cap: ~2 hours — favor depth and defensible judgment over volume; you are not expected to write production pipelines.",
+    "repoSeed": "A small bundle representing your first week in the seat: (1) `enforcement_kpi_dashboard.sql` — the Presto query that feeds the weekly leadership dashboard, including an `enforcement_coverage_rate` CTE and an `action_rate` CTE; it joins `integrity.content_reviews` to `integrity.actions_daily` and the coverage rate's denominator is built from reviewed items only. (2) `experiment_readout.md` (with an attached `readout.ipynb` sketch) — a junior analyst's analysis of a new enforcement classifier rollout, reporting a '+6.2% precision lift, p=0.03, ship it' against control, computed with a two-sample t-test on a per-decision basis and segmented loosely across three regions. (3) `warehouse_tables.md` — a data dictionary for the relevant tables: `integrity.actions_daily`, `integrity.content_reviews`, `integrity.appeals`, `experiments.assignment_log` (unit, region, bucket, day), and `partner.experience_survey`. (4) `opportunity_request.txt` — a two-line message from a Product partner: 'How big is the opportunity if we improve enforcement on marketplace listings next half? Need a number for planning by Friday.' (5) `team_snapshot.md` — one paragraph each on four analysts (two early-career, one senior IC, one ready-for-lead), naming each person's current growth edge.",
+    "tasks": [
+      "Audit the topline enforcement KPI. Read `enforcement_kpi_dashboard.sql` before changing anything and decide whether the weekly `enforcement_coverage_rate` number leadership sees is trustworthy. State precisely what the metric currently measures versus what it's presented as measuring, quantify (with assumptions if needed) how far off it could be, recommend a fix to the definition, and decide what you tell leadership this week — corrected number now, caveated trend, or wait. Don't just regenerate a cleaner query; diagnose the existing one.",
+      "Sign off — or don't — on `experiment_readout.md` as the analyst's manager. Determine whether the claimed lift is real enough to ship a classifier change that affects enforcement decisions on real partners. Then write the technical-mentorship feedback you would actually send this analyst: specific, developmental, calibrated to an early-career level, separating the method issue from the ship decision. Conclude with your call: ship, hold, or limited rollout, and why.",
+      "Respond to the Product partner's opportunity-sizing request in `opportunity_request.txt`. First write the clarifying questions you'd send back and why each one changes the answer. Then, without waiting for replies, produce a defensible first-cut size with your assumptions, your chosen impact metric, and the method stated explicitly, and recommend whether this opportunity clears the bar to prioritize against other work. A confident single number with no stated assumptions is a fail condition here.",
+      "Keep a short DECISIONS log (normal practice, not a separate exercise) covering Tasks 1–3: for every call you made where the brief was open — the metric definition you settled on, what you'd ship/hold, the impact metric you sized against, how directive you chose to be with the analyst — record what you chose, the alternative you rejected and why, and the one question you'd put to the team or partner before committing for real."
+    ],
+    "coverProbes": [
+      {
+        "id": "kpi-definition-legacy",
+        "kind": "legacy_trap",
+        "where": "Task 1 — the `enforcement_coverage_rate` CTE in `enforcement_kpi_dashboard.sql`, whose denominator is built from reviewed items only",
+        "reveals": "A strong candidate reads the existing SQL and recognizes the coverage rate is survivorship-biased — computed over already-reviewed content, so it overstates true coverage and the healthy weekly trend is partly an artifact of the denominator. A naive one-shot response regenerates a tidy fresh query that reproduces the same reviewed-only denominator (or ignores the definition entirely) and reports the headline number as sound.",
+        "decisionSpace": [
+          "Preserve the legacy definition but annotate it with an explicit caveat, prioritizing continuity of the historical trend leadership already anchors on",
+          "Redefine the metric over the true eligible population and re-baseline, accepting a break in historical comparability and an awkward conversation about why the number moved",
+          "Report both the legacy and corrected figures side by side this week and flag the gap explicitly so leadership sees the bias rather than a silent restatement"
+        ]
+      },
+      {
+        "id": "experiment-significance",
+        "kind": "verification_trap",
+        "where": "Task 2 — the '+6.2% precision lift, p=0.03' significance claim in `experiment_readout.md`, plus the assignment counts in `experiments.assignment_log`",
+        "reveals": "A strong candidate won't take p=0.03 at face value: precision is a ratio metric so a naive per-decision two-sample t-test understates variance (delta method / clustered SE needed), and a quick check of `assignment_log` bucket counts can surface a sample-ratio mismatch or a region-level confound (Simpson's paradox) that invalidates the pooled result. A naive response accepts the reported p-value and approves shipping.",
+        "decisionSpace": [
+          "Hold and re-run with corrected variance and an SRM/segment check before any rollout — correctness over speed",
+          "Ship behind a holdback/guardrail given the cost of delay, with live monitoring and a pre-committed rollback trigger",
+          "Roll out only to the region where the effect is robust and re-test the segments where the signal is confounded"
+        ]
+      },
+      {
+        "id": "opportunity-underspecified",
+        "kind": "underspecified",
+        "where": "Task 3 — the two-line opportunity-sizing ask in `opportunity_request.txt` with no target metric, baseline, or segment defined",
+        "reveals": "A strong candidate names the missing pieces (which harm/metric, what baseline, which listing segment, over what horizon) and frames assumptions before computing, treating the number as a function of stated choices. A naive response emits one confident figure with no method or assumptions, hiding the leverage points that actually determine the answer.",
+        "decisionSpace": [
+          "Size by prevalence / harm reduction — the platform-impact framing of 'better enforcement'",
+          "Size by reviewer-cost or operational efficiency saved — the cost framing",
+          "Size by partner-experience proxy (false-positive and appeal reduction) — the trust/experience framing"
+        ]
+      },
+      {
+        "id": "coaching-stance",
+        "kind": "ambiguity",
+        "where": "Tasks 2 & 4 — how directive versus developmental the mentorship feedback is, and what you choose to own versus escalate",
+        "reveals": "A strong candidate calibrates the feedback to an early-career analyst and keeps the teachable method-error distinct from the time-sensitive ship decision, neither doing the analysis for them nor rubber-stamping. A naive response either silently rewrites the readout (robbing the development moment) or only validates the conclusion without surfacing the statistical flaw.",
+        "decisionSpace": [
+          "Directive fix now because the correctness risk is urgent, with the coaching conversation deferred to a 1:1",
+          "Developmental — guide the analyst to find the flaw themselves via pointed questions, accepting a slower turnaround",
+          "Pair on it and co-own the corrected readout, trading some scalability for a faster, shared-learning outcome"
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

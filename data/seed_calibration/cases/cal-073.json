@@ -1,0 +1,184 @@
+{
+  "job": {
+    "id": "cal-073",
+    "title": "Assistant Sales Manager - Full Time",
+    "company": "AM Retail Group - Karl Lagerfeld Paris",
+    "role_family": "sales",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Point-of-sale (POS) terminal and daily sales/transaction reporting",
+      "Visual merchandising standards and floor-set / planogram guides",
+      "Personal and store sales-goal tracking (KPIs: conversion, UPT, ADS, sales-per-hour)",
+      "Associate scheduling / floor-coverage planning and labor management",
+      "New-hire onboarding, training checklists and company-standard operating procedures",
+      "Coaching, performance-monitoring and recognition routines for sales associates",
+      "Customer-service protocols and clienteling / customer-relations practices",
+      "Store-appearance, cleanliness and stock-replenishment routines",
+      "Brand portfolio context (Karl Lagerfeld Paris under AM Retail Group: Wilsons Leather, G.H. Bass, DKNY, Calvin Klein Performance)"
+    ],
+    "coreResponsibilities": [
+      "Hit personal sales goals while motivating the team to drive overall store sales performance",
+      "Deliver and model exemplary customer service, maximizing profitability through the customer experience",
+      "Maintain store presentation — clean, well-organized, and compliant with visual-merchandising standards",
+      "Direct associates on the floor to ensure coverage and completion of daily tasks",
+      "Train and orient new associates to company standards and develop a sales-focused staff",
+      "Monitor associate performance, coach to company expectations, and recognize successes to build morale",
+      "Act as second-in-command, partnering with the Store Manager on day-to-day operational effectiveness"
+    ],
+    "statedVsRealGaps": [
+      "seniorityTarget is set to 'senior', but the JD's actual bar — two years of specialty-retail leadership experience and only 'encouraged' post-secondary education — describes an early-to-mid-level floor leader, not a senior manager; this is the sharpest stated-vs-real divergence",
+      "The JD frames the role around driving 'business success' and 'operational effectiveness' yet never names the hard operational levers a real ASM owns — inventory/shrink control, loss prevention, cash handling, opening/closing, scheduling to labor budget; the work is implied but invisible in the stated need",
+      "Heavy weighting toward sales + service + associate coaching, near-silent on metrics ownership; a candidate reading the JD would underestimate the back-of-house and compliance load that the job actually carries",
+      "'Competitive salary and excellent benefits' is asserted with no band or structure, so the stated value exchange can't be evaluated against the real demands of a fast-paced, customer-first floor leadership role"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Title/seniority inflation: recruiting a 'senior' candidate against a 2-year requirement risks either over-paying for floor work or attracting candidates who are surprised by the hands-on, task-level scope",
+      "Outcome depends heavily on the Store Manager partnership the JD names — a weak or absent SM relationship leaves the ASM owning the floor without the stated support structure",
+      "Specialty/fashion retail is a high-turnover environment; the 'train new associates' duty is likely continuous churn management, not occasional onboarding",
+      "Unstated operational accountability (shrink, scheduling, P&L contribution) means real performance will be judged on factors the JD never makes explicit — a fairness and expectation-setting risk",
+      "Physical, fast-paced, on-floor demands and standard retail hours (nights/weekends/holidays) are implied by the format but not disclosed, a common source of early attrition"
+    ],
+    "reflection": "Read against the real body of work a retail floor leader acts on, this is a well-defined, standardized assistant-manager role at a mid-market fashion banner — its true 'materials' are the POS, the floor-set, the sales KPIs, the schedule, and the associate roster, not a tech stack, and judged in those terms its complexity is solidly medium: people leadership plus sales plus implied store operations, all inside a large retailer's playbook. The need as stated is coherent on the sales-and-service axis but diverges from the evidence in two ways: it labels the role 'senior' while the qualifications describe an early-to-mid leader, and it foregrounds inspiration and customer experience while leaving the operational spine of the job (inventory, loss prevention, labor/scheduling, opening-closing) unstated. Hire for a strong floor-level sales coach who can run a shift and develop staff — not for a senior operator — and set expectations up front about the back-of-house accountability the JD omits.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Assistant Sales Manager",
+    "seniority": "medior",
+    "roleFamily": "sales",
+    "mustHaves": [
+      "2+ years of specialty retail experience in a leadership role (fashion/apparel retail strongly preferred)",
+      "Demonstrated ability to hit personal sales goals AND lift team/store sales performance, with fluency in core retail KPIs (conversion, UPT, ADS, sales-per-hour)",
+      "Exemplary, role-model-level customer service and clienteling; able to set the service standard others follow on the floor",
+      "Hands-on visual merchandising execution — floor sets, planogram/merchandising-standard compliance, and disciplined store presentation (clean, organized, on-brand)",
+      "People leadership on a fast-paced floor: directing associates, assigning floor coverage, and driving completion of daily tasks",
+      "Associate development — onboarding/training new hires to company SOPs, monitoring performance, and coaching to expectations",
+      "Strong interpersonal and verbal communication skills that translate directly into sales and customer relations",
+      "Ability to operate calmly and decisively in a high-traffic, fast-paced store environment"
+    ],
+    "niceToHaves": [
+      "Post-secondary education; a retail-management degree or coursework",
+      "Fluency with POS systems and daily sales/transaction reporting",
+      "Back-of-house operational ownership the JD implies but never states: inventory/shrink control, loss prevention, cash handling, and opening/closing procedures",
+      "Scheduling and labor-management experience (building coverage to a labor budget)",
+      "Experience within a multi-brand fashion portfolio (e.g., AM Retail Group brands: Wilsons Leather, G.H. Bass, DKNY, Calvin Klein Performance)",
+      "Conversational Spanish for the local (Elizabeth, NJ) customer base"
+    ],
+    "responsibilities": [
+      "Meet personal sales goals while motivating the team to drive overall store sales performance",
+      "Deliver and model exemplary customer service, maximizing profitability through the customer experience",
+      "Maintain store presentation — clean, well-organized, and compliant with visual-merchandising standards",
+      "Direct associates on the floor to ensure coverage and timely completion of daily tasks",
+      "Train and orient new associates to company standards and develop a sales-focused staff",
+      "Monitor associate performance, coach to company expectations, and recognize successes to build store morale",
+      "Serve as second-in-command, partnering with the Store Manager on day-to-day operational effectiveness"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Acting ASM weekend: diagnose, staff, and coach Store #214 (Karl Lagerfeld Paris)",
+    "brief": "You are the Assistant Sales Manager at Store #214, a Karl Lagerfeld Paris outlet under AM Retail Group. The Store Manager just left for a 4-day vacation and handed you the floor: the store is running behind plan and there is a new summer collection to set before Saturday's promo. Working only from the store's own operating documents (described below), produce the three artifacts an acting ASM would actually own this weekend — a read of where the sales gap really is, a Fri–Sun coverage plan, and a coaching/recognition plan — plus a short decisions log. The provided materials are a retail store's genuine operating documents (dashboards, KPI exports, a labor grid, a floor-set guide, the SM's handoff note) and fit this role directly, so no synthetic substitute is needed. Timebox is a hard 1.5 hours: we are testing judgment under real constraints, not exhaustiveness. Several of these documents are intentionally underspecified or quietly misleading — that mirrors a real Saturday when the SM is unreachable. Where the brief is silent, make a defensible call and record it; we care more about how you reason through the gaps than about a single 'right' answer.",
+    "repoSeed": "A shared drive for Store #214 (Karl Lagerfeld Paris, AM Retail Group), handed off while the Store Manager is on a 4-day vacation and you are acting ASM:\n- `store_weekly_dashboard.xlsx` — last 4 weeks broken out by day: door traffic, transactions, conversion %, UPT, ADS, net sales, and sales-per-hour, each against plan. The current week closes ~8% under the net-sales plan; door traffic is down ~6% week-over-week, conversion has slipped from 22% to 19%, UPT is flat at 2.1, ADS is up slightly. The gap is genuinely mixed — there is no single clean cause.\n- `associate_kpi_week.csv` — five associates: Dana (highest sales-per-hour in the store, but scheduled only Fri–Sat peak, conversion 15%, UPT 1.6 — a 'top performer' whose headline number is partly a scheduling artifact); Marek (keyholder, was the #1 seller last quarter, sales-per-hour down three weeks running, with a note that he's been covering extra opens since a co-worker quit); Lucie (keyholder, steady, conversion 24%, dependable); Petra (few hours but the highest UPT and ADS — strong at add-ons and clienteling); Tom (new hire, week 3, low across the board but trending up each week).\n- `labor_schedule_grid.xlsx` + `labor_budget.txt` — the blank weekend grid and a hard 120-hour weekly labor cap; 88 hours are already committed Mon–Thu, leaving 32 hours for Fri–Sun.\n- `floorset_guide_summer_drop.pdf` — the new summer-collection floor-set with a fixture map; the guide notes the set takes 2 people about 6 hours and must be complete before Saturday's promo opens.\n- `sm_handoff_note.md` — the Store Manager's note: 'We're behind for the week — need you to bring it home this weekend. Set the summer drop, keep the floor covered, and don't blow labor. Call me only if it's on fire.'\n- `service_incidents_log.md` — two clienteling notes, including a customer who waited at an unattended fitting room during Saturday peak and left without buying — the note does not say whether an associate neglected the customer or the floor was simply short at peak.",
+    "tasks": [
+      "Diagnose the sales gap (≈½ page). Using `store_weekly_dashboard.xlsx` and `associate_kpi_week.csv`, state where the store is actually losing the ~8% it's behind plan — traffic, conversion, UPT, or ADS — and name the 2–3 highest-leverage moves genuinely within an ASM's control this weekend. Call out explicitly which portion of the gap you do NOT believe you can move this weekend, and why.",
+      "Build the Fri–Sun coverage plan. Fill in `labor_schedule_grid.xlsx` so the selling floor is covered through peak, the summer-drop floor-set in `floorset_guide_summer_drop.pdf` is complete before Saturday's promo, a keyholder (only Marek and Lucie hold keys) is on every open and every close, and you stay inside the 120-hour weekly cap from `labor_budget.txt` (32 hours remain for the weekend). If you cannot satisfy every constraint at once, show the trade-off you chose rather than quietly breaking one.",
+      "Write the coaching + recognition plan. For each of the five associates in `associate_kpi_week.csv`, give one concrete next action (coach / recognize / train / hold steady) tied to their actual numbers. Include the opening line you would really use with Marek and with Tom. Then reconcile the fitting-room walkout in `service_incidents_log.md`: decide whether it's an individual coaching moment or a coverage/process gap, and justify it from the data.",
+      "Keep a DECISIONS log (`DECISIONS.md`) as you go — normal practice when you're covering for the SM. For every call where the brief was open (the true size and cause of the gap, how you read Dana's sales-per-hour, how you sequenced the floor-set against peak coverage, how you handled the service incident), record in one line each: what you chose, the alternative you rejected, and the single question you'd put to the Store Manager when she's back."
+    ],
+    "coverProbes": [
+      {
+        "id": "gap-diagnosis",
+        "kind": "ambiguity",
+        "where": "`store_weekly_dashboard.xlsx` read against `sm_handoff_note.md` — the SM frames it as 'bring it home this weekend' (sell harder), but the data is a mixed traffic-and-conversion gap, not a pure selling gap.",
+        "reveals": "Naive response accepts the goal at face value and prescribes generic 'push the team harder' energy. A good response decomposes the gap — separating traffic (largely outside ASM control this weekend) from conversion / UPT / ADS (coachable on-floor levers) — commits to the single highest-leverage lever for the timeframe, and is honest that part of the gap is traffic-driven and not recoverable by Sunday.",
+        "decisionSpace": [
+          "Treat it primarily as a conversion problem and drive on-floor selling behaviors (greeting, fitting-room engagement) — fastest lever, but over-coaches a fundamentally fine team if traffic is the real driver.",
+          "Treat it as a UPT/ADS problem and push attach/add-on selling and clienteling (Petra's strength) — higher-margin and durable, but slower to move the weekend number.",
+          "Flag the goal as traffic-constrained, protect team morale, and surface it to the SM rather than chase an unreachable number — honest and fair, but risks reading as 'making excuses' instead of owning the floor."
+        ]
+      },
+      {
+        "id": "weekend-schedule",
+        "kind": "verification_trap",
+        "where": "`labor_schedule_grid.xlsx`, `labor_budget.txt`, and `floorset_guide_summer_drop.pdf` together — coverage, keyholder presence, the 6-hour two-person floor-set, and the 32 remaining hours cannot all be maximized at once.",
+        "reveals": "A one-shot schedule that merely 'looks covered' will typically bust the 120-hour cap, schedule the floor-set during peak selling (pulling two people off the floor and tanking conversion), or leave an open/close with no keyholder (Marek/Lucie are the only two). A good response checks the plan against all three constraints explicitly and names which trade-off it accepted instead of silently violating one.",
+        "decisionSpace": [
+          "Set the floor-set off-peak (Thursday close / Friday open) with two associates and accept a slightly thinner Friday-open floor — protects peak selling and stays on budget.",
+          "Authorize limited overtime to set the drop without pulling peak coverage — protects both the floor and the set, but breaches the labor cap and hurts sales-per-hour, so it really needs SM sign-off.",
+          "Phase the set — stand up the promo fixtures for Saturday and finish the rest Sunday/Monday — stays on budget and covered, but the store isn't fully to visual standard for the weekend."
+        ]
+      },
+      {
+        "id": "performer-read",
+        "kind": "legacy_trap",
+        "where": "`associate_kpi_week.csv` — Dana's headline sales-per-hour and Marek's three-week decline both look obvious until you read the scheduling pattern and the co-worker-quit note buried in the data.",
+        "reveals": "Naive response rewards Dana's per-hour number, holds her up as the model, and writes Marek up as a performance problem. A good response recognizes Dana's number is inflated by peak-only scheduling (her 15% conversion means she's letting walk-by traffic leave) and reads Marek's dip as a probable workload/burnout signal from covering extra opens — something to investigate and support before judging.",
+        "decisionSpace": [
+          "Reward Dana's sales-per-hour and give her more hours / hold her up as the example — ignores that her number is a peak-scheduling artifact and that her low conversion is leaving money on the floor.",
+          "Read the context: rebalance Dana's hours and coach her conversion/UPT, and treat Marek's decline as a likely workload issue to address with him before any performance framing.",
+          "Shift hours toward the all-around steady performers (Lucie/Petra) and coach Dana on the gap — improves overall store conversion, but risks de-motivating a high earner if the conversation is handled bluntly."
+        ]
+      },
+      {
+        "id": "service-incident",
+        "kind": "underspecified",
+        "where": "`service_incidents_log.md` — the unattended-fitting-room walkout doesn't state whether an associate neglected the customer or the floor was simply short-staffed at Saturday peak.",
+        "reveals": "Naive response pins it on the nearest associate as a coaching write-up. A good response connects it to the weekend coverage gap (a staffing/zone-ownership root cause) versus an individual behavior, and only coaches a specific person if the schedule and zoning data actually support that it was a personal lapse.",
+        "decisionSpace": [
+          "Coach the associate on fitting-room / zone ownership — fast and reinforces standards, but unfair if the floor was genuinely uncovered at peak.",
+          "Treat it as a coverage/process gap and fix it structurally (zone assignments, a named fitting-room owner per shift) — addresses the likely root cause, but lets a real individual lapse slide if that's what it was.",
+          "Gather signal first — check who was zoned there and the traffic spike at that hour — before acting; most accurate, but slower and defers the fix the SM wants made now."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

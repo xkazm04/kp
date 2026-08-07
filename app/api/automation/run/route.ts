@@ -3,7 +3,6 @@ import { AutomationPassError, isPassInFlight, runAutomationPass } from "@/app/_l
 import { recordRun } from "@/app/_lib/scheduler-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
 
 // Task 7 — deterministic policy pass over all active entries. LLM-free.
 // The core lives in automation-pass.ts so the scheduler clock runs the exact

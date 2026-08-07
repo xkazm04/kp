@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { activeJobsGate } from "@/app/_lib/billing";
-import { createPipelineEntry, ensureDb, getJob } from "@/app/_lib/db";
+import { createPipelineEntry, ensureDb, getJob, reopenEntriesByJobId } from "@/app/_lib/db";
 import { countPublishedJobs, getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
 import { splitRequirements } from "@/app/features/sub_jobs/JobsTypes";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Take a draft job live: flip its status to 'published' and source candidates
@@ -18,6 +18,7 @@ export const maxDuration = 60;
 // as a stable contract. See docs/JD_LIFECYCLE.md.
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
+  const ws = await currentWorkspace();
   try {
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
@@ -29,15 +30,33 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // await sits between the count and the flip and better-sqlite3 is synchronous,
     // so this is atomic today too; the transaction enforces the invariant if an
     // await is ever introduced into this critical section.)
-    const gate = ensureDb().transaction((): { already: boolean; quota: ReturnType<typeof activeJobsGate> } => {
-      const wasPublished = getJobStatus(id) === "published";
-      if (wasPublished) return { already: true, quota: null };
-      const quota = activeJobsGate(countPublishedJobs());
+    const gate = ensureDb().transaction((): { already: boolean; wasClosed: boolean; quota: ReturnType<typeof activeJobsGate> } => {
+      const prevStatus = getJobStatus(id);
+      const wasPublished = prevStatus === "published";
+      if (wasPublished) return { already: true, wasClosed: false, quota: null };
+      const quota = activeJobsGate(countPublishedJobs(ws));
       if (!quota) setJobStatus(id, "published");
-      return { already: false, quota };
+      // A reopen is a closed→published transition; remember it so the entries this
+      // role's close withdrew are restored explicitly below (not left to sourcing).
+      return { already: false, wasClosed: prevStatus === "closed", quota };
     })();
     if (gate.quota) return NextResponse.json(gate.quota, { status: 402 });
     const already = gate.already;
+
+    // REOPEN (job-postings-lifecycle #1): reopening a CLOSED role is an explicit,
+    // complete inverse of the close — NOT a side effect of re-sourcing. Restore
+    // every entry the close withdrew (role_closed → active, at its preserved
+    // pre-close stage) and stamp a role_reopened audit event, in one transaction,
+    // BEFORE sourcing runs — so the pipeline is made whole even if re-sourcing is a
+    // no-op, errors, or the matcher no longer returns a previously-withdrawn
+    // candidate. (Was: reopen leaned on sourcing to incidentally un-terminal
+    // whatever it re-selected, stranding the rest in role_closed with a lying
+    // timeline and no audit.) `ws` here equals the default workspace the close
+    // scoped to under the single-tenant lock, so it restores exactly what was closed.
+    let reopened = 0;
+    if (!already && gate.wasClosed) {
+      reopened = reopenEntriesByJobId(id, ws);
+    }
 
     let sourced = 0;
     let skipped = 0;
@@ -76,6 +95,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
             jobTitle: job.title,
             matchScore: m.score,
             stage: "Accepted",
+            // The publishing recruiter's team owns the sourced candidates.
+            workspaceId: ws,
           });
           sourced += 1;
         }
@@ -103,7 +124,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // pipeline after publish can be told apart from a pool that failed to load.
     // `sourcingWarning` (non-null) = the sourcing step errored; the UI shows it instead of
     // a misleading "sourced 0" success.
-    return NextResponse.json({ ok: true, status: "published", sourced, skipped, sourcingWarning, silverMedalists, alreadyPublished: already });
+    return NextResponse.json({ ok: true, status: "published", sourced, skipped, sourcingWarning, silverMedalists, alreadyPublished: already, reopened });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Sourcing failed." }, { status: 500 });
   }

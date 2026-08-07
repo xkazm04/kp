@@ -2,10 +2,13 @@ import { getTranslations } from "next-intl/server";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
 import { SchedulePicker } from "./SchedulePicker";
 
-export const dynamic = "force-dynamic";
 
 // Candidate-facing self-scheduling page (tokenized). Picking a slot books the
 // interview and triggers a confirmation + reminder.
+// Blocked under Cache Components: dynamic per-request route (previously
+// force-dynamic) with no useful static shell to prerender.
+export const instant = false;
+
 export default async function SchedulePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const t = await getTranslations("schedule");

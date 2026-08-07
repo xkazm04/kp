@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { TextInput } from "@/app/_components/TextInput";
 // Registry-free intake module (not the apply.ts barrel), keeping the candidate
 // bundle lean — same import discipline as ConversationalApply.
 import { APPLY_EMAIL_RE, isRetryableApplyStatus } from "@/app/_lib/apply-intake";
@@ -22,11 +23,16 @@ export function QuickApplyForm({
   koSteps,
   campaign = "",
   variant = "",
+  relayConfigured = false,
 }: {
   jobId: string;
   koSteps: KoStep[];
   campaign?: string;
   variant?: string;
+  /** REC-10 — is a real delivery relay wired (server-read, passed by the page)?
+   *  Gates the "we'll email you" promises: without a relay no email ever leaves,
+   *  so the copy points at the durable status link instead. */
+  relayConfigured?: boolean;
 }) {
   const t = useTranslations("apply");
   const tCommon = useTranslations("common");
@@ -45,6 +51,9 @@ export function QuickApplyForm({
     // enrichment CTA so the full apply opens knowing this lead, exactly like the
     // link in the acknowledgement email.
     leadToken?: string;
+    // The durable status-tracking token (capst-l1-002) — the same one the ack
+    // email carries, so the lead can check where they stand after the tab closes.
+    statusToken?: string;
   } | null>(null);
 
   // Honeypot: a field a real applicant never sees (off-screen + aria-hidden +
@@ -85,6 +94,7 @@ export function QuickApplyForm({
           message: d.message,
           duplicate: Boolean(d.duplicate),
           leadToken: typeof d.leadToken === "string" ? d.leadToken : undefined,
+          statusToken: typeof d.statusToken === "string" ? d.statusToken : undefined,
         });
       } else {
         // The form retains every answer, so both failure classes recover the
@@ -122,6 +132,17 @@ export function QuickApplyForm({
               <p className="mt-1.5 text-sm text-steel">{t("quick.enrichNote")}</p>
             </div>
           ) : null}
+          {/* capst-l1-002 — the durable status link, mirroring the conversational
+              done screen: the lead's one way to see where they stand once this
+              tab is gone (and, with no relay, their ONLY touchpoint at all). */}
+          {done.result === "accepted" && done.statusToken ? (
+            <a
+              href={`/status/${done.statusToken}`}
+              className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+            >
+              {t("trackStatus")}
+            </a>
+          ) : null}
         </div>
         <AiDisclosure className="mt-6" showDataConsent />
       </div>
@@ -133,7 +154,7 @@ export function QuickApplyForm({
       {/* Honeypot — must stay empty. Off-screen + removed from the a11y + tab order so
           only an indiscriminate form-filling bot reaches it. */}
       <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", width: 1, height: 1, overflow: "hidden" }}>
-        <label htmlFor="qa-company-url">Company URL (leave this field empty)</label>
+        <label htmlFor="qa-company-url">{t("quick.honeypotLabel")}</label>
         <input
           id="qa-company-url"
           type="text"
@@ -149,21 +170,21 @@ export function QuickApplyForm({
           <label htmlFor="qa-name" className="text-sm font-semibold text-ink">
             {t("quick.nameLabel")}
           </label>
-          <input
+          <TextInput
             id="qa-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("script.namePlaceholder")}
             autoComplete="name"
             disabled={submitting}
-            className="focus-ring mt-1 h-12 w-full rounded-md border border-stone-200 px-3 text-base disabled:opacity-50"
+            className="mt-1 h-12"
           />
         </div>
         <div>
           <label htmlFor="qa-email" className="text-sm font-semibold text-ink">
             {t("quick.emailLabel")}
           </label>
-          <input
+          <TextInput
             id="qa-email"
             type="email"
             inputMode="email"
@@ -175,15 +196,17 @@ export function QuickApplyForm({
             placeholder={t("script.emailPlaceholder")}
             autoComplete="email"
             disabled={submitting}
-            aria-invalid={emailError ? true : undefined}
-            className="focus-ring mt-1 h-12 w-full rounded-md border border-stone-200 px-3 text-base disabled:opacity-50"
+            invalid={Boolean(emailError)}
+            className="mt-1 h-12"
           />
           {emailError ? (
             <p role="alert" className="mt-1 text-sm text-coral">
               {emailError}
             </p>
           ) : (
-            <p className="mt-1 text-sm text-steel">{t("quick.emailHint")}</p>
+            // "We'll send you a confirmation" only when a relay can actually
+            // send one; otherwise the honest purpose — identity + follow-up.
+            <p className="mt-1 text-sm text-steel">{t(relayConfigured ? "quick.emailHint" : "quick.emailHintNoRelay")}</p>
           )}
         </div>
         {koSteps.map((step) => (

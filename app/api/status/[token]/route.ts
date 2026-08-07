@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJob, getPipelineEntry } from "@/app/_lib/db";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
 import { candidateStatusFor } from "@/app/_lib/application-status";
+import { isRelayConfigured } from "@/app/_lib/comms-truth";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Public, token-gated candidate application status (idea-e76a6fb2). Returns a
 // candidate-safe projection only — the friendly status, the role title/company,
@@ -23,6 +23,10 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
       jobTitle: entry.jobTitle ?? null,
       company,
       updatedAt: entry.stageChangedAt ?? entry.createdAt ?? null,
+      // REC-10 — gates the page's "watch your email" promises: with no relay
+      // configured no email will ever arrive, so the copy says "the team will
+      // reach out" instead. Capability only — no secrets on the public wire.
+      relayConfigured: isRelayConfigured(),
     });
   } catch (error) {
     // Raw err.message would surface SQLite internals on a public token route.

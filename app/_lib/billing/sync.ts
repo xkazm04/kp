@@ -1,9 +1,15 @@
 // Webhook ingestion: verify → idempotency gate → reduce (pure) → apply (DB).
 // The single write path for money state; nothing else mutates billing_state.
 
-import { ensureDb, getBillingState, grantBillingCredits, insertBillingEvent, upsertBillingState } from "../db";
+import { ensureDb, getBillingState, grantBillingCredits, insertBillingEvent, recordBillingAlert, upsertBillingState } from "../db";
 import type { BillingGateway } from "./gateway";
-import { reduceBillingEvent, subscriptionWriteIsStale, type BillingAction } from "./reduce";
+import {
+  clearSubscriptionIsStale,
+  reduceBillingEvent,
+  setForRevokedSubscriptionIsStale,
+  subscriptionWriteIsStale,
+  type BillingAction,
+} from "./reduce";
 
 export type IngestResult = {
   eventId: string;
@@ -26,6 +32,22 @@ export function applyBillingAction(action: BillingAction, provider: string): str
       if (subscriptionWriteIsStale(prior?.providerSubscriptionId ?? null, prior?.currentPeriodStart ?? null, action.subscriptionId, action.periodStart)) {
         return `stale subscription event ignored (period ${action.periodStart ?? "?"} not newer than stored)`;
       }
+      // Out-of-order guard (re-entitlement direction): a REORDERED pre-revoke `active`
+      // for a subscription already cleared to free (its id kept as a tombstone below)
+      // must not re-entitle a canceled customer. The period anchor is nulled on clear,
+      // so the check above can't catch this; the tombstone id can.
+      if (setForRevokedSubscriptionIsStale(prior?.plan ?? "free", prior?.providerSubscriptionId ?? null, action.subscriptionId)) {
+        return `stale re-entitlement ignored (subscription ${action.subscriptionId ?? "?"} was already revoked)`;
+      }
+      // A `canceled` (cancel-at-period-end) carries the grace period in periodEnd;
+      // entitledPlan keeps the customer until it passes. If Polar omits/malforms it,
+      // surface LOUDLY (like the unmapped path) — entitledPlan now favors the customer
+      // on an unparseable end, so this is the only signal that the data gap exists.
+      if (action.status === "canceled" && !Number.isFinite(action.periodEnd ? Date.parse(action.periodEnd) : NaN)) {
+        console.error(
+          `[billing:webhook] CANCELED subscription ${action.subscriptionId ?? "?"} has no parseable currentPeriodEnd (${action.periodEnd ?? "null"}) — grace cutoff is unknown; keeping the plan. Check the Polar payload.`
+        );
+      }
       upsertBillingState({
         plan: action.plan,
         status: action.status,
@@ -41,12 +63,24 @@ export function applyBillingAction(action: BillingAction, provider: string): str
       // Keep the customer id — the portal (and any win-back checkout) still
       // needs to address the same MoR customer after the plan lapses.
       const prior = getBillingState();
+      // Out-of-order guard (revenue-losing direction): a delayed/retried `revoked`
+      // for an OLD subscription must not wipe a NEWER active one the customer
+      // re-subscribed to. Skip the clear when the revoke targets a different
+      // subscription than the one currently stored. (Polar does not guarantee order.)
+      if (clearSubscriptionIsStale(prior?.providerSubscriptionId ?? null, action.subscriptionId)) {
+        return `stale revoke ignored (a newer subscription ${prior?.providerSubscriptionId} is active)`;
+      }
       upsertBillingState({
         plan: "free",
         status: "none",
         provider,
         providerCustomerId: action.customerId ?? prior?.providerCustomerId ?? null,
-        providerSubscriptionId: null,
+        // Keep the revoked subscription id as a TOMBSTONE (not null): the set-path
+        // `setForRevokedSubscriptionIsStale` guard uses it to reject a reordered
+        // pre-revoke `active` for this same, now-dead subscription (a genuine
+        // re-subscribe arrives under a new id, which the guard lets through). The
+        // period anchors are nulled — there's no live period once cleared.
+        providerSubscriptionId: action.subscriptionId ?? prior?.providerSubscriptionId ?? null,
         currentPeriodStart: null,
         currentPeriodEnd: null,
       });
@@ -59,7 +93,9 @@ export function applyBillingAction(action: BillingAction, provider: string): str
         reason: action.reason,
         providerRef: action.providerRef,
       });
-      return granted ? `+${action.qty} ${action.meter}` : `duplicate grant ${action.providerRef} skipped`;
+      return granted
+        ? `${action.qty >= 0 ? "+" : ""}${action.qty} ${action.meter}`
+        : `duplicate grant ${action.providerRef} skipped`;
     }
     case "ignore":
       if (action.unmapped) {
@@ -72,6 +108,10 @@ export function applyBillingAction(action: BillingAction, provider: string): str
         console.error(
           `[billing:webhook] UNMAPPED PRODUCT on a money event — subscriber NOT entitled: ${action.reason}. Check POLAR_PRODUCT_* env against the Polar dashboard.`
         );
+        // Durable, queryable signal (not just a log line): an admin surface / health
+        // check can list paid-but-dark subscriptions. The event-id dedupe gate means
+        // this runs at most once per fresh event.
+        recordBillingAlert({ kind: "unmapped_product", detail: action.reason });
       }
       return action.reason;
   }

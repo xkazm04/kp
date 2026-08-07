@@ -4,8 +4,8 @@ import { ingestJobAd } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
-export const runtime = "nodejs";
 // The best-effort re-ingest on a body edit is one LLM parse.
 export const maxDuration = 60;
 
@@ -36,8 +36,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   const denied = await requireOperator();
   if (denied) return denied;
   const { slug } = await context.params;
+  const ws = await currentWorkspace();
   try {
-    const existing = loadJd(slug);
+    const existing = loadJd(slug, ws);
     if (!existing) return NextResponse.json({ error: "JD not found." }, { status: 404 });
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -48,7 +49,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     };
 
     if (typeof body.archived === "boolean") {
-      setJdArchived(slug, body.archived);
+      setJdArchived(slug, body.archived, ws);
       return NextResponse.json({ ok: true, archived: body.archived });
     }
 
@@ -59,7 +60,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     // Content-CAS: the editor sends the body it loaded; a stale base means another
     // writer changed the JD in the gap, so we 409 instead of clobbering their edit.
     const baseBody = typeof body.baseBody === "string" ? body.baseBody : undefined;
-    const result = updateJd(slug, { title: fields.title, body: fields.body }, baseBody);
+    const result = updateJd(slug, { title: fields.title, body: fields.body }, baseBody, ws);
     if (!result.ok) {
       if (result.reason === "conflict") {
         return NextResponse.json(

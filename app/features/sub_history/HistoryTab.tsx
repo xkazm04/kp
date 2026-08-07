@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { formatRelativeTime } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { TextInput } from "@/app/_components/TextInput";
+import { Select } from "@/app/_components/Select";
 
 type AnalysisRow = {
   slug: string;
@@ -59,25 +61,40 @@ export function HistoryTab() {
   // SQLITE_BUSY / 500 on tab-open (or a workspace switch) otherwise dead-ended at a red
   // panel with no recovery but a full page reload. A generation ref means only the
   // latest request's result is applied, so rapid retries / a locale switch mid-load
-  // can't write a stale rows/error.
+  // can't write a stale rows/error. State is only written in the async continuation
+  // (never synchronously when the effect fires); the retry handler below does the
+  // synchronous loading-state reset in its event handler instead.
   const reqGen = useRef(0);
-  const reload = useCallback(async () => {
+  const load = useCallback(() => {
     const gen = ++reqGen.current;
-    setError(null);
-    setRows(null);
-    try {
-      const response = await fetch("/api/analyses");
-      if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
-      const payload = await response.json();
-      if (reqGen.current === gen) setRows((payload.analyses as AnalysisRow[]) ?? []);
-    } catch (caught) {
-      if (reqGen.current === gen) setError(caught instanceof Error ? caught.message : t("loadFailed"));
-    }
+    fetch("/api/analyses")
+      .then(async (response) => {
+        if (!response.ok) throw new Error(t("loadFailedStatus", { status: response.status }));
+        const payload = await response.json();
+        if (reqGen.current === gen) {
+          setRows((payload.analyses as AnalysisRow[]) ?? []);
+          setError(null);
+        }
+      })
+      .catch((caught) => {
+        if (reqGen.current === gen) {
+          setError(caught instanceof Error ? caught.message : t("loadFailed"));
+          setRows(null);
+        }
+      });
   }, [t]);
 
+  // "Try again": clear the failure and show the loading state immediately (a
+  // synchronous set is fine in an event handler), then refetch.
+  const retry = () => {
+    setError(null);
+    setRows(null);
+    load();
+  };
+
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    load();
+  }, [load]);
 
   const families = useMemo(() => distinct((rows ?? []).map((r) => r.role_family)), [rows]);
   const seniorities = useMemo(() => distinct((rows ?? []).map((r) => r.seniority)), [rows]);
@@ -113,7 +130,7 @@ export function HistoryTab() {
             <p>{error}</p>
             <button
               type="button"
-              onClick={() => void reload()}
+              onClick={retry}
               className="focus-ring mt-2 rounded-md border border-red-200 bg-white px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100"
             >
               {t("retry")}
@@ -129,48 +146,40 @@ export function HistoryTab() {
           <>
             <div className="flex flex-wrap items-center gap-2">
               <label htmlFor="history-search" className="sr-only">{t("searchLabel")}</label>
-              <input
+              <TextInput
                 id="history-search"
                 type="search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder={t("searchPlaceholder")}
-                className="focus-ring h-9 min-w-[200px] flex-1 rounded-md border border-stone-200 px-3 text-base"
+                sizeVariant="sm"
+                className="min-w-[200px] flex-1"
               />
-              <select
+              <Select
+                ariaLabel={t("filterFamily")}
                 value={roleFamily}
-                onChange={(e) => setRoleFamily(e.target.value)}
-                aria-label={t("filterFamily")}
-                className="focus-ring h-9 rounded-md border border-stone-200 px-2 text-base capitalize"
-              >
-                <option value="">{t("allFamilies")}</option>
-                {families.map((f) => (
-                  <option key={f} value={f}>{enumLabel("family", f)}</option>
-                ))}
-              </select>
-              <select
+                onChange={setRoleFamily}
+                size="sm"
+                options={[{ value: "", label: t("allFamilies") }, ...families.map((f) => ({ value: f, label: enumLabel("family", f) }))]}
+              />
+              <Select
+                ariaLabel={t("filterSeniority")}
                 value={seniority}
-                onChange={(e) => setSeniority(e.target.value)}
-                aria-label={t("filterSeniority")}
-                className="focus-ring h-9 rounded-md border border-stone-200 px-2 text-base capitalize"
-              >
-                <option value="">{t("allSeniority")}</option>
-                {seniorities.map((s) => (
-                  <option key={s} value={s}>{enumLabel("seniority", s)}</option>
-                ))}
-              </select>
-              <select
+                onChange={setSeniority}
+                size="sm"
+                options={[{ value: "", label: t("allSeniority") }, ...seniorities.map((s) => ({ value: s, label: enumLabel("seniority", s) }))]}
+              />
+              <Select
+                ariaLabel={t("filterDisposition")}
                 value={disposition}
-                onChange={(e) => setDisposition(e.target.value)}
-                aria-label={t("filterDisposition")}
-                className="focus-ring h-9 rounded-md border border-stone-200 px-2 text-base"
-              >
-                <option value="">{t("allDispositions")}</option>
-                {Object.keys(DISPOSITION_STYLE).map((d) => (
-                  <option key={d} value={d}>{dispLabel(d)}</option>
-                ))}
-                <option value="undecided">{t("dispositionUndecided")}</option>
-              </select>
+                onChange={setDisposition}
+                size="sm"
+                options={[
+                  { value: "", label: t("allDispositions") },
+                  ...Object.keys(DISPOSITION_STYLE).map((d) => ({ value: d, label: dispLabel(d) })),
+                  { value: "undecided", label: t("dispositionUndecided") },
+                ]}
+              />
               {filtering ? (
                 <span className="text-sm text-steel" aria-live="polite">{t("showing", { shown: filtered.length, total: rows.length })}</span>
               ) : null}

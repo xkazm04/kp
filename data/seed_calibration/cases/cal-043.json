@@ -1,0 +1,185 @@
+{
+  "job": {
+    "id": "cal-043",
+    "title": "Assistant Controller",
+    "company": "LHH",
+    "role_family": "finance",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "General-ledger / ERP accounting system (not named in the JD — likely QuickBooks, NetSuite, Sage, or SAP depending on company size)",
+      "Advanced Microsoft Excel (pivot tables, lookups, variance models, supporting schedules) — the one tool the JD names explicitly",
+      "US GAAP framework as the accounting rulebook",
+      "Month-end / quarter-end close checklist and process",
+      "Account reconciliation workpapers tying source documents to the ledger",
+      "Financial statements: balance sheet, income statement (monthly, quarterly, annual)",
+      "Balance-sheet support worksheets and variance-analysis schedules",
+      "CPA exam / licensure track (preferred, not required)"
+    ],
+    "coreResponsibilities": [
+      "Maintain GL accounts by reconciling underlying source documents to the ledger",
+      "Support the month-end close",
+      "Help prepare monthly, quarterly, and annual financial statements for review",
+      "Perform line-item analysis on balance-sheet and income-statement accounts and flag variances",
+      "Build the underlying worksheets that substantiate balance-sheet line items",
+      "Act as the connective tissue between accounting, finance, and business operations"
+    ],
+    "statedVsRealGaps": [
+      "Title vs. duties: 'Assistant Controller' normally owns the close, signs off on statements, and supervises staff — but every duty here is phrased 'assist in / assist with' and the qualifications accept a CPA *candidate* with internship-level experience. The real role is a staff/senior accountant supporting a Controller, mis-titled one level up.",
+      "Seniority signal is contradictory: the title and 'business manager operation' framing read senior, while 'including related accounting internships', 'CPA candidate', and the all-'assist' duty list read early-career. seniorityTarget 'medior' splits the difference but the evidence skews junior-to-medior.",
+      "Experience requirement is literally blank in the JD ('  years of accounting experience') — the number was dropped, so the actual bar is unstated.",
+      "Scope is vaguely inflated: 'an all encompassing accounting business manager operation role' implies operational and managerial duties that are never enumerated, while the concrete list is ordinary close/reconciliation/reporting work.",
+      "No specific accounting system is named — the ERP/GL platform (the candidate's primary daily tool) is left to inference, so realStack beyond Excel is assumed, not stated.",
+      "Compensation is 'dependent on level and experience' with no range; combined with the level ambiguity, candidates can't tell what tier (or pay) they're applying to.",
+      "No supervisory/ownership responsibility is described, which a genuine Assistant Controller almost always carries."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Level mismatch: 'Assistant Controller' branding on a staff/senior-accountant scope risks attracting candidates expecting more authority and pay than the role gives — or screening out the right early-career applicants who self-select out.",
+      "Scope ambiguity: 'all encompassing ... business manager operation' is open-ended and could expand well past the listed accounting duties once someone is in the seat.",
+      "Onsite in Iselin NJ with an explicit relocation expectation plus a 'work hard / play harder' culture pitch — geography, in-office mandate, and culture framing all narrow the pool and carry retention risk.",
+      "Unstated experience floor (blank in the JD) and no comp range make consistent screening and offer-setting hard and invite expectation mismatches.",
+      "Heavy dependence on a single Controller: the 'assist' framing means limited autonomy and a bus-factor on whoever this person supports.",
+      "Generic agency boilerplate (LHH template) means the company's actual systems, industry, and controls environment are invisible — onboarding surprises are likely."
+    ],
+    "reflection": "This is a real but generic LHH agency posting whose biggest honest gap is between its title and its substance: it is sold as an 'Assistant Controller' (and even 'business manager operation') role, yet every responsibility is a supporting one — reconcile documents to the ledger, assist the close, help prepare statements, run line-item variance analysis, build balance-sheet support schedules — and the qualifications openly accept a CPA candidate with internship-level experience. In practice this is solid medior staff/senior-accountant accounting work: reconciliations, month-end close, GAAP-based financial-statement prep, and variance analysis, executed primarily in a GL/ERP system the JD never names plus the advanced Excel it does name. The work is genuinely medium-complexity — disciplined, deadline-driven, GAAP-literate — but there is no sign of the high-complexity work a true Assistant Controller usually carries (consolidations, multi-entity, technical accounting, audit ownership, statement sign-off, or staff supervision). The thinnest spots are structural rather than technical: a blank experience figure, no comp range, vaguely inflated 'all-encompassing' scope, and a relocation-required onsite role with culture-pitch language. A candidate should read this as a close-and-reporting accounting seat reporting to a Controller, not as a controllership role, and clarify level, the specific ERP, and pay before committing.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Assistant Controller",
+    "seniority": "medior",
+    "roleFamily": "finance",
+    "mustHaves": [
+      "Bachelor's degree in Accounting or Finance",
+      "Working knowledge of US GAAP and its practical application",
+      "Advanced Microsoft Excel: pivot tables, lookups, variance models, and supporting schedules (the one tool the JD names explicitly)",
+      "Hands-on account reconciliation — tying underlying source documents to the general ledger",
+      "Experience supporting a month-end (and quarter-/year-end) close process",
+      "Preparing or assisting with monthly, quarterly, and annual financial statements (balance sheet and income statement)",
+      "Line-item variance analysis across balance-sheet and income-statement accounts, with the ability to investigate and explain drivers",
+      "Comfort operating in a general-ledger / ERP accounting system as the primary daily tool",
+      "Detail- and deadline-oriented, self-starter who also works well across a team"
+    ],
+    "niceToHaves": [
+      "CPA license, or active CPA candidate progressing through the exam",
+      "Hands-on experience with a named ERP/GL platform (NetSuite, SAP, Sage, or QuickBooks)",
+      "Experience acting as a liaison between accounting, finance, and business operations",
+      "Public accounting or audit background, including relevant accounting internships",
+      "Exposure to building balance-sheet support worksheets and process documentation"
+    ],
+    "responsibilities": [
+      "Maintain general-ledger accounts by reconciling underlying source documents to the ledger",
+      "Support the month-end close and related period-end activities",
+      "Help prepare monthly, quarterly, and annual financial statements for review",
+      "Perform line-item analysis on balance-sheet and income-statement accounts and flag variances",
+      "Build the underlying worksheets that substantiate balance-sheet line items",
+      "Serve as a connection point between accounting, finance, and business operations"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Month-End Close Pack — March 2026 (Assistant Controller work sample)",
+    "brief": "You're stepping in as Assistant Controller at Meridian Components LLC, a privately held US auto-parts distributor that reports on US GAAP and closes monthly in an ERP-based GL (think NetSuite/Sage class system) with Excel for all supporting schedules. The actual JD came through an agency and never names the company's real systems or controls, so the materials below are a representative month-end close set built to mirror the work, not the employer's literal files. It's March close. The Controller has handed you a partially built close pack and asked you to finish three workpapers and write the review handoff. Budget ~1.5 hours and stop at the cap — we are reading judgment, cutoff sense, and how you reconcile, not how much you produce. Treat the DECISIONS log in Task 4 as the normal review trail you'd leave any reviewer: wherever the pack was silent or the source didn't tie, note what you assumed and why. Where something looks off, you may propose an adjusting journal entry (date, accounts, Dr/Cr, rationale) rather than silently changing a number. Deliver the updated workbook tabs (or a clear written equivalent) plus the handoff memo.",
+    "repoSeed": "A single Excel workbook 'MonthEnd_Close_Mar2026.xlsx' and a small folder of source PDFs. Workbook tabs: (1) 'TB_Mar2026' — March trial balance, all accounts, debits/credits footing to zero; (2) 'GL_Detail' — line-level GL extract for Cash (1010), Prepaid Expenses (1400), Accrued Liabilities (2100), Freight Expense (5200), Insurance Expense (6300); (3) 'Bank_Rec' — a March bank reconciliation someone started: book cash per GL, bank statement ending balance, an 'Outstanding Checks' list (incl. check #10311 dated Aug 2025 and check #10428 that also appears as cleared on the Feb statement) and a 'Deposits in Transit' line, with the reconciling difference currently showing 0.00; (4) 'Prepaid_Schedule' — the prior accountant's prepaid roll-forward with monthly amortization formulas, plus a hardcoded $4,200 'true-up' typed into the Feb ending balance that overrides the formula and ties to no invoice; (5) 'IS_BS_Feb_vs_Mar' — February and March balance-sheet and income-statement columns side by side, variance column blank; (6) 'Close_Checklist' — standard month-end steps, several unchecked. Source PDFs: a 12-month business insurance invoice (paid Jan 2026), a March office rent invoice, and an Apex Logistics freight invoice dated April 3, 2026 for deliveries the GL detail shows were performed in March.",
+    "tasks": [
+      "Complete the bank reconciliation on 'Bank_Rec': tie the March bank statement to book cash in 'GL_Detail' (1010), validate every reconciling item against support rather than trusting the existing 0.00 difference, and propose adjusting journal entries for anything that shouldn't be sitting in the reconciliation. State your ending true cash and confirm it ties to 'TB_Mar2026'.",
+      "Substantiate Prepaid Expenses (1400): roll the 'Prepaid_Schedule' forward to March using the insurance and rent invoices, compute March amortization and the ending balance, and tie it to the TB. Separately, decide how to handle the Apex Logistics freight invoice for the March/April cutoff and reflect your decision (with any AJE) in the close.",
+      "Run the variance analysis on 'IS_BS_Feb_vs_Mar': fill the variance column, decide which lines are worth flagging, and write a one-line driver narrative for each flagged item (what moved and the likely cause), distinguishing real signal from noise.",
+      "Write a short Controller handoff memo: list your proposed adjusting journal entries, your open questions, and a DECISIONS log — for every call you made where the pack was silent or ambiguous, record what you chose, the alternative you rejected, and the one thing you'd ask the team before booking."
+    ],
+    "coverProbes": [
+      {
+        "id": "cash-recon-ties-but-wrong",
+        "kind": "verification_trap",
+        "where": "'Bank_Rec' tab — the reconciling difference reads 0.00, but it only foots because a stale check (#10311, Aug 2025) overstates outstanding checks while check #10428 is listed outstanding yet already cleared per the Feb statement; the two errors roughly offset.",
+        "reveals": "A naive one-shot reads 'difference = 0, reconciled' and signs off; a strong candidate traces each reconciling item to support, discovers the rec balances by coincidence of two offsetting errors, and proposes voiding/reversing the stale check and removing the already-cleared item — so the cash balance is right for the right reasons.",
+        "decisionSpace": [
+          "Void check #10311 and remove #10428 now, booking the reversing AJE this period and correcting cash",
+          "Leave both on the rec but flag them to the Controller pending vendor/bank confirmation before adjusting",
+          "Document both as identified errors but judge the net effect immaterial and defer correction to next month"
+        ]
+      },
+      {
+        "id": "prepaid-prior-plug",
+        "kind": "legacy_trap",
+        "where": "'Prepaid_Schedule' tab — a hardcoded $4,200 'true-up' typed into the Feb ending balance overrides the amortization formula and reconciles to no invoice in the source folder.",
+        "reveals": "A naive candidate drags the formula down and silently carries the plug into March; a careful candidate reads the prior workpaper first, notices the manual override breaks the roll-forward, and refuses to perpetuate an unexplained number without deciding its fate.",
+        "decisionSpace": [
+          "Preserve the $4,200 for period-over-period consistency and footnote it as an unexplained carryover to investigate",
+          "Back it out and amortize strictly from the invoices, disclosing the change and its TB impact",
+          "Keep it for now but open a query to the Controller/prior preparer before correcting next month"
+        ]
+      },
+      {
+        "id": "post-period-invoice-accrual",
+        "kind": "ambiguity",
+        "where": "The Apex Logistics freight invoice is dated April 3, 2026 but covers deliveries 'GL_Detail' shows occurred in March; the brief never states whether to accrue it.",
+        "reveals": "A naive candidate ignores it because it isn't in the March GL, or accrues with no stated basis; a strong candidate recognizes the period-end cutoff/matching question, decides accrual and a reversing entry on a GAAP rationale, and documents it rather than guessing.",
+        "decisionSpace": [
+          "Accrue freight in March via a reversing AJE because the service was rendered in March (matching principle)",
+          "Leave it in April per the invoice date and document the cutoff call as immaterial",
+          "Accrue only if the amount clears the materiality threshold chosen in the variance task, linking the two decisions"
+        ]
+      },
+      {
+        "id": "materiality-threshold",
+        "kind": "underspecified",
+        "where": "Task 3 asks to flag 'which lines are worth flagging' on 'IS_BS_Feb_vs_Mar' without giving a materiality threshold or specifying the comparison basis.",
+        "reveals": "A naive candidate flags every nonzero change or picks lines arbitrarily; a strong candidate sets and states an explicit threshold and basis, then applies it consistently and explains why borderline lines were or weren't flagged.",
+        "decisionSpace": [
+          "Percentage-only threshold (e.g. >10% month-over-month) — sensitive on small accounts, noisy on large ones",
+          "Absolute-dollar threshold (e.g. >$5,000) — stable on large accounts, misses small but unusual swings",
+          "Hybrid 'greater of $ and %' with the basis (prior month vs budget) named — more defensible but requires justifying the cutoffs"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

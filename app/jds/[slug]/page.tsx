@@ -11,7 +11,6 @@ import { isOperator } from "@/app/_lib/auth/require-operator";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
 
-export const dynamic = "force-dynamic";
 
 // First ~155 chars of the JD body, markdown stripped, for the share/search snippet.
 function metaDescription(markdown: string): string {
@@ -50,6 +49,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     ...(jd.archived_at ? { robots: { index: false, follow: true } } : {}),
   };
 }
+
+// Blocked under Cache Components: dynamic per-request route (previously
+// force-dynamic) with no useful static shell to prerender.
+export const instant = false;
 
 export default async function JdDetailPage({
   params,

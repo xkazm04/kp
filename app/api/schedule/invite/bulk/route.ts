@@ -8,7 +8,6 @@ import { safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { BULK_INVITE_CAP, coerceBulkEntryIds } from "@/app/_lib/bulk-invite";
 
-export const runtime = "nodejs";
 
 // P2-2 — mint + deliver self-scheduling links to a COHORT in one recruiter action
 // (the back half of the funnel was per-candidate-only; a blocker for high-volume

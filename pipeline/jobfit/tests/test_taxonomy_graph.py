@@ -38,10 +38,6 @@ class HierarchyTest(unittest.TestCase):
         self.assertIn("test_automation", tax.ancestors("selenium"))
         self.assertIn("qa", tax.ancestors("selenium"))
 
-    def test_descendants(self) -> None:
-        self.assertIn("swiftui", tax.descendants("swift"))
-        self.assertIn("next_js", tax.descendants("react"))
-
     def test_all_parents_resolve_to_known_terms(self) -> None:
         ids = {term["id"] for term in tax._TERMS}
         for term in tax._TERMS:

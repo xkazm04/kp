@@ -5,6 +5,7 @@ import { RATING_MAX } from "@/app/_lib/format";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { APPLIED_LABEL, type Result } from "./CandidateDrawerTypes";
+import { SalaryBenchmarkHint } from "./SalaryBenchmarkHint";
 
 function SourceBadge({ source }: { source: string }) {
   const t = useTranslations("pipeline.result");
@@ -16,7 +17,7 @@ function SourceBadge({ source }: { source: string }) {
   );
 }
 
-export function ResultView({ result }: { result: Result }) {
+export function ResultView({ result, roleFamily }: { result: Result; roleFamily?: string | null }) {
   const t = useTranslations("pipeline.result");
   const tApplied = useTranslations("pipeline.applied");
   const enumLabel = useEnumLabel();
@@ -104,6 +105,9 @@ export function ResultView({ result }: { result: Result }) {
               currency: String(d.currency ?? ""),
             })}
           </p>
+          {/* Phase 2 — the cross-company market band for this role, alongside the
+              candidate's own analyzed band, so the recruiter sets comp against the market. */}
+          {roleFamily ? <SalaryBenchmarkHint roleFamily={roleFamily} /> : null}
           <p className="text-steel">{String(d.rationale ?? "")}</p>
           <p className="mt-1 font-semibold text-ink">{String(d.subject ?? "")}</p>
           <pre className="whitespace-pre-wrap font-sans leading-relaxed text-ink">{String(d.body ?? "")}</pre>

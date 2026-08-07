@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ExternalLink, Info, Timer } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
@@ -8,6 +9,7 @@ import { Skeleton } from "@/app/_components/Skeleton";
 import { BTN_SECONDARY, EYEBROW, INTRO, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { labelize } from "@/app/_lib/format";
+import { salesContactHref } from "@/app/_lib/sales-contact";
 import type { BillingOverview, MeterOverview, PlanDef } from "@/app/_lib/billing";
 
 // Billing tab — the GET /api/billing overview rendered for a recruiter: the
@@ -87,25 +89,32 @@ function MeterRow({ meter, name }: { meter: MeterOverview; name: string }) {
   );
 }
 
-// One catalog plan: price (CZK primary, USD approximate), per-meter allowance,
-// and a switch button (the free tier has no checkout — downgrades go through
-// the portal). The current plan reads as the selected card, no button.
+// One catalog plan: price (CZK primary, USD approximate), per-meter allowance, and
+// an action. `changeVia` decides that action: a customer with NO active paid plan
+// gets a fresh CHECKOUT (first subscription); a customer who already has a paid plan
+// must change it through the provider PORTAL (in-place swap / proration), never a
+// second checkout — a fresh checkout for a downgrade/cross-grade could mint a
+// PARALLEL subscription and double-charge them. The free tier never has a button.
 function PlanCard({
   plan,
   current,
   configured,
   busy,
   error,
+  changeVia,
   meterName,
   onChoose,
+  onManage,
 }: {
   plan: PlanDef;
   current: boolean;
   configured: boolean;
   busy: boolean;
   error: string | null;
+  changeVia: "checkout" | "portal";
   meterName: (meter: string) => string;
   onChoose: () => void;
+  onManage: () => void;
 }) {
   const t = useTranslations("billing.plans");
   const format = useFormatter();
@@ -115,19 +124,30 @@ function PlanCard({
         <p className="font-serif text-h3 text-ink">{plan.name}</p>
         {current ? <Badge tone="positive" label={t("current")} className="shrink-0" /> : null}
       </div>
-      <p className="mt-1 text-h2 font-semibold text-ink nums">
-        {plan.priceCzk === 0
-          ? t("priceFree")
-          : format.number(plan.priceCzk, { style: "currency", currency: "CZK", maximumFractionDigits: 0 })}
-      </p>
-      {plan.priceCzk > 0 ? (
-        <p className="text-sm text-steel">
-          {t("approxUsd", {
-            price: format.number(plan.priceUsdApprox, { style: "currency", currency: "USD", maximumFractionDigits: 0 }),
-          })}{" "}
-          · {t("perMonth")}
-        </p>
-      ) : null}
+      {plan.contactSales ? (
+        // Contact-sales (Enterprise): custom-priced, so we render "Custom" instead of a
+        // number and a note on how it's priced — never a CZK/USD figure.
+        <>
+          <p className="mt-1 text-h2 font-semibold text-ink">{t("custom")}</p>
+          <p className="text-sm text-steel">{t("contactNote")}</p>
+        </>
+      ) : (
+        <>
+          <p className="mt-1 text-h2 font-semibold text-ink nums">
+            {plan.priceCzk === 0
+              ? t("priceFree")
+              : format.number(plan.priceCzk, { style: "currency", currency: "CZK", maximumFractionDigits: 0 })}
+          </p>
+          {plan.priceCzk > 0 ? (
+            <p className="text-sm text-steel">
+              {t("approxUsd", {
+                price: format.number(plan.priceUsdApprox, { style: "currency", currency: "USD", maximumFractionDigits: 0 }),
+              })}{" "}
+              · {t("perMonth")}
+            </p>
+          ) : null}
+        </>
+      )}
       <ul className="mt-3 space-y-1 border-t border-stone-200 pt-3 text-sm">
         {Object.entries(plan.limits).map(([meter, limit]) => (
           <li key={meter} className="flex items-baseline justify-between gap-2">
@@ -140,7 +160,27 @@ function PlanCard({
           <span className="font-medium text-ink nums">{plan.activeJobs === null ? t("unlimited") : plan.activeJobs}</span>
         </li>
       </ul>
-      {!current && plan.id !== "free" ? (
+      {plan.contactSales ? (
+        // Enterprise is never bought here — route to a real sales contact instead of
+        // a Buy button. If they're somehow already entitled (a signed contract), the
+        // "current" badge above is enough; no action needed.
+        current ? null : (
+          <a href={salesContactHref()} className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}>
+            {t("contactCta")}
+          </a>
+        )
+      ) : current || plan.id === "free" ? null : changeVia === "portal" ? (
+        // Already subscribed: route the change through the provider portal so it's an
+        // in-place swap, not a parallel subscription.
+        <button
+          type="button"
+          onClick={onManage}
+          disabled={!configured}
+          className={`${BTN_SECONDARY} mt-3 h-9 w-full justify-center px-3 text-sm`}
+        >
+          {t("manageCta")}
+        </button>
+      ) : (
         <button
           type="button"
           onClick={onChoose}
@@ -149,7 +189,7 @@ function PlanCard({
         >
           {busy ? t("redirecting") : t("cta")}
         </button>
-      ) : null}
+      )}
       {error ? (
         <p role="alert" className="mt-2 text-sm text-coral">
           {error}
@@ -172,9 +212,22 @@ export function BillingTab() {
   // `hint` renders calm (steel) — the portal's 404 means "no billing customer
   // yet", a normal pre-first-purchase state, not a failure.
   const [portalNote, setPortalNote] = useState<{ text: string; hint: boolean } | null>(null);
-  // Post-checkout return state: "confirming" while we poll for the webhook to land
-  // the new plan, then "done". Null when this wasn't a checkout return.
-  const [checkout, setCheckout] = useState<"confirming" | "done" | null>(null);
+  // Post-checkout return: the provider redirected to /?tab=billing&billing=success.
+  // The flag is captured ONCE via lazy initial state (render-derived and sticky, so
+  // it survives the URL cleanup below) rather than a synchronous setState in the
+  // mount effect. `useSearchParams` reads the same value on the server and during
+  // hydration, so the "confirming" banner paints without a mismatch.
+  const searchParams = useSearchParams();
+  const [checkoutReturn] = useState(() => searchParams.get("billing") === "success");
+  // Flipped by the poll timers once the webhook has had time to land the new plan.
+  const [checkoutConfirmed, setCheckoutConfirmed] = useState(false);
+  // "confirming" while we re-poll the overview, then "done". Null when this
+  // wasn't a checkout return.
+  const checkout: "confirming" | "done" | null = checkoutReturn
+    ? checkoutConfirmed
+      ? "done"
+      : "confirming"
+    : null;
 
   // State updates only happen in the async callbacks (never synchronously in
   // the effect body); the retry button clears the failure flag in its event
@@ -192,25 +245,21 @@ export function BillingTab() {
     load();
   }, [load]);
 
-  // Post-checkout return: the provider redirected to /?tab=billing&billing=success.
-  // The old code generated that URL but consumed it nowhere, so a paid recruiter saw
-  // their OLD plan with no confirmation. Show a "confirming…" banner and re-poll the
-  // overview (the entitlement lands via the webhook a beat after redirect), then mark
-  // done and strip the flag so a refresh doesn't re-trigger. Runs once on mount.
+  // On a checkout return, re-poll the overview (the entitlement lands via the
+  // webhook a beat after redirect), mark done, and strip the flag so a refresh
+  // doesn't re-trigger. Runs once on mount; the banner itself is derived above.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("billing") !== "success") return;
-    setCheckout("confirming");
+    if (!checkoutReturn) return;
     const timers = [
       setTimeout(load, 2000),
       setTimeout(load, 5000),
-      setTimeout(() => setCheckout("done"), 5500),
+      setTimeout(() => setCheckoutConfirmed(true), 5500),
     ];
+    const url = new URL(window.location.href);
     url.searchParams.delete("billing");
     window.history.replaceState(null, "", url.toString());
     return () => timers.forEach(clearTimeout);
-  }, [load]);
+  }, [checkoutReturn, load]);
 
   // Catalog-key helpers with the app-wide has() fallback so an unknown enum
   // value (new meter, new provider status) renders labelized, never crashes.
@@ -396,8 +445,13 @@ export function BillingTab() {
                   configured={data.configured}
                   busy={purchase?.key === plan.id && purchase.error === null}
                   error={purchase?.key === plan.id ? purchase.error : null}
+                  // A customer who already holds a paid plan changes it through the
+                  // portal (no parallel-subscription double-charge); from free, the
+                  // first subscription is a normal checkout.
+                  changeVia={data.plan.id === "free" ? "checkout" : "portal"}
                   meterName={meterName}
                   onChoose={() => startCheckout({ plan: plan.id }, plan.id)}
+                  onManage={openPortal}
                 />
               ))}
             </div>

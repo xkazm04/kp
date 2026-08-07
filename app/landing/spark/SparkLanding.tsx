@@ -21,7 +21,7 @@ import KandidateMark from "../_components/KandidateMark";
 import { FeatureSpotlight, type PreviewKey } from "./FeaturePreviews";
 import PricingSection from "./PricingSection";
 import { BTN, DISPLAY, HAND, STICKER } from "./tokens";
-import { DEV_GATE, signInDev } from "@/app/_lib/auth/devAuth";
+import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { LandingLangSwitch } from "./LandingLangSwitch";
 
 /*
@@ -181,13 +181,16 @@ export default function SparkLanding() {
           <a href="/about" className="hover:text-[#d65a4a]">
             {t("nav.about")}
           </a>
+          <a href="/market" className="hover:text-[#d65a4a]">
+            {t("nav.market")}
+          </a>
           {/* Sign in — the app ships open to all, so this is the single entry
               point. In development it flips the localStorage gate and drops you
               straight into the dashboard; in production it hands off to the real
               password sign-in. */}
           <button
             type="button"
-            onClick={() => (DEV_GATE ? signInDev() : window.location.assign("/login"))}
+            onClick={() => void enterWorkspace()}
             className="rounded-lg border-[3px] border-[#17202a] bg-[#caa54c] px-4 py-2 shadow-[3px_3px_0_#17202a] transition-all hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#17202a]"
           >
             {t("nav.signIn")}
@@ -266,7 +269,7 @@ export default function SparkLanding() {
           >
             <button
               type="button"
-              onClick={() => (DEV_GATE ? signInDev() : window.location.assign("/login"))}
+              onClick={() => void enterWorkspace()}
               className={`${BTN} bg-[#d65a4a] text-white`}
             >
               {t("hero.ctaPrimary")}
@@ -599,7 +602,7 @@ export default function SparkLanding() {
           </p>
           <motion.button
             type="button"
-            onClick={() => (DEV_GATE ? signInDev() : window.location.assign("/login"))}
+            onClick={() => void enterWorkspace()}
             whileHover={{ scale: 1.04, rotate: -1 }}
             whileTap={{ scale: 0.97 }}
             className={`${BTN} relative mt-8 bg-[#fdf8ee]`}

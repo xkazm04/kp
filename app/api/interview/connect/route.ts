@@ -19,10 +19,10 @@ import {
 } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { CONSENT_REQUIRED_ERROR, isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
 import { INTERVIEW_LAB_DISABLED_ERROR, isInterviewLabEnabled } from "@/app/_lib/interview-lab";
 
-export const runtime = "nodejs";
 
 // GET → which providers are configured (used by the UI to enable/disable the switcher).
 export async function GET() {
@@ -97,6 +97,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Per-token connect throttle (backlog #15): a valid, non-terminal token could
+    // otherwise mint provider sessions — the most expensive operation in the
+    // system (ElevenLabs / OpenAI Realtime credits) — in a tight loop. Keyed by
+    // TOKEN, not IP: the link is the credential, and an abuser rotating IPs must
+    // not reset the budget. Sits AFTER the lifecycle guards (bad token /
+    // completed / revoked / expired keep their 404/409 semantics) and BEFORE
+    // markInterviewStarted + adapter.connect, so a throttled call does no work.
+    // 6/10min = one start + five reconnects: a dropped call ('failed' stays
+    // reconnectable by design) is retried manually, one click per attempt, so a
+    // flaky-network session still fits; a credential-minting loop does not.
+    // Tokenless lab sessions (dev-only, INTERVIEW_LAB_ENABLED-gated) pass through.
+    if (token && !rateLimit(`interview-connect:${token}`, { limit: 6, windowMs: 10 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
+
     const requested = coerceProviderId(body.provider);
     const provider: VoiceProviderId | null = requested ?? session0?.provider ?? null;
     if (!provider) {
@@ -146,9 +161,22 @@ export async function POST(request: NextRequest) {
     }
 
     const connect = await adapter.connect({ instructions, language: language ?? session.language });
-    // Candidate-mode sessions carry grounded questions; the browser passes this
-    // to ElevenLabs as a prompt override (OpenAI gets it server-side already).
-    const groundedPrompt = session.mode === "candidate" ? instructions : null;
+    // THE INTERVIEWER BRIEF IS SERVER-SIDE ONLY (backlog #29 / TP-L2-VOICE-01).
+    // `instructions` is the recruiter's PRIVATE brief — gap/provenance
+    // annotations, "internal red flag — never say this aloud" notes — so it must
+    // never ride the JSON back to the candidate's browser (a Network-tab away).
+    // OpenAI already receives it server-side in the client_secrets session
+    // config (adapter.connect above). ElevenLabs' signed-url flow has NO
+    // server-side session config — its prompt overrides are client-sent by
+    // design — so a candidate-mode ElevenLabs session gets a CANDIDATE-SAFE
+    // agent prompt instead: the generic screening script built only from the
+    // public job title + booked length, never the private brief. The stored
+    // run-of-show can itself carry assessment annotations, so no per-candidate
+    // material is projected into this prompt at all.
+    const agentPrompt =
+      connect.provider === "elevenlabs" && session.mode === "candidate"
+        ? defaultInterviewerInstructions({ role: session.jobTitle, durationMin: session.durationMin })
+        : null;
     // The session token rides back so /complete can demand it as the completion
     // capability (idea-5248c3e9). Candidate/sim callers already hold it (it is
     // how they got here); for a fresh lab session this is the creator receiving
@@ -157,8 +185,7 @@ export async function POST(request: NextRequest) {
       sessionId: session.id,
       token: session.token,
       provider,
-      instructions,
-      groundedPrompt,
+      agentPrompt,
       connect,
     });
   } catch (error) {

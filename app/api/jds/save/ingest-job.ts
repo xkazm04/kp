@@ -1,6 +1,7 @@
 import { insertJob, jobContentHash, normalizeJob } from "@/app/_lib/job-ingest";
 import { normalizeSalaryBand } from "@/app/_lib/salary-band";
 import { jdJobId } from "@/app/_lib/jd-limits";
+import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import type { RoleSpec } from "@/app/_lib/jd-build-run";
 
 // Turn a generated JD's role into a structured, matchable Job: build a record
@@ -13,7 +14,7 @@ export async function ingestStructuredJob(input: {
   role: Record<string, unknown>;
   salary?: { suggestedMinimum?: number; suggestedMaximum?: number };
   company?: string;
-}): Promise<boolean> {
+}, workspaceId: string = DEFAULT_WORKSPACE_ID): Promise<boolean> {
   const role = input.role as RoleSpec;
   const record: Record<string, unknown> = {
     title: input.title,
@@ -34,8 +35,8 @@ export async function ingestStructuredJob(input: {
   // it carries that analysis's provenance, confidence, and cited sources, so a
   // hand-typed override (e.g. a number edited into the JD markdown) is NOT honored
   // here — that would let an arbitrary figure masquerade as web-grounded research.
-  // The builder's salary card is read-only and says so (JdBuilderResult.tsx);
-  // editing the salary line in the markdown changes the published wording only.
+  // The Ledger detail's salary card is read-only and says so (LibrarySavedJdsLedger's
+  // SalaryCard); editing the salary line in the markdown changes the published wording only.
   // Clamp/swap a backwards or non-positive band rather than dropping it, so the
   // matchable Job's band never silently disagrees with the analysis it came from.
   const band = normalizeSalaryBand(input.salary?.suggestedMinimum, input.salary?.suggestedMaximum);
@@ -49,6 +50,6 @@ export async function ingestStructuredJob(input: {
 
   // Authored JDs start as a DRAFT — "Source into Pipeline" takes them live and
   // sources them into the pipeline.
-  insertJob(job, jobContentHash(`${input.title}\n${input.markdown}`), "draft");
+  insertJob(job, jobContentHash(`${input.title}\n${input.markdown}`), "draft", workspaceId);
   return true;
 }

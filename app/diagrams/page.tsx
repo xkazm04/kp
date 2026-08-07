@@ -5,11 +5,15 @@ import { DIAGRAM_STATUS_TOKENS } from "@/app/_components/puml/constants";
 import { WorkspaceShell } from "@/app/features/WorkspaceNav";
 import { PipelineExplorer } from "./PipelineExplorer";
 
+// Renders per-request under the dynamic-locale layout and builds heavy PlantUML
+// SVGs from disk on demand — there is no useful static shell, so Block it under
+// Cache Components (equivalent to its previous force-dynamic behavior).
+export const instant = false;
+
 // Renders the real architecture sources straight from docs/diagrams/*.puml
 // (read server-side, so the page always reflects the committed source) through
 // our own PlantUML renderer — the stress test for big, nested-package diagrams.
 
-export const dynamic = "force-dynamic";
 
 // docs/diagrams/*.puml are committed build artifacts: in production they never
 // change at runtime, so reading them from disk on every (force-dynamic) request

@@ -1,0 +1,183 @@
+{
+  "job": {
+    "id": "cal-015",
+    "title": "Bank Teller",
+    "company": "Bank Of America",
+    "role_family": "customer_success",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Core banking / teller transaction platform (e.g., a branch teller terminal for deposits, withdrawals, transfers, check cashing, loan payments)",
+      "Cash-handling equipment: cash drawer, currency/coin counters, counterfeit-detection tools",
+      "Check imaging / remote deposit and scanning systems",
+      "Customer / CRM and referral-tracking system for surfacing and logging product leads",
+      "Identity-verification and fraud/security tooling; KYC and watchlist (e.g., OFAC) screening at the window",
+      "Product knowledge base: checking/savings, debit/credit cards, CDs, basic lending and digital-banking products",
+      "Regulatory procedure materials: BSA/AML, currency-transaction reporting (CTR), Reg CC funds availability, Reg E",
+      "General office computing: branch software, email, basic spreadsheets/forms"
+    ],
+    "coreResponsibilities": [
+      "Process routine transactions (deposits, withdrawals, transfers, check cashing, payments) accurately and quickly at the teller window",
+      "Balance and reconcile a cash drawer each shift and maintain it within prescribed cash limits",
+      "Deliver courteous, efficient customer service in a high-traffic branch environment",
+      "Identify customer needs and introduce/refer relevant bank products and services (a soft sales/referral mandate)",
+      "Verify customer identity and follow security, fraud-prevention, and cash-control procedures",
+      "Adhere to banking regulations and complete required compliance steps (e.g., reporting large cash transactions)"
+    ],
+    "statedVsRealGaps": [
+      "JD asks only for 'basic computer skills,' but the real job demands fluency on a proprietary teller platform plus disciplined daily balancing — more than generic computer literacy.",
+      "'Introducing products and services' is soft-pedaled; at a large retail bank this is an explicit, measured referral/sales expectation that materially affects performance reviews, not an incidental nicety.",
+      "The JD omits the compliance load entirely — BSA/AML, KYC, currency-transaction reporting, Reg CC/Reg E — which is central to the role and carries personal and institutional risk.",
+      "Salary line is garbled and empty ('estimated salary to per hour'), so the stated pay range is effectively missing despite being a key candidate decision factor.",
+      "'Fast-paced environment' understates the real stakes: accuracy under time pressure with personal accountability for drawer shortages.",
+      "The need targets 'medior,' but a standard teller is operationally entry-to-junior; the medior label slightly overshoots the actual skill ceiling (cash-handling experience aside)."
+    ],
+    "trueComplexity": "low",
+    "riskAreas": [
+      "Cash accuracy: drawer shortages/overages are tracked and create financial loss plus disciplinary exposure for the teller.",
+      "Security and fraud exposure at the window — counterfeit notes, check fraud, social-engineering scams, robbery, and internal-theft controls.",
+      "Regulatory compliance failures (missed CTRs, weak KYC, AML lapses) can carry legal and regulatory penalties for the institution.",
+      "Sales-pressure vs. customer-trust tension: cross-sell/referral incentives can drift toward mis-selling if poorly governed (a known industry failure mode).",
+      "Frontline burnout and turnover in a high-volume, modestly-paid customer-facing role, worsened by the unclear pay disclosure.",
+      "Thin JD plus missing salary may attract poorly-matched applicants and lengthen time-to-fill."
+    ],
+    "reflection": "This is a non-software, frontline customer-success/operations role, so the absence of a codebase is expected and not a defect — the role's 'body of work' is the teller platform, the cash drawer, the product set, and the bank's compliance procedures. The JD is generic but extractable: at its core this is a high-throughput cash-and-service job with two underspecified layers stacked on top. First, a sales/referral mandate that is described as gently 'introducing products' but in practice is a measured expectation at a major retail bank. Second, a substantial compliance burden (BSA/AML, KYC, transaction reporting, funds-availability rules) that the posting never mentions yet defines much of the day-to-day risk. Operationally the true complexity is low — the work is highly proceduralized and learnable — but the stakes are real because money, fraud, and regulation are involved, and personal accountability for cash accuracy is high. The 'medior' seniority target reads slightly elevated for what is typically an entry-to-junior position; 'previous cash handling experience' justifies junior-plus, not mid-level. The garbled, empty salary field is the most concrete defect in the posting and should be fixed before publishing.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Bank Teller",
+    "seniority": "junior",
+    "roleFamily": "customer_success",
+    "mustHaves": [
+      "Previous cash-handling experience with personal accountability for balancing and reconciling a cash drawer within prescribed limits",
+      "Customer service experience in a high-traffic, face-to-face setting, staying courteous and composed under time pressure",
+      "Strong verbal communication skills to explain transactions and surface customer needs clearly",
+      "High accuracy and attention to detail when processing deposits, withdrawals, transfers, check cashing, and payments quickly",
+      "Comfort learning and operating a proprietary teller/branch transaction platform beyond generic computer literacy",
+      "Disciplined identity-verification, fraud-prevention, and cash-control habits at the window",
+      "Willingness and ability to follow banking compliance procedures (BSA/AML, KYC, currency-transaction reporting, Reg CC/Reg E funds availability)"
+    ],
+    "niceToHaves": [
+      "Prior bank or credit-union teller experience on a core banking platform",
+      "Track record of product referrals or soft cross-sell (checking/savings, debit/credit cards, CDs, digital banking)",
+      "Familiarity with KYC and OFAC/watchlist screening at the teller line",
+      "Experience operating currency/coin counters and counterfeit-detection tools",
+      "Bilingual ability (e.g., Spanish) to serve a diverse branch customer base",
+      "Basic spreadsheet/forms proficiency and comfort with branch office software"
+    ],
+    "responsibilities": [
+      "Process routine transactions (deposits, withdrawals, transfers, check cashing, loan/bill payments) accurately and efficiently at the teller window",
+      "Balance and reconcile the cash drawer each shift and keep it within prescribed cash limits",
+      "Deliver courteous, efficient service in a fast-paced, high-traffic branch environment",
+      "Identify customer needs and introduce or refer relevant bank products and services as a measured referral expectation",
+      "Verify customer identity and follow security, fraud-prevention, and cash-control procedures",
+      "Adhere to banking regulations and complete required compliance steps, including reporting large cash transactions"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Teller Shift Simulation: Working a Morning Window at the Maple & 3rd Branch",
+    "brief": "This is a paper-and-spreadsheet simulation of one morning shift at the teller window. Everything is fictional — no real customers, accounts, PII, or live banking systems — so you document the actions you would take rather than operating a real terminal. Because this role is procedurally low-complexity but high-stakes, we are not testing how fast you key transactions; we are looking at judgment: when you slow down and verify before acting, how you read the procedure materials, how you handle compliance and fraud signals, and how you balance a referral expectation against customer trust. Several items in the queue are deliberately not routine. You have ~1 hour — do not try to process everything to perfection. Get through the queue, but spend your time and reasoning on the non-routine items, keep your written decisions brief (bullets, not essays), and keep the DECISIONS log in Task 4 current as you go. Use the materials in the shift packet as your only source of truth for procedures; where they are silent or unclear, make a defensible call and record it. The provided context (a teller platform, cash-handling and KYC/fraud tooling, product knowledge base, and BSA/AML / Reg CC procedure materials) fits this role directly, so the exercise is built on a representative shift packet drawn from exactly those materials.",
+    "repoSeed": "A simulated teller shift packet for the 'Maple & 3rd' branch: (1) `shift_queue.pdf` — 6 customer transaction tickets for one morning (deposits, a withdrawal, check cashing, a transfer, a loan payment), with realistic supporting slips and customer details; at least three tickets carry non-routine details. (2) `drawer_open_count.xlsx` — your opening cash drawer counted by denomination (opening cash $5,000; drawer limit $7,500). (3) `transaction_log.csv` — the cash movements posted to the core teller system across the shift, keyed to the queue tickets. (4) `drawer_close_count.xlsx` — the physical denomination count taken at shift end, to be reconciled. (5) `procedures_quickref.pdf` — quick-reference cards covering the CTR $10,000 threshold and same-day same-person aggregation rule, Reg CC funds availability (standard schedule on the front; new-account and large-deposit exception holds on the back), ID/KYC verification steps, OFAC watchlist screening, and counterfeit-note detection. (6) `product_kb.pdf` — a one-page product knowledge base (checking, savings, CDs, debit/credit cards, overdraft protection, digital banking). (7) `customer_notes.pdf` — short snippets surfaced at the window (e.g., 'saving for a house down payment', 'keeps getting hit with overdraft fees', 'on a fixed retirement income') that may or may not represent referral opportunities. (8) `crm_referral_log.xlsx` — a blank referral-logging template. (9) `decisions_log.md` — a blank decisions/handover template.",
+    "tasks": [
+      "Work the morning queue in `shift_queue.pdf`. For each of the 6 transaction tickets, record on a short worksheet: the disposition (process / hold / escalate / decline), the identity-verification step you performed, the exact funds-availability you would quote the customer, and the platform action you would take. Use `procedures_quickref.pdf` for ID/KYC and Reg CC funds-availability rules. Handle the non-routine tickets as you would at a live window — read before you act.",
+      "Reconcile the cash drawer. Starting from `drawer_open_count.xlsx`, apply the cash movements in `transaction_log.csv` to compute your expected closing cash by denomination, then compare against the physical count in `drawer_close_count.xlsx`. State whether you are balanced, over, or short. If there is a difference, trace it to its source ticket before recording any balancing adjustment, then write the brief over/short note and resolution you would submit to the head teller.",
+      "Run the end-of-day BSA/AML compliance pass over the day's cash activity in `transaction_log.csv`. Identify every transaction or set of transactions that triggers a Currency Transaction Report, complete a short CTR worksheet, document the KYC/OFAC screening outcome for the parties involved, and flag anything that should be escalated to the BSA/AML officer. For each determination, cite the specific threshold or rule from `procedures_quickref.pdf` that you applied.",
+      "Surface product referrals and keep your decision trail. Using `customer_notes.pdf` and `product_kb.pdf`, log only the referrals you judge suitable in `crm_referral_log.xlsx`, matching each product to the customer's actual situation. In parallel, maintain `decisions_log.md`: for every call you made where the materials were open or unclear (e.g., a hold length, a CTR judgment, whether to refer a product, how far to verify an identity), record what you chose, the alternative you rejected, and the one question you would put to your branch manager. Treat this as normal end-of-shift handover notes for the next teller, not a test."
+    ],
+    "coverProbes": [
+      {
+        "id": "ctr-cash-aggregation",
+        "kind": "verification_trap",
+        "where": "In `shift_queue.pdf` and `transaction_log.csv`: the same customer ('D. Novak') makes a $9,400 cash deposit early in the shift and a separate $2,300 cash deposit later the same day. Each individual ticket is under the $10,000 CTR threshold.",
+        "reveals": "A naive teller checks each ticket in isolation and files no CTR because both are under $10,000. A correct teller aggregates same-day cash by the same person to $11,700 and files a CTR. A sharp one also reads the split deposits as a possible structuring pattern and raises a SAR review with the BSA/AML officer — without tipping off the customer.",
+        "decisionSpace": [
+          "File a single CTR on the aggregated $11,700 and treat it as a legitimate large deposit — aggregation is mechanical and there is no evidence of intent to evade.",
+          "File the CTR and additionally escalate to the BSA/AML officer for a possible-structuring / SAR review — prioritizes catching the pattern at the cost of extra process and a potential false flag on an innocent customer.",
+          "Hold and ask the customer the purpose of the deposits or confirm with a supervisor before filing — clarifies intent but risks tipping off the customer and slows the window."
+        ]
+      },
+      {
+        "id": "reg-cc-new-account-hold",
+        "kind": "legacy_trap",
+        "where": "A ticket in `shift_queue.pdf` deposits a $6,800 check into an account opened 12 days ago. The front of the Reg CC card on `procedures_quickref.pdf` says 'next business day'; the new-account and large-deposit exception rules are on the back of the same card.",
+        "reveals": "A naive teller applies the default next-day availability and quotes full release. A teller who reads the whole Reg CC card recognizes the new-account and large-deposit exceptions, places the appropriate hold, makes only the required first amount available, and gives the customer the written hold notice.",
+        "decisionSpace": [
+          "Apply the new-account / large-deposit exception hold by the book and issue the written hold notice — protects the bank from check-return fraud but frustrates a brand-new customer.",
+          "Release on the standard next-day schedule to win the new customer's goodwill — relationship-first, but exposes the bank to return-item / fraud loss.",
+          "Apply the hold but escalate to the branch manager to ask whether a relationship/goodwill override is permitted — defers the trade-off to policy rather than deciding alone."
+        ]
+      },
+      {
+        "id": "withdrawal-id-red-flag",
+        "kind": "ambiguity",
+        "where": "A ticket in `shift_queue.pdf` is a $4,000 cash withdrawal where the presenter's ID name is a near-but-not-exact match to the account holder, and `customer_notes.pdf` notes they are 'on the phone with someone guiding them through the withdrawal' — a possible elder-scam / social-engineering pattern.",
+        "reveals": "A naive teller processes a withdrawal from an account with a valid-looking ID. A strong teller treats the name mismatch and the phone-coaching as red flags, slows down, runs additional identity verification, and escalates a suspected scam before releasing cash — while not wrongly accusing a legitimate customer.",
+        "decisionSpace": [
+          "Decline or hold the withdrawal and escalate to the supervisor as a suspected scam — maximally protective, but risks insulting a legitimate customer and drawing a service complaint.",
+          "Process only after extra identity verification and a discreet check-in question with the customer — balances service and security, though funds could still flow to a scam.",
+          "Process as a normal withdrawal because a valid-looking ID and the account are present — fastest service, highest fraud-loss exposure."
+        ]
+      },
+      {
+        "id": "referral-expectation-vs-trust",
+        "kind": "underspecified",
+        "where": "The brief sets a 'measured referral expectation' but gives no quota, product list, or suitability bar. `customer_notes.pdf` contains both a clear fit (a customer saving for a house down payment) and a poor fit (an elderly fixed-income customer who could be pitched a credit card).",
+        "reveals": "A naive candidate either ignores referrals entirely or pitches a product to every customer to look productive. A strong one refers only where there is a genuine, suitable need, declines the ill-suited pitch, and explicitly asks what the referral expectation actually is rather than guessing — surfacing the sales-pressure-vs-trust tension named as a known industry failure mode.",
+        "decisionSpace": [
+          "Refer only where there is a clear, suitable need and skip unsuitable customers — protects customer trust but may fall short of an unstated referral target.",
+          "Make a referral to every customer to maximize the referral metric — hits the number but risks mis-selling and the known cross-sell failure mode.",
+          "Refer on genuine need now and ask the branch manager to define the actual expectation, quota, and suitability bar before optimizing — clarify-first, briefly deferring the metric."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

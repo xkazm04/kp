@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { RichTextEditor } from "@/app/_components/RichTextEditor";
+import { TextInput } from "@/app/_components/TextInput";
 import { DEFAULT_TEMPLATE_BODY, fetchTemplates, findUnknownPlaceholders, TEMPLATE_BODY_MAX_LENGTH, TEMPLATE_NAME_MAX_LENGTH, TEMPLATE_PLACEHOLDERS, unknownPlaceholderMessage, validateTemplateFields, type Template, type TemplateData } from "./render-template";
 
-type Editing = { id?: string; name: string; body: string };
+type Editing = { id?: string; name: string; body: string; scope: Template["scope"] };
 
 // Phase 1 follow-up — full CRUD of company JD templates. A template is markdown
 // with {{placeholders}} (see render-template.ts).
@@ -54,7 +56,11 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
       const r = await fetch(url, {
         method: editing.id ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: fields.name, body: fields.body }),
+        // scope is chosen only at CREATE (publish to the shared org library vs keep it
+        // team-private); an edit leaves the tier untouched, so it's omitted on PUT.
+        body: JSON.stringify(
+          editing.id ? { name: fields.name, body: fields.body } : { name: fields.name, body: fields.body, scope: editing.scope }
+        ),
       });
       const p = await r.json();
       if (!r.ok) throw new Error(p.error ?? t("saveFailed"));
@@ -102,21 +108,20 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
       {error ? <p className="mb-3 rounded-md bg-red-50 p-2.5 text-sm text-red-700">{error}</p> : null}
       {editing ? (
         <div className="space-y-3">
-          <input
+          <TextInput
             value={editing.name}
             onChange={(e) => setEditing({ ...editing, name: e.target.value })}
             maxLength={TEMPLATE_NAME_MAX_LENGTH}
             placeholder={t("namePlaceholder")}
             aria-label={t("namePlaceholder")}
-            className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm font-semibold"
+            sizeVariant="sm"
+            className="font-semibold"
           />
-          <textarea
+          <RichTextEditor
             value={editing.body}
-            onChange={(e) => setEditing({ ...editing, body: e.target.value })}
-            maxLength={TEMPLATE_BODY_MAX_LENGTH}
-            rows={16}
-            aria-label={t("bodyAria")}
-            className="focus-ring w-full rounded-md border border-stone-200 p-3 font-mono text-sm"
+            onChange={(body) => setEditing({ ...editing, body })}
+            ariaLabel={t("bodyAria")}
+            minHeight="18rem"
           />
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm text-steel">
@@ -130,6 +135,25 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
             <p className="animate-fade-in rounded-md bg-amber-50 p-2.5 text-sm text-amber-800" role="alert">
               {unknownPlaceholderMessage(unknownTokens)}
             </p>
+          ) : null}
+          {!editing.id ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-semibold text-steel">{t("visibility")}</span>
+              <div className="inline-flex rounded-md border border-stone-200 p-0.5">
+                {(["team", "org"] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setEditing({ ...editing, scope: s })}
+                    aria-pressed={editing.scope === s}
+                    className={`focus-ring rounded px-2.5 py-1 text-sm font-semibold ${editing.scope === s ? "bg-ink text-white" : "text-steel hover:bg-stone-50"}`}
+                  >
+                    {s === "team" ? t("scopeTeamOption") : t("scopeOrgOption")}
+                  </button>
+                ))}
+              </div>
+              <span className="text-micro text-steel">{editing.scope === "org" ? t("scopeOrgHint") : t("scopeTeamHint")}</span>
+            </div>
           ) : null}
           <div className="flex items-center gap-2">
             <button type="button" onClick={save} disabled={busy || unknownTokens.length > 0} className="focus-ring inline-flex h-9 items-center gap-2 rounded-md bg-ink px-4 text-sm font-semibold text-white hover:bg-steel disabled:opacity-50">
@@ -159,16 +183,25 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
             {templates.map((tpl) => (
               <li key={tpl.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                 <span className="min-w-0 flex-1 truncate font-semibold text-ink">{tpl.name}</span>
-                {tpl.isDefault ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-moss/15 px-1.5 py-0.5 text-micro font-semibold uppercase text-moss">
-                    <Star size={11} className="fill-current" /> {t("default")}
-                  </span>
-                ) : (
-                  <button type="button" onClick={() => setDefault(tpl.id)} className="focus-ring rounded-md p-1.5 text-steel hover:bg-moss/10 hover:text-moss" title={t("setDefaultTitle")}>
-                    <Star size={15} />
-                  </button>
-                )}
-                <button type="button" onClick={() => { setConfirmingId(null); setEditing({ id: tpl.id, name: tpl.name, body: tpl.body }); }} className="focus-ring rounded-md p-1.5 text-steel hover:bg-stone-100" title={t("editTitle")}>
+                <span
+                  className="shrink-0 rounded-full bg-stone-100 px-1.5 py-0.5 text-micro font-semibold uppercase text-steel"
+                  title={tpl.scope === "org" ? t("scopeSharedTitle") : t("scopePrivateTitle")}
+                >
+                  {tpl.scope === "org" ? t("scopeShared") : t("scopePrivate")}
+                </span>
+                {/* The default is an org-wide baseline — only a shared (org) template can hold it. */}
+                {tpl.scope === "org" ? (
+                  tpl.isDefault ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-moss/15 px-1.5 py-0.5 text-micro font-semibold uppercase text-moss">
+                      <Star size={11} className="fill-current" /> {t("default")}
+                    </span>
+                  ) : (
+                    <button type="button" onClick={() => setDefault(tpl.id)} className="focus-ring rounded-md p-1.5 text-steel hover:bg-moss/10 hover:text-moss" title={t("setDefaultTitle")}>
+                      <Star size={15} />
+                    </button>
+                  )
+                ) : null}
+                <button type="button" onClick={() => { setConfirmingId(null); setEditing({ id: tpl.id, name: tpl.name, body: tpl.body, scope: tpl.scope }); }} className="focus-ring rounded-md p-1.5 text-steel hover:bg-stone-100" title={t("editTitle")}>
                   <Pencil size={15} />
                 </button>
                 {confirmingId === tpl.id ? (
@@ -205,7 +238,7 @@ export function JdTemplateManager({ onClose, onChanged }: { onClose: () => void;
             ))}
           </ul>
           )}
-          <button type="button" onClick={() => { setConfirmingId(null); setEditing({ name: "", body: DEFAULT_TEMPLATE_BODY }); }} className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:bg-stone-50">
+          <button type="button" onClick={() => { setConfirmingId(null); setEditing({ name: "", body: DEFAULT_TEMPLATE_BODY, scope: "team" }); }} className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-md border border-stone-200 px-3 text-sm font-semibold text-ink hover:bg-stone-50">
             <Plus size={15} /> {t("newTemplate")}
           </button>
         </div>

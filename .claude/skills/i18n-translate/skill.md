@@ -1,0 +1,244 @@
+# i18n-translate — copywriting-grade, context-aware localization (kp)
+
+Translate the app's `messages/en.json` into other languages the way a bilingual
+copywriter on the product team would — not a machine. The default English is
+strong; the job here is to make each *other* locale read as if it were written
+first in that language, in kp's voice, using the right domain terms, and never
+breaking the ICU/format contract the build enforces.
+
+This is a **transcreation** loop with an engineering guardrail, not a
+find-and-replace. Word-for-word is the failure mode.
+
+---
+
+## When to use
+
+- "Translate the app to X" / "add language X" (a new locale).
+- "Review/improve the Czech (or any) translations."
+- "The German is machine-y, make it read natively."
+- A periodic sweep to catch strings that drifted out of parity or were added in
+  English only.
+
+## When NOT to use
+
+- Adding/renaming **English** keys — that's normal feature work (edit
+  `messages/en.json` + the `t()` call site). This skill *consumes* en as the
+  source of truth; it doesn't invent English copy (if the English itself is
+  wrong, flag it, don't silently rewrite it).
+- Candidate-facing **email/SMS comms** bodies (those live in the comms layer,
+  `app/_lib/comms-*`, not `messages/`). Out of scope unless asked.
+
+---
+
+## The contract you must never break (this repo)
+
+`messages/<locale>.json`, default `en`. next-intl, nested catalogs flattened to
+dotted keys. Two gates enforce correctness — run BOTH before finishing:
+
+1. **`npm run i18n:check`** (`scripts/i18n-check.mjs`) asserts, for every
+   non-`en` locale:
+   - **Key parity** — no key missing vs en, no orphan/typo key not in en.
+   - **Valid ICU** — balanced `{ }` and a clean `intl-messageformat` compile
+     (so a malformed `{n, plural, …}` fails here exactly as it would at render).
+   - **Placeholder parity** — the *same* argument names and rich-tag names as en
+     (`{count}` in en must stay `{count}`, never `{počet}`; `<b>` stays `<b>`).
+2. **`npm run typecheck`** — `global.d.ts` augments next-intl `Messages` from the
+   en catalog, so an unknown/misspelled key is a compile error.
+
+Consequences for how you translate:
+- **Keys and structure are frozen.** You translate *values* only. Same nesting,
+  same key names, in every locale.
+- **Never translate**: placeholder names (`{count}`, `{label}`), `plural`/
+  `select`/`selectordinal` keywords, rich-tag names, URLs, code, or enum codes.
+- **Do translate the plural CATEGORIES correctly.** English has `one`/`other`.
+  Czech needs `one` / `few` / `many` / `other`; Polish `one`/`few`/`many`;
+  Slovak like Czech; German/French `one`/`other`. Getting the categories wrong
+  is an ICU compile failure (a hard gate), not a nuance. Use CLDR plural rules
+  for the target language — expand, don't copy en's two branches.
+- Keep `{placeholders}` where the *target* grammar wants them, which is often a
+  different position than English.
+
+---
+
+## The two artifacts (create once, maintain forever)
+
+These are the memory that makes run N+1 consistent with run N. They live in the
+repo (they're project truth, not skill-internal) under `docs/i18n/`:
+
+1. **`docs/i18n/glossary.md`** — the termbase. *What to call things.* A table of
+   kp's domain nouns/verbs with the canonical translation per locale + a note.
+   One decision per term, applied everywhere. Seed it from the recruiting domain:
+   candidate, role/position, pipeline, stage, screening, match/fit, decision,
+   offer, hire/hired, schedule, interview, scorecard, sourcing, automation pass,
+   consent, workspace, recruiter. Plus **Do-Not-Translate**: `KandiDate`,
+   `Kandidate`, `Candi`, `KP`, product tab proper-nouns kept in English, ICU vars.
+2. **`docs/i18n/style-<locale>.md`** — the voice guide. *How to sound.* Register
+   (kp is a **B2B professional** tool → Czech/German use the **formal** address:
+   Czech *vykání*, German *Sie*), sentence case vs Title Case (most non-English
+   UIs use sentence case — Czech capitalizes only the first word + proper nouns),
+   punctuation/typography (Czech quotes `„…"`, real ellipsis `…`, non-breaking
+   space before units), tone (calm, direct, no exclamation spam), loanword policy
+   (Czech HR-tech keeps some English: "pipeline", "screening", "match" are often
+   left/adapted — decide per term IN THE GLOSSARY and be consistent), and
+   length discipline for UI chrome.
+
+Before translating anything, **read both**. If they don't exist yet, the first
+run creates them (bootstrap). When you make a new term decision mid-run, write it
+to the glossary so it sticks.
+
+---
+
+## Modes (dispatch on the argument)
+
+- **`review <locale> [namespace]`** — audit EXISTING translations for quality and
+  fix them. The default when a locale already exists. Optional dotted-namespace
+  prefix (e.g. `pipeline.controlCenter`) scopes it.
+- **`full <locale>`** — (re)translate every key for one locale. Use for a
+  thorough pass or a suspected-bad catalog.
+- **`sync [locale|all]`** — the **periodic / incremental** mode. Translate only
+  the DELTA: keys present in en but missing in the locale, plus keys whose English
+  source CHANGED since the locale was last touched. This is what a schedule or a
+  pre-PR hook runs.
+- **`new <locale>`** — adopt a language: bootstrap `docs/i18n/style-<locale>.md`
+  + the glossary column, then create `messages/<locale>.json` with every key
+  translated. Ends with the same gates as any other mode.
+
+If no locale is given, operate on every non-`en` locale.
+
+---
+
+## Finding the delta (for `sync`)
+
+1. Missing keys: `npm run i18n:check` lists `missing key "<k>"` per locale — that
+   IS the missing set. (Or diff flattened key sets.)
+2. Changed English source: `git log`/`git diff` on `messages/en.json` since the
+   locale file's last commit (`git log -1 --format=%cI messages/<locale>.json`)
+   → the en keys whose value changed in that window are stale in the locale.
+   When git history is ambiguous, fall back to reviewing the whole namespace the
+   changed key sits in (siblings often need to move together).
+3. Translate only that set; leave good existing translations untouched.
+4. **Log what you skipped** — if you cap a run (e.g. one namespace), say so; a
+   silent partial run reads as "fully synced" when it isn't.
+
+---
+
+## The method — per string, before you type the translation
+
+Machine translations fail because they translate the *string*; you translate the
+string **in its place in the product**. For each key (batch by namespace so a
+whole surface stays coherent — see below):
+
+1. **Locate the use.** `Grep` the key's leaf path (or the namespace) across `app/`
+   for the `t("…")` call site. Read enough of the component to answer:
+   - **Element type** → register + length. A `<button>`/label wants a short
+     imperative; a heading a noun phrase; a tooltip/`title` a fuller hint; an
+     `aria-label` a descriptive sentence; an `error`/`alert` calm and clear; a
+     `placeholder` an example, not a command.
+   - **Audience** → recruiter (operator, in-app) vs candidate (public token
+     pages, gentler/2nd-person). kp mixes both.
+   - **Siblings** → the other keys in the same object usually form one UI cluster;
+     translate them as a set so terms and grammar agree (e.g. a row of buttons).
+   - **Length budget** → does it sit in a chip/pill/narrow column? Prefer the
+     shorter idiomatic form; don't let a button wrap.
+2. **Classify → strategy.**
+   - *UI chrome* (buttons, labels, tabs, menu): concise, conventional, match the
+     target OS/app idiom. Segment-level but context-aware.
+   - *Body / marketing / empty-state* (landing, intros, taglines): **transcreate**
+     — carry the feeling and rhythm, not the words. This is where literal dies.
+   - *Legal / consent / compliance* (GDPR strings): precise, sober; preserve any
+     legally-loaded meaning; don't get clever.
+   - *Status / errors*: plain, non-alarming, actionable.
+3. **Apply the glossary + style guide.** Canonical term for every domain word;
+   the locale's register, casing, punctuation, plural rules.
+4. **Preserve the ICU skeleton.** Copy every `{var}`, expand `{n, plural, …}` to
+   the target's CLDR categories, keep `<tags>`/HTML, keep the placeholder NAMES.
+   Move placeholders to where the target grammar wants them.
+5. **Sanity-read it as a native.** Would a native speaker write this on a real
+   product, or does it smell of English word order / calque? If unsure, mark it.
+
+---
+
+## Review lens (for `review`, and as self-QA on anything you generate)
+
+Flag/fix a translation when it shows any of:
+- **Calque / literal word order** — reads as English wearing a costume.
+- **Register mismatch** — informal where the B2B tool needs formal (Czech *ty*
+  instead of *vy*), or stiff where a candidate page should be warm.
+- **Terminology drift** — same concept translated two ways across the app, or a
+  glossary term ignored.
+- **Format break** — lost/renamed placeholder, wrong or missing plural category,
+  brace imbalance, translated a `select` keyword, changed a rich-tag name.
+- **Casing/punctuation** — Title Case aped from English, wrong quote glyphs,
+  straight `...` instead of `…`, missing non-breaking space.
+- **Length risk** — visibly longer than the English in a tight control.
+- **Leftover English** or a wrongly-translated brand term.
+
+For genuinely ambiguous strings (a pun, a domain term with no settled local
+equivalent, a legal phrase), **don't guess silently**: apply your best version
+AND add it to the run's review list with a one-line note, so a native speaker can
+confirm. The user is not a native reviewer by default — surface these.
+
+---
+
+## Working at scale (3000+ keys)
+
+- **Batch by namespace, not by string.** Load one top-level (or nested) namespace's
+  en values + its call sites, translate the whole cluster in one coherent pass,
+  write, move on. This keeps sibling grammar/terms consistent and dodges the
+  "lost in the middle" failure of one giant prompt.
+- Prefer editing the locale JSON namespace-block by namespace-block; keep the
+  key order identical to en for reviewable diffs.
+- If a **workflow / ultracode** run is available and the user opted in, a full
+  multi-locale scan is a natural fan-out: one agent per (locale × namespace)
+  chunk, each fed the glossary + style guide + call sites, then a parity/QA merge.
+  Don't spin that up unprompted — offer it for big jobs.
+- Never machine-blast the whole file in one edit; that's how silent format breaks
+  and terminology drift ship.
+
+---
+
+## Guardrails (learned the hard way)
+
+- **en is the source of truth.** Don't edit en values to make a translation
+  easier. If en is wrong/ambiguous, note it for the user.
+- **Don't clobber good human translations.** In `review`/`sync`, change only what
+  is actually wrong or missing; a wholesale overwrite of a reviewed catalog needs
+  the user's OK first.
+- **JSON hygiene** — valid JSON, UTF-8, real diacritics (`č`, `ř`, `ž`, not ASCII
+  folds), no trailing commas. Match the file's existing indentation.
+- **Emoji/symbols** in a value (e.g. `🎉`) are content — keep them.
+- **Numbers/dates/currency** are formatted by ICU/`Intl` at runtime — don't
+  hardcode a localized number; keep the placeholder and let the format do it.
+- **Verify, don't assume.** A catalog that "looks translated" can still fail the
+  ICU gate on one plural. Run the checks.
+
+---
+
+## Exit checklist
+
+- [ ] `npm run i18n:check` → OK, all locales in parity (keys, ICU, placeholders).
+- [ ] `npm run typecheck` clean (no unknown-key regressions).
+- [ ] Touched locale JSON is valid, same key order as en, proper diacritics.
+- [ ] `docs/i18n/glossary.md` + `docs/i18n/style-<locale>.md` updated with any new
+      term/voice decisions made this run.
+- [ ] A short **review list** surfaced to the user: the handful of strings worth a
+      native second look (with why), and anything capped/deferred.
+- [ ] One-line summary: locale(s), # keys translated/reviewed/fixed, # flagged.
+
+When every box is checked, the locale should read like it was written by a person
+who uses kp every day — and the build stays green.
+
+---
+
+## Periodic operation
+
+`sync` is the heartbeat. Wire it to run on a cadence or before merges:
+- **On a schedule** (weekly/before a release): `/schedule` or `/loop` around
+  `/i18n-translate sync all`.
+- **On change**: a pre-PR/CI step that runs `npm run i18n:check`; any `missing
+  key` finding is the cue to run `/i18n-translate sync`.
+- **New market**: `/i18n-translate new <locale>` once, then it joins the `sync`
+  rotation automatically.
+
+ARGUMENTS: `<mode> [locale] [namespace]` — e.g. `review cs pipeline.controlCenter`,
+`full de`, `sync all`, `new pl`. Default with no mode: `review` every non-en locale.

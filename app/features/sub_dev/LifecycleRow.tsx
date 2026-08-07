@@ -244,7 +244,7 @@ function ReviewPanel({ lc, onApprove, onChanged }: { lc: Lifecycle; onApprove: (
   const risks = lc.analysis?.riskAreas ?? [];
   const confidence = lc.analysis?.confidence;
   const probes = kase.coverProbes ?? [];
-  const inputClass = "focus-ring mt-0.5 w-full rounded border border-stone-200 bg-white px-2 py-1 text-micro text-ink";
+  const inputClass = "focus-ring mt-0.5 w-full rounded border border-stone-200 bg-white px-2 py-1 text-micro text-ink caret-coral placeholder:text-steel";
 
   return (
     <div className="mt-2 space-y-2 border-t border-stone-100 pt-2">
@@ -318,7 +318,7 @@ function ReviewPanel({ lc, onApprove, onChanged }: { lc: Lifecycle; onApprove: (
             onChange={(e) => setFeedback(e.target.value)}
             rows={1}
             placeholder="What should change? e.g. 'too broad for a junior — narrow task 2 to one endpoint'"
-            className="focus-ring min-w-0 flex-1 rounded border border-stone-200 bg-white px-2 py-1 text-micro text-ink"
+            className="focus-ring min-w-0 flex-1 rounded border border-stone-200 bg-white px-2 py-1 text-micro text-ink caret-coral placeholder:text-steel"
           />
           <button
             type="button"

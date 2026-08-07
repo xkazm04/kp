@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getOpenOfferForEntry } from "@/app/_lib/offers-store";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // After the recruiter real-clicks "Send offer", the extend mints a token the
 // Decisions UI discards. The simulation reads it back here to open the

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Pencil, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { TextArea } from "@/app/_components/TextArea";
 
 export function AnalyzePasteRow({
   ariaLabel,
@@ -31,21 +32,18 @@ export function AnalyzePasteRow({
       >
         {t("pasteContent")}
       </label>
-      <textarea
+      <TextArea
         id={inputId}
         aria-label={ariaLabel}
         rows={showTextarea ? 4 : 1}
         value={text}
         onChange={(event) => onChange(event.target.value)}
         onBlur={() => setIsEditing(false)}
+        sizeVariant="sm"
         // Kept in the DOM even when collapsed (sr-only) so the aria-label target
         // stays addressable for tests + screen readers; visually it's replaced
         // by the editable preview card below.
-        className={
-          showTextarea
-            ? "focus-ring h-24 w-full resize-y rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-ink"
-            : "sr-only"
-        }
+        className={showTextarea ? "h-24" : "sr-only"}
       />
       {hasContent && !isEditing ? (
         <div className="rounded-md border border-stone-200 bg-paper px-2 py-1.5">

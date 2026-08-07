@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getJob } from "@/app/_lib/db";
 import { rediscoverForJob } from "@/app/_lib/rediscover";
 
-export const runtime = "nodejs";
 
 // Talent rediscovery (on-demand panel): rank the whole candidate pool against
 // THIS job and surface "silver medalists" — people rejected/closed elsewhere (or

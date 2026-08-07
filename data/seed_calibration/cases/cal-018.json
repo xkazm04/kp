@@ -1,0 +1,185 @@
+{
+  "job": {
+    "id": "cal-018",
+    "title": "Accountant",
+    "company": "Vita Healthcare Group",
+    "role_family": "finance",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Yardi (senior-living / property-management accounting ERP — the system of record for multi-facility communities)",
+      "QuickBooks (SMB ledger — listed alongside Yardi, implying per-facility or transitional dual systems)",
+      "Microsoft Excel (reconciliations, schedules, close workpapers, ad-hoc analysis)",
+      "General ledger / journal entries and chart-of-accounts maintenance",
+      "Accounts payable and accounts receivable subledgers",
+      "Bank and balance-sheet account reconciliations",
+      "Payroll processing systems (multi-facility, state-regulated)",
+      "Month-end close package and financial statements presented on monthly facility calls",
+      "Filing / document management for AP/AR and reconciliation support"
+    ],
+    "coreResponsibilities": [
+      "Run month-end close for one or more skilled-nursing communities: post journal entries, maintain accounts, reconcile balances",
+      "Process accounts payable and accounts receivable, including reconciliation and filing",
+      "Process and maintain community payrolls in compliance with company policy and state wage/tax regulations",
+      "Facilitate monthly financial review calls with community management — requires real financial-statement literacy, not just data entry",
+      "Provide accounting support, guidance, and training to community Executive Directors and office managers (an advisory/coaching dimension beyond bookkeeping)"
+    ],
+    "statedVsRealGaps": [
+      "The qualifications line 'at least ___ years accounting experience' is missing its number — the actual experience bar is unstated, so the JD under-specifies the very seniority it screens for.",
+      "The JD frames this as entry-level bookkeeping ('prior accounting or bookkeeping experience'), but the real scope — multi-entity close, payroll compliance, and training community management — is staff/senior-staff accountant work, a notch above the stated bar.",
+      "Payroll 'in compliance with state regulations' across multiple facilities implies multi-state wage/hour and tax knowledge, yet no payroll-compliance qualification is asked for.",
+      "Listing both Yardi (the senior-living ERP) and QuickBooks (SMB) hints at fragmented or heterogeneous systems and cross-platform reconciliation — a genuine complexity the JD treats as a simple tool checklist.",
+      "Skilled-nursing accounting normally touches Medicaid/Medicare reimbursement, census-driven revenue, and resident trust / personal-needs accounts — none appear in the JD, so whether the role owns industry-specific work is unknown.",
+      "'Facilitate monthly financial calls' presumes the ability to explain variances and statements to non-finance directors — a communication/analysis demand stronger than the 'bookkeeping experience' floor suggests."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Multi-facility payroll across potentially multiple states is the highest-consequence error surface — misfilings carry penalties and direct employee impact.",
+      "Accuracy and timeliness of month-end close and reconciliations across several communities at once.",
+      "Dual Yardi/QuickBooks footprint risks manual cross-system reconciliation, mapping errors, and reporting drift.",
+      "Unverifiable industry exposure (healthcare reimbursement, resident trust accounts) — if required and untrained-for, it becomes a hidden onboarding gap.",
+      "'Informal environment' plus an accountant who trains facility office managers signals weak local controls and thin segregation of duties — the accountant inherits the control risk.",
+      "The blank experience requirement makes screening inconsistent and invites either over- or under-qualified hires."
+    ],
+    "reflection": "Read against its real body of work, this is not the junior bookkeeping role its qualifications imply — it is a multi-entity staff-accountant position carrying month-end close, AP/AR, multi-facility payroll compliance, and a stakeholder-facing advisory load (monthly financial calls plus training Executive Directors and office managers). The tooling tells the real story: Yardi is the senior-living ERP and the system of record, while QuickBooks alongside it signals fragmented or transitional ledgers and cross-platform reconciliation work the JD never acknowledges. The honest gaps are a literally missing experience number, an unstated multi-state payroll-compliance burden, and a skilled-nursing accounting context (reimbursement, resident trust funds) that may or may not be in scope but is entirely absent from the posting. The 'informal environment' and the train-the-communities mandate point to soft local controls, making reconciliation discipline and payroll accuracy the core risk-bearing competencies. Judged in finance terms, complexity is medium — standardized but multi-entity and compliance-sensitive — and a successful hire will need more financial-statement fluency and payroll-regulatory judgment than the stated bookkeeping floor asks for.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Accountant",
+    "seniority": "medior",
+    "roleFamily": "finance",
+    "mustHaves": [
+      "Full-cycle general ledger experience: prepare and post journal entries, maintain accounts, and keep the chart of accounts clean",
+      "Run month-end close for one or more entities: account maintenance plus timely, documented balance reconciliations",
+      "Accounts payable and accounts receivable processing end to end, including reconciliation and supporting documentation/filing",
+      "Bank and balance-sheet account reconciliations with clear workpapers that tie out",
+      "Hands-on proficiency with accounting software — Yardi and/or QuickBooks — including day-to-day posting and reporting",
+      "Strong Microsoft Excel for reconciliations, schedules, and close workpapers (lookups, pivots, structured spreadsheets)",
+      "Payroll processing in compliance with company policy and applicable state wage/tax regulations",
+      "Financial-statement literacy: able to explain balances and variances to non-finance community management on monthly review calls",
+      "Clear, concise written and oral communication with internal teams and external vendors",
+      "Associate or Bachelor's degree in accounting, or equivalent hands-on accounting/bookkeeping experience"
+    ],
+    "niceToHaves": [
+      "Senior-living, skilled-nursing, or property-management accounting background (Yardi as system of record)",
+      "Multi-entity / multi-facility close experience with consolidations across communities",
+      "Multi-state payroll and wage/hour compliance knowledge",
+      "Familiarity with healthcare-specific accounting: Medicaid/Medicare reimbursement, census-driven revenue, and resident trust / personal-needs accounts",
+      "Comfort operating across heterogeneous systems (e.g., Yardi alongside QuickBooks) and doing cross-platform reconciliation",
+      "Experience advising, supporting, or training non-finance managers (Executive Directors, office managers) on accounting processes"
+    ],
+    "responsibilities": [
+      "Own month-end close for one or more skilled-nursing communities: post journal entries, maintain accounts, and reconcile balances",
+      "Process accounts payable and accounts receivable, including account reconciliation and filing",
+      "Process and maintain community payrolls in compliance with company policy and state wage/tax regulations",
+      "Facilitate monthly financial review calls with community management, explaining statements and variances",
+      "Provide accounting support, guidance, and training to community Executive Directors and office managers"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "May Month-End Close for Two Skilled-Nursing Communities (Maple Grove & Cedar Ridge)",
+    "brief": "You are the medior staff accountant who owns month-end close for two skilled-nursing communities: Maple Grove Care Center (system of record: Yardi) and Cedar Ridge Senior Living (still on QuickBooks, mid-migration to Yardi). The prior accountant left partway through the May close, and you inherit a half-finished close folder. The environment is informal — Executive Directors and office managers key some AP and deposits themselves, segregation of duties is thin, and the controller's instructions arrive as a short, slightly contradictory note. Your job is to finish a clean, defensible May close (period ending 5/31/2026), confirm payroll is safe to post and file, consolidate the two communities, and prepare to walk Maple Grove's ED through the result on the monthly review call.\n\nAll starting materials are synthetic but representative of this exact role and toolset (Yardi/QuickBooks exports worked in Excel) — treat them as the real close package. The point is NOT volume of tickmarks; it is judgment under thin controls: trace before you trust, decide what is material, and surface filing risk before it becomes a penalty. Timebox is a hard 1.5 hours — scope your depth accordingly; it is better to fully resolve the reconciliation and payroll than to touch everything shallowly. Throughout, keep a short DECISIONS log (described in Task 4) — this is normal close-file documentation, not an extra exam; reviewers and the next preparer rely on it.",
+    "repoSeed": "A single working folder, 'MayClose_MapleGrove_CedarRidge', containing:\n• TB_MapleGrove (Yardi GL export) and TB_CedarRidge (QuickBooks GL/P&L export) — May trial balances for both communities.\n• BankRec_MG_Operating — a partially completed reconciliation of Maple Grove's operating account. Bank statement ending balance $312,480.16; GL cash balance $298,140.22. Pre-filled by the prior preparer: an outstanding-check list (~$32.5k total) and a '$14,200 deposit in transit, dated 5/30'. The two sides do not currently agree.\n• AP_Aging and AR_Aging subledgers for Maple Grove, plus a stack of unfiled AP support.\n• PayrollRegister_0516-0531 — the semi-monthly multi-state register that funds both communities: Maple Grove staff in Ohio (OH), Cedar Ridge staff in Pennsylvania (PA), with gross-to-net, state withholding, and employer SUTA columns. One aide transferred from Cedar Ridge to Maple Grove on 5/12.\n• PL_Draft_Consolidated — a draft combined P&L with one flagged month-over-month swing (operating margin down vs. April).\n• COA_Crosswalk_QB_to_Yardi — the mapping the prior accountant used to fold Cedar Ridge's QuickBooks accounts into Yardi's chart, including an old dietary line.\n• Controller_Note.txt — 'Close by EOD. Accrue what's material — the May agency-nursing invoice isn't in yet. Payroll has to file this week. ED wants to know why margin dropped.'\n• Prior_Month_Package (April) — last month's finalized statements for comparison.",
+    "tasks": [
+      "Finish Maple Grove's May operating-account bank reconciliation in BankRec_MG_Operating. Trace each reconciling item to source, produce a reconciliation where the adjusted bank balance and adjusted book balance agree, list the true reconciling items, and draft any adjusting journal entries the bank side requires. Do not force the rec to balance — if a pre-filled item or the residual difference does not trace, say so and resolve it correctly.",
+      "Prepare and book Maple Grove's remaining month-end journal entries to close the period: the last-week-of-May agency-nursing accrual (no invoice yet — the controller said only 'accrue what's material'), plus any corrections that fall out of Task 1. State the materiality basis and estimation method you used, mark which entries reverse next month, and note the entries you would NOT book and why.",
+      "Review PayrollRegister_0516-0531 and confirm it is ready to post to the GL and to file. Reconcile gross-to-net and tie the employer-tax accruals back to the trial balances by state. Confirm each employee's work state and tax treatment is right — the summary footing being correct is not sufficient. Flag anything that creates a filing or penalty exposure and say what must happen before the funds are filed.",
+      "Fold Cedar Ridge's QuickBooks May P&L into Yardi's chart using COA_Crosswalk_QB_to_Yardi so the two communities consolidate, then write a 4–6 bullet talking-points sheet that walks Maple Grove's ED through the largest margin swing in plain language. Alongside this, deliver your running DECISIONS log: for every call you made where the brief or the materials were open or contradictory, record what you chose, the alternative you rejected, and the one question you would have asked the controller or ED. Frame it as the close file's documentation."
+    ],
+    "coverProbes": [
+      {
+        "id": "recon-phantom-deposit",
+        "kind": "verification_trap",
+        "where": "Task 1 — the pre-filled '$14,200 deposit in transit, dated 5/30' in BankRec_MG_Operating, which actually already appears as a posted credit on the May bank statement (so it is not in transit), while a small bank charge/return is unrecorded on the books.",
+        "reveals": "A strong candidate traces each reconciling item to the bank statement, catches that the $14,200 is double-counted (already cleared), removes it, and resolves the remaining true difference with a real adjusting entry — the rec balances because it is correct. A naive one-shot accepts the prior preparer's items at face value and plugs the residual to force a balanced reconciliation, hiding the error.",
+        "decisionSpace": [
+          "Trace and remove the phantom deposit, then book the genuine adjusting JE for the unrecorded bank item, balancing the rec on substance.",
+          "Leave the questionable item as an open, aged reconciling line with a documented follow-up rather than adjusting until confirmed with the bank.",
+          "Park the unexplained residual in a suspense/cash over-short account and escalate, accepting a clean current rec at the cost of a deferred answer."
+        ]
+      },
+      {
+        "id": "accrual-materiality-open",
+        "kind": "underspecified",
+        "where": "Task 2 — 'accrue what's material' with no stated threshold and no agency-nursing invoice in hand.",
+        "reveals": "A strong candidate fixes an explicit materiality basis, estimates the accrual from the staffing schedule/run-rate, marks it to reverse, and names what they'd confirm with the controller. A naive response either drops in an unsupported round number or silently omits the accrual, leaving an understated liability with no trail.",
+        "decisionSpace": [
+          "Accrue the full estimate from the staffing schedule/agency run-rate and auto-reverse next month — completeness over precision.",
+          "Accrue only items above a stated materiality threshold and document those below it — speed and a clean close over exhaustiveness.",
+          "Defer the accrual pending the invoice but disclose the unrecorded liability and its estimated size — precision over completeness."
+        ]
+      },
+      {
+        "id": "multistate-payroll-tie",
+        "kind": "verification_trap",
+        "where": "Task 3 — the register foots and net pay ties, but the aide who moved from Cedar Ridge (PA) to Maple Grove (OH) on 5/12 is still withheld and SUTA-accrued entirely to PA for the full period.",
+        "reveals": "A strong candidate recomputes withholding/employer tax by work state, catches the mis-stated employee, and flags the multi-state filing/penalty exposure before funds are filed. A naive candidate confirms the summary totals tie and signs off, letting a state misfiling go out the door.",
+        "decisionSpace": [
+          "Correct the work-state split and employer-tax accrual before posting and filing — accuracy ahead of the deadline.",
+          "Post as-is to hit the close/filing deadline and book a correcting/amended entry next period — timeliness, accepting a small amendment.",
+          "Hold the payroll JE and filing, escalate to payroll/controller for the correct multi-state treatment — control ahead of speed."
+        ]
+      },
+      {
+        "id": "coa-crosswalk-stale-dietary",
+        "kind": "legacy_trap",
+        "where": "Task 4 — the crosswalk maps QuickBooks '6010 · Dietary' to a single Yardi food account, but Yardi has since split dietary into separate Raw Food and Dietary Labor accounts, so the old mapping mis-buckets labor as food cost.",
+        "reveals": "A strong candidate actually reads the crosswalk and the current Yardi chart, notices the stale one-to-many line, surfaces it, and avoids distorting the consolidated dietary/labor variance. A naive candidate maps by account-name similarity (or trusts the crosswalk blindly), silently mis-classifies dietary labor as food, and then mis-explains the margin swing to the ED.",
+        "decisionSpace": [
+          "Follow the crosswalk exactly for consistency and footnote the stale dietary line as a known issue to fix.",
+          "Apply the corrected split into the current Yardi accounts and document the mapping change for the controller — accuracy over consistency with prior periods.",
+          "Route the ambiguous dietary amount to a temporary holding account and reconcile after confirming the intended split — defer rather than guess."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -1,0 +1,189 @@
+{
+  "job": {
+    "id": "cal-046",
+    "title": "Allstate Agency Owner - CEO of You",
+    "company": "Allstate",
+    "role_family": "marketing",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Allstate Exclusive Agency platform (agency management system / book-of-business administration)",
+      "Allstate-provided lead-generation and marketing tools",
+      "Allstate sales tools and product-quoting systems for Property & Casualty and Life & Health policies",
+      "CRM / customer-relationship and renewal-tracking workflows",
+      "State licensing credentials — Property & Casualty and Life & Health (regulatory prerequisite)",
+      "Small-business financial tooling: budgeting, payroll, lease/utilities and operating-expense management",
+      "Allstate training, incentive and bonus/commission programs",
+      "The Exclusive Agency Agreement and Exclusive Agency Program materials (the contract governing the role)"
+    ],
+    "coreResponsibilities": [
+      "Own and operate an Allstate exclusive insurance agency as an independent contractor, with full P&L responsibility",
+      "Sell and cross-sell Allstate P&C and Life & Health products; educate prospects and convert them to customers",
+      "Generate new business through networking, prospecting and trust-building in the local community",
+      "Grow and retain a book of business, earning recurring revenue from policy renewals",
+      "Recruit, hire, empower and manage agency staff and build a collaborative agency culture",
+      "Run day-to-day operations — budgeting, planning, staffing, marketing and expense control",
+      "Invest and manage liquid startup capital to fund payroll, lease, marketing and operating costs",
+      "Leverage Allstate's brand, tools and resources to drive growth and hit commission/bonus targets"
+    ],
+    "statedVsRealGaps": [
+      "roleFamily is tagged 'marketing,' but the real role is insurance SALES plus small-business owner-operator management; marketing is only one of several resources Allstate supplies, not the job's core.",
+      "seniorityTarget 'medior' understates reality — this is an owner/GM-level position carrying P&L, staffing and capital responsibility, not a mid-level employee role.",
+      "Framed as a salaried-sounding 'need,' but it is NOT employment: agents are exclusive-agent independent contractors bound by the Allstate Exclusive Agency Agreement. The 'be your own boss / CEO of You' autonomy is real on operations but constrained to selling Allstate products only.",
+      "'No franchise or royalty fees' is emphasized, yet the role still requires a substantial liquid-capital investment to cover payroll, lease, marketing and utilities — the financial risk sits with the owner.",
+      "'Previous insurance experience not required' coexists with a hard requirement to obtain state P&C and Life & Health licenses before appointment — a real regulatory barrier, not an optional nice-to-have.",
+      "Earnings are 'control your earnings potential' commission/bonus, i.e. variable and at-risk income, not a fixed salary the 'need' framing implies.",
+      "Stated stack and responsibilities arrays were empty; both had to be reconstructed from the JD, and the JD is recruitment-marketing copy with key figures (years in business, capital amount) redacted — no concrete quotas or day-to-day metrics are given."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Capital risk: meaningful personal liquid-capital exposure to stand up and run the agency, despite the 'no fees' messaging.",
+      "Regulatory/licensing gate: must secure P&C and Life & Health licenses across applicable states before appointment.",
+      "Misaligned classification in the need record (marketing/medior) vs. the actual entrepreneurial sales-and-ownership profile — would mis-route sourcing and screening.",
+      "Income variability and ramp risk: commission/renewal-driven earnings depend on building a book from scratch.",
+      "Constrained independence: 'own your business' but exclusive-agent status limits product lines to Allstate; success is tied to one carrier's competitiveness and program terms.",
+      "Candidate-fit risk: the role rewards a proactive, capitalized, sales-driven self-starter with management appetite — quite different from a typical marketing hire."
+    ],
+    "reflection": "This is recruitment-marketing copy for an Allstate exclusive-agency ownership opportunity, not a conventional salaried marketing role, and there is no codebase to reflect against — appropriately so for an insurance-sales/business-ownership function. Reflected against its own materials, the real 'body of work' is a local insurance agency: a P&C and Life & Health book of business run on Allstate's agency-management, lead-gen, sales and CRM tooling, under the Exclusive Agency Agreement. The honest divergence is between the need record's labels (roleFamily 'marketing,' seniority 'medior,' empty stack) and what the JD actually describes: a licensed, capitalized owner-operator who sells, staffs, budgets and grows an agency as an independent contractor with variable, renewal-driven income. Judged in the role's own terms — full P&L ownership, two-line licensing, hiring and managing staff, and personal capital at risk — the true complexity is high, even though Allstate supplies substantial scaffolding. The biggest screening risks are treating it as a mid-level marketing employee role and underweighting the capital, licensing and sales-ownership demands.",
+    "confidence": 0.78,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Allstate Agency Owner",
+    "seniority": "senior",
+    "roleFamily": "sales",
+    "mustHaves": [
+      "Active or obtainable state Property & Casualty AND Life & Health insurance licenses — a hard regulatory prerequisite that must be held before appointment, regardless of prior insurance experience",
+      "Proven consultative B2C/B2B sales ability: prospecting, educating, quoting, closing and cross-selling, with the discipline to hit commission and bonus targets on variable, at-risk income",
+      "Owner-operator / small-business P&L judgment — building and managing a budget, planning, and controlling operating expenses (payroll, lease, marketing, utilities) under personal financial risk",
+      "Access to and willingness to invest the required liquid capital to fund agency startup and ongoing operating costs (retained by the owner, not Allstate)",
+      "People leadership: recruiting, hiring, coaching and managing agency staff and building a collaborative agency culture",
+      "Local-market business development through networking and trust-building to generate new business and retain a renewing book",
+      "Proactive, confident self-starter mindset capable of running an independent-contractor business with minimal day-to-day direction",
+      "Fluency adopting Allstate's agency-management, CRM/renewal-tracking, lead-generation and quoting tools to drive growth"
+    ],
+    "niceToHaves": [
+      "Prior business or franchise ownership / day-to-day operations experience (preferred, not required)",
+      "Previous insurance-industry experience (a plus, not required)",
+      "Existing established network or community ties in the target territory",
+      "Marketing and brand-building experience to amplify Allstate's provided lead-generation resources",
+      "Track record of building and retaining a customer book or recurring-revenue base"
+    ],
+    "responsibilities": [
+      "Own and operate an Allstate exclusive insurance agency as an independent contractor, carrying full P&L responsibility",
+      "Sell, educate and cross-sell Allstate Property & Casualty and Life & Health products, converting prospects into customers",
+      "Generate new business through networking, prospecting and trust-building in the local community",
+      "Grow and retain the book of business, earning recurring revenue from policy renewals",
+      "Recruit, hire, empower and manage agency staff and cultivate a collaborative agency culture",
+      "Run day-to-day operations — budgeting, planning, staffing, marketing and expense control",
+      "Invest and manage liquid startup and operating capital to fund payroll, lease, marketing and utilities",
+      "Leverage Allstate's brand, training, tools and incentive programs to drive growth and meet commission/bonus targets",
+      "Obtain and maintain all required state P&C and Life & Health licenses and operate within the Exclusive Agency Agreement"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Stand up the Westerville, OH Allstate Exclusive Agency — first-year build plan",
+    "brief": "You are the prospective owner of a brand-new Allstate Exclusive Agency in Westerville, Ohio (a Columbus suburb). Allstate has assigned you a small starter book and given you access to its lead, quoting and agency-management tools; the rest — capital, staffing, market, P&L — is yours to run as an independent contractor. This is a sales-and-ownership work sample, not a marketing campaign: you act on a book of business, a capital model, a commission schedule and the Exclusive Agency Agreement the way an agency owner would, producing the artifacts you'd actually take into a launch decision. The materials handed to you are deliberately realistic and partly incomplete — that mirrors the real role, where the Allstate program documents answer some questions and leave others to your judgment. Use insurance-agency language throughout (households, policies, lines, premium, renewals, quote→bind, book, producer/CSR, P&L). You have a hard cap of ~2 hours, so depth beats coverage: make the few high-leverage calls well rather than producing many thin documents. Polished spreadsheets and prose are assumed to be tool-assisted; what we evaluate is the judgment underneath — which is why one deliverable is a short DECISIONS log, kept the way any operator keeps notes on the calls they had to make.",
+    "repoSeed": "A folder of starting materials representative of a new Allstate Exclusive Agency, not software:\n- starter_book.csv — the assigned/transferred book (~110 households, ~180 active policies). Columns: household_id, primary_named_insured, city, lines_active, auto_term (6mo|12mo), home_term, annual_premium, renewal_date, tenure_years, multiline_flag (Y/N), last_rate_change_pct. A meaningful share are monoline auto with multiline_flag=N (cross-sell candidates); several renewals fall in the next 90 days; a cluster carries last_rate_change_pct ≥ 12 (at-risk after a rate action).\n- crm_export.csv — current open pipeline and the upcoming renewals, with status, stage, last_contact_date and at-risk flags.\n- lead_lists/allstate_provided_leads.csv — vendor/Allstate-supplied leads (volume high, intent mixed). lead_lists/community_targets.csv — a hand-built local list (realtors, small-business owners, a local employer, two HOAs).\n- capital_and_operating.xlsx — three tabs: 'Capital' (liquid capital available: $62,500), 'OpEx' (lease $2,400/mo, utilities+tech $900/mo, E&O, owner draw target, marketing line left blank for you), 'Comp Plan' (Allstate base commission + the enhanced-compensation/bonus thresholds, with the bonus gate noted but not fully worked out).\n- commission_schedule.pdf — new-business vs renewal commission rates for P&C (auto/home) and Life & Health; new-business rates are higher and paid on bind, renewal rates lower and paid at each policy's renewal; auto is largely 6-month term, home 12-month.\n- exclusive_agency_agreement_excerpt.pdf — key clauses from the Exclusive Agency Agreement and program supplement: exclusivity (Allstate-only placement), production/retention expectations, expense responsibility, and the economic-interest / Termination Payment (TPP) treatment of the book.\n- market_brief.md — Westerville snapshot: households, median income, owner-occupancy, the incumbent carriers/agencies, and notes on local channels.",
+    "tasks": [
+      "Build a 90-day go-to-market and book-build plan (1–2 pages plus any supporting sheet). Using starter_book.csv, both lead_lists files and market_brief.md, decide where the first 90 days of selling effort go: prioritize prospecting channels, design a multi-line cross-sell play aimed at the monoline households (multiline_flag = N), and set weekly activity targets with the explicit quote→bind conversion assumptions behind them. Include a retention play for the renewals flagged at-risk in crm_export.csv / starter_book.csv (rows with last_rate_change_pct ≥ 12).",
+      "Build a 12-month operating P&L and capital plan from capital_and_operating.xlsx (Capital, OpEx, Comp Plan tabs) and commission_schedule.pdf. Show monthly cash, the deepest cash trough (lowest balance and the month it occurs), and the break-even month. Make and defend the staffing call — when, whether, and whom to hire (licensed producer vs lower-cost unlicensed CSR) — and the marketing allocation, both tied to the cash plan. State plainly whether the $62,500 of liquid capital is sufficient and, if not, the cushion you would want before signing.",
+      "Read exclusive_agency_agreement_excerpt.pdf and reconcile Tasks 1–2 against it. Produce a short risk register (5–8 rows): for each item give the clause or reality it stems from, its impact on your plan, and your mitigation. At minimum cover the P&C and Life & Health licensing gate and its effect on your realistic start date, and call out anything in your go-to-market or financials that the agreement constrains, limits or contradicts.",
+      "Keep a DECISIONS log (½–1 page) alongside the deliverables. For every call you made where the materials were open or silent — how fast you deployed capital/marketing, how you modeled new-business vs renewal commission and policy terms, staffing, and product mix — record what you chose, the alternative you rejected and why, and the one question you would put to your Allstate Field Sales Leader / territory manager before committing. Frame it as the working notes any operator keeps, not a test answer."
+    ],
+    "coverProbes": [
+      {
+        "id": "capital-deployment-pace",
+        "kind": "underspecified",
+        "where": "Task 2 marketing line on the 'OpEx' tab (left blank) + Task 1 channel choice; the brief gives total capital but no spend pace.",
+        "reveals": "A strong candidate sizes the cash trough first and pegs marketing/activity to a runway and a ruin constraint; a naive one picks a round marketing number and never connects it to the lowest-cash month or the licensing-delayed start.",
+        "decisionSpace": [
+          "Front-load marketing and paid leads to build the book fast — quicker renewal income later, but a deeper cash trough and higher early-ruin risk on $62,500.",
+          "Pace spend to protect runway — safer cash position, slower ramp, more dependence on owner-driven prospecting in the first quarter.",
+          "Lean on free/included Allstate leads + community_targets networking first, scaling paid spend only after the first bind cohort proves a conversion rate — lowest burn but channel- and timing-dependent."
+        ]
+      },
+      {
+        "id": "agreement-book-ownership",
+        "kind": "legacy_trap",
+        "where": "exclusive_agency_agreement_excerpt.pdf — exclusivity, economic-interest / Termination Payment (TPP), and production clauses (Task 3, and the equity/cross-sell framing in Task 1).",
+        "reveals": "A candidate who actually reads it discovers the agent does not own the book outright (economic interest + TPP, conditions attached) and is single-carrier by contract; a naive one plans to diversify carriers or treats the book as a freely sellable personal asset and a recruiting 'equity' pitch.",
+        "decisionSpace": [
+          "Treat single-carrier exclusivity as a brand/cost advantage and go all-in on Allstate product depth (P&C + Life cross-sell) rather than carrier breadth.",
+          "Acknowledge single-carrier concentration as a real risk and hedge inside the allowed product set (broaden P&C + Life & Health mix, deepen retention) rather than placing outside business.",
+          "Build the staffing/equity story honestly around the TPP/economic-interest reality instead of an 'own a sellable book' promise, adjusting how the role is sold to a hired producer."
+        ]
+      },
+      {
+        "id": "commission-renewal-timing",
+        "kind": "verification_trap",
+        "where": "Task 2 P&L using commission_schedule.pdf — new-business vs renewal rates and 6-month auto vs 12-month home terms.",
+        "reveals": "Distinguishes candidates who model commission by cohort and term (new-business paid on bind, renewal paid lower and only at each policy's renewal) from those whose one-shot model applies a blended rate to all premium from month 1 — which passes a shallow 'does it break even?' check but overstates early income and mis-times the trough.",
+        "decisionSpace": [
+          "Cohort/term-accurate model: separate new-business and renewal streams, respect 6-month auto vs 12-month home renewal timing — most rigorous, slower to build.",
+          "Simplified annualized blended commission with the limitation explicitly flagged and a stated correction direction — fast and defensible if the caveat is named.",
+          "Conservative renewal-lagged ramp (assume renewals only begin contributing after the first full term, haircut new-business retention) — robust to error but may under-call the upside."
+        ]
+      },
+      {
+        "id": "staffing-timing",
+        "kind": "ambiguity",
+        "where": "Task 2 staffing decision; the materials never specify headcount, only an owner draw target and the licensing prerequisite.",
+        "reveals": "A good answer ties the hire to the cash plan and the P&C/Life licensing timeline; a naive one asserts a hire (or none) with no link to the cash trough, break-even month, or who can legally bind business before the owner is licensed.",
+        "decisionSpace": [
+          "Hire a licensed producer up front to add selling capacity from day one — accelerates the book but is the heaviest payroll burn against thin early cash.",
+          "Start solo and add a producer only after break-even or a proven conversion rate — protects runway, caps early sales throughput.",
+          "Hire a lower-cost unlicensed CSR for service/admin while the owner sells, deferring a producer — cheaper and frees owner selling time, but adds no licensed bind capacity and leans on the owner's own license being in place."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

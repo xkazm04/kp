@@ -1,0 +1,185 @@
+{
+  "job": {
+    "id": "cal-047",
+    "title": "Restaurant Operations Manager",
+    "company": "Raising Cane's",
+    "role_family": "operations",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Microsoft Office — Excel (sales/labor/COGS forecasts, schedules, inventory), Word, Outlook",
+      "Restaurant POS / point-of-sale system (implied by per-shift operations and sales tracking)",
+      "Labor-scheduling system (writing crewmember and shift-manager schedules to sales-volume trends)",
+      "Inventory management + vendor ordering system (monthly counts, weekly vendor orders/receiving)",
+      "P&L / financial reporting — food cost, labor cost, COGS, controllable-spend tracking",
+      "Cane's Love recognition program (structured crew recognition/rewards framework)",
+      "HR/people documentation — selective hiring criteria, performance plans, orientation materials",
+      "Restaurant business plan + local marketing plan (authored with/for the GM)",
+      "Facilities/maintenance work-order channel to GM and facilities department"
+    ],
+    "coreResponsibilities": [
+      "Lead shifts and day-to-day floor operations, upholding brand standards ('serve the perfect box; fast, friendly, clean, have fun')",
+      "Plan/forecast weekly sales, labor and COGS and manage food + labor costs to hit profitability goals set by ops leadership",
+      "Own monthly inventory counts and ensure weekly vendor orders are placed and correctly received",
+      "Write crew and shift-manager schedules aligned to sales-volume trends",
+      "Hire (with GM sign-off), train, develop, and performance-manage shift managers and crewmembers",
+      "Maintain cleanliness, identify maintenance issues, and route them to GM/facilities; monitor contract-service, repair and supply spend",
+      "Execute company programs/initiatives and support local marketing — acting as the GM's deputy across people, cost, and ops"
+    ],
+    "statedVsRealGaps": [
+      "Titled 'Operations Manager' at senior level, but the JD repeatedly frames it as supporting/consulting the General Manager (hiring decisions, business plan, financial goals all flow through the GM) — true authority is a strong #2 / mid-level, not an autonomous senior operator",
+      "Qualifications headline 'proficient in technology... especially Microsoft Office,' yet the real daily tooling is the POS, labor-scheduling and inventory systems (never named); Office fluency is table-stakes, not the differentiating tech demand",
+      "'Knowledge of labor laws' is listed in one line, but the actual exposure (wage/hour, overtime, minor-labor, predictive-scheduling rules) is a material compliance burden the JD under-specifies",
+      "Financial accountability is real (COGS, labor %, controllable spend) but the reporting cadence, targets, and tools are left implicit — the role is measured on numbers it's given little stated infrastructure to manage",
+      "Experience bar is soft ('3 years restaurant or retail management preferred,' HS diploma) relative to the P&L-and-people scope — the stated seniorityTarget 'senior' outpaces the credential floor"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Over-titling vs. real authority: 'senior Operations Manager' could mis-set candidate expectations for a GM-subordinate deputy role",
+      "Labor-law and scheduling-compliance exposure given direct ownership of hiring, scheduling, and performance actions",
+      "High QSR turnover makes continuous hiring/training/orientation a structural load, not a periodic task",
+      "Cost/COGS accountability without full P&L ownership — judged on results partly outside direct control",
+      "Physical/operational demands (50 lb lifts, stairs, shift coverage) and culture-fit ('balance hard work with fun') screen out otherwise-qualified operators"
+    ],
+    "reflection": "Reflected against its own body of work, this is a genuine operational management role — not a software role, so the absence of a codebase is expected and not a defect. The real 'stack' is a fast-food P&L run on Excel, a POS, and labor/inventory systems, plus the people and culture machinery (Cane's Love, hiring criteria, performance plans) of a tightly systematized franchise. The work is concrete and cost-bearing: weekly sales/labor/COGS forecasting, inventory and vendor control, scheduling to volume, and continuous hiring and development. The central tension is between framing and authority — the title and 'senior' target signal a top operator, but the JD consistently positions the role as the General Manager's deputy who consults, supports, and recommends rather than decides. Complexity is medium: real financial and people accountability, bounded by a subordinate mandate and a heavily proceduralized brand playbook. The most useful honesty for a hiring decision is to calibrate seniority expectations to 'strong shift-leading #2 with cost and people ownership,' and to make the unnamed operational systems and labor-law load explicit in screening, since those — not Microsoft Office — are where the role actually lives.",
+    "confidence": 0.78,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Restaurant Operations Manager",
+    "seniority": "medior",
+    "roleFamily": "operations",
+    "mustHaves": [
+      "Proven restaurant or multi-unit retail shift leadership — running day-to-day floor operations to brand standards ('fast, friendly, clean') and leading a mixed crew of shift managers, captains, trainers and crewmembers",
+      "P&L literacy at the unit level: managing food cost, labor %, and COGS to weekly targets, reading financial reports, and monitoring controllable spend (contract services, repair/maintenance, supplies)",
+      "Sales/labor/COGS forecasting and labor scheduling — writing crew and shift-manager schedules to sales-volume trends, with hands-on Excel fluency for forecasts, schedules and inventory",
+      "Inventory ownership — leading monthly counts and ensuring weekly vendor orders are placed, received and reconciled accurately",
+      "People management end-to-end: hiring against defined criteria (with GM sign-off), onboarding/orientation, training, developing, and drafting/following up on performance plans for shift managers and crew",
+      "Working knowledge of wage/hour and labor law (overtime, minor-labor, scheduling rules) sufficient to staff and schedule compliantly",
+      "Operational fluency with the daily restaurant tech stack — POS/point-of-sale, the labor-scheduling system, and the inventory/vendor-ordering system — beyond table-stakes Microsoft Office",
+      "Strong cross-level communication, acting as the General Manager's deputy across people, cost and operations"
+    ],
+    "niceToHaves": [
+      "High-volume QSR or multi-unit experience",
+      "Track record executing company-driven programs and initiatives at the restaurant level",
+      "Experience supporting or authoring a unit business plan and local marketing plan",
+      "Familiarity running a structured crew recognition/rewards program (e.g., Cane's Love)",
+      "Facilities / maintenance vendor coordination experience",
+      "Food-safety certification (e.g., ServSafe)"
+    ],
+    "responsibilities": [
+      "Lead shifts and day-to-day floor operations, upholding brand standards and promoting open communication across all crew levels",
+      "Plan and forecast weekly sales, labor and COGS, and manage food + labor costs to profitability goals set by the operations leadership team",
+      "Own monthly inventory counts and ensure weekly vendor orders are placed and correctly received",
+      "Write crew and shift-manager schedules aligned to sales-volume trends and adequate coverage",
+      "Hire (with GM sign-off), train, develop, and performance-manage shift managers and crewmembers, including orientations and performance-plan follow-up",
+      "Maintain restaurant cleanliness, identify maintenance issues and route them to the GM/facilities department, and monitor contract-service, repair and supply spend",
+      "Implement company programs and initiatives and support the GM with execution of local marketing plans, deputizing for the GM across people, cost and operations"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Deputy Week at Raising Cane's #318: Set the Schedule, Find the Cost Miss, Make the Call",
+    "brief": "You are the Restaurant Operations Manager at Raising Cane's #318 (Rivergate). GM Dana is out for the week at a market meeting and has left you deputizing across people, cost, and operations. Working only from the spreadsheets, the period P&L, the people notes, and Dana's handoff email, set up next week and clean up two open items she flagged. This is the actual desk work of the role, not a typing test — assume any number-crunching or document drafting can be done with a tool. What we read is your judgment: how you staff to a sales trend without blowing the labor target or service, how you trace a food-cost overage to its real cause instead of the headline number, and how you handle a shift manager mid-performance-plan. Timebox is 1.5 hours; depth beats coverage. Where the materials are silent or contradict each other, make a defensible call and log it — do not wait for an answer you can't get this week.",
+    "repoSeed": "A shared drive folder for store #318: (1) Dana_Handoff.eml — Outlook note setting the week's asks and mentioning 'the Rivergate Fall Fest is on Saturday near the store' in a P.S.; (2) Weekly_Sales_Forecast.xlsx — last 8 weeks of net sales and transaction counts by daypart (open–11a, 11a–2p, 2p–5p, 5p–close), plus a system-generated forecast for next week that linearly extrapolates the 8-week trend and includes a Monday that is a bank holiday; (3) Labor_Model.xlsx — crew + shift-manager roster with availability and wage rates, a 'sales per labor hour' productivity standard, the period labor target of ≤22% of net sales, and two crew flagged as minors (under-18 hour limits); (4) PnL_Snapshot_P05.xlsx — period P&L showing food cost at 31.4% vs a 29.5% target, labor at 23.1%, and controllables; (5) Inventory_Count_P05.xlsx — ending count dated the Wednesday before period close (not period-close day); (6) Vendor_Order_Guide.xlsx — par levels last revised 14 months ago, before the drive-thru remodel shifted mix toward delivery/to-go; (7) Vendor_Invoices_P05.pdf — includes one large chicken-tender delivery dated the final day of P05 and an unapplied credit memo for a short/spoiled slaw delivery; (8) Waste_Log_P05.xlsx; (9) People_Notes.docx — Shift Manager Marcus is on day 22 of a 30-day performance plan: cleanliness/brand-standards now strong, labor control still loose, and one recent no-call/no-show; plus a new-crew orientation due and a note on Cane's Love recognition; (10) Canes_Love_Recognition.pdf.",
+    "tasks": [
+      "Build next week's crew and shift-manager schedule in Labor_Model.xlsx against the system forecast: cover the dayparts the sales trend says will be busy, respect the two minors' hour limits and shift-manager coverage on every shift, and state the labor % your plan lands at versus the ≤22% target. Call out explicitly where you chose to flex up or down and why.",
+      "Diagnose the P05 food-cost overage (31.4% vs 29.5%). Reconcile Inventory_Count_P05, Vendor_Order_Guide, Vendor_Invoices_P05, and Waste_Log_P05 to attribute the variance to its real drivers, then recommend 2–3 specific corrective actions for P06 that you, as deputy, can actually put in place this week.",
+      "Make the call on Marcus's 30-day performance plan (he is on day 22). Recommend one path — extend with measurable goals, reassign to fit his strengths, or exit with a backfill/coverage plan — and write the short people-action and how it touches next week's schedule and the Cane's Love recognition you'd run for the rest of the crew.",
+      "Keep a running DECISIONS log (a few lines per call) covering every place the materials were open or contradictory: what you decided, the alternative you rejected and why, and the one question you'd have put to Dana or the ops leader if you could reach them. Close with a 5–8 line deputy brief to Dana summarizing the week's setup."
+    ],
+    "coverProbes": [
+      {
+        "id": "festival-vs-labor-target",
+        "kind": "ambiguity",
+        "where": "Task 1 — scheduling to the system forecast while the Fall Fest sits only in Dana's email P.S. and the forecast linearly extrapolates trend over a holiday Monday",
+        "reveals": "A naive response schedules straight to the system forecast and reports a clean ≤22% labor number, under-staffing the Saturday festival peak and over-staffing the holiday Monday. A strong response notices the forecast can't see a one-off local event or the holiday, adjusts the Saturday daypart staffing on stated assumptions, and is explicit about the trade it's making against the labor target rather than hiding it.",
+        "decisionSpace": [
+          "Staff exactly to the system forecast to protect the ≤22% labor target, accepting service risk on Saturday and flagging the gap for Dana",
+          "Manually lift Saturday peak coverage for the festival and trim the holiday Monday, protecting service and brand standards while documenting the labor-% overage and its cause",
+          "Hybrid: hold ≤22% on slow dayparts and the holiday, flex labor up only on the Saturday peak windows, netting close to target across the week"
+        ]
+      },
+      {
+        "id": "count-date-and-invoice-timing",
+        "kind": "verification_trap",
+        "where": "Task 2 — computing food cost % from Inventory_Count_P05 (dated mid-week, not period close), the final-day chicken invoice, and the unapplied slaw credit",
+        "reveals": "A one-shot calculation reproduces the 31.4% headline and 'confirms' the overage as real, then proposes generic cost-cutting. A careful reader catches that the ending count predates period close, that a large tender delivery dated the last P05 day likely belongs in P06's usage, and that an unapplied vendor credit is inflating COGS — so much of the 'overage' is a timing/accounting artifact, and the true controllable miss is smaller and located elsewhere.",
+        "decisionSpace": [
+          "Take 31.4% at face value and attack purchasing/portioning broadly — fastest, but treats an accounting artifact as an operational problem",
+          "Normalize for the count date, reclassify the final-day delivery to P06, and apply the missing credit before attributing variance, then target the residual real driver",
+          "Flag the timing/credit issues as unresolved, give a corrected-range estimate, and route the invoice/credit fixes to bookkeeping while acting on the portion of variance you can confirm"
+        ]
+      },
+      {
+        "id": "stale-par-levels",
+        "kind": "legacy_trap",
+        "where": "Task 2 corrective actions — Vendor_Order_Guide par levels last revised 14 months ago, before the remodel shifted mix toward drive-thru/to-go",
+        "reveals": "A naive response orders to the existing pars or recommends 'tighten ordering' without reading the revision date, perpetuating over-ordering against today's sales mix. A strong response notices the pars predate the remodel and current daypart/mix data, and proposes re-baselining pars to recent transaction counts rather than blaming line-level execution.",
+        "decisionSpace": [
+          "Keep ordering to current pars for stability this period and queue a par review with Dana — low risk, but leaves the structural over-order in place",
+          "Re-baseline the highest-dollar pars (tenders, slaw) to the last 8 weeks of mix now and adjust the next vendor order, accepting some estimation risk for a real cost reduction",
+          "Run a one-week tighter manual order below par on the few stale items, measure stockout/waste, then set new pars from observed usage"
+        ]
+      },
+      {
+        "id": "marcus-performance-plan",
+        "kind": "underspecified",
+        "where": "Task 3 — mixed signals at day 22 of a 30-day plan (standards up, labor control still loose, one no-call/no-show) with no stated retain/exit expectation",
+        "reveals": "A naive response defaults to a binary keep-or-fire with no coverage consequence or follow-up structure. A strong response weighs the improvement trend against the attendance breach and the turnover cost of exiting, ties the decision to next week's coverage and the team's recognition, and names what evidence would change the call.",
+        "decisionSpace": [
+          "Extend the plan with specific, measurable labor-control and attendance goals — invests in a partly-improving manager, but carries continued risk and coverage uncertainty",
+          "Reassign Marcus to a role that leans on his now-strong standards/cleanliness while removing labor-control ownership — retains a trained person, but may not fit headcount or his career path",
+          "Exit on the attendance breach with a documented backfill and interim coverage plan — clean accountability, but absorbs turnover, hiring, and orientation load in a high-turnover environment"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId } from "./random-id";
 import {
   coerceQuestionnaire,
@@ -39,7 +40,8 @@ function db(): Database.Database {
       job_title TEXT,
       status TEXT NOT NULL DEFAULT 'active',
       started_at TEXT NOT NULL,
-      completed_at TEXT
+      completed_at TEXT,
+      reminder_sent_at TEXT
     );
     CREATE TABLE IF NOT EXISTS onboarding_task_states (
       run_id TEXT NOT NULL,
@@ -71,6 +73,22 @@ function db(): Database.Database {
   if (!cols.some((c) => c.name === "questionnaire_json")) {
     d.exec(`ALTER TABLE onboarding_templates ADD COLUMN questionnaire_json TEXT`);
   }
+  // Migration (CW-4): the at-most-once pre-boarding reminder claim column on runs
+  // created before the nudge existed (pre-existing rows read back NULL = un-reminded).
+  const runCols = d.prepare(`PRAGMA table_info(onboarding_runs)`).all() as { name: string }[];
+  if (!runCols.some((c) => c.name === "reminder_sent_at")) {
+    d.exec(`ALTER TABLE onboarding_runs ADD COLUMN reminder_sent_at TEXT`);
+  }
+  // Tenancy scoping (E0 Phase 1): workspace_id on every onboarding table. Templates are
+  // per-team; a run inherits its Hired candidate's entry workspace; the child rows
+  // (task states / intake / signatures) inherit their run's. Isolated store → migrate
+  // here (no core.ts migrator), tolerating the already-present column.
+  for (const table of ["onboarding_templates", "onboarding_runs", "onboarding_task_states", "onboarding_intake", "onboarding_signatures"]) {
+    const c = d.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!c.some((col) => col.name === "workspace_id")) {
+      d.exec(`ALTER TABLE ${table} ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
+    }
+  }
   _db = d;
   return d;
 }
@@ -85,6 +103,7 @@ export type OnboardingRun = {
   status: string;
   startedAt: string;
   completedAt: string | null;
+  reminderSentAt: string | null;
 };
 export type OnboardingSignature = {
   id: string;
@@ -127,26 +146,29 @@ function parseQuestionnaire(json: string | null | undefined): QuestionnaireField
 
 /** Seed the single default template on first use so a fresh tenant has a runnable
  *  checklist (idempotent — only seeds when the table is empty). Returns its id. */
-export function ensureDefaultTemplate(): string {
+export function ensureDefaultTemplate(workspaceId: string = DEFAULT_WORKSPACE_ID): string {
   const d = db();
-  const existing = d.prepare(`SELECT id FROM onboarding_templates ORDER BY created_at ASC LIMIT 1`).get() as
+  const existing = d.prepare(`SELECT id FROM onboarding_templates WHERE workspace_id = ? ORDER BY created_at ASC LIMIT 1`).get(workspaceId) as
     | { id: string }
     | undefined;
   if (existing) return existing.id;
   const id = randomId("obt");
-  d.prepare(`INSERT INTO onboarding_templates (id, name, tasks_json, questionnaire_json, created_at) VALUES (?, ?, ?, ?, ?)`).run(
+  d.prepare(`INSERT INTO onboarding_templates (id, name, tasks_json, questionnaire_json, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?)`).run(
     id,
     "Standard onboarding",
     JSON.stringify(DEFAULT_ONBOARDING_TASKS),
     JSON.stringify(DEFAULT_QUESTIONNAIRE),
-    new Date().toISOString()
+    new Date().toISOString(),
+    workspaceId
   );
   return id;
 }
 
-export function listTemplates(): OnboardingTemplate[] {
-  ensureDefaultTemplate();
-  return (db().prepare(`SELECT id, name, tasks_json, questionnaire_json FROM onboarding_templates ORDER BY created_at ASC`).all() as {
+export function listTemplates(workspaceId: string = DEFAULT_WORKSPACE_ID): OnboardingTemplate[] {
+  ensureDefaultTemplate(workspaceId);
+  return (db()
+    .prepare(`SELECT id, name, tasks_json, questionnaire_json FROM onboarding_templates WHERE workspace_id = ? ORDER BY created_at ASC`)
+    .all(workspaceId) as {
     id: string;
     name: string;
     tasks_json: string;
@@ -154,7 +176,12 @@ export function listTemplates(): OnboardingTemplate[] {
   }[]).map((r) => ({ id: r.id, name: r.name, tasks: parseTasks(r.tasks_json), questionnaire: parseQuestionnaire(r.questionnaire_json) }));
 }
 
-export function createTemplate(name: string, tasks: unknown, questionnaire?: unknown): OnboardingTemplate {
+export function createTemplate(
+  name: string,
+  tasks: unknown,
+  questionnaire?: unknown,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): OnboardingTemplate {
   const id = randomId("obt");
   const clean = coerceTasks(tasks);
   // undefined questionnaire (legacy caller) → default; an explicit value (incl. [])
@@ -162,8 +189,8 @@ export function createTemplate(name: string, tasks: unknown, questionnaire?: unk
   const cleanQ = questionnaire === undefined ? [...DEFAULT_QUESTIONNAIRE] : coerceQuestionnaire(questionnaire);
   const cleanName = name.trim().slice(0, 120) || "Untitled";
   db()
-    .prepare(`INSERT INTO onboarding_templates (id, name, tasks_json, questionnaire_json, created_at) VALUES (?, ?, ?, ?, ?)`)
-    .run(id, cleanName, JSON.stringify(clean), JSON.stringify(cleanQ), new Date().toISOString());
+    .prepare(`INSERT INTO onboarding_templates (id, name, tasks_json, questionnaire_json, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?)`)
+    .run(id, cleanName, JSON.stringify(clean), JSON.stringify(cleanQ), new Date().toISOString(), workspaceId);
   return { id, name: cleanName, tasks: clean, questionnaire: cleanQ };
 }
 
@@ -177,6 +204,7 @@ function rowToRun(r: Record<string, unknown>): OnboardingRun {
     status: r.status as string,
     startedAt: r.started_at as string,
     completedAt: (r.completed_at as string) ?? null,
+    reminderSentAt: (r.reminder_sent_at as string) ?? null,
   };
 }
 
@@ -194,11 +222,22 @@ export function startRun(input: {
     | undefined;
   if (existing) return rowToRun(existing);
   const id = randomId("obr");
-  const templateId = input.templateId || ensureDefaultTemplate();
+  // Tenant (P1): a run inherits its Hired candidate's pipeline-entry workspace (by-id
+  // read of pipeline_entries on the shared file — same derivation as schedule-store).
+  // Guarded: an unknown entry, or an isolated store whose connection hasn't created
+  // pipeline_entries yet, falls back to the default workspace rather than throwing.
+  let workspaceId = DEFAULT_WORKSPACE_ID;
+  try {
+    const wsRow = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as { workspace_id?: string } | undefined;
+    workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  } catch {
+    /* pipeline_entries absent on this connection — keep the default workspace */
+  }
+  const templateId = input.templateId || ensureDefaultTemplate(workspaceId);
   d.prepare(
-    `INSERT INTO onboarding_runs (id, entry_id, template_id, candidate_label, job_title, status, started_at)
-     VALUES (?, ?, ?, ?, ?, 'active', ?)`
-  ).run(id, input.entryId, templateId, input.candidateLabel ?? null, input.jobTitle ?? null, new Date().toISOString());
+    `INSERT INTO onboarding_runs (id, entry_id, template_id, candidate_label, job_title, status, started_at, workspace_id)
+     VALUES (?, ?, ?, ?, ?, 'active', ?, ?)`
+  ).run(id, input.entryId, templateId, input.candidateLabel ?? null, input.jobTitle ?? null, new Date().toISOString(), workspaceId);
   const row = d.prepare(`SELECT * FROM onboarding_runs WHERE id = ?`).get(id) as Record<string, unknown>;
   return rowToRun(row);
 }
@@ -232,13 +271,53 @@ function templateQuestionnaire(templateId: string): QuestionnaireField[] {
   return row ? parseQuestionnaire(row.questionnaire_json) : [...DEFAULT_QUESTIONNAIRE];
 }
 
-/** Every run with its completion rollup — the onboarding tab's list. */
-export function listRuns(): (OnboardingRun & { progress: OnboardingProgress })[] {
+/** Every run with its completion rollup — the onboarding tab's list. `intakeSubmitted`
+ *  lets the recruiter card show pre-boarding questionnaire pending/done (CW-4) so a
+ *  hire whose candidate hasn't filled it in is visible, not silently empty. */
+export function listRuns(
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): (OnboardingRun & { progress: OnboardingProgress; intakeSubmitted: boolean })[] {
   const d = db();
-  const runs = (d.prepare(`SELECT * FROM onboarding_runs ORDER BY started_at DESC`).all() as Record<string, unknown>[]).map(
+  const runs = (d.prepare(`SELECT * FROM onboarding_runs WHERE workspace_id = ? ORDER BY started_at DESC`).all(workspaceId) as Record<string, unknown>[]).map(
     rowToRun
   );
-  return runs.map((run) => ({ ...run, progress: onboardingProgress(templateTasks(run.templateId), taskStates(run.id)) }));
+  // One read of which of THIS team's runs have a submitted intake, rather than N per-run loads.
+  const withIntake = new Set(
+    (d.prepare(`SELECT run_id FROM onboarding_intake WHERE workspace_id = ?`).all(workspaceId) as { run_id: string }[]).map((r) => r.run_id)
+  );
+  return runs.map((run) => ({
+    ...run,
+    progress: onboardingProgress(templateTasks(run.templateId), taskStates(run.id)),
+    intakeSubmitted: withIntake.has(run.id),
+  }));
+}
+
+/** Runs due their one pre-boarding-intake nudge (CW-4): active, intake still
+ *  unsubmitted, never reminded, and started at/before the policy cutoff. The cutoff
+ *  bound keeps not-yet-due runs out of the result entirely. */
+export function duePreboardingReminders(cutoffIso: string): OnboardingRun[] {
+  const rows = db()
+    .prepare(
+      `SELECT r.* FROM onboarding_runs r
+        LEFT JOIN onboarding_intake i ON i.run_id = r.id
+        WHERE r.status = 'active'
+          AND r.reminder_sent_at IS NULL
+          AND i.run_id IS NULL
+          AND r.started_at <= ?
+        ORDER BY r.started_at ASC`
+    )
+    .all(cutoffIso) as Record<string, unknown>[];
+  return rows.map(rowToRun);
+}
+
+/** CAS-claim the one-shot pre-boarding reminder (CW-4): stamps reminder_sent_at only
+ *  if still NULL, so a re-tick or a second process can't double-nudge. Returns true
+ *  for the single claimer that flipped it. */
+export function markPreboardingReminded(runId: string, nowIso: string = new Date().toISOString()): boolean {
+  const res = db()
+    .prepare(`UPDATE onboarding_runs SET reminder_sent_at = ? WHERE id = ? AND reminder_sent_at IS NULL`)
+    .run(nowIso, runId);
+  return res.changes > 0;
 }
 
 export function getRunDetail(runId: string): OnboardingRunDetail | null {
@@ -278,13 +357,15 @@ export function getRunDetail(runId: string): OnboardingRunDetail | null {
  *  (and re-opens it if a task is later unchecked). Returns the fresh detail. */
 export function setTaskDone(runId: string, taskId: string, done: boolean): OnboardingRunDetail | null {
   const d = db();
-  const run = d.prepare(`SELECT id FROM onboarding_runs WHERE id = ?`).get(runId);
+  // Tenant (P1): a task state inherits its run's workspace (by-id read of the run).
+  const run = d.prepare(`SELECT workspace_id FROM onboarding_runs WHERE id = ?`).get(runId) as { workspace_id?: string } | undefined;
   if (!run) return null;
+  const workspaceId = run.workspace_id ?? DEFAULT_WORKSPACE_ID;
   const now = new Date().toISOString();
   d.prepare(
-    `INSERT INTO onboarding_task_states (run_id, task_id, done, done_at) VALUES (?, ?, ?, ?)
+    `INSERT INTO onboarding_task_states (run_id, task_id, done, done_at, workspace_id) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(run_id, task_id) DO UPDATE SET done = excluded.done, done_at = excluded.done_at`
-  ).run(runId, taskId, done ? 1 : 0, done ? now : null);
+  ).run(runId, taskId, done ? 1 : 0, done ? now : null, workspaceId);
   const detail = getRunDetail(runId)!;
   const shouldComplete = detail.progress.complete;
   d.prepare(`UPDATE onboarding_runs SET status = ?, completed_at = ? WHERE id = ?`).run(
@@ -301,16 +382,18 @@ const INTAKE_VALUE_MAX = 500;
  *  keys are taken as-is from the validated form. */
 export function saveIntake(runId: string, answers: Record<string, unknown>): OnboardingRunDetail | null {
   const d = db();
-  const run = d.prepare(`SELECT id FROM onboarding_runs WHERE id = ?`).get(runId);
+  // Tenant (P1): intake inherits its run's workspace (by-id read of the run).
+  const run = d.prepare(`SELECT workspace_id FROM onboarding_runs WHERE id = ?`).get(runId) as { workspace_id?: string } | undefined;
   if (!run) return null;
+  const workspaceId = run.workspace_id ?? DEFAULT_WORKSPACE_ID;
   const clean: Record<string, string> = {};
   for (const [k, v] of Object.entries(answers)) {
     if (typeof v === "string" && v.trim()) clean[k.slice(0, 64)] = v.trim().slice(0, INTAKE_VALUE_MAX);
   }
   d.prepare(
-    `INSERT INTO onboarding_intake (run_id, answers_json, submitted_at) VALUES (?, ?, ?)
+    `INSERT INTO onboarding_intake (run_id, answers_json, submitted_at, workspace_id) VALUES (?, ?, ?, ?)
      ON CONFLICT(run_id) DO UPDATE SET answers_json = excluded.answers_json, submitted_at = excluded.submitted_at`
-  ).run(runId, JSON.stringify(clean), new Date().toISOString());
+  ).run(runId, JSON.stringify(clean), new Date().toISOString(), workspaceId);
   return getRunDetail(runId);
 }
 
@@ -319,11 +402,13 @@ export function saveIntake(runId: string, answers: Record<string, unknown>): Onb
  *  it records a 'requested' row that markSigned resolves. */
 export function requestSignature(runId: string, document: string): OnboardingRunDetail | null {
   const d = db();
-  const run = d.prepare(`SELECT id FROM onboarding_runs WHERE id = ?`).get(runId);
+  // Tenant (P1): a signature request inherits its run's workspace (by-id read of the run).
+  const run = d.prepare(`SELECT workspace_id FROM onboarding_runs WHERE id = ?`).get(runId) as { workspace_id?: string } | undefined;
   if (!run) return null;
+  const workspaceId = run.workspace_id ?? DEFAULT_WORKSPACE_ID;
   d.prepare(
-    `INSERT INTO onboarding_signatures (id, run_id, document, status, requested_at) VALUES (?, ?, ?, 'requested', ?)`
-  ).run(randomId("obs"), runId, document.trim().slice(0, 200) || "Document", new Date().toISOString());
+    `INSERT INTO onboarding_signatures (id, run_id, document, status, requested_at, workspace_id) VALUES (?, ?, ?, 'requested', ?, ?)`
+  ).run(randomId("obs"), runId, document.trim().slice(0, 200) || "Document", new Date().toISOString(), workspaceId);
   return getRunDetail(runId);
 }
 

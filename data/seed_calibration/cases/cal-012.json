@@ -1,0 +1,188 @@
+{
+  "job": {
+    "id": "cal-012",
+    "title": "Acquisitions, Associate",
+    "company": "Keyway",
+    "role_family": "software_engineering",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Microsoft Excel — complex financial models for single-tenant net-lease (STNL) underwriting: DCF, IRR, cash-on-cash, debt sizing, sensitivity/scenario analysis",
+      "ARGUS Enterprise (or equivalent CRE cash-flow modeling), where used beyond Excel",
+      "Investment memoranda and Investment Committee (IC) materials",
+      "Investor presentation / pitch deck materials",
+      "Market & demographic research platforms (e.g. CoStar, Census/demographic data, comparable-sales and rent comps)",
+      "Property-level due-diligence documents: leases and lease abstracts, rent rolls, T-12/operating statements, property financials",
+      "Third-party reports: appraisals, property condition assessments, Phase I environmental, title/survey",
+      "Deal pipeline tracker / CRM (weekly pipeline of prospective acquisitions)",
+      "Transaction execution artifacts (LOIs, PSAs, recapitalization terms) reviewed during diligence and closing"
+    ],
+    "coreResponsibilities": [
+      "Underwrite single-tenant acquisition opportunities and build/maintain the financial models behind them",
+      "Run business and financial due diligence and support deal execution across acquisitions, dispositions, and recapitalizations",
+      "Conduct property-level due diligence — site visits, lease review, property financials, and third-party reports",
+      "Perform competitive and demographic market research to identify real-estate trends in target markets",
+      "Develop transaction rationale and investment strategy; prepare and present investment memoranda and investor materials",
+      "Support asset management of acquired properties post-close",
+      "Build the weekly deal pipeline and source/identify new opportunities, working cross-functionally"
+    ],
+    "statedVsRealGaps": [
+      "roleFamily is tagged 'software_engineering', but this is a real-estate investment / finance role — there is correctly no codebase and no engineering stack; the absence of code is normal, not a defect.",
+      "seniorityTarget says 'junior', yet the JD asks for an 'Associate' with 'years of experience in real estate investments' and 'extensive experience closing commercial real estate transactions' — that is a mid-level deal professional, not an entry-level hire. The leveling is internally inconsistent.",
+      "The structured 'stack' and 'responsibilities' fields are empty; everything had to be extracted from the JD prose. The prose is rich enough to ground the analysis, so this is a formatting gap, not an evidence gap.",
+      "Quantitative thresholds in the JD are blanked/redacted (required years of experience, VC raised, deals identified per week). The precise experience bar and pipeline targets cannot be calibrated from the text.",
+      "The JD never names specific systems (Excel is the only tool stated explicitly); CoStar/ARGUS/CRM are inferred from CRE industry norms rather than confirmed."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Mis-leveling: an 'Associate' framed as 'junior' but required to close CRE transactions risks attracting candidates who can model but cannot independently execute deals — or screening out qualified mid-level talent on title alone.",
+      "Niche specialization: single-tenant net-lease underwriting (credit-tenant analysis, lease structure, cap-rate dynamics) is narrower than general CRE/IB experience; broad-CRE or pure-IB candidates may lack the STNL-specific skill.",
+      "Series A / lean-team context: 'limited oversight', 'reprioritize at a moment's notice', and 'drive projects from planning to completion' demand autonomy and ambiguity-tolerance that a genuine junior won't have — this is an execution role with little mentorship scaffolding.",
+      "Investor-facing weighting: IC memos and investor presentations make written/verbal communication and 'simplify complex ideas' as load-bearing as modeling; a modeling-only profile would be underqualified.",
+      "Verification limit: with no codebase or independent body of work supplied, every 'real stack' claim is inferred from the JD plus CRE norms — there is no artifact to confirm which tools/systems are actually in use."
+    ],
+    "reflection": "With no codebase supplied (correct for a real-estate acquisitions role), the 'real body of work' this role acts on is its own materials: Excel underwriting models, lease and property-financial diligence files, market/demographic research, IC memoranda, and investor decks — and the JD describes those richly enough to ground the analysis. The clearest divergence is leveling: the need is tagged junior and software_engineering, but the JD reads as a mid-level real-estate investment Associate expected to underwrite, run full-lifecycle diligence, and help CLOSE single-tenant net-lease deals with limited oversight. Treat the 'software_engineering' family and 'junior' target as metadata errors, not the real shape of the job. In its own terms the work is genuinely complex — complex financial modeling plus multi-workstream due diligence plus investor-facing synthesis — and demands net-lease-specific depth that generic CRE or IB experience may not cover. The main caveats are redacted quantitative thresholds (years, raise, deals/week) and that the toolset beyond Excel is inferred from industry norms rather than stated.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Acquisitions, Associate",
+    "seniority": "medior",
+    "roleFamily": "real_estate_investment",
+    "mustHaves": [
+      "Commercial real estate underwriting (single-tenant net-lease / STNL acquisitions)",
+      "Financial modeling in Microsoft Excel (DCF, IRR, cash-on-cash, debt sizing, sensitivity & scenario analysis)",
+      "Business and financial due diligence",
+      "Property-level due diligence (lease review, rent rolls, T-12 / operating statements, third-party reports)",
+      "Preparation of investment memoranda and Investment Committee materials",
+      "Competitive and demographic market research (sales/rent comps, real-estate trend analysis)",
+      "Track record closing commercial real estate transactions",
+      "Strong written and verbal communication, including simplifying complex analysis into presentable messages",
+      "Distinctive analytical and problem-solving skills with rigorous attention to detail"
+    ],
+    "niceToHaves": [
+      "ARGUS Enterprise or equivalent CRE cash-flow modeling",
+      "CoStar and comparable market/demographic data platforms",
+      "Prior experience on the investment banking or acquisitions side of real estate",
+      "Deal pipeline / CRM management and weekly deal sourcing",
+      "Asset management of acquired properties post-close",
+      "Investor presentation and pitch-deck creation",
+      "Familiarity with appraisals, property condition assessments, Phase I environmental, and title/survey review",
+      "Exposure to dispositions and recapitalization transactions"
+    ],
+    "responsibilities": [
+      "Underwrite single-tenant acquisition opportunities and build/maintain the financial models behind them",
+      "Run business and financial due diligence and support deal execution across acquisitions, dispositions, and recapitalizations",
+      "Conduct property-level due diligence — site visits, lease review, property financials, and third-party reports",
+      "Perform competitive and demographic market research to identify real-estate trends in target markets",
+      "Develop transaction rationale and investment strategy; prepare and present investment memoranda and investor materials",
+      "Support asset management of acquired properties post-close",
+      "Build the weekly deal pipeline, source and identify new opportunities, and work cross-functionally across the organization"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "STNL Acquisition Underwrite & IC Recommendation — Cardinal Pharmacy (Single-Tenant Net-Lease)",
+    "brief": "You are an Acquisitions Associate on a lean acquisitions team. A broker has marketed a single-tenant net-lease (STNL) retail asset leased to Cardinal Pharmacy at an $8,400,000 ask / advertised 6.5% cap. Our Investment Committee meets in 48 hours and wants a recommendation: advance, hold, or reject. The full deal package is below — an offering memorandum (OM), the lease, trailing financials, comps, a lender term sheet, and a partially built Excel model. The provided materials fit this role directly: your job is to underwrite the deal on them, not to build new materials. Two framing notes. First, treat the OM as a sell-side document — reconcile every headline claim to the underlying source documents before you rely on it. Second, our Mandate one-pager states the fund's strategy but is intentionally light on the exact return hurdle, hold period, and exit assumptions; where the package is open, make a defensible call, state it, and move on. Budget ~1.5 hours total — depth on the few decisions that move the recommendation beats exhaustive coverage. Your code/model/memo may be LLM-assisted; what we evaluate is the judgment trail, so the DECISIONS log in Task 4 is part of the deliverable, not optional.",
+    "repoSeed": "A single-tenant net-lease acquisition package for the Cardinal Pharmacy property:\n- OM_CardinalPharmacy.pdf — broker offering memorandum. Headline: $8,400,000 ask, 6.5% cap on 'Year-1 pro-forma rent' of $546,000, '15-year absolute NNN lease, ~9 years remaining', '2% annual rent escalations', 'corporate-guaranteed by Cardinal Pharmacy'.\n- Lease_Abstract.xlsx + Lease_CardinalPharmacy.pdf — the actual lease and abstract. Current in-place cash rent $504,000; a 2% bump is scheduled mid-year (the OM annualizes it into the 6.5%). Escalations are CPI-based with a 1% floor / 3% cap (NOT flat 2%). Tenant holds a one-time termination option at the end of Year 6 (≈3 years out) on 12 months' notice with a termination fee of six months' rent. Landlord — not tenant — is responsible for roof and structure. Guaranty is from 'Cardinal Retail Partners LLC', a 42-store franchisee operating company (non-rated), not the Cardinal Pharmacy corporate parent.\n- T-12_Operating_Statement.xlsx — trailing-12-month actuals; reported NOI does not tie to the OM's NOI once a management fee and a structural-reserve line are accounted for.\n- Rent_Roll.xlsx — single-tenant rent roll with lease dates and current rent.\n- STNL_Model.xlsx — partially built underwriting model: DCF, debt-sizing, and IRR/sensitivity tabs scaffolded. The exit-value tab is wired to a rent/NOI cell whose year reference should be checked before use.\n- Comps_and_Market.pdf — comparable STNL sales / cap-rate comps and a trade-area demographic snapshot.\n- Lender_TermSheet.pdf — debt quote: up to 55% LTV, 6.25% fixed, 30-year amortization, 10-year term, 1.35x DSCR covenant.\n- IC_Memo_Template.docx — one-page Investment Committee memo template (recommendation, rationale, risks, conditions).\n- Mandate_OnePager.pdf — fund strategy (core-plus STNL, credit-tenant bias) but no pinned return hurdle, hold period, or exit-cap assumption.",
+    "tasks": [
+      "Reconcile the deal basis. Tie the T-12_Operating_Statement.xlsx NOI to the NOI asserted in OM_CardinalPharmacy.pdf, and compute the true in-place going-in cap rate on the $8,400,000 ask using current cash NOI (not the OM's Year-1 pro-forma). Read Lease_Abstract.xlsx / Lease_CardinalPharmacy.pdf against the OM and list every place the lease contradicts the marketing — term, escalations, NNN scope, guarantor. Output a short reconciliation table: OM claim → source-document reality → $ or bps impact.",
+      "Underwrite the cash flows in STNL_Model.xlsx. Project levered and unlevered cash flow over the hold you choose, applying the lease's actual CPI escalations (1% floor / 3% cap) and the Lender_TermSheet.pdf debt sized to the lesser of 55% LTV and the 1.35x DSCR covenant. Return unlevered IRR, levered IRR, Year-1 cash-on-cash, and a two-variable sensitivity (exit cap × your chosen swing assumption). State your hold period, exit cap, and return hurdle explicitly — the Mandate one-pager does not pin them down.",
+      "Write the IC recommendation (≤1 page, IC_Memo_Template.docx): advance / hold / reject, a 3-sentence transaction rationale a non-modeler can follow, the 2-3 risks that actually swing the decision, and the diligence conditions you'd require before close. Make your treatment of the Year-6 termination option and the franchisee guarantor explicit — surface them, don't bury them.",
+      "Keep a DECISIONS log (≤½ page). For every call you made where the package was open — hold period, exit cap, return hurdle, how you treated the termination option, which NOI you underwrote as the basis — note what you chose, the alternative you rejected and why, and the one question you would put to the deal team or broker."
+    ],
+    "coverProbes": [
+      {
+        "id": "mandate-return-bar",
+        "kind": "underspecified",
+        "where": "Mandate_OnePager.pdf + Task 2 (hold period, exit cap, return hurdle)",
+        "reveals": "A strong candidate names the hold period, exit-cap assumption, and the return bar they're testing against, ties them to the stated core-plus STNL strategy, and flags that the mandate left them open. A naive candidate silently picks defaults and reports a single IRR as if it were an objective fact, with no hurdle to judge it against.",
+        "decisionSpace": [
+          "Hold to the Year-6 termination-option date (~3y) and underwrite explicit re-leasing / downtime risk past it — conservative, treats the option as the binding horizon.",
+          "Hold to lease expiry (~9y) for clean contractual cash flow and a single residual — cleaner IRR but assumes the tenant never exercises the option.",
+          "Market-standard 7-10y hold with an exit-cap-expansion haircut over going-in — neutral, but must defend the cap spread."
+        ]
+      },
+      {
+        "id": "lease-vs-om",
+        "kind": "legacy_trap",
+        "where": "Lease_Abstract.xlsx / Lease_CardinalPharmacy.pdf read against OM_CardinalPharmacy.pdf",
+        "reveals": "A candidate who reads the lease catches the Year-6 termination option, CPI (not flat 2%) escalations, the landlord roof/structure obligation, and the franchisee (not corporate) guaranty. A one-shot modeler inherits the OM's clean '15-year absolute NNN, corporate-guaranteed' story and underwrites a deal that isn't the one in the lease.",
+        "decisionSpace": [
+          "Underwrite to the termination date and treat all post-Year-6 cash flow as speculative re-lease (downtime + TI/LC reserves) — most conservative.",
+          "Keep the full term but haircut the residual and carry a structural-reserve line for the landlord roof/structure obligation plus an option reserve — middle path.",
+          "Model the termination as a probability-weighted scenario (exercise vs renew) and blend the outcomes — most analytically complete but adds assumption risk."
+        ]
+      },
+      {
+        "id": "cap-basis-and-exit-cell",
+        "kind": "verification_trap",
+        "where": "T-12_Operating_Statement.xlsx vs OM cap rate; STNL_Model.xlsx exit-value tab",
+        "reveals": "A careful candidate reconciles to in-place cash NOI (cap closer to ~6.0% than the advertised 6.5%) and checks that the model's exit value references the correct year's NOI rather than the inflated pro-forma rent. A naive candidate plugs the OM's 6.5% and a great-looking IRR that quietly rests on a rent bump that hasn't hit and a mis-referenced exit cell.",
+        "decisionSpace": [
+          "Underwrite in-place cash NOI as the going-in basis and footnote the pro-forma delta to IC — most defensible basis.",
+          "Underwrite the pro-forma rent but only after the contractual bump hits, carrying a reserve for the gap period — acceptable if disclosed.",
+          "Present both bases side-by-side and let IC see the bps difference — most transparent, slightly more work."
+        ]
+      },
+      {
+        "id": "guarantor-credit",
+        "kind": "ambiguity",
+        "where": "Guaranty entity in the lease vs OM 'corporate-guaranteed'; credit treatment in Tasks 2-3",
+        "reveals": "A strong candidate flags that the guaranty is a 42-store, non-rated franchisee opco rather than the rated parent, and either adjusts the credit view (store-level rent coverage, wider cap/credit spread) or makes parent financials a condition. A naive candidate accepts 'credit tenant', prices tight, and never tests whether the rent is actually covered.",
+        "decisionSpace": [
+          "Treat as non-credit / operator risk: widen the cap, and require unit-level sales and opco financials before relying on the cash flow.",
+          "Make a corporate or parent guaranty (or a lease-level credit enhancement) a closing condition and underwrite to that — pushes risk to the seller.",
+          "Accept the franchisee credit but offset with more conservative leverage / a shorter effective underwriting term — keeps the deal alive at a price for risk."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

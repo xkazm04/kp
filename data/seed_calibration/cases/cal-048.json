@@ -1,0 +1,176 @@
+{
+  "job": {
+    "id": "cal-048",
+    "title": "Contracting Project Management Intern",
+    "company": "Trane Technologies",
+    "role_family": "project_management",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Project scheduling tools (e.g. MS Project / Primavera P6) for the schedule the JD makes the PM accountable for",
+      "Construction project management platform (e.g. Procore) for submittals, RFIs, change orders, and field coordination",
+      "Cost estimating and budget tracking spreadsheets (Excel) — the JD assigns explicit budget ownership",
+      "Contract documents, scope-of-work definitions, construction drawings and equipment specifications",
+      "Trane/Thermo King contracting and controls equipment + 'systems offered' technical reference (named in the GTP curriculum)",
+      "Lean fundamentals / continuous-improvement methods (explicitly part of the program)",
+      "Stakeholder communication and 'leading through influence' practices (named in the GTP curriculum)",
+      "ERP / financial reporting system for project cost and billing (implied by budget accountability)",
+      "CRM / sales-office tooling (the endgame is leading a local sales office)",
+      "Valid driver's license + vehicle — field travel to job sites is a hard requirement"
+    ],
+    "coreResponsibilities": [
+      "Manage construction projects end-to-end — administration, implementation, and execution from beginning to completion",
+      "Own assigned scope of work, schedule, and budget and be accountable for delivering against them",
+      "Coordinate with a project team to complete objectives within a fixed time frame and available resources",
+      "Apply Trane contracting/controls equipment and 'systems offered' technical knowledge to energy-efficient building solutions",
+      "Communicate with and influence stakeholders; handle critical conversations across the project",
+      "Complete the Graduate Training Program (technical, business, and leadership tracks) while upholding stated ethical/professional standards",
+      "Progress toward a full-time Contracting Project Manager role leading the local sales office"
+    ],
+    "statedVsRealGaps": [
+      "Seniority mismatch: titled 'intern' / graduate trainee, but the responsibilities describe full PM accountability for scope, schedule, and budget — the GTP is really a structured pipeline into a real PM job, not a low-stakes internship",
+      "No tooling is named in the JD: it specifies zero project-management, estimating, or construction software, so the entire realStack above is role-typical inference rather than stated requirement — the need is described by outcomes, not by systems",
+      "The 'project management' title hides a commercial/sales dimension: the explicit endgame is to 'lead your local sales office,' which candidates applying for pure PM may not expect",
+      "Heavy driving-record and license gating implies substantial field/jobsite travel that the office-sounding title does not signal",
+      "EEO and benefits boilerplate dominate the posting; concrete day-to-day deliverables, KPIs, and what 'success in year one' looks like are largely absent",
+      "Degree gate is specific (construction engineering or construction management) and US work authorization is mandatory — a narrower funnel than 'intern' framing suggests"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Expectation gap from the 'intern' label vs. real accountability for budget and schedule — risk of mis-set candidate expectations and early attrition",
+      "Outcome heavily depends on GTP program quality and on-the-job mentorship; a junior with a construction degree but little live-project exposure carries delivery risk on real scope/schedule/budget",
+      "Field travel and driving requirement introduce safety/liability exposure and a real travel burden not obvious from the title",
+      "Candidate pool is constrained by US-citizenship/work-authorization, clean driving record, and a specific construction degree — slower, narrower sourcing",
+      "Undisclosed sales-office leadership trajectory may cause a fit mismatch for candidates who want to stay technical/PM rather than move toward commercial leadership",
+      "Thin specification of metrics and deliverables makes objective fit assessment and later performance evaluation harder"
+    ],
+    "reflection": "This is a genuine, reasonably detailed graduate-training posting for an entry-level Contracting Project Manager at Trane Technologies — a non-software, construction/HVAC field role with no codebase, so the absence of a tech stack is expected, not a defect. The need is described almost entirely through outcomes (own scope, schedule, and budget; run construction projects end to end; coordinate stakeholders) and through a structured GTP curriculum, rather than through any named systems, so the 'real stack' has to be inferred from how this work is actually done in the industry (scheduling, construction-PM and estimating tools, contract/drawing documents, plus Trane's own equipment and controls knowledge). The sharpest divergence between what is stated and what the evidence shows is seniority: the posting is labeled an internship but loads full PM accountability onto the hire and points explicitly at later leadership of a local sales office — so this is really a junior-to-be-grown commercial/PM pipeline, and the trainee should be evaluated on construction fundamentals, ownership instinct, and stakeholder/communication aptitude, not on prior independent PM delivery. True complexity is medium: the work itself (real money, real timelines, multiple stakeholders) is non-trivial, but the heavy training scaffolding and graduate-entry framing keep it from being a high-complexity hire.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Contracting Project Management Intern",
+    "seniority": "junior",
+    "roleFamily": "project_management",
+    "mustHaves": [
+      "Bachelor's degree in Construction Engineering or Construction Management (hard degree gate stated in the JD)",
+      "Legal right to work in the US without sponsorship now or in the future (US citizenship or equivalent authorization)",
+      "Valid state-issued driver's license with proof of insurance and a clean driving record (no DUI, hit-and-run, suspension, reckless driving, or pattern of infractions/preventable collisions) — substantial jobsite/field travel is required",
+      "Foundational grasp of construction project management: ability to take ownership of an assigned scope of work, schedule, and budget and be held accountable for delivering against them",
+      "Strong stakeholder communication and the ability to lead through influence, including handling critical conversations across a project team",
+      "Willingness to complete the Trane Technologies Graduate Training Program (technical, business, and leadership tracks) while upholding the highest ethical and professional standards",
+      "Comfort with the commercial dimension of the role — the explicit endgame is to grow into leading a local sales office as a full-time Contracting Project Manager"
+    ],
+    "niceToHaves": [
+      "Hands-on exposure to construction project-management platforms (e.g., Procore) for submittals, RFIs, change orders, and field coordination — role-typical tooling, not stated in the JD",
+      "Familiarity with project scheduling tools (e.g., MS Project / Primavera P6) and cost-estimating / budget-tracking spreadsheets (Excel)",
+      "Lean fundamentals or continuous-improvement coursework/experience (named in the GTP curriculum)",
+      "Working knowledge of HVAC contracting and controls equipment, including Trane / Thermo King 'systems offered'",
+      "Prior construction internship or co-op experience on active jobsites",
+      "Exposure to ERP / project-cost or billing systems and CRM / sales-office tooling"
+    ],
+    "responsibilities": [
+      "Support and progressively own construction projects end-to-end — administration, implementation, and execution from beginning to completion — under mentorship within the GTP",
+      "Take accountability for an assigned scope of work, schedule, and budget and deliver against them within the available time frame and resources",
+      "Coordinate with a project team to complete objectives, balancing scope, schedule, and cost constraints",
+      "Apply contracting and controls equipment knowledge ('systems offered') toward delivering energy-efficient building solutions for customers",
+      "Communicate with and influence project stakeholders, navigating critical conversations to keep work on track",
+      "Complete the Graduate Training Program's technical, business, and leadership tracks while maintaining the highest ethical and professional standards",
+      "Progress toward a full-time Contracting Project Manager role with the goal of leading the local sales office"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Westgate Office Park — Building C Controls Retrofit: Project Status & Recovery (Contracting PM Intern, GTP)",
+    "brief": "You're a Contracting Project Management Intern in the Graduate Training Program, mentored on a live Trane controls retrofit at Westgate Office Park — Building C (Project P-2241): a chilled-water plant optimization plus a Tracer SC+ building-automation upgrade sold to the Owner as an energy-efficiency package. Your mentor has assigned you a scope: take an honest look at where the project stands and bring forward what matters. You've been handed the live project package — it's realistic and partly messy on purpose (a real PM inherits work mid-flight). This is a ~1-hour exercise; we care about your judgment, your reading of the documents, and how you communicate under constraint — not about volume or polish. Use whatever tools you'd normally use. The contractual Substantial Completion milestone is June 30 and the not-to-exceed budget is $500,000; the current calendar date in the materials is early April. The provided materials genuinely fit this role, so work them as a project manager would — read scope, schedule, budget, and the RFI/submittal log, reconcile what doesn't agree, and decide what to escalate. Where the materials are silent or contradictory, that's expected: make a defensible call and record it (see the DECISIONS log task).",
+    "repoSeed": "A construction project package for Westgate Office Park — Building C (P-2241), exported from Procore / MS Project, as the candidate would receive it:\n\n• ScopeOfWork_WestgateC_ControlsRetrofit.pdf — narrative scope for the Tracer SC+ controls upgrade, VAV controller replacement, and chilled-water pump VFD installation. Clause 3.4 reads: 'Contractor to integrate new controls with Owner's existing building automation system (BAS).' The existing BAS make/model/protocol is NOT named anywhere in the scope.\n• Schedule_WestgateC.xlsx — MS Project export (task, duration, start, finish, predecessor, % complete, float). 'Substantial Completion' is a milestone hard-typed to June 30 (contract milestone, liquidated-damages note in the row comment). Task 'VFD Installation' shows a planned start in mid-May with positive float, as if equipment delivery is on track.\n• Budget_Tracker_WestgateC.xlsx — three tabs. 'Project Summary' shows Original Budget $500,000 and Forecast at Completion $487,500 (under by $12,500). 'Cost Detail' rolls up committed POs and labor. 'Change Orders' lists CO-001 ($6,000, approved, already in the summary), CO-002 ($18,400, approved — added VAV boxes — but NOT carried into the summary's committed rollup), and CO-003 ($9,200, pending Owner approval).\n• RFI_Submittal_Log.xlsx — open items including RFI-004 ('Confirm integration method and points mapping between new Tracer SC+ and Owner's existing BAS') and submittal SUB-012 (chilled-water pump VFDs), stamped 'Revise and Resubmit' on March 28 with reviewer note 'model series does not match spec section 23 09 23 — resubmit.' VFD fabrication lead time is listed as 10 weeks and does not begin until re-approval.\n• EquipmentSpecs_SystemsOffered.pdf — Trane Tracer SC+, UC600 controllers, and the chilled-water pump VFD cut sheets (spec section 23 09 23), with the 10-week VFD lead time called out.\n• OwnerEmailThread.txt — short thread: Owner's facilities rep emphasizes the June 30 date (a tenant move-in is tied to it) and asks to be told early if anything threatens it.",
+    "tasks": [
+      "Project health status: read Schedule_WestgateC.xlsx and Budget_Tracker_WestgateC.xlsx and write a ~150-word status for your mentor. State whether the June 30 Substantial Completion milestone and the $500,000 not-to-exceed budget are at risk, and name the top two drivers. Before you trust the 'Forecast at Completion' figure, reconcile the 'Project Summary' tab against the 'Change Orders' tab and show the corrected number if it differs.",
+      "Respond to RFI-004 (controls-to-existing-BAS integration). Either commit to the scope/approach you would carry, or write the clarifying question you would send the Owner's facilities team — state which path you chose and why, and what it does to cost and schedule.",
+      "Draft a short email (≤200 words) to the Owner's facilities rep about the single most material schedule risk you found — leading through influence on a critical conversation. State the impact on June 30, the recovery option you recommend, and the specific decision or information you need back from them.",
+      "Keep a short DECISIONS log (5–8 lines). For each open call you had to make — e.g., how you read the BAS-integration scope, how you treated the unreconciled change orders in the budget, and what you concluded about the VFD long-lead/submittal status — note what you chose, the option you rejected, and what you would ask the team if you could. This is normal PM practice; we read it to follow your reasoning, not to grade a single right answer."
+    ],
+    "coverProbes": [
+      {
+        "id": "bas-integration-scope",
+        "kind": "ambiguity",
+        "where": "ScopeOfWork clause 3.4 + RFI-004: 'integrate with Owner's existing BAS' with no BAS make/model/protocol named.",
+        "reveals": "A naive candidate silently assumes the existing BAS is a compatible Trane/BACnet system and prices/schedules the simplest tie-in, hiding integration risk. A strong candidate recognizes the protocol is unknown (could be third-party, e.g. Metasys, needing a BACnet gateway), names the cost/schedule exposure, and either carries protection or raises a targeted RFI rather than guessing.",
+        "decisionSpace": [
+          "Assume the existing BAS is Trane/BACnet-native and commit to the simplest direct tie-in — lowest cost and fastest, but exposes the project to rework and a change order if it turns out to be a foreign system.",
+          "Carry a BACnet gateway plus an integration allowance and schedule float — de-risks delivery and protects June 30, but adds cost the Owner may resist for work that might not be needed.",
+          "Hold the integration approach and issue RFI-004 to the Owner's facilities team to confirm the existing BAS make/model/protocol before committing — most rigorous and avoids mispricing, but delays the commitment and depends on a timely Owner response."
+        ]
+      },
+      {
+        "id": "budget-rollup-co",
+        "kind": "verification_trap",
+        "where": "Budget_Tracker_WestgateC.xlsx — 'Project Summary' shows FAC $487,500 (under budget) but CO-002 ($18,400, approved) is not carried into the committed rollup, and CO-003 ($9,200) is pending.",
+        "reveals": "One-shot generation reads the summary cell and reports 'on budget,' passing a shallow check while being wrong. A strong candidate traces the rollup, finds CO-002 is approved but not flowing in (true committed ≈ $505,900, over the $500k cap before the pending CO-003), and reports the corrected forecast — or at minimum flags that the change-order tab isn't reconciled and shouldn't be relied on yet.",
+        "decisionSpace": [
+          "Report the 'Project Summary' Forecast at Completion as-is ($487,500, under budget) — fast and what the document literally says, but materially wrong because an approved change order is missing.",
+          "Manually re-sum committed costs including CO-002, note CO-003 as pending, and report the corrected forecast (~$505,900, over the not-to-exceed) — correct and decision-useful, but more effort and assumes responsibility for the recomputed number.",
+          "Report the summary but caveat that the 'Change Orders' tab is not reconciled into the rollup and request a controls/PM reconciliation before anyone relies on the figure — pragmatic, surfaces the gap, but stops short of giving the true number."
+        ]
+      },
+      {
+        "id": "vfd-submittal-leadtime",
+        "kind": "legacy_trap",
+        "where": "RFI_Submittal_Log.xlsx SUB-012 ('Revise and Resubmit', March 28, 10-week lead from re-approval) vs Schedule_WestgateC.xlsx 'VFD Installation' still showing a mid-May start with positive float.",
+        "reveals": "A candidate who trusts the schedule's install bar reports no procurement risk and misses that the VFD lead-time clock was reset by the rejected submittal — equipment lands in late June with no install/commissioning buffer, putting June 30 at risk. A strong candidate reads the submittal log before trusting the schedule, recomputes delivery from the resubmittal date, and surfaces the slip (and ideally verifies actual status with the vendor before re-baselining).",
+        "decisionSpace": [
+          "Trust the schedule's mid-May VFD install dates and report procurement on track — fastest, but inherits a stale plan and misses the reset lead time.",
+          "Catch the 'Revise and Resubmit' on SUB-012, recompute the 10-week fabrication lead from re-approval, and flag the resulting threat to the June 30 milestone — reads the source before generating; assumes the log is current.",
+          "Flag the schedule/submittal discrepancy and escalate to confirm true submittal and fabrication status with the controls/VFD vendor before re-baselining the schedule — most defensible, but spends time chasing confirmation before committing a date."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

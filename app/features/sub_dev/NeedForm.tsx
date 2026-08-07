@@ -5,6 +5,8 @@ import { Loader2, Plus, Sparkles, X } from "lucide-react";
 import { MAX_CODEBASES } from "@/app/_lib/devcase-constraints";
 import { isSupportedRepoRef } from "./DevHelpers";
 import { Field } from "./DevShared";
+import { Select } from "@/app/_components/Select";
+import { TextInput } from "@/app/_components/TextInput";
 import type { JdSummary, SelectedJd } from "./DevTypes";
 import type { Task } from "@/app/features/tasks/TasksProvider";
 
@@ -61,19 +63,17 @@ export function NeedForm({
           </p>
         ) : (
           <>
-            <select
+            <Select
+              ariaLabel="Saved JD"
               value={jd?.slug ?? ""}
-              onChange={(e) => pickJd(e.target.value)}
-              aria-invalid={jd == null}
-              className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-base"
-            >
-              <option value="">Pick a saved JD…</option>
-              {jds.map((j) => (
-                <option key={j.slug} value={j.slug}>
-                  {j.title.length > 44 ? `${j.title.slice(0, 42)}…` : j.title}
-                </option>
-              ))}
-            </select>
+              onChange={pickJd}
+              invalid={jd == null}
+              className="w-full"
+              options={[
+                { value: "", label: "Pick a saved JD…" },
+                ...jds.map((j) => ({ value: j.slug, label: j.title.length > 44 ? `${j.title.slice(0, 42)}…` : j.title })),
+              ]}
+            />
             {jdLoading ? (
               <p className="mt-1 flex items-center gap-1 text-micro text-steel">
                 <Loader2 size={11} className="animate-spin" /> Loading the JD…
@@ -94,13 +94,12 @@ export function NeedForm({
           {repoUrls.map((url, i) => (
             <div key={i}>
               <div className="flex items-center gap-1.5">
-                <input
+                <TextInput
                   value={url}
                   onChange={(e) => setRepoUrl(i, e.target.value)}
                   placeholder="https://github.com/owner/repo"
                   aria-label={`Codebase ${i + 1}`}
-                  aria-invalid={url.trim() !== "" && !isSupportedRepoRef(url)}
-                  className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-base"
+                  invalid={url.trim() !== "" && !isSupportedRepoRef(url)}
                 />
                 {repoUrls.length > 1 ? (
                   <button
@@ -133,12 +132,13 @@ export function NeedForm({
       </Field>
 
       <Field label="Seniority target">
-        <select value={seniority} onChange={(e) => setSeniority(e.target.value)}
-          className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-base">
-          {["junior", "medior", "senior", "lead"].map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+        <Select
+          ariaLabel="Seniority"
+          value={seniority}
+          onChange={setSeniority}
+          className="w-full"
+          options={["junior", "medior", "senior", "lead"].map((s) => ({ value: s, label: s }))}
+        />
       </Field>
       <button
         type="button"

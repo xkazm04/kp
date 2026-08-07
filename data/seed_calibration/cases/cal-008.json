@@ -1,0 +1,195 @@
+{
+  "job": {
+    "id": "cal-008",
+    "title": "Academic Dean, VOICE Charter School",
+    "company": "Executive Excellence",
+    "role_family": "marketing",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Individualized Education Programs (IEPs) and the classroom accommodations/modifications they mandate",
+      "Teacher observation, coaching, and feedback frameworks (e.g., Danielson-style rubrics, instructional walkthrough tools)",
+      "Measurable, goal-driven coaching plans for individual teachers",
+      "Curriculum maps, scope-and-sequence documents, lesson plans, and differentiated/arts-integrated curriculum",
+      "Student performance data and data-analysis routines used to plan reteaches and refine curriculum",
+      "Professional development design and delivery materials (internal and external PD)",
+      "Special education, ENL (English as a New Language), and at-risk student services protocols",
+      "Special education compliance records and reports maintained per NY State and federal law (IDEA)",
+      "Formal mid-year and end-of-year performance evaluation processes for supervisees",
+      "Team meeting / intellectual-preparation facilitation and check-in structures",
+      "Family-support program design for students needing special education / ENL / at-risk services",
+      "Vertical-alignment documents across grade levels and content areas"
+    ],
+    "coreResponsibilities": [
+      "Observe teachers and provide actionable feedback; build and run measurable, goal-driven coaching plans, modeling instructional strategies as needed",
+      "Design, coordinate, and deliver teacher professional development based on identified needs (internal and external)",
+      "Train, support, and coach faculty on special education, ENL, and at-risk instruction, ensuring IEP accommodations/modifications are understood and implemented",
+      "Design and improve curricula and differentiate instruction to serve all learners, including sped/ENL/at-risk students",
+      "Analyze student data with teachers to plan reteaches and strengthen lesson delivery schoolwide; coordinate vertical alignment across grades",
+      "Supervise and develop direct reports — coaching, training, conflict management, and formal performance evaluations",
+      "Build team culture, lead check-ins, and ensure appropriate coverage",
+      "Provide divisional leadership: evaluate service-delivery and curriculum effectiveness with the school director, create family-support programs",
+      "Ensure special education compliance and maintain accurate sped records/reports per state and federal law",
+      "As a leadership-team member, contribute to schoolwide policy and procedure development"
+    ],
+    "statedVsRealGaps": [
+      "The requisition tags this as roleFamily 'marketing' — that is a clear misclassification; the JD describes an instructional/academic leadership (school administration) role with zero marketing content.",
+      "seniorityTarget is set to 'medior', but the actual scope — supervising and formally evaluating faculty, leading a division, sitting on the leadership team, and owning sped legal compliance — is a senior administrative role.",
+      "The need's structured 'stack' and 'responsibilities' arrays are empty; every requirement had to be extracted from the JD prose, so any downstream matching keyed off those fields would be running blind.",
+      "The JD text is degraded (OCR artifacts and truncation: enrollment numbers, grade range, caseload size, and the final 'in the following area' list are all cut off), so concrete scale and several specifics are unstated.",
+      "No NY State administrative certification (e.g., SBL/SDL) is explicitly named, yet supervising and evaluating staff and signing off on sped compliance typically require it — a likely real prerequisite the stated need omits.",
+      "No codebase exists for this role — correct and expected for a school-leadership position, not a defect; the 'real body of work' here is the school's instructional and compliance materials."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Metadata mismatch (marketing/medior) will misroute sourcing and screening toward the wrong candidate pool and seniority band.",
+      "Special education compliance carries legal exposure (IDEA, state/federal records); a weak hire creates real regulatory and liability risk for the school.",
+      "The role bundles many distinct competencies — instructional coaching, sped/ENL law, curriculum design, people management, and divisional strategy — risking a 'unicorn' spec that is hard to fill with one person.",
+      "Required NY administrative certification is not surfaced in the extracted JD, so candidates may be advanced without a legally necessary credential to supervise/evaluate and oversee sped.",
+      "Truncated JD details (caseload, grade span, team size) leave the true workload ambiguous, making it hard to calibrate seniority, comp, and expectations.",
+      "Evaluation authority plus coaching of the same staff is a dual relationship that demands a candidate skilled at separating developmental coaching from formal accountability — a competency the spec assumes but does not test for."
+    ],
+    "reflection": "This is a senior instructional-leadership role at a K–middle charter school, not the 'marketing / medior' the requisition metadata claims — the single most important correction. Reflected against its real body of work (IEPs, coaching plans, curriculum maps, student data, PD materials, and sped compliance records), the job is genuinely high-complexity: it fuses pedagogical coaching, curriculum design, people management with formal evaluation authority, divisional strategy, and high-stakes special-education legal compliance under state and federal law. The JD itself is the only evidence supplied (no codebase, correctly, and no separate corpus), and it is partly degraded by OCR/truncation, so concrete scale (enrollment, caseload, grade span) and likely-required NY administrative certification are missing. The need's empty stack/responsibilities arrays mean any automated matching keyed off them would fail; everything had to be reconstructed from prose. Bottom line: treat this as a senior academic dean with a heavy sped-compliance dimension, re-tag the role family and seniority, and confirm certification and caseload before sourcing.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Academic Dean",
+    "seniority": "senior",
+    "roleFamily": "education",
+    "mustHaves": [
+      "Demonstrated instructional leadership: observing teachers and delivering actionable, evidence-based feedback using a recognized observation framework (e.g., Danielson-style rubric or instructional walkthrough tool)",
+      "Ability to build and run measurable, goal-driven teacher coaching plans and to model effective instructional strategies in the classroom when needed",
+      "Deep special education expertise: training and coaching faculty so that all IEP-mandated accommodations and modifications are understood and implemented, and ensuring compliance with NY State and federal (IDEA) law",
+      "Experience designing and differentiating curriculum to serve all learners — including special education, ENL, and at-risk students — and reviewing curriculum maps and lesson plans",
+      "Fluency in analyzing student performance data with teachers to plan reteaches and strengthen instruction schoolwide",
+      "Experience designing, coordinating, and delivering teacher professional development based on identified needs (internal and external)",
+      "Direct supervisory experience: managing, coaching, handling conflict, and conducting formal mid-year and end-of-year performance evaluations of faculty/staff",
+      "NY State School Building Leader / School District Leader (SBL/SDL) administrative certification or documented eligibility — typically required to supervise and evaluate staff and to sign off on special education compliance"
+    ],
+    "niceToHaves": [
+      "ENL (English as a New Language) instructional expertise",
+      "Experience in an arts-integrated curriculum and/or an urban K–8 charter or district school serving a high-needs population",
+      "Experience leading vertical alignment of curriculum across grade levels and content areas",
+      "Experience designing family-support programs for students needing special education, ENL, or at-risk services",
+      "Prior divisional or leadership-team experience contributing to schoolwide policy and procedure development"
+    ],
+    "responsibilities": [
+      "Observe teachers and provide actionable feedback; develop and implement measurable, goal-driven coaching plans, modeling instructional strategies as needed",
+      "Design, coordinate, and deliver teacher professional development based on identified needs, drawing on both internal and external resources",
+      "Train, support, and coach faculty on special education, ENL, and at-risk instruction, ensuring IEP accommodations and modifications are understood and implemented in every classroom",
+      "Design and continuously improve curricula and differentiate instruction to serve all learners, including special education, ENL, and at-risk students",
+      "Analyze student performance data with teachers to plan reteaches and refine lesson delivery, and coordinate vertical alignment across grades and content areas",
+      "Supervise and develop direct reports through coaching, training, conflict management, and formal performance evaluations",
+      "Build team culture, lead check-ins and intellectual-preparation sessions, and ensure appropriate instructional coverage",
+      "Provide divisional leadership: evaluate service-delivery and curriculum effectiveness with the school director and create family-support programs for high-needs students",
+      "Ensure special education compliance and maintain accurate special education records and reports per NY State and federal law",
+      "As a member of the leadership team, contribute to the development of schoolwide policies and procedures"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Academic Dean Work-Sample: One Teacher, One Data Cycle, One Compliance Gap at Riverside Community School (Grades 5–8)",
+    "brief": "You are stepping in as Academic Dean for the 5–8 division at Riverside Community School (a NY school subject to IDEA and NY State special-education regulations). You've been handed a packet for one second-year 6th-grade ELA teacher, Ms. Dana Okafor, and the surrounding instructional data. Your job today is to do the core of the deanship: turn an observation into coaching, turn assessment data into a reteach, and make sure the legally mandated supports for your highest-need students are actually reaching them — then advise the school director on the systemic fix.\n\nThis is deliberately realistic and deliberately incomplete. Some facts you might expect — your exact evaluation authority over Ms. Okafor, your caseload and team size, the grade span you formally own, and whether the role requires you to hold NY administrative (SBL/SDL) certification — are NOT in this packet. That is on purpose, not an oversight: part of the work is noticing what you'd need to confirm and saying so, rather than quietly assuming. The provided materials fit this role directly, so work on them as written.\n\nTimebox: 2.0 hours, hard cap. Depth over coverage — a focused, defensible response on the four tasks beats a thin pass over all of them. Throughout, keep the short DECISIONS log described in Task 4; treat it as ordinary leadership hygiene, the kind of trail you'd keep so a director or a successor could reconstruct your reasoning, not as a test artifact.",
+    "repoSeed": "A leadership packet (synthetic, but representative of what a Dean actually works from), all referencing the same class — Ms. Okafor's 6th-grade ELA, period 3:\n\n1. observation_notes_okafor_2026-06-03.pdf — Low-inference scripted notes from a 35-minute walkthrough of a lesson on citing textual evidence (RL.6.1), plus Danielson-style ratings: 3b Questioning & Discussion = Developing, 3c Engaging Students in Learning = Proficient, 3a Communicating with Students = Developing. The script shows the teacher asking mostly recall questions and accepting first-hand answers, AND a note that student M.R. (who has an IEP) was given the same timed, whole-group cold-call task as peers with no chunking or extended processing time.\n\n2. coaching_plan_okafor_current.docx — The inherited coaching plan from the prior dean. Its goal reads: 'Ms. Okafor will improve classroom management and build stronger relationships with students this semester.' No baseline, no observable indicator, no measure, no date.\n\n3. roster_and_supports.csv — 24 students with flags: 4 IEP (incl. M.R.), 3 ENL (incl. J.S., 'Emerging' proficiency), 5 at-risk (attendance/grades). \n\n4. iep_excerpt_M_R.pdf — The accommodations page from M.R.'s IEP: extended time (1.5x) on assessments, directions chunked and repeated, small-group setting for testing, and text-to-speech/decoding support for grade-level text. (Full IEP not included.)\n\n5. accommodations_log_period3.xlsx — The existing tracking sheet. It has one column, 'Accommodations provided? Y/N', checked 'Y' for every student every week, with no evidence, dates of specific assessments, or notes on what was actually delivered.\n\n6. fall_interim2_ELA_period3.xlsx — Item-level results for the most recent interim. The class average is 74% ('Proficient' band). The lowest standard cell is RL.6.4 (word meaning) at 41% — but RL.6.4 is measured by only 2 items. RL.6.1 (cite textual evidence / inference) sits at 68% overall, but the sheet disaggregates: general-ed students ~81%, while the combined IEP+ENL students are ~32% on RL.6.1, the standard that anchors the rest of the unit.\n\n7. pd_draft_differentiation.pptx — A 20-minute draft PD deck titled 'Differentiation = give struggling kids easier questions,' built by a peer dean.\n\n8. midyear_eval_template.pdf — The blank formal end-of-cycle evaluation form used for direct reports.",
+    "tasks": [
+      "TASK 1 — Observation into coaching. From observation_notes_okafor_2026-06-03.pdf and the current coaching_plan, write the feedback you would actually deliver to Ms. Okafor. Name the ONE highest-leverage focus for the next two-week coaching cycle (you cannot fix everything at once — choose and justify the trade-off), the specific action step, exactly what you would model or co-plan, and how you will measure progress. Rewrite her current coaching goal into a single measurable, observable, time-bound goal.",
+      "TASK 2 — Data into reteach. Using fall_interim2_ELA_period3.xlsx, decide which standard to reteach and for whom, then write a one-page reteach plan. Specify the differentiation and the IDEA-mandated accommodations you'd build in for M.R. and the ENL supports for J.S., and say plainly why you targeted the standard(s) you chose over the others on the sheet.",
+      "TASK 3 — Compliance and the systemic fix. Cross-check M.R.'s IEP accommodations (iep_excerpt_M_R.pdf) against the observation evidence and accommodations_log_period3.xlsx. State whether there is an implementation or documentation gap and what creates legal/regulatory exposure, how you'd close it for this classroom this week, and ONE schoolwide change you'd recommend to the director to prevent recurrence — flagging anything about NY State / IDEA documentation requirements you would need to confirm before committing to it.",
+      "TASK 4 — DECISIONS log (≤ 1 page). For every call you made where the packet was open or ambiguous, record three things in a compact list: what you chose, the alternative you rejected and why, and the one question you would put to the director or to Ms. Okafor before finalizing. Include here how you are treating the relationship between today's coaching and any formal evaluation of Ms. Okafor."
+    ],
+    "coverProbes": [
+      {
+        "id": "competing-coaching-priority",
+        "kind": "ambiguity",
+        "where": "Task 1 — the observation surfaces both a missed IEP accommodation for M.R. (equity + legal exposure) and a weak core instructional move (recall-only questioning, accepting first answers); the candidate must pick one coaching focus for a single cycle.",
+        "reveals": "A naive response either tries to coach everything at once (no prioritization, unrealistic for a two-week cycle) or fixates on the most visible behavior. A strong response sequences explicitly by leverage and legal/equity stakes, commits to one focus, and names what it is deliberately deferring and why — showing it understands a coaching cycle is a scarce instrument.",
+        "decisionSpace": [
+          "Lead with the IEP-accommodation gap: frame compliance and equity as non-negotiable and make 'accommodations are delivered and visible' the cycle's focus, accepting slower movement on the instructional core.",
+          "Lead with the questioning/checks-for-understanding move: treat it as the higher long-term-leverage habit that will lift all learners, and handle the accommodation miss as an immediate procedural correction outside the coaching focus.",
+          "Fuse them: make 'plan and deliver a scaffolded, accommodation-aligned text-evidence task' the single focus so the IEP support becomes the vehicle for the instructional goal — higher ambition, harder to execute well in two weeks."
+        ]
+      },
+      {
+        "id": "interim-data-reteach-trap",
+        "kind": "verification_trap",
+        "where": "Task 2 — fall_interim2_ELA_period3.xlsx: the lowest aggregate cell (RL.6.4 at 41%) rests on only 2 items, while the unit-anchoring standard RL.6.1 hides a severe IEP+ENL subgroup failure (~32% vs ~81% gen-ed) behind a healthy-looking 68% overall and a 74% class average.",
+        "reveals": "A one-shot read of the summary row reteaches RL.6.4 (the lowest number) and passes a shallow check while being wrong: the cell is noise from 2 items, and the real, actionable gap is a subgroup collapse on RL.6.1. A strong response disaggregates by subgroup, checks item count/reliability before committing, and targets the standard that actually matters for the unit.",
+        "decisionSpace": [
+          "Reteach RL.6.1 for the whole class but with intensified small-group instruction and accommodations for the IEP+ENL students who are failing it — treats the anchor standard as a shared priority.",
+          "Reteach RL.6.1 as a targeted small-group/Tier-2 intervention only for the IEP+ENL students, leaving proficient peers on enrichment — conserves whole-class time, risks tracking optics.",
+          "Decline to reteach RL.6.4 on the current data and gather one additional check/exit-ticket first because a 2-item result is too thin to act on — slower, but avoids spending a reteach on noise."
+        ]
+      },
+      {
+        "id": "inherited-plan-and-log",
+        "kind": "legacy_trap",
+        "where": "Task 1 (coaching_plan_okafor_current.docx) and Task 3 (accommodations_log_period3.xlsx) — both inherited artifacts are quietly broken: the goal is unmeasurable boilerplate, and the log records 'provided Y/N' with no evidence or dates, which is non-evidentiary for IDEA purposes.",
+        "reveals": "A naive response builds on top of the inherited artifacts — appends to the vague goal, trusts the all-'Y' log as proof of compliance. A strong response reads before generating, names that the goal is unmeasurable and the log would not survive an audit, and rebuilds the baseline rather than inheriting a false one.",
+        "decisionSpace": [
+          "Rebuild both from scratch: a measurable observable goal and an evidence-bearing log (assessment date, accommodation delivered, by whom) — cleanest, but more change for the teacher mid-year.",
+          "Keep the existing structures and graft on the missing measurement/evidence columns — lower disruption, preserves familiarity, risks carrying forward bad habits.",
+          "Adopt the school's standard template only after confirming it meets NY State / IDEA documentation requirements — defers to system consistency but is gated on a fact the candidate must verify."
+        ]
+      },
+      {
+        "id": "undefined-authority-and-cert",
+        "kind": "underspecified",
+        "where": "Brief + Task 4 — the packet omits the candidate's formal evaluation authority over Ms. Okafor, the caseload/grade span/team size, and whether NY administrative (SBL/SDL) certification is required to supervise, evaluate, and oversee special-education compliance.",
+        "reveals": "A naive response assumes full authority, blends today's developmental coaching straight into the formal mid-year rating, and never flags the missing scope or credential. A strong response separates the developmental coaching track from the accountability/evaluation track, states which it is operating in today, and surfaces the missing facts (eval authority, caseload, certification) as things to confirm before acting on them.",
+        "decisionSpace": [
+          "Firewall today's work as purely developmental coaching, explicitly kept out of the formal evaluation, to preserve trust and the coaching relationship.",
+          "Treat it transparently as pre-evaluation evidence that will feed the mid-year rating, telling the teacher up front — cleaner accountability, more pressure on the relationship.",
+          "Defer the authority question: proceed with coaching now but ask the director to confirm evaluation ownership, caseload, and certification requirements before anything becomes formal."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

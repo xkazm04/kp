@@ -31,22 +31,16 @@ export function ProfileEvidenceColumn({
               />
               <Select
                 value={s.level}
-                onChange={(e) => setSkills(upd(skills, i, { level: e.target.value }))}
+                onChange={(v) => setSkills(upd(skills, i, { level: v }))}
                 className="px-1 text-sm"
-              >
-                {SKILL_LEVELS.map((l) => (
-                  <option key={l}>{l}</option>
-                ))}
-              </Select>
+                options={SKILL_LEVELS.map((l) => ({ value: l, label: l }))}
+              />
               <Select
                 value={s.provenance}
-                onChange={(e) => setSkills(upd(skills, i, { provenance: e.target.value }))}
+                onChange={(v) => setSkills(upd(skills, i, { provenance: v }))}
                 className="px-1 text-sm"
-              >
-                {PROVENANCE.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </Select>
+                options={PROVENANCE.map((p) => ({ value: p, label: p }))}
+              />
               <RemoveBtn onClick={() => setSkills(skills.filter((_, j) => j !== i))} />
             </div>
           ))}
@@ -61,13 +55,10 @@ export function ProfileEvidenceColumn({
               <div className="flex gap-1.5">
                 <Select
                   value={e.kind}
-                  onChange={(ev) => setEvidence(upd(evidence, i, { kind: ev.target.value }))}
+                  onChange={(v) => setEvidence(upd(evidence, i, { kind: v }))}
                   className="px-1 text-sm"
-                >
-                  {EVIDENCE_KINDS.map((k) => (
-                    <option key={k}>{k}</option>
-                  ))}
-                </Select>
+                  options={EVIDENCE_KINDS.map((k) => ({ value: k, label: k }))}
+                />
                 <Input
                   value={e.title}
                   onChange={(ev) => setEvidence(upd(evidence, i, { title: ev.target.value }))}

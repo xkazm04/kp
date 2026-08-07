@@ -1,0 +1,193 @@
+{
+  "job": {
+    "id": "cal-072",
+    "title": "E-commerce Project Manager",
+    "company": "One Rockwell",
+    "role_family": "project_management",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Jira (project planning / task tracking)",
+      "Monday.com (project planning / work management)",
+      "Harvest (time tracking & project financials)",
+      "Shopify (primary ecommerce platform; experience 'preferred')",
+      "Third-party ecommerce apps & technology solutions (payments, reviews, search, ESP, ERP/OMS connectors, etc.)",
+      "Statements of Work (SOWs) and change orders",
+      "Project timelines, scoping documents & estimates",
+      "Financial / budget tracking and burn reporting",
+      "Meeting facilitation, notes & status reporting artifacts",
+      "QA test passes on client ecommerce sites",
+      "Requirements-gathering documentation"
+    ],
+    "coreResponsibilities": [
+      "Own day-to-day client communications and build long-term relationships with high-profile fashion/beauty/lifestyle brands",
+      "Coordinate across internal creative, strategy, business analyst, and development teams plus external third-party partners",
+      "Gather requirements, participate in scoping, and deliver estimates for managed-services / growth work on existing sites",
+      "Partner with the resourcing manager to build timelines, delegate tasks, and monitor progress",
+      "Track project financials and manage client and internal expectations against budget and schedule",
+      "Run meetings and calls — facilitate, take notes, prioritize and follow up on action items",
+      "Produce statements of work and change orders; participate in solutioning, troubleshooting, and QA testing",
+      "Identify process improvements and contribute to new agency services and offerings"
+    ],
+    "statedVsRealGaps": [
+      "The need is filed as 'senior', but the JD's qualifications are almost entirely soft — agency/ecommerce experience is 'a plus', Shopify is 'preferred', tools are 'experience with', years-of-experience is left blank. The evidence reads mid-level delivery PM, not senior; there is a real mis-leveling risk in either direction.",
+      "JD demands 'technically savvy' and QA participation, but this is a coordination/account role, not a technical one — there is no engineering ownership. 'Technically savvy' here means fluency to talk to devs and vet third-party apps, not build capability; screening for the wrong signal could over-index on hard tech skills.",
+      "Heavy commercial accountability (estimates, financial tracking, SOWs, change orders) is assigned, but the role's authority is thin — it reports into two directors and depends on a separate resourcing manager for capacity. Accountable for margin and timeline without direct control of either.",
+      "Scope is unusually broad for one seat: client relationship + financials + QA + SOWs + process improvement + new-offering development, in a self-described 'small, fast-paced, boutique' shop. The stated need is one PM; the real workload is closer to a PM/account-manager hybrid.",
+      "No formal methodology, certification (PMP/Scrum), or process maturity is referenced — and 'identify opportunities to improve existing processes' implies the agency's process is still informal. A senior hire may expect more structure than exists."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Dual reporting lines (Director of Managed Services AND Director of Client Services) create competing priorities and ambiguous escalation.",
+      "Scope sprawl / overload — a single PM carrying client comms, financial tracking, QA, SOWs, and offering development in a fast-paced boutique is a classic burnout and quality-slippage setup.",
+      "Mis-leveling: 'senior' target against soft, 'a plus / preferred' qualifications — risk of either under-hiring for the financial/commercial accountability or over-paying for what is effectively a mid-level delivery role.",
+      "Fully remote + ownership of high-profile client relationships demands exceptional async communication and self-direction that is hard to verify pre-hire and easy to over-claim.",
+      "Margin exposure without authority — accountable for estimates and financial tracking while dependent on a separate resourcing function for the capacity that drives those numbers.",
+      "Narrow talent pool — fashion/beauty/luxury domain understanding + Shopify ecommerce agency context + commercial PM skills is a specific intersection; relaxing any one (as the soft qualifications invite) shifts real ramp-up cost onto onboarding."
+    ],
+    "reflection": "This is a delivery-plus-account hybrid PM role at a boutique Shopify-centric ecommerce agency, focused on managed services and growth work for brands with existing sites — i.e. ongoing optimization and change orders rather than greenfield builds, which keeps the technical risk moderate but the relationship and commercial demands high. The real body of work is not code; it is the coordination layer: SOWs, change orders, estimates, timelines, financial burn, QA passes, and the meeting/notes/follow-up cadence that holds high-profile clients and multiple internal and third-party teams together. Judged in its own terms, complexity is medium — the hard part is juggling many stakeholders, commercial documents, and budget accountability simultaneously under two bosses, not any single deep skill. The most honest tension is between the 'senior' label and a JD whose qualifications are almost all optional ('a plus', 'preferred', 'familiarity'); the document describes a capable mid-level agency PM with strong client-facing and writing skills, and the agency should decide deliberately whether it is buying seniority (commercial judgment, process-building, autonomy) or simply buying coordination capacity, because the comp, screening signals, and expectations differ sharply between the two.",
+    "confidence": 0.78,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "E-commerce Project Manager",
+    "seniority": "senior",
+    "roleFamily": "project_management",
+    "mustHaves": [
+      "Proven delivery project management — own ecommerce projects end-to-end from scoping through launch, on time and on budget",
+      "Strong client-facing communication and relationship ownership: run day-to-day client comms and manage expectations with high-profile brands",
+      "Requirements gathering, scoping and estimation — translate client goals into clear scope, timelines and estimates for managed-services work on existing sites",
+      "Project financial tracking — manage budget, burn and margin and produce regular financial/status updates to client and internal stakeholders",
+      "Hands-on fluency with project planning / work-management tooling (Jira, Monday.com, Harvest or close equivalents)",
+      "Cross-functional coordination across internal creative, strategy, business-analyst and development teams plus external third-party partners",
+      "Produce delivery artifacts: statements of work (SOWs), change orders, project plans and meeting notes; drive prioritization and follow-up",
+      "Working understanding of the ecommerce web design / UX / development lifecycle — enough technical fluency to vet third-party apps and converse credibly with developers and partners",
+      "Organized, detail-oriented multi-project juggling in a fast-paced, small-team environment with a customer-service orientation",
+      "Solution-oriented problem solving — proactively participate in solutioning, troubleshooting and QA test passes"
+    ],
+    "niceToHaves": [
+      "Shopify platform experience",
+      "Experience at a digital agency focused on ecommerce",
+      "Business understanding of the fashion, beauty and/or luxury lifestyle space",
+      "Familiarity with the ecommerce third-party application ecosystem (payments, search, reviews, ESP, OMS/ERP connectors)",
+      "Experience contributing to process improvement and the development of new service offerings",
+      "Formal PM methodology or certification (PMP, CSM/Scrum) for added process structure",
+      "Comfort in a fully remote, boutique-agency setting with direct executive access"
+    ],
+    "responsibilities": [
+      "Own day-to-day client communications and build long-term relationships with high-profile fashion/beauty/lifestyle brands",
+      "Gather requirements, participate in scoping and deliver estimates for growth and managed-services work on pre-existing sites",
+      "Partner with the resourcing manager to produce project timelines, delegate tasks and monitor progress",
+      "Track project financials and manage client and internal expectations against budget and schedule",
+      "Coordinate across internal creative, strategy, business-analyst and development teams and with third-party partners, defining roles and responsibilities for execution",
+      "Organize and facilitate meetings and calls — take notes, prioritize tasks and drive action items to closure",
+      "Produce statements of work and change orders; participate in solutioning, troubleshooting and quality-assurance testing",
+      "Identify opportunities to improve existing processes and contribute to the development of new agency services and offerings"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Rescue the Maison Lumé Q3 Growth Sprint: true status, change order, and recovery plan",
+    "brief": "You are the incoming senior Project Manager at a boutique Shopify agency that runs growth and managed-services engagements for fashion, beauty and lifestyle brands. You have just inherited the Maison Lumé (luxury skincare) Q3 Growth Sprint — a fixed-fee engagement now in week 6 of an 8-week window — because the previous PM left. The starting materials in repoSeed are the real working artifacts of this project: the signed SOW, a previously approved change order, the Harvest burn export, the Monday.com board, a QA pass log, the latest client thread, and an internal DM between the two directors you report to. They are synthetic but representative of an actual agency project, and the provided context fits this role directly — your job is to act on these materials the way a senior delivery PM would, not to build anything. Yesterday the client's VP of Ecommerce sent a cheerful but loose request for more work 'before our July 1 relaunch — same budget, right?'; the burn summary looks survivable; QA says the work is green; and your two directors want opposite things. Over a ~2 hour budget: get to the real state of the engagement, respond to the client and put the commercial paperwork in order, and re-plan so the project lands. Read the materials before you write anything — several of them disagree with each other. Treat the DECISIONS log (Task 4) as normal delivery hygiene, not a deliverable for show. Use the role's own artifacts and vocabulary throughout (SOW, change order, burn, earned value, escalation), and keep all written output client- or internal-appropriate as labelled.",
+    "repoSeed": "A project folder for the Maison Lumé Q3 Growth Sprint:\n\n1. 'Maison_Lume_SOW_Q3-Growth.pdf' — signed fixed-fee SOW: $48,000 / 320 blended hours, 8-week sprint (weeks of 4 May – 26 Jun 2026). In-scope workstreams: (a) PLP/collection filtering upgrade, (b) PDP A/B test (trust badges + sticky add-to-cart), (c) Klaviyo flow rebuild (abandoned-cart + post-purchase), (d) subscription-app evaluation. An 'Exclusions' clause states: 'Loyalty/rewards program build, on-site search replacement, and any third-party app license fees are out of scope and require a separate change order.'\n\n2. 'CO-017_approved.pdf' — change order approved 28 May adding 'Loyalty program discovery & vendor shortlist' for 24 hrs / $3,600. Deliverable: a recommendation memo, not an implementation.\n\n3. 'Harvest_burn_2026-06-15.csv' — time entries by team member and task through end of week 6, plus a summary block reporting 'Hours remaining' and 'Budget remaining'. The summary is computed against a 320-hour / $48,000 baseline; CO-017's hours are logged among the line items but two of them are coded against base-scope PDP tasks.\n\n4. 'Monday_board_export.csv' — ~22 tasks across To Do / In Progress / QA / Done. 14 sit in 'Done'; two of those carry comments noting QA reopened them (PDP A/B and discount-code stacking).\n\n5. 'QA_pass_2026-06-10.md' — marks 'PDP A/B test — PASS' but records it was run on the Preview/staging theme; the published live theme is a customized theme on a different reviews-app version. A 'Discount stacking — PASS' entry links a cart screenshot whose subtotal and two stacked codes do not reconcile to the displayed total.\n\n6. 'client_thread_2026-06-12.txt' — message from the Maison Lumé VP of Ecommerce: 'Loving the PDP work! Two things before our July 1 relaunch — can we get the loyalty thing live, and search felt slow on mobile last week, let's sort that. Same budget I hope :)'\n\n7. 'internal_dm_2026-06-12.txt' — Director of Managed Services: 'We're already thin on this account — no scope creep, protect the margin.' Director of Client Services: 'Maison Lumé is the logo in every pitch and renewal talks start in August — keep them delighted.'\n\n8. 'change-order_template.docx' and 'estimate_template.xlsx' — blank agency templates.",
+    "tasks": [
+      "Task 1 — Reconcile the true state of the engagement. Using the SOW, CO-017, the Harvest burn CSV, the Monday board and the QA log, write a one-page internal status read: real percent-complete by workstream, the true budget position (hours and dollars consumed vs. remaining, and projected position at completion), schedule risk against the 26 Jun close, and an explicit list of every discrepancy you found where the artifacts disagree with each other or with reality.",
+      "Task 2 — Respond to the 12 Jun client request. Draft (a) the client-facing reply to the VP of Ecommerce and (b) the commercial paperwork to back it — a change order and/or SOW addendum using the templates, with a defensible estimate — or a documented decision that some/all of the request is already in scope or already paid for. State any assumptions you made and the clarifying questions you would send before committing numbers.",
+      "Task 3 — Re-plan to land the project and set escalation. Produce a recovery plan: a revised timeline including exactly what you would ask the resourcing manager to staff, what work you would cut, defer or fast-track, and a short escalation note that names which decision you would take to the Director of Managed Services versus the Director of Client Services, and why.",
+      "Task 4 — Keep a DECISIONS log. For every call you made where the materials were open or contradictory, record one line: what you chose, the alternative you rejected, and the single question you would put to the team to resolve it."
+    ],
+    "coverProbes": [
+      {
+        "id": "vague-relaunch-ask",
+        "kind": "ambiguity",
+        "where": "client_thread_2026-06-12.txt — 'get the loyalty thing live', 'search felt slow', 'same budget I hope' against a hard 1 Jul relaunch date",
+        "reveals": "A naive response prices and promises 'loyalty live + faster search, same budget' as if it were a single understood ask; a strong PM separates the two requests, surfaces that both are SOW exclusions, pins 'slow search' to actual data, and refuses to anchor on 'same budget' before scoping — clarifying before estimating rather than after.",
+        "decisionSpace": [
+          "Send targeted clarifying questions first (define loyalty MVP scope, get the mobile-search evidence, confirm what 'live by 1 Jul' must include) and hold the estimate one round-trip — protects accuracy, costs a day.",
+          "Return a fast conditional estimate built on explicitly stated assumptions — protects momentum into the relaunch, risks committing to the wrong scope.",
+          "Reframe the ask: fold any genuine in-scope cleanup into the current sprint and propose loyalty/search as a separately scoped Phase 2 SOW after relaunch — protects margin and the relaunch date, risks the client hearing 'no' to 'same budget'."
+        ]
+      },
+      {
+        "id": "co017-loyalty-overlap",
+        "kind": "legacy_trap",
+        "where": "CO-017_approved.pdf (loyalty discovery, 24 hrs, approved 28 May) vs. the SOW Exclusions clause vs. the client's 'get the loyalty thing live'",
+        "reveals": "Whether the candidate read the prior change order and the exclusions clause before estimating. Naive generation re-scopes loyalty from zero (double-charging for discovery already paid, or missing that build is contractually a separate CO); a careful PM builds the estimate on the CO-017 discovery output and prices only the implementation delta, and references the exclusions clause to frame the conversation.",
+        "decisionSpace": [
+          "Estimate loyalty implementation from scratch — simplest to produce, over-charges and erodes trust if the client remembers paying for CO-017 discovery.",
+          "Scope only the build delta on top of CO-017's vendor recommendation — most accurate and defensible, but assumes the discovery memo actually exists and is usable.",
+          "Proactively reconcile: tell the client discovery is already done under CO-017, credit/apply it, and quote the remaining build — most trust-building, slightly slower and exposes that the prior PM's discovery may be thin."
+        ]
+      },
+      {
+        "id": "burn-summary-miscompute",
+        "kind": "verification_trap",
+        "where": "Harvest_burn_2026-06-15.csv — the 'Budget remaining' summary computed on the 320-hr/$48k baseline while CO-017 hours sit in the line items, two of them miscoded to base PDP tasks",
+        "reveals": "One-shot acceptance reports the summary's 'remaining' figure and calls the budget healthy — passing a shallow 'does it total?' check while being materially wrong. A skeptical PM recomputes from line items, separates base-scope burn from CO-017, corrects the mis-coded entries, and reports earned value against true contract value (344 hrs / $51,600), exposing the real over/under-run.",
+        "decisionSpace": [
+          "Trust the summary block's 'budget remaining' figure — fastest, but reports a false-healthy position.",
+          "Recompute remaining from the line items including CO-017 against the amended contract value — corrects the headline number.",
+          "Recompute and cross-check burn against Monday 'Done' vs. QA-reopened tasks to report true earned value, not just hours spent — most rigorous, surfaces that 'spent' hours bought rework, not progress."
+        ]
+      },
+      {
+        "id": "qa-false-green",
+        "kind": "verification_trap",
+        "where": "QA_pass_2026-06-10.md — PDP A/B 'PASS' run on the staging theme, and a discount-stacking 'PASS' whose screenshot total doesn't reconcile — vs. the two 'Done' tasks Monday shows as reopened",
+        "reveals": "Whether the candidate audits the QA evidence or relays 'green'. Naive status reporting marks PDP and discounts complete; a careful PM catches that the A/B pass was on the wrong (staging) theme with a different reviews-app version and that the discount screenshot's math doesn't add up, treats both as not-done, and reflects that in true percent-complete and the relaunch-readiness call.",
+        "decisionSpace": [
+          "Accept the PASS log and report both items done — fastest, ships a false-green into a relaunch.",
+          "Require a re-test on the published live theme and a corrected discount-stacking case before counting either done — most defensible, costs hours the burn can't easily spare.",
+          "Conditionally pass with a documented risk note and a pre-relaunch verification gate — pragmatic given the 1 Jul date, but bets that the live-theme delta won't break checkout."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

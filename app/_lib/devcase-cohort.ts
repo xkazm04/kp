@@ -10,7 +10,7 @@
 // submissions it already holds with no extra fetch.
 
 type ProbeLike = { id?: string; kind?: string; where?: string; reveals?: string };
-type OutcomeLike = { probeId?: string; detected?: boolean; handledWell?: boolean };
+type OutcomeLike = { probeId?: string; detected?: boolean; handledWell?: boolean | null };
 type SubmissionLike = { evaluation?: { tooling?: { probeOutcomes?: OutcomeLike[] } | null } | null };
 
 export type ProbeHeatCell = {

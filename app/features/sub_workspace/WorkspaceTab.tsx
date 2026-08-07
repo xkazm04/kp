@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Check, Plus, AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { toast } from "@/app/_components/toast-store";
+import { TextInput } from "@/app/_components/TextInput";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { Workspace } from "@/app/_lib/db";
 
@@ -18,14 +20,12 @@ export function WorkspaceTab() {
   const { data, error, reload } = useJsonFetch<Payload>("/api/workspaces");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   // Default to locked until the payload says otherwise, so the create/switch UI is
   // never shown speculatively while loading.
   const locked = !data?.multiWorkspace;
 
   async function switchTo(id: string) {
     setBusy(true);
-    setMsg(null);
     const r = await fetch("/api/auth/switch-workspace", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -35,7 +35,7 @@ export function WorkspaceTab() {
       window.location.reload(); // server components re-read the new session workspace
     } else {
       setBusy(false);
-      setMsg(r?.status === 401 ? t("authRequired") : t("switchFailed"));
+      toast.error(r?.status === 401 ? t("authRequired") : t("switchFailed"));
     }
   }
 
@@ -43,7 +43,6 @@ export function WorkspaceTab() {
     e.preventDefault();
     if (!name.trim()) return;
     setBusy(true);
-    setMsg(null);
     const r = await fetch("/api/workspaces", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -52,6 +51,7 @@ export function WorkspaceTab() {
     if (r && r.ok) {
       const created = (await r.json()) as { workspace?: Workspace };
       setName("");
+      toast.success(t("created"));
       // Create-then-switch: land in the new workspace (falls back to a list refresh
       // if the switch is unavailable, e.g. auth off).
       if (created.workspace) await switchTo(created.workspace.id);
@@ -61,7 +61,7 @@ export function WorkspaceTab() {
       }
     } else {
       setBusy(false);
-      setMsg(t("createFailed"));
+      toast.error(t("createFailed"));
     }
   }
 
@@ -112,11 +112,12 @@ export function WorkspaceTab() {
 
       {locked ? null : (
         <form onSubmit={create} className="mt-4 flex items-center gap-2">
-          <input
+          <TextInput
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t("createPlaceholder")}
-            className="flex-1 rounded-md border border-stone-300 px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-stone-400"
+            sizeVariant="sm"
+            className="flex-1"
           />
           <button
             type="submit"
@@ -128,7 +129,6 @@ export function WorkspaceTab() {
           </button>
         </form>
       )}
-      {msg ? <p className="mt-2 text-sm text-coral">{msg}</p> : null}
     </section>
   );
 }

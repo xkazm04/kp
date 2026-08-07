@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ArrowRight, Check, Sparkles, UserPlus } from "lucide-react";
 import { ARCHETYPE_LABEL } from "@/app/_lib/archetypes";
 import { GAP_FIELDS, mergeGapAnswers, type CompletenessGap } from "@/app/_lib/completeness-followup";
+import { TextInput } from "@/app/_components/TextInput";
+import { TextArea } from "@/app/_components/TextArea";
 
 // Reads the archetype-relevant fields off the analysis's best-effort v2Profile
 // (a normalized CandidateProfileV2 dump, by_alias camelCase). The pipeline
@@ -125,9 +127,9 @@ export function ArchetypeBanner({ v2Profile }: { v2Profile: Record<string, unkno
                 <label key={gap.check} className="block text-sm text-ink">
                   <span className="text-steel">{field.prompt}</span>
                   {field.multiline ? (
-                    <textarea {...shared} rows={2} className="focus-ring mt-1 w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm" />
+                    <TextArea {...shared} rows={2} sizeVariant="sm" className="mt-1" />
                   ) : (
-                    <input {...shared} className="focus-ring mt-1 h-9 w-full rounded-md border border-stone-200 px-2.5 text-sm" />
+                    <TextInput {...shared} sizeVariant="sm" className="mt-1" />
                   )}
                 </label>
               );

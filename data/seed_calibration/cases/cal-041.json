@@ -1,0 +1,200 @@
+{
+  "job": {
+    "id": "cal-041",
+    "title": "Bilingual Spanish CUSTOMER SERVICE REPRESENTATIVE Work From Home...",
+    "company": "Regular",
+    "role_family": "customer_success",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Telecom CRM / customer account management platform (AT&T billing and account systems)",
+      "Billing & rate-plan management tools (bill explanation, feature/plan changes)",
+      "Order & service activation / provisioning system",
+      "Credit application & past-due/collections processing tools",
+      "Call-center telephony / softphone (ACD inbound queue)",
+      "Knowledge base & self-service research/support tools",
+      "Workforce-management / schedule-adherence system (breaks, lunches, open time)",
+      "Virtual collaboration tools (IM/chat to reach manager or support team)",
+      "Remote monitoring & compliance stack (remote desktop observation, call & screen recording, live webcam, workspace audits)",
+      "Basic device/service troubleshooting workflows",
+      "Retention/'save' and cross-sell/upsell scripts and offer tools",
+      "Fluent bilingual English + Spanish (speaking and writing)"
+    ],
+    "coreResponsibilities": [
+      "Handle inbound customer contacts and resolve questions/concerns across multiple products and services via case resolution",
+      "Navigate between multiple systems to research and resolve complex, multi-product account issues in a virtual setting",
+      "Maintain accurate records, prepare required reports, and update customer accounts",
+      "Explain bills and manage billing, rate-plan, and feature matters for one or more products",
+      "Perform basic troubleshooting across one or more products/services",
+      "Uncover customer needs to 'save the product' (retention) and sell/upsell additional products and services",
+      "As assigned: collect past-due balances, process credit applications, and activate services",
+      "Adhere strictly to a fixed schedule (breaks, lunches, weekend/any-shift availability within CST hours of operation)",
+      "Comply with WFH technical, security, monitoring, and clean-desk standards and participate in workspace audits",
+      "Deliver bilingual (English/Spanish) support throughout"
+    ],
+    "statedVsRealGaps": [
+      "Framed as 'customer service / be the voice of AT&T,' but a large real share of the job is sales, retention ('save the product'), and collections (past-due balances, credit apps) folded under 'as assigned' — this is a service+sales+collections hybrid, not pure support.",
+      "'Answer your calling… from the comfort of your home' implies autonomy, but the real working reality is heavy surveillance: live webcam monitoring, screen/call recording, remote desktop observation, and workspace audits — control, not comfort.",
+      "'Creatively problem solve' clashes with a tightly scripted, schedule-adherent, monitored frontline role where real discretion is narrow.",
+      "Tagged seniorityTarget 'medior' / roleFamily customer_success, but the evidence (hourly pay, sign-on bonus, set schedule, scripted retention/collections) is an entry-to-junior frontline CSR role, not medior customer success.",
+      "Bilingual English+Spanish fluency in both speaking AND writing is a hard, pool-narrowing requirement that the seniority framing understates.",
+      "Tiered sign-on bonus ('after X days… after Y days…') signals a known retention/attrition problem rather than a perk — the comp structure is a tell."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Conflicting incentives: service-quality expectations vs sales/retention/collections quotas on the same call drive agent stress and inconsistent customer outcomes.",
+      "System fragmentation: 'navigate between multiple systems' for complex multi-product issues inflates handle time, error rates, and onboarding ramp.",
+      "Surveillance burden (webcam, screen recording, remote observation, workspace audits) is a documented driver of WFH call-center morale loss, privacy concerns, and attrition.",
+      "Schedule rigidity — any shift across M–F and weekends within CST hours — compounds the burnout/turnover pattern typical of frontline telecom support.",
+      "Hard geographic gate (must reside in AL, FL, GA, KY, LA, MS, NC, SC, TN) plus bilingual fluency sharply constrains the candidate pool.",
+      "Compensation appears modest/hourly relative to the breadth of duties (service + troubleshooting + sales + retention + collections, bilingual) — value-for-pay mismatch risks early exits.",
+      "Tiered sign-on bonus and WFH framing suggest the team is already fighting churn; mis-hiring on temperament (sales tolerance, monitoring tolerance) will be expensive."
+    ],
+    "reflection": "This is a non-software, frontline telecom role, so there is no codebase to reflect against — the real 'body of work' is AT&T's customer account, billing, ordering, and monitoring systems plus the scripts and schedules the agent operates inside, and the JD is detailed enough to extract those with confidence. The honest read is that the title (Customer Service Representative) and the cheerful 'answer your calling from home' framing undersell what the job actually is: a heavily monitored, schedule-locked, bilingual hybrid of support, troubleshooting, retention, upselling, and collections, navigated across several disconnected systems for hourly pay. The work is not individually hard but is broad and divided-attention by design — hence medium complexity — and the biggest hiring risks are not skill but fit and retention: tolerance for surveillance, comfort selling and collecting while 'serving,' weekend availability, and the narrow AL/FL/GA/KY/LA/MS/NC/SC/TN + fluent-Spanish candidate pool. The tiered sign-on bonus is the clearest evidence the role is harder to keep filled than the copy admits. Calibrating this as 'medior customer_success' overstates it; it is an entry-to-junior frontline CSR role, and selection should weight bilingual fluency, multi-system multitasking, and resilience under monitoring over seniority.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Bilingual (English/Spanish) Customer Service Representative — Work From Home (AT&T)",
+    "seniority": "junior",
+    "roleFamily": "customer_success",
+    "mustHaves": [
+      "Fluent English and Spanish — both speaking AND writing — sufficient to handle live customer contacts and accurate written records in either language (hard, pool-narrowing requirement)",
+      "Frontline customer service experience handling inbound contacts and driving issues to case resolution with strong attention to detail",
+      "Comfort rapidly navigating between multiple systems (CRM, billing, order/activation) to research and resolve complex, multi-product account issues in a virtual setting",
+      "Ability to explain bills and manage billing, rate-plan, and feature changes for one or more products/services",
+      "Basic troubleshooting skills for consumer telecom/media products and services",
+      "Sales and retention aptitude: uncover customer needs, run 'save the product' retention and cross-sell/upsell offers — a large share of the role is sales/retention, not pure support",
+      "Willingness to perform collections-type tasks as assigned (collecting past-due balances, processing credit applications, activating services)",
+      "Strict schedule adherence with flexibility to work any shift within CST hours of operation, including weekends",
+      "A compliant WFH setup: verified secure, dedicated high-speed internet with a wired LAN connection and a quiet, clean, dedicated work area",
+      "Acceptance of heavy remote monitoring and compliance (call/screen recording, remote desktop observation, live webcam monitoring, workspace audits)"
+    ],
+    "niceToHaves": [
+      "Prior telecom / wireless / cable customer service experience",
+      "Familiarity with AT&T or comparable telecom billing and CRM/account-management platforms",
+      "Demonstrated track record meeting sales, retention, or collections targets in a contact-center environment",
+      "Experience working in a fully remote, schedule-adherent contact center",
+      "Familiarity with workforce-management / schedule-adherence and knowledge-base self-service tools"
+    ],
+    "responsibilities": [
+      "Handle inbound customer contacts and resolve questions and concerns across multiple products and services through case resolution",
+      "Navigate between multiple systems to research and resolve complex, multi-product account issues in a virtual setting",
+      "Maintain accurate records, prepare required reports, and update customer accounts",
+      "Explain bills and manage billing, rate-plan, and feature matters for one or more products/services",
+      "Perform basic troubleshooting across one or more products/services",
+      "Uncover customer needs to 'save the product' (retention) and sell/upsell additional products and services",
+      "As assigned, collect past-due balances, process credit applications, and activate services",
+      "Adhere to a fixed schedule (breaks, lunches, open time) and remain available for any shift within CST hours of operation, including weekends",
+      "Comply with WFH technical, security, monitoring, and clean-desk standards and participate in workspace audits",
+      "Use virtual collaboration tools to engage a manager or support team when assistance is needed",
+      "Deliver bilingual (English/Spanish) support throughout every interaction"
+    ],
+    "languages": [
+      "English",
+      "Spanish"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Bilingual Save-the-Account Contact: Reconcile a Bill Spike, Explain It in Spanish, and Make the Retention Call",
+    "brief": "You're taking a live inbound contact as a bilingual (English/Spanish) Customer Service Representative on AT&T's consumer account team. The customer — a 13-month account holder with an AT&T wireless line and AT&T Internet — opens in Spanish, frustrated: their September bill jumped $47 over August, they believe it's an error, they say 'me prometieron' a lower price, and they're threatening to leave for Verizon. There is also a $63 past-due balance on the account. The provided systems fit this role exactly, so work the real contact end-to-end: research the account across the snapshot and statements, explain the bill accurately to the customer in their own language, decide what (if anything) to offer to save the account and how to handle the past-due balance within policy, and leave a clean record. The instrument here is judgment under conflicting pressure (service vs. retention vs. collections quotas on one contact, against a recorded/monitored, schedule-adherent WFH backdrop) — not typing speed. Everything you assert about the bill must reconcile to the cent against the documents, and everything you promise the customer must survive a policy and QA review. Timebox is a hard 1 hour; depth over coverage. Keep a short decisions log as you go — that's normal account-note hygiene, not extra work.",
+    "repoSeed": "A customer-contact packet, in the role's own materials (no code):\n- account_snapshot.pdf — CRM account view: holder details, products (AT&T wireless line + AT&T Internet), tenure 13 months, autopay/paperless status showing the stored card EXPIRED last cycle, a $63 past-due line, and the account-notes thread. One prior note (from another agent, 4 months ago) reads, loosely: 'cx asked about loyalty credit — advised it would continue.' A signup note documents the actual term: '$15/mo loyalty credit, 12 months' (now ended).\n- statement_august.pdf and statement_september.pdf — two itemized monthly bills. The $47 September increase decomposes as: +$15 expired $15/mo loyalty promo (recurring); +$20 one-time proration from a mid-cycle plan upgrade on day 18 of the cycle; +$10 lost autopay/paperless discount because the stored card expired (recurring, but recoverable on re-enrollment); +~$2 taxes/fees on the higher base. (So the true go-forward monthly increase is ~$15 if autopay is restored — not $47.)\n- contact_transcript.txt — the opening of the live interaction in Spanish: 'mi factura subió casi cincuenta dólares, esto tiene que ser un error… me prometieron que iba a pagar lo mismo… si no me lo arreglan me cambio a Verizon.'\n- kb_billing.md — knowledge-base excerpts: how mid-cycle plan-change proration works; autopay/paperless discount terms and re-enrollment; promo-expiry policy (expired promos are NOT re-applied as courtesy credits except where the save matrix authorizes it).\n- save_offer_matrix.pdf — retention 'save' offers by tenure and product count. Eligibility ≥12 months AND ≥2 products → customer qualifies. Tier 1 (agent discretion): restore autopay/paperless discount + one-time $15 loyalty re-credit. Tier 2 (requires manager approval via chat): $10/mo loyalty credit for 6 months. No agent-invented offers permitted.\n- collections_quickref.md — past-due handling: required disclosures, when it may be raised, payment-arrangement options (e.g., split over two cycles), and what an agent must not do or promise.\n- bilingual_style_guide.md — register/tone for both languages, a do-not-promise list, and required disclosures (including that the contact is recorded/monitored).\n- wfh_compliance_note.md — short reality note: fixed schedule adherence, recorded/screen-monitored session, reach your manager/support via chat when you need approval or help.",
+    "tasks": [
+      "Reconcile the increase: using account_snapshot.pdf, statement_august.pdf, and statement_september.pdf, produce a short line-by-line worksheet that accounts for the full $47 September increase to the cent. Separate one-time charges from recurring ones, name which recurring drivers the customer can actually recover, and state the real go-forward monthly difference — not just the $47 headline.",
+      "Write the customer-facing explanation in Spanish (the customer opened in Spanish): empathetic, accurate to your worksheet, and compliant with bilingual_style_guide.md's do-not-promise list and required disclosures. Then write a faithful English version for the QA/account record. Explain why the bill rose and exactly what the customer can do about it.",
+      "Make the save-and-balance call: using save_offer_matrix.pdf and collections_quickref.md, decide what retention offer (if any) you extend, what is within your own discretion versus what needs manager approval via chat, and how the customer's 'me prometieron' claim and the loose prior note bear on what you honor. Then decide whether, when, and how you raise the $63 past-due balance and what arrangement (if any) you offer. Include the exact Spanish wording you would say for both the offer and the balance.",
+      "Document the contact: write the CRM disposition/account note in English that a teammate could act on without replaying the call, and keep a DECISIONS log — for every judgment call you made where the brief was open (offer level, escalation, how you handled the customer's claim, when you raised collections), record what you chose, the alternative you rejected, and the one thing you'd ask your team lead or workforce-management before committing. Frame it as normal note hygiene."
+    ],
+    "coverProbes": [
+      {
+        "id": "bill-math-reconciliation",
+        "kind": "verification_trap",
+        "where": "Reconciling statement_august.pdf vs. statement_september.pdf in Task 1 — the interaction of the expired $15 promo, the $20 one-time proration, and the $10 lost autopay discount.",
+        "reveals": "A careful candidate reconciles the $47 delta line-by-line, isolates the $20 proration as one-time, identifies the $10 autopay discount as recurring-but-recoverable, and tells the customer the true go-forward increase is ~$15 — passing both the customer and a QA audit. A naive one-shot reply blames 'your promo expired' alone (numbers don't add up), or treats the whole $47 as a recurring hike, or promises a courtesy credit that the autopay/proration cause doesn't justify — placates the customer on the call but is materially wrong on the record.",
+        "decisionSpace": [
+          "Reconcile fully and explain all three drivers, distinguishing the one-time proration from the recurring change — most accurate and audit-proof, but the longest explanation.",
+          "Lead with the single recoverable recurring driver (re-enroll autopay to restore the $10) and frame proration as a one-time bump — pragmatic and customer-actionable, but risks under-explaining the promo expiry.",
+          "Treat the increase as an error and issue a courtesy credit to close fast — quickest placation, but inaccurate, against promo-expiry policy, and unsustainable."
+        ]
+      },
+      {
+        "id": "retention-discretion",
+        "kind": "ambiguity",
+        "where": "Choosing a save action in Task 3 against save_offer_matrix.pdf's Tier 1 (agent discretion) vs. Tier 2 (manager approval via chat).",
+        "reveals": "A good candidate matches the smallest effective in-policy offer to the customer's actual driver — typically restoring the autopay discount + the Tier 1 one-time re-credit — and only escalates via chat if that genuinely won't hold the account. A naive candidate jumps straight to the maximum discount, invents an off-matrix offer, or over-escalates a routine save, burning handle time and adherence.",
+        "decisionSpace": [
+          "Extend the Tier 1 agent-discretion package (restore autopay discount + one-time $15 loyalty re-credit) — fully in-policy and sustainable margin.",
+          "Probe the real driver (price vs. service vs. the proration surprise) before offering anything, possibly resolving with explanation alone — best margin, but risks losing an impatient, cancel-threatening customer.",
+          "Escalate to a manager via chat for the Tier 2 $10/mo-for-6-months save up front — strongest retention signal, but over-escalates a routine save and costs adherence/handle time."
+        ]
+      },
+      {
+        "id": "collections-sequencing",
+        "kind": "underspecified",
+        "where": "Deciding whether/when/how to raise the $63 past-due balance during a retention contact in Task 3, in Spanish, per collections_quickref.md.",
+        "reveals": "A good candidate sequences empathy → accurate explanation → save, then raises the past-due with a compliant payment arrangement and required Spanish disclosures at the right moment. A naive candidate either omits the balance entirely (a compliance/collections miss) or opens with collections and kills the save.",
+        "decisionSpace": [
+          "Resolve the bill confusion and secure the save first, then raise the past-due with a payment arrangement — best customer outcome, defers but does not drop collections.",
+          "Address the past-due up front as part of 'getting the account current' — direct and compliant, but risks escalating an already cancel-threatening customer.",
+          "Fold the $63 into the retention arrangement (e.g., split over two cycles) — pragmatic and goodwill-building, but only if it stays inside payment-arrangement policy and the terms are disclosed in Spanish."
+        ]
+      },
+      {
+        "id": "prior-note-and-promise",
+        "kind": "legacy_trap",
+        "where": "The 4-month-old prior agent note ('advised it would continue') and the customer's 'me prometieron' claim vs. the documented signup term ('$15/mo loyalty credit, 12 months', now ended) in account_snapshot.pdf.",
+        "reveals": "A good candidate reads the actual note wording and the documented promo end date and reconciles the customer's claim against the record before committing — neither blindly honoring an over-credit nor flatly denying and damaging trust. A naive candidate accepts the customer's claim at face value (over-credits, sets a bad precedent) or dismisses it outright (cites 'it expired' and loses the account).",
+        "decisionSpace": [
+          "Acknowledge the prior note's ambiguity, honor a one-time goodwill gesture within the save matrix, and reset correct expectations going forward — balances trust, policy, and margin.",
+          "Hold firmly to the documented 12-month term, decline a credit, and explain clearly and kindly — protects policy and margin, but risks the cancel on a frustrated bilingual customer.",
+          "Flag the prior agent's note for QA/coaching and escalate the discrepancy before deciding — correct process hygiene, but slow and may not resolve the live contact within adherence."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -1,0 +1,189 @@
+{
+  "job": {
+    "id": "cal-005",
+    "title": "Accountant",
+    "company": "Robert Half Accountemps",
+    "role_family": "finance",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "ERP system (vendor unspecified — e.g. NetSuite/SAP/Oracle/Dynamics class)",
+      "Microsoft Excel (schedules, reconciliations, variance analysis)",
+      "General ledger / journal entries",
+      "Bank reconciliation workpapers",
+      "Recurring close schedules (weekly and monthly)",
+      "Financial reporting package (gross margin, COGS, intercompany)",
+      "Royalty / commission / chargeback tracking",
+      "Prepaids and accruals schedules",
+      "Audit support / variance workpapers"
+    ],
+    "coreResponsibilities": [
+      "Financial reporting: gross margin, COGS, intercompany transactions, and monthly schedules",
+      "Maintain royalties, commissions, prepaids, accruals, and payments on weekly schedules",
+      "Perform monthly bank reconciliations",
+      "Prepare and post monthly journal entries",
+      "Process and reconcile chargebacks",
+      "Support variance analysis and audit requirements",
+      "Handle ad hoc projects as assigned"
+    ],
+    "statedVsRealGaps": [
+      "The JD lists 'ERP skills' generically but never names the platform (NetSuite/SAP/Oracle/Dynamics, etc.), so candidates cannot judge platform fit and ramp time is unknown.",
+      "The title 'Staff Accountant' reads junior, but the actual scope — intercompany transactions, royalties/commissions, chargebacks, gross-margin/COGS reporting, and audit/variance support — is genuinely medior; the stated 'medior' target fits the work better than the title does.",
+      "Royalties + commissions + chargebacks + COGS + intercompany strongly imply a specific business model (product/distribution, consumer goods, or media/licensing), yet the JD names no industry or company, hiding the domain knowledge the role really requires.",
+      "Roughly half the posting is Robert Half recruiter boilerplate (talent-firm marketing, app download, EEO, fair-chance language) rather than role content, thinning the actual signal.",
+      "'chargebacks chargebacks' is duplicated and the requirements section is fragmentary, indicating a hastily assembled posting rather than a curated spec."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Unnamed industry/business model: royalties, chargebacks, intercompany and COGS point to a product or licensing company — a candidate from a pure-services background may misfit.",
+      "Unspecified ERP creates onboarding/ramp risk; for an Accountemps contract/temp placement, the client likely expects near-immediate productivity with little training tolerance.",
+      "High recurring cadence (both weekly and monthly schedules) plus heavy emphasis on 'organized' and 'detail oriented' signals real close-cycle deadline pressure and volume.",
+      "Intercompany and chargeback accounting are common error/restatement areas and feed audit/variance work — reconciliation rigor and audit-readiness are essential.",
+      "'Other projects as assigned' leaves scope open-ended and hard to size in advance.",
+      "Contract/temp framing (Robert Half Accountemps) means shorter tenure expectations and limited ramp — fit must be confirmed up front."
+    ],
+    "reflection": "This is a real but lightly curated Robert Half/Accountemps posting for a full-cycle staff accountant in Lakewood, NJ, and about half of it is recruiter boilerplate. Stripping that away, the substance is consistent and credible: month-end close work (journal entries, bank reconciliations, prepaids/accruals), recurring weekly schedules for royalties, commissions and payments, chargeback processing, and a reporting layer covering gross margin, COGS and intercompany transactions, all feeding variance and audit support. That mix is more than entry-level bookkeeping — royalties, chargebacks and intercompany accounting point to a product, distribution, or licensing business and demand domain familiarity the JD never spells out. The stack is the standard finance toolkit (Excel plus an unnamed ERP), so 'realStack' is correctly the role's systems and recurring workpapers, not code; the absence of a tech stack is normal for this role. The honest gaps are the unnamed ERP, the unnamed industry, and a 'Staff Accountant' title that undersells genuinely medior scope — the 'medior' seniority target is the right read. Overall complexity is medium: routine close mechanics, elevated by intercompany/royalty/chargeback work but with no SEC reporting, consolidations ownership, or technical-accounting research called out.",
+    "confidence": 0.7,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Staff Accountant",
+    "seniority": "medior",
+    "roleFamily": "finance",
+    "mustHaves": [
+      "Owns the general ledger close: prepares and posts monthly journal entries accurately and on schedule, with clear supporting workpapers",
+      "Performs monthly bank reconciliations and resolves reconciling items independently",
+      "Prepares financial reporting on gross margin, COGS, and intercompany transactions, and can explain the drivers behind the numbers",
+      "Maintains recurring schedules for prepaids, accruals, royalties, commissions, and payments across weekly and monthly cadences",
+      "Processes and reconciles chargebacks end to end",
+      "Supports variance analysis and audit requirements — pulls evidence, ties out balances, and responds to auditor requests",
+      "Strong, demonstrable Excel proficiency for schedules, reconciliations, and variance analysis (lookups, pivots, structured workpapers)",
+      "Hands-on ERP experience (NetSuite / SAP / Oracle / Dynamics class) for GL transactions, posting, and reporting — comfortable learning an unfamiliar platform quickly",
+      "Solid grasp of accrual-basis accounting and the month-end close cycle",
+      "Highly organized and detail-oriented, with judgment about when a number looks wrong and the discipline to chase it down"
+    ],
+    "niceToHaves": [
+      "Experience in a product, distribution, consumer-goods, or media/licensing business where royalties, commissions, COGS, and chargebacks are core to the model",
+      "Familiarity with intercompany accounting and eliminations across multiple legal entities",
+      "Exposure to a specific named ERP (e.g. NetSuite, SAP, Oracle, Microsoft Dynamics) matching the employer's platform",
+      "Bachelor's degree in Accounting or Finance",
+      "Progress toward CPA (or equivalent) certification",
+      "Excel automation skills (Power Query, advanced formulas, or light scripting) to speed recurring schedules",
+      "Prior experience supporting external audits or building audit-ready documentation"
+    ],
+    "responsibilities": [
+      "Produce financial reporting covering gross margin, COGS, intercompany transactions, and monthly schedules",
+      "Maintain royalties, commissions, prepaids, accruals, and payments on weekly schedules",
+      "Perform monthly bank reconciliations and clear outstanding items",
+      "Prepare and post monthly journal entries as part of the close",
+      "Process and reconcile chargebacks",
+      "Support variance analysis and audit requirements",
+      "Take on ad hoc projects and analyses as assigned"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Lumio Brands — March Close: reconcile, post, and explain the numbers",
+    "brief": "Lumio Brands designs and licenses consumer-electronics accessories. The group runs two entities: Lumio Brands Inc. (US parent, USD functional) and Lumio Brands GmbH (EU distribution sub, EUR functional); the GmbH buys finished goods from Inc. at a 15% intercompany markup. Revenue carries licensor royalties and rep commissions, and large retail customers take chargebacks (deductions) against what they owe. You are stepping into the Staff Accountant seat mid-close, the way an Accountemps placement would: the March books are open, the prior preparer left partially finished workpapers, and the controller needs the close moved forward without much hand-holding. The ERP is a NetSuite-class system, but you are working from its exports (CSV/Excel) rather than logging in — so everything you need is in the handoff workbook and the few backup files. This mirrors real close work: the schedules are real-looking but imperfect, some are ambiguous, and at least one number will not tie on the first pass. Do not treat 'make it balance' as the goal — treat 'make it right and explainable' as the goal. Keep a running DECISIONS log (Task 4) as you go: that is the normal workpaper trail a reviewer or auditor expects, not an extra test. Scope to roughly 1.5 hours — if you run short on time, prioritize correctness and a clear trail over completing every entry, and say what you would do next.",
+    "repoSeed": "Handoff package for the March close of Lumio Brands:\n\n• MarchClose_Workpapers.xlsx — the working file, tabs:\n   - TB_Mar: March trial balance by GL account (1010 Operating Cash, 1200 AR, 1410 Prepaids, 1500 Inventory, 2100 AP, 2200 Accrued Liabilities, 2300 Royalties Payable, 2400 Commissions Payable, 4000 Revenue, 4100 Sales Returns & Allowances, 5000 COGS, etc.). Net income before adjustments is unbalanced pending the close entries below.\n   - BankRec_Operating: prior preparer's partial reconciliation of acct 1010 — opening reconciling items rolled from February, book-side cleared deposits/checks, and a 'difference' cell that currently does not foot to zero.\n   - Accruals: list of known March expenses (some with vendor invoices dated early April for March service periods).\n   - Prepaids: prepaid roll-forward incl. an annual insurance policy of $24,000 paid Feb 15 and an annual SaaS license paid mid-March, amortization columns left blank.\n   - Royalties: units/sales by SKU with an 8% royalty column; the base (gross vs net of returns vs net of chargebacks) is not labeled.\n   - Commissions: rep sales with a commission column; no note on whether commissions are earned on booked or collected revenue.\n   - Chargebacks: March retailer deductions to be booked, PLUS January and February history showing the same kind of deduction posted three different ways (contra-revenue to 4100, to 5000 COGS, and netted directly against 1200 AR).\n   - Intercompany: Inc.→GmbH shipments at 15% markup, with GmbH ending inventory still holding some of that markup.\n   - GM_COGS: gross margin / COGS summary, consolidated view, Feb at ~42% and March at ~36%.\n   - JE_Template: empty journal-entry grid (Date | Account | Debit | Credit | Memo).\n• bank_mar.csv — the bank's cleared activity for March (includes a wire/FX fee, an NSF return, and a customer deposit that cleared at a different amount than booked).\n• Agreements_excerpt.pdf — one-page excerpt of the licensor agreement stating royalty is '8% of net sales' without defining whether chargebacks reduce net sales.\n• retailer_deductions_backup.csv — the supporting detail behind the March chargeback figures.",
+    "tasks": [
+      "Reconcile the operating account (GL 1010) for March: tie the TB_Mar cash balance to the bank_mar.csv ending balance using BankRec_Operating. For each reconciling item, classify it as a timing difference (no entry) or a book-side error (correcting entry required), and draft the correcting journal entries on JE_Template. Do not plug the reconciliation to force it to zero — if an item will not resolve, document what you think it is and how you would chase it down.",
+      "Prepare the recurring month-end journal entries from the supporting schedules: prepaid amortization (Prepaids), the March royalty accrual (Royalties; 8% per the Agreements_excerpt.pdf), the commission accrual (Commissions), and the expense accruals on Accruals. Post each on JE_Template with account, amount, and a one-line memo. Wherever a schedule does not fully specify the calculation, state the basis you chose and why.",
+      "Reconcile March chargebacks: agree the Chargebacks tab to retailer_deductions_backup.csv, then book March chargeback activity. Before booking, review how the January and February chargebacks were recorded on the same tab, decide on one consistent accounting treatment going forward, and flag any prior-period entries you believe should be reclassified.",
+      "Write a half-page gross-margin variance note explaining why consolidated gross margin moved from ~42% in February to ~36% in March, using GM_COGS and Intercompany. Alongside it, keep a brief DECISIONS log covering every judgment call you made across all four tasks where the brief was open or ambiguous: what you chose, the alternative you rejected, and the one question you would put to the controller."
+    ],
+    "coverProbes": [
+      {
+        "id": "bank-rec-plug",
+        "kind": "verification_trap",
+        "where": "Task 1 — BankRec_Operating vs bank_mar.csv: a customer deposit booked at one amount but cleared at another (book-side transposition), an unrecorded bank wire/FX fee and NSF return, a stale February deposit-in-transit, and a duplicate outstanding check (voided and reissued).",
+        "reveals": "A naive one-shot makes the rec foot to zero by plugging the net difference to 'bank fees' or adjusting cash, which passes the shallow 'difference = 0' check but mis-states accounts. A strong candidate separates timing items (no entry) from book-side errors (correcting JE), books only the real fee/NSF/transposition corrections, treats the duplicate check as a workpaper cleanup with no JE, and refuses to clear the stale February item without investigating it.",
+        "decisionSpace": [
+          "Book correcting JEs for the book-side items (transposition, fee, NSF) and leave true timing items and the duplicate check as workpaper-only — most defensible",
+          "Adjust the prior-period beginning balance for the stale February item rather than running it through March — defensible only if treated as a prior-period correction, not a silent roll",
+          "Plug the residual to bank charges to close the rec quickly — fastest but masks a book error and an uninvestigated stale item"
+        ]
+      },
+      {
+        "id": "royalty-base",
+        "kind": "ambiguity",
+        "where": "Task 2 — Royalties tab '8%' column against the 'net sales' language in Agreements_excerpt.pdf, with returns (4100) and chargebacks both in play.",
+        "reveals": "A naive run applies 8% to gross sales (or to whatever single column is handiest) and posts silently. A strong candidate notices 'net sales' is undefined w.r.t. chargebacks, picks a base, documents the assumption, and quantifies the sensitivity / flags it for the controller and licensor.",
+        "decisionSpace": [
+          "Net of returns/allowances only (chargebacks treated as a collections matter, not a sales reduction) — conservative reading of the contract",
+          "Net of returns AND chargebacks (chargebacks economically reduce realized sales) — lower royalty, higher audit exposure if the licensor disagrees",
+          "Compute on gross with a flagged note pending licensor confirmation — safest for over-accrual but likely over-pays royalties"
+        ]
+      },
+      {
+        "id": "chargeback-treatment",
+        "kind": "legacy_trap",
+        "where": "Task 3 — Chargebacks tab where Jan/Feb deductions were posted three inconsistent ways (4100 contra-revenue, 5000 COGS, and netted against 1200 AR).",
+        "reveals": "Generating straight from the March rows without reading the history continues or invents a treatment and leaves the ledger inconsistent. A strong candidate reads the prior months first, recognizes the three-way inconsistency, selects one policy, applies it to March, and flags the prior entries for reclassification.",
+        "decisionSpace": [
+          "Contra-revenue (reduction of revenue as variable consideration) — generally the cleanest GAAP-aligned treatment for retailer deductions",
+          "Operating expense / bad-debt-style account — simpler but overstates gross revenue and distorts margin",
+          "Net against AR with no P&L line — keeps revenue gross-looking but hides the deduction trend and misstates returns/allowances reporting"
+        ]
+      },
+      {
+        "id": "intercompany-scope",
+        "kind": "underspecified",
+        "where": "Task 4 — GM_COGS shows a consolidated view while Intercompany shows a 15% markup still sitting in GmbH ending inventory; the brief never states whether the variance note is standalone Inc. or consolidated.",
+        "reveals": "A naive note explains the 42%→36% drop with volume/mix/price only and ignores the entity scope. A strong candidate flags the standalone-vs-consolidated ambiguity, identifies the uneliminated intercompany profit in ending inventory as a driver (or distortion) of the consolidated COGS, and either eliminates it or explicitly scopes the note and asks.",
+        "decisionSpace": [
+          "Eliminate the unrealized IC markup in ending inventory and explain the variance on a true consolidated basis — most correct if consolidated reporting is intended",
+          "Present the note standalone for Inc. and state that intercompany is out of scope — defensible if the deliverable is entity-level, but must be declared",
+          "Explain the variance by operating drivers (volume/mix/price/freight) and explicitly call out the uneliminated IC markup as an open item for the controller — pragmatic within the timebox"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

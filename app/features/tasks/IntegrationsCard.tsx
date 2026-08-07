@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, KeyRound, Plug, Send } from "lucide-react";
+import { AlertTriangle, KeyRound, Plug, Send } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { toast } from "@/app/_components/toast-store";
+import { TextInput } from "@/app/_components/TextInput";
+import { Checkbox } from "@/app/_components/Checkbox";
 
 // P1-5 — the ATS/HRIS write-back panel. The only egress used to be a whole-DB JSON
 // dump ("not an integration, that's a backup" — Marcus #12). This configures a
 // signed outbound webhook + surfaces the per-candidate export endpoint. English-
-// only, matching the sibling operator cards (BackupCard / SystemCard) in this tab.
+// only, matching the sibling operator cards (BackupCard / SystemCard) in this tab —
+// except the toast messages, which route through the shared bilingual feedback
+// layer (the `integrations` catalog namespace).
 //
 // HONEST CEILING (stated in the UI): this is vendor-neutral egress, not a certified
 // Workday/Greenhouse/Lever connector. Point your connector or an iPaaS (Merge.dev,
@@ -22,12 +28,12 @@ const SUBSCRIBABLE = [
 type Config = { webhookUrl: string | null; events: string[]; hasSecret: boolean };
 
 export function IntegrationsCard() {
+  const t = useTranslations("integrations");
   const [url, setUrl] = useState("");
   const [secret, setSecret] = useState("");
   const [hasSecret, setHasSecret] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [test, setTest] = useState<string | null>(null);
 
@@ -41,14 +47,17 @@ export function IntegrationsCard() {
           setHasSecret(!!d.config.hasSecret);
         }
       })
-      .catch(() => {});
-  }, []);
+      // A silently-empty form here is dangerous: saving it would overwrite the
+      // stored config with blanks. Say the load failed.
+      .catch(() => {
+        toast.error(t("configLoadFailed"));
+      });
+  }, [t]);
 
   const toggle = (id: string) => setEvents((cur) => (cur.includes(id) ? cur.filter((e) => e !== id) : [...cur, id]));
 
   const save = async () => {
     setBusy(true);
-    setNote(null);
     setError(null);
     try {
       // Only send webhookSecret when the operator typed a new one — an untouched
@@ -66,7 +75,7 @@ export function IntegrationsCard() {
       setEvents(d.config.events ?? []);
       setHasSecret(!!d.config.hasSecret);
       setSecret("");
-      setNote("Saved.");
+      toast.success(t("saved"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed.");
     } finally {
@@ -108,12 +117,13 @@ export function IntegrationsCard() {
       <div className="mt-4 space-y-3">
         <label className="block">
           <span className="mb-1 block text-sm font-semibold text-ink">Webhook URL</span>
-          <input
+          <TextInput
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://your-ats.example.com/hooks/kp"
-            className="focus-ring w-full rounded-md border border-stone-300 px-2.5 py-1.5 font-mono text-sm"
+            sizeVariant="sm"
+            className="font-mono"
           />
           <span className="mt-1 block text-meta text-steel">Leave empty to disable delivery.</span>
         </label>
@@ -123,13 +133,14 @@ export function IntegrationsCard() {
             <KeyRound size={13} className="text-steel" /> Signing secret
             <span className="font-normal text-meta text-steel">{hasSecret ? "· set (leave blank to keep)" : "· not set"}</span>
           </span>
-          <input
+          <TextInput
             type="password"
             value={secret}
             onChange={(e) => setSecret(e.target.value)}
             placeholder={hasSecret ? "••••••••  (unchanged)" : "Optional — recommended"}
             autoComplete="new-password"
-            className="focus-ring w-full rounded-md border border-stone-300 px-2.5 py-1.5 font-mono text-sm"
+            sizeVariant="sm"
+            className="font-mono"
           />
         </label>
 
@@ -138,7 +149,7 @@ export function IntegrationsCard() {
           <div className="grid grid-cols-2 gap-1.5">
             {SUBSCRIBABLE.map((e) => (
               <label key={e.id} className="flex items-center gap-2 text-sm text-steel">
-                <input type="checkbox" checked={events.includes(e.id)} onChange={() => toggle(e.id)} className="h-4 w-4 accent-coral" />
+                <Checkbox checked={events.includes(e.id)} onChange={() => toggle(e.id)} />
                 {e.label}
               </label>
             ))}
@@ -167,11 +178,6 @@ export function IntegrationsCard() {
         >
           <Send size={13} /> Send test ping
         </button>
-        {note ? (
-          <span role="status" className="inline-flex items-center gap-1 text-sm text-moss">
-            <CheckCircle2 size={14} /> {note}
-          </span>
-        ) : null}
       </div>
 
       {test ? <p role="status" className="mt-2 text-sm text-steel">{test}</p> : null}

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { getOutboxEntry, getPipelineEntry, listOutboxFiltered, recordAutomationEvent } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { sendComm } from "@/app/_lib/comms";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // In-flight resends for the current process, keyed by outbox id, so a double-click
 // (or a retried fetch, or two recruiters on the dead-letter list) that races BEFORE
@@ -26,7 +26,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   }
   resendInFlight.add(id);
   try {
-    const original = getOutboxEntry(id);
+    const ws = await currentWorkspace();
+    const original = getOutboxEntry(id, ws);
     if (!original) return NextResponse.json({ error: "Message not found." }, { status: 404 });
     if (!original.recipient || !original.subject || !original.body || !original.kind) {
       return NextResponse.json({ error: "Message is missing fields and can't be resent." }, { status: 422 });
@@ -36,7 +37,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     // message was already re-sent (an earlier resend, or automation re-fired it). Don't
     // deliver a duplicate offer/rejection to the candidate — report it as recovered.
     if (original.ref) {
-      const alreadyRecovered = listOutboxFiltered({ ref: original.ref, kind: original.kind }).some(
+      const alreadyRecovered = listOutboxFiltered({ ref: original.ref, kind: original.kind }, ws).some(
         (m) => m.id !== original.id && m.status !== "failed" && m.createdAt > original.createdAt
       );
       if (alreadyRecovered) {
@@ -53,8 +54,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
       kind: original.kind,
       ref: original.ref ?? undefined,
     });
-    if (original.ref && getPipelineEntry(original.ref)) {
-      recordAutomationEvent(original.ref, "comm_resent", `${original.kind}: ${resent.status}`);
+    if (original.ref && getPipelineEntry(original.ref, ws)) {
+      recordAutomationEvent(original.ref, "comm_resent", `${original.kind}: ${resent.status}`, ws);
     }
     return NextResponse.json({ ok: true, entry: resent });
   } catch (error) {

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Ban, Check, Loader2, ShieldCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
+import { Checkbox } from "@/app/_components/Checkbox";
 import { SCREENING_DEFAULT } from "@/app/_lib/decision-config-schema";
 
 // One decision in the wave (mirrors ScreenDecision in screen-wave.ts). DEC4 —
@@ -13,7 +14,9 @@ type Decision = {
   entryId: string;
   label: string;
   archetype: string | null;
-  matchScore: number;
+  // null = unscored (never measured). Such rows are always keeps with reasonCode
+  // "unscored" — rendered as an explicit dash, never a fabricated 0 (SD-L1-002).
+  matchScore: number | null;
   action: "reject" | "keep";
   rationale: string;
   reasonCode?: string;
@@ -159,7 +162,7 @@ export function ScreenWaveModal({
           {rejects.map((d) => (
             <li key={d.entryId} className="rounded-md border border-coral/30 bg-coral/5 px-2.5 py-1.5 text-sm">
               <span className="font-medium text-ink">{d.label}</span>{" "}
-              <span className="nums text-steel">{t("matchSuffix", { score: d.matchScore })}</span>
+              <span className="nums text-steel">{d.matchScore == null ? "· —" : t("matchSuffix", { score: d.matchScore })}</span>
               {d.commsFailed ? (
                 <span className="ml-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-meta font-semibold text-amber-700">
                   <AlertTriangle size={10} aria-hidden /> {t("commsFailedBadge")}
@@ -180,7 +183,9 @@ export function ScreenWaveModal({
           {keeps.map((d) => (
             <li key={d.entryId} className="flex items-baseline justify-between gap-2 px-2.5 py-1 text-sm">
               <span className="text-ink">
-                {d.label} <span className="nums text-steel">· {d.matchScore}</span>
+                {/* An unscored keep shows a dash, not a number that reads as a
+                    genuine 0 — the reason text beside it says why. */}
+                {d.label} <span className="nums text-steel">· {d.matchScore ?? "—"}</span>
               </span>
               <span className="shrink-0 text-meta text-steel">{reasonText(d)}</span>
             </li>
@@ -239,7 +244,7 @@ export function ScreenWaveModal({
           {/* Override controls — drive the live preview. */}
           <div className="rounded-md border border-stone-200 bg-paper p-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-ink">
-              <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} className="h-4 w-4 accent-coral" />
+              <Checkbox checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
               {t("autoRejectWeakest")}
             </label>
             <div className={`mt-3 space-y-3 ${enabled ? "" : "pointer-events-none opacity-40"}`}>

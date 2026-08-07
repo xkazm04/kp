@@ -33,15 +33,35 @@ function upsertEnv(text, key, value) {
   return text.replace(/\s*$/, "") + `\n${line}\n`;
 }
 
+// This is only the FALLBACK prompt for sessions with no per-candidate override (the lab, or an
+// agent that disallows overrides). Kept in sync with the shared brief constants in
+// app/_lib/student-interview.ts (PERSONA_LANGUAGE_DETECT + the no-feedback/no-praise CLOSING) so
+// the fallback isn't stale — the voice harness caught an earlier version drifting to Czech and
+// praising answers. Candidate-mode sessions still override this with the grounded brief.
 const PROMPT = [
   "You are a warm, professional first-round screening interviewer at Česká spořitelna.",
   "You are male — when you speak Czech, use masculine grammatical forms for yourself (e.g. „rád bych“, „zeptal bych se“, „řekl jsem“).",
-  "Detect whether the candidate speaks Czech or English and respond in that language; follow them if they switch.",
-  "Open by stating in one sentence that you are an AI assistant running a short first-round screen and that the call is transcribed.",
-  "Ask at most 3–4 short questions about their recent experience, one at a time, with brief follow-ups.",
-  `Do not give feedback, scores, or any hiring decision. Keep the whole call under ${QUICK_SCREEN_MIN} minutes,`,
+  "Do not assume the candidate's language: open by greeting briefly in both Czech and English, then LOCK onto the one language the candidate replies in and use ONLY that language for every remaining turn; never switch unless the candidate does first.",
+  "Ask exactly ONE question per turn and wait for the answer before asking the next — never bundle two questions into one turn.",
+  "Ask at most 3–4 short questions about their recent experience, with brief follow-ups.",
+  `Do not give feedback, scores, or any hiring decision, and never praise or judge the quality of an answer; acknowledge answers neutrally and warmly. Keep the whole call under ${QUICK_SCREEN_MIN} minutes,`,
   "then thank them and say a human recruiter will review the conversation.",
 ].join(" ");
+
+// ASR keyword bias — the voice harness found the recognizer corrupting technology names ("React" →
+// "Rust", "PostgreSQL" → "později SQL"), which the scorecard would then rate as a fabricated skill
+// set. Per-session keywords aren't reachable through the browser SDK (its override type has no asr
+// field), so this is a STATIC agent-level bias toward the terms most likely to be spoken. It helps
+// the vocabulary/segmentation cases (PostgreSQL, Kubernetes) more than true homophones; a per-job
+// list would be stronger but needs a non-SDK path.
+const ASR_KEYWORDS = [
+  "React", "Angular", "Vue", "Svelte", "Next.js", "TypeScript", "JavaScript", "Python", "Java",
+  "Kotlin", "Golang", "Rust", "Scala", "Ruby", "PHP", "C#", "Spring Boot", "Django", "FastAPI",
+  "Flask", "Express", "Rails", ".NET", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Cassandra",
+  "Kafka", "RabbitMQ", "Elasticsearch", "ClickHouse", "Snowflake", "Spark", "Docker", "Kubernetes",
+  "Terraform", "Ansible", "Jenkins", "GitLab", "Nginx", "gRPC", "GraphQL", "REST", "OAuth",
+  "AWS", "GCP", "Azure", "Linux", "PyTorch", "TensorFlow", "LangChain",
+];
 
 const FIRST_MESSAGE =
   "Dobrý den! / Hello! I'm an AI assistant running a short first-round screen — the call is transcribed for a recruiter. Tell me a little about what you've been working on recently.";
@@ -90,6 +110,7 @@ async function main() {
         prompt: { prompt: PROMPT, llm: "gemini-2.5-flash", temperature: 0.3 },
       },
       tts: { model_id: model, voice_id: voiceId },
+      asr: { keywords: ASR_KEYWORDS },
       // Cap sized for the GROUNDED screen, not the baseline prompt: this one agent
       // also serves per-candidate run-of-shows (15–30 min) pushed via override, so
       // the cap clears the grounded maximum to avoid cutting a real interview off

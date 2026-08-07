@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Scale, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { ARCHETYPE_BADGE, isEarlyCareer, provLabel } from "./JobsTypes";
+import { ARCHETYPE_BADGE, isEarlyCareer } from "./JobsTypes";
 import type { CandRow, FairnessMatrix, SkippedCandidate } from "./JobsTypes";
+// Canonical provenance→badge mapping (incl. the highest-trust `observed` bucket),
+// resolved to a localized label via enumLabel at the render site — the JobsTypes
+// fork lacked `observed`, so a passed-live-case candidate was mislabeled "academic".
+import { provLabel } from "@/app/features/sub_match/MatchTypes";
 import { EmptyState, SkippedCandidatesNote } from "./JobsShared";
 import { downloadFile, toCsv } from "@/app/_lib/export-utils";
 import { useAddToPipeline } from "@/app/_lib/useAddToPipeline";
@@ -529,7 +533,7 @@ function CandidateCard({
           return (
             <span key={s} className="inline-flex items-center gap-1 rounded bg-green-50 px-1.5 py-0.5 text-sm text-green-700">
               {s}
-              <span className={`rounded px-1 text-sm uppercase ${pl.tone}`}>{pl.text}</span>
+              <span className={`rounded px-1 text-sm uppercase ${pl.tone}`}>{enumLabel("provenance", pl.key)}</span>
             </span>
           );
         })}

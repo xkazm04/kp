@@ -20,6 +20,7 @@ import {
   createPipelineEntry,
   ensureLeadEnrichToken,
   findApplicationByApplicant,
+  getJobWorkspace,
   mergeReapplication,
   recordAutomationEvent,
   recordEntryConsent,
@@ -29,9 +30,9 @@ import {
 // GDPR: a lead is a reachable candidate whose data we're storing for enrichment —
 // record data-processing consent + a 12-month expiry at intake, best-effort (the
 // consent bookkeeping must never undo a filed lead). Source is the inbound channel.
-function recordLeadConsent(entryId: string, source: string): void {
+function recordLeadConsent(entryId: string, source: string, workspaceId: string): void {
   try {
-    recordEntryConsent(entryId, source);
+    recordEntryConsent(entryId, source, undefined, workspaceId);
   } catch (err) {
     console.error(`[lead-intake] consent record failed for entry ${entryId}:`, err);
   }
@@ -45,6 +46,9 @@ const STUB_REASON_MAX = 280;
 
 export type LeadIntakeInput = {
   job: JobRecord;
+  /** The team the applicant is filed into. Defaults to the JOB's owning team (a public
+   *  applicant has no session); the webhook receiver overrides with its own workspace. */
+  workspaceId?: string;
   /** Display name; "" files as the anonymous "Applicant" label (no name-dedup). */
   name: string;
   /** Required — already validated by the caller; the lead form's point is reachability. */
@@ -68,6 +72,12 @@ export type LeadIntakeInput = {
   ungatedKoIds?: string[];
   /** ABSOLUTE link to the conversational apply (the enrichment path). */
   enrichLink: string;
+  /** Mint (or reuse) the candidate's ABSOLUTE status-tracking link for an entry
+   *  (capst-l1-002): the conversational path has always put this in both the ack
+   *  and its done screen, while a quick-apply lead got neither. Provided by the
+   *  route (which owns the request origin + token store); best-effort — null
+   *  simply omits the status line, never blocks the intake. */
+  statusLinkFor?: (entryId: string) => string | null;
   /** Webhook surfaces pass true so a KO-declined lead is TOLD the outcome — their
    *  only touchpoint said "submitted" on a third-party board. The own quick-apply
    *  form keeps this false: it shows the decline live in the UI (no double message). */
@@ -97,6 +107,10 @@ function withLeadToken(link: string, token: string | null): string {
 
 export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutcome> {
   const { job } = input;
+  // Tenant (P1): file into the opening's owning team (public applicant, no session); the
+  // webhook receiver passes its own workspace to override. Threaded into every entry-keyed
+  // call below (dedup, token, merge, consent, events) so the whole intake stays team-scoped.
+  const workspaceId = input.workspaceId ?? getJobWorkspace(job.id);
   const name = input.name.trim();
   const email = input.email.trim();
 
@@ -125,10 +139,16 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   }
 
   // `enrichLink` carries the entry's tokened identity when one exists; null
-  // sends the plain ack (a healthy entry needs no enrichment invitation).
+  // sends the plain ack (a healthy entry needs no enrichment invitation). The
+  // status link (when the caller can mint one) rides along on EVERY ack — it is
+  // the lead's durable "where do I stand" touchpoint once the tab is gone.
   const ack = async (entry: Parameters<typeof dispatchApplicationReceived>[0], enrichLink: string | null) => {
     try {
-      await dispatchApplicationReceived(entry, enrichLink ? { enrichLink } : undefined);
+      const statusLink = input.statusLinkFor?.(entry.id) ?? undefined;
+      await dispatchApplicationReceived(entry, {
+        ...(enrichLink ? { enrichLink } : undefined),
+        ...(statusLink ? { statusLink } : undefined),
+      });
     } catch (ackErr) {
       console.error(
         `[lead-intake] lead accepted but acknowledgement failed for entry ${entry.id}:`,
@@ -143,13 +163,13 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   // link when it's still a stub needing one). The token mints (fill-only) on the
   // ORIGINAL entry, and this repeat just re-verified its gates, so the recorded
   // KO pass-state refreshes alongside.
-  const existing = findApplicationByApplicant(job.id, name, email);
+  const existing = findApplicationByApplicant(job.id, name, email, workspaceId);
   if (existing) {
-    const leadToken = ensureLeadEnrichToken(existing.id, input.passedKoIds);
-    recordLeadConsent(existing.id, input.sourceChannel);
+    const leadToken = ensureLeadEnrichToken(existing.id, input.passedKoIds, workspaceId);
+    recordLeadConsent(existing.id, input.sourceChannel, workspaceId);
     const changes: string[] = [];
     if (!existing.contact) {
-      const merged = mergeReapplication(existing.id, { contact: email });
+      const merged = mergeReapplication(existing.id, { contact: email }, workspaceId);
       changes.push("contact email captured");
       if (merged) await ack(merged, merged.intakeDegraded ? withLeadToken(input.enrichLink, leadToken) : null);
     }
@@ -158,7 +178,8 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
       "re_applied",
       changes.length
         ? `repeat application via ${input.channelLabel} — ${changes.join("; ")}`
-        : `repeat application via ${input.channelLabel}`
+        : `repeat application via ${input.channelLabel}`,
+      workspaceId
     );
     return { result: "accepted", duplicate: true, entryId: existing.id, leadToken };
   }
@@ -190,13 +211,14 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     sourceChannel: input.sourceChannel,
     sourceCampaign: input.sourceCampaign ?? null,
     sourceVariant: input.sourceVariant ?? null,
+    workspaceId,
   });
 
   // The dedupeKey backstop caught a concurrent repeat — surface it as one.
   if (!created) {
-    const leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds);
-    recordLeadConsent(entry.id, input.sourceChannel);
-    recordAutomationEvent(entry.id, "re_applied", `repeat application via ${input.channelLabel}`);
+    const leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds, workspaceId);
+    recordLeadConsent(entry.id, input.sourceChannel, workspaceId);
+    recordAutomationEvent(entry.id, "re_applied", `repeat application via ${input.channelLabel}`, workspaceId);
     return { result: "accepted", duplicate: true, entryId: entry.id, leadToken };
   }
 
@@ -205,8 +227,8 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   // The link carries the entry's freshly-minted lead token, so the follow-up
   // opens prefilled AND merges back onto this exact entry — no longer hinging on
   // the candidate re-typing the identical email address.
-  const leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds);
-  recordLeadConsent(entry.id, input.sourceChannel);
+  const leadToken = ensureLeadEnrichToken(entry.id, input.passedKoIds, workspaceId);
+  recordLeadConsent(entry.id, input.sourceChannel, workspaceId);
   await ack(entry, withLeadToken(input.enrichLink, leadToken));
   return { result: "accepted", duplicate: false, entryId: entry.id, leadToken };
 }

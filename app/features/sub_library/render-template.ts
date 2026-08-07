@@ -245,7 +245,7 @@ export function validateTemplateUpdate(input: { name?: unknown; body?: unknown }
 /** The client-facing subset of a stored JD template — exactly what the JD builder
  *  and the template manager render. Derived from the store's JdTemplate (Pick) so
  *  the UI shape can't silently drift from the DB row it represents. */
-export type Template = Pick<JdTemplate, "id" | "name" | "body" | "isDefault">;
+export type Template = Pick<JdTemplate, "id" | "name" | "body" | "isDefault" | "scope">;
 
 /** Load the company JD templates from the API. One shared fetch contract — the
  *  endpoint shape AND the swallow-to-empty error behavior — for every caller, so a

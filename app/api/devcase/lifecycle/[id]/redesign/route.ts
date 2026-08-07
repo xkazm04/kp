@@ -6,7 +6,6 @@ import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import type { DevNeed } from "@/app/_lib/devcase-run";
 
-export const runtime = "nodejs";
 // One LLM design pass — same budget the github deep-dive route runs under.
 export const maxDuration = 60;
 

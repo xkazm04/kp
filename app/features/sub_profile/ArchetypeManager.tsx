@@ -306,10 +306,15 @@ function EditPanel({
           <Input value={draft.badge} onChange={(e) => set("badge", e.target.value)} className="w-full text-ink" />
         </Field>
         <Field label={t("scoringModelField")}>
-          <Select value={draft.scoringModel} onChange={(e) => set("scoringModel", e.target.value)} className="w-full bg-white px-2 text-base text-ink">
-            <option value="experienced">{t("scoringExperienced")}</option>
-            <option value="early_career">{t("scoringEarlyCareer")}</option>
-          </Select>
+          <Select
+            value={draft.scoringModel}
+            onChange={(v) => set("scoringModel", v)}
+            className="w-full"
+            options={[
+              { value: "experienced", label: t("scoringExperienced") },
+              { value: "early_career", label: t("scoringEarlyCareer") },
+            ]}
+          />
         </Field>
         <Field label={t("applyField")}>
           <Input value={draft.applyLabel} onChange={(e) => set("applyLabel", e.target.value)} placeholder={t("applyPlaceholder")} className="w-full text-ink" />

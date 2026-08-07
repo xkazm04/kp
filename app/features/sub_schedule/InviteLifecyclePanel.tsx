@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, CalendarClock, Hourglass } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
+import { interviewCalendarEvent } from "@/app/_lib/calendar-links";
 import { useRelativeTime } from "@/app/features/sub_pipeline/PipelineShared";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
+import { AddToCalendar } from "./AddToCalendar";
+import { MeetingLinkCell } from "./MeetingLinkCell";
 // The full invite wire row is single-sourced from the store (GET /api/schedule
 // returns listScheduleInvites() unprojected). Type-only import, so schedule-store's
 // better-sqlite3 runtime is NOT pulled into this client bundle. Replaces a lossy
@@ -21,16 +26,25 @@ import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 export function InviteLifecyclePanel() {
   const t = useTranslations("scheduleTab.lifecycle");
   const relativeTime = useRelativeTime();
+  // REC-10 — with no delivery relay, "invite/reminder sent" chips must read as
+  // the queued outbox rows they really are.
+  const relayConfigured = useDeliveryCapability();
   // SCH4 — render the booked slot in the recruiter's active locale via the
   // canonical hook (the picker already uses it), instead of a raw locale-less
   // toLocaleString() that also rendered "Invalid Date" on an unparsable slotAt.
   const slotLabel = useSlotLabel();
+  // App origin → a clickable reschedule link inside the calendar event body.
+  const base = publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "");
   const [invites, setInvites] = useState<ScheduleInvite[] | null>(null);
   // "Now" captured when the data landed, so the upcoming/past split is a pure
   // function of state during render (react-hooks/purity) — the agenda is as
   // fresh as the fetch, which is the honest claim anyway.
   const [loadedAt, setLoadedAt] = useState(0);
   const [failed, setFailed] = useState(false);
+  // Patch one invite in place (e.g. after a meeting link save) so the row + its
+  // calendar event refresh without a full refetch.
+  const updateInvite = (token: string, patch: Partial<ScheduleInvite>) =>
+    setInvites((prev) => prev?.map((i) => (i.token === token ? { ...i, ...patch } : i)) ?? prev);
 
   useEffect(() => {
     let alive = true;
@@ -121,8 +135,17 @@ export function InviteLifecyclePanel() {
                     {t("attendanceConfirmed")}
                   </span>
                 ) : null}
-                <span className="ml-auto text-xs text-steel">
-                  {i.reminderSentAt ? t("reminderSent") : t("reminderPending")}
+                <span className="ml-auto flex items-center gap-2">
+                  <span className="text-xs text-steel">
+                    {i.reminderSentAt
+                      ? t(relayConfigured === false ? "reminderQueued" : "reminderSent")
+                      : t("reminderPending")}
+                  </span>
+                  <MeetingLinkCell token={i.token} url={i.meetingUrl} onSaved={(url) => updateInvite(i.token, { meetingUrl: url })} />
+                  {(() => {
+                    const ev = interviewCalendarEvent(i, { baseUrl: base, meetingUrl: i.meetingUrl });
+                    return ev ? <AddToCalendar event={ev} uid={`interview-${i.token}`} /> : null;
+                  })()}
                 </span>
               </li>
             ))}
@@ -147,7 +170,9 @@ export function InviteLifecyclePanel() {
                     {t("attendanceCancelled")}
                   </span>
                 ) : null}
-                <span className="ml-auto text-xs text-steel">{t("sentAgo", { time: relativeTime(i.createdAt) })}</span>
+                <span className="ml-auto text-xs text-steel">
+                  {t(relayConfigured === false ? "queuedAgo" : "sentAgo", { time: relativeTime(i.createdAt) })}
+                </span>
               </li>
             ))}
           </ul>

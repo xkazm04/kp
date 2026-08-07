@@ -1,0 +1,187 @@
+{
+  "job": {
+    "id": "cal-023",
+    "title": "Associate Project Manager, IVD Product Development (San Diego, CA)",
+    "company": "Illumina",
+    "role_family": "project_management",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "MS Project (project scheduling, Gantt/critical-path planning)",
+      "Planisware (enterprise resource management / portfolio & resource forecasting)",
+      "MS Excel (budget, timeline and scope data modeling)",
+      "MS PowerPoint (stakeholder/status communication)",
+      "MS Visio (process and workflow diagrams)",
+      "MS Word (project and quality documentation)",
+      "Design History File (DHF) documentation and maintenance",
+      "Illumina PDP phase-gate process (concept → commercialization)",
+      "FDA / ISO 13485 Quality Management System knowledge and audit-liaison practice",
+      "Cross-functional project coordination for NGS clinical/IVD oncology product development"
+    ],
+    "coreResponsibilities": [
+      "Assist the primary PM in executing regulated (clinical/IVD) and RUO next-generation-sequencing product development projects from concept through commercialization within the oncology portfolio",
+      "Develop budgets, timelines and scope for potential and active projects of varying size and complexity",
+      "Drive project-level goals and the associated planning/implementation, working with team members to build and maintain timelines",
+      "Manage the cross-functional resource forecast in Planisware",
+      "Establish and maintain DHF documentation and serve as a liaison with auditors during FDA/ISO QMS audits or reviews",
+      "Transform project/budget/timeline/scope data into actionable information for the team and stakeholders",
+      "Build relationships and achieve consensus across functions through facilitation, negotiation and influencing"
+    ],
+    "statedVsRealGaps": [
+      "Seniority is labeled junior/associate, but the duty set includes genuinely regulated-PM work — owning/maintaining DHF documentation and acting as the audit liaison for FDA/ISO QMS reviews — that normally presumes prior medical-device/regulatory exposure; the 'assists primary PM' framing only partly cushions this.",
+      "The only hard requirement is a bachelor's in science or engineering — no stated PM years, no PMP/CAPM, and no explicit regulated-IVD experience — which under-specifies the real bar implied by the responsibilities and tooling.",
+      "Required leadership language ('skilled team leader,' 'strong negotiation and influencing,' 'work independently') sits in tension with an associate/junior target that is otherwise positioned to support a primary PM.",
+      "Niche tooling (Planisware) and the regulated NGS/oncology IVD domain are the true complexity drivers, yet the JD treats tool familiarity as 'experience using MS Project' and barely scopes domain depth — so the stated entry need understates the real domain need."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Compliance stakes are disproportionate to the junior label: errors in DHF maintenance or audit support carry FDA/ISO consequences, so under-hiring (or thin onboarding) is a real regulatory risk.",
+      "Planisware is a specialized enterprise tool with a narrow talent pool; a junior hire will likely need a meaningful ramp, and the JD only lists MS Project as required experience.",
+      "Domain mismatch risk — candidates can present generic PM/MS-Office credentials without the life-science, NGS/oncology, or IVD-regulatory context the role actually operates in.",
+      "Constraints on the pool: San Diego on-site role with a stated COVID-vaccination condition of employment may narrow sourcing.",
+      "Role ambiguity between 'assists primary PM' and 'works independently / drives project-level goals' can create unclear ownership and accountability if the reporting/escalation model isn't tightly defined."
+    ],
+    "reflection": "This is a non-software, project-management role, so the honest 'body of work' is not code but Illumina's regulated product-development machinery — MS Project schedules, Planisware resource forecasts, Excel budgets, Visio/PowerPoint/Word artifacts, and most consequentially the Design History File and the FDA/ISO 13485 audit trail for clinical/IVD NGS oncology programs moving through the PDP phase gates. Judged in its own terms, the work is high-complexity: regulated medical-device development with audit exposure does not get simpler because the title says 'associate.' The central divergence between the stated need and the evidence is seniority calibration — the JD asks for a junior/associate with only a science/engineering bachelor's, yet hands that person DHF ownership, audit-liaison duties, independent multi-task execution, and strong negotiation/influencing across functions. The 'assists primary PM' framing is the load-bearing mitigation: it implies a supported apprenticeship into regulated PM rather than solo accountability, and a hiring plan should make that support, the Planisware ramp, and the regulatory-mentorship explicit rather than assume a junior hire arrives audit-ready.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Associate Project Manager, IVD Product Development",
+    "seniority": "junior",
+    "roleFamily": "project_management",
+    "mustHaves": [
+      "Bachelor's degree in a science or engineering discipline",
+      "Working fluency with MS Project to build and maintain schedules, Gantt charts and critical paths",
+      "Strong MS Excel skills to model and reconcile project budget, timeline and scope data",
+      "Proficiency with MS PowerPoint, Visio and Word for stakeholder communication, process diagrams and project documentation",
+      "Demonstrated ability to transform budget/timeline/scope data into clear, actionable information for a team",
+      "Strong written and verbal communication, organizational and time-management skills",
+      "Interpersonal and facilitation skills with a proven ability to build relationships and drive consensus across cross-functional teams",
+      "Ability to work independently and manage multiple parallel tasks under shifting priorities",
+      "Comfort supporting a primary PM through a structured phase-gate (stage-gate) development process from concept to commercialization"
+    ],
+    "niceToHaves": [
+      "Experience with Planisware or another enterprise resource-management / portfolio system for resource forecasting",
+      "Exposure to regulated product development (medical device, IVD or pharma) under an FDA / ISO 13485 quality management system",
+      "Familiarity with Design History File (DHF) documentation and serving as an audit liaison during QMS audits",
+      "Domain knowledge of next-generation sequencing (NGS), oncology diagnostics or clinical/IVD product development",
+      "PMP, CAPM or equivalent project-management certification",
+      "Prior internship or coordinator experience in cross-functional project planning or resource forecasting",
+      "Negotiation and influencing experience across internal and external partners"
+    ],
+    "responsibilities": [
+      "Assist the primary PM in executing regulated (clinical/IVD) and RUO next-generation-sequencing product development projects from concept through commercialization within the oncology portfolio",
+      "Develop budgets, timelines and scope for potential and active projects of varying size and complexity",
+      "Drive project-level goals and the associated planning and implementation, working with team members to build and maintain timelines",
+      "Manage the cross-functional resource forecast in Planisware",
+      "Establish and maintain DHF documentation and serve as a liaison with auditors during FDA/ISO QMS audits or reviews",
+      "Transform project, budget, timeline and scope data into actionable information for the team and stakeholders",
+      "Build relationships and achieve consensus across functions through facilitation, negotiation and influencing"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Phase 3 Gate Readiness: ONC-500 NGS Oncology IVD Panel",
+    "brief": "You are the new Associate Project Manager supporting the ONC-500 program, an NGS oncology panel transitioning from RUO into IVD development under our Illumina-style PDP phase-gate process. The primary PM is out for the week and has asked you to get the project ready for two events: the Phase 3 (Design Validation) gate review next week, and an ISO 13485 surveillance audit the month after. You've been handed the current project packet (schedule, budget, DHF index, resource forecast, gate criteria, and a thread of cross-functional notes). Work only from these exports — you will not have live MS Project or Planisware, and that's intentional: we care about your project judgment, not tool mechanics. Spend about one hour. Where the materials are incomplete or contradictory, make a defensible call and move on — but record it. Treat the DECISIONS log as normal PM hygiene, the kind of running note you'd hand the primary PM when they're back so they can see what moved and why. Deliverables: (1) a schedule feasibility read on the gate date, (2) a DHF gate-readiness gap list, (3) a one-page gate-review summary with a single recommendation, and (4) the DECISIONS log.",
+    "repoSeed": "A self-contained project packet for the fictional ONC-500 NGS oncology IVD panel, approaching its Phase 3 (Design Validation) gate. Contents: (a) `ONC500_schedule.xlsx` — an MS Project export of ~25 tasks spanning late Phase 2 into Phase 3, with predecessors, durations, owners by function (R&D, Bioinformatics, V&V, Regulatory, QA, Ops), and a 'Design Validation gate' milestone dated 18-Sep; one workstream (reagent lot qualification) carries a 6-week supplier lead time noted in the task comment, and analytical validation is scheduled to start before that lot is available. (b) `ONC500_budget_tracker.xlsx` — budget by workstream with planned vs. actual and a contingency line; a recently added row 'FFPE specimen claim — added scope' sits at $0 / uncosted. (c) `ONC500_DHF_index.xlsx` — the Design History File document log (Doc ID, title, revision, status: draft/approved, owner) plus an index legend / document-control note stating that Design Inputs are maintained inside the linked Requirements Traceability Matrix (RTM-ONC500) rather than as a standalone 'Design Inputs' record; several other records are genuinely in draft or missing. (d) `ONC500_resource_forecast.xlsx` — a Planisware FTE forecast by function and month showing V&V and Bioinformatics over-allocated above 1.0 FTE during the Aug–Sep validation crunch. (e) `Phase3_gate_criteria.docx` — the PDP Phase 3 entrance/exit checklist (design verification complete, validation protocols approved, DHF current, risk file updated). (f) `team_notes.md` — a short cross-functional email thread where Regulatory asks to add an FFPE specimen claim, Ops mentions the reagent lead time, and QA flags an upcoming audit; ownership of the gate decision is left vague between 'assist the PM' and 'drive it'.",
+    "tasks": [
+      "Schedule feasibility: walk the dependency chain in `ONC500_schedule.xlsx` into the 'Design Validation gate' milestone and check it against the entrance criteria in `Phase3_gate_criteria.docx`. State plainly whether the 18-Sep gate date is achievable as scheduled. If it isn't, name the single binding constraint and propose either a corrected milestone date or a recovery plan, with the trade-off you're accepting.",
+      "DHF gate-readiness: from `ONC500_DHF_index.xlsx`, produce a short gap list of DHF deliverables required for the Phase 3 gate (and likely to be sampled in the ISO 13485 audit) that are missing, in draft, or unverified. Read the index legend / document-control note before you decide what actually counts as a gap, and mark each item as block-the-gate vs. fix-before-audit.",
+      "Gate-review one-pager: build a single page (a PowerPoint slide, or one-page Word/Excel) that turns the schedule, the `ONC500_budget_tracker.xlsx` figures, and the `ONC500_resource_forecast.xlsx` over-allocation into a clear status for the gate committee and ONE recommendation — advance, hold, or descope — supported by the two or three facts that drive it. Address the uncosted FFPE scope line and the V&V/Bioinformatics resource crunch explicitly.",
+      "DECISIONS log: keep a half-page running log of every open call you made where the packet was ambiguous or contradictory (at minimum: the gate date, how you handled the uncosted FFPE scope line, and the design-inputs DHF question). For each, record what you chose, the alternative you rejected, and the exact question you would put to the primary PM or the relevant function lead."
+    ],
+    "coverProbes": [
+      {
+        "id": "gate-date-feasible",
+        "kind": "verification_trap",
+        "where": "`ONC500_schedule.xlsx` — analytical validation start vs. the 6-week reagent lot qualification lead time noted in the task comment, feeding the 18-Sep 'Design Validation gate' milestone.",
+        "reveals": "A naive one-shot read trusts the stated milestone dates, confirms every row is populated and sums to the gate, and reports 'on track.' A strong candidate traces the predecessor chain, catches that validation is scheduled to start before the qualified reagent lot can exist, and concludes the date is infeasible as drawn — then chooses how to respond rather than silently re-rendering the Gantt.",
+        "decisionSpace": [
+          "Hold validation integrity over the date: push the gate milestone out by the lead-time gap and present the honest replanned date.",
+          "Protect the date by fast-tracking: overlap reagent qualification with validation prep or expedite a second lot, accepting added cost and rework risk.",
+          "Treat 18-Sep as a fixed external commitment: flag it as infeasible and escalate to the primary PM/sponsor for renegotiation rather than unilaterally moving it."
+        ]
+      },
+      {
+        "id": "dhf-design-inputs-convention",
+        "kind": "legacy_trap",
+        "where": "`ONC500_DHF_index.xlsx` index legend — Design Inputs are maintained inside the linked RTM-ONC500 rather than as a standalone record.",
+        "reveals": "Naive generation scans for a 'Design Inputs' row, doesn't find it, and lists it as a missing deliverable to create. A candidate who reads the document-control note first recognizes the input controls already exist under a non-obvious cross-reference, and spends the gap list on the records that are genuinely missing or in draft.",
+        "decisionSpace": [
+          "Report design inputs as present and controlled per the linked RTM; focus the gap list elsewhere.",
+          "Mark it present-but-hard-to-trace: a documentation-control risk for the audit, recommending an RTM cross-reference fix so an auditor can follow it.",
+          "Conservatively list it as a gap pending owner confirmation, prioritizing audit-readiness over trusting the stated convention."
+        ]
+      },
+      {
+        "id": "gate-recommendation",
+        "kind": "ambiguity",
+        "where": "Task 3 one-pager — the brief never says whether to recommend advancing the gate; the recommendation must be the candidate's call given the schedule, budget, and resource signals.",
+        "reveals": "A naive submission reports status without committing, or rubber-stamps 'advance' to look decisive. A strong one weighs the infeasible date, the resource over-allocation, and the uncosted scope, then commits to advance/hold/descope with conditions and names the facts that would change the call.",
+        "decisionSpace": [
+          "Advance with conditions: proceed past the gate contingent on the date replan and a resourcing fix, to keep momentum.",
+          "Hold / no-go: refuse the gate until the schedule and resource plan are credible, protecting design-control rigor.",
+          "Descope to hit the date: drop or defer the FFPE claim so the original timeline and budget hold, trading scope for schedule."
+        ]
+      },
+      {
+        "id": "uncosted-scope-line",
+        "kind": "underspecified",
+        "where": "`ONC500_budget_tracker.xlsx` 'FFPE specimen claim — added scope' at $0, against the Regulatory request in `team_notes.md`; the brief gives no instruction on how to treat it.",
+        "reveals": "Naive output leaves the $0 line untouched or quietly buries the new claim in existing numbers. A strong candidate surfaces it as an unresolved funding/scope decision, attaches a rough cost or range, and is explicit about which budget mechanism they're invoking and what they'd ask before baselining it.",
+        "decisionSpace": [
+          "Raise a formal scope-change / change request with a rough order-of-magnitude cost, kept out of the baseline until approved.",
+          "Absorb within existing contingency with a stated assumption, to avoid stalling the gate.",
+          "Carry it as an unfunded risk line with a cost range, deferring the funding decision to the sponsor."
+        ]
+      }
+    ],
+    "timeboxHours": 1.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

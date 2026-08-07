@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAtsRecord } from "@/app/_lib/ats-egress";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // P1-5 — the SCOPED, ATS-portable export for ONE candidate (the honest counterpart
 // to the whole-DB dump). A connector / iPaaS pulls the normalized record by entry

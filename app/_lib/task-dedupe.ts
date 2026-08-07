@@ -58,14 +58,15 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
     const k = stableKey("design_artifacts", identityJson(p.need));
     return k && `${k}:${JSON.stringify(p.analysis ?? {})}`;
   },
-  commit_reflection: (p) => {
-    const k = stableKey("commit_reflection", p.repoRef);
-    return k && `${k}:${p.caseId ?? ""}`;
-  },
   evaluate_submission: (p) => stableKey("evaluate_submission", p.submissionId),
   lifecycle: (p) => stableKey("lifecycle", p.lifecycleId), // one run per case; a re-trigger resumes when idle
   group_eval: (p) => stableKey("group_eval", p.roleKey), // one run per role; re-trigger reuses an in-flight run
   jd_build: (p) => {
+    // Backgrounded flow: a placeholder JD owns the build, so the slug IS the
+    // identity — each Generate mints a distinct JD (hence a distinct build), while
+    // a retry reuses the slug and correctly dedupes onto an in-flight run. Legacy
+    // callers with no slug keep the input-shaped key (byte-identical) below.
+    if (p.jdSlug) return stableKey("jd_build", p.jdSlug);
     const k = stableKey("jd_build", p.title);
     return k && `${k}:${p.needText ? String(p.needText).length : 0}:${p.repoUrl ?? ""}`;
   },

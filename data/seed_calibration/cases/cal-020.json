@@ -1,0 +1,188 @@
+{
+  "job": {
+    "id": "cal-020",
+    "title": "Attorney in Brooklyn, NY",
+    "company": "Brooklyn Defender Services",
+    "role_family": "legal",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "NY Family Court Act Article 10 (child neglect/abuse) and termination-of-parental-rights statutes & case law",
+      "Case management system (case files, notes, court appearance data)",
+      "Document management system (motions, memos, appellate papers)",
+      "Legal research tools (e.g., Westlaw/LexisNexis) for motions and memos of law",
+      "Court e-filing / NYSCEF and Family Court docketing workflows",
+      "Drafting craft: motions, memoranda of law, and appellate papers",
+      "Interdisciplinary defense team: supervisors, social workers, paralegals, the law & appeals team, administrative staff",
+      "Client intake and arraignment process",
+      "Courtroom advocacy across emergency, fact-finding, dispositional, permanency, and TPR hearings"
+    ],
+    "coreResponsibilities": [
+      "Meet clients and arraign new cases at intake",
+      "Develop case strategy collaboratively with supervisors, social workers, paralegals, and admin staff",
+      "Investigate facts and build trusting, ongoing relationships with clients",
+      "Counsel clients on their goals and the information needed to make decisions about their case",
+      "Represent clients at emergency hearings, fact-finding trials, dispositional hearings, permanency hearings, and termination-of-parental-rights trials",
+      "Write motions, memos of law, and appellate papers in collaboration with the law & appeals and paralegal teams",
+      "Maintain case files, notes, and court appearance data in the case and document management systems"
+    ],
+    "statedVsRealGaps": [
+      "Title is truncated ('article attorney') — the JD body is unmistakably an Article 10 family-defense/parents'-rights role; the need statement never names that practice area explicitly",
+      "Bar admission / NY licensure is implied by trial and appellate work but is not stated as a requirement",
+      "The case and document management systems are referenced generically; no named platform, so the real tool stack is inferred rather than specified",
+      "No caseload volume, language requirement (Spanish is typically high-value in Brooklyn defense work), or trial-experience floor is stated, leaving the true seniority bar ambiguous",
+      "Seniority is tagged 'medior', but the scope — solo client relationships plus TPR trials and appellate writing — spans a wide band; a true junior would need heavy supervision, which the 'work with supervisors' language hints at but does not pin down",
+      "Brooklyn Defender Services' signature holistic/interdisciplinary defense model is visible in the team list but not articulated as a working method or expectation",
+      "'Additional responsibilities as assigned' is open-ended and leaves real scope partly undefined"
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Termination-of-parental-rights and emergency removal hearings are among the highest-stakes proceedings in civil law — severe, hard-to-reverse consequences for families",
+      "Vicarious trauma and burnout risk inherent to high-volume family-defense intake and client crisis work",
+      "Fast turnaround between intake/arraignment and substantive hearings demands rapid fact investigation under time pressure",
+      "Trial and appellate competence must coexist — courtroom advocacy and written legal craft are different skill sets both required here",
+      "Heavy interdependence on social workers and the law & appeals team means outcomes hinge on coordination, not just individual lawyering",
+      "Client-autonomy tension: balancing the client's stated goals against strategic and statutory realities",
+      "Unstated bar-admission and supervision expectations could create a mismatch if a candidate is hired at the wrong experience level"
+    ],
+    "reflection": "This is a genuine, well-specified family-defense litigation role and not a software position, so the absence of a codebase is expected and not a defect. Reflected against the real body of work — the statutes, court proceedings, client relationships, and the case/document management systems the attorney actually operates in — the JD is coherent and concrete: it names the full arc from intake and arraignment through fact-finding, dispositional, permanency, and TPR trials, plus appellate writing. The truest signal of complexity is the proceeding list itself: termination-of-parental-rights and emergency hearings place this firmly at the high end regardless of the 'medior' tag, and the work is as much emotional and investigative as it is legal. The main divergence between the stated need and the evidence is calibration, not substance — the title is truncated, the practice area (Article 10 parents' rights) is implicit rather than named, licensure and language/caseload expectations are unstated, and the team-based holistic model is shown but not described. A hiring decision should resolve the seniority band and supervision model explicitly, because the same JD could fit a closely-supervised junior or a near-autonomous trial attorney.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Family Defense Attorney (Article 10 / Parents' Rights), Brooklyn",
+    "seniority": "medior",
+    "roleFamily": "legal",
+    "mustHaves": [
+      "Admission to the New York State Bar (or admission pending) — required to appear and try cases in NY Family Court",
+      "Practice experience in NY Family Court under Family Court Act Article 10 (child neglect/abuse) and termination-of-parental-rights matters, or closely transferable family/dependency defense experience",
+      "Courtroom advocacy: representing clients at emergency hearings, fact-finding trials, dispositional hearings, permanency hearings, and TPR trials",
+      "Legal writing craft: drafting motions, memoranda of law, and appellate papers to a filing standard",
+      "Legal research proficiency (e.g., Westlaw or LexisNexis) sufficient to support motion and memo drafting",
+      "Client counseling and relationship-building — conducting intake, explaining options, and helping clients in crisis make informed decisions about their case",
+      "Collaborative, interdisciplinary practice alongside supervisors, social workers, paralegals, the law & appeals team, and administrative staff",
+      "Disciplined case-file hygiene: maintaining case files, notes, and court-appearance data in case and document management systems"
+    ],
+    "niceToHaves": [
+      "Spanish or another community language commonly spoken by Brooklyn clients, for direct client communication",
+      "Prior experience in a holistic / interdisciplinary defense model (e.g., Brooklyn Defender Services)",
+      "Appellate practice experience",
+      "E-filing fluency via NYSCEF and familiarity with named case/document management platforms"
+    ],
+    "responsibilities": [
+      "Meet clients and arraign new cases at intake",
+      "Develop case strategy collaboratively with supervisors, social workers, paralegals, and administrative staff",
+      "Investigate facts and build trusting, ongoing relationships with clients",
+      "Communicate regularly with clients to understand their goals and give them the information they need to make decisions about their case",
+      "Represent clients at emergency hearings, fact-finding trials, dispositional hearings, permanency hearings, and termination-of-parental-rights trials",
+      "Write motions, memos of law, and appellate papers in collaboration with the law & appeals and paralegal teams",
+      "Maintain case files, notes, and court-appearance data in the case and document management systems",
+      "Take on additional responsibilities as assigned"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Article 10 Emergency Removal: First-Appearance Strategy & Return-of-Child Application (Maritza D.)",
+    "brief": "You are a newly assigned medior trial attorney in a Brooklyn family defense practice. At 9:10 a.m. you are handed the file for a brand-new Article 10 (neglect) matter, In re D. Children, on for its first appearance before the Kings County Family Court this afternoon. ACS removed both children and is seeking their continued placement; you are meeting the mother, Maritza D., for the first time in the hallway before the case is called. The provided context fits this role directly — these are the kinds of starting materials a family defense attorney actually works from, so design your work on the packet itself (no synthetic substitute is needed). Your job over the next ~90 minutes is not to write a finished trial brief; it is to do what a real attorney does between intake and a fast-moving emergency appearance: read the record critically, form a defensible theory under the NY Family Court Act, decide what relief to seek and when, and communicate honestly with a frightened client. Much of the drafting can be done quickly; what matters is the judgment behind it. Where the file or your client leaves something open, make a call, act on it, and record it — do not stall waiting for facts you will never get before the case is called. Cite the controlling standards and authorities accurately; an appearance is the wrong place to be wrong about the burden of proof. Keep your written outputs short and usable in a hallway, not polished for filing.",
+    "repoSeed": "A working intake/case packet for the fictional matter In re D. Children (Kings County Family Court), containing: (1) the ACS Article 10 neglect Petition, alleging the mother (Maritza D., 27) neglected her newborn (Baby D., 11 days old) and a 4-year-old (J.D.) based on (a) a positive THC toxicology screen for mother at Baby D.'s birth, (b) 'untreated mental health' and (c) 'inadequate and unstable housing' (mother and children are staying with a cousin); (2) the removal paperwork showing both children were removed by ACS at the hospital/home WITHOUT a prior court order, with the agency's '1024' emergency-removal narrative attached; (3) a court intake sheet showing Baby D. was removed 11 days ago and today is the first scheduled court date; (4) the assigned CPS caseworker's own progress notes, which read more favorably than the Petition: the cousin's apartment was observed 'clean, adequate food, crib set up'; J.D. is 'developmentally on track, bonded to mother, no marks or concerns'; the 'mental health' entry traces to a single ER visit for postpartum anxiety with no current diagnosis or treatment refusal; and the THC entry notes mother reported use for pregnancy nausea with 'no observed impairment in caretaking'; (5) a one-page 'Client Goals' note from the intake paralegal: Maritza wants BOTH children home immediately, is 'terrified of making the judge angry,' and 'does not want to say where the baby's father is' (the paralegal noted he may have an open bench warrant); (6) a reference excerpt pack with the text of FCA §§ 1022, 1024, 1027, 1028, and 1046(a)(iii), and headnotes for Nicholson v. Scoppetta, 3 N.Y.3d 357 (2004). The packet deliberately contains tensions and at least one date/standard that must be checked against the statute rather than assumed.",
+    "tasks": [
+      "Write a short (roughly one page) case-strategy memo to your supervisor: state your theory of the case, identify the single strongest line of defense to the neglect allegations, and recommend what immediate relief to seek and WHEN — in particular whether to make a § 1028 application for return today, seek a conditional/supervised release at the § 1027 appearance, or request a brief adjournment to investigate first. Tie the recommendation to the facts in the caseworker notes and removal paperwork, not just the Petition.",
+      "Draft the core legal argument you would make orally this afternoon in support of the children's return (or against continued removal) — as a tight argument outline or a 2-3 paragraph section, not a full brief. State the governing standard and, explicitly and correctly, who bears the burden of proof and what that burden is at the proceeding you have chosen. Address the THC-at-birth allegation under current NY law.",
+      "Draft a brief, plain-language message to Maritza (the kind you could read to her in the hallway) explaining what is about to happen, the realistic options and their trade-offs, what decision is hers to make, and what you need from her. Honor her stated goals and her stated fears.",
+      "Keep a running DECISIONS log (5-10 bullet lines) — standard practice on a fast intake. For every call you made where the file or the client left it open, record: what you chose, the alternative you rejected and why, and the one question you would put to your supervisor, the caseworker, or the paralegal before the case is called."
+    ],
+    "coverProbes": [
+      {
+        "id": "timing-of-relief",
+        "kind": "ambiguity",
+        "where": "Task 1's choice of WHEN/HOW to seek return — the packet does not tell the candidate whether to move for a § 1028 return today, negotiate a conditional release at the § 1027 appearance, or adjourn to investigate.",
+        "reveals": "A strong candidate weighs speed of reunification against the strength of the investigated record and the client's risk tolerance, and justifies the timing; a naive candidate reflexively 'files everything now' or defers without reasoning, treating the choice as procedural rather than strategic.",
+        "decisionSpace": [
+          "Move for an immediate § 1028 return hearing today (fastest reunification, but you argue on a thin, un-investigated record with no lined-up witnesses).",
+          "Seek a conditional/supervised release to mother at the § 1027 appearance (gets children home now with ACS strings attached, but may concede supervision and facts you would rather contest).",
+          "Request a short adjournment to investigate and marshal the favorable caseworker notes before the § 1028 hearing (stronger record, but the children remain removed longer)."
+        ]
+      },
+      {
+        "id": "record-contradicts-petition",
+        "kind": "legacy_trap",
+        "where": "The CPS caseworker progress notes (packet item 4) and the no-court-order removal paperwork (item 2) — buried behind the Petition's framing.",
+        "reveals": "A candidate who actually reads the agency's own notes and the removal narrative sees that ACS's record undercuts imminent risk and that the warrantless § 1024 removal may be procedurally vulnerable; a candidate who one-shots from the Petition's face argues against allegations the agency's own file already weakens, and misses the removal-procedure angle entirely.",
+        "decisionSpace": [
+          "Lead with the procedural defect (warrantless § 1024 removal / adequacy and timing of the first hearing) to seek immediate return on due-process grounds — clean if it holds, but requires verifying the dates and the § 1024 standard rather than assuming non-compliance.",
+          "Lead with the substantive weakness (the agency's own notes negate imminent risk and adequate-housing/impairment claims) and treat procedure as secondary.",
+          "Raise both but explicitly flag the removal timeline as something to confirm against the statute and the court file with the paralegal before asserting it in open court."
+        ]
+      },
+      {
+        "id": "burden-and-presumption",
+        "kind": "verification_trap",
+        "where": "Task 2's statement of the standard, burden, and the THC-at-birth theory — where a fluent-sounding draft can be doctrinally wrong.",
+        "reveals": "Naive generation tends to (a) put the burden on the parent at a § 1028 return hearing and/or (b) invoke the § 1046(a)(iii) drug-misuse prima facie presumption as if a single positive THC screen equals neglect. A careful candidate knows the AGENCY bears the burden to show that return poses an imminent risk, and that a positive toxicology at birth, without evidence of impairment or actual/imminent harm, is not presumptive neglect under current NY law (Nicholson and post-2021 NY treatment of cannabis).",
+        "decisionSpace": [
+          "Argue narrowly that ACS bears the burden of showing imminent risk and has not met it — doctrinally safe and sufficient.",
+          "Additionally attack the § 1046(a)(iii) presumption as inapplicable to a single screen absent evidence of impaired caretaking — stronger, but only if the candidate cites the right authority and current law.",
+          "Concede a prima facie showing arguendo and pivot entirely to the Nicholson balancing — that the harm of removal itself outweighs the alleged risk and reasonable efforts were not made — pragmatic, but cedes ground that may not need ceding."
+        ]
+      },
+      {
+        "id": "client-autonomy-and-the-father",
+        "kind": "underspecified",
+        "where": "The 'Client Goals' note (packet item 5) and Task 3 — the brief never says how to reconcile Maritza wanting both children home NOW, her fear of antagonizing the court, and her refusal to disclose the father's whereabouts (possible open warrant).",
+        "reveals": "A good candidate treats the lawful objectives as the client's to set, counsels rather than overrides, does not volunteer the father's location, and adjusts aggressiveness to her stated fear while explaining the trade-offs; a naive candidate either steamrolls toward the 'strongest' posture regardless of the client or passively adopts her fear without counseling her on the cost.",
+        "decisionSpace": [
+          "Honor her stated caution: pursue the lower-conflict conditional-return path and document the counseling she received.",
+          "Counsel toward the stronger § 1028 posture, lay out the risks plainly, and defer to her decision.",
+          "Bifurcate by child: press hard for the well-documented 4-year-old while taking a measured approach on the newborn, matching her priorities and the differing strength of the records."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

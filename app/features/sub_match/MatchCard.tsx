@@ -8,6 +8,7 @@ import type { MatchRef, MatchResult, Reasoning, ReasoningState } from "./MatchTy
 import { formatBandCompact, isEarlyCareer, provLabel } from "./MatchTypes";
 import { Bar, ReasoningPanel, ScoreBreakdown } from "./MatchShared";
 import { FitTierBadge } from "@/app/_components/Badge";
+import { Checkbox } from "@/app/_components/Checkbox";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 
 export function MatchCard({
@@ -102,13 +103,11 @@ export function MatchCard({
             <ConfidenceBandBadge level={m.confidence.level} drivers={m.confidence.drivers} />
             <div className="ml-auto flex items-center gap-1.5">
               {selectable && canAdd && !added ? (
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={selected}
                   onChange={onToggleSelect}
                   aria-label={t("card.shortlistAria", { title: m.title })}
                   title={t("card.shortlistTitle")}
-                  className="h-4 w-4 accent-coral"
                 />
               ) : null}
               {canAdd ? (

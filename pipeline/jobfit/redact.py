@@ -19,18 +19,33 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from .taxonomy import detected_seniority_levels, detected_skills
+
 _EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 _URL = re.compile(r"\b(?:https?://|www\.)\S+|\b(?:linkedin\.com|github\.com|gitlab\.com)/\S+", re.IGNORECASE)
 # A run of digits with phone-ish separators (>= ~9 digits), not glued to a word.
 _PHONE = re.compile(r"(?<!\w)\+?\d[\d\s().\-]{7,}\d(?!\w)")
-# Gender-coded pronouns / honorifics, EN + CS, whole word, case-insensitive.
+# Gender-coded STANDALONE pronouns, EN + CS, whole word, case-insensitive.
 # NOTE: Czech "on" (he) is deliberately EXCLUDED — it collides with the ubiquitous
 # English preposition "on", so \bon\b would redact every "on" in an English CV,
 # shredding the blind-scored text (a far bigger harm than missing the rare Czech
 # pronoun). Czech "ona" (she) has no common English whole-word collision and stays.
+# Honorific TITLES (Mr/Mrs/Ms/Miss/pan/paní/…) are NOT here — see _HONORIFIC. A bare
+# "MS"/"MR" token is far more often "MS" (Master of Science, MS SQL, MS Office) or an
+# initialism than the title "Ms", so the standalone token must never be redacted.
 _PRONOUN = re.compile(
-    r"\b(he|she|him|her|hers|his|mr|mrs|ms|miss|ona|jeho|jeji|její|pan|pani|paní|slecna|slečna)\b",
+    r"\b(he|she|him|her|hers|his|ona|jeho|jeji|její)\b",
     re.IGNORECASE,
+)
+# Honorific titles, redacted ONLY when they PREFIX a capitalized name ("Mr Smith",
+# "Ms. Nováková", "paní Dvořák") — the gender-revealing usage. English titles match
+# CASE-SENSITIVELY in title-case (Mr|Mrs|Ms|Miss), so the all-caps "MS"/"MR"
+# degree/product token ("MS SQL", "MS Office", "MSc", "M.S.", "Master of Science") is
+# never touched; the Czech titles (pan/paní/slečna) match case-insensitively. Only
+# the title itself is masked (the trailing name is left for the name pass). A
+# standalone title with no following capitalized name is not redacted at all.
+_HONORIFIC = re.compile(
+    r"\b(?:Mr|Mrs|Ms|Miss|(?i:pan|pani|paní|slecna|slečna))\.?(?=\s+[A-ZÁ-Ž])"
 )
 # Explicit age / birth markers (EN + CS).
 _AGE = re.compile(
@@ -46,6 +61,21 @@ _TITLE_WORDS = {"curriculum", "vitae", "cv", "résumé", "resume", "profile", "c
 # "Jan Novák — Senior Engineer"). The spaced hyphen " - " is included but a glued
 # hyphen is not, so a hyphenated name ("Anne-Marie") is never split.
 _NAME_SEPARATOR = re.compile(r"\s*[|•·–—,/]\s*|\s+-\s+")
+
+
+def _looks_like_role_headline(cand: str) -> bool:
+    """True when a title-cased line reads as a role / seniority / skill HEADLINE
+    ("Machine Learning Engineer", "Senior Software Developer") rather than a personal
+    name. Matched against the SHARED taxonomy vocabulary already used for scoring
+    (seniority markers + skill/role terms), so a headline is neither masked as
+    ``[NAME]`` across the document — which would blank those common CV words from the
+    blind-scored text — nor re-attached as the candidate's name. Best-effort: reuses
+    the taxonomy rather than a bespoke stop-list, so it tracks the vocabulary."""
+    if detected_seniority_levels(cand):
+        return True
+    if detected_skills(cand, limit=1):
+        return True
+    return False
 
 
 def _guess_name_line(text: str) -> str | None:
@@ -71,8 +101,15 @@ def _guess_name_line(text: str) -> str | None:
                 continue
             if any(t.lower() in _TITLE_WORDS for t in tokens):
                 continue
-            if all(_NAME_TOKEN.match(t) for t in tokens):
-                return cand
+            if not all(_NAME_TOKEN.match(t) for t in tokens):
+                continue
+            # A clean 2-4 title-cased-token line can still be a role/skill HEADLINE
+            # ("Machine Learning Engineer") rather than a name. Reject it against the
+            # taxonomy vocabulary so its common CV words aren't masked as [NAME]
+            # throughout the blind text and it isn't re-attached as the name.
+            if _looks_like_role_headline(cand):
+                continue
+            return cand
     return None
 
 
@@ -111,9 +148,17 @@ def redact_pii(text: str) -> RedactResult:
             redacted = new
             categories.append(cat)
 
-    new, n = _PRONOUN.subn("[REDACTED]", redacted)
-    if n:
-        redacted = new
+    # Gendered signals in two precise passes: standalone pronouns (he/she/…) and
+    # honorific titles that prefix a capitalized name (Mr/Ms/paní …). Keeping them
+    # separate is what lets the ubiquitous "MS" (Master of Science / MS SQL / MS
+    # Office) survive — only a title before a name is masked, never a bare token.
+    gendered_hits = 0
+    for pattern in (_PRONOUN, _HONORIFIC):
+        new, n = pattern.subn("[REDACTED]", redacted)
+        if n:
+            redacted = new
+            gendered_hits += n
+    if gendered_hits:
         categories.append("gendered terms")
 
     return RedactResult(text=redacted, categories=categories, detected_name=detected_name)

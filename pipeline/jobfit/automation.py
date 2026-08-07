@@ -24,12 +24,20 @@ from .match_reasoning import generate as generate_reasoning
 from .match_reasoning import reasoning_context
 
 SCREENING_PROMPT_VERSION = "screening-v1"
-OUTREACH_PROMPT_VERSION = "outreach-v1"
-REJECTION_PROMPT_VERSION = "rejection-v1"
+# Letter tasks v2 (backlog #34/#37): explicit --lang (the entry's resolved comms
+# locale) overrides the CV-language guess, and the prompts carry the
+# gender-neutral style directive; the offer prompt additionally forbids inventing
+# a deadline/start date (both are appended deterministically at dispatch).
+OUTREACH_PROMPT_VERSION = "outreach-v2"
+REJECTION_PROMPT_VERSION = "rejection-v2"
 PREP_PROMPT_VERSION = "interview-prep-v1"
 SCORECARD_PROMPT_VERSION = "scorecard-v3"
 REMATCH_PROMPT_VERSION = "rematch-v1"
-OFFER_PROMPT_VERSION = "offer-v1"
+# offer-v3: the result names its pricing basis — the draft-time fresh fit check
+# rides structured as `matchBasis` (rendered under its own label by the approval
+# card, REC-01/OO-L2-10) and the rationale prose says "fresh fit check", not a
+# bare "Match", so it can't read as the entry's stored match score.
+OFFER_PROMPT_VERSION = "offer-v3"
 
 # Task 7 thresholds — tunable per market/season (the only place rules live).
 POLICY: dict[str, int] = {
@@ -110,6 +118,31 @@ def _str_list(value: Any, limit: int = 8) -> list[str]:
 def _candidate_lang(candidate: MatchCandidate) -> str:
     blob = " ".join(candidate.languages).casefold()
     return "Czech" if ("czech" in blob or "česk" in blob or "cesk" in blob) else "English"
+
+
+def _letter_lang(candidate: MatchCandidate, lang: str | None) -> str:
+    """English NAME of the language a candidate-facing letter renders in.
+
+    An explicit locale code from the caller wins — the TS seam passes the entry's
+    RESOLVED comms locale (explicit apply choice, else the workspace default), so
+    the letter provably matches the deterministic chrome comms-dispatch wraps it
+    in (OO-L1-03's two-language-authorities defect). Without one (direct CLI use,
+    older callers) fall back to the historical CV-language guess."""
+    from .i18n import language_name
+
+    return language_name(lang) if lang else _candidate_lang(candidate)
+
+
+# Shared style directive for every candidate-facing letter prompt. The OO-L2 run
+# caught a live offer letter addressing a woman as 'přesně takového kolegu jsme
+# hledali' — instead of guessing gender, the letters avoid gendered forms
+# entirely (correct for every candidate, no inference needed).
+_NEUTRAL_STYLE = (
+    "Use gender-neutral wording about the candidate throughout — never gendered noun/adjective/"
+    "participle forms for them (in Czech avoid constructions like 'takového kolegu' / 'takovou "
+    "kolegyni' or 'rád/ráda'; prefer direct formal address ('Vy') and neutral phrasing such as "
+    "'přesně takovou posilu jsme hledali').\n"
+)
 
 
 def github_evidence_block(github: Any | None) -> str:
@@ -236,7 +269,9 @@ def evaluate_entry(entry: dict[str, Any]) -> dict[str, Any]:
 # ============================================================================
 
 
-def screen_candidate(candidate: MatchCandidate, job: Job, m, *, provider: Any | None = None, github: Any | None = None) -> tuple[dict, str]:
+def screen_candidate(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", provider: Any | None = None, github: Any | None = None) -> tuple[dict, str]:
+    from .i18n import language_directive
+
     ctx = reasoning_context(candidate, job, m)
     early = candidate.archetype in _EARLY_CAREER
     # PRE-LLM FAIRNESS GATE: a learnable-gap early-career candidate is never auto-rejected.
@@ -255,7 +290,12 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, provider: Any | 
             else ""
         )
         + f'Return JSON: {{ "recommendation": "{RECOMMENDATION_CHOICES}", "confidence": int 0-100, '
-        '"rationale": str, "strengths": [str], "redFlags": [str] }. JSON only.'
+        '"rationale": str, "strengths": [str], "redFlags": [str] }. JSON only.\n'
+        # rationale / strengths / redFlags are the recruiter-facing screening prose
+        # (surfaced in Decisions); generate them in the requested language while the
+        # recommendation code value stays verbatim. Deterministic fallback below
+        # stays English.
+        + language_directive(lang)
     )
 
     def deterministic() -> dict:
@@ -315,14 +355,15 @@ def screen_candidate(candidate: MatchCandidate, job: Job, m, *, provider: Any | 
 # ============================================================================
 
 
-def draft_outreach(candidate: MatchCandidate, job: Job, strengths: list[str], *, provider: Any | None = None):
-    lang = _candidate_lang(candidate)
+def draft_outreach(candidate: MatchCandidate, job: Job, strengths: list[str], *, lang: str | None = None, provider: Any | None = None):
+    lang = _letter_lang(candidate, lang)
     strong = strengths or candidate.skills[:3]
     prompt = (
         f"Draft a short, warm first-contact outreach message in {lang} inviting this candidate to apply.\n"
         f"Candidate: {candidate.label}; target: {job.title} at {job.company}.\n"
         f"Reference these strengths naturally: {', '.join(strong) or 'their background'}.\n"
-        'Return JSON: { "subject": str, "body": str, "language": str }. Keep it concise and non-creepy. JSON only.'
+        + _NEUTRAL_STYLE
+        + 'Return JSON: { "subject": str, "body": str, "language": str }. Keep it concise and non-creepy. JSON only.'
     )
 
     def deterministic() -> dict:
@@ -356,14 +397,15 @@ def draft_outreach(candidate: MatchCandidate, job: Job, strengths: list[str], *,
     return result, source
 
 
-def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, provider: Any | None = None):
-    lang = _candidate_lang(candidate)
+def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang: str | None = None, provider: Any | None = None):
+    lang = _letter_lang(candidate, lang)
     missing = m.missing_skills
     prompt = (
         f"Draft a respectful, specific, fair rejection message in {lang} for {candidate.label}, who reached the "
         f"{stage} stage for {job.title} at {job.company}. Optionally include one piece of constructive feedback. "
         "Never disclose other candidates; never use protected-characteristic language.\n"
-        'Return JSON: { "subject": str, "body": str, "feedback": str, "language": str }. JSON only.'
+        + _NEUTRAL_STYLE
+        + 'Return JSON: { "subject": str, "body": str, "feedback": str, "language": str }. JSON only.'
     )
 
     def deterministic() -> dict:
@@ -543,7 +585,9 @@ def _scorecard_confidence(notes: str, ratings: list[dict], total: int) -> dict:
     return {"level": "moderate", "reason": "Partial evidence across the competencies."}
 
 
-def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, provider: Any | None = None, github: Any | None = None):
+def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, lang: str = "en", provider: Any | None = None, github: Any | None = None):
+    from .i18n import language_directive
+
     # `model` is the base scoring model (experienced / early_career) — still the
     # value reported as result["scoringModel"] and used by the compare grid for
     # grouping. The scored rubric is that base PLUS any industry axes for the
@@ -584,7 +628,12 @@ def interview_scorecard(candidate: MatchCandidate, job: Job, notes: str, *, prov
         'Return JSON: { "ratings": [ { "competency": str (exactly one of the above), "rating": int 1-5, '
         '"evidence": str (verbatim candidate quote, or "") } ], "summary": str, '
         f'"recommendation": "{RECOMMENDATION_CHOICES}" }}. '
-        "Include every competency, in the order listed. JSON only."
+        "Include every competency, in the order listed. JSON only.\n"
+        # summary + the recommendation rationale are recruiter-facing prose;
+        # generate them in the requested language. The per-competency `evidence`
+        # stays a verbatim candidate quote and the competency + recommendation code
+        # values stay verbatim. Deterministic fallback below stays English.
+        + language_directive(lang)
     )
 
     def deterministic() -> dict:
@@ -713,7 +762,7 @@ def _round_k(value: float) -> int:
     return int(round(value / 1000.0)) * 1000
 
 
-def draft_offer(candidate: MatchCandidate, job: Job, m, *, provider: Any | None = None):
+def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = None, provider: Any | None = None):
     """Propose a number inside the role's salary band (scaled by fit) + draft the offer letter."""
     band = list(getattr(job, "salary_band", None) or [])
     if len(band) < 2 or band[0] <= 0 or band[1] < band[0]:
@@ -724,9 +773,12 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, provider: Any | None 
     # Position within the band scales with match strength (match 55 -> 10%, 95 -> 90%).
     f = max(0.1, min(0.9, (m.total - 55) / 40.0))
     recommended = max(lo, min(hi, _round_k(lo + (hi - lo) * f)))
-    lang = _candidate_lang(candidate)
+    lang = _letter_lang(candidate, lang)
+    # Name the producer (REC-01/OO-L2-10): this number is a FRESH fit check run at
+    # draft time — NOT the entry's stored match score the approval-card header
+    # shows — so the prose must never read as bare "Match N/100".
     rationale = (
-        f"Match {m.total}/100 places the offer at ~{int(round(f * 100))}% of the "
+        f"Fresh fit check {m.total}/100 at offer draft places the offer at ~{int(round(f * 100))}% of the "
         f"{lo:,}–{hi:,} {currency} band for this {job.seniority or 'mid'}-level role."
     )
 
@@ -734,6 +786,13 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, provider: Any | None 
         f"Draft a warm, professional job-offer message in {lang} for {candidate.label} for the role "
         f"{job.title} at {job.company}. Gross monthly compensation offered: {recommended:,} {currency}. "
         "Convey genuine enthusiasm, state the figure exactly once, and invite them to discuss. Keep it concise.\n"
+        + _NEUTRAL_STYLE
+        # OO-L1-04 — the response deadline is a per-offer lever chosen at approval
+        # time and the start date is agreed later; both are APPENDED to the letter
+        # deterministically at dispatch (comms-dispatch.dispatchOffer). A drafted
+        # guess here could only contradict the real terms.
+        + "Do not state a response deadline, expiry, or start date — the delivery system appends the "
+        "offer's actual deadline (and start date when known) below the letter.\n"
         'Return JSON: { "subject": str, "body": str, "language": str }. JSON only.'
     )
 
@@ -772,6 +831,10 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, provider: Any | None 
             "salaryMax": hi,
             "recommended": recommended,
             "rationale": rationale,
+            # The draft-time fit total that priced this offer, structured, so the
+            # approval card can label it ("fresh fit check at draft: N/100")
+            # instead of parsing it out of English prose (REC-01/OO-L2-10).
+            "matchBasis": m.total,
             "promptVersion": OFFER_PROMPT_VERSION,
         }
     )

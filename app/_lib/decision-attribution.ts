@@ -34,6 +34,9 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   offer_sent: { auto: false, tone: "text-steel" },
   offer_accepted: { auto: false, tone: "text-moss" },
   offer_declined: { auto: false, tone: "text-coral" },
+  // Lapsed offer (deadline passed with no candidate response) — a SYSTEM transition
+  // (auto), terminal-negative. Without this it rendered UNKNOWN + fell out of rollups.
+  offer_expired: { auto: true, tone: "text-amber-600" },
   onboarding_started: { auto: false, tone: "text-moss" },
   // Completed coverage (previously UNKNOWN in the log, invisible to any rollup):
   auto_rejected: { auto: true, tone: "text-coral" },
@@ -45,9 +48,25 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   interview_invite_sent: { auto: true, tone: "text-steel" },
   schedule_invite_sent: { auto: true, tone: "text-steel" },
   interview_reminder_sent: { auto: true, tone: "text-steel" },
+  // Interviewer brief (interview-prep #2): the assigned interviewer is emailed the
+  // prep pack + an .ics hold on booking. `skipped` = assigned but no deliverable
+  // address, so the brief never went — a gap the recruiter must close.
+  interviewer_brief_sent: { auto: true, tone: "text-steel" },
+  interviewer_brief_skipped: { auto: true, tone: "text-amber-600" },
+  // Pre-boarding nudge (candidate-onboarding-hand-off #3): the single auto-resend of
+  // the onboarding link when the questionnaire is still unsubmitted after the delay.
+  onboarding_reminder_sent: { auto: true, tone: "text-steel" },
   onboarding_failed: { auto: true, tone: "text-coral" },
   rejection_comms_failed: { auto: true, tone: "text-coral" },
   fairness_gate_unknown_archetype: { auto: true, tone: "text-coral" },
+  // Policy-pass ALERT kinds (AUTOMATION_ALERT_KINDS below) — automation-authored
+  // nudges + the fairness backstop's downgrade signal, written via
+  // recordAutomationEvent's alert loop. Previously UNMAPPED: they rendered an
+  // UNKNOWN badge and fell out of every attribution rollup, and the writer-coverage
+  // test's hardcoded list hid the gap (bug-ui-scan §hiring-automation #4).
+  aging_alert: { auto: true, tone: "text-amber-600" },
+  stale_alert: { auto: true, tone: "text-amber-600" },
+  fairness_gate_blocked_reject: { auto: true, tone: "text-coral" },
   observed_minted: { auto: true, tone: "text-steel" },
   matched: { auto: true, tone: "text-steel" },
   intake_degraded: { auto: true, tone: "text-coral" },
@@ -55,7 +74,22 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   moved: { auto: false, tone: "text-steel" },
   added: { auto: false, tone: "text-steel" },
   intake_resolved: { auto: false, tone: "text-moss" },
+  // A recruiter reopening a closed role restores the candidates that role's close
+  // withdrew — a HUMAN-initiated, positive restoration. Without a mapping it
+  // rendered UNKNOWN in the decision log and fell out of any attribution rollup.
+  role_reopened: { auto: false, tone: "text-moss" },
 };
+
+// Policy-pass ALERT kinds — the aging/stale nudges evaluate_entry emits
+// (pipeline/jobfit/automation.py) plus the TS fairness backstop's downgrade
+// (FAIRNESS_BLOCKED_REJECT_ALERT). They flow through recordAutomationEvent's alert
+// loop, so they are automation-authored (auto:true above). Exported as the ONE
+// source of truth: automation-pass.ts consumes FAIRNESS_GATE_BLOCKED_REJECT from
+// here, and decision-attribution.test.ts derives its writer-coverage list from
+// AUTOMATION_ALERT_KINDS — so a new alert kind can't be written without a
+// DECISION_META mapping (the drift this module exists to stop).
+export const FAIRNESS_GATE_BLOCKED_REJECT = "fairness_gate_blocked_reject";
+export const AUTOMATION_ALERT_KINDS = ["aging_alert", "stale_alert", FAIRNESS_GATE_BLOCKED_REJECT] as const;
 
 // Outcome state of one automation-pass decision (persisted in
 // scheduler_runs.decisions_json). Rows persisted before the field existed are
@@ -93,16 +127,6 @@ export function decisionAttribution(kind: string): "auto" | "human" | "unknown" 
 // `key: string` is cast to the translator's key type internally.
 type KindTranslator = { (key: never): string };
 
-// ONE "decision kind -> human label" resolver, shared by the DecisionLog rows /
-// CSV / filter and the RoiLedger CSV (ANA). A kind present in DECISION_META reads
-// its `kinds.<kind>` catalog entry; an unmapped kind degrades to the de-snaked raw
-// value (instead of rendering the raw catalog KEY or throwing). Callers pass their
-// own `analytics.log` translator instance so the namespace is resolved once.
-export function kindLabel<T extends KindTranslator>(t: T, kind: string): string {
-  if (kind in DECISION_META) return t(`kinds.${kind}` as Parameters<T>[0]);
-  return kind.replace(/_/g, " ");
-}
-
 // The dispatched-communication kinds — what the rollup reports as "comms
 // delivered". comm_resent counts too: a resend is a delivery (human-initiated,
 // so it still lands in humanCount above).
@@ -112,10 +136,43 @@ export const COMM_SENT_KINDS = [
   "interview_invite_sent",
   "schedule_invite_sent",
   "interview_reminder_sent",
+  "interviewer_brief_sent",
+  "onboarding_reminder_sent",
   "offer_sent",
   "acknowledgement_sent",
   "comm_resent",
 ] as const;
+
+const COMM_SENT_SET: ReadonlySet<string> = new Set(COMM_SENT_KINDS);
+
+// ONE "decision kind -> human label" resolver, shared by the DecisionLog rows /
+// CSV / filter and the RoiLedger CSV (ANA). A kind present in DECISION_META reads
+// its `kinds.<kind>` catalog entry; an unmapped kind degrades to the de-snaked raw
+// value (instead of rendering the raw catalog KEY or throwing). Callers pass their
+// own `analytics.log` translator instance so the namespace is resolved once.
+//
+// REC-10 honesty: the historical `*_sent` labels ("Rejection sent", "Offer
+// sent") claim a delivery the channel layer never performs when no relay is
+// configured — every message is then a terminal `queued` row in the local
+// outbox. Callers that know the capability bit (useDeliveryCapability /
+// isRelayConfigured) pass it in: a definite `false` swaps every dispatched-comm
+// kind to its `kindsQueued.<kind>` variant ("… recorded in Outbox — not
+// delivered"). `true`/unknown keeps the classic labels — never accuse a
+// configured relay of dropping mail. The variant catalog is membership-locked
+// by comms-truth.test.ts.
+export function kindLabel<T extends KindTranslator>(
+  t: T,
+  kind: string,
+  opts?: { relayConfigured?: boolean | null }
+): string {
+  if (kind in DECISION_META) {
+    if (opts?.relayConfigured === false && COMM_SENT_SET.has(kind)) {
+      return t(`kindsQueued.${kind}` as Parameters<T>[0]);
+    }
+    return t(`kinds.${kind}` as Parameters<T>[0]);
+  }
+  return kind.replace(/_/g, " ");
+}
 
 export type AutomationImpact = {
   autoCount: number;

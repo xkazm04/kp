@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { computeAdverseImpact, FOUR_FIFTHS } from "./adverse-impact.ts";
+import { computeAdverseImpact, FOUR_FIFTHS, ADVERSE_IMPACT_MIN_COHORT } from "./adverse-impact.ts";
 
 test("classic EEOC example: 80% vs 40% selection flags the lower group", () => {
   const r = computeAdverseImpact([
@@ -96,4 +96,67 @@ test("bad data is clamped: selected > total cannot exceed a 100% rate", () => {
   assert.equal(b.selected, 0);
   assert.equal(b.impactRatio, 0);
   assert.equal(b.adverseImpact, true);
+});
+
+// bug-ui-scan 2026-07-09 (analytics-calibration-dashboards #2): the four-fifths rule had NO
+// minimum-sample floor, so a 1-applicant group at 100% became the reference every other group
+// was measured against, flipping a legally-loaded verdict. Its siblings DO gate on cohort size
+// (MIN_CALIBRATION_OUTCOMES, SALARY_BENCHMARK_MIN_COHORT), so this was an inconsistency, not a
+// design choice. "Insufficient sample" must be a THIRD state, never a quiet "no adverse impact".
+
+const N = ADVERSE_IMPACT_MIN_COHORT;
+
+test("a sub-floor group can never become the reference", () => {
+  // The exact trap: one applicant, selected, 100% rate. Under the old code this anchored the
+  // ratio and dragged a perfectly healthy 60%-vs-60% comparison below four-fifths.
+  const r = computeAdverseImpact([
+    { group: "tiny", selected: 1, total: 1 },
+    { group: "a", selected: 60, total: 100 },
+    { group: "b", selected: 60, total: 100 },
+  ]);
+  assert.equal(r.referenceGroup, "a", "the reference must be a group that clears the floor");
+  const tiny = r.groups.find((g) => g.group === "tiny")!;
+  assert.equal(tiny.reliable, false);
+  assert.equal(tiny.isReference, false);
+  assert.equal(tiny.impactRatio, null, "an unreliable rate is never turned into a ratio");
+  assert.equal(tiny.adverseImpact, false);
+  assert.equal(r.anyAdverseImpact, false, "two healthy equal groups are not adverse impact");
+});
+
+test("insufficient sample is a distinct state, not a clean bill of health", () => {
+  const r = computeAdverseImpact([
+    { group: "a", selected: 3, total: 5 },
+    { group: "b", selected: 1, total: 4 },
+  ]);
+  assert.equal(r.reliable, false, "fewer than two groups clear the floor");
+  // b's rate is 25% vs a's 60% -> ratio 0.42, well under four-fifths. It must NOT be flagged,
+  // because the sample cannot support the finding...
+  assert.equal(r.anyAdverseImpact, false);
+  // ...and every group must advertise that its own rate is untrustworthy, so the UI can render
+  // "insufficient sample" rather than a green "no adverse impact".
+  assert.ok(r.groups.every((g) => !g.reliable && g.impactRatio === null));
+});
+
+test("a real four-fifths violation is still caught once both groups clear the floor", () => {
+  const r = computeAdverseImpact([
+    { group: "ref", selected: N, total: N }, // 100%
+    { group: "low", selected: Math.floor(N * 0.5), total: N }, // 50% -> ratio 0.5 < 0.8
+  ]);
+  assert.equal(r.reliable, true);
+  assert.equal(r.referenceGroup, "ref");
+  const low = r.groups.find((g) => g.group === "low")!;
+  assert.equal(low.reliable, true);
+  assert.ok(low.impactRatio !== null && low.impactRatio < FOUR_FIFTHS);
+  assert.equal(low.adverseImpact, true);
+  assert.equal(r.anyAdverseImpact, true, "the floor must not suppress a genuine finding");
+});
+
+test("a group exactly at the floor is reliable; one below it is not", () => {
+  const r = computeAdverseImpact([
+    { group: "at", selected: 10, total: N },
+    { group: "below", selected: 10, total: N - 1 },
+  ]);
+  assert.equal(r.groups.find((g) => g.group === "at")!.reliable, true);
+  assert.equal(r.groups.find((g) => g.group === "below")!.reliable, false);
+  assert.equal(r.reliable, false, "only one group clears the floor, so nothing can be measured");
 });

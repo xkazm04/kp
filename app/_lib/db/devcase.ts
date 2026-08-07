@@ -2,6 +2,7 @@ import { coerceOutboxStatus, type OutboxStatus } from "../comms-status";
 import { randomId } from "../random-id";
 import type { DevNeed } from "../devcase-run";
 import { ensureDb, safeRowParse } from "./core";
+import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 // ---- Dev extension — approved case scenarios (Phase D3) -------------------
 
@@ -68,18 +69,21 @@ export function saveDevCaseSeed(id: string, seed: unknown): void {
   db.prepare(`UPDATE dev_cases SET seed_json = ? WHERE id = ?`).run(JSON.stringify(seed ?? null), id);
 }
 
-export function saveDevCase(input: {
-  need: unknown;
-  analysis: unknown;
-  role: { title?: string; seniority?: string } & Record<string, unknown>;
-  case: { title?: string } & Record<string, unknown>;
-}): { id: string; createdAt: string } {
+export function saveDevCase(
+  input: {
+    need: unknown;
+    analysis: unknown;
+    role: { title?: string; seniority?: string } & Record<string, unknown>;
+    case: { title?: string } & Record<string, unknown>;
+  },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { id: string; createdAt: string } {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("dc");
   db.prepare(
-    `INSERT INTO dev_cases (id, title, role_title, seniority, need_json, analysis_json, role_json, case_json, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)`
+    `INSERT INTO dev_cases (id, title, role_title, seniority, need_json, analysis_json, role_json, case_json, status, created_at, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?)`
   ).run(
     id,
     input.case.title ?? null,
@@ -89,14 +93,17 @@ export function saveDevCase(input: {
     JSON.stringify(input.analysis ?? null),
     JSON.stringify(input.role ?? null),
     JSON.stringify(input.case ?? null),
-    now
+    now,
+    workspaceId
   );
   return { id, createdAt: now };
 }
 
-export function listDevCases(limit = 50): DevCaseRecord[] {
+export function listDevCases(limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): DevCaseRecord[] {
   const db = ensureDb();
-  const rows = db.prepare(`SELECT * FROM dev_cases ORDER BY created_at DESC LIMIT ?`).all(limit) as DevCaseRow[];
+  const rows = db
+    .prepare(`SELECT * FROM dev_cases WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`)
+    .all(workspaceId, limit) as DevCaseRow[];
   return rows.map(rowToDevCase);
 }
 
@@ -162,15 +169,16 @@ function rowToLifecycle(r: Record<string, unknown>): LifecycleRecord {
 export function createLifecycle(
   need: { title?: string } & Record<string, unknown>,
   auto: boolean,
-  lang?: string | null
+  lang?: string | null,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): LifecycleRecord {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("lc");
   db.prepare(
-    `INSERT INTO dev_lifecycle (id, title, stage, auto, need_json, detail, lang, created_at, updated_at)
-     VALUES (?, ?, 'intake', ?, ?, 'created', ?, ?, ?)`
-  ).run(id, need.title ?? "Untitled role", auto ? 1 : 0, JSON.stringify(need), lang ?? null, now, now);
+    `INSERT INTO dev_lifecycle (id, title, stage, auto, need_json, detail, lang, created_at, updated_at, workspace_id)
+     VALUES (?, ?, 'intake', ?, ?, 'created', ?, ?, ?, ?)`
+  ).run(id, need.title ?? "Untitled role", auto ? 1 : 0, JSON.stringify(need), lang ?? null, now, now, workspaceId);
   return getLifecycle(id)!;
 }
 
@@ -180,9 +188,11 @@ export function getLifecycle(id: string): LifecycleRecord | null {
   return r ? rowToLifecycle(r) : null;
 }
 
-export function listLifecycles(limit = 50): LifecycleRecord[] {
+export function listLifecycles(limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): LifecycleRecord[] {
   const db = ensureDb();
-  const rows = db.prepare(`SELECT * FROM dev_lifecycle ORDER BY created_at DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
+  const rows = db
+    .prepare(`SELECT * FROM dev_lifecycle WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`)
+    .all(workspaceId, limit) as Array<Record<string, unknown>>;
   return rows.map(rowToLifecycle);
 }
 
@@ -215,6 +225,28 @@ export function updateLifecycle(
   db.prepare(`UPDATE dev_lifecycle SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
 }
 
+/**
+ * Atomic close-claim (bug-ui-scan-2026-07-09 #1). Flip the lifecycle to "closed"
+ * in ONE conditional statement and report whether THIS call performed the flip.
+ * `WHERE stage != 'closed'` is the compare-and-set: SQLite serializes the write,
+ * so of any number of overlapping / retried closes exactly the first sees
+ * `changes === 1` (returns true) and thus the sole right to run the adverse-action
+ * rejection dispatch; every later caller sees `changes === 0` (returns false) and
+ * no-ops. Synchronous by design — the flip is committed BEFORE the route's async
+ * `sendComm` loop begins, so a later send failure cannot roll the close back: the
+ * decision is the source of truth, the comms are best-effort (a missed note is
+ * recoverable from the durable Outbox via Resend). Replaces the old
+ * read-`stage`-then-`await`-then-write guard, whose check/act gap let two
+ * concurrent closes each re-send a full rejection batch.
+ */
+export function claimLifecycleClose(id: string): boolean {
+  const db = ensureDb();
+  const info = db
+    .prepare(`UPDATE dev_lifecycle SET stage = 'closed', updated_at = ? WHERE id = ? AND stage != 'closed'`)
+    .run(new Date().toISOString(), id);
+  return Number(info.changes) > 0;
+}
+
 // The one approve transition: persist the designed artifacts as a dev case and
 // flip the lifecycle to "approved" in a SINGLE transaction. Both writes hit this
 // connection, so wrapping them means a concurrent writer (another lifecycle task,
@@ -230,12 +262,18 @@ export function approveLifecycleCase(
 ): { caseId: string } {
   const db = ensureDb();
   const caseId = db.transaction(() => {
-    const saved = saveDevCase({
-      need: lc.need,
-      analysis: lc.analysis,
-      role: lc.role ?? {},
-      case: lc.case ?? {},
-    });
+    // Tenant (P1): the approved case inherits the lifecycle's workspace (by-id read,
+    // globally-unique lifecycle id — exempt from workspace scoping).
+    const wsRow = db.prepare(`SELECT workspace_id FROM dev_lifecycle WHERE id = ?`).get(id) as { workspace_id?: string } | undefined;
+    const saved = saveDevCase(
+      {
+        need: lc.need,
+        analysis: lc.analysis,
+        role: lc.role ?? {},
+        case: lc.case ?? {},
+      },
+      wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID
+    );
     updateLifecycle(id, { stage: "approved", caseId: saved.id, detail });
     return saved.id;
   })();
@@ -311,10 +349,17 @@ export function recordOutbox(input: {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("out");
+  // Tenant (P1): derive from the referenced pipeline entry (ref = entry id — comms.ts
+  // resolves it via getPipelineEntry) so no comms call site threads a workspace; an
+  // entry-less / system message falls back to the default workspace.
+  const wsRow = input.ref
+    ? (db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.ref) as { workspace_id?: string } | undefined)
+    : undefined;
+  const workspaceId = wsRow?.workspace_id ?? "workspace";
   db.prepare(
-    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now);
+    `INSERT INTO dev_outbox (id, recipient, subject, body, kind, channel, status, ref, created_at, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, input.recipient, input.subject, input.body, input.kind, input.channel, input.status, input.ref ?? null, now, workspaceId);
   return { id, ...input, ref: input.ref ?? null, createdAt: now };
 }
 
@@ -334,42 +379,51 @@ function rowToOutboxEntry(r: Record<string, unknown>): OutboxEntry {
   };
 }
 
-export function listOutbox(limit = 50): OutboxEntry[] {
+export function listOutbox(limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): OutboxEntry[] {
   const db = ensureDb();
-  const rows = db.prepare(`SELECT * FROM dev_outbox ORDER BY created_at DESC LIMIT ?`).all(limit) as Array<Record<string, unknown>>;
+  const rows = db
+    .prepare(`SELECT * FROM dev_outbox WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`)
+    .all(workspaceId, limit) as Array<Record<string, unknown>>;
   return rows.map(rowToOutboxEntry);
 }
 
 /** One outbox row by id — the resend route's read (W6-1). */
-export function getOutboxEntry(id: string): OutboxEntry | null {
+export function getOutboxEntry(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): OutboxEntry | null {
   const db = ensureDb();
-  const r = db.prepare(`SELECT * FROM dev_outbox WHERE id = ?`).get(id) as Record<string, unknown> | undefined;
+  const r = db.prepare(`SELECT * FROM dev_outbox WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as
+    | Record<string, unknown>
+    | undefined;
   return r ? rowToOutboxEntry(r) : null;
 }
 
 /** Filterable outbox read (W6-1/SIM1) — per-candidate ("what did this person
  *  receive?"), per-status (dead-letter triage) and per-kind views for the Comms
  *  Center and the drawer's Messages section. All filters optional. */
-export function listOutboxFiltered(opts: { ref?: string; status?: OutboxStatus; kind?: string; limit?: number }): OutboxEntry[] {
+export function listOutboxFiltered(
+  opts: { ref?: string; status?: OutboxStatus; kind?: string; limit?: number },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): OutboxEntry[] {
   const db = ensureDb();
-  const where: string[] = [];
-  const vals: unknown[] = [];
+  // workspace_id is the ALWAYS-present base filter (P1 tenant scope); the optional
+  // ref/status/kind facets AND onto it.
+  const extra: string[] = [];
+  const vals: unknown[] = [workspaceId];
   if (opts.ref) {
-    where.push("ref = ?");
+    extra.push("ref = ?");
     vals.push(opts.ref);
   }
   if (opts.status) {
-    where.push("status = ?");
+    extra.push("status = ?");
     vals.push(opts.status);
   }
   if (opts.kind) {
-    where.push("kind = ?");
+    extra.push("kind = ?");
     vals.push(opts.kind);
   }
   vals.push(Math.min(Math.max(opts.limit ?? 100, 1), 500));
   const rows = db
     .prepare(
-      `SELECT * FROM dev_outbox ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY created_at DESC LIMIT ?`
+      `SELECT * FROM dev_outbox WHERE workspace_id = ?${extra.length ? ` AND ${extra.join(" AND ")}` : ""} ORDER BY created_at DESC LIMIT ?`
     )
     .all(...vals) as Array<Record<string, unknown>>;
   return rows.map(rowToOutboxEntry);
@@ -385,21 +439,24 @@ export function createPosting(input: {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("pst");
+  // Tenant (P1): a posting inherits its case's workspace (by-id read of the team's case).
+  const wsRow = db.prepare(`SELECT workspace_id FROM dev_cases WHERE id = ?`).get(input.caseId) as { workspace_id?: string } | undefined;
+  const workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
   db.prepare(
-    `INSERT INTO dev_postings (id, case_id, channel, token, role_title, case_title, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'open', ?)`
-  ).run(id, input.caseId, input.channel, input.token, input.roleTitle, input.caseTitle, now);
+    `INSERT INTO dev_postings (id, case_id, channel, token, role_title, case_title, status, created_at, workspace_id)
+     VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?)`
+  ).run(id, input.caseId, input.channel, input.token, input.roleTitle, input.caseTitle, now, workspaceId);
   return { id, caseId: input.caseId, channel: input.channel, token: input.token, roleTitle: input.roleTitle, caseTitle: input.caseTitle, status: "open", createdAt: now };
 }
 
-export function listPostings(): Posting[] {
+export function listPostings(workspaceId: string = DEFAULT_WORKSPACE_ID): Posting[] {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT p.*, (SELECT COUNT(*) FROM dev_submissions s WHERE s.posting_id = p.id) AS submission_count
-       FROM dev_postings p ORDER BY p.created_at DESC`
+       FROM dev_postings p WHERE p.workspace_id = ? ORDER BY p.created_at DESC`
     )
-    .all() as Array<Record<string, unknown>>;
+    .all(workspaceId) as Array<Record<string, unknown>>;
   return rows.map((r) => ({
     id: r.id as string,
     caseId: (r.case_id as string) ?? null,
@@ -443,13 +500,16 @@ export function createSubmission(input: {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("sub");
+  // Tenant (P1): a submission inherits the posting's workspace (by-id read of the posting).
+  const wsRow = db.prepare(`SELECT workspace_id FROM dev_postings WHERE id = ?`).get(input.postingId) as { workspace_id?: string } | undefined;
+  const workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
   const info = db
     .prepare(
-      `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, contact, status, received_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'received', ?)
+      `INSERT INTO dev_submissions (id, posting_id, candidate_ref, repo_ref, notes, contact, status, received_at, workspace_id)
+       VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
        ON CONFLICT DO NOTHING`
     )
-    .run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, input.contact ?? null, now);
+    .run(id, input.postingId, input.candidateRef, input.repoRef, input.notes ?? null, input.contact ?? null, now, workspaceId);
   const created = Number(info.changes) > 0;
   // Re-select the canonical row: ours if just created, otherwise the row that
   // won the race / was inserted earlier.
@@ -463,12 +523,12 @@ export function createSubmission(input: {
   return { submission: rowToSubmission(row), created };
 }
 
-export function listSubmissions(postingId?: string): DevSubmission[] {
+export function listSubmissions(postingId?: string, workspaceId: string = DEFAULT_WORKSPACE_ID): DevSubmission[] {
   const db = ensureDb();
   const rows = (
     postingId
-      ? db.prepare(`SELECT * FROM dev_submissions WHERE posting_id = ? ORDER BY received_at DESC`).all(postingId)
-      : db.prepare(`SELECT * FROM dev_submissions ORDER BY received_at DESC`).all()
+      ? db.prepare(`SELECT * FROM dev_submissions WHERE posting_id = ? AND workspace_id = ? ORDER BY received_at DESC`).all(postingId, workspaceId)
+      : db.prepare(`SELECT * FROM dev_submissions WHERE workspace_id = ? ORDER BY received_at DESC`).all(workspaceId)
   ) as Array<Record<string, unknown>>;
   return rows.map(rowToSubmission);
 }
@@ -482,7 +542,7 @@ export function getSubmission(id: string): DevSubmission | null {
 // ---- Live Work Surface (moonshot E) — in-product work sessions ------------
 // Events are typed locally (not imported from the features layer) so the db
 // stays a leaf; the API route coerces the wire JSON into this shape.
-export type DevSessionEvent = { t: number; kind: string; path?: string | null };
+export type DevSessionEvent = { t: number; kind: string; path?: string | null; size?: number | null };
 export type DevSessionFile = { path: string; contents: string };
 export type DevSession = {
   id: string;
@@ -514,10 +574,17 @@ export function startDevSession(input: { token?: string | null; candidateRef?: s
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("dsess");
+  // Tenant (P1): a live-work session inherits the workspace of the posting its token
+  // belongs to (by-token read of the posting); an anonymous/tokenless session falls
+  // back to the default workspace.
+  const wsRow = input.token
+    ? (db.prepare(`SELECT workspace_id FROM dev_postings WHERE token = ?`).get(input.token) as { workspace_id?: string } | undefined)
+    : undefined;
+  const workspaceId = wsRow?.workspace_id ?? DEFAULT_WORKSPACE_ID;
   db.prepare(
-    `INSERT INTO dev_sessions (id, token, candidate_ref, files_json, status, created_at, updated_at)
-     VALUES (?, ?, ?, '[]', 'active', ?, ?)`
-  ).run(id, input.token ?? null, input.candidateRef ?? null, now, now);
+    `INSERT INTO dev_sessions (id, token, candidate_ref, files_json, status, created_at, updated_at, workspace_id)
+     VALUES (?, ?, ?, '[]', 'active', ?, ?, ?)`
+  ).run(id, input.token ?? null, input.candidateRef ?? null, now, now, workspaceId);
   return getDevSession(id)!;
 }
 
@@ -530,9 +597,11 @@ export function getDevSession(id: string): DevSession | null {
 export function getDevSessionEvents(id: string): DevSessionEvent[] {
   const db = ensureDb();
   const rows = db
-    .prepare(`SELECT t, kind, path FROM dev_session_events WHERE session_id = ? ORDER BY seq ASC`)
+    .prepare(`SELECT t, kind, path, size FROM dev_session_events WHERE session_id = ? ORDER BY seq ASC`)
     .all(id) as Array<Record<string, unknown>>;
-  return rows.map((r) => ({ t: Number(r.t), kind: r.kind as string, path: (r.path as string) ?? null }));
+  // `size` carries the paste magnitude for "paste" events (bulk-paste authenticity
+  // signal); NULL for other kinds and legacy rows → surfaced as null.
+  return rows.map((r) => ({ t: Number(r.t), kind: r.kind as string, path: (r.path as string) ?? null, size: r.size == null ? null : Number(r.size) }));
 }
 
 /** Save the (editable) seed tree. No-op once the session is submitted. */
@@ -554,14 +623,20 @@ export function appendDevSessionEvents(id: string, events: DevSessionEvent[]): n
   if (!events?.length) return 0;
   const now = new Date().toISOString();
   const tx = db.transaction((): number => {
-    const active = db.prepare(`SELECT status FROM dev_sessions WHERE id = ?`).get(id) as { status: string } | undefined;
+    // Read status + tenant together (by-id): events inherit their session's workspace.
+    const active = db.prepare(`SELECT status, workspace_id FROM dev_sessions WHERE id = ?`).get(id) as
+      | { status: string; workspace_id?: string }
+      | undefined;
     if (!active || active.status !== "active") return 0;
+    const workspaceId = active.workspace_id ?? DEFAULT_WORKSPACE_ID;
     const max = db.prepare(`SELECT COALESCE(MAX(seq), 0) AS m FROM dev_session_events WHERE session_id = ?`).get(id) as { m: number };
     let seq = Number(max.m);
-    const stmt = db.prepare(`INSERT INTO dev_session_events (session_id, seq, t, kind, path, created_at) VALUES (?, ?, ?, ?, ?, ?)`);
+    const stmt = db.prepare(`INSERT INTO dev_session_events (session_id, seq, t, kind, path, size, created_at, workspace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
     for (const e of events) {
       seq += 1;
-      stmt.run(id, seq, Number.isFinite(e.t) ? e.t : null, String(e.kind), e.path ?? null, now);
+      // `size` = paste magnitude (char count) for "paste" events; null otherwise.
+      const size = typeof e.size === "number" && Number.isFinite(e.size) ? e.size : null;
+      stmt.run(id, seq, Number.isFinite(e.t) ? e.t : null, String(e.kind), e.path ?? null, size, now, workspaceId);
     }
     db.prepare(`UPDATE dev_sessions SET updated_at = ? WHERE id = ?`).run(now, id);
     return seq;

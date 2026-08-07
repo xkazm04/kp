@@ -14,13 +14,15 @@ import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
 import { assertAutoRejectFair, type AutoRejectVerdict } from "./automation-fairness";
-import type { DecisionOutcome } from "./decision-attribution";
+import { FAIRNESS_GATE_BLOCKED_REJECT, type DecisionOutcome } from "./decision-attribution";
 
 // Audit event kind logged when the TS fairness backstop refuses a Python reject
 // and downgrades it to a hold. A non-zero count here means an upstream regression
 // tried to auto-reject an entry the fairness invariant protects — see
-// automation-fairness.ts (assertAutoRejectFair).
-export const FAIRNESS_BLOCKED_REJECT_ALERT = "fairness_gate_blocked_reject";
+// automation-fairness.ts (assertAutoRejectFair). Sourced from the shared
+// AUTOMATION_ALERT_KINDS set (decision-attribution.ts) so the writer and the
+// attribution map can never key it differently.
+export const FAIRNESS_BLOCKED_REJECT_ALERT = FAIRNESS_GATE_BLOCKED_REJECT;
 
 // THE single encoding of the fairness-backstop downgrade, shared by the dry-run
 // preview loop and the commit loop so the preview provably shows the SAME verdict
@@ -175,11 +177,11 @@ async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean)
           // post-scoring verdict, but persist nothing — the committed run
           // recomputes the same deterministic score and writes it then.
           e.matchScore = score;
-        } else if (setEntryMatchScore(e.id, score)) {
+        } else if (setEntryMatchScore(e.id, score, e.workspaceId)) {
           // Patch the in-memory snapshot so THIS pass's policy step (and the
           // fairness backstop reading the same snapshot) sees the fresh score.
           e.matchScore = score;
-          recordAutomationEvent(e.id, "scored", `${score} vs ${e.jobTitle ?? jobId}`);
+          recordAutomationEvent(e.id, "scored", `${score} vs ${e.jobTitle ?? jobId}`, e.workspaceId);
         }
       }
     } catch (error) {
@@ -259,9 +261,12 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
       // pass) may have moved the entry meanwhile. Passing expectedStage makes a
       // stale verdict a logged no-op instead of an action applied to whatever
       // stage the entry happens to be in NOW.
-      const snapshotStage = byId.get(d.entryId)?.stage;
+      // Global sweep spans teams, so each write scopes to THIS entry's own workspace.
+      const entrySnap = byId.get(d.entryId);
+      const snapshotStage = entrySnap?.stage;
+      const entryWs = entrySnap?.workspaceId;
       if (d.action === "advance") {
-        const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, actor: "system" }); // logs `auto_advanced` + stamps stage_changed_at
+        const applied = actOnPipelineEntry(d.entryId, "accept", d.reason, { expectedStage: snapshotStage, expectedApprovalKind: entrySnap?.approvalKind, actor: "system" }, entryWs); // logs `auto_advanced` + stamps stage_changed_at; the approval CAS refuses if a human queued a review mid-hop
         if (applied) {
           summary.advanced += 1;
           d.outcome = "applied";
@@ -295,9 +300,10 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
             "rejection_review",
             JSON.stringify({
               recommendation: "reject",
-              confidence: byId.get(d.entryId)?.matchScore ?? null,
+              confidence: entrySnap?.matchScore ?? null,
               rationale: d.reason,
-            })
+            }),
+            entryWs
           );
           d.outcome = "queued";
           d.reason = `Queued for approval: ${d.reason}`;
@@ -308,8 +314,8 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         d.outcome = "applied";
       }
       for (const alert of d.alerts ?? []) {
-        if (!hasEventToday(d.entryId, alert)) {
-          recordAutomationEvent(d.entryId, alert, d.reason);
+        if (!hasEventToday(d.entryId, alert, entryWs)) {
+          recordAutomationEvent(d.entryId, alert, d.reason, entryWs);
           summary.alerts += 1;
         }
       }

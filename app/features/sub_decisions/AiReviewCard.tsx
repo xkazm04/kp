@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Check, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RATING_MAX } from "@/app/_lib/format";
+import { OFFER_TTL_DAYS_MIN, OFFER_TTL_DAYS_MAX, defaultOfferTtlDays } from "@/app/_lib/offer-policy";
 import { CandidateHead, MiniList, RecBadge } from "./DecisionsShared";
 import type { Entry, Offer, Scorecard, Screening } from "./DecisionsTypes";
 
@@ -11,8 +13,12 @@ import type { Entry, Offer, Scorecard, Screening } from "./DecisionsTypes";
 // the dots too (no second [1,2,3,4,5] to chase).
 const RATING_SCALE = Array.from({ length: RATING_MAX }, (_, i) => i + 1);
 
-export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAccept: () => void; onReject: () => void }) {
+export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAccept: (ttlDays?: number) => void; onReject: () => void }) {
   const t = useTranslations("decisions.aiReview");
+  // The recruiter's deadline lever (offers-onboarding #3): a per-offer window in
+  // whole days, defaulting to the deployment default. Sent with the accept that
+  // extends the offer; the candidate's countdown then reflects it.
+  const [ttlDays, setTtlDays] = useState<number>(defaultOfferTtlDays());
   let parsed: (Screening & Scorecard & Offer) | null = null;
   try {
     parsed = entry.approvalDetail ? (JSON.parse(entry.approvalDetail) as Screening & Scorecard & Offer) : null;
@@ -22,6 +28,24 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
   const kind = entry.approvalKind;
   const isScorecard = kind === "scorecard_review";
   const isOffer = kind === "offer_review";
+  // ONE labeled pricing basis (OO-L2-10 / REC-01): the salary was priced by a
+  // FRESH fit check at draft time — a different producer from the header's
+  // canonical match score, so it renders under its own label, never as a second
+  // bare "Match N/100". offer-v3 payloads carry it structured (matchBasis);
+  // persisted offer-v2 drafts are recovered from their deterministic rationale
+  // template ("Match N/100 places the offer…" — always template-generated, so
+  // the parse is reliable); anything else falls back to the stored prose.
+  const legacyBasis =
+    isOffer && typeof parsed?.matchBasis !== "number" && typeof parsed?.rationale === "string"
+      ? /^Match (\d+)\/100 /.exec(parsed.rationale)
+      : null;
+  const pricingBasis = isOffer
+    ? typeof parsed?.matchBasis === "number"
+      ? parsed.matchBasis
+      : legacyBasis
+        ? Number(legacyBasis[1])
+        : null
+    : null;
   // AUTO1 — a supervised-clock reject queued for ratification. Same screening
   // payload shape; the tag names what clicking Reject actually does (apply +
   // email the rejection) so the reviewer knows this card IS the adverse action.
@@ -75,7 +99,44 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
                   currency: String(parsed.currency ?? ""),
                 })}
               </p>
-              <p className="mt-1">{parsed.rationale}</p>
+              {/* See pricingBasis above — labeled, localized, one number with a named
+                  producer. Only an unparseable payload falls back to raw prose. */}
+              {pricingBasis != null ? (
+                <p className="mt-1">
+                  {t("pricingBasis", {
+                    score: pricingBasis,
+                    pct: Math.max(
+                      0,
+                      Math.min(
+                        100,
+                        Math.round(
+                          ((Number(parsed.recommended) - Number(parsed.salaryMin)) /
+                            Math.max(1, Number(parsed.salaryMax) - Number(parsed.salaryMin))) *
+                            100
+                        )
+                      )
+                    ),
+                  })}
+                </p>
+              ) : (
+                <p className="mt-1">{parsed.rationale}</p>
+              )}
+              <label className="mt-2 flex items-center gap-2 text-sm text-steel">
+                <span>{t("deadlineLabel")}</span>
+                <input
+                  type="number"
+                  min={OFFER_TTL_DAYS_MIN}
+                  max={OFFER_TTL_DAYS_MAX}
+                  value={ttlDays}
+                  onChange={(e) => {
+                    const n = Math.round(Number(e.target.value));
+                    if (Number.isFinite(n)) setTtlDays(Math.min(OFFER_TTL_DAYS_MAX, Math.max(OFFER_TTL_DAYS_MIN, n)));
+                  }}
+                  aria-label={t("deadlineLabel")}
+                  className="focus-ring w-16 rounded-md border border-stone-200 bg-white px-2 py-1 text-sm text-ink caret-coral"
+                />
+                <span>{t("deadlineDays")}</span>
+              </label>
             </>
           ) : isScorecard ? (
             <>
@@ -111,7 +172,7 @@ export function AiReviewCard({ entry, onAccept, onReject }: { entry: Entry; onAc
         <button
           type="button"
           data-sim-click="accept"
-          onClick={onAccept}
+          onClick={() => onAccept(isOffer ? ttlDays : undefined)}
           className="focus-ring inline-flex h-9 flex-1 items-center justify-center gap-1 rounded-md bg-moss text-base font-semibold text-white hover:opacity-90"
         >
           <Check size={16} /> {acceptLabel}

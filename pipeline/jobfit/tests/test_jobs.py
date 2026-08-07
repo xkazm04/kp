@@ -11,6 +11,7 @@ from pipeline.jobfit.jobs import (
     _reinterpret_must,
     _requirements_from,
 )
+from pipeline.jobfit.taxonomy import role_band
 
 
 SE_JUNIOR = {
@@ -32,6 +33,11 @@ SE_JUNIOR = {
     ],
 }
 
+# The SE-junior anchor band is ISPV-calibrated (data/salary_benchmarks.json) and
+# shifts when the salary blend changes, so assert against the live anchor rather
+# than a hardcoded number that would drift out of date.
+SE_JUNIOR_BAND = list(role_band("software_engineering", "junior"))
+
 
 class NormalizeTest(unittest.TestCase):
     def test_basic_shape(self) -> None:
@@ -40,7 +46,7 @@ class NormalizeTest(unittest.TestCase):
         self.assertEqual(job.role_family, "software_engineering")
         self.assertEqual(job.seniority, "junior")
         self.assertEqual(job.work_mode, "hybrid")
-        self.assertEqual(job.salary_band, [45000, 70000])  # SE junior anchor band
+        self.assertEqual(job.salary_band, SE_JUNIOR_BAND)  # SE junior anchor band (ISPV-calibrated, data/salary_benchmarks.json)
 
     def test_requirement_terms_resolved(self) -> None:
         job = normalize_job(SE_JUNIOR)
@@ -150,14 +156,14 @@ class SalaryProvenanceTest(unittest.TestCase):
     def test_no_stated_salary_anchors_and_records_the_phantom(self) -> None:
         # SE_JUNIOR states no pay → anchor band, flagged as a phantom default.
         job = normalize_job(SE_JUNIOR)
-        self.assertEqual(job.salary_band, [45000, 70000])  # SE junior anchor band
+        self.assertEqual(job.salary_band, SE_JUNIOR_BAND)  # SE junior anchor band (ISPV-calibrated, data/salary_benchmarks.json)
         self.assertIn("salary_band", job.defaulted_fields)
 
     def test_garbage_stated_band_falls_back_to_the_anchor(self) -> None:
         # Non-positive figures form no usable band → anchor + phantom provenance.
         raw = {**SE_JUNIOR, "salary_min": -1, "salary_max": 0}
         job = normalize_job(raw)
-        self.assertEqual(job.salary_band, [45000, 70000])
+        self.assertEqual(job.salary_band, SE_JUNIOR_BAND)
         self.assertIn("salary_band", job.defaulted_fields)
 
     def test_half_stated_band_falls_back_to_the_anchor(self) -> None:
@@ -165,7 +171,7 @@ class SalaryProvenanceTest(unittest.TestCase):
         # rather than fabricating a min==max range the ad never stated.
         raw = {**SE_JUNIOR, "salary_min": 65000, "salary_max": None}
         job = normalize_job(raw)
-        self.assertEqual(job.salary_band, [45000, 70000])
+        self.assertEqual(job.salary_band, SE_JUNIOR_BAND)
         self.assertIn("salary_band", job.defaulted_fields)
 
 

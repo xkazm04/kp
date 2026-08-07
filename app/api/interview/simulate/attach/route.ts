@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getInterviewSessionByToken, recordSimTranscriptAttached } from "@/app/_lib/db";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // d95fed6d — attach a practice (simulator) interview to a candidate's record.
 // Annotation-only: records a `sim_attached` event on the entry so the practice

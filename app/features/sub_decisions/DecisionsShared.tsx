@@ -1,7 +1,9 @@
 import { useTranslations } from "next-intl";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { ScoreProvenanceLabel } from "@/app/_components/ScoreProvenanceLabel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { INTERVIEW_RECOMMENDATION_FALLBACK, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 import { STAGES, styleFor, type Entry } from "./DecisionsTypes";
 import { initials } from "@/app/_lib/initials";
@@ -15,6 +17,11 @@ export function CandidateHead({ entry }: { entry: Entry }) {
   const enumLabel = useEnumLabel();
   const s = styleFor(entry.archetype);
   const monogram = initials(entry.candidateLabel);
+  // Canonical match-score read path (REC-01 / OO-L2-10): ONE number, with its
+  // provenance named right under it, instead of a bare "57 MATCH" that silently
+  // disagreed with the offer rationale and the drawer timeline.
+  const score = canonicalScoreOf(entry);
+  const provenance = provenanceOf(entry);
   return (
     <div className="flex items-center gap-2">
       <span className={`grid h-9 w-9 place-items-center rounded-full text-sm font-semibold text-white ${s.bg}`}>
@@ -26,10 +33,13 @@ export function CandidateHead({ entry }: { entry: Entry }) {
           {enumLabel("archetype", entry.archetype)} · {entry.jobTitle}
         </p>
       </div>
-      {entry.matchScore != null ? (
-        <span className="ml-auto inline-flex items-center gap-1.5">
-          <ScoreBadge score={entry.matchScore} />
-          <span className="text-sm uppercase text-steel">{t("match")}</span>
+      {score != null ? (
+        <span className="ml-auto flex shrink-0 flex-col items-end gap-0.5">
+          <span className="inline-flex items-center gap-1.5">
+            <ScoreBadge score={score} />
+            <span className="text-sm uppercase text-steel">{t("match")}</span>
+          </span>
+          <ScoreProvenanceLabel provenance={provenance} />
         </span>
       ) : null}
     </div>

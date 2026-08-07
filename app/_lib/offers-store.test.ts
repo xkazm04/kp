@@ -49,7 +49,8 @@ const { markEntryStatus } = await import("./offers-store.ts");
 function seed(rows: Array<{ id: string; status: string; stage: string }>): void {
   const d = new Database(TMP);
   d.exec(`CREATE TABLE IF NOT EXISTS pipeline_entries (
-    id TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'active', stage TEXT NOT NULL, updated_at TEXT
+    id TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'active', stage TEXT NOT NULL, updated_at TEXT,
+    workspace_id TEXT NOT NULL DEFAULT 'workspace'
   );`);
   d.prepare(`DELETE FROM pipeline_entries`).run();
   const ins = d.prepare(`INSERT INTO pipeline_entries (id, status, stage, updated_at) VALUES (?, ?, ?, 't0')`);

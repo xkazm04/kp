@@ -1,0 +1,196 @@
+{
+  "job": {
+    "id": "cal-094",
+    "title": "Supply Chain Analyst",
+    "company": "FlexForce Industrial",
+    "role_family": "operations",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Purchase-order (PO) and work-order (WO) system — the core system this role builds, owns, and drives toward paperless",
+      "SpecWriter specifications (homebuilder-ERP style spec/scope authoring)",
+      "Vendor/subcontractor database + house files (per-home plans, selections, trade scopes, purchasing records)",
+      "Takeoff & estimating inputs from an outside estimator; option/upgrade/change-order pricing",
+      "Microsoft Office — Excel (spreadsheets/pricing), Word (business writing), PowerPoint (management presentations)",
+      "Vendor invoice processing / AP workflow and material-utilization/waste tracking",
+      "W-9 and vendor-compliance recordkeeping",
+      "CBUSA buying cooperative — vendor & grievance committees, rebate/co-op-advertising programs",
+      "Production slot schedule (homebuilding cadence)",
+      "Warranty-request and 'Your Home Experts' management",
+      "Purchasing manual / SOP documentation and a construction-vendor feedback/quality system"
+    ],
+    "coreResponsibilities": [
+      "Generate and administer purchase orders and work orders for each home, and build/own the PO–WO system toward a paperless (incl. invoices) process",
+      "Competitive sourcing: solicit competitive labor and material pricing and assemble a qualified cadre of subcontractors per trade that meet quality and schedule standards",
+      "Estimating support: obtain plans, selections, and detailed trade scopes; obtain and supplement outside takeoffs/estimates for options, modifications, and upgrades",
+      "Price option requests and change orders from Sales in coordination with Construction",
+      "Vendor management: maintain vendor/subcontractor records, W-9s, lead times, rebate/co-op programs, and a construction feedback loop on vendor quality",
+      "Process vendor invoices; observe material utilization and waste",
+      "Leverage CBUSA committees to strengthen pricing/quality and develop vendors for non-CBUSA categories",
+      "Manage warranty requests, maintain house files and the purchasing database, attend CBUSA meetings, and maintain the purchasing manual",
+      "Process/product improvement: develop new products or construction processes for the management committee"
+    ],
+    "statedVsRealGaps": [
+      "Titled 'Supply Chain Analyst' (operations/analyst), but the JD is a residential-construction Purchasing Agent/Buyer — competitive vendor sourcing, PO/WO generation, and estimating support, not demand planning, logistics, inventory optimization, or supply-chain analytics",
+      "The 'Analyst' label implies data/modeling work, yet the real job is relationship-driven sourcing, manual administration, and system/process building — the only named 'analytic' tools are Excel, Word, and PowerPoint",
+      "seniorityTarget is 'medior,' but the scope spans IC purchasing through system ownership, authoring a purchasing manual, and presenting to the management committee — closer to a Purchasing Manager / Lead Buyer than a mid-level analyst",
+      "Hard domain gate not implied by the generic title: 'must have construction experience, preferably residential' — a generic supply-chain analyst's skills do not transfer to trade-by-trade subcontractor sourcing",
+      "Reliance on the niche CBUSA buying cooperative narrows the qualified pool well beyond what 'Supply Chain Analyst' would surface",
+      "Requirements are redacted in the source ('required  years … purchasing experience'), so the actual experience bar cannot be verified from the JD text"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Title/role mismatch will mis-source candidates: generic supply-chain-analyst applicants will lack the non-negotiable residential-construction and subcontractor-sourcing background",
+      "Build-from-scratch expectations (establish the PO/WO system, the purchasing manual, lead-time and rebate systems, go paperless) exceed a typical medior remit and risk under-leveling the hire",
+      "Success depends on hyperlocal subcontractor-market knowledge and vendor relationships, which are not transferable between markets or builders",
+      "CBUSA dependency makes prior co-op familiarity a real but narrow qualifier; outsiders face a ramp",
+      "Heavy manual/administrative load (house files, invoices, change-order pricing) coexists with strategic asks (process design, management presentations) — scope is broad and could overload one mid-level person",
+      "Redacted experience minimums mean the intended seniority bar is ambiguous and may be set inconsistently in screening"
+    ],
+    "reflection": "There is no codebase, which is correct for this role — judged in operations terms, the JD is rich enough to ground a confident read. The real 'body of work' is a residential-homebuilding purchasing operation: a PO/WO system, a vendor/subcontractor database, house files, outside takeoffs/estimates, vendor invoices, and the CBUSA buying cooperative, run mostly on Microsoft Office. The headline divergence is the label: this is a residential-construction Purchasing Agent/Buyer mis-titled as a generic 'Supply Chain Analyst.' The actual work is competitive sourcing, qualifying trade subcontractors, generating POs/WOs, pricing options and change orders, and standing up purchasing processes — relationship- and administration-driven, not the demand-planning/inventory-analytics work the title implies. 'Must have construction experience, preferably residential' is a hard gate the title hides, and the scope (own the system, write the manual, present to the management committee) reads heavier than the stated 'medior' level — closer to a purchasing lead/manager. Anyone sourced against the title rather than the task list will be the wrong candidate.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Purchasing Agent (Residential Construction)",
+    "seniority": "senior",
+    "roleFamily": "operations",
+    "mustHaves": [
+      "Hands-on residential construction experience (hard domain gate) — fluency in trades, plans, selections, and the homebuilding production schedule",
+      "Proven purchasing/procurement experience generating and administering purchase orders and work orders",
+      "Competitive sourcing of labor and materials: soliciting bids and assembling a qualified subcontractor/vendor cadre per trade that meets quality and schedule standards",
+      "Ability to read construction plans and detailed trade scopes of work and translate them into accurate POs/WOs and specifications",
+      "Estimating support: obtaining and supplementing outside takeoffs/estimates for options, modifications, and upgrades",
+      "Pricing option requests and change orders from Sales in coordination with Construction",
+      "Vendor administration: maintaining vendor/subcontractor records, W-9s, lead times, and a construction-driven vendor-quality feedback loop",
+      "Vendor invoice processing and tracking of material utilization and waste",
+      "Microsoft Office proficiency — Excel (pricing/spreadsheets), Word, and PowerPoint",
+      "Excellent written and oral English, strong grammar, and command of business-writing formats",
+      "High school diploma"
+    ],
+    "niceToHaves": [
+      "5+ years of purchasing experience within the residential construction industry",
+      "Some college coursework",
+      "Familiarity with the CBUSA buying cooperative, including its vendor and grievance committees and rebate/co-op-advertising programs",
+      "Experience with SpecWriter or comparable homebuilder-ERP spec/scope authoring tools",
+      "Track record building or advancing a paperless PO/WO and invoice workflow",
+      "Experience authoring and maintaining a purchasing manual / SOPs and presenting process or product improvements to a management committee"
+    ],
+    "responsibilities": [
+      "Generate and administer purchase orders and work orders for each home, and own/advance the PO–WO system toward a paperless process that includes invoices",
+      "Actively seek competitive labor and material pricing and develop a cadre of qualified subcontractors for each trade, including vendors for non-CBUSA categories",
+      "Obtain plans, selections, and detailed trade scopes; obtain outside estimates and supplement takeoffs for options, modifications, selections, and upgrades",
+      "Process and price option requests and change orders from Sales in coordination with Construction",
+      "Maintain house files, the purchasing database, vendor/subcontractor records, W-9s, lead times, and rebate/co-op-advertising programs",
+      "Process vendor invoices and observe material utilization and waste",
+      "Leverage CBUSA vendor and grievance committees to strengthen pricing and quality, and attend CBUSA meetings",
+      "Create and maintain a feedback system from Construction on vendor and subcontractor performance, and manage warranty requests and 'Your Home Experts'",
+      "Establish and maintain the purchasing manual, and develop new products or construction processes for presentation to the management committee"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Purchasing Agent Work-Sample: Level a trade-bid package, price a change order, and reconcile invoices for one spec home",
+    "brief": "You are stepping into the senior Purchasing Agent seat at a residential homebuilder. The provided starting materials are a real fit for this role, so you will work them the way a Purchasing Agent actually does: sourcing and leveling subcontractor pricing, pricing options/change orders against scopes and takeoffs, reconciling vendor invoices, and advancing the PO/WO system toward paperless. You are NOT being tested on typing or on producing volume — assume any spreadsheet, memo, or rule you write could be machine-drafted in seconds. What we are evaluating is your judgment: how you normalize messy bids, what you confirm before committing a number to a sub or a price to Sales, what you read before you dispute a vendor, and how you sequence a process change for real subcontractors. Several inputs are deliberately incomplete, on inconsistent bases, or contain a quirk that a quick read would miss — that is normal for a live house file, and how you handle it is the point. Treat the DECISIONS log (Task 4) as ordinary purchasing hygiene: a buyer who can't say why they awarded a bid or held an invoice can't defend it to Construction, Sales, or CBUSA. Hard cap: ~2 hours. Prefer depth on the four tasks over extra polish; if you run short, leave a stub and note in your log what you would have done.",
+    "repoSeed": "A single-home working set for Plan 'Birchwood 2310', Lot 27, Maplewood Trace:\n• House file — architectural plan set, the buyer Selection Sheet, and per-trade detailed Scopes; it also contains a previously approved field-change note (a footing/grade adjustment) buried two pages into the framing notes.\n• Trim-Carpentry Bid Packet — three subcontractor proposals on mixed bases: Apex Trim & Door LLC (lump sum, excludes door hardware and closet shelving), Greenline Finish Carpentry (per-opening unit price + separate stair-parts line), and J. Ruiz Millwork (lump sum, includes hardware but is a non-CBUSA-covered vendor). Allowances and exclusions differ across all three.\n• SpecWriter scope for the trim/finish-carpentry package (the 'common scope' the bids should map to).\n• 'Options & Change Orders' Excel workbook — base allowances by category plus a pending request CO-118 from Sales: change great-room flooring from carpet to LVP and add a gas stub for a range.\n• Vendor/subcontractor database extract — W-9 status, lead times, and CBUSA rebate / co-op-advertising flags per vendor.\n• Invoice batch (5 vendor invoices) to match against the issued POs/WOs — includes one quantity overage, one unit-price mismatch versus the PO, and one invoice from a vendor with a missing W-9. One apparent overage is actually explained by the approved field change in the house file.\n• Current 'PO/WO Process' document — partly paper: printed POs, emailed/faxed WOs, and hand-stamped invoice approval, with no 3-way match.\n• CBUSA category list (covered vs non-CBUSA categories) and a one-page rebate / co-op-advertising program summary.\n• Production slot schedule for Lot 27, including the buyer-selection cutoff date.",
+    "tasks": [
+      "Level the three Trim-Carpentry proposals in the Bid Packet onto the common SpecWriter scope and recommend an award. Normalize the mixed bases (lump sum vs per-opening unit), add back each bidder's exclusions so the comparison is apples-to-apples, account for the non-CBUSA vendor and any CBUSA rebate/co-op eligibility and lead-time differences, and list the 2–3 clarifying questions you would send a bidder before you cut the PO/WO.",
+      "Price change order CO-118 from Sales (carpet→LVP in the great room + add a gas stub for a range) against the Birchwood house file, Selection Sheet, and the flooring/plumbing scopes. Price the delta versus the base allowances only, supplement the takeoff for the change, identify the cascading trade impacts (e.g., subfloor/transition, plumbing/gas rough), and state the production-slot and selection-cutoff coordination you would confirm with Construction before you quote Sales a number.",
+      "Run a 3-way match on the 5-invoice batch against the issued POs and WOs. Read the house file before disputing anything: clear the variances that are actually authorized, flag the genuine exceptions (over-billing, unit-price mismatch, compliance/W-9 gap), and note any material-utilization/waste signal. Then propose the single match rule (tolerance band + house-file/approval check) that would have caught the real issues automatically — this is the seed for the paperless invoice step.",
+      "Write a one-page recommendation to the management committee for advancing the PO/WO system toward paperless (including invoices), and keep a short DECISIONS log across all four tasks. In the log, for every open call you made — the bid-award basis, the CO-118 pricing scope, the invoice tolerance, and the paperless sequencing — record what you chose, the alternative you rejected, and the one question you would have asked Construction, Sales, or CBUSA."
+    ],
+    "coverProbes": [
+      {
+        "id": "bid-leveling-basis",
+        "kind": "ambiguity",
+        "where": "Task 1 — the three Trim-Carpentry bids are quoted on different bases with different inclusions/exclusions, and the lowest headline number excludes scope the others carry.",
+        "reveals": "A strong candidate normalizes scope before comparing, adds back excluded hardware/shelving/stair parts, and weighs lead time, quality history, and CBUSA rebate eligibility against raw price; a naive one picks the lowest sticker number and issues the PO.",
+        "decisionSpace": [
+          "Award to the lowest NORMALIZED total cost after adding back excluded scope — cost-first, but leans on a still-incomplete scope and may invite back-charges later.",
+          "Award the qualified/incumbent sub at a slightly higher normalized price for proven quality and reliable lead time — risk/quality-first, defensible but pays a premium.",
+          "Re-issue a single clarified scope sheet and re-bid before awarding — process-first, gets a clean comparison but spends time against the production slot."
+        ]
+      },
+      {
+        "id": "co-pricing-scope",
+        "kind": "verification_trap",
+        "where": "Task 2 — pricing CO-118; a flat markup on the flooring line yields a clean, plausible number that passes a shallow check but misses cascading trades and the selection-cutoff/slot timing.",
+        "reveals": "A strong candidate checks what is already in the base allowance, prices only the true delta, surfaces the gas-stub plumbing rough and subfloor/transition cascade, and ties it to the production slot; a naive one marks up the line item and quotes Sales a number that under- or over-recovers and ignores schedule risk.",
+        "decisionSpace": [
+          "Price the direct delta versus base allowance only and flag schedule risk separately — clean and defensible, but may under-recover the cascading work.",
+          "Price the delta plus cascading trades and an expedite/schedule adder because it is past the selection cutoff — full-cost recovery, higher quote that Sales may push back on.",
+          "Hold the change pending Construction's confirmation of slot impact before quoting — protects the build and the number, but slows Sales and the buyer."
+        ]
+      },
+      {
+        "id": "invoice-false-positive",
+        "kind": "legacy_trap",
+        "where": "Task 3 — one invoice 'overage' is actually explained by the approved field-change note buried in the framing notes of the house file.",
+        "reveals": "A strong candidate reads the house file and reconciles against documented approvals before disputing, so they clear the authorized variance and dispute only the real ones; a naive one auto-flags every line over tolerance and creates a false dispute that burns sub goodwill.",
+        "decisionSpace": [
+          "Dispute every variance over tolerance uniformly — consistent and fast, but generates false positives and subcontractor friction.",
+          "Reconcile each variance against house-file approvals first, dispute only unauthorized ones — accurate, but more manual and slower at volume.",
+          "Set a $/% tolerance band that auto-approves small variances and disputes above it — scalable for the paperless goal, but lets minor leakage and waste pass unexamined."
+        ]
+      },
+      {
+        "id": "paperless-sequencing",
+        "kind": "underspecified",
+        "where": "Task 4 — 'advance the PO/WO system toward paperless, including invoices' is left open on scope, sequencing, and how low-tech subcontractors adopt it.",
+        "reveals": "A strong candidate scopes the rollout, decides what gets the 3-way match first, plans for subs without email/portals, and names what stays manual; a naive one answers 'buy software' with no sequencing or adoption plan.",
+        "decisionSpace": [
+          "Incremental — digitize POs/WOs first, layer invoice 3-way match later — low risk, but the AP/waste payoff arrives slowly.",
+          "Platform-first — adopt/extend the ERP/SpecWriter module end-to-end — fastest integration, but carries cost and subcontractor change-management risk.",
+          "Hybrid — standardize templates and e-approval now, defer a full sub portal until adoption is proven — pragmatic, but some paper/manual steps persist."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

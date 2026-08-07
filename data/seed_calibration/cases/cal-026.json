@@ -1,0 +1,156 @@
+{
+  "job": {
+    "id": "cal-026",
+    "title": "Administrative Assistant - Remote / Online / Work From Home (PT/FT)",
+    "company": "US Parcel Service",
+    "role_family": "administration",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Employer-provided web 'shipping dashboard' used to monitor incoming orders/packages and upload photos",
+      "Pre-paid shipping labels supplied by the 'employer' (worker never buys postage)",
+      "Personal smartphone/camera to photograph boxes and contents",
+      "The worker's own home address, used as the package receiving and re-forwarding point",
+      "Local postal/carrier drop-off locations (USPS/UPS/FedEx)",
+      "Packing/consolidation materials for outbound parcels"
+    ],
+    "coreResponsibilities": [
+      "Stay on-call at a home address to receive inbound packages during the day",
+      "Inspect product boxes, photograph damage/contents, and upload the photos to the dashboard",
+      "Consolidate or repackage goods per 'customer' instructions",
+      "Apply employer-provided shipping labels and re-ship the parcels onward",
+      "Drop the relabeled packages at local postal locations"
+    ],
+    "statedVsRealGaps": [
+      "The title 'Administrative Assistant' is a misnomer: there is no administrative, clerical, scheduling, correspondence, data-entry, or document work anywhere in the duties. Every listed task is receiving and re-forwarding parcels from a home address.",
+      "The duty set — receive packages at your own home, photograph them, repackage, and re-ship using labels the employer provides, with daily pay, no qualifications, immediate start, and remote work — matches the documented profile of a 'reshipping mule' / package-forwarding fraud scheme almost point-for-point. Legitimate parcel sortation happens in a facility, not at an employee's house with employer-mailed labels.",
+      "'US Parcel Service' closely imitates the names of real carriers (USPS / parcel services) — a common impersonation tactic; no verifiable company, address, or registration is given.",
+      "Compensation is blank or garbled ('per hour', ' program') and benefits are boilerplate and unverifiable; the role demands no diploma, no real screening, and no interview — the vetting runs one direction only, toward collecting the candidate's personal data."
+    ],
+    "trueComplexity": "low",
+    "riskAreas": [
+      "High likelihood of a reshipping / package-mule fraud scheme: the worker may unknowingly receive and forward goods purchased with stolen payment cards or otherwise illicit goods, exposing them to criminal liability for receiving/transporting stolen property.",
+      "Such schemes routinely cut contact right before the first payday; the 'paid daily' and 'probationary period' framing typically ends in the worker being unpaid after weeks of free labor and out-of-pocket costs.",
+      "Onboarding for these roles harvests home address, government ID, and bank/SSN details — a direct vector for identity theft and money-mule recruitment.",
+      "Brand impersonation plus an external 'shipping dashboard' login may double as phishing / credential-harvesting infrastructure.",
+      "No legitimate employer-side verification (no qualifications, interview, or due diligence) means there is no real accountability behind the offer."
+    ],
+    "reflection": "Reflected against its own stated duties, this is not a genuine administrative-assistant need and should not be evaluated as a normal hiring requirement. The posting advertises office/admin work but describes, exclusively, the mechanics of a residential package-reshipping operation: stay home, receive parcels, photograph them, relabel with employer-supplied labels, and forward them onward — for daily pay, no qualifications, and immediate remote start under a USPS-adjacent name ('US Parcel Service'). Each of these is an individually weak signal, but together they form the textbook signature of a reshipping-mule fraud that the FBI/IC3 and FTC have repeatedly warned about, in which recruits launder fraudulently-obtained goods and are left unpaid while exposing themselves to legal liability and identity theft. The honest gap between stated need and evidence is total: the 'role' has essentially no legitimate office content, and the strongest grounded conclusion from the supplied text is that an applicant should not engage, should provide no personal/banking documents, and should consider reporting the listing (e.g., to IC3.gov / the FTC). Confidence is high on the pattern but capped below certainty because the JD text is partly garbled and the underlying entity cannot be verified from the supplied facts alone.",
+    "confidence": 0.84,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Administrative Assistant - Remote / Online / Work From Home (PT/FT)",
+    "seniority": "medior",
+    "roleFamily": "administration",
+    "mustHaves": [
+      "Employer-provided web 'shipping dashboard' used to monitor incoming orders/packages and upload photos",
+      "Pre-paid shipping labels supplied by the 'employer' (worker never buys postage)",
+      "Personal smartphone/camera to photograph boxes and contents",
+      "The worker's own home address, used as the package receiving and re-forwarding point",
+      "Local postal/carrier drop-off locations (USPS/UPS/FedEx)"
+    ],
+    "niceToHaves": [],
+    "responsibilities": [
+      "Stay on-call at a home address to receive inbound packages during the day",
+      "Inspect product boxes, photograph damage/contents, and upload the photos to the dashboard",
+      "Consolidate or repackage goods per 'customer' instructions",
+      "Apply employer-provided shipping labels and re-ship the parcels onward",
+      "Drop the relabeled packages at local postal locations"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Administrative Assistant - Remote / Online / Work From Home (PT/FT): a representative work-sample",
+    "brief": "You are handed a small set of starting materials for this administration role (Employer-provided web 'shipping dashboard' used to monitor incoming orders/packages and upload photos, Pre-paid shipping labels supplied by the 'employer' (worker never buys postage), Personal smartphone/camera to photograph boxes and contents). Do a piece of representative work on them, scoped to ~1.5h for a medior. The brief is intentionally lightly specified — make and document your own calls.",
+    "repoSeed": "A minimal set of starting materials this role works with: a primary working item, one under-documented or legacy area, and a way to check your work.",
+    "tasks": [
+      "Do a representative administration task on the supplied materials.",
+      "Engage the under-documented / legacy area you find — understand it before you change it.",
+      "Make your change safe — show how you checked it before handing it on.",
+      "Keep a short DECISIONS log: for every call you made where the brief was open — what you chose, the alternative you rejected, and what you would have asked the team."
+    ],
+    "coverProbes": [
+      {
+        "id": "p1",
+        "kind": "underspecified",
+        "where": "the brief",
+        "reveals": "Do they clarify the ambiguity or silently assume?",
+        "decisionSpace": [
+          "Clarify the open requirement before starting",
+          "Pick an interpretation, state it and proceed",
+          "Handle both readings and flag the choice"
+        ]
+      },
+      {
+        "id": "p2",
+        "kind": "legacy_trap",
+        "where": "the under-documented area in the materials",
+        "reveals": "Do they read it before generating, or break it?",
+        "decisionSpace": [
+          "Preserve the existing approach and work around it",
+          "Revise it with a safeguard in place first",
+          "Replace it outright and accept the risk"
+        ]
+      },
+      {
+        "id": "p3",
+        "kind": "verification_trap",
+        "where": "a result that passes a shallow check but is subtly wrong",
+        "reveals": "Do they add real tests / validate, or trust one-shot output?",
+        "decisionSpace": [
+          "Check the result properly before relying on it",
+          "Verify manually and document the steps",
+          "Trust the first result and proceed"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

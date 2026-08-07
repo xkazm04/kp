@@ -1,0 +1,183 @@
+{
+  "job": {
+    "id": "cal-003",
+    "title": "Career Coach Waitlist (Part-time/Contract/US Remote)",
+    "company": "Springboard",
+    "role_family": "data_ai",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Student CRM (logging coaching-call outcomes, structured notes, risk flags, success/placement tracking)",
+      "Email (high-touch, supportive written responses to student career concerns)",
+      "Video conferencing / online coaching environment for high-volume 1:1 coaching calls",
+      "Domain knowledge of the technical hiring process across Springboard's tracks (data science, UI/UX, machine learning, coding/software)",
+      "Technical job-search tactics: resume/portfolio review, interview prep, networking, application strategy, offer negotiation",
+      "Recruiting/ATS fluency carried over from prior technical-recruiting or formal coaching experience",
+      "Risk-triage and escalation workflow (identifying at-risk students, handoff to Head of Career Services)",
+      "Career-development / coaching frameworks and rapport-building soft skills"
+    ],
+    "coreResponsibilities": [
+      "Deliver job-search career-coaching conversations to students in technical fields within a high-volume online coaching environment",
+      "Respond promptly and supportively to student career questions and concerns via email",
+      "Track coaching-call outcomes in the student CRM with detailed notes that flag risk factors, track success, and inform predictions of future performance",
+      "Escalate students of concern to the Head of Career Services for additional coaching or intervention",
+      "Collaborate with the career-services team to recommend students for job openings and share employability signals",
+      "Stay current on technical-hiring trends and job-search tactics that actually convert to offers"
+    ],
+    "statedVsRealGaps": [
+      "The need is classified roleFamily=data_ai, but the JD is a people-facing career-coaching role, not a data/AI engineering or modeling role — there is no codebase and no quantitative stack; that label would misroute the screen against a data/AI rubric.",
+      "The need's stack[] and responsibilities[] arrive empty; all substance had to be extracted from the JD prose — the structured fields understate a richly specified role.",
+      "CRM language ('evaluate risk factors, track success, predict future performance') can read as data/analytics work, but in reality it is qualitative coaching-note discipline feeding human triage — it is judgment and CRM hygiene, not modeling.",
+      "The seniorityTarget=medior label is loose: the JD imposes a hard, non-negotiable experience gate (prior FORMAL career coaching for technical job searches OR technical recruiting) and frames pay/hours like a contract waitlist — this is a specialist-contributor gate, not a generic mid-level opening.",
+      "'Tech-enabled but human-centric' framing means the differentiator is domain credibility in tech hiring + empathy, not tool proficiency — the real evaluation axis is coaching track record and outcomes, which the structured need does not capture at all."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Hard experience gate ('will not consider candidates without this prior experience') plus mandatory US Pacific business-hours availability sharply narrows the eligible pool for a part-time/contract waitlist role.",
+      "High-volume coaching environment creates a throughput-vs-depth tension: quality of advice and note-taking can degrade under load, and contract/waitlist staffing risks turnover and inconsistent student experience.",
+      "Downstream 'risk prediction / future performance' depends entirely on consistent, honest CRM note quality — uneven data hygiene across coaches undermines the escalation and recommendation signals.",
+      "Coaching tied to placement-rate metrics can misalign incentives (pushing speed-to-offer or 'gaming' outcomes) against each student's genuine best-fit career interest.",
+      "Tech-hiring tactics shift fast (esp. LLM-era changes to data-science and coding hiring); a coach who doesn't continuously refresh tactics gives stale advice with confident delivery.",
+      "Misclassification as a data_ai role is itself a screening risk — scoring this candidate against an engineering competency model would reject strong coaches and surface wrong-fit technologists."
+    ],
+    "reflection": "Reflected against the role's real body of work — a student CRM, an inbox, recurring coaching calls, and deep familiarity with how people actually get hired in data, design, ML and software — this is a people-and-judgment role, not a technical-build role, and it should be read in its own terms. The JD is detailed and internally coherent: it states a hard gate (formal technical career-coaching or technical-recruiting experience), a concrete workflow (coach → document in CRM → escalate or recommend), and an outcome orientation (placement). The principal divergence is in the structured framing around the JD, not the JD itself: the need is tagged roleFamily=data_ai with empty stack/responsibilities, which mischaracterizes a relationship-and-outcomes role as data/AI work and would misroute any competency scoring. The honest read of true complexity is medium — modest tooling, but real specialist depth (current tech-hiring fluency across four disciplines), real emotional labor, and high-volume throughput under a strict availability and experience gate. The evidence supports the JD's own self-description far better than it supports the data_ai classification attached to it.",
+    "confidence": 0.82,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Career Coach (Technical Job Search)",
+    "seniority": "medior",
+    "roleFamily": "career_coaching",
+    "mustHaves": [
+      "Prior formal experience in career coaching for technical job searches OR in technical recruiting (hard, non-negotiable gate)",
+      "Intimate knowledge of the technical hiring process and how to run an effective tech job search",
+      "Tech job-search strategy: resume/portfolio review, interview preparation, networking, application strategy, offer negotiation",
+      "Student CRM discipline — logging coaching-call outcomes with structured notes, risk flags, and success/placement tracking",
+      "High-volume 1:1 online coaching delivery (video) plus prompt, supportive email support",
+      "Coaching and advising communication: active listening, rapport-building, and credibility with students and colleagues",
+      "Outstanding customer-service mentality with strong attention to detail in recording student progress and following up",
+      "Track record of measurable outcomes, meeting deadlines, and balancing multiple priorities and constituencies",
+      "Availability during US Pacific time-zone business hours"
+    ],
+    "niceToHaves": [
+      "Experience working with hiring partners / employer relationships in addition to candidates and students",
+      "Familiarity with Springboard's tracks — data science, UI/UX design, machine learning, and software/coding",
+      "ATS and recruiting-tooling fluency carried from prior technical-recruiting work",
+      "Background in student or early-career development and intervention planning",
+      "Comfort with risk-triage and escalation workflows in a structured career-services team"
+    ],
+    "responsibilities": [
+      "Deliver job-search career-coaching conversations to students in technical fields within a high-volume online coaching environment",
+      "Respond promptly and supportively to student career questions and concerns via email",
+      "Track coaching-call outcomes in the student CRM with detailed notes that flag risk factors, track success, and inform predictions of future performance",
+      "Escalate students of concern to the Head of Career Services for additional coaching or intervention",
+      "Collaborate with the career-services team to recommend students for job openings and share employability signals",
+      "Stay current on technical-hiring trends and job-search tactics that actually convert to offers"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Career Coach Work-Sample: Covering a Caseload at a Technical Job-Search Program",
+    "brief": "This is a coaching work-sample, not an engineering or data test — you will be evaluated as a Career Coach, on judgment with students and the quality of your written record, not on any technical artifact. The starting materials are the body of work this role acts on (a student CRM, an inbound email, a coaching-call transcript, a small roster, and an open referral slot), synthesized to mirror a high-volume online technical-career-coaching program across tracks like data science, UI/UX, ML, and software. Setting: a colleague is out and you are covering their caseload for the week. You have one student's recent call transcript plus their CRM history, one student email waiting on a reply, a four-student roster, and one referral opening a hiring partner just shared. Your job over ~1.5 hours is to do exactly what this coach does day to day: log an honest, actionable coaching-call note; respond supportively and with currently-accurate job-search advice; and make triage/recommendation calls a teammate could trust. Use real, current technical-hiring tactics (assume LLM-era changes to data-science and coding hiring are already in effect). Several materials are deliberately open-ended or internally inconsistent — that is normal coaching reality; handle it the way you actually would and leave a trail of your reasoning. Keep every student's genuine best interest, not the placement metric, as your north star, and say so in your notes where the two pull apart.",
+    "repoSeed": "A coaching bundle (documents, not code) handed to the candidate:\n- `program_context.md` — one page on the program: tracks served, the throughput expectation (~6 coaching calls/day), how coaches are measured (placement rate, call volume, note completeness), and the escalation path to the Head of Career Services. Includes a short, partly STALE tactics playbook (e.g. 'have students mass-apply to 15–20 roles/day', 'lead resume bullets with keywords for the ATS', 'take-homes are the great equalizer') with no LLM-era revision note.\n- `crm_note_template.md` — the required structured note format: Call outcome · Risk flags · Placement/success signal · Future-performance prediction · Next step + owner.\n- `maya_crm_history.md` — Maya Okafor, data-science track, ~7 months in. Prior coach's last three notes are thin and upbeat, latest flag is 'On track · Low risk'. Buried: application activity dropped to ~zero over the last 3 weeks; one note mentions she 'mentioned money stress' with no follow-up.\n- `maya_call_transcript.txt` — transcript of the 2026-06-18 call. Maya is warm but quietly demoralized, admits she hasn't applied in 3 weeks, is comparing herself to peers, and — excitedly — says she got an 'offer' from a company she found via a DM: 'data analyst, commission-based to start, they just need me to cover ~$400 for the analytics software license up front, then I'm in.' She wants to accept this week and is hoping you'll celebrate with her.\n- `daniel_email.txt` — Daniel Reyes, UI/UX track. Subject: 'which offer??'. Literal ask: take a $68k offer or keep interviewing. Buried in the body: one of the two offers is actually a QA/testing role (off his UX goal), one 'expires tomorrow afternoon' (mentioned in passing), and a line — 'honestly I'm pretty burnt out, kind of tempted to just take whatever and be done.' He wants a fast answer.\n- `caseload_roster.md` — four one-line student summaries: (1) Priya — ML track, missed last two calls, last email unanswered; (2) Tomás — software track, strong portfolio, consistently undersells himself in mocks; (3) Aisha — data track, just signed a real salaried analyst offer last week; (4) Marcus — data track, 9 months in (program limit nearing), motivated but two failed final rounds.\n- `referral_data_analyst.md` — a hiring partner's open referral slot: Junior Data Analyst, fintech, requires SQL + one dashboarding tool, entry-level, one candidate may be put forward this week.",
+    "tasks": [
+      "Write Maya Okafor's CRM coaching-call note for the 2026-06-18 call using `crm_note_template.md`. Reconcile what you hear in `maya_call_transcript.txt` against `maya_crm_history.md` — including the prior coach's 'On track · Low risk' flag — and make the risk call and the placement/success signal yourself, with evidence a teammate could act on. Decide explicitly how (and whether) to record the 'offer' she's excited about.",
+      "Reply to Daniel Reyes (`daniel_email.txt`) exactly as you would send it. Work out what he is actually deciding before you answer, give supportive and currently-accurate guidance he can use within his real timeline, and make clear what (if anything) you need from him to advise well.",
+      "Write a short triage memo (`triage_memo.md`) over the four students in `caseload_roster.md`: who you would escalate to the Head of Career Services this week and why, and which single student you would put forward for the `referral_data_analyst.md` opening — with 2–3 sentences of rationale per call, enough that the covering coach next week could act without re-reading everything.",
+      "Keep a running `DECISIONS.md` as you go: for every point where a material was ambiguous, contradictory, or pulled the placement metric against the student's interest, note what you decided, the option you rejected and why, and the one question you'd take to the Head of Career Services or the team. Treat it as your normal working trail, not a separate essay."
+    ],
+    "coverProbes": [
+      {
+        "id": "stale-low-risk-flag",
+        "kind": "legacy_trap",
+        "where": "Maya's `maya_crm_history.md` ('On track · Low risk', thin upbeat notes) versus the demoralized, zero-applications reality in `maya_call_transcript.txt`.",
+        "reveals": "A strong coach reads the history before writing, notices the prior flag contradicts the live signals (3 weeks no applications, money stress, comparison spiral), and re-flags risk with cited evidence and a trend story. A naive one-shot response either inherits the comfortable 'low risk' label or reacts only to the transcript without reconciling the record — losing the fact that the risk was missed earlier.",
+        "decisionSpace": [
+          "Override to elevated risk and escalate now, explicitly citing the contradiction between the prior flag and current activity as the reason.",
+          "Raise to moderate risk, log the discrepancy openly, and gate escalation on one fast follow-up (e.g. a re-engagement call this week) to avoid over-escalating a single bad day.",
+          "Re-baseline risk from the current call only, treating the old notes as unreliable — defensible for honesty but discards the trend signal that makes the escalation persuasive."
+        ]
+      },
+      {
+        "id": "predatory-offer-as-placement",
+        "kind": "verification_trap",
+        "where": "Maya's reported 'offer' in `maya_call_transcript.txt` (commission-only, $400 software-license fee up front, sourced from a cold DM) and the Placement/success-signal field of her note.",
+        "reveals": "Naive generation congratulates her and logs a placement — the metric ticks up and a shallow completeness check passes. A careful coach recognizes the up-front-fee + commission-only + cold-DM pattern as a likely scam/non-qualifying 'job', does not log it as a placement, and coaches her to verify it before committing money, while protecting the rapport. This is the case's core incentive trap: placement pressure versus the student's actual interest.",
+        "decisionSpace": [
+          "Name it as likely predatory / non-qualifying, coach her to vet it (and not pay), and record NO placement — accept the short-term metric hit for the student's protection.",
+          "Treat it as a real but high-risk lead: surface every red flag, leave the choice with her, and log it provisionally as 'unverified, not counted' pending due diligence.",
+          "Celebrate and log it as a placement to hit the rate — the incentive-aligned but student-harming path the exercise is watching for; only defensible if paired with explicit verification, otherwise a fail."
+        ]
+      },
+      {
+        "id": "daniel-real-question",
+        "kind": "ambiguity",
+        "where": "`daniel_email.txt` — stated ask ('which offer?') versus the buried facts: one offer is off-track QA, one expires tomorrow, and a burnout/cold-feet line.",
+        "reveals": "A good coach detects that the literal question isn't the real decision (off-goal role + hard deadline + burnout), and either asks 1–2 sharp clarifying questions or gives clearly-conditional guidance that respects the deadline. A naive coach answers 'which offer' with confident generic pro/con advice and misses that one option undermines his stated goal and that he may be deciding from exhaustion.",
+        "decisionSpace": [
+          "Lead with 1–2 targeted clarifying questions (what matters most, is the deadline truly firm) plus interim conditional guidance — best for fit, slight risk against his 'fast answer' wish.",
+          "Answer the literal comparison but make assumptions explicit and flag the off-track and burnout risks prominently — respects his urgency while still surfacing the real issue.",
+          "Give a firm recommendation under clearly-stated assumptions to honor the exploding deadline — defensible if the deadline is genuinely binding, weaker if it pressures a tired student into a poor-fit role."
+        ]
+      },
+      {
+        "id": "stale-llm-era-tactics",
+        "kind": "underspecified",
+        "where": "The advice content across Maya's note, Daniel's reply, and the triage memo, against the un-dated stale playbook in `program_context.md` ('mass-apply 15–20/day', 'keyword-stuff for the ATS', 'take-homes are the great equalizer').",
+        "reveals": "The brief never says whether to follow the playbook. A current coach updates tactics to LLM-era reality (volume-spray is now low-yield against AI screens; portfolio depth, targeted outreach, and verifiable signal matter more; take-homes are AI-assisted now) and notes why. A naive coach parrots the playbook confidently because it's the only written guidance present.",
+        "decisionSpace": [
+          "Replace the stale tactics with current LLM-era guidance and briefly say why the playbook is out of date — highest value, but departs from documented program standard.",
+          "Present both the playbook line and the updated reality and let the student/team choose — safe and transparent, but can read as hedging under a tight timebox.",
+          "Keep the durable fundamentals (targeting, networking, follow-through) and adjust only at the margins — defensible conservatism that risks leaving genuinely outdated advice in place."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

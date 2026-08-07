@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { coerceDumpPayload, loadWorkspace, planImport } from "@/app/_lib/db-portability";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { multiWorkspaceEnabled } from "@/app/_lib/workspace-lock";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // DATA3 — restore a kp-db-dump file into the live workspace. Two-step by
 // design: the default call is a DRY RUN returning the plan (per-table row
@@ -28,6 +27,22 @@ export async function POST(request: NextRequest) {
   // operator-only. requireOperator() also rejects the anonymous demo session.
   const denied = await requireOperator();
   if (denied) return denied;
+  // Hard mode-guard (backlog #15, enforcing the SCOPE NOTE above): this endpoint
+  // restores the WHOLE database — loadWorkspace DROPs and reloads every table —
+  // which is only safe under the single-tenant lock. In multi-workspace mode one
+  // tenant's import would clobber every other tenant wholesale, so refuse
+  // outright BEFORE reading the body (the dry-run and the apply alike). The
+  // endpoint must be reworked to a per-workspace restore (delete-by-workspace +
+  // insert, never DROP TABLE) before this guard may be lifted.
+  if (multiWorkspaceEnabled()) {
+    return NextResponse.json(
+      {
+        error:
+          "Whole-database import is disabled in multi-workspace mode: it would drop and replace every workspace's data. Unset KP_MULTI_WORKSPACE for a single-tenant restore, or wait for per-workspace import.",
+      },
+      { status: 503 }
+    );
+  }
   try {
     const body = (await request.json().catch(() => null)) as {
       dump?: unknown;

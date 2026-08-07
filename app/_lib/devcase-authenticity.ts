@@ -27,6 +27,10 @@ export type AuthenticityInput = {
   // was WATCHED, so there is no git history BY DESIGN. The strongest authorship
   // proof the product has must not be penalized for lacking commits it can't have.
   observed?: boolean;
+  // Observed sessions only: a single large bulk paste (>= PASTE_BULK_CHARS) landed in
+  // the watched editor with no incremental build-up — the in-product paste-from-LLM
+  // tell. Computed by the caller from the observed event stream.
+  observedBulkPaste?: boolean;
 };
 
 export type Authenticity = {
@@ -39,6 +43,13 @@ export type Authenticity = {
 // it for human verification rather than advancing on transfer score alone.
 export const SUSPECT_THRESHOLD = 40;
 const MIXED_THRESHOLD = 70;
+
+// A single observed paste of at least this many characters with no incremental
+// build-up reads as paste-from-LLM. Large enough not to fire on a small snippet or a
+// moved import line; small enough to catch a pasted function/solution. The penalty
+// (below) is decisive on its own so a clean-looking bulk paste lands in "suspect"
+// and is held for the ownership-verifying interview rather than auto-advancing.
+export const PASTE_BULK_CHARS = 600;
 
 export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
   const reasons: string[] = [];
@@ -60,6 +71,16 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
   } else if (input.commitCount === 0 && !input.observed) {
     score -= 15;
     reasons.push("No readable commit history.");
+  }
+
+  // Observed sessions waive the commit-history penalties (no git by design), which
+  // previously let a candidate paste a whole LLM solution into the watched editor and
+  // still score "authentic". A single large bulk paste with no incremental build-up is
+  // the in-product paste-from-LLM tell — penalize it decisively so it lands "suspect"
+  // and is HELD for the ownership-verifying interview rather than auto-advancing.
+  if (input.observed && input.observedBulkPaste) {
+    score -= 65;
+    reasons.push("Large bulk paste with no incremental build-up — possible paste-from-LLM.");
   }
 
   // The forced DECISIONS.md authorship artifact (case-design contract) is absent.

@@ -17,10 +17,13 @@ import {
   updateProfile,
   type DevSubmission,
 } from "./db";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { inferProfileLocale } from "./comms-locale";
 import { MAX_CODEBASES } from "./devcase-constraints";
-import { scoreAuthenticity, type Authenticity } from "./devcase-authenticity";
+import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
 import { seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
+import { buildLlmConfigEnv } from "./llm-config";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 import { isEarlyCareer } from "./archetypes";
 import { devCaseIdFromJobId } from "./student-interview";
@@ -41,7 +44,11 @@ async function runDevcaseCli<T>(
   const workdir = await createWorkdir();
   try {
     const args = await build(workdir);
-    const { result } = spawnPython(["-m", "pipeline.jobfit.devcase.devcase_cli", ...args], { signal });
+    // Route the devcase LLM steps (analyze-need, design-artifacts) through the
+    // workspace Models config so model/max-tokens/timeout are configurable — same
+    // wiring automation-run/reasoning-run use. `{}` when nothing is configured
+    // (Python then defaults to the Claude CLI, unchanged).
+    const { result } = spawnPython(["-m", "pipeline.jobfit.devcase.devcase_cli", ...args], { signal, env: buildLlmConfigEnv() });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new PipelineError(parseStderrError(stderr, exitCode));
     return parsePythonJson<T>(stdout, stderr);
@@ -84,7 +91,10 @@ export type NeedAnalysisResult = {
 };
 
 // D2 core: pull the real codebase(s), then reflect the need against them (LLM + fallback).
-export async function runNeedAnalysis(need: DevNeed, signal?: AbortSignal): Promise<NeedAnalysisResult> {
+// `lang` (#6) writes the analysis free-text in the JD language so the downstream
+// role/case design reads a language-consistent artifact; defaults to en (the
+// analysis is internal, so callers that don't care can omit it).
+export async function runNeedAnalysis(need: DevNeed, signal?: AbortSignal, lang?: string | null): Promise<NeedAnalysisResult> {
   const ghRefs = (need.codebaseRefs ?? [])
     .filter((r) => r.kind === "github" || /github\.com/.test(r.ref))
     .slice(0, MAX_CODEBASES);
@@ -96,7 +106,7 @@ export async function runNeedAnalysis(need: DevNeed, signal?: AbortSignal): Prom
     async (workdir) => {
       const needPath = path.join(workdir, "need.json");
       await writeFile(needPath, JSON.stringify(need), "utf-8");
-      const args = ["analyze-need", "--need-json", needPath];
+      const args = ["analyze-need", "--need-json", needPath, "--lang", lang || "en"];
       if (snapshots.length > 0) {
         const snapPath = path.join(workdir, "snapshots.json");
         await writeFile(snapPath, JSON.stringify(snapshots), "utf-8");
@@ -125,9 +135,14 @@ export async function runDesignArtifacts(
   analysis: Record<string, unknown>,
   signal?: AbortSignal,
   feedback?: string,
-  lang?: string | null
+  lang?: string | null,
+  // withCase=false skips the case-design LLM call (`--role-only`) and returns
+  // `case: {}`. The JD builder passes false when "Case analysis" isn't ticked, so
+  // a description-only build no longer pays for a case it discards. All other
+  // callers (lifecycle, redesign) keep the default and always get a real case.
+  withCase: boolean = true
 ): Promise<DesignArtifactsResult> {
-  const payload = await runDevcaseCli<{ result: { role: Record<string, unknown>; case: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(
+  const payload = await runDevcaseCli<{ result: { role: Record<string, unknown>; case?: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(
     async (workdir) => {
       const needPath = path.join(workdir, "need.json");
       const analysisPath = path.join(workdir, "analysis.json");
@@ -142,12 +157,13 @@ export async function runDesignArtifacts(
         // DEVP5 — the case brief/tasks the candidate reads render in this language.
         "--lang",
         lang || "en",
+        ...(withCase ? [] : ["--role-only"]),
         ...(feedback && feedback.trim() ? ["--feedback", feedback.trim()] : []),
       ];
     },
     signal,
   );
-  return { role: payload.result.role, case: payload.result.case, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
+  return { role: payload.result.role, case: payload.result.case ?? {}, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {} };
 }
 
 export type InterviewScenarioResult = {
@@ -238,14 +254,15 @@ export type ObservedMintResult = { credited: string[]; applied: boolean };
  *  rest of the scoring contract. */
 export async function mintObservedFromCaseInterview(
   entryId: string,
-  scorecard: Record<string, unknown>
+  scorecard: Record<string, unknown>,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<ObservedMintResult> {
-  const entry = getPipelineEntry(entryId);
+  const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry || !entry.candidateId || !isEarlyCareer(entry.archetype)) return { credited: [], applied: false };
   const caseId = devCaseIdFromJobId(entry.jobId);
   const devCase = caseId ? getDevCase(caseId) : null;
   if (!devCase?.scenario || !devCase.case || !devCase.role) return { credited: [], applied: false };
-  const rec = getProfileRecord(entry.candidateId);
+  const rec = getProfileRecord(entry.candidateId, workspaceId);
   if (!rec) return { credited: [], applied: false };
 
   const payload = await runDevcaseCli<{ result: { creditedSkills?: string[]; profile?: Record<string, unknown> } }>(
@@ -280,8 +297,8 @@ export async function mintObservedFromCaseInterview(
     roleFamily: (profile.roleFamily as string) ?? rec.row.role_family,
     completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
     payload: profile,
-  });
-  recordAutomationEvent(entryId, "observed_minted", credited.join(", "));
+  }, workspaceId);
+  recordAutomationEvent(entryId, "observed_minted", credited.join(", "), workspaceId);
   return { credited, applied: true };
 }
 
@@ -358,43 +375,6 @@ export async function mintObservedFromSubmission(
   return { credited, applied: true };
 }
 
-export type CommitReflectionResult = {
-  reflection: Record<string, unknown>;
-  tooling: Record<string, unknown>;
-  source: string;
-  perStepSources: Record<string, string>; // {reflect, tooling}
-  fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
-  commitCount: number;
-};
-
-// D5 core: pull the submission repo's git trace, then reflect ("where they mentally
-// went") + assess tooling against the case's covert probes.
-export async function runCommitReflection(repoRef: string, caseId?: string, signal?: AbortSignal): Promise<CommitReflectionResult> {
-  const signals = await fetchRepoSignals(repoRef);
-  const commits = signals?.commits ?? [];
-  const repo = signals ? { cadence: signals.cadence, topLevel: signals.topLevel } : null;
-  const devCase = caseId ? getDevCase(caseId) : null;
-  const probes = ((devCase?.case as { coverProbes?: unknown[] } | null)?.coverProbes ?? []) as unknown[];
-
-  const payload = await runDevcaseCli<{ result: { reflection: Record<string, unknown>; tooling: Record<string, unknown> }; source: string; perStepSources?: Record<string, string>; fallbackReason?: Record<string, string> }>(
-    async (workdir) => {
-      const commitsPath = path.join(workdir, "commits.json");
-      const probesPath = path.join(workdir, "probes.json");
-      await writeFile(commitsPath, JSON.stringify(commits), "utf-8");
-      await writeFile(probesPath, JSON.stringify(probes), "utf-8");
-      const args = ["reflect-commits", "--commits-json", commitsPath, "--probes-json", probesPath];
-      if (repo) {
-        const repoPath = path.join(workdir, "repo.json");
-        await writeFile(repoPath, JSON.stringify(repo), "utf-8");
-        args.push("--repo-json", repoPath);
-      }
-      return args;
-    },
-    signal,
-  );
-  return { reflection: payload.result.reflection, tooling: payload.result.tooling, source: payload.source, perStepSources: payload.perStepSources ?? {}, fallbackReason: payload.fallbackReason ?? {}, commitCount: commits.length };
-}
-
 export type SubmissionEvaluation = {
   reflection: Record<string, unknown>;
   tooling: Record<string, unknown>;
@@ -444,7 +424,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   // candidate produced no commit history by design). A normal repoRef keeps the
   // existing fetch-and-infer path unchanged.
   let signals: Awaited<ReturnType<typeof fetchRepoSignals>> = null;
-  let events: { t: number; kind: string; path?: string | null }[] | null = null;
+  let events: { t: number; kind: string; path?: string | null; size?: number | null }[] | null = null;
   if (sub.repoRef.startsWith("session:")) {
     events = getDevSessionEvents(sub.repoRef.slice("session:".length));
   } else {
@@ -514,6 +494,10 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
   };
   // ce28da40 — fold the trace + reflection into one authenticity verdict.
   const reflection = (payload.result.reflection ?? {}) as { readBeforeWrite?: number; iterationPattern?: string };
+  // Paste-from-LLM tell for observed sessions: a single bulk paste at/over the
+  // threshold landed in the watched editor (the live surface waives commit penalties,
+  // so without this a pasted solution scored "authentic").
+  const observedBulkPaste = observed && events!.some((e) => e.kind === "paste" && (e.size ?? 0) >= PASTE_BULK_CHARS);
   const authenticity = scoreAuthenticity({
     commitCount: processTrace.commitCount,
     bursty: processTrace.cadence?.bursty ?? null,
@@ -522,6 +506,7 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
     readBeforeWrite: reflection.readBeforeWrite ?? null,
     iterationPattern: reflection.iterationPattern ?? null,
     observed,
+    observedBulkPaste,
   });
   // c364a44d — anchor the evaluation into the shared seed: which planted seam
   // files did the submission actually touch? Grounded, mechanically comparable
@@ -589,6 +574,42 @@ export async function runSourceForRole(
   );
   const r = payload.result;
   return { candidates: r?.candidates ?? [], skipped: r?.skipped ?? 0, skippedReasons: r?.skippedReasons ?? [] };
+}
+
+// Seed the pipeline from a sourcing run's ranked matches — the SINGLE owner of the
+// "case-sourced candidate → Accepted pipeline entry" write contract, INCLUDING the
+// `sourceChannel: "devcase"` origin marker (d95fed6d). Used by both the lifecycle
+// orchestrator's publish step and the manual /api/devcase/source route, so a
+// candidate gets the same origin tag regardless of which path sourced them — the
+// route previously omitted the marker, so "Source DB" candidates silently lost
+// their "via dev case" attribution in the pipeline drawer. Skips matches without a
+// candidateId; returns the number of pipeline entries created.
+export function seedPipelineFromMatches(
+  matches: readonly Sourced[],
+  opts: { caseId: string | null; roleTitle: string },
+): { added: number } {
+  let added = 0;
+  for (const m of matches) {
+    if (!m.candidateId) continue;
+    createPipelineEntry({
+      candidateId: m.candidateId,
+      candidateLabel: m.label,
+      archetype: m.archetype,
+      roleFamily: "software_engineering",
+      jobId: `dc-${opts.caseId}`,
+      jobTitle: opts.roleTitle,
+      matchScore: m.score,
+      stage: "Accepted",
+      // d95fed6d — origin marker for case-sourced candidates.
+      sourceChannel: "devcase",
+      // Case-sourced candidates come from saved profiles — infer their comms
+      // language from the CV languages (backlog #34); NULL resolves to the
+      // workspace default at dispatch.
+      locale: inferProfileLocale(m.candidateId),
+    });
+    added += 1;
+  }
+  return { added };
 }
 
 // Bridge an evaluated submission into the pipeline + a Decisions screening_review card.

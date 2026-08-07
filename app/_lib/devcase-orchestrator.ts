@@ -1,6 +1,5 @@
 import {
   approveLifecycleCase,
-  createPipelineEntry,
   getDevCase,
   getLifecycle,
   listSubmissions,
@@ -18,6 +17,7 @@ import {
   runMaterializeSeed,
   runNeedAnalysis,
   runSourceForRole,
+  seedPipelineFromMatches,
 } from "./devcase-run";
 import { getAdapter } from "./distribution";
 import { sendComm } from "./comms";
@@ -42,7 +42,16 @@ export const DEV_POLICY = {
 // pipeline promotes against can never diverge from the one the calibration UI shows.
 export const activePromoteFloor = (): number => getPromoteFloor() ?? DEV_POLICY.promoteFloor;
 
-function gateApproval(analysis: LifecycleAnalysis | null): { pass: boolean; reason: string } {
+function gateApproval(analysis: LifecycleAnalysis | null, designCase?: Record<string, unknown> | null): { pass: boolean; reason: string } {
+  // Design provenance: auto-publish only a genuinely LLM-grounded case. If the design
+  // step FELL BACK to a deterministic template (source != "llm"), confidence in the
+  // unrelated need-analysis must not auto-ship a generic assignment presented as a
+  // bespoke, codebase-grounded case. Mirror the CaseDetail degradation semantics
+  // (a KNOWN non-llm source is degraded; an absent/unrecorded source isn't blocked).
+  const designSource = designCase?.designSource;
+  if (typeof designSource === "string" && designSource !== "llm") {
+    return { pass: false, reason: `design degraded to a ${designSource} template (not LLM-grounded) — human review before publishing` };
+  }
   const conf = analysis?.confidence ?? 0;
   if (conf < DEV_POLICY.autoApproveMinConfidence) {
     return { pass: false, reason: `low grounding confidence (${Math.round(conf * 100)}%) — human review` };
@@ -113,11 +122,15 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
     } else if (lc.stage === "analyzed") {
       if (!lc.need) throw new Error("lifecycle has no need to design from");
       // DEVP5 — render the candidate-facing case brief/tasks in the lifecycle's language.
-      const { role, case: kase } = await runDesignArtifacts(lc.need, lc.analysis ?? {}, signal, undefined, lc.lang);
-      updateLifecycle(id, { stage: "designed", role, case: kase, detail: "role + assignment designed" });
+      const design = await runDesignArtifacts(lc.need, lc.analysis ?? {}, signal, undefined, lc.lang);
+      // Persist the DESIGN step's provenance onto the case so the auto-approve gate can
+      // see whether the case was actually LLM-grounded — a deterministic-template
+      // fallback must NOT auto-publish to candidates as if it were bespoke.
+      const kase = { ...design.case, designSource: design.source } as Record<string, unknown>;
+      updateLifecycle(id, { stage: "designed", role: design.role, case: kase, detail: "role + assignment designed" });
       recordAudit({ lifecycleId: id, actor: "auto", action: "designed" });
     } else if (lc.stage === "designed") {
-      const gate = gateApproval(lc.analysis);
+      const gate = gateApproval(lc.analysis, lc.case as Record<string, unknown> | null);
       if (lc.auto && gate.pass) {
         const { caseId } = approveLifecycleCase(id, lc, gate.reason);
         recordAudit({ lifecycleId: id, actor: "auto", action: "auto_approved", reason: gate.reason, ref: caseId });
@@ -218,22 +231,7 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         const roleTitle = lc.role?.title ?? lc.title ?? "Dev case";
         const outcome = await runSourceForRole(lc.role ?? {});
         skipped = outcome.skipped;
-        for (const m of outcome.candidates) {
-          if (!m.candidateId) continue;
-          createPipelineEntry({
-            candidateId: m.candidateId,
-            candidateLabel: m.label,
-            archetype: m.archetype,
-            roleFamily: "software_engineering",
-            jobId: `dc-${lc.caseId}`,
-            jobTitle: roleTitle,
-            matchScore: m.score,
-            stage: "Accepted",
-            // d95fed6d — origin marker for case-sourced candidates.
-            sourceChannel: "devcase",
-          });
-          sourced += 1;
-        }
+        sourced = seedPipelineFromMatches(outcome.candidates, { caseId: lc.caseId, roleTitle }).added;
       } catch (err) {
         // Sourcing is best-effort — never block publishing — but record the failure so a real
         // crash (e.g. the matching bridge threw) is distinguishable from a legitimately empty

@@ -40,6 +40,7 @@ export const STORE_ERRORS = {
   JD_LIST_FAILED: "Could not load the JD library. Please try again.",
   JD_LOAD_FAILED: "Could not load the JD. Please try again.",
   JD_SAVE_FAILED: "Could not save the JD. Please try again.",
+  JD_GENERATE_FAILED: "Could not start the AI build. Please try again.",
   // Recruiter-side analyzed-candidates read (biz-ui scan 2026-06-12 #1).
   JD_ANALYSES_FAILED: "Could not load candidates for this JD. Please try again.",
   TEMPLATE_LIST_FAILED: "Could not load templates. Please try again.",
@@ -90,6 +91,8 @@ export const STORE_ERRORS = {
   ONBOARDING_FAILED: "Could not complete the onboarding action. Please try again.",
   // NL pipeline command bar (#7) — parse + preview/execute.
   COMMAND_FAILED: "Could not run that command. Please try again.",
+  // Cross-company reference tier (Phase 2) — the org-wide hiring benchmark (org_id-join).
+  BENCHMARK_FAILED: "Could not load the org benchmark. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

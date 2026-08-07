@@ -2,6 +2,7 @@
 
 import { GitBranch, GitPullRequest, Loader2, Star } from "lucide-react";
 import type { GithubAnalysis } from "@/app/_lib/schemas";
+import { EVIDENCE_INCOMPLETE_NOTE } from "@/app/_lib/github-evidence";
 import { dedupe } from "@/app/_lib/dedupe";
 import { CodeReviewStatusBadge } from "./Badge";
 import { Meter } from "./Meter";
@@ -85,12 +86,19 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
   // empty matchingSkills list means opposite things to a recruiter, so the empty-state copy
   // must spell out which one happened instead of always reading as a damning skills gap.
   const { jobDescriptionProvided } = analysis.jobFitSignals;
+  // FINDING #2: the route drops this note into `limitations` when some public GitHub
+  // data was throttled away this run. When present, absence of a skill is "could not
+  // determine", not a real gap (the route has already suppressed the unreliable
+  // gaps), so the panel must say so instead of the falsely-reassuring "no gaps".
+  const evidenceIncomplete = analysis.limitations.includes(EVIDENCE_INCOMPLETE_NOTE);
   const matchesEmpty = jobDescriptionProvided
     ? "Job description analyzed — no overlapping skills found in public GitHub metadata."
     : "No job description supplied — add one to compare it against this candidate's public work.";
-  const gapsEmpty = jobDescriptionProvided
-    ? "No job-mentioned gaps detected from public GitHub metadata."
-    : "No job description supplied — gaps are only measured against a job description.";
+  const gapsEmpty = !jobDescriptionProvided
+    ? "No job description supplied — gaps are only measured against a job description."
+    : evidenceIncomplete
+      ? "Couldn't fully check gaps — some public GitHub data couldn't be fetched this run (likely rate limiting). Retry for a complete read."
+      : "No job-mentioned gaps detected from public GitHub metadata.";
   return (
     <div className="mt-5 grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
@@ -131,6 +139,16 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
           <TitledList title="Job Skill Matches" items={analysis.jobFitSignals.matchingSkills} empty={matchesEmpty} />
           <TitledList title="Potential Gaps" items={analysis.jobFitSignals.potentialGaps} empty={gapsEmpty} />
         </div>
+        {jobDescriptionProvided && analysis.jobFitSignals.trackedSkillCount ? (
+          <p className="text-sm text-steel">
+            Compared against {analysis.jobFitSignals.trackedSkillCount} tracked skills — &ldquo;no gaps&rdquo; means none among these, not an exhaustive check.
+            {/* FINDING #2: extend (don't duplicate) the honest-coverage caveat when
+                this run was partially throttled, so gaps are never read as complete. */}
+            {evidenceIncomplete
+              ? " Some GitHub data couldn't be fetched this run, so gaps may be incomplete — retry for a complete read."
+              : null}
+          </p>
+        ) : null}
         <div className="rounded-lg border border-stone-200 bg-white p-4">
           <h3 className="font-serif text-h3 text-ink">Complexity Assessment</h3>
           <p className="mt-3 text-base leading-6 text-ink">{analysis.jobFitSignals.complexityAssessment}</p>

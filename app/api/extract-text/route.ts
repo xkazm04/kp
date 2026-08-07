@@ -7,9 +7,9 @@ import {
   persistFile,
   spawnPython,
 } from "@/app/_lib/python-runner";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { validateUploadServer } from "@/app/_lib/upload-constraints";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Kill the Python child a few seconds INSIDE the function's own hard limit
@@ -27,6 +27,16 @@ const EXTRACT_TIMEOUT_MS = (maxDuration - 5) * 1000;
 // — e.g. the GitHub deep-dive, which runs beside the main analysis — read the
 // EXACT same JD text instead of silently treating a file-only JD as empty.
 export async function POST(request: Request) {
+  // Per-IP abuse containment (backlog #7): this route spawns a Python subprocess
+  // per request AND is deliberately public even on a gated deploy (PUBLIC_API_EXACT
+  // in proxy.ts — the conversational apply needs it), so it must self-limit.
+  // Before the formData parse so a flood is rejected cheaply. 20/10min/IP covers
+  // every real cadence — the analyze form and the conversational apply each fire
+  // ONE extract per JD/CV file — while capping subprocess churn from a script.
+  if (!rateLimit(`extract-text:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
+    return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+  }
+
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File) || file.size === 0) {

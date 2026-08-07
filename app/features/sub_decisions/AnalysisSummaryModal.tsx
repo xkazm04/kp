@@ -5,6 +5,7 @@ import { Check, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { TextArea } from "@/app/_components/TextArea";
 import { ConfidenceBandBadge, ConfidenceRange, FitTierBadge } from "@/app/_components/Badge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ScoreBreakdown } from "@/app/features/sub_match/MatchShared";
@@ -223,13 +224,14 @@ export function AnalysisSummaryModal({
         <label htmlFor="decision-note" className="text-meta uppercase tracking-wide text-steel">
           {t("decisionNote")} <span className="font-normal normal-case text-steel/70">{t("decisionNoteOptional")}</span>
         </label>
-        <textarea
+        <TextArea
           id="decision-note"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={2}
           placeholder={t("notePlaceholder")}
-          className="focus-ring mt-1.5 w-full rounded-md border border-stone-200 bg-white p-2 text-sm text-ink"
+          sizeVariant="sm"
+          className="mt-1.5"
         />
       </div>
     </Modal>

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
-import { dispatchInterviewConfirmation } from "@/app/_lib/comms-dispatch";
+import { dispatchInterviewConfirmation, dispatchInterviewerBrief } from "@/app/_lib/comms-dispatch";
+import { deliveryClaim, isRelayConfigured, type DeliveryClaim } from "@/app/_lib/comms-truth";
+import { getInterviewPrep } from "@/app/_lib/interview-prep";
 import {
   bookedSlots,
   cancelAttendance,
@@ -21,7 +23,6 @@ import { isShortNoticeBooking } from "@/app/_lib/interview-reminder-policy";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
-export const runtime = "nodejs";
 
 // Candidate-facing projection of an invite (idea-69d1e4fd). The route used to
 // return the WHOLE ScheduleInvite row to the public token holder — including
@@ -45,6 +46,9 @@ function publicInviteView(invite: ScheduleInvite) {
     // can show "Attendance confirmed" vs the confirm/cancel actions. Not an
     // internal handle — safe on the public wire.
     attendanceStatus: invite.attendanceStatus,
+    // The interview join link, when the recruiter has set one — so the candidate's
+    // booked card can show a "Join" button and bake it into their calendar event.
+    meetingUrl: invite.meetingUrl,
   };
 }
 
@@ -58,7 +62,8 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
   // already-booked times, including this candidate's current one (they're moving
   // away from it). The cap stops the "change time" affordance from churning.
   const canReschedule = invite.status === "confirmed" && invite.rescheduleCount < MAX_RESCHEDULES;
-  const slots = invite.status !== "confirmed" || canReschedule ? proposeSlots(bookedSlots()) : [];
+  // Per-team calendar: only this invite's own team's confirmed slots block a time.
+  const slots = invite.status !== "confirmed" || canReschedule ? proposeSlots(bookedSlots(invite.workspaceId)) : [];
   // The busiest-calendar edge (idea-5df8e10f): a pending invite whose entire
   // proposal horizon is already booked yields zero slots. Rather than handing
   // the candidate a silent dead-end, flag the invite so the recruiter can open
@@ -158,15 +163,20 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // Record the chosen slot on the linked pipeline entry and send the
     // confirmation. Shared by the first confirm and a reschedule so the
     // approve_event + dispatch + reconcile-on-failure handling can't drift between
-    // them. Returns whether the confirmation email actually went out — the candidate
-    // page must not promise "we've sent a confirmation" when delivery failed (worst
-    // for short-notice bookings, which get no separate timed reminder).
+    // them. Returns the TRUTHFUL delivery claim (REC-10): "sent" only for a
+    // relayed 2xx, "queued" when no relay is configured (the row is a terminal
+    // local-outbox record — the candidate page must not promise "we've sent a
+    // confirmation"), "failed" when delivery dead-lettered/threw (worst for
+    // short-notice bookings, which get no separate timed reminder).
     // approve_event records the slot WITHOUT regressing an entry already past
     // Interview, so a reschedule of an in-progress interview is safe.
-    const recordBooking = async (booked: ScheduleInvite): Promise<boolean> => {
-      if (!invite.entryId) return true;
+    const recordBooking = async (booked: ScheduleInvite): Promise<DeliveryClaim> => {
+      // No linked entry ⇒ nothing to confirm to — fall back to capability so the
+      // page copy stays consistent with what a dispatch WOULD have done.
+      const blindClaim = deliveryClaim(isRelayConfigured());
+      if (!invite.entryId) return blindClaim;
       const entry = getPipelineEntry(invite.entryId);
-      if (!entry) return true;
+      if (!entry) return blindClaim;
       try {
         actOnPipelineEntry(entry.id, "approve_event", slot);
       } catch (advanceError) {
@@ -182,19 +192,39 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         const bookedAtMs = booked.confirmedAt ? Date.parse(booked.confirmedAt) : NaN;
         const shortNotice =
           !Number.isNaN(slotAtMs) && !Number.isNaN(bookedAtMs) && isShortNoticeBooking(slotAtMs, bookedAtMs);
-        await dispatchInterviewConfirmation(entry, slot, {
+        const confirmationStatus = await dispatchInterviewConfirmation(entry, slot, {
           shortNotice,
           durationMin: booked.durationMin,
           // The candidate's one durable way back to reschedule (SCH2) / .ics —
           // the picker page is gone once the tab closes.
           rescheduleLink: `${publicBaseUrl(new URL(request.url).origin)}/schedule/${token}`,
         });
-        return true;
+        // Brief the assigned interviewer too (interview-prep #2). Best-effort: a
+        // brief failure must never turn the candidate's confirmed booking into an
+        // error, so it's isolated and only logged. dispatchInterviewerBrief is the
+        // gatekeeper — it no-ops (or records interviewer_brief_skipped) when the
+        // prep carries no interviewer / no deliverable address.
+        try {
+          const prep = getInterviewPrep(entry.id);
+          const p = (prep?.payload ?? {}) as { interviewer?: unknown; scenario?: unknown; focusAreas?: unknown; lang?: unknown };
+          await dispatchInterviewerBrief(entry, slot, {
+            interviewer: typeof p.interviewer === "string" ? p.interviewer : null,
+            durationMin: booked.durationMin,
+            slotAtIso: booked.slotAt,
+            scenario: typeof p.scenario === "string" ? p.scenario : null,
+            focusAreas: Array.isArray(p.focusAreas) ? p.focusAreas.filter((f): f is string => typeof f === "string") : null,
+            lang: typeof p.lang === "string" ? p.lang : null,
+          });
+        } catch (briefError) {
+          const reason = briefError instanceof Error ? briefError.message : String(briefError);
+          await logScheduleReconcile({ token, entry_id: entry.id, slot, error: `interviewer brief failed: ${reason}` });
+        }
+        return deliveryClaim(isRelayConfigured(), confirmationStatus);
       } catch (dispatchError) {
         const reason = dispatchError instanceof Error ? dispatchError.message : String(dispatchError);
         markScheduleInviteNeedsReconcile(token, `confirmation email failed: ${reason}`);
         await logScheduleReconcile({ token, entry_id: entry.id, slot, error: `confirmation dispatch failed: ${reason}` });
-        return false;
+        return "failed";
       }
     };
 
@@ -218,8 +248,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
         }
         return NextResponse.json({ error: "not found" }, { status: 404 });
       }
-      const confirmationSent = await recordBooking(moved.invite);
-      return jsonOk({ ok: true, invite: publicInviteView(moved.invite), confirmationSent, rescheduled: true });
+      const confirmationDelivery = await recordBooking(moved.invite);
+      return jsonOk({
+        ok: true,
+        invite: publicInviteView(moved.invite),
+        // Legacy boolean kept for older clients; `confirmationDelivery` is the
+        // honest three-state the picker copy keys off (REC-10).
+        confirmationSent: confirmationDelivery !== "failed",
+        confirmationDelivery,
+        rescheduled: true,
+      });
     }
 
     // FIRST CONFIRM — a pending invite booking its slot.
@@ -234,8 +272,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       }
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
-    const confirmationSent = await recordBooking(result.invite);
-    return jsonOk({ ok: true, invite: publicInviteView(result.invite), confirmationSent });
+    const confirmationDelivery = await recordBooking(result.invite);
+    return jsonOk({
+      ok: true,
+      invite: publicInviteView(result.invite),
+      confirmationSent: confirmationDelivery !== "failed",
+      confirmationDelivery,
+    });
   } catch (error) {
     // Raw err.message would surface SQLite/dispatch internals on a public
     // token route — same hygiene as the pipeline/interview routes.

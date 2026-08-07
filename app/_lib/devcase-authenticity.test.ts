@@ -51,6 +51,31 @@ test("an observed live-session submission with a DECISIONS log is authentic, not
   assert.deepEqual(a.reasons, []);
 });
 
+test("an observed bulk paste (no incremental build-up) is held as suspect, not authentic", () => {
+  // The exact paste-from-LLM hole: a clean-looking watched session that pasted a whole
+  // LLM solution. Without the paste penalty this scored 100 ("authentic"); now -65 -> 35
+  // -> "suspect", which the auto-promote gate holds for the ownership-verifying interview.
+  const a = scoreAuthenticity({
+    commitCount: 0,
+    bursty: null,
+    spanHours: null,
+    decisionsLogPresent: true,
+    readBeforeWrite: 0.6,
+    iterationPattern: "linear",
+    observed: true,
+    observedBulkPaste: true,
+  });
+  assert.equal(a.score, 35);
+  assert.equal(a.band, "suspect");
+  assert.ok(a.reasons.some((r) => r.includes("bulk paste")));
+});
+
+test("observedBulkPaste only fires for observed sessions", () => {
+  // A non-observed (git) submission ignores the flag — git history is the real signal there.
+  const a = scoreAuthenticity({ ...base, observed: false, observedBulkPaste: true });
+  assert.ok(!a.reasons.some((r) => r.includes("bulk paste")));
+});
+
 test("observed waiver does not mask a genuinely missing DECISIONS log", () => {
   // Watched, but no DECISIONS log → still docked 25 (the log penalty is real); just
   // not the spurious no-commit penalty. 100 -25 = 75 → still authentic band but the

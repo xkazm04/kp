@@ -1,120 +1,385 @@
 {
   "currency": "CZK",
-  "market": "Czech Republic monthly gross salary, 2026",
+  "market": "Czech Republic monthly gross salary — hand-authored bands calibrated to ISPV rok 2025",
   "default_family": "general_professional",
-  "_doc": "Role-family x seniority anchor bands fed into the Gemini prompt as deterministic findings. Numbers are CZK monthly gross for the Czech market. The role-family VOCABULARY is shared with data/taxonomy.json::role_families (every family here must have a description there; families may exist in the taxonomy without a band here, in which case role_band() returns None and the model free-anchors). The 3 technology families' bands are sourced from Platy.cz IT 2026 / Kitalent Prague ICT 2025-2026 / expats.cz / Glassdoor+Levels.fyi. The non-tech families are representative Czech-market bands (Platy.cz category medians, 2026) added to OPEN the taxonomy beyond IT (idea P0-1); multi-currency/period/structure comp is a separate follow-up (P0-2) and will generalize the single CZK-monthly assumption. The deterministic layer also computes a multiplier on top via data/taxonomy.json::company_adjustments.",
+  "_doc": "Role-family × seniority anchor bands. The hand-authored bands (data/salary_benchmarks.manual.json) are CALIBRATED to empirical MPSV ISPV earnings from data/market_pulse.json: each family's manual bands are re-levelled by a blended, clamped multiplier toward its ISPV median (factor = 1 + 0.7*(clamp(ISPV_median/manual_medior_center, 0.75, 1.3) - 1)), preserving the manual seniority spread while correcting the overall level. `factor`/`ispv_median`/`sample_k` per role are provenance. Families below the ISPV sample gate or with no coverage (e.g. product_project) keep their manual band (source:'manual'). Regenerate via `npm run market:build && npm run market:apply` (env MARKET_BLEND=0..1). Revert by restoring data/salary_benchmarks.manual.json. Bands remain CZ-wide; the deterministic layer applies data/taxonomy.json::company_adjustments (Prague/enterprise premium) on top. Consumers (taxonomy.role_band) read only role.family + role[seniority][0..1].",
+  "generated_at": "2026-07-05T14:31:03.797Z",
   "roles": [
     {
       "family": "software_engineering",
-      "junior": [45000, 70000],
-      "medior": [70000, 110000],
-      "senior": [110000, 165000],
-      "lead": [150000, 220000]
+      "junior": [
+        42000,
+        65500
+      ],
+      "medior": [
+        65500,
+        103000
+      ],
+      "senior": [
+        103000,
+        154500
+      ],
+      "lead": [
+        140500,
+        206000
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.936,
+      "ispv_median": 81800,
+      "sample_k": 117,
+      "occupations": 12
     },
     {
       "family": "data_ai",
-      "junior": [50000, 80000],
-      "medior": [80000, 130000],
-      "senior": [125000, 190000],
-      "lead": [170000, 250000]
+      "junior": [
+        41500,
+        66000
+      ],
+      "medior": [
+        66000,
+        107500
+      ],
+      "senior": [
+        103000,
+        157000
+      ],
+      "lead": [
+        140500,
+        206500
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.825,
+      "ispv_median": 78800,
+      "sample_k": 25,
+      "occupations": 5
     },
     {
       "family": "product_project",
-      "junior": [45000, 65000],
-      "medior": [65000, 105000],
-      "senior": [100000, 150000],
-      "lead": [135000, 190000]
+      "junior": [
+        45000,
+        65000
+      ],
+      "medior": [
+        65000,
+        105000
+      ],
+      "senior": [
+        100000,
+        150000
+      ],
+      "lead": [
+        135000,
+        190000
+      ],
+      "source": "manual"
     },
     {
       "family": "healthcare_clinical",
-      "junior": [35000, 52000],
-      "medior": [48000, 75000],
-      "senior": [70000, 110000],
-      "lead": [100000, 160000]
+      "junior": [
+        33000,
+        48500
+      ],
+      "medior": [
+        45000,
+        70000
+      ],
+      "senior": [
+        65500,
+        103000
+      ],
+      "lead": [
+        93500,
+        150000
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.936,
+      "ispv_median": 55900,
+      "sample_k": 234,
+      "occupations": 24
     },
     {
       "family": "life_sciences_research",
-      "junior": [38000, 58000],
-      "medior": [55000, 90000],
-      "senior": [85000, 135000],
-      "lead": [120000, 185000]
+      "junior": [
+        33500,
+        51000
+      ],
+      "medior": [
+        48500,
+        79000
+      ],
+      "senior": [
+        75000,
+        119000
+      ],
+      "lead": [
+        105500,
+        163000
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.88,
+      "ispv_median": 60100,
+      "sample_k": 19,
+      "occupations": 6
     },
     {
       "family": "skilled_trades",
-      "junior": [30000, 44000],
-      "medior": [40000, 60000],
-      "senior": [55000, 82000],
-      "lead": [72000, 105000]
+      "junior": [
+        26500,
+        39000
+      ],
+      "medior": [
+        35500,
+        53000
+      ],
+      "senior": [
+        48500,
+        72500
+      ],
+      "lead": [
+        63500,
+        93000
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.884,
+      "ispv_median": 41700,
+      "sample_k": 424,
+      "occupations": 50
     },
     {
       "family": "operations_logistics",
-      "junior": [28000, 42000],
-      "medior": [38000, 58000],
-      "senior": [55000, 88000],
-      "lead": [80000, 125000]
+      "junior": [
+        26000,
+        39000
+      ],
+      "medior": [
+        35500,
+        54000
+      ],
+      "senior": [
+        51000,
+        81500
+      ],
+      "lead": [
+        74500,
+        116000
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.929,
+      "ispv_median": 43100,
+      "sample_k": 838,
+      "occupations": 61
     },
     {
       "family": "frontline_service",
-      "junior": [24000, 36000],
-      "medior": [32000, 48000],
-      "senior": [42000, 65000],
-      "lead": [58000, 90000]
+      "junior": [
+        21000,
+        31500
+      ],
+      "medior": [
+        28000,
+        42000
+      ],
+      "senior": [
+        37000,
+        57000
+      ],
+      "lead": [
+        51000,
+        79000
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.879,
+      "ispv_median": 33100,
+      "sample_k": 466,
+      "occupations": 29
     },
     {
       "family": "sales_marketing",
-      "junior": [33000, 52000],
-      "medior": [48000, 85000],
-      "senior": [80000, 135000],
-      "lead": [120000, 210000]
+      "junior": [
+        30500,
+        48500
+      ],
+      "medior": [
+        44500,
+        79000
+      ],
+      "senior": [
+        74500,
+        125500
+      ],
+      "lead": [
+        111500,
+        195000
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.929,
+      "ispv_median": 59800,
+      "sample_k": 213,
+      "occupations": 14
     },
     {
       "family": "finance_accounting",
-      "junior": [36000, 56000],
-      "medior": [54000, 90000],
-      "senior": [85000, 140000],
-      "lead": [130000, 210000]
+      "junior": [
+        31000,
+        48500
+      ],
+      "medior": [
+        46500,
+        78000
+      ],
+      "senior": [
+        73500,
+        121000
+      ],
+      "lead": [
+        112500,
+        181500
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.864,
+      "ispv_median": 58000,
+      "sample_k": 205,
+      "occupations": 14
     },
     {
       "family": "legal_compliance",
-      "junior": [40000, 62000],
-      "medior": [60000, 100000],
-      "senior": [95000, 160000],
-      "lead": [150000, 250000]
+      "junior": [
+        33000,
+        51000
+      ],
+      "medior": [
+        49500,
+        82500
+      ],
+      "senior": [
+        78500,
+        132000
+      ],
+      "lead": [
+        124000,
+        206500
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.825,
+      "ispv_median": 52700,
+      "sample_k": 27,
+      "occupations": 6
     },
     {
       "family": "hr_people",
-      "junior": [33000, 50000],
-      "medior": [46000, 76000],
-      "senior": [70000, 115000],
-      "lead": [105000, 170000]
+      "junior": [
+        33000,
+        50000
+      ],
+      "medior": [
+        46000,
+        76000
+      ],
+      "senior": [
+        70000,
+        115000
+      ],
+      "lead": [
+        105000,
+        170000
+      ],
+      "source": "manual"
     },
     {
       "family": "education_academic",
-      "junior": [30000, 46000],
-      "medior": [40000, 64000],
-      "senior": [58000, 92000],
-      "lead": [82000, 135000]
+      "junior": [
+        29000,
+        45000
+      ],
+      "medior": [
+        39000,
+        62500
+      ],
+      "senior": [
+        56500,
+        89500
+      ],
+      "lead": [
+        80000,
+        131500
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.974,
+      "ispv_median": 50100,
+      "sample_k": 213,
+      "occupations": 19
     },
     {
       "family": "creative_design",
-      "junior": [32000, 50000],
-      "medior": [45000, 75000],
-      "senior": [68000, 112000],
-      "lead": [100000, 165000]
+      "junior": [
+        26500,
+        41500
+      ],
+      "medior": [
+        37000,
+        62000
+      ],
+      "senior": [
+        56000,
+        92500
+      ],
+      "lead": [
+        82500,
+        136500
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.826,
+      "ispv_median": 45100,
+      "sample_k": 19,
+      "occupations": 12
     },
     {
       "family": "customer_support",
-      "junior": [28000, 42000],
-      "medior": [38000, 58000],
-      "senior": [52000, 82000],
-      "lead": [75000, 118000]
+      "junior": [
+        24000,
+        36000
+      ],
+      "medior": [
+        32500,
+        49500
+      ],
+      "senior": [
+        44500,
+        70000
+      ],
+      "lead": [
+        64000,
+        101000
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.854,
+      "ispv_median": 38000,
+      "sample_k": 51,
+      "occupations": 10
     },
     {
       "family": "general_professional",
-      "junior": [32000, 48000],
-      "medior": [44000, 72000],
-      "senior": [65000, 108000],
-      "lead": [95000, 155000]
+      "junior": [
+        30000,
+        45000
+      ],
+      "medior": [
+        41000,
+        67500
+      ],
+      "senior": [
+        61000,
+        101000
+      ],
+      "lead": [
+        89000,
+        145000
+      ],
+      "source": "manual×ISPV rok 2025",
+      "factor": 0.935,
+      "ispv_median": 52600,
+      "sample_k": 705,
+      "occupations": 60
     }
   ]
 }

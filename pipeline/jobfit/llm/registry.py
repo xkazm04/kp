@@ -72,5 +72,9 @@ def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
     if provider_name == "azure_openai":
         kwargs["endpoint"] = keys.endpoint if keys else None
         kwargs["api_version"] = keys.api_version if keys else None
+    elif provider_name == "openai":
+        # Optional OpenAI-compatible self-hosted endpoint (E-SH-5). None here lets
+        # the adapter fall back to the OPENAI_BASE_URL env (the DB-less self-host path).
+        kwargs["base_url"] = keys.base_url if keys else None
 
     return ADAPTERS[provider_name](**kwargs)

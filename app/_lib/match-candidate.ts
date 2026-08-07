@@ -1,4 +1,5 @@
 import { loadAnalysis } from "@/app/_lib/db";
+import { DEFAULT_ROLE_FAMILY } from "./role-families.ts";
 
 // Shape passed to the Python matcher (camelCase; MatchCandidate accepts aliases).
 export type CandidateInput = {
@@ -41,15 +42,27 @@ export function resolveCandidate(body: {
     return {
       candidate: {
         skills: (c.skills as string[]) ?? [],
-        seniority: (c.currentSeniority as string) ?? "medior",
-        roleFamily: (c.roleFamily as string) ?? "software_engineering",
+        // Fail-open, don't assume: an analysis with no captured seniority/family
+        // passes explicit "unknown"/DEFAULT_ROLE_FAMILY sentinels, NOT a fabricated
+        // "medior"/"software_engineering". role-families.ts::DEFAULT_ROLE_FAMILY
+        // ("general_professional", "Never assume software") is the single source of
+        // the neutral family so a nurse/electrician isn't matched as a mid-level SWE.
+        // Python's _SENIORITY_RANK.get(..., 2) treats "unknown" as neutral for
+        // scoring, and ko_filter fails closed on the "unknown" archetype below — so
+        // neither sentinel triggers a hard gate on a family we couldn't detect.
+        seniority: (c.currentSeniority as string) ?? "unknown",
+        roleFamily: (c.roleFamily as string) ?? DEFAULT_ROLE_FAMILY,
         educationLevel: (c.educationLevel as string) ?? "unknown",
         languages: (c.languages as string[]) ?? [],
         yearsExperience: (c.yearsExperience as number) ?? 0,
         traits: (c.traits as string[]) ?? [],
-        // Real archetype from the v2 profile (not silently 'bau') so a
-        // student/switcher gets the right weights + entry-eligible KO lens.
-        archetype: payload?.v2Profile?.archetype ?? "bau",
+        // Real archetype from the v2 profile when present. When it's missing
+        // (v2Profile.archetype is best-effort and can be null), pass an explicit
+        // "unknown" sentinel rather than silently collapsing to "bau" — "bau"
+        // would apply the seniority KO floor and strip the fairness shield from a
+        // student/switcher. The Python ko_filter fails closed on "unknown"
+        // (no seniority auto-KO) and weights_for falls back to neutral BAU weights.
+        archetype: payload?.v2Profile?.archetype ?? "unknown",
         label: loaded.row.candidate_label ?? (c.name as string) ?? "Candidate",
       },
     };

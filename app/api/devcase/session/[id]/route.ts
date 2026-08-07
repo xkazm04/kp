@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import { appendDevSessionEvents, getDevSession, saveDevSessionFiles } from "@/app/_lib/db";
 import { jsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Live Work Surface (moonshot E) — append observed events + save the (editable)
 // seed tree for an active session. Hand-rolled boundary coercion + bounds (the
 // payload is candidate-controlled): drop unknown event kinds, cap counts/size.
-const KINDS = new Set(["open", "edit", "decision_log", "submit"]);
+// "paste" carries the paste MAGNITUDE (`size`, char count) — the in-product
+// bulk-paste authenticity tell (devcase-authenticity PASTE_BULK_CHARS). Bug-ui-scan
+// 2026-07-09 #1: it was previously OMITTED from this allow-list (and `size` dropped
+// by the map/DB), so the -65 anti-ghostwriting penalty could never fire.
+const KINDS = new Set(["open", "edit", "decision_log", "submit", "paste"]);
 const MAX_EVENTS = 500; // per flush
 const MAX_FILES = 50;
 const MAX_FILE_BYTES = 256 * 1024;
@@ -31,6 +34,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           t: Number(e.t) || 0,
           kind: String(e.kind),
           path: typeof e.path === "string" ? e.path : null,
+          // Carry the paste MAGNITUDE (char count) through to the DB so the observed
+          // bulk-paste authenticity penalty can fire. Candidate-controlled, so coerce
+          // to a finite number (never the raw shape); null for non-paste kinds.
+          size: Number.isFinite(Number(e.size)) ? Number(e.size) : null,
         }));
       seq = appendDevSessionEvents(id, events);
     }

@@ -1,4 +1,5 @@
 import type { JobRecord } from "./db";
+import { parseGithubUsername } from "./github-handle.ts";
 
 // Pure, registry-free intake heuristics for the conversational apply flow. Kept
 // in their own module (no `@/`-aliased imports) so the locale default and the
@@ -230,14 +231,7 @@ export function coerceLeadTokenParam(value: unknown): string | null {
  */
 export function coerceGithubHandle(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const trimmed = value.trim().replace(/\/+$/, "");
-  if (!trimmed) return null;
-  const urlMatch = /^(?:https?:\/\/)?(?:www\.)?github\.com\/([^/?#]+)(?:[/?#].*)?$/i.exec(trimmed);
-  const candidate = (urlMatch ? urlMatch[1] : trimmed).replace(/^@/, "");
-  if (!/^[A-Za-z0-9-]{1,39}$/.test(candidate) || candidate.startsWith("-") || candidate.endsWith("-")) {
-    return null;
-  }
-  return candidate;
+  return parseGithubUsername(value);
 }
 
 /**
@@ -263,7 +257,7 @@ export function seedLeadPrefillAnswers(
   const name = lead.candidateLabel.trim();
   if (name && name !== ANONYMOUS_APPLICANT_LABEL) answers.name = name;
   const email = (lead.contact ?? "").trim();
-  if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) answers.email = email;
+  if (email && APPLY_EMAIL_RE.test(email)) answers.email = email;
   for (const step of steps) {
     if (step.type === "ko" && lead.passedKoIds.includes(step.id)) answers[step.id] = true;
   }

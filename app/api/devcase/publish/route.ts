@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDevCase } from "@/app/_lib/db";
 import { getAdapter } from "@/app/_lib/distribution";
 
-export const runtime = "nodejs";
 
 // OUT: publish an approved role+case through a distribution channel (local stub by default).
 export async function POST(request: NextRequest) {

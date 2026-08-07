@@ -132,27 +132,39 @@ def evaluate_submission(reflection: dict, tooling: dict, case: dict, role: dict,
         # strings or None) so `.get` can't raise — mirrors mint_followups and
         # assess_tooling, the sibling consumers that already guard.
         outcomes = [o for o in (tooling.get("probeOutcomes") or []) if isinstance(o, dict)]
-        has_probes = bool(outcomes)
-        handled = (sum(1 for o in outcomes if o.get("handledWell")) / len(outcomes)) if has_probes else 0.0
+        # A probe's handling is "assessed" only when handledWell is an explicit bool.
+        # The observed Live Work Surface path DETECTS that an area was worked but
+        # cannot grade handling, so it emits handledWell=None (unknown) — treat that
+        # as no-signal, NOT a failure. A definitive False here used to halve the
+        # judgment dimension for every in-product candidate (0.5*verif + 0.5*0).
+        assessed = [o for o in outcomes if isinstance(o.get("handledWell"), bool)]
+        detected_any = any(o.get("detected") for o in outcomes)
+        handled = (sum(1 for o in assessed if o.get("handledWell")) / len(assessed)) if assessed else 0.0
         dims = {
             "framing": _pct(0.55 * rbw + 0.45 * 0.5),
             "tooling": _pct(fluency),
-            # With NO probes assessed, judgment rests on verification alone rather than
-            # a free 0.5 "half-handled" midpoint for an assessment that never ran — the
-            # deterministic path must not score success-theater on the fairness-critical
-            # dimension when there was no probe signal at all.
-            "judgment": _pct(0.5 * verif + 0.5 * handled) if has_probes else _pct(verif),
+            # Judgment rests on the probe-handling mean ONLY when handling was actually
+            # graded; with no graded probes (observed path, or none at all) it rests on
+            # verification alone rather than a structurally-suppressed 0.5*handled for an
+            # assessment that never ran.
+            "judgment": _pct(0.5 * verif + 0.5 * handled) if assessed else _pct(verif),
             "architecture": _pct(0.4 + 0.35 * fluency),
             "transfer": _pct(0.5 * fluency + 0.5 * verif),
         }
         strengths, concerns = [], []
         if verif > 0.4:
             strengths.append("Shows verification habits in the trace")
-        if handled > 0.5:
+        if assessed and handled > 0.5:
             strengths.append("Detected/handled the embedded probes")
+        elif detected_any and not assessed:
+            # Observed path: credit working the probe areas honestly (handling not graded).
+            strengths.append("Worked the embedded probe areas (handling not graded from the trace)")
         if rbw < 0.45:
             concerns.append("Little evidence of reading before generating")
-        if not outcomes or handled <= 0.5:
+        # Only a concern when there were NO probes at all, or handling was graded and
+        # came out weak — an ungraded (observed) probe is covered by the strength above,
+        # not flagged as a negative.
+        if not outcomes or (assessed and handled <= 0.5):
             concerns.append("Probe handling unclear from the trace")
         # Empty findings stay empty (no '—' sentinel) — `hasFindings` lets the UI render a
         # deliberate empty state instead of a bare em-dash bullet that reads as a render bug.

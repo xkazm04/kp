@@ -8,7 +8,6 @@ import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
 import { safeJsonError } from "@/app/_lib/api-response";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 
-export const runtime = "nodejs";
 
 // Caps for the human scorecard write (PREP1). The rubric has a handful of
 // competencies; evidence/summary are short notes, not documents.

@@ -240,11 +240,12 @@ export function screenBottomCount(cohortSize: number, rejectBottomPercent: numbe
  *   • Only the straddling tie is spared: candidates with a strictly LOWER score
  *     than the tied run are unaffected and still auto-rejected.
  *
- * Takes the ascending-sorted scores (worst first — using the SAME `?? 0` coercion
- * the caller sorts by, so this stays orthogonal to the separate null-score policy)
- * and the raw bottomCount; returns the tie-safe count to reject (0 ≤ result ≤
- * bottomCount). Pure and order-independent for equal scores, so it is unit-tested
- * directly. Mirrors the keep-side rationale in screen-wave.ts.
+ * Takes the ascending-sorted GENUINE scores (worst first — the caller's null-score
+ * policy excludes unscored candidates before ranking, so no fabricated 0 reaches
+ * this cutoff; see screen-wave.ts) and the raw bottomCount; returns the tie-safe
+ * count to reject (0 ≤ result ≤ bottomCount). Pure and order-independent for equal
+ * scores, so it is unit-tested directly. Mirrors the keep-side rationale in
+ * screen-wave.ts.
  */
 export function tieSafeBottomCount(sortedScoresAsc: readonly number[], bottomCount: number): number {
   if (bottomCount <= 0) return 0;

@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAllDecisionConfigs, setDecisionConfig } from "@/app/_lib/decision-config-store";
 import { DecisionConfigError, validateDecisionConfig } from "@/app/_lib/decision-config-schema";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
 
 // Read / update the per-phase decision rules (Phase 3 decision module config).
+// Operator-gated (backlog #30 / SD-L1-010): these rules drive the auto-reject
+// wave, so both the read and the write re-verify the session at the handler
+// (and reject the anonymous demo session) like the rest of /api/decisions/*.
 export async function GET() {
-  return NextResponse.json({ configs: getAllDecisionConfigs() });
+  const denied = await requireOperator();
+  if (denied) return denied;
+  // The team's EFFECTIVE policy per phase: its own override where set, else the org default.
+  return NextResponse.json({ configs: getAllDecisionConfigs(await currentWorkspace()) });
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
-    const body = (await request.json()) as { phase?: unknown; config?: unknown };
+    const ws = await currentWorkspace();
+    const body = (await request.json()) as { phase?: unknown; config?: unknown; scope?: unknown };
     if (body.phase === undefined || body.config === undefined) {
       return NextResponse.json({ error: "phase and config are required." }, { status: 400 });
     }
@@ -22,8 +32,12 @@ export async function POST(request: NextRequest) {
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
-    setDecisionConfig(result.phase, result.config);
-    return NextResponse.json({ ok: true, configs: getAllDecisionConfigs() });
+    // scope 'team' writes THIS team's override; default 'org' edits the company baseline
+    // (the historical behavior). Publishing the org default affects every team — gate it on
+    // a manage capability once RBAC is enforced (today operator-gated, single-tenant).
+    const scope = body.scope === "team" ? "team" : "org";
+    setDecisionConfig(result.phase, result.config, ws, scope);
+    return NextResponse.json({ ok: true, configs: getAllDecisionConfigs(ws) });
   } catch (error) {
     // The store's backstop throws DecisionConfigError on a bad write — surface it
     // as a 400 too, so a schema violation is never reported as a 500.

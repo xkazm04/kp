@@ -10,6 +10,7 @@ import { SIM_COMPANY, SIM_JD_MARKDOWN, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, 
 import { STAGES as PIPELINE_STAGES } from "@/app/features/sub_pipeline/PipelineTypes";
 import type { PipelineEntryView } from "@/app/_lib/db";
 import type { ScreenDecision } from "@/app/_lib/screen-wave";
+import { compareByMatchScoreDesc } from "@/app/_lib/match-score";
 
 // `error` is the explicit unavailable/timed-out state: set when the evaluation
 // can't be produced in time, so the reused modal shows an honest message instead
@@ -189,8 +190,11 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   );
 
   const topScreened = useCallback(
+    // Best-first via the shared null-safe comparator: an unscored entry sorts
+    // last (never fabricated into a "score 0" pick), so the sim follows a
+    // candidate who was actually measured.
     async (jobId: string): Promise<PipelineEntryView | undefined> =>
-      (await entriesFor(jobId, "Screened")).sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))[0],
+      (await entriesFor(jobId, "Screened")).sort(compareByMatchScoreDesc)[0],
     [entriesFor]
   );
 
@@ -245,7 +249,11 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
   );
 
   const advance = useCallback(async (entryId: string): Promise<string> => {
-    const r = await fetch(`/api/pipeline/${entryId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept" }) });
+    // actor:"sim" — truthful audit attribution (gsim-l2-103): these accepts are
+    // engine-driven, so the pipeline event records auto_advanced and the sealed
+    // decision record names "auto:sim", never "human:recruiter". The route only
+    // honors the downgrade (human → automated), so this claims no authority.
+    const r = await fetch(`/api/pipeline/${entryId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept", actor: "sim" }) });
     const p = await r.json();
     if (!r.ok) throw new Error(p.error ?? "advance failed");
     notifyDataChanged(); // open board/queue re-fetches live
@@ -451,7 +459,7 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           targetId = top.id;
           targetLabel = top.candidateLabel;
           patch({ targetLabel });
-          log(`Matched ${intake.length} candidates → Screened · following ${targetLabel} (match ${top.matchScore}) to Hired`);
+          log(`Matched ${intake.length} candidates → Screened · following ${targetLabel} (match ${top.matchScore ?? "—"}) to Hired`);
         },
       });
 
@@ -489,10 +497,16 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           patch({ screenWave: null });
           log(`Screening wave · ${wave.rejected ?? 0} auto-rejected (with rationale), ${wave.kept ?? 0} advanced · early-career protected`);
 
-          // The survivor proceeds toward the interview (this sets the calendar gate).
-          await advance(targetId); // Screened → Interview
+          // The survivor proceeds toward the interview: attach the deterministic
+          // screening recommendation, then accept it. Accepting a screening_review
+          // IS the advance — pipeline.ts moves the entry exactly one stage
+          // (Screened → Interview) AND sets the calendar gate in the same step.
+          // (gsim-l2-101: a bare advance() before the draft used to double-advance
+          // the survivor to Offer, so the interview step's advanceTo("Offer")
+          // bare-accepted an Offer-stage entry into a phantom Hired and the walk
+          // crashed at the Interview→Offer seam. One accept, one stage.)
           await fetch("/api/sim/screen-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) });
-          await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept" }) });
+          await advance(targetId); // accept the screening review: Screened → Interview + calendar gate
           await waitEntry(targetId, (e) => e.stage === "Interview" || e.approvalKind === "calendar", "screening to open the interview / calendar gate");
           notifyDataChanged();
           log(`${targetLabel} passed screening → Interview`);
@@ -572,7 +586,9 @@ export function SimulationProvider({ children }: { children: React.ReactNode }) 
           });
           if (!clicked) {
             log("(offer card not visible — extending via API)");
-            await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept" }) });
+            // actor:"sim" — the engine (not a recruiter) extends here, so the
+            // offer_terms seal reads "auto:sim" (gsim-l2-103).
+            await fetch(`/api/pipeline/${targetId}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ action: "accept", actor: "sim" }) });
           }
           await waitEntry(targetId, (e) => e.approvalKind !== "offer_review", "the offer to be extended");
           const { token } = await fetch(`/api/sim/offer-link?entryId=${targetId}`).then((r) => r.json());

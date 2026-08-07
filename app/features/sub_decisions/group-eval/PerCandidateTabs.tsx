@@ -101,7 +101,9 @@ function CandidateDetail({
 
       {c.scoreBreakdown?.length ? (
         <div className="mt-3">
-          <ScoreBreakdown dims={c.scoreBreakdown} total={c.score} />
+          {/* A breakdown only exists when the recruiter ranker ran, i.e. score IS the
+              fresh total — the `?? 0` is a type-level fallback, unreachable here. */}
+          <ScoreBreakdown dims={c.scoreBreakdown} total={c.score ?? 0} />
         </div>
       ) : null}
 

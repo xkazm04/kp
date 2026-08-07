@@ -2,8 +2,10 @@
 // JD draft authoritatively but ingests the matchable jd-<slug> Job best-effort,
 // reporting which ran via `jobIngested`. When ingest fails the draft exists with no
 // Job row, so "Source into Pipeline" would dead-end (POST /publish → 404). The
-// builder must read `jobIngested`, block Publish with an explanation, and offer a
-// retry that re-ingests in place — never let the user click into that dead end.
+// recovery must be an in-place re-ingest under the existing slug — never a dead end.
+// (The inline builder result that once carried this guard was retired for the
+// backgrounded flow; the finished JD now lives in the Ledger, where a JD with no
+// matchable Job reads as `unlinked` and offers the RowIngest re-ingest affordance.)
 //
 // These are source-level guards (the modules import via the "@/..." alias, which
 // Node's test runner does not resolve), mirroring upload-size-contract.test.ts.
@@ -32,19 +34,23 @@ test("save route supports a retry that re-ingests under an existing slug", () =>
   // A retry passes the existing slug so we re-ingest in place instead of forking a
   // duplicate draft — the JD row must NOT be re-created when a slug is supplied.
   assert.match(src, /body\.slug/, "retry must re-use the client-supplied slug");
-  assert.match(src, /loadJd\(body\.slug\)/, "an unknown retry slug must be rejected, not minted");
+  assert.match(src, /loadJd\(body\.slug\b/, "an unknown retry slug must be rejected, not minted");
   assert.match(src, /status:\s*404/, "an unknown retry slug must 404");
 });
 
-test("builder blocks Source into Pipeline when ingest failed and offers a retry", () => {
-  const src = read("../../../features/sub_library/JdBuilderResult.tsx");
-  // The Source button must be gated on jobIngested — a failed ingest can't be sourced.
+test("the Ledger offers an in-place re-ingest for a JD with no matchable job (no dead-end)", () => {
+  // A JD that never got a matchable Job (ingest failed, or a description-less build)
+  // reads as `unlinked` and MUST offer an in-place re-ingest — never a
+  // Source-into-Pipeline dead end (POST /publish → 404).
+  const ledger = read("../../../features/sub_library/LibrarySavedJdsLedger.tsx");
+  assert.match(ledger, /isUnlinked\(row\)[\s\S]{0,120}?<RowIngest/, "unlinked JDs must get the RowIngest affordance");
+  assert.match(ledger, /Couldn't ingest[\s\S]{0,10}?retry/, "a failed ingest must offer a retry, not dead-end");
+
+  // The re-ingest re-uses the existing slug (re-ingest in place, not a duplicate draft).
+  const hooks = read("../../../features/sub_library/jd-hooks.ts");
   assert.match(
-    src,
-    /disabled=\{sourcing \|\| !saved\.jobIngested\}/,
-    "Source into Pipeline must be disabled until the role is ingested",
+    hooks,
+    /\/api\/jds\/\$\{encodeURIComponent\(slug\)\}\/ingest-job/,
+    "re-ingest must target the existing slug's ingest-job endpoint",
   );
-  // ...with a retry that re-ingests in place (re-POST carrying the saved slug).
-  assert.match(src, /retryIngest/, "must offer a retry handler when ingest failed");
-  assert.match(src, /slug:\s*saved\.slug/, "retry must re-POST with the existing slug (re-ingest, not duplicate)");
 });

@@ -1,9 +1,11 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { randomId, randomToken } from "./random-id";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
 import { PIPELINE_STAGES } from "./pipeline-stages";
-import { isOfferExpired, OFFER_REMINDER_LEAD_MS, OFFER_TTL_MS } from "./offer-policy";
+import { isOfferExpired, OFFER_REMINDER_LEAD_MS, offerExpiresAtMs } from "./offer-policy";
+import { recordAutomationEvent } from "./db";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
 // store (same pattern as job-ingest.ts): opens its OWN better-sqlite3 handle on
@@ -38,10 +40,17 @@ function db(): Database.Database {
       -- Deadline after which an un-answered offer lapses to status 'expired'
       -- (idea-29361408). NULL on legacy rows minted before this column → those
       -- never expire (fail-open, see offer-policy.isOfferExpired).
-      expires_at TEXT
+      expires_at TEXT,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace'
     );
     CREATE INDEX IF NOT EXISTS idx_offers_entry ON offers (entry_id);
   `);
+  // Tenancy scoping (E0 Phase 1): workspace_id on a pre-existing table (isolated store).
+  try {
+    d.exec(`ALTER TABLE offers ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'`);
+  } catch {
+    /* column already exists — idempotent */
+  }
   // Migration for stores created before the expiry column existed.
   try {
     d.exec(`ALTER TABLE offers ADD COLUMN expires_at TEXT`);
@@ -121,20 +130,37 @@ export function createOffer(input: {
   currency: string | null;
   salary: number | null;
   payload: unknown;
+  /** Per-offer deadline in whole days — the recruiter's lever (offers-onboarding
+   *  #3). Out-of-range/omitted falls back to the deployment default; validated in
+   *  offer-policy.resolveOfferTtlMs. */
+  ttlDays?: number | null;
 }): OfferRow {
   const d = db();
   const nowMs = Date.now();
   const now = new Date(nowMs).toISOString();
   // Stamp the deadline at mint time (idea-29361408) so the offer lapses on its own.
-  const expiresAt = new Date(nowMs + OFFER_TTL_MS).toISOString();
+  // Honors a per-offer ttlDays (validated) or the deployment default.
+  const expiresAt = new Date(offerExpiresAtMs(nowMs, input.ttlDays)).toISOString();
   const id = randomId("off");
   const token = randomToken("tk");
+  // Tenant (P1): an offer inherits its pipeline entry's workspace (by-id read; guarded
+  // so an isolated store without pipeline_entries falls back to default). Every other
+  // offers op is keyed by the unguessable token or the globally-unique entry_id, and the
+  // lapse/reminder sweeps are global heartbeat jobs — so the stamp here is what a future
+  // recruiter enumeration would filter on.
+  let workspaceId = DEFAULT_WORKSPACE_ID;
+  try {
+    const ws = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as { workspace_id?: string } | undefined;
+    workspaceId = ws?.workspace_id ?? DEFAULT_WORKSPACE_ID;
+  } catch {
+    /* pipeline_entries absent on this connection — keep the default workspace */
+  }
   // RETURNING * hands the freshly-inserted row back in the same statement, so we
   // don't issue a second SELECT to read what we just wrote.
   const row = d
     .prepare(
-      `INSERT INTO offers (id, token, entry_id, candidate_label, job_id, job_title, currency, salary, payload_json, status, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'extended', ?, ?) RETURNING *`
+      `INSERT INTO offers (id, token, entry_id, candidate_label, job_id, job_title, currency, salary, payload_json, status, created_at, expires_at, workspace_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'extended', ?, ?, ?) RETURNING *`
     )
     .get(
       id,
@@ -147,7 +173,8 @@ export function createOffer(input: {
       input.salary,
       JSON.stringify(input.payload ?? null),
       now,
-      expiresAt
+      expiresAt,
+      workspaceId
     ) as Record<string, unknown>;
   return rowToOffer(row);
 }
@@ -169,7 +196,13 @@ export function expireOfferIfDue(token: string, nowMs: number = Date.now()): Off
   const updated = db()
     .prepare(`UPDATE offers SET status = 'expired' WHERE token = ? AND status = 'extended' RETURNING *`)
     .get(token) as Record<string, unknown> | undefined;
-  return updated ? rowToOffer(updated) : getOfferByToken(token);
+  if (!updated) return getOfferByToken(token);
+  const row = rowToOffer(updated);
+  // Record the lapse like every sibling offer transition (sent/accepted/declined),
+  // so a dead offer leaves an audit trail, surfaces on the candidate timeline, and
+  // doesn't read as "still pending" in accept-rate/funnel analytics.
+  if (row.entryId) recordAutomationEvent(row.entryId, "offer_expired", row.jobTitle ?? "");
+  return row;
 }
 
 /** Sweep every still-open offer past its deadline to terminal 'expired' (the
@@ -177,10 +210,20 @@ export function expireOfferIfDue(token: string, nowMs: number = Date.now()): Off
  *  same order as time, so the `<=` is a correct deadline test in SQL. Rows with a
  *  NULL deadline (legacy) are excluded — they never expire. Returns how many lapsed. */
 export function lapseExpiredOffers(nowMs: number = Date.now()): number {
-  const res = db()
-    .prepare(`UPDATE offers SET status = 'expired' WHERE status = 'extended' AND expires_at IS NOT NULL AND expires_at <= ?`)
-    .run(new Date(nowMs).toISOString());
-  return res.changes;
+  // RETURNING the flipped rows (race-safe vs a separate SELECT) so each lapse can
+  // record an `offer_expired` event — otherwise a dead offer is invisible to the
+  // recruiter, the timeline, and accept-rate analytics.
+  const lapsed = db()
+    .prepare(
+      `UPDATE offers SET status = 'expired'
+       WHERE status = 'extended' AND expires_at IS NOT NULL AND expires_at <= ?
+       RETURNING entry_id, job_title`
+    )
+    .all(new Date(nowMs).toISOString()) as Array<{ entry_id: string | null; job_title: string | null }>;
+  for (const r of lapsed) {
+    if (r.entry_id) recordAutomationEvent(r.entry_id, "offer_expired", r.job_title ?? "");
+  }
+  return lapsed.length;
 }
 
 /** Still-open offers that have entered the T-48h reminder window and haven't been
@@ -243,12 +286,49 @@ export function getOpenOfferForEntry(entryId: string): OfferRow | null {
  *  check-then-insert across connections, and the partial unique index above
  *  backstops any writer that bypasses this helper. `created` tells the caller
  *  whether this call minted the row (vs. reusing an existing open offer). */
-export function getOrCreateOpenOffer(input: Parameters<typeof createOffer>[0]): { offer: OfferRow; created: boolean } {
+export function getOrCreateOpenOffer(
+  input: Parameters<typeof createOffer>[0]
+): { offer: OfferRow; created: boolean; updated: boolean } {
   const d = db();
-  const tx = d.transaction((): { offer: OfferRow; created: boolean } => {
+  const tx = d.transaction((): { offer: OfferRow; created: boolean; updated: boolean } => {
     const open = getOpenOfferForEntry(input.entryId);
-    if (open) return { offer: open, created: false };
-    return { offer: createOffer(input), created: true };
+    if (!open) return { offer: createOffer(input), created: true, updated: false };
+
+    // Re-extend after a draft edit (offers-onboarding #1): the stored row is the
+    // offer-of-record the BINDING accept page renders (offer-finalize.offerView →
+    // OfferClient reads offer.salary/currency), but the re-dispatched letter is
+    // minted from the LIVE draft. So if the recruiter corrected the number (typo,
+    // re-negotiation, wrong currency) and re-extends, the emailed terms and the
+    // accept page would diverge — a candidate could accept a figure that isn't the
+    // one they were sent. Refresh the SAME open row (same token/link — the
+    // idempotent re-send contract; never a second live link) to the incoming
+    // draft's terms so the accept page and the letter are one snapshot. Guarded to a
+    // material change, so a pure idempotent re-extend stays a verbatim re-send with
+    // its deadline and reminder claim untouched.
+    const nextCurrency = typeof input.currency === "string" ? input.currency : null;
+    const nextSalary = input.salary ?? null;
+    const termsChanged = nextSalary !== open.salary || nextCurrency !== open.currency;
+    if (!termsChanged) return { offer: open, created: false, updated: false };
+
+    // A corrected offer is effectively re-extended: restart the deadline window
+    // (honoring the draft's ttlDays) and re-arm the single T-48h reminder. The CAS
+    // on `status = 'extended'` means an offer that was accepted/declined/expired in
+    // the meantime is NEVER silently rewritten into a different amount — the update
+    // matches no open row and the current authoritative row is returned instead.
+    const expiresAt = new Date(offerExpiresAtMs(Date.now(), input.ttlDays)).toISOString();
+    const updatedRow = d
+      .prepare(
+        `UPDATE offers SET salary = ?, currency = ?, expires_at = ?, payload_json = ?, reminded_at = NULL
+          WHERE id = ? AND status = 'extended' RETURNING *`
+      )
+      .get(nextSalary, nextCurrency, expiresAt, JSON.stringify(input.payload ?? null), open.id) as
+      | Record<string, unknown>
+      | undefined;
+    if (!updatedRow) {
+      const current = getOpenOfferForEntry(input.entryId);
+      return { offer: current ?? open, created: false, updated: false };
+    }
+    return { offer: rowToOffer(updatedRow), created: false, updated: true };
   });
   return tx.immediate();
 }
@@ -296,13 +376,13 @@ const HIRED_STAGE = PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
  *  symmetric stale-schedule-token path, and the isEntryReminderEligible predicate.
  *  Returns true only when the row actually transitioned; logs when the guard blocks
  *  the write so the dropped decline is never silent. */
-export function markEntryStatus(entryId: string, status: PipelineEntryStatus): boolean {
+export function markEntryStatus(entryId: string, status: PipelineEntryStatus, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const res = db()
     .prepare(
       `UPDATE pipeline_entries SET status = ?, updated_at = ?
-        WHERE id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND stage != ?`
+        WHERE id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND stage != ? AND workspace_id = ?`
     )
-    .run(status, new Date().toISOString(), entryId, HIRED_STAGE);
+    .run(status, new Date().toISOString(), entryId, HIRED_STAGE, workspaceId);
   if (res.changes === 0) {
     console.warn(
       `[offers-store] markEntryStatus('${status}') blocked for entry ${entryId}: ` +

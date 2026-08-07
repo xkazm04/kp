@@ -6,7 +6,6 @@ import { getJobsByIds, listMatrixProfiles, listOpenPositions, pipelinePlacements
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";
 
-export const runtime = "nodejs";
 
 // koKeys: stable KoReason.key categories naming WHY a cell is blocked (MAT2);
 // present only on blocked cells, localized client-side by key.
@@ -39,8 +38,9 @@ let matrixCache: { key: string; matrix: MatrixOut } | null = null;
 export async function GET(request: NextRequest) {
   let workdir: string | null = null;
   try {
-    const profiles = listMatrixProfiles(200, await currentWorkspace());
-    const positions = listOpenPositions();
+    const ws = await currentWorkspace();
+    const profiles = listMatrixProfiles(200, ws);
+    const positions = listOpenPositions(ws);
     if (profiles.length === 0 || positions.length === 0) {
       return NextResponse.json({ candidates: [], positions: [], cells: [], missing: [], missingCandidates: [], placements: {} });
     }
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
         // matrix_cli already names the dropped candidates (id/label/error from the
         // profile payload itself) — pass straight through (defaulting for older CLI output).
         missingCandidates: matrix.missingCandidates ?? [],
-        placements: pipelinePlacements(),
+        placements: pipelinePlacements(ws),
         cached,
       });
 

@@ -17,9 +17,11 @@ import type { AutomationRoi } from "@/app/_lib/automation-roi";
 import type { ChannelEconomics } from "@/app/_lib/db";
 import type { VariantRecommendation, VariantStat } from "@/app/_lib/source-analytics";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/tabs";
+import { useDeliveryCapability } from "@/app/features/useDeliveryCapability";
 import { DecisionLog } from "./DecisionLog";
 import { CalibrationPanel } from "./CalibrationPanel";
 import { DecisionRecordsPanel } from "./DecisionRecordsPanel";
+import { OrgBenchmarkPanel } from "./OrgBenchmarkPanel";
 
 type Funnel = { stage: string; reached: number; current: number; conversionPct: number | null };
 type Analytics = {
@@ -322,6 +324,8 @@ export function AnalyticsTab() {
 
       <MomentumPanel weeks={data.momentum} />
 
+      <OrgBenchmarkPanel />
+
       <CalibrationPanel />
 
       <DecisionRecordsPanel />
@@ -431,6 +435,9 @@ function AutomationPanel({
   decisionsHref: string;
 }) {
   const t = useTranslations("analytics.automation");
+  // REC-10 — "Comms delivered" is only claimed when a relay delivers; without
+  // one the same count is truthfully "recorded in Outbox".
+  const relayConfigured = useDeliveryCapability();
   const decided = impact.autoCount + impact.humanCount;
   const pct = decided > 0 ? Math.round((impact.autoCount / decided) * 100) : null;
   return (
@@ -460,7 +467,7 @@ function AutomationPanel({
                 {t("holdsValue", { raised: impact.holdsRaised, resolved: impact.holdsResolved })}
               </Link>
             </li>
-            <ImpactRow label={t("comms")} value={impact.commsDelivered} />
+            <ImpactRow label={t(relayConfigured === false ? "commsQueued" : "comms")} value={impact.commsDelivered} />
           </ul>
           {/* b39992b1 — what that automation was WORTH, in recruiter-hours + CZK. */}
           <RoiLedger roi={roi} costPerHireCzk={costPerHireCzk} timeToHireDays={timeToHireDays} onSaved={onSaved} />
@@ -486,6 +493,9 @@ function RoiLedger({
 }) {
   const t = useTranslations("analytics.roi");
   const tLog = useTranslations("analytics.log");
+  // REC-10 — the ledger's per-kind rows reuse the event-kind labels; with no
+  // relay a "…sent" kind renders its honest queued variant here too.
+  const relayConfigured = useDeliveryCapability();
   const exportCsv = () => {
     downloadFile(
       "kp-automation-roi.csv",
@@ -501,7 +511,7 @@ function RoiLedger({
         [t("csvCzkTotal"), roi.czkSaved],
         [],
         [t("csvKind"), t("csvCount"), t("csvMinsEach"), t("csvMinsTotal")],
-        ...roi.actions.map((a) => [kindLabel(tLog, a.kind), a.count, a.minutesEach, a.minutesTotal]),
+        ...roi.actions.map((a) => [kindLabel(tLog, a.kind, { relayConfigured }), a.count, a.minutesEach, a.minutesTotal]),
       ]),
       "text/csv"
     );
@@ -550,7 +560,7 @@ function RoiLedger({
           <ul className="mt-3 space-y-1 text-sm">
             {roi.actions.slice(0, 5).map((a) => (
               <li key={a.kind} className="flex items-baseline justify-between gap-2">
-                <span className="truncate text-steel">{t("actionRow", { label: kindLabel(tLog, a.kind), count: a.count })}</span>
+                <span className="truncate text-steel">{t("actionRow", { label: kindLabel(tLog, a.kind, { relayConfigured }), count: a.count })}</span>
                 <span className="shrink-0 font-medium text-ink">{t("minsSaved", { mins: a.minutesTotal })}</span>
               </li>
             ))}
@@ -840,7 +850,7 @@ function InlineNumberSave({
       title={failed ? failedTitle : undefined}
       aria-invalid={failed ? true : undefined}
       placeholder="—"
-      className={`focus-ring h-8 ${width} rounded-md border px-2 text-right disabled:opacity-50 ${inputClassName ?? ""} ${
+      className={`focus-ring h-8 bg-white caret-coral placeholder:text-steel ${width} rounded-md border px-2 text-right disabled:opacity-50 ${inputClassName ?? ""} ${
         failed ? "border-coral text-coral" : "border-stone-200 text-ink"
       }`}
     />

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { setChannelSpend } from "@/app/_lib/db";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // E5 — recruiter-entered spend per inbound source channel (CZK), the
 // denominator for the cost-per-applicant / cost-per-hire columns. A null (or
@@ -22,7 +21,7 @@ export async function POST(request: NextRequest) {
     if (amount !== null && (!Number.isFinite(amount) || amount < 0 || amount > MAX_AMOUNT_CZK)) {
       return NextResponse.json({ error: "Invalid amount." }, { status: 400 });
     }
-    setChannelSpend(channel, amount);
+    setChannelSpend(channel, amount, await currentWorkspace());
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json(

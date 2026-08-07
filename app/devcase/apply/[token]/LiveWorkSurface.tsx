@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import type { SeedFile } from "./SeedFiles";
-import type { ProcessEvent } from "@/app/features/sub_dev/DevTypes";
+import { TextInput } from "@/app/_components/TextInput";
+import type { ProcessEvent, SeedFile } from "@/app/features/sub_dev/DevTypes";
 
 // Live Work Surface (moonshot E) — an in-product editor over the materialized seed.
 // As the candidate works, it records OBSERVED process events (which files they
@@ -29,7 +29,6 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   const [contact, setContact] = useState("");
   const contactValid = /\S+@\S+\.\S+/.test(contact.trim());
   const canSubmit = name.trim().length > 0 && contactValid && status !== "submitting";
-  const inputClass = "focus-ring mt-1 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-base text-ink";
 
   const sessionIdRef = useRef<string | null>(null);
   const startingRef = useRef(false);
@@ -67,8 +66,8 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   }, [token]);
 
   const record = useCallback(
-    (kind: ProcessEvent["kind"], path?: string) => {
-      pendingRef.current.push({ t: Date.now(), kind, path });
+    (kind: ProcessEvent["kind"], path?: string, size?: number) => {
+      pendingRef.current.push({ t: Date.now(), kind, path, size });
       void ensureSession();
     },
     [ensureSession]
@@ -182,8 +181,15 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         <textarea
           value={active?.contents ?? ""}
           onChange={(e) => active && onEdit(active.path, e.target.value)}
+          onPaste={(e) => {
+            // Record paste MAGNITUDE (char count) only — not the content. A single
+            // large bulk paste into the watched editor is the in-product
+            // paste-from-LLM tell the authenticity scorer now penalizes.
+            const n = (e.clipboardData?.getData("text") ?? "").length;
+            if (active && n > 0) record("paste", active.path, n);
+          }}
           spellCheck={false}
-          className="h-80 w-full resize-y rounded-md border border-stone-300 bg-stone-50 p-3 font-mono text-xs leading-relaxed text-ink focus:outline-none focus:ring-2 focus:ring-stone-400"
+          className="focus-ring h-80 w-full resize-y rounded-md border border-stone-200 bg-stone-50 p-3 font-mono text-xs leading-relaxed text-ink caret-coral"
           aria-label={active?.path ?? "editor"}
         />
       </div>
@@ -191,16 +197,16 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block text-sm font-medium text-ink">
           {tApply("fieldName")} <span className="text-coral">*</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
         </label>
         <label className="block text-sm font-medium text-ink">
           {tApply("fieldContact")} <span className="text-coral">*</span>
-          <input
+          <TextInput
             type="email"
             value={contact}
             onChange={(e) => setContact(e.target.value)}
             placeholder={tApply("fieldContactPlaceholder")}
-            className={inputClass}
+            className="mt-1"
           />
           <span className="mt-1 block text-xs font-normal text-steel">{tApply("fieldContactHint")}</span>
         </label>

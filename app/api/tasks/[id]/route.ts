@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getTask } from "@/app/_lib/db";
 import { cancelTask } from "@/app/_lib/tasks";
 
-export const runtime = "nodejs";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;

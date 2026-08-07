@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPipelineEntry, listPipeline, PIPELINE_STAGES } from "@/app/_lib/db";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
+import { inferProfileLocale } from "@/app/_lib/comms-locale";
+import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    return NextResponse.json({ entries: listPipeline(), stages: PIPELINE_STAGES });
+    // Canonical match-score read path (REC-01 / OO-L2-10): every entry rides
+    // out with `canonicalScore` + `scoreProvenance` so board/drawer/decisions
+    // surfaces render ONE number and can label where it came from.
+    const ws = await currentWorkspace();
+    const entries = withCanonicalScores(listPipeline(ws), ws);
+    return NextResponse.json({ entries, stages: PIPELINE_STAGES });
   } catch (error) {
     return safeJsonError(error, "api:pipeline", "PIPELINE_LIST_FAILED");
   }
@@ -69,6 +76,12 @@ export async function POST(request: NextRequest) {
       stage: body.stage,
       githubJson,
       sourceChannel: source,
+      // Recruiter/Match adds carry no explicit language choice — infer it from the
+      // candidate's CV languages (already on the saved profile) so downstream comms
+      // speak their language; no signal stays NULL and resolves to the workspace
+      // default at dispatch (backlog #34 / pa-l2-null-locale).
+      locale: inferProfileLocale(body.candidateId),
+      workspaceId: await currentWorkspace(),
     });
     return NextResponse.json(result);
   } catch (error) {

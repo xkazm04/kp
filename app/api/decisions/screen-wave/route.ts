@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
+import { operatorApprover } from "@/app/_lib/auth/operator-approver";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Run the screening auto-reject wave over one role's matched cohort. An optional
 // `override` rule lets the simulation/preview run it without changing the saved
 // config.
+// Operator-gated (backlog #30 / SD-L1-010): the wave rejects real candidates,
+// queues their adverse-action emails, and seals records into the global chain —
+// so the handler re-verifies the operator session (rejecting the anonymous
+// demo-workspace session) exactly like /api/automation/[task]. The dry-run
+// preview reads the same cohort PII, so it is gated too.
 export async function POST(request: NextRequest) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const body = (await request.json()) as {
       jobId?: string;
@@ -35,15 +43,20 @@ export async function POST(request: NextRequest) {
     // token at all gets the "approval required" message, while a present-but-stale
     // token gets the "set changed, re-preview" message. Both are refused (409).
     const approvalToken = typeof body.approvalToken === "string" ? body.approvalToken.trim() : "";
+    // Art. 22 approver (finding SD-2): the "who reviewed this automated adverse decision"
+    // field is the most legally load-bearing part of the sealed record, so it must be an
+    // AUTHENTICATED fact, not a client assertion. This handler is already operator-gated
+    // (requireOperator above), so we bind the approver to the server-derived operator
+    // identity via operatorApprover() and IGNORE any body.approvedBy — a caller can no
+    // longer attribute the human review to an arbitrary name. (Per-user identity doesn't
+    // exist yet — single-operator deploy — so operatorApprover() is the authenticated
+    // actor; when it lands, derive the specific reviewer from the session here.)
     const approval =
       dryRun || !approvalToken
         ? undefined
         : {
             token: approvalToken,
-            approvedBy:
-              typeof body.approvedBy === "string" && body.approvedBy.trim()
-                ? body.approvedBy.trim()
-                : "operator (in-app approval)",
+            approvedBy: operatorApprover(),
           };
     const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval });
     return NextResponse.json(result);

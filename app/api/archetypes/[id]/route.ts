@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateArchetype } from "@/app/_lib/archetype-registry";
 
-export const runtime = "nodejs";
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {

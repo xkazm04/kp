@@ -3,7 +3,6 @@ import { getInterviewPrep, listPreparedEntries, saveInterviewPrepProgress } from
 import { safeJsonError } from "@/app/_lib/api-response";
 import { MAX_ENTRY_ID_LEN, parseEntriesParam } from "@/app/_lib/entries-param";
 
-export const runtime = "nodejs";
 
 // Caps for the interviewer-progress write (PREP2). Bounded so a crafted body can't
 // balloon the artifact payload: the checklist has a few dozen keys, notes is a

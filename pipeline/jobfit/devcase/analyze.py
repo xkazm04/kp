@@ -13,15 +13,18 @@ from typing import Any
 
 from .models import DevNeed, RepoSnapshot
 from .provenance import generate_with_fallback, str_list as _str_list
+from ..i18n import language_directive
 
-ANALYZE_NEED_PROMPT_VERSION = "need-analysis-v2"  # v2: JD-first intake + multi-codebase reflection
+ANALYZE_NEED_PROMPT_VERSION = "need-analysis-v3"  # v3: de-industry-locked — non-software roles reflected in their OWN terms (realStack = the role's tools/materials), no codebase hand-wringing
 
 _LOG = logging.getLogger(__name__)
 
 _SYSTEM = (
-    "You are a senior engineering hiring analyst. Reflect a stated hiring need against the REAL "
-    "codebase. Be concrete and honest about gaps between what they say they need and what the code "
-    "actually is. Ground every claim in the supplied facts. Output strict JSON only."
+    "You are a senior hiring analyst. Reflect a stated hiring need against the REAL body of work the "
+    "role acts on — a codebase for software, but the role's own materials (documents, models, "
+    "campaigns, a CRM, spreadsheets, …) for any other function. Be concrete and honest about gaps "
+    "between what they say they need and what the evidence actually shows. Ground every claim in the "
+    "supplied facts. Output strict JSON only."
 )
 
 
@@ -42,6 +45,7 @@ def analyze_need(
     snapshot: RepoSnapshot | list[RepoSnapshot] | None = None,
     *,
     provider: Any | None = None,
+    lang: object | None = None,
 ) -> tuple[dict, str]:
     # Multi-repo: a role can span up to a few codebases. Accept one snapshot (legacy
     # callers/tests) or a list; everything below reasons over the list.
@@ -62,15 +66,26 @@ def analyze_need(
         "codebases": snaps or None,
     }
     prompt = (
-        "Analyze this hiring need and REFLECT it against the actual codebase(s) below. If a "
+        "Analyze this hiring need and REFLECT it against the actual body of work below. If a "
         "jobDescription is supplied it is the primary statement of the need — extract the stated "
-        "stack and responsibilities from it. If MULTIPLE codebases are supplied, the role works "
+        "tools/skills and responsibilities from it. If MULTIPLE codebases are supplied, the role works "
         "across ALL of them: reflect the need against the whole set and call out per-repo "
-        "divergences. Where the stated need and the real code diverge, say so plainly; if no "
-        "codebase was supplied, say the analysis is ungrounded.\n"
+        "divergences. Where the stated need and the real evidence diverge, say so plainly.\n"
+        "NON-SOFTWARE roles: many office roles (admin, HR, finance, sales, legal, ops, …) have NO "
+        "codebase and no tech stack — that is normal, not a defect. Do NOT dwell on the absence of "
+        "code; instead populate realStack with the role's REAL tools/systems/materials (e.g. an ATS, "
+        "an ERP, Excel models, a CRM, policy docs) drawn from the JD, and judge trueComplexity in the "
+        "role's OWN terms. Only call the analysis ungrounded when the JD itself is too thin to extract "
+        "responsibilities.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
-        'Return JSON: { "realStack": [str], "coreResponsibilities": [str], "statedVsRealGaps": [str], '
-        '"trueComplexity": "low|medium|high", "riskAreas": [str], "reflection": str, "confidence": number 0..1 }. JSON only.'
+        'Return JSON: { "realStack": [str] (the role\'s real tools/skills/materials — a tech stack for '
+        'software, the role\'s systems/documents otherwise), "coreResponsibilities": [str], '
+        '"statedVsRealGaps": [str], "trueComplexity": "low|medium|high", "riskAreas": [str], '
+        '"reflection": str, "confidence": number 0..1 }. JSON only.\n'
+        # DEVP5/#6 — the free-text fields (reflection, gaps, responsibilities) feed
+        # the downstream role/case design, so write them in the JD's language for a
+        # consistent artifact; enum values (trueComplexity) stay verbatim per the directive.
+        f"{language_directive(lang)}"
     )
 
     def deterministic() -> dict:

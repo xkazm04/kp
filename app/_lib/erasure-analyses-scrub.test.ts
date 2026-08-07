@@ -41,18 +41,21 @@ registerHooks({
   },
 });
 
-const TMP = path.join(os.tmpdir(), `kp-erasure-scrub-test-${process.pid}.sqlite`);
+// A UNIQUE directory per run, not a `${process.pid}` filename. PIDs are reused, and a
+// locked SQLite file survives the `after()` sweep (tmpdir accumulated 176 of these), so a
+// pid-derived path could open a stale, already-populated database and fail this test for
+// reasons that have nothing to do with erasure. Observed ~1 run in 8.
+const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "kp-erasure-scrub-"));
+const TMP = path.join(TMP_DIR, "kp.sqlite");
 process.env.KP_DB_PATH = TMP;
 
 const { createPipelineEntry, anonymizeEntry, saveAnalysis, loadAnalysis } = await import("./db.ts");
 
 after(() => {
-  for (const f of [TMP, `${TMP}-wal`, `${TMP}-shm`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      /* file locked / absent — fine */
-    }
+  try {
+    fs.rmSync(TMP_DIR, { recursive: true, force: true });
+  } catch {
+    /* file locked — the unique dir means a leftover can never poison a later run */
   }
 });
 
@@ -76,6 +79,12 @@ test("erasure scrubs PII from the candidate's saved analyses (matched by label)"
       candidate: { name: "Jane Doe", email: "jane@example.com", phone: "+420123456789" },
       rawText: "Jane Doe — full CV body with home address and everything.",
       evidence: ["Jane led the payments rewrite", "contactable at jane@example.com"],
+      // Verbatim CV quotes the provenance dossier re-exports — must NOT survive erasure.
+      evidenceTrace: {
+        experience: ["Senior Engineer at Acme Corp 2019-2023, owned billing"],
+        skills: ["Jane shipped the Python settlement service"],
+        salary: ["currently on 1,200,000 CZK at Acme"],
+      },
       score: 82, // non-PII recruitment signal must survive
     },
   });
@@ -96,6 +105,15 @@ test("erasure scrubs PII from the candidate's saved analyses (matched by label)"
   assert.doesNotMatch(flat, /\+420123456789/, "phone scrubbed");
   assert.doesNotMatch(flat, /full CV body/i, "rawText scrubbed");
   assert.deepEqual((after!.payload as { evidence: unknown[] }).evidence, [], "evidence emptied");
+  // GDPR Art.17: verbatim CV quotes under evidenceTrace.* must not survive either.
+  assert.doesNotMatch(flat, /Acme Corp/i, "evidenceTrace.experience quotes scrubbed");
+  assert.doesNotMatch(flat, /settlement service/i, "evidenceTrace.skills quotes scrubbed");
+  assert.doesNotMatch(flat, /1,200,000/, "evidenceTrace.salary quotes scrubbed");
+  assert.deepEqual(
+    (after!.payload as { evidenceTrace: Record<string, unknown[]> }).evidenceTrace.experience,
+    [],
+    "evidenceTrace.experience emptied",
+  );
   // Non-identifying recruitment signal is retained for rediscovery.
   assert.equal((after!.payload as { score: number }).score, 82, "score retained");
   // The stored label is masked, not the full name.

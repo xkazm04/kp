@@ -10,6 +10,9 @@ import { IntegrationsCard } from "./IntegrationsCard";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useInfiniteScroll, type InfinitePage } from "@/app/_lib/useInfiniteScroll";
 import { formatRelativeTime } from "@/app/_lib/format";
+import { TextInput } from "@/app/_components/TextInput";
+import { Select } from "@/app/_components/Select";
+import { Checkbox } from "@/app/_components/Checkbox";
 
 // Default window the live view shows; older runs page in via the history table.
 // Mirrors RECENT_TASK_WINDOW_DAYS in app/_lib/tasks.ts (server-only, so the value
@@ -129,27 +132,22 @@ export function TasksTab() {
           <label htmlFor="tasks-search" className="sr-only">
             Search tasks
           </label>
-          <input
+          <TextInput
             id="tasks-search"
             type="search"
             value={textFilter}
             onChange={(e) => setTextFilter(e.target.value)}
             placeholder="Search tasks…"
-            className="focus-ring h-9 min-w-[180px] flex-1 rounded-md border border-stone-200 px-3 text-base"
+            sizeVariant="sm"
+            className="min-w-[180px] flex-1"
           />
-          <select
+          <Select
             value={kindFilter}
-            onChange={(e) => setKindFilter(e.target.value)}
-            aria-label="Filter by task kind"
-            className="focus-ring h-9 rounded-md border border-stone-200 bg-white px-2 text-sm text-ink"
-          >
-            <option value="">All kinds</option>
-            {kinds.map((k) => (
-              <option key={k} value={k}>
-                {k}
-              </option>
-            ))}
-          </select>
+            onChange={setKindFilter}
+            ariaLabel="Filter by task kind"
+            size="sm"
+            options={[{ value: "", label: "All kinds" }, ...kinds.map((k) => ({ value: k, label: k }))]}
+          />
           {FILTER_STATUSES.map((s) => (
             <button
               key={s}
@@ -220,11 +218,9 @@ export function TasksTab() {
       {/* Older runs are loaded only on demand — checking this reveals a history
           table that pages in 20 at a time, so the trail is never loaded at once. */}
       <label className="flex w-fit cursor-pointer items-center gap-2 text-base text-steel">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={showHistory}
           onChange={(e) => setShowHistory(e.target.checked)}
-          className="focus-ring h-4 w-4 rounded border-stone-300 text-coral"
         />
         Show history (tasks older than {RECENT_WINDOW_DAYS} days)
       </label>

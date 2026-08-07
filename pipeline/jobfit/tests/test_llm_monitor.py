@@ -20,6 +20,10 @@ from pipeline.jobfit.claude_cli import ClaudeCliProvider, ClaudeResult
 from pipeline.jobfit.llm import LLMError, LLMResult, TextProvider
 from pipeline.jobfit.llm import monitor
 
+# Hermeticity note: activation from the developer's .env.local is neutralized
+# suite-wide in tests/__init__.py, so these tests are offline unless they set
+# LIGHTTRACK_URL in os.environ explicitly (the enabled cases below do).
+
 
 class FakeLightTrack:
     instances: list["FakeLightTrack"] = []
@@ -52,11 +56,13 @@ class _Ctx:
         test.addCleanup(monitor.reset)
         monitor.reset()
         test.enterContext(mock.patch.dict(sys.modules, {"lighttrack": _stub_module(cls)}))
-        # Hermetic: monitor._client() calls base.load_local_env(), which would
-        # otherwise read the developer's real .env and re-introduce a popped
-        # LIGHTTRACK_URL (breaking the disabled-path test). Stub it to a no-op so
-        # the test owns the environment outright.
-        test.enterContext(mock.patch("pipeline.jobfit.llm.base.load_local_env", lambda: None))
+        # Neutralize the .env.local reload FOR THIS TEST's scope. The suite-wide
+        # dotenv patch (tests/__init__.py) is a managed mock another test can restore
+        # to the real loader mid-run; monitor._client() would then reload .env.local
+        # (LIGHTTRACK_URL set in local dev) and flip telemetry back on, breaking the
+        # "disabled" gating asserts order-dependently. Patching the concrete loader in
+        # the fixture makes each monitor test hermetic regardless of global state.
+        test.enterContext(mock.patch("pipeline.jobfit.llm.base.load_local_env", lambda *a, **k: None))
         test.enterContext(mock.patch.dict(os.environ, {}, clear=False))
         os.environ.pop("LIGHTTRACK_URL", None)
         if url:
@@ -214,6 +220,38 @@ class LedgerSidecarTest(unittest.TestCase):
             os.environ.pop("LIGHTTRACK_URL", None)
             # Must not raise and must not create any file.
             StubProvider([_result()]).complete("hi")
+
+    def test_emit_deterministic_writes_zero_cost_fallback_line(self) -> None:
+        """Item 22: the keyless/failed deterministic fallback is ledger-visible —
+        one source:"deterministic" line with zero tokens/cost, provider
+        "deterministic" (its own provider row in the TS aggregate)."""
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.ndjson")
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": path}, clear=False):
+                os.environ.pop("LIGHTTRACK_URL", None)
+                monitor.emit_deterministic("campaign_pack")
+            with open(path, encoding="utf-8") as fh:
+                rows = [json.loads(l) for l in fh.read().splitlines() if l.strip()]
+        self.assertEqual(len(rows), 1)
+        row = rows[0]
+        self.assertEqual(row["source"], "deterministic")
+        self.assertEqual(row["provider"], "deterministic")
+        self.assertEqual(row["use_case"], "campaign_pack")
+        self.assertIsNone(row["model"])
+        self.assertEqual(row["input_tokens"], 0)
+        self.assertEqual(row["output_tokens"], 0)
+        self.assertEqual(row["cost_usd"], 0.0)
+
+    def test_emit_deterministic_is_a_noop_without_the_sidecar_env(self) -> None:
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with tempfile.TemporaryDirectory() as d:
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("KP_LLM_USAGE_LOG", None)
+                monitor.emit_deterministic("automation")  # must not raise
+            self.assertEqual(os.listdir(d), [])  # and must not create any file
 
     def test_monitored_cli_also_writes_ledger(self) -> None:
         monitor.reset()

@@ -22,18 +22,60 @@ import {
 } from "../db";
 import { currentPeriod, PLANS, type Meter, type PlanDef, type PlanId } from "./plans";
 
+/** Grace window after a FAILED payment (`past_due`/`unpaid`): the workspace keeps
+ *  its plan for this long past `currentPeriodEnd` while the MoR runs dunning retries,
+ *  then falls to free. 7 days — long enough to ride out a transient card decline or a
+ *  weekend without cutting a customer mid-work, short enough to BOUND the unpaid-
+ *  entitlement leak that an indefinitely-`past_due` (or `unpaid`) subscription would
+ *  otherwise create if its terminal `revoked` event were dropped. */
+const FAILED_PAYMENT_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+
 /** Which plan the workspace is ENTITLED to right now (not just what's stored):
- *  active/trialing → the plan; past_due → the plan (the MoR runs dunning — a
- *  short grace beats cutting a paying customer mid-retry); canceled → the plan
- *  until the paid period ends; everything else → free. */
+ *  active/trialing → the plan; past_due/unpaid → the plan through a BOUNDED dunning
+ *  grace (currentPeriodEnd + FAILED_PAYMENT_GRACE_MS), then free — a failed payment
+ *  can't entitle forever; canceled → the plan until the paid period ends; everything
+ *  else → free. */
 export function entitledPlan(state: BillingStateRow | null, now: Date = new Date()): PlanDef {
   if (!state) return PLANS.free;
   const plan = PLANS[state.plan as PlanId] ?? PLANS.free;
-  if (state.status === "active" || state.status === "trialing" || state.status === "past_due") return plan;
-  if (state.status === "canceled" && state.currentPeriodEnd && new Date(state.currentPeriodEnd) > now) {
-    return plan;
+  if (state.status === "active" || state.status === "trialing") return plan;
+  if (state.status === "past_due" || state.status === "unpaid") {
+    // Failed payment: entitled only through currentPeriodEnd + grace. Unlike
+    // `canceled` (paid THROUGH the period), a failed payment has no paid-through
+    // guarantee, so a NULL/unparseable period anchor FAILS CLOSED to free rather than
+    // leaking an unbounded entitlement — the exact leak this bound exists to stop.
+    const end = state.currentPeriodEnd ? Date.parse(state.currentPeriodEnd) : NaN;
+    if (!Number.isFinite(end)) return PLANS.free;
+    return now.getTime() < end + FAILED_PAYMENT_GRACE_MS ? plan : PLANS.free;
+  }
+  if (state.status === "canceled") {
+    // cancel-at-period-end: entitled until the paid period ends. Parse defensively —
+    // a NULL or unparseable currentPeriodEnd must NOT silently cut a customer who
+    // paid through the period. A genuinely-lapsed subscription arrives as
+    // revoked/ended (→ clear_subscription → free), so a canceled row with no
+    // parseable end is almost always a malformed/missing Polar field on a still-paying
+    // customer: favor them and keep the plan rather than the old `&& currentPeriodEnd`
+    // short-circuit that dropped them to free immediately.
+    const end = state.currentPeriodEnd ? Date.parse(state.currentPeriodEnd) : NaN;
+    if (!Number.isFinite(end)) return plan;
+    return end > now.getTime() ? plan : PLANS.free;
   }
   return PLANS.free;
+}
+
+// Stored statuses that mean a live provider subscription EXISTS — one that must be
+// changed through the customer PORTAL, never a fresh checkout. Includes the failed-
+// payment states (`past_due`/`unpaid`) and `canceled` (cancel-at-period-end): all of
+// these still have a Polar subscription that a second checkout would run in parallel.
+const SUBSCRIBED_STATUSES = new Set(["active", "trialing", "past_due", "unpaid", "canceled"]);
+
+/** True when a live provider subscription exists (any non-terminal status), so a
+ *  plan CHANGE must go through the portal. Backs the checkout route's server-side
+ *  "already subscribed" guard: a stale client tab or a crafted raw POST must not mint
+ *  a second, parallel subscription and double-charge. `none`/absent (never subscribed,
+ *  or fully revoked back to free) allows a fresh checkout. */
+export function hasActiveSubscription(state: BillingStateRow | null): boolean {
+  return Boolean(state && SUBSCRIBED_STATUSES.has(state.status));
 }
 
 export type MeterOverview = {
@@ -78,7 +120,13 @@ export function splitSpend(
 export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date()): MeterOverview {
   const limit = plan.limits[meter];
   const used = billingUsageFor(meter, currentPeriod(now));
-  const credits = creditBalance(meter);
+  // Clamp the spendable/displayed balance at >=0: a refund claw-back (a negative
+  // ledger row) that exceeds the minutes still on hand drives the raw SUM negative,
+  // but a customer can never have "less than zero" credits to show or spend. The
+  // ledger itself stays truthful (the negative row is a real audit record); this is
+  // the single place the derived balance is floored, so `remaining` and the displayed
+  // credits both stay non-negative. recordMeterUsage clamps its own debit read too.
+  const credits = Math.max(0, creditBalance(meter));
   return {
     meter,
     limit,

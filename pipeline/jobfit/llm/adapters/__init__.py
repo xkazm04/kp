@@ -6,12 +6,14 @@ from .anthropic_api import AnthropicProvider
 from .azure_openai import AzureOpenAIProvider
 from .gemini_api import GeminiProvider
 from .openai_api import OpenAIProvider
+from .openrouter import OpenRouterProvider
 
 ADAPTERS = {
     "anthropic": AnthropicProvider,
     "openai": OpenAIProvider,
     "azure_openai": AzureOpenAIProvider,
     "gemini": GeminiProvider,
+    "openrouter": OpenRouterProvider,
 }
 
 __all__ = [
@@ -20,4 +22,5 @@ __all__ = [
     "AzureOpenAIProvider",
     "GeminiProvider",
     "OpenAIProvider",
+    "OpenRouterProvider",
 ]

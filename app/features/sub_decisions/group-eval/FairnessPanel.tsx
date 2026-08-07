@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import { Pill, SectionTitle } from "./primitives";
-import type { Fairness, FairnessScheme } from "./types";
+import type { Fairness, FairnessScheme, RobustnessStatus } from "./types";
 
 // ---- Fairness check (cross-scheme dynamic-weight matrix) -------------------
 const fmtScheme = (s: FairnessScheme): string =>
@@ -9,19 +9,49 @@ const fmtScheme = (s: FairnessScheme): string =>
 
 // Renders the fairness matrix: each candidate (row) re-scored under every
 // candidate's bounded weighting (column), the mean, the robust order, and the
-// per-candidate weight-adjustment notes. When no weighting was actually adjusted
-// the matrix is uniform and adds nothing, so we say that plainly instead.
-export function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness | null; headlineOrder: string[] }) {
+// per-candidate weight-adjustment notes. The check only proves something when the
+// weights actually vary, so the degenerate states report the TRUTH instead of a false
+// pass (bug-ui-scan-2026-07-09): uniform weights → "not tested" (a no-op), and a
+// ranker that produced no matrix on a job-backed role → an explicit "could not assess"
+// panel rather than silently vanishing.
+export function FairnessPanel({
+  fairness,
+  headlineOrder,
+  robustness,
+}: {
+  fairness: Fairness | null;
+  headlineOrder: string[];
+  robustness?: RobustnessStatus;
+}) {
   const t = useTranslations("decisions.groupEval");
-  if (!fairness || !fairness.labels?.length || !fairness.matrix?.length) return null;
+  if (!fairness || !fairness.labels?.length || !fairness.matrix?.length) {
+    // The role had a job (a matrix was expected) but the ranker produced no fairness
+    // data — surface "could not assess" explicitly so a sealed lead never reads as
+    // robustness-checked. A job-less role (not_applicable) or a legacy payload with no
+    // robustness signal renders nothing rather than a false claim.
+    if (robustness === "unavailable") {
+      return (
+        <section>
+          <SectionTitle>{t("fairnessCheck")}</SectionTitle>
+          <p className="mt-1 text-base text-amber-700">{t("unavailable")}</p>
+          <p className="mt-1 text-sm text-steel">{t("fairnessScopeNote")}</p>
+        </section>
+      );
+    }
+    return null;
+  }
   const { labels, schemes, matrix, mean, ranking, weightNotes, candidateIds, weightSource } = fairness;
   const adjusted = candidateIds.some((id) => (weightNotes?.[id]?.length ?? 0) > 0);
 
   if (!adjusted) {
+    // Uniform weights: every scheme is identical, so "order unchanged" is guaranteed a
+    // priori — the cross-scheme test never actually varied anything. Say "not tested",
+    // NOT "robust" (fairnessUniform copy reworded to drop the false PASS).
     return (
       <section>
         <SectionTitle>{t("fairnessCheck")}</SectionTitle>
         <p className="mt-1 text-base text-steel">{t("fairnessUniform")}</p>
+        <p className="mt-1 text-sm text-steel">{t("fairnessScopeNote")}</p>
       </section>
     );
   }
@@ -39,6 +69,7 @@ export function FairnessPanel({ fairness, headlineOrder }: { fairness: Fairness 
       <p className="mt-1 text-base text-steel">
         {t.rich("fairnessExplain", { em: (chunks) => <em>{chunks}</em> })}
       </p>
+      <p className="mt-1 text-sm text-steel">{t("fairnessScopeNote")}</p>
 
       <div className="mt-3 overflow-x-auto">
         <table className="w-full border-collapse text-sm">

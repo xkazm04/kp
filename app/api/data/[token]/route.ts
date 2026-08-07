@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { anonymizeEntry, findEntryByErasureToken, getJob } from "@/app/_lib/db";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // Public, token-gated GDPR self-service data endpoint (right to erasure, Art. 17).
 // The token is the entry's opaque erasure capability (ensureErasureToken), carried

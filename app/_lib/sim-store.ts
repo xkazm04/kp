@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
-import { SIM_MARKER } from "@/app/features/simulation/constants";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { SIM_TITLE_LIKE } from "@/app/features/simulation/constants";
 
 // Pipeline simulation — reset helper. Isolated connection (job-ingest/offers
 // pattern; avoids the fork-churned db.ts) that clears every artifact a sim run
@@ -8,11 +9,12 @@ import { SIM_MARKER } from "@/app/features/simulation/constants";
 // re-runnable. WAL-safe alongside db.ts's own connection.
 
 // The "what counts as a sim artifact" contract is the ONE marker in
-// simulation/constants.ts; build the SQL LIKE pattern from it so the two files
-// can't drift (a drifted marker would silently leave sim rows behind — or, worse,
-// a real job a user happened to title "(SIM)" would match). `(SIM)` has no LIKE
-// wildcards, so it needs no escaping; the % are the only special chars here.
-const MARKER = `%${SIM_MARKER}%`;
+// simulation/constants.ts; SIM_TITLE_LIKE is the shared SQL pattern derived from
+// it (also used by the analytics read-side filter), so the writer, this purge and
+// every aggregate filter can't drift (a drifted marker would silently leave sim
+// rows behind — or, worse, a real job a user happened to title "(SIM)" would
+// match). `(SIM)` has no LIKE wildcards, so it needs no escaping.
+const MARKER = SIM_TITLE_LIKE;
 
 // resetSim runs destructive DELETEs, so its catches must NOT swallow real SQL
 // failures (which would let reset report success while leaving rows behind). The
@@ -35,9 +37,9 @@ function db(): Database.Database {
   return d;
 }
 
-export function resetSim(): { entries: number; offers: number; jobs: number; jds: number } {
+export function resetSim(workspaceId: string = DEFAULT_WORKSPACE_ID): { entries: number; offers: number; jobs: number; jds: number } {
   const d = db();
-  const ids = (d.prepare(`SELECT id FROM pipeline_entries WHERE job_title LIKE ?`).all(MARKER) as { id: string }[]).map(
+  const ids = (d.prepare(`SELECT id FROM pipeline_entries WHERE job_title LIKE ? AND workspace_id = ?`).all(MARKER, workspaceId) as { id: string }[]).map(
     (r) => r.id
   );
 
@@ -50,9 +52,9 @@ export function resetSim(): { entries: number; offers: number; jobs: number; jds
       } catch (err) {
         if (!isNoSuchTable(err)) throw err; // tolerate only a not-yet-created table
       }
-      d.prepare(`DELETE FROM pipeline_events WHERE entry_id IN (${placeholders})`).run(...ids);
+      d.prepare(`DELETE FROM pipeline_events WHERE entry_id IN (${placeholders}) AND workspace_id = ?`).run(...ids, workspaceId);
     }
-    const entries = d.prepare(`DELETE FROM pipeline_entries WHERE job_title LIKE ?`).run(MARKER).changes;
+    const entries = d.prepare(`DELETE FROM pipeline_entries WHERE job_title LIKE ? AND workspace_id = ?`).run(MARKER, workspaceId).changes;
     const jobs = d.prepare(`DELETE FROM jobs WHERE title LIKE ?`).run(MARKER).changes;
     let jds = 0;
     try {

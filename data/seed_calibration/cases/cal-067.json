@@ -1,0 +1,190 @@
+{
+  "job": {
+    "id": "cal-067",
+    "title": "Assurance Senior, Public Accounting",
+    "company": "Beech Valley Solutions",
+    "role_family": "finance",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "US GAAP financial reporting framework and financial statement / disclosure preparation",
+      "GAAS, AICPA, and PCAOB auditing standards (incl. Yellow Book / Single Audit for government, ERISA rules for employee benefit plans, ASC 606 for software/tech revenue)",
+      "Audit workpaper / engagement software (e.g., CaseWare, CCH ProSystem fx Engagement, Thomson Reuters AdvanceFlow) — firm-specific per engagement",
+      "Substantive procedures: vouching, tracing, recalculation, confirmations, analytical review",
+      "Tests of internal controls and control-design evaluation",
+      "Lead schedules, reconciliations, and audit analytics in Excel",
+      "Sampling methodologies and materiality assessment",
+      "PBC (prepared-by-client) request management and secure document-exchange portals",
+      "CPA licensure / credential (stated as preferred)",
+      "Remote collaboration tooling for distributed engagement teams",
+      "Client communication, staff supervision, and review of junior associates' workpapers"
+    ],
+    "coreResponsibilities": [
+      "Perform financial statement audits and attest engagements as a member of an engagement team for multiple CPA firms on a contract basis",
+      "Execute substantive procedures and tests of controls and document results in workpapers",
+      "Apply industry-specific audit considerations across up to nine verticals (not-for-profit, employee benefit plans, software/technology, manufacturing, construction/real estate, energy, financial services, healthcare, public sector/government)",
+      "Maintain strong working relationships with clients and engagement team members",
+      "Supervise and review the work of junior/staff associates (implied by the stated supervisory qualification)",
+      "Ramp onto each new client/firm's methodology, software, and timeline within seasonal busy-season pressure"
+    ],
+    "statedVsRealGaps": [
+      "The JD is thin and partly garbled (compensation, duration, hours, and seasonal rate fields are blank or corrupted) — it never names the standards (GAAS/PCAOB), workpaper software, or specific engagement scope the real role demands daily",
+      "It lists nine industries as interchangeable, but the actual audit work diverges sharply by vertical — EBP/ERISA limited-scope rules, government Single Audit/GASB, and ASC 606 software revenue each require distinct expertise that one 'senior' rarely holds across all nine",
+      "Responsibilities describe only 'working within an engagement team,' yet the qualifications require 'strong supervisory skills' — the described work understates the review/lead duties the role likely carries",
+      "CPA is only 'preferred,' but senior assurance/attest work typically needs licensed-reviewer involvement; the freelance framing glosses over who signs off",
+      "The multi-firm gig model means a different methodology, toolset, and independence regime per engagement — real onboarding and context-switching cost is unacknowledged in the 'work for yourself' pitch",
+      "There is no codebase and none is expected — this is normal for an audit role; the absence of a tech stack is not a defect"
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Independence and conflict-of-interest management across simultaneous clients in a freelance arrangement",
+      "Industry-breadth mismatch: a strong NFP senior may be weak on EBP/ERISA or government Single Audits, yet the JD treats all nine verticals as one pool",
+      "Per-engagement ramp cost — each firm's audit software, templates, and methodology differ, eroding the productivity of an hourly contractor",
+      "Remote-only attest work strains evidence gathering (PBC), real-time staff supervision, and review quality",
+      "Seasonal busy-season intensity creates time-pressure quality risk for audit judgment and documentation",
+      "Expectation mismatch from a thin/garbled JD: actual rate, hours, scope, and supervisory load are unclear, risking poor candidate self-selection"
+    ],
+    "reflection": "This is a genuine senior-level professional role whose 'body of work' is not code but financial statements, audit evidence, and regulator-defined standards — so complexity is high despite the absence of any tech stack. The stated need (a CPA-track senior associate who performs financial statement audits and attest engagements across many industries, remotely, on contract) is internally coherent but the JD itself is thin and partly corrupted, leaning on a 'work for yourself / earn more' pitch rather than specifying standards, tools, or scope. The sharpest divergence between what's said and what the work actually demands is the casual treatment of nine very different audit industries as a single interchangeable competency, and the freelance multi-firm model's unstated cost: constant context-switching across each firm's methodology, software, and independence checks. A candidate who is a strong audit senior in one or two of these verticals is realistic; one who is genuinely senior across all nine is not, so screening should probe specific industry depth and which workpaper systems they've actually run.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Assurance Senior Associate (External Audit), Public Accounting",
+    "seniority": "senior",
+    "roleFamily": "finance",
+    "mustHaves": [
+      "Financial statement audit experience at the senior associate level or above earned at a public accounting (CPA) firm",
+      "Working command of US GAAP financial reporting, including financial statement and footnote disclosure preparation and review",
+      "Applied knowledge of GAAS and AICPA auditing standards (and PCAOB standards where issuer/integrated audits are in scope)",
+      "Ability to plan and execute substantive procedures — vouching, tracing, recalculation, confirmations, and analytical review — and document conclusions in workpapers",
+      "Ability to design and perform tests of internal controls and evaluate control design and operating effectiveness",
+      "Proficiency with audit workpaper / engagement software (e.g., CaseWare, CCH ProSystem fx Engagement, Thomson Reuters AdvanceFlow) and the ability to ramp onto a new firm's toolset per engagement",
+      "Materiality assessment and audit sampling methodology applied to scope and evidence decisions",
+      "Strong Excel skills for lead schedules, reconciliations, and audit analytics",
+      "Strong verbal and written communication skills for direct client and engagement-team interaction",
+      "Supervisory ability to direct, coach, and review the workpapers of staff/junior associates",
+      "Comfort working fully remote on multiple concurrent client engagements under busy-season deadlines, including fast context-switching across firm methodologies and independence regimes",
+      "BA/BS in business with an emphasis in accounting"
+    ],
+    "niceToHaves": [
+      "Active CPA license (or CPA candidate with significant exam progress)",
+      "Industry-specific audit depth in one or more verticals: not-for-profit, employee benefit plans (ERISA/limited-scope), software/technology (ASC 606 revenue recognition), manufacturing, construction/real estate, energy, financial services, healthcare, or public sector/government",
+      "Yellow Book / Single Audit and GASB experience for governmental and grant-funded engagements",
+      "Experience managing PBC (prepared-by-client) request lists and secure document-exchange portals with distributed clients",
+      "Prior freelance/contract or multi-firm engagement experience and fluency with remote collaboration tooling"
+    ],
+    "responsibilities": [
+      "Perform financial statement audits and attest engagements as a member of an engagement team for multiple CPA firm clients on a contract basis",
+      "Execute substantive procedures and tests of controls and document results clearly in engagement workpapers",
+      "Apply the appropriate industry-specific audit considerations to each engagement's vertical",
+      "Supervise, coach, and review the work of junior/staff associates and resolve review notes",
+      "Maintain strong, professional working relationships with clients and engagement-team members",
+      "Ramp quickly onto each new client's and firm's methodology, software, and timeline, honoring independence and quality requirements throughout busy season"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "FY2025 Revenue & Deferred Revenue Fieldwork — Northwind Software, Inc. (inherited engagement)",
+    "brief": "You are joining the FY2025 financial statement audit of Northwind Software, Inc. (a privately held US GAAP filer, calendar year-end, audited under GAAS/AICPA standards) as a contract Assurance Senior Associate. The prior in-charge senior rolled off mid-fieldwork during busy season and you have inherited a partially built engagement file, one staff associate, and the revenue / deferred revenue areas. Northwind earns revenue three ways — a multi-year term software license, SaaS subscriptions, and perpetual licenses bundled with post-contract support (PCS) — so ASC 606 judgment drives the area. Your job is to take revenue and deferred revenue to a 'fairly stated' conclusion, review the staff associate's draft work, and resolve the open planning and engagement-acceptance loose ends the prior senior left behind. These starting materials are synthetic but representative of a real external-audit engagement; the provided context fits this role, so the exercise is the role's actual work (substantive testing, workpaper documentation, staff review, and audit judgment) performed on a realistic engagement file rather than on any software codebase. Timebox is a hard 2.0 hours — prioritize depth of judgment over covering every account. Document as you would in CaseWare/ProSystem fx-style indexed workpapers; tie every conclusion to evidence in the file.",
+    "repoSeed": "An engagement-file bundle for Northwind Software, Inc. FY2025 (synthetic, representative): (1) TB_Northwind_FY2025.xlsx — trial balance with revenue and deferred-revenue lead-schedule tabs and prior-year comparatives; (2) R-100_Revenue_Lead.xlsx — the staff associate's DRAFT revenue lead schedule and recognition build-up by contract (foots and ties to the GL, with a tidy 3-line analytical); (3) DeferredRev_Rollforward.xlsx — beginning balance, billings, recognition, ending balance; (4) PBC/Contracts/ — three signed customer contracts: C-118 (a 3-year TERM license to functional, fully-formed software IP, no required ongoing updates, billed annually), C-203 (a monthly SaaS subscription), and C-077 (a perpetual license bundled with one year of PCS); (5) AR_Aging_1231.xlsx and the population for confirmation/sampling; (6) PY_file/PY_SUD_FY2024.pdf — the prior-year Summary of Unadjusted Differences, which lists a $42,000 revenue cutoff item 'passed' as immaterial last year, plus PY_Revenue_WP.pdf; (7) Planning_Memo_FY2025.docx — sets planning (overall) materiality at $250,000 but leaves performance materiality and tolerable misstatement marked 'TBD', and does not state a sampling method; (8) Engagement_email.txt — the client controller writes: 'Since your team knows ASC 606 best, can you just prepare our deferred-revenue journal entry and draft the revenue recognition footnote for the financials? We'll sign off on it.'",
+    "tasks": [
+      "Substantively test revenue and deferred revenue (index R-100). Tie revenue to the GL, then recalculate the recognition pattern for each of the three contracts (C-118, C-203, C-077) against its actual terms in PBC/Contracts/, perform a disaggregated analytical, and conclude whether revenue and deferred revenue are fairly stated. Identify, quantify, and propose any audit adjustment, citing the ASC 606 basis in your workpaper.",
+      "Review the staff associate's draft R-100 and the cutoff testing as the in-charge senior. Write reviewer notes (mark each clear / open / escalate), then read PY_SUD_FY2024.pdf and prepare the current-year Summary of Unadjusted Differences, deciding how the prior-year $42,000 cutoff item affects this year's conclusion.",
+      "Resolve the open planning items: set performance materiality and tolerable misstatement (the planning memo left them TBD) and state and justify the sampling approach for the revenue/AR testing. Then write a 5–8 sentence memo responding to the controller's request in Engagement_email.txt to prepare the deferred-revenue journal entry and draft the footnote.",
+      "Maintain a short DECISIONS log (a DECISIONS.md or an 'Open Items & Judgments' workpaper tab) capturing every call you made where the file was open or silent: what you concluded, the alternative you rejected and why, and the specific question you would raise with the engagement partner or manager. Treat it as normal workpaper hygiene for the next reviewer, not a test artifact."
+    ],
+    "coverProbes": [
+      {
+        "id": "term-license-recognition",
+        "kind": "verification_trap",
+        "where": "PBC/Contracts/C-118 read against the staff associate's recognition build-up in R-100_Revenue_Lead.xlsx and DeferredRev_Rollforward.xlsx",
+        "reveals": "The draft recognizes the 3-year term license to functional IP ratably (like SaaS), which foots and ties cleanly to deferred revenue and the GL, so a shallow tie-out/analytical check passes. A naive one-shot pass accepts the schedule because the numbers reconcile; a strong candidate reads C-118, identifies functional IP with no required ongoing updates as a right-to-use license recognized at a point in time, and surfaces a material period-shift adjustment rather than trusting the tie-out.",
+        "decisionSpace": [
+          "Conclude functional IP / right-to-use license → recognize at the point control transfers (license-start) and propose an audit adjustment reclassifying revenue out of the ratable schedule",
+          "Conclude the license is effectively symbolic IP or carries significant integral ongoing involvement → over-time recognition can stand, but only if contract evidence supports it (requires citing terms, not assuming)",
+          "Treat recognition pattern as a key judgment with insufficient evidence on the face of the contract → hold the conclusion open and request the underlying IP/maintenance terms and a management memo before adjusting"
+        ]
+      },
+      {
+        "id": "prior-year-passed-adjustment",
+        "kind": "legacy_trap",
+        "where": "PY_file/PY_SUD_FY2024.pdf (the $42,000 'passed' revenue cutoff item) carried into the current-year Summary of Unadjusted Differences",
+        "reveals": "A candidate who only evaluates current-year misstatements in isolation misses that the prior-year passed cutoff item reverses into current-year income and accumulates with this year's items. A candidate who reads the prior-year file applies SAB 108-style thinking (rollover vs iron-curtain) and re-assesses whether the combined effect is still immaterial, showing they read the inherited file before generating new work.",
+        "decisionSpace": [
+          "Use the rollover (income-statement) method — include the prior-year turnaround effect in the current-year SUD and re-test against performance materiality",
+          "Use the iron-curtain (balance-sheet) method — evaluate the cumulative misstatement in the year-end balances",
+          "Evaluate under both (dual approach / SAB 108) and conclude on the more conservative result, documenting why"
+        ]
+      },
+      {
+        "id": "materiality-and-sampling-tbd",
+        "kind": "underspecified",
+        "where": "Planning_Memo_FY2025.docx — performance materiality and tolerable misstatement are 'TBD' and no sampling method is specified",
+        "reveals": "Whether the candidate silently picks a number versus reasoning from risk and firm context. A naive submission hardcodes a percentage with no rationale; a strong one ties performance materiality to assessed risk and audit history (and flags that the haircut is firm-policy-driven), then selects a sampling approach consistent with the controls/risk assessment and a defined tolerable misstatement.",
+        "decisionSpace": [
+          "Set performance materiality at ~75% of planning materiality, justified by low assessed risk and clean prior-year history, with statistical/MUS sampling",
+          "Set performance materiality at ~50%, justified by a first-year contractor with limited history and a known prior-year cutoff issue, with a larger sample",
+          "State a defensible default but explicitly flag performance materiality as firm-policy-dependent and escalate to engagement leadership for the firm's threshold before finalizing"
+        ]
+      },
+      {
+        "id": "self-review-independence",
+        "kind": "ambiguity",
+        "where": "Engagement_email.txt — the controller asks the contractor to prepare the deferred-revenue journal entry and draft the revenue footnote that the same team will then audit",
+        "reveals": "Whether the candidate recognizes an independence / nonattest-services issue at all. A naive candidate just performs the requested work (creating a self-review threat and assuming a management responsibility); a strong candidate names the AICPA independence / self-review concern, declines to assume management responsibilities, and proposes safeguards or escalation.",
+        "decisionSpace": [
+          "Decline to prepare the entry/footnote; offer instead to review management-prepared amounts, preserving independence",
+          "Provide assistance only with documented safeguards — management with suitable skill, knowledge, and experience takes responsibility and signs off — while assessing whether the threat is reduced to an acceptable level",
+          "Escalate to the engagement partner / independence consultation before acting, treating the request as a firm-level acceptance question rather than a contractor's call"
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

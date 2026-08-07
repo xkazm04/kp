@@ -6,8 +6,15 @@
 // docs/JD_LIFECYCLE.md.
 export const jdJobId = (slug: string): string => `jd-${slug}`;
 
-// Length caps for saved JDs, enforced on both the client (LibraryJdForm) and
-// the server (POST /api/jds) so the form and the write trust boundary always
+/** The inverse of `jdJobId`: the JD slug a job id encodes, or null when the job
+ *  is not JD-backed (a seeded/ingested corpus job). Callers joining a pipeline
+ *  entry to its analyses (the canonical match-score resolver, the lifecycle
+ *  strip) must use this instead of hand-slicing the prefix. */
+export const jdSlugOfJobId = (jobId: string | null | undefined): string | null =>
+  jobId && jobId.startsWith("jd-") ? jobId.slice(3) : null;
+
+// Length caps for saved JDs, enforced on both the client (JdBuilder's "Save as
+// draft") and the server (POST /api/jds) so the form and the write trust boundary always
 // agree. Bounding length at the write boundary stops unbounded storage growth
 // and the downstream render/transfer cost of giant rows.
 export const JD_TITLE_MAX_LENGTH = 200;
@@ -31,8 +38,8 @@ export type JdFieldsResult =
 
 /** Required-and-length validation for a JD's title/body — the single source for
  *  both the bounds AND the exact error wording. Called by the write boundary
- *  (POST /api/jds, POST /api/jds/save) and the client form (LibraryJdForm) so the
- *  three can't drift on caps, messages, or trimming. Returns the trimmed/normalized
+ *  (POST /api/jds, POST /api/jds/save) and the client form (JdBuilder's "Save as
+ *  draft") so the three can't drift on caps, messages, or trimming. Returns the trimmed/normalized
  *  fields on success, or one user-facing error message. Accepts `unknown` so a raw
  *  request field can be passed without re-implementing the string type guard. */
 export function validateJdFields(title: unknown, body: unknown): JdFieldsResult {

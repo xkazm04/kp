@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarClock, CalendarPlus, Check } from "lucide-react";
+import { CalendarClock, Check, Video } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { buildIcs, downloadFile } from "@/app/_lib/export-utils";
+import { toast } from "@/app/_components/toast-store";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useSlotLabel } from "@/app/_lib/use-slot-label";
 import { resolveTimeZone, timeZoneShortLabel } from "@/app/_lib/timezone";
+import { AddToCalendar } from "@/app/features/sub_schedule/AddToCalendar";
 
 type Invite = {
   candidateLabel?: string | null;
@@ -16,6 +17,7 @@ type Invite = {
   slotAt?: string | null;
   durationMin?: number | null;
   attendanceStatus?: string | null;
+  meetingUrl?: string | null;
 };
 type Slot = { value: string; label: string };
 
@@ -47,9 +49,11 @@ export function SchedulePicker({ token }: { token: string }) {
   // MAX_RESCHEDULES). `rescheduling` swaps the booked card for the slot picker.
   const [canReschedule, setCanReschedule] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
-  // False when the server booked the slot but the confirmation email failed to
-  // send — the success card then softens its promise instead of lying.
-  const [confirmationSent, setConfirmationSent] = useState(true);
+  // REC-10 — the confirmation's TRUTHFUL delivery claim from the booking POST:
+  // "sent" (relayed), "queued" (recorded in the local outbox, nothing delivers
+  // it — so no email/reminder promise), "failed" (dispatch dead-lettered), or
+  // null (a reloaded already-confirmed invite: delivery unknown, claim nothing).
+  const [confirmationDelivery, setConfirmationDelivery] = useState<"sent" | "queued" | "failed" | null>(null);
   // RSVP on the confirmed booking (idea-87af39c5): which action is mid-flight, and
   // a transient notice after a cancel returns the candidate to the slot picker.
   const [rsvpPending, setRsvpPending] = useState<"confirm" | "cancel" | null>(null);
@@ -91,7 +95,14 @@ export function SchedulePicker({ token }: { token: string }) {
       });
       const d = await res.json();
       if (res.ok) {
-        setConfirmationSent(d.confirmationSent !== false);
+        const claim = d.confirmationDelivery;
+        setConfirmationDelivery(
+          claim === "sent" || claim === "queued" || claim === "failed"
+            ? claim
+            : d.confirmationSent !== false
+              ? "sent"
+              : "failed"
+        );
         setConfirmed(s.label);
         // Adopt the server's confirmed invite (carries the ISO slotAt) so the
         // booked card's "Add to calendar" has a real datetime for a fresh booking.
@@ -108,7 +119,11 @@ export function SchedulePicker({ token }: { token: string }) {
                 setSlots(nd.slots ?? []);
               }
             })
-            .catch(() => {});
+            // The booking itself succeeded — only the follow-up refresh failed, so
+            // a toast (not the page-level error state) is the right weight.
+            .catch(() => {
+              toast.error(t("slotsRefreshFailed"));
+            });
         }
       } else {
         setError(errMsg(d, t("confirmFailed")));
@@ -122,7 +137,11 @@ export function SchedulePicker({ token }: { token: string }) {
                 setNoSlots(Boolean(nd.noSlots));
               }
             })
-            .catch(() => {});
+            // The 409 error is already on screen; this only means the stale slot
+            // list couldn't be refreshed — tell the candidate to reload.
+            .catch(() => {
+              toast.error(t("slotsRefreshFailed"));
+            });
         }
       }
     } catch {
@@ -132,20 +151,22 @@ export function SchedulePicker({ token }: { token: string }) {
     }
   };
 
-  // Download the confirmed slot as an .ics the candidate imports into any calendar
-  // (SCH1) — the top no-show cause is a time that never made it onto the calendar.
-  const downloadInvite = () => {
-    if (!invite?.slotAt) return;
-    const ics = buildIcs({
-      uid: `kp-interview-${token}`,
-      start: invite.slotAt,
-      durationMin: invite.durationMin ?? 30,
+  // The confirmed booking as a calendar event (SCH1) — the top no-show cause is a
+  // time that never made it onto the calendar. Localized content; when the recruiter
+  // attached a join link it becomes the location + a "Join" line. Feeds the
+  // Add-to-calendar menu (Google / Outlook / .ics) on the booked card.
+  const calendarEvent = (() => {
+    if (!invite?.slotAt) return null;
+    const durMin = invite.durationMin ?? 30;
+    const meetingUrl = invite.meetingUrl?.trim() || null;
+    return {
       title: invite.jobTitle ? t("icsTitleRole", { role: invite.jobTitle }) : t("icsTitle"),
-      description: t("icsDescription"),
-      stamp: new Date().toISOString(),
-    });
-    downloadFile("interview.ics", ics, "text/calendar");
-  };
+      start: invite.slotAt,
+      end: new Date(new Date(invite.slotAt).getTime() + durMin * 60_000).toISOString(),
+      description: meetingUrl ? `${t("icsDescription")}\n${t("joinInterview")}: ${meetingUrl}` : t("icsDescription"),
+      location: meetingUrl ?? undefined,
+    };
+  })();
 
   // RSVP on the confirmed booking (idea-87af39c5). "I'll be there" stamps an
   // attendance signal the recruiter sees; "I can't make it" frees the slot and
@@ -182,6 +203,10 @@ export function SchedulePicker({ token }: { token: string }) {
         setSlots(nd.slots ?? []);
         setNoSlots(Boolean(nd.noSlots));
         setCanReschedule(Boolean(nd.canReschedule));
+      } else {
+        // The cancel went through (the notice above says so) but the fresh slot
+        // pool didn't load — surface it instead of showing an empty grid silently.
+        toast.error(t("slotsRefreshFailed"));
       }
     } catch {
       setError(t("confirmFailed"));
@@ -221,20 +246,34 @@ export function SchedulePicker({ token }: { token: string }) {
         </p>
         <p className="mt-2 text-base text-steel">
           {invite.durationMin ? t("planFor", { min: invite.durationMin }) : ""}
-          {confirmationSent ? t("confirmationSent") : t("confirmationUnsent")}
+          {confirmationDelivery === "sent"
+            ? t("confirmationSent")
+            : confirmationDelivery === "queued"
+              ? t("confirmationQueued")
+              : confirmationDelivery === "failed"
+                ? t("confirmationUnsent")
+                : ""}
         </p>
         {tzLabel(invite.slotAt) ? (
           <p className="mt-1 text-meta text-steel">{t("timezoneNote", { zone: tzLabel(invite.slotAt) })}</p>
         ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
-          {invite.slotAt ? (
-            <button
-              type="button"
-              onClick={downloadInvite}
-              className="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+          {invite.meetingUrl ? (
+            <a
+              href={invite.meetingUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-coral px-3 py-1.5 text-base font-semibold text-white transition-opacity hover:opacity-90"
             >
-              <CalendarPlus size={15} className="text-coral" /> {t("addToCalendar")}
-            </button>
+              <Video size={15} aria-hidden /> {t("joinInterview")}
+            </a>
+          ) : null}
+          {calendarEvent ? (
+            <AddToCalendar
+              event={calendarEvent}
+              uid={`kp-interview-${token}`}
+              triggerClassName="focus-ring inline-flex items-center gap-1.5 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-base font-semibold text-ink hover:border-coral/50"
+            />
           ) : null}
           {canReschedule ? (
             <button

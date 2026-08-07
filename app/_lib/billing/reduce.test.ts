@@ -29,7 +29,8 @@ registerHooks({
 });
 
 const { mapPolarEvent } = await import("./polar.ts");
-const { reduceBillingEvent, subscriptionWriteIsStale } = await import("./reduce.ts");
+const { reduceBillingEvent, subscriptionWriteIsStale, clearSubscriptionIsStale, setForRevokedSubscriptionIsStale } =
+  await import("./reduce.ts");
 import type { ProductMap } from "./gateway.ts";
 
 const PRODUCTS: ProductMap = {
@@ -71,9 +72,20 @@ test("canceled keeps the plan with canceled status (entitled until period end)",
   assert.equal((action as { status: string }).status, "canceled");
 });
 
-test("revoked clears to free", () => {
+test("revoked clears to free and carries the revoked subscription id", () => {
   const action = reduceBillingEvent(subscriptionEvent("revoked"), PRODUCTS);
-  assert.deepEqual(action, { kind: "clear_subscription", customerId: "cus_1" });
+  assert.deepEqual(action, { kind: "clear_subscription", customerId: "cus_1", subscriptionId: "sub_1" });
+});
+
+test("clearSubscriptionIsStale: a revoke for a DIFFERENT subscription than stored is stale", () => {
+  // Customer churned sub_1, re-subscribed to sub_2 (now stored). A delayed revoke
+  // for sub_1 must NOT wipe the live sub_2 to free.
+  assert.equal(clearSubscriptionIsStale("sub_2", "sub_1"), true);
+  // A genuine revoke of the currently-stored subscription DOES clear.
+  assert.equal(clearSubscriptionIsStale("sub_1", "sub_1"), false);
+  // Unknown ids can't prove staleness — don't skip (a real revoke must drop entitlement).
+  assert.equal(clearSubscriptionIsStale(null, "sub_1"), false);
+  assert.equal(clearSubscriptionIsStale("sub_2", null), false);
 });
 
 test("an incomplete checkout entitles nothing", () => {
@@ -97,6 +109,61 @@ test("a PAID pack order grants credits deduped on the ORDER id", () => {
     providerRef: "order_77",
     reason: "pack purchase (order.paid)",
   });
+});
+
+test("a REFUNDED pack order claws the credits back (idempotent negative grant, distinct ref)", () => {
+  // Finding #1: a refund/dispute is the inverse of order.paid — it must DEBIT, not
+  // collapse into the benign not-paid-yet ignore that left the 100 minutes in place.
+  const event = mapPolarEvent("evt_refund", {
+    type: "order.refunded",
+    data: { id: "order_77", product_id: "prod_pack", customer_id: "cus_1" },
+  });
+  assert.deepEqual(reduceBillingEvent(event, PRODUCTS), {
+    kind: "grant_credits",
+    meter: "interview_minutes",
+    qty: -100,
+    // distinct from the grant's "order_77" so grant and reversal both dedupe once
+    providerRef: "order_77:refund",
+    reason: "pack refund (order.refunded)",
+  });
+  // order.canceled on a pack reverses too (dispute-loss / cancellation).
+  const canceled = mapPolarEvent("evt_c", {
+    type: "order.canceled",
+    data: { id: "order_88", product_id: "prod_pack" },
+  });
+  const action = reduceBillingEvent(canceled, PRODUCTS);
+  assert.equal(action.kind, "grant_credits");
+  assert.equal((action as { qty: number }).qty, -100);
+  assert.equal((action as { providerRef: string }).providerRef, "order_88:refund");
+});
+
+test("a refund on a NON-pack (plan) order still grants nothing (subscription events carry that)", () => {
+  const event = mapPolarEvent("evt_pr", {
+    type: "order.refunded",
+    data: { id: "order_99", product_id: "prod_starter" },
+  });
+  assert.equal(reduceBillingEvent(event, PRODUCTS).kind, "ignore");
+});
+
+test("an unpaid subscription downgrades entitlement — not a silent no-op", () => {
+  // Finding #2: `unpaid` (dunning exhausted) must be STORED so entitlement can bound
+  // it, not fall through to `ignore` that leaves a stale active/past_due row entitled.
+  const action = reduceBillingEvent(subscriptionEvent("unpaid"), PRODUCTS);
+  assert.equal(action.kind, "set_subscription");
+  assert.equal((action as { status: string }).status, "unpaid");
+});
+
+test("setForRevokedSubscriptionIsStale: a reordered set for an already-cleared sub is stale", () => {
+  // Finding #3: after a revoke, the sub id is kept as a tombstone on a `free` row; a
+  // delayed pre-revoke `active` for that same id must NOT re-entitle.
+  assert.equal(setForRevokedSubscriptionIsStale("free", "sub_1", "sub_1"), true);
+  // A live subscription (non-free stored plan) takes normal updates.
+  assert.equal(setForRevokedSubscriptionIsStale("starter", "sub_1", "sub_1"), false);
+  // A genuine re-subscribe arrives under a NEW id — let it through.
+  assert.equal(setForRevokedSubscriptionIsStale("free", "sub_1", "sub_2"), false);
+  // No tombstone / no incoming id — can't prove staleness.
+  assert.equal(setForRevokedSubscriptionIsStale("free", null, "sub_1"), false);
+  assert.equal(setForRevokedSubscriptionIsStale("free", "sub_1", null), false);
 });
 
 test("an unpaid pack order (order.created) grants nothing yet", () => {

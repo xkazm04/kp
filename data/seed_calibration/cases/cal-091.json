@@ -1,0 +1,196 @@
+{
+  "job": {
+    "id": "cal-091",
+    "title": "Corporate Recruiter",
+    "company": "CareRev",
+    "role_family": "hr",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Greenhouse ATS (stated 'preferred but not required' — the system of record for reqs, candidate stages, and pipeline reporting)",
+      "LinkedIn Recruiter and other social/professional networks for sourcing",
+      "Job boards (paid and free postings, response management)",
+      "Boolean search strings and candidate-database/CRM queries",
+      "Sourcing and outreach tooling (InMail/email sequences, talent pools)",
+      "Job descriptions and job specifications (authored and maintained by this role)",
+      "Phone/video screening and structured interview scheduling tools",
+      "Interview scorecards / evaluation rubrics and a 'holistic' interview process",
+      "Offer, negotiation and closing materials (verbal offers, comp framing, candidate close)",
+      "Email and async communication channels (fully remote collaboration with hiring managers)",
+      "Recruiting metrics / best-practice playbooks (pipeline health, funnel conversion)",
+      "Adjacent People Ops / Talent Acquisition systems supported 'as needed' (HRIS-edge tasks, onboarding handoff)"
+    ],
+    "coreResponsibilities": [
+      "Own full life-cycle recruiting end to end for both high-volume and non-high-volume positions",
+      "Write and continuously update job descriptions and job specifications",
+      "Act as a consultative partner to hiring managers and teams, not just an order-taker",
+      "Proactively source via databases, social media, job boards, and Boolean searches",
+      "Screen all qualified candidates and organize/run the holistic interview process",
+      "Deliver an excellent candidate and hiring-manager experience throughout",
+      "Monitor and apply recruiting best practices to keep the funnel healthy",
+      "Negotiate and close offers (explicitly called out as a core competency)",
+      "Provide overflow support to other Talent Acquisition and People Ops functions"
+    ],
+    "statedVsRealGaps": [
+      "Quantitative requirements are blanked out in the JD: required 'years of staffing/recruiting experience', the funding amount, holiday count, and 401k match all show empty placeholders — the experience bar is effectively unstated, so seniority can't be read from the text alone.",
+      "CareRev is a healthcare-staffing marketplace, yet the JD names no clinical/nursing/credentialing recruiting experience, healthcare compliance, or volume targets — a real domain demand the stated requirements don't reflect.",
+      "'High-volume preferred' (a soft preference) sits against 'run a successful full life cycle recruiting process for high-volume positions' (a core duty); the actual req load and throughput expectations are never quantified despite 'high-volume' framing the role.",
+      "The headline tool, Greenhouse, is 'preferred but not required', so the stated tech requirement is genuinely soft — fit should weight transferable ATS fluency over the specific product.",
+      "A large share of the text is boilerplate (EEO, accommodations, physical requirements, state comp-disclosure routing) and morale language ('be awesome', 'completely crush it'); the role-specific, evaluable content is a fairly thin standard full-cycle recruiter spec.",
+      "'Support other talent acquisition and people ops functions as needed' is open-ended scope with no boundary, which can mask meaningful non-recruiting workload."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "High-volume throughput in a regulated healthcare context (likely clinical/credentialed talent) can carry compliance and quality-of-hire risk the JD never addresses.",
+      "Blanked experience and comp fields risk mis-leveling: candidates and screeners can't calibrate to a number, raising the chance of medior/senior mismatch.",
+      "Fully remote + 'work independently and completely crush it' implies low supervision and possible single-threaded ownership of pipelines — a key-person and burnout risk under high volume.",
+      "Heavy reliance on 'negotiation and closing skills' means offer-stage performance, comp authority, and time-to-close are critical but unquantified success factors.",
+      "Undefined 'support People Ops as needed' invites scope creep that dilutes core recruiting capacity.",
+      "Sourcing leans on external channels (LinkedIn, job boards, databases) whose cost and access aren't specified, affecting realistic sourcing capability."
+    ],
+    "reflection": "This is a non-software HR role, so the absence of a codebase is expected and not a defect — the role's real 'body of work' is its sourcing stack (Greenhouse, LinkedIn, job boards, Boolean), the job descriptions and scorecards it authors, and the offer/close conversations it runs. Judged in those terms, the JD describes a competent, fairly standard full-cycle corporate recruiter: own the funnel end to end, partner consultatively with hiring managers, source and screen at volume, and close. The need is coherent and the responsibilities are concrete enough to evaluate against, which is why complexity reads as medium rather than low — full-cycle high-volume recruiting in a remote, fast-paced healthcare marketplace is real work, but it is a well-established function, not a specialist or strategic build. The main divergence between what's stated and what the evidence implies is omission, not contradiction: the quantitative bar (years, comp, req load) is literally blank, and the healthcare-staffing domain that defines CareRev never surfaces as a stated requirement, so the JD under-specifies both the seniority and the domain expertise the role most likely demands. Greenhouse being explicitly optional confirms the role should be screened on transferable recruiting craft — sourcing, screening, negotiation, hiring-manager partnership — over any single tool. Confidence is moderate because the JD is the only evidence and a meaningful fraction of it is boilerplate with blanked numbers.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Corporate Recruiter",
+    "seniority": "medior",
+    "roleFamily": "hr",
+    "mustHaves": [
+      "Proven full life-cycle recruiting experience — owning roles end to end from intake through offer acceptance, independently and with minimal oversight",
+      "Comfort recruiting at both high-volume and non-high-volume cadences, managing many concurrent reqs without dropping pipeline quality",
+      "Hands-on fluency with an applicant tracking system as the system of record (Greenhouse is a plus but any modern ATS transfers — candidate-stage hygiene, req management, and basic pipeline reporting)",
+      "Proactive sourcing skill across candidate databases, LinkedIn/professional networks, job boards, and Boolean search, including building and working talent pools rather than relying on inbound applications",
+      "Ability to write and continuously update clear, accurate job descriptions and job specifications",
+      "Structured candidate screening and the ability to organize and drive a multi-stage ('holistic') interview process for hiring managers and panels",
+      "Strong negotiation and closing skills — framing compensation, handling counteroffers, and converting finalists to signed offers",
+      "Excellent written and verbal communication and a consultative, advisory posture with hiring managers (partner, not order-taker)",
+      "Demonstrated effectiveness in a fast-paced environment: multitasking, prioritizing across competing reqs, and self-managing in a fully remote setting"
+    ],
+    "niceToHaves": [
+      "Direct experience with Greenhouse ATS",
+      "Healthcare, clinical, nursing, or credentialed-professional recruiting (or other regulated/high-throughput staffing) given CareRev's healthcare-marketplace domain",
+      "Demonstrated high-volume / requisition-dense recruiting track record with funnel-conversion metrics",
+      "Experience standing up or refining recruiting best practices, scorecards, and structured-interview rubrics",
+      "Recruiting CRM / candidate-nurture sequencing and pipeline analytics",
+      "Track record thriving in a fully distributed, async remote team",
+      "Cross-functional support of adjacent Talent Acquisition and People Ops work (onboarding handoff, employer brand, HRIS-edge tasks)"
+    ],
+    "responsibilities": [
+      "Own full life-cycle recruiting end to end for both high-volume and non-high-volume positions",
+      "Develop and continuously update job descriptions and job specifications",
+      "Partner with hiring managers and teams as a consultative advisor on role definition, market reality, and hiring strategy",
+      "Proactively source candidates using databases, social media, job boards, and Boolean searches, and maintain warm talent pools",
+      "Screen qualified candidates and organize and run a structured, holistic interview process",
+      "Foster an excellent candidate and hiring-manager experience across every stage",
+      "Monitor and apply recruiting best practices to keep the funnel healthy and conversion strong",
+      "Negotiate and close offers, including compensation framing and counteroffer handling",
+      "Provide overflow support to other Talent Acquisition and People Ops functions as needed"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Own a Stuck Healthcare Req: Intake → Funnel → Close (Remote, High-Volume)",
+    "brief": "You are the medior Corporate Recruiter at Meridian Health, a fully remote, US healthcare employer. You've just inherited a stalled, high-volume requisition — Remote RN Case Manager (telehealth) — plus shared accountability for the team's overall pipeline health. The hiring manager wants a slate 'yesterday,' an offer is going out this week, and you also have an unrelated People Ops ask sitting in your inbox during your busiest sourcing window. Everything you'd produce here (a rewritten JD, a sourcing plan, a funnel read, a scorecard, an offer plan) could be drafted in minutes by an LLM — so this case is not testing whether you can produce polished artifacts. It is testing the JUDGMENT calls underneath: how you handle a vague intake, a comp/leveling gap, a compliance-sensitive healthcare hire, a funnel export you can't fully trust, and a scope-creep request. The provided materials genuinely fit this role, so work directly on them in a recruiter's own way. Counteroffer scenario for Task 4: your lead candidate, 'J. Okafor,' verbally accepted last week but just emailed that their current employer countered with a 12% raise and a retention bonus; your posted band and the redacted comp note constrain what you can match. Hard timebox: 1.5 hours. Depth over coverage — a sharp, well-reasoned partial answer beats four generic full ones. Keep a running DECISIONS.md as you go (Task 4 formalizes it); treat it as normal recruiting hygiene, not a test.",
+    "repoSeed": "A recruiting workspace folder for the Remote RN Case Manager req and the wider funnel, all fictional:\n- `intake_brief_RN-CaseManager.md` — the hiring manager's raw intake notes: '~15 hires this quarter, must have hospital experience, remote OK, budget is flexible, need someone who can just crush it, start ASAP.' No must-have vs nice-to-have split, no comp number, no clear seniority, no mention of state licensure.\n- `JD_current_RN-CaseManager.md` — the existing public job description. Years-of-experience and the salary line are blanked ('___'). Buried in the requirements is a legacy line: 'Must submit to and pass a credit check; candidates with any prior employment gap need not apply' — a copied-forward clause that is compliance-risky for a clinical/credentialed hire and never mentions the actually-required nurse license verification or state-of-residence compact-license rules.\n- `comp_band_2026.xlsx` — comp guidance. The 'Posted band' column for this role is redacted, but a footnote reads: 'RN Case Manager mapped to Clinical Level 2 (mid); CL2 = $78–92k; CL3 (senior) = $95–110k. Note: 3 of 5 active candidates are asking $100k+.'\n- `greenhouse_pipeline_export.csv` — pipeline export, ~120 rows across stages (Application, Screen, Hiring-Manager Review, Onsite/Panel, Offer, Hired). It silently merges TWO reqs opened 4 months apart, 18 withdrawn/duplicate candidates are still parked in 'Screen,' and a 'days_to_first_contact' column averages 9 days. Headline stage-to-stage rates make Screen→Onsite look like the worst leak.\n- `recruiting_metrics_playbook.md` — internal targets: time-to-first-contact <48h, offer-accept >80%, screen→onsite ~50%.\n- `scorecard_holistic_current.md` — the current interview scorecard: a single free-text box labeled 'Overall holistic fit (gut check 1–10).'\n- `candidates/` — three one-page profiles + screen notes: 'J. Okafor' (strong, $100k ask, employed, license in one state only), 'M. Reyes' (mid, compact multi-state license, gap year for caregiving), 'D. Park' (junior, eager, no acute-care experience).\n- `offer_template_v3.md` — a verbal-offer and close script with comp-framing placeholders.\n- `peopleops_overflow_request.eml` — an email from People Ops: 'Since you have bandwidth, can you take over onboarding-paperwork data entry and I-9 collection for all of this month's new hires?' — landing the same week your slate is due.",
+    "tasks": [
+      "Task 1 — Repair the req and plan sourcing. Using `intake_brief_RN-CaseManager.md`, `JD_current_RN-CaseManager.md`, and `comp_band_2026.xlsx`, deliver a corrected job description + job spec that resolves the blanked experience/comp and leveling gap, and fixes any requirement that is compliance-risky or wrong for a credentialed clinical hire. Then deliver a sourcing plan: one Boolean string and 2–3 channel choices (LinkedIn Recruiter, job boards, talent pool, etc.) with a one-line rationale each, given that the channel budget is unstated. Explicitly list what the intake leaves underspecified and the assumptions you committed to.",
+      "Task 2 — Diagnose the funnel. From `greenhouse_pipeline_export.csv` and `recruiting_metrics_playbook.md`, determine where the funnel is ACTUALLY leaking and propose 2–3 interventions ranked by likely impact. Show the calculation or reconciliation behind your conclusion, not just the headline rates.",
+      "Task 3 — Structure the screen and decide. Convert `scorecard_holistic_current.md` into a structured, role-relevant rubric (3–5 criteria + what 'advance' concretely looks like for each). Apply it to the three profiles in `candidates/` and return an advance|hold|reject with a one-line rationale for each.",
+      "Task 4 — Close, set boundaries, and log decisions. Draft an offer/close plan for your top candidate using `offer_template_v3.md` and the comp band, including how you'd frame comp within the band and handle the Okafor counteroffer scenario in the brief. Write a short reply to `peopleops_overflow_request.eml`. Finally, compile `DECISIONS.md`: for every open call across all four tasks, record what you chose, the alternative you rejected, and the one question you would have asked the hiring manager or team."
+    ],
+    "coverProbes": [
+      {
+        "id": "vague-intake",
+        "kind": "underspecified",
+        "where": "Task 1 — the intake brief has no comp number, no must-have/nice-to-have split, no seniority anchor, and 'budget is flexible.'",
+        "reveals": "A strong candidate names the gaps, states explicit assumptions, and either requests a structured intake or proposes leveling variants before mass-sourcing; a naive response silently invents requirements and ships a confident-but-ungrounded JD that could mis-level the whole pipeline.",
+        "decisionSpace": [
+          "Proceed now with clearly documented assumptions (speed over certainty; risk of mis-level)",
+          "Pause sourcing and run a 15-minute structured intake first (certainty over speed; risks HM's 'ASAP')",
+          "Draft two leveling/JD variants (CL2 vs CL3) and let the HM pick (covers both, costs more of your time)"
+        ]
+      },
+      {
+        "id": "legacy-compliance-clause",
+        "kind": "legacy_trap",
+        "where": "Task 1 — the existing JD carries a copied-forward 'credit check + no employment gaps' clause and omits required nurse-license/compact-state verification.",
+        "reveals": "A candidate who reads the legacy JD before regenerating catches the discriminatory/compliance-risky clause AND the missing license-verification step; a one-shot generator either parrots the bad clause forward or drops the genuinely-required credentialing check.",
+        "decisionSpace": [
+          "Remove the risky clause and add proper license/compact verification yourself (fast, but you're making a compliance call)",
+          "Strip the clause and flag it to Legal/Compliance before reposting (safer, slower)",
+          "Keep the language but escalate with a documented note (defers risk, weakest on candidate experience)"
+        ]
+      },
+      {
+        "id": "untrustworthy-funnel-export",
+        "kind": "verification_trap",
+        "where": "Task 2 — the CSV merges two reqs from different periods, parks 18 withdrawn/duplicate candidates in 'Screen,' and hides a 9-day time-to-first-contact behind healthy-looking stage rates.",
+        "reveals": "Taken at face value the data 'proves' Screen→Onsite is the leak; a candidate who reconciles the data finds the real problems are slow first-contact and dirty stage counts. Distinguishes someone who verifies inputs from someone who acts on the first headline number.",
+        "decisionSpace": [
+          "Act on the headline Screen→Onsite rate immediately (fast, but likely fixes the wrong stage)",
+          "Clean/reconcile the export first, then diagnose the true leak (correct, costs time inside the 1.5h)",
+          "Report the diagnosis with explicit data-quality caveats and flag the export owner (pragmatic middle path)"
+        ]
+      },
+      {
+        "id": "peopleops-scope-creep",
+        "kind": "ambiguity",
+        "where": "Task 4 — the People Ops overflow email asks you to absorb onboarding/I-9 data entry the same week your high-volume slate is due.",
+        "reveals": "A strong candidate weighs core-recruiting capacity against the 'support as needed' expectation and negotiates a boundary or timeline; a naive candidate simply absorbs the work and silently starves the pipeline, or flatly refuses without offering an alternative.",
+        "decisionSpace": [
+          "Absorb it now to be a team player (protects the relationship, risks the slate and burnout)",
+          "Decline/defer with a clear rationale and a proposed later window (protects core work, costs goodwill)",
+          "Negotiate a partial/time-boxed boundary or hand-off (balances both, requires a judgment call on priorities)"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

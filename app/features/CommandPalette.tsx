@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { TextInput } from "@/app/_components/TextInput";
 import { KBD } from "@/app/_components/ui/recipes";
 import { recordRecent, useRecents } from "./recents";
 import { useSimulation } from "./simulation/SimulationProvider";
@@ -249,7 +250,7 @@ export function CommandPalette() {
       {open ? (
         <Modal title={t("title")} onClose={() => setOpen(false)} size="xl">
           <div className="space-y-3">
-            <input
+            <TextInput
               ref={inputRef}
               type="search"
               role="combobox"
@@ -267,7 +268,6 @@ export function CommandPalette() {
               }}
               onKeyDown={onInputKey}
               placeholder={t("placeholder")}
-              className="focus-ring h-10 w-full rounded-md border border-stone-200 px-3 text-base"
             />
             {error ? <p className="text-sm text-coral">{error}</p> : null}
             <ul id="palette-results" role="listbox" aria-label={t("title")} className="max-h-[50vh] space-y-0.5 overflow-y-auto">

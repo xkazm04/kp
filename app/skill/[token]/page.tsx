@@ -4,13 +4,16 @@ import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { verifySkillProfileToken } from "@/app/_lib/db";
 
-export const dynamic = "force-dynamic";
 
 // Durable Skill Profile (moonshot A) — the public, candidate-owned, shareable
 // score-card. Token-gated (mirrors /offer/[token]); renders the signed credential
 // and a tamper-evident "verified by kp" verdict computed server-side. Explainable
 // by construction: shows the durable axes + propagated confidence + a methodology
 // link, never just a bare number.
+// Blocked under Cache Components: dynamic per-request route (previously
+// force-dynamic) with no useful static shell to prerender.
+export const instant = false;
+
 export default async function SkillProfilePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const verdict = verifySkillProfileToken(token);

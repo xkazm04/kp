@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, Loader2, Scale, X } from "lucide-react";
+import { AlertTriangle, Check, HelpCircle, Loader2, Scale, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   COMPLIANCE_REGIMES,
@@ -10,7 +10,9 @@ import {
   REGIME_IDS,
   type RegimeId,
 } from "@/app/_lib/compliance-regimes";
-import { computeAdverseImpact, type GroupCount } from "@/app/_lib/adverse-impact";
+import { computeAdverseImpact, ADVERSE_IMPACT_MIN_COHORT, type GroupCount } from "@/app/_lib/adverse-impact";
+import { Select } from "@/app/_components/Select";
+import { TextArea } from "@/app/_components/TextArea";
 
 // P1-1 — the recruiter-facing compliance posture, in the Decision Rules modal.
 // Picks the workspace jurisdiction (drives the candidate AI-disclosure framing)
@@ -39,6 +41,10 @@ export function ComplianceSection() {
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [counts, setCounts] = useState("");
+  // The EFFECTIVE retention window (derived server-side from KP_CONSENT_TTL_DAYS)
+  // so the posture line states the enforced number, not a hardcoded "12 months"
+  // (REC-08). Default 12 mirrors the server default of 365 days.
+  const [retentionMonths, setRetentionMonths] = useState(12);
 
   useEffect(() => {
     fetch("/api/decisions/config")
@@ -46,6 +52,14 @@ export function ComplianceSection() {
       .then((p: { configs?: { compliance?: { jurisdiction?: unknown } } }) => {
         const j = p?.configs?.compliance?.jurisdiction;
         if (typeof j === "string" && (REGIME_IDS as readonly string[]).includes(j)) setJurisdiction(j as RegimeId);
+      })
+      .catch(() => {});
+    fetch("/api/compliance")
+      .then((r) => r.json())
+      .then((d: { consentRetentionMonths?: unknown }) => {
+        if (typeof d?.consentRetentionMonths === "number" && d.consentRetentionMonths >= 1) {
+          setRetentionMonths(d.consentRetentionMonths);
+        }
       })
       .catch(() => {});
   }, []);
@@ -88,17 +102,14 @@ export function ComplianceSection() {
       <label className="block">
         <span className="mb-1 block text-sm text-steel">{t("jurisdictionLabel")}</span>
         <div className="flex items-center gap-2">
-          <select
+          <Select
+            ariaLabel={t("jurisdictionLabel")}
             value={jurisdiction}
-            onChange={(e) => pick(e.target.value as RegimeId)}
-            className="focus-ring w-full rounded-md border border-stone-200 px-2.5 py-1.5 text-sm"
-          >
-            {Object.values(COMPLIANCE_REGIMES).map((r) => (
-              <option key={r.id} value={r.id}>
-                {t(`jur.${r.id}` as Parameters<typeof t>[0])}
-              </option>
-            ))}
-          </select>
+            onChange={(v) => pick(v as RegimeId)}
+            size="sm"
+            className="w-full"
+            options={Object.values(COMPLIANCE_REGIMES).map((r) => ({ value: r.id, label: t(`jur.${r.id}` as Parameters<typeof t>[0]) }))}
+          />
           {saving ? <Loader2 size={15} className="shrink-0 animate-spin text-steel" /> : null}
           {note ? (
             <span role="status" aria-live="polite" className="shrink-0 text-meta text-steel">
@@ -126,7 +137,7 @@ export function ComplianceSection() {
               t("covered2"),
               t("covered3"),
               t("covered4"),
-              t("covered5", { dataLaw: regime.dataLaw }),
+              t("covered5", { dataLaw: regime.dataLaw, months: retentionMonths }),
             ].map((line, i) => (
               <li key={i} className="flex gap-1.5 text-sm text-steel">
                 <Check size={14} className="mt-0.5 shrink-0 text-moss" /> <span>{line}</span>
@@ -150,13 +161,14 @@ export function ComplianceSection() {
       <details className="rounded-md border border-stone-200 bg-white p-3">
         <summary className="cursor-pointer text-sm font-semibold text-ink">{t("aiCheckTitle")}</summary>
         <p className="mt-2 text-sm text-steel">{t("aiCheckIntro")}</p>
-        <textarea
+        <TextArea
           value={counts}
           onChange={(e) => setCounts(e.target.value)}
           rows={4}
           spellCheck={false}
           placeholder={t("aiCheckPlaceholder")}
-          className="focus-ring mt-2 w-full rounded-md border border-stone-200 px-2.5 py-1.5 font-mono text-meta"
+          sizeVariant="sm"
+          className="mt-2 font-mono"
         />
         <p className="mt-1 text-meta text-steel">{t("aiCheckPrivacy")}</p>
         {impact ? (
@@ -193,13 +205,26 @@ export function ComplianceSection() {
                 ))}
               </tbody>
             </table>
+            {/* Three states, not two. "Insufficient sample" is NOT "no adverse impact":
+                below ADVERSE_IMPACT_MIN_COHORT the compute forces anyAdverseImpact=false,
+                so a binary green/red readout would render a legally-loaded false clean. */}
             <p
               className={`mt-2 flex items-center gap-1.5 text-sm font-medium ${
-                impact.anyAdverseImpact ? "text-coral" : "text-moss"
+                !impact.reliable ? "text-steel" : impact.anyAdverseImpact ? "text-coral" : "text-moss"
               }`}
             >
-              {impact.anyAdverseImpact ? <AlertTriangle size={14} /> : <Check size={14} />}
-              {impact.anyAdverseImpact ? t("anyAdverse") : t("noAdverse")}
+              {!impact.reliable ? (
+                <HelpCircle size={14} />
+              ) : impact.anyAdverseImpact ? (
+                <AlertTriangle size={14} />
+              ) : (
+                <Check size={14} />
+              )}
+              {!impact.reliable
+                ? t("insufficientSample", { min: ADVERSE_IMPACT_MIN_COHORT })
+                : impact.anyAdverseImpact
+                  ? t("anyAdverse")
+                  : t("noAdverse")}
             </p>
           </div>
         ) : (

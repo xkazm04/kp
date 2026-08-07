@@ -21,7 +21,7 @@ from .provenance import generate_with_fallback, str_list as _str_list
 _LOG = logging.getLogger(__name__)
 
 ROLE_DESIGN_PROMPT_VERSION = "role-design-v3"  # v3: JD-first intake — full JD body anchors the role
-CASE_DESIGN_PROMPT_VERSION = "case-design-v4"  # v4: ambiguity as the instrument — probes carry a decisionSpace, the case forces a visible decision log
+CASE_DESIGN_PROMPT_VERSION = "case-design-v5"  # v5: timebox is a HARD cap — seniority raises depth/ambiguity, not deliverable count (anti over-scoping, real-JD calibration)
 
 # Hard cap on case length (UAT M8). The case's instrument is AMBIGUITY + a visible
 # decision log, NOT volume — the candidate's code is assumed 100% LLM-generated — so
@@ -241,8 +241,11 @@ def design_case(
         "(describe them in 'repoSeed'), and note in the brief that the provided context does not fit the role. "
         "NEVER produce an exercise in the context's domain when that differs from the role being hired.\n"
         f"CALIBRATE to seniority '{seniority}': junior = narrow, well-scoped, more scaffolding, simpler probes; "
-        "senior/lead = broader, more ambiguous, architectural and judgment-heavy. Fit the work to "
-        f"~{timebox}h. Be concrete — name real files/symbols, avoid template phrases like 'per the brief'.\n"
+        "senior/lead = MORE AMBIGUOUS and judgment-heavy — raise the DEPTH and ambiguity, NOT the number of "
+        f"deliverables. The ~{timebox}h is a HARD cap: scope the tasks so a real candidate can genuinely finish "
+        "in that budget (prefer 3-4 focused tasks; depth over coverage), and never pad a senior case with extra "
+        "sub-deliverables to make it 'harder'. Be concrete — name real files/symbols/materials, avoid template "
+        "phrases like 'per the brief'.\n"
         "ASSUME the candidate's code will be 100% LLM-generated — including the commits and any write-up, so "
         "NOTHING in the artifact proves authorship. The case's real instrument is AMBIGUITY: bake in 2-4 "
         "cover-probes — an underspecified/ambiguous requirement (rewards clarifying); a legacy/surprising area "
@@ -288,8 +291,16 @@ def design_case(
     prompt = f"{prompt}\n\n{language_directive(lang)}"
 
     def deterministic() -> dict:
-        stack = ", ".join(real[:3]) or "the stack"
-        title = role.get("title") or "Engineering"
+        # Domain-NEUTRAL last-resort template — fires ONLY when the LLM call is
+        # unavailable or RAISES (e.g. a generation timeout on a complex case). It must
+        # never betray the role's domain: an HR / finance / sales role whose LLM call
+        # timed out used to fall back to a SOFTWARE case ("assess and improve the
+        # codebase", a "legacy file", a "thin test suite"), which drifts role-fit and
+        # tanks quality (real-JD calibration finding). So describe the work in the
+        # role's OWN terms — starting MATERIALS, not a repo — and keep the probes
+        # generic (an open requirement, an under-documented area, a shallow check).
+        materials = ", ".join(real[:3]) or "the role's materials"
+        title = role.get("title") or _human(role_family).title()
         func = _human(role_family)
         det_probes = [
             {
@@ -297,21 +308,21 @@ def design_case(
                 "kind": "underspecified",
                 "where": "the brief",
                 "reveals": _PROBE_REVEALS_DEFAULT["underspecified"],
-                "decisionSpace": ["Clarify the open requirement before building", "Pick an interpretation, state it and proceed", "Build for both readings behind a switch"],
+                "decisionSpace": ["Clarify the open requirement before starting", "Pick an interpretation, state it and proceed", "Handle both readings and flag the choice"],
             },
             {
                 "id": "p2",
                 "kind": "legacy_trap",
-                "where": "the legacy file",
+                "where": "the under-documented area in the materials",
                 "reveals": _PROBE_REVEALS_DEFAULT["legacy_trap"],
-                "decisionSpace": ["Preserve the legacy behaviour and work around it", "Refactor it with a safety net first", "Replace it outright and accept the risk"],
+                "decisionSpace": ["Preserve the existing approach and work around it", "Revise it with a safeguard in place first", "Replace it outright and accept the risk"],
             },
             {
                 "id": "p3",
                 "kind": "verification_trap",
-                "where": "the thin test suite",
+                "where": "a result that passes a shallow check but is subtly wrong",
                 "reveals": _PROBE_REVEALS_DEFAULT["verification_trap"],
-                "decisionSpace": ["Extend the existing tests before changing code", "Verify manually and document the steps", "Trust the existing suite and ship"],
+                "decisionSpace": ["Check the result properly before relying on it", "Verify manually and document the steps", "Trust the first result and proceed"],
             },
         ]
         for i, b in enumerate(focus_probes or []):  # targeted probes from the CV soft-signal panel
@@ -328,17 +339,17 @@ def design_case(
                 }
             )
         return {
-            "title": f"{title}: assess and improve the codebase",
+            "title": f"{title}: a representative work-sample",
             "brief": (
-                f"You are handed a small {stack} codebase. Do a piece of representative {func} work on it, scoped "
-                f"to ~{timebox:g}h for a {seniority}. The brief is intentionally lightly specified — make and "
-                "document your own calls."
+                f"You are handed a small set of starting materials for this {func} role ({materials}). Do a piece "
+                f"of representative work on them, scoped to ~{timebox:g}h for a {seniority}. The brief is "
+                "intentionally lightly specified — make and document your own calls."
             ),
-            "repoSeed": "A minimal repo fixture: a working module, one under-documented legacy file, a thin test suite.",
+            "repoSeed": "A minimal set of starting materials this role works with: a primary working item, one under-documented or legacy area, and a way to check your work.",
             "tasks": [
-                f"Do a representative {func} task on this {stack} codebase.",
-                "Engage the existing legacy area you find under-documented.",
-                "Make the change safe — show how you verified it.",
+                f"Do a representative {func} task on the supplied materials.",
+                "Engage the under-documented / legacy area you find — understand it before you change it.",
+                "Make your change safe — show how you checked it before handing it on.",
                 # The visible decision trail — the submission must encode the candidate's path
                 # through the ambiguities so the post-evaluation interview can verify they own it.
                 "Keep a short DECISIONS log: for every call you made where the brief was open — what you chose, the alternative you rejected, and what you would have asked the team.",

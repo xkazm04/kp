@@ -1,0 +1,186 @@
+{
+  "job": {
+    "id": "cal-057",
+    "title": "Case Manager I - Remote",
+    "company": "Centene Corporation",
+    "role_family": "legal",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Care/case-management platform (Centene uses TruCare for member care plans and documentation)",
+      "Health screening & risk-assessment instruments / standardized health screens",
+      "Individualized care plans (creation and ongoing modification)",
+      "Electronic health records and managed-care/utilization data systems",
+      "Program guidelines, clinical protocols, and regulatory/compliance frameworks",
+      "Community resource directories and member-advocacy/outreach coordination workflows",
+      "Member- and provider-facing education materials and plan-specific literature",
+      "Active clinical license — RN, LCSW, or LVN — with a multi-state compact license in PST/CST",
+      "Standard office/documentation tooling (Microsoft Office, secure messaging) for remote work"
+    ],
+    "coreResponsibilities": [
+      "Conduct screening and risk-assessment interventions per program guidelines",
+      "Identify special-needs members through completion of health screens and other resources",
+      "Develop and modify care plans jointly with the member, family, and managing physician",
+      "Coordinate member care with community outreach and member advocates",
+      "Educate members, providers, and community resources on program components and available support services",
+      "Conduct site visits as appropriate and provide support to other special programs",
+      "Develop plan-specific literature and education materials with medical-director and corporate oversight"
+    ],
+    "statedVsRealGaps": [
+      "roleFamily is tagged 'legal', but the evidence is unambiguously clinical/healthcare case management (nursing/social work in a managed-care setting) — the legal label is a misclassification that would route the wrong evaluation rubric.",
+      "seniorityTarget is 'senior', yet the title is 'Case Manager I' — the entry rung of a defined career ladder. The JD asks for a bachelor's plus some related/managed-care experience with RN/LCSW/LVN 'preferred' (not required), which reads junior-to-mid, not senior.",
+      "stack and responsibilities arrays are both empty in the structured fields; the entire substance of the need lives in the free-text jobDescription, so any automated matching has nothing to key on unless those fields are populated from the JD.",
+      "The single hardest gate — a COMPACT clinical license in the PST/CST time zone — is stated only as an inline note and is absent from the structured fields, despite being a binary disqualifier.",
+      "The required years of experience are blank ('years of related experience'), so the experience bar is unspecified and cannot be reflected as stated.",
+      "No codebase is supplied — correct and expected for this role; absence of a tech stack is not a defect here."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Licensure/compliance is the dominant filter: a candidate without an active RN/LCSW/LVN compact license in PST/CST is a non-starter regardless of other fit, and the structured data hides this.",
+      "Role-family mismatch (legal vs. clinical) risks scoring this against the wrong competency model and surfacing the wrong candidates.",
+      "Seniority inflation ('senior' vs. 'Case Manager I') risks over-targeting compensation and over-filtering on tenure for what is an entry/early-career clinical role.",
+      "Empty stack/responsibilities mean the role is effectively ungrounded for structured matching until the JD's clinical duties and credentials are extracted into those fields.",
+      "Vague experience requirement and undefined 'site visits as appropriate' for a 'Remote' role create ambiguity about the true remote/in-field split that should be clarified with the hiring manager.",
+      "Clinical-judgment and PHI-handling duties carry regulatory weight (member safety, HIPAA, managed-care program rules) that no automated screen substitutes for."
+    ],
+    "reflection": "This is a remote healthcare case-management role at Centene — clinical work performed by a licensed nurse or social worker, not a legal role. The body of work the position acts on is not code but members and their care: standardized health screens, risk assessments, individualized care plans built and revised with the member, family, and managing physician, and education delivered to members, providers, and community partners under medical-director oversight, almost certainly inside Centene's TruCare care-management platform. The stated need diverges from the evidence in three concrete ways: it is mislabeled 'legal' when it is plainly clinical; it is targeted as 'senior' when the title 'Case Manager I' is the entry rung of a structured ladder; and the structured stack/responsibilities fields are empty while the real, hard requirements — a compact RN/LCSW/LVN license in PST/CST and managed-care experience — sit only in free text. Corrected against the evidence, the true complexity is medium: it demands genuine clinical judgment, multi-stakeholder coordination, and regulatory compliance, but it operates within defined program guidelines at the junior tier. The single decisive screen is licensure and time-zone geography, not seniority or tooling, and the structured record should be repaired to reflect that before this need is matched.",
+    "confidence": 0.82,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Case Manager I - Remote",
+    "seniority": "medior",
+    "roleFamily": "healthcare",
+    "mustHaves": [
+      "Active compact (multi-state) clinical license valid in the PST or CST time zone",
+      "Bachelor's degree in social work, nursing, health, or behavioral science, or equivalent experience",
+      "Experience working in a managed-care environment",
+      "Ability to conduct health screening and risk-assessment interventions per program guidelines",
+      "Experience developing and modifying individualized member care plans in conjunction with members, families, and managing physicians",
+      "Coordination of member care with community outreach and member-advocacy resources",
+      "Self-directed remote work with proficiency in standard documentation tooling (e.g., Microsoft Office, secure messaging)"
+    ],
+    "niceToHaves": [
+      "Active RN (Registered Nurse), LCSW (Licensed Certified Social Worker), or LVN (Licensed Vocational Nurse) license",
+      "Hands-on experience with a care-management platform (e.g., TruCare)",
+      "Experience identifying special-needs members and connecting them to support services",
+      "Experience creating plan-specific literature and member-/provider-facing education materials",
+      "Familiarity with EHRs and managed-care/utilization data systems",
+      "Willingness and ability to conduct site visits as appropriate"
+    ],
+    "responsibilities": [
+      "Conduct screening and risk-assessment interventions per program guidelines",
+      "Identify special-needs members through completion of health screens and other resources",
+      "Develop and modify care plans jointly with the member, family, and managing physician",
+      "Coordinate member care with community outreach and member advocates",
+      "Educate members, providers, and community resources on program components and available support services",
+      "Conduct site visits as appropriate and provide support to other special programs",
+      "Develop plan-specific literature and education materials with medical-director and corporate oversight"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Case Manager I — Care-Plan Reconciliation & Risk-Triage Work Sample (Remote D-SNP Member)",
+    "brief": "You are picking up an existing member in a remote Chronic-Condition Special Needs Plan (D-SNP). The prior case manager has rotated off and the care plan is overdue for its annual reassessment. You have ~1.5 hours to review the member packet, modify the care plan, verify what you're acting on, and set up coordination and education — exactly as you would on a real day in TruCare. This is a clinical case-management exercise on a managed-care member, NOT a coding task; the provided care/case-management platform fits the role and is used as given. The packet is intentionally realistic: some of what's in the file is stale, some of it disagrees with itself, and some of the brief is left open the way real program guidance leaves things open. We are not testing how fast you can write a plan — a polished plan can be generated in minutes and tells us nothing. We are testing the judgment underneath it: what you read before you write, what you catch, what you decide when the guidance runs out, and what you escalate. Work to the top of your license (assume RN/LCSW/LVN compact, PST/CST). All names/IDs are synthetic; treat the contents as PHI and handle them under HIPAA and the program's Model of Care. Where the brief is silent, make a defensible call and record it — do not invent facts; flag what you'd confirm with the member, the managing physician, or your supervisor.",
+    "repoSeed": "A de-identified member packet (synthetic) as a TruCare-style export plus supporting documents:\n- `member_packet_AReyes.pdf` — demographics & enrollment for member 'Ana Reyes, 58F', D-SNP chronic-care program, residing ~180 miles from the nearest field/outreach staff; diagnoses incl. type 2 diabetes, depression, mild CKD; remote (telephonic) program enrollment.\n- `health_screen_HRA_AReyes.csv` — completed Health Risk Assessment / standardized health screen with item-level responses: PHQ-9 question-by-question answers, fall-risk and mobility items, ADL/IADL items, a self-reported medication list, and self-reported social items. NOTE: a 'PHQ-9 total' summary cell is filled in by hand and the self-reported fall item reads 'no falls, past 6 months.'\n- `risk_stratification_summary.xlsx` — the computed risk tier and the program escalation thresholds it references.\n- `care_plan_v3_2025-04.docx` — the existing care plan authored 14 months ago, with several goals still marked ACTIVE (including 'Goal 1: Establish a primary care provider') and 'metformin 500mg BID' listed as a current medication.\n- `recent_claims_ED_note.pdf` — claims/utilization extract + a discharge summary from an ED visit ~5 weeks ago (mechanical fall with distal radius fracture); also shows an established PCP (Dr. Okafor) seen ~2 months ago and a recent medication change.\n- `program_guidelines_excerpt.pdf` — Model-of-Care excerpt: behavioral-health escalation rule ('PHQ-9 ≥ 10 → BH referral + case-manager outreach within 5 business days'), fall-risk pathway, scope-of-practice notes, and a 'site visits as appropriate for members with complex needs' clause with no remote-program definition.\n- `community_resource_directory.xlsx` — local/regional community resources (housing assistance, transportation, BH, diabetes education, food).\n- `member_contact_log.txt` — recent contact notes: member states her top concern is unstable housing and wants that addressed 'before more doctor stuff,' and has declined a diabetes-education class twice.\nThe candidate also receives this brief and a one-page DECISIONS template.",
+    "tasks": [
+      "Reconcile and modify the care plan, don't just rewrite it. Read `care_plan_v3_2025-04.docx` against `health_screen_HRA_AReyes.csv`, `risk_stratification_summary.xlsx`, and `recent_claims_ED_note.pdf`, then produce a modified care plan in TruCare goal / intervention / barrier format where EVERY existing active goal is explicitly carried forward, closed, or replaced — with a one-line rationale each — and every goal is tied to a specific screen finding or claim. You must explicitly dispose of 'Goal 1: Establish a primary care provider' and the 'metformin 500mg BID' entry rather than silently dropping or copying them forward.",
+      "Verify before you act. Recompute the PHQ-9 from the item-level responses in `health_screen_HRA_AReyes.csv` (do not trust the hand-entered total), and reconcile the self-reported fall history against `recent_claims_ED_note.pdf`. Identify any discrepancy that changes the member's risk tier or triggers a program action, state the specific escalation and its deadline per `program_guidelines_excerpt.pdf`, and document exactly how you resolved or routed each discrepancy.",
+      "Coordinate care and educate the member. Using `community_resource_directory.xlsx` and `member_contact_log.txt`, draft (a) a referral / care-coordination plan (community outreach, BH, the managing physician loop) and (b) a short plain-language, member-facing education note (≤250 words, ~6th-grade reading level) that reflects the member's stated housing priority and her two declines of diabetes education — without overriding her autonomy or ignoring the safety-critical findings.",
+      "Keep a one-page DECISIONS log as you go — normal documentation hygiene for a handed-over case. For each call where the packet left it open (site-visit modality for a remote member, how you handled each data discrepancy, how you sequenced the member's housing priority against the clinical goals, and anything you'd route to the medical director or supervisor): record what you chose, the alternative you rejected and why, and the precise question you'd put to the member, the managing physician, or your team."
+    ],
+    "coverProbes": [
+      {
+        "id": "stale-care-plan",
+        "kind": "legacy_trap",
+        "where": "`care_plan_v3_2025-04.docx` vs. `recent_claims_ED_note.pdf` (established PCP Dr. Okafor; metformin discontinued/changed)",
+        "reveals": "A careful candidate reads the 14-month-old plan and the claims before generating, then reconciles each legacy item — closing the already-met 'establish a PCP' goal and removing/flagging the discontinued metformin with rationale. A naive one-shot generation produces a clean-looking fresh plan that either silently drops the old goals (no audit trail) or carries the dead PCP goal and the discontinued med forward as if still active — a real charting and medication-safety error.",
+        "decisionSpace": [
+          "Line-by-line reconciliation: explicitly close the met PCP goal, remove the discontinued metformin, carry forward still-valid goals, each with a documented disposition — most auditable and safest, slower.",
+          "Build a fresh plan from current data and mark the prior plan superseded with a summary note that prior goals were reviewed — cleaner artifact, faster, but weaker per-goal audit trail.",
+          "Amend the existing plan in place per the 'modify care plans' duty — preserves continuity and version history but risks inheriting stale framing if not aggressively pruned."
+        ]
+      },
+      {
+        "id": "phq9-and-fall-discrepancy",
+        "kind": "verification_trap",
+        "where": "`health_screen_HRA_AReyes.csv` hand-entered PHQ-9 total (8) vs. item-level sum (14); self-reported 'no falls' vs. ED fall with fracture in `recent_claims_ED_note.pdf`",
+        "reveals": "A good candidate recomputes the PHQ-9 (the item responses sum to ≥10, crossing the BH-referral threshold the summary masks) and cross-checks the fall self-report against the ED note, then drives the time-bound escalation and fall pathway. A naive response trusts the summary cell and the member's self-report, passes a shallow 'plan looks complete' check, and misses a safety- and compliance-relevant escalation with a 5-business-day clock.",
+        "decisionSpace": [
+          "Recompute, treat the higher PHQ-9 and the documented fall as operative, trigger the BH referral within the deadline and the fall-risk intervention, and document the data correction — safest; slightly over-actions if the source data were themselves wrong.",
+          "Document both values as an unresolved discrepancy and confirm with the member/provider before escalating — most defensible on data integrity but risks missing the 5-day clock.",
+          "Escalate the data-integrity issue to supervisor/medical director and proceed on the worst-case assumption pending confirmation — balances safety and verification but offloads the judgment call."
+        ]
+      },
+      {
+        "id": "site-visit-modality",
+        "kind": "underspecified",
+        "where": "`program_guidelines_excerpt.pdf` 'site visits as appropriate for members with complex needs' with no remote-program definition; member is ~180 miles from field staff",
+        "reveals": "A strong candidate notices the clause is undefined for a remote member and makes an explicit, justified modality call (and logs the question), rather than defaulting to either an unjustified home visit or ignoring the complexity. A weak response either silently assumes telephonic-only or schedules an in-person visit with no rationale, treating an open policy as if it were settled.",
+        "decisionSpace": [
+          "Telephonic/telehealth assessment with documented rationale (remote-program design, distance), reserving in-person for a triggered need — aligns with program design, lowest cost, may under-assess a complex member.",
+          "Arrange a one-time in-person/home assessment via contracted local field staff given the fall plus housing instability — richer assessment, higher cost and coordination, may exceed program norms.",
+          "Defer the modality decision to the supervisor/hiring manager and document the open question, proceeding telephonically in the interim — safe and transparent but slower."
+        ]
+      },
+      {
+        "id": "member-priority-vs-clinical",
+        "kind": "ambiguity",
+        "where": "`member_contact_log.txt` (member prioritizes housing 'before more doctor stuff', declined diabetes education twice) vs. the 'jointly developed' care-plan mandate and the safety-critical clinical findings",
+        "reveals": "A good candidate navigates member autonomy against clinical safety — honoring the housing priority and the declines while not abandoning the non-negotiable safety items (BH referral, fall risk), and shows shared decision-making in both the plan and the education note. A naive response either imposes a guideline-first clinical plan that ignores the member's stated priorities (disengagement risk, weak on 'jointly developed') or honors preferences so fully that it buries the safety-critical findings.",
+        "decisionSpace": [
+          "Person-centered: lead with the member's housing goal using the resource directory and a warm hand-off, sequence clinical goals behind it — maximizes autonomy and engagement, may slow clinical metrics.",
+          "Blend: treat the safety-critical items (BH referral, fall risk) as non-negotiable while co-prioritizing housing and using motivational interviewing to revisit the declined diabetes education — balances safety and autonomy, more to coordinate.",
+          "Clinical-first per guideline with member declines/preferences documented and a scheduled revisit — defensible on protocol but risks disengagement and is weakest on the 'jointly developed with the member' mandate."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

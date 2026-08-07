@@ -1,0 +1,193 @@
+{
+  "job": {
+    "id": "cal-082",
+    "title": "Art Director",
+    "company": "BET",
+    "role_family": "marketing",
+    "seniority": "lead",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Adobe Creative Suite — Photoshop, Illustrator, After Effects, InDesign (expert-level, stated)",
+      "Motion design / motion graphics toolchain for animated show opens and promo packages",
+      "3D animation software — the JD's 'working knowledge of [redacted]' almost certainly names a 3D package (Cinema 4D is the broadcast-promo standard); role also directs '3D animators'",
+      "Advanced photo retouching and compositing tools",
+      "Print production workflow — prepress, proofing, paper/press specification (key art, OOH, custom-branded print pieces)",
+      "Editorial / video editing direction (directs editorial through to delivery)",
+      "Storyboarding and concept/pitch development materials",
+      "BET / Paramount brand guidelines and style systems (brand-integrity stewardship)",
+      "Production scheduling and project-tracking process (works through a design production coordinator)",
+      "Photo-shoot direction craft — gallery and key-art shoots, working with celebrity talent",
+      "Vendor/partner network — photographers, illustrators, retouchers, printers, outside production houses"
+    ],
+    "coreResponsibilities": [
+      "Lead a multidisciplinary team of designers and animators, providing creative/strategic direction, feedback, mentorship and motivation",
+      "Serve as design lead per assignment — own the look and feel across print, digital, social and linear platforms",
+      "Direct design development end-to-end: brief interpretation, research, storyboarding, through final production and delivery",
+      "Direct 2D and 3D animation and editorial to delivery",
+      "Conceptualize and direct key art and gallery photo shoots, including working with celebrity talent",
+      "Present fully-produced concept pitches to internal teams and external clients/partners",
+      "Manage production schedules, team assignments, deliverables and outside vendors with the design production coordinator",
+      "Work hands-on as a designer when required while safeguarding brand integrity and the highest creative/production standards"
+    ],
+    "statedVsRealGaps": [
+      "No body of work was supplied (no portfolio, no past campaigns, no codebase — expected for a creative role), so the need can only be reflected against the JD text itself, not against real evidence of the team's output or standards",
+      "The JD is heavily OCR-degraded: required years of experience, household reach, team sizes ('teams of [#] and [#] animators') and one named tool ('working knowledge of [redacted]') are all stripped — the quantitative seniority bar and the specific 3D requirement cannot be verified from the supplied text",
+      "Titled 'Art Director' but the scope (leading/mentoring a team, directing shoots with celebrity talent, pitching to outside clients, owning all platforms) reads at the high end of AD — closer to a hands-on Design Lead / Associate Creative Director; the 'lead' seniority target fits the responsibilities better than the literal title",
+      "The need spans print prepress AND motion AND 3D AND advanced retouching AND people-leadership in one person — a very broad demand; the JD does not signal which discipline is the true center of gravity, so depth-vs-breadth trade-offs are left unstated",
+      "Cultural fluency ('knowledge, passion, curiosity and love of Black culture') is framed as essential and audience-specific, but no rubric is given for evaluating it alongside craft"
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Breadth-vs-depth mismatch: expecting expert print prepress + motion + 3D + compositing + leadership in a single hire is rare; most strong candidates skew to one or two disciplines, so screening must decide which are must-have vs nice-to-have",
+      "Player-coach overload: the role is simultaneously a people leader (direct, mentor, motivate) and a hands-on producer ('work as a hands-on designer when necessary') in a fast-paced, high-volume promo environment — real burnout/throughput risk",
+      "Degraded JD specifics (years, team sizes, the redacted 3D tool) impair calibration of the seniority bar and could cause inconsistent screening — recommend recovering the original posting before sourcing",
+      "Heavy external dependency on vendors and celebrity talent (photographers, illustrators, retouchers, printers, production partners) makes vendor/relationship management a true competency that is easy to under-weight in interviews",
+      "Audience/brand fit is central and specific to BET's Black-culture mandate; assessing it requires portfolio relevance to the audience, not generic design polish — a screening dimension that generic creative interviews miss",
+      "Delivery risk inherent to broadcast marketing cadence: many concurrent campaigns, fixed air/print deadlines, and 'timely delivery of the highest quality product' as an explicit accountability"
+    ],
+    "reflection": "This is a non-software, creative-leadership role, so the realistic 'stack' is Adobe Creative Suite, a motion/3D and print-production toolchain, photo-shoot and retouching craft, and the brand/scheduling/vendor systems of a broadcast marketing org — judged on its own terms, not against any codebase. The JD is rich and internally consistent on responsibilities: it describes a seasoned, hands-on player-coach who owns concept-to-delivery across print, digital, social, linear, motion and 3D for BET's brand, promo and marketing campaigns. The honest tension is that it asks one person to be expert across an unusually wide span of disciplines while also leading, mentoring and pitching — which reads above a typical AD and squarely at the 'lead' level the need specifies, closer to a Design Lead / ACD. Confidence is held down by two things: no actual body of work (portfolio/campaigns) was supplied to reflect the need against, and the supplied text is OCR-mangled — years of experience, team sizes and one named tool are redacted — so the quantitative bar can't be confirmed. The shape of the need is clear and high-complexity; the precise calibration would firm up with the original posting and a sample of the team's recent output.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Art Director",
+    "seniority": "lead",
+    "roleFamily": "marketing",
+    "mustHaves": [
+      "Advanced, demonstrable craft across all three of motion, digital and print design — not just one — with a portfolio of brand, promo and 360 marketing campaigns",
+      "Expert command of Adobe Creative Suite (Photoshop, Illustrator, After Effects, InDesign) as a genuinely hands-on maker, able to step in and design when the work demands it",
+      "Proven art-direction / project-lead experience leading a multidisciplinary team of designers and animators — giving creative and strategic direction, constructive feedback, and motivation from research through final delivery",
+      "Ability to own the look and feel of an assignment end-to-end and hold it consistent across print, digital, social and linear platforms while safeguarding brand integrity",
+      "Strong conceptual thinking: interpret a creative brief and drive concept development through storyboarding, research and pitch into production",
+      "Confident presentation skills — pitch fully-produced concepts persuasively to internal leadership and to external clients and partners",
+      "Experience directing 2D and 3D animation and editorial through to delivery, and conceptualizing and directing key art and gallery photo shoots",
+      "Production fluency: manage schedules, team assignments, deliverables and outside vendors (photographers, illustrators, retouchers, editors, printers) in a fast-paced, multi-project environment",
+      "Genuine knowledge, passion and curiosity for Black culture, with the cultural fluency to make work that authentically resonates with BET's audience",
+      "Years of design / media (and ideally entertainment-industry) experience plus distinct years of art-direction or project-lead experience consistent with a hands-on lead bar"
+    ],
+    "niceToHaves": [
+      "Working knowledge of a 3D package (Cinema 4D or equivalent) for broadcast-style promo and show-open work",
+      "Prior experience inside an entertainment, broadcast, music or media brand environment",
+      "Advanced photo retouching and compositing skill",
+      "Print production / prepress expertise — proofing, paper and press specification for key art and out-of-home",
+      "Experience directing shoots involving celebrity or high-profile talent",
+      "An established network of trusted production partners, vendors and freelancers",
+      "Familiarity with stewarding and evolving a brand style system / brand guidelines at scale"
+    ],
+    "responsibilities": [
+      "Lead and mentor a multidisciplinary team of designers and animators, setting creative and strategic vision and providing direction, encouragement and constructive feedback",
+      "Serve as the design lead on each assignment, crafting and guiding the look and feel across print, digital, social and linear",
+      "Direct design development end-to-end — brief interpretation, research, storyboarding, through final production and timely delivery at the highest creative and production standards",
+      "Direct 2D and 3D animation and editorial through to delivery, including animated show opens and promo packages",
+      "Conceptualize and direct key art and gallery photo shoots, collaborating with photographers, illustrators, retouchers and printers and working with talent",
+      "Present fully-produced concept pitches to internal teams and to outside clients and partners",
+      "Partner with the design production coordinator to manage production schedules, team assignments, deliverables and outside vendors, keeping workflow efficient across teams",
+      "Work hands-on as a designer when required while ensuring brand integrity and staying current with design trends, techniques and best practices"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Art Director — BET on-air relaunch: creative platform, show-open direction & delivery plan",
+    "brief": "You are joining as the Art Director (lead) in BET's on-air promotions and brand creative group at Paramount. A returning flagship music-and-culture tentpole — referred to here as 'Amplified' (a representative stand-in for a real BET franchise; the kit contains representative, non-proprietary materials assembled within the BET/Paramount brand mandate, so you can work without internal access) — is relaunching for a new season. Marketing needs a refreshed creative platform and a promo + key-art campaign that runs across the linear show open, social, OOH and print.\n\nThis is a direction exercise, not a production exercise. We assume you will use whatever tools you like — including generative/AI tools — to mock visuals; finished renders prove nothing here. What we assess is your judgment: how you interpret an imperfect brief, set a creative platform, hold brand integrity, direct a team and vendors, and protect delivery against a fixed broadcast cadence. Treat the supplied materials as the real, messy inputs you would get on day one — some of it is underspecified or not deliverable-ready on purpose.\n\nTimebox: ~2 hours, hard cap. Depth over coverage — we would rather see three calls made well, with your reasoning, than a thin pass over everything. Where the brief is open, decide, and log the decision.",
+    "repoSeed": "A representative on-air promo kit (no proprietary BET assets), assembled within the BET/Paramount brand mandate:\n- brief_amplified_S-new.pdf — the marketing team's one-page creative brief for the relaunch. Deliberately degraded: it carries two competing positioning lines ('elevated, premium, aspirational' and 'authentic, unapologetically Black culture, community-first') with no stated priority, a fuzzy 'on air this summer' date, and no explicit scope-vs-capacity reconciliation.\n- BET_brand_system_v-current.pdf — current brand guidelines: typography, color, logo, motion principles, plus clearance and usage rules.\n- endmark_lockup_DO-NOT-ALTER.ai — the mandated network endmark/logo lockup and brand color, flagged as locked.\n- prior_season/Amplified_S-prev_showopen_frames.mp4 and prior_season/Amplified_S-prev_keyart.psd — last season's show-open frames and key art, provided as legacy reference.\n- keyart_refs/talent_comp_01-04.jpg — four key-art reference comps featuring talent, RGB at ~1500px (screen resolution). keyart_refs/talent_music_rights_notes.txt — notes that one talent likeness window is unconfirmed and a music track under consideration is 'license territory TBD'.\n- production/coordinator_schedule.xlsx — the design production coordinator's sheet: deliverables matrix (linear show open :30 and :15 with a 3D sequence, social cutdowns, OOH + print key art, digital units), in-house roster (2 designers, 1 2D animator, 1 Cinema 4D animator, 1 retoucher/compositor), capacity, air date and an earlier print deadline.\n- production/vendor_list.csv — available photographers, illustrators, retouchers, printers and outside production houses.",
+    "tasks": [
+      "Task 1 — Creative platform & art-direction system (~40 min): From brief_amplified_S-new.pdf and BET_brand_system_v-current.pdf, define the single creative idea/positioning for the relaunch and the art-direction system that carries it — typography, color, motion language, photographic/illustrative approach, and endmark treatment — across the linear show open, social, and OOH/print key art. State explicitly how you resolve the brief's competing positioning lines and how your system relates to the locked endmark and the prior season.",
+      "Task 2 — Show-open direction + key art (~45 min): Direct the :30 linear show open as an annotated storyboard/animatic outline — frame intent, where 3D (Cinema 4D) vs 2D is warranted, editorial pacing, music sync, and the endmark — and direct a key-art layout for OOH + print. Use any mockup/AI tools you like; you are assessed on the direction and annotations, not finished renders. Review keyart_refs/ and keyart_music_rights_notes.txt and call out anything that is not ready for the final deliverable medium or for rights.",
+      "Task 3 — Production, team & vendor plan (~25 min): As if briefing the design production coordinator, lay out the schedule against the air date and print deadline in coordinator_schedule.xlsx, assign the in-house team and select/flag vendors from vendor_list.csv, and say where you personally go hands-on. If the scope cannot be delivered by the team on the timeline, make the trade explicit and state how you resolve it.",
+      "Task 4 — DECISIONS log + pitch framing (~20 min): Keep a short DECISIONS log — for every open call across Tasks 1–3, note what you chose, the alternative you rejected, and what you would have asked the team. Then write a ~150-word framing for how you would pitch this concept to the internal marketing team and to the external partner."
+    ],
+    "coverProbes": [
+      {
+        "id": "positioning-tension",
+        "kind": "ambiguity",
+        "where": "brief_amplified_S-new.pdf carries two positioning lines that pull apart — marketing's 'elevated, premium, aspirational' versus the network mandate 'authentic, unapologetically Black culture, community-first' — with no stated priority. Surfaces in Task 1's art-direction system and propagates into Task 2.",
+        "reveals": "A strong lead names the tension explicitly and resolves it deliberately — a single platform that reconciles both, or a channel-differentiated answer — and ties the type/color/photographic choices to that call. A naive response defaults to generic 'premium' design polish that reads off-brand for BET's audience and never acknowledges the conflict.",
+        "decisionSpace": [
+          "Resolve toward authentic/community-first as the primary lens, expressing premium through craft rather than gloss — strongest audience fit, but risks reading less 'upmarket' to the external partner and sales.",
+          "Resolve toward elevated/cinematic premium — impresses the partner and sales, but risks generic polish that misses BET's cultural specificity.",
+          "Channel-differentiate — community-first tone in social, elevated finish in OOH/linear — covers both intents but adds production complexity and a system-consistency risk."
+        ]
+      },
+      {
+        "id": "locked-endmark",
+        "kind": "legacy_trap",
+        "where": "BET_brand_system_v-current.pdf and endmark_lockup_DO-NOT-ALTER.ai, against the prior_season package; a fresh concept tempts a redesign of the locked endmark and brand color. Surfaces in Task 1 (system) and the endmark in Task 2 (show open).",
+        "reveals": "A candidate who reads the brand system first respects the locked endmark and clearance rules and evolves the system within the guardrails, or proposes a documented exception with rationale. A naive one-shot generates a fresh look that quietly overrides the mandated endmark/brand color — breaking brand integrity, which is an explicit accountability of the role.",
+        "decisionSpace": [
+          "Strictly preserve the locked endmark and brand color and innovate only in the surrounding system — safest for brand integrity, least differentiated.",
+          "Evolve the endmark within stated guardrails (motion/texture, not form) — fresh yet on-brand, requires brand-steward sign-off.",
+          "Propose a documented exception to alter the endmark with explicit rationale and an approval path — boldest, highest brand risk, defensible only if argued."
+        ]
+      },
+      {
+        "id": "spec-and-rights",
+        "kind": "verification_trap",
+        "where": "keyart_refs/talent_comp_01-04.jpg are RGB screen-res (~1500px) comps and talent_music_rights_notes.txt flags an unconfirmed talent likeness window and a music track at 'license territory TBD'; final deliverables are OOH/print (CMYK, large-format, bleed) and broadcast. Surfaces in Task 2 key art and Task 3 production.",
+        "reveals": "A strong lead catches that the reference comps and rights are not deliverable-ready — re-specs for CMYK/large-format/bleed and flags the talent/music clearance gap before committing the concept to it. A naive response treats the screen-res RGB comp as final because it 'looks great in the deck' (passes the shallow visual check) and builds a key-art direction that cannot actually be printed or aired and may not clear rights.",
+        "decisionSpace": [
+          "Re-spec the key art to print/air masters (CMYK, large-format resolution, bleed) and treat the comps as reference only — correct and production-safe, more work flagged upfront.",
+          "Deliver a dual-master plan (screen + print/air) and gate the concept on rights confirmation — thorough, adds schedule load.",
+          "Escalate the talent/music clearance gap, hold final art until cleared, and design a fallback that avoids the unconfirmed assets — safest on rights, may dilute the concept."
+        ]
+      },
+      {
+        "id": "scope-vs-capacity",
+        "kind": "underspecified",
+        "where": "production/coordinator_schedule.xlsx shows the full deliverable matrix (linear :30/:15 show open with 3D, social cutdowns, OOH + print key art, digital units) against an air date and an earlier print deadline the listed team (2 designers, 1 2D animator, 1 Cinema 4D animator, 1 retoucher) cannot hit at full scope; the brief never acknowledges this. Surfaces in Task 3.",
+        "reveals": "A strong lead spots that scope exceeds capacity for the deadline and makes an explicit trade — cut/sequence scope, renegotiate the date, or add a vendor — and says what they would go hands-on for. A naive response silently commits to the full matrix on the given timeline (the player-coach/throughput trap), guaranteeing a missed deadline or burnout.",
+        "decisionSpace": [
+          "Cut or simplify scope (e.g., 2D stylization instead of a full 3D show open) to fit the team and date — protects the deadline, less ambitious craft.",
+          "Hold scope and renegotiate the print deadline / air-date sequencing — preserves ambition, risks the fixed broadcast date.",
+          "Hold scope and bring in an outside production house for the 3D or retouch overflow — preserves both, adds budget and vendor-management risk."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

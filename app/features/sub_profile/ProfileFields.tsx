@@ -1,5 +1,6 @@
-import type { InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type { InputHTMLAttributes, TextareaHTMLAttributes } from "react";
 import { useTranslations } from "next-intl";
+import { Select as UiSelect } from "@/app/_components/Select";
 
 export function upd<T>(arr: T[], i: number, patch: Partial<T>): T[] {
   return arr.map((x, j) => (j === i ? { ...x, ...patch } : x));
@@ -9,7 +10,7 @@ export function upd<T>(arr: T[], i: number, patch: Partial<T>): T[] {
 // here and every profile-form control (Input/Select/Textarea, and Text/Pick which
 // build on them) picks it up. The border *color* is appended per-control so an
 // invalid Input can swap stone-200 for coral without a class collision.
-const FIELD_CHROME = "focus-ring rounded-md border";
+const FIELD_CHROME = "focus-ring rounded-md border bg-white text-ink caret-coral placeholder:text-steel";
 const FIELD_BORDER = "border-stone-200";
 
 export function Input({
@@ -26,12 +27,26 @@ export function Input({
   );
 }
 
-export function Select({ className = "", children, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select {...rest} className={`${FIELD_CHROME} ${FIELD_BORDER} h-9 ${className}`}>
-      {children}
-    </select>
-  );
+// Delegates to the shared dual-theme Select (custom listbox) so the option list
+// re-skins in Spark Dark instead of falling back to an OS-rendered popup. The
+// value-based onChange + options API replaces the old native `<select>`'s
+// event-based onChange + `<option>` children.
+export function Select({
+  className = "",
+  value,
+  onChange,
+  ariaLabel,
+  options,
+  disabled,
+}: {
+  className?: string;
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+  disabled?: boolean;
+  options: { value: string; label: string }[];
+}) {
+  return <UiSelect value={value} onChange={onChange} ariaLabel={ariaLabel} disabled={disabled} size="sm" className={className} options={options} />;
 }
 
 export function Textarea({ className = "", ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
@@ -95,13 +110,13 @@ export function Pick({
   return (
     <label className="flex flex-col gap-1">
       <span className="text-sm uppercase tracking-wide text-steel">{label}</span>
-      <Select value={value} onChange={(e) => onChange(e.target.value)} className="bg-white px-2 text-base capitalize">
-        {options.map((o) => (
-          <option key={o.v} value={o.v}>
-            {o.label}
-          </option>
-        ))}
-      </Select>
+      <Select
+        value={value}
+        onChange={onChange}
+        ariaLabel={label}
+        className="capitalize"
+        options={options.map((o) => ({ value: o.v, label: o.label }))}
+      />
     </label>
   );
 }

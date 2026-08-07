@@ -7,7 +7,6 @@ conftest fixtures would never fire. Import the factories explicitly.
 from __future__ import annotations
 
 from pipeline.jobfit.jobs import normalize_job
-from pipeline.jobfit.matching import MatchCandidate
 
 # Named thresholds, replacing inline magic numbers across the suite.
 STRONG_SKILL_SCORE = 0.6  # a confident must-have skill match
@@ -28,17 +27,3 @@ def mkjob(**over):
     }
     base.update(over)
     return normalize_job(base)
-
-
-def mk_candidate(**over) -> MatchCandidate:
-    """A MatchCandidate with sensible defaults; override any field via kwargs."""
-    base: dict = {
-        "skills": ["Python"],
-        "seniority": "senior",
-        "role_family": "software_engineering",
-        "education_level": "master",
-        "languages": ["Czech", "English"],
-        "years_experience": 8,
-    }
-    base.update(over)
-    return MatchCandidate(**base)

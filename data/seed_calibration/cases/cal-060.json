@@ -1,0 +1,200 @@
+{
+  "job": {
+    "id": "cal-060",
+    "title": "Digital Development Project Manager",
+    "company": "The Adcom Group",
+    "role_family": "project_management",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Atlassian Jira (agile boards, backlog, sprint/stand-up facilitation)",
+      "Atlassian Confluence (requirements, documentation, knowledge base)",
+      "Advantage (agency resource/traffic & project-financials management system)",
+      "Microsoft Office / Office 365 (required) — Word, Excel, PowerPoint for SOWs, estimates, plans",
+      "Agile delivery practice (stand-ups, prioritization, iterative delivery in a client-services context)",
+      "Statements of Work, estimates, and detailed client delivery plans",
+      "Business cases and requirements/business-rules documentation through change control",
+      "End-user documentation artifacts: user guides, process flow charts, training materials",
+      "Resource/capacity & utilization planning (in conjunction with a Traffic Manager)",
+      "Analytics & dashboarding inputs (advisory, not build-level)",
+      "Marketing technology (martech) and marketing content-development processes"
+    ],
+    "coreResponsibilities": [
+      "Own end-to-end delivery of digital work within the CX Digital practice area, on-time and on-budget",
+      "Act as practice manager: read demand, performance and resourcing; optimize workflow and team utilization; flag growth opportunities",
+      "Align and prioritize work to resources and resolve resourcing conflicts jointly with the Traffic Manager",
+      "Solicit, develop, document and manage requirements, detailed design and business rules across the project lifecycle and change control",
+      "Contribute to statements of work, estimates and client delivery plans",
+      "Facilitate agile ceremonies (stand-ups) and manage agency workflow tools (Jira, Advantage, Office) at the project level",
+      "Author and deliver end-user documentation and training (user guides, process flows, training materials)",
+      "Develop best-practice models/frameworks and provide input on processes and analytics/dashboarding approaches",
+      "Perform research to support deliverables and proposals",
+      "Cultivate and coordinate a cross-functional team, leveraging each discipline's expertise"
+    ],
+    "statedVsRealGaps": [
+      "Title says 'Digital Development Project Manager' and the JD leans on 'agile development,' but this is a delivery/practice-management + business-analysis role, not a software engineering role — no hands-on coding; only a 'high-level understanding of how digital technologies fit together' is required.",
+      "'Development' here means digital marketing deliverables, not code; candidates with a pure dev background would be mismatched, while the real need is a PM/BA who can talk to technologists.",
+      "The JD bundles four jobs into one — practice manager (people/capacity/growth), delivery PM, requirements/business analyst, and documentation/training author — which is broader than a single 'project manager' label implies.",
+      "Stated bar is moderate (undergrad degree required, certification only 'a plus'), yet the role is positioned as senior practice manager — the seniority signal is mixed.",
+      "The JD text is garbled in key spots: the minimum years of experience is blank, the required Office version is blank ('office '), and 'Advantage' is named without context — the spec under-specifies the actual hard requirements.",
+      "Soft skills (communication, organization, multitasking, deadline focus) are asserted as the real differentiators but the JD provides no way to evidence or screen them."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Scope sprawl: practice manager + delivery PM + business analyst + documentation/training author in one seat risks diluted focus and overload.",
+      "Shared resourcing authority with the Traffic Manager is named but the decision rights aren't defined — a recurring conflict-resolution friction point.",
+      "Agile method vs. fixed-scope agency reality: 'agile development' sits awkwardly against SOWs, fixed estimates and on-budget client delivery; mismatch can erode either margin or scope discipline.",
+      "Tooling dependency on Advantage (a niche agency system) narrows the qualified candidate pool and lengthens ramp-up.",
+      "Spec quality: missing experience minimum, unspecified Office version, and an undefined tool reference will produce inconsistent applicant expectations and harder calibration.",
+      "Success hinges on cross-team influence without clear line authority over the contributing disciplines — typical agency-PM authority gap."
+    ],
+    "reflection": "This is a genuine non-software role: a marketing-agency delivery and practice-management position, so the absence of a codebase is expected and not a defect. Reflected against its real body of work, the role's 'stack' is agency operating systems and documents — Jira, Confluence, the Advantage resource/traffic system, Office, plus the SOWs, estimates, requirements, delivery plans and training materials it produces — not a technology a person builds. The JD's most honest framing is that this is a senior coordinator/business-analyst hybrid wearing a 'project manager' title: it must turn ambiguous client demand into scoped, estimated, resourced and documented digital work, then drive it to on-time/on-budget delivery while keeping a practice area's utilization healthy. The biggest divergence between what's said and what's needed is the word 'development' — it implies technical build but the evidence points to orchestration, documentation and stakeholder management, with only a conceptual grasp of digital technology required. Complexity is medium: high in breadth and concurrency (multiple teams, multiple live projects, requirements through change control) but shallow in technical depth. The chief risks are scope sprawl across four overlapping job functions, undefined resourcing authority shared with the Traffic Manager, the agile-vs-fixed-scope agency tension, and a JD with garbled/missing specifics (blank experience minimum and Office version) that will make candidate calibration harder.",
+    "confidence": 0.8,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Digital Development Project Manager",
+    "seniority": "senior",
+    "roleFamily": "project_management",
+    "mustHaves": [
+      "Own end-to-end delivery of digital work on-time and on-budget in a client-services / agency context, at senior scope",
+      "Lead agile delivery hands-on: facilitate stand-ups and manage backlogs, sprints and prioritization in Jira at the project level",
+      "Business analysis: solicit, document and manage requirements, detailed design and business rules across the project lifecycle and through change control",
+      "Author statements of work, estimates and detailed client delivery plans",
+      "Resource, capacity and utilization planning — align and prioritize work to resources and resolve resourcing conflicts in conjunction with a Traffic Manager",
+      "High-level working fluency in how digital technologies, platforms and solutions fit together to create user experiences (advisory, not hands-on coding)",
+      "Document requirements and knowledge in Confluence (or an equivalent documentation/knowledge-base tool)",
+      "Microsoft Office / Office 365 (Word, Excel, PowerPoint) for SOWs, estimates and delivery plans — required",
+      "Excellent verbal and written communication, strong organization, and the ability to keep teammates on task across concurrent deadline-driven projects",
+      "Author and deliver end-user documentation and training (user guides, process flow charts, training materials)",
+      "Undergraduate degree in marketing or business administration",
+      "Multiple years of project-management experience calibrated to senior practice-manager scope (JD's stated minimum is garbled; treat ~5+ years as the working bar)"
+    ],
+    "niceToHaves": [
+      "Experience within a digital or marketing agency",
+      "Depth across the Atlassian suite (Jira + Confluence)",
+      "Familiarity with Advantage (agency resource/traffic and project-financials system)",
+      "Project management certification (e.g. PMP, CSM/agile, or equivalent)",
+      "Knowledge of marketing content-development processes and martech familiarity",
+      "Ability to provide input on analytics and dashboarding approaches",
+      "Practice-management instincts: reading demand, performance and resourcing and identifying growth opportunities"
+    ],
+    "responsibilities": [
+      "Drive the overall end-to-end success of digital work within the CX Digital practice area, on-time and on-budget",
+      "Act as practice manager: understand demand, performance and resourcing, optimize workflow and team utilization, and flag growth opportunities",
+      "Align and prioritize practice-area deliverables to resources and resolve resourcing conflicts jointly with the Traffic Manager",
+      "Solicit, develop, document and manage requirements, detailed design and business rules throughout the lifecycle up to and through change control",
+      "Contribute to statements of work, estimates and detailed client delivery plans, including informing business cases",
+      "Facilitate agile ceremonies (stand-ups) and manage agency workflow tools (Jira, Advantage, Office) at the project level",
+      "Create, review and deliver end-user documentation and training — user guides, process flow charts and training materials",
+      "Develop best-practice models and frameworks and provide input on processes, procedures and new approaches",
+      "Provide input on analytics and dashboarding approaches and perform research to support deliverables and proposals",
+      "Cultivate and coordinate a high-functioning cross-functional team, leveraging each discipline's expertise to deliver successfully"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "CX Digital practice — rescue the Onboarding Journey delivery (mid-flight PM work sample)",
+    "brief": "You've just picked up an in-flight engagement in the CX Digital practice at a digital agency. The project — an 'Onboarding Email Journey & Preference Center' build for a retail-banking client on a martech platform — is at the end of Sprint 3 of a planned 5, on a fixed-fee SOW, and the account lead thinks it's slipping. You're handed the working pack the previous PM left behind (statement of work, estimate, Jira export, an Advantage utilization extract, a fresh client change request, the requirements/business-rules doc, and stand-up notes). Your job is the project-management work, not the build: reconcile where delivery actually stands, decide how to handle the change request and the resourcing situation, and re-plan the remaining sprints so the project lands on time and on budget. This is normal agency reality, so the pack is deliberately imperfect — assumptions, an estimate, and a backlog that don't fully agree, and a couple of underspecified requirements. We expect you to read it closely, make defensible calls, and note where you'd have asked the client or the team rather than guess. Timebox is a hard 2 hours — depth on the judgment calls matters far more than polished documents or covering every artifact. The provided context fits this role directly; act on it as the delivery/practice PM you'd be in the seat.",
+    "repoSeed": "A delivery working pack for the in-flight engagement, as you'd actually inherit it: (1) `CXDigital_OnboardingJourney_SOW_v2.docx` — the fixed-fee statement of work: deliverables, a committed fee, and an Assumptions section (note in particular A4: 'Client supplies final, approved copy at the start of Sprint 2'). (2) `OnboardingJourney_Estimate_v3.xlsx` — the build estimate: roles × hours × blended rate with an 'Extended cost' column and a bottom-line total that ties to the SOW fee; the Solution/QA Lead line has hours but its extended-cost cell sits outside the total's SUM range, so the committed fee is ~12–15% below true projected cost. (3) `Jira_export_OnboardingJourney_sprint3.csv` — board snapshot: epics/stories, story points, status, blockers, and sprint dates; several content/copy stories are still Open and assigned to the agency's content team. (4) `Advantage_Utilization_CXDigital_wk23.xlsx` — capacity/allocation extract showing the lead developer booked over 100% across this project and another live one. (5) `ClientChangeRequest_2026-06-18.eml` — the client asks to add an SMS step to the journey plus a new 'win-back' audience segment, with no view on scope or fee. (6) `Requirements_BusinessRules_PreferenceCenter.docx` — including the rule 'The preference center must honor the customer's existing channel consents' (silent on whether a newly added SMS channel needs fresh opt-in). (7) `Standup_notes_sprint3.txt` — among other things: 'still waiting on client copy, wrote placeholder ourselves to keep moving.'",
+    "tasks": [
+      "Build the delivery position. Using `CXDigital_OnboardingJourney_SOW_v2.docx`, `OnboardingJourney_Estimate_v3.xlsx`, `Jira_export_OnboardingJourney_sprint3.csv` and `Standup_notes_sprint3.txt`, reconcile scope vs. budget vs. progress for the sprints remaining. Produce a half-page 'where we actually stand' that states estimate-at-completion vs. the committed fixed fee, remaining backlog vs. sprints left, and the single biggest driver of the current slip. Show the few numbers you relied on so the account lead can follow your reasoning.",
+      "Respond to the client change request (`ClientChangeRequest_2026-06-18.eml`). Decide what is in scope vs. out of scope against the SOW, assess the impact on cost, timeline and resourcing, and recommend a path — formal change control, absorb, or defer to a later phase. Draft the change-control entry you would log in Confluence and the one trade-off you would put to the delivery team. Where the request or the consent business rule is unclear, state the assumption you made and the exact question you'd send the client.",
+      "Re-plan the remaining sprints against real capacity. Using `Advantage_Utilization_CXDigital_wk23.xlsx`, resolve the resourcing situation it reveals and propose a re-sequenced plan for the remaining sprints that fits actual availability (a short re-prioritized backlog/sprint outline with rationale is enough). Be explicit about how you and the Traffic Manager would split the decision on the contested resource, given that authority isn't defined in the SOW.",
+      "Keep a DECISIONS log (one page max) as your working trail. For every call you made where the brief was open — scope boundaries on the change, the SMS consent rule, the resourcing split with the Traffic Manager, and how you read the estimate — record what you chose, the alternative you rejected and why, and the one question you would have put to the team or the client. Treat it as the running notes you'd normally keep, not a separate write-up."
+    ],
+    "coverProbes": [
+      {
+        "id": "p1-change-scope",
+        "kind": "underspecified",
+        "where": "ClientChangeRequest_2026-06-18.eml vs. the SOW deliverables and fixed fee (Task 2)",
+        "reveals": "A strong PM treats the SMS-step + win-back-segment request as a scope/fee/timeline event: tests it against the SOW, surfaces that SMS may need platform licensing and fresh consent, and chooses a path that protects either margin or the relationship deliberately. A naive response silently folds it into the existing fee and plan as if it were free, encoding a margin hit nobody decided to take.",
+        "decisionSpace": [
+          "Raise a formal change order / change control protecting margin and the baseline — clean contractually, but introduces client friction mid-flight.",
+          "Absorb within contingency and trade off a lower-priority backlog story — protects the relationship and momentum, risks margin and sets a precedent.",
+          "Defer SMS + segment to a Phase 2 backlog — keeps this delivery clean and on-budget, but may disappoint the client and delay value."
+        ]
+      },
+      {
+        "id": "p2-broken-client-assumption",
+        "kind": "legacy_trap",
+        "where": "SOW Assumption A4 ('client supplies final copy at Sprint 2 start') contradicted by open copy stories in the Jira export and the 'wrote placeholder ourselves' line in Standup_notes_sprint3.txt (Task 1)",
+        "reveals": "A careful reader connects the open copy work, the stand-up note, and SOW assumption A4 to see that part of the slip is an unmet client dependency — a change-control / stop-the-clock trigger, not pure team underperformance — which reframes the whole recovery narrative. A one-shot reading blames the team's pace and proposes 'add resources / work harder,' missing the contractual lever entirely.",
+        "decisionSpace": [
+          "Flag the breached assumption and trigger change control / stop-the-clock to protect schedule and fee — contractually sound, needs a candid client conversation.",
+          "Re-baseline and quietly absorb the copy work as agency risk — fastest to relationship calm, eats margin and rewards the dependency slip.",
+          "Escalate to the account lead to broker a client conversation before re-planning — preserves the relationship and gets facts straight, costs a few days."
+        ]
+      },
+      {
+        "id": "p3-estimate-underwater",
+        "kind": "verification_trap",
+        "where": "OnboardingJourney_Estimate_v3.xlsx — Solution/QA Lead extended-cost cell excluded from the total SUM range; bottom line still ties to the SOW fee (Task 1)",
+        "reveals": "A PM who actually verifies the estimate re-foots the Extended-cost column, finds the QA/Solution Lead line dropped from the total, and realizes the committed fee is ~12–15% below true cost — i.e., the engagement is underwater from day one, independent of pace. A naive check confirms only that the printed total equals the SOW fee ('numbers tie, looks fine') and builds the entire recovery on a false budget.",
+        "decisionSpace": [
+          "Correct the estimate and re-forecast EAC now, surfacing the margin gap immediately — transparent, short-term uncomfortable internally.",
+          "Hold to the committed fee and manage to it via de-scope / sequencing — protects the client number, squeezes the team and scope.",
+          "Use the estimate error as grounds to renegotiate fee via change control — recovers margin, risks client trust if framed as the agency's mistake."
+        ]
+      },
+      {
+        "id": "p4-consent-rule",
+        "kind": "ambiguity",
+        "where": "Requirements_BusinessRules_PreferenceCenter.docx — 'honor existing channel consents' is silent on whether the newly requested SMS channel needs fresh opt-in (Tasks 2 and 4)",
+        "reveals": "A good PM spots that 'honor existing consents' doesn't resolve the new SMS channel, names it as a compliance-bearing requirements gap, and either picks a defensible default or routes it to legal/compliance — and logs the question. A naive submission assumes SMS inherits email consent and proceeds, encoding an unflagged compliance risk into the build.",
+        "decisionSpace": [
+          "Require fresh explicit SMS opt-in before sending — most defensible on consent/compliance, narrows reachable audience and adds a journey step.",
+          "Inherit existing consent where a lawful basis plausibly covers SMS — faster and wider reach, carries regulatory exposure.",
+          "Gate the SMS step behind a legal/compliance review before committing the rule — safest, adds a dependency and likely slips the SMS scope."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

@@ -8,7 +8,7 @@ import KandidateMark from "../_components/KandidateMark";
 import { LandingLangSwitch } from "./LandingLangSwitch";
 import { StepArt, type AboutStepKey } from "./aboutIllustrations";
 import { useTranslations } from "next-intl";
-import { DEV_GATE, signInDev } from "@/app/_lib/auth/devAuth";
+import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 
 /*
  * /about — the public concept introduction as a scroll-drawn curved timeline of
@@ -88,7 +88,7 @@ export default function AboutCurve() {
   const trackRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: trackRef, offset: ["start center", "end end"] });
   const pathLength = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
-  const onSignIn = () => (DEV_GATE ? signInDev() : window.location.assign("/login"));
+  const onSignIn = () => void enterWorkspace();
   const coralEmph = (chunks: React.ReactNode) => <span className="text-[#d65a4a]">{chunks}</span>;
 
   return (

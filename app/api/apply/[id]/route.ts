@@ -1,27 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
-import { writeFile } from "node:fs/promises";
-import path from "node:path";
 import {
   createPipelineEntry,
   findApplicationByApplicant,
   findEntryByLeadToken,
   getJob,
+  getJobWorkspace,
   mergeReapplication,
   recordAutomationEvent,
   recordEntryConsent,
   recordKnockoutDecline,
-  saveProfile,
-  updateProfile,
 } from "@/app/_lib/db";
-import { applyDedupeKey, applyKoSteps, buildApplyProfileDraft, buildApplyScript, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
+import { applyDedupeKey, applyKoSteps, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
+import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
-import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
-import { validateProfileCliResult } from "@/app/_lib/apply-profile-result";
+import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
 import { randomId } from "@/app/_lib/random-id";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
@@ -38,8 +35,6 @@ function safeStatusLink(entryId: string): string | null {
   }
 }
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Input caps for this PUBLIC, unauthenticated, side-effecting endpoint. Without
 // them a single POST can buffer a multi-hundred-MB body in the Node heap
@@ -63,99 +58,6 @@ const MAX_CV_TEXT_LENGTH = 64 * 1024; // extracted CV text — bounded, head-sam
 // inbound-channel route. (clientIpFrom's XFF caveat is documented in rate-limit.ts.)
 const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };
 
-// Outcome of normalizing an application into a matchable profile. On failure we
-// carry a short, bounded `reason` (not just null) so the caller can persist it
-// on the pipeline entry — turning the silent demotion into a recruiter-visible
-// "needs manual capture" signal instead of a server-log-only event.
-type BuildOutcome =
-  | { ok: true; id: string; archetype: string | null }
-  | { ok: false; reason: string };
-
-const DEGRADED_REASON_MAX = 280;
-
-// Keep the persisted reason short and single-line: it lands in a DB column and a
-// compact recruiter UI, and raw Python stderr can be huge/multiline.
-function degradedReason(detail: string): string {
-  const oneLine = detail.replace(/\s+/g, " ").trim() || "intake normalization failed";
-  return oneLine.length > DEGRADED_REASON_MAX ? `${oneLine.slice(0, DEGRADED_REASON_MAX - 1)}…` : oneLine;
-}
-
-// Normalize the captured answers into a saved CandidateProfileV2 (the same
-// profile_cli path the Profile form uses). Returns the saved profile's id +
-// archetype on success, or a failure reason — the caller falls back to a
-// label-only entry (flagged intake-degraded) so applying never hard-errors.
-//
-// W8-6 (APP1): `intoProfileId` rebuilds IN PLACE — a re-apply that upgrades an
-// existing applicant overwrites their saved profile row instead of minting a
-// fresh one, so the candidate pool never grows a stale duplicate of the same
-// person. When the id has no profile row (the degraded-stub case: candidateId
-// is a random label-only id), updateProfile misses and we fall through to a
-// normal save — the caller re-points the entry at the new id.
-async function buildApplicantProfile(
-  job: ReturnType<typeof getJob>,
-  answers: ApplyAnswers,
-  intoProfileId?: string | null
-): Promise<BuildOutcome> {
-  if (!job) return { ok: false, reason: degradedReason("role not found at intake") };
-  let workdir: string | null = null;
-  try {
-    const { profile, signals } = buildApplyProfileDraft(job, answers);
-    workdir = await createWorkdir();
-    const inputPath = path.join(workdir, "intake.json");
-    await writeFile(inputPath, JSON.stringify({ profile, signals }), "utf-8");
-    const { result } = spawnPython(["-m", "pipeline.jobfit.profile_cli", "--input-json", inputPath]);
-    const { stdout, stderr, exitCode } = await result;
-    if (exitCode !== 0) {
-      // Surface the failing exit code plus the tail of stderr (the most likely
-      // line to name the cause) so the recruiter signal is diagnosable.
-      const tail = stderr.trim().split(/\r?\n/).filter(Boolean).slice(-1)[0] ?? "";
-      return {
-        ok: false,
-        reason: degradedReason(`profile normalization exited ${exitCode}${tail ? `: ${tail}` : ""}`),
-      };
-    }
-    // Parse the result JSON line via parsePythonJson (which scans from the end
-    // for the first object/array), not the whole buffer: a stray warning/
-    // deprecation/print or trailing interpreter shutdown line would otherwise
-    // make JSON.parse throw and silently demote the applicant to a label-only,
-    // non-matchable stub.
-    const parsed = parsePythonJson<unknown>(stdout, stderr);
-    // parsePythonJson only guarantees "some JSON object/array" — not the shape
-    // profile_cli promises. Validate the trust boundary so an exit-0 CLI that
-    // drifts to `{}` / `{profile:null}` / a partial object yields a clear degraded
-    // reason instead of an incidental TypeError, and is never saved as junk.
-    const validation = validateProfileCliResult(parsed);
-    if (!validation.ok) {
-      return { ok: false, reason: degradedReason(validation.reason) };
-    }
-    const { profile: normalized, archetype, completeness } = validation.value;
-    const profileFields = {
-      label: answers.name,
-      archetype,
-      roleFamily: (normalized.roleFamily as string) ?? job.roleFamily ?? null,
-      completeness,
-      payload: normalized,
-    };
-    if (intoProfileId && updateProfile(intoProfileId, profileFields)) {
-      return { ok: true, id: intoProfileId, archetype };
-    }
-    const saved = saveProfile(profileFields);
-    return { ok: true, id: saved.id, archetype };
-  } catch (err) {
-    // Don't swallow silently: a failed build demotes the applicant to a
-    // label-only, non-matchable stub, so make that degradation visible — both in
-    // the server log and (via the returned reason) on the recruiter's board.
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(
-      `[apply] buildApplicantProfile failed for job ${job.id}; falling back to a non-matchable stub:`,
-      message,
-    );
-    return { ok: false, reason: degradedReason(message) };
-  } finally {
-    if (workdir) await cleanupWorkdir(workdir);
-  }
-}
-
 // Record the renewed interest on the applicant's ORIGINAL entry and return the
 // "already applied" acknowledgment. Shared by BOTH dedup paths — the primary
 // name-based check and the dedupeKey backstop race — so the event name and
@@ -168,11 +70,11 @@ async function buildApplicantProfile(
 // lead following its enrichment link, or any degraded stub recovered). The
 // client celebrates it as a completed profile rather than shrugging "already
 // applied" at a candidate who just did exactly what we asked them to.
-function acknowledgeReapply(entryId: string, message: string, changes: string[] = [], enriched = false): NextResponse {
+function acknowledgeReapply(entryId: string, message: string, changes: string[] = [], enriched = false, workspaceId?: string): NextResponse {
   const detail = changes.length
     ? `repeat application via conversational apply — ${changes.join("; ")}`
     : "repeat application via conversational apply";
-  recordAutomationEvent(entryId, "re_applied", detail);
+  recordAutomationEvent(entryId, "re_applied", detail, workspaceId);
   // The repeat reuses the ORIGINAL entry, so it returns the SAME status link
   // (getOrCreateStatusLink is keyed on entry_id) — a returning candidate can track.
   return NextResponse.json({ result: "accepted", duplicate: true, enriched, message, statusToken: safeStatusLink(entryId) });
@@ -197,6 +99,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
     const job = getJob(id);
     if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
+    // Tenant (P1): a public applicant has no session — file them into the OPENING's team
+    // (a corpus job with no owner falls back to the default workspace).
+    const workspaceId = getJobWorkspace(id);
 
     // Candidate-facing outcome messages (returned in the JSON and shown verbatim
     // in the chat) are localized from the request's "apply" catalog.
@@ -347,7 +252,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     //     the stub. A FAILED rebuild touches nothing: a junk repeat can never
     //     degrade a healthy entry, and a stub just stays a stub.
     if (leadEntry || providedName || email) {
-      const existing = leadEntry ?? findApplicationByApplicant(job.id, providedName, email);
+      const existing = leadEntry ?? findApplicationByApplicant(job.id, providedName, email, workspaceId);
       if (existing) {
         const changes: string[] = [];
         const updates: { contact?: string; candidateId?: string; archetype?: string | null; githubHandle?: string } = {};
@@ -375,7 +280,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           }
         }
         if (changes.length > 0) {
-          const merged = mergeReapplication(existing.id, updates);
+          const merged = mergeReapplication(existing.id, updates, workspaceId);
           // Newly reachable: the original acknowledgment dead-lettered (no
           // recipient existed), so send it to the address just captured.
           // Best-effort, same contract as the first-apply ack below.
@@ -393,7 +298,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         // Re-applying re-consents: refresh the data-processing consent + expiry
         // (best-effort — a consent-record failure must never block the apply ack).
         try {
-          recordEntryConsent(existing.id, "apply");
+          recordEntryConsent(existing.id, "apply", undefined, workspaceId);
         } catch (consentErr) {
           console.error(`[apply] consent refresh failed for entry ${existing.id}:`, consentErr);
         }
@@ -401,7 +306,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           existing.id,
           profileRebuilt ? t("enrichedMessage") : t("alreadyMessage"),
           changes,
-          profileRebuilt
+          profileRebuilt,
+          workspaceId
         );
       }
     }
@@ -438,6 +344,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       locale: applicantLocale,
       // E3 — inbound source attribution (the conversational careers-page flow).
       sourceChannel: "apply",
+      workspaceId,
     });
 
     // GDPR: stamp data-processing consent + a 12-month expiry on the inbound entry
@@ -445,7 +352,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // AiDisclosure). The expiry drives the anonymization sweep. Best-effort — never
     // block a successful application on the consent bookkeeping.
     try {
-      recordEntryConsent(entry.id, "apply");
+      recordEntryConsent(entry.id, "apply", undefined, workspaceId);
     } catch (consentErr) {
       console.error(`[apply] consent record failed for entry ${entry.id}:`, consentErr);
     }
@@ -454,7 +361,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // submission — surface it as a re-apply rather than logging a second
     // "applied" against the same entry.
     if (!created) {
-      return acknowledgeReapply(entry.id, t("alreadyMessage"));
+      return acknowledgeReapply(entry.id, t("alreadyMessage"), [], false, workspaceId);
     }
 
     // createPipelineEntry already logs an `intake_degraded` event for the stub; for
@@ -462,7 +369,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // whichever lane's story the applicant told.
     if (built.ok) {
       const story = experience || studentProject || switchPrior;
-      recordAutomationEvent(entry.id, "applied", story ? story.slice(0, 160) : "via conversational apply");
+      recordAutomationEvent(entry.id, "applied", story ? story.slice(0, 160) : "via conversational apply", workspaceId);
     }
 
     // Acknowledge the application (APP3) — a durable "we received it" instead of
@@ -470,8 +377,14 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // comms failure must never turn a successful application into a 500. Lands in
     // the Outbox (deliverable when an email was captured above, traceable either
     // way). Fires for degraded stubs too — they still applied.
+    // Mint the status link ONCE so the ack email and the JSON response carry the
+    // SAME token — the email is the durable touchpoint that survives the candidate
+    // closing the tab (without it the unguessable token was lost forever on tab
+    // close, defeating the whole status-tracking feature).
+    const statusToken = safeStatusLink(entry.id);
+    const statusLink = statusToken ? `${publicBaseUrl(new URL(request.url).origin)}/status/${statusToken}` : undefined;
     try {
-      await dispatchApplicationReceived(entry);
+      await dispatchApplicationReceived(entry, { statusLink });
     } catch (ackErr) {
       console.error(
         `[apply] application accepted but acknowledgement failed for entry ${entry.id}:`,
@@ -484,7 +397,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       message: t("acceptedMessage"),
       // A tokenized link so the applicant can track their status (idea-e76a6fb2)
       // instead of going dark after applying.
-      statusToken: safeStatusLink(entry.id),
+      statusToken,
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "apply failed" }, { status: 500 });

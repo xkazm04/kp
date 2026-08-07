@@ -67,6 +67,8 @@
     "nothingHighlight": "Nothing to highlight yet",
     "nothingHighlightHint": "Refine your CV to surface items in this list.",
     "engineTitle": "Analysis Engine",
+    "anchorBand": "Deterministic anchor (CZK/mo): {lo, number}–{hi, number}",
+    "groundingTitle": "Grounding sources",
     "engine": "Engine: {engine}",
     "extractor": "Extractor: {extractor}",
     "model": "Model: {model}",
@@ -148,11 +150,11 @@
       "matchingSkillsEmpty": "Sharpen the skills section of your CV so we can pair it with the job description.",
       "missingSkills": "Missing Skills",
       "missingSkillsCovered": "Your CV already covers the keywords this job description calls out.",
-      "noDealBreakers": "No deal-breaker gaps detected — the rest below are softer asks.",
-      "tierMust": "Must have",
-      "tierNice": "Nice to have",
-      "tierBonus": "Bonus",
-      "coachMustOne": "This one is likely a deal-breaker — address it in your CV summary or top bullet today.",
+      "noDealBreakers": "No prominent gaps detected — the rest below are softer asks.",
+      "tierMust": "Top gaps",
+      "tierNice": "Other gaps",
+      "tierBonus": "Minor gaps",
+      "coachMustOne": "This gap was surfaced first — address it in your CV summary or top bullet today.",
       "coachMustMany": "{count} of these can be addressed in your CV summary or top bullets today.",
       "coachNiceOne": "Folding this into your skills line or a project bullet strengthens the match.",
       "coachNiceMany": "Naming even one or two of these in your skills line strengthens the match.",
@@ -185,6 +187,7 @@
     "ack": {
       "subject": "We received your application — {role}",
       "body": "Hi {name},\n\nThanks for applying for {role} — we've received your application and a recruiter will review it shortly. We'll be in touch about the next steps.\n\nBest,\n{team}",
+      "statusLine": "Track your application status anytime: {link}",
       "bodyEnrich": "Hi {name},\n\nThanks for applying for {role} — we've received your application and a recruiter will review it shortly.\n\nWant to give it the best shot? Complete your profile — it takes about two minutes and helps us assess you fairly and fast:\n{link}\n\nWe'll be in touch about the next steps.\n\nBest,\n{team}"
     },
     "outreach": {
@@ -203,6 +206,8 @@
     },
     "offer": {
       "subjectFallback": "Offer — {role}",
+      "deadlineLine": "This offer is valid until {deadline} — please let us know your decision by then.",
+      "startLine": "Proposed start date: {date}.",
       "responseFooter": "— — —\nTo accept or decline this offer, please use your secure link:\n{link}\n"
     },
     "scheduleInvite": {
@@ -216,6 +221,15 @@
       "short": "Hi {name},\n\nYour interview for {role} is booked for {slot} — that's coming up shortly, so treat this as your heads-up: everything you need is right here and we won't send a separate reminder given the short notice.{length}\n\nIf you need to change the time, just reply and we'll sort it out.\n\nSee you soon,\n{team}",
       "normal": "Hi {name},\n\nYour interview for {role} is booked for {slot}.{length} We'll send a reminder before the call with everything you need.\n\nIf you need to change the time, just reply and we'll sort it out.\n\nSee you then,\n{team}",
       "linkFooter": "Need to change the time or add it to your calendar? Use your scheduling link:\n{link}"
+    },
+    "interviewerBrief": {
+      "subject": "Interview to run — {candidate} · {role}",
+      "length": " (~{minutes} min)",
+      "focusFallback": "the key gaps",
+      "scenarioFallback": "Run a structured interview and keep each topic timeboxed.",
+      "icsTitle": "Interview: {candidate} ({role})",
+      "calendarHeader": "Calendar hold (.ics) — save the lines below as a .ics file to add it to your calendar:",
+      "body": "Hi {name},\n\nYou're set to interview {candidate} for {role} on {slot}.{length}\n\nPlan: {scenario}\nFocus areas: {focus}\n\nThe full prep pack and live rubric are in kp."
     },
     "interviewReminder": {
       "subject": "Reminder — your interview {slot}",
@@ -235,13 +249,111 @@
       "subject": "Welcome aboard — {role}",
       "body": "Hi {name},\n\nWe're delighted you're joining us as {role}! Welcome to the team.\n\nYour onboarding is now underway. Our People team will reach out shortly with your start date, paperwork, equipment, and a first-week plan so you can hit the ground running.\n\nWe can't wait to work with you.\n\nWarmly,\n{team}",
       "linkFooter": "Take a moment to share a few pre-boarding details so we can have everything ready for you:\n{link}"
+    },
+    "onboardingReminder": {
+      "subject": "A quick reminder — your pre-boarding for {role}",
+      "body": "Hi {name},\n\nWelcome again, and congratulations on {role}! We noticed your pre-boarding questionnaire is still open. It only takes a couple of minutes, and it lets us have everything ready for your first day.\n\nYou can complete it here whenever suits you:\n{link}\n\nIf you've already done this, please ignore this note.\n\nWarmly,\n{team}"
     }
   },
   "language": {
     "label": "Language",
     "select": "Select language",
     "en": "English",
-    "cs": "Čeština"
+    "cs": "Čeština",
+    "de": "Deutsch",
+    "fr": "Français"
+  },
+  "jobMarket": {
+    "nav": { "home": "Home", "about": "About", "signIn": "Sign in" },
+    "hero": {
+      "eyebrow": "Open data, read out loud",
+      "title": "The Czech job market, <emph>in the open</emph>.",
+      "subtitle": "Reference salaries, hiring demand across all 14 regions, and the roles rising and fading — built entirely on public labour-market data.",
+      "updated": "{n} live vacancies as of {date} · {pct}% posted in the last 90 days"
+    },
+    "variants": {
+      "atlas": "Atlas",
+      "atlasDesc": "Map-led, read as a story",
+      "board": "Dashboard",
+      "boardDesc": "Everything at a glance"
+    },
+    "stats": {
+      "vacancies": "Open vacancies",
+      "median": "National median",
+      "regions": "Regions",
+      "occupations": "Occupations tracked"
+    },
+    "map": {
+      "title": "Where the jobs are",
+      "metricVolume": "Vacancies",
+      "metricSalary": "Salary",
+      "legendVolume": "by open vacancies",
+      "legendSalary": "by median salary",
+      "topRegions": "Most vacancies",
+      "hintTitle": "Hover a region",
+      "hintBody": "See its open vacancies and median pay.",
+      "vacancies": "Open vacancies",
+      "median": "Median salary",
+      "range": "Middle 50% earn {lo}–{hi}"
+    },
+    "salary": {
+      "eyebrow": "The field guide",
+      "title": "Reference salaries by role",
+      "subtitle": "Economy-wide monthly earnings from the official ISPV wage survey — junior to lead, per role family.",
+      "median": "median {v}",
+      "junior": "Junior",
+      "medior": "Medior",
+      "senior": "Senior",
+      "lead": "Lead"
+    },
+    "demand": {
+      "eyebrow": "What's hiring",
+      "title": "In-demand right now",
+      "subtitle": "Live open vacancies by role family and occupation across the whole country.",
+      "byFamily": "By role family",
+      "byRole": "Top occupations",
+      "openings": "{n} openings",
+      "momentumNew": "baseline"
+    },
+    "orgTypes": {
+      "eyebrow": "Who's hiring",
+      "title": "Pay by employer type",
+      "subtitle": "Median monthly salary across private employers, the public sector and staffing agencies.",
+      "private": "Private sector",
+      "public": "Public sector",
+      "agency": "Staffing agency"
+    },
+    "jd": {
+      "eyebrow": "Real postings",
+      "title": "Job-description references",
+      "subtitle": "Representative live postings per role family — titles, pay and required skills.",
+      "salaryHidden": "Salary undisclosed",
+      "posted": "Posted {date}",
+      "skills": "Skills"
+    },
+    "footer": {
+      "eyebrow": "About this data",
+      "coverage": "Built from live vacancies registered at the Czech Labour Office (Úřad práce ČR) plus the official ISPV wage survey. The vacancy feed skews toward service, trades and operational roles — higher-skill and senior corporate jobs are posted on commercial boards, so their counts read low and Prague's vacancy-median looks modest. Salary bands use economy-wide ISPV earnings, which aren't subject to that bias.",
+      "sourceLink": "MPSV open data"
+    },
+    "families": {
+      "software_engineering": "Software Engineering",
+      "data_ai": "Data & AI",
+      "product_project": "Product & Project",
+      "healthcare_clinical": "Healthcare & Clinical",
+      "life_sciences_research": "Life Sciences & Research",
+      "skilled_trades": "Skilled Trades",
+      "operations_logistics": "Operations & Logistics",
+      "frontline_service": "Frontline Service",
+      "sales_marketing": "Sales & Marketing",
+      "finance_accounting": "Finance & Accounting",
+      "legal_compliance": "Legal & Compliance",
+      "hr_people": "HR & People",
+      "education_academic": "Education & Academia",
+      "creative_design": "Creative & Design",
+      "customer_support": "Customer Support",
+      "general_professional": "General Professional"
+    }
   },
   "landing": {
     "nav": {
@@ -249,6 +361,7 @@
       "features": "Features",
       "pricing": "Pricing",
       "about": "About",
+      "market": "Market Pulse",
       "signIn": "Sign in"
     },
     "hero": {
@@ -380,9 +493,9 @@
         "starter": {
           "name": "Starter",
           "tagline": "A hiring desk that never sleeps.",
-          "price": "490 Kč",
+          "price": "240 Kč",
           "cadence": "/ month",
-          "usd": "≈ $21 a month",
+          "usd": "≈ $10 a month",
           "cta": "Pick Starter",
           "features": [
             "100 AI candidates a month",
@@ -394,9 +507,9 @@
         "growth": {
           "name": "Growth",
           "tagline": "For pipelines with traffic.",
-          "price": "1 190 Kč",
+          "price": "480 Kč",
           "cadence": "/ month",
-          "usd": "≈ $50 a month",
+          "usd": "≈ $20 a month",
           "cta": "Pick Growth",
           "features": [
             "400 AI candidates a month",
@@ -426,14 +539,23 @@
       "enterprise": {
         "eyebrow": "At org scale",
         "heading": "Hiring across the whole org?",
-        "blurb": "Past the metered plans: SSO, roles & an audit trail, a dedicated environment and onboarding for your TA team — priced to your hiring volume. The ROI compounds with every requisition.",
+        "blurb": "Past the metered plans: enterprise SSO & SCIM, a tenant-scoped audit trail, your brand on every candidate touchpoint, and a self-hostable, source-licensed deployment that keeps your data and model layer fully in your control. Delivered with your security and DPO teams, priced to your hiring volume — the ROI compounds with every requisition.",
         "cta": "Talk to sales",
+        "capabilities": [
+          "Enterprise SSO & SCIM provisioning",
+          "Tenant-scoped, exportable audit trail",
+          "Your brand on every candidate touchpoint",
+          "Self-hosted, source-licensed — your data & models",
+          "GDPR / DPA & EU data residency",
+          "SOC 2 & security-review support"
+        ],
         "stat1Value": "60–70%",
         "stat1Label": "less recruiter time on screening",
         "stat2Value": "~23 h",
         "stat2Label": "manual screening per hire today",
         "stat3Value": "40–51 h",
         "stat3Label": "total recruiter hours per hire, by hand",
+        "roadmapNote": "Compliance and self-hosting are scoped and delivered with your team during onboarding — ask for our current attestation status and deployment options.",
         "source": "Sources: 2025 industry recruiting-time studies (SHRM time-to-fill; recruiter time-per-hire analyses). Your own measured savings show live in Analytics → ROI."
       }
     },
@@ -522,13 +644,14 @@
   "common": {
     "loading": "Loading…",
     "retry": "Try again",
+    "dismissNotification": "Dismiss notification",
     "yes": "Yes",
     "no": "No"
   },
   "aiDisclosure": {
     "title": "How this works",
     "body": "We use AI to assist screening and interviews — assessing your <highlight>skills, experience, and fit</highlight> for the role. A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically. You can ask for a human review at any point.",
-    "dataConsent": "By submitting, you agree we may process your personal data for this role for up to 12 months. You can review or request erasure of your data anytime via the link in our emails.",
+    "dataConsent": "By submitting, you agree we may process your personal data for this role for up to {months, plural, one {# month} other {# months}}. You can review or request erasure of your data anytime via the link in our messages.",
     "regimeNote": "Assessed under {framework}; your personal data is processed under {dataLaw}."
   },
   "errors": {
@@ -536,6 +659,18 @@
     "OFFER_RESPOND_FAILED": "Could not record your response. Please try again.",
     "SCHEDULE_CONFIRM_FAILED": "Could not confirm that slot. Please try again.",
     "SCHEDULE_INVITE_FAILED": "Could not create the scheduling link. Please try again."
+  },
+  "resilience": {
+    "notFoundEyebrow": "404",
+    "notFoundTitle": "Page not found",
+    "notFoundBody": "This link doesn't lead anywhere — it may be mistyped, expired, or the page may have moved.",
+    "notFoundCta": "Back to home",
+    "errorEyebrow": "Unexpected error",
+    "errorTitle": "Something went wrong",
+    "errorBody": "An unexpected error interrupted this page. Nothing was lost — you can try again, or head back home.",
+    "errorDigest": "Error reference: {digest}",
+    "retry": "Try again",
+    "home": "Back to home"
   },
   "offer": {
     "eyebrow": "Your offer",
@@ -580,6 +715,7 @@
     "bookedForGeneric": "Your interview is confirmed for <b>{slot}</b>.",
     "planFor": "Plan for about {min, plural, one {# minute} other {# minutes}}. ",
     "confirmationSent": "We've sent a confirmation and will remind you before the call. You can close this page.",
+    "confirmationQueued": "Your time is confirmed. Keep this page's link — you can come back here to reschedule or download the calendar invite.",
     "confirmationUnsent": "We've recorded your slot — we'll be in touch shortly to confirm the details. You can close this page.",
     "addToCalendar": "Add to calendar",
     "differentTime": "Need a different time?",
@@ -592,14 +728,16 @@
     "role": "Role: <b>{role}</b>",
     "roleMinutes": "· ~{min} min",
     "allTakenTitle": "All current times are taken",
-    "allTakenBody": "Every interview slot in the next few weeks is already booked. We've let the hiring team know you still need a time — they'll open more and email you a fresh scheduling link.",
+    "allTakenBody": "Every interview slot in the next few weeks is already booked. We've let the hiring team know you still need a time — they'll open more, so please check back on this page soon.",
     "nothingToDo": "Nothing to do right now — you can close this page.",
     "timezoneNote": "All times shown in your timezone ({zone}).",
     "rsvpPrompt": "Can you still make it?",
     "rsvpConfirm": "I'll be there",
     "rsvpCancel": "I can't make it",
     "attendanceConfirmed": "Attendance confirmed — thanks!",
-    "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know."
+    "slotsRefreshFailed": "Couldn't refresh the available times — reload the page to see the latest.",
+    "rsvpCancelledNote": "Your time has been released. Pick a new one below and we'll let the team know.",
+    "joinInterview": "Join interview"
   },
   "data": {
     "eyebrow": "Your data",
@@ -617,13 +755,13 @@
     },
     "appliedOn": "You applied on {date}.",
     "eraseTitle": "Erase my personal data",
-    "eraseExplainer": "We'll permanently remove your name, contact details, CV and interview records. We keep a de-identified record of the assessment (no personal data) so we can be fair and consistent — it can no longer identify you.",
+    "eraseExplainer": "We'll permanently remove the personal data we hold about you — your name, contact details, CV, the answers from any interview, and the messages we sent you. We keep only a de-identified record of the assessment (scores and stage, with no personal data) so our hiring stays fair and consistent, plus a sealed record of the decision itself that we retain solely to defend it if it is ever legally challenged.",
     "eraseCta": "Erase my data",
     "eraseConfirm": "Yes, erase it",
     "erasing": "Erasing…",
     "cancel": "Cancel",
     "erasedTitle": "Your data has been erased",
-    "erasedBody": "We've removed your personal data. Thank you — there's nothing more you need to do."
+    "erasedBody": "We've removed the personal data we held about you. We keep only a de-identified assessment record and a sealed log of the decision — retained solely to stay fair and to defend the outcome if it's ever challenged. There's nothing more you need to do."
   },
   "status": {
     "eyebrow": "Application status",
@@ -642,7 +780,9 @@
       "received": "We've received your application — it's in the queue for review.",
       "under_review": "A recruiter is reviewing your profile.",
       "interview": "You're at the interview stage — watch your email for scheduling.",
+      "interviewNoEmail": "You're at the interview stage — the hiring team will reach out to arrange a time.",
       "offer": "An offer is on the table. Check your email for the details.",
+      "offerNoEmail": "An offer is on the table — the hiring team will share the details with you directly.",
       "hired": "You're hired — welcome aboard! 🎉"
     },
     "notSelectedTitle": "Not selected this time",
@@ -685,10 +825,13 @@
       "nameLabel": "Your name",
       "emailLabel": "Email",
       "emailHint": "We'll send you a confirmation and next steps.",
+      "emailHintNoRelay": "Used to pair any follow-up with this application and to reach you about next steps.",
       "submit": "Apply now",
       "acceptedMessage": "Application received! We've emailed you a confirmation — and you can boost your chances right now by completing your profile (about two minutes).",
+      "acceptedMessageNoRelay": "Application received and on file! You can check where you stand anytime via the status link below — and boost your chances right now by completing your profile (about two minutes).",
       "enrichCta": "Complete your profile",
-      "enrichNote": "About two minutes — it helps us assess you fairly and fast."
+      "enrichNote": "About two minutes — it helps us assess you fairly and fast.",
+      "honeypotLabel": "Company URL (leave this field empty)"
     },
     "archetypeBau": "An experienced professional",
     "archetypeStudent": "A student or early in my career",
@@ -760,6 +903,26 @@
       "startCall": "Start the call",
       "ending": "Ending…",
       "endCall": "End call",
+      "endConfirm": "End the interview? You won't be able to continue afterward.",
+      "endConfirmYes": "Yes, end interview",
+      "endConfirmNo": "Keep going",
+      "errMicDenied": "Microphone access is blocked. Click the microphone icon in your browser's address bar, choose Allow, then press Start again.",
+      "errMicNotFound": "No microphone was found. Connect a microphone (or check your headset) and press Start again.",
+      "errMicBusy": "Your microphone is in use by another app. Close the other app, then press Start again.",
+      "errConnectionLost": "The connection dropped. Any progress was saved — press Start to reconnect.",
+      "noAudioTitle": "We didn't hear anything",
+      "noAudioBody": "It looks like no audio came through from your microphone. Check that it isn't muted or in use by another app, then press Start to try again.",
+      "retrySave": "Retry saving",
+      "unavailableCandidate": "This interview isn't available right now — please contact your recruiter.",
+      "muteMic": "Mute microphone",
+      "unmuteMic": "Unmute microphone",
+      "muted": "Muted",
+      "elapsedLabel": "Elapsed time",
+      "completedNext": "You'll hear back by email, usually within a few days.",
+      "micTestBtn": "Test your microphone",
+      "micTestListening": "Listening — say something out loud…",
+      "micTestHeard": "We can hear you.",
+      "micTestSilent": "We didn't detect any sound. Check your mic isn't muted, then test again.",
       "saveFailed": "We couldn't save your interview. Please keep this tab open — your answers may not have been recorded.",
       "errVoiceSession": "Voice session error",
       "errConnectTimeout": "Couldn't connect within 30s. Check microphone permission, that the provider is configured, and (ElevenLabs) that the agent allows overrides.",
@@ -842,6 +1005,7 @@
       "models": "Models"
     },
     "groups": {
+      "hiring": "Hiring",
       "library": "Library",
       "tools": "Tools",
       "devExtension": "Dev extension",
@@ -1007,6 +1171,7 @@
       "running": "Running…",
       "cancel": "Cancel",
       "doneCount": "Done — {count, plural, =1 {1 candidate} other {# candidates}} actioned.",
+      "doneHeldAtOffer": "{count, plural, =1 {1 candidate at Offer awaits} other {# candidates at Offer await}} the offer flow — extend the offer; advancing never hires.",
       "doneSummary": "Policy pass done — {advanced} advanced, {rejected} rejected, {held} held.",
       "dismiss": "Dismiss"
     },
@@ -1020,6 +1185,7 @@
       "statAging": "Aging",
       "statNeedsIntake": "Needs intake",
       "moveFailed": "Couldn't move the candidate — the board has been refreshed.",
+      "moveErrorDismiss": "Dismiss",
       "statAwaitingYou": "Awaiting you",
       "batchScreening": "Screening {done}/{total}…",
       "batchScreenAll": "AI-screen all matched",
@@ -1030,6 +1196,7 @@
       "previewTitle": "Preview: what this pass would do",
       "previewSubtitle": "{evaluated} active candidates evaluated — nothing has been applied and no one has been emailed yet.",
       "previewRejects": "{count, plural, one {Would reject # (sends a rejection email)} other {Would reject # (sends rejection emails)}}",
+      "previewRejectsQueued": "{count, plural, one {Would reject # (queues a rejection message in the Outbox — delivery not configured)} other {Would reject # (queues rejection messages in the Outbox — delivery not configured)}}",
       "previewAdvances": "{count, plural, one {Would advance #} other {Would advance #}}",
       "previewHeld": "{count, plural, one {Held for review (#) — view reasons} other {Held for review (#) — view reasons}}",
       "previewFairnessBlocked": "{count, plural, one {# would-be reject held by the fairness backstop} other {# would-be rejects held by the fairness backstop}}",
@@ -1091,6 +1258,7 @@
       "bulkRejected": "{count} rejected",
       "bulkInvite": "Send scheduling links ({count})",
       "bulkInvited": "{count} invited to schedule",
+      "bulkInvitedQueued": "{count} scheduling links created (in Outbox — not delivered)",
       "agingSlas": "Aging SLAs",
       "agingSlasTitle": "Set how long a candidate may sit in each stage before it flags as aging",
       "slaEditorTitle": "Days before aging, per stage",
@@ -1114,7 +1282,7 @@
       "scorecards": "{count, plural, =1 {1 scorecard ready to review} other {# scorecards ready to review}}",
       "offerReviews": "{count, plural, =1 {1 drafted offer awaiting your approval} other {# drafted offers awaiting your approval}}",
       "awaitingSlot": "{count, plural, =1 {1 interview waiting on a slot} other {# interviews waiting on a slot}}",
-      "offersOut": "{count, plural, =1 {1 offer with the candidate — awaiting their response} other {# offers with candidates — awaiting their responses}}",
+      "offersOut": "{count, plural, =1 {1 candidate in the Offer stage} other {# candidates in the Offer stage}}",
       "hired": "{count, plural, =1 {1 candidate hired this week} other {# candidates hired this week}}",
       "showBoard": "Show on the board",
       "openDecisions": "Open Decisions",
@@ -1157,6 +1325,7 @@
         "interviewCreated": "Voice interview link created",
         "interviewCompleted": "Voice interview completed",
         "inviteSent": "Scheduling invite sent",
+        "inviteQueued": "Scheduling invite queued in Outbox (not delivered)",
         "inviteConfirmed": "Slot confirmed",
         "offerExtended": "Offer extended",
         "offerAccepted": "Offer accepted",
@@ -1191,6 +1360,7 @@
           "granted": "Consent granted",
           "renewed": "Consent renewed",
           "expiring_notified": "Expiry reminder sent",
+          "expiring_notified_queued": "Expiry reminder queued in Outbox (not delivered)",
           "expired": "Consent expired",
           "anonymized": "Anonymized (consent lapsed)",
           "erasure_requested": "Erasure requested",
@@ -1207,8 +1377,10 @@
       "creating": "Creating…",
       "createLink": "Create link",
       "inviteSent": "✓ Invite sent to the candidate — they can take the screen whenever they're ready.",
+      "inviteQueued": "Link created and logged in the Outbox — no delivery relay is configured, so nothing was sent to the candidate. Copy the link above to share it yourself.",
       "inviteNotSent": "Link created, but the invite couldn't be sent automatically — copy it above to share with the candidate.",
       "schedInviteSent": "✓ Scheduling link sent to the candidate — they pick a time at their convenience.",
+      "schedInviteQueued": "Link created and logged in the Outbox — no delivery relay is configured, so nothing was sent to the candidate. Copy the link above to share it yourself.",
       "schedInviteNotSent": "Link created, but it couldn't be sent automatically — copy it above to share with the candidate.",
       "notConfigured": "{vars} not set — the call won't connect until configured.",
       "selfScheduling": "Self-scheduling",
@@ -1217,6 +1389,7 @@
       "openFullMatch": "Open full match in Profile & Match",
       "editProfile": "Edit profile",
       "taskStartFailed": "Couldn't start the task.",
+      "resultLoadFailed": "The task finished, but its result couldn't be loaded. Try the action again.",
       "taskIncomplete": "Task did not complete."
     },
     "actions": {
@@ -1255,6 +1428,7 @@
       "remindersChecked": "checked {time}",
       "remindersNever": "not yet checked",
       "remindersLastSent": "{n} sent {time}",
+      "remindersLastQueued": "{n} queued in Outbox {time} (not delivered)",
       "ranNoChanges": "ran · no changes",
       "ranWith": "ran · {parts}",
       "runFailed": "Run failed",
@@ -1292,6 +1466,7 @@
       "goodAnswer": "Good answer: {text}",
       "perMonth": "/ mo",
       "band": "band {min}–{max} {currency}",
+      "marketBand": "Market · {min}–{max} {currency} (median {median}, {count} roles)",
       "noAlternative": "No alternative found.",
       "matchSuffix": "· {score} match",
       "task": {
@@ -1313,6 +1488,45 @@
       "no_alternative": "No alternative role above the match floor.",
       "advisory": "Advisory only — candidate is past the screening gate.",
       "drafted": "Draft ready to copy."
+    },
+    "controlCenter": {
+      "open": "Open the control center",
+      "openAwaiting": "Open the control center — {count} awaiting your decision",
+      "close": "Close the control center",
+      "title": "Control center",
+      "titleAwaiting": "Control center · {count} need you",
+      "operations": "Operations",
+      "guidedDemo": "Guided demo",
+      "needYou": "need you",
+      "openDecisions": "Open the decisions queue",
+      "countOverflow": "99+",
+      "hired": "Hired 🎉",
+      "starting": "Starting…",
+      "goToPhase": "Go to {label}",
+      "aiScreen": "AI screen",
+      "screening": "Screening…",
+      "automationPass": "Automation pass",
+      "schedule": "Schedule",
+      "guidedTour": "Guided tour",
+      "getStarted": "Get started — do it with your roles",
+      "runAgain": "Run again",
+      "startSim": "Start simulation",
+      "next": "Next",
+      "resume": "Resume",
+      "pause": "Pause",
+      "stop": "Stop",
+      "reset": "Reset",
+      "resetTitle": "Clear simulation data",
+      "step": "Step",
+      "stepTitle": "Pause at each step",
+      "explain": "Explain",
+      "explainTitle": "Show the diagram for this step",
+      "passApplied": "Pass applied",
+      "dismiss": "Dismiss",
+      "passLine": "{advanced} advance · {rejected} reject · {held} hold · {alerts} flag",
+      "errorPreview": "Couldn't preview the pass.",
+      "errorNetwork": "Couldn't reach the server.",
+      "errorRun": "The pass failed to run."
     }
   },
   "decisions": {
@@ -1336,6 +1550,16 @@
     "queuedBanner": "{count, plural, =1 {{name} is queued for an interview — pick a slot next.} other {# candidates are queued for interviews — pick their slots next.}}",
     "queuedBannerCta": "Open Schedule",
     "queuedDismiss": "Dismiss",
+    "offerSent": {
+      "toast": "Offer sent to {name} — the candidate's secure link is ready below.",
+      "toastQueued": "Offer for {name} recorded in Outbox (not delivered — no relay). Share the secure link below with the candidate.",
+      "title": "{count, plural, =1 {Offer sent} other {# offers sent}}",
+      "titleQueued": "{count, plural, =1 {Offer prepared — deliver the link yourself} other {# offers prepared — deliver the links yourself}}",
+      "help": "The offer letter was queued to the candidate; the same secure accept/decline link is here to copy or share.",
+      "linkAria": "Offer link for {name}",
+      "copy": "Copy link",
+      "dismiss": "Dismiss"
+    },
     "aiRecommendations": "AI recommendations",
     "keyDecisions": "Key decisions",
     "keyDecisionsHelp": "One row per role — advance or reject from a candidate's analysis summary.",
@@ -1343,6 +1567,7 @@
     "reconsiderTitle": "Reconsider auto-rejected · {count}",
     "reconsiderHelp": "Borderline auto-rejections you can put back to Screened for a fresh look. The candidate was already notified, so follow up with them if you reinstate.",
     "reconsiderMatch": "match {score}",
+    "reconsiderUnscored": "unscored — no match score",
     "reconsiderRejected": "rejected {date}",
     "reinstate": "Reinstate",
     "reinstating": "Reinstating…",
@@ -1373,8 +1598,11 @@
       "acceptSendOffer": "Send offer",
       "acceptToOffer": "To offer",
       "acceptAdvance": "Advance",
+      "deadlineLabel": "Respond within",
+      "deadlineDays": "days",
       "reject": "Reject",
       "band": "band {min}–{max} {currency}",
+      "pricingBasis": "Priced by a fresh fit check at offer draft: {score}/100 → ~{pct}% of the band.",
       "strengths": "Strengths",
       "redFlags": "Red flags"
     },
@@ -1421,7 +1649,7 @@
       "covered2": "Every decision is sealed to a tamper-evident audit record.",
       "covered3": "Candidates see an AI-use disclosure and can request human review anytime.",
       "covered4": "Early-career and unclassified candidates are shielded from automated rejection (fail-closed).",
-      "covered5": "Personal data is processed under {dataLaw} with a 12-month retention window and self-service erasure.",
+      "covered5": "Personal data is processed under {dataLaw} with a {months}-month retention window and self-service erasure.",
       "ceiling1": "Statutory protected-class adverse-impact monitoring ({standard}) is not run automatically — it needs aggregate demographic data this platform deliberately does not collect.",
       "ceiling2": "The automated-rejection fairness gate is an archetype shield (career stage), not a protected-class test.",
       "aiCheckTitle": "Four-fifths adverse-impact check",
@@ -1438,6 +1666,7 @@
       "statusOk": "ok",
       "statusNa": "n/a",
       "anyAdverse": "Potential adverse impact — at least one group is below the 80% threshold.",
+      "insufficientSample": "Insufficient sample — no group reaches {min} applicants, so the four-fifths ratio is not meaningful. This is not a finding of no adverse impact.",
       "noAdverse": "No group falls below the 80% four-fifths threshold."
     },
     "wave": {
@@ -1476,7 +1705,8 @@
         "rejectWould": "Would auto-reject · bottom {pct}% of {n} → {count} (rank {rank}) and match {score} < {threshold} threshold.",
         "rejectDid": "Auto-rejected · bottom {pct}% of {n} → {count} (rank {rank}) and match {score} < {threshold} threshold.",
         "tieAdjustedNote": "(tie-adjusted from {from} so no equal score is split)",
-        "staleSkipped": "Skipped — stage changed mid-wave (was {wasStage}); left untouched."
+        "staleSkipped": "Skipped — stage changed mid-wave (was {wasStage}); left untouched.",
+        "unscored": "unscored — no match score yet; excluded from auto-rejection (needs scoring)"
       }
     },
     "summary": {
@@ -1568,8 +1798,9 @@
       "candidatesAria": "Candidates",
       "advancedAria": "advanced",
       "rejectedAria": "rejected",
-      "fairnessCheck": "Fairness check",
-      "fairnessUniform": "Fairness check passed — re-scoring every candidate under each other's archetype weighting leaves the order unchanged, so the ranking is robust, not weighting-dependent.",
+      "fairnessCheck": "Weighting robustness",
+      "fairnessScopeNote": "Checks ranking stability under different scoring emphases — it does not assess demographic or protected-class bias (the app holds no such data).",
+      "fairnessUniform": "Not tested — every candidate uses the same standard weighting, so there is no evidence-driven weighting to vary. With uniform weights the cross-scheme re-scoring is a no-op (the order cannot change), so this run does not establish the ranking is weighting-independent, only that no weighting difference exists to test.",
       "aiTunedWeights": "AI-tuned weights",
       "ruleBasedWeights": "Rule-based weights",
       "fairnessExplain": "Some candidates carry a bounded, evidence-driven weighting — demonstrated skill is weighted higher when backed by high-trust evidence. Each candidate is re-scored under <em>every</em> candidate's weighting; the robust order is the average across all schemes, so a candidate strong under everyone's weights is robustly strong.",
@@ -1597,11 +1828,20 @@
       "upcoming": "{count, plural, one {Upcoming interview (#)} other {Upcoming interviews (#)}}",
       "rescheduled": "{count, plural, one {rescheduled ×#} other {rescheduled ×#}}",
       "reminderSent": "reminder sent",
+      "reminderQueued": "reminder queued (not delivered)",
       "reminderPending": "reminder pending",
       "awaiting": "{count, plural, one {Awaiting booking (#)} other {Awaiting booking (#)}}",
       "sentAgo": "sent {time}",
+      "queuedAgo": "queued in Outbox {time} (not delivered)",
       "attendanceConfirmed": "attending",
-      "attendanceCancelled": "cancelled"
+      "attendanceCancelled": "cancelled",
+      "addLink": "Add link",
+      "editLink": "Edit meeting link",
+      "join": "Join",
+      "linkPlaceholder": "Paste a meeting link (Meet, Teams, Zoom…)",
+      "save": "Save",
+      "cancel": "Cancel",
+      "linkError": "Enter a valid http(s) link."
     },
     "eyebrow": "Decisions · Schedule",
     "title": "Interview calendar",
@@ -1636,7 +1876,11 @@
       "calendarAria": "Interview week calendar — days across, times down",
       "timeColumn": "Time",
       "chipTitle": "{name} · {archetype}{job}",
-      "chipAria": "{name}, {archetype}{job}"
+      "chipAria": "{name}, {archetype}{job}",
+      "addToCalendar": "Add to calendar",
+      "google": "Google Calendar",
+      "outlook": "Outlook",
+      "downloadIcs": "Download .ics"
     },
     "scorecard": {
       "editScorecard": "Edit your scorecard",
@@ -1746,8 +1990,7 @@
       "candidatesToggle": "Candidates ({count})",
       "candidatesLoading": "Loading candidates…",
       "candidatesLoadFailed": "Couldn't load candidates right now.",
-      "candidatesEmpty": "No candidates analyzed against this JD yet. Generated roles also source candidates into the Pipeline.",
-      "orPasteManually": "Or paste a job description manually"
+      "candidatesEmpty": "No candidates analyzed against this JD yet. Generated roles also source candidates into the Pipeline."
     },
     "form": {
       "saveAjd": "Save a JD",
@@ -1790,7 +2033,25 @@
       "generateJd": "Generate job description",
       "generatingNote": "This runs a few AI steps and takes ~1–2 minutes — it keeps going if you navigate away.",
       "genFailed": "Generation failed.",
-      "startFailed": "Couldn't start the build."
+      "startFailed": "Couldn't start the build.",
+      "saveDraft": "Save as draft",
+      "savingDraft": "Saving…",
+      "draftSaved": "Saved as draft",
+      "saveDraftFailed": "Couldn't save the draft.",
+      "saveDraftFailedStatus": "Couldn't save the draft (status {status}).",
+      "checklistTitle": "What should AI generate?",
+      "optDescription": "Job description",
+      "optDescriptionHint": "Draft the role's responsibilities and requirements from your need",
+      "optMarket": "Market research",
+      "optMarketHint": "A web-grounded salary band with cited sources",
+      "optCase": "Interview case",
+      "optCaseHint": "A work-sample exercise to screen shortlisted candidates",
+      "checklistHint": "Runs in the background — the JD appears in your library and fills in as it's analyzed.",
+      "startAnalysis": "Start",
+      "queued": "Queued — building in your library",
+      "needMoreInput": "Add a role title (and enough detail in the need).",
+      "pickAtLeastOne": "Pick at least one thing to generate.",
+      "generateFailedStatus": "Couldn't start the build (status {status})."
     },
     "result": {
       "sourceWebGrounded": "web-grounded",
@@ -1856,7 +2117,16 @@
       "newTemplate": "New template",
       "saveFailed": "Save failed.",
       "deleteFailed": "Delete failed.",
-      "setDefaultFailed": "Couldn't set the default."
+      "setDefaultFailed": "Couldn't set the default.",
+      "visibility": "Visibility",
+      "scopeTeamOption": "My team",
+      "scopeOrgOption": "Whole company",
+      "scopeTeamHint": "Only your team sees this template.",
+      "scopeOrgHint": "Every team in the company can use it.",
+      "scopeShared": "Shared",
+      "scopePrivate": "Private",
+      "scopeSharedTitle": "Part of the company library — visible to every team.",
+      "scopePrivateTitle": "Private to your team."
     }
   },
   "jobs": {
@@ -2140,6 +2410,10 @@
       "assumptions": "Assumptions:"
     }
   },
+  "scoreProvenance": {
+    "analysis": "from CV analysis · {date}",
+    "snapshot": "snapshot at add"
+  },
   "match": {
     "tab": {
       "eyebrow": "Workspace",
@@ -2318,11 +2592,11 @@
     "editor": {
       "back": "Back to profiles",
       "headingEdit": "Edit candidate profile",
-      "headingDuplicate": "Duplicate candidate profile",
       "headingCreate": "Build a candidate profile",
       "intro": "A guided intake that works for students and career-switchers, not just experienced hires. We route the archetype, collect the signals a thin CV omits (projects, thesis, coursework, aspirations), tag each piece of evidence with its <b>provenance</b>, and score completeness so you know what to add next.",
       "saveChanges": "Save changes",
       "saveProfile": "Save profile",
+      "savedToast": "Profile saved.",
       "draftToggle": "Draft from notes with AI",
       "draftHint": "— paste a CV blurb, LinkedIn, or notes; we structure + route it",
       "draftPlaceholder": "e.g. 3rd-year CS student at ČVUT, expected 2026. Built a React recommender app for her thesis (on GitHub). Did a summer internship in Python. Wants a junior frontend role. Czech + English.",
@@ -2417,12 +2691,18 @@
       "title": "Communications",
       "count": "{count, plural, one {# message} other {# messages}}",
       "deadLetters": "{count, plural, one {# dead-letter — needs attention} other {# dead-letters — need attention}}",
+      "noAddress": "no address",
+      "noAddressHint": "This candidate has no deliverable email — a real relay can't reach them. Capture an address before relying on this send.",
+      "addressIssues": "{count, plural, one {# with no address} other {# with no address}}",
       "intro": "Every candidate-facing message the pipeline sent — acknowledgements, outreach, interview invites, rejections, offers. Expand a row to read the full letter; failed sends can be re-delivered.",
       "empty": "No messages sent yet — they'll appear here as candidates move through the funnel.",
       "loadFailed": "Couldn't load communications.",
+      "relayNotConfigured": "No delivery relay configured — these messages are NOT being sent to candidates. Set COMMS_WEBHOOK_URL to enable delivery.",
       "loading": "Loading communications",
       "recovered": "recovered",
       "recoveredAt": "resent {time}",
+      "bounced": "bounced",
+      "bouncedAt": "Relay reported a bounce {time}: {detail}",
       "searchPlaceholder": "Search candidate, recipient, or subject",
       "kindAll": "All kinds",
       "showing": "Showing {shown} of {total}",
@@ -2580,16 +2860,22 @@
     "createPlaceholder": "New workspace name",
     "authRequired": "Switching requires operator sign-in (set KP_OPERATOR_PASSWORD).",
     "switchFailed": "Couldn't switch — try again.",
+    "created": "Workspace created.",
     "createFailed": "Couldn't create the workspace."
   },
   "login": {
     "eyebrow": "kp",
-    "title": "Operator sign-in",
-    "subtitle": "This workspace is protected. Enter the operator password to continue.",
+    "title": "Sign in",
+    "subtitle": "Sign in with your email and password, or the operator password.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@company.com",
+    "emailHint": "Leave blank to use the operator password.",
     "passwordLabel": "Password",
     "submit": "Sign in",
     "submitting": "Signing in…",
-    "error": "Incorrect password — try again."
+    "networkError": "Couldn't reach the server — check your connection and try again.",
+    "success": "Signed in.",
+    "error": "Incorrect credentials — try again."
   },
   "skillProfile": {
     "eyebrow": "Verified credential",
@@ -2623,9 +2909,6 @@
     "subtitle": "Read the brief, grab the starter files, and submit a link to your solution repository when you're done.",
     "closed": "This role's intake has closed and is no longer accepting submissions. Thank you for your interest.",
     "briefUnavailable": "The assignment brief isn't available right now — please check back shortly or contact the recruiter who shared this link.",
-    "seedHeading": "{count, plural, one {Starter file} other {Starter files (#)}}",
-    "seedDownloadAll": "Download all",
-    "seedDownloadOne": "Download this file",
     "submitHeading": "Submit your solution",
     "submitHint": "Push your work to a public repository and share the link below. You'll get a confirmation right away.",
     "fieldName": "Your name",
@@ -2653,6 +2936,19 @@
     }
   },
   "analytics": {
+    "orgBenchmark": {
+      "title": "Company benchmark",
+      "subtitle": "How your team compares to the whole company (anonymized aggregate).",
+      "loadFailed": "Couldn't load the benchmark.",
+      "locked": "Unlocks when more teams are active — {teams} contributing so far.",
+      "interviewRate": "Interview rate",
+      "hireRate": "Hire rate",
+      "timeToHire": "Time to hire",
+      "orgLabel": "Org: {value}",
+      "ahead": "ahead",
+      "behind": "behind",
+      "footnote": "Anonymized aggregate across {teams} teams — no candidate or team data is shared."
+    },
     "loadFailed": "Couldn't load analytics.",
     "retry": "Retry",
     "loading": "Loading analytics…",
@@ -2717,6 +3013,13 @@
       "title": "How accurate are we?",
       "blurb": "Whether a fit score actually predicts the recruiter's decision. Each dot is a score band — where it sits versus the dashed line is how calibrated we are.",
       "loading": "Measuring…",
+      "sourceLabel": "Measured score",
+      "sourcePipeline": "Pipeline match score",
+      "sourceAnalysis": "CV-analysis score",
+      "measuresPipeline": "Measures the pipeline match score — the number screening auto-decisions act on — against whether the candidate advanced past screening or was rejected there.",
+      "measuresAnalysis": "Measures the saved CV-analysis score against recruiter advance/pass dispositions on analyses. This score never gates pipeline decisions.",
+      "familyLabel": "Role family",
+      "familyAll": "All roles",
       "error": "Couldn't load calibration right now.",
       "uncalibratedTitle": "Not yet calibrated",
       "uncalibratedBody": "Calibration needs at least {min} decided candidates (advanced or passed). So far: {n}.",
@@ -2726,7 +3029,8 @@
       "dotLegend": "Measured (per score band)",
       "brier": "Brier score",
       "brierHint": "0 = perfect, lower is better.",
-      "samples": "{n} decided candidates"
+      "samples": "{n} decided candidates",
+      "srBin": "{x} {predicted}, {y} {observed} (n={count})"
     },
     "decisionRecords": {
       "title": "Decision records (sealed)",
@@ -2871,6 +3175,7 @@
         "offer_sent": "Offer sent",
         "offer_accepted": "Offer accepted",
         "offer_declined": "Offer declined",
+        "offer_expired": "Offer expired",
         "onboarding_started": "Onboarding started",
         "auto_rejected": "Auto-rejected (policy)",
         "auto_advanced": "Auto-advanced (policy)",
@@ -2880,6 +3185,9 @@
         "interview_invite_sent": "Interview invite sent",
         "schedule_invite_sent": "Scheduling link sent",
         "interview_reminder_sent": "Interview reminder sent",
+        "interviewer_brief_sent": "Interviewer briefed",
+        "interviewer_brief_skipped": "Interviewer brief skipped (no email)",
+        "onboarding_reminder_sent": "Pre-boarding reminder sent",
         "comm_resent": "Message resent",
         "onboarding_failed": "Onboarding dispatch failed",
         "rejection_comms_failed": "Rejection email failed",
@@ -2889,7 +3197,23 @@
         "intake_degraded": "Intake degraded",
         "intake_resolved": "Intake captured manually",
         "fairness_gate_unknown_archetype": "Fairness gate: unknown archetype",
-        "observed_minted": "Observer link minted"
+        "aging_alert": "Aging past stage SLA",
+        "stale_alert": "Going stale in stage",
+        "fairness_gate_blocked_reject": "Fairness gate: auto-reject blocked",
+        "observed_minted": "Observer link minted",
+        "role_reopened": "Role reopened"
+      },
+      "kindsQueued": {
+        "outreach_sent": "Outreach queued in Outbox (not delivered)",
+        "rejection_sent": "Rejection queued in Outbox (not delivered)",
+        "offer_sent": "Offer queued in Outbox (not delivered)",
+        "acknowledgement_sent": "Application acknowledgement queued in Outbox (not delivered)",
+        "interview_invite_sent": "Interview invite queued in Outbox (not delivered)",
+        "schedule_invite_sent": "Scheduling link queued in Outbox (not delivered)",
+        "interview_reminder_sent": "Interview reminder queued in Outbox (not delivered)",
+        "interviewer_brief_sent": "Interviewer brief queued in Outbox (not delivered)",
+        "onboarding_reminder_sent": "Pre-boarding reminder queued in Outbox (not delivered)",
+        "comm_resent": "Message re-queued in Outbox (not delivered)"
       }
     },
     "automation": {
@@ -2902,7 +3226,8 @@
       "holds": "Holds raised → resolved",
       "holdsValue": "{raised} → {resolved}",
       "reviewHolds": "Review pending holds in Decisions",
-      "comms": "Comms delivered"
+      "comms": "Comms delivered",
+      "commsQueued": "Comms recorded in Outbox (not delivered)"
     }
   },
   "candidateOnboarding": {
@@ -2945,6 +3270,8 @@
     "checklist": "Checklist",
     "questionnaire": "Pre-boarding questionnaire",
     "questionnaireNote": "Details the new hire shares before day one — saved to their record.",
+    "questionnairePending": "Questionnaire pending",
+    "questionnaireDone": "Questionnaire done",
     "signatures": "Documents to sign",
     "signSeamNote": "Demo signing — connect an eIDAS provider (e.g. Signicat, DocuSign) to make these legally binding.",
     "signed": "Signed",
@@ -3026,6 +3353,7 @@
     "ofCount": "{shown} of {total}",
     "countLine": "{cands} candidates × {positions} positions",
     "minFit": "Min fit",
+    "coverageGap": "{uncovered} of {total} open roles have no strong fit — source for these:",
     "off": "Off",
     "sortLabel": "Sort: {mode}",
     "sortByCol": "by column",
@@ -3195,6 +3523,10 @@
     "variantLimitReached": "Variant limit reached.",
     "selectCvFirst": "Select a CV or LinkedIn PDF export first."
   },
+  "integrations": {
+    "configLoadFailed": "Couldn't load the saved webhook settings — the values shown may not match what's stored.",
+    "saved": "Webhook settings saved."
+  },
   "billing": {
     "eyebrow": "Billing",
     "title": "Plan & usage",
@@ -3244,8 +3576,12 @@
       "unlimited": "Unlimited",
       "activeJobs": "Active jobs",
       "cta": "Switch to this plan",
+      "manageCta": "Change in portal",
       "redirecting": "Redirecting…",
-      "checkoutFailed": "Couldn't start checkout."
+      "checkoutFailed": "Couldn't start checkout.",
+      "custom": "Custom",
+      "contactNote": "Priced to your hiring volume",
+      "contactCta": "Talk to sales"
     },
     "pack": {
       "title": "Interview minutes top-up",
@@ -3254,7 +3590,66 @@
       "buy": "Buy pack"
     }
   },
+  "branding": {
+    "eyebrow": "White-label",
+    "title": "Branding",
+    "intro": "Put your organization's name, color and logo on the whole workspace — and on the offer, apply and scheduling pages your candidates see.",
+    "nameLabel": "Display name",
+    "namePlaceholder": "Your company or product name",
+    "nameHelp": "Shown in the sidebar and the browser tab.",
+    "accentLabel": "Primary accent color",
+    "accentHelp": "Re-skins buttons, links, active items and focus rings across both themes. Leave empty for the default.",
+    "accentClear": "Clear",
+    "logoLabel": "Logo URL",
+    "logoHelp": "An https:// link to your logo (PNG/SVG). Host it on your own domain for self-hosted installs.",
+    "save": "Save branding",
+    "saving": "Saving…",
+    "saved": "Branding saved",
+    "reset": "Reset",
+    "saveFailed": "Couldn't save branding.",
+    "loadFailed": "Couldn't load branding — check the connection and try again.",
+    "appliesNote": "Changes apply across the workspace and every candidate-facing page immediately.",
+    "previewTitle": "Preview",
+    "previewName": "Your brand",
+    "previewButton": "Primary action",
+    "previewBadge": "Badge",
+    "previewLink": "A <a>highlighted link</a> in your accent."
+  },
   "models": {
+    "quality": {
+      "title": "Measured model quality",
+      "intro": "Which models proved useful for which cases — measured across every AI operation. Use it to balance a BYOM package: pin the strongest model per use case, or the fastest that clears your quality bar.",
+      "colModel": "Model",
+      "colScore": "Score",
+      "colWins": "Best in",
+      "colCoverage": "Coverage",
+      "colSpeed": "Speed",
+      "ops": "ops",
+      "relTitle": "Share of attempts that produced usable LLM output; the rest errored or fell back to the deterministic template.",
+      "opScorecard": "Best model per case",
+      "colCase": "Case",
+      "colBest": "Top model",
+      "colRunnerUp": "Runner-up",
+      "na": "—",
+      "method": "Measured {date} · judge {judge} · {n} cases · {limit} run(s)/cell. Composite 0–10: correctness + task-adherence weighted higher, relevance lower; invalid output penalised. Small run counts are noisy — treat as directional."
+    },
+    "benchOps": {
+      "match_reasoning": "Match reasoning",
+      "automation_screen": "Screening decision",
+      "automation_outreach": "Candidate outreach",
+      "automation_rejection": "Rejection message",
+      "automation_offer": "Offer message",
+      "interview_prep": "Interview prep pack",
+      "interview_scorecard": "Interview scorecard",
+      "weight_proposal": "Scoring-weight proposal",
+      "jd_ingest": "JD parsing",
+      "devcase_analyze": "Dev case — analyze",
+      "devcase_role_design": "Dev case — role design",
+      "devcase_case_design": "Dev case — case design",
+      "devcase_interview_scenario": "Dev case — interview scenario",
+      "group_compare": "Group compare",
+      "campaign_pack": "Campaign pack"
+    },
     "eyebrow": "Models",
     "title": "Model routing & keys",
     "intro": "Choose which provider and model serves each AI use case, and manage the API keys behind them.",
@@ -3265,6 +3660,7 @@
       "title": "Routing",
       "intro": "A pinned row overrides the built-in default for that use case; use cases without a pin run on the built-in default (Claude CLI in local development).",
       "colUseCase": "Use case",
+      "recTitle": "Best measured model for this use case: {model} ({score})",
       "colProvider": "Provider",
       "colModel": "Model",
       "colState": "State",
@@ -3292,6 +3688,22 @@
       "testUnavailable": "The test endpoint isn't available yet.",
       "updated": "Updated {date}"
     },
+    "usage": {
+      "title": "Usage & cost",
+      "intro": "Metered AI calls from the usage ledger, rolled up per use case over the last {days} days.",
+      "loading": "Loading usage…",
+      "loadFailed": "Couldn't load usage — check the connection and try again.",
+      "retry": "Try again",
+      "empty": "No usage recorded yet — metered AI calls will show up here after the first run.",
+      "colUseCase": "Use case",
+      "colCalls": "Calls",
+      "colTokensIn": "Tokens in",
+      "colTokensOut": "Tokens out",
+      "colCached": "Cached",
+      "colCost": "Est. cost (USD)",
+      "total": "Total",
+      "cache": "Prompt cache: {rows} cached responses · {expired} expired awaiting cleanup"
+    },
     "useCases": {
       "match_reasoning": "Match reasoning",
       "automation": "Automation",
@@ -3310,7 +3722,9 @@
       "interview_scorecard": "Interview scorecard",
       "github_analysis": "GitHub analysis",
       "cv_analysis": "CV analysis",
-      "profile_extract": "Profile extraction"
+      "profile_extract": "Profile extraction",
+      "grounded_salary": "Grounded salary",
+      "interview_realtime": "Voice interview"
     },
     "providers": {
       "anthropic": "Anthropic",

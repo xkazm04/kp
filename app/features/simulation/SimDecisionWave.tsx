@@ -29,7 +29,9 @@ export function SimDecisionWave() {
       ) : (
         <ul className="mt-3 divide-y divide-stone-100 rounded-lg border border-stone-200">
           {decisions.map((d) => {
-            const pct = Math.max(0, Math.min(100, d.matchScore));
+            // null = unscored (excluded from auto-decisions server-side): the row
+            // shows a dash and an empty meter, never a fabricated 0-that-looks-real.
+            const pct = d.matchScore == null ? 0 : Math.max(0, Math.min(100, d.matchScore));
             return (
               <li key={d.entryId} className="flex items-center gap-2 px-3 py-1.5 text-sm">
                 <span
@@ -41,14 +43,14 @@ export function SimDecisionWave() {
                 </span>
                 <span className="w-32 shrink-0 truncate text-ink">{d.label}</span>
                 <div className="flex w-28 shrink-0 items-center gap-2">
-                  <span className="w-7 shrink-0 text-right nums font-medium text-ink">{d.matchScore}</span>
+                  <span className="w-7 shrink-0 text-right nums font-medium text-ink">{d.matchScore ?? "—"}</span>
                   <span
                     className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-stone-100"
                     role="meter"
                     aria-valuenow={pct}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-label={`Match score ${d.matchScore}`}
+                    aria-label={d.matchScore == null ? "Match score not yet measured" : `Match score ${d.matchScore}`}
                   >
                     <span
                       className={`block h-full rounded-full ${d.action === "reject" ? "bg-coral" : "bg-moss"}`}

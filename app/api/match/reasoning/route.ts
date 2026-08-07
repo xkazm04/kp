@@ -3,7 +3,6 @@ import { ReasoningError, runReasoning, type ReasoningInput } from "@/app/_lib/re
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 
-export const runtime = "nodejs";
 
 // Synchronous convenience wrapper. The hardened/background path is /api/tasks
 // with kind "reasoning" (tracked, dedup'd, refresh-safe); both share runReasoning.

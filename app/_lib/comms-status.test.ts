@@ -12,13 +12,13 @@ import assert from "node:assert/strict";
 import {
   OUTBOX_STATUSES,
   coerceOutboxStatus,
-  isDeadLettered,
   isRetryableHttpStatus,
+  isBounceOutcome,
   COMMS_RELAY_RETRY,
 } from "./comms-status.ts";
 
-test("the canonical status list is exactly the three documented states", () => {
-  assert.deepEqual([...OUTBOX_STATUSES].sort(), ["failed", "queued", "sent"]);
+test("the canonical status list is exactly the four documented states", () => {
+  assert.deepEqual([...OUTBOX_STATUSES].sort(), ["bounced", "failed", "queued", "sent"]);
 });
 
 test("queued is terminal and distinct — it is NOT a pending alias", () => {
@@ -33,6 +33,16 @@ test("coerceOutboxStatus passes through the canonical values", () => {
   assert.equal(coerceOutboxStatus("queued"), "queued");
   assert.equal(coerceOutboxStatus("sent"), "sent");
   assert.equal(coerceOutboxStatus("failed"), "failed");
+  assert.equal(coerceOutboxStatus("bounced"), "bounced");
+});
+
+test("isBounceOutcome flags only hard, reputation-critical relay outcomes", () => {
+  for (const o of ["bounced", "Bounce", " COMPLAINT ", "spam", "dropped", "failed"]) {
+    assert.equal(isBounceOutcome(o), true, `${o} is a bounce`);
+  }
+  for (const o of ["delivered", "opened", "clicked", "deferred", "", null, undefined]) {
+    assert.equal(isBounceOutcome(o), false, `${o} is NOT a bounce`);
+  }
 });
 
 test("coerceOutboxStatus collapses legacy/unknown values to failed", () => {
@@ -45,11 +55,6 @@ test("coerceOutboxStatus collapses legacy/unknown values to failed", () => {
   assert.equal(coerceOutboxStatus(undefined), "failed");
 });
 
-test("isDeadLettered is true only for failed", () => {
-  assert.equal(isDeadLettered("failed"), true);
-  assert.equal(isDeadLettered("queued"), false);
-  assert.equal(isDeadLettered("sent"), false);
-});
 
 test("transient HTTP statuses are retryable", () => {
   for (const s of [408, 425, 429, 500, 502, 503, 504]) {

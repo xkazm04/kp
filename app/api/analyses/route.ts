@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { listAnalyses } from "@/app/_lib/db";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
-export const runtime = "nodejs";
 
 export async function GET() {
   try {

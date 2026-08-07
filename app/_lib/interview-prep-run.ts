@@ -1,4 +1,5 @@
 import { getPipelineEntry } from "./db";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { runAutomationTask } from "./automation-run";
 import { getInterviewPrep, saveInterviewPrep } from "./interview-prep";
 import { isEarlyCareer } from "./archetypes";
@@ -18,7 +19,7 @@ import { buildRunOfShow, type PrepQuestion } from "./run-of-show";
 // Re-exported so existing importers (interview-run.ts) keep their import paths.
 export type { ChronologyBlock } from "./run-of-show";
 
-export async function runInterviewPrep(params: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>> {
+export async function runInterviewPrep(params: Record<string, unknown>, signal?: AbortSignal, workspaceId: string = DEFAULT_WORKSPACE_ID): Promise<Record<string, unknown>> {
   const entryId = String(params.entryId ?? "");
   const candidateLabel = (params.candidateLabel as string) ?? null;
   const jobTitle = (params.jobTitle as string) ?? null;
@@ -34,11 +35,11 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
   // Forward the abort signal so a DELETE on a running interview_prep task actually stops the
   // (slow, LLM-bound) prep work + kills its Python child, instead of the cancel being a no-op
   // that leaves the work running and the slot held while the UI flips to "canceled".
-  const prep = await runAutomationTask(entryId, "prep", "", signal, lang);
+  const prep = await runAutomationTask(entryId, "prep", "", signal, lang, workspaceId);
   const questions = (prep.result.questions as PrepQuestion[]) ?? [];
   const focusAreas = (prep.result.focusAreas as string[]) ?? [];
 
-  const entry = getPipelineEntry(entryId);
+  const entry = getPipelineEntry(entryId, workspaceId);
   const plan = isEarlyCareer(entry?.archetype)
     ? studentPrepRunOfShow(questions, focusAreas, candidateLabel, jobTitle, lang)
     : buildRunOfShow(questions, focusAreas, candidateLabel, jobTitle, lang);

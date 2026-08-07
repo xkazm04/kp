@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getTask } from "@/app/_lib/db";
 import { isKnownKind, startTask } from "@/app/_lib/tasks";
 
-export const runtime = "nodejs";
 
 // DATA1 — one-click replay of a dead task. `params_json` is the exact request
 // that was originally submitted, durably persisted on every row, so a retry is

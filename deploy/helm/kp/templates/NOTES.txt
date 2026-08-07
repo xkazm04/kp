@@ -1,0 +1,29 @@
+KP is deploying (release: {{ .Release.Name }}, namespace: {{ .Release.Namespace }}).
+
+Reach it:
+{{- if .Values.ingress.enabled }}
+  {{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+  {{- end }}
+{{- else }}
+  This release has no Ingress. Port-forward to try it:
+    kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "kp.fullname" . }} 8080:{{ .Values.service.port }}
+    open http://localhost:8080
+{{- end }}
+
+Reminders:
+{{- if not .Values.existingSecret }}
+  • KP_OPERATOR_PASSWORD + KP_SECRET came from chart values — for production, prefer
+    `existingSecret` so secrets aren't stored in Helm release data.
+{{- end }}
+  • SINGLE REPLICA by design: state is one SQLite file on a ReadWriteOnce volume.
+    Do not scale up without a Postgres backend (docs/POSTGRES_BACKEND.md).
+{{- if not .Values.persistence.enabled }}
+  • persistence.enabled=false — the DB is on an emptyDir and is LOST when the pod
+    restarts. Enable persistence for any real use.
+{{- end }}
+{{- if not .Values.env.NEXT_PUBLIC_APP_BASE_URL }}
+  • Set env.NEXT_PUBLIC_APP_BASE_URL to your public origin so candidate links resolve.
+{{- end }}
+
+Full guide: docs/SELF_HOSTING.md.

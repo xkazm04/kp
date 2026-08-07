@@ -1,0 +1,194 @@
+{
+  "job": {
+    "id": "cal-088",
+    "title": "Senior Business Associate, VP",
+    "company": "Citigroup Inc",
+    "role_family": "consulting",
+    "seniority": "junior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Business selection / conflicts-clearance process and deal-log system (the centralized clearance workflow this role administers)",
+      "Engagement letters, confidentiality/non-disclosure agreements, and mandate/legal documentation as the artifacts decisions must be reflected in",
+      "M&A and capital-markets deal pipeline and transaction materials (situations, counterparties, fee structures, hostile/defense postures)",
+      "Company and industry research / market-intelligence tooling typical of BCMA (e.g. Bloomberg, Capital IQ/FactSet, news monitoring) for the qualitative and limited-quantitative analysis named in the JD",
+      "Internal conflicts-of-interest, reputational-risk and franchise-risk policies (which the role helps modify/create)",
+      "Group KPI / statistics tracking and reporting (spreadsheets, dashboards) for the 'key indicators and statistics' deliverable",
+      "Senior-management governance forums / business-selection committees and the cross-functional interface with Legal, Risk, franchise and industry heads",
+      "Cross-sell coordination across ICG businesses",
+      "Domain knowledge as the real 'stack': corporate/M&A law (JD path) OR investment banking with significant M&A exposure (non-JD path), plus working knowledge of financial-services regulation"
+    ],
+    "coreResponsibilities": [
+      "Facilitate and manage centralized business-selection and conflict-resolution decisions in coordination with senior BCMA management",
+      "Collect, summarize and at times develop qualitative (and limited quantitative) analysis on companies involved in a potential situation",
+      "Triage transactions — decide which must be elevated for heightened review versus approved as routine flow",
+      "Diligence specific deals with deal-team leaders: industry dynamics, reputational risk, political sensitivities, and future business prospects extracted from bankers",
+      "Analyze the facts underlying selection decisions fairly and impartially, actively guarding against client, regional and franchise bias",
+      "Lead selection discussions with senior management, deal teams, franchise/industry heads, Legal and Risk to choose between clients, optimize fees, weigh franchise risk, and respond to requests to limit Citi or go hostile",
+      "Verify that client discussions and final decisions are accurately reflected in confidentiality agreements, engagement letters and other legal documentation",
+      "Monitor live strategic transactions for new developments and follow up as issues evolve",
+      "Track group KPIs/statistics, train BCMA bankers on transactional conflicts, identify and help draft policy changes, and support cross-sell initiatives"
+    ],
+    "statedVsRealGaps": [
+      "Seniority contradiction: the structured need sets seniorityTarget='junior', but the JD is an explicit VP role demanding deep M&A transactional experience (corporate-law/M&A specialist or seasoned investment banker) and the authority to LEAD discussions with senior management — this is a senior, judgment-heavy hire, not a junior one. The need's seniority field is wrong.",
+      "Role-family mismatch: structured need says roleFamily='consulting', but Citi files it under 'Business Strategy, Management & Administration / Business Administration'. Functionally it is investment-banking conflicts governance + corporate/M&A legal judgment, not management consulting; treating it as 'consulting' will mis-target sourcing and assessment.",
+      "Title vs level: the title 'Senior Business Associate, VP' blends an 'Associate' label with a VP grade; the body of the JD is clearly VP-level scope (leading senior forums, owning policy). Calibrate to VP.",
+      "Empty structured fields: stack=[] and responsibilities=[] are unpopulated — every signal here comes from the free-text jobDescription, not from curated need fields. realStack is therefore inferred from the function, since the JD names no specific software.",
+      "Missing thresholds: the experience figures are blanked in the JD ('at least  years'), so the exact minimum bar for both the JD and non-JD path is unstated and must be confirmed.",
+      "Two distinct candidate profiles in one req (a practicing M&A/corporate lawyer OR a banker with heavy M&A exposure) — these are different talent pools with different screens; the need does not distinguish them."
+    ],
+    "trueComplexity": "high",
+    "riskAreas": [
+      "Conflicts-of-interest and MNPI handling — the core deliverable is risk control itself; errors create direct legal, regulatory and franchise exposure for Citi",
+      "Bias in adjudication — the JD explicitly calls out client/regional/franchise bias; a hire who can't stay impartial against revenue-driven banker pressure is a structural risk",
+      "Seniority/calibration risk from the 'junior' target — screening to a junior bar for a role that arbitrates between senior deal teams would mis-hire badly",
+      "Stakeholder authority — needs the gravitas and judgment to push back on senior bankers and align Legal/Risk; weak communication or low standing fails the role",
+      "Regulatory and reputational sensitivity (hostile situations, political sensitivities) where a misjudged clearance can damage client relationships or invite scrutiny",
+      "Documentation fidelity — decisions must flow accurately into engagement letters/NDAs; gaps between agreed terms and signed paper are a latent liability",
+      "Grounding limitation: no codebase and no named systems, so realStack is inferred from the function rather than evidenced from a body of work"
+    ],
+    "reflection": "This is a genuine, content-rich JD for a senior governance role inside Citi's BCMA business — the person who runs business selection: clearing or escalating deals, resolving transactional conflicts of interest, and weighing franchise/reputational risk against fees, in partnership with deal teams, Legal and Risk. As a non-software role it correctly has no tech stack; its 'real stack' is the conflicts-clearance process, legal deal documents, M&A/market research, risk policies, and senior governance forums it operates through. The work is high-complexity and high-judgment: it demands either a top-tier corporate/M&A lawyer or a seasoned M&A banker, exceptional business judgment, and the standing to lead senior discussions. The biggest divergence is internal to the request itself, not the JD: the structured need labels this 'junior' and 'consulting', whereas the JD is unambiguously a VP-level, IB-governance/legal role. Anyone using the structured fields rather than the JD text would mis-calibrate the hire. I'd also flag the blanked-out experience thresholds and the two-track (JD / non-JD) candidate profile as things to pin down before sourcing.",
+    "confidence": 0.62,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Senior Business Associate, VP (BCMA Business Selection)",
+    "seniority": "senior",
+    "roleFamily": "investment-banking",
+    "mustHaves": [
+      "One of two qualifying backgrounds: either a JD from a top-tier accredited law school, admitted to practice in the relevant jurisdiction, with substantial corporate-law experience emphasizing M&A transactional work; OR investment-banking experience with significant M&A exposure",
+      "Deep, hands-on understanding of M&A and capital-markets transaction dynamics — counterparties, fee structures, hostile/defense postures, and the lifecycle of a live deal",
+      "Exceptional business judgment: able to weigh franchise, reputational, legal and political risk against opportunity, fees and opportunity cost, and reach defensible decisions under ambiguity",
+      "Demonstrated working knowledge of the financial-services industry and its regulatory context",
+      "Ability to lead and facilitate business-selection and conflict-resolution discussions with senior management, deal-team leaders, franchise/industry heads, and senior Legal and Risk stakeholders",
+      "Rigorous, impartial analysis — actively identifies and neutralizes client, regional and franchise bias when adjudicating between competing opportunities",
+      "Excellent written and verbal communication: can extract nuanced information from bankers and summarize complex situations crisply for senior audiences",
+      "Comfort administering a centralized, repeatable clearance/governance workflow and triaging which transactions to elevate for heightened review versus approve as routine flow",
+      "Detail-oriented without losing the big picture, proactive, and able to work both independently and as part of a small judgment-driven team"
+    ],
+    "niceToHaves": [
+      "Bar admission and prior corporate/M&A practice at a top-tier law firm or in-house at a bulge-bracket bank (the JD path)",
+      "Prior experience operating a business-selection, conflicts-clearance, or transactional-conflicts-of-interest function",
+      "Familiarity with market-intelligence tooling used in BCMA (e.g. Bloomberg, Capital IQ/FactSet) for company and industry research",
+      "Experience drafting or revising conflicts-of-interest, reputational-risk or franchise-risk policies",
+      "Track record building and maintaining KPI/statistics dashboards or reporting for a deal or governance group",
+      "Exposure to cross-sell coordination across ICG or other multi-product banking businesses",
+      "Experience reviewing engagement letters, confidentiality/non-disclosure agreements and other mandate documentation"
+    ],
+    "responsibilities": [
+      "Facilitate and manage centralized business-selection and conflict-resolution decisions in coordination with senior BCMA management",
+      "Collect, summarize and at times develop qualitative and limited quantitative analysis on the companies involved in a potential situation",
+      "Triage transactions — decide which must be elevated for heightened review versus those that can be approved as routine flow",
+      "Diligence specific deals with deal-team leaders: industry dynamics, reputational risk, political sensitivities, and future business prospects extracted from bankers",
+      "Analyze the facts underlying each selection decision fairly and impartially, actively guarding against client, regional and franchise bias",
+      "Lead selection discussions to choose between clients, optimize fees, weigh franchise and other risks, and respond to requests to limit Citi's businesses or go hostile",
+      "Verify that client discussions and final decisions are accurately reflected in confidentiality agreements, engagement letters and other legal documentation",
+      "Monitor live strategic transactions for new developments and follow up as issues evolve",
+      "Track group KPIs and statistics, train BCMA bankers on transactional conflicts and business selection, help identify and draft policy changes, and support cross-sell initiatives"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "BCMA Business Selection: Clearing Project Atlas",
+    "brief": "You are stepping into the centralized business-selection / conflicts-clearance desk that sits between BCMA deal teams and senior management. A live, contested situation (codename Project Atlas) has landed in the clearance queue alongside routine flow, and a draft engagement letter is already circulating for signature. Your job is the role's actual job: triage what must be elevated, adjudicate the contested situation impartially against revenue pressure, and verify that the decision is faithfully reflected in the legal paper. The materials are synthetic but representative of a real BCMA clearance workflow; nothing here is about building software. This is timeboxed at ~2 hours as a hard cap — it is deliberately under-scoped for completeness and over-scoped for judgment, so prioritize defensible reasoning over covering every field. Where the materials are ambiguous or thin, that is realistic: make a call, record it, and note what you would have asked. We care far more about how you weigh franchise, fee, reputational and regulatory risk — and how you guard against bias — than about polished prose. Keep a running decisions log as you go; that is normal practice on this desk, not an extra deliverable.",
+    "repoSeed": "A clearance pack for the BCMA Business Selection desk: (1) deal_log_extract.csv — six incoming clearance requests (fields: requesting coverage team / banker, client, counterparty/target, sector, situation type [sell-side, buy-side, financing, defense, hostile], proposed fee, jurisdiction, requested Citi role). One row is deliberately borderline: a client with a stale prior Citi relationship in a politically sensitive jurisdiction, with thin facts attached. (2) 'Situation Memo — Project Atlas' — one page: Citi's Industrials team holds a buy-side relationship with Helios Industrial, which is preparing an unsolicited (potentially hostile) approach for Meridian Components; separately, a Diversified Industrials banker reports Meridian's CEO has informally approached Citi for defense advice; and Orion Capital Partners — a top-fee PE sponsor and competing bidder — wants Citi to commit to it and decline Helios. Meridian is a critical-infrastructure supplier subject to foreign-investment review. (3) clearance_history.csv — prior clearances, including one ~8 months old where Citi was cleared to provide financing to Meridian on the condition it would not act adverse to Meridian without committee re-clearance. (4) 'BCMA Business Selection Policy — Section 4: Elevation Criteria' — lists most triggers for heightened review but leaves the stale-relationship / thin-facts case underspecified. (5) 'Project Atlas — Engagement Letter (draft v3)' and 'Project Atlas — NDA' — drafts whose information-barrier defined term, conflicts/no-conflict representation entity scope (parent vs subsidiaries), and NDA permitted-use clause do not all line up with the conditions a clearance would set. (6) BCMA_BizSel_KPIs.xlsx — clearance volumes, turnaround time, and % elevated, for the governance note.",
+    "tasks": [
+      "Triage the clearance queue. Work through the six requests in deal_log_extract.csv and classify each as elevate (heightened committee review) or routine (approvable as flow), with a one-line rationale and any MNPI / information-barrier implication. Use the Elevation Criteria in the Business Selection Policy (Section 4), and explicitly flag any request the criteria do not cleanly decide rather than forcing it into a bucket.",
+      "Adjudicate Project Atlas. Using the Situation Memo and clearance_history.csv, produce a business-selection recommendation: which side(s) Citi may act for, on what conditions (information barriers, fee vs franchise weighting, reputational/political and foreign-investment-review risk), what Citi should decline, and what you elevate to the committee. State plainly how you are guarding against client, regional and franchise bias in the call — including against the highest-fee option.",
+      "Check documentation fidelity. Reconcile the conditions in your Atlas recommendation against the Project Atlas Engagement Letter (draft v3) and the Atlas NDA. List every discrepancy between what was agreed and what the paper actually says, mark the specific redlines, and separate what must be corrected before any signature from what could follow in a side letter or amendment.",
+      "Keep a DECISIONS log and add one governance signal. Throughout the exercise maintain a short decisions log — for each open call: what you chose, the alternative you rejected, and the one question you would put to the deal team or committee. Then, from the queue and BCMA_BizSel_KPIs.xlsx, propose a single KPI or one specific policy-language change you would recommend to BCMA management, with your reasoning."
+    ],
+    "coverProbes": [
+      {
+        "id": "borderline-elevation",
+        "kind": "underspecified",
+        "where": "Task 1 — the stale-relationship / thin-facts row in deal_log_extract.csv judged against Section 4, which sets no clear threshold for it.",
+        "reveals": "A strong candidate names that the policy is silent on this case, states the threshold they are applying, and says what facts they would pull (e.g., relationship recency, sanction/PEP exposure) before deciding; a naive response silently bins it as routine or elevate with no acknowledgment that the criteria don't reach it.",
+        "decisionSpace": [
+          "Elevate conservatively to protect the franchise, accepting slower flow and committee load",
+          "Approve as routine but attach a monitoring condition / time-boxed review",
+          "Hold and route back to the deal team for specific additional facts before clearing"
+        ]
+      },
+      {
+        "id": "prior-meridian-condition",
+        "kind": "legacy_trap",
+        "where": "Task 2 — the ~8-month-old Meridian financing clearance in clearance_history.csv that bars Citi from acting adverse to Meridian without re-clearance, which constrains the obvious Helios buy-side clear.",
+        "reveals": "A candidate who reads the history before recommending catches that clearing Helios's hostile approach against Meridian collides with the prior no-adverse-action condition; a one-shot answer clears Helios on fee/franchise logic and never reconciles the existing constraint.",
+        "decisionSpace": [
+          "Treat the prior condition as binding — decline or defer the Helios role until re-cleared",
+          "Take the prior condition to the committee to vary/lift it, with a documented rationale",
+          "Ring-fence the situations as severable behind a fresh information barrier — faster, but risks inconsistency and challenge"
+        ]
+      },
+      {
+        "id": "engagement-letter-scope-defect",
+        "kind": "verification_trap",
+        "where": "Task 3 — the Engagement Letter's information-barrier defined term, the no-conflict representation's entity scope (parent vs subsidiaries), and the NDA permitted-use clause, which pass a shallow read but don't match the agreed conditions.",
+        "reveals": "Careful cross-checking against the agreed conditions surfaces that the conflicts rep is scoped to the wrong entity and the NDA permits broader use than the barrier allows; a face-value summary of the drafts reports them as fine.",
+        "decisionSpace": [
+          "Redline precisely and block signature until the scope/cross-reference defects are corrected",
+          "Flag the defects but allow signature with an agreed amendment / side letter to follow",
+          "Escalate to Legal as a drafting defect and pause the mandate pending fix"
+        ]
+      },
+      {
+        "id": "fee-vs-franchise-bias",
+        "kind": "ambiguity",
+        "where": "Task 2 — the fee-vs-franchise/reputational tension across Helios (relationship), Meridian (defense approach), and Orion (top fee, competing bidder demanding exclusivity).",
+        "reveals": "A good candidate names the revenue-bias risk explicitly and adjudicates on franchise, reputational and regulatory principle even where that forgoes the largest fee; a naive answer optimizes for the Orion fee or the hostile mandate without confronting the bias the JD warns about.",
+        "decisionSpace": [
+          "Act for the higher-fee/competing-bidder side and decline the others — fee-optimizing, with relationship and consistency cost",
+          "Protect the long-standing strategic relationship even at lower immediate fee — franchise-preserving",
+          "Decline to take a side until the hostile posture and foreign-investment review resolve — most conservative, forgoes near-term revenue"
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

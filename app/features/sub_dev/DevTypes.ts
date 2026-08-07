@@ -12,8 +12,14 @@ export type SelectedJd = { slug: string; title: string; body: string };
 // in-product work surface. Free-form JSON (NOT a codegen'd model): persisted to
 // dev_session_events and fed to the Python engine's tooling_from_events(). `t` is a
 // client timestamp (ms); `path` is the seed file the event concerns.
-export type ProcessEventKind = "open" | "edit" | "decision_log" | "submit";
-export type ProcessEvent = { t: number; kind: ProcessEventKind; path?: string };
+export type ProcessEventKind = "open" | "edit" | "decision_log" | "submit" | "paste";
+// `size` carries the char count for a "paste" event (bulk-paste authenticity signal);
+// absent for other kinds. We record paste MAGNITUDE only — never the pasted content.
+export type ProcessEvent = { t: number; kind: ProcessEventKind; path?: string; size?: number };
+
+// One file of the materialized starter tree handed to the candidate work surface
+// (seed_materializer.py output). `path` is repo-relative; `contents` is the text.
+export type SeedFile = { path: string; contents: string };
 
 // The numeric-range contract for the scoring UI
 // ----------------------------------------------
@@ -137,7 +143,10 @@ export type Reflection = {
   verificationHabits?: string[];
   confidence?: number; // FRACTION 0..1 — trust in this inference
 };
-export type ProbeOutcome = { probeId?: string; kind?: string; where?: string; detected?: boolean; handledWell?: boolean; note?: string };
+// handledWell is tri-state: true / false when handling was graded (LLM path), or
+// null/undefined when only DETECTED (observed Live Work Surface path — handling not
+// gradeable from process). Consumers must treat null as "unknown", not "failed".
+export type ProbeOutcome = { probeId?: string; kind?: string; where?: string; detected?: boolean; handledWell?: boolean | null; note?: string };
 export type Tooling = { fluency?: number /* FRACTION 0..1 */; probeOutcomes?: ProbeOutcome[]; overRelianceFlags?: string[]; evidence?: string[]; confidence?: number /* FRACTION 0..1 */ };
 // Self-describing breakdown row echoed by the Python evaluator (evaluate.py `_ordered_dimensions`):
 // canonical order + human label + weight, so the UI never hardcodes dimension metadata. `score`

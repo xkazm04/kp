@@ -1,0 +1,182 @@
+{
+  "job": {
+    "id": "cal-065",
+    "title": "Claims Investigator",
+    "company": "Equifax",
+    "role_family": "customer_success",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Unemployment claims case-management platform (Equifax Workforce Solutions / UC management system) accessed via PC",
+      "Document-imaging system for reviewing claims questionnaires, separation notices, and state determinations",
+      "Email inbox / queue management for incoming client and agency correspondence",
+      "Investigative outbound telephone calls to employer clients (with call/conversation documentation)",
+      "State unemployment-agency portals and written correspondence channels",
+      "50-state unemployment insurance laws, regulations, and eligibility/separation standards",
+      "Letter and protest/response templates for state-agency replies",
+      "Claims intake artifacts: questionnaires, determinations, separation details supplied by clients"
+    ],
+    "coreResponsibilities": [
+      "Investigate individual unemployment claims by contacting employer clients, eliciting the facts of an employee's separation, and documenting the conversation",
+      "Receive, triage, and prioritize incoming claims questionnaires, determinations, and related UI data by deadline and impact",
+      "Screen unemployment documents and case data (from calls or document images) to judge whether the facts warrant a response",
+      "Interpret and apply the correct state's UI statutes and regulations to each case's separation facts",
+      "Draft detailed, reasoned letters/protests to the state unemployment agency",
+      "Maintain customer service and rapport with both employer clients and state agencies across the case lifecycle"
+    ],
+    "statedVsRealGaps": [
+      "The JD frames the role as customer service (roleFamily customer_success; only an AA degree or 2 years of CS experience required), but the substance is quasi-legal claims adjudication — interpreting state-specific statutes and writing persuasive agency correspondence. The hard skill is legal/factual analysis, not call handling.",
+      "seniorityTarget is 'medior' while the stated credentials are entry-level (associate's OR two years' CS). The cognitive load (50-state law variance, reasoned written output) sits above what the credential bar selects for.",
+      "Written-communication quality is mission-critical ('detailed letters to the state agency') yet the JD asks only for generic customer-service training, not demonstrated writing ability.",
+      "The JD omits the statutory response deadlines that actually govern the job — state agencies impose short, hard windows and a missed deadline typically means an automatic charge to the employer's UI account. The deadline pressure and financial stakes are absent from the stated need.",
+      "'Excellent customer service / rapport' is real but secondary; the JD foregrounds the soft skill and underweights the deadline-bound interpretive accuracy that drives client outcomes."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Missed statutory response deadlines on prioritized claims → direct, automatic financial liability charged to employer clients' UI accounts",
+      "Applying the wrong state's law given 50-state variance → incorrect responses, lost protests, and appeal exposure",
+      "High-volume fulfillment/operations throughput pressure trading off against per-case accuracy and letter quality",
+      "Letter effectiveness is bottlenecked on the individual hire's writing skill; a generic CS-only hire may underperform on the core deliverable",
+      "Handling sensitive separation data (terminations, alleged misconduct, PII) carries privacy/compliance obligations not surfaced in the JD",
+      "Long ramp-to-productivity: state-law fluency must be trained, so an AA-only hire needs substantial onboarding before reliable output"
+    ],
+    "reflection": "On paper this reads as an entry-level customer-service seat in a fulfillment/operations center; in reality it is a deadline-driven, quasi-legal claims role. Each case requires eliciting separation facts from a client, selecting and applying the right state's unemployment statute, and producing a reasoned written response to a government agency under a hard statutory clock — with the employer's money at stake on every miss. The real 'stack' is not software but a case-management/document-imaging system plus a working command of 50-state UI law and strong written English. The biggest honest gap is between the role's framing (customer service, AA/2-year credential, customer_success family) and its true demand (interpretive accuracy and persuasive writing at volume). Complexity is genuinely medium: the work is templated and repetitive enough not to be high, but the legal interpretation and consequential written output put it well above data-entry low. A hire screened purely for rapport and tenure, without writing samples and a structured state-law onboarding, is the principal risk.",
+    "confidence": 0.72,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Claims Investigator",
+    "seniority": "medior",
+    "roleFamily": "customer_success",
+    "mustHaves": [
+      "Read separation facts and case data — from investigative calls or document images — and judge whether the evidence warrants a response, the core triage decision of the role",
+      "Interpret and apply the correct state's unemployment-insurance statutes and regulations to each case, handling variation across jurisdictions rather than one fixed ruleset",
+      "Write detailed, well-reasoned letters and protests to state unemployment agencies that marshal the facts and the governing law into a persuasive, accurate response",
+      "Conduct investigative outbound calls to employer clients to elicit the facts of an employee's separation, and document those conversations precisely",
+      "Receive, triage, and prioritize incoming questionnaires, determinations, and UI correspondence against hard statutory response deadlines where a miss carries direct financial cost to the client",
+      "Deliver strong customer service and build rapport with both employer clients and state-agency contacts across the full case lifecycle",
+      "Work fluidly across a PC-based case-management system, a document-imaging system, and an email queue to assemble each case",
+      "Associate's degree (AA) or equivalent, or two years of customer-service experience/training, or an equivalent combination of education and experience"
+    ],
+    "niceToHaves": [
+      "Prior exposure to unemployment-insurance, claims adjudication, or benefits administration",
+      "Familiarity with reading legal or regulatory text and translating it into plain-language correspondence",
+      "Experience with the Equifax Workforce Solutions / UC-management platform or comparable claims case-management tooling",
+      "Track record of meeting recurring, deadline-bound written deliverables under volume",
+      "Comfort interpreting employment-law concepts (just-cause separation, voluntary quit, misconduct) across multiple states"
+    ],
+    "responsibilities": [
+      "Investigate individual unemployment claims by contacting employer clients, eliciting the facts of an employee's separation, and documenting the conversation",
+      "Receive, triage, and prioritize incoming claims questionnaires, determinations, and related UI data by deadline and impact",
+      "Screen unemployment documents and case data — from calls or document images — to determine whether the facts warrant a response",
+      "Interpret and apply the correct state's UI statutes and regulations to each case's separation facts",
+      "Draft detailed, reasoned letters and protests to the state unemployment agency",
+      "Maintain customer service and rapport with both employer clients and state agencies throughout the case lifecycle"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Claims Investigator Work Sample: Triage, Adjudicate, and Protest a UI Claims Queue",
+    "brief": "You are stepping in as a medior Claims Investigator and have just inherited a colleague's worklist in the UC management system. A folder of intake artifacts (questionnaires, separation notices, an already-issued state determination, client intake notes, and document images) is waiting in your queue, alongside the client accounts they belong to. Your job for this exercise mirrors the real role: triage what's in front of you by deadline and account impact, work out the controlling state's separation standard for the most urgent cases, decide whether the documented facts actually warrant a response, and draft one agency-ready protest. The starting materials are synthetic but representative of a real multi-client, multi-state book of business; the provided platform domain fits this role, so no substitution is needed. Timebox is a HARD 1.5 hours — depth over coverage. We assume and fully expect you to use any tools or LLMs you like; nothing here rewards typing speed or formatting. What we are reading is your JUDGMENT: how you prioritize under deadline pressure, how you decide which state's law governs, when you choose NOT to act, and how cleanly you separate what the record proves from what a client merely asserts. Treat the DECISIONS log (Task 4) as ordinary case-file hygiene, not a test — it is how a good investigator hands off a defensible file.",
+    "repoSeed": "A synthetic intake queue handed to you as a working folder:\n- `intake_queue.csv` — six rows (Case A–F): received_date, client, claimant initials, state(s) on file, document_type, and a client-noted 'respond by' date typed in by the account contact (NOT necessarily the statutory deadline).\n- `case_A_birchwood/` — Birchwood Logistics (TX). `client_intake_note.txt` says 'terminated for misconduct, please protest.' The imaged `separation_notice.pdf` only describes 'performance issues / not meeting expectations,' with no documented warnings, dates, or a specific willful incident. State questionnaire attached, printed respond-by ~10 days out.\n- `case_B_harbor/` — Harbor Health Staffing. Employer HQ in California; claimant worked fully remote from Oregon; the UI claim was filed in Oregon and wages were reported to Oregon. Separation: position eliminated (reduction in force).\n- `case_C_meridian/` — Meridian Foods. `state_determination.pdf` is an ADVERSE determination already issued and charging the employer's account; the client's note labels it 'resolved – FYI.' The live clock here is the statutory APPEAL window, which is shorter than the queue's printed respond-by.\n- `case_D_cedar/` — Cedar Manufacturing. Clean lack-of-work layoff (plant slowdown); claimant plainly eligible. Client note: 'protest like the rest.'\n- `case_E_? ` and `case_F_?` — two filler cases (a routine voluntary-quit questionnaire and a partly illegible document image missing the separation reason) so the queue requires real triage, not a fixed order.\n- `state_ui_reference/` — a short quick-reference on separation standards (misconduct vs. performance/inability, voluntary quit / good cause, lack-of-work), liable-state / wage-reporting rules for multi-state work, and typical protest vs. appeal deadline structures.\n- `templates/protest_letter_template.docx` — the standard agency protest/response letter skeleton with placeholder fields.",
+    "tasks": [
+      "Task 1 — Triage the queue. Review `intake_queue.csv` and all six case folders and produce a prioritized worklist ranking every case by its TRUE response deadline and the account-charge impact of missing it, one line of reasoning each. Explicitly flag any case whose real deadline differs from the client-noted 'respond by' date and say which date you would work to.",
+      "Task 2 — Adjudicate the two most urgent cases. For each, identify the controlling state and the specific separation standard that applies, summarize only the separation facts the imaged record actually supports, and state whether those facts warrant a response (and why / why not). Where the record is too thin to decide, list the 3–5 specific questions you would put to the employer client on an investigative call to close the gaps.",
+      "Task 3 — Draft one protest. Choose the single case that most clearly warrants contesting and draft the protest/response letter to the state agency using `templates/protest_letter_template.docx`, grounded in the correct state's standard and confined to the facts the record supports. The choice of WHICH case to protest is part of the exercise.",
+      "Task 4 — Keep a DECISIONS log. Maintain `DECISIONS.md`: for every judgment call you made where the brief was open (priority order, which state's law governs, whether a case warranted a response at all, which case to protest, what you would verify before filing), record what you chose, the alternative you rejected, and the one question you would ask the team or the client."
+    ],
+    "coverProbes": [
+      {
+        "id": "deadline-clock",
+        "kind": "underspecified",
+        "where": "case_C_meridian/ — an adverse determination the client tagged 'resolved – FYI,' whose real clock is the statutory appeal window, shorter than the queue's printed respond-by date.",
+        "reveals": "A naive triage trusts the client-noted 'respond by' / 'resolved' label and buries Case C low in the queue, risking a blown appeal and an automatic account charge. A strong candidate recognizes that an issued determination starts the most time-critical clock, separates the client's printed date from the statutory deadline, and triages to the tighter credible date while confirming it.",
+        "decisionSpace": [
+          "Treat the client-noted 'respond by' date as authoritative and triage by it — fast, but risks missing the real appeal deadline on an already-charged account.",
+          "Independently verify the state's determination/appeal window and triage by the earlier of the two dates — safer, costs lookup time within the 1.5h budget.",
+          "Triage conservatively to the tightest credible deadline AND escalate the date discrepancy to the client/team to confirm — protects the account but adds a dependency you can't resolve inside the exercise."
+        ]
+      },
+      {
+        "id": "liable-state",
+        "kind": "legacy_trap",
+        "where": "case_B_harbor/ — California-HQ employer, claimant remote from Oregon, claim filed and wages reported in Oregon.",
+        "reveals": "A one-shot generation anchors on the employer's headquarters state (California) because that's the most salient fact in the client file. A careful investigator reads the remote-work pattern, recognizes the multi-state jurisdiction question, and reasons from the liable / wage-reporting state (Oregon) rather than the HQ — or pauses to confirm the liable state before applying any standard.",
+        "decisionSpace": [
+          "Apply the employer-HQ state (California) law — simplest model, likely the wrong jurisdiction for a remote claimant.",
+          "Apply the state where the claim was filed and wages were reported (Oregon) as the liable state — generally correct under UI liable-state rules, but asserted without confirmation.",
+          "Hold and confirm the liable / wage-reporting state with the client or platform before drafting anything — most defensible for an ambiguous remote fact pattern, but consumes a cycle of the timebox."
+        ]
+      },
+      {
+        "id": "misconduct-vs-performance",
+        "kind": "verification_trap",
+        "where": "case_A_birchwood/ — client intake note asserts 'terminated for misconduct, please protest,' but the imaged separation notice documents only undated 'performance issues' with no warnings or specific willful act.",
+        "reveals": "Naive generation lifts the client's 'misconduct' label and produces a confident, well-formatted misconduct protest that passes a shallow read but would likely lose, because performance/inability is not willful misconduct under most states' standards and the record shows no warnings or intent. A strong candidate notices the gap between the asserted label and the documented facts, and either narrows the protest to what the record supports, declines to assert misconduct, or gathers the missing warning history before filing.",
+        "decisionSpace": [
+          "Take the client's 'misconduct' label at face value and draft a confident misconduct protest — fast, high risk of losing the protest on the record as imaged.",
+          "Treat performance ≠ willful misconduct, and protest only on the narrower ground the documented facts support (or decline to assert misconduct) — accurate, but yields a weaker, honest filing.",
+          "Hold the protest pending an investigative client call to obtain the warning history and the specific final incident, then frame to the actual standard — strongest case if it lands, but spends the deadline runway."
+        ]
+      },
+      {
+        "id": "warrant-a-response",
+        "kind": "ambiguity",
+        "where": "case_D_cedar/ — a clean lack-of-work layoff the client asked to 'protest like the rest,' tension with the responsibility to determine whether the facts warrant a response at all.",
+        "reveals": "A naive candidate obeys the literal 'draft protests' framing and the client's blanket instruction, producing a frivolous contest that wastes effort and erodes agency rapport. A strong candidate exercises the screening judgment the role demands — recognizes a non-chargeable lack-of-work separation, documents a reasoned no-contest rationale, and is willing to push back on the client's standing instruction.",
+        "decisionSpace": [
+          "Draft a protest because the brief and the client say to — defers to instruction, but files a meritless contest and risks rapport with the agency.",
+          "Screen it out as a non-chargeable lack-of-work separation and document the no-response rationale — correct screening, but requires defying the literal 'draft protests' instruction and the client's note.",
+          "File a brief non-contesting acknowledgement that confirms the facts without protesting — preserves the record and the relationship as a middle path, at the cost of some throughput."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

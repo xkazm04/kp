@@ -116,7 +116,8 @@ export function GroupEvalModal({
                   <li key={c.entryId} className="flex items-center gap-2 text-base text-ink">
                     <span className="nums w-6 shrink-0 text-steel">{c.rank}.</span>
                     <span className="font-medium">{c.label}</span>
-                    <span className="nums text-steel">· {c.score}</span>
+                    {/* Unscored shows a dash — an eligibility rank must not imply a measured 0. */}
+                    <span className="nums text-steel">· {c.score ?? "—"}</span>
                   </li>
                 ))}
               </ol>
@@ -127,7 +128,11 @@ export function GroupEvalModal({
           {enriched ? (
             <>
               <ComparisonTable candidates={candidates} skillRows={skillRows} mustRows={mustRows} roleBand={evaluation.roleSalaryBand ?? []} />
-              <FairnessPanel fairness={evaluation.fairness ?? null} headlineOrder={evaluation.recommendedOrder ?? []} />
+              <FairnessPanel
+                fairness={evaluation.fairness ?? null}
+                headlineOrder={evaluation.recommendedOrder ?? []}
+                robustness={evaluation.robustness}
+              />
               <PerCandidateTabs
                 candidates={candidates}
                 differentiators={evaluation.differentiators ?? []}
@@ -137,7 +142,16 @@ export function GroupEvalModal({
               />
             </>
           ) : (
-            <LegacyView evaluation={evaluation} />
+            <>
+              <LegacyView evaluation={evaluation} />
+              {/* Surface "robustness could not be assessed" even in the compact view when
+                  the ranker failed for a job-backed role (fairness null, matrix expected). */}
+              <FairnessPanel
+                fairness={evaluation.fairness ?? null}
+                headlineOrder={evaluation.recommendedOrder ?? []}
+                robustness={evaluation.robustness}
+              />
+            </>
           )}
 
           <Risks risks={evaluation.risks ?? []} />

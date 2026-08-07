@@ -3,8 +3,6 @@ import { deleteLlmConfig, listLlmConfig, upsertLlmConfig } from "@/app/_lib/db";
 import { isLlmProvider, isLlmUseCase, LLM_PROVIDERS, LLM_USE_CASES } from "@/app/_lib/llm-config";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 // Models admin API, headless-first (docs/LLM_PROVIDER_LAYER.md): pin a
 // provider/model per use case. GET returns the pins + catalogs; PUT upserts one

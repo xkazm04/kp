@@ -1,13 +1,26 @@
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
+import { buildLlmConfigEnv } from "./llm-config";
 import { runDesignArtifacts, runNeedAnalysis, type DevNeed } from "./devcase-run";
 import { validateJdBuildInput } from "./jd-limits";
 import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./salary-band";
+import { type RepoSnapshot } from "./repo-snapshot";
+import { failJdAnalysis, finishJdAnalysis } from "./db";
+import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
+import { renderTemplate } from "@/app/features/sub_library/render-template";
 
 // The AI job-description builder: a free-text need (+ optional GitHub repo for
 // dev roles) → our devcase need→design machinery → a structured RoleSpec, then
 // formatted as a publishable Markdown JD with a grounded market-salary band.
+
+// The recruiter's pre-generation checklist — which AI steps to run. Every field
+// is independent (≥1 must be true); see resolveBuildOptions for the defaults.
+export type JdBuildOptions = {
+  description: boolean; // compose + persist the JD markdown body (needs a role)
+  marketResearch: boolean; // grounded market-salary band
+  caseDesign: boolean; // the interview case/work-sample (also needs a role)
+};
 
 export type JdBuildInput = {
   title: string;
@@ -21,7 +34,30 @@ export type JdBuildInput = {
   // (--lang on design-artifacts) + the market-salary summary, and used to
   // localize composeMarkdown's headings. Defaults to "en".
   lang?: string;
+  // Backgrounded flow: the placeholder JD row this build fills in. When present,
+  // runJdBuild persists the result server-side (finish/fail) so the JD completes
+  // even if the client navigated away; when absent it just returns the payload.
+  jdSlug?: string;
+  // Optional company template (markdown with {{placeholders}}) to render the role
+  // through — the SAME renderTemplate the client preview used, now applied
+  // server-side so the persisted body already carries the chosen format. Absent ⇒
+  // the AI-default composeMarkdown layout.
+  templateBody?: string;
+  // The ticked checklist. Absent (a simulation deep-link / programmatic caller) ⇒
+  // description + market research (today's effective output), so legacy callers are
+  // unchanged but no longer pay for the discarded case call.
+  options?: Partial<JdBuildOptions>;
 };
+
+// Per-field defaults so a legacy caller with no options gets description + market
+// research (case off), and a partial object still resolves every field.
+function resolveBuildOptions(raw: Partial<JdBuildOptions> | undefined): JdBuildOptions {
+  return {
+    description: raw?.description ?? true,
+    marketResearch: raw?.marketResearch ?? true,
+    caseDesign: raw?.caseDesign ?? false,
+  };
+}
 
 // JDL5 — the document's heading scaffolding, bilingual + self-contained (the
 // same approach as jobMarkdown's table): the recruiter-authored role content is
@@ -81,7 +117,7 @@ export async function runMarketSalary(input: {
     // JD language (the CLI already supports --lang; only the summary text localizes).
     const { result } = spawnPython(
       ["-m", "pipeline.jobfit.market_salary_cli", "--input-json", p, "--lang", input.lang || "en"],
-      { signal }
+      { signal, env: buildLlmConfigEnv() }
     );
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
@@ -129,8 +165,8 @@ function composeMarkdown(
   // Only advertise a band when the normalizer confirmed a usable one. An
   // unavailable band omits the line entirely — a published JD shouldn't print
   // "Salary: 0 CZK" or "salary unavailable" to candidates; omission is the
-  // graceful degradation here. (The builder card surfaces the unavailability to
-  // the recruiter; see JdBuilderResult.)
+  // graceful degradation here. (The Ledger detail's read-only SalaryCard surfaces
+  // the unavailability to the recruiter.)
   const salaryLabel = marketSalaryLabel(s);
   if (salaryLabel) lines.push(`**${str.salary}** ${salaryLabel}`);
 
@@ -156,55 +192,135 @@ type Progress = (done: number, total: number, msg?: string) => void;
 
 export async function runJdBuild(params: Record<string, unknown>, progress?: Progress, signal?: AbortSignal): Promise<Record<string, unknown>> {
   const input = params as unknown as JdBuildInput;
-  // Enforce the minimum-need contract HERE, not just in the form gate: a deep-link
-  // /simulation prefill or a programmatic startTask reaches this handler directly,
-  // and the need→design chain below is a 1–2 minute AI run we refuse to spend on a
-  // barely-there title or an empty need. Throwing fails the task fast (before any
-  // Python spawn) with the same user-facing message the form would have shown.
-  const valid = validateJdBuildInput(input.title, input.needText);
-  if (!valid.ok) throw new Error(valid.error);
   // JDL5 — the JD output language (validated to en|cs; anything else → en).
   const lang = input.lang === "cs" ? "cs" : "en";
-  const need: DevNeed = {
-    title: valid.title,
-    stack: [],
-    responsibilities: valid.needText.split("\n").map((l) => l.trim()).filter(Boolean),
-    codebaseRefs: input.repoUrl?.trim() ? [{ kind: "github", ref: input.repoUrl.trim() }] : [],
-    seniorityTarget: input.seniority || "medior",
-    roleFamily: input.roleFamily || "software_engineering",
-    notes: valid.needText,
-  };
+  const options = resolveBuildOptions(input.options);
+  // Backgrounded flow: when a jdSlug is present we OWN persisting the outcome into
+  // that placeholder JD row (finish on success / fail on error), so the JD lands
+  // whether or not the client is still open. Absent ⇒ return-only (legacy callers).
+  const jdSlug = typeof input.jdSlug === "string" && input.jdSlug.trim() ? input.jdSlug.trim() : null;
 
-  // The design chain (analyze need → design role) and the grounded salary
-  // lookup are independent, so run them concurrently to roughly halve the wait.
-  progress?.(0, 2, "Analyzing the need and researching market salary…");
-  const [design, salary] = await Promise.all([
-    (async () => {
-      const { analysis, snapshot } = await runNeedAnalysis(need, signal);
-      progress?.(1, 2, "Designing the role from the need…");
-      const { role } = await runDesignArtifacts(need, analysis, signal, undefined, lang);
-      return { role: role as RoleSpec, snapshot };
-    })(),
-    runMarketSalary({
-      title: valid.title,
-      seniority: input.seniority || "medior",
+  try {
+    if (!options.description && !options.marketResearch && !options.caseDesign) {
+      throw new Error("Select at least one thing to generate.");
+    }
+    // A role (needed for the description AND/OR the interview case) requires a real
+    // need; market research alone only needs the role facets. Enforce the min-need
+    // contract HERE (not just the form gate) only when a role will actually be built
+    // — a barely-there need would otherwise waste a 1–2 minute AI run.
+    const needRole = options.description || options.caseDesign;
+    let title = (input.title ?? "").trim();
+    let needText = (input.needText ?? "").trim();
+    if (needRole) {
+      const valid = validateJdBuildInput(input.title, input.needText);
+      if (!valid.ok) throw new Error(valid.error);
+      title = valid.title;
+      needText = valid.needText;
+    } else if (title.length < 2) {
+      throw new Error("A role title is required.");
+    }
+
+    const need: DevNeed = {
+      title,
+      stack: [],
+      responsibilities: needText.split("\n").map((l) => l.trim()).filter(Boolean),
+      codebaseRefs: input.repoUrl?.trim() ? [{ kind: "github", ref: input.repoUrl.trim() }] : [],
+      seniorityTarget: input.seniority || "medior",
       roleFamily: input.roleFamily || "software_engineering",
-      company: input.company,
-      stack: need.responsibilities ?? [],
-      lang,
-    }, signal),
-  ]);
-  const spec = design.role;
-  const snapshot = design.snapshot;
-  progress?.(2, 2, "Formatting the job description…");
+      notes: needText,
+    };
 
-  const markdown = composeMarkdown(spec, { company: input.company, location: input.location, salary: salary.result, lang });
-  return {
-    markdown,
-    role: spec,
-    salary: salary.result,
-    salarySources: salary.sources,
-    salarySource: salary.source,
-    snapshot: snapshot ? { ref: snapshot.ref, languages: snapshot.languages, inferredStack: snapshot.inferredStack, loc: snapshot.loc } : null,
-  };
+    progress?.(0, 2, "Analyzing the need and researching market salary…");
+    // The design chain (analyze → design role/case) and the grounded salary lookup
+    // are independent, so run the SELECTED ones concurrently. An unticked step never
+    // spawns — the case-design call in particular is skipped unless requested.
+    const designP: Promise<{ role: RoleSpec | null; kase: Record<string, unknown> | null; snapshot: RepoSnapshot | null }> = needRole
+      ? (async () => {
+          const { analysis, snapshot } = await runNeedAnalysis(need, signal, lang);
+          progress?.(1, 2, options.description ? "Designing the role from the need…" : "Designing the interview case…");
+          const { role, case: kase } = await runDesignArtifacts(need, analysis, signal, undefined, lang, options.caseDesign);
+          return { role: role as RoleSpec, kase: options.caseDesign ? kase : null, snapshot };
+        })()
+      : Promise.resolve({ role: null, kase: null, snapshot: null });
+    const salaryP: Promise<{ result: MarketSalary; sources: string[]; source: string } | null> = options.marketResearch
+      ? runMarketSalary({
+          title,
+          seniority: input.seniority || "medior",
+          roleFamily: input.roleFamily || "software_engineering",
+          company: input.company,
+          stack: need.responsibilities ?? [],
+          lang,
+        }, signal)
+      : Promise.resolve(null);
+
+    const [design, salary] = await Promise.all([designP, salaryP]);
+    const spec = design.role;
+    const snapshot = design.snapshot;
+    progress?.(2, 2, "Formatting the job description…");
+
+    // Compose the markdown body only when a description was requested and a role was
+    // produced. Market-research-only / case-only builds leave the body empty — the
+    // JD detail view degrades gracefully (and no matchable job is ingested).
+    const salaryBand = salary?.result ?? normalizeMarketSalary(undefined);
+    const templateBody = typeof input.templateBody === "string" ? input.templateBody.trim() : "";
+    let markdown = "";
+    if (options.description && spec) {
+      markdown = templateBody
+        ? // Render through the chosen company template (same data the client preview
+          // fed renderTemplate): the salary slot gets the market label, placeholders
+          // the role's fields; unfilled sections collapse per renderTemplate's rules.
+          renderTemplate(templateBody, {
+            title,
+            company: input.company?.trim(),
+            seniority: input.seniority || spec.seniority || "medior",
+            salary: marketSalaryLabel(salaryBand),
+            responsibilities: spec.responsibilities ?? [],
+            mustHaves: spec.mustHaves ?? [],
+            niceToHaves: spec.niceToHaves ?? [],
+          })
+        : composeMarkdown(spec, { company: input.company, location: input.location, salary: salaryBand, lang });
+    }
+
+    // The structured artifacts stored beside the markdown body (analysis_json) and
+    // returned to legacy in-memory consumers.
+    const artifacts = {
+      role: spec,
+      salary: salary?.result ?? null,
+      salarySources: salary?.sources ?? [],
+      salarySource: salary?.source ?? null,
+      snapshot: snapshot ? { ref: snapshot.ref, languages: snapshot.languages, inferredStack: snapshot.inferredStack, loc: snapshot.loc } : null,
+      case: design.kase,
+      options,
+    };
+
+    if (jdSlug) {
+      // Persist inside the detached handler → lands even if the client left.
+      finishJdAnalysis(jdSlug, { body: markdown, analysisJson: artifacts });
+      // Make it matchable exactly as "Save as draft" did — but only when there's a
+      // real description with a role. Best-effort (same contract as /api/jds/save):
+      // a failed ingest leaves the JD saved but not matchable, and the Ledger's
+      // "Ingest as job" retry can fix it up.
+      if (options.description && spec) {
+        try {
+          await ingestStructuredJob({ slug: jdSlug, title, markdown, role: spec, salary: salary?.result, company: input.company });
+        } catch {
+          /* best-effort ingest — never blocks the saved JD */
+        }
+      }
+    }
+
+    return { markdown, ...artifacts };
+  } catch (err) {
+    // Mark the placeholder JD failed so the Ledger shows a failed chip + retry
+    // instead of a row stuck "Analyzing" forever. Then rethrow so the TASK also
+    // records failed (its status is independent of the JD row).
+    if (jdSlug) {
+      try {
+        failJdAnalysis(jdSlug, err instanceof Error ? err.message : String(err));
+      } catch {
+        /* don't mask the original error if the fail-write itself throws */
+      }
+    }
+    throw err;
+  }
 }

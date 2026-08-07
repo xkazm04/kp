@@ -9,7 +9,6 @@ import {
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
-export const runtime = "nodejs";
 
 // Defensive ceiling for an attached GitHub payload. A real GithubAnalysis is
 // tens of KB; anything near this is malformed or hostile, not a deep-dive.

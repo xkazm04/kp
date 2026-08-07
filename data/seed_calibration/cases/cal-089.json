@@ -1,0 +1,196 @@
+{
+  "job": {
+    "id": "cal-089",
+    "title": "Customer Experience Specialist II - REMOTE",
+    "company": "Thermo Fisher Scientific   Ohio, United States   Remote",
+    "role_family": "customer_success",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Shared Microsoft Outlook team mailbox (multi-agent triage of a single inbox — explicitly called out as a complexity to be handled)",
+      "A project-management / work-tracking tool (unnamed in the JD) used to own, track and drive internal milestones",
+      "Power BI for reporting and dashboarding (listed as 'a plus' but tied to a core data-analysis responsibility)",
+      "CAS and other customer/operational data sets analyzed to find improvement opportunities (CAS most plausibly support 'cases' or Thermo Fisher's scientific catalog data — ambiguous in the JD)",
+      "Telephone and email as primary customer-contact channels",
+      "Voice-of-Customer (VOC) feedback capture and summary reporting to the organization",
+      "Cross-functional coordination surface: Operations, Sales, Service, Logistics, Distribution, Customer Service — plus a global Customer Concierge team for knowledge transfer",
+      "Order-to-installation/training workflow artifacts (lab-prep readiness, new-product-launch and stock-prioritization coordination)",
+      "English written/verbal communication as the core deliverable; additional languages an advantage"
+    ],
+    "coreResponsibilities": [
+      "Serve as the customer's primary post-order point of contact through installation, training and VOC feedback ('concierge' ownership)",
+      "Prioritize customer requirements and drive an exceptional, white-glove customer experience",
+      "Build internal relationships and drive collaboration + accountability across cross-functional teams (without direct authority over them)",
+      "Operate a shared team inbox — triage, respond, and act as liaison to other business channels",
+      "Use a project-management tool to own, track and drive internal processes and milestones",
+      "Coordinate Operations/Sales/Service/Logistics/Distribution/Customer Service to ensure smooth installations and trainings",
+      "Proactively find and remove process bottlenecks; resolve escalated issues via methodical root-cause analysis",
+      "Summarize and report concierge activities, projects and VOC back to the organization",
+      "Transfer knowledge/experience to the global concierge team to build collective strength",
+      "Analyze data sets (incl. CAS) to identify and drive improvement areas",
+      "Coordinate new-product-launch and stock prioritization for early customer site readiness"
+    ],
+    "statedVsRealGaps": [
+      "Leveling mismatch: titled 'Specialist II' (medior) yet the stated minimum is only a high-school diploma + some customer-service experience — the floor reads entry-level while the responsibilities read mid-level orchestration.",
+      "Data analysis is double-coded: Power BI and CAS analysis are framed as 'a plus,' but 'analyze various data sets including CAS to identify/drive areas of improvement' is a listed core duty — so it is operationally expected, not optional. Hiring on the 'plus' framing risks under-qualified candidates.",
+      "'Effective project management skills' is required but no specific tool, methodology, or system is named, so the real PM stack is undefined and unverifiable from the JD.",
+      "The role demands driving 'accountability' across teams it does not own — responsibility without authority — which the JD asserts as a skill but never resources with a mandate or escalation path.",
+      "'CAS' is left unexpanded; at Thermo Fisher it could mean support Cases, Chemical Abstracts Service registry data, or an internal system — a material ambiguity about what data the analyst actually touches.",
+      "Heavy soft-skill emphasis (empathy, tact, diplomacy, self-awareness) with thin operational specifics; the JD is a real, detailed statement of behaviors but light on the concrete systems and metrics the work is measured against.",
+      "'Other related duties as required/assigned' plus 'manage multiple priorities under pressure' signals real scope elasticity beyond the written responsibilities."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Cross-functional coordination without authority — success depends on influence across 6+ functions and a global team; a weak hire stalls at the first interdepartmental bottleneck.",
+      "Shared-mailbox operating model: high-volume, multi-owner triage is cognitively taxing and error-prone (dropped/duplicated threads, unclear ownership) — explicitly flagged as a complexity.",
+      "Optional-vs-required data skills: if Power BI/CAS analysis is treated as 'nice to have' in screening, the improvement-and-reporting half of the job goes unstaffed.",
+      "Leveling/comp ambiguity: a HS-diploma floor for a Specialist II concierge role risks either over-paying for the stated minimum or under-leveling the real coordination load; expectations and pay band may not align.",
+      "Remote, North-America-wide: time-zone spread and async handoffs across Logistics/Distribution/Service amplify the coordination risk and depend heavily on written-communication discipline.",
+      "Undefined PM tooling and metrics: with no named system or KPIs, onboarding and performance measurement are improvised, and 'drive improvement' has no baseline.",
+      "Scope creep via 'other duties' and 'multiple priorities under pressure' — burnout / mission-drift risk if prioritization isn't actively managed by the team lead."
+    ],
+    "reflection": "This is a non-software customer-success ('concierge') role, so the real body of work is the role's own systems and materials, not a codebase — and on those terms the need is coherent but unevenly specified. The genuine center of gravity is organizational, not technical: one person becomes the post-order single point of contact and orchestrates Operations, Sales, Service, Logistics, Distribution and Customer Service to land installations and trainings, while running a shared Outlook mailbox and a project-management tool as the day-to-day instruments. That is medium complexity — modest tooling, but real difficulty in driving accountability across teams the specialist doesn't manage, under remote/async conditions and elastic scope. The sharpest divergence between what's stated and what the work actually requires is the data-and-reporting strand: Power BI and CAS analysis are softened to 'a plus,' yet analyzing data to drive improvement and reporting VOC back to the org are written as core duties — so the JD undersells a capability it then depends on. A secondary divergence is leveling: a high-school-diploma minimum sits under a 'Specialist II' title and a job that is really cross-functional program coordination, so screening to the stated floor will under-fit the role. Net: hire for influence-without-authority, shared-inbox discipline, written communication and at least basic data fluency (Power BI), and resolve the 'CAS' definition, the PM-tool/metrics gap, and the comp/leveling band before posting — those are the unstated requirements the evidence actually points to.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Customer Experience Specialist II",
+    "seniority": "medior",
+    "roleFamily": "customer_success",
+    "mustHaves": [
+      "Proven customer-facing experience in customer service, technical support or a comparable commercial role, with a demonstrated record of owning the post-order relationship through to a successful outcome",
+      "Effective project-management skills: able to own, track and drive internal processes and milestones to completion using a work-tracking tool, without being handed a fixed playbook",
+      "Operate a shared team inbox (e.g. a shared Microsoft Outlook mailbox) at speed and without dropping threads — triage, prioritize, respond, and route as a liaison to other business channels",
+      "Drive collaboration and accountability across cross-functional teams (Operations, Sales, Service, Logistics, Distribution, Customer Service) with influence rather than direct authority",
+      "Methodical escalation handling: work an escalated issue to root cause and resolution via a structured, repeatable approach rather than ad hoc firefighting",
+      "Capture Voice-of-Customer feedback and summarize/report concierge activities, projects and customer feedback back to the wider organization clearly and concisely",
+      "Excellent English oral and written communication, plus the judgment, tact and diplomacy to handle confidential or proprietary information with internal and external customers",
+      "Self-motivated and organized under pressure: manage multiple competing priorities to deadline, working both independently and as part of a team"
+    ],
+    "niceToHaves": [
+      "Hands-on Power BI for building reports and dashboards",
+      "Comfort analyzing operational/customer data sets (including case/CAS data) to identify and drive improvement areas",
+      "Additional languages beyond English",
+      "Prior direct commercial or customer-facing experience in a technical or scientific product environment",
+      "Experience coordinating new-product launches, stock prioritization or installation/training logistics for customer site readiness"
+    ],
+    "responsibilities": [
+      "Serve as the customer's primary point of contact after they place an order — owning the concierge relationship through installation, training and ongoing feedback",
+      "Prioritize customer requirements and consistently aim to exceed expectations, delivering a white-glove customer experience",
+      "Build relationships across internal teams and drive collaboration and accountability to ensure customer success",
+      "Engage the shared team inbox and respond to customer inquiries, acting as a liaison and partner to other business channels",
+      "Use a project-management tool to own, track and drive internal team processes and milestones",
+      "Coordinate Operations, Sales, Service, Logistics, Distribution and Customer Service to ensure smooth installations and trainings",
+      "Proactively identify and resolve bottlenecks impacting customer experience and efficiency, and resolve escalated issues by determining root cause",
+      "Summarize and report out concierge activities, projects and Voice-of-Customer feedback to the rest of the organization",
+      "Transfer knowledge and experience to the global Customer Concierge team to build collective team strength",
+      "Analyze various data sets (including CAS) to identify and drive areas of improvement",
+      "Coordinate new-product launch and stock prioritization where required for early customer site readiness"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Customer Concierge: Rescue the Cedar Valley install, run the shared inbox, and find the next improvement",
+    "brief": "You've just taken over the Customer Concierge desk for the North America benchtop-analyzer accounts. Three customers are mid-journey between order and a completed installation + training, and you own the relationship and the internal coordination end to end — you have influence, not authority, over Operations, Sales, Service, Logistics, Distribution and Customer Service. You work out of a shared Outlook team mailbox alongside two other agents, so ownership of any given thread is often unclear. The starting materials below are a synthetic-but-representative snapshot of a real concierge desk (this role's actual work fits the provided context, so nothing is forced); names, accounts and numbers are invented. Your job for the next ~90 minutes is to act like the concierge on day one of this week: bring order to the inbox, unblock the account that's escalating, and turn the operational data into one concrete improvement — exactly the order→install→VOC→improve loop the role runs. Work in the role's own terms (emails, trackers, dashboards, customer replies), not as a coding task. Throughout, keep a short DECISIONS log — this is normal concierge practice here, not a test: any time the materials were silent or contradictory and you had to make a call, jot one line: what you chose, the option you rejected, and the one question you'd put to the team. Depth beats coverage — a thoughtful partial answer that names its assumptions is worth more than a complete one that guesses silently.",
+    "repoSeed": "A shared-desk handover folder containing: (1) concierge_inbox_export.csv — a flat export of ~14 messages from the shared Outlook team mailbox over the last 6 business days, with columns thread_id, from, to/cc, timestamp, subject, body, and a free-text 'last_touched_by' that is blank on several rows. It includes: an escalating chain from Cedar Valley Diagnostics' lab manager about a slipped install date (two of your messages went unanswered); two near-duplicate threads where Agent A and Agent B both replied to Harbor Labs about the same shipping question with conflicting answers; a Logistics note saying the Cedar Valley analyzer is held at a distribution hub pending a customs document; a Sales rep asking you to 'just confirm a new date' for Cedar Valley; and a Meridian BioSciences training-scheduling thread that has been open 9 days with no owner. (2) install_tracker.xlsx — a milestone tracker for the three accounts (Cedar Valley, Harbor Labs, Meridian) with columns account, milestone, owner_function, planned_date, status, blocked_by; several dates are past, one Cedar Valley milestone is marked 'Complete' while its blocked_by dependency (site power readiness) is still 'Open'. (3) CAS_extract.csv — an operational extract labeled only 'CAS'; ~120 rows with columns id, account, opened, closed, category, region, owner_function. The header doc doesn't say whether 'CAS' means support/installation cases or the scientific catalog (CAS) reference data — the rows look like cases but the column naming is inconsistent, two rows are exact duplicates, and a handful have closed earlier than opened. (4) voc_feedback_log.csv — 20 short Voice-of-Customer comments tagged by sentiment and theme. (5) concierge_handoff_SOP_v3.pdf — a ~2-year-old standard-operating-procedure for escalations that instructs you to route blocked installs through the 'ServiceDesk Classic' queue and to 'cc J. Okafor, Global Concierge Lead' — a system and a person that current accounts no longer use.",
+    "tasks": [
+      "Inbox triage: from concierge_inbox_export.csv, produce a short ownership-and-next-action table for every open thread — who owns it now, the next action, and the SLA you'd hold yourself to. Explicitly call out the dropped Cedar Valley chain, the two conflicting Harbor Labs replies (and how you'd reconcile them into one customer-facing answer), and the orphaned Meridian thread. Then draft the single customer-facing email you'd send to the Cedar Valley lab manager today.",
+      "Unblock Cedar Valley: using the tracker and the inbox, write a root-cause read of why the install slipped and a cross-functional unblock plan — name which function owns each step (Logistics, Distribution, Operations, Service, Sales, Customer Service), the sequence, and exactly how you'd escalate without authority. State what you'd do if Logistics can't confirm a date before your customer reply goes out.",
+      "Find the next improvement: analyze CAS_extract.csv to surface the one operational improvement you'd drive, with a defensible baseline metric, the current number, and the target. Describe the one Power BI view you'd build to make this visible to Operations and Service (what's on each axis, what the filter is). State plainly any data-quality issues you hit and how they affected your number.",
+      "VOC + DECISIONS: write a 6-8 sentence Voice-of-Customer roll-up for the wider organization synthesizing voc_feedback_log.csv into themes and one recommended action. Attach your DECISIONS log covering every open call you made across tasks 1-3 (what you chose, what you rejected, what you'd ask the team)."
+    ],
+    "coverProbes": [
+      {
+        "id": "cas-meaning",
+        "kind": "ambiguity",
+        "where": "Task 3 — CAS_extract.csv is labeled only 'CAS' with no data dictionary; rows resemble cases but column naming is inconsistent, mirroring the JD's own CAS ambiguity.",
+        "reveals": "A strong candidate names the ambiguity, states which interpretation they're analyzing and why it's the more decision-useful one, and flags they'd confirm the source-of-truth before publishing. A naive one assumes a meaning silently and reports a metric that may be measuring the wrong thing entirely.",
+        "decisionSpace": [
+          "Treat CAS as support/installation 'cases' and analyze cycle time / SLA breaches — most actionable for the concierge improvement loop, but wrong if it's really catalog data.",
+          "Treat CAS as scientific-catalog/stock reference data and analyze product-readiness for early site setup — defensible given the role's stock-prioritization duty, but the row shape fits cases poorly.",
+          "Proceed under a stated assumption (cases) while explicitly listing the one question that would confirm it — keeps momentum without pretending certainty."
+        ]
+      },
+      {
+        "id": "stale-sop-escalation",
+        "kind": "legacy_trap",
+        "where": "Task 2 — concierge_handoff_SOP_v3.pdf instructs routing blocked installs through 'ServiceDesk Classic' and cc'ing a Global Concierge Lead who has left; the live inbox shows escalations actually flowing through Logistics/Service directly.",
+        "reveals": "A candidate who reads the materials before generating notices the documented escalation path is dead and routes via the current cross-functional owners while flagging the SOP for update. A naive one-shot answer follows the SOP verbatim and sends the escalation into a retired queue and a departed person's inbox.",
+        "decisionSpace": [
+          "Follow SOP_v3 literally — defensible as 'documented process' but routes to a dead queue/person and stalls the install.",
+          "Route through the current owners visible in the inbox and note the SOP is stale and needs revision — pragmatic and correct, but technically deviates from documented process.",
+          "Pause and ask which escalation path is current before acting — safest but burns time the escalating customer doesn't have."
+        ]
+      },
+      {
+        "id": "dirty-cas-metric",
+        "kind": "verification_trap",
+        "where": "Task 3 — CAS_extract.csv contains two exact-duplicate rows and several records where closed precedes opened; a top-line average cycle time computed naively passes a shallow 'looks reasonable' check but is corrupted.",
+        "reveals": "A careful candidate validates the data — dedupes and reconciles the impossible date pairs — before quoting any figure, and may flag data quality itself as the improvement. A naive one reports a confident average over dirty rows that won't survive scrutiny in the post-evaluation interview.",
+        "decisionSpace": [
+          "Report the raw headline average as-is — fast, but built on duplicates and invalid dates.",
+          "Clean first (dedupe, drop/repair closed<opened rows) and report a corrected figure with the exclusions stated — most trustworthy, costs time.",
+          "Report both raw and adjusted and nominate the data-quality gap itself as the improvement to drive — reframes the trap as the finding."
+        ]
+      },
+      {
+        "id": "cedar-valley-date-promise",
+        "kind": "underspecified",
+        "where": "Task 1 customer email / Task 2 — the brief never says whether to commit Cedar Valley to a firm new install date, while Logistics has not cleared the customs hold and Sales is pushing you to 'just confirm a date'.",
+        "reveals": "A strong candidate refuses to over-promise a date they can't control, sets expectation with a concrete follow-up commitment, and escalates internally to firm the date. A naive one invents a confident specific date to placate the customer and Sales, creating a second broken promise.",
+        "decisionSpace": [
+          "Commit a specific new install date now to reassure the customer and satisfy Sales — restores confidence but risks a second slip if customs isn't cleared.",
+          "Acknowledge, own the miss, and commit to a firm follow-up time without naming a date until Logistics confirms — honest and controllable, less immediately satisfying.",
+          "Offer an interim remedy (loaner unit, start remote training, partial site-readiness work) while the date firms up — preserves momentum and goodwill at some coordination cost."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

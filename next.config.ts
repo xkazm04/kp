@@ -8,6 +8,21 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // Standalone output — traces the exact server files + minimal node_modules into
+  // .next/standalone (a self-contained `node server.js`), so the self-host Docker
+  // image ships only what's needed instead of the whole source + full node_modules.
+  // Slims the image ~3-4x. See docs/SELF_HOSTING.md + the Dockerfile. (better-sqlite3
+  // is externalized below; its native binding is traced into the standalone bundle.)
+  output: "standalone",
+  // Instant Navigations (Next 16.3) — "instant routing". cacheComponents flips
+  // the app to dynamic-by-default with no implicit caching; any route that
+  // awaits data must then Stream (<Suspense>), Cache ('use cache'), or Block
+  // (`export const instant = false`) or it becomes a dev error. partialPrefetching
+  // makes prefetch send one reusable shell per route instead of one per link.
+  // Both are top-level (not under experimental) as of 16.3 and are slated to
+  // become defaults in a future major. See docs/INSTANT_NAVIGATIONS.md.
+  cacheComponents: true,
+  partialPrefetching: true,
   // This project sits in a multi-app workspace with a parent-level lockfile; pin
   // the Turbopack root to this directory so module resolution (and the
   // DevInspector loader's asset filesystem) stay scoped to the app rather than

@@ -177,13 +177,6 @@ _PARENTS: dict[str, tuple[str, ...]] = {
     for term in _TERMS
 }
 
-_CHILDREN: dict[str, list[str]] = {tid: [] for tid in _TERM_BY_ID}
-for _tid, _parent_ids in _PARENTS.items():
-    for _parent in _parent_ids:
-        _CHILDREN[_parent].append(_tid)
-_CHILD_EDGES: dict[str, tuple[str, ...]] = {tid: tuple(kids) for tid, kids in _CHILDREN.items()}
-
-
 def _transitive_closure(seed: str, edges: dict[str, tuple[str, ...]]) -> frozenset[str]:
     """All nodes reachable from ``seed`` via ``edges`` (excluding ``seed``). Cycle-safe."""
     seen: set[str] = set()
@@ -199,9 +192,6 @@ def _transitive_closure(seed: str, edges: dict[str, tuple[str, ...]]) -> frozens
 
 _ANCESTORS: dict[str, frozenset[str]] = {
     tid: _transitive_closure(tid, _PARENTS) for tid in _TERM_BY_ID
-}
-_DESCENDANTS: dict[str, frozenset[str]] = {
-    tid: _transitive_closure(tid, _CHILD_EDGES) for tid in _TERM_BY_ID
 }
 
 # Normalized surface form (literal + word-compact) -> canonical term id.
@@ -495,11 +485,6 @@ def resolve_term(surface: str) -> str | None:
 def ancestors(term_id: str) -> frozenset[str]:
     """Transitive broader/superset terms of ``term_id`` (swiftui -> {swift})."""
     return _ANCESTORS.get(term_id, frozenset())
-
-
-def descendants(term_id: str) -> frozenset[str]:
-    """Transitive specializations of ``term_id`` (swift -> {swiftui, ...})."""
-    return _DESCENDANTS.get(term_id, frozenset())
 
 
 def is_subset_of(child_term: str, parent_term: str) -> bool:

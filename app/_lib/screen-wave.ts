@@ -5,6 +5,8 @@ import { DecisionConfigError, screenBottomCount, tieSafeBottomCount, validateScr
 import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
 import { screenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
+import { operatorApprover } from "./auth/operator-approver";
+import { isScored } from "./match-score";
 
 export { ScreenWaveApprovalError } from "./screen-wave-approval";
 
@@ -12,14 +14,21 @@ export { ScreenWaveApprovalError } from "./screen-wave-approval";
 // matched cohort, auto-reject the bottom `rejectBottomPercent` that are ALSO
 // below `maxMatchToReject` match — NEVER an early-career (or otherwise
 // unclassifiable) candidate: the fairness gate from automation.py is preserved
-// and now FAILS CLOSED via isFairnessProtected. Every auto-decision is audited
+// and now FAILS CLOSED via isFairnessProtected. NEVER an UNSCORED candidate
+// either (SD-L1-002 / REC-03): an entry with no match score is excluded from the
+// ranked cohort entirely — kept with an explicit "unscored" outcome — instead of
+// being coerced to a fabricated "match 0" that the threshold would reject and the
+// sealed record would assert as a measurement. Every auto-decision is audited
 // with a rationale and the candidate gets a queued rejection comm.
 
 export type ScreenDecision = {
   entryId: string;
   label: string;
   archetype: string | null;
-  matchScore: number;
+  // null = the candidate has no match score (never measured). Such candidates are
+  // always `action: "keep"` with reasonCode "unscored" — a fabricated 0 must never
+  // reach a threshold, a preview row, or a sealed record.
+  matchScore: number | null;
   action: "reject" | "keep";
   // The audit-trail rationale — byte-identical English, persisted on a committed
   // run (the recorded audit event) and pinned by the unit tests. UNCHANGED.
@@ -47,7 +56,15 @@ export type ScreenReasonCode =
   | "aboveCutoff"
   | "atThreshold"
   | "reject"
-  | "staleSkipped";
+  | "staleSkipped"
+  | "unscored";
+
+// The keep rationale for a candidate with NO match score (audit-string register,
+// mirrored by `decisions.wave.reasons.unscored` for localized rendering). Exported
+// so the behavioral tests pin it — this exact honesty replaced the fabricated
+// "match 0" that used to be sealed into the decision chain (SD-L1-002).
+export const UNSCORED_KEEP_RATIONALE =
+  "unscored — no match score yet; excluded from auto-rejection (needs scoring)";
 
 // The structured mirror of keepReason: same branch order, returns the code +
 // interpolation params instead of the English string. Kept beside keepReason so
@@ -137,7 +154,19 @@ export async function runScreenWave(
   if (!checked.ok) throw new DecisionConfigError(checked.error);
   const cfg: ScreeningRule = { ...getDecisionConfig<ScreeningRule>("screening"), ...checked.override };
   const cohort = listPipeline().filter((e) => e.jobId === jobId && e.status === "active" && e.stage === "Screened");
-  const sorted = [...cohort].sort((a, b) => (a.matchScore ?? 0) - (b.matchScore ?? 0)); // worst first
+  // NULL-SCORE POLICY — fail closed (SD-L1-002 / REC-03): a candidate with NO
+  // match score has not been measured. The old `?? 0` coercion on matchScore made
+  // them a genuine-looking 0 that ranked worst, passed `0 < maxMatchToReject`,
+  // and sealed "match 0" into the immutable decision record. Unscored entries are
+  // therefore excluded from the ranked cohort entirely — never sorted, never
+  // counted into the bottom-%, never threshold-eligible. Each is returned as an
+  // explicit "unscored" KEEP (appended after the loop below) so the preview names
+  // them for scoring instead of hiding them among the zeros.
+  const unscored = cohort.filter((e) => !isScored(e));
+  const sorted = cohort.filter(isScored).sort((a, b) => a.matchScore - b.matchScore); // worst first
+  // The bottom-% math runs over the SCORED cohort only (`n` = scored count): a
+  // percentage of candidates who can be ranked, not of a pool padded with
+  // unmeasured people. When everyone is scored this is byte-identical to before.
   const n = sorted.length;
   // Small-cohort policy lives in decision-config-schema.ts: floor, but never
   // below one candidate in a non-empty pool — so a small role is no longer
@@ -147,10 +176,10 @@ export async function runScreenWave(
   // cutoff, and the stable sort above would decide that split by pipeline arrival
   // order — equal candidates getting opposite automated outcomes (idea-50062f77).
   // tieSafeBottomCount shrinks the cutoff so no tied score is split; the straddling
-  // tie is KEPT. Uses the same `?? 0` coercion as the sort, so this is independent
-  // of the separate null-score policy.
+  // tie is KEPT. Operates on the scored cohort's genuine scores (the unscored were
+  // excluded above, so no fabricated 0 can form or split a tie).
   const effectiveBottomCount = tieSafeBottomCount(
-    sorted.map((e) => e.matchScore ?? 0),
+    sorted.map((e) => e.matchScore),
     bottomCount
   );
 
@@ -164,7 +193,9 @@ export async function runScreenWave(
   for (let rank = 0; rank < sorted.length; rank++) {
     const e = sorted[rank];
     const inBottom = rank < effectiveBottomCount;
-    const belowThreshold = (e.matchScore ?? 0) < cfg.maxMatchToReject;
+    // `sorted` holds only scored entries, so this threshold always compares a real
+    // measurement — an unscored candidate can never be auto-reject-eligible.
+    const belowThreshold = e.matchScore < cfg.maxMatchToReject;
     if (cfg.autoRejectEnabled && inBottom && belowThreshold && !isFairnessProtected(e.archetype)) {
       wouldReject.add(e.id);
     }
@@ -182,14 +213,16 @@ export async function runScreenWave(
       );
     }
   }
-  const approvedBy = opts?.approval?.approvedBy?.trim() || "operator";
+  const approvedBy = opts?.approval?.approvedBy?.trim() || operatorApprover();
 
   const decisions: ScreenDecision[] = [];
   let rejected = 0;
   let commsFailures = 0;
   for (let rank = 0; rank < sorted.length; rank++) {
     const e = sorted[rank];
-    const score = e.matchScore ?? 0;
+    // Genuine by construction (the unscored never enter `sorted`): the rationale
+    // and the sealed record below always carry a measurement that was taken.
+    const score = e.matchScore;
     // Fairness gate fails CLOSED: early-career AND any unknown/renamed archetype
     // are shielded from auto-rejection. An unrecognized archetype is data drift —
     // record it so the desync is visible instead of silently auto-rejecting a
@@ -295,5 +328,25 @@ export async function runScreenWave(
       decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: reason, ...structured });
     }
   }
-  return { decisions, rejected, kept: decisions.length - rejected, cohort: n, config: cfg, commsFailures, dryRun, approvalToken };
+  // Unscored candidates (null-score policy above): each gets an EXPLICIT keep
+  // outcome — visibly "unscored", eligible for scoring — never a phantom row and
+  // never a fabricated "match 0" reject. Listed after the ranked cohort; on a
+  // committed run nothing is written for them (no status flip, no audit event,
+  // no sealed record — there is no decision to record).
+  for (const e of unscored) {
+    decisions.push({
+      entryId: e.id,
+      label: e.candidateLabel,
+      archetype: e.archetype,
+      matchScore: null,
+      action: "keep",
+      rationale: UNSCORED_KEEP_RATIONALE,
+      reasonCode: "unscored",
+      reasonParams: {},
+    });
+  }
+  // `cohort` reports the FULL stage cohort (scored + unscored) so the modal's
+  // "would reject X of N" matches the number of rows it lists; the bottom-% math
+  // above used the scored count `n`.
+  return { decisions, rejected, kept: decisions.length - rejected, cohort: cohort.length, config: cfg, commsFailures, dryRun, approvalToken };
 }

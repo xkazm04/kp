@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { revokeOpenInterviewSessions } from "@/app/_lib/db";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 // W6-4 (VOX1) — recruiter-triggered revoke: pull every open interview link for
 // an entry (wrong candidate, changed mind, link shared too widely) without

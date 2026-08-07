@@ -36,7 +36,7 @@ import sys
 from pathlib import Path
 
 from .._cli import configure_stdio
-from ..llm import resolve_provider
+from ..llm import emit_deterministic, resolve_provider
 from . import analyze as _analyze
 from . import design as _design
 from . import evaluate as _evaluate
@@ -121,6 +121,7 @@ def _emit(
     per_step: dict[str, str],
     confidences: dict[str, float] | None = None,
     fallback_reasons: dict[str, str] | None = None,
+    use_case: str | None = None,
 ) -> None:
     """Print the uniform provenance envelope every command shares.
 
@@ -146,6 +147,18 @@ def _emit(
     when no artifact carries a confidence (e.g. design-artifacts, source), keeping the base
     envelope unchanged for those commands.
     """
+    # Usage-ledger visibility for the fallback path (item 22): each step the
+    # deterministic template served (keyless --no-llm / provider-unavailable, or
+    # an LLM call that RAISED and fell back) gets one source:"deterministic"
+    # ledger line — mirroring the one line per real LLM call the monitor writes —
+    # so keyless traffic stops being invisible to the Models usage panel.
+    # ``use_case`` is passed only by the provider-backed commands; the
+    # pure-deterministic ones (source, observed-*) never had an LLM to fall back
+    # from, so they stay unmetered. No-op without KP_LLM_USAGE_LOG.
+    if use_case:
+        for step_source in per_step.values():
+            if step_source == "deterministic":
+                emit_deterministic(use_case)
     envelope: dict[str, object] = {
         "result": result,
         "source": combine_source(*per_step.values()),
@@ -196,6 +209,10 @@ def main(argv: list[str] | None = None) -> int:
     # seed README/DECISIONS and spoken narration render in the candidate's
     # language. normalize_lang guards a fat-fingered value to the default.
     parser.add_argument("--lang", type=str, default="en")
+    # design-artifacts only: skip the (LLM) case design and emit just the role.
+    # The JD builder uses this when the recruiter didn't tick "Case analysis" — so
+    # a plain description build no longer pays for a case-design call it discards.
+    parser.add_argument("--role-only", action="store_true")
     parser.add_argument("--no-llm", action="store_true")
     args = parser.parse_args(argv)
     from ..i18n import normalize_lang
@@ -290,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             scenario, src = _scenario.scenario_from_case(case, role, lang=lang, provider=provider)
-            _emit({"scenario": scenario}, {"scenario": src}, fallback_reasons=_fallback_reasons(scenario=scenario))
+            _emit({"scenario": scenario}, {"scenario": src}, fallback_reasons=_fallback_reasons(scenario=scenario), use_case=use_case)
             return 0
 
         # Case -> materialized seed (real starter files; one per case, shared by
@@ -304,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             seed, src = _seed.materialize_seed(case, role, lang=lang, provider=provider)
-            _emit({"seed": seed}, {"seed": src}, fallback_reasons=_fallback_reasons(seed=seed))
+            _emit({"seed": seed}, {"seed": src}, fallback_reasons=_fallback_reasons(seed=seed), use_case=use_case)
             return 0
 
         if args.command in ("reflect-commits", "evaluate-submission"):
@@ -334,6 +351,7 @@ def main(argv: list[str] | None = None) -> int:
                     {"reflect": rsrc, "tooling": tsrc},
                     _confidences(reflect=reflection, tooling=tooling),
                     _fallback_reasons(reflect=reflection, tooling=tooling),
+                    use_case=use_case,
                 )
                 return 0
             # evaluate-submission continues the chain — case/role are required (guarded above).
@@ -353,6 +371,7 @@ def main(argv: list[str] | None = None) -> int:
                 # deterministic-fallback evaluation no longer reads as authoritative.
                 _confidences(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer),
                 _fallback_reasons(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer, followups=followups),
+                use_case=use_case,
             )
             return 0
 
@@ -368,8 +387,8 @@ def main(argv: list[str] | None = None) -> int:
                 snapshot = RepoSnapshot.model_validate(json.loads(args.snapshot_json.read_text(encoding="utf-8")))
             else:
                 snapshot = None
-            result, source = _analyze.analyze_need(need, snapshot, provider=provider)
-            _emit(result, {"analyze": source}, _confidences(analyze=result), _fallback_reasons(analyze=result))
+            result, source = _analyze.analyze_need(need, snapshot, provider=provider, lang=lang)
+            _emit(result, {"analyze": source}, _confidences(analyze=result), _fallback_reasons(analyze=result), use_case=use_case)
             return 0
 
         if args.command == "design-artifacts":
@@ -377,11 +396,22 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("design-artifacts requires --analysis-json")
             analysis = NeedAnalysis.model_validate(json.loads(args.analysis_json.read_text(encoding="utf-8")))
             role, role_src = _design.design_role(need, analysis, provider=provider, lang=lang)
+            if args.role_only:
+                # Role only — the case-design LLM call is skipped entirely (no
+                # wasted spend). The "case" key is simply absent from the payload.
+                _emit(
+                    {"role": role},
+                    {"role": role_src},
+                    fallback_reasons=_fallback_reasons(role=role),
+                    use_case=use_case,
+                )
+                return 0
             case, case_src = _design.design_case(need, analysis, role, provider=provider, feedback=args.feedback, lang=lang)
             _emit(
                 {"role": role, "case": case},
                 {"role": role_src, "case": case_src},
                 fallback_reasons=_fallback_reasons(role=role, case=case),
+                use_case=use_case,
             )
             return 0
 

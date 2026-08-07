@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordMeterUsage } from "@/app/_lib/billing";
+import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
 import {
   attachInterviewScorecard,
   completeInterviewSession,
+  getEntryWorkspace,
   getInterviewSessionByToken,
+  insertLlmUsage,
   type VoiceTurn,
 } from "@/app/_lib/db";
+import { voiceUsageRow } from "@/app/_lib/voice/minute-prices";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
@@ -13,7 +17,6 @@ import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { CONSENT_NOT_RECORDED_ERROR, isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
 
-export const runtime = "nodejs";
 
 // POST → end of call: persist the transcript (transcript-only, no audio). When
 // the session is linked to a pipeline entry, also synthesize the scorecard
@@ -144,7 +147,23 @@ export async function POST(request: NextRequest) {
       const bookedMin = session.durationMin ?? 8;
       const startedMs = session.startedAt ? Date.parse(session.startedAt) : NaN;
       const elapsedMin = Number.isFinite(startedMs) ? Math.ceil((Date.now() - startedMs) / 60_000) : bookedMin;
-      recordMeterUsage("interview_minutes", Math.min(Math.max(elapsedMin, 1), bookedMin * 2));
+      // The 2× ceiling is single-sourced (maxBillableInterviewMin) so /create can
+      // RESERVE exactly this amount — gate and debit read one function, never two
+      // different numbers (the reserve-vs-debit bug this seam closes).
+      const billedMin = Math.min(Math.max(elapsedMin, 1), maxBillableInterviewMin(bookedMin));
+      recordMeterUsage("interview_minutes", billedMin);
+      // Cost attribution (tiger F1): the meter above is a quantity-only quota
+      // counter, but OpenAI Realtime vs ElevenLabs per-minute costs differ
+      // materially — so the SAME billed minutes also land in the llm_usage
+      // ledger with provider/model and a duration-derived cost estimate
+      // (voice/minute-prices.ts), where the Models usage panel aggregates them
+      // like every other LLM call. Best-effort: ledger telemetry never blocks
+      // a completion whose transcript is already persisted.
+      try {
+        insertLlmUsage(voiceUsageRow(session, billedMin));
+      } catch {
+        /* ledger write is telemetry — completion already succeeded */
+      }
     }
 
     // Synthesize the scorecard for candidate-mode sessions (best-effort: the
@@ -157,8 +176,11 @@ export async function POST(request: NextRequest) {
     let scorecard: Record<string, unknown> | null = null;
     let updated = persisted;
     if (session.entryId && status === "completed" && transcript.length > 0) {
+      // Token-driven flow (no session workspace): derive the entry's team so the scorecard
+      // + its Interview→Offer approval scope to the right tenant.
+      const ws = getEntryWorkspace(session.entryId);
       try {
-        scorecard = await runInterviewScorecard(session.entryId, transcript);
+        scorecard = await runInterviewScorecard(session.entryId, transcript, ws);
       } catch {
         /* transcript is already persisted — scoring is best-effort */
       }

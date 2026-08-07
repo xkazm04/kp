@@ -1,0 +1,193 @@
+{
+  "job": {
+    "id": "cal-013",
+    "title": "Administrative Assistant",
+    "company": "Physician Affiliate Group of NY",
+    "role_family": "administration",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Microsoft Word (correspondence, memos, secretarial documents)",
+      "Microsoft Excel (timekeeping sheets, logs, data/informative reports)",
+      "Microsoft PowerPoint (presentations/briefings for the administrator)",
+      "Microsoft Access (database maintenance — listed as a plus)",
+      "Payroll / timekeeping system (pre-generating timekeeping records, fielding payroll questions — platform unnamed, likely the NYC H+H / PAGNY timekeeping system such as Kronos)",
+      "Multi-line / high-volume telephone system (reception, triage and dissemination of medical-service information)",
+      "Logs and operational databases for medical-service tracking",
+      "Email and general office/clerical equipment",
+      "Implicit handling of patient/inmate medical information (PHI) within a correctional health-services workflow"
+    ],
+    "coreResponsibilities": [
+      "Provide secretarial and administrative support to the on-island (Rikers) Administrator and assist in the overall daily operation of the site",
+      "Field payroll-related questions and pre-generate timekeeping records for staff",
+      "Maintain data and produce informative reports across logs and databases",
+      "Handle a high call volume — receive, route and disseminate important information related to medical services",
+      "Collect and disseminate medical-related information to inmate-patients on an as-needed basis",
+      "Juggle multiple concurrent responsibilities and meet deadlines in a Monday–Friday full-time role",
+      "Operate within the security and procedural constraints of a correctional setting (Rikers Island / EMTC)",
+      "Absorb 'other duties as assigned' in support of correctional health-services operations"
+    ],
+    "statedVsRealGaps": [
+      "The posting reads as a generic 'administrative assistant,' but the binding difficulty is the operating environment — a jail. Security clearance, working safely among incarcerated patients, and the psychological load far exceed anything implied by 'MS Word/Excel proficiency.'",
+      "Stated tooling is entry-level Office (Word/Excel/PowerPoint; Access 'a plus'), yet real duties require operating an actual payroll/timekeeping platform and maintaining databases. That platform is never named, so a candidate could be screened on Word when the load-bearing skill is timekeeping-system fluency.",
+      "'Medical secretary experience preferred' plus disseminating medical information to patients implies PHI/HIPAA handling and clinical terminology, but the JD lists no HIPAA, medical-records, or compliance competency.",
+      "Titled/targeted as medior, yet the credential floor is HS diploma/GED + 3 years — effectively junior-to-medior clerical. The 'responsible for assisting in the overall operation of Rikers Island' language overstates scope versus the day-to-day reality of secretarial support.",
+      "The JD is visibly stitched together and degraded (numbers and punctuation stripped — e.g. '24-hour on-call' rendered as 'hour oncall'; computer/Word skills restated three times). It gives strong signal on responsibilities but almost none on call volume, reporting cadence, or which systems are actually used."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Correctional-setting fit: not every competent administrator can pass a security clearance or function calmly inside a jail — elevated stress, safety exposure, and attrition risk",
+      "PHI/HIPAA exposure when collecting and disseminating medical information to inmate-patients, with no stated compliance training or controls in the JD",
+      "Payroll/timekeeping data integrity — 'pre-generating' records and answering payroll questions means errors directly affect staff pay",
+      "Scope ambiguity — 'assists in the overall operation' plus 'other duties as assigned' invites scope creep and unclear boundaries with the Administrator's responsibilities",
+      "Single-point bottleneck — one person absorbing high call volume and information dissemination creates coverage and continuity risk",
+      "Tooling mismatch — the unnamed payroll/timekeeping (and de facto medical-records) systems mean a hire strong on Office may still lack the systems that actually run the job"
+    ],
+    "reflection": "Against the actual body of work, this is a correctional-health administrative role wearing a generic administrative-assistant label. The role's real 'stack' is not code but Microsoft Office plus an unnamed payroll/timekeeping system, operational logs/databases, a high-volume phone line, and the handling of patient medical information — all executed inside Rikers Island under a site administrator. The clerical skills the JD emphasizes (Word, Excel, PowerPoint, organization, communication) are genuinely necessary but are the easy part; the JD under-weights what makes the job hard and distinctive: the secure correctional environment, direct interaction with incarcerated patients, PHI handling, and payroll accuracy. The credential bar (HS/GED + 3 years, medical-secretary experience preferred) and the degraded, repetitive posting text point to a medior-at-most clerical hire whose success depends far more on environmental temperament, reliability with sensitive data, and fluency in the (unstated) timekeeping/medical systems than on the Office proficiencies the JD foregrounds. Judged in its own terms the work is medium complexity — routine office tasks made consequential by a high-stakes, high-constraint setting.",
+    "confidence": 0.6,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Administrative Assistant (Correctional Health Services — Rikers Island)",
+    "seniority": "medior",
+    "roleFamily": "administration",
+    "mustHaves": [
+      "3+ years of experience as an administrative assistant or secretary in a high-volume office",
+      "High school diploma or GED",
+      "Working proficiency in Microsoft Word (correspondence, memos, secretarial documents)",
+      "Working proficiency in Microsoft Excel (timekeeping sheets, logs, data/informative reports)",
+      "Ability to operate a payroll/timekeeping workflow — pre-generate timekeeping records and field staff payroll questions accurately",
+      "Ability to maintain data and produce informative reports across logs and operational databases",
+      "Ability to handle a high call volume — receive, triage, and disseminate information related to medical services",
+      "Excellent oral and written communication skills",
+      "Ability to manage multiple concurrent responsibilities and consistently meet deadlines",
+      "Discretion and reliability handling sensitive patient/medical (PHI) information appropriately",
+      "Willingness and ability to work within a correctional setting (Rikers Island / EMTC) and its security procedures",
+      "Ability to pass a background check / security clearance and drug screening, and to provide proof of COVID-19 vaccination prior to hire"
+    ],
+    "niceToHaves": [
+      "Prior medical secretary experience",
+      "Familiarity with clinical/medical terminology and medical-records handling",
+      "HIPAA / PHI-handling awareness in a healthcare environment",
+      "Microsoft PowerPoint (briefings/presentations for the administrator)",
+      "Microsoft Access for database maintenance",
+      "Familiarity with a payroll/timekeeping platform (e.g., Kronos / NYC H+H / PAGNY timekeeping systems)",
+      "Prior experience in a healthcare, public-health, or correctional-health setting"
+    ],
+    "responsibilities": [
+      "Provide secretarial and administrative support to the on-island (Rikers) Administrator and assist in the overall daily operation of the site",
+      "Field payroll-related questions from staff and pre-generate timekeeping records",
+      "Maintain data and produce informative reports across logs and databases",
+      "Handle a high call volume — receive, route, and disseminate important information related to medical services",
+      "Collect and disseminate medical-related information to inmate-patients on an as-needed basis",
+      "Juggle multiple concurrent responsibilities and meet deadlines in a Monday–Friday, full-time capacity",
+      "Operate within the security and procedural constraints of a correctional health-services environment",
+      "Take on other administrative duties as assigned in support of correctional health-services operations"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "On-Island Administrative Assistant — Pay-Period Close, Front-Desk Triage & an Administrator's Ask (Rikers Correctional Health Services)",
+    "brief": "This is a 90-minute work-sample for a medior Administrative Assistant supporting the on-island Administrator at a Rikers Island correctional health-services site. The provided context — Microsoft Office, the payroll/timekeeping system, the multi-line phone desk, and operational logs that carry inmate-patient medical information — is exactly the body of work this role acts on, so the exercise is built directly on it (no synthetic substitution needed). You are handed a realistic, slightly messy slice of a single Monday–Friday morning: a timekeeping workbook that has to be readied before records are pre-generated, the week's accumulated front-desk call/voicemail log, a short same-day request from the Administrator, and a one-page excerpt of site procedures. We are not testing typing or formula-writing — assume tools and an LLM can produce any document or formula instantly. We are testing judgment under the real constraints of this seat: payroll data integrity, PHI/HIPAA exposure, security-and-procedure adherence, and how you behave when an instruction is thinner than the decision it implies. Several inputs are deliberately under-specified or quietly conventional; we care more about how you read them and what you choose than about volume of output. Keep a running DECISIONS log as normal practice. Work the materials in administrative terms — these are spreadsheets, a call log, a memo, and an email, not a 'codebase'.",
+    "repoSeed": "A small handover folder as it would land on the desk: (1) `Timekeeping_2026-06-08_to_06-21.xlsx` with tabs — `Punches` (raw clock in/out for ~16 staff, including a few missing-out punches and several overnight shifts that cross midnight), `Summary` (auto-totaled hours per person; one person's total reconciles to a tidy number but conceals a duplicated shift and an un-deducted 30-min meal break, and another shows hours on a day they appear on leave), and `Approved_Leave` (PTO/leave already granted this period); (2) `Call_Log_Week24.xlsx` — ~14 incoming calls/voicemails to the front desk (payroll questions from staff, a vendor, a supervisor needing a record, a duplicate complaint, and one voicemail from a caller stating they are an inmate-patient's relative/attorney asking for the patient's medical information, with no identity check or authorization noted); (3) `Admin_Request.docx` — a two-line email from the Administrator: 'Can you put together a quick coverage report off this period's timekeeping before EOD? Thanks.'; (4) `Site_Admin_Procedures_excerpt.docx` — one page noting two local conventions: overnight punches that cross midnight are logged under the shift's START date, and staff on a small 'do-not-auto-generate' exception list must never have records pre-generated without the Administrator's sign-off; plus a one-line pointer that medical-information requests follow HIM/clinical release policy. The PHI-release policy itself is referenced but NOT included.",
+    "tasks": [
+      "Ready `Timekeeping_2026-06-08_to_06-21.xlsx` for pre-generation. Working across the `Punches`, `Summary`, and `Approved_Leave` tabs, identify every record that is NOT clean to pre-generate — missing/odd punches, summary totals that don't actually reconcile to the underlying punches, and hours logged against an approved-leave day — and capture each in an exceptions list (staff member, the issue, your proposed disposition, and whether it blocks pre-generation). Do not silently overwrite the `Summary` tab.",
+      "Triage `Call_Log_Week24.xlsx`. For each entry set a priority and decide whether you handle it, route it (and to whom), or escalate to the Administrator; flag any entry that touches inmate-patient medical information for special handling. Deliver a one-screen triage table the next person on the desk could act from without you present.",
+      "Respond to the Administrator's same-day request in `Admin_Request.docx`. Produce your response at the level of finish you judge right for a two-line ask from your direct principal — the report itself, the scoping questions you'd send first, or both — and make your reasoning for that choice visible.",
+      "Keep a short DECISIONS log (`DECISIONS.md` or a tab in the workbook) as you go: for each point where the materials or instructions left a call to you, record what you chose, the option you rejected, and the single question you would put to the Administrator, HR, or timekeeping before finalizing."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1-report-scope",
+        "kind": "ambiguity",
+        "where": "Task 3 — the Administrator's 'quick coverage report by EOD' email in `Admin_Request.docx`, which names no timeframe, audience, format, or definition of 'coverage'.",
+        "reveals": "A naive responder one-shots a generic 'report' against assumed defaults and hopes it lands. A strong candidate recognizes 'coverage' is undefined (coverage vs. budget? gaps vs. headcount? which days?), and either asks 2-3 sharp scoping questions or states explicit assumptions on the page so the Administrator can correct cheaply — and can articulate why they chose to ask vs. assume given a same-day deadline from a principal.",
+        "decisionSpace": [
+          "Send 2-3 tight scoping questions before building — maximizes relevance, but risks reading as slow/unhelpful against an EOD ask",
+          "Make reasonable assumptions, build a one-pager, and surface those assumptions at the top — fast and responsive, but may answer the wrong question",
+          "Deliver a minimal skeleton plus the open questions together — hedges both risks, but splits attention and may feel half-finished"
+        ]
+      },
+      {
+        "id": "P2-timekeeping-balance",
+        "kind": "verification_trap",
+        "where": "Task 1 — the one staff member in `Summary` whose total looks tidy and 'balances' yet hides a duplicated shift and a missing meal-break deduction, plus the second person showing hours on an `Approved_Leave` day.",
+        "reveals": "A naive pass sums the `Summary` column, sees a clean number, and pre-generates — passing the shallow 'do the totals look right?' check while shipping a payroll error. A careful candidate cross-checks `Summary` back to `Punches` and against `Approved_Leave`, catches that a clean total can still be wrong, and treats it as a hold/flag rather than a silent fix — showing they verify the thing that pays people, not the thing that looks done.",
+        "decisionSpace": [
+          "Hold the entire workbook until the suspect record is resolved — safest for accuracy, but delays correct pay for everyone else",
+          "Pre-generate the clean records and isolate only the exception for the Administrator's sign-off — keeps pay flowing while quarantining the risk",
+          "Correct the figure yourself per the documented rule and annotate it — fastest, but overrides a pay value without authorization"
+        ]
+      },
+      {
+        "id": "P3-overnight-convention",
+        "kind": "legacy_trap",
+        "where": "Task 1 — overnight punches that cross midnight in `Punches`, governed by the 'log under the START date' convention and the 'do-not-auto-generate exception list' buried in `Site_Admin_Procedures_excerpt.docx`.",
+        "reveals": "A candidate who generates before reading 'fixes' the apparent midnight/date anomaly and pre-generates everyone, breaking a deliberate local convention and overriding the exception list. A candidate who reads the procedures first recognizes the surprising entries as intentional, applies the convention as written, and honors the do-not-generate list — and may still flag the convention as fragile rather than blindly perpetuating it.",
+        "decisionSpace": [
+          "Apply the documented start-date convention and exception list exactly as written — respects established local practice, even where it looks off",
+          "Apply it but flag the midnight convention and exception list as error-prone for the Administrator to revisit — respects practice while improving it",
+          "Normalize the dates to a standard scheme and document the deviation — produces cleaner data but breaks whatever downstream reporting assumes the local convention"
+        ]
+      },
+      {
+        "id": "P4-phi-release",
+        "kind": "underspecified",
+        "where": "Task 2 — the call-log voicemail from someone claiming to be an inmate-patient's relative/attorney requesting medical information, with no identity verification or authorization, and the actual HIM/clinical release policy referenced but not provided.",
+        "reveals": "A naive triager treats it as an ordinary message to 'return' or 'help with' and risks disclosing PHI in a correctional setting with no verification. A strong candidate recognizes this as a HIPAA/PHI decision, refuses to disclose without verified identity and authorization, routes it to the correct clinical/HIM authority, and explicitly notes that the release policy isn't in hand — declining to improvise a disclosure rule from nothing.",
+        "decisionSpace": [
+          "Decline any disclosure, route to the clinical/HIM release authority, and log it — safest and policy-aligned, may read as unhelpful to the caller",
+          "Verify identity and authorization against policy before any disclosure, escalating where unclear — correct in principle but depends on a policy not provided",
+          "Confirm only non-PHI logistics (e.g., that a request was received) and withhold all medical specifics pending authorization — partially helpful middle path, but still requires judgment on where the PHI line sits"
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

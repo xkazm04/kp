@@ -1,0 +1,191 @@
+{
+  "job": {
+    "id": "cal-001",
+    "title": "Advisory Strategic Resource Manager",
+    "company": "Grant Thornton LLP (US)",
+    "role_family": "consulting",
+    "seniority": "senior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "StaffTrak (resource/staffing scheduling, forecasting and reporting system) — the system of record the role lives in",
+      "Microsoft Excel — heavy emphasis; manual data management, manipulation, and ad-hoc analytics of utilization/availability/open-seat data",
+      "Microsoft PowerPoint and Word (Office suite) — metrics readouts and stakeholder communication",
+      "Capacity/resource management data: availability, utilization, open-seat/bench reports and trend analysis",
+      "Monthly forecasting process and models for staffing supply/demand, shortages and surpluses",
+      "Open-requisition / talent-acquisition intake (capacity lead, TA team, contingent-labor team) and a skills inventory of staff",
+      "Offshore 'Indus-based' CRM support team as the data-entry/reporting back office",
+      "HR performance-management process inputs (development needs, staff growth conversations)"
+    ],
+    "coreResponsibilities": [
+      "Match the right resource to the right client engagement at the right time, balancing utilization, bench minimization and staff development",
+      "Produce and interpret analysis of key metrics (availability, utilization, open-seat status) and surface issues and trends",
+      "Partner with Partners, MDs and project managers to define open needs and identify staff to fill them, and proactively resolve staffing conflicts with creative alternatives",
+      "Actively manage the bench and serve as primary point of contact for unassigned staff, including college hires and interns",
+      "Maintain deep, current knowledge of staff skills and of the skills each project requires; integrate new hires into teams",
+      "Run/feed the monthly forecasting process and keep a constant pulse on shortages and surpluses for the area",
+      "Coordinate cross-area resource sharing with other SRMs and escalate unmet demand to TA/contingent-labor sourcing",
+      "Own data management for the area, working with the Indus support team to keep StaffTrak entry, forecasting and reporting timely and accurate",
+      "Participate in HR performance-management touchpoints and hold regular career/preference conversations with staff"
+    ],
+    "statedVsRealGaps": [
+      "'Strategic' in the title vs. the measured reality: the only two stated measurements are utilization attainment and on-time open-seat closure — this is an operational, seat-filling and data-hygiene role first, strategic capacity planning second.",
+      "'Aptitude to learn and leverage new technology' is listed, but the actual stack is Excel + StaffTrak + Office. The 'analytics' is manual spreadsheet work; there is no BI/optimization platform named, so the tech ambition overstates the day-to-day toolset.",
+      "The JD frames the job around 'employee growth and project preferences,' but those objectives structurally conflict with 'minimize the bench / maximize utilization.' The role is asked to optimize two things that pull against each other, and the metrics only reward the utilization side.",
+      "Heavy accountability ('measured on utilization and seat closure,' 'drive results,' 'work independently') with little formal authority — the people who actually decide staffing are Partners/MDs, and supply depends on TA and the hiring pipeline. The SRM is graded on outcomes it influences but does not control.",
+      "Data accuracy is a core measurement, yet the data entry/reporting is delegated to the offshore Indus team — the SRM is accountable for the quality of records produced by a team it doesn't manage.",
+      "'Basic understanding of finance' is asked for, but nothing in the responsibilities is genuinely financial; the real numeracy demand is metrics/forecasting and Excel manipulation, not finance per se."
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "Responsibility/authority mismatch: held to utilization and seat-closure targets while the real decisions sit with Partners/MDs and the hiring pipeline — classic influence-without-authority strain.",
+      "Conflicting objectives baked into the role (utilization vs. bench minimization vs. staff development) with metrics that only reward utilization, pushing behavior away from the staff-growth promises made to employees.",
+      "Tooling ceiling: a bench-optimization problem run on manual Excel + StaffTrak is error-prone and doesn't scale; quality depends on disciplined hygiene rather than systems.",
+      "Data-quality dependency on the offshore Indus support team for inputs the SRM is measured on.",
+      "Reactive firefighting (fast-paced, deadline-driven, constant conflict resolution) can crowd out the forecasting/'strategic' work the title implies, and carries burnout risk.",
+      "Confidentiality exposure — the role handles staffing, compensation-adjacent and performance information across all levels and must hold trust while serving business needs."
+    ],
+    "reflection": "This is a genuine non-software, professional-services operations role, so the absence of a codebase is expected — the 'body of work' here is StaffTrak records, utilization/bench reports, Excel forecasting and a web of partner/staff relationships, and that is what I reflected against. Read honestly, the SRM is a constrained-optimization plus stakeholder-management job: continuously matching a skills inventory against project demand while keeping the bench small. Its true difficulty is medium — the cognitive load (skills matching, conflict anticipation, forecasting) and the relationship/influence demands are real, but there is no specialized technical depth and the tooling is deliberately basic. The most important tension is between what the JD promises and how it grades: it sells employee growth and 'strategic' capacity planning, yet measures only utilization attainment and on-time seat closure, and it grants accountability without formal authority over the Partners, MDs and hiring pipeline that actually move the numbers. The strongest candidate signal is therefore not finance or technology but the ability to drive results through influence, hold competing objectives in tension, and keep clean data discipline under fast-paced pressure. The seniority target ('senior') is consistent with the relationship-management and judgment demands, even though the literal tasks are largely operational.",
+    "confidence": 0.79,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Strategic Resource Manager (SRM)",
+    "seniority": "senior",
+    "roleFamily": "consulting",
+    "mustHaves": [
+      "Proven resource, capacity or staffing/workforce-planning experience in a professional-services or consulting environment, owning utilization and open-seat outcomes for a defined area",
+      "Strong analytical judgment: building and interpreting key metrics (availability, utilization, open-seat/bench status), distinguishing signal from noise, and turning data into surfaced issues, trends and recommended actions",
+      "Advanced Microsoft Excel for hands-on data management, manipulation and ad-hoc reporting — this is the real analytics toolset, so fluency with pivots, lookups and reconciliation of large staffing datasets is essential",
+      "Stakeholder management and influence without formal authority: partnering with Partners, MDs and project managers to define open needs, propose creative staffing alternatives, and resolve conflicts while being held to outcomes you influence but do not unilaterally control",
+      "Ability to set and manage expectations directly with staff (project preferences, skill demand, opportunities) and to 'manage upward' to drive results to a deadline",
+      "Accountability for data accuracy and forecasting: running and feeding a monthly supply/demand forecast and keeping the system-of-record scheduling/forecasting tool timely and accurate, including when day-to-day entry is delegated to a support team you do not manage",
+      "Excellent organizational skills — deadline-oriented, highly responsive, and able to re-prioritize as needs shift while keeping a constant pulse on shortages and surpluses"
+    ],
+    "niceToHaves": [
+      "Hands-on familiarity with StaffTrak or a comparable resource-scheduling, forecasting and reporting system",
+      "Comfort coordinating an offshore/'Indus-based' support team for data entry and reporting while staying accountable for the quality of the records",
+      "Basic finance and firm-operations literacy sufficient to reason about utilization economics",
+      "Experience navigating the structural tension between maximizing utilization / minimizing bench and supporting genuine employee growth and development",
+      "Experience integrating new hires, college hires and interns into project teams and managing an unassigned-staff bench",
+      "PowerPoint and Word for crisp metrics readouts and stakeholder communications",
+      "Track record of cross-region / cross-group resource sharing and collaboration with talent-acquisition and contingent-labor sourcing"
+    ],
+    "responsibilities": [
+      "Match the right resource to the right client engagement at the right time, balancing utilization attainment, bench minimization and staff development for the assigned area",
+      "Produce and interpret analysis of availability, utilization and open-seat status, surfacing issues and trends to leadership",
+      "Partner with Partners, MDs and project managers to define open needs and identify staff to fill them, proactively anticipating and resolving staffing conflicts with creative, opportunistic alternatives",
+      "Actively manage the bench and act as the primary point of contact for unassigned staff, including college hires and interns, and help integrate new hires into teams",
+      "Acquire and maintain deep, current knowledge of staff skills and of the skills each project in the area requires",
+      "Run and feed the monthly forecasting process and keep a constant pulse on current and future shortages and surpluses",
+      "Collaborate with other SRMs on cross-area resource sharing and escalate unmet demand to the capacity lead, talent-acquisition and contingent-labor teams to open and fill requisitions",
+      "Own data management for the area, working with the support team to keep scheduling, forecasting and reporting data timely and accurate",
+      "Hold regular career/preference conversations with staff and participate in HR performance-management touchpoints to align development needs",
+      "Deliver against the role's measured outcomes: utilization attainment for the area and on-time open-seat closure"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Strategic Resource Manager — Data & Analytics Area: Staff the Quarter",
+    "brief": "You are stepping in as the Strategic Resource Manager (SRM) for the Data & Analytics (D&A) consulting area (~52 billable staff, Analyst → Senior Manager). You've been handed the live working set an SRM actually operates from — a StaffTrak roster export, the monthly forecast workbook, the open-seat pipeline, a skills inventory, bench/development notes, a handful of Partner/MD requests, and last month's leadership readout. All of it is synthetic but realistic; there is no real client or personnel data, and you can name placeholder clients (e.g. BankCo, RetailCo). Your job over the next ~2 hours is to do what an SRM does with this material: read the true state of the area, make the staffing calls the area needs this cycle, look one quarter ahead, and tell leadership what matters. You will not have every answer the data should contain — that is the point. Where a need is vague, where a number looks too clean, or where two of your objectives pull against each other, use your judgment, make a defensible call, and write down why. We care far more about the quality and honesty of your reasoning than about the volume of output. Deliver in whatever format an SRM would (Excel/CSV, a short written brief, a few slides) — pick what carries the argument best. The 2-hour budget is a hard cap; if you run short, prioritize the staffing decisions and the decision trail over polish.",
+    "repoSeed": "A point-in-time snapshot of one consulting area — the Data & Analytics (D&A) practice, ~52 billable staff Analyst → Senior Manager — handed to you as the files an SRM actually lives in (synthetic, no real client/personnel data):\n- `StaffTrak_Roster_Export_2026-06.xlsx` — the system-of-record export: Staff ID, name, level, location, primary/secondary skills, current engagement, planned allocation %, roll-off date, cost-rate band, and 'bench since' date. It contains three staff whose overlapping assignments sum to >100%, and several roll-off dates that look stale.\n- `Forecast_Model_FY26_Q3.xlsx` — the monthly supply/demand forecast: weekly available-hours vs booked+pipeline demand. A roll-up tab nets to near-balanced for the area; the per-skill-family tabs (BI/visualization, data engineering, data science, analytics strategy) do not.\n- `Open_Seats_Pipeline.xlsx` — open needs from Partners/MDs: Req ID, requester, client, required skills, level, start date, duration, billable flag, status, days open. Includes the deliberately thin `REQ-114` and a scheduling collision on Senior Consultant Priya Nair (`REQ-109` vs `REQ-114`).\n- `Skills_Inventory.xlsx` — a staff-by-skill proficiency matrix (1–4), partially out of date for recent joiners.\n- `Partner_Requests.eml` — three short threads from Partners/MDs, including MD David Brandt's 'need a strong analytics lead for BankCo, asap, high visibility' with no scope, duration, or billing detail.\n- `Bench_and_Dev_Notes.docx` — the bench roster incl. four college hires and two interns, with development/preference notes (e.g. `#A-2207` wants data-modeling exposure and has flagged a travel constraint).\n- `Data_Hygiene_Notes.docx` — handover notes warning that the offshore Indus CRM support team's StaffTrak updates lag ~2 weeks, and listing four records known to be stale.\n- `Leadership_Readout_May2026.pptx` — last month's metrics deck (headline area utilization 84% against an 80% target) for format reference.",
+    "tasks": [
+      "**State of the area (≈40 min).** Working from `StaffTrak_Roster_Export_2026-06.xlsx`, `Forecast_Model_FY26_Q3.xlsx` and `Open_Seats_Pipeline.xlsx`, produce a one-page diagnosis of the D&A area: where utilization actually sits and what the single headline number hides when you break it down by level and by skill family; bench composition and aging; and open-seat aging. Surface the 2–3 trends or risks you would put in front of area leadership. State plainly which figures you trust as-is, which you reconciled or set aside, and why.",
+      "**Staff the open seats (≈45 min).** From current staff plus the bench, fill as many seats in `Open_Seats_Pipeline.xlsx` as you can defensibly justify. Resolve the collision where MD David Brandt (`REQ-114`, BankCo) and Partner Lena Ortiz (`REQ-109`, RetailCo) both want Senior Consultant Priya Nair for overlapping dates, and decide what to do with the four benched college hires (incl. `#A-2207`). Deliver a staffing plan (person → seat, start date, allocation %) and, separately, the needs you cannot fill internally with exactly what you would escalate and to whom (cross-area share, TA requisition, or contingent-labor).",
+      "**Forecast and close the gap (≈25 min).** Using `Forecast_Model_FY26_Q3.xlsx`, identify the single most material supply/demand imbalance over the next quarter — remember a near-balanced net can mask a skill mismatch, so check the per-skill-family tabs — and propose one concrete mitigation with a rough timeline. Note which forecast inputs you are leaning on and any caveat from `Data_Hygiene_Notes.docx` that could move the answer.",
+      "**DECISIONS log + leadership note (≈10 min).** Keep a short DECISIONS log: for every call you made where the brief was open — a staffing choice, a number you adjusted, a need you escalated — record what you chose, the alternative you rejected, and the one question you would have put to a Partner, the staffing lead, or the offshore support team. Close with a 4–6 line note to the area lead summarizing the state of the area and your single top recommendation."
+    ],
+    "coverProbes": [
+      {
+        "id": "P1-brandt-vague-req",
+        "kind": "ambiguity",
+        "where": "REQ-114 in `Open_Seats_Pipeline.xlsx` and David Brandt's thread in `Partner_Requests.eml` — 'strong analytics lead for BankCo, asap, high visibility' with no skill type (BI vs data science vs analytics strategy), no duration, and no confirmed billability.",
+        "reveals": "A strong candidate treats the gap as the work — pins down skill family, duration, on-site/billing before committing the area's scarcest senior, or commits provisionally on stated assumptions. A naive one drops the best-named person straight onto a high-visibility seat to look responsive, mis-fitting the skill and starving other demand.",
+        "decisionSpace": [
+          "Clarify scope (skill family, duration, billable, on-site need) with Brandt before committing — slower, protects the scarcest senior from a mis-fit, risks looking unresponsive on a 'high-visibility' ask.",
+          "Provisionally staff the best-fit Senior Consultant now under explicit assumptions to protect the relationship, and re-cut once scope firms up — speed and relationship over precision.",
+          "Propose a hedge: a part-time senior lead plus a supporting analyst, so the senior isn't fully consumed by an under-defined need and other open seats stay servable."
+        ]
+      },
+      {
+        "id": "P2-stale-stafftrak",
+        "kind": "legacy_trap",
+        "where": "The overlapping >100% allocations and stale roll-off dates in `StaffTrak_Roster_Export_2026-06.xlsx`, cross-read against the four flagged records and the ~2-week lag in `Data_Hygiene_Notes.docx`.",
+        "reveals": "A strong candidate reads the hygiene notes first and reconciles before planning — catching that some '100% utilized' staff have actually rolled off and are available, and some 'bench since' dates are wrong. A naive one plans straight off the export and mis-staffs against people who aren't really busy (or really free).",
+        "decisionSpace": [
+          "Reconcile against the hygiene notes / ping the offshore team for the four flagged records before planning — slower, but the plan rests on real availability.",
+          "Plan off StaffTrak as the single source of truth, footnote the known lag, and correct next cycle — faster and defensible governance, but risks acting on stale roll-offs.",
+          "Build a manual override layer in your own working sheet, plan off the corrected view, and file the fixes back to the offshore team — pragmatic, but creates a shadow source of truth to maintain."
+        ]
+      },
+      {
+        "id": "P3-headline-utilization",
+        "kind": "verification_trap",
+        "where": "The 84%-vs-80% headline in `Leadership_Readout_May2026.pptx` vs. the disaggregated picture in the roster — three overloaded seniors >100%, a cluster of college hires/interns <40%, and planned allocations that include rolled-off engagements.",
+        "reveals": "A shallow check reads '84% > 80% target — healthy' and moves on. A rigorous candidate disaggregates by level and skill, normalizes out the double-booked/stale rows, and shows the area is structurally lopsided despite a healthy mean — the difference between passing a glance and telling the truth.",
+        "decisionSpace": [
+          "Report disaggregated utilization (by level + skill family), surfacing the overloaded seniors and idle bench even though the headline meets target — most transparent.",
+          "Lead with the on-target 84% and footnote the distribution — politically safer with leadership, less honest about the structural problem.",
+          "Recompute a corrected utilization after stripping double-booked and stale rows, report the lower number with methodology — most rigorous, but invites 'why did our number drop' scrutiny."
+        ]
+      },
+      {
+        "id": "P4-utilization-vs-development",
+        "kind": "underspecified",
+        "where": "The only easily fillable seat for college hire `#A-2207` is a low-skill, travel-heavy data-cleansing role, against `Bench_and_Dev_Notes.docx` where the hire asked for modeling exposure and flagged a travel constraint — and the role is measured only on utilization.",
+        "reveals": "A strong candidate names the objective conflict (the metric rewards filling the seat; the development/retention promise and the stated constraint cut the other way) and makes a deliberate, owned trade-off. A naive one silently optimizes the measured number and books the hire onto the wrong-fit seat.",
+        "decisionSpace": [
+          "Place `#A-2207` on the available seat to close it and lift utilization — hits the measured metric, defers development and risks the travel constraint and retention.",
+          "Hold the hire off that seat to honor the development/travel preference, accept the utilization hit and the open seat, and escalate the unmet need — protects the staff promise over the metric.",
+          "Negotiate a hybrid: a short, bounded rotation on the seat with a defined analytics-modeling milestone and a firm roll-off date — balances both objectives but depends on the engagement Partner agreeing to the carve-out."
+        ]
+      }
+    ],
+    "timeboxHours": 2.0,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

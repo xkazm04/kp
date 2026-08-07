@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { TextInput } from "@/app/_components/TextInput";
 import type { ApplyStep } from "@/app/_lib/apply";
 // Imported straight from the registry-free intake module (not the apply.ts
 // barrel) so the candidate-facing bundle doesn't pull in the archetype registry.
@@ -338,7 +339,9 @@ export function ConversationalApply({
   const submitKo = (yes: boolean) => {
     if (busy) return;
     const step = steps[idx];
-    advance(step.id, { ...answers, [step.id]: yes }, yes ? "Yes" : "No");
+    // capst-l2-101 — the echoed chat bubble must speak the candidate's language,
+    // same catalog keys as the buttons themselves ("Ano"/"Ne" in cs).
+    advance(step.id, { ...answers, [step.id]: yes }, yes ? tCommon("yes") : tCommon("no"));
   };
   const submitChoice = (value: string, label: string) => {
     if (busy) return;
@@ -556,7 +559,7 @@ export function ConversationalApply({
               }}
               className="flex gap-2"
             >
-              <input
+              <TextInput
                 autoFocus
                 value={input}
                 onChange={(e) => {
@@ -565,8 +568,8 @@ export function ConversationalApply({
                 }}
                 placeholder={cur.placeholder}
                 disabled={busy}
-                aria-invalid={stepError ? true : undefined}
-                className="focus-ring h-11 flex-1 rounded-md border border-stone-200 px-3 text-base disabled:opacity-50"
+                invalid={Boolean(stepError)}
+                className="h-11 flex-1"
               />
               <button
                 type="submit"

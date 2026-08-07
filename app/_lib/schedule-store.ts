@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { randomId, randomToken } from "./random-id";
 import { isReminderDue, reminderRetryDelayMs, REMINDER_LEAD_MS, REMINDER_MAX_ATTEMPTS } from "./interview-reminder-policy";
 import { isEntryReminderEligible } from "./pipeline-status";
@@ -22,6 +23,10 @@ function db(): Database.Database {
       id TEXT PRIMARY KEY,
       token TEXT UNIQUE,
       entry_id TEXT,
+      -- Tenant (P1): the team that owns this scheduling link (the linked entry's
+      -- workspace). Recruiter agenda reads + slot-collision checks filter on it; the
+      -- candidate token flow and the global reminder sweep do not (token = capability).
+      workspace_id TEXT,
       candidate_label TEXT,
       job_title TEXT,
       status TEXT NOT NULL DEFAULT 'pending',
@@ -66,6 +71,10 @@ function db(): Database.Database {
       -- pending so they can re-book). NULL = no RSVP yet. attendance_at stamps when.
       attendance_status TEXT,
       attendance_at TEXT,
+      -- Optional interview join link (Meet/Teams/Zoom…) the recruiter attaches; it
+      -- becomes the calendar event's location + a "Join" link on both the recruiter
+      -- agenda and the candidate's booked card. NULL until set.
+      meeting_url TEXT,
       created_at TEXT NOT NULL,
       confirmed_at TEXT
     );
@@ -86,6 +95,8 @@ function db(): Database.Database {
     "candidate_tz TEXT",
     "attendance_status TEXT",
     "attendance_at TEXT",
+    "meeting_url TEXT",
+    "workspace_id TEXT",
   ]) {
     try {
       d.exec(`ALTER TABLE schedule_invites ADD COLUMN ${col}`);
@@ -93,6 +104,14 @@ function db(): Database.Database {
       /* column already exists */
     }
   }
+  // Tenant backfill (P1): existing invites → the default workspace. A subquery join to
+  // pipeline_entries would be more "correct" in spirit, but this store owns its OWN
+  // connection (the pipeline_entries table may not exist on it — e.g. an isolated test
+  // store, or a boot before ensureDb ran), and SQLite validates a referenced table at
+  // PREPARE time even for zero matched rows. In single-tenant every entry IS 'workspace',
+  // so this is identical; new invites derive their real team in createScheduleInvite.
+  d.exec(`UPDATE schedule_invites SET workspace_id = 'workspace' WHERE workspace_id IS NULL`);
+  d.exec(`CREATE INDEX IF NOT EXISTS idx_sched_workspace ON schedule_invites (workspace_id)`);
   // Partial index matching the heartbeat's due-reminder query exactly, so the
   // every-60s sweep is an index range over only un-reminded confirmed invites
   // rather than a full table scan. CREATED AFTER the migration loop on purpose:
@@ -132,7 +151,9 @@ export type ScheduleInvite = {
   candidateTz: string | null; // idea-b51106df — candidate's IANA timezone captured at confirm; null until they book
   attendanceStatus: string | null; // idea-87af39c5 — RSVP on the booking: 'confirmed' | 'cancelled' | null
   attendanceAt: string | null; // ISO time the RSVP was recorded
+  meetingUrl: string | null; // optional interview join link (Meet/Teams/Zoom…); null until the recruiter sets it
   locale: string | null; // SIM3 — the linked entry's applicant locale, when joined (dueReminders); null otherwise
+  workspaceId: string; // P1 — the owning team (the linked entry's workspace)
   createdAt: string;
   confirmedAt: string | null;
 };
@@ -159,8 +180,10 @@ function rowTo(r: Record<string, unknown>): ScheduleInvite {
     candidateTz: (r.candidate_tz as string) ?? null,
     attendanceStatus: (r.attendance_status as string) ?? null,
     attendanceAt: (r.attendance_at as string) ?? null,
+    meetingUrl: (r.meeting_url as string) ?? null,
     // Only the dueReminders join selects entry_locale; every other read leaves it null.
     locale: (r.entry_locale as string) ?? null,
+    workspaceId: (r.workspace_id as string) ?? "workspace",
     createdAt: r.created_at as string,
     confirmedAt: (r.confirmed_at as string) ?? null,
   };
@@ -176,14 +199,26 @@ export function createScheduleInvite(input: {
   const now = new Date().toISOString();
   const id = randomId("sch");
   const token = randomToken("st");
+  // Tenant (P1): derive the owning team from the linked entry (a by-id lookup on the
+  // shared file) so callers don't thread it. Degrades to the default workspace for an
+  // orphan entry OR an isolated connection with no pipeline_entries table (test harness).
+  let workspaceId = "workspace";
+  try {
+    const wsRow = d.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as
+      | { workspace_id?: string }
+      | undefined;
+    if (wsRow?.workspace_id) workspaceId = wsRow.workspace_id;
+  } catch {
+    /* no pipeline_entries on this connection — default workspace */
+  }
   // RETURNING * hands the freshly-inserted row back in the same statement, so we
   // don't issue a second SELECT to read what we just wrote.
   const row = d
     .prepare(
-      `INSERT INTO schedule_invites (id, token, entry_id, candidate_label, job_title, status, duration_min, created_at)
-       VALUES (?, ?, ?, ?, ?, 'pending', ?, ?) RETURNING *`
+      `INSERT INTO schedule_invites (id, token, entry_id, workspace_id, candidate_label, job_title, status, duration_min, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?) RETURNING *`
     )
-    .get(id, token, input.entryId, input.candidateLabel ?? null, input.jobTitle ?? null, input.durationMin ?? null, now) as Record<
+    .get(id, token, input.entryId, workspaceId, input.candidateLabel ?? null, input.jobTitle ?? null, input.durationMin ?? null, now) as Record<
     string,
     unknown
   >;
@@ -201,14 +236,15 @@ export function getScheduleInviteByToken(token: string): ScheduleInvite | null {
  *  invites, and the two operator flags written for exactly this surface
  *  (needs_more_slots, needs_reconcile) had zero readers. Confirmed bookings
  *  first by slot time, then pending newest-first. */
-export function listScheduleInvites(limit = 200): ScheduleInvite[] {
+export function listScheduleInvites(limit = 200, workspaceId: string = DEFAULT_WORKSPACE_ID): ScheduleInvite[] {
   const rows = db()
     .prepare(
       `SELECT * FROM schedule_invites
+       WHERE workspace_id = ?
        ORDER BY (slot_at IS NULL) ASC, slot_at ASC, created_at DESC
        LIMIT ?`
     )
-    .all(Math.min(Math.max(limit, 1), 500)) as Record<string, unknown>[];
+    .all(workspaceId, Math.min(Math.max(limit, 1), 500)) as Record<string, unknown>[];
   return rows.map(rowTo);
 }
 
@@ -228,9 +264,11 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
     if (!current) return { ok: false, reason: "not_found", invite: null };
     const inv = rowTo(current);
     if (inv.status === "confirmed") return { ok: true, invite: inv }; // idempotent re-confirm of the same invite
+    // Collision domain is per-team (a team's booking can't clash with another team's
+    // calendar): scope the check to this invite's workspace.
     const clash = slotAt
-      ? d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? LIMIT 1`).get(slotAt, token)
-      : d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot = ? AND token != ? LIMIT 1`).get(slot, token);
+      ? d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`).get(slotAt, token, inv.workspaceId)
+      : d.prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot = ? AND token != ? AND workspace_id = ? LIMIT 1`).get(slot, token, inv.workspaceId);
     if (clash) return { ok: false, reason: "taken", invite: inv };
     // RETURNING * gives the just-updated row back in the same statement (inside the
     // transaction), replacing the previous UPDATE-then-re-SELECT pair.
@@ -251,6 +289,17 @@ export function confirmScheduleInvite(token: string, slot: string, slotAt?: stri
     return { ok: true, invite: rowTo(updated) };
   });
   return tx();
+}
+
+/** Attach (or clear, with null) the interview join link on an invite. The caller
+ *  validates + normalizes the URL (http/https only); this just persists it. Returns
+ *  the updated row, or null when the token doesn't exist. */
+export function setScheduleInviteMeetingUrl(token: string, url: string | null): ScheduleInvite | null {
+  const clean = url && url.trim() ? url.trim().slice(0, 2048) : null;
+  const updated = db()
+    .prepare(`UPDATE schedule_invites SET meeting_url = ? WHERE token = ? RETURNING *`)
+    .get(clean, token) as Record<string, unknown> | undefined;
+  return updated ? rowTo(updated) : null;
 }
 
 /** Cap on candidate self-reschedules of a confirmed booking. Small on purpose:
@@ -285,8 +334,8 @@ export function rescheduleScheduleInvite(token: string, slot: string, slotAt: st
     // Collision identity is slot_at; exclude this invite's own row so freeing the
     // old slot here can't be seen as a clash against itself.
     const clash = d
-      .prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? LIMIT 1`)
-      .get(slotAt, token);
+      .prepare(`SELECT 1 FROM schedule_invites WHERE status = 'confirmed' AND slot_at = ? AND token != ? AND workspace_id = ? LIMIT 1`)
+      .get(slotAt, token, inv.workspaceId);
     if (clash) return { ok: false, reason: "taken", invite: inv };
     const updated = d
       .prepare(
@@ -363,8 +412,10 @@ export function flagScheduleInviteNeedsMoreSlots(token: string): boolean {
 
 /** ISO datetimes already taken by confirmed invites — so two candidates don't
  *  double-book. Returns slot_at (the real identity), not the display label. */
-export function bookedSlots(): string[] {
-  const rows = db().prepare(`SELECT slot_at FROM schedule_invites WHERE status = 'confirmed' AND slot_at IS NOT NULL`).all() as {
+export function bookedSlots(workspaceId: string = DEFAULT_WORKSPACE_ID): string[] {
+  const rows = db()
+    .prepare(`SELECT slot_at FROM schedule_invites WHERE status = 'confirmed' AND slot_at IS NOT NULL AND workspace_id = ?`)
+    .all(workspaceId) as {
     slot_at: string;
   }[];
   return rows.map((r) => r.slot_at);

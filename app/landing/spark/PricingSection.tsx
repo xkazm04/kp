@@ -2,7 +2,9 @@
 
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { ArrowRight, Gift, KeyRound, Rocket, Stamp, TrendingUp } from "lucide-react";
+import { ArrowRight, Check, Gift, KeyRound, Rocket, Stamp, TrendingUp } from "lucide-react";
+import { salesContactHref } from "@/app/_lib/sales-contact";
+import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { BTN, DISPLAY, HAND, STICKER } from "./tokens";
 
 /*
@@ -90,10 +92,16 @@ export default function PricingSection() {
                   ))}
                 </ul>
 
-                <a href="/login" className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}>
+                {/* Self-serve tiers enter the product (open mode → dashboard;
+                    password mode → the /login form). Enterprise is a sales mailto. */}
+                <button
+                  type="button"
+                  onClick={() => void enterWorkspace()}
+                  className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}
+                >
                   {t(`pricing.tiers.${tier.id}.cta`)}
                   <ArrowRight className="h-5 w-5" />
-                </a>
+                </button>
               </motion.article>
             );
           })}
@@ -108,7 +116,15 @@ export default function PricingSection() {
               <p className="text-meta font-bold uppercase tracking-[0.12em] text-[#d65a4a]">{t("pricing.enterprise.eyebrow")}</p>
               <h3 className={`${DISPLAY} mt-2 text-3xl font-extrabold`}>{t("pricing.enterprise.heading")}</h3>
               <p className="mt-3 text-[15px] leading-relaxed text-[#42606f]">{t("pricing.enterprise.blurb")}</p>
-              <a href="/login" className={`${BTN} mt-5 bg-[#17202a] text-[#fdf8ee]`}>
+              <ul className="mt-5 grid gap-x-5 gap-y-2 sm:grid-cols-2">
+                {(t.raw("pricing.enterprise.capabilities") as string[]).map((cap) => (
+                  <li key={cap} className="flex items-start gap-2 text-[14px] font-bold leading-snug text-[#17202a]">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#526b4f]" aria-hidden />
+                    {cap}
+                  </li>
+                ))}
+              </ul>
+              <a href={salesContactHref()} className={`${BTN} mt-5 bg-[#17202a] text-[#fdf8ee]`}>
                 {t("pricing.enterprise.cta")}
                 <ArrowRight className="h-5 w-5" />
               </a>
@@ -122,7 +138,8 @@ export default function PricingSection() {
               ))}
             </div>
           </div>
-          <p className="mt-6 text-xs leading-relaxed text-[#42606f]">{t("pricing.enterprise.source")}</p>
+          <p className="mt-6 text-[13px] font-semibold leading-relaxed text-[#17202a]">{t("pricing.enterprise.roadmapNote")}</p>
+          <p className="mt-2 text-xs leading-relaxed text-[#42606f]">{t("pricing.enterprise.source")}</p>
         </div>
 
         <div className="mt-10 flex flex-wrap items-start justify-between gap-x-8 gap-y-3">

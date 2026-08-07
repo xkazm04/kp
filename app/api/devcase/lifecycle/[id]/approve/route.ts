@@ -3,8 +3,8 @@ import { approveLifecycleCase, getLifecycle } from "@/app/_lib/db";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
+import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
 
-export const runtime = "nodejs";
 
 // W5-4 — the editable subset of the designed case a reviewer may correct at
 // the gate without a regenerate: bounded scalars + the task list. Probes and
@@ -36,7 +36,7 @@ function coerceCaseEdits(raw: unknown): Record<string, unknown> | null {
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const body = (await request.json().catch(() => ({}))) as { case?: unknown };
+    const body = (await request.json().catch(() => ({}))) as { case?: unknown; overrideProbeAudit?: unknown };
     const edits = coerceCaseEdits(body.case);
     const lc = getLifecycle(id);
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
@@ -47,18 +47,26 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       // record it right after. This used to be the dead orchestrator approveLifecycle's
       // only job; the inline copy here omitted it, so human approvals went unaudited.
       const approvedCase = edits ? { ...((lc.case as Record<string, unknown> | null) ?? {}), ...edits } : lc.case;
+      // Quality GATE (idea-bb4f5494): a case whose probes can't tell a strong
+      // submission from a naive one yields a transfer score that is noise — candidates
+      // promoted off it are chosen at random. The probe-strength audit was advisory (a
+      // banner) only; ENFORCE it here via the SHARED guard the manual approve path also
+      // calls (bug-ui-scan-2026-07-09), so the "none verdict blocks approval unless the
+      // reviewer explicitly overrides, and the override is audited" doctrine lives in one
+      // place. A "none" verdict returns a 422; the override note goes into the audit trail.
+      const probes = (approvedCase as { coverProbes?: unknown[] } | null)?.coverProbes ?? [];
+      const gate = enforceProbeGate(probes as Parameters<typeof enforceProbeGate>[0], body.overrideProbeAudit === true);
+      if (!gate.ok) {
+        return NextResponse.json({ error: gate.error, code: gate.code, verdict: gate.verdict }, { status: gate.status });
+      }
       const { caseId } = approveLifecycleCase(
         id,
         { need: lc.need, analysis: lc.analysis, role: lc.role, case: approvedCase },
         edits ? "approved by a human (with reviewer edits)" : "approved by a human"
       );
-      recordAudit({
-        lifecycleId: id,
-        actor: "human",
-        action: "approved",
-        ref: caseId,
-        reason: edits ? `with edits: ${Object.keys(edits).join(", ")}` : undefined,
-      });
+      const reason =
+        [edits ? `with edits: ${Object.keys(edits).join(", ")}` : null, gate.auditReason].filter(Boolean).join("; ") || undefined;
+      recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: caseId, reason });
     }
     const task = startTask("lifecycle", { lifecycleId: id, title: lc.title });
     return NextResponse.json({ ok: true, task });

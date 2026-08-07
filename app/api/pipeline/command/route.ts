@@ -3,9 +3,9 @@ import { actOnPipelineEntry, listPipeline, recordAutomationEvent, type PipelineE
 import { runAutomationPass } from "@/app/_lib/automation-pass";
 import { dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { describeCommand, isMutating, parseCommand, type ParsedCommand } from "@/app/_lib/pipeline-command";
+import { compareByMatchScoreDesc } from "@/app/_lib/match-score";
 import { safeJsonError } from "@/app/_lib/api-response";
 
-export const runtime = "nodejs";
 
 const PREVIEW_CAP = 50;
 
@@ -26,9 +26,12 @@ function affected(cmd: ParsedCommand): PipelineEntry[] {
     );
   }
   if (cmd.kind === "advance_top") {
+    // "Top N" is meaningful only over measured candidates: the filter excludes
+    // unscored entries (fail closed — same null-score policy as the screen wave),
+    // and the shared comparator ranks without ever fabricating a 0.
     return [...active]
       .filter((e) => e.matchScore != null && e.stage !== "Hired")
-      .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
+      .sort(compareByMatchScoreDesc)
       .slice(0, cmd.count);
   }
   return [];
@@ -74,6 +77,9 @@ export async function POST(request: NextRequest) {
     const targets = affected(cmd);
     let count = 0;
     let commsFailed = 0;
+    // advance_top targets already AT Offer that were held instead of advanced —
+    // reported so "advance top N" never silently swallows part of its N.
+    let heldAtOffer = 0;
     for (const e of targets) {
       try {
         if (cmd.kind === "reject_below") {
@@ -99,13 +105,32 @@ export async function POST(request: NextRequest) {
             }
           }
         } else if (cmd.kind === "advance_top") {
-          if (actOnPipelineEntry(e.id, "accept", "Command bar: advance top", { expectedStage: e.stage, actor: "human" })) count += 1;
+          // Hired is OUTCOME-bearing (same rule as the /api/pipeline/[id] 422
+          // guard): it is reached only when the CANDIDATE accepts an extended
+          // offer. A bare accept on an Offer-stage entry used to fall through to
+          // the generic one-stage advance — silently "hiring" the candidate and
+          // DESTROYING any drafted offer (actOnPipelineEntry clears the
+          // offer_review approval). advance-top-N therefore advances UP TO
+          // Offer and STOPS there: Offer-stage targets are held and reported
+          // (`heldAtOffer`) so the recruiter routes them through the offer flow.
+          if (e.stage === "Offer") {
+            heldAtOffer += 1;
+          } else if (actOnPipelineEntry(e.id, "accept", "Command bar: advance top", { expectedStage: e.stage, actor: "human" })) {
+            count += 1;
+          }
         }
       } catch (err) {
         console.error(`[pipeline:command] action failed for ${e.id}`, err);
       }
     }
-    return NextResponse.json({ kind: cmd.kind, executed: true, description, count, ...(commsFailed ? { commsFailed } : {}) });
+    return NextResponse.json({
+      kind: cmd.kind,
+      executed: true,
+      description,
+      count,
+      ...(commsFailed ? { commsFailed } : {}),
+      ...(heldAtOffer ? { heldAtOffer } : {}),
+    });
   } catch (error) {
     return safeJsonError(error, "api:pipeline:command", "COMMAND_FAILED");
   }

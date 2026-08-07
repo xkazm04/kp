@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { loadJd, saveJd } from "@/app/_lib/db";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { ingestStructuredJob } from "./ingest-job";
 
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Save a generated JD to the library and ingest its role as a structured Job —
@@ -43,21 +43,22 @@ export async function POST(request: NextRequest) {
     // best-effort ingest can be re-attempted without saving a duplicate JD. Reject
     // an unknown retry slug so a retry can't mint a `jd-<slug>` Job with no backing
     // draft.
+    const ws = await currentWorkspace();
     let slug: string;
     if (body.slug) {
-      if (!loadJd(body.slug)) {
+      if (!loadJd(body.slug, ws)) {
         return NextResponse.json({ error: "JD not found." }, { status: 404 });
       }
       slug = body.slug;
     } else {
-      slug = saveJd({ title: fields.title, body: fields.body }).slug;
+      slug = saveJd({ title: fields.title, body: fields.body }, ws).slug;
     }
     const role = body.role ?? {};
 
     // Ingest the role into the corpus as a DRAFT structured Job (best-effort).
     let jobIngested = false;
     try {
-      jobIngested = await ingestStructuredJob({ slug, title: fields.title, markdown: fields.body, role, salary: body.salary, company: body.company });
+      jobIngested = await ingestStructuredJob({ slug, title: fields.title, markdown: fields.body, role, salary: body.salary, company: body.company }, ws);
     } catch {
       /* job ingestion is best-effort — never block the JD save */
     }

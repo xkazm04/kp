@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { countTaskHistory, listTaskHistory } from "@/app/_lib/db";
 import { recentTaskCutoffIso } from "@/app/_lib/tasks";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;

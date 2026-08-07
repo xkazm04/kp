@@ -85,8 +85,12 @@ def tooling_from_events(events, cover_probes=None) -> dict:
         {"id": str(p.get("id") or f"p{i + 1}"), "kind": str(p.get("kind") or ""), "where": str(p.get("where") or "")}
         for i, p in enumerate(cover_probes or [])
     ]
-    # We can OBSERVE whether the candidate worked a probe's area, but cannot judge
-    # "handled well" deterministically — keep handledWell conservative + label honestly.
+    # We can OBSERVE whether the candidate worked a probe's area (detected), but
+    # cannot judge "handled well" from process alone. Emit handledWell=None (UNKNOWN)
+    # rather than a definitive False: a hardcoded False made every in-product
+    # candidate's probe handling look like a graded failure, which `evaluate` then
+    # fed into `0.5*verif + 0.5*handled` and silently HALVED the fairness-critical
+    # judgment dimension vs the no-probe branch. None is treated as no-signal there.
     touched_paths = [_path(e) for e in (events or []) if isinstance(e, dict) and e.get("kind") in ("open", "edit") and _path(e)]
     outcomes = []
     for p in probes:
@@ -97,7 +101,7 @@ def tooling_from_events(events, cover_probes=None) -> dict:
             "kind": p["kind"],
             "where": where,
             "detected": touched,
-            "handledWell": False,
+            "handledWell": None,  # unknown: observed detection only, handling not graded
             "note": "observed: candidate worked the probe area" if touched else "observed: probe area not opened/edited",
         })
 

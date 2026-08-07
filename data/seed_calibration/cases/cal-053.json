@@ -1,0 +1,190 @@
+{
+  "job": {
+    "id": "cal-053",
+    "title": "CCRD Customer Service Representative - Work from Home (Remote)",
+    "company": "Cigna",
+    "role_family": "customer_success",
+    "seniority": "medior",
+    "source": "hf:jacob-hugging-face/job-descriptions"
+  },
+  "analysis": {
+    "realStack": [
+      "Inbound/outbound contact-center telephony (ACD/softphone) as the primary channel, plus fax and web-form intake",
+      "Proprietary online prior-authorization (PA) tools and clinical-screening workflow — the real daily system, with structured PA / non-formulary-exception forms",
+      "Pharmacy-benefit / coverage-review case management (Cigna / Evernorth-Express Scripts coverage review department)",
+      "Formulary and non-formulary exception guidance, departmental procedures, and corporate policy provisions used to interpret and respond",
+      "HIPAA / PHI handling rules governing every contact",
+      "Microsoft Office (Word/Excel/Outlook) on the Windows OS — table-stakes literacy, not the core tool",
+      "Secure remote/work-from-home setup (private, quiet designated workspace; presumably VPN/company-issued endpoint)"
+    ],
+    "coreResponsibilities": [
+      "Field phone-first (also fax and online) inquiries from health-care professionals through the medication prior-authorization process",
+      "Collect structured clinical data for PA and non-formulary exception requests following online PA tool / form guidance",
+      "Perform initial screening of requests against the guidance the PA tools provide",
+      "Approve PA requests when the collected data meets approval specifications",
+      "Refer requests that do not meet specifications to a pharmacist for clinical review (escalation judgment)",
+      "Independently handle routine-to-moderate contacts; seek help on substantially complex provider-services issues",
+      "Research inquiries and interpret policy provisions to determine the most effective response using established procedures, HIPAA, and corporate policy",
+      "Educate providers and deliver accurate, confident responses"
+    ],
+    "statedVsRealGaps": [
+      "Titled and framed as 'customer service,' but the real work is regulated intake-and-triage gatekeeping in a pharmacy-benefit coverage workflow — closer to clinical-administrative case handling than help-desk Q&A",
+      "Qualifications stress 'competent computer skills / MS Office,' yet the system that actually matters all day is the proprietary PA / clinical-screening tool and forms — Office is incidental",
+      "The rep holds real approval authority over PA requests; that is a consequential decision affecting patient medication access and plan cost, not merely 'answering questions'",
+      "HIPAA/PHI handling and a secure private home workspace are central risk controls but are listed almost in passing rather than treated as core to the role",
+      "Operational rigidity — any shift across the ET window, mandated overtime, and strict training/post-training attendance bars — is a major lived constraint not visible in the friendly 'rewarding career' framing",
+      "Stated seniority reads as medior, but day-to-day decisioning is tool-guided and bounded (pharmacists own true clinical review), so it functions closer to a structured junior-to-medior production role"
+    ],
+    "trueComplexity": "medium",
+    "riskAreas": [
+      "PHI/HIPAA exposure in a home environment — the 'quiet, private, designated space' requirement is a compliance control, and breaches carry regulatory and reputational liability",
+      "Decision-quality risk: an incorrect approval or a missed escalation can delay or wrongly gate a patient's medication, with patient-harm and compliance consequences",
+      "Over-reliance on tool guidance and misinterpretation of formulary/policy provisions when a contact drifts from 'routine' toward substantial complexity without timely pharmacist support",
+      "Burnout / attrition risk from high-volume repetitive contacts, rigid scheduling, mandatory overtime, and zero-tolerance attendance expectations — a known contact-center churn pattern",
+      "Hiring-pool and legal constraints: position excluded in Louisiana, Nebraska, and Rhode Island, plus tobacco/nicotine restrictions in many states, narrow the eligible candidate set",
+      "Scope-creep risk where reps are pushed beyond the 'routine-to-moderate' band the role is designed for, blurring the line with the pharmacist's clinical review"
+    ],
+    "reflection": "No codebase exists here, which is normal — this is a non-software contact-center role, so the real body of work is the coverage-review apparatus: the proprietary prior-authorization tools and forms, the formulary/policy guidance, the telephony and case systems, and the HIPAA rules wrapped around every contact. Reflected against that evidence, the 'Customer Service Representative' label undersells the job. The day-to-day is structured clinical-data intake and first-pass adjudication of medication prior-authorization requests: the rep collects regulated data, screens it against tool-provided specifications, can approve qualifying requests, and must correctly hand off everything else to a pharmacist. That is gatekeeping with real downstream impact on patient medication access and plan cost — bounded by tools and policy, but consequential. The stated qualifications (MS Office, Windows, communication skills, 1–5 years contact-center experience) describe the floor, not the substance; the substance is disciplined adherence to PA guidance, sound escalation judgment, accurate policy interpretation, and airtight PHI handling from home. True complexity is medium: the hardest clinical reasoning is deliberately offloaded to pharmacists, but the role still demands regulated-data rigor, judgment about when to escalate, and resilience against a rigid, high-volume operating model. A strong hire here is conscientious, detail-driven, policy-literate, and steady under repetitive load — closer to a regulated production-operations profile than a conversational customer-service one.",
+    "confidence": 0.76,
+    "promptVersion": "need-analysis-v3"
+  },
+  "role": {
+    "title": "Coverage Review Customer Service Representative (Prior Authorization) — Remote",
+    "seniority": "medior",
+    "roleFamily": "customer_success",
+    "mustHaves": [
+      "1–5 years of contact-center / customer-service experience, comfortable owning phone-first inquiries (also fax and online) and handling contacts of routine-to-moderate complexity independently",
+      "High school diploma or GED",
+      "Competent computer skills — Microsoft Office (Word/Excel/Outlook) and a working knowledge of the Windows operating system — with the ability to learn and operate proprietary online prior-authorization / clinical-screening tools and forms as the core daily system",
+      "Strong interpersonal, active-listening, and verbal communication skills to interact with health-care professionals and deliver accurate, confident, educational responses",
+      "Critical-thinking and problem-solving skills to collect structured clinical data, screen requests against the guidance the PA tools provide, and apply approval specifications correctly",
+      "Sound escalation judgment — recognizing when collected data does not meet approval specifications and routing the request to a pharmacist for clinical review",
+      "Meticulous attention to detail when capturing clinical data and interpreting policy provisions to determine the most effective response",
+      "Ability to handle PHI in strict compliance with HIPAA, departmental procedures, and corporate policy",
+      "A quiet, private, designated home workspace and a reliable setup suitable for secure work-from-home operation",
+      "Schedule flexibility to work any assigned shift within the Eastern-time service window, Monday through Friday, plus extended hours and overtime as business needs require",
+      "Dependable attendance throughout the full training period and consistently strong attendance beyond training"
+    ],
+    "niceToHaves": [
+      "Prior experience in a pharmacy-benefit, coverage-review, or health-insurance contact center",
+      "Familiarity with medication prior-authorization and non-formulary exception processes",
+      "Knowledge of formulary guidance and comfort interpreting departmental procedures and policy provisions",
+      "Healthcare or clinical-administrative background (e.g., pharmacy technician, medical office, claims)",
+      "Bilingual (English/Spanish) communication skills",
+      "Experience working independently in a high-volume, metrics- and SLA-driven remote environment"
+    ],
+    "responsibilities": [
+      "Field phone-first (also fax and online) inquiries from health-care professionals, guiding them through the medication prior-authorization process",
+      "Collect structured clinical data for prior-authorization and non-formulary exception requests, following the guidance in the online PA tools and corresponding forms",
+      "Perform initial screening of requests against the criteria the online prior-authorization tools provide",
+      "Approve prior-authorization requests when the collected data meets the approval specifications",
+      "Refer requests that do not meet approval specifications to a pharmacist for clinical review, exercising correct escalation judgment",
+      "Independently resolve routine-to-moderate contacts and seek assistance on provider-services issues of substantial complexity",
+      "Research inquiries and interpret policy provisions using established departmental procedures, HIPAA regulations, and corporate policy to determine the most effective response",
+      "Educate providers and consistently deliver accurate, confident responses while safeguarding PHI"
+    ],
+    "languages": [
+      "English"
+    ],
+    "promptVersion": "role-design-v3"
+  },
+  "case": {
+    "title": "Coverage Review: Work Your Morning Prior-Authorization Queue",
+    "brief": "You've joined the Cigna / Evernorth–Express Scripts coverage review department as a Prior Authorization (PA) Coverage Review CSR, working remotely from your designated private workspace. This case is built on materials that fit the role directly: a small, realistic slice of your daily reality — the online PA screening criteria, a formulary excerpt, the non-formulary-exception and escalation procedure, the HIPAA/PHI quick reference, and a four-contact inbound queue (two phone transcripts, one faxed PA form, one web-form intake). Work the queue exactly as you would on shift: collect the structured clinical data each request needs, screen it against the criteria the PA tools provide, and take each contact only as far as your role allows — you may APPROVE when the collected data clearly meets the approval specifications, you must REFER to a pharmacist for clinical review when it does not, and you should REQUEST ADDITIONAL INFORMATION when the record is incomplete. You are staffed for routine-to-moderate contacts; recognizing when something has drifted into substantial complexity and routing it correctly is part of the job, not a failure. The brief is deliberately not airtight — some contacts are missing data, one looks cleaner than it is, and the intake materials don't all agree with the current criteria. Treating those gaps as decisions to be reasoned and recorded — rather than guessed — is the work. Budget ~1.5 hours; depth on the judgment calls matters more than polishing every word. Safeguard PHI throughout; assume anything you 'send' leaves your controlled workspace.",
+    "repoSeed": "A coverage-review starter folder (synthetic but representative of the real PA workflow):\n\nReference materials:\n- `pa_screening_guide_2026Q2.pdf` — the screening criteria your online PA tool surfaces for the two drug classes in today's queue. (1) Non-formulary PPI (dexlansoprazole): approvable only with documented trial AND failure/intolerance of TWO formulary PPIs, each used ≥ 4 weeks, with the outcome stated. (2) Biologic for plaque psoriasis (adalimumab biosimilar): requires moderate-to-severe disease (BSA ≥ 10% OR PASI ≥ 12 OR involvement of face/palms/soles/genitalia) AND trial/failure of or contraindication to ≥ 1 conventional SYSTEMIC agent (e.g., methotrexate, cyclosporine). (3) Acute-migraine CGRP (rimegepant): includes a dated change note — 'Effective 2026-05-01: requires documented trial of ≥ 2 triptans (or documented contraindication) for members ≥ 18; quantity limit 8 tablets / 30 days. NOTE: the web intake template has not yet been updated to reflect this edit.'\n- `formulary_excerpt_2026Q2.xlsx` — tier placement and the formulary PPIs that count toward step therapy.\n- `nonformulary_exception_and_escalation_SOP.docx` — when to pend for more info vs. refer to a pharmacist; the routine-to-moderate vs. substantial-complexity boundary; how a pharmacist referral is documented.\n- `hipaa_phi_handling_quickref.pdf` — caller-identity verification steps, the minimum-necessary standard, and verifying a fax/destination against what's on the request before sending any PHI.\n\nInbound queue (`inbound_queue/`):\n- `contact_A_phone_transcript.txt` — ACD/softphone call: a prescriber's office requests dexlansoprazole 60 mg for GERD; states the patient 'tried omeprazole for about two months, no relief, and also tried pantoprazole.' The pantoprazole duration and outcome are not stated.\n- `contact_B_fax_PA_form.pdf` — a fully completed faxed PA form for the adalimumab biosimilar (plaque psoriasis): every required box ticked, signed. The documented BSA is '8%' and the step listed under prior therapy is 'failed topical corticosteroids.'\n- `contact_C_webform_intake.json` — web-form request for rimegepant; the form's auto-generated criteria text reads 'Covered for acute migraine — submit diagnosis,' and only a migraine diagnosis is supplied (no triptan history; quantity requested 12 tablets / 30 days).\n- `contact_D_phone_transcript.txt` — ACD/softphone call from a clinic medical assistant asking for the determination status on an already-submitted PA and requesting the approval letter be faxed to a new number (different from the one on the original request). The caller can give the patient's name and the drug but not the date of birth.\n\nTemplates to fill in:\n- `disposition_worksheet.xlsx` — one row per contact: structured data collected, criterion cited, disposition (approve | refer to pharmacist | request additional information), rationale.\n- `DECISIONS.md` — running log of your judgment calls.\n- `provider_responses.md` — where you draft outbound provider communications.",
+    "tasks": [
+      "Screen all four contacts in `inbound_queue/` against `pa_screening_guide_2026Q2.pdf` and `formulary_excerpt_2026Q2.xlsx`. For each, fill one row of `disposition_worksheet.xlsx`: the structured clinical/coverage data you collected, the specific criterion you applied, your disposition (approve | refer to pharmacist | request additional information), and a one-to-three-sentence rationale grounded in the criteria — not in whether the form looks complete.",
+      "Draft the provider-facing outbound responses for Contact A and Contact B in `provider_responses.md`, in the role's voice — accurate, confident, and PHI-safe — and appropriate to each contact's channel. Make explicit what the provider must do next (what to submit, why a referral is happening, or what was approved).",
+      "Handle Contact D's status-and-fax request following `hipaa_phi_handling_quickref.pdf` and `nonformulary_exception_and_escalation_SOP.docx`. In `provider_responses.md`, document what you will and will not disclose on this call, the verification steps you require first, and how you'd proceed so the provider is still served.",
+      "Keep a `DECISIONS.md` log as normal practice: for every call where the guidance was open or the record was incomplete, record what you decided, the alternative you rejected and why, and the one question you'd put to your team or the on-call pharmacist. This is your decision trail, not a separate essay."
+    ],
+    "coverProbes": [
+      {
+        "id": "incomplete-step-therapy",
+        "kind": "underspecified",
+        "where": "Contact A — dexlansoprazole request; first PPI trial is documented with duration and outcome, but the second PPI (pantoprazole) has no stated duration or outcome, so the two-PPI / ≥4-weeks-each criterion can't be confirmed from the record.",
+        "reveals": "Whether the candidate notices the criterion has a measurable gap (second trial unverified) and pends to collect it, versus filling the gap with an assumption. A good response requests the missing duration/outcome and names exactly what's needed; a naive one approves on a partial trial or rejects outright without trying to complete the record.",
+        "decisionSpace": [
+          "Request additional information (pend): ask for pantoprazole duration and outcome before any disposition — most accurate, protects against an out-of-spec approval, but adds a contact cycle and delays the patient's medication.",
+          "Refer to a pharmacist for clinical judgment on the borderline trial history — defensible if read as clinically nuanced, but risks over-escalating a contact that's really just missing a data field, blurring the routine-to-moderate band.",
+          "Approve, treating ~two months on omeprazole plus a mentioned pantoprazole trial as 'good enough' — fastest and best for throughput, but approves without the second trial actually meeting spec."
+        ]
+      },
+      {
+        "id": "complete-form-fails-criteria",
+        "kind": "verification_trap",
+        "where": "Contact B — the faxed biologic PA form is fully completed and signed, so a shallow 'all required fields present' check passes; but BSA 8% is below the ≥10% threshold and 'topical corticosteroids' is not a conventional SYSTEMIC agent, so the request does not actually meet the criteria.",
+        "reveals": "Whether the candidate checks the documented values and step against the criteria, or trusts a complete-looking form. A good response catches both misses and does not approve; a naive one approves because every box is ticked.",
+        "decisionSpace": [
+          "Refer to pharmacist / decline-per-criteria: the documented severity and step don't meet the specification despite a complete form — the correct screening read, though it disappoints a provider who 'filled everything in.'",
+          "Approve on the strength of the complete, signed form and self-attested boxes — the trap; fast but an out-of-spec approval with patient-care and compliance consequences.",
+          "Request clarification first (treat BSA 8% or the topical-only step as a possible documentation error/typo before referring) — defensible if genuinely ambiguous, but risks coaching the provider toward an approvable answer and slows a request that, as written, simply doesn't qualify."
+        ]
+      },
+      {
+        "id": "superseded-criterion-on-intake",
+        "kind": "legacy_trap",
+        "where": "Contact C — the web-form's auto-generated criteria text ('Covered for acute migraine — submit diagnosis') predates the 2026-05-01 edit in `pa_screening_guide_2026Q2.pdf` that adds a ≥2-triptan step and an 8-tablet/30-day quantity limit; the request supplies only a diagnosis and asks for 12 tablets.",
+        "reveals": "Whether the candidate reads the current screening guide before disposing, or applies the criterion as stated on the (stale) intake form. A good response applies the superseding criterion and the quantity limit; a naive one approves on diagnosis alone per the form's outdated text.",
+        "decisionSpace": [
+          "Apply the current criterion from the screening guide — request triptan history and flag the quantity over the 8/30 limit — reads the guidance before acting and catches that intake materials can lag policy.",
+          "Apply the criterion as the web form states it and approve on diagnosis alone — the trap; propagates a stale rule and over-approves quantity.",
+          "Pend and flag the form-vs-guide discrepancy to the team/template owner before disposing — most cautious and surfaces a systemic intake bug, but slower for this individual contact."
+        ]
+      },
+      {
+        "id": "phi-identity-and-destination",
+        "kind": "ambiguity",
+        "where": "Contact D — a caller requests a determination status and asks for the approval letter to be faxed to a number that differs from the one on the original request, while unable to provide the patient's date of birth; this is the home-workspace PHI compliance control in live form.",
+        "reveals": "Whether the candidate enforces identity verification, the minimum-necessary standard, and destination verification before disclosing PHI, or prioritizes speed/service over the HIPAA control. A good response verifies before disclosing and won't fax to an unverified number; a naive one shares status and sends to the requested fax to be helpful.",
+        "decisionSpace": [
+          "Verify caller identity per the QuickRef and confirm the fax destination against the record before disclosing anything, then release only the minimum necessary — compliant and still serves the provider once verified.",
+          "Provide the status and fax to the new number to resolve the call quickly — fails the identity/destination control and risks a PHI breach from the home environment.",
+          "Decline to disclose on this call and route everything back through the established secure channel even after reasonable verification — most conservative, eliminates breach risk but may over-restrict a legitimate provider and add avoidable friction."
+        ]
+      }
+    ],
+    "timeboxHours": 1.5,
+    "rubricDimensions": [
+      {
+        "name": "framing",
+        "label": "Problem framing",
+        "weight": 0.2,
+        "description": "Turns an ambiguous need into a sound plan."
+      },
+      {
+        "name": "tooling",
+        "label": "Tooling fluency",
+        "weight": 0.25,
+        "description": "Drives AI and other tools well; iterates and verifies."
+      },
+      {
+        "name": "judgment",
+        "label": "Judgment",
+        "weight": 0.25,
+        "description": "Catches AI/tooling mistakes; validates; pushes back."
+      },
+      {
+        "name": "architecture",
+        "label": "Architecture",
+        "weight": 0.15,
+        "description": "Structure and trade-offs that fit the real materials and constraints."
+      },
+      {
+        "name": "transfer",
+        "label": "Transfer",
+        "weight": 0.15,
+        "description": "Capability transfers to THIS role's tools and responsibilities."
+      }
+    ],
+    "promptVersion": "case-design-v5"
+  },
+  "source": "llm",
+  "issues": [],
+  "fallbackReason": {},
+  "promptVersions": {
+    "analyze": "need-analysis-v3",
+    "role": "role-design-v3",
+    "case": "case-design-v5"
+  }
+}

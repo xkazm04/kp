@@ -35,20 +35,54 @@ const METER_LABELS: Record<Meter, string> = {
   interview_minutes: "interview minutes",
 };
 
-/** Null = proceed; a verdict = respond 402 with it. */
-export function meterGate(meter: Meter, now: Date = new Date()): QuotaVerdict | null {
+/** Null = proceed; a verdict = respond 402 with it.
+ *
+ *  `minUnits` is the WORST-CASE number of units this single action can consume
+ *  (default 1) — it must equal the most the later debit can charge, not the typical
+ *  or default amount. Example of the bug this closes: an interview books ~20 minutes
+ *  but /complete debits up to 2× the booked length (`maxBillableInterviewMin`); a gate
+ *  that reserved the 20-min constant let a near-cap meter run a 40–60 min call whose
+ *  un-funded overage landed as billing_usage on the most expensive meter. Gate on
+ *  `remaining - inFlight >= minUnits`.
+ *
+ *  `inFlight` is units already RESERVED by not-yet-debited work in progress — e.g.
+ *  queued/running analyze tasks that each debit one unit at delivery, seconds after
+ *  their submit passed this gate. Subtracting them closes the check-then-act window:
+ *  without it, N concurrent submits all read the same pre-debit `remaining`, all pass,
+ *  and collectively overrun a hard cap. Callers count the in-flight reservations and
+ *  MUST leave no `await` between that count and the reservation's creation (the task-row
+ *  insert), so under better-sqlite3's synchronous writes no request interleaves in the
+ *  gap. A null (unlimited) allowance always proceeds. */
+export function meterGate(
+  meter: Meter,
+  opts: { now?: Date; minUnits?: number; inFlight?: number } = {}
+): QuotaVerdict | null {
+  const now = opts.now ?? new Date();
+  const minUnits = Math.max(1, Math.floor(opts.minUnits ?? 1));
+  const inFlight = Math.max(0, Math.floor(opts.inFlight ?? 0));
   // Resolve the entitled plan ONCE: the allowance check and the verdict's plan
   // label both read it, and a single billing_state read also can't observe two
   // different rows under a concurrent webhook write.
   const plan = entitledPlan(getBillingState(), now);
   const remaining = meterOverview(meter, plan, now).remaining;
-  if (remaining === null || remaining > 0) return null;
+  if (remaining === null || remaining - inFlight >= minUnits) return null;
   return {
-    error: `This month's ${METER_LABELS[meter]} on the ${plan.name} plan is used up — upgrade or top up in Billing.`,
+    error: `This month's ${METER_LABELS[meter]} on the ${plan.name} plan won't cover this action — upgrade or top up in Billing.`,
     code: QUOTA_CODE,
     meter,
     plan: plan.id,
   };
+}
+
+/** The most interview minutes ONE session can debit at /complete: that route clamps
+ *  the billed wall-clock time to `[1, bookedMin*2]`, so this 2× ceiling is exactly the
+ *  amount /create must RESERVE up front. Single-sourced here so the create-time gate
+ *  and the complete-time debit can never read different numbers — the gate/debit
+ *  divergence was the whole bug (the gate reserved a 20-min constant while the debit
+ *  clamped to the session's own 2× length). `bookedMin` is the session's booked
+ *  duration (the caller already applies its own default). */
+export function maxBillableInterviewMin(bookedMin: number): number {
+  return Math.max(0, Math.floor(Number(bookedMin) || 0)) * 2;
 }
 
 /** True when the meter still allows spending — the degrade switch for LLM

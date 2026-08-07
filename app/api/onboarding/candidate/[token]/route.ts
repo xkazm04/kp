@@ -3,7 +3,6 @@ import { candidateOnboardingView, submitCandidateIntake } from "@/app/_lib/onboa
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
-export const runtime = "nodejs";
 
 // Candidate-facing onboarding hand-off (offers #5, token-gated by the ACCEPTED offer's
 // token). GET renders the pre-boarding questionnaire view for /onboarding/[token]; POST
