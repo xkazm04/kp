@@ -1,7 +1,7 @@
 # uat/ — Simulated UAT overlay for **kp**
 
 This is the **per-app overlay** for the portable `/uat` engine
-(`.claude/skills/uat.md`). The engine is stack-agnostic; everything app-specific
+(`.claude/skills/uat/SKILL.md`). The engine is stack-agnostic; everything app-specific
 — routes, run recipe, auth, seed, language, the Characters and journeys — lives
 here.
 
