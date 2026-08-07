@@ -26,6 +26,13 @@ def main() -> int:
     parser.add_argument("--grounding", action="store_true")
     parser.add_argument("--job-description-path", type=Path)
     parser.add_argument("--job-description-text")
+    parser.add_argument(
+        "--job-json",
+        type=Path,
+        help="Path to the structured Job record (camelCase payload_json shape) backing the JD, "
+        "so scoring reads the authored must/nice + prerequisite/learnable grading instead of "
+        "re-deriving a flattened requirement list from the JD prose.",
+    )
     parser.add_argument("--company-path", type=Path)
     parser.add_argument("--company-text")
     parser.add_argument(
@@ -58,6 +65,7 @@ def main() -> int:
             grounding=args.grounding,
             job_description_path=args.job_description_path,
             job_description_text=args.job_description_text,
+            job_json_path=args.job_json,
             company_path=args.company_path,
             company_text=args.company_text,
             lang=args.lang,

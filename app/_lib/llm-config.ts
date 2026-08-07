@@ -47,6 +47,7 @@ export const LLM_USE_CASES = [
   "weight_proposal",
   "interview_scorecard",
   "agent_fit",
+  "role_intake",
   "github_analysis",
   "cv_analysis",
   "profile_extract",

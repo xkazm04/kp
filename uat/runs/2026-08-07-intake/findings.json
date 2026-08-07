@@ -1,0 +1,274 @@
+{
+  "run": "2026-08-07-intake",
+  "journey": "role-intake-dialog",
+  "characters": [
+    "tomas-backend-team-lead",
+    "eva-eng-hiring-lead",
+    "hr-healthcare-clinic-hrbp"
+  ],
+  "l1_verdicts": {
+    "tomas-backend-team-lead": "L1-conditional",
+    "eva-eng-hiring-lead": "L1-conditional",
+    "hr-healthcare-clinic-hrbp": "L1-conditional"
+  },
+  "l2": {
+    "driver": "uat/driver/drive-intake.mjs",
+    "script": "eva-backfill2 (cs, power-unit backfill, 7 exchanges + promote)",
+    "verdict": "L2-conditional"
+  },
+  "findings": [
+    {
+      "id": "L2-INT-1",
+      "journey": "role-intake-dialog",
+      "character": "eva-eng-hiring-lead",
+      "cert_level": "L2",
+      "type": "trust",
+      "severity": "major",
+      "impact": {
+        "frequency": "med",
+        "reachability": "high",
+        "trust_erosion": "high"
+      },
+      "dimension": "senior-quality",
+      "title": "The injection fence makes the agent distrust the requestor's own words — a correction is refused as 'external unverified input'",
+      "expected": "A correction after the read-back ('Kafka není nutná') lands in the brief as the requestor's stated revision.",
+      "got": "Agent: 'ta poslední zpráva o Kafce nepřišla ověřeně od vás — dorazila z externího zdroje, takže ji do zadání sám nepropíšu' — refused the demotion, kept Kafka must_have, stored a paranoid facet ('Neověřený vstup k požadavkům', úsudek AI). Root cause: intake.py reuses devcase's fenced_untrusted framing, designed for ADVERSARY-authored content, on the authenticated operator's own message.",
+      "evidence": [
+        "uat/runs/2026-08-07-intake/shots/eva-backfill2-09-exchange-7.png",
+        "pipeline/jobfit/intake.py (fenced_untrusted REQUESTOR_MESSAGE)"
+      ],
+      "code_check": "present-broken",
+      "verdict": "confirmed",
+      "resolution": "resolved-verified",
+      "l2_note": "Silver lining confirmed live: the refusal facet was honestly marked 'úsudek AI', never 'řekli jste'.",
+      "resolution_evidence": "Recertified live (recertify-correction-09-exchange-7.png): correction accepted verbatim ('Dobrá oprava, díky — Kafka jde z must-have do nice-to-have'), brief structurally updated, re-read + explicit close permission asked. Fix: intake-specific authenticated-requestor framing replaced devcase's adversarial fence.",
+      "ceiling": "The message is still fenced against role/rule/format override — a requestor cannot reprogram the agent, only the brief."
+    },
+    {
+      "id": "L1-CONV-2",
+      "journey": "role-intake-dialog",
+      "character": "all three (convergent: TOM-4 / HRBP-4 / EVA-1)",
+      "cert_level": "L1",
+      "type": "broken-flow",
+      "severity": "major",
+      "impact": {
+        "frequency": "high",
+        "reachability": "high",
+        "trust_erosion": "high"
+      },
+      "dimension": "trust",
+      "title": "Deterministic close invites a correction it cannot accept — read-back + <<END>> + done in one turn locks the composer",
+      "expected": "Read-back waits one turn for confirmation/correction; only a confirm closes the session.",
+      "got": "intake.py deterministic_turn emits the read-back with <<END>> and done=true simultaneously; status flips complete; the message route 409s the invited correction.",
+      "evidence": [
+        "pipeline/jobfit/intake.py:389-391",
+        "app/api/intake/[id]/message/route.ts:29-31"
+      ],
+      "code_check": "present-broken",
+      "verdict": "confirmed",
+      "resolution": "resolved-verified",
+      "resolution_evidence": "deterministic_turn now reads back WITHOUT <<END>> and waits; confirm closes, anything else lands as a stated 'correction' facet then closes. Pinned by test_readback_correction_lands_and_closes + test_readback_waits_for_confirmation; 100-scenario bank re-certified under the new contract.",
+      "ceiling": "Deterministic corrections land as a facet (captured verbatim), not as a parsed field edit — the LLM path does the structural demotion."
+    },
+    {
+      "id": "L1-CONV-3",
+      "journey": "role-intake-dialog",
+      "character": "all three (TOM-5 / HRBP-3 / EVA-4)",
+      "cert_level": "L1",
+      "type": "trust",
+      "severity": "major",
+      "impact": {
+        "frequency": "high",
+        "reachability": "high",
+        "trust_erosion": "med"
+      },
+      "dimension": "trust",
+      "title": "Spine scalars carry no provenance — the default 'medior' renders unmarked and reads as captured",
+      "expected": "A defaulted seniority is visibly 'assumed' in the panel and absent from the sign-off read-back.",
+      "got": "RoleBrief has per-requirement/facet provenance but none on title/seniority/role_family; the default renders chipless and propagates to the JD build.",
+      "evidence": [
+        "pipeline/jobfit/rolebrief.py:103-107",
+        "app/features/library/jds/intake/JdsIntakeBriefPanel.tsx:46"
+      ],
+      "code_check": "confirmed-absent",
+      "verdict": "confirmed",
+      "resolution": "resolved-verified",
+      "resolution_evidence": "RoleBrief.spine_provenance {title|seniority|role_family}; deterministic answers mark stated, read-back omits unstated seniority, UI chips the spine (recert shot shows 'řekli jste' on ROLE).",
+      "ceiling": "Provenance covers the three spine scalars; summary/languages remain unmarked prose."
+    },
+    {
+      "id": "L1-EVA-2",
+      "journey": "role-intake-dialog",
+      "character": "eva-eng-hiring-lead",
+      "cert_level": "L1",
+      "type": "quality-gap",
+      "severity": "major",
+      "impact": {
+        "frequency": "med",
+        "reachability": "high",
+        "trust_erosion": "med"
+      },
+      "dimension": "effort",
+      "title": "Czech power-unit markers miss inflected forms (posilu/náhradu/dalšího) — keyless backfills fall to the 11-exchange story script",
+      "expected": "An inflected Czech backfill opener triages power_unit on the deterministic floor.",
+      "got": "The trailing \\b in _POWER_UNIT_MARKERS requires a word boundary right after the stem, so Czech inflections fail (regex executed by the L1 agent).",
+      "evidence": [
+        "pipeline/jobfit/intake.py:151-155"
+      ],
+      "code_check": "present-broken",
+      "verdict": "confirmed",
+      "resolution": "resolved-verified",
+      "l2_note": "Live (LLM path) the triage was correct — the floor is keyless-only, matching the product's degradation contract, hence major-not-blocker.",
+      "resolution_evidence": "Markers rebuilt with \\w* inflection suffixes (posilu/náhradu/stejného/dalšího match); offline bank + curated personas re-pass.",
+      "ceiling": "Regex-floor triage only — marker-less phrasings still default to story after 2 turns (LLM path overrides)."
+    },
+    {
+      "id": "L1-HRBP-2",
+      "journey": "role-intake-dialog",
+      "character": "hr-healthcare-clinic-hrbp",
+      "cert_level": "L1",
+      "type": "quality-gap",
+      "severity": "major",
+      "impact": {
+        "frequency": "high",
+        "reachability": "high",
+        "trust_erosion": "high"
+      },
+      "dimension": "senior-quality",
+      "title": "role_family silently stays software_engineering for non-tech roles — through promote into the JD/job",
+      "expected": "A clinical intake lands role_family healthcare_clinical (deterministic classification exists in the taxonomy).",
+      "got": "Deterministic path never sets family; the LLM is never given the 16-family vocabulary; the default threads into jd_build and the ingested job.",
+      "evidence": [
+        "pipeline/jobfit/intake.py (_EXTRACTION_RULES)",
+        "pipeline/jobfit/rolebrief.py:104",
+        "app/_lib/jd-build-run.ts:244"
+      ],
+      "code_check": "confirmed-absent",
+      "verdict": "confirmed",
+      "resolution": "resolved-verified",
+      "resolution_evidence": "Deterministic close classifies role_family via taxonomy.classify_role_family over everything captured (spine_provenance 'inferred'); LLM extraction rules now carry the 16-family vocabulary + an explicit never-leave-the-software-default instruction.",
+      "ceiling": "Classification is taxonomy-vote-based — an ambiguous corpus can still route to a sibling family; the provenance chip says 'inferred' so it is correctable."
+    },
+    {
+      "id": "L2-INT-4",
+      "journey": "role-intake-dialog",
+      "character": "eva-eng-hiring-lead",
+      "cert_level": "L2",
+      "type": "quality-gap",
+      "severity": "minor",
+      "impact": {
+        "frequency": "med",
+        "reachability": "high",
+        "trust_erosion": "low"
+      },
+      "dimension": "trust",
+      "title": "Skip answers stored as facet values on the LLM path ('Why now: přeskočit', chipped řekli jste)",
+      "expected": "A skip is never data (the deterministic path already enforces this).",
+      "got": "Live brief shows the skip word as a stated why_now facet; facet label also code-switched to English ('Why now') mid-Czech dialog.",
+      "evidence": [
+        "uat/runs/2026-08-07-intake/shots/eva-backfill2-09-exchange-7.png"
+      ],
+      "code_check": "present-broken",
+      "verdict": "confirmed",
+      "resolution": "resolved-verified",
+      "resolution_evidence": "Extraction rules: skips are never data + facet labels in the dialog's language. Recert shot: skip acknowledged, not stored; all facet labels Czech.",
+      "ceiling": "Rule-level fix on the LLM path; no schema guard rejects a skip-valued facet."
+    },
+    {
+      "id": "L1-EVA-3",
+      "journey": "role-intake-dialog",
+      "character": "eva-eng-hiring-lead",
+      "cert_level": "L1",
+      "type": "missing-feature",
+      "severity": "major",
+      "impact": {
+        "frequency": "med",
+        "reachability": "med",
+        "trust_erosion": "med"
+      },
+      "dimension": "missing",
+      "title": "The brief dies as a structured object at the dev-case seam",
+      "expected": "Her headline JTBD: the promoted brief feeds dev-case design structurally.",
+      "got": "Promote UI never offers caseDesign (bodyless POST); the Dev tab re-extracts the need from JD markdown; promotedBriefForJob has one consumer (interview grounding).",
+      "evidence": [
+        "app/features/library/jds/intake/jdsIntakeLogic.ts:152",
+        "app/features/tools/devcases/useDevTabData.ts:95-113"
+      ],
+      "code_check": "confirmed-absent",
+      "verdict": "confirmed",
+      "resolution": "open",
+      "scope_note": "Phase-3 continuation, not a regression."
+    },
+    {
+      "id": "L1-HRBP-6",
+      "journey": "role-intake-dialog",
+      "character": "hr-healthcare-clinic-hrbp",
+      "cert_level": "L1",
+      "type": "quality-gap",
+      "severity": "minor",
+      "impact": {
+        "frequency": "med",
+        "reachability": "high",
+        "trust_erosion": "med"
+      },
+      "dimension": "trust",
+      "title": "Promote hardcodes marketResearch:true — a Czech-market comp read auto-attaches to any promoted JD",
+      "expected": "Opt-out (her non-Czech clinical roles would carry a wrong-market band).",
+      "got": "options.marketResearch is literal true in the promote route.",
+      "evidence": [
+        "app/api/intake/[id]/promote/route.ts:41-44"
+      ],
+      "code_check": "present-broken",
+      "verdict": "confirmed",
+      "resolution": "resolved-verified",
+      "ceiling": "The market layer itself remains Czech-single-market; opt-out, not multi-market.",
+      "resolution_evidence": "Promote accepts marketResearch:false (route + doc)."
+    },
+    {
+      "id": "L2-INT-5",
+      "journey": "role-intake-dialog",
+      "character": "tomas-backend-team-lead",
+      "cert_level": "L2",
+      "type": "confusion",
+      "severity": "minor",
+      "impact": {
+        "frequency": "high",
+        "reachability": "high",
+        "trust_erosion": "low"
+      },
+      "dimension": "effort",
+      "title": "30–40s per exchange behind a static 'Přemýšlím…' — no progress or timeout affordance (confirms L1-TOM-7)",
+      "expected": "Latency acknowledged (elapsed hint or staged status) at coaching pace.",
+      "got": "Measured 30977–39511ms per live exchange; the indicator never changes.",
+      "evidence": [
+        "uat/runs/2026-08-07-intake (driver journal exchange timings)"
+      ],
+      "code_check": "confirmed-absent",
+      "verdict": "confirmed",
+      "resolution": "open"
+    },
+    {
+      "id": "STR-1",
+      "journey": "role-intake-dialog",
+      "character": "panel",
+      "cert_level": "L2",
+      "type": "quality-gap",
+      "severity": "polish",
+      "impact": {
+        "frequency": "high",
+        "reachability": "high",
+        "trust_erosion": "low"
+      },
+      "dimension": "senior-quality",
+      "title": "STRENGTH — the live dialog clears the register bar: correct shape triage, one question/turn, requestor's words reused, grounded read-back, honest provenance chips, clean Czech, promote→JD end-to-end",
+      "expected": "—",
+      "got": "Confirmed across shots 02–99: 6-question short path for the backfill, all captured values chipped 'řekli jste', title/shape/status live, JD created with background task visible.",
+      "evidence": [
+        "uat/runs/2026-08-07-intake/shots/eva-backfill2-*.png"
+      ],
+      "code_check": "n-a",
+      "verdict": "confirmed",
+      "resolution": "open"
+    }
+  ]
+}

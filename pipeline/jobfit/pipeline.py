@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 import re
 import time
@@ -95,6 +96,7 @@ def _emit(progress: ProgressCallback | None, stage: str, status: str) -> None:
 def analyze_cv(
     path: Path,
     job_description_text: str | None = None,
+    job_json: str | None = None,
     company_text: str | None = None,
     use_grounding: bool = False,
     lang: str = "en",
@@ -113,6 +115,22 @@ def analyze_cv(
     # was repaired or skipped. Declared before the first stage so the best-effort
     # extract pre-pass can record a note too.
     repairs: list[str] = []
+
+    # The structured Job record backing the JD (authored requirements with their
+    # stated must/nice + prerequisite/learnable grading). Parsed at the trust
+    # boundary; a malformed payload degrades to a repair note — the analysis
+    # still runs on JD prose alone, exactly as before the field existed.
+    job = None
+    if job_json and job_json.strip():
+        from .jobs import Job
+
+        try:
+            job = Job.model_validate(json.loads(job_json))
+        except Exception as exc:
+            repairs.append(
+                "Structured job context was unreadable and was ignored "
+                f"({type(exc).__name__}) — requirement grading fell back to JD text."
+            )
 
     try:
         _emit(progress, "extract", "active")
@@ -375,7 +393,7 @@ def analyze_cv(
                 if job_fit is not None and job_description_text:
                     crosscheck = _softly(
                         "Analyze honesty cross-check",
-                        lambda: _honesty_crosscheck(v2_obj, job_description_text),
+                        lambda: _honesty_crosscheck(v2_obj, job_description_text, job=job),
                         sanity_checks,
                     )
                     if crosscheck is not None:
@@ -427,6 +445,7 @@ def analyze_cv(
                 "request_id": request_id,
                 "cv_path": path.name,
                 "has_jd": bool(job_description_text and job_description_text.strip()),
+                "has_structured_job": job is not None,
                 "has_company": bool(company_text and company_text.strip()),
                 "grounding": bool(use_grounding),
                 "lang": lang,
@@ -909,7 +928,7 @@ def _job_fit_from_payload(raw: Any) -> JobFitResult | None:
 
 
 def _honesty_crosscheck(
-    v2_obj: Any, job_description_text: str
+    v2_obj: Any, job_description_text: str, job: Any = None
 ) -> tuple[list[str], dict[str, float], dict[str, str]] | None:
     """Deterministic honesty cross-check for the ANALYZE surface (no extra LLM call).
 
@@ -918,19 +937,29 @@ def _honesty_crosscheck(
     be an ADJACENCY near-miss (the candidate holds a sibling/specialization) or a
     provenance-discounted claim, not a true gap. This re-scores the SAME candidate
     (``transform.build_match_candidate`` over the already-built v2 profile) against
-    the JD's DETECTED-skill universe via ``matching.score_job`` and returns the
+    the JD's requirement universe via ``matching.score_job`` and returns the
     engine's unproven bucket, so the analyze report can surface the same honest
     distinction the recruiter surface already does.
 
-    DISCLOSURE: the JD skill universe is the deterministic taxonomy pre-pass
-    (``detected_skills`` over the JD text); each detected skill is wrapped as a
-    JobRequirement with DEFAULTED kind="must_have"/hardness="prerequisite" — a
-    uniform assumption, NOT a per-skill judgement the ad actually stated. This is a
-    cross-check over detected JD skills, NEVER a second headline score: only the
+    The requirement universe (role-intake Phase 0):
+
+    * When ``job`` — the structured Job record backing the JD — carries authored
+      ``requirements``, those are used AS STATED: the must/nice + prerequisite/
+      learnable grading the JD builder produced is no longer flattened away.
+      Skills the taxonomy pre-pass detects in the JD prose but the authored list
+      omits are unioned in as nice_to_have/learnable, so a body-text mention
+      still counts without ever being promoted to a hard must.
+    * Without a structured job (pasted third-party JD, legacy runs), the
+      universe is the deterministic taxonomy pre-pass (``detected_skills`` over
+      the JD text), each skill wrapped with DEFAULTED kind="must_have"/
+      hardness="prerequisite" — a uniform assumption, NOT a per-skill judgement
+      the ad actually stated.
+
+    Either way this is a cross-check, NEVER a second headline score: only the
     unproven bucket is returned; the synthesized matching total and its confidence
     band are deliberately discarded so no second overall number can reach the UI.
 
-    Returns ``None`` when the JD yields no detected skills or the cross-check finds
+    Returns ``None`` when no requirements can be assembled or the cross-check finds
     nothing unproven (so the caller leaves the fields absent rather than empty).
     """
     from .jobs import Job, JobRequirement
@@ -938,15 +967,24 @@ def _honesty_crosscheck(
     from .transform import build_match_candidate
 
     jd_skills = detected_skills(job_description_text)
-    if not jd_skills:
+    stated = list(job.requirements) if job is not None and getattr(job, "requirements", None) else []
+    if stated:
+        covered = {r.skill.strip().lower() for r in stated}
+        requirements = stated + [
+            JobRequirement(skill=skill, kind="nice_to_have", hardness="learnable")
+            for skill in jd_skills
+            if skill.strip().lower() not in covered
+        ]
+    elif jd_skills:
+        # DEFAULTED kind/hardness (see docstring): uniform must_have/prerequisite,
+        # not stated per skill — score_skills reads only ``skill`` + ``kind`` here.
+        requirements = [
+            JobRequirement(skill=skill, kind="must_have", hardness="prerequisite")
+            for skill in jd_skills
+        ]
+    else:
         return None
-    # DEFAULTED kind/hardness (see docstring): uniform must_have/prerequisite, not
-    # stated per skill — score_skills reads only ``skill`` + ``kind`` here.
-    requirements = [
-        JobRequirement(skill=skill, kind="must_have", hardness="prerequisite")
-        for skill in jd_skills
-    ]
-    job = Job(
+    crosscheck_job = Job(
         id="analyze-honesty-crosscheck",
         title="",
         company="",
@@ -954,7 +992,7 @@ def _honesty_crosscheck(
         description=job_description_text,
         requirements=requirements,
     )
-    result = score_job(build_match_candidate(v2_obj), job)
+    result = score_job(build_match_candidate(v2_obj), crosscheck_job)
     if not result.unproven_skills:
         return None
     return (

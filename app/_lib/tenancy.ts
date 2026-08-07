@@ -182,6 +182,11 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // one team's sealed rows never enter another's proof. Every DML query is scoped (no by-id
   // exemptions — an unscoped read would splice chains). decision-records-tenancy.test.ts.
   "decision_records",
+  // Role-intake dialogs (db/intakes.ts, docs/concepts/role-intake-dialog.md):
+  // operator-internal, no public token, so EVERY query — point reads included —
+  // filters/stamps workspace_id; a leaked intake id never resolves across
+  // tenants (intakes-tenancy.test.ts).
+  "role_intakes",
   // Phase 2 — the curated shared JD-template library (templates-store.ts). DUAL-TIER like
   // the jobs corpus: org-shared rows (workspace_id NULL — the company library every team
   // reads) + team-private drafts (workspace_id = team). Every read/write filters on

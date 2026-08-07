@@ -38,6 +38,17 @@ per-skill provenance**, and archetype signals (`is_enrolled`,
 and `app/_lib/analyze-phases.ts`; results persist to the `analyses` table and
 render in `HistoryTab.tsx` / `app/history/[slug]/page.tsx`.
 
+When the analysis targets a library JD (`jdSlug`), `analyze-run.ts` also
+resolves the ingested structured Job at `jd-<slug>` server-side and passes it to
+the CLI as `--job-json` (role-intake Phase 0): the honesty cross-check in
+`pipeline/jobfit/pipeline.py` then scores against the **authored** requirement
+grading (must/nice + prerequisite/learnable, with prose-detected extras unioned
+in as nice-to-have) instead of regex-re-deriving a flattened all-must list from
+the JD text. Prose-only runs (pasted JDs, no ingested job) behave exactly as
+before; a malformed structured payload degrades to prose with a note in the
+trust ledger. The structured job is part of the analyze cache key
+(`app/_lib/cache-key.ts`), so a re-ingest invalidates cached results.
+
 ### 2. Conversational / quick apply
 Conversational apply asks 4 universal questions (name, most relevant recent
 experience, skills, "which best describes you" archetype pick), then branches:

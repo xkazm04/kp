@@ -24,6 +24,19 @@
       ]
     },
     {
+      "doc": "docs/features/intake/README.md",
+      "sourceGlobs": [
+        "app/_lib/intake-run.ts",
+        "app/_lib/intake-brief.ts",
+        "app/_lib/db/intakes.ts",
+        "app/api/intake/**",
+        "app/features/library/jds/intake/**",
+        "pipeline/jobfit/intake.py",
+        "pipeline/jobfit/intake_cli.py",
+        "pipeline/jobfit/rolebrief.py"
+      ]
+    },
+    {
       "doc": "docs/features/jobs/README.md",
       "sourceGlobs": [
         "app/_lib/job-ingest.ts",

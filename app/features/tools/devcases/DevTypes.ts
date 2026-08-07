@@ -1,4 +1,7 @@
 import type { OutboxStatus } from "@/app/_lib/comms-status";
+// Single-sourced from the generated schema (superset of the old local shape —
+// adds roleFamily/languages/promptVersion); see app/_lib/rolespec.ts.
+import type { RoleSpec } from "@/app/_lib/rolespec";
 
 // Summary row from GET /api/jds (the saved-JD library backing the NeedForm picker) —
 // mirrors sub_analyze/AnalyzeTypes.JdSummary; kept local so the dev feature doesn't
@@ -71,7 +74,7 @@ export type Result = { analysis?: NeedAnalysis; snapshot?: RepoSnapshot | null; 
 
 export type CoverProbe = { id?: string; kind?: string; where?: string; reveals?: string; decisionSpace?: string[] };
 export type RubricDim = { name?: string; label?: string; weight?: number /* FRACTION 0..1 */; description?: string };
-export type RoleSpec = { title?: string; seniority?: string; mustHaves?: string[]; niceToHaves?: string[]; responsibilities?: string[] };
+export type { RoleSpec };
 export type CaseScenario = { title?: string; brief?: string; repoSeed?: string; tasks?: string[]; coverProbes?: CoverProbe[]; rubricDimensions?: RubricDim[]; timeboxHours?: number };
 export type Design = { role?: RoleSpec; case?: CaseScenario; source?: SourceKind; perStepSources?: PerStepSources };
 export type ApprovedCase = { id: string; title: string | null; roleTitle: string | null; seniority: string | null; createdAt: string };
