@@ -20,6 +20,20 @@ class IntakeEvalOfflineTest(unittest.TestCase):
         self.assertTrue(ok, f"offline intake eval failed:\n{report}")
         self.assertIn("personas PASS", report)
 
+    def test_market_breadth_bank_passes_offline(self) -> None:
+        # The UAT-style breadth exercise: 100 generated scenarios spanning ALL
+        # 16 role families × seniority × need shape (intake_scenarios_gen).
+        # Every one must fill a RoleBrief, triage its shape, respect the
+        # power-unit turn budget and close with a grounded read-back — keyless.
+        from pipeline.jobfit.eval.intake_scenarios_gen import fixed_bank
+
+        bank = fixed_bank(100)
+        self.assertEqual(len(bank), 100)
+        families = {s["family"] for s in bank}
+        self.assertEqual(len(families), 16, "the bank must span every role family")
+        report, ok = run_eval(bank, no_llm=True, cap=30, color=False)
+        self.assertTrue(ok, f"market-breadth intake eval failed:\n{report}")
+
     def test_premature_end_is_caught(self) -> None:
         # A dialog whose agent emitted <<END>> mid-conversation must fail the
         # no_premature_end invariant — the check itself is load-bearing.

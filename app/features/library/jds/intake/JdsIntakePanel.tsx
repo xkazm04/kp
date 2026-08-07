@@ -28,7 +28,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
           </div>
           <button
             type="button"
-            className={BTN_PRIMARY}
+            className={`${BTN_PRIMARY} h-9 px-4 text-sm`}
             disabled={creating}
             onClick={() => startNew(locale === "cs" ? "cs" : "en")}
           >
@@ -70,7 +70,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
     <div className={`${PANEL} p-5`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <button type="button" className={BTN_GHOST} onClick={closeSession}>
+          <button type="button" className={`${BTN_GHOST} h-9 px-3 text-sm`} onClick={closeSession}>
             {t("back")}
           </button>
           <span className="text-body font-medium text-ink">{active.title || t("untitled")}</span>
@@ -83,7 +83,13 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
           {active.status === "promoted" && active.jdSlug ? (
             <span className="text-body text-moss">{t("promoted")}</span>
           ) : (
-            <button type="button" className={BTN_SECONDARY} disabled={!ready || promoting} onClick={promote} title={ready ? undefined : t("promoteHint")}>
+            <button
+              type="button"
+              className={`${BTN_SECONDARY} h-9 px-4 text-sm`}
+              disabled={!ready || promoting}
+              onClick={promote}
+              title={ready ? undefined : t("promoteHint")}
+            >
               {promoting ? t("promoting") : t("promote")}
             </button>
           )}

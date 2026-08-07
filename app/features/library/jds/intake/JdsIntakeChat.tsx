@@ -78,7 +78,12 @@ export function JdsIntakeChat({
             }
           }}
         />
-        <button type="button" className={BTN_PRIMARY} onClick={submit} disabled={closed || sending || !draft.trim()}>
+        <button
+          type="button"
+          className={`${BTN_PRIMARY} h-10 px-4 text-sm`}
+          onClick={submit}
+          disabled={closed || sending || !draft.trim()}
+        >
           {t("composer.send")}
         </button>
       </div>

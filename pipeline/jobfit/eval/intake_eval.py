@@ -215,10 +215,26 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Quality-gate the role-intake dialog agent (text plane).")
     parser.add_argument("--no-llm", action="store_true", help="offline: deterministic agent + golden requestor answers")
     parser.add_argument("--scenarios", nargs="*", help="subset of persona names")
+    parser.add_argument(
+        "--generated",
+        type=int,
+        default=0,
+        metavar="N",
+        help="use the market-breadth bank instead of the curated personas: N deterministic "
+        "scenarios from intake_scenarios_gen.fixed_bank (role family × seniority × shape)",
+    )
     parser.add_argument("--cap", type=int, default=DEFAULT_CAP)
     args = parser.parse_args(argv)
 
-    scenarios = load_scenarios(args.scenarios)
+    if args.generated:
+        from .intake_scenarios_gen import fixed_bank
+
+        scenarios = fixed_bank(args.generated)
+        if args.scenarios:
+            wanted = set(args.scenarios)
+            scenarios = [s for s in scenarios if s["name"] in wanted]
+    else:
+        scenarios = load_scenarios(args.scenarios)
     if not scenarios:
         print("no scenarios matched", file=sys.stderr)
         return 2

@@ -85,7 +85,15 @@ requestor answers) certifies the keyless path and the reliability invariants
 (completed, one-question-per-turn, no premature `<<END>>`, grounded read-back,
 brief completeness, shape triage + power-unit turn budget) — gated by
 `tests/test_intake_eval.py`. Live mode runs both sides on the `role_intake`
-provider.
+provider; live runs are single-sample probes (shape/turn-budget expectations
+go soft), the offline mode is the gate.
+
+**Market-breadth bank**: `intake_scenarios_gen.py` generates a deterministic
+100-scenario bank spanning ALL 16 taxonomy role families × seniority ×
+need shape (backfill vs first-ever-role story) with concrete per-family
+content (licensure-bound nurses, shift-planning frontline leads, month-end
+accountants, …). `--generated 100` runs it; the full hundred is gated
+offline in `test_intake_eval.py` (648 checks).
 
 ## Brief as reference (Phase 3)
 
