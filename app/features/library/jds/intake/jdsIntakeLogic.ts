@@ -144,12 +144,18 @@ export function useIntakeLogic(onPromoted?: () => void) {
     [active, sending, loadList]
   );
 
-  const promote = useCallback(async () => {
+  const promote = useCallback(async (opts?: { caseDesign?: boolean }) => {
     if (!active || promoting) return;
     setPromoting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/intake/${encodeURIComponent(active.id)}/promote`, { method: "POST" });
+      const res = await fetch(`/api/intake/${encodeURIComponent(active.id)}/promote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // caseDesign (UAT L1-EVA-3): the requestor can have the work-sample case
+        // designed from the same brief in the same backgrounded build.
+        body: JSON.stringify({ caseDesign: opts?.caseDesign === true }),
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { slug: string };
       setActive((s) => (s ? { ...s, status: "promoted", jdSlug: data.slug } : s));

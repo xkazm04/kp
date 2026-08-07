@@ -4,7 +4,14 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { briefIntentSummary, briefMustSkills, briefNiceSkills, briefReadyToPromote, needTextFromBrief } from "./intake-brief.ts";
+import {
+  briefIntentSummary,
+  briefMustSkills,
+  briefNiceSkills,
+  briefReadyToPromote,
+  briefStatedRequirements,
+  needTextFromBrief,
+} from "./intake-brief.ts";
 import type { RoleBrief } from "./rolespec.ts";
 
 const brief: RoleBrief = {
@@ -46,6 +53,14 @@ test("readiness needs a title plus substance; empty briefs refuse", () => {
   assert.equal(briefReadyToPromote({ title: "X" }), false);
   assert.equal(briefReadyToPromote({ title: "X", successCriteria: ["ships"] }), true);
   assert.equal(briefReadyToPromote({ successCriteria: ["ships"] }), false);
+});
+
+test("briefStatedRequirements projects the graded shape the devcase chain consumes", () => {
+  assert.deepEqual(briefStatedRequirements(brief), [
+    { skill: "SQL", kind: "must_have", hardness: "prerequisite", weight: 0.8 },
+    { skill: "dbt", kind: "nice_to_have", hardness: "learnable", weight: 0.4 },
+  ]);
+  assert.deepEqual(briefStatedRequirements({}), []);
 });
 
 test("briefIntentSummary digests outcomes + dealbreakers, never fires on empty briefs", () => {

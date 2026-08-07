@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db/jobs";
+import { promotedBriefForJob } from "@/app/_lib/db/intakes";
 import { ingestJobAd } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -23,9 +24,20 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     // workspace owns the row — the recruiter Ledger's Duplicate flow — so a
     // cross-tenant or share-link fetch never sees it.
     const { build_input_json, ...publicRow } = row;
-    const wantsIntent = new URL(request.url).searchParams.has("intent");
+    const params = new URL(request.url).searchParams;
+    const wantsIntent = params.has("intent");
     if (wantsIntent && loadJd(slug, await currentWorkspace())) {
       return NextResponse.json({ ...publicRow, build_input_json });
+    }
+    // ?brief=1 — the promoted role-intake brief behind this JD (Dev tab's
+    // structured-need read, UAT L1-EVA-3). Internal authoring material like
+    // build_input_json: gated on workspace ownership, never on the public/
+    // share-link payload. Null when no promoted intake backs the JD.
+    if (params.has("brief")) {
+      const ws = await currentWorkspace();
+      if (loadJd(slug, ws)) {
+        return NextResponse.json({ ...publicRow, intakeBrief: promotedBriefForJob(jdJobId(slug), ws) });
+      }
     }
     return NextResponse.json(publicRow);
   } catch (error) {

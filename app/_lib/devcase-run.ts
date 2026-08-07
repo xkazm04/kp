@@ -57,6 +57,10 @@ export type DevNeed = {
   // analyze step extracts them from the JD body.
   jdSlug?: string;
   jdText?: string;
+  // Role-intake grading (UAT L1-EVA-3): the promoted brief's graded dealbreakers
+  // (kind × hardness × weight), when the need descends from an intake. Role
+  // design anchors mustHaves to these (devcase/models.py::StatedRequirement).
+  statedRequirements?: { skill: string; kind: string; hardness: string; weight: number }[];
 };
 
 export type NeedAnalysisResult = {

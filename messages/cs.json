@@ -1166,7 +1166,12 @@
     "POSTING_CLOSED": "Příjem přihlášek na tuto pozici je uzavřený a další už nepřijímáme.",
     "OFFER_EXPIRED": "Platnost této nabídky vypršela.",
     "OFFER_NOT_FOUND": "Tuto nabídku se nepodařilo najít. Odkaz mohl být nahrazen novějším.",
-    "SESSION_TOKEN_REQUIRED": "Tato pracovní relace patří k jinému odkazu. Pokračujte prosím přes odkaz z e-mailu s pozvánkou."
+    "SESSION_TOKEN_REQUIRED": "Tato pracovní relace patří k jinému odkazu. Pokračujte prosím přes odkaz z e-mailu s pozvánkou.",
+    "INTAKE_CREATE_FAILED": "Rozhovor se nepodařilo založit. Zkuste to prosím znovu.",
+    "INTAKE_LIST_FAILED": "Rozhovory se nepodařilo načíst. Zkuste to prosím znovu.",
+    "INTAKE_READ_FAILED": "Rozhovor se nepodařilo načíst. Zkuste to prosím znovu.",
+    "INTAKE_MESSAGE_FAILED": "Zprávu se nepodařilo zpracovat. Zkuste to prosím znovu.",
+    "INTAKE_PROMOTE_FAILED": "Inzerát se z tohoto zadání nepodařilo vytvořit. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3111,6 +3116,7 @@
         "degradedNote": "AI je offline — pokračujeme vedeným dotazníkem. Vaše odpovědi se ukládají stejně.",
         "sendError": "Zprávu se nepodařilo odeslat. Zkuste to prosím znovu.",
         "promote": "Vytvořit inzerát",
+        "promoteCase": "Navrhnout rovnou i praktickou úlohu",
         "promoting": "Vytvářím…",
         "promoted": "Inzerát vytvořen — najdete ho mezi uloženými.",
         "promoteHint": "Je potřeba alespoň název role a jedna nezbytná dovednost nebo cíl na 90 dní.",

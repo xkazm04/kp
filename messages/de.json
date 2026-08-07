@@ -1166,7 +1166,12 @@
     "POSTING_CLOSED": "Die Bewerbungsphase für diese Stelle ist beendet; es werden keine weiteren Einreichungen angenommen.",
     "OFFER_EXPIRED": "Dieses Angebot ist abgelaufen.",
     "OFFER_NOT_FOUND": "Dieses Angebot wurde nicht gefunden. Möglicherweise wurde der Link durch einen neueren ersetzt.",
-    "SESSION_TOKEN_REQUIRED": "Diese Arbeitssitzung gehört zu einem anderen Bewerbungslink. Öffnen Sie bitte den Link aus Ihrer Einladungs-E-Mail, um fortzufahren."
+    "SESSION_TOKEN_REQUIRED": "Diese Arbeitssitzung gehört zu einem anderen Bewerbungslink. Öffnen Sie bitte den Link aus Ihrer Einladungs-E-Mail, um fortzufahren.",
+    "INTAKE_CREATE_FAILED": "Das Gespräch konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "INTAKE_LIST_FAILED": "Die Gespräche konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "INTAKE_READ_FAILED": "Das Gespräch konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+    "INTAKE_MESSAGE_FAILED": "Die Nachricht konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut.",
+    "INTAKE_PROMOTE_FAILED": "Die Stellenbeschreibung konnte aus diesem Briefing nicht erstellt werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3111,6 +3116,7 @@
         "degradedNote": "KI ist offline — stattdessen läuft die geführte Checkliste. Ihre Antworten werden trotzdem erfasst.",
         "sendError": "Die Nachricht kam nicht durch. Bitte versuchen Sie es erneut.",
         "promote": "Stellenbeschreibung erstellen",
+        "promoteCase": "Auch die Arbeitsprobe entwerfen",
         "promoting": "Wird erstellt…",
         "promoted": "Stellenbeschreibung erstellt — zu finden unter den gespeicherten.",
         "promoteHint": "Benötigt mindestens einen Rollentitel plus ein K.-o.-Kriterium oder ein 90-Tage-Ziel.",

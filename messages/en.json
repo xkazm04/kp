@@ -1166,7 +1166,12 @@
     "POSTING_CLOSED": "This role's intake has closed and is no longer accepting submissions.",
     "OFFER_EXPIRED": "This offer has expired.",
     "OFFER_NOT_FOUND": "We couldn't find this offer. The link may have been replaced by a newer one.",
-    "SESSION_TOKEN_REQUIRED": "This work session belongs to a different apply link. Open the link from your invitation email to continue."
+    "SESSION_TOKEN_REQUIRED": "This work session belongs to a different apply link. Open the link from your invitation email to continue.",
+    "INTAKE_CREATE_FAILED": "Could not start the intake session. Please try again.",
+    "INTAKE_LIST_FAILED": "Could not load intake sessions. Please try again.",
+    "INTAKE_READ_FAILED": "Could not load the intake session. Please try again.",
+    "INTAKE_MESSAGE_FAILED": "Could not process that message. Please try again.",
+    "INTAKE_PROMOTE_FAILED": "Could not create the JD from this brief. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3111,6 +3116,7 @@
         "degradedNote": "AI is offline — running the guided checklist instead. Your answers are captured all the same.",
         "sendError": "That message didn't go through. Please try again.",
         "promote": "Create JD",
+        "promoteCase": "Also design the work-sample case",
         "promoting": "Creating…",
         "promoted": "JD created — find it under Saved JDs.",
         "promoteHint": "Needs at least a role title plus one dealbreaker or 90-day outcome.",
