@@ -6,6 +6,7 @@ import { runDesignArtifacts, runNeedAnalysis, type DevNeed } from "./devcase-run
 import { validateJdBuildInput } from "./jd-limits";
 import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./salary-band";
 import { type RepoSnapshot } from "./repo-snapshot";
+import { parseRoleSpec, type RoleSpec } from "./rolespec";
 import { failJdAnalysis, finishJdAnalysis } from "./db/jobs";
 import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
 import { renderTemplate } from "@/app/features/shared/renderTemplate";
@@ -139,18 +140,12 @@ export async function runMarketSalary(input: {
   }
 }
 
-// The structured role this builder produces and ingest-job.ts consumes — exported
-// so the producer→consumer pair share ONE declaration (was hand-copied verbatim in
-// both). NOTE: DevTypes.RoleSpec is a deliberately different shape; not unified here.
-export type RoleSpec = {
-  title?: string;
-  seniority?: string;
-  roleFamily?: string;
-  mustHaves?: string[];
-  niceToHaves?: string[];
-  responsibilities?: string[];
-  languages?: string[];
-};
+// The structured role this builder produces and ingest-job.ts consumes — now
+// single-sourced from the generated schema (app/_lib/rolespec.ts ← codegen ←
+// pipeline/jobfit/devcase/models.py), so the Python producer and every TS
+// consumer share one declaration (idea-dcf2460d). Re-exported for the existing
+// importers that resolve it from this module.
+export type { RoleSpec } from "./rolespec";
 
 function composeMarkdown(
   role: RoleSpec,
@@ -242,7 +237,8 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
           const { analysis, snapshot } = await runNeedAnalysis(need, signal, lang);
           progress?.(1, 2, options.description ? "Designing the role from the need…" : "Designing the interview case…");
           const { role, case: kase } = await runDesignArtifacts(need, analysis, signal, undefined, lang, options.caseDesign);
-          return { role: role as RoleSpec, kase: options.caseDesign ? kase : null, snapshot };
+          // Validated at the Python→TS trust boundary (was an unchecked cast).
+          return { role: parseRoleSpec(role), kase: options.caseDesign ? kase : null, snapshot };
         })()
       : Promise.resolve({ role: null, kase: null, snapshot: null });
     const salaryP: Promise<{ result: MarketSalary; sources: string[]; source: string } | null> = options.marketResearch

@@ -74,3 +74,15 @@ test("PROMPT_VERSION is bumped to retire the old (pre-i18n) keys", () => {
   // how lookupPromptCache rejects them.
   assert.ok(PROMPT_VERSION.startsWith("v5-"), `expected a v5 prompt version, got ${PROMPT_VERSION}`);
 });
+
+test("structured job context distinguishes the key; its absence keeps the legacy key (role-intake Phase 0)", () => {
+  const without = computeCacheKey({ ...base, jobDescriptionText: "jd" });
+  const withStruct = computeCacheKey({ ...base, jobDescriptionText: "jd", jobStructureJson: '{"id":"jd-x"}' });
+  // A structured-job run must not be served for a prose-only run…
+  assert.notEqual(without, withStruct);
+  // …and editing the structure (re-ingest) must invalidate.
+  assert.notEqual(withStruct, computeCacheKey({ ...base, jobDescriptionText: "jd", jobStructureJson: '{"id":"jd-y"}' }));
+  // Append-only contract: absent and empty behave like the pre-field key, so the
+  // existing cache stays valid for runs without a structured job.
+  assert.equal(without, computeCacheKey({ ...base, jobDescriptionText: "jd", jobStructureJson: "" }));
+});

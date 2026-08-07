@@ -40,6 +40,12 @@ export type CacheKeyInput = {
   // when true — a normal run hashes exactly as before, so the existing cache stays
   // valid; a blind run gets a distinct key.
   blind?: boolean;
+  // The serialized structured Job record backing the JD (role-intake Phase 0):
+  // a run that scored against authored requirement grading must not be served
+  // for a prose-only run of the same JD text — and editing the structure (a
+  // re-ingest) must invalidate. Folded in only when set, so runs without a
+  // structured job keep their pre-existing keys.
+  jobStructureJson?: string;
 };
 
 export function computeCacheKey(input: CacheKeyInput): string {
@@ -75,5 +81,11 @@ export function computeCacheKey(input: CacheKeyInput): string {
   // Appended LAST and only when set, so a normal run's key is byte-identical to
   // the pre-blind contract (no cache wipe) while a blind run is distinct.
   if (input.blind) field("blind");
+  // Same append-only contract: a marker field then the value, both length-framed,
+  // so a structured-job run can never collide with a prose-only run.
+  if (input.jobStructureJson) {
+    field("jobstruct");
+    field(input.jobStructureJson);
+  }
   return h.digest("hex");
 }
