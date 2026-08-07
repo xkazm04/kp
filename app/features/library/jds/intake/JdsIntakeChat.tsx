@@ -26,12 +26,29 @@ export function JdsIntakeChat({
 }) {
   const t = useTranslations("library.tab.intake");
   const [draft, setDraft] = useState("");
+  // Latency honesty (UAT drain 2.4 — 31–40 s measured per live exchange): after
+  // ~8 s the thinking bubble gains a quiet second line naming the real wait, so
+  // a long generation reads as "working, and this is normal" rather than hung —
+  // exactly for the evaluation-anxious requestor the register is designed for.
+  // Static copy, no animation (reduced-motion safe by construction).
+  const [slowHint, setSlowHint] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     // Keep the newest exchange in view as turns land.
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [transcript.length, sending]);
+
+  useEffect(() => {
+    if (!sending) return;
+    const show = window.setTimeout(() => setSlowHint(true), 8000);
+    return () => {
+      window.clearTimeout(show);
+      // Deferred a tick (the jdsHooks.ts pattern): no synchronous setState
+      // inside an effect/teardown.
+      window.setTimeout(() => setSlowHint(false), 0);
+    };
+  }, [sending]);
 
   const submit = () => {
     const message = draft.trim();
@@ -62,6 +79,7 @@ export function JdsIntakeChat({
           <div className="flex justify-start">
             <div className="rounded-lg bg-stone-100 px-3.5 py-2.5 text-body text-steel dark:rounded-2xl">
               {t("thinking")}
+              {slowHint ? <div className="mt-1 text-meta text-steel">{t("thinkingSlow")}</div> : null}
             </div>
           </div>
         ) : null}

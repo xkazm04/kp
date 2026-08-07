@@ -3110,6 +3110,7 @@
           "story": "Exploration"
         },
         "thinking": "Thinking…",
+        "thinkingSlow": "Still thinking — a thorough reply usually takes 30–40 seconds.",
         "composer": {
           "placeholder": "Answer in your own words — vague is fine.",
           "send": "Send",

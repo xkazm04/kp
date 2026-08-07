@@ -64,6 +64,8 @@ SUGGESTED_FACET_KEYS = (
     "location_constraints",
     "interview_loop",     # intended loop shape / who decides
     "dealbreaker_context",  # the story behind a hard requirement
+    "grade_label",        # the requestor's own grade vocabulary ("Band 5", "AfC 6")
+                          # when it maps to no seniority enum token — verbatim, stated
 )
 
 _KINDS = ("must_have", "nice_to_have")

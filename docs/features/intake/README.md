@@ -51,6 +51,15 @@ the existing JD build. Conversation design is normed by
    (`taxonomy.classify_role_family`) so a clinical intake never promotes as
    software; the LLM path is given the 16-family vocabulary + a skips-are-
    never-data rule.
+   Grades outside the junior/medior/senior/lead enum ("Band 5", "AfC 6",
+   "tarifní třída 10") are never force-mapped: both paths capture the verbatim
+   answer as a stated `grade_label` facet, the enum stays `default` (assumed
+   chip), and the read-back carries the requestor's own grading (UAT drain
+   2.3). While a reply is generating, the thinking bubble gains a quiet
+   second line after ~8 s naming the real wait (~30–40 s live) — latency
+   honesty for the evaluation-anxious requestor (UAT drain 2.4); the persona
+   carries an explicit LLM-era rule: role-existence doubt is a story opener
+   anchored in 90-day outcomes (UAT drain 2.6).
 5. **Promote** — POST `/api/intake/[id]/promote` runs the SAME backgrounded
    build as `/api/jds/generate` (placeholder JD row → detached `jd_build`
    task → best-effort ingest), with the brief threading the `DevNeed`'s

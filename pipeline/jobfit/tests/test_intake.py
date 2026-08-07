@@ -123,6 +123,47 @@ class DeterministicScriptTest(unittest.TestCase):
         # The close acknowledges the correction verbatim-ish.
         self.assertIn("Kafka", result["reply"])
 
+    def test_out_of_vocabulary_grade_lands_as_stated_facet(self) -> None:
+        # UAT drain 2.3 (Priya: "I told it Band 5 and it wrote 'medior'"): an
+        # answer matching no enum token is captured verbatim as a stated
+        # grade_label facet; the enum stays default and UNMARKED (assumed chip),
+        # and the read-back carries the requestor's own grading.
+        answers = [
+            "It's a backfill — our ward nurse left, we need the same again",
+            "Registered Nurse",
+            "Runs the morning ward round independently",
+            "valid nursing licence, patient documentation",
+            "Band 5, roughly",
+            "skip",
+        ]
+        _turns, result = _drive(answers)
+        brief = coerce_role_brief(result["brief"])
+        grades = [f for f in brief.facets if f.key == "grade_label"]
+        self.assertEqual(len(grades), 1)
+        self.assertIn("Band 5", grades[0].value)
+        self.assertEqual(grades[0].provenance, "stated")
+        # Never force-mapped: the enum default stays, and stays unmarked.
+        self.assertEqual(brief.seniority, "medior")
+        self.assertNotIn("seniority", brief.spine_provenance)
+        # The read-back (this turn — script exhausted, awaiting confirm) carries it.
+        self.assertFalse(result["done"])
+        self.assertIn("Band 5", result["reply"])
+
+    def test_czech_grade_label_is_localized(self) -> None:
+        answers = [
+            "Je to náhrada — odešla nám sestra, potřebujeme stejnou pozici",
+            "Zdravotní sestra",
+            "Samostatně zvládá ranní vizitu",
+            "platná registrace, dokumentace pacientů",
+            "tarifní třída 10",
+            "přeskočit",
+        ]
+        _turns, result = _drive(answers, lang="cs")
+        brief = coerce_role_brief(result["brief"])
+        grades = [f for f in brief.facets if f.key == "grade_label"]
+        self.assertEqual(len(grades), 1)
+        self.assertEqual(grades[0].label, "Úroveň (jak uvedeno)")
+
     def test_readback_waits_for_confirmation(self) -> None:
         # The read-back turn itself must NOT close the session.
         answers = ["Backfill — same again", "QA Engineer", "Releases ship tested", "Playwright", "junior", "skip"]
@@ -214,7 +255,19 @@ class RunIntakeTurnTest(unittest.TestCase):
 
     def test_system_brief_carries_the_register(self) -> None:
         brief = intake_system_brief("en")
-        for marker in ("coaching session, not an interrogation", "ONE question per turn", "90 days", "<<END>>", "stated"):
+        for marker in (
+            "coaching session, not an interrogation",
+            "ONE question per turn",
+            "90 days",
+            "<<END>>",
+            "stated",
+            # UAT drain 2.6 — the explicit LLM-era clause (role-existence doubt
+            # anchors in outcomes, hypotheses offered as disposable).
+            "doubts the role should exist",
+            "regardless of who or what does it",
+            # UAT drain 2.3 — out-of-vocabulary grades are captured, never mapped.
+            "grade_label",
+        ):
             self.assertIn(marker, brief)
 
 

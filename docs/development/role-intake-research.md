@@ -105,7 +105,13 @@ reads back, confirms, proposes, and lets the requestor correct it.
    ("neither is fine").
 9. **Say the non-judgment out loud** — "vague is fine; that's what this
    session is for."
-10. **Always end with a structured summary + open correction invitation**,
+10. **Role-existence doubt is a story opener, not an objection to handle**
+    (the LLM-era mode, UAT drain 2.6): when the requestor doubts the role
+    should exist at all ("do we even hire a junior now that we have AI
+    tools?"), anchor the exploration in 90-day outcomes — what must be DONE
+    regardless of who or what does it — and offer role-shape hypotheses as
+    disposable options, never as a sales pitch for hiring.
+11. **Always end with a structured summary + open correction invitation**,
     then the read-back maps to the RoleBrief (provenance `stated` only for
     what the requestor actually said/confirmed; agent proposals stay
     `inferred` until confirmed).

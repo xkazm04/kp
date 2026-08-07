@@ -3110,6 +3110,7 @@
           "story": "Hledání podoby"
         },
         "thinking": "Přemýšlím…",
+        "thinkingSlow": "Stále přemýšlím — pořádná odpověď obvykle zabere 30–40 sekund.",
         "composer": {
           "placeholder": "Odpovězte vlastními slovy — klidně i mlhavě.",
           "send": "Odeslat",

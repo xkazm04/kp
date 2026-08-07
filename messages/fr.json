@@ -3110,6 +3110,7 @@
           "story": "Exploration"
         },
         "thinking": "Réflexion…",
+        "thinkingSlow": "Je réfléchis encore — une réponse soignée prend généralement 30 à 40 secondes.",
         "composer": {
           "placeholder": "Répondez avec vos mots — le flou est permis.",
           "send": "Envoyer",

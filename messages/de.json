@@ -3110,6 +3110,7 @@
           "story": "Erkundung"
         },
         "thinking": "Denke nach…",
+        "thinkingSlow": "Denke noch nach — eine gründliche Antwort dauert meist 30–40 Sekunden.",
         "composer": {
           "placeholder": "Antworten Sie in eigenen Worten — vage ist völlig in Ordnung.",
           "send": "Senden",

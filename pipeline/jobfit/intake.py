@@ -44,7 +44,7 @@ MAX_TRANSCRIPT_TURNS = 48  # most recent turns fed back for continuity
 SHAPES = ("power_unit", "story")
 
 # ---------------------------------------------------------------------------
-# Persona (docs/development/role-intake-research.md §3 — the 10 rules)
+# Persona (docs/development/role-intake-research.md §3 — the numbered rules)
 # ---------------------------------------------------------------------------
 
 _PERSONA_CORE = (
@@ -76,7 +76,11 @@ _PERSONA_TECHNIQUE = (
     "90 days, and use it as the filter — a must-have that maps to no 90-day outcome is a nice-to-have. "
     "(9) When must-haves exceed six, ask the requestor to rank the top three rather than accepting "
     "the list. "
-    "(10) Keep every turn short: at most a few sentences of reflection plus one question."
+    "(10) When the requestor doubts the role should exist at all in the AI-tools era ('do we even "
+    "hire a junior now?'), treat it as a story opener: anchor the exploration in the 90-day outcomes "
+    "— what must be DONE regardless of who or what does it — and offer role-shape hypotheses as "
+    "disposable options, never as a sales pitch for hiring. "
+    "(11) Keep every turn short: at most a few sentences of reflection plus one question."
 )
 
 _PERSONA_SHAPE = (
@@ -111,8 +115,10 @@ _EXTRACTION_RULES = (
     "everything situational — team_context, why_now, urgency, budget_band, success_90d context, "
     "dealbreaker_context, work_environment; write facet labels in the DIALOG's language. A skipped "
     "or declined question is never data — record nothing for it (no facet whose value is the skip "
-    "word). Set shape to 'power_unit' or 'story' once triaged; set done=true only together with "
-    "your confirmed <<END>> close."
+    "word). A grade answer outside junior|medior|senior|lead ('Band 5', 'AfC 6') is NEVER "
+    "force-mapped onto the enum — leave seniority as it is and store the requestor's verbatim "
+    "grading as a stated grade_label facet instead. Set shape to 'power_unit' or 'story' once "
+    "triaged; set done=true only together with your confirmed <<END>> close."
 )
 
 
@@ -281,7 +287,7 @@ def _stated_facet(key: str, label: str, value: str, importance: str = "valuable"
     return BriefFacet(key=key, label=label, value=value.strip()[:600], importance=importance, provenance="stated", confidence=0.9)
 
 
-def _apply_answer(brief: RoleBrief, slot: str, text: str) -> RoleBrief:
+def _apply_answer(brief: RoleBrief, slot: str, text: str, lang: str = "en") -> RoleBrief:
     """Fold the requestor's answer to `slot` into the brief. Everything here is
     the requestor's literal input → provenance 'stated'."""
     text = text.strip()[:MAX_MESSAGE_CHARS]
@@ -311,6 +317,19 @@ def _apply_answer(brief: RoleBrief, slot: str, text: str) -> RoleBrief:
                 brief.seniority = token
                 brief.spine_provenance["seniority"] = "stated"
                 break
+        else:
+            # UAT drain 2.3 ("I told it Band 5 and it wrote 'medior'"): an
+            # out-of-vocabulary grade answer is still the requestor's grading —
+            # capture it verbatim as a stated facet. The enum stays default
+            # (assumed chip in the panel), never force-mapped.
+            brief.facets.append(
+                _stated_facet(
+                    "grade_label",
+                    "Úroveň (jak uvedeno)" if lang == "cs" else "Grade / level (as stated)",
+                    text,
+                    "core",
+                )
+            )
     elif slot == "languages":
         brief.languages.extend([l[:40] for l in _split_items(text)][:5])
     elif slot == "team":
@@ -385,7 +404,7 @@ def _readback(brief: RoleBrief, lang: str) -> str:
         if brief.languages:
             lines.append(f"• Jazyky: {', '.join(brief.languages)}")
         for f in brief.facets:
-            if f.key in ("team_context", "urgency", "budget_band", "why_now"):
+            if f.key in ("team_context", "urgency", "budget_band", "why_now", "grade_label"):
                 lines.append(f"• {f.label}: {f.value[:160]}")
         lines.append("Co jsem pochopil špatně nebo co chybí? Pokud všechno sedí, stačí napsat OK.")
         return "\n".join(lines)
@@ -400,7 +419,7 @@ def _readback(brief: RoleBrief, lang: str) -> str:
     if brief.languages:
         lines.append(f"• Languages: {', '.join(brief.languages)}")
     for f in brief.facets:
-        if f.key in ("team_context", "urgency", "budget_band", "why_now"):
+        if f.key in ("team_context", "urgency", "budget_band", "why_now", "grade_label"):
             lines.append(f"• {f.label}: {f.value[:160]}")
     lines.append("What did I get wrong or miss? If everything holds, just say OK.")
     return "\n".join(lines)
@@ -470,7 +489,7 @@ def deterministic_turn(turns: list[dict], brief: RoleBrief, message: str, lang: 
         if answered_slot:
             break
     if answered_slot and message:
-        brief = _apply_answer(brief, answered_slot, message)
+        brief = _apply_answer(brief, answered_slot, message, lang)
 
     remaining = [s for s in script if s not in asked and not _slot_filled(brief, s)]
     if remaining:
