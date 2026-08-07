@@ -13,7 +13,7 @@ export default function InterviewArt({ color = "#d65a4a" }: { color?: string }) 
     { ai: false, text: t("art.interview.replyThem") }
   ];
   return (
-    <div className="mx-auto w-full max-w-md rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
+    <div className="mx-auto w-full max-w-lg rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
       <div className="flex items-center gap-3 border-b-[3px] border-dashed border-[#dce7d0] pb-3">
         <span
           className="grid h-9 w-9 shrink-0 place-items-center rounded-full border-[3px] border-[#17202a]"

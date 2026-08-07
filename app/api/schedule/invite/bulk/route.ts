@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPipelineEntry } from "@/app/_lib/db";
+import { getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
-import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
+import { plannedInterviewMinutes } from "@/app/_lib/interview-planned-minutes";
 import { dispatchScheduleInvite } from "@/app/_lib/comms-dispatch";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { safeJsonError } from "@/app/_lib/api-response";

@@ -19,6 +19,7 @@ import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { MotionizedGlyph } from "@/app/_components/glyph/MotionizedGlyph";
 import { ONBOARDING_RUN_GLYPH } from "@/app/_components/glyph/glyphs/onboardingRunGlyph";
 import { Select } from "@/app/_components/Select";
+import { useOnboardingLabels } from "./onboardingLabels";
 import {
   BTN_PRIMARY,
   CARD_PAD,
@@ -64,6 +65,10 @@ export function OnboardingEmptyFirstDay({
   onStart: (entryId: string) => void;
 }) {
   const t = useTranslations("onboarding");
+  // F16 — the plan preview shows the SAME stored rows the run checklist does, so it
+  // resolves them the same way: canonical id → this reader's language, else the
+  // authored text. Two surfaces showing one template must not disagree.
+  const { taskLabel, fieldLabel } = useOnboardingLabels();
   const active = templates.find((tpl) => tpl.id === templateId) ?? templates[0];
   const tasks = active?.tasks ?? [];
   const questions = active?.questionnaire ?? [];
@@ -129,7 +134,7 @@ export function OnboardingEmptyFirstDay({
                   count: questions.length,
                   list: `${questions
                     .slice(0, 3)
-                    .map((q) => q.label.toLowerCase())
+                    .map((q) => fieldLabel(q).toLowerCase())
                     .join(", ")}${questions.length > 3 ? "…" : ""}`,
                 })
               : t("noPreboardQuestions")}
@@ -139,7 +144,7 @@ export function OnboardingEmptyFirstDay({
         <p className={`mt-4 ${META_LABEL}`}>{t("thenInOrder")} · {t("progress", { done: 0, total: tasks.length })}</p>
         <ol className="mt-1.5">
           {tasks.map((task, i) => (
-            <PlanStep key={task.id} index={i + 1} label={task.label} />
+            <PlanStep key={task.id} index={i + 1} label={taskLabel(task)} />
           ))}
         </ol>
         <p className={`mt-3 pt-3 text-sm text-steel ${DIVIDER}`}>{t("signSeamNote")}</p>

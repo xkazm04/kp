@@ -122,7 +122,10 @@ export type NavGroup = { label?: string; key?: string; items: WorkspaceTabDef[] 
 export const NAV_GROUPS: NavGroup[] = [
   {
     items: [
-      { id: "pipeline", label: "Pipeline", badgeKey: "pipeline", badgeParams: { quick: "aging" } },
+      // Nav label is "Overview", not "Pipeline": this is the workspace's landing
+      // surface (attention queues, today's work, the board) — the tab ID, the
+      // catalog key and the page's own eyebrow/title stay "pipeline".
+      { id: "pipeline", label: "Overview", badgeKey: "pipeline", badgeParams: { quick: "aging" } },
       { id: "channels", label: "Channels", badgeKey: "channels" },
       { id: "decisions", label: "Decisions", badgeKey: "decisions" },
       { id: "schedule", label: "Schedule", badgeKey: "schedule" },
@@ -235,9 +238,13 @@ export function navItemClass(isActive: boolean): string {
 // update (lost profile/job/tab params). Composing off the committed router state
 // (useSearchParams) instead makes successive patches stack correctly.
 //
-// Components still pass the result to next/navigation's router so App Router's
-// useSearchParams reliably re-renders — a raw history.pushState does NOT trigger
-// that in Next 16, which is why sidebar clicks weren't switching content.
+// In-shell components pass the result to `useShellNavigate` (shell/nav/shallow-nav.ts),
+// which patches it onto the history stack directly. The App Router PATCHES
+// history.pushState/replaceState to update its canonical URL, so useSearchParams
+// re-renders from a patch exactly as it does from router.push — without the RSC
+// round-trip a same-route query change never needed. (An earlier revision of this
+// comment claimed pushState didn't re-render; that has not been true since 16.3 —
+// see the patch in next/dist/client/components/app-router.js.)
 export function buildUrl(updates: Record<string, string | null>, search: string): string {
   const params = new URLSearchParams(search);
   for (const [key, value] of Object.entries(updates)) {

@@ -328,12 +328,45 @@ checklist.
 
 - Type scale: `display 36 / h2 22 / h3 16 / body 16 / meta+micro 14` — nothing
   below 14px. Serif (Fraunces) for display in the workspace; the landing owns
-  its own loaded-on-page fonts.
+  its own loaded-on-page fonts **and its own, larger scale** (below).
+- **The marketing pages run one notch larger.** `.spark-type` in
+  `app/globals.css` redefines `--text-xs … --text-xl` (+~2px each: xs 14, sm 16,
+  base 18, lg 20, xl 22, meta 16) for everything inside it. Tailwind v4 compiles
+  `text-sm` to `font-size: var(--text-sm)`, so overriding the token on an
+  ancestor re-scales every utility in the subtree — the shift lives in one rule
+  instead of ~180 hand-typed classes, and new Spark markup inherits it. Only the
+  font size is overridden; the stock `--text-*--line-height` values are unitless
+  ratios, so leading follows. `text-2xl` and up are deliberately untouched — the
+  display headings were never the problem. Applied at the page root by
+  `SparkHome`, `AboutHome` and `MarketPulse` via `TYPE_SCALE`
+  (`app/landing/spark/tokens.ts`). The workspace is unaffected.
+- **The illustrated cards go one notch further.** `.spark-type-art`
+  (`ART_TYPE_SCALE`) nests inside the page scale and adds another +2px: xs 16,
+  sm 18, base 20, lg 22, xl 24 — and unlike the page scale it *does* move
+  `text-2xl`/`3xl`/`4xl` (26/32/38), because inside a card a display size is a
+  score dial or a salary figure, not a section heading. It re-states absolute
+  values rather than deriving them, so nesting it inside itself is idempotent
+  (the /market demand grid does exactly that). Rationale: the /about step art
+  and the /market data cards are miniatures of product UI, built at product
+  sizes, and once the page scale moved they read a full step smaller than the
+  prose beside them. Opt in per card container: `StepRow`'s art column in
+  `AboutCurve`, every block in `market/parts.tsx` plus the three inline card
+  groups in `MarketPulseAtlas`.
 - Motion vocabulary: `animate-fade-in`, `animate-tab-in`, `stagger-children`,
   `animate-slide-in`, `animate-drawer-in`, `animate-arrive-in`, `reveal-quiet`
   — all reduced-motion aware. See `docs/design/loading-choreography.md` for
   the tab-entrance/data-arrival contract these compose into. Dark theme may
   lean on spring entrances more, but always through these shared classes.
+- **Presence (exit) motion is framer-motion, not CSS.** A CSS keyframe can only
+  animate an element that is still mounted, so anything that must fade *out* —
+  a self-hiding strip, a toggled panel, a swapped pane — wraps in
+  `AnimatePresence` gated on `useReducedMotion` (`app/_lib/useReducedMotion.ts`).
+  The reference set is `app/features/hiring/pipeline/PipelineMotion.tsx`
+  (`Fade` / `Collapse` / `FadeSwap` / `FadeInline`) alongside the segmented-control
+  standard in `AnalyzeWorkspace.tsx`. Two rules such a wrapper must keep: render
+  **no** DOM while hidden (an empty wrapper inside a `space-y-*` stack leaves a
+  permanent gap), and let the component that decides it has nothing to show own
+  the wrapper itself — a parent cannot animate out what has already returned null.
 - Focus: the global coral double-ring resolves through `paper`/`coral` tokens,
   so it adapts to both themes automatically; `forced-colors` fallback restores
   a system outline.
@@ -379,6 +412,15 @@ landing or the dashboard — the real signed session in password mode, the reada
 entry marker in open mode. Anonymous visitors get the landing server-rendered, so it
 is crawlable (`app/robots.ts`, `app/sitemap.ts`) with no landing↔dashboard flash.
 `/landing` is a redirect stub to `/` for stale bookmarks.
+
+The marketing bands (`/`, `/about`, `/market`) are `max-w-7xl` (80rem), not the
+`max-w-6xl` the workspace uses — the larger `.spark-type` scale needs the extra
+measure. /about's timeline runs the full `max-w-7xl` too, and its step art caps at
+`max-w-lg` (was `max-w-md`) so the card-scale type has room; /market's two narrow
+editorial sections went `max-w-4xl` → `max-w-5xl`. One
+consequence to know about: `SectionRail` parks in the gutter at
+`50% + 40rem + 0.5rem` and falls back to a viewport-edge overlay when the gutter
+can't hold it, which now happens below ~1592px viewport instead of ~1464px.
 
 > Corrected 2026-07-30. This section previously said the landing was dev-only,
 > gated by a client `HomeGate` at `app/_lib/auth/devAuth.ts` with

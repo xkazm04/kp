@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
-import type { LlmConfigRow } from "@/app/_lib/db";
+import type { LlmConfigRow } from "@/app/_lib/db/llm";
 import { bestModelForUseCase } from "@/app/_lib/llm-quality";
 import { QUALITY_SCORES, hasQualityScores } from "@/app/_lib/llm-quality-scores";
 import { saveRoutingPin, resetRoutingPin } from "./modelsRoutingActions";

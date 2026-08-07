@@ -66,15 +66,9 @@ export function RunDetailView({ runId, onBack }: { runId: string; onBack: () => 
   };
 
   const doneIds = detail ? new Set(detail.states.filter((s) => s.done).map((s) => s.taskId)) : new Set<string>();
-  // next-intl rejects template-literal keys → resolve field labels via a literal map.
-  const fieldLabels: Record<string, string> = {
-    preferredName: t("field.preferredName"),
-    tshirtSize: t("field.tshirtSize"),
-    dietaryNeeds: t("field.dietaryNeeds"),
-    equipmentPrefs: t("field.equipmentPrefs"),
-    emergencyContact: t("field.emergencyContact"),
-    startDateConfirm: t("field.startDateConfirm"),
-  };
+  // F16 — the six-entry field-label map that used to live here moved into
+  // onboardingLabels.ts, so it covers the preset fields too and cannot drift from
+  // the checklist's resolver.
 
   return (
     // Tier 1: the back button is chrome — it depends on nothing and must render
@@ -117,7 +111,6 @@ export function RunDetailView({ runId, onBack }: { runId: string; onBack: () => 
             answers={answers}
             setAnswers={setAnswers}
             savedAnswersRef={savedAnswersRef}
-            fieldLabels={fieldLabels}
             onFieldSaved={(key, value) => void patch({ action: "intake", answers: { [key]: value } })}
           />
 

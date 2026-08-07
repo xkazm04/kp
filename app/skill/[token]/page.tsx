@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { verifySkillProfileToken } from "@/app/_lib/db";
+import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
 import { skillProfileFreshnessNow, resolveSkillProfileCardState, skillProfileShowsScoreCard } from "@/app/_lib/skill-profile";
 
 

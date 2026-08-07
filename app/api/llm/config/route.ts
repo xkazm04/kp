@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteLlmConfig, listLlmConfig, upsertLlmConfig } from "@/app/_lib/db";
+import { deleteLlmConfig, listLlmConfig, upsertLlmConfig } from "@/app/_lib/db/llm";
 import { isLlmProvider, isLlmUseCase, LLM_PROVIDERS, LLM_USE_CASES } from "@/app/_lib/llm-config";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 

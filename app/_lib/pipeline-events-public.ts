@@ -1,4 +1,4 @@
-import type { PipelineEvent } from "./db";
+import type { PipelineEvent } from "./db/pipeline";
 
 // Public projection of the Activity feed (idea-4c41d103).
 //

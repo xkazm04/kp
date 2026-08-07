@@ -389,6 +389,72 @@ textarea {
 }
 
 /*
+ * Spark type scale — the marketing pages read one notch larger than the app.
+ *
+ * The workspace is a dense tool used for hours; the landing and /about are read
+ * once, at arm's length, often on a big screen, and every size below the display
+ * headings was landing too small there. Rather than re-typing a bigger class on
+ * ~180 elements (and hoping the next person adding a card matches them), the
+ * marketing subtree redefines the scale itself: Tailwind v4 compiles
+ * `text-sm` to `font-size: var(--text-sm)`, so overriding the token on an
+ * ancestor shifts every utility inside it. One place, and new Spark markup
+ * inherits the scale for free.
+ *
+ * Each step moves up ~2px — which for xs…lg is exactly the next rung of
+ * Tailwind's own scale, so the hierarchy between sizes is untouched, only its
+ * baseline. Only the font size is overridden: the stock `--text-*--line-height`
+ * values are unitless ratios, so leading follows automatically.
+ *
+ * Deliberately NOT shifted: `text-2xl` and up. Those are the display headings
+ * (section h2s at 4xl/5xl, the hero at 5xl/7xl, price numerals at 3xl) — they
+ * were never the problem, and growing them too would have kept the page
+ * exactly as unbalanced as it started.
+ *
+ * Applied at the page root by SparkHome and AboutHome (see TYPE_SCALE in
+ * app/landing/spark/tokens.ts). /market opts in separately when its dense
+ * tables and map legend have been checked at the larger size.
+ */
+.spark-type {
+  --text-xs: 0.875rem; /* 12 → 14 */
+  --text-sm: 1rem; /* 14 → 16 */
+  --text-base: 1.125rem; /* 16 → 18 */
+  --text-lg: 1.25rem; /* 18 → 20 */
+  --text-xl: 1.375rem; /* 20 → 22 */
+  --text-meta: 16px; /* 14 → 16 */
+}
+
+/*
+ * …and one more notch inside the illustrated cards.
+ *
+ * The /about step art and the /market data cards are miniatures of real product
+ * UI, so they were built at the sizes that UI uses — which left them reading a
+ * full step SMALLER than the prose sitting beside them, once the page scale
+ * above moved. A mockup that the copy dwarfs stops looking like evidence and
+ * starts looking like a footnote.
+ *
+ * Nests inside `.spark-type` and re-states absolute values (custom properties
+ * resolve from the nearest ancestor that sets them, so the two never compound
+ * by accident). Every step is +2px again: xs…xl relative to `.spark-type`,
+ * 2xl…4xl relative to stock Tailwind, because the page scale leaves the display
+ * sizes alone — inside a card a "display" size is a score dial or a salary
+ * figure, not a section heading, so here it moves with everything else.
+ *
+ * Opt in per card container via ART_TYPE_SCALE (app/landing/spark/tokens.ts):
+ * `StepRow`'s art column on /about, the parts.tsx vocabulary on /market.
+ */
+.spark-type-art {
+  --text-xs: 1rem; /* 14 → 16 */
+  --text-sm: 1.125rem; /* 16 → 18 */
+  --text-base: 1.25rem; /* 18 → 20 */
+  --text-lg: 1.375rem; /* 20 → 22 */
+  --text-xl: 1.5rem; /* 22 → 24 */
+  --text-2xl: 1.625rem; /* 24 → 26 */
+  --text-3xl: 2rem; /* 30 → 32 */
+  --text-4xl: 2.375rem; /* 36 → 38 */
+  --text-meta: 18px; /* 16 → 18 */
+}
+
+/*
  * Baseline focus ring — the on-brand coral double-ring for EVERY natively
  * focusable control, not just elements that opt into `.focus-ring`. Keyboard
  * and screen-reader users get one consistent, WCAG-visible indicator instead

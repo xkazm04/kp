@@ -20,7 +20,7 @@ export default function OfferPreview() {
   const t = useTranslations("landing");
   return (
     <div>
-      <p className="text-[15px] font-bold">{t("previews.offer.title", { name: "Petr K." })}</p>
+      <p className="text-[17px] font-bold">{t("previews.offer.title", { name: "Petr K." })}</p>
       <div className="mt-4 space-y-2.5">
         {STEPS.map((s, i) => (
           <motion.div
@@ -38,7 +38,7 @@ export default function OfferPreview() {
               <Check className="h-3.5 w-3.5 text-white" />
             </span>
             <div>
-              <p className="text-[15px] font-bold">{t(`previews.offer.steps.${s.key}.label`)}</p>
+              <p className="text-[17px] font-bold">{t(`previews.offer.steps.${s.key}.label`)}</p>
               <p className="text-sm" style={{ color: STEEL }}>
                 {t(`previews.offer.steps.${s.key}.detail`)}
               </p>

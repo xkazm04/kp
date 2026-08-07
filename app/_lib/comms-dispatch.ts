@@ -1,6 +1,7 @@
 import { sendComm } from "./comms";
 import type { OutboxStatus } from "./comms-status";
-import { ensureErasureToken, entryProfileGaps, recordAutomationEvent, type PipelineEntry } from "./db";
+import type { PipelineEntry } from "./db/core";
+import { ensureErasureToken, entryProfileGaps, recordAutomationEvent } from "./db/pipeline";
 import { buildRejectionFeedback, renderRejectionFeedback } from "./rejection-feedback";
 import { outreachHaltFor, recordOutreachSend } from "./outreach-state-store";
 import type { HaltReason } from "./outreach-halt";

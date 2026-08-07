@@ -104,7 +104,7 @@ name variants — this closes what was gap G3 in the original conformity pack.
 | Erasure self-service | `app/data/[token]/page.tsx`, `DataClient.tsx`, `app/api/data/[token]/route.ts` |
 | Candidate status + decision explanation + NPS | `app/status/[token]/StatusClient.tsx`, `app/_lib/status-decisions.ts`, `app/api/status/[token]/nps/route.ts`, `app/_lib/candidate-nps.ts`, `app/_lib/candidate-nps-store.ts` |
 | Decision chain (sealing/verify) | `app/_lib/decision-record-store.ts`, `app/api/decisions/records/route.ts` |
-| Human oversight gates | `app/_lib/screen-wave-approval.ts`, `app/api/decisions/screen-wave/route.ts`, `app/_lib/automation-pass.ts`, `app/_lib/approval-kinds.ts`, `app/_lib/dev-control.ts`, `app/control/ControlRoom.tsx` |
+| Human oversight gates | `app/_lib/screen-wave-approval.ts`, `app/api/decisions/screen-wave/route.ts`, `app/_lib/automation-pass.ts`, `app/_lib/approval-kinds.ts`, `app/_lib/dev-control.ts`, `app/control/**` (shell `ControlRoom.tsx` + `AutonomyBar` / `GatesPanel` / `AuditPanel` / `CalibrationPanel`) |
 | Decision attribution (auto vs human) | `app/_lib/decision-attribution.ts` |
 | Fairness / adverse impact | `app/_lib/archetypes.ts`, `app/_lib/automation-fairness.ts`, `app/_lib/adverse-impact.ts`, `app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx` |
 | Name-neutrality eval | `pipeline/jobfit/tests/test_name_neutrality.py` |

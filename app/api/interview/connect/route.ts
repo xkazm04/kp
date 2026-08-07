@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createInterviewSession,
-  getInterviewSessionByToken,
-  getPipelineEntry,
-  isInterviewLinkExpired,
-  markInterviewStarted,
-  revokeInterviewSession,
-  setInterviewSessionProvider,
-} from "@/app/_lib/db";
+import { createInterviewSession, getInterviewSessionByToken, isInterviewLinkExpired, markInterviewStarted, revokeInterviewSession, setInterviewSessionProvider } from "@/app/_lib/db/interviews";
+import { getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import {
   coerceLanguage,

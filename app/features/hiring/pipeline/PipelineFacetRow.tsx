@@ -1,96 +1,30 @@
 "use client";
 
-// perfect-board — the score-band + source facet chips plus the within-lane sort
-// control, shown under the main filter row. Split out of PipelineFilterBar.tsx.
+// One labelled facet row inside the board header (PipelineFilterBar).
+//
+// Was the whole facet BLOCK — score chips, source chips and a sort <Select> crammed
+// onto one wrapping line, with only the two inline "SCORE"/"SOURCE" captions to say
+// which chip belonged to which dimension. At three or more sources the line wrapped
+// and the captions stopped aligning with anything. It is now a layout primitive: a
+// fixed label gutter and a chip well, so State / Score / Source / Sort stack as
+// scannable rows whose labels line up in a column.
 
-import type { PipelineTabTranslator } from "./pipelineTranslator";
-import { Select } from "@/app/_components/Select";
-import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
-import type { ScoreBandKey, SortKey } from "./pipelineBoardFilters";
+import type { ReactNode } from "react";
 
-export function PipelineFacetRow({
-  t,
-  scoreBands,
-  onToggleBand,
-  scoreBandKeys,
-  sourceValues,
-  sources,
-  onToggleSource,
-  channelName,
-  sort,
-  onSortChange,
-}: {
-  t: PipelineTabTranslator;
-  scoreBands: ReadonlySet<ScoreBandKey>;
-  onToggleBand: (b: ScoreBandKey) => void;
-  scoreBandKeys: readonly ScoreBandKey[];
-  sourceValues: string[];
-  sources: ReadonlySet<string>;
-  onToggleSource: (s: string) => void;
-  channelName: (channel: string) => string;
-  sort: SortKey;
-  onSortChange: (s: SortKey) => void;
-}) {
+/** Grid the rows must be rendered into: an auto label column + the chip well.
+ *  `auto` is what makes the gutter self-size to the WIDEST label present, so the
+ *  chips line up in every locale — a hardcoded gutter that fits "STATE/SCORE/SORT"
+ *  in English is already too narrow for "SORTIEREN" in German. */
+export const FACET_GRID = "grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1.5";
+
+/** One labelled facet row. Renders as a FRAGMENT — two cells of the parent
+ *  FACET_GRID — so every row shares one label column rather than each row
+ *  measuring its own. */
+export function PipelineFacetRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    // perfect-board — compound facets the single-select quick row can't express: a
-    // score-range band set (honest tiers consistent with the card ScoreBadge;
-    // unscored is its own bucket) and, when the board spans more than one channel,
-    // a source facet — plus a within-lane sort. Bands + sources compose
-    // OR-within / AND-across; every quick chip AND-composes.
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-meta uppercase tracking-wide text-steel">{t("filterScoreLabel")}</span>
-        {scoreBandKeys.map((b) => (
-          <button
-            key={b}
-            type="button"
-            onClick={() => onToggleBand(b)}
-            aria-pressed={scoreBands.has(b)}
-            className={CHIP_TOGGLE(scoreBands.has(b))}
-          >
-            {t(
-              b === "strong"
-                ? "filterScoreStrong"
-                : b === "mid"
-                  ? "filterScoreMid"
-                  : b === "weak"
-                    ? "filterScoreWeak"
-                    : "filterScoreUnscored"
-            )}
-          </button>
-        ))}
-      </div>
-      {sourceValues.length > 1 ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-meta uppercase tracking-wide text-steel">{t("filterSourceLabel")}</span>
-          {sourceValues.map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => onToggleSource(s)}
-              aria-pressed={sources.has(s)}
-              className={CHIP_TOGGLE(sources.has(s))}
-            >
-              {channelName(s)}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <label className="ml-auto flex items-center gap-1.5 text-sm font-medium text-steel">
-        {t("sortLabel")}
-        <Select
-          ariaLabel={t("sortLabel")}
-          value={sort}
-          onChange={(v) => onSortChange(v as SortKey)}
-          size="sm"
-          className="h-8"
-          options={[
-            { value: "insertion", label: t("sortInsertion") },
-            { value: "score", label: t("sortScore") },
-            { value: "age", label: t("sortAge") },
-          ]}
-        />
-      </label>
-    </div>
+    <>
+      <span className="pt-0.5 text-meta uppercase tracking-wide text-steel">{label}</span>
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">{children}</div>
+    </>
   );
 }

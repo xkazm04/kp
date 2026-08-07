@@ -176,11 +176,22 @@ test("recruiter mints a self-scheduling invite from the candidate drawer", async
   // hidden behind a "+N more" cell overflow.
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(candidateLabel)}`);
   const drawer = page.getByRole("dialog");
-  const aiActions = page.getByRole("button", { name: `AI actions for ${candidateLabel}` }).first();
-  await expect(aiActions).toBeVisible({ timeout: 30_000 });
+  // The card's per-row actions live in its context menu now (the inline controls
+  // were costing ~134px of a 280px stage column, truncating the candidate name).
+  // The trigger is the row's keyboard/touch door into the same menu right-click
+  // opens; it is opacity-0 until hover, which Playwright still counts as visible.
+  const rowMenu = page.getByRole("button", { name: `Actions for ${candidateLabel}` }).first();
+  await expect(rowMenu).toBeVisible({ timeout: 30_000 });
   // Same dev-hydration retry as the sibling specs: click until the drawer opens.
   await expect(async () => {
-    if (!(await drawer.isVisible())) await aiActions.click().catch(() => undefined);
+    if (!(await drawer.isVisible())) {
+      await rowMenu.click().catch(() => undefined);
+      await page
+        .getByRole("menuitem", { name: "AI actions" })
+        .first()
+        .click({ timeout: 2000 })
+        .catch(() => undefined);
+    }
     await expect(drawer).toBeVisible({ timeout: 1500 });
   }).toPass({ timeout: 30_000 });
 

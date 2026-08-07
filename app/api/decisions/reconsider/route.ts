@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listReconsiderQueue } from "@/app/_lib/db";
+import { listReconsiderQueue } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";

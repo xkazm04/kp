@@ -2,7 +2,7 @@
 //
 // Kept in a pure, DB-free module (no better-sqlite3 import) so the fairness metric
 // is unit-testable in isolation and so the stage order has one single source. db.ts
-// re-exports these, so existing `import { PIPELINE_STAGES } from "./db"` call sites
+// re-exports these, so existing `import { PIPELINE_STAGES } from "./db/pipeline";` call sites
 // keep working unchanged.
 
 // Consolidated 5-stage model. "Accepted" = CV received (inbound or proactively

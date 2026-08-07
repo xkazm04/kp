@@ -1,4 +1,5 @@
-import { actOnPipelineEntry, getPipelineEntry, PIPELINE_STAGES, setApproval, setPipelineEntryStage, type PipelineAction, type PipelineEntry } from "@/app/_lib/db";
+import type { PipelineEntry } from "@/app/_lib/db/core";
+import { actOnPipelineEntry, getPipelineEntry, PIPELINE_STAGES, setApproval, setPipelineEntryStage, type PipelineAction } from "@/app/_lib/db/pipeline";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";

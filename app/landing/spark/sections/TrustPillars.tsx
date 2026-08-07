@@ -52,7 +52,7 @@ export default function TrustPillars() {
 
   return (
     <section id="trust" className="border-y-[3px] border-[#17202a] bg-[#526b4f] py-24">
-      <div className="mx-auto w-full max-w-6xl px-6">
+      <div className="mx-auto w-full max-w-7xl px-6">
         <motion.h2
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -131,7 +131,7 @@ export default function TrustPillars() {
                 aria-controls={`trust-panel-${pillar.key}`}
                 tabIndex={on ? 0 : -1}
                 onClick={() => setActive(pillar.key)}
-                className={`focus-ring relative rounded-2xl border-[3px] border-[#17202a] px-4 py-2.5 text-[15px] font-bold shadow-[4px_4px_0_#17202a] transition-transform ${
+                className={`focus-ring relative rounded-2xl border-[3px] border-[#17202a] px-4 py-2.5 text-[17px] font-bold shadow-[4px_4px_0_#17202a] transition-transform ${
                   on ? "text-[#17202a]" : "text-[#fdf8ee] hover:translate-y-[-2px]"
                 }`}
               >

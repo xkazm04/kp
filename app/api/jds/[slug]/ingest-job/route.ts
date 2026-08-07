@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getJob, loadJd } from "@/app/_lib/db";
+import { getJob, loadJd } from "@/app/_lib/db/jobs";
 import { ingestJobAd } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";

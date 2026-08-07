@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  candidateLabelWithholdsPii,
-  loadAnalysis,
-  parseStoredGithubAnalysis,
-  recordAnalysisDispositionEvents,
-  setAnalysisDisposition,
-  setAnalysisGithub,
-} from "@/app/_lib/db";
+import { loadAnalysis, parseStoredGithubAnalysis, setAnalysisDisposition, setAnalysisGithub } from "@/app/_lib/db/analyses";
+import { candidateLabelWithholdsPii, recordAnalysisDispositionEvents } from "@/app/_lib/db/pipeline";
 import { maskCandidateName, scrubPiiFromPayload } from "@/app/_lib/consent";
 import { githubAnalysisSchema } from "@/app/_lib/schemas";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";

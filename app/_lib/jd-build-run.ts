@@ -6,7 +6,7 @@ import { runDesignArtifacts, runNeedAnalysis, type DevNeed } from "./devcase-run
 import { validateJdBuildInput } from "./jd-limits";
 import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./salary-band";
 import { type RepoSnapshot } from "./repo-snapshot";
-import { failJdAnalysis, finishJdAnalysis } from "./db";
+import { failJdAnalysis, finishJdAnalysis } from "./db/jobs";
 import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
 import { renderTemplate } from "@/app/features/shared/renderTemplate";
 import { jdTemplateTokens } from "./jd-template-tokens";

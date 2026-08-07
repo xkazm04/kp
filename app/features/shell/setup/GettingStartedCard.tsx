@@ -30,7 +30,11 @@ function GettingStartedCompleted({ dismiss }: { dismiss: () => void }) {
       <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-moss/15 text-moss">
         <Check size={18} aria-hidden />
       </span>
-      <div className="min-w-0 flex-1 text-sm">
+      {/* text-base, not text-sm: this card sits in the Pipeline column between the
+          attention strip and the Today rail, both of which read at the page's
+          base size — a smaller voice here made the congratulation look like a
+          footnote to them. */}
+      <div className="min-w-0 flex-1 text-base">
         <p className="font-semibold text-ink">{t("completed.title")}</p>
         <p className="text-steel">{t("completed.body")}</p>
       </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteProviderKey } from "@/app/_lib/db";
+import { deleteProviderKey } from "@/app/_lib/db/llm";
 import { isKeyableProvider, isLlmProvider, KEYABLE_PROVIDERS, listProviderKeyMeta, saveProviderKey } from "@/app/_lib/llm-config";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 

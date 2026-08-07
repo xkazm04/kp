@@ -1,15 +1,8 @@
 // Webhook ingestion: verify → idempotency gate → reduce (pure) → apply (DB).
 // The single write path for money state; nothing else mutates billing_state.
 
-import {
-  billingOrgForProviderRefs,
-  ensureDb,
-  getBillingState,
-  grantBillingCredits,
-  insertBillingEvent,
-  recordBillingAlert,
-  upsertBillingState,
-} from "../db";
+import { billingOrgForProviderRefs, getBillingState, grantBillingCredits, insertBillingEvent, recordBillingAlert, upsertBillingState } from "../db/billing";
+import { ensureDb } from "../db/core";
 import { DEFAULT_ORG_ID } from "../db/organizations";
 import type { BillingEvent, BillingGateway } from "./gateway";
 import {

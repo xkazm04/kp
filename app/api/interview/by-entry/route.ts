@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getEntryWorkspace, getPipelineEntry, interviewStatusByEntries, latestInterviewByEntry } from "@/app/_lib/db";
+import { interviewStatusByEntries, latestInterviewByEntry } from "@/app/_lib/db/interviews";
+import { getEntryWorkspace, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { consentWithholdsPii, redactTranscriptForConsent } from "@/app/_lib/consent";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { parseEntriesParam } from "@/app/_lib/entries-param";

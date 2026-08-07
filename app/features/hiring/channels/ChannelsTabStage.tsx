@@ -13,7 +13,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, ExternalLink, Link2 } from "lucide-react";
 import { buildTabSwitchUrl } from "@/app/features/shell/tabs";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
-import { Defer } from "@/app/_components/ui/Defer";
 import { BTN_PRIMARY, BTN_SECONDARY } from "@/app/_components/ui/recipes";
 import type { ChannelSection } from "./channelsSections";
 import type { Accent } from "./channelsAccent";
@@ -23,6 +22,7 @@ import { RelayConfigCard } from "./ChannelsRelayConfigCard";
 import { AdFormsPane } from "./ChannelsAdFormsPane";
 import { EmailIntakeWizard } from "./ChannelsEmailIntakeWizard";
 import { CopyLink, Stat } from "./ChannelsTabWidgets";
+import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import type { ChannelJob } from "./useChannelsData";
 
 export function ChannelsTabStage({
@@ -31,6 +31,7 @@ export function ChannelsTabStage({
   accent,
   activeStatus,
   jobs,
+  webhooks,
   accepted,
   activeHooksCount,
   received,
@@ -47,6 +48,9 @@ export function ChannelsTabStage({
   accent: Accent;
   activeStatus: { tone: BadgeTone; label: string } | null | "pending";
   jobs: ChannelJob[] | null;
+  /** Every channel's receivers — handed to the intake panes so they don't
+   *  re-fetch a list the tab already holds (useChannelsReceivers). */
+  webhooks: ChannelWebhookRecord[] | null;
   accepted: number | null;
   activeHooksCount: number;
   received: number;
@@ -74,6 +78,11 @@ export function ChannelsTabStage({
         transition={reduced ? { duration: 0 } : { duration: 0.18, ease: "easeOut" }}
         className={`rounded-2xl border-2 ${accent.border} ${accent.soft} p-5`}
       >
+        {/* Hero row: identity on the left, the stat cluster pinned to the section's
+            top-RIGHT corner. The stats used to sit on their own line under the
+            blurb, which read as content belonging to the pane below them; up here
+            they are what they are — the section's headline numbers, level with the
+            section's name, and the pane below starts at the pane. */}
         <div className="flex flex-wrap items-start gap-4">
           <span className={`inline-grid h-12 w-12 shrink-0 place-items-center rounded-xl border-2 ${accent.border} bg-white shadow-sticker-sm`}>
             <active.icon size={22} className={accent.text} aria-hidden />
@@ -89,24 +98,23 @@ export function ChannelsTabStage({
             </div>
             <p className="mt-1 max-w-xl text-body text-steel">{t(`sections.${active.id}.blurb`)}</p>
           </div>
-        </div>
-
-        {/* Stat cluster — what's actually flowing through this channel */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {active.id === "careers" ? (
-            <>
-              <Stat label={t("stats.publishedRoles")} value={jobs === null ? "—" : jobs.length} />
+          {/* Stat cluster — what's actually flowing through this channel */}
+          <div className="flex flex-wrap items-start justify-end gap-2 sm:ml-auto">
+            {active.id === "careers" ? (
+              <>
+                <Stat label={t("stats.publishedRoles")} value={jobs === null ? "—" : jobs.length} />
+                <Stat label={t("stats.waiting")} value={accepted ?? "—"} />
+              </>
+            ) : active.id === "comms" ? (
               <Stat label={t("stats.waiting")} value={accepted ?? "—"} />
-            </>
-          ) : active.id === "comms" ? (
-            <Stat label={t("stats.waiting")} value={accepted ?? "—"} />
-          ) : (
-            <>
-              <Stat label={t("stats.receivers")} value={activeHooksCount} />
-              <Stat label={t("stats.received")} value={received} />
-              <Stat label={t("stats.leads")} value={leads} />
-            </>
-          )}
+            ) : (
+              <>
+                <Stat label={t("stats.receivers")} value={activeHooksCount} />
+                <Stat label={t("stats.received")} value={received} />
+                <Stat label={t("stats.leads")} value={leads} />
+              </>
+            )}
+          </div>
         </div>
 
         {/* CTA for the apply page */}
@@ -127,17 +135,19 @@ export function ChannelsTabStage({
         <div className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
           {active.id === "comms" ? (
             <div className="space-y-5">
-              {/* Tier 3: the relay editor is secondary to the ledger below — the
-                  ledger is this section's primary content and mounts immediately;
-                  the config card lands a beat later. */}
-              <Defer strategy="next-frame">
-                <RelayConfigCard />
-              </Defer>
+              {/* Both of these now render their chrome on the first frame and hold
+                  their own height while their fetch is in flight, so neither needs
+                  deferring: the relay editor used to sit behind <Defer next-frame>
+                  AND behind its own GET, which pushed the ledger down twice — once
+                  when the card mounted, again when its config landed. */}
+              <RelayConfigCard />
               <CommsTable />
             </div>
           ) : null}
-          {active.id === "email" ? <EmailIntakeWizard onChanged={reload} /> : null}
-          {active.id === "ads" ? <AdFormsPane onChanged={reload} /> : null}
+          {active.id === "email" ? (
+            <EmailIntakeWizard webhooks={webhooks} jobs={jobs} reload={reload} onChanged={reload} />
+          ) : null}
+          {active.id === "ads" ? <AdFormsPane webhooks={webhooks} jobs={jobs} reload={reload} onChanged={reload} /> : null}
           {active.id === "careers" ? (
             jobs === null ? (
               // Tier 2: the jobs fetch hasn't settled — hold the list's height and

@@ -38,7 +38,7 @@ export default function VoicePreview() {
             <Mic className="h-4 w-4 text-white" aria-hidden />
           </motion.span>
           <div>
-            <p className="text-[15px] font-bold">{t("previews.voice.screenTitle")}</p>
+            <p className="text-[17px] font-bold">{t("previews.voice.screenTitle")}</p>
             <p className="text-sm font-bold" style={{ color: STEEL }}>
               {t("previews.voice.meta")}
             </p>
@@ -61,7 +61,7 @@ export default function VoicePreview() {
             initial={{ opacity: 0, scale: 0.85, x: line.who === "ai" ? -24 : 24 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
             transition={{ delay: 0.35 + i * 0.3, type: "spring", bounce: 0.4 }}
-            className={`max-w-[88%] rounded-2xl border-[3px] border-[#17202a] px-4 py-2.5 text-[15px] leading-snug ${
+            className={`max-w-[88%] rounded-2xl border-[3px] border-[#17202a] px-4 py-2.5 text-[17px] leading-snug ${
               line.who === "ai" ? "bg-white" : "ml-auto"
             }`}
             style={line.who === "ai" ? undefined : { background: LIMEWASH }}

@@ -21,7 +21,7 @@ export default function GatesPreview() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <p className="text-[15px] font-bold">{t("previews.gates.waiting", { n: QUEUE.length })}</p>
+        <p className="text-[17px] font-bold">{t("previews.gates.waiting", { n: QUEUE.length })}</p>
         <StampChip background={CORAL}>{t("previews.gates.humanGate")}</StampChip>
       </div>
       <div className="mt-4 space-y-3">
@@ -35,7 +35,7 @@ export default function GatesPreview() {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[15px] font-bold">{t(`previews.gates.queue.${item.key}.title`, { name: item.name })}</p>
+                <p className="text-[17px] font-bold">{t(`previews.gates.queue.${item.key}.title`, { name: item.name })}</p>
                 <p className="mt-0.5 text-sm font-bold leading-relaxed" style={{ color: STEEL }}>
                   {t(`previews.gates.queue.${item.key}.sub`)}
                 </p>

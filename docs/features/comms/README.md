@@ -173,8 +173,62 @@ back, keyed by the message's `ref` + `kind`:
 | `app/api/comms/callback/route.ts` | Async bounce/delivery receipt intake. |
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
 | `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsBouncedResend.tsx`) | Channels tab UI: relay config, Comms Center table, bounce resend. |
+| `app/features/hiring/channels/ChannelsTablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
+
+## Channels tab: paging and the render cascade
+
+**Every table pages in 20s.** `ChannelsTablePager` is shared by the Comms ledger
+and the email/ad-form receiver tables. It replaced the ledger's "Show more"
+button, which appended another 40 rows to the same list until the column filters
+(which live in the table header) had scrolled far out of reach. Paging is a pure
+client-side slice — the comms read is already capped at 200 rows server-side — and
+the page index is **clamped**, never reset from an effect, so filtering down to
+fewer pages lands the reader on one that exists. Any filter change returns to page
+one. The pager renders nothing when everything fits on one page.
+
+**Chrome renders before data; only data waits.** Two cascade gaps on the Comms
+section are closed:
+
+- `RelayConfigCard` used to render *nothing at all* — an empty reserved-height box
+  — until `GET /api/comms/relay` answered, and a failed or operator-denied read
+  left it null forever, so the editor silently ceased to exist. Now the card, its
+  fields and its buttons paint on the first frame; only the on/off badge, the
+  secret badge and the env-override note wait for the read, and the URL field
+  refuses to be overwritten by a late response once someone has typed in it. It is
+  no longer wrapped in `<Defer>` either — deferring a card that already holds its
+  own height only pushed the ledger down a second time.
+- `CommsTable` held back the caption, the column headers and the filters inside
+  them behind the same fetch, although all three depend on nothing but client
+  state. They now render immediately with a quiet reserved-height body.
+
+The status vocabulary stays honest through this: `relayConfigured` seeds `true`,
+so a read in flight never accuses a configured relay of dropping mail, and the
+section's own status badge keeps its pending pill rather than guessing a default.
+
+**The tab owns the shared lists; the panes don't re-fetch them.** `useChannelData`
+loads the receivers and the published jobs once, and `ChannelsTabStage` hands both
+to the Email-intake and Ad-forms panes. `useChannelsReceivers` no longer fetches at
+all — it derives its channel's slice and owns only revoke. It used to re-request
+`/api/channels/webhooks` **and** `/api/jobs?limit=200` on mount, i.e. ~202 KB
+re-downloaded on every switch into those panes (the jobs list alone measures
+201 KB), and it made the same two lists exist twice, so a revoke refreshed one copy
+and left the other's counts stale.
 
 ## Known gaps
+
+- Column-filter option lists sort with `Intl.Collator` on the active locale, but
+  the free-text Name filter still matches literally — searching `kralova` will not
+  find `Králová`.
+- **`/api/jobs?limit=200` ships 201 KB for a list the Channels tab reads two fields
+  of** (`{id, title}`, for the careers links and the receiver-binding picker). It
+  is the largest payload on the tab by an order of magnitude. A `?fields=` (or
+  count/summary) projection on that route would cut ~195 KB per Channels visit;
+  the endpoint is shared with other tabs, so the projection has to be additive.
+- **`useChannelData` downloads the whole board (`/api/pipeline`, 45.7 KB) to compute
+  one number** — active entries at `Accepted`, for the "waiting" stat. `/api/attention`
+  already computes exactly that cohort as its `channels` count in 0.1 KB and the shell
+  fetches it on every tab — but it is not workspace-scoped yet (see below), so it
+  cannot be the source for this stat until that is fixed.
 
 - No durable retry queue — retries are inline/bounded within the request;
   `comms.log` is not yet shipped to an external alerting sink.

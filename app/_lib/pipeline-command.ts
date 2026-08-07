@@ -7,7 +7,7 @@
 // a model only on `unknown`) — kept out of the core so it stays import-free/tested.
 
 import { compareByMatchScoreDesc } from "./match-score";
-import type { PipelineEntry } from "./db";
+import type { PipelineEntry } from "./db/core";
 
 export type ParsedCommand =
   | { kind: "reject_below"; threshold: number; jobQuery: string | null }

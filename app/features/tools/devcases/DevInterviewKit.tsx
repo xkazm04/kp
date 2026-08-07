@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Check, Copy, Download, MicVocal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { downloadFile } from "@/app/_lib/export-utils";
-import { interviewKitMarkdown } from "@/app/_lib/devcase-interview-kit";
+import { buildInterviewKitStrings, interviewKitMarkdown } from "@/app/_lib/devcase-interview-kit";
 import { FollowupQuestionItem } from "./DevShared";
 import type { Submission } from "./DevTypes";
 
@@ -21,12 +21,20 @@ export function InterviewKit({ caseTitle, top }: { caseTitle: string; top: Submi
   if (questions.length === 0) return null;
 
   const candidateRef = top.candidateRef ?? "—";
-  const markdown = interviewKitMarkdown({
-    caseTitle,
-    candidateRef,
-    transferScore: top.transferScore ?? null,
-    questions,
-  });
+  // F15 — the exported/copied Markdown is read by the panel, i.e. colleagues in this
+  // tenant, so its scaffolding is the UI user's language. next-intl rejects the
+  // template-literal keys the builder uses, so the bound `t` is widened to the
+  // module's structural lookup type (every key it asks for exists in the catalog,
+  // pinned by devcase-interview-kit.test.ts).
+  const markdown = interviewKitMarkdown(
+    {
+      caseTitle,
+      candidateRef,
+      transferScore: top.transferScore ?? null,
+      questions,
+    },
+    buildInterviewKitStrings((key, values) => t(key as Parameters<typeof t>[0], values))
+  );
 
   const copy = async () => {
     try {

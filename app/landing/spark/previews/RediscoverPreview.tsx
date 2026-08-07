@@ -19,11 +19,11 @@ export default function RediscoverPreview() {
   const t = useTranslations("landing");
   return (
     <div>
-      <p className="text-[15px] font-bold">{t("previews.rediscover.title", { n: HITS.length })}</p>
+      <p className="text-[17px] font-bold">{t("previews.rediscover.title", { n: HITS.length })}</p>
       <div className="mt-4 space-y-3">
         {HITS.map((h, i) => (
           <motion.div key={h.key} {...pop(0.3 + i * 0.16)} className={`${ROW} p-3.5`}>
-            <p className="text-[15px] font-bold">{h.name}</p>
+            <p className="text-[17px] font-bold">{h.name}</p>
             <p className="text-sm font-semibold" style={{ color: h.color }}>
               {t(`previews.rediscover.hits.${h.key}`, { score: h.score })}
             </p>

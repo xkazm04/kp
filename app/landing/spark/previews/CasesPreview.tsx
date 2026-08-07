@@ -26,7 +26,7 @@ export default function CasesPreview() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <p className="text-[15px] font-bold">{t("previews.cases.title")}</p>
+        <p className="text-[17px] font-bold">{t("previews.cases.title")}</p>
         <StampChip background={MOSS}>{t("previews.cases.aiAllowed")}</StampChip>
       </div>
       <div className="mt-4 space-y-3">
@@ -38,7 +38,7 @@ export default function CasesPreview() {
             transition={{ delay: 0.3 + i * 0.14, type: "spring", bounce: 0.4 }}
             className={`${ROW} flex items-center justify-between gap-3 p-3`}
           >
-            <p className="text-[15px] font-semibold">{t(`previews.cases.checks.${c.key}.label`)}</p>
+            <p className="text-[17px] font-semibold">{t(`previews.cases.checks.${c.key}.label`)}</p>
             <span className="whitespace-nowrap text-sm font-extrabold" style={{ color: c.color }}>
               {t(`previews.cases.checks.${c.key}.verdict`)}
             </span>

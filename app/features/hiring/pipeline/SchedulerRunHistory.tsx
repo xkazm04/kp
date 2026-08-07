@@ -7,6 +7,7 @@ import type { SchedulerTranslator } from "./pipelineTranslator";
 import { XCircle } from "lucide-react";
 import { deriveDecisionOutcome } from "@/app/_lib/decision-attribution";
 import { OutcomeChip, SummaryBadges, type SchedulerRun } from "./SchedulerSummaryBadges";
+import { usePassReasonText } from "./passReasonText";
 
 export function SchedulerRunHistory({
   t,
@@ -19,6 +20,8 @@ export function SchedulerRunHistory({
   relativeTime: (iso: string) => string;
   labelFor?: (entryId: string) => string | undefined;
 }) {
+  // The sealed English `reason` is the fallback; the structured code renders localized.
+  const passReason = usePassReasonText();
   if (runs.length === 0) return null;
   return (
     <div className="mt-1.5 rounded-md border border-stone-200 bg-white p-2 text-sm text-steel">
@@ -93,7 +96,7 @@ export function SchedulerRunHistory({
                           <span className="font-medium text-ink">
                             {(d.entryId && labelFor?.(d.entryId)) ?? d.entryId ?? "—"}
                           </span>{" "}
-                          <span className="text-steel">— {d.reason}</span>
+                          <span className="text-steel">— {passReason(d)}</span>
                         </li>
                       );
                     })}

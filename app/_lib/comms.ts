@@ -1,4 +1,5 @@
-import { getPipelineEntry, recordOutbox, type OutboxEntry } from "./db";
+import { recordOutbox, type OutboxEntry } from "./db/devcase";
+import { getPipelineEntry } from "./db/pipeline";
 import { COMMS_RELAY_RETRY, isRetryableHttpStatus, type OutboxStatus } from "./comms-status";
 import { resolveRelay } from "./comms-relay";
 import { buildCommEnvelope, type CommEnvelope } from "./comms-envelope";

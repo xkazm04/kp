@@ -1,4 +1,6 @@
-import { DEFAULT_WORKSPACE_ID, getProfileRecord, listAnalysisRecords, listProfileRecords, loadAnalysis } from "./db";
+import { listAnalysisRecords, loadAnalysis } from "./db/analyses";
+import { getProfileRecord, listProfileRecords } from "./db/profiles";
+import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { DEFAULT_ROLE_FAMILY } from "./role-families.ts";
 
 // Shared candidate-pool builder (v2 profiles + saved CV analyses) — the input

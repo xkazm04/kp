@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Markdown } from "@/app/_components/Markdown";
-import { getDevCase, getPostingByToken } from "@/app/_lib/db";
+import { getDevCase, getPostingByToken } from "@/app/_lib/db/devcase";
 import { caseToMarkdown } from "@/app/features/tools/devcases/DevHelpers";
 import type { CaseScenario, RoleSpec, SeedFile } from "@/app/features/tools/devcases/DevTypes";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";

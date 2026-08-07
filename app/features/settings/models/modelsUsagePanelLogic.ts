@@ -1,7 +1,7 @@
 // Pure, DOM-free folding for UsagePanel so the per-use-case rollup — including the
 // deterministic-vs-LLM split (#5) and the unpriced-calls signal (#3) — is
 // unit-testable under `node --test` (a `.tsx` can't be loaded by the runner).
-import type { LlmUsageAggregateRow } from "@/app/_lib/db";
+import type { LlmUsageAggregateRow } from "@/app/_lib/db/llm";
 
 export type UseCaseTotals = {
   useCase: string;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { candidateOutcomes } from "@/app/_lib/db";
+import { candidateOutcomes } from "@/app/_lib/db/pipeline";
 import { listJobStatuses } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";

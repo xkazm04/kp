@@ -14,9 +14,9 @@ import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 export default function Topbar() {
   const t = useTranslations("landing");
   return (
-    <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 pt-6">
+    <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 pt-6">
       <Wordmark />
-      <nav className="hidden items-center gap-6 text-[15px] font-bold sm:flex">
+      <nav className="hidden items-center gap-6 text-[17px] font-bold sm:flex">
         <a href="/about" className="hover:text-[#d65a4a]">
           {t("nav.about")}
         </a>

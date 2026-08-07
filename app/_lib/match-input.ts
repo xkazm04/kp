@@ -1,7 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { getProfileRecord } from "./db";
+import { getProfileRecord } from "./db/profiles";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { candidateSignature, resolveCandidate, type CandidateInput } from "./match-candidate";
 

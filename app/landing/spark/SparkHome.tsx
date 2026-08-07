@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { Bricolage_Grotesque, Gabarito, Shantell_Sans } from "next/font/google";
 import { DemoUnavailableNotice } from "./DemoUnavailableNotice";
 import SparkLanding from "./SparkLanding";
+import { TYPE_SCALE } from "./tokens";
 
 /*
  * Spark landing + its scoped type system. The fonts load here (not in the route
@@ -9,7 +10,8 @@ import SparkLanding from "./SparkLanding";
  * signed-out homepage slot ('/', server-gated in app/page.tsx). The font
  * variables are scoped to this subtree so the workspace fonts stay untouched:
  * Bricolage for display punch, Gabarito for friendly body text, Shantell for
- * the hand-drawn margin notes.
+ * the hand-drawn margin notes. TYPE_SCALE rides along on the same wrapper —
+ * the marketing pages also run their own, larger size scale.
  */
 const display = Bricolage_Grotesque({
   subsets: ["latin", "latin-ext"],
@@ -32,7 +34,7 @@ const hand = Shantell_Sans({
 
 export default function SparkHome() {
   return (
-    <div className={`${display.variable} ${body.variable} ${hand.variable}`}>
+    <div className={`${TYPE_SCALE} ${display.variable} ${body.variable} ${hand.variable}`}>
       {/* Demo-CTA honesty: /api/demo lands here with ?demo=unavailable when a
           gated deploy refuses the public demo — say so instead of a silent
           reload. Suspense: useSearchParams in a client child of this

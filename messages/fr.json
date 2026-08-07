@@ -1606,7 +1606,7 @@
     "tagline": "matching de talents",
     "signOut": "Se déconnecter",
     "tabs": {
-      "pipeline": "Recrutement",
+      "pipeline": "Vue d’ensemble",
       "channels": "Canaux",
       "decisions": "Décisions",
       "schedule": "Planification",
@@ -4220,6 +4220,13 @@
       "searchColumn": "Rechercher : {column}…",
       "allOf": "Tout – {column}",
       "select": "Sélectionner…"
+    },
+    "pager": {
+      "label": "Pages du tableau",
+      "range": "{from}–{to} sur {total}",
+      "page": "Page {page} sur {pages}",
+      "prev": "Page précédente",
+      "next": "Page suivante"
     },
     "empty": {
       "notConnected": "Non connecté",

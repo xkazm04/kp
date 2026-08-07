@@ -46,6 +46,7 @@ export function NavSectionRail({
   mode = "select",
   onSelect,
   onSliceNav,
+  onPrefetchTab,
   railTop,
   railFooter,
   panelHeader,
@@ -64,6 +65,9 @@ export function NavSectionRail({
   onSelect?: (id: WorkspaceTabId) => void;
   /** select mode only — open the badge's pre-filtered slice (ignored in link mode). */
   onSliceNav?: (href: string) => void;
+  /** select mode only — warm a tab's chunk on hover/focus (shell/tabChunks.ts).
+   *  Link mode has no use for it: a real anchor gets Next's own <Link> prefetch. */
+  onPrefetchTab?: (id: WorkspaceTabId) => void;
   railTop?: ReactNode;
   /** Bottom of the RAIL (first level), below the last section — the appearance /
    *  language preferences (RailPreferences). Settings used to be pinned here. */
@@ -178,6 +182,7 @@ export function NavSectionRail({
                 attentionGoLabel={attentionGoLabel}
                 onSelect={onSelect}
                 onSliceNav={onSliceNav}
+                onPrefetch={onPrefetchTab}
               />
             );
           })}

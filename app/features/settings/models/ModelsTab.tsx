@@ -7,7 +7,7 @@ import { Defer } from "@/app/_components/ui/Defer";
 import { BTN_SECONDARY, EYEBROW, INTRO, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { labelize } from "@/app/_lib/format";
-import type { LlmConfigRow } from "@/app/_lib/db";
+import type { LlmConfigRow } from "@/app/_lib/db/llm";
 import { ModelsRoutingRow } from "./ModelsRoutingRow";
 
 // Tier 3 (docs/design/loading-choreography.md): the three panels below the routing

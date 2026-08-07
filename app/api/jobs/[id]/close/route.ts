@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { canWriteJobLifecycle, closeEntriesByJobId, getJob } from "@/app/_lib/db";
+import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
+import { closeEntriesByJobId } from "@/app/_lib/db/pipeline";
 import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 

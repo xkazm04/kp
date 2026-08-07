@@ -1,5 +1,5 @@
 import { dispatchPreboardingReminder } from "./comms-dispatch";
-import { getPipelineEntry } from "./db";
+import { getPipelineEntry } from "./db/pipeline";
 import { duePreboardingReminders, markPreboardingReminded } from "./onboarding-store";
 import { listOffersForEntry } from "./offers-store";
 import { preboardingReminderCutoffIso } from "./preboarding-reminder-policy";

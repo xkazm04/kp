@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getOutboxEntry, getPipelineEntry, listOutboxFiltered, recordAutomationEvent } from "@/app/_lib/db";
+import { getOutboxEntry, listOutboxFiltered } from "@/app/_lib/db/devcase";
+import { getPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { sendComm } from "@/app/_lib/comms";
 import { isDeliverableAddress } from "@/app/_lib/comms-recipient";

@@ -25,7 +25,7 @@ export default function Footer() {
   const t = useTranslations("landing");
   return (
     <footer className="border-t-[3px] border-[#17202a] bg-[#fdf8ee]">
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-[15px]">
+      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-[17px]">
         <div className="flex items-center gap-2 font-bold">
           <Wordmark size="sm" />
           <span>· {t("footer.tagline")}</span>

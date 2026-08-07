@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db";
+import { getPipelineEntry, recordAutomationEvent, setApproval } from "@/app/_lib/db/pipeline";
 import { saveHumanScorecard } from "@/app/_lib/interview-prep";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/_lib/interview-recommendation";

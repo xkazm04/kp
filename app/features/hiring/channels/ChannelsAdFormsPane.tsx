@@ -6,7 +6,8 @@ import { useTranslations } from "next-intl";
 import { Megaphone, Plus } from "lucide-react";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
-import { useReceivers, isReceiverLive } from "@/app/features/hiring/channels/useChannelsReceivers";
+import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
+import { useReceivers, isReceiverLive, type ReceiverJob } from "@/app/features/hiring/channels/useChannelsReceivers";
 import { ReceiverTable } from "@/app/features/hiring/channels/ChannelsReceiverTable";
 import { AddReceiverModal } from "@/app/features/hiring/channels/ChannelsAddReceiverModal";
 import { SetupGuide } from "@/app/features/hiring/channels/ChannelsSetupGuide";
@@ -17,9 +18,20 @@ import { CvSimCard } from "@/app/features/hiring/channels/ChannelsCvSimCard";
 // "Add receiver" as a modal, and a selected-row setup guide — here the LinkedIn/Meta
 // connector steps (Zapier/Make being the realistic bridge) rather than mail rules.
 // All copy resolves through the `channels.ads.*` catalog (channels-i18n-honesty).
-export function AdFormsPane({ onChanged }: { onChanged?: () => void }) {
+export function AdFormsPane({
+  webhooks,
+  jobs,
+  reload,
+  onChanged,
+}: {
+  /** Passed down from the tab rather than re-fetched — see useChannelsReceivers. */
+  webhooks: ChannelWebhookRecord[] | null;
+  jobs: ReceiverJob[] | null;
+  reload: () => void;
+  onChanged?: () => void;
+}) {
   const t = useTranslations("channels");
-  const { receivers, jobs, load, revoke, revoking, revokeFailed } = useReceivers("boards", onChanged);
+  const { receivers, load, revoke, revoking, revokeFailed } = useReceivers({ channel: "boards", webhooks, reload, onChanged });
   const [selectedToken, setSelectedToken] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 

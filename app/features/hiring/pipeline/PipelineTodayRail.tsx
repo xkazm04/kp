@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, CalendarClock, FileText, Inbox, PartyPopper, Send } from "lucide-react";
+import { ArrowRight, CalendarClock, FileText, Inbox, PartyPopper, Send, Sunrise } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { PANEL } from "@/app/_components/ui/recipes";
+import { Fade } from "./PipelineMotion";
 import { buildUrl, clearedTabScopedParams, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { isSimTitle } from "@/app/features/shell/simulation/constants";
 import { daysSince, type Entry } from "@/app/features/shared/pipelineTypes";
@@ -122,33 +124,43 @@ export function TodayRail({ entries, onShowStage }: { entries: Entry[]; onShowSt
   ];
   const rows = candidates.filter((r): r is RailRow => r !== null);
 
-  if (rows.length === 0) return null;
-
   const go = (row: RailRow) => {
     if (row.stage) onShowStage(row.stage);
     else if (row.tab) router.push(buildUrl({ tab: row.tab, ...clearedTabScopedParams() }, search.toString()));
   };
 
+  // Structurally the attention strip's sibling — and now typographically too: it
+  // sits directly under it and says the same KIND of thing (a queue, who's in it,
+  // where it's worked), so it was reading as a different, smaller-voiced kind of
+  // content purely because its rows were text-sm against the strip's text-base and
+  // its heading was a loose coral eyebrow rather than a ruled panel header. Same
+  // panel, same ruled header, same row size; the icon color still distinguishes.
+  // Self-hiding, so the presence animation lives here (see PipelineMotion).
   return (
-    <section aria-label={t("eyebrow")} className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
-      <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-      <ul className="mt-2 divide-y divide-stone-100">
-        {rows.map((row) => (
-          <li key={row.key} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-1.5">
-            <span className="flex min-w-0 items-center gap-2 text-sm text-ink">
-              <row.Icon size={14} className={`shrink-0 ${row.iconCls}`} aria-hidden />
-              <span className="min-w-0 truncate">{row.message}</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => go(row)}
-              className="focus-ring inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-coral hover:underline"
-            >
-              {row.ctaLabel} <ArrowRight size={13} aria-hidden />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <Fade show={rows.length > 0}>
+      <section aria-label={t("eyebrow")} className={`${PANEL} overflow-hidden`}>
+        <h3 className="flex items-center gap-2 border-b border-stone-200 bg-paper px-4 py-2 text-meta uppercase tracking-wide text-steel">
+          <Sunrise size={14} className="text-coral" aria-hidden />
+          {t("eyebrow")}
+        </h3>
+        <ul className="divide-y divide-stone-200">
+          {rows.map((row) => (
+            <li key={row.key} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2.5">
+              <span className="flex min-w-0 items-center gap-2 text-base text-ink">
+                <row.Icon size={15} className={`shrink-0 ${row.iconCls}`} aria-hidden />
+                <span className="min-w-0 truncate">{row.message}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => go(row)}
+                className="focus-ring inline-flex shrink-0 items-center gap-1 text-base font-semibold text-coral hover:underline"
+              >
+                {row.ctaLabel} <ArrowRight size={15} aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </Fade>
   );
 }

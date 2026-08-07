@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getTask, loadJd, markJdAnalyzing, setJdAnalysisTask, type JdBuildIntent } from "@/app/_lib/db";
+import { loadJd, markJdAnalyzing, setJdAnalysisTask, type JdBuildIntent } from "@/app/_lib/db/jobs";
+import { getTask } from "@/app/_lib/db/tasks";
 import { startTask } from "@/app/_lib/tasks";
 import { getTemplate } from "@/app/_lib/templates-store";
 import { safeJsonError } from "@/app/_lib/api-response";

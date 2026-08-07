@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { insertAnalyzingJd, setJdAnalysisTask } from "@/app/_lib/db";
+import { insertAnalyzingJd, setJdAnalysisTask } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { startTask } from "@/app/_lib/tasks";

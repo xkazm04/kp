@@ -16,7 +16,7 @@
 // branch key for the UI (i18n happens client-side), error is the English
 // operator-readable fallback.
 
-import { getBillingState } from "../db";
+import { getBillingState } from "../db/billing";
 import { billingOrgForWorkspace, entitledPlan, meterAllowance, meterOverview } from "./entitlements";
 import type { Meter } from "./plans";
 

@@ -33,7 +33,7 @@ export default function MarketPulseApp() {
   return (
     <main className="overflow-x-clip bg-[#fdf8ee] pb-28 text-[#17202a] font-[family-name:var(--font-spark-body)]">
       {/* ── Topbar ─────────────────────────────────────────────── */}
-      <header className="mx-auto w-full max-w-6xl px-6 pt-6">
+      <header className="mx-auto w-full max-w-7xl px-6 pt-6">
         <div className="flex items-center justify-between">
           <Link href="/">
             <Wordmark />
@@ -41,7 +41,7 @@ export default function MarketPulseApp() {
           {/* Desktop nav (≥ sm). The language switcher used to sit here too; it
               lives in the footer only now, matching the home landing — one
               place to change language across every marketing page. */}
-          <nav className="hidden items-center gap-6 text-[15px] font-bold sm:flex">
+          <nav className="hidden items-center gap-6 text-[17px] font-bold sm:flex">
             <Link href="/" className="hover:text-[#d65a4a]">
               {t("nav.home")}
             </Link>
@@ -73,7 +73,7 @@ export default function MarketPulseApp() {
         {menuOpen ? (
           <nav
             id="market-mobile-menu"
-            className="mt-4 flex flex-col items-start gap-4 rounded-2xl border-[3px] border-[#17202a] bg-white px-5 py-5 text-[15px] font-bold shadow-[6px_6px_0_#17202a] sm:hidden"
+            className="mt-4 flex flex-col items-start gap-4 rounded-2xl border-[3px] border-[#17202a] bg-white px-5 py-5 text-[17px] font-bold shadow-[6px_6px_0_#17202a] sm:hidden"
           >
             <Link href="/" onClick={() => setMenuOpen(false)} className="hover:text-[#d65a4a]">
               {t("nav.home")}
@@ -118,11 +118,11 @@ export default function MarketPulseApp() {
       <MarketPulseAtlas />
 
       {/* ── Attribution footer ─────────────────────────────────── */}
-      <footer className="mx-auto mt-24 max-w-4xl px-6">
+      <footer className="mx-auto mt-24 max-w-5xl px-6">
         <div className="rounded-2xl border-[3px] border-[#17202a] bg-[#dce7d0] px-6 py-6 shadow-[6px_6px_0_#17202a]">
           <p className={`${HAND} text-lg text-[#526b4f]`}>{t("footer.eyebrow")}</p>
-          <p className="mt-2 text-[15px] leading-relaxed text-[#17202a]">{t("footer.coverage")}</p>
-          <p className="mt-4 text-[13px] font-bold text-[#42606f]">
+          <p className="mt-2 text-[17px] leading-relaxed text-[#17202a]">{t("footer.coverage")}</p>
+          <p className="mt-4 text-[15px] font-bold text-[#42606f]">
             {snapshot.meta.attribution} ·{" "}
             <a href={snapshot.meta.attribution_url} target="_blank" rel="noreferrer" className="underline hover:text-[#d65a4a]">
               {t("footer.sourceLink")}
@@ -130,7 +130,7 @@ export default function MarketPulseApp() {
           </p>
         </div>
         <div className="mt-6 flex items-center justify-between">
-          <Link href="/" className="text-[15px] font-bold hover:text-[#d65a4a]">
+          <Link href="/" className="text-[17px] font-bold hover:text-[#d65a4a]">
             ← {t("nav.home")}
           </Link>
           <LandingLangSwitch />

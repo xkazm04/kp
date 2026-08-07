@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { jdLastEditedAt, listAnalysesByJd, loadJd } from "@/app/_lib/db";
+import { listAnalysesByJd } from "@/app/_lib/db/analyses";
+import { jdLastEditedAt, loadJd } from "@/app/_lib/db/jobs";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 

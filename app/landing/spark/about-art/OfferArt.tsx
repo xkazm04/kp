@@ -12,7 +12,7 @@ const FIGURE = "150k";
 export default function OfferArt({ color = "#caa54c" }: { color?: string }) {
   const t = useTranslations("aboutPage");
   return (
-    <div className="mx-auto w-full max-w-md rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
+    <div className="mx-auto w-full max-w-lg rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
       <div className="flex items-center justify-between border-b-[3px] border-dashed border-[#dce7d0] pb-3">
         <p className={`${HAND} text-lg text-[#526b4f]`}>{t("art.offer.letter")}</p>
         <FileText className="h-5 w-5 text-[#42606f]" aria-hidden />

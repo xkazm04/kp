@@ -5,13 +5,17 @@ import { Play, X } from "lucide-react";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { PipelineEmptyFirstCandidate } from "./PipelineEmptyFirstCandidate";
 import { GettingStartedCard } from "@/app/features/shell/setup/GettingStartedCard";
-import { SECTION } from "@/app/_components/ui/recipes";
+import { Defer } from "@/app/_components/ui/Defer";
+import { PANEL, SECTION } from "@/app/_components/ui/recipes";
 import { useEventVerb, useRelativeTime } from "./PipelineShared";
 import { TodayRail } from "./PipelineTodayRail";
 import { usePipelineTabState } from "./usePipelineTabState";
+import { PipelineActivityFeed } from "./PipelineActivityFeed";
+import { PipelineAttentionStrip } from "./PipelineAttentionStrip";
 import { PipelineStatHeader } from "./PipelineStatHeader";
 import { PipelineFilterBar } from "./PipelineFilterBar";
 import { PipelinePopulatedBoard } from "./PipelinePopulatedBoard";
+import { Fade } from "./PipelineMotion";
 
 // Tier 3 (docs/design/loading-choreography.md): the candidate drawer is a 1300+ line
 // subtree (scorecards, interview transcript, consent panel, GitHub evidence,
@@ -57,6 +61,18 @@ export function PipelineTab() {
           workspace-level automation, so the pipeline page stays focused on the
           board and the day's work, not the machinery. */}
 
+      {/* The two queues that outrank everything below them, consolidated into one
+          ranked strip and hoisted ABOVE the setup checklist: a stalled application
+          or a decision waiting on you is today's work, the checklist is onboarding.
+          Self-hiding when both are empty. */}
+      <PipelineAttentionStrip
+        t={s.t}
+        degradedCount={s.degradedCount}
+        approvalsCount={s.approvals.length}
+        onReviewDegraded={s.focusDegradedCohort}
+        onOpenDecisions={s.goToDecisions}
+      />
+
       {/* First-run hand-off: the wizard's Getting-started checklist lives on the
           default tab. Data-derived + self-hiding (dismiss / all steps done), so
           established workspaces see it once at most. */}
@@ -66,68 +82,28 @@ export function PipelineTab() {
           on the landing surface (badges only carry counts). */}
       {s.entries && s.entries.length > 0 ? <TodayRail entries={s.entries} onShowStage={s.showStage} /> : null}
 
-      {s.moveError ? (
-        <p role="alert" className="flex items-center justify-between gap-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+      {/* Fades in and out rather than blinking the whole column up by a row. */}
+      <Fade show={Boolean(s.moveError)}>
+        <p role="alert" className="flex items-center justify-between gap-3 rounded-md bg-red-50 px-3 py-2 text-base text-red-700">
           <span>{s.moveError}</span>
           <button
             type="button"
             onClick={() => s.setMoveError(null)}
             aria-label={s.t("moveErrorDismiss")}
-            className="focus-ring shrink-0 rounded p-0.5 hover:opacity-70"
+            className="focus-ring shrink-0 rounded p-0.5 transition-opacity hover:opacity-70"
           >
-            <X size={14} aria-hidden />
+            <X size={15} aria-hidden />
           </button>
         </p>
-      ) : null}
-
-      {/* Tier 1 chrome: the search box, quick-filter chips, score/source facets
-          and sort control depend on nothing but client state — they must render
-          on the first frame like any other filter bar, not wait behind the board
-          fetch. Hidden only for a genuine error or the true first-run empty board
-          (PipelineEmptyFirstCandidate below owns that moment instead). */}
-      {!s.error && !(s.entries != null && s.entries.length === 0) ? (
-        <PipelineFilterBar
-          t={s.t}
-          enumLabel={enumLabel}
-          query={s.query}
-          onQueryChange={s.setQueryAndSync}
-          quicks={s.quicks}
-          onToggleQuick={s.toggleQuick}
-          stageFilter={s.stageFilter}
-          onClearStage={s.clearStageFilter}
-          filtering={s.filtering}
-          shownCount={s.filteredEntries.length}
-          totalCount={(s.entries ?? []).length}
-          activeViewId={s.activeViewId}
-          onSaveView={s.openSaveView}
-          selectMode={s.selectMode}
-          onToggleSelectMode={s.toggleSelectMode}
-          editingSla={s.editingSla}
-          onToggleSlaEditor={() => s.setEditingSla((v) => !v)}
-          scoreBands={s.scoreBands}
-          onToggleBand={s.toggleBand}
-          scoreBandKeys={s.SCORE_BANDS}
-          sourceValues={s.sourceValues}
-          sources={s.sources}
-          onToggleSource={s.toggleSource}
-          channelName={s.channelName}
-          sort={s.sort}
-          onSortChange={s.setSortAndSync}
-          onClearFilters={s.clearFilters}
-        />
-      ) : null}
+      </Fade>
 
       {s.error ? (
         <p role="alert" className="rounded-md bg-red-50 p-3 text-base text-red-700">{s.error}</p>
-      ) : s.entries == null ? (
-        /* Tier 2: the board fetch is in flight and there is nothing to show yet.
-           Hold roughly the board's height so the page doesn't jump when it lands,
-           and stay invisible for 150ms so a warm response paints nothing at all.
-           (Was a bare "Loading…" line — docs/design/loading-choreography.md law 4.) */
-        <div className="reveal-quiet min-h-[28rem]" aria-hidden />
-      ) : s.entries.length === 0 ? (
+      ) : s.entries != null && s.entries.length === 0 ? (
         /* The empty board rehearses the real stage lanes with a slot waiting in
-           Accepted, so a first-run recruiter sees the funnel's shape, not a hole. */
+           Accepted, so a first-run recruiter sees the funnel's shape, not a hole.
+           It owns the whole surface — no filter header above a board that has
+           nothing to filter. */
         <PipelineEmptyFirstCandidate
           title={s.t("emptyTitle")}
           body={s.t("emptyBody")}
@@ -150,7 +126,68 @@ export function PipelineTab() {
           }
         />
       ) : (
-        <PipelinePopulatedBoard s={s} enumLabel={enumLabel} eventVerb={eventVerb} relativeTime={relativeTime} />
+        /* ONE panel: the filter header and the lanes it filters are the same
+           object. The header used to float several blocks above the board with
+           the banners, bulk bar and saved views wedged between them. */
+        <section className={`${PANEL} overflow-hidden`}>
+          {/* Tier 1 chrome: the search box, quick-filter chips, score/source facets
+              and sort control depend on nothing but client state — they render on
+              the first frame like any other filter bar, not behind the board fetch. */}
+          <PipelineFilterBar
+            t={s.t}
+            enumLabel={enumLabel}
+            query={s.query}
+            onQueryChange={s.setQueryAndSync}
+            quicks={s.quicks}
+            onToggleQuick={s.toggleQuick}
+            stageFilter={s.stageFilter}
+            onClearStage={s.clearStageFilter}
+            filtering={s.filtering}
+            shownCount={s.filteredEntries.length}
+            totalCount={(s.entries ?? []).length}
+            activeViewId={s.activeViewId}
+            onSaveView={s.openSaveView}
+            selectMode={s.selectMode}
+            onToggleSelectMode={s.toggleSelectMode}
+            editingSla={s.editingSla}
+            onToggleSlaEditor={() => s.setEditingSla((v) => !v)}
+            scoreBands={s.scoreBands}
+            onToggleBand={s.toggleBand}
+            scoreBandKeys={s.SCORE_BANDS}
+            sourceValues={s.sourceValues}
+            sources={s.sources}
+            onToggleSource={s.toggleSource}
+            channelName={s.channelName}
+            sort={s.sort}
+            onSortChange={s.setSortAndSync}
+            onClearFilters={s.clearFilters}
+          />
+          {s.entries == null ? (
+            /* Tier 2: the board fetch is in flight and there is nothing to show yet.
+               Hold roughly the board's height so the page doesn't jump when it lands,
+               and stay invisible for 150ms so a warm response paints nothing at all.
+               (Was a bare "Loading…" line — docs/design/loading-choreography.md law 4.) */
+            <div className="reveal-quiet min-h-[28rem]" aria-hidden />
+          ) : (
+            <PipelinePopulatedBoard s={s} enumLabel={enumLabel} />
+          )}
+        </section>
+      )}
+
+      {/* Tier 3 — the activity feed is history, not the day's work: it reads only
+          after the board has been triaged, and most sessions never scroll to it.
+          Deferring until it nears the viewport keeps its list off the first commit
+          so the lanes paint sooner on a cold tab render. */}
+      {s.error ? null : (
+        <Defer strategy="visible" placeholder={<div className="reveal-quiet min-h-[12rem]" aria-hidden />}>
+          <PipelineActivityFeed
+            t={s.t}
+            eventsError={s.eventsError}
+            events={s.events}
+            eventVerb={eventVerb}
+            relativeTime={relativeTime}
+          />
+        </Defer>
       )}
 
       {s.drawerEntry ? (

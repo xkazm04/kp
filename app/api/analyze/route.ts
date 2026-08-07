@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";
 import { meterGate } from "@/app/_lib/billing";
-import { listRecentTasks } from "@/app/_lib/db";
+import { listRecentTasks } from "@/app/_lib/db/tasks";
 import type { AnalyzeParams } from "@/app/_lib/analyze-run";
 import { cvVariantHash, dedupeCvVariants } from "@/app/_lib/cv-variant";
 import { newRequestId } from "@/app/_lib/logger";

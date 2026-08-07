@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createPipelineEntry,
-  getHiredAgent,
-  recordAgentLifecycle,
-  setPipelineEntryStage,
-  updateHiredAgentStatus,
-  type AgentStatus,
-} from "@/app/_lib/db";
+import { getHiredAgent, recordAgentLifecycle, updateHiredAgentStatus, type AgentStatus } from "@/app/_lib/db/agents";
+import { createPipelineEntry, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";

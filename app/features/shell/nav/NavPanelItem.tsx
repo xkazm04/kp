@@ -20,6 +20,7 @@ export function NavPanelItem({
   attentionGoLabel,
   onSelect,
   onSliceNav,
+  onPrefetch,
 }: {
   item: WorkspaceTabDef;
   isActive: boolean;
@@ -31,6 +32,9 @@ export function NavPanelItem({
   attentionGoLabel: (count: number) => string;
   onSelect?: (id: WorkspaceTabId) => void;
   onSliceNav?: (href: string) => void;
+  /** select mode only — warm this tab's code-split chunk before the click that
+   *  needs it (see shell/tabChunks.ts). Idempotent, so hover/focus can both fire. */
+  onPrefetch?: (id: WorkspaceTabId) => void;
 }) {
   const Icon = TAB_ICON[item.id];
   const rowClass = `group focus-ring relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)} ${sliceHref ? "pr-9" : ""}`;
@@ -62,7 +66,18 @@ export function NavPanelItem({
           {rowInner}
         </Link>
       ) : (
-        <button type="button" aria-current={isActive ? "page" : undefined} onClick={() => onSelect?.(item.id)} className={rowClass}>
+        <button
+          type="button"
+          aria-current={isActive ? "page" : undefined}
+          onClick={() => onSelect?.(item.id)}
+          // Intent, not commitment: pointing at (or tabbing to) a nav row is the
+          // earliest honest signal that this tab is next, so its chunk starts
+          // downloading during the ~200ms before the click instead of after it.
+          // Both events, because a keyboard user never hovers.
+          onPointerEnter={() => onPrefetch?.(item.id)}
+          onFocus={() => onPrefetch?.(item.id)}
+          className={rowClass}
+        >
           {rowInner}
         </button>
       )}

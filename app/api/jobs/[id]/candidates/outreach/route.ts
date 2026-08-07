@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPipelineEntry, getJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
+import { createPipelineEntry } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";

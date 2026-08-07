@@ -9,6 +9,10 @@ deterministic fallback so the pipeline never blocks when the CLI is missing.
 ## Entry points
 
 - `/?tab=pipeline` — the pipeline board (`app/features/hiring/pipeline/PipelineTab.tsx`).
+  It is the default tab, so a bare `/` lands here; the sidebar calls it **Overview**
+  (`nav.tabs.pipeline`, all four locales) because the surface is the workspace's
+  landing page — attention queues, today's work, then the board. The tab id, the
+  catalog key and the page's own eyebrow/title stay "pipeline".
 - `/?tab=decisions` — the Decisions queue, where AI holds/recommendations land for
   a human to approve or reject (`app/features/hiring/decisions/DecisionsTab.tsx`).
 - Per-candidate drawer — `app/features/hiring/pipeline/PipelineCandidateDrawer.tsx`.
@@ -93,6 +97,98 @@ replaced an earlier `Sourced` → `AI-matched` → `Screening` naming (see
 | `usePipelineSla.ts` / `usePipelineBoardData.ts` / `usePipelineFilters.ts` | Per-stage aging overrides (PIPE4) · the entries/events fetch, its 30s poll and the optimistic drag move (sole owner of `setEntries`) · the compound filters, their two-way URL sync and the `visibleScope` signature. |
 | `usePipelineSavedViews.ts` / `usePipelineBulk.ts` / `usePipelineNavigation.ts` | Saved views + the save/rename dialog and share link (PIPE5) · select mode and the four batch actions (PIPE1 / bdc7fc01 / P2-2) · opening the drawer, profile, job, ranking and Decisions. |
 
+## Board layout — one panel, one context menu
+
+The board page is four blocks, in the order the day is worked:
+
+1. `PipelineStatHeader` — **two rows**: eyebrow + title on the left of row one with
+   the stat-chip cluster (positions / active / interview / aging / needs-intake /
+   awaiting-you) on its right, then the intro across the full width of row two. It
+   does *not* use the `PAGE_HEADER` recipe's two-column split — that squeezed the
+   lede into a `max-w-2xl` column beside the chips.
+2. `PipelineAttentionStrip` — the two queues that outrank the board itself, as one
+   ranked list: degraded intakes (red, → *Review*) then awaiting-you approvals
+   (coral, → *Open Decisions*). Self-hiding when both are empty. It sits **above**
+   `GettingStartedCard`: a stalled application outranks a setup checklist. These
+   were previously two separately-styled banners rendered *below* the checklist and
+   *between* the filter row and the board.
+3. The **board panel** — one `PANEL` holding, top to bottom: `PipelineFilterBar`
+   → the select-mode bulk bar and SLA editor when armed → `PipelineSavedViews` →
+   `PipelineBoard`. The filter chrome used to float several blocks above the lanes
+   it filtered; it is now the board's own header, and `PipelineBoard` no longer
+   draws panel chrome of its own.
+4. `PipelineActivityFeed`, wrapped in `<Defer strategy="visible">` — history, not
+   today's work, so it stays off the first commit until it nears the viewport.
+
+### The board header — two rows, split by job
+
+`PipelineFilterBar` is **narrowing** on top and **the result** underneath:
+
+| Row | Holds |
+| --- | --- |
+| 1 — narrowing | board title · search · the **State / Score / Source / Sort** dropdowns |
+| 2 — the result | `Showing n of m` · *Clear* · *Save view* · *Select* · *Aging SLAs* |
+
+Both changes are about the same failure: row one used to carry the live count, Save
+view, Select and Aging SLAs elbowing the search box, *plus* four labelled rows of
+always-visible facet chips underneath (~15 pills, most of them off). Everything
+about the OUTCOME of filtering moved to row two, so row one is a stable line of
+controls whatever the filter state.
+
+The facets are now `PipelineFilterMenu` dropdowns (replacing `PipelineFacetRow`,
+whose chip-grid the bar no longer imports): a closed trigger says only the
+dimension and what is currently on (`State · Interview +1`), the vocabulary opens
+on click. State/Score/Source are multi-select (menu stays open, coral when
+anything is on); Sort is single-select (commits and closes, and stays neutral —
+it always has a value and never hides a row, so a permanently coral control would
+cry wolf). The deep-linked funnel-stage filter (ANA1) rides inside the **State**
+menu as an already-checked row that unchecking clears. Like `Select`, the menu is
+portalled to `<body>` and `fixed` to the trigger's measured rect — the bar is the
+top layer of an `overflow-hidden` panel, so an absolute menu would be clipped by
+its own header.
+
+### Typography and presence motion
+
+One scale across the page: `text-meta` for the ruled section headers, `text-base`
+for every row of content and every control, `text-sm` only for genuinely ancillary
+metadata (activity timestamps, board hints). The Today rail was the outlier at
+`text-sm` with a loose coral eyebrow; it and `PipelineActivityFeed` now use the
+attention strip's ruled-panel-header idiom, so the three list sections read as one
+family instead of three.
+
+`PipelineMotion.tsx` holds the page's presence animations — `Fade` (a section in
+the page flow), `Collapse` (a strip that opens inside a panel and pushes the rows
+below it), `FadeSwap` (`mode="wait"` crossfade between the board and the no-match
+message) and `FadeInline` (a control blinking into a toolbar row). All are
+reduced-motion gated via `useReducedMotion`, and all render **no wrapper element
+while hidden** — load-bearing, because the tab's column is a `space-y-8` stack
+where an always-present empty wrapper would leave a permanent gap. Consequence: a
+self-hiding component (`PipelineAttentionStrip`, `TodayRail`,
+`PipelineSavedViews`) owns its `Fade`/`Collapse` *internally* — a parent can only
+animate out what it can still render during the exit.
+
+**The candidate row spends its width on the name.** A stage column is 280px, and
+`PipelineCandidateRow` used to carry a `w-28` "Move to…" combobox plus an
+AI-actions button *inside its flex flow* — `opacity-0` hides pixels but still
+reserves layout, so ~134px of every row was committed to controls invisible until
+hover and the name truncated to about a third of the cell. Those actions now live
+in `PipelineCandidateMenu` (portalled to `<body>`, `fixed`-positioned, clamped by
+`pipelineMenuPosition.ts` so it can't render off-screen past the board's
+`overflow-x-auto`). What remains in flow: status dot, name (`flex-1`), score badge,
+and a 20px menu trigger. Three doors to the same menu, one per audience:
+
+- **pointer** — right-click anywhere on the row
+- **keyboard** — Shift+F10 / the Menu key (both fire `contextmenu`), or the trigger,
+  which is a real focusable button revealed on `focus-visible`
+- **touch** — the trigger, always visible under `pointer-coarse` (a tablet has
+  neither hover nor a tab order, and HTML5 drag never fires from a touch sequence,
+  so this is the only way to move a card there)
+
+The menu's *Move to* section calls the **same** `onMove` the drag-and-drop drop
+calls, which keeps the WCAG 2.1.1 keyboard equivalent the old `Move to…` `<Select>`
+provided. In select mode the row is a checkbox and the menu is suppressed with the
+rest of its actions, matching the existing select-mode grammar.
+
 ## The board's select-mode bulk bar
 
 `PipelineBulkActionBar.tsx` (state in `usePipelineBulk.ts`) batches move,
@@ -110,7 +206,7 @@ rules keep it honest about **which** rows it is about to touch:
   two-step confirms (reject — emails N candidates; outreach — with a relay configured,
   a draft *is* a send) are one single-slot reducer state (`pipelineBulkConfirm.ts`).
   Arming stamps the confirm with `visibleScopeSignature` — the identity of every
-  membership-affecting filter input (query, quick chips, score bands, source facets,
+  membership-affecting filter input (query, quick state filters, score bands, sources,
   funnel stage; **not** sort, which only reorders). `armedConfirm(state, currentScope)`
   reports it armed only while that scope still holds, so any filter, facet, saved-view
   or degraded-cohort change makes the next click **re-arm** rather than fire. This is a

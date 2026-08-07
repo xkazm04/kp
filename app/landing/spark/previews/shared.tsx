@@ -49,7 +49,7 @@ export function PreviewNote({
   return (
     <motion.p
       {...pop(delay)}
-      className={`mt-4 text-[15px] font-bold ${tilt ? "-rotate-1" : ""}`}
+      className={`mt-4 text-[17px] font-bold ${tilt ? "-rotate-1" : ""}`}
       style={{ color }}
     >
       {children}

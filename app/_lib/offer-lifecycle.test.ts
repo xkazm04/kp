@@ -119,7 +119,9 @@ test("a lapsed deadline makes the link dead: respond reports expired, the row fl
   forceExpiry(offer.token);
 
   const result = await respondToOffer(offer.token, "accept");
-  assert.deepEqual(result, { ok: false, error: "This offer has expired.", expired: true });
+  // The refusal carries a CODE the candidate page localizes, not an English
+  // sentence; `expired` is what the route reads to answer 410 rather than 404.
+  assert.deepEqual(result, { ok: false, code: "OFFER_EXPIRED", expired: true });
   assert.equal(getOfferByToken(offer.token)!.status, "expired");
   assert.ok(hasEvent(entry.id, "offer_expired"));
   assert.equal(getPipelineEntry(entry.id)!.stage, "Offer", "an expired link must not move the entry");
@@ -127,7 +129,7 @@ test("a lapsed deadline makes the link dead: respond reports expired, the row fl
 
   // Unknown token stays a plain not-found.
   const missing = await respondToOffer("tk-does-not-exist", "accept");
-  assert.deepEqual(missing, { ok: false, error: "Offer not found." });
+  assert.deepEqual(missing, { ok: false, code: "OFFER_NOT_FOUND" });
 });
 
 test("lapseExpiredOffers sweeps every due open offer exactly once", () => {

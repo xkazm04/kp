@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { cachedProfileRecords, listAnalysisRecords } from "@/app/_lib/db";
+import { listAnalysisRecords } from "@/app/_lib/db/analyses";
+import { cachedProfileRecords } from "@/app/_lib/db/profiles";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 

@@ -1,9 +1,4 @@
-import {
-  recordAutomationEvent,
-  rematchSourceEntry,
-  terminalPriorEntriesForCandidate,
-  type RematchSourceResult,
-} from "./db";
+import { recordAutomationEvent, rematchSourceEntry, terminalPriorEntriesForCandidate, type RematchSourceResult } from "./db/pipeline";
 
 // Close-the-prior on a manual rediscovery reach-out (direction 3). Reaching out to a
 // silver medalist mints a FRESH pipeline entry for the new role; without this the

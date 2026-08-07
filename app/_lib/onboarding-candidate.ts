@@ -1,4 +1,5 @@
-import { getJob, recordAutomationEvent } from "./db";
+import { getJob } from "./db/jobs";
+import { recordAutomationEvent } from "./db/pipeline";
 import { getRunDetail, isEntryHired, runForEntry, saveIntake, startRun } from "./onboarding-store";
 import { getOfferByToken } from "./offers-store";
 import { retryTransientSync } from "./retry-sync";

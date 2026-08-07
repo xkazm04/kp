@@ -21,7 +21,7 @@ export default function VoiceTeaser() {
   const bullets = t.raw("voice.bullets") as string[];
   const transcript = t.raw("voice.transcript") as string[];
   return (
-    <section id="voice" className="mx-auto w-full max-w-6xl px-6 py-24">
+    <section id="voice" className="mx-auto w-full max-w-7xl px-6 py-24">
       <div className="grid items-center gap-12 lg:grid-cols-2">
         <div>
           <motion.h2
@@ -61,7 +61,7 @@ export default function VoiceTeaser() {
                 <Mic className="h-4 w-4 text-white" aria-hidden />
               </span>
               <div>
-                <p className="text-[15px] font-bold">{t("voice.cardTitle")}</p>
+                <p className="text-[17px] font-bold">{t("voice.cardTitle")}</p>
                 <p className="text-sm text-[#42606f]">{t("voice.cardMeta")}</p>
               </div>
             </div>
@@ -85,7 +85,7 @@ export default function VoiceTeaser() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: 0.3 + i * 0.25 }}
-                  className={`max-w-[85%] rounded-2xl border-[3px] border-[#17202a] px-4 py-2.5 text-[15px] leading-snug ${
+                  className={`max-w-[85%] rounded-2xl border-[3px] border-[#17202a] px-4 py-2.5 text-[17px] leading-snug ${
                     who === "ai" ? "bg-[#fdf8ee]" : "ml-auto bg-[#dce7d0]"
                   }`}
                 >

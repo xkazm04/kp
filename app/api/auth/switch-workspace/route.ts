@@ -10,7 +10,7 @@ import {
   isOperatorSession,
   type SessionClaims,
 } from "@/app/_lib/auth/session";
-import { getWorkspace, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db";
+import { getWorkspace, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { getMembership } from "@/app/_lib/db/memberships";
 import { canSwitchWorkspace } from "@/app/_lib/workspace-lock";
 import { jsonError } from "@/app/_lib/api-response";

@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createHiredAgent,
-  createPipelineEntry,
-  getActiveHiredAgentForJob,
-  getJob,
-  getLatestAgentFitSpec,
-  recordAgentLifecycle,
-  recordAutomationEvent,
-  setHiredAgentRequest,
-  updateHiredAgentStatus,
-} from "@/app/_lib/db";
+import { createHiredAgent, getActiveHiredAgentForJob, getLatestAgentFitSpec, recordAgentLifecycle, setHiredAgentRequest, updateHiredAgentStatus } from "@/app/_lib/db/agents";
+import { getJob } from "@/app/_lib/db/jobs";
+import { createPipelineEntry, recordAutomationEvent } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";

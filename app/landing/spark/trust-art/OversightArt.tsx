@@ -51,7 +51,7 @@ export default function OversightArt() {
                 className="flex min-h-11 origin-left items-center rounded-xl border-[3px] border-[#17202a] px-3 py-1.5 shadow-[3px_3px_0_#17202a] sm:px-3.5"
                 style={{ width: tier.width, background: tier.bg }}
               >
-                <span className="text-[13px] font-extrabold leading-tight sm:text-sm" style={{ color: tier.fg }}>
+                <span className="text-[15px] font-extrabold leading-tight sm:text-sm" style={{ color: tier.fg }}>
                   {t(`trust.art.oversight.tiers.${tier.key}`)}
                 </span>
               </motion.div>
@@ -64,7 +64,7 @@ export default function OversightArt() {
                   whileInView={{ opacity: 1, x: 0, scale: 1, rotate: -2 }}
                   viewport={ENTER}
                   transition={{ delay: 0.75, type: "spring", bounce: 0.5 }}
-                  className="whitespace-nowrap rounded-full border-[3px] border-[#17202a] px-3 py-1 text-[11px] font-extrabold text-white shadow-[2px_2px_0_#17202a] sm:text-xs"
+                  className="whitespace-nowrap rounded-full border-[3px] border-[#17202a] px-3 py-1 text-[13px] font-extrabold text-white shadow-[2px_2px_0_#17202a] sm:text-xs"
                   style={{ background: CORAL }}
                 >
                   {t("trust.art.oversight.marker")}

@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { Send, UserPlus } from "lucide-react";
 import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
 import { RecordRecent } from "@/app/features/shell/RecordRecent";
-import { getJob, loadJd, type JdRow } from "@/app/_lib/db";
+import { getJob, loadJd, type JdRow } from "@/app/_lib/db/jobs";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { isOperator } from "@/app/_lib/auth/require-operator";

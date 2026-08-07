@@ -1,4 +1,4 @@
-import { getPipelineEntry } from "./db";
+import { getPipelineEntry } from "./db/pipeline";
 import { isLocale, DEFAULT_LOCALE } from "@/i18n/locales";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { runAutomationTask } from "./automation-run";

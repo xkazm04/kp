@@ -1606,7 +1606,7 @@
     "tagline": "Talent-Matching",
     "signOut": "Abmelden",
     "tabs": {
-      "pipeline": "Recruiting",
+      "pipeline": "Übersicht",
       "channels": "Kanäle",
       "decisions": "Entscheidungen",
       "schedule": "Planung",
@@ -4220,6 +4220,13 @@
       "searchColumn": "{column} durchsuchen…",
       "allOf": "Alle – {column}",
       "select": "Auswählen…"
+    },
+    "pager": {
+      "label": "Tabellenseiten",
+      "range": "{from}–{to} von {total}",
+      "page": "Seite {page} von {pages}",
+      "prev": "Vorherige Seite",
+      "next": "Nächste Seite"
     },
     "empty": {
       "notConnected": "Nicht verbunden",

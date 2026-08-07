@@ -15,17 +15,9 @@
 // semantics (strict for our own form, provided-only for third-party payloads),
 // and the localized human-facing response copy.
 
-import type { JobRecord } from "./db";
-import {
-  createPipelineEntry,
-  ensureLeadEnrichToken,
-  findApplicationByApplicant,
-  getJobWorkspace,
-  mergeReapplication,
-  recordAutomationEvent,
-  recordEntryConsent,
-  recordKnockoutDecline,
-} from "./db";
+import type { JobRecord } from "./db/core";
+import { getJobWorkspace } from "./db/jobs";
+import { createPipelineEntry, ensureLeadEnrichToken, findApplicationByApplicant, mergeReapplication, recordAutomationEvent, recordEntryConsent, recordKnockoutDecline } from "./db/pipeline";
 
 // GDPR: a lead is a reachable candidate whose data we're storing for enrichment —
 // record data-processing consent + a 12-month expiry at intake, best-effort (the

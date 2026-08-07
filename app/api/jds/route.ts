@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { countAnalysesByJd, listJds, saveJd } from "@/app/_lib/db";
+import { countAnalysesByJd } from "@/app/_lib/db/analyses";
+import { listJds, saveJd } from "@/app/_lib/db/jobs";
 import { listJobRoleMeta, listJobStatuses } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";

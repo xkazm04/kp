@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSubmission } from "@/app/_lib/db";
+import { getSubmission } from "@/app/_lib/db/devcase";
 import { mintObservedFromSubmission, promoteSubmission } from "@/app/_lib/devcase-run";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
 

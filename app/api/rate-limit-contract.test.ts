@@ -249,9 +249,15 @@ for (const rel of [
     const at = src.indexOf("sessionTokenMatches(session.token, body.token)");
     assert.ok(at >= 0, "expected the apply-token re-check against the session's own token");
     const refusal = src.slice(at, at + 240);
-    assert.match(refusal, /SESSION_TOKEN_REQUIRED/, "the refusal must use the shared message");
+    // One call now pins both facts: the shared refusal code (which the candidate
+    // page localizes) and the status.
+    assert.match(
+      refusal,
+      /jsonRefusal\("SESSION_TOKEN_REQUIRED",\s*403\)/,
+      "the refusal must use the shared code at 403"
+    );
     // 403, never 404/409: those two tell LiveWorkSurface the session is dead and to
     // re-mint, which would spin the per-token/day session quota on an unauthorized call.
-    assert.match(refusal, /status:\s*403/, "the refusal must be a 403");
+
   });
 }

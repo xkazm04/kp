@@ -9,7 +9,12 @@
 // Keys deliberately match tabs.ts `badgeKey` values — the mapping from count to
 // nav item is declarative, not positional.
 
-import { listPipeline } from "./db";
+// Import the SLICE, not the `./db` barrel. The barrel `export *`s 17 store modules
+// (52 first-party modules / ~707 KB of source), and `next dev` compiles a route's
+// whole module graph with no tree-shaking — so a barrel import makes every route
+// pay for the entire data layer on its first hit. This one line took /api/attention
+// from 68 modules to 43. See "Dev compile cost" in docs/architecture/app-structure.md.
+import { listPipeline } from "./db/pipeline";
 import { dueReminders } from "./schedule-store";
 import { listJobStatuses } from "./job-ingest";
 import { needsHumanDecision } from "./approval-kinds";

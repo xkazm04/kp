@@ -80,7 +80,7 @@ export default function AuditArt() {
                   {...cycle(rm, DUR, { opacity: [0, 0, 0.16, 0.16, 0, 0] }, [0, 0.4, 0.46, 0.72, 0.78, 1], { opacity: 0 })}
                 />
               )}
-              <p className="relative truncate text-[11px] font-extrabold sm:text-xs">
+              <p className="relative truncate text-[13px] font-extrabold sm:text-xs">
                 {t(`trust.art.audit.blocks.${b.key}`, { name: b.name })}
               </p>
               <div className="relative mt-1 flex items-center gap-1.5 sm:mt-1.5">
@@ -94,7 +94,7 @@ export default function AuditArt() {
                     downstream is the link, not their own digest. Fading all
                     three left the row blank for a third of the loop and quietly
                     misdescribed how a hash chain breaks. */}
-                <span className="nums relative text-[11px] font-bold" style={{ color: STEEL }}>
+                <span className="nums relative text-[13px] font-bold" style={{ color: STEEL }}>
                   {b.key === "pass" ? (
                     <>
                       <motion.span {...intact({ opacity: 1 })}>{b.hash}</motion.span>
@@ -173,7 +173,7 @@ export default function AuditArt() {
           <p className="text-xs font-extrabold uppercase tracking-wide" style={{ color: STEEL }}>
             {t("trust.art.audit.calibration.title")}
           </p>
-          <div className="flex items-center gap-3 text-[11px] font-bold" style={{ color: STEEL }}>
+          <div className="flex items-center gap-3 text-[13px] font-bold" style={{ color: STEEL }}>
             <span className="inline-flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm border-2 border-[#17202a]" style={{ background: AMBER }} aria-hidden />
               {t("trust.art.audit.calibration.predicted")}
@@ -189,7 +189,7 @@ export default function AuditArt() {
         </div>
       </div>
 
-      <p className={`${HAND} mt-1.5 text-[13px] sm:mt-2 sm:text-sm`} style={{ color: STEEL }}>
+      <p className={`${HAND} mt-1.5 text-[15px] sm:mt-2 sm:text-sm`} style={{ color: STEEL }}>
         {t("trust.art.audit.calibration.note")}
       </p>
     </div>

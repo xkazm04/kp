@@ -126,6 +126,10 @@ const config = [
       "app/landing/**/*.tsx",
       "app/about/**/*.tsx",
       "app/market/**/*.tsx",
+      // Migrated by the F12b pass: the panel is fully catalog-driven and the
+      // server now hands it machine codes and structured findings rather than
+      // English prose (see docs/architecture/localization.md).
+      "app/_components/GithubAnalysisPanel.tsx",
       "app/_components/AiDisclosure.tsx",
       "app/offer/**/*.tsx",
       "app/schedule/**/*.tsx",
@@ -178,6 +182,17 @@ const config = [
       // ERROR and therefore looked localized while rendering English. Those helpers
       // now take a bound translator from the caller.
       "app/features/settings/organization/**/*.tsx",
+      // F8 — the autonomy control room. Split from one 462-line component into a
+      // shell + four panels, and the whole surface now reads from the `control`
+      // namespace. As with the tasks tab, the JSX text was the easy half: the six
+      // aria-label/placeholder attributes and the five calibration rationale
+      // sentences in `app/_lib/dev-outcomes.ts` are structurally invisible to this
+      // rule, and the rationale is now a `{ kind, params }` finding the panel
+      // renders. What stays literal is audit payload — the lifecycle `stage`/
+      // `detail` and the audit row's `actor`/`action`/`reason` are fields of a
+      // sealed record and must read identically in every locale (same split as
+      // `approvedBy`/`reasonCode` in the decision chain).
+      "app/control/**/*.tsx",
       // channels-i18n-honesty (main): the Channels tab + Comms Center graduated off
       // their six prototype-stage `no-literal-string` disables — they are held at
       // ERROR so a new hardcoded string cannot quietly re-English the surface. Their

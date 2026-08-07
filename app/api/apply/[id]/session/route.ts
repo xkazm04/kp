@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJob, getJobWorkspace } from "@/app/_lib/db";
+import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { startApplySession, type ApplySessionFlow } from "@/app/_lib/apply-session-store";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";

@@ -15,7 +15,7 @@ const ROWS = [
 
 export default function SourceArt({ color = "#caa54c" }: { color?: string }) {
   return (
-    <div className="mx-auto w-full max-w-md space-y-2.5">
+    <div className="mx-auto w-full max-w-lg space-y-2.5">
       {ROWS.map((r, i) => (
         <motion.div
           key={r.name}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPipelineEntry, listConsentEvents } from "@/app/_lib/db";
+import { getPipelineEntry, listConsentEvents } from "@/app/_lib/db/pipeline";
 import { consentStatus } from "@/app/_lib/consent";
 import { safeJsonError } from "@/app/_lib/api-response";
 

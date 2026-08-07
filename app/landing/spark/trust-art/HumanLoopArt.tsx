@@ -146,7 +146,7 @@ export default function HumanLoopArt() {
             >
               {i + 1}
             </motion.span>
-            <p className="mt-2 text-[11px] font-bold leading-tight sm:text-xs" style={{ color: STEEL }}>
+            <p className="mt-2 text-[13px] font-bold leading-tight sm:text-xs" style={{ color: STEEL }}>
               {t(`trust.art.human.stations.${s.key}`)}
             </p>
           </div>

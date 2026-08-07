@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAtsRecord } from "@/app/_lib/ats-egress";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { ensureDb, recordEvent } from "@/app/_lib/db";
+import { ensureDb, recordEvent } from "@/app/_lib/db/core";
 import { buildAtsExportAudit } from "../ats-candidate-audit.ts";
 
 

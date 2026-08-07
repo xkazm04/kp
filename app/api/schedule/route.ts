@@ -14,8 +14,9 @@ import {
   setScheduleInviteMeetingUrl,
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
-import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
-import { plannedInterviewMinutes } from "@/app/_lib/interview-run";
+// Slice, not the `./db` barrel — see the note in app/_lib/llm-config.ts.
+import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { plannedInterviewMinutes } from "@/app/_lib/interview-planned-minutes";
 import { dateSlotToIso, gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
 import { proposeFreeSlots } from "@/app/_lib/calendar/available-slots";
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";

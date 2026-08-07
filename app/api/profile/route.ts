@@ -1,19 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  analysisLineageSource,
-  cachedProfileRecords,
-  deleteProfile,
-  getProfileRecord,
-  profileDivergence,
-  profileStaleness,
-  saveProfile,
-  setProfileLineage,
-  updateProfile,
-  type ProfileLineage,
-  type SaveProfileInput,
-} from "@/app/_lib/db";
+import { analysisLineageSource } from "@/app/_lib/db/analyses";
+import { cachedProfileRecords, deleteProfile, getProfileRecord, profileDivergence, profileStaleness, saveProfile, setProfileLineage, updateProfile, type ProfileLineage, type SaveProfileInput } from "@/app/_lib/db/profiles";
 import {
   cleanupWorkdir,
   createWorkdir,

@@ -12,7 +12,7 @@ const SKILL_CHIPS = ["Java", "Spring", "SQL", "REST"];
 export default function DesignArt({ color = "#42606f" }: { color?: string }) {
   const t = useTranslations("aboutPage");
   return (
-    <div className="mx-auto w-full max-w-md rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
+    <div className="mx-auto w-full max-w-lg rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
       <div className="flex items-center gap-3">
         <span
           className={`${DISPLAY} grid h-10 w-10 place-items-center rounded-xl border-[3px] border-[#17202a] text-sm font-extrabold text-white shadow-[3px_3px_0_#17202a]`}

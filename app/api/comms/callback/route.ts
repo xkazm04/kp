@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { hasOutboxSendFor, recordOutbox } from "@/app/_lib/db";
+import { hasOutboxSendFor, recordOutbox } from "@/app/_lib/db/devcase";
 import { isBounceOutcome } from "@/app/_lib/comms-status";
 import { jsonError, jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import {

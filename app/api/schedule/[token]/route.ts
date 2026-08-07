@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db";
+import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { dispatchInterviewConfirmation, dispatchInterviewerBrief } from "@/app/_lib/comms-dispatch";
 import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";

@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
-import type { ChannelWebhookRecord, PipelineEntryView } from "@/app/_lib/db";
+import { sharedGetJson } from "@/app/features/shared/sharedGet";
+import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
+import type { PipelineEntryView } from "@/app/_lib/db/pipeline";
 
 export type ChannelJob = { id: string; title: string };
 
@@ -20,7 +22,10 @@ export function useChannelData() {
   const [jobs, setJobs] = useState<ChannelJob[] | null>(null);
   const [accepted, setAccepted] = useState<number | null>(null);
 
-  const load = useCallback(() => {
+  // Sharing is OPT-IN (see usePipelineBoardData): `load` doubles as the post-mutation
+  // reload (a new receiver, a revoke), which must always hit the network.
+  const load = useCallback((opts?: { shared?: boolean }) => {
+    const shared = { refresh: !opts?.shared };
     fetch("/api/channels/webhooks")
       .then((r) => r.json())
       .then((p) => setWebhooks((p.webhooks as ChannelWebhookRecord[]) ?? []))
@@ -29,15 +34,14 @@ export function useChannelData() {
       .then((r) => r.json())
       .then((p) => setJobs(((p.jobs ?? []) as ChannelJob[]).map((j) => ({ id: j.id, title: j.title }))))
       .catch(() => setJobs((j) => j ?? []));
-    fetch("/api/pipeline")
-      .then((r) => r.json())
+    sharedGetJson<{ entries?: PipelineEntryView[] }>("/api/pipeline", shared)
       .then((p) => {
         const entries = (p.entries as PipelineEntryView[]) ?? [];
         setAccepted(entries.filter((e) => e.stage === "Accepted" && e.status === "active").length);
       })
       .catch(() => setAccepted((a) => a ?? 0));
   }, []);
-  useEffect(() => load(), [load]);
+  useEffect(() => load({ shared: true }), [load]); // mount read may ride a sibling's request
   useLiveRefresh(load);
 
   return { webhooks, jobs, accepted, reload: load };

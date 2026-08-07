@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useLiveRefresh } from "./live-refresh";
+import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import type { AttentionKey } from "./tabs";
 
 // SHELL2 — the interactive shell's live attention counts. Loads on mount,
@@ -17,11 +18,14 @@ const POLL_MS = 60_000;
 export function useAttention(): AttentionCounts | null {
   const [counts, setCounts] = useState<AttentionCounts | null>(null);
 
-  const load = useCallback(() => {
-    fetch("/api/attention")
-      .then(async (r) => {
-        const body = (await r.json().catch(() => null)) as (AttentionCounts & { error?: string }) | null;
-        if (r.ok && body && !body.error) setCounts(body);
+  // Sharing is OPT-IN (features/shared/sharedGet.ts). The mount read may ride a
+  // sibling's in-flight request — in dev that is React StrictMode's second effect
+  // pass, which fired this exact GET twice on every tab open. The live-refresh and
+  // poll paths below deliberately go to the network: both exist to observe a change.
+  const load = useCallback((opts?: { shared?: boolean }) => {
+    sharedGetJson<AttentionCounts & { error?: string }>("/api/attention", { refresh: !opts?.shared })
+      .then((body) => {
+        if (body && !body.error) setCounts(body);
       })
       .catch(() => {
         /* keep the previous counts — see above */
@@ -29,7 +33,7 @@ export function useAttention(): AttentionCounts | null {
   }, []);
 
   useEffect(() => {
-    load();
+    load({ shared: true });
     const id = setInterval(() => {
       if (!document.hidden) load();
     }, POLL_MS);

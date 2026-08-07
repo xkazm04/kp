@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJob, getPipelineEntry } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
+import { getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
 import { candidateStatusFor } from "@/app/_lib/application-status";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";

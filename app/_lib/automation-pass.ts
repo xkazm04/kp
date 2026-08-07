@@ -1,15 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import {
-  actOnPipelineEntry,
-  getJob,
-  hasEventToday,
-  listActiveEntriesForAutomation,
-  recordAutomationEvent,
-  setApproval,
-  setEntryMatchScore,
-  type AutomationEntry,
-} from "./db";
+import { getJob } from "./db/jobs";
+import { actOnPipelineEntry, hasEventToday, listActiveEntriesForAutomation, recordAutomationEvent, setApproval, setEntryMatchScore, type AutomationEntry } from "./db/pipeline";
 import { resolveCandidatePoolEntry } from "./candidate-pool";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { rankPoolForJob } from "./recruiter-run";
@@ -33,6 +25,16 @@ export const FAIRNESS_BLOCKED_REJECT_ALERT = FAIRNESS_GATE_BLOCKED_REJECT;
 // true. `preview` selects only the "would be refused" vs "refused" wording so a
 // dry run reads as a forecast while the commit reads as an applied refusal —
 // every other byte is identical across the two callers.
+/** The four wrapper sentences this module composes around a policy decision.
+ *  Each maps to `decisions.pass.reasons.<code>` in the catalog. */
+export type PassReasonCode =
+  | "staleSkip"
+  | "queuedForApproval"
+  | "wouldBeQueuedForApproval"
+  | "fairnessRefused"
+  | "fairnessWouldRefuse"
+  | "applyFailed";
+
 // Optimistic-CAS stale handling, shared by the advance and reject apply branches:
 // when actOnPipelineEntry refuses because the snapshot stage no longer holds (a
 // recruiter or concurrent pass moved the entry during the Python hop), turn the
@@ -41,6 +43,8 @@ export const FAIRNESS_BLOCKED_REJECT_ALERT = FAIRNESS_GATE_BLOCKED_REJECT;
 function markStaleSkip(d: AutomationDecision): void {
   d.action = "none";
   d.outcome = "skipped";
+  d.reasonCode = "staleSkip";
+  d.reasonParams = { original: d.reason };
   d.reason = `Skipped: stage changed mid-pass. Original policy decision: ${d.reason}`;
 }
 
@@ -55,6 +59,8 @@ function markStaleSkip(d: AutomationDecision): void {
 // nothing) — that side effect is the ONLY difference between the two paths.
 export function markQueuedForApproval(d: AutomationDecision, summary: AutomationSummary, preview: boolean): void {
   d.outcome = "queued";
+  d.reasonCode = preview ? "wouldBeQueuedForApproval" : "queuedForApproval";
+  d.reasonParams = { original: d.reason };
   d.reason = `${preview ? "Would be queued" : "Queued"} for approval: ${d.reason}`;
   summary.held += 1;
 }
@@ -68,6 +74,8 @@ function applyFairnessVerdict(
   if (verdict.allowed) return false;
   d.action = "hold";
   d.outcome = "fairness_blocked";
+  d.reasonCode = preview ? "fairnessWouldRefuse" : "fairnessRefused";
+  d.reasonParams = { verdict: verdict.reason, original: d.reason };
   d.reason = `Auto-reject ${preview ? "would be refused" : "refused"} by fairness backstop: ${verdict.reason}. Original policy decision: ${d.reason}`;
   d.alerts = (d.alerts ?? []).includes(FAIRNESS_BLOCKED_REJECT_ALERT)
     ? d.alerts
@@ -90,6 +98,15 @@ export type AutomationDecision = {
    *  run. Rows persisted before the field existed derive it from the reason
    *  prefix (deriveDecisionOutcome in decision-attribution.ts). */
   outcome?: DecisionOutcome;
+  /** Structured mirror of `reason`, so the UI can render the wrapper sentence in
+   *  the reader's language. `reason` stays canonical English: it is sealed into
+   *  the decision record and read back by exporters and auditors, and
+   *  deriveDecisionOutcome still parses its prefix for rows written before
+   *  `outcome` existed. Same split screen-wave.ts already uses (reasonCode +
+   *  reasonParams → `decisions.wave.reasons.*`); the UI falls back to `reason`
+   *  when a legacy row carries no code. */
+  reasonCode?: PassReasonCode;
+  reasonParams?: Record<string, string | number>;
   /** The tenant this decision belongs to — the entry's OWN workspace, stamped by
    *  executeAutomationPass from the snapshot (Python never sees it). The pass is a
    *  deliberate GLOBAL sweep, so one run's decision list spans teams; this is what
@@ -385,6 +402,8 @@ async function executeAutomationPass(dryRun: boolean): Promise<AutomationPassRes
         summary.errors += 1;
         const reason = applyError instanceof Error ? applyError.message : String(applyError);
         d.outcome = "failed";
+        d.reasonCode = "applyFailed";
+        d.reasonParams = { detail: reason, original: d.reason };
         d.reason = `Apply failed: ${reason}. Original policy decision: ${d.reason}`;
         console.error(`[automation-pass] decision apply failed for ${d.entryId}: ${reason}`);
       }

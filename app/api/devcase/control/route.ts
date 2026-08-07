@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getActiveTaskByDedupe, listLifecycles } from "@/app/_lib/db";
+import { listLifecycles } from "@/app/_lib/db/devcase";
+import { getActiveTaskByDedupe } from "@/app/_lib/db/tasks";
 import { getAutonomy, listAudit, recordAudit, setAutonomy } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";

@@ -56,7 +56,7 @@ function StampableCv({ card, index }: { card: (typeof PILE)[number]; index: numb
       aria-pressed={stamped}
       aria-label={t("hero.scoreCardAria", { name: card.name })}
     >
-      <p className="text-[15px] font-bold text-[#17202a]">{card.name}</p>
+      <p className="text-[17px] font-bold text-[#17202a]">{card.name}</p>
       <p className="text-sm text-[#42606f]">{t(`pile.${card.key}.role`)}</p>
       <div className="mt-3 space-y-1.5">
         <div className="h-1.5 w-full rounded bg-[#dce7d0]" />
@@ -89,7 +89,7 @@ export default function Hero() {
   const t = useTranslations("landing");
   const reduceMotion = useStillMotion();
   return (
-    <section className="relative mx-auto grid w-full max-w-6xl gap-10 px-6 pb-20 pt-14 lg:grid-cols-[1.15fr_0.85fr] lg:gap-4">
+    <section className="relative mx-auto grid w-full max-w-7xl gap-10 px-6 pb-20 pt-14 lg:grid-cols-[1.15fr_0.85fr] lg:gap-4">
       {CONFETTI.map((c, i) => (
         <motion.span
           key={i}
@@ -105,7 +105,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 16, rotate: -3 }}
           animate={{ opacity: 1, y: 0, rotate: -2 }}
           transition={{ type: "spring", bounce: 0.5 }}
-          className="inline-flex items-center gap-2 rounded-full border-[3px] border-[#17202a] bg-[#dce7d0] px-4 py-1.5 text-[15px] font-bold shadow-[3px_3px_0_#17202a]"
+          className="inline-flex items-center gap-2 rounded-full border-[3px] border-[#17202a] bg-[#dce7d0] px-4 py-1.5 text-[17px] font-bold shadow-[3px_3px_0_#17202a]"
         >
           <Sparkles className="h-4 w-4" aria-hidden />
           {t("hero.badge")}
@@ -134,7 +134,7 @@ export default function Hero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.22 }}
-          className="mt-6 max-w-xl text-lg leading-relaxed text-[#42606f]"
+          className="mt-6 max-w-2xl text-lg leading-relaxed text-[#42606f]"
         >
           {t("hero.subtitle")}
         </motion.p>

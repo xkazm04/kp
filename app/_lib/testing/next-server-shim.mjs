@@ -31,5 +31,13 @@ export const after = (fn) => {
   if (typeof fn === "function") fn();
 };
 
+// The request-time marker the session readers call before reading the wall clock
+// (see currentSession in app/_lib/auth/current-user.ts). Outside a Next render
+// there is no prerender to opt out of, so it is a no-op — but it MUST exist as a
+// named export: an ESM import of a missing name is a link-time SyntaxError, so a
+// handler that transitively imports requireOperator/currentWorkspace would fail to
+// load at all rather than fail an assertion.
+export const connection = async () => {};
+
 export const userAgent = () => ({});
 export const userAgentFromString = () => ({});

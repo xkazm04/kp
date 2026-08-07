@@ -7,6 +7,7 @@ import { ListChecks } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Checkbox } from "@/app/_components/Checkbox";
 import type { OnboardingTask } from "@/app/_lib/onboarding";
+import { useOnboardingLabels } from "./onboardingLabels";
 import type { RunDetail } from "./onboardingRunDetailTypes";
 
 export function OnboardingRunChecklist({
@@ -21,6 +22,8 @@ export function OnboardingRunChecklist({
   onToggle: (taskId: string, done: boolean) => void;
 }) {
   const t = useTranslations("onboarding");
+  // F16 — a stored task carries a language-neutral id; the label is the fallback.
+  const { taskLabel } = useOnboardingLabels();
   return (
     <section className="rounded-md border border-stone-200 bg-white p-4">
       <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
@@ -33,7 +36,7 @@ export function OnboardingRunChecklist({
             <li key={task.id}>
               <label className="flex cursor-pointer items-center gap-2.5 text-base text-ink">
                 <Checkbox checked={done} onChange={(e) => onToggle(task.id, e.target.checked)} />
-                <span className={done ? "text-steel line-through" : ""}>{task.label}</span>
+                <span className={done ? "text-steel line-through" : ""}>{taskLabel(task)}</span>
               </label>
             </li>
           );

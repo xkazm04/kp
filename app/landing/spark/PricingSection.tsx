@@ -26,7 +26,7 @@ export default function PricingSection() {
   const t = useTranslations("landing");
   return (
     <section id="pricing" className="border-y-[3px] border-[#17202a] bg-[#caa54c] py-24">
-      <div className="mx-auto w-full max-w-6xl px-6">
+      <div className="mx-auto w-full max-w-7xl px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <motion.h2
             initial={{ opacity: 0, y: 24 }}
@@ -71,17 +71,17 @@ export default function PricingSection() {
                 </span>
 
                 <h3 className={`${DISPLAY} mt-4 text-xl font-bold`}>{t(`pricing.tiers.${tier.id}.name`)}</h3>
-                <p className="mt-1 text-[15px] leading-snug text-[#42606f]">{t(`pricing.tiers.${tier.id}.tagline`)}</p>
+                <p className="mt-1 text-[17px] leading-snug text-[#42606f]">{t(`pricing.tiers.${tier.id}.tagline`)}</p>
 
                 <div className="mt-5 flex items-baseline gap-2">
                   <span className={`${DISPLAY} text-4xl font-extrabold`}>{t(`pricing.tiers.${tier.id}.price`)}</span>
-                  <span className="text-[15px] font-bold text-[#42606f]">{t(`pricing.tiers.${tier.id}.cadence`)}</span>
+                  <span className="text-[17px] font-bold text-[#42606f]">{t(`pricing.tiers.${tier.id}.cadence`)}</span>
                 </div>
                 <p className={`${HAND} mt-1 text-sm text-[#526b4f]`}>{t(`pricing.tiers.${tier.id}.usd`)}</p>
 
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2.5 text-[15px] font-bold leading-snug">
+                    <li key={feature} className="flex items-start gap-2.5 text-[17px] font-bold leading-snug">
                       <span
                         className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-[3px] border-[#17202a] shadow-[2px_2px_0_#17202a]"
                         style={{ background: tier.color }}
@@ -121,10 +121,10 @@ export default function PricingSection() {
             <div className="max-w-xl">
               <p className="text-meta font-bold uppercase tracking-[0.12em] text-[#d65a4a]">{t("pricing.enterprise.eyebrow")}</p>
               <h3 className={`${DISPLAY} mt-2 text-3xl font-extrabold`}>{t("pricing.enterprise.heading")}</h3>
-              <p className="mt-3 text-[15px] leading-relaxed text-[#42606f]">{t("pricing.enterprise.blurb")}</p>
+              <p className="mt-3 text-[17px] leading-relaxed text-[#42606f]">{t("pricing.enterprise.blurb")}</p>
               <ul className="mt-5 grid gap-x-5 gap-y-2 sm:grid-cols-2">
                 {(t.raw("pricing.enterprise.capabilities") as string[]).map((cap) => (
-                  <li key={cap} className="flex items-start gap-2 text-[14px] font-bold leading-snug text-[#17202a]">
+                  <li key={cap} className="flex items-start gap-2 text-[16px] font-bold leading-snug text-[#17202a]">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#526b4f]" aria-hidden />
                     {cap}
                   </li>
@@ -148,7 +148,7 @@ export default function PricingSection() {
               ))}
             </div>
           </div>
-          <p className="mt-6 text-[13px] font-semibold leading-relaxed text-[#17202a]">{t("pricing.enterprise.roadmapNote")}</p>
+          <p className="mt-6 text-[15px] font-semibold leading-relaxed text-[#17202a]">{t("pricing.enterprise.roadmapNote")}</p>
           <p className="mt-2 text-xs leading-relaxed text-[#42606f]">{t("pricing.enterprise.source")}</p>
         </div>
 

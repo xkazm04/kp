@@ -18,7 +18,7 @@ const TASKS = ["preboarding", "equipment", "buddy"] as const;
 export default function HiredArt({ color = "#526b4f" }: { color?: string }) {
   const t = useTranslations("aboutPage");
   return (
-    <div className="mx-auto w-full max-w-md">
+    <div className="mx-auto w-full max-w-lg">
       <div className="relative grid h-36 place-items-center">
         {CONFETTI.map((d, i) => (
           <motion.span

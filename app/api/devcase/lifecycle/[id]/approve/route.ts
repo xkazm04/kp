@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { approveLifecycleCase, getLifecycle } from "@/app/_lib/db";
+import { approveLifecycleCase, getLifecycle } from "@/app/_lib/db/devcase";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";

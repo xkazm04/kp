@@ -1,4 +1,5 @@
-import { candidateOutcomes, getJob, getJobWorkspace, type CandidateOutcome } from "./db";
+import { getJob, getJobWorkspace } from "./db/jobs";
+import { candidateOutcomes, type CandidateOutcome } from "./db/pipeline";
 import { FIT_PROMISING_FLOOR } from "./fit-thresholds";
 import { buildCandidatePool } from "./candidate-pool";
 import { listJobStatuses } from "./job-ingest";

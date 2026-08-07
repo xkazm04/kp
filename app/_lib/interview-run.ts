@@ -1,4 +1,11 @@
-import { getDevCase, getJob, getPipelineEntry, getSubmission, type PipelineEntry, type VoiceTurn } from "./db";
+// Slices, not the `./db` barrel — see the note in app/_lib/llm-config.ts. This
+// module is imported by /api/schedule for ONE duration helper, so the barrel made
+// that route's first-hit compile the entire data layer on top of its own graph.
+import { getDevCase, getSubmission } from "./db/devcase";
+import { getJob } from "./db/jobs";
+import { getPipelineEntry } from "./db/pipeline";
+import type { PipelineEntry } from "./db/core";
+import type { VoiceTurn } from "./voice/types";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { runAutomationTask } from "./automation-run";
 import { defaultInterviewerInstructions } from "./voice";
@@ -151,23 +158,18 @@ export function composeBrief(
   ].join(" ");
 }
 
-type SubmissionFollowup = { id?: string; decision?: string; question?: string; listenFor?: string; redFlag?: string };
-
-/** Debrief length: ~3 min per minted question on top of the open walkthrough;
- *  capped to stay a screen. Single source for the brief AND the schedule estimate. */
-function debriefDurationMin(followupCount: number): number {
-  return Math.min(25, 8 + 3 * followupCount);
-}
-
-/** The minted authorship questions on an entry's evaluated submission (empty when
- *  the entry isn't a promoted dev-case submission or nothing was minted). */
-function submissionFollowups(entry: PipelineEntry): SubmissionFollowup[] {
-  const submissionId = submissionIdFromCandidateId(entry.candidateId);
-  const submission = submissionId ? getSubmission(submissionId) : null;
-  return ((submission?.evaluation as { followups?: { questions?: SubmissionFollowup[] } } | null)?.followups?.questions ?? []).filter(
-    (f) => typeof f?.question === "string" && f.question.trim() !== ""
-  );
-}
+// The duration estimate and its two helpers live in the LEAF module
+// ./interview-planned-minutes so the scheduling routes can import them without
+// pulling this file's graph (voice, prep generation, transcripts, automation).
+// Re-exported here so every existing `from "./interview-run"` import keeps working
+// against a single definition.
+import {
+  debriefDurationMin,
+  plannedInterviewMinutes,
+  submissionFollowups,
+  type SubmissionFollowup,
+} from "./interview-planned-minutes";
+export { debriefDurationMin, plannedInterviewMinutes, submissionFollowups, type SubmissionFollowup };
 
 // Candidate-facing agenda for the submission debrief — deliberately generic: the
 // followups' decision/red-flag notes are interviewer-internal and must never leak
@@ -403,27 +405,10 @@ export function buildCandidateSafeBrief(entryId: string): string | null {
   );
 }
 
-/** Read-only estimate of how long the entry's interview will run — the same
- *  branch order as buildGroundedInterview (debrief > case-grounded student >
- *  generic student > grounded prep > quick screen) WITHOUT its side effects: it
- *  never generates missing prep, so it is safe to call when minting a scheduling
- *  link. An entry whose prep doesn't exist yet reports the quick screen — the
- *  truthful floor — rather than a promise the brief may not keep. */
-export function plannedInterviewMinutes(entry: PipelineEntry): number {
-  const followups = submissionFollowups(entry);
-  if (followups.length > 0) return debriefDurationMin(followups.length);
-  if (isEarlyCareer(entry.archetype)) {
-    const caseId = devCaseIdFromJobId(entry.jobId);
-    const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
-    if (scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0) {
-      return scenario.durationMin || STUDENT_SCRIPT_MIN;
-    }
-    return STUDENT_SCRIPT_MIN;
-  }
-  const prep = (getInterviewPrep(entry.id)?.payload as PrepPayload | undefined) ?? undefined;
-  const grounded = (prep?.chronology?.length ?? 0) > 0;
-  return grounded ? prep?.durationMin ?? GROUNDED_DEFAULT_MIN : QUICK_SCREEN_MIN;
-}
+/* plannedInterviewMinutes moved to ./interview-planned-minutes (re-exported at the
+   top of this file) — see the note there. It shares buildGroundedInterview's branch
+   order (debrief > case-grounded student > generic student > grounded prep > quick
+   screen); keep the two in step. */
 
 /** Synthesize a scorecard from the call transcript (Task 5). Also sets the
  *  scorecard_review approval on the entry, so it lands in the Decisions queue. */

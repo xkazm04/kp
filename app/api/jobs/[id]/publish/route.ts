@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { activeJobsGate } from "@/app/_lib/billing";
-import { canWriteJobLifecycle, createPipelineEntry, ensureDb, getJob, reopenEntriesByJobId } from "@/app/_lib/db";
+import { ensureDb } from "@/app/_lib/db/core";
+import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
+import { createPipelineEntry, reopenEntriesByJobId } from "@/app/_lib/db/pipeline";
 import { countPublishedJobs, getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";

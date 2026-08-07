@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPipelineEntry, listPipeline, PIPELINE_STAGES } from "@/app/_lib/db";
+import { createPipelineEntry, listPipeline, PIPELINE_STAGES } from "@/app/_lib/db/pipeline";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { withCanonicalScoresCached } from "@/app/_lib/pipeline-score-cache";

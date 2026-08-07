@@ -5,7 +5,7 @@ import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
 import { PIPELINE_STAGES } from "./pipeline-stages";
 import { isOfferExpired, OFFER_REMINDER_LEAD_MS, offerExpiresAtMs } from "./offer-policy";
-import { recordAutomationEvent } from "./db";
+import { recordAutomationEvent } from "./db/pipeline";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
 // store (same pattern as job-ingest.ts): opens its OWN better-sqlite3 handle on

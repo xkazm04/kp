@@ -52,6 +52,7 @@ export function WorkspaceNavDrawer({
   logoUrl,
   selectTab,
   onSliceNav,
+  onPrefetchTab,
 }: {
   t: ReturnType<typeof useTranslations>;
   drawerRef: RefObject<HTMLElement | null>;
@@ -66,6 +67,8 @@ export function WorkspaceNavDrawer({
   logoUrl: string | null;
   selectTab: (id: WorkspaceTabId) => void;
   onSliceNav: (href: string) => void;
+  /** Warm a tab's code-split chunk on nav hover/focus (shell/tabChunks.ts). */
+  onPrefetchTab: (id: WorkspaceTabId) => void;
 }) {
   return (
     <>
@@ -117,6 +120,7 @@ export function WorkspaceNavDrawer({
           search={search}
           onSelect={selectTab}
           onSliceNav={onSliceNav}
+          onPrefetchTab={onPrefetchTab}
           railTop={
             <div className="mb-1 hidden justify-center py-1 md:flex">
               {logoUrl ? (

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifySkillProfileToken } from "@/app/_lib/db";
+import { verifySkillProfileToken } from "@/app/_lib/db/skill-profiles";
 import { jsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 

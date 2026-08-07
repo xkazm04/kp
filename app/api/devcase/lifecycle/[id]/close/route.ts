@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { claimLifecycleClose, getLifecycle, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db";
+import { claimLifecycleClose, getLifecycle, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db/devcase";
 import { sendComm } from "@/app/_lib/comms";
 import { recordAudit } from "@/app/_lib/dev-control";
 

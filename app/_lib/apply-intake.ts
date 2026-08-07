@@ -1,4 +1,4 @@
-import type { JobRecord } from "./db";
+import type { JobRecord } from "./db/core";
 import { parseGithubUsername } from "./github-handle.ts";
 
 // Pure, registry-free intake heuristics for the conversational apply flow. Kept

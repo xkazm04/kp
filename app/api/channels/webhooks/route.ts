@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createChannelWebhook, getJob, isWebhookChannel, listChannelWebhooks, type ChannelWebhookRecord } from "@/app/_lib/db";
+import { createChannelWebhook, isWebhookChannel, listChannelWebhooks, type ChannelWebhookRecord } from "@/app/_lib/db/channels";
+import { getJob } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { isLocale } from "@/i18n/locales";
 

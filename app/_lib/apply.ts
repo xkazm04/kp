@@ -1,6 +1,6 @@
 import type { useTranslations } from "next-intl";
 import archetypeRegistry from "@/pipeline/jobfit/archetypes.json";
-import type { JobRecord } from "./db";
+import type { JobRecord } from "./db/core";
 import { buildIntakeProfile, type ApplyAnswers, type StepCondition } from "./apply-intake";
 
 // The "apply"-namespace translator the caller threads in so the chat prompts are

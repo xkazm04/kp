@@ -1,16 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import type { ChannelWebhookRecord } from "@/app/_lib/db";
+import { useCallback, useMemo, useState } from "react";
+import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 
 export type ReceiverJob = { id: string; title: string };
 
-// Shared receiver data for a webhook-backed channel (email intake, ad forms):
-// the channel's receivers + the published jobs (to bind a new one) + revoke.
-// Creation lives in the Add modal, which calls reload()/onChanged on success.
-export function useReceivers(channel: string, onChanged?: () => void) {
-  const [receivers, setReceivers] = useState<ChannelWebhookRecord[] | null>(null);
-  const [jobs, setJobs] = useState<ReceiverJob[] | null>(null);
+// Per-channel receiver state for the email-intake and ad-forms panes: the
+// channel's slice of the receivers list, plus revoke. Creation lives in the Add
+// modal, which calls reload()/onChanged on success.
+//
+// It does NOT fetch. It used to: on mount it re-requested `/api/channels/webhooks`
+// and `/api/jobs?limit=200` — both of which the TAB (useChannelData) had already
+// loaded before it could render the pane that mounts this hook. That was ~202 KB
+// re-downloaded on every switch to Email intake or Ad forms (the jobs list alone
+// is 201 KB), and worse, it created a second source of truth for the same two
+// lists: a revoke refreshed one copy and left the other's counts stale until
+// something else happened to reload it. The tab now owns both lists and hands
+// them down; this hook owns only what is genuinely per-pane.
+export function useReceivers({
+  channel,
+  webhooks,
+  reload,
+  onChanged,
+}: {
+  channel: string;
+  /** Every channel's receivers, or null while the tab's first fetch is in flight. */
+  webhooks: ChannelWebhookRecord[] | null;
+  /** Re-read the tab-level lists (after a revoke/create). */
+  reload: () => void;
+  onChanged?: () => void;
+}) {
   const [revoking, setRevoking] = useState<string | null>(null);
   // Did the last revoke FAIL? (channels-i18n-honesty) This used to be an `error` string
   // holding a hardcoded English sentence that no pane ever read — so a failed revoke was
@@ -18,20 +37,13 @@ export function useReceivers(channel: string, onChanged?: () => void) {
   // why. The hook reports the fact; the pane renders the localized message.
   const [revokeFailed, setRevokeFailed] = useState(false);
 
-  const load = useCallback(() => {
-    fetch("/api/channels/webhooks")
-      .then((r) => r.json())
-      .then((p) => setReceivers(((p.webhooks as ChannelWebhookRecord[]) ?? []).filter((w) => w.channel === channel)))
-      .catch(() => setReceivers([]));
-  }, [channel]);
-
-  useEffect(() => {
-    load();
-    fetch("/api/jobs?limit=200")
-      .then((r) => r.json())
-      .then((p) => setJobs(((p.jobs ?? []) as ReceiverJob[]).map((j) => ({ id: j.id, title: j.title }))))
-      .catch(() => setJobs([]));
-  }, [load]);
+  // null (not []) while the tab's fetch is in flight, so the panes keep telling
+  // "haven't loaded yet" apart from "genuinely no receivers" — the same contract
+  // the local fetch used to provide.
+  const receivers = useMemo(
+    () => (webhooks === null ? null : webhooks.filter((w) => w.channel === channel)),
+    [webhooks, channel]
+  );
 
   const revoke = useCallback(
     async (token: string) => {
@@ -41,7 +53,7 @@ export function useReceivers(channel: string, onChanged?: () => void) {
       try {
         const r = await fetch(`/api/channels/webhooks/${encodeURIComponent(token)}`, { method: "DELETE" });
         if (!r.ok) throw new Error();
-        load();
+        reload();
         onChanged?.();
       } catch {
         setRevokeFailed(true);
@@ -49,10 +61,10 @@ export function useReceivers(channel: string, onChanged?: () => void) {
         setRevoking(null);
       }
     },
-    [revoking, load, onChanged]
+    [revoking, reload, onChanged]
   );
 
-  return { receivers, jobs, load, revoke, revoking, revokeFailed };
+  return { receivers, load: reload, revoke, revoking, revokeFailed };
 }
 
 /** A receiver is "live" once it has taken any AUTHENTICATED inbound POST — the one

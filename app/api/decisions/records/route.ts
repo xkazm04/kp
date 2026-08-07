@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { listDecisionRecords, verifyDecisionChain } from "@/app/_lib/decision-record-store";
-import { listPipeline } from "@/app/_lib/db";
+import { listPipeline } from "@/app/_lib/db/pipeline";
 import { jsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revokeChannelWebhook } from "@/app/_lib/db";
+import { revokeChannelWebhook } from "@/app/_lib/db/channels";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 

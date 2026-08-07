@@ -5,7 +5,8 @@ import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, spawnPython } from "@/app/_lib/python-runner";
 import { validateProfileCliResult, type ProfileCliResult } from "@/app/_lib/apply-profile-result";
 import type { CompletenessGap } from "@/app/_lib/completeness-followup";
-import { getJob, saveProfile, updateProfile } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
+import { saveProfile, updateProfile } from "@/app/_lib/db/profiles";
 
 // Turn captured intake answers (or an extracted CV) into a saved, matchable
 // CandidateProfileV2 via the deterministic profile_cli normalizer — the same path

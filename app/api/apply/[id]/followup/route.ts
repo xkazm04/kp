@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  entryProfileGaps,
-  findEntryByLeadToken,
-  getJob,
-  getJobWorkspace,
-  getProfileRecord,
-  recordAutomationEvent,
-  setEntryProfileGaps,
-} from "@/app/_lib/db";
+import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
+import { entryProfileGaps, findEntryByLeadToken, recordAutomationEvent, setEntryProfileGaps } from "@/app/_lib/db/pipeline";
+import { getProfileRecord } from "@/app/_lib/db/profiles";
 import { coerceLeadTokenParam } from "@/app/_lib/apply-intake";
 import { GAP_FIELDS, mergeGapAnswers } from "@/app/_lib/completeness-followup";
 import { renormalizeApplicantProfile } from "@/app/_lib/applicant-profile";

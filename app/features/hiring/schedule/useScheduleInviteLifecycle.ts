@@ -13,6 +13,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { useRelativeTime } from "@/app/features/hiring/pipeline/PipelineShared";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
+import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 import { CALENDAR_STATUSES, type CalendarStatus } from "@/app/_lib/calendar/free-busy";
 
@@ -113,7 +114,9 @@ export function useScheduleInviteLifecycle() {
       // The route returns the truthful delivery claim (sent only on a relayed 2xx,
       // else queued in the Outbox) — mirror the panel's sent/queued language.
       toast.success(d.delivery === "sent" ? t("reinviteSent") : t("reinviteQueued"));
-      await loadInvites();
+      // Post-mutation: force a fresh request rather than sharing one that may
+      // predate the re-invite we just made.
+      await loadInvites({ refresh: true });
     } catch {
       toast.error(t("actionFailed"));
     } finally {
@@ -149,28 +152,26 @@ export function useScheduleInviteLifecycle() {
   // Reload the whole agenda from the ONE scheduling engine. Used after a re-invite (so
   // the freshly-minted pending link appears in the awaiting bucket). useCallback keeps
   // the Date.now() capture out of render scope (react-hooks/purity).
-  const loadInvites = useCallback(async () => {
+  // `refresh` bypasses the in-flight share (sharedGet.ts): a reload AFTER a
+  // mutation must not attach to a request that started before the write.
+  const loadInvites = useCallback(async (opts?: { refresh?: boolean }) => {
     try {
-      const r = await fetch("/api/schedule");
-      if (!r.ok) throw new Error();
-      const p = await r.json();
-      setInvites((p.invites as ScheduleInvite[]) ?? []);
+      const p = await sharedGetJson<{ invites?: ScheduleInvite[] }>("/api/schedule", opts);
+      setInvites(p.invites ?? []);
       setLoadedAt(Date.now());
     } catch {
       setFailed(true);
     }
   }, []);
 
+  // Mount read. This panel and the tab's own grid (useScheduleTab) both need the
+  // agenda and both mount in the same tick, so the two GETs coalesce into one.
   useEffect(() => {
     let alive = true;
-    fetch("/api/schedule")
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return r.json();
-      })
+    sharedGetJson<{ invites?: ScheduleInvite[] }>("/api/schedule")
       .then((p) => {
         if (!alive) return;
-        setInvites((p.invites as ScheduleInvite[]) ?? []);
+        setInvites(p.invites ?? []);
         setLoadedAt(Date.now());
       })
       .catch(() => {

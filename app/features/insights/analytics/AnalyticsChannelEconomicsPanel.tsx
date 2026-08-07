@@ -5,7 +5,7 @@ import { PauseCircle } from "lucide-react";
 import { labelOr } from "@/app/_lib/use-enum-label";
 import type { ChannelDelta } from "@/app/_lib/analytics-deltas";
 // `import type` only — erased at compile time, no server code in the bundle.
-import type { ChannelEconomics } from "@/app/_lib/db";
+import type { ChannelEconomics } from "@/app/_lib/db/analytics";
 import type { VariantRecommendation, VariantStat } from "@/app/_lib/source-analytics";
 import { DeltaChip } from "./AnalyticsTab";
 import { SpendInput } from "./AnalyticsChannelSpendInput";

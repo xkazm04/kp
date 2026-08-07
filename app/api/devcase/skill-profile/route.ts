@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { issueSkillProfile } from "@/app/_lib/db";
+import { issueSkillProfile } from "@/app/_lib/db/skill-profiles";
 import { jsonError } from "@/app/_lib/api-response";
 
 

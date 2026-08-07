@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPosting, getSubmission, recordOutbox } from "@/app/_lib/db";
+import { getPosting, getSubmission, recordOutbox } from "@/app/_lib/db/devcase";
 import { buildFeedbackBrief } from "@/app/_lib/devcase-feedback";
 
 

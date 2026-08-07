@@ -1,4 +1,4 @@
-import type { VoiceTurn } from "./db";
+import type { VoiceTurn } from "./db/interviews";
 
 // ---------------------------------------------------------------------------
 // Transcript truncation policy for interview scoring

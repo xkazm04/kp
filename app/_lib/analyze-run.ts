@@ -4,7 +4,7 @@ import { computeCacheKey, lookupCachedAnalysis, storeCachedAnalysis } from "@/ap
 import { buildComparison } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
 import { countSanityWarns } from "@/app/_lib/sanity-checks";
-import { saveAnalysis } from "@/app/_lib/db";
+import { saveAnalysis } from "@/app/_lib/db/analyses";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { logAnalyze, type AnalyzeLog } from "@/app/_lib/logger";
 import { cleanupWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";

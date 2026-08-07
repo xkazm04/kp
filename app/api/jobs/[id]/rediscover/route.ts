@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
 import { rediscoverForJob } from "@/app/_lib/rediscover";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 

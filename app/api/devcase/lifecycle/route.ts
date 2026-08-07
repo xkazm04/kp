@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
-import { createLifecycle, listLifecycles } from "@/app/_lib/db";
+import { createLifecycle, listLifecycles } from "@/app/_lib/db/devcase";
 import { startTask } from "@/app/_lib/tasks";
 import { getServerLocale } from "@/i18n/server";
 import { isLocale } from "@/i18n/locales";

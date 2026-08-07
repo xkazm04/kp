@@ -126,6 +126,7 @@ export function ChannelsTab() {
         accent={accent}
         activeStatus={activeStatus}
         jobs={jobs}
+        webhooks={webhooks}
         accepted={accepted}
         activeHooksCount={activeHooks.length}
         received={received}

@@ -9,7 +9,7 @@ import { useTranslations } from "next-intl";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { resolveErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { GroupEvalPayload } from "@/app/features/hiring/decisions/GroupEvalModal";
-import type { PipelineEntryView } from "@/app/_lib/db";
+import type { PipelineEntryView } from "@/app/_lib/db/pipeline";
 import { compareByMatchScoreDesc } from "@/app/_lib/match-score";
 import { JSON_HEADERS, MAX_STAGE_ADVANCES, SimStop, sleep, type SimState } from "./simulationProviderTypes";
 

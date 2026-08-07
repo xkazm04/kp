@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { TextInput } from "@/app/_components/TextInput";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
-import type { Workspace } from "@/app/_lib/db";
+import type { Workspace } from "@/app/_lib/db/workspaces";
 
 // Workspace administration (P2). Lists workspaces, creates one, and switches the
 // active session workspace. Tenancy is single-tenant-locked until per-workspace

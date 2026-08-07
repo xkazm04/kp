@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listRecentTasks } from "@/app/_lib/db";
+import { listRecentTasks } from "@/app/_lib/db/tasks";
 import { ensureRecovered, isKnownKind, recentTaskCutoffIso, startTask } from "@/app/_lib/tasks";
 
 

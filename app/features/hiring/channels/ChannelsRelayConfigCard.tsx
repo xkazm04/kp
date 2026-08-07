@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Radio, Send, ShieldCheck } from "lucide-react";
 import { Badge } from "@/app/_components/Badge";
@@ -13,6 +13,15 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // endpoint URL + write-only signing secret + an honest test ping. While the env
 // var is set it wins over this form (comms-relay.ts precedence) and the editor
 // says so instead of pretending the form is in charge.
+//
+// Render cascade: this card is almost entirely STATIC — a heading, an intro, two
+// labelled fields and two buttons — and it used to render none of it until
+// GET /api/comms/relay came back, behind an empty reserved-height box. Worse, a
+// failed or operator-gated read left `state` null forever, so the whole editor
+// silently ceased to exist. Now the shell paints on the first frame and only the
+// three genuinely data-derived bits wait: the on/off badge, the secret badge and
+// the env-override note. A read that never lands leaves a usable form — the POST,
+// not the GET, is what configures the relay.
 type RelayState = { url: string; hasSecret: boolean; envConfigured: boolean };
 
 export function RelayConfigCard() {
@@ -25,6 +34,9 @@ export function RelayConfigCard() {
   const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+  // The field is live from the first frame, so the arriving config must not
+  // overwrite what someone has already typed into it.
+  const urlTouched = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -33,7 +45,7 @@ export function RelayConfigCard() {
       .then((d: { config?: { url: string | null; hasSecret: boolean }; envConfigured?: boolean } | null) => {
         if (!alive || !d?.config) return;
         setState({ url: d.config.url ?? "", hasSecret: d.config.hasSecret, envConfigured: Boolean(d.envConfigured) });
-        setUrl(d.config.url ?? "");
+        if (!urlTouched.current) setUrl(d.config.url ?? "");
       })
       .catch(() => {});
     return () => {
@@ -81,27 +93,32 @@ export function RelayConfigCard() {
     }
   }, [t]);
 
-  // Tier 2 (docs/design/loading-choreography.md): the config fetch is in flight (or an
-  // operator-gated read failed — demo session / restricted member, same shape as
-  // "no data" here). Hold the card's height so the ledger below doesn't jump when
-  // it lands, and stay invisible for 150ms so a fast response paints nothing.
-  if (!state) return <div className="reveal-quiet min-h-[7rem]" aria-hidden />;
-
-  const active = state.envConfigured || state.url.trim() !== "";
+  // Tier 2 (docs/design/loading-choreography.md) applied per-BIT rather than to the
+  // whole card: the config read may still be in flight, or have failed / been denied
+  // to a demo session — either way the editor renders, and only what the response
+  // would have told us is held back.
+  const active = state ? state.envConfigured || state.url.trim() !== "" : false;
 
   return (
-    <section aria-label={t("title")} className="animate-arrive-in rounded-lg border border-stone-200 bg-paper/50 p-4">
-      <div className="flex flex-wrap items-center gap-2">
+    <section aria-label={t("title")} className="rounded-lg border border-stone-200 bg-paper/50 p-4">
+      <div className="flex min-h-[2rem] flex-wrap items-center gap-2">
         <span aria-hidden className="inline-grid h-8 w-8 place-items-center rounded-lg border border-stone-200 bg-white text-steel">
           <Radio size={15} />
         </span>
         <h3 className="font-semibold text-ink">{t("title")}</h3>
-        <Badge tone={active ? "positive" : "neutral"} label={active ? t("statusOn") : t("statusOff")} />
-        {state.hasSecret ? <Badge tone="info" icon={ShieldCheck} label={t("secretSet")} /> : null}
+        {/* Same pending-pill idiom the section header uses for its own status
+            (ChannelsTabStage): on/off is a FACT about the deployment, so it waits
+            for the read rather than guessing a default. */}
+        {state ? (
+          <Badge tone={active ? "positive" : "neutral"} label={active ? t("statusOn") : t("statusOff")} />
+        ) : (
+          <span className="reveal-quiet inline-block h-5 w-16 rounded-full bg-stone-100" aria-hidden />
+        )}
+        {state?.hasSecret ? <Badge tone="info" icon={ShieldCheck} label={t("secretSet")} /> : null}
       </div>
       <p className="mt-1.5 max-w-2xl text-sm text-steel">{t("intro")}</p>
 
-      {state.envConfigured ? (
+      {state?.envConfigured ? (
         <p className="mt-3 rounded-md border border-dashed border-stone-300 bg-white px-3 py-2 text-sm text-steel">{t("envNote")}</p>
       ) : (
         <div className="mt-3 flex flex-wrap items-end gap-2">
@@ -109,7 +126,17 @@ export function RelayConfigCard() {
             <label htmlFor="relay-url" className={`${META_LABEL} block`}>
               {t("urlLabel")}
             </label>
-            <TextInput id="relay-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" sizeVariant="sm" className="mt-1 w-full" />
+            <TextInput
+              id="relay-url"
+              value={url}
+              onChange={(e) => {
+                urlTouched.current = true;
+                setUrl(e.target.value);
+              }}
+              placeholder="https://…"
+              sizeVariant="sm"
+              className="mt-1 w-full"
+            />
           </div>
           <div className="min-w-0 flex-1 basis-52">
             <label htmlFor="relay-secret" className={`${META_LABEL} block`}>
@@ -120,7 +147,10 @@ export function RelayConfigCard() {
               type="password"
               value={secret}
               onChange={(e) => setSecret(e.target.value)}
-              placeholder={state.hasSecret ? t("secretKeepPlaceholder") : t("secretPlaceholder")}
+              // Until the read lands we don't know whether a secret is stored, and
+              // the two placeholders make opposite promises ("leave blank to keep"
+              // vs "set one") — so the neutral one holds until we do.
+              placeholder={state?.hasSecret ? t("secretKeepPlaceholder") : t("secretPlaceholder")}
               sizeVariant="sm"
               className="mt-1 w-full"
             />

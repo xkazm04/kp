@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { countRecentDevSessionsForToken, devSessionWatermark, getPostingByToken, startDevSession } from "@/app/_lib/db";
+import { countRecentDevSessionsForToken, devSessionWatermark, getPostingByToken, startDevSession } from "@/app/_lib/db/devcase";
 import { jsonError } from "@/app/_lib/api-response";
 
 // bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): a per-token/day session

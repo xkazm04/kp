@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAgentAggregates, listHiredAgents } from "@/app/_lib/db";
+import { getAgentAggregates, listHiredAgents } from "@/app/_lib/db/agents";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";

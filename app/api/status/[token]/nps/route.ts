@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPipelineEntry } from "@/app/_lib/db";
+import { getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
 import { candidateStatusFor, isTerminalCandidateStatus } from "@/app/_lib/application-status";
 import { parseNpsSubmission } from "@/app/_lib/candidate-nps";

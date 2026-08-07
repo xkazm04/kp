@@ -1,7 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { meterAllows } from "./billing";
-import { getJob, listCorpusJobs, lookupPromptCache, storePromptCache } from "./db";
+import { lookupPromptCache, storePromptCache } from "./db/analyses";
+import { getJob, listCorpusJobs } from "./db/jobs";
 import { buildLlmConfigEnv } from "./llm-config";
 import { resolveMatchInput, materializeMatchInput, type MatchInputBody } from "./match-input";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";

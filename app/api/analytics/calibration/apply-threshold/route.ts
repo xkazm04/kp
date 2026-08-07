@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pipelineCalibrationPairs } from "@/app/_lib/db";
+import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
 import { recommendScreeningThreshold } from "@/app/_lib/calibration";
 import { getDecisionConfig, setDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { effectiveFloor } from "@/app/_lib/decision-config-schema";

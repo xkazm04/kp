@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getInterviewSessionByToken, recordSimTranscriptAttached } from "@/app/_lib/db";
+import { getInterviewSessionByToken } from "@/app/_lib/db/interviews";
+import { recordSimTranscriptAttached } from "@/app/_lib/db/pipeline";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { isAttachableSimSession } from "./sim-session";
 

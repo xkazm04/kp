@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPostingByToken } from "@/app/_lib/db";
+import { getPostingByToken } from "@/app/_lib/db/devcase";
 import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
+import { jsonRefusal } from "@/app/_lib/api-response";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 
 
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Defensive: the pre-check above already 410s a closed posting, but the shared
     // core also guards (e.g. if the posting closes mid-request) — map it to 410 too.
     if (error instanceof PostingClosedError) {
-      return NextResponse.json({ error: error.message }, { status: 410 });
+      return jsonRefusal("POSTING_CLOSED", 410);
     }
     return NextResponse.json({ error: error instanceof Error ? error.message : "Intake failed." }, { status: 500 });
   }

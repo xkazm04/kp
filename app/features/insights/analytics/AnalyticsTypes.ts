@@ -6,7 +6,7 @@ import type { PeriodDeltas } from "@/app/_lib/analytics-deltas";
 import type { AutomationImpact } from "@/app/_lib/decision-attribution";
 import type { AutomationRoi } from "@/app/_lib/automation-roi";
 // `import type` only — erased at compile time, no server code in the bundle.
-import type { ChannelEconomics } from "@/app/_lib/db";
+import type { ChannelEconomics } from "@/app/_lib/db/analytics";
 import type { VariantRecommendation, VariantStat } from "@/app/_lib/source-analytics";
 
 export type Funnel = { stage: string; reached: number; current: number; conversionPct: number | null };

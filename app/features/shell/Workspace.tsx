@@ -1,11 +1,13 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useBrand } from "@/app/_components/BrandProvider";
 import { KeyboardShortcuts } from "./WorkspaceKeyboardShortcuts";
 import { navKey, shouldCloseDrawerOnNav } from "./nav/navDrawerClose";
+import { useShellNavigate } from "./nav/shallow-nav";
+import { prefetchTabChunk, warmLikelyTabChunks } from "./tabChunks";
 import { isMainInert } from "./nav/navDrawerA11y";
 import { useAttention } from "./useAttention";
 import { TasksProvider } from "./tasks/TasksProvider";
@@ -26,7 +28,10 @@ import {
 export type { WorkspaceTabId } from "./tabs";
 
 export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?: boolean }) {
-  const router = useRouter();
+  // Same-document URL patching, not router.push: a `?tab=` switch changes nothing
+  // the SERVER render of '/' depends on, so making it a server navigation only
+  // bought a ~358 KB RSC round-trip per click. See nav/shallow-nav.ts.
+  const nav = useShellNavigate();
   const params = useSearchParams();
   const pathname = usePathname();
   const t = useTranslations("nav");
@@ -82,13 +87,16 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   const selectTab = useCallback(
     (id: WorkspaceTabId): void => {
       setMobileNavOpen(false); // a tab pick on mobile closes the drawer
+      // Start the destination's code-split chunk before the URL flips, so the
+      // fetch overlaps the swap instead of following it. A no-op once warm.
+      prefetchTabChunk(id);
       // push, not replace — a tab switch is the navigation users most expect
       // Back to undo; replace made Back exit the workspace entirely.
-      router.push(buildTabSwitchUrl(id, search), { scroll: false });
+      nav.push(buildTabSwitchUrl(id, search));
     },
     // setMobileNavOpen is identity-stable, but React Compiler's memoization
     // check requires the declared deps to match what the body references.
-    [router, search, setMobileNavOpen]
+    [nav, search, setMobileNavOpen]
   );
 
   // a11y — on a tab switch, move focus to the <main> landmark (reusing the
@@ -110,6 +118,12 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
     // navText/t are derived from the same render; navActive is the sole trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navActive]);
+
+  // Warm the hiring tabs a session almost always reaches, once the browser is idle
+  // — the cold-render cost of a tab is its chunk download, and paying it during a
+  // quiet moment after mount is free. Re-armed when the active tab changes so the
+  // warm set never includes what is already rendering. See shell/tabChunks.ts.
+  useEffect(() => warmLikelyTabChunks(navActive), [navActive]);
 
   // Close the mobile drawer on ANY in-shell navigation, not just a sidebar tab pick.
   // The badge-slice pill (onSliceNav) and the command palette (which has no access to
@@ -160,7 +174,8 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
         search={search}
         logoUrl={logoUrl}
         selectTab={selectTab}
-        onSliceNav={(href) => router.push(href, { scroll: false })}
+        onSliceNav={(href) => nav.push(href)}
+        onPrefetchTab={prefetchTabChunk}
       />
 
       {/* SHELL4: g-chord tab navigation + the "?" reference overlay (keyboard-only;

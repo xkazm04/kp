@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJob, getPipelineEntry, setApproval } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
+import { getPipelineEntry, setApproval } from "@/app/_lib/db/pipeline";
 import { jsonError } from "@/app/_lib/api-response";
 import { normalizeSalaryBand } from "@/app/_lib/salary-band";
 import { SIM_SALARY } from "@/app/features/shell/simulation/constants";

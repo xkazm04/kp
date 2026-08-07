@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { clearIntakeDegraded, getPipelineEntry, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db";
+import { clearIntakeDegraded, getPipelineEntry, reinstatePipelineEntry, setEntryGithubEvidence, setEntryNotes } from "@/app/_lib/db/pipeline";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { safeJsonError } from "@/app/_lib/api-response";

@@ -21,7 +21,18 @@ type OnboardingView = {
 
 // Pre-boarding questionnaire field → i18n label key. Driven by the server's `fields`
 // list (the canonical ENTRY_QUESTIONNAIRE_FIELDS) so the two can't drift; an unknown
-// field is skipped rather than rendered raw.
+// field falls back to its authored label rather than being rendered raw.
+//
+// F16 — this is the hire-facing half of the read-time contract in
+// app/_lib/onboarding.ts. The template row was written in whatever language the
+// recruiter had open; the NEW HIRE reads it here, in theirs, because the row stores
+// a key and this map resolves it. It covers the industry presets' fields too — a
+// clinical template asking for a license number, a trades one for a PPE size — which
+// is exactly the set that would otherwise reach a candidate in English.
+//
+// Deliberately its OWN map rather than a shared one with the recruiter side: the two
+// namespaces say different things about the same key on purpose ("Confirm your start
+// date" to the hire, "Confirmed start date" on the recruiter's record).
 const FIELD_LABEL: Record<string, string> = {
   preferredName: "fieldPreferredName",
   tshirtSize: "fieldTshirtSize",
@@ -29,6 +40,15 @@ const FIELD_LABEL: Record<string, string> = {
   equipmentPrefs: "fieldEquipmentPrefs",
   emergencyContact: "fieldEmergencyContact",
   startDateConfirm: "fieldStartDateConfirm",
+  // Preset-specific fields (healthcare / trades / startup / frontline).
+  licenseNumber: "fieldLicenseNumber",
+  licenseExpiry: "fieldLicenseExpiry",
+  immunizationStatus: "fieldImmunizationStatus",
+  certifications: "fieldCertifications",
+  ppeSize: "fieldPpeSize",
+  githubHandle: "fieldGithubHandle",
+  workAuthorization: "fieldWorkAuthorization",
+  availability: "fieldAvailability",
 };
 
 // Public, token-gated onboarding hand-off (offers #5). The accepted offer's token lands

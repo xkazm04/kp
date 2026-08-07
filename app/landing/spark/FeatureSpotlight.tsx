@@ -50,7 +50,7 @@ export function FeatureSpotlight({
             role="dialog"
             aria-modal={pinned}
             aria-label={t(`features.${preview}.title`)}
-            className="relative w-full max-w-xl rounded-2xl border-[3px] border-[#17202a] p-6 shadow-[10px_10px_0_#17202a] sm:p-7"
+            className="relative w-full max-w-2xl rounded-2xl border-[3px] border-[#17202a] p-6 shadow-[10px_10px_0_#17202a] sm:p-7"
             style={{ background: CREAM }}
           >
             <div

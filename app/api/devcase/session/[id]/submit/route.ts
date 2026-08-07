@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getDevSession, getPostingByToken, submitDevSession } from "@/app/_lib/db";
-import { jsonError } from "@/app/_lib/api-response";
-import { sessionTokenMatches, SESSION_TOKEN_REQUIRED } from "@/app/_lib/devcase-session-auth";
+import { getDevSession, getPostingByToken, submitDevSession } from "@/app/_lib/db/devcase";
+import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
+import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 
 
 // Live Work Surface (moonshot E) — finalize a session: resolve the posting from the
@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // early would end another candidate's attempt mid-work. Same apply-token re-check
     // as the flush and chat routes (devcase-session-auth.ts).
     if (!sessionTokenMatches(session.token, body.token)) {
-      return NextResponse.json({ error: SESSION_TOKEN_REQUIRED }, { status: 403 });
+      return jsonRefusal("SESSION_TOKEN_REQUIRED", 403);
     }
     const posting = getPostingByToken(session.token);
     if (!posting) return NextResponse.json({ error: "posting not found" }, { status: 404 });

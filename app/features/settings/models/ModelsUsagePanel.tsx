@@ -5,7 +5,7 @@ import { Activity } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { BTN_SECONDARY, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
-import type { LlmUsageAggregateRow } from "@/app/_lib/db";
+import type { LlmUsageAggregateRow } from "@/app/_lib/db/llm";
 import { foldByUseCase, sumTotals } from "./modelsUsagePanelLogic";
 
 // Usage & cost panel — the Models tab's read surface over the llm_usage ledger

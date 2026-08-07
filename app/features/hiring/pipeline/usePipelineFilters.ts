@@ -6,8 +6,9 @@
 // signature the bulk confirms are stamped with. Split out of usePipelineTabState.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/shell/tabs";
+import { useShellNavigate } from "@/app/features/shell/nav/shallow-nav";
 import {
   parseQuicksParam,
   parseScoreBandsParam,
@@ -37,7 +38,7 @@ export type FilterUrlShape = {
 };
 
 export function usePipelineFilters() {
-  const router = useRouter();
+  const nav = useShellNavigate();
   const search = useSearchParams();
   // Board search/filter (PIPE2): a free-text candidate/role query + one active
   // quick-filter chip. Client-side — the board already holds every entry.
@@ -74,16 +75,22 @@ export function usePipelineFilters() {
 
   // PIPE3 — two-way URL sync: filter changes write back to the same ?q/?quick/
   // ?stage params the mount hydration (ANA1) reads, so the board's view state
-  // is always a pasteable, bookmarkable URL. router.replace (no history spam);
+  // is always a pasteable, bookmarkable URL. Replace, not push (no history spam);
   // typing debounces, chip clicks write immediately. Closes W9-1's deliberate
   // write-back deferral.
+  //
+  // The write goes through useShellNavigate, NOT router.replace: this is pure
+  // CLIENT view state on a route whose server render ignores every one of these
+  // params, so a router navigation only bought a ~358 KB RSC round-trip per chip
+  // click and per debounced keystroke — the board's own filtering is a local array
+  // pass that finishes in a fraction of it. See shell/nav/shallow-nav.ts.
   const urlSyncTimer = useRef<number | null>(null);
   useEffect(() => () => {
     if (urlSyncTimer.current != null) window.clearTimeout(urlSyncTimer.current);
   }, []);
   const writeFiltersToUrl = (next: FilterUrlShape, debounceMs = 0) => {
     const apply = () =>
-      router.replace(
+      nav.replace(
         buildUrl(
           {
             q: next.q.trim() || null,
@@ -94,8 +101,7 @@ export function usePipelineFilters() {
             stage: next.stage,
           },
           search.toString()
-        ),
-        { scroll: false }
+        )
       );
     if (urlSyncTimer.current != null) window.clearTimeout(urlSyncTimer.current);
     if (debounceMs > 0) urlSyncTimer.current = window.setTimeout(apply, debounceMs);

@@ -52,7 +52,7 @@ export default function FeatureGrid({
   const t = useTranslations("landing");
   return (
     <section id="features" className="border-y-[3px] border-[#17202a] bg-[#dce7d0] py-24">
-      <div className="mx-auto w-full max-w-6xl px-6">
+      <div className="mx-auto w-full max-w-7xl px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <motion.h2
             initial={{ opacity: 0, y: 24 }}
@@ -101,7 +101,7 @@ export default function FeatureGrid({
                   copy back on top without a z-index on every line. */}
               <div className="relative">
                 <h3 className={`${DISPLAY} text-xl font-bold`}>{t(`features.${f.preview}.title`)}</h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-[#42606f]">{t(`features.${f.preview}.body`)}</p>
+                <p className="mt-2 text-[17px] leading-relaxed text-[#42606f]">{t(`features.${f.preview}.body`)}</p>
               </div>
             </motion.div>
           ))}

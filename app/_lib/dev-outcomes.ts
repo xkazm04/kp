@@ -313,14 +313,28 @@ const BANDS: Array<[number, number]> = [
 ];
 const bandLabel = (lo: number, hi: number) => (hi >= 101 ? `${lo}+` : `${lo}–${hi - 1}`);
 
+// MIN RESOLVED (documented on calibrate() below). Named because the human-facing
+// rationale quotes it — the message must not drift from the gate it describes.
+const MIN_RESOLVED = 4;
+
 export type CalibrationBand = { label: string; lo: number; count: number; hireRate: number | null; meanPerformance: number | null };
+
+// The rationale is a FINDING, not prose (docs/architecture/localization.md →
+// "analysis output that is data, not copy"): the engine decides WHICH of five fixed
+// conclusions holds and with what numbers, and the control room renders the sentence
+// in the operator's language. Same `{ kind, params }` shape as `GithubFinding`.
+// Nothing persists a Calibration — it is recomputed on every GET — so unlike the
+// GitHub payload there is no frozen English shape to accept back.
+export type CalibrationRationaleKind = "insufficient" | "weak" | "raise" | "lower" | "calibrated";
+export type CalibrationRationale = { kind: CalibrationRationaleKind; params?: Record<string, number> };
+
 export type Calibration = {
   resolved: number;
   bands: CalibrationBand[];
   predictive: boolean | null;
   currentFloor: number;
   suggestedFloor: number | null;
-  rationale: string;
+  rationale: CalibrationRationale;
 };
 
 // Bucket resolved outcomes by predicted-score band and read whether higher scores actually
@@ -402,8 +416,15 @@ export function calibrate(currentFloor: number, workspaceId: string = DEFAULT_WO
 
   // MIN RESOLVED gate (see docstring): too few in-range decided outcomes for any band comparison
   // to be meaningful, so we make no recommendation rather than one driven by one or two data points.
-  if (inRange.length < 4) {
-    return { resolved: inRange.length, bands, predictive: null, currentFloor, suggestedFloor: null, rationale: "Not enough resolved outcomes yet to calibrate (need ≥ 4)." };
+  if (inRange.length < MIN_RESOLVED) {
+    return {
+      resolved: inRange.length,
+      bands,
+      predictive: null,
+      currentFloor,
+      suggestedFloor: null,
+      rationale: { kind: "insufficient", params: { min: MIN_RESOLVED } },
+    };
   }
 
   // monotonic-ish: each populated band's hire rate >= the previous populated band's, within the
@@ -420,15 +441,17 @@ export function calibrate(currentFloor: number, workspaceId: string = DEFAULT_WO
   const good = populated.find((b) => (b.hireRate ?? 0) >= 0.5);
   const suggestedFloor = good ? good.lo : 85;
 
-  let rationale: string;
+  // Which conclusion holds is the engine's call; the wording is the control room's
+  // (control.calibration.rationale.* — see the CalibrationRationale note above).
+  let rationale: CalibrationRationale;
   if (!predictive) {
-    rationale = "Scores are only weakly predictive — hire rate doesn't rise cleanly with the score. Investigate the rubric before moving the floor.";
+    rationale = { kind: "weak" };
   } else if (suggestedFloor > currentFloor) {
-    rationale = `Candidates below ${suggestedFloor} rarely converted; the floor of ${currentFloor} is letting weak matches through. Consider raising it to ${suggestedFloor}.`;
+    rationale = { kind: "raise", params: { current: currentFloor, suggested: suggestedFloor } };
   } else if (suggestedFloor < currentFloor) {
-    rationale = `Candidates from ${suggestedFloor}–${currentFloor} converted well; the floor of ${currentFloor} may be too strict. Consider lowering it to ${suggestedFloor}.`;
+    rationale = { kind: "lower", params: { current: currentFloor, suggested: suggestedFloor } };
   } else {
-    rationale = `The floor of ${currentFloor} is well-calibrated — it sits at the first band where most promoted candidates were hired.`;
+    rationale = { kind: "calibrated", params: { current: currentFloor } };
   }
 
   return { resolved: inRange.length, bands, predictive, currentFloor, suggestedFloor, rationale };

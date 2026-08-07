@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJob, getLatestAgentFitSpec } from "@/app/_lib/db";
+import { getLatestAgentFitSpec } from "@/app/_lib/db/agents";
+import { getJob } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { startTask } from "@/app/_lib/tasks";

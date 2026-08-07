@@ -1,17 +1,9 @@
 import { NextResponse } from "next/server";
-import {
-  appendDevSessionChat,
-  appendDevSessionEvents,
-  getDevCase,
-  getDevSessionChat,
-  getDevSessionMeta,
-  getPostingByToken,
-  lifecycleByPosting,
-} from "@/app/_lib/db";
+import { appendDevSessionChat, appendDevSessionEvents, getDevCase, getDevSessionChat, getDevSessionMeta, getPostingByToken, lifecycleByPosting } from "@/app/_lib/db/devcase";
 import { runSessionChat } from "@/app/_lib/devcase-run";
-import { jsonError } from "@/app/_lib/api-response";
+import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
 import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
-import { sessionTokenMatches, SESSION_TOKEN_REQUIRED } from "@/app/_lib/devcase-session-auth";
+import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
 
 // LLM-era controls #2/#5 — the captured prompt channel. The candidate's assistant
 // and stakeholder chats flow THROUGH the platform: every user message and model
@@ -63,7 +55,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     // A session id alone is not authority to spend this session's model budget —
     // the caller must present the apply token that minted it (devcase-session-auth.ts).
     if (session.token && !sessionTokenMatches(session.token, body.token)) {
-      return NextResponse.json({ error: SESSION_TOKEN_REQUIRED }, { status: 403 });
+      return jsonRefusal("SESSION_TOKEN_REQUIRED", 403);
     }
     const channel = body.channel === "stakeholder" ? "stakeholder" : "assistant";
     const message = typeof body.message === "string" ? body.message.trim().slice(0, MAX_MESSAGE_CHARS) : "";

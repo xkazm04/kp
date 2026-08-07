@@ -132,6 +132,44 @@ export type StoreErrorCode = keyof typeof STORE_ERRORS;
  *  under `[route] CODE`, then returns `{ error: <generic message>, code }` — the
  *  raw `err.message` (and any SQLite/filesystem detail in it) never crosses the
  *  wire. `route` is a short tag for the server log only, e.g. "api:jds". */
+// --- Deliberate refusals -----------------------------------------------------
+//
+// The sibling of STORE_ERRORS, and deliberately NOT part of it. A store error is
+// an accident whose real message must be hidden; a refusal is a decision whose
+// message IS the information the candidate needs ("this offer has expired").
+// STORE_ERRORS' own note above says these client-safe 4xx strings are a separate
+// class — this registry is that class, given the one thing it was missing.
+//
+// They were being returned as bare `{ error }`, so the client had no code to
+// resolve and useErrorMessage() fell through to a generic "something went wrong"
+// in all four languages — on public, token-authenticated candidate surfaces
+// where the specific reason is the entire point. Each code now has an
+// `errors.<CODE>` message; npm run i18n:check pins this registry to the catalog
+// exactly as it pins STORE_ERRORS, so a typo or a new refusal cannot silently
+// degrade to the generic.
+//
+// The English here stays canonical for the server log and for API consumers;
+// the client renders the localized message from the code.
+export const REFUSAL_ERRORS = {
+  /** A submission arrived for a posting whose intake is closed (410). */
+  POSTING_CLOSED: "This role's intake has closed and is no longer accepting submissions.",
+  /** The offer link is past its deadline (410). */
+  OFFER_EXPIRED: "This offer has expired.",
+  /** No offer for this token (404). */
+  OFFER_NOT_FOUND: "Offer not found.",
+  /** A work-session id presented without, or with the wrong, apply token (403). */
+  SESSION_TOKEN_REQUIRED: "This work session belongs to a different apply link.",
+} as const;
+
+export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;
+
+/** Refusal envelope: the canonical English plus its code, at `status`. Unlike
+ *  safeJsonError this logs nothing — a refusal is an expected outcome, not a
+ *  fault, and logging every closed posting would be noise. */
+export function jsonRefusal(code: RefusalErrorCode, status: number): NextResponse {
+  return NextResponse.json({ error: REFUSAL_ERRORS[code], code }, { status });
+}
+
 export function safeJsonError(err: unknown, route: string, code: StoreErrorCode, status = 500): NextResponse {
   console.error(`[${route}] ${code}`, err);
   return NextResponse.json({ error: STORE_ERRORS[code], code }, { status });

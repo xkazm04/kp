@@ -121,12 +121,12 @@ export default function SectionRail() {
            * Parked in the gutter beside the content column, not pinned to the
            * viewport edge. Open labels make the rail ~9rem wide, and a plain
            * `right-5` put that straight over the third feature card on a
-           * 1440px laptop — the bands are `max-w-6xl` (72rem), so the content's
-           * right edge is at `50% + 36rem` and the rail can start just past it.
+           * 1440px laptop — the bands are `max-w-7xl` (80rem), so the content's
+           * right edge is at `50% + 40rem` and the rail can start just past it.
            * The `min()` clamps it back to the viewport on screens too narrow to
            * have a gutter, where an overlay is the only option left.
            */
-          style={{ left: "min(calc(50% + 36rem + 0.5rem), calc(100% - 9.25rem))" }}
+          style={{ left: "min(calc(50% + 40rem + 0.5rem), calc(100% - 9.25rem))" }}
           className="fixed top-1/2 z-40 hidden rounded-2xl border-[3px] border-[#17202a] bg-[#fdf8ee] p-1.5 shadow-[6px_6px_0_#17202a] lg:block"
         >
           <ul className="flex flex-col gap-1">

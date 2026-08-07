@@ -20,6 +20,13 @@
 // does not know.
 //
 // Pure + dependency-free (structural inputs, no DB import) so it loads under `node --test`.
+//
+// WHOSE LANGUAGE (F15, docs/architecture/localization.md "Two readers"): the pack is
+// computed on demand for whoever pressed Download and is handed straight back on that
+// request — there is no stored artifact and no language field to pin to. The reader IS
+// the UI user, so the language is the REQUEST's (`getServerLocale()` in the route).
+// The builder itself stays pure and takes its copy as a parameter (the shape rule); the
+// catalog loader is metric-pack-strings.ts.
 
 import { NPS_MIN_SAMPLE } from "./candidate-nps";
 
@@ -74,6 +81,81 @@ export type MetricPackInput = {
   windowDays: number | null;
 };
 
+/** Minimal translator shape the loader satisfies — the same contract
+ *  `PostingLookup` states for the job posting (catalog-translator.ts's
+ *  CatalogTranslator, or a wrapped `useTranslations()`). Declared structurally so
+ *  this module keeps its no-catalog, `node --test`-loadable promise. */
+export type MetricPackLookup = {
+  (key: string, values?: Record<string, string | number>): string;
+  has: (key: string) => boolean;
+};
+
+/** Every word the pack can emit, resolved for one reader. Passed into both the
+ *  builder (the `basis` / `caveats` prose travels inside the pack, including on the
+ *  JSON response) and the renderer, so a pack is never half-translated. */
+export type MetricPackStrings = {
+  title: string;
+  windowAll: string;
+  windowLast: (days: number) => string;
+  windowLine: (window: string, generatedAt: string) => string;
+  colMetric: string;
+  colValue: string;
+  colStatus: string;
+  colBasis: string;
+  /** Display name for a metric key, falling back to the de-underscored key. */
+  metricLabel: (key: string) => string;
+  unitLabel: (unit: Metric["unit"]) => string;
+  statusLabel: (status: MetricStatus) => string;
+  basisTimeToHireMedian: (hires: number) => string;
+  basisTimeToHireMean: (hires: number) => string;
+  basisCostPerHire: (hires: number) => string;
+  basisHoursSaved: (actions: number) => string;
+  basisHoursSavedNone: string;
+  basisCapacity: (roles: number, recruiters: number) => string;
+  basisCapacityNone: string;
+  basisNps: (responses: number) => string;
+  caveatNotMeasurable: (metric: string, basis: string) => string;
+  caveatThin: (metric: string, sample: number) => string;
+  certifiableNote: string;
+  notPublishable: string;
+  disclaimer: string;
+};
+
+/** Resolve the pack's copy from a translator pinned to the reader's language.
+ *  Numbers go in RAW so ICU does the plural agreement Czech needs (a pre-formatted
+ *  string renders the literal word NaN). */
+export function buildMetricPackStrings(t: MetricPackLookup): MetricPackStrings {
+  const fallbackName = (key: string) => key.replace(/_/g, " ");
+  return {
+    title: t("title"),
+    windowAll: t("windowAll"),
+    windowLast: (days) => t("windowLast", { days }),
+    windowLine: (window, generatedAt) => t("windowLine", { window, generatedAt }),
+    colMetric: t("colMetric"),
+    colValue: t("colValue"),
+    colStatus: t("colStatus"),
+    colBasis: t("colBasis"),
+    // A metric key with no catalog entry degrades to the readable key, never to a
+    // raw "metric.foo" path — the same has-fallback idiom jobsMarkdown's enumLabel uses.
+    metricLabel: (key) => (t.has(`metric.${key}`) ? t(`metric.${key}`) : fallbackName(key)),
+    unitLabel: (unit) => (t.has(`unit.${unit}`) ? t(`unit.${unit}`) : unit),
+    statusLabel: (status) => t(`status.${status}`),
+    basisTimeToHireMedian: (hires) => t("basis.timeToHireMedian", { hires }),
+    basisTimeToHireMean: (hires) => t("basis.timeToHireMean", { hires }),
+    basisCostPerHire: (hires) => t("basis.costPerHire", { hires }),
+    basisHoursSaved: (actions) => t("basis.hoursSaved", { actions }),
+    basisHoursSavedNone: t("basis.hoursSavedNone"),
+    basisCapacity: (roles, recruiters) => t("basis.capacity", { roles, recruiters }),
+    basisCapacityNone: t("basis.capacityNone"),
+    basisNps: (responses) => t("basis.nps", { responses }),
+    caveatNotMeasurable: (metric, basis) => t("caveatNotMeasurable", { metric, basis }),
+    caveatThin: (metric, sample) => t("caveatThin", { metric, sample }),
+    certifiableNote: t("certifiableNote"),
+    notPublishable: t("notPublishable"),
+    disclaimer: t("disclaimer"),
+  };
+}
+
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 function metric(key: string, value: number | null, unit: Metric["unit"], sample: number, basis: string, minSample = MIN_SAMPLE): Metric {
@@ -89,7 +171,7 @@ function metric(key: string, value: number | null, unit: Metric["unit"], sample:
  * makes vendor metrics untrustworthy. The pack states what IS, with its sample; the
  * comparison is the customer's to make against their own prior numbers.
  */
-export function buildMetricPack(input: MetricPackInput, generatedAt: string): MetricPack {
+export function buildMetricPack(input: MetricPackInput, generatedAt: string, s: MetricPackStrings): MetricPack {
   const hires = Math.max(0, input.hired || 0);
   const roi = input.automationRoi;
   const cap = input.capacity;
@@ -107,19 +189,15 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string): Me
       tth,
       "days",
       hires,
-      input.medianTimeToHireDays != null
-        ? `Median days from first contact to hire, over ${hires} hire(s).`
-        : `Mean days from first contact to hire, over ${hires} hire(s) — no median available.`
+      input.medianTimeToHireDays != null ? s.basisTimeToHireMedian(hires) : s.basisTimeToHireMean(hires)
     ),
-    metric("cost_per_hire", input.costPerHireCzk, "czk", hires, `Recorded channel spend divided by ${hires} hire(s). Excludes salary and internal time.`),
+    metric("cost_per_hire", input.costPerHireCzk, "czk", hires, s.basisCostPerHire(hires)),
     metric(
       "recruiter_hours_saved",
       roi ? roi.hoursSaved : null,
       "hours",
       roi?.totalActions ?? 0,
-      roi
-        ? `Recruiter hours not spent, from ${roi.totalActions} automated action(s) at the per-action minute rates in automation-roi.ts.`
-        : "No automated actions recorded.",
+      roi ? s.basisHoursSaved(roi.totalActions) : s.basisHoursSavedNone,
       // Sampled in ACTIONS, not hires: the estimate firms up with automated volume, and a
       // team can accumulate hundreds of actions before its first hire closes.
       MIN_SAMPLE * 5
@@ -129,9 +207,7 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string): Me
       capacityRatio,
       "roles_per_recruiter",
       cap?.openRoles ?? 0,
-      cap
-        ? `${cap.openRoles} open role(s) carried by ${cap.recruiters} recruiter(s).`
-        : "No open roles or no recruiter roster.",
+      cap ? s.basisCapacity(cap.openRoles, cap.recruiters) : s.basisCapacityNone,
       MIN_OPEN_ROLES
     ),
   ];
@@ -146,7 +222,7 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string): Me
         nps.score,
         "pct",
         nps.responses,
-        `Net promoter score from ${nps.responses} candidate response(s) at a terminal outcome, on the standard -100..100 scale.`,
+        s.basisNps(nps.responses),
         // Same floor candidate-nps.ts uses for its own withholding, so one number is not
         // publishable in one place and not in the other.
         NPS_MIN_SAMPLE
@@ -156,8 +232,10 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string): Me
 
   const caveats: string[] = [];
   for (const m of metrics) {
-    if (m.status === "not_measurable") caveats.push(`${m.key}: no data yet — ${m.basis}`);
-    else if (m.status === "thin") caveats.push(`${m.key}: only ${m.sample} observation(s) — real, but too thin to publish.`);
+    // The metric NAME in a caveat is the reader-facing label, but the machine key
+    // stays on the metric row itself — a caveat is prose, `Metric.key` is the id.
+    if (m.status === "not_measurable") caveats.push(s.caveatNotMeasurable(s.metricLabel(m.key), m.basis));
+    else if (m.status === "thin") caveats.push(s.caveatThin(s.metricLabel(m.key), m.sample));
   }
 
   return {
@@ -169,49 +247,35 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string): Me
   };
 }
 
-const UNIT_LABEL: Record<Metric["unit"], string> = {
-  days: "days",
-  czk: "CZK",
-  usd: "USD",
-  hours: "h",
-  roles_per_recruiter: "roles/recruiter",
-  pct: "%",
-};
-
-const STATUS_MARK: Record<MetricStatus, string> = {
-  measured: "measured",
-  thin: "THIN SAMPLE",
-  not_measurable: "not measurable",
-};
-
 /** Render the pack as the one-page Markdown a recruiter can paste into a deck or a
  *  procurement answer. Every row carries its status and basis — the artifact argues for
- *  itself rather than needing a footnote someone will drop. */
-export function renderMetricPack(pack: MetricPack, title = "Hiring metric pack"): string {
-  const window = pack.windowDays ? `last ${pack.windowDays} days` : "all time";
+ *  itself rather than needing a footnote someone will drop.
+ *
+ *  Pure: the strings table is passed in (metricPackStrings(locale)) so the same
+ *  function renders any of the four languages. `title` still overrides the table's
+ *  default for a caller that names the pack itself. */
+export function renderMetricPack(pack: MetricPack, s: MetricPackStrings, title = s.title): string {
+  const window = pack.windowDays ? s.windowLast(pack.windowDays) : s.windowAll;
   const lines = [
     `# ${title}`,
     "",
-    `Window: ${window} · generated ${pack.generatedAt}`,
+    s.windowLine(window, pack.generatedAt),
     "",
-    "| Metric | Value | Status | Basis |",
+    `| ${s.colMetric} | ${s.colValue} | ${s.colStatus} | ${s.colBasis} |`,
     "| --- | --- | --- | --- |",
   ];
   for (const m of pack.metrics) {
-    const value = m.value == null ? "—" : `${m.value} ${UNIT_LABEL[m.unit]}`;
-    lines.push(`| ${m.key.replace(/_/g, " ")} | ${value} | ${STATUS_MARK[m.status]} | ${m.basis} |`);
+    const value = m.value == null ? "—" : `${m.value} ${s.unitLabel(m.unit)}`;
+    lines.push(`| ${s.metricLabel(m.key)} | ${value} | ${s.statusLabel(m.status)} | ${m.basis} |`);
   }
   lines.push("");
   if (pack.certifiable) {
-    lines.push("Every metric above is measured over a sufficient sample.");
+    lines.push(s.certifiableNote);
   } else {
-    lines.push("**Not publication-ready.** The following metrics cannot yet be defended:");
+    lines.push(s.notPublishable);
     for (const c of pack.caveats) lines.push(`- ${c}`);
   }
   lines.push("");
-  lines.push(
-    "_Figures describe this workspace's own recorded activity. kp does not compute an improvement " +
-      "percentage against a pre-kp baseline — that comparison belongs to whoever holds the prior numbers._"
-  );
+  lines.push(s.disclaimer);
   return lines.join("\n");
 }

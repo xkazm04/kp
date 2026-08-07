@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { countPipelineEvents, listPipelineEvents, listPipeline, hasEvent, type PipelineEvent } from "@/app/_lib/db";
+import { countPipelineEvents, listPipelineEvents, listPipeline, hasEvent, type PipelineEvent } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { listDecisionRecordsForRefs } from "@/app/_lib/decision-record-store";
 import {

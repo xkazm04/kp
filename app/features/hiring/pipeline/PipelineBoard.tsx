@@ -75,7 +75,10 @@ export function PipelineBoard({
   };
 
   return (
-    <section className="space-y-3">
+    // No panel chrome of its own: the board is now the bottom layer of the board
+    // PANEL that also carries the filter header (PipelineFilterBar), so a second
+    // rounded border here would draw a card inside a card.
+    <section>
       {/* bug-ui pipeline #1 — polite live region narrating stage moves (keyboard or
           drag). Stable across the board's re-renders so a text change is announced. */}
       <div aria-live="polite" className="sr-only">
@@ -97,7 +100,7 @@ export function PipelineBoard({
         onDragLeave={(ev) => {
           if (!ev.currentTarget.contains(ev.relatedTarget as Node | null)) stopAutoScroll();
         }}
-        className="focus-ring overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel"
+        className="focus-ring overflow-x-auto bg-white"
       >
         <div style={BOARD_MIN_WIDTH}>
           <div className="grid border-b border-stone-200 bg-paper" style={BOARD_GRID}>
@@ -182,7 +185,9 @@ export function PipelineBoard({
           })}
         </div>
       </div>
-      <Legend />
+      <div className="border-t border-stone-200 px-4 py-2.5">
+        <Legend />
+      </div>
     </section>
   );
 }

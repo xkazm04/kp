@@ -6,8 +6,9 @@
 // Split out of usePipelineTabState.
 
 import { useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
+import { useShellNavigate } from "@/app/features/shell/nav/shallow-nav";
 import { recordRecent } from "@/app/features/shell/recents";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 
@@ -18,7 +19,10 @@ export function usePipelineNavigation({
   entries: Entry[] | null;
   setDrawerEntry: (e: Entry | null) => void;
 }) {
-  const router = useRouter();
+  // Every destination here is another ?tab= on the SAME route, so it is a URL patch,
+  // not a server navigation (shell/nav/shallow-nav.ts). The shell still scrolls to
+  // the top of the new tab — its focus-the-<main>-landmark effect does that.
+  const nav = useShellNavigate();
   const search = useSearchParams();
   // SHELL3 — opening a candidate/profile/job from the board is the canonical
   // "I'm working on this" moment; record it so the sidebar Recent group and the
@@ -60,18 +64,18 @@ export function usePipelineNavigation({
     }
     const href = buildUrl({ tab: "match", profile: e.candidateId }, search.toString());
     recordRecent({ type: "profile", id: e.candidateId, label: e.candidateLabel, href });
-    router.push(href);
+    nav.push(href);
   };
   const openJob = (jobId: string) => {
     const href = buildUrl({ tab: "jobs", job: jobId }, search.toString());
     const title = (entries ?? []).find((e) => e.jobId === jobId)?.jobTitle;
     recordRecent({ type: "job", id: jobId, label: title ?? jobId, href });
-    router.push(href);
+    nav.push(href);
   };
   // The "awaiting you" stat chip and the approvals banner both jump to Decisions.
-  const goToDecisions = () => router.push(buildUrl({ tab: "decisions" }, search.toString()));
+  const goToDecisions = () => nav.push(buildUrl({ tab: "decisions" }, search.toString()));
   // "Rank candidates" → the Fit matrix scoped to this position (a per-position ranking).
-  const openPositionRanking = (jobId: string) => router.push(buildUrl({ tab: "matrix", job: jobId }, search.toString()));
+  const openPositionRanking = (jobId: string) => nav.push(buildUrl({ tab: "matrix", job: jobId }, search.toString()));
 
   return { openActions, openEntryById, openProfile, openJob, goToDecisions, openPositionRanking };
 }

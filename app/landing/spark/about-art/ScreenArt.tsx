@@ -14,7 +14,7 @@ export default function ScreenArt({ color = "#526b4f" }: { color?: string }) {
   const R = 70;
   const C = 2 * Math.PI * R;
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col items-center gap-6">
+    <div className="mx-auto flex w-full max-w-lg flex-col items-center gap-6">
       <div className="relative grid h-56 w-56 place-items-center">
         <svg viewBox="0 0 180 180" className="h-full w-full -rotate-90" aria-hidden>
           <circle cx="90" cy="90" r={R} fill="none" stroke="#e7dcc8" strokeWidth="16" />

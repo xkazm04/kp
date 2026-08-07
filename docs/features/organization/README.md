@@ -43,6 +43,18 @@ inventing a second scoping dimension.
   owner role carries it, closing a prior privilege-escalation path.
 - Open-mode + operator-password sessions fold to `owner` so local dev is
   unchanged.
+- **Every server-side session read calls `await connection()` before verifying.**
+  `verifySession` checks expiry against the wall clock (`Date.now()`), which
+  Cache Components (Next 16.3) treats as an unstable value a prerender may not
+  bake in — and reading `cookies()` no longer opts a route into request rendering
+  the way the old model did, it only streams that subtree. Without the explicit
+  request-time marker, every server render that authenticates logged
+  `blocking-prerender-current-time` (`/` did, on every load). The four request-scope
+  readers — `currentSession` (`current-user.ts`), `currentWorkspace`
+  (`current-workspace.ts`), `isOperator` (`require-operator.ts`) and
+  `hasEnteredWorkspace` (`home-gate-server.ts`, password branch only, since the
+  open-mode marker read needs no clock) — each mark the clock read explicitly. The
+  edge verifier is unaffected: middleware never prerenders.
 
 ## Data layer — tenancy scoping
 
@@ -143,6 +155,15 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 - Widen the `tasks` dedup index to `(workspace_id, dedupe_key)`.
 - Thread the real session workspace through the inbound lead-intake chain and
   the remaining mutating routes (some still default to the default workspace).
+- **The sidebar attention badges are default-workspace-only.**
+  `attentionCounts()` (`app/_lib/attention.ts`) calls `listPipeline()` and
+  `listJobStatuses()` with no workspace argument — both default to
+  `DEFAULT_WORKSPACE_ID` — and `dueReminders()` takes no workspace parameter at
+  all, so it counts across every tenant. Neither `/api/attention` nor the
+  server-rendered `WorkspaceNav` passes `currentWorkspace()` in. On a non-default
+  workspace every badge therefore reports another tenant's counts. Fixing it needs
+  a workspace argument on all three reads (`dueReminders` is the only one that
+  needs a new store-level parameter) plus the two call sites.
 - **Org-level billing with seats** — the org-keyed DATA layer has landed
   (`org_id` on every billing table, org-keyed entitlement/reducer lookups,
   webhook attribution via checkout metadata; `app/_lib/db/billing-tenancy.test.ts`).

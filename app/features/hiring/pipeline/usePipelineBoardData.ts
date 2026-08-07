@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
+import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import { boardSignature, eventsSignature } from "./pipelineRenderDiet";
 import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
 import type { Entry, PipelineEvent } from "@/app/features/shared/pipelineTypes";
@@ -62,13 +63,20 @@ export function usePipelineBoardData({
   useEffect(() => {
     slaOverridesRef.current = slaOverrides;
   }, [slaOverrides]);
-  const load = useCallback(() => {
+  // Sharing is OPT-IN (`shared: true`), never the default: `load` is handed to the
+  // drawer, the bulk bar and the automation pass, and every one of those calls it
+  // AFTER a mutation, where attaching to a request that started before the write
+  // would show pre-write data. Only the mount read opts in — it shares its
+  // `/api/pipeline` request with the control dock, which mounts in the same tick and
+  // reads the same board (features/shared/sharedGet.ts). The abort machinery is
+  // unchanged: a shared request isn't cancellable, but it is the post-resolution
+  // `signal.aborted` guard that actually stops a superseded load writing state.
+  const load = useCallback((opts?: { shared?: boolean }) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     const { signal } = controller;
-    fetch("/api/pipeline", { signal })
-      .then((r) => r.json())
+    sharedGetJson<{ entries?: Entry[]; error?: string }>("/api/pipeline", { refresh: !opts?.shared })
       .then((p) => {
         if (signal.aborted) return; // a newer load superseded this one
         if (p.error) throw new Error(p.error);
@@ -122,7 +130,7 @@ export function usePipelineBoardData({
       });
   }, [t]);
   useEffect(() => {
-    load();
+    load({ shared: true }); // the only trigger that may ride the dock's request
     return () => abortRef.current?.abort(); // drop in-flight fetches on unmount
   }, [load]);
   useLiveRefresh(load); // re-fetch the board live when the simulation (or any actor) changes state

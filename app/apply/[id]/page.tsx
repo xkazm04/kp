@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { findEntryByLeadToken, getJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
+import { findEntryByLeadToken } from "@/app/_lib/db/pipeline";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { buildApplyScript } from "@/app/_lib/apply";
 import { coerceLeadTokenParam, seedLeadPrefillAnswers, trimSeededSteps } from "@/app/_lib/apply-intake";

@@ -1,4 +1,4 @@
-import { loadAnalysis } from "@/app/_lib/db";
+import { loadAnalysis } from "@/app/_lib/db/analyses";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { DEFAULT_ROLE_FAMILY } from "./role-families.ts";
 

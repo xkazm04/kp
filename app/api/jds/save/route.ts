@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loadJd, saveJd } from "@/app/_lib/db";
+import { loadJd, saveJd } from "@/app/_lib/db/jobs";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";

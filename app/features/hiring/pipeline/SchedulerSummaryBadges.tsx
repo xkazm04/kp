@@ -13,7 +13,16 @@ export type Summary = { advanced?: number; rejected?: number; held?: number; ale
 // AUTO2 — the persisted per-run record the schedule GET has always returned
 // (and this component ignored): trigger/status/summary plus the decision rows
 // the pass used to compute and discard.
-export type RunDecision = { entryId?: string; action?: string; reason?: string; outcome?: string };
+export type RunDecision = {
+  entryId?: string;
+  action?: string;
+  reason?: string;
+  outcome?: string;
+  /** Structured mirror of `reason` (automation-pass.ts). Absent on rows written
+   *  before codes existed, which then render their persisted English. */
+  reasonCode?: string | null;
+  reasonParams?: Record<string, string | number> | null;
+};
 export type SchedulerRun = {
   id: number;
   trigger: string;

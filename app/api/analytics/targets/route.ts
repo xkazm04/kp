@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { RECRUITER_HOURLY_TARGET_KEY, setAnalyticsTarget, TIME_TO_HIRE_TARGET_KEY } from "@/app/_lib/db";
+import { RECRUITER_HOURLY_TARGET_KEY, setAnalyticsTarget, TIME_TO_HIRE_TARGET_KEY } from "@/app/_lib/db/analytics";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { FUNNEL_STAGES } from "@/app/_lib/pipeline-stages";
 

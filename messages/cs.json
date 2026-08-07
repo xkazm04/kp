@@ -1606,7 +1606,7 @@
     "tagline": "párování talentů",
     "signOut": "Odhlásit se",
     "tabs": {
-      "pipeline": "Nábor",
+      "pipeline": "Přehled",
       "channels": "Kanály",
       "decisions": "Rozhodnutí",
       "schedule": "Plánování",
@@ -4220,6 +4220,13 @@
       "searchColumn": "Hledat: {column}…",
       "allOf": "Vše – {column}",
       "select": "Vyberte…"
+    },
+    "pager": {
+      "label": "Stránkování tabulky",
+      "range": "{from}–{to} z {total}",
+      "page": "Stránka {page} z {pages}",
+      "prev": "Předchozí stránka",
+      "next": "Další stránka"
     },
     "empty": {
       "notConnected": "Nepřipojeno",

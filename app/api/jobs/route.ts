@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listJobs, jobStats, getSeedHealth } from "@/app/_lib/db";
+import { getSeedHealth } from "@/app/_lib/db/core";
+import { listJobs, jobStats } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 

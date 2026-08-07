@@ -11,7 +11,7 @@ import { track } from "@/app/_lib/analytics/plausible";
 export default function Cta() {
   const t = useTranslations("landing");
   return (
-    <section id="cta" className="mx-auto w-full max-w-6xl px-6 py-24">
+    <section id="cta" className="mx-auto w-full max-w-7xl px-6 py-24">
       <motion.div
         initial={{ opacity: 0, y: 32 }}
         whileInView={{ opacity: 1, y: 0 }}

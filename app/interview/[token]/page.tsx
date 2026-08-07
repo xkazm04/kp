@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Clock, ShieldCheck, Sparkles } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { getInterviewSessionByToken, isInterviewLinkExpired } from "@/app/_lib/db";
+import { getInterviewSessionByToken, isInterviewLinkExpired } from "@/app/_lib/db/interviews";
 import { getOrCreateStatusLink } from "@/app/_lib/application-status-store";
 import { GROUNDED_DEFAULT_MIN } from "@/app/_lib/interview-duration.mjs";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";

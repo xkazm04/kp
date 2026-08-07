@@ -3,7 +3,7 @@ import { writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
-import type { JobRecord } from "./db";
+import type { JobRecord } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";

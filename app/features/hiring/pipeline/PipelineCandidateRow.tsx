@@ -1,12 +1,28 @@
 "use client";
 
-// A candidate in a position cell: full name + a prominent status dot (~2x the
-// old avatar corner dot). The name navigates to the analyzed profile; a hover
-// affordance opens the AI-actions drawer. Split out of PipelineShared.tsx.
+// A candidate in a position cell: status dot, full name, fit score. Split out of
+// PipelineShared.tsx.
+//
+// THE ROW SPENDS ITS WIDTH ON THE NAME. A stage column is 280px, and the row used to
+// carry a `w-28` "Move to…" combobox plus an AI-actions button inside its flex flow.
+// `opacity-0` hides pixels but still reserves layout, so ~134px of every row was
+// permanently committed to controls nobody could see until they hovered, and the
+// candidate's name — the one thing the cell exists to show — truncated to about a
+// third of the cell. Both controls moved into PipelineCandidateMenu; what stays in
+// flow is the dot, the name (flex-1) and the score, plus a 20px menu trigger.
+//
+// Three doors to the same menu, because the old controls had three audiences:
+//   - pointer  — right-click anywhere on the row
+//   - keyboard — Shift+F10 / the Menu key (both fire `contextmenu`), or the trigger,
+//                which is a real focusable button revealed on focus-visible
+//   - touch    — the trigger, always visible under `pointer-coarse` (a tablet has
+//                neither hover nor a tab order, and HTML5 drag never fires from a
+//                touch sequence, so this is the ONLY way to move a card there)
 //
 // PIPE1: in select mode the row becomes a checkbox (role=checkbox on the name
 // button, glyph before the dot) and its navigation/actions are suppressed — the
-// MatrixTab selectMode interaction grammar.
+// MatrixTab selectMode interaction grammar. The context menu is suppressed with
+// them: in that mode a row is a selection target, nothing else.
 //
 // Memoized (candidateRowEqual): the 30s board poll used to replace the entries
 // array wholesale, so every card reconciled even when nothing about it changed.
@@ -14,15 +30,15 @@
 // flag actually changes; the handler closures (fresh per parent render) are
 // excluded from the equality since their behavior is fixed by `entry`.
 
-import { AlertCircle, AlertTriangle, CheckSquare, Clock, Sparkles, Square } from "lucide-react";
-import { memo } from "react";
+import { AlertCircle, AlertTriangle, CheckSquare, Clock, MoreVertical, Sparkles, Square, UserRound } from "lucide-react";
+import { memo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
-import { Select } from "@/app/_components/Select";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { moveTargetStages } from "./pipelineMoveTargets";
+import { PipelineCandidateMenu, type CandidateMenuSection } from "./PipelineCandidateMenu";
 import { candidateRowEqual } from "./pipelineRenderDiet";
 import { daysSince, slaForStage, styleFor, type Entry } from "@/app/features/shared/pipelineTypes";
 
@@ -54,7 +70,7 @@ function CandidateRowImpl({
   onDragStart?: () => void;
   onDragEnd?: () => void;
   // bug-ui pipeline #1 (WCAG 2.1.1) — the keyboard/assistive-tech twin of the
-  // pointer drag: a focusable "Move to…" menu that calls the SAME stage-change
+  // pointer drag: the context menu's "Move to" section calls the SAME stage-change
   // handler the drop does. Present exactly when drag is (the board passes it
   // alongside `draggable`), so every drag has a keyboard-reachable equivalent.
   onMove?: (toStage: string) => void;
@@ -94,10 +110,54 @@ function CandidateRowImpl({
   // Drag only outside select mode (in select mode the row is a checkbox).
   const dragOn = draggable && !selecting;
   // bug-ui pipeline #1 — a card is keyboard-movable exactly when it's draggable
-  // (never in select mode). The "Move to…" menu offers the valid targets a manual
-  // move can succeed into (moveTargetStages) and calls the SAME onMove the drop does.
-  const moveOn = dragOn && !!onMove;
-  const moveTargets = moveOn ? moveTargetStages(entry.stage) : [];
+  // (never in select mode). The menu offers the valid targets a manual move can
+  // succeed into (moveTargetStages) and calls the SAME onMove the drop does.
+  const moveTargets = dragOn && onMove ? moveTargetStages(entry.stage) : [];
+
+  // Menu anchor in viewport coordinates, or null when closed. Held as the POINT the
+  // gesture happened at rather than a boolean, so a right-click opens under the
+  // cursor and the trigger button opens under itself.
+  const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
+  const menuOn = !selecting && (!!onActions || moveTargets.length > 0);
+  const sections: CandidateMenuSection[] = [
+    {
+      id: "open",
+      items: [
+        { id: "profile", label: t("candidateRow.openProfile"), Icon: UserRound, onSelect: onOpen },
+        ...(onActions
+          ? [{ id: "ai", label: t("candidateRow.aiActions"), Icon: Sparkles, onSelect: onActions }]
+          : []),
+      ],
+    },
+    ...(moveTargets.length > 0
+      ? [
+          {
+            id: "move",
+            label: t("candidateRow.moveTo"),
+            items: moveTargets.map((s) => ({
+              id: s,
+              label: enumLabel("stage", s),
+              onSelect: () => onMove?.(s),
+            })),
+          },
+        ]
+      : []),
+  ];
+  // Shift+F10 and the Menu key both dispatch `contextmenu`, so ONE handler serves
+  // pointer and keyboard. A keyboard-raised event has no meaningful clientX/Y
+  // (browsers report 0 or the element corner), so fall back to the row's own rect.
+  const openMenu = (ev: React.MouseEvent) => {
+    if (!menuOn) return;
+    ev.preventDefault();
+    const fromPointer = ev.clientX > 0 || ev.clientY > 0;
+    if (fromPointer) {
+      setMenuAt({ x: ev.clientX, y: ev.clientY });
+      return;
+    }
+    const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    setMenuAt({ x: r.left, y: r.bottom });
+  };
+
   return (
     <div
       draggable={dragOn || undefined}
@@ -113,6 +173,7 @@ function CandidateRowImpl({
           : undefined
       }
       onDragEnd={dragOn ? () => onDragEnd?.() : undefined}
+      onContextMenu={menuOn ? openMenu : undefined}
       className={`group flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-paper ${selecting && selected ? "bg-coral/5" : ""} ${dragOn ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       <span
@@ -128,7 +189,11 @@ function CandidateRowImpl({
         onClick={selecting ? onToggleSelect : onOpen}
         role={selecting ? "checkbox" : undefined}
         aria-checked={selecting ? selected : undefined}
-        title={selecting ? t("candidateRow.selectCandidate", { name: entry.candidateLabel }) : `${title}${t("candidateRow.openProfileSuffix")}`}
+        title={
+          selecting
+            ? t("candidateRow.selectCandidate", { name: entry.candidateLabel })
+            : `${title}${t("candidateRow.openProfileSuffix")}${menuOn ? t("candidateRow.menuHint") : ""}`
+        }
         className="focus-ring flex min-w-0 flex-1 items-center gap-1.5 truncate text-left text-base font-medium text-ink hover:text-coral"
       >
         {selecting ? (
@@ -146,39 +211,29 @@ function CandidateRowImpl({
       <span className="shrink-0" title={scoreProvenance ?? undefined}>
         <ScoreBadge score={score} />
       </span>
-      {moveOn && moveTargets.length > 0 ? (
-        // The keyboard/AT twin of drag: a focusable listbox (Select is the APG
-        // combobox — arrows/Enter/Esc/typeahead, portalled so it escapes the
-        // board's overflow-x-auto clip). Revealed on hover OR focus so a keyboard
-        // user sees it when it lands in the tab order; the move funnels through
-        // the same onMove handler the drop calls. pointer-coarse: always visible —
-        // touch has neither hover nor a tab order, and HTML5 drag never fires from
-        // a touch sequence, so on a tablet this Select is the ONLY working way to
-        // move a candidate.
-        <span className="shrink-0 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
-          <Select
-            value=""
-            onChange={(v) => {
-              if (v) onMove?.(v);
-            }}
-            options={moveTargets.map((s) => ({ value: s, label: enumLabel("stage", s) }))}
-            placeholder={t("candidateRow.moveTo")}
-            ariaLabel={t("candidateRow.moveToFor", { name: entry.candidateLabel })}
-            size="sm"
-            className="w-28"
-          />
-        </span>
-      ) : null}
-      {onActions && !selecting ? (
+      {menuOn ? (
+        // 20px, not the 134px the old inline controls cost. It keeps its slot at all
+        // times so hovering a row never reflows the name beside it; only the ink
+        // fades in. Always visible on touch — see the header note.
         <button
           type="button"
-          onClick={onActions}
-          aria-label={t("candidateRow.aiActionsFor", { name: entry.candidateLabel })}
-          title={t("candidateRow.aiActions")}
-          className="focus-ring shrink-0 rounded p-0.5 text-steel opacity-0 transition-opacity hover:text-coral focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:p-2 pointer-coarse:opacity-100"
+          onClick={openMenu}
+          aria-haspopup="menu"
+          aria-expanded={menuAt != null}
+          aria-label={t("candidateRow.menuFor", { name: entry.candidateLabel })}
+          title={t("candidateRow.moreActions")}
+          className="focus-ring shrink-0 rounded p-0.5 text-steel opacity-0 transition-opacity hover:text-coral focus-visible:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100"
         >
-          <Sparkles size={14} />
+          <MoreVertical size={14} aria-hidden />
         </button>
+      ) : null}
+      {menuAt ? (
+        <PipelineCandidateMenu
+          at={menuAt}
+          ariaLabel={t("candidateRow.menuFor", { name: entry.candidateLabel })}
+          sections={sections}
+          onClose={() => setMenuAt(null)}
+        />
       ) : null}
     </div>
   );

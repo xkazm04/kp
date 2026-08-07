@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { listJobs, pipelineAnalytics } from "@/app/_lib/db";
+import { pipelineAnalytics } from "@/app/_lib/db/analytics";
+import { listJobs } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { listMembershipsForWorkspace } from "@/app/_lib/db/memberships";
 import { candidateNpsSummary } from "@/app/_lib/candidate-nps-store";
 import { buildMetricPack, renderMetricPack, type MetricPackInput } from "@/app/_lib/metric-pack";
+import { metricPackStrings } from "@/app/_lib/metric-pack-strings";
+import { getServerLocale } from "@/i18n/server";
 
 // W0.4 — the metric pack: the four numbers a buyer asks for, assembled into one
 // shareable artifact (app/_lib/metric-pack.ts holds the honesty contract and the
@@ -58,10 +61,15 @@ export async function GET(request: Request) {
       windowDays,
     };
 
-    const pack = buildMetricPack(input, new Date().toISOString());
+    // The pack is read by whoever asked for it on this very request — a UI user, not
+    // a document reader — so its language is the request's (cookie → Accept-Language
+    // → en). The `basis` / `caveats` prose is resolved at BUILD time so the JSON
+    // response and the Markdown attachment can never disagree.
+    const s = await metricPackStrings(await getServerLocale());
+    const pack = buildMetricPack(input, new Date().toISOString(), s);
 
     if (searchParams.get("format") === "md") {
-      return new NextResponse(renderMetricPack(pack), {
+      return new NextResponse(renderMetricPack(pack, s), {
         headers: {
           "content-type": "text/markdown; charset=utf-8",
           "content-disposition": `attachment; filename="kp-metric-pack.md"`,

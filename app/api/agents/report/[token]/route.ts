@@ -1,16 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createPipelineEntry,
-  getHiredAgentByReportToken,
-  recordAgentExecution,
-  recordAgentLifecycle,
-  recordAutomationEvent,
-  setPipelineEntryStage,
-  updateHiredAgentStatus,
-  upsertAgentRollup,
-  type AgentStatus,
-  type HiredAgentRecord,
-} from "@/app/_lib/db";
+import { getHiredAgentByReportToken, recordAgentExecution, recordAgentLifecycle, updateHiredAgentStatus, upsertAgentRollup, type AgentStatus, type HiredAgentRecord } from "@/app/_lib/db/agents";
+import { createPipelineEntry, recordAutomationEvent, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { parseAgentReport, type AgentReport, type LifecycleReport } from "@/app/_lib/agent-hire/report-payload";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";

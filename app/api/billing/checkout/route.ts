@@ -8,7 +8,7 @@ import {
   polarGatewayFromEnv,
   type CheckoutRequest,
 } from "@/app/_lib/billing";
-import { getBillingState } from "@/app/_lib/db";
+import { getBillingState } from "@/app/_lib/db/billing";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";

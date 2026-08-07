@@ -11,15 +11,8 @@
 // monthly allowance is exhausted (a negative ledger row per unit), so the
 // balance survives month boundaries without double counting.
 
-import {
-  billingUsageFor,
-  creditBalance,
-  ensureDb,
-  getBillingState,
-  grantBillingCredits,
-  incrementBillingUsage,
-  type BillingStateRow,
-} from "../db";
+import { billingUsageFor, creditBalance, getBillingState, grantBillingCredits, incrementBillingUsage, type BillingStateRow } from "../db/billing";
+import { ensureDb } from "../db/core";
 import { DEFAULT_ORG_ID } from "../db/organizations";
 import { getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "../db/workspaces";
 import { currentPeriod, PLANS, type Meter, type PlanDef, type PlanId } from "./plans";

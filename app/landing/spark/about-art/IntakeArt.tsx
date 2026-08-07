@@ -12,7 +12,7 @@ const CHANNELS = ["apply", "email", "boards", "sourcing", "manual"] as const;
 export default function IntakeArt({ color = "#d65a4a" }: { color?: string }) {
   const t = useTranslations("aboutPage");
   return (
-    <div className="mx-auto w-full max-w-md text-center">
+    <div className="mx-auto w-full max-w-lg text-center">
       <div className="flex flex-wrap justify-center gap-2">
         {CHANNELS.map((c, i) => (
           <motion.span

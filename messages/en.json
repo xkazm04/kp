@@ -1606,7 +1606,7 @@
     "tagline": "talent matching",
     "signOut": "Sign out",
     "tabs": {
-      "pipeline": "Pipeline",
+      "pipeline": "Overview",
       "channels": "Channels",
       "decisions": "Decisions",
       "schedule": "Schedule",
@@ -4220,6 +4220,13 @@
       "searchColumn": "Search {column}…",
       "allOf": "All — {column}",
       "select": "Select…"
+    },
+    "pager": {
+      "label": "Table pages",
+      "range": "{from}–{to} of {total}",
+      "page": "Page {page} of {pages}",
+      "prev": "Previous page",
+      "next": "Next page"
     },
     "empty": {
       "notConnected": "Not connected",

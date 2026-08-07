@@ -1,20 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { getServerLocale } from "@/i18n/server";
-import {
-  createPipelineEntry,
-  ensureLeadEnrichToken,
-  findApplicationByApplicant,
-  findEntryByLeadToken,
-  getJob,
-  getJobWorkspace,
-  mergeReapplication,
-  recordAutomationEvent,
-  recordEntryConsent,
-  recordKnockoutDecline,
-  setEntryProfileGaps,
-  type EntryProfileGap,
-} from "@/app/_lib/db";
+import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
+import { createPipelineEntry, ensureLeadEnrichToken, findApplicationByApplicant, findEntryByLeadToken, mergeReapplication, recordAutomationEvent, recordEntryConsent, recordKnockoutDecline, setEntryProfileGaps, type EntryProfileGap } from "@/app/_lib/db/pipeline";
 import { GAP_FIELDS } from "@/app/_lib/completeness-followup";
 import { applyDedupeKey, applyKoSteps, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { createPosting, createSubmission, getPosting, listOutboxFiltered, listSubmissions, type DevCaseRecord, type DevSubmission, type Posting } from "./db";
+import { createPosting, createSubmission, getPosting, listOutboxFiltered, listSubmissions, type DevCaseRecord, type DevSubmission, type Posting } from "./db/devcase";
 import { sendComm } from "./comms";
 import { commsTranslator } from "./comms-translator";
 

@@ -160,9 +160,21 @@ export function useRecruiterCandidatesLogic({
 
   // Export the auditable matrix: per-scheme scores (matrix[i] = candidate i under
   // every candidate's weights) plus own / robust / delta. Reuses the shared CSV toolkit.
+  //
+  // F15 — the header row is the recruiter's own working copy of the on-screen audit
+  // table (they press Export CSV and open it), so it is the UI user's language and
+  // reuses the SAME four `audit*` labels the table renders. A bias-defensible record
+  // whose columns say something different from the screen it came from is worse than
+  // no record. The candidate labels in the rows are data and stay verbatim.
   const exportFairness = () => {
     if (!fairness) return;
-    const header = ["Candidate", "Own", "Robust (mean)", "Delta", ...fairness.labels.map((l) => `under ${l}`)];
+    const header = [
+      t("auditCandidate"),
+      t("auditOwn"),
+      t("auditRobust"),
+      t("auditDelta"),
+      ...fairness.labels.map((l) => t("auditUnder", { label: l })),
+    ];
     const rows = fairness.labels.map((label, i) => [
       label,
       fairness.own[i] ?? "",

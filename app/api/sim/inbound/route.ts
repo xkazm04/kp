@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPipelineEntry, getJob, listMatrixProfiles, listPipeline } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
+import { createPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
+import { listMatrixProfiles } from "@/app/_lib/db/profiles";
 import { simCvIntakeTarget } from "@/app/_lib/cv-intake";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { jsonError } from "@/app/_lib/api-response";

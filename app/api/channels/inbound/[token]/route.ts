@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTranslations } from "next-intl/server";
-import {
-  getActiveChannelWebhook,
-  getJob,
-  recordAutomationEvent,
-  recordChannelWebhookAccepted,
-  recordChannelWebhookReceipt,
-} from "@/app/_lib/db";
+import { getActiveChannelWebhook, recordChannelWebhookAccepted, recordChannelWebhookReceipt } from "@/app/_lib/db/channels";
+import { getJob } from "@/app/_lib/db/jobs";
+import { recordAutomationEvent } from "@/app/_lib/db/pipeline";
 import { recordOutreachReply } from "@/app/_lib/outreach-state-store";
 import { applyKoSteps } from "@/app/_lib/apply";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";

@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowUpCircle, PauseCircle, XCircle } from "lucide-react
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { deriveDecisionOutcome } from "@/app/_lib/decision-attribution";
+import { usePassReasonText } from "./passReasonText";
 import type { Entry } from "@/app/features/shared/pipelineTypes";
 
 type PreviewDecision = { entryId: string; action: string; toStage: string | null; reason: string; outcome?: string };
@@ -42,6 +43,8 @@ export function PassPreviewModal({
   onClose: () => void;
 }) {
   const t = useTranslations("pipeline.tab");
+  // The sealed English `reason` is the fallback; the structured code renders localized.
+  const passReason = usePassReasonText();
   const labelById = new Map(entries.map((e) => [e.id, e.candidateLabel]));
   const label = (id: string) => labelById.get(id) ?? id;
 
@@ -126,7 +129,7 @@ export function PassPreviewModal({
               {rejects.map((d) => (
                 <li key={d.entryId} className="rounded-md border border-coral/30 bg-coral/5 px-3 py-1.5 text-sm">
                   <span className="font-semibold text-ink">{label(d.entryId)}</span>{" "}
-                  <span className="text-steel">— {d.reason}</span>
+                  <span className="text-steel">— {passReason(d)}</span>
                 </li>
               ))}
             </ul>
@@ -141,7 +144,7 @@ export function PassPreviewModal({
               {advances.map((d) => (
                 <li key={d.entryId} className="rounded-md border border-moss/30 bg-moss/5 px-3 py-1.5 text-sm">
                   <span className="font-semibold text-ink">{label(d.entryId)}</span>{" "}
-                  <span className="text-steel">— {d.reason}</span>
+                  <span className="text-steel">— {passReason(d)}</span>
                 </li>
               ))}
             </ul>
@@ -156,7 +159,7 @@ export function PassPreviewModal({
               {fairnessBlocked.map((d) => (
                 <li key={d.entryId} className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-1.5 text-sm">
                   <span className="font-semibold text-ink">{label(d.entryId)}</span>{" "}
-                  <span className="text-steel">— {d.reason}</span>
+                  <span className="text-steel">— {passReason(d)}</span>
                 </li>
               ))}
             </ul>
@@ -171,7 +174,7 @@ export function PassPreviewModal({
               {holds.map((d) => (
                 <li key={d.entryId} className="rounded-md border border-stone-200 bg-paper/50 px-3 py-1.5 text-sm">
                   <span className="font-semibold text-ink">{label(d.entryId)}</span>{" "}
-                  <span className="text-steel">— {d.reason}</span>
+                  <span className="text-steel">— {passReason(d)}</span>
                 </li>
               ))}
             </ul>

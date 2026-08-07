@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { actOnPipelineEntry, listPipeline, recordAutomationEvent, type PipelineEntry } from "@/app/_lib/db";
+import type { PipelineEntry } from "@/app/_lib/db/core";
+import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "@/app/_lib/db/pipeline";
 import { runAutomationPass } from "@/app/_lib/automation-pass";
 import { dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { affected, describeCommand, isMutating, parseCommand, resolveRejectTargets } from "@/app/_lib/pipeline-command";

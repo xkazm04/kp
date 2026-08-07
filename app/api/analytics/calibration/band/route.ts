@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { analysisCalibrationBandCandidates, pipelineCalibrationBandCandidates } from "@/app/_lib/db";
+import { analysisCalibrationBandCandidates } from "@/app/_lib/db/analyses";
+import { pipelineCalibrationBandCandidates } from "@/app/_lib/db/pipeline";
 import { CALIBRATION_BIN_COUNT } from "@/app/_lib/calibration";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";

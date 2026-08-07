@@ -10,7 +10,7 @@
  */
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { DISPLAY, HAND } from "../tokens";
+import { ART_TYPE_SCALE, DISPLAY, HAND } from "../tokens";
 import { snapshot, fmtInt, fmtCzkShort, metricValues, type MapMetric } from "./data";
 import CzMap from "./CzMap";
 import {
@@ -59,7 +59,7 @@ export default function MarketPulseAtlas() {
   return (
     <div className="space-y-24">
       {/* ── Map hero ─────────────────────────────────────────── */}
-      <section id="map" className="mx-auto grid max-w-6xl gap-6 px-6 lg:grid-cols-[1.5fr_1fr] lg:items-start">
+      <section id="map" className="mx-auto grid max-w-7xl gap-6 px-6 lg:grid-cols-[1.5fr_1fr] lg:items-start">
         <div className="rounded-2xl border-[3px] border-[#17202a] bg-white p-5 shadow-[6px_6px_0_#17202a]">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <MetricToggle metric={metric} onChange={setMetric} />
@@ -69,13 +69,15 @@ export default function MarketPulseAtlas() {
         </div>
         <div className="space-y-4 lg:sticky lg:top-6">
           <RegionDetail region={region} />
-          <div className="rounded-2xl border-[3px] border-[#17202a] bg-[#dce7d0] px-5 py-4 shadow-[6px_6px_0_#17202a]">
+          <div
+            className={`${ART_TYPE_SCALE} rounded-2xl border-[3px] border-[#17202a] bg-[#dce7d0] px-5 py-4 shadow-[6px_6px_0_#17202a]`}
+          >
             <p className={`${HAND} text-sm text-[#526b4f]`}>{t("map.topRegions")}</p>
             <ol className="mt-2 space-y-1.5">
               {[...snapshot.regions].sort((a, b) => b.vacancies - a.vacancies).slice(0, 5).map((r, i) => (
                 <li key={r.code} className="flex items-baseline justify-between gap-2">
-                  <span className="truncate text-[15px] font-bold">{i + 1}. {r.name}</span>
-                  <span className="shrink-0 text-[13px] font-bold text-[#42606f]">{fmtInt(r.vacancies)}</span>
+                  <span className="truncate text-[19px] font-bold">{i + 1}. {r.name}</span>
+                  <span className="shrink-0 text-[17px] font-bold text-[#42606f]">{fmtInt(r.vacancies)}</span>
                 </li>
               ))}
             </ol>
@@ -84,37 +86,39 @@ export default function MarketPulseAtlas() {
       </section>
 
       {/* ── Salary field guide ───────────────────────────────── */}
-      <section id="salary" className="mx-auto max-w-4xl px-6">
+      <section id="salary" className="mx-auto max-w-5xl px-6">
         <SectionHead eyebrow={t("salary.eyebrow")} title={t("salary.title")} sub={t("salary.subtitle")} />
         <SalaryBands families={snapshot.reference_salaries} />
       </section>
 
       {/* ── Demand ───────────────────────────────────────────── */}
-      <section id="demand" className="mx-auto max-w-6xl px-6">
+      <section id="demand" className="mx-auto max-w-7xl px-6">
         <SectionHead eyebrow={t("demand.eyebrow")} title={t("demand.title")} sub={t("demand.subtitle")} />
-        <div className="grid gap-8 lg:grid-cols-2">
+        {/* The two column labels belong to the lists under them, so they take
+            the card scale with them rather than the editorial one. */}
+        <div className={`${ART_TYPE_SCALE} grid gap-8 lg:grid-cols-2`}>
           <div>
-            <p className="mb-3 text-[13px] font-bold uppercase tracking-wide text-[#42606f]">{t("demand.byFamily")}</p>
+            <p className="mb-3 text-[17px] font-bold uppercase tracking-wide text-[#42606f]">{t("demand.byFamily")}</p>
             <FamilyDemandList families={snapshot.demand.top_families} />
           </div>
           <div>
-            <p className="mb-3 text-[13px] font-bold uppercase tracking-wide text-[#42606f]">{t("demand.byRole")}</p>
+            <p className="mb-3 text-[17px] font-bold uppercase tracking-wide text-[#42606f]">{t("demand.byRole")}</p>
             <OccupationList occupations={snapshot.demand.top_occupations.slice(0, 12)} />
           </div>
         </div>
       </section>
 
       {/* ── Sector split ─────────────────────────────────────── */}
-      <section id="sectors" className="mx-auto max-w-4xl px-6">
+      <section id="sectors" className="mx-auto max-w-5xl px-6">
         <SectionHead eyebrow={t("orgTypes.eyebrow")} title={t("orgTypes.title")} sub={t("orgTypes.subtitle")} />
         <OrgSplit orgTypes={snapshot.org_types} />
       </section>
 
       {/* ── JD reference gallery ─────────────────────────────── */}
       {jdGroups.length ? (
-      <section id="jd" className="mx-auto max-w-6xl px-6">
+      <section id="jd" className="mx-auto max-w-7xl px-6">
         <SectionHead eyebrow={t("jd.eyebrow")} title={t("jd.title")} sub={t("jd.subtitle")} />
-        <div className="mb-6 flex flex-wrap justify-center gap-2">
+        <div className={`${ART_TYPE_SCALE} mb-6 flex flex-wrap justify-center gap-2`}>
           {jdGroups.map((g) => {
             const on = g.family === jdFamily;
             return (
@@ -122,7 +126,7 @@ export default function MarketPulseAtlas() {
                 key={g.family}
                 type="button"
                 onClick={() => setJdFamily(g.family)}
-                className="rounded-lg border-[3px] border-[#17202a] px-3 py-1.5 text-[13px] font-bold transition-all"
+                className="rounded-lg border-[3px] border-[#17202a] px-3 py-1.5 text-[17px] font-bold transition-all"
                 style={{ background: on ? "#17202a" : "#fff", color: on ? "#fdf8ee" : "#17202a", boxShadow: on ? "none" : "3px 3px 0 #17202a" }}
               >
                 {t(`families.${g.family}`)}

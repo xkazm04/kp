@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
-import { jdLastEditedAt } from "@/app/_lib/db";
+import { jdLastEditedAt } from "@/app/_lib/db/jobs";
 
 // Direction 2 (queue-staleness) — the JD content-freshness fact the AI review
 // cards need to flag a score computed BEFORE the JD was last edited. The client

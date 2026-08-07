@@ -73,10 +73,7 @@ const ERROR_LEAK_ALLOW = new Set([
   // honest state is "documented English", not a silent generic.
   "app/features/hiring/channels/useChannelsData.ts",
   "app/features/hiring/pipeline/pipelineTabHelpers.ts",
-  "app/features/hiring/pipeline/usePipelineCandidateDrawerState.ts",
-  "app/features/tools/analyze/analyzeRunAnalysis.ts",
   // Dev-facing studio, deliberately outside the strict i18n lint (eslint.config.mjs).
-  "app/features/tools/devcases/useDevSubmissionRow.ts"
 ]);
 const HARDCODED_ATTR = /(?:^|\s)(aria-label|title|placeholder|alt)="[^"{]/;
 const LINE_BREAK = /\r?\n/;
@@ -286,19 +283,26 @@ for (const dir of SEALED_ATTR_DIRS) {
 
 // Every machine error code the server can return must have a localized message,
 // or useErrorMessage() silently falls through to the caller's generic fallback and
-// the specific reason is lost in all four locales. STORE_ERRORS is the source of
-// truth; the `errors` namespace is its localized mirror. Pin them together.
+// the specific reason is lost in all four locales. Two registries emit codes and
+// both are pinned to the `errors` namespace:
+//   STORE_ERRORS   — safe generics for store-backed 500s (the real error is logged, not sent)
+//   REFUSAL_ERRORS — deliberate 4xx business rules, where the message IS the information
 const apiResponseSrc = readFileSync(join(REPO_ROOT, "app", "_lib", "api-response.ts"), "utf8");
-const storeErrorsBlock = apiResponseSrc.match(/export const STORE_ERRORS = \{([\s\S]*?)\n\} as const;/);
-if (!storeErrorsBlock) {
-  problems.push("app/_lib/api-response.ts — could not locate the STORE_ERRORS block (did its shape change?)");
-} else {
-  const codes = [...storeErrorsBlock[1].matchAll(/^ {2}([A-Z_0-9]+):/gm)].map((m) => m[1]);
-  const localized = base["errors.generic"] === undefined ? null : baseKeys;
+for (const registry of ["STORE_ERRORS", "REFUSAL_ERRORS"]) {
+  const block = apiResponseSrc.match(new RegExp(`export const ${registry} = \\{([\\s\\S]*?)\\n\\} as const;`));
+  if (!block) {
+    problems.push(`app/_lib/api-response.ts — could not locate the ${registry} block (did its shape change?)`);
+    continue;
+  }
+  const codes = [...block[1].matchAll(/^ {2}([A-Z_0-9]+):/gm)].map((m) => m[1]);
+  if (!codes.length) {
+    problems.push(`app/_lib/api-response.ts — ${registry} parsed to zero codes (did its shape change?)`);
+    continue;
+  }
   for (const code of codes) {
-    if (!localized || !localized.includes(`errors.${code}`)) {
+    if (!baseKeys.includes(`errors.${code}`)) {
       problems.push(
-        `STORE_ERRORS.${code} has no \`errors.${code}\` message in messages/${DEFAULT_LOCALE}.json — ` +
+        `${registry}.${code} has no \`errors.${code}\` message in messages/${DEFAULT_LOCALE}.json — ` +
           `add it so the code resolves to real copy instead of a generic fallback`
       );
     }

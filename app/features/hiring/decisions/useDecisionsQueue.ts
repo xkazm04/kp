@@ -11,6 +11,7 @@ import { toast } from "@/app/_components/toast-store";
 import { useTasks, useTaskResult } from "@/app/features/shell/tasks/TasksProvider";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
+import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import { waveReasonText } from "@/app/_lib/decision-attribution";
 import type { GroupEvalPayload } from "./GroupEvalModal";
 import { ARM_PARAM, parseArmParam } from "@/app/features/shared/groupEvalArm";
@@ -136,9 +137,10 @@ export function useDecisionsQueue() {
   const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "accepted" | "rejected"; reason: string | null } | null>(null);
   const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
 
-  const load = () =>
-    fetch("/api/pipeline")
-      .then((r) => r.json())
+  // Sharing is OPT-IN (see usePipelineBoardData): `load` is also the post-action
+  // reconcile, which must always hit the network.
+  const load = (opts?: { shared?: boolean }) =>
+    sharedGetJson<{ entries?: Entry[]; error?: string }>("/api/pipeline", { refresh: !opts?.shared })
       .then((p) => {
         if (p.error) throw new Error(p.error);
         setEntries((p.entries as Entry[]) ?? []);
@@ -150,7 +152,7 @@ export function useDecisionsQueue() {
       .then((p) => setReconsider((p.items as ReconsiderRow[]) ?? []))
       .catch(() => undefined);
   useEffect(() => {
-    load();
+    load({ shared: true }); // mount read may ride a sibling's in-flight request
     loadReconsider();
   }, []);
   useLiveRefresh(() => {

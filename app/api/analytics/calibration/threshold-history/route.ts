@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pipelineCalibrationPairs } from "@/app/_lib/db";
+import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
 import { listDecisionRecords } from "@/app/_lib/decision-record-store";
 import { computeThresholdEffect } from "@/app/_lib/calibration";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";

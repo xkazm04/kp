@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { getSeedHealth, coreTableCounts, countActiveTasks, promptCacheStats, ensureDb } from "@/app/_lib/db";
+import { promptCacheStats } from "@/app/_lib/db/analyses";
+import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
+import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
 import { analyzeTelemetry, commsTelemetry, engineTelemetry } from "@/app/_lib/ops-telemetry";
 import { getScheduleNoSlotsCount, getScheduleReconcileCount } from "@/app/_lib/logger";

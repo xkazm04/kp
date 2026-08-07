@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { offerView, respondToOffer } from "@/app/_lib/offer-finalize";
-import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { jsonOk, jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     const result = await respondToOffer(token, response);
     // 410 Gone for a lapsed offer (idea-29361408) — distinct from 404 not-found so
     // the page can show a definite "expired" state, not a generic error.
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.expired ? 410 : 404 });
+    if (!result.ok) return jsonRefusal(result.code, result.expired ? 410 : 404);
     return jsonOk(result);
   } catch (error) {
     return safeJsonError(error, "api:offer:respond", "OFFER_RESPOND_FAILED");

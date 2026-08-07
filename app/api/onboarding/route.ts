@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listPipeline } from "@/app/_lib/db";
+import { listPipeline } from "@/app/_lib/db/pipeline";
 import { createTemplate, isEntryHired, listRuns, listTemplates, runForEntry, startRun } from "@/app/_lib/onboarding-store";
 import { coerceTasks } from "@/app/_lib/onboarding";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";

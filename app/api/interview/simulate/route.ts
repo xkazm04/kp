@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createInterviewSession } from "@/app/_lib/db";
+import { createInterviewSession } from "@/app/_lib/db/interviews";
 import { meterGate } from "@/app/_lib/billing";
 import { jsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";

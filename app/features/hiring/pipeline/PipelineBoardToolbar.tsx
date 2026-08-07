@@ -1,7 +1,11 @@
 "use client";
 
-// The board's small top toolbar: the "Positions" heading, the drag/scroll hint
-// text, and the ◀/▶ column-paging controls. Split out of PipelineBoard.tsx.
+// The board's small top toolbar: the drag/scroll hint text and the ◀/▶
+// column-paging controls. Split out of PipelineBoard.tsx.
+//
+// The "Positions" heading moved up into the board panel's header (PipelineFilterBar),
+// which now names the board and carries its search + facets — so this strip is left
+// with exactly what it is about: getting around the horizontal scroll.
 
 import type { PipelineTranslator } from "./pipelineTranslator";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -16,8 +20,7 @@ export function PipelineBoardToolbar({
   onScrollByColumn: (dir: -1 | 1) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <h3 className="text-meta uppercase tracking-wide text-steel">{t("board.positions")}</h3>
+    <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-2">
       <div className="flex items-center gap-2">
         {dragEnabled ? <span className="hidden text-sm text-steel md:inline">{t("board.dragHint")}</span> : null}
         <span className="hidden text-sm text-steel sm:inline">{t("board.scrollHint")}</span>

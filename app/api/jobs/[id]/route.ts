@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db";
+import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 // Point-read one job by id. GET /api/jobs enumerates a ranked, LIMIT-300 slice, so a

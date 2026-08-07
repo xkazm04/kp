@@ -6,8 +6,9 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, Inbox, Plus } from "lucide-react";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { BTN_PRIMARY } from "@/app/_components/ui/recipes";
+import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import { useCommsCapability } from "@/app/features/shell/useDeliveryCapability";
-import { useReceivers, isReceiverLive } from "@/app/features/hiring/channels/useChannelsReceivers";
+import { useReceivers, isReceiverLive, type ReceiverJob } from "@/app/features/hiring/channels/useChannelsReceivers";
 import { ReceiverTable } from "@/app/features/hiring/channels/ChannelsReceiverTable";
 import { AddReceiverModal } from "@/app/features/hiring/channels/ChannelsAddReceiverModal";
 import { SetupGuide, CopyChip } from "@/app/features/hiring/channels/ChannelsSetupGuide";
@@ -62,9 +63,21 @@ function ForwardingNotWired({ receiverUrl, role }: { receiverUrl: string; role: 
   );
 }
 
-export function EmailIntakeWizard({ onChanged }: { onChanged?: () => void }) {
+export function EmailIntakeWizard({
+  webhooks,
+  jobs,
+  reload,
+  onChanged,
+}: {
+  /** The tab's receivers list (null while its first fetch is in flight) and its
+   *  published-jobs list, both passed down rather than re-fetched here. */
+  webhooks: ChannelWebhookRecord[] | null;
+  jobs: ReceiverJob[] | null;
+  reload: () => void;
+  onChanged?: () => void;
+}) {
   const t = useTranslations("channels");
-  const { receivers, jobs, load, revoke, revoking, revokeFailed } = useReceivers("email", onChanged);
+  const { receivers, load, revoke, revoking, revokeFailed } = useReceivers({ channel: "email", webhooks, reload, onChanged });
   const { emailInboundDomain } = useCommsCapability();
   const [selectedToken, setSelectedToken] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);

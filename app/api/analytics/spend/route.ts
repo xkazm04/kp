@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { setChannelSpend } from "@/app/_lib/db";
+import { setChannelSpend } from "@/app/_lib/db/channels";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 

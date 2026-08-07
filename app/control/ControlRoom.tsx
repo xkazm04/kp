@@ -1,50 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { LoadStatus } from "@/app/_components/LoadStatus";
-import { Select } from "@/app/_components/Select";
 import { useLoader } from "@/app/_lib/useLoader";
 import { aggregateLoadState } from "@/app/_lib/load-state";
-import { useRelativeTime } from "@/app/_lib/use-relative-time";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { armOrExecute } from "./controlRoomConfirm";
+import { AutonomyBar } from "./AutonomyBar";
+import { GatesPanel } from "./GatesPanel";
+import { AuditPanel } from "./AuditPanel";
+import { CalibrationPanel } from "./CalibrationPanel";
+import type { OutcomeData, Status } from "./types";
 
-type Audit = { id: number; lifecycleId: string | null; actor: string; action: string; reason: string | null; createdAt: string };
-type LC = { id: string; title: string | null; stage: string; detail: string | null };
-type Gate = { id: string; title: string | null; detail: string | null };
-type Status = { autonomy: "on" | "paused"; lifecycles: LC[]; pendingGates: Gate[]; audit: Audit[] };
-
-type Outcome = { id: number; ref: string | null; candidateRef: string | null; predictedScore: number | null; outcome: string; performance: number | null; note: string | null; recordedAt: string };
-type CalBand = { label: string; lo: number; count: number; hireRate: number | null; meanPerformance: number | null };
-type Calibration = { resolved: number; bands: CalBand[]; predictive: boolean | null; currentFloor: number; suggestedFloor: number | null; rationale: string };
-type OutcomeData = { outcomes: Outcome[]; calibration: Calibration; activeFloor: number };
-
-const ACTOR: Record<string, string> = {
-  auto: "bg-coral/15 text-coral",
-  human: "bg-moss/15 text-moss",
-  system: "bg-stone-200 text-steel",
-};
-
-// Blank → undefined, but a legitimate "0" survives (Number("") === 0 would otherwise leak in).
-function parseNum(v: string): number | undefined {
-  if (v.trim() === "") return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
-}
-
+// The shell: it owns the two polled loaders, the autonomy/gate mutations that read
+// back into `/api/devcase/control`, and the single armed-control key. Everything that
+// renders lives in one of the four panels beside it.
 export function ControlRoom() {
-  const rel = useRelativeTime();
-  // Resolve API failures from the machine `code`, never from the server's English
-  // `error` — see app/_lib/use-error-message.ts. NOTE: this ops console has no
-  // message namespace of its own yet, so its own fallback copy is still hardcoded
-  // English; that half is a separate pass.
-  const errMsg = useErrorMessage();
+  const t = useTranslations("control");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [form, setForm] = useState({ candidate: "", score: "", outcome: "hired", perf: "4" });
-  // id of the recorded outcome currently picking a 1–5 performance score (one at a time).
-  const [perfFor, setPerfFor] = useState<number | null>(null);
   // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): the consequential control
   // currently ARMED (awaiting a confirm click) — approve/apply-floor/reconcile need a
   // deliberate two-step so a misclick on this oversight surface can't fire an
@@ -67,11 +41,11 @@ export function ControlRoom() {
   useEffect(() => {
     load();
     loadOutcomes();
-    const t = window.setInterval(() => {
+    const t2 = window.setInterval(() => {
       load();
       loadOutcomes();
     }, 3000);
-    return () => window.clearInterval(t);
+    return () => window.clearInterval(t2);
   }, [load, loadOutcomes]);
 
   // Either loader failing means the room may be stale; the merged state reports
@@ -79,78 +53,12 @@ export function ControlRoom() {
   // what's on screen (LoadStatus self-hides while both loaders are healthy).
   const roomState = aggregateLoadState([sState, oState]);
 
-  const recordOutcome = async () => {
-    if (!form.candidate.trim()) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      const r = await fetch("/api/devcase/outcomes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          candidateRef: form.candidate.trim(),
-          predictedScore: parseNum(form.score),
-          outcome: form.outcome,
-          performance: form.outcome === "hired" ? parseNum(form.perf) : undefined,
-        }),
-      });
-      // Gate on r.ok: a failed write (validation, SQLITE_BUSY, 500) must not look like
-      // success — keep the form intact so the recorded outcome isn't silently lost.
-      if (!r.ok) {
-        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-        setErr(errMsg(p, `Failed to record outcome (${r.status}).`));
-        return;
-      }
-      setForm({ ...form, candidate: "", score: "" });
-      await loadOutcomes();
-    } catch {
-      setErr("Network error — outcome not recorded.");
-    } finally {
-      setBusy(false);
-    }
-  };
-  // Attach an on-the-job performance score to an EXISTING recorded hire (auto-recorded
-  // pipeline hires arrive without one). Posting the row's own ref/candidateRef makes the
-  // store's upsert update that row in place — re-typing a known candidate into the
-  // free-text form risked a duplicate decided row that calibrate() counted twice. The
-  // form below stays for genuinely off-pipeline outcomes.
-  const addPerformance = async (row: Outcome, perf: number) => {
-    setBusy(true);
-    setErr(null);
-    try {
-      const r = await fetch("/api/devcase/outcomes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ref: row.ref ?? undefined,
-          candidateRef: row.candidateRef ?? undefined,
-          outcome: "hired",
-          performance: perf,
-        }),
-      });
-      if (!r.ok) {
-        const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-        setErr(errMsg(p, `Failed to record performance (${r.status}).`));
-        return;
-      }
-      setPerfFor(null);
-      await loadOutcomes();
-    } catch {
-      setErr("Network error — performance not recorded.");
-    } finally {
-      setBusy(false);
-    }
-  };
-  const applyFloor = async (floor: number) => {
-    setBusy(true);
-    try {
-      await fetch("/api/devcase/outcomes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ setFloor: floor }) });
-      await loadOutcomes();
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  };
+  // Applying a calibrated floor moves the live promote threshold, so the audit trail
+  // and the outcome corpus both change — re-read both.
+  const reloadAll = useCallback(async () => {
+    await loadOutcomes();
+    await load();
+  }, [load, loadOutcomes]);
 
   const act = async (action: string) => {
     setBusy(true);
@@ -175,7 +83,6 @@ export function ControlRoom() {
     if (execute) void run();
   };
 
-  const paused = s?.autonomy === "paused";
   const active = (s?.lifecycles ?? []).filter((l) => !["promoted", "closed"].includes(l.stage));
 
   return (
@@ -183,285 +90,25 @@ export function ControlRoom() {
       <div className="mx-auto max-w-4xl px-6 py-8">
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="text-meta uppercase text-coral">Oversight</p>
-            <h1 className="mt-1 font-serif text-display text-ink">Autonomy control room</h1>
-            <p className="mt-1 max-w-2xl text-body text-steel">
-              Human oversight for the autonomous hiring pipeline — a kill switch, the human gates awaiting you, and an
-              immutable audit trail of every automated decision (the record-keeping a high-risk AI hiring system requires).
-            </p>
+            <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
+            <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
+            <p className="mt-1 max-w-2xl text-body text-steel">{t("intro")}</p>
           </div>
           <Link href="/?tab=dev" className="focus-ring rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:border-coral/40">
-            ← Dev cases
+            {t("backToDevCases")}
           </Link>
         </header>
 
+        {/* LoadStatus composes its own English sentence around `label` (it is a
+            shared primitive that has not been migrated yet), so passing a localized
+            fragment here would produce a half-translated banner. English until that
+            component takes a catalog. */}
         <LoadStatus state={roomState} label="the control room" className="mt-4" />
 
-        {/* kill switch */}
-        <section
-          className={`mt-6 flex flex-wrap items-center gap-3 rounded-lg border p-4 shadow-panel ${
-            paused ? "border-coral/40 bg-coral/5" : "border-moss/30 bg-moss/5"
-          }`}
-        >
-          <span aria-hidden className={`grid h-10 w-10 place-items-center rounded-full text-white ${paused ? "bg-coral" : "bg-moss"}`}>
-            {paused ? "❚❚" : "▶"}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-ink">Automation is {paused ? "PAUSED" : "running"}</p>
-            <p className="text-xs text-steel">
-              {paused
-                ? "Auto-advancement is halted; lifecycles wait for you. Resume to continue + reconcile."
-                : "Lifecycles advance under policy. Pause to halt all automation immediately."}
-            </p>
-          </div>
-          {paused ? (
-            <button type="button" onClick={() => act("resume")} disabled={busy} className="focus-ring h-9 rounded-md bg-moss px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-              Resume automation
-            </button>
-          ) : (
-            <button type="button" onClick={() => act("pause")} disabled={busy} className="focus-ring h-9 rounded-md bg-coral px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
-              Pause (kill switch)
-            </button>
-          )}
-          {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): reconcile mutates
-              lifecycle state — gate it behind a confirm, visually lit while armed. */}
-          <button
-            type="button"
-            onClick={() => guard("reconcile", () => act("reconcile"))}
-            disabled={busy}
-            className={`focus-ring h-9 rounded-md border px-3 text-sm font-semibold disabled:opacity-50 ${
-              armed === "reconcile" ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-ink hover:border-coral/40"
-            }`}
-          >
-            {armed === "reconcile" ? "Confirm reconcile?" : "Reconcile"}
-          </button>
-        </section>
-
-        {/* pending human gates */}
-        {(s?.pendingGates ?? []).length > 0 ? (
-          <section className="mt-6">
-            <h2 className="text-meta uppercase tracking-wide text-coral">Awaiting your decision · {s?.pendingGates.length}</h2>
-            <div className="mt-2 space-y-2">
-              {s?.pendingGates.map((g) => (
-                <div key={g.id} className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50/60 p-3 shadow-panel">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-ink">{g.title || "Role"}</span>
-                    <span className="block truncate text-[11px] text-steel">{g.detail}</span>
-                  </span>
-                  {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): approving an
-                      Art. 22 human gate is irreversible — require a deliberate confirm. */}
-                  <button
-                    type="button"
-                    onClick={() => guard(g.id, () => approve(g.id))}
-                    className={`focus-ring h-8 shrink-0 rounded-md px-3 text-[11px] font-semibold text-white hover:opacity-90 ${
-                      armed === g.id ? "bg-coral ring-2 ring-coral/40" : "bg-moss"
-                    }`}
-                  >
-                    {armed === g.id ? "Confirm approve?" : "Approve & continue"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {/* active lifecycles */}
-        <section className="mt-6">
-          <h2 className="text-meta uppercase tracking-wide text-steel">Active lifecycles · {active.length}</h2>
-          {active.length === 0 ? (
-            <p className="mt-2 rounded-md border border-dashed border-stone-200 p-3 text-xs text-steel">None active.</p>
-          ) : (
-            <ul className="mt-2 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white shadow-panel">
-              {active.map((l) => (
-                <li key={l.id} className="flex items-center gap-2 px-3 py-2 text-xs">
-                  <span className="w-28 shrink-0 truncate font-semibold text-ink">{l.title}</span>
-                  <span className="rounded-full bg-paper px-2 py-0.5 text-[10px] uppercase text-steel">{l.stage}</span>
-                  <span className="min-w-0 flex-1 truncate text-steel">{l.detail}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* audit trail */}
-        <section className="mt-6">
-          <h2 className="text-meta uppercase tracking-wide text-steel">Audit trail · last {s?.audit.length ?? 0}</h2>
-          <ul className="mt-2 divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white shadow-panel">
-            {(s?.audit ?? []).map((a) => (
-              <li key={a.id} className="flex items-center gap-2 px-3 py-1.5 text-[11px]">
-                <span className={`w-12 shrink-0 rounded-full px-1.5 py-0.5 text-center text-[9px] font-semibold uppercase ${ACTOR[a.actor] ?? "bg-stone-200 text-steel"}`}>
-                  {a.actor}
-                </span>
-                <span className="w-28 shrink-0 truncate font-semibold text-ink">{a.action}</span>
-                <span className="min-w-0 flex-1 truncate text-steel">{a.reason}</span>
-                <span className="shrink-0 text-[10px] text-steel">{rel(a.createdAt)}</span>
-              </li>
-            ))}
-            {(s?.audit ?? []).length === 0 ? <li className="px-3 py-2 text-[11px] text-steel">No decisions logged yet.</li> : null}
-          </ul>
-        </section>
-
-        {/* outcomes & calibration (E) */}
-        <section className="mt-6">
-          <h2 className="text-meta uppercase tracking-wide text-steel">Outcomes &amp; calibration</h2>
-          <p className="mt-1 max-w-2xl text-[11px] text-steel">
-            Record what actually happened to promoted candidates; the engine calibrates the promote floor against reality —
-            does a higher predicted score really convert? You apply the suggestion, so the learning loop stays human-in-the-loop.
-          </p>
-
-          <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-stone-200 bg-white p-2.5 shadow-panel">
-            {/* bug-ui-scan-2026-07-09 (guided-pipeline-simulation #5): a placeholder is
-                not an accessible name (it vanishes once a value is typed) — name each
-                field explicitly so a screen reader announces it recording an outcome. */}
-            <input aria-label="Candidate reference" value={form.candidate} onChange={(e) => setForm({ ...form, candidate: e.target.value })} placeholder="candidate" className="focus-ring h-8 w-28 rounded border border-stone-200 bg-white px-2 text-xs text-ink caret-coral placeholder:text-steel" />
-            <input aria-label="Predicted score" value={form.score} onChange={(e) => setForm({ ...form, score: e.target.value })} placeholder="score" className="focus-ring h-8 w-16 rounded border border-stone-200 bg-white px-2 text-xs text-ink caret-coral placeholder:text-steel" />
-            <Select
-              value={form.outcome}
-              onChange={(v) => setForm({ ...form, outcome: v })}
-              ariaLabel="Outcome"
-              size="sm"
-              className="h-8"
-              options={["hired", "rejected", "withdrawn"].map((x) => ({ value: x, label: x }))}
-            />
-            {form.outcome === "hired" ? (
-              <Select
-                value={form.perf}
-                onChange={(v) => setForm({ ...form, perf: v })}
-                ariaLabel="Performance rating"
-                size="sm"
-                className="h-8"
-                options={[1, 2, 3, 4, 5].map((x) => ({ value: String(x), label: `perf ${x}` }))}
-              />
-            ) : null}
-            <button type="button" onClick={recordOutcome} disabled={busy} className="focus-ring h-8 rounded-md bg-ink px-3 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50">
-              Record
-            </button>
-          </div>
-
-          {err ? (
-            <p role="alert" className="mt-1.5 text-[11px] font-semibold text-coral">
-              {err}
-            </p>
-          ) : null}
-
-          {o ? (
-            <div className="mt-2 rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-steel">Active promote floor</span>
-                <span className="font-serif text-lg text-ink">{o.activeFloor}</span>
-                {o.calibration.suggestedFloor != null && o.calibration.resolved >= 4 && o.calibration.suggestedFloor !== o.activeFloor ? (
-                  // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): applying the
-                  // suggested floor changes the promote threshold for every future
-                  // auto-decision — gate it behind a confirm (two-step, lit while armed).
-                  <button
-                    type="button"
-                    onClick={() => guard("floor", () => applyFloor(o.calibration.suggestedFloor!))}
-                    disabled={busy}
-                    className={`focus-ring ml-auto h-7 rounded-md px-2.5 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50 ${
-                      armed === "floor" ? "bg-ink ring-2 ring-coral/40" : "bg-coral"
-                    }`}
-                  >
-                    {armed === "floor" ? `Confirm → ${o.calibration.suggestedFloor}?` : `Apply suggested → ${o.calibration.suggestedFloor}`}
-                  </button>
-                ) : (
-                  <span className="ml-auto text-[10px] uppercase text-steel">{o.calibration.resolved} resolved</span>
-                )}
-              </div>
-              <table className="mt-2 w-full text-[11px]">
-                <thead>
-                  <tr className="text-left text-[9px] uppercase text-steel">
-                    <th className="py-1">score band</th>
-                    <th>n</th>
-                    <th>hire rate</th>
-                    <th>mean perf</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {o.calibration.bands.map((bnd) => (
-                    <tr key={bnd.label} className="border-t border-stone-100">
-                      <td className="py-1 font-mono text-ink">{bnd.label}</td>
-                      <td className="text-steel">{bnd.count}</td>
-                      <td className="text-ink">{bnd.hireRate != null ? `${Math.round(bnd.hireRate * 100)}%` : "—"}</td>
-                      <td className="text-steel">{bnd.meanPerformance ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p className="mt-2 text-[11px] text-ink">{o.calibration.rationale}</p>
-            </div>
-          ) : null}
-
-          {/* Recorded outcomes — auto-recorded pipeline hires land here without a perf
-              score; "add perf" updates the existing row (store upsert) so a known
-              candidate never needs free-text re-entry that could double-count. */}
-          {o && o.outcomes.length > 0 ? (
-            <div className="mt-2 rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
-              <h3 className="text-[9px] uppercase tracking-wide text-steel">Recorded outcomes · last {Math.min(o.outcomes.length, 12)}</h3>
-              <table className="mt-1 w-full text-[11px]">
-                <thead>
-                  <tr className="text-left text-[9px] uppercase text-steel">
-                    <th className="py-1">candidate</th>
-                    <th>score</th>
-                    <th>outcome</th>
-                    <th>perf</th>
-                    <th>recorded</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {o.outcomes.slice(0, 12).map((row) => (
-                    <tr key={row.id} className="border-t border-stone-100">
-                      <td className="py-1 font-semibold text-ink" title={row.note ?? undefined}>
-                        {row.candidateRef ?? row.ref ?? "—"}
-                        {row.note?.startsWith("auto-recorded") ? (
-                          <span className="ml-1.5 rounded-full bg-coral/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-coral">auto</span>
-                        ) : null}
-                      </td>
-                      <td className="text-steel">{row.predictedScore ?? "—"}</td>
-                      <td className="text-ink">{row.outcome}</td>
-                      <td className="text-steel">
-                        {row.performance != null ? (
-                          row.performance
-                        ) : row.outcome === "hired" ? (
-                          perfFor === row.id ? (
-                            // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #5): name
-                            // the rating group and each digit so an SR announces "Rate
-                            // performance 3 of 5", not a bare "3".
-                            <span role="group" aria-label="Performance rating, 1 to 5" className="inline-flex items-center gap-1">
-                              {[1, 2, 3, 4, 5].map((p) => (
-                                <button
-                                  key={p}
-                                  type="button"
-                                  disabled={busy}
-                                  aria-label={`Rate performance ${p} of 5`}
-                                  onClick={() => void addPerformance(row, p)}
-                                  className="focus-ring h-5 w-5 rounded border border-stone-200 bg-white text-[10px] font-semibold text-ink hover:border-moss/50 hover:bg-moss/5 disabled:opacity-50"
-                                >
-                                  {p}
-                                </button>
-                              ))}
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => setPerfFor(row.id)}
-                              className="focus-ring rounded border border-stone-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-steel hover:text-ink disabled:opacity-50"
-                            >
-                              add perf
-                            </button>
-                          )
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="text-[10px] text-steel">{rel(row.recordedAt)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </section>
+        <AutonomyBar paused={s?.autonomy === "paused"} busy={busy} armed={armed} onAct={act} guard={guard} />
+        <GatesPanel gates={s?.pendingGates ?? []} armed={armed} guard={guard} onApprove={approve} />
+        <AuditPanel lifecycles={active} audit={s?.audit ?? []} />
+        <CalibrationPanel data={o} armed={armed} guard={guard} reload={reloadAll} />
       </div>
     </div>
   );

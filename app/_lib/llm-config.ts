@@ -9,7 +9,13 @@
 //   llm_config row → adapter; no row → Claude CLI (local default, unchanged).
 //   key: UI-entered 'byom' row → 'platform' row → provider env var.
 
-import { listLlmConfig, listProviderKeys, upsertProviderKey, type LlmConfigRow } from "./db";
+// The SLICE, not the `./db` barrel — this module is the single biggest compile hub
+// in the app. It is pulled in by job-ingest, the analyze/jd/interview paths and the
+// Python bridge, so through the barrel it dragged all 17 store modules into routes
+// that touch neither LLM config nor most of the DB (e.g. /api/attention, which only
+// counts badges). Cutting it here took /api/attention's graph from 68 modules /
+// 863 KB to 43 / 560 KB. See "Dev compile cost" in docs/architecture/app-structure.md.
+import { listLlmConfig, listProviderKeys, upsertProviderKey, type LlmConfigRow } from "./db/llm";
 import { decryptProviderSecret, encryptProviderSecret } from "./llm-secret";
 import { resolveProviderApiKey } from "./provider-key-precedence";
 import { assertPublicHttpsEndpointResolved } from "./ats-egress-guard.ts";

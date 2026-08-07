@@ -3,7 +3,7 @@
 // component carries less inline fetch plumbing. The test canary stays in the
 // row itself — its success message is built from translated, parameterized
 // strings that don't lend themselves to a provider-agnostic wrapper.
-import type { LlmConfigRow } from "@/app/_lib/db";
+import type { LlmConfigRow } from "@/app/_lib/db/llm";
 import type { ErrorMessageResolver } from "@/app/_lib/use-error-message";
 
 export type RoutingActionResult =

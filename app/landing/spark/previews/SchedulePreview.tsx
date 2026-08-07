@@ -20,7 +20,7 @@ export default function SchedulePreview() {
 
   return (
     <div>
-      <p className="text-[15px] font-bold">{t("previews.schedule.title")}</p>
+      <p className="text-[17px] font-bold">{t("previews.schedule.title")}</p>
       <p className="text-sm font-bold" style={{ color: STEEL }}>
         {t("previews.schedule.meta")}
       </p>

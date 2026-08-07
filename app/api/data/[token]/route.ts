@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { anonymizeEntry, findEntryByErasureToken, getJob, interviewStatusByEntries } from "@/app/_lib/db";
+import { interviewStatusByEntries } from "@/app/_lib/db/interviews";
+import { getJob } from "@/app/_lib/db/jobs";
+import { anonymizeEntry, findEntryByErasureToken } from "@/app/_lib/db/pipeline";
 import { heldDataCategories } from "@/app/_lib/data-held";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 

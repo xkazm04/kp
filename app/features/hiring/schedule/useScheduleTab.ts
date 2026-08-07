@@ -14,6 +14,7 @@ import { gridSlotToIso, isoToDateSlot } from "@/app/_lib/schedule-slots";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 // Type-only — no better-sqlite3 pulled into this client bundle.
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
+import { sharedGetJson } from "@/app/features/shared/sharedGet";
 
 export type IvStatus = { sessionId: string; status: string; hasTranscript: boolean; endedAt: string | null };
 
@@ -72,12 +73,15 @@ export function useScheduleTab() {
   const [lastDir, setLastDir] = useState<"confirm" | "decline">("confirm");
   const reduced = useReducedMotion();
 
-  const load = () =>
+  // `refresh` is for reloads that follow a mutation — see sharedGet.ts. The mount
+  // read shares its `/api/schedule` request with the invite-lifecycle panel, which
+  // mounts in the same tick and needs the same agenda.
+  const load = (opts?: { refresh?: boolean }) =>
     Promise.all([
-      fetch("/api/pipeline").then((r) => r.json()),
+      sharedGetJson<{ entries?: SchedEntry[]; error?: string }>("/api/pipeline", opts),
       // The invite store — the engine the grid now renders from. Best-effort: if it
       // fails, the grid still works off the legacy approvalDetail strings.
-      fetch("/api/schedule").then((r) => r.json()).catch(() => ({ invites: [] })),
+      sharedGetJson<{ invites?: ScheduleInvite[] }>("/api/schedule", opts).catch(() => ({ invites: [] as ScheduleInvite[] })),
     ])
       .then(([p, s]) => {
         if (p.error) throw new Error(p.error);
@@ -240,7 +244,8 @@ export function useScheduleTab() {
       setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev));
       if (selectedId === e.id) setSelectedId(null);
     } catch {
-      load();
+      // Recovery after a failed action — must not reuse a pre-action response.
+      load({ refresh: true });
     } finally {
       setBusy(null);
     }

@@ -16,6 +16,7 @@ import { formatRecordedAt, isActionable, statusTone, type Message, type StatusLa
 
 export function ChannelsCommsRows({
   shown,
+  loading = false,
   relayConfigured,
   roleOf,
   nameOf,
@@ -37,6 +38,9 @@ export function ChannelsCommsRows({
   onOpen,
 }: {
   shown: Message[];
+  /** The first /api/comms read is still in flight: the header row and its filters
+   *  are real, the body holds a quiet reserved height instead of rows. */
+  loading?: boolean;
   relayConfigured: boolean;
   roleOf: (m: Message) => string | null;
   nameOf: (m: Message) => string;
@@ -86,6 +90,15 @@ export function ChannelsCommsRows({
           </tr>
         </thead>
         <tbody>
+          {loading ? (
+            // Tier 2: hold roughly a page of rows' height and stay invisible for
+            // 150ms, so a warm response paints no placeholder at all.
+            <tr aria-hidden>
+              <td colSpan={6} className="p-0">
+                <div className="reveal-quiet min-h-[20rem]" />
+              </td>
+            </tr>
+          ) : null}
           {shown.map((m) => {
             const st = statusTone(m, statusLabels);
             // ONE predicate, shared with the candidate drawer's Messages list — the

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getCampaignPack, getJob, saveCampaignPack } from "@/app/_lib/db";
+import { getCampaignPack, saveCampaignPack } from "@/app/_lib/db/campaign";
+import { getJob } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "@/app/_lib/python-runner";

@@ -5,8 +5,13 @@
 // initial bundle only carries the shell + the active tab's chunk; the rest are
 // fetched on demand when navigated to. A shared skeleton fills the swap. (Named
 // exports → map to a default for next/dynamic.) See docs/design/loading-choreography.md.
+//
+// The import specifiers themselves live ONCE, in ./tabChunks — the same loaders back
+// the hover/idle prefetch (so a click no longer starts the download it then waits on).
+// Going through the shared map is what makes the two provably request the same chunk.
 import dynamic from "next/dynamic";
 import { ErrorBoundary } from "@/app/_components/ErrorBoundary";
+import { TAB_CHUNKS } from "./tabChunks";
 import type { WorkspaceTabId } from "./tabs";
 
 // The gap while a tab's code-split chunk loads (docs/design/loading-choreography.md).
@@ -23,29 +28,29 @@ function TabChunkGap() {
 }
 
 const loading = () => <TabChunkGap />;
-const AboutTab = dynamic(() => import("../insights/about/AboutTab").then((m) => ({ default: m.AboutTab })), { loading });
-const AnalyzeWorkspace = dynamic(() => import("../tools/analyze/AnalyzeWorkspace").then((m) => ({ default: m.AnalyzeWorkspace })), { loading });
-const DecisionsTab = dynamic(() => import("../hiring/decisions/DecisionsTab").then((m) => ({ default: m.DecisionsTab })), { loading });
-const ScheduleTab = dynamic(() => import("../hiring/schedule/ScheduleTab").then((m) => ({ default: m.ScheduleTab })), { loading });
-const OnboardingTab = dynamic(() => import("../hiring/onboarding/OnboardingTab").then((m) => ({ default: m.OnboardingTab })), { loading });
-const JobsTab = dynamic(() => import("../library/jobs/JobsTab").then((m) => ({ default: m.JobsTab })), { loading });
-const JdsTab = dynamic(() => import("../library/jds/JdsTab").then((m) => ({ default: m.JdsTab })), { loading });
-const MatchTab = dynamic(() => import("../tools/match/MatchTab").then((m) => ({ default: m.MatchTab })), { loading });
-const MatrixTab = dynamic(() => import("../insights/matrix/MatrixTab").then((m) => ({ default: m.MatrixTab })), { loading });
-const AnalyticsTab = dynamic(() => import("../insights/analytics/AnalyticsTab").then((m) => ({ default: m.AnalyticsTab })), { loading });
-const PipelineTab = dynamic(() => import("../hiring/pipeline/PipelineTab").then((m) => ({ default: m.PipelineTab })), { loading });
-const AgentsWorkforceTab = dynamic(() => import("../agents-workforce/AgentsWorkforceTab").then((m) => ({ default: m.AgentsWorkforceTab })), { loading });
-const ChannelsTab = dynamic(() => import("../hiring/channels/ChannelsTab").then((m) => ({ default: m.ChannelsTab })), { loading });
-const DevTab = dynamic(() => import("../tools/devcases/DevTab").then((m) => ({ default: m.DevTab })), { loading });
-const ProfileTab = dynamic(() => import("../tools/profile/ProfileTab").then((m) => ({ default: m.ProfileTab })), { loading });
-const InterviewSimTab = dynamic(() => import("../tools/interview/InterviewSimTab").then((m) => ({ default: m.InterviewSimTab })), { loading });
-const TasksTab = dynamic(() => import("./tasks/TasksTab").then((m) => ({ default: m.TasksTab })), { loading });
-const BillingTab = dynamic(() => import("../settings/billing/BillingTab").then((m) => ({ default: m.BillingTab })), { loading });
-const ModelsTab = dynamic(() => import("../settings/models/ModelsTab").then((m) => ({ default: m.ModelsTab })), { loading });
-const WorkspaceTab = dynamic(() => import("../settings/workspace/WorkspaceTab").then((m) => ({ default: m.WorkspaceTab })), { loading });
-const OrganizationTab = dynamic(() => import("../settings/organization/OrganizationTab").then((m) => ({ default: m.OrganizationTab })), { loading });
-const IntegrationsTab = dynamic(() => import("../settings/integrations/IntegrationsTab").then((m) => ({ default: m.IntegrationsTab })), { loading });
-const BrandingTab = dynamic(() => import("../settings/branding/BrandingTab").then((m) => ({ default: m.BrandingTab })), { loading });
+const AboutTab = dynamic(() => TAB_CHUNKS.about().then((m) => ({ default: m.AboutTab })), { loading });
+const AnalyzeWorkspace = dynamic(() => TAB_CHUNKS.analyze().then((m) => ({ default: m.AnalyzeWorkspace })), { loading });
+const DecisionsTab = dynamic(() => TAB_CHUNKS.decisions().then((m) => ({ default: m.DecisionsTab })), { loading });
+const ScheduleTab = dynamic(() => TAB_CHUNKS.schedule().then((m) => ({ default: m.ScheduleTab })), { loading });
+const OnboardingTab = dynamic(() => TAB_CHUNKS.onboarding().then((m) => ({ default: m.OnboardingTab })), { loading });
+const JobsTab = dynamic(() => TAB_CHUNKS.jobs().then((m) => ({ default: m.JobsTab })), { loading });
+const JdsTab = dynamic(() => TAB_CHUNKS.library().then((m) => ({ default: m.JdsTab })), { loading });
+const MatchTab = dynamic(() => TAB_CHUNKS.match().then((m) => ({ default: m.MatchTab })), { loading });
+const MatrixTab = dynamic(() => TAB_CHUNKS.matrix().then((m) => ({ default: m.MatrixTab })), { loading });
+const AnalyticsTab = dynamic(() => TAB_CHUNKS.analytics().then((m) => ({ default: m.AnalyticsTab })), { loading });
+const PipelineTab = dynamic(() => TAB_CHUNKS.pipeline().then((m) => ({ default: m.PipelineTab })), { loading });
+const AgentsWorkforceTab = dynamic(() => TAB_CHUNKS.agents().then((m) => ({ default: m.AgentsWorkforceTab })), { loading });
+const ChannelsTab = dynamic(() => TAB_CHUNKS.channels().then((m) => ({ default: m.ChannelsTab })), { loading });
+const DevTab = dynamic(() => TAB_CHUNKS.dev().then((m) => ({ default: m.DevTab })), { loading });
+const ProfileTab = dynamic(() => TAB_CHUNKS.profile().then((m) => ({ default: m.ProfileTab })), { loading });
+const InterviewSimTab = dynamic(() => TAB_CHUNKS.interview().then((m) => ({ default: m.InterviewSimTab })), { loading });
+const TasksTab = dynamic(() => TAB_CHUNKS.tasks().then((m) => ({ default: m.TasksTab })), { loading });
+const BillingTab = dynamic(() => TAB_CHUNKS.billing().then((m) => ({ default: m.BillingTab })), { loading });
+const ModelsTab = dynamic(() => TAB_CHUNKS.models().then((m) => ({ default: m.ModelsTab })), { loading });
+const WorkspaceTab = dynamic(() => TAB_CHUNKS.workspace().then((m) => ({ default: m.WorkspaceTab })), { loading });
+const OrganizationTab = dynamic(() => TAB_CHUNKS.organization().then((m) => ({ default: m.OrganizationTab })), { loading });
+const IntegrationsTab = dynamic(() => TAB_CHUNKS.integrations().then((m) => ({ default: m.IntegrationsTab })), { loading });
+const BrandingTab = dynamic(() => TAB_CHUNKS.branding().then((m) => ({ default: m.BrandingTab })), { loading });
 
 // The tab-switch tree + its error boundary, extracted verbatim from Workspace's
 // <main> body. `active`/`navActive` keep their Workspace meanings (navActive is the

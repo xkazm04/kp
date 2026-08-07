@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { aggregateLlmUsage, promptCacheStats } from "@/app/_lib/db";
+import { promptCacheStats } from "@/app/_lib/db/analyses";
+import { aggregateLlmUsage } from "@/app/_lib/db/llm";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 

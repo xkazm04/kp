@@ -29,7 +29,7 @@ export default function Proof() {
   const t = useTranslations("landing");
   return (
     <section id="proof" className="border-b-[3px] border-[#17202a] bg-[#42606f] py-24">
-      <div className="mx-auto w-full max-w-6xl px-6">
+      <div className="mx-auto w-full max-w-7xl px-6">
         <motion.h2
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}

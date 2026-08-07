@@ -1,6 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJob, saveAgentFitSpec, type AgentFitSpecRecord } from "../db";
+import { saveAgentFitSpec, type AgentFitSpecRecord } from "../db/agents";
+import { getJob } from "../db/jobs";
 import { DEFAULT_WORKSPACE_ID } from "../db/workspaces";
 import { buildLlmConfigEnv } from "../llm-config";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "../python-runner";

@@ -90,5 +90,3 @@ export function statusTone(m: Message, labels: StatusLabels): { tone: BadgeTone;
 // time as well, so the two are told apart at a glance.
 export const formatRecordedAt = (iso: string, locale: string) =>
   new Date(iso).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
-
-export const PAGE_SIZE = 40;

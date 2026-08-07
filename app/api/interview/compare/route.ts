@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isEarlyCareer } from "@/app/_lib/archetypes";
-import { interviewedForJob, latestInterviewByEntry, listEntriesForJob } from "@/app/_lib/db";
+import { interviewedForJob, latestInterviewByEntry } from "@/app/_lib/db/interviews";
+import { listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { getHumanScorecard } from "@/app/_lib/interview-prep";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { INTERVIEW_RUBRICS, RATING_ANCHORS } from "@/app/_lib/interview-rubric";

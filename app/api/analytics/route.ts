@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { pipelineAnalytics, pipelineAnalyticsPrior } from "@/app/_lib/db";
+import { pipelineAnalytics, pipelineAnalyticsPrior } from "@/app/_lib/db/analytics";
 import type { PipelineAnalytics } from "@/app/_lib/db/analytics";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { periodDeltas, type PeriodDeltas } from "@/app/_lib/analytics-deltas";

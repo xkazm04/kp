@@ -37,6 +37,26 @@ return safeJsonError(err, "api:jds", "JD_SAVE_FAILED");
 - `code` is a stable machine identifier. The UI resolves it through the
   **`errors`** catalog namespace, in the reader's language.
 
+### Two registries emit codes, and the distinction matters
+
+| Registry | Class | Helper | Logs? |
+| --- | --- | --- | --- |
+| `STORE_ERRORS` | A store-backed **500** — an accident. The real error carries `SQLITE_*` codes and absolute paths, so it is logged and a safe generic is sent. | `safeJsonError(err, route, code)` | yes |
+| `REFUSAL_ERRORS` | A deliberate **4xx business rule** — a decision. The message *is* the information: the intake closed, the offer lapsed, this link isn't yours. | `jsonRefusal(code, status)` | no — an expected outcome is not a fault, and logging every closed posting is noise |
+
+Refusals were the gap. They returned a bare `{ error }`, so the client had no
+code to resolve and `useErrorMessage()` fell through to a generic "something
+went wrong" — in all four languages, on public token-authenticated candidate
+surfaces where the specific reason is the entire point. Keeping them out of
+`STORE_ERRORS` is deliberate: that registry's whole contract is *hide the real
+message*, which is the opposite of what a refusal needs.
+
+Some candidate pages already handled the terminal cases with dedicated UI —
+`/offer/[token]` swaps to an expired card on 410, `LiveWorkSurface` shows a
+"your work is safe on this device" state on 403 — and those keep their own
+copy. The code still travels, so a second consumer, an API client, or a future
+surface gets the same specific reason rather than re-deriving it from a status.
+
 The client seam is `app/_lib/use-error-message.ts`:
 
 | Export | Use |
@@ -70,10 +90,13 @@ The lint level of an area is not evidence that the area is localized.
   spelling `typeof x.error === "string" ? x.error : …` anywhere under the UI
   directories. The ternary form was added after it turned out to hide 8 live
   leaks the first pattern could not see.
-- **Code parity** — every `STORE_ERRORS` code must have an `errors.<CODE>`
-  message in `en.json`. Without it, `useErrorMessage` silently falls through to
-  the caller's generic fallback and the specific reason is lost in all four
-  languages.
+- **Code parity** — every code in **both** registries (`STORE_ERRORS` and
+  `REFUSAL_ERRORS`) must have an `errors.<CODE>` message in `en.json`. Without
+  it, `useErrorMessage` silently falls through to the caller's generic fallback
+  and the specific reason is lost in all four languages. The check parses the
+  registries out of `api-response.ts`, so adding a code without its message
+  fails the gate rather than degrading quietly — and it fails loudly if either
+  registry's shape changes under it.
 
 `ERROR_LEAK_ALLOW` in the script lists the verified exceptions. Two kinds
 qualify, and both are commented at the entry:
@@ -137,6 +160,18 @@ Two rules that fall out of it:
 - **Accept the old shape.** Anything persisted before findings existed holds the
   frozen English sentence of that run, so the schema takes `string | Finding` and
   the renderer passes a legacy string straight through.
+
+The second instance of this shape is the **calibration rationale**. `calibrate()`
+in `app/_lib/dev-outcomes.ts` reaches one of five fixed conclusions about the
+promote floor — not enough data, weakly predictive, raise, lower, well-calibrated —
+and used to return each as an English sentence with the numbers already
+interpolated. It now returns `CalibrationRationale` (`{ kind, params }`) and
+`app/control/CalibrationPanel.tsx` renders `control.calibration.rationale.<kind>`.
+Nothing persists a `Calibration` — it is recomputed on every `GET
+/api/devcase/outcomes` — so unlike the GitHub payload there is no legacy string
+branch to keep. The `MIN_RESOLVED` gate is a named constant because the
+`insufficient` message quotes it; a literal `4` in two places is how a message and
+the rule it describes drift apart.
 
 ## Numbers, dates and money
 
@@ -228,6 +263,43 @@ fallback in `renderTemplate.ts` and `validateJdFields` in `jd-limits.ts` are
 documented English API/consumer fallbacks, so `toLocaleString("en-US")` inside
 them is consistent, not a leak.
 
+#### A downloaded file is not automatically a document
+
+The table above is about artifacts that **travel**, and the giveaway is the
+middle column: a language *field*. A `.md` or `.csv` the user downloads for
+themselves has no such field, so it is still the **UI user's** — the mechanism is
+the request locale, and the only thing the document-reader machinery contributes
+is `namespaceTranslator` where a route handler sits outside React.
+
+Each downloadable artifact was decided on its own reader (F15):
+
+| Artifact | Reader | Language | Copy in |
+| --- | --- | --- | --- |
+| Hiring metric pack (`metric-pack.ts`) | whoever pressed Download, on that request | request — `getServerLocale()` in the route, threaded through `metricPackStrings(locale)` | `analytics.metricPack` |
+| Dev-case interview kit (`devcase-interview-kit.ts`) | the interview panel, colleagues in the same tenant | request — the panel's own `useTranslations()` | `devcase.interviewKit.doc` |
+| Fair-Rank fairness CSV (`jobsRecruiterCandidatesLogic.ts`) | the recruiter who exported the on-screen audit table | request — reuses the table's own `jobs.candidates.audit*` labels | `jobs.candidates` |
+| **Provenance dossier** (`provenance-dossier.ts`) | a hiring panel or an EU AI-Act review | **canonical English, by decision** | — |
+
+The dossier is the interesting one and the reasoning generalizes. It is a
+**sealed record**, and the sealed-record rule above already applies to its
+neighbours (`approvedBy`, the screening `rationale`, `codeReview.summary`). Three
+things follow: `AnalysisResult` carries no `lang`, so the only available language
+is the request's — and a record that exports differently on Tuesday than on Monday
+because someone flipped the appearance menu is not auditable; the substance under
+those ~20 headings (CV evidence quotes, the model's `explanation`, `jobFit.summary`,
+soft-signal detail, sanity-check texts) is frozen payload that cannot be translated
+at export time, so localizing only the headings yields a document in no language at
+all; and the recruiter-facing **mirror** of the whole thing — the results panels —
+is localized already. The honest way to change this is upstream: stamp a `lang` on
+the analysis at run time, the way `jd-build-run` does, and the dossier becomes an
+ordinary row in the table above.
+
+Two localized headings and an English body is the failure mode to watch for in any
+of these. The metric pack is the worked example: its `basis` prose travels *inside*
+the pack (it is on the JSON response too), so it is resolved at **build** time, not
+render time, and `metric-pack.test.ts` asserts a Czech pack contains no English
+basis sentence.
+
 `TasksSystemCard` used to be listed here as a sanctioned "untranslated admin
 readout". It is not one any more, and the reasoning it rested on is worth
 recording because it recurs: the card's own comment justified English "like the
@@ -255,6 +327,38 @@ render verbatim, so no migration was needed.
 
 The same shape applies to any user-visible string a server module composes ahead
 of its reader. Prefer it to threading a locale into a synchronous write path.
+
+#### The onboarding presets are the second instance of it
+
+`ONBOARDING_PRESETS` (`app/_lib/onboarding.ts`) looked like config and is not: its
+~70 labels are **copied into a DB row** when a recruiter saves a template, and that
+row is then read by the recruiter, by any colleague in the same workspace
+(templates are workspace-scoped), and months later by the **new hire** on the public
+`/onboarding/[token]` page in their own browser's language. Materializing them in
+whoever pressed Save's language pins all three to that one language forever, so the
+answer is the same as the task label's: the row keeps the **reference** it already
+had — the task `id` / field `key` — and the render sites resolve it.
+
+- Recruiter side: `useOnboardingLabels()`
+  (`app/features/hiring/onboarding/onboardingLabels.ts`) resolves
+  `onboarding.task.<id>` / `onboarding.field.<key>` with a `t.has()` fallback to the
+  stored label. It replaced two hand-written six-entry maps that had already drifted.
+- Hire side: the same resolution against `candidateOnboarding.field*`, kept a
+  separate map on purpose — the hire is *asked* "Confirm your start date", the
+  recruiter *reads* "Confirmed start date".
+- Write side: `OnboardingTemplateManager` sends each row's canonical id/key when the
+  recruiter left the text alone, and drops it the moment they edit — otherwise the
+  catalog would silently overwrite their wording on the next read. `coerceTasks` /
+  `coerceQuestionnaire` already preserved an explicit id and slugified only a
+  label-only row, so nothing in the store had to change.
+- Because the id doubles as the catalog key, a preset that says something different
+  gets its own id (`equipment-badge` vs `equipment-tools` vs `equipment`);
+  `onboarding.test.ts` asserts both that no id carries two different sentences and
+  that every id/key resolves in all four locales.
+
+Nothing persisted is rewritten. Rows written before this simply resolve when their
+id happens to be canonical and render their stored text otherwise — the same
+no-migration property `task-label.ts` has.
 
 ## ICU: pass raw numbers into plurals
 
@@ -305,6 +409,22 @@ Two shape rules that migration established for `.ts` modules:
   fills from the catalog, alongside the `locale` it threads into
   `formatSalaryRange`.
 
+`app/control/**/*.tsx` (F8) is the third, and the clearest case of an operator
+console that was English "by default rather than by decision". The 462-line
+`ControlRoom.tsx` is now a shell plus four panels — `AutonomyBar`, `GatesPanel`,
+`AuditPanel`, `CalibrationPanel` — reading from the **`control`** namespace. Six of
+the strings the old file held were attributes this rule structurally cannot see
+(two `placeholder`s, four `aria-label`s including a templated *"Rate performance 3
+of 5"*), and five more were the calibration rationale sentences in
+`app/_lib/dev-outcomes.ts`, which no JSX lint could ever reach. What deliberately
+stays English is **audit payload**: the lifecycle `stage` and `detail`, and the
+audit row's `actor` / `action` / `reason` (`set_promote_floor`, `floor → 70 (from
+calibration)`). Those are fields of a sealed, machine-readable record, and an audit
+trail that reads differently depending on who opened the page is not an audit
+trail — the same split as `approvedBy` / `reasonCode` in the decision chain. The
+outcome enum (`hired`/`rejected`/`withdrawn`) goes the other way: the **value** on
+the wire stays English, the **label** comes from `control.outcomes.value.*`.
+
 `app/features/shell/tasks/**/*.tsx` is held at `error` for the same reason, and
 is the sharper example of the table's right-hand column: almost nothing that was
 wrong there was JSX text. It was the status→label map in `tasksTabHelpers.ts`,
@@ -322,12 +442,17 @@ of attribute literals elsewhere.
 ## Known gaps
 
 - ~79 hardcoded JSX **attributes** outside the covered directories (21
-  `aria-label`, 43 `title`, 15 `placeholder`).
+  `aria-label`, 43 `title`, 15 `placeholder`), less the eight the control room
+  closed (four `aria-label` incl. one templated, two `Select` `ariaLabel` props
+  the attribute grep cannot see either, two `placeholder`).
 - User-facing strings built in `.ts` files, which no lint covers: enum→label
-  maps, downloadable artifacts (`metric-pack`, `provenance-dossier`), onboarding
-  presets, and parts of the dev-case studio (the last is deliberately outside
-  the strict lint). The guided demo used to be the largest of these and is
-  closed; the rest are not. Three shapes of this recur, and each has a settled
+  maps and parts of the dev-case studio (the latter deliberately outside the
+  strict lint). The guided demo used to be the largest of these and is closed;
+  the downloadable artifacts and the onboarding presets are closed too (see "A
+  downloaded file is not automatically a document" and "The onboarding presets
+  are the second instance of it" above) — `provenance-dossier` stays English by
+  decision rather than by omission, and is documented as such in the file
+  itself. Three shapes of the remainder recur, and each has a settled
   fix: a map that is *already* a `t.has()` fallback is fine and should say so in
   a comment (`APPLIED_LABEL`, `STAGE_HELP`); a map that duplicates a vocabulary
   the app already owns should be values-only and read `enums.*` at the render
@@ -344,8 +469,13 @@ of attribute literals elsewhere.
   `rationale` are sealed-record fields, so they are stable and machine-readable
   in every locale. The UI renders the localized mirror from `reasonCode` via
   `waveReasonText` (`app/_lib/decision-attribution.ts`) instead.
-- `app/control/ControlRoom.tsx` has no `useTranslations` at all; the ops console
-  is English by default rather than by decision.
+- `LoadStatus` (`app/_components/LoadStatus.tsx`) composes its own English
+  sentence around a caller-supplied `label` ("Couldn't refresh **the control
+  room** — showing data from 4m ago"). Every call site is dev-facing today, so
+  the banner is coherently English; the moment one of them is localized the
+  component must take the whole sentence from a catalog rather than a fragment.
+  `app/control/ControlRoom.tsx` passes an English `label` deliberately for this
+  reason, and is the only ERROR-level caller.
 - A running task's **`progressMsg`** is still English. Task labels are now
   catalog references, but the live progress line is written by each handler
   (`analyze-run`, `jd-build-run`, `devcase-orchestrator`, …) mid-run and is a mix

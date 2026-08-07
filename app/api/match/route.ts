@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { listCorpusJobs } from "@/app/_lib/db";
+import { listCorpusJobs } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { writeMatchInput, type MatchInputBody } from "@/app/_lib/match-input";
 import {

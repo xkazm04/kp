@@ -1,4 +1,6 @@
-import { actOnPipelineEntry, getJob, recordAutomationEvent } from "./db";
+import type { RefusalErrorCode } from "./api-response";
+import { getJob } from "./db/jobs";
+import { actOnPipelineEntry, recordAutomationEvent } from "./db/pipeline";
 import { dispatchAtsEvent } from "./ats-egress";
 import { dispatchOnboarding } from "./comms-dispatch";
 import { recordAudit } from "./dev-control";
@@ -14,18 +16,21 @@ import { startRun } from "./onboarding-store";
 
 export type OfferResponseResult =
   | { ok: true; status: "accepted" | "declined"; alreadyResponded: boolean; jobTitle: string | null; candidateLabel: string | null }
-  | { ok: false; error: string; expired?: boolean };
+  // A refusal carries its CODE, not a sentence: the candidate page localizes it
+  // (REFUSAL_ERRORS in api-response.ts). `expired` stays because the route needs
+  // it to choose 410-vs-404, which is a different question from what to say.
+  | { ok: false; code: RefusalErrorCode; expired?: boolean };
 
 export async function respondToOffer(token: string, response: "accept" | "decline"): Promise<OfferResponseResult> {
   // Lapse first (idea-29361408): an offer past its deadline must not be acceptable
   // even if the candidate is holding a stale tab — the deadline is the lever.
   const offer = expireOfferIfDue(token);
-  if (!offer) return { ok: false, error: "Offer not found." };
+  if (!offer) return { ok: false, code: "OFFER_NOT_FOUND" };
 
   // Past its deadline — the link is dead. Reported distinctly so the route can
   // 410 and the page can show an "expired" state instead of mislabeling it declined.
   if (offer.status === "expired") {
-    return { ok: false, error: "This offer has expired.", expired: true };
+    return { ok: false, code: "OFFER_EXPIRED", expired: true };
   }
 
   // Already answered — idempotent (candidate refreshed, or recruiter + candidate both clicked).

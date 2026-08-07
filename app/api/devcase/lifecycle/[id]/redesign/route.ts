@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
-import { getLifecycle, updateLifecycle } from "@/app/_lib/db";
+import { getLifecycle, updateLifecycle } from "@/app/_lib/db/devcase";
 import { runDesignArtifacts } from "@/app/_lib/devcase-run";
 import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";

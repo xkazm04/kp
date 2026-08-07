@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { entryIdsWithEvent, getJob, listEntriesForJob } from "@/app/_lib/db";
+import { getJob } from "@/app/_lib/db/jobs";
+import { entryIdsWithEvent, listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { rankPoolForJob } from "@/app/_lib/recruiter-run";

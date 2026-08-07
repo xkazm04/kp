@@ -49,7 +49,7 @@ export default function SalaryPreview() {
         >
           {/* Axis figures are illustrative data, not copy. */}
           <span
-            className={`${DISPLAY} nums rounded-lg border-[3px] border-[#17202a] px-2 py-0.5 text-[15px] font-extrabold text-white shadow-[2px_2px_0_#17202a]`}
+            className={`${DISPLAY} nums rounded-lg border-[3px] border-[#17202a] px-2 py-0.5 text-[17px] font-extrabold text-white shadow-[2px_2px_0_#17202a]`}
             style={{ background: CORAL }}
           >
             {AXIS.marker}
