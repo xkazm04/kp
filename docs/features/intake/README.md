@@ -119,12 +119,49 @@ A job promoted from an intake grounds downstream conversations:
 rides the experienced-path interviewer brief (`composeBrief`'s `roleIntent`)
 as interviewer-internal context — never the candidate-safe brief.
 
+## Voice plane (input mode)
+
+The requestor can TALK the intake instead of typing it ("Talk instead" beside
+the composer). Flow: POST `/api/intake/[id]/voice-connect` mints short-lived
+**OpenAI Realtime** credentials (authenticated-internal — `requireOperator` +
+workspace-scoped intake; none of the candidate-link machinery applies: no
+token, no consent record, no expiry/revoke, no minute billing) with the
+SPOKEN-variant brief `intake_voice_brief` (persona + technique, no JSON
+contract — `pipeline/jobfit/intake.py`) delivered server-side; the browser
+connects over WebRTC via the shared transport
+(`app/_components/voice/transport/openai.ts`, reused —
+`JdsIntakeVoice.tsx` is a lean shell, not a fork of the candidate
+`VoiceInterview`). On hang-up the accumulated `VoiceTurn[]` posts to
+`/api/intake/[id]/voice-complete`, which clamps/caps the turns
+(`interview-transcript.ts` helpers), appends them to the dialog, and runs ONE
+batch extraction (`intake_cli --extract-transcript` →
+`intake.py::extract_transcript`) through the same coerce + `merge_brief` path
+as the text plane — prior `stated` content survives; provenance discipline
+applies. **Voice is an input mode, not a session type**: the session stays
+open and the read-back/confirm close stays with the text plane.
+
+v1 is **OpenAI-only by design**: OpenAI takes the brief server-side, while
+ElevenLabs' signed-url flow takes its prompt from the client — a seam the
+internal brief has no reason to ride (the interview feature carries a whole
+candidate-safe-brief apparatus for it).
+
+Keyless/voiceless behavior: no OpenAI key → the mic button becomes a quiet
+"voice isn't configured" note (text path untouched). No LLM provider at
+extraction time → the transcript is stored, the brief stays **unchanged**, and
+the UI says so (`voice.storedNote`) — a free voice conversation can't be
+slot-parsed by the deterministic script, so nothing is silently invented.
+Rate limits: credential minting 6/10min per intake (120 self-hosted), one
+batch extraction 6/10min per IP — both pinned in
+`app/api/rate-limit-contract.test.ts`.
+
 ## Known gaps
 
 - Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back
   to the language directive only.
-- No voice plane yet (authenticated connect variant of the generic voice
-  adapter layer — the remaining Phase 2 item).
+- The voice plane is **not live-verified**: built and unit/contract-tested,
+  but no OpenAI Realtime key was available in the build session, so no real
+  call was placed (mirrors the voice-interview feature's harness needs).
+  ElevenLabs voice intake is deliberately out (see above).
 - The visual pass in both themes is pending (built from shared
   recipes/tokens; browser verification wasn't available in the build session).
 - Re-opening a `complete` session (append more turns, re-extract) is not yet

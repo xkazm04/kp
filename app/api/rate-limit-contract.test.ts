@@ -128,6 +128,28 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'intake.status !== "open"',
   },
   {
+    rel: "./intake/[id]/voice-connect/route.ts",
+    // Per-INTAKE, 6/10min hosted (one start + five reconnects) — credential
+    // minting burns OpenAI Realtime credits, the same premise and budget as
+    // interview-connect; self-hosted voice mints nothing billable so the
+    // budget raises to 120. Both values pinned via the defining line.
+    key: "`intake-voice-connect:${id}`",
+    limit: 6,
+    limitSrc: "voiceConnectLimit",
+    limitDef: "const voiceConnectLimit = isSelfHostedVoice() ? 120 : 6;",
+    expensive: "adapter.connect(",
+    servedBefore: 'intake.status !== "open"',
+  },
+  {
+    rel: "./intake/[id]/voice-complete/route.ts",
+    // Per-IP, 6/10min: each accepted hang-up runs one paid batch extraction; a
+    // human records a couple of voice sessions per sitting, a loop is pinned.
+    key: "`intake-voice-complete:${clientIpFrom(request.headers)}`",
+    limit: 6,
+    expensive: "runIntakeTranscriptExtract(",
+    servedBefore: 'intake.status !== "open"',
+  },
+  {
     rel: "./feedback/route.ts",
     // Per-IP. 10/10min: the dialog submits one message per open; a human never
     // meets this, while unmetered free-text storage on an open-mode deploy is a

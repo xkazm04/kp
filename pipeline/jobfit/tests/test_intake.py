@@ -17,7 +17,9 @@ from pipeline.jobfit.intake import (
     INTAKE_PROMPT_VERSION,
     deterministic_turn,
     detect_shape,
+    extract_transcript,
     intake_system_brief,
+    intake_voice_brief,
     merge_brief,
     opening_turn,
     run_intake_turn,
@@ -214,6 +216,56 @@ class RunIntakeTurnTest(unittest.TestCase):
         brief = intake_system_brief("en")
         for marker in ("coaching session, not an interrogation", "ONE question per turn", "90 days", "<<END>>", "stated"):
             self.assertIn(marker, brief)
+
+
+class VoicePlaneTest(unittest.TestCase):
+    _TURNS = [
+        {"role": "interviewer", "text": "Where did the team feel the missing person most?"},
+        {"role": "candidate", "text": "It's a backfill — our Java developer left the payments squad"},
+        {"role": "interviewer", "text": "What should they have done in 90 days?"},
+        {"role": "candidate", "text": "Take over the services, on-call runs without gaps. Java and Spring are dealbreakers."},
+    ]
+
+    def test_voice_brief_speaks_no_json_contract(self) -> None:
+        brief = intake_voice_brief("en")
+        # Persona + technique carry over; the text-plane machinery must NOT.
+        for marker in ("coaching session, not an interrogation", "ONE question per turn", "SPOKEN conversation", "transcribed"):
+            self.assertIn(marker, brief)
+        for forbidden in ("<<END>>", "JSON", "spineProvenance", "done=true"):
+            self.assertNotIn(forbidden, brief)
+
+    def test_extract_keyless_is_honest(self) -> None:
+        # No provider → the brief is UNCHANGED and the result says so; nothing
+        # is silently invented from the transcript.
+        base = RoleBrief(title="Java Developer", spine_provenance={"title": "stated"})
+        result = extract_transcript(None, self._TURNS, base.model_dump(by_alias=True), lang="en")
+        self.assertEqual(result["source"], "deterministic")
+        self.assertFalse(result["extracted"])
+        self.assertEqual(coerce_role_brief(result["brief"]).title, "Java Developer")
+        self.assertEqual(result["shape"], "power_unit")  # triage still runs (deterministic)
+
+    def test_extract_llm_merges_onto_base(self) -> None:
+        class FakeProvider:
+            def complete_json(self, prompt, *, system=None, timeout=None, expected_keys=None):
+                return {
+                    "brief": {
+                        "title": "Java Developer",
+                        "requirements": [
+                            {"skill": "Java", "kind": "must_have", "provenance": "stated", "confidence": 0.9}
+                        ],
+                    },
+                    "shape": "power_unit",
+                }
+
+        base = RoleBrief(
+            requirements=[BriefRequirement(skill="SQL", kind="must_have", provenance="stated", confidence=0.9)]
+        )
+        result = extract_transcript(FakeProvider(), self._TURNS, base.model_dump(by_alias=True), lang="en")
+        self.assertEqual(result["source"], "llm")
+        self.assertTrue(result["extracted"])
+        merged = coerce_role_brief(result["brief"])
+        # merge_brief semantics hold: the pre-call stated requirement survives.
+        self.assertEqual({r.skill for r in merged.requirements}, {"SQL", "Java"})
 
 
 class CliSmokeTest(unittest.TestCase):

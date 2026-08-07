@@ -1166,7 +1166,14 @@
     "POSTING_CLOSED": "Les candidatures pour ce poste sont closes. Nous n’acceptons plus de nouveaux envois.",
     "OFFER_EXPIRED": "Cette offre a expiré.",
     "OFFER_NOT_FOUND": "Cette offre est introuvable. Le lien a peut-être été remplacé par un plus récent.",
-    "SESSION_TOKEN_REQUIRED": "Cette session de travail correspond à un autre lien de candidature. Ouvrez le lien reçu dans votre e-mail d’invitation pour continuer."
+    "SESSION_TOKEN_REQUIRED": "Cette session de travail correspond à un autre lien de candidature. Ouvrez le lien reçu dans votre e-mail d’invitation pour continuer.",
+    "INTAKE_CREATE_FAILED": "Impossible de démarrer la session de cadrage. Veuillez réessayer.",
+    "INTAKE_LIST_FAILED": "Impossible de charger les sessions de cadrage. Veuillez réessayer.",
+    "INTAKE_READ_FAILED": "Impossible de charger la session de cadrage. Veuillez réessayer.",
+    "INTAKE_MESSAGE_FAILED": "Impossible de traiter ce message. Veuillez réessayer.",
+    "INTAKE_PROMOTE_FAILED": "Impossible de créer la fiche de poste à partir de ce brief. Veuillez réessayer.",
+    "INTAKE_VOICE_CONNECT_FAILED": "Impossible de démarrer l'appel vocal. Veuillez réessayer.",
+    "INTAKE_VOICE_COMPLETE_FAILED": "Impossible de traiter la transcription de l'appel. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3130,6 +3137,16 @@
           "stated": "vos mots",
           "inferred": "lecture IA",
           "default": "supposé"
+        },
+        "voice": {
+          "start": "Parler plutôt",
+          "startHint": "Démarre un appel vocal — la conversation est transcrite et le brief se remplit ensuite tout seul.",
+          "stop": "Terminer l'appel",
+          "connecting": "Connexion…",
+          "processing": "Rédaction de l'appel…",
+          "unavailable": "La voix n'est pas configurée sur ce serveur — continuez par écrit.",
+          "failed": "L'appel n'a pas abouti. Continuez par écrit.",
+          "storedNote": "Transcription de l'appel enregistrée. L'extraction IA nécessite un fournisseur connecté — le brief est inchangé ; continuez par écrit."
         }
       }
     },

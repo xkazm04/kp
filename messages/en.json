@@ -1166,7 +1166,14 @@
     "POSTING_CLOSED": "This role's intake has closed and is no longer accepting submissions.",
     "OFFER_EXPIRED": "This offer has expired.",
     "OFFER_NOT_FOUND": "We couldn't find this offer. The link may have been replaced by a newer one.",
-    "SESSION_TOKEN_REQUIRED": "This work session belongs to a different apply link. Open the link from your invitation email to continue."
+    "SESSION_TOKEN_REQUIRED": "This work session belongs to a different apply link. Open the link from your invitation email to continue.",
+    "INTAKE_CREATE_FAILED": "Could not start the intake session. Please try again.",
+    "INTAKE_LIST_FAILED": "Could not load intake sessions. Please try again.",
+    "INTAKE_READ_FAILED": "Could not load the intake session. Please try again.",
+    "INTAKE_MESSAGE_FAILED": "Could not process that message. Please try again.",
+    "INTAKE_PROMOTE_FAILED": "Could not create the JD from this brief. Please try again.",
+    "INTAKE_VOICE_CONNECT_FAILED": "Could not start the voice call. Please try again.",
+    "INTAKE_VOICE_COMPLETE_FAILED": "Could not process the voice transcript. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3130,6 +3137,16 @@
           "stated": "you said",
           "inferred": "AI reading",
           "default": "assumed"
+        },
+        "voice": {
+          "start": "Talk instead",
+          "startHint": "Start a voice call — the conversation is transcribed and the brief fills itself afterwards.",
+          "stop": "End call",
+          "connecting": "Connecting…",
+          "processing": "Writing up the call…",
+          "unavailable": "Voice isn't configured on this server — continue in text.",
+          "failed": "The call didn't go through. Continue in text.",
+          "storedNote": "Call transcript saved. AI extraction needs a connected provider — the brief is unchanged; continue in text."
         }
       }
     },

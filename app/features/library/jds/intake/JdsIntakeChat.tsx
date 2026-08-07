@@ -15,11 +15,14 @@ export function JdsIntakeChat({
   sending,
   closed,
   onSend,
+  voiceSlot,
 }: {
   transcript: IntakeTurn[];
   sending: boolean;
   closed: boolean;
   onSend: (message: string) => void;
+  /** Optional extra control rendered beside Send (the voice input mode). */
+  voiceSlot?: React.ReactNode;
 }) {
   const t = useTranslations("library.tab.intake");
   const [draft, setDraft] = useState("");
@@ -86,6 +89,7 @@ export function JdsIntakeChat({
         >
           {t("composer.send")}
         </button>
+        {voiceSlot}
       </div>
     </div>
   );

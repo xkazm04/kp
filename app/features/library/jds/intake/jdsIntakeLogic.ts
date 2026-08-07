@@ -162,6 +162,35 @@ export function useIntakeLogic(onPromoted?: () => void) {
     }
   }, [active, promoting, loadList, onPromoted]);
 
+  // A finished voice session posts its transcript server-side (voice-complete)
+  // and hands the authoritative result back here — fold it into the open
+  // session. `voiceDegraded` mirrors the text plane's source note: keyless the
+  // transcript is stored but the brief stays untouched (extracted: false).
+  const [voiceNote, setVoiceNote] = useState<"extracted" | "stored" | null>(null);
+  const applyVoiceResult = useCallback(
+    (payload: {
+      transcript: IntakeTurn[];
+      brief: RoleBrief;
+      shape: IntakeSession["shape"];
+      extracted: boolean;
+      source: "llm" | "deterministic";
+    }) => {
+      setVoiceNote(payload.extracted ? "extracted" : "stored");
+      setActive((s) =>
+        s
+          ? {
+              ...s,
+              transcript: payload.transcript,
+              brief: payload.brief,
+              shape: payload.shape,
+              title: (payload.extracted && payload.brief?.title) || s.title,
+            }
+          : s
+      );
+    },
+    []
+  );
+
   const closeSession = useCallback(() => {
     activeIdRef.current = null;
     setActive(null);
@@ -181,5 +210,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
     closeSession,
     send,
     promote,
+    voiceNote,
+    applyVoiceResult,
   };
 }

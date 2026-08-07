@@ -130,6 +130,34 @@ def intake_system_brief(lang: str = "en") -> str:
     )
 
 
+# Voice plane (docs/features/intake/README.md): the realtime agent SPEAKS — no
+# JSON contract, no <<END>> sentinel (the requestor hangs up when done; the
+# brief is extracted from the transcript afterwards by extract_transcript).
+_VOICE_PREAMBLE = (
+    "This is a SPOKEN conversation over a live voice call with the requestor. Open by briefly "
+    "introducing yourself as an AI intake assistant in one sentence and mention the call is "
+    "transcribed so the brief can be written up afterwards. Speak naturally and concisely — a short "
+    "reflection plus ONE question per turn, never lists or headings. When the role's core is covered "
+    "(title, 90-day outcomes, dealbreakers, seniority), read the whole picture back ALOUD in a few "
+    "sentences, invite corrections, and after they confirm, thank them and say the structured brief "
+    "will appear in their workspace — then let them end the call."
+)
+
+
+def intake_voice_brief(lang: str = "en") -> str:
+    """The realtime-voice variant of the system brief: same persona + technique,
+    spoken-conversation preamble INSTEAD of the JSON extraction contract."""
+    return " ".join(
+        [
+            _PERSONA_CORE,
+            _PERSONA_TECHNIQUE,
+            _PERSONA_SHAPE,
+            _VOICE_PREAMBLE,
+            language_directive(lang),
+        ]
+    )
+
+
 # ---------------------------------------------------------------------------
 # Transcript helpers
 # ---------------------------------------------------------------------------
@@ -613,6 +641,78 @@ def run_intake_turn(
         coerce,
         _LOG,
         expected_keys=("reply", "brief"),
+    )
+    artifact["source"] = source
+    return artifact
+
+
+# ---------------------------------------------------------------------------
+# Voice-session batch extraction (post-hang-up)
+# ---------------------------------------------------------------------------
+
+
+def extract_transcript(
+    provider: Any | None,
+    turns: list[dict],
+    brief_payload: Any,
+    lang: str = "en",
+) -> dict:
+    """One-shot RoleBrief extraction over a finished VOICE transcript.
+
+    The realtime providers own the live turn loop, so per-turn extraction can't
+    run during a call — instead the whole transcript lands here on hang-up and
+    ONE completion re-emits the brief (the same coerce + merge_brief path as
+    the text plane, so prior stated content survives and provenance discipline
+    applies). Keyless there is no honest deterministic equivalent — the slot
+    script's stateless answer-recovery assumes ITS OWN questions were asked, a
+    free voice conversation breaks that premise — so the fallback stores the
+    transcript, leaves the brief unchanged, and says so (``extracted: False``);
+    the requestor continues in text with nothing silently invented.
+
+    Returns {brief, shape, extracted, source[, fallbackReason]}.
+    """
+    lang = normalize_lang(lang)
+    base = coerce_role_brief(brief_payload)
+    base.prompt_version = INTAKE_PROMPT_VERSION
+
+    def deterministic() -> dict:
+        return {
+            "brief": base.model_dump(by_alias=True),
+            "shape": detect_shape(turns),
+            "extracted": False,
+        }
+
+    def coerce(payload: Any) -> dict:
+        raw = payload if isinstance(payload, dict) else {}
+        update = coerce_role_brief(raw.get("brief"))
+        merged = merge_brief(base, update)
+        shape = raw.get("shape") if raw.get("shape") in SHAPES else detect_shape(turns)
+        return {"brief": merged.model_dump(by_alias=True), "shape": shape, "extracted": True}
+
+    system = " ".join(
+        [
+            "You turn a finished ROLE-INTAKE voice conversation (a hiring requestor talking to an AI "
+            "intake assistant) into the structured RoleBrief. The transcript below is the authenticated "
+            "requestor's own session — their words are the primary source of truth; the agent's words "
+            "are context only. Extract faithfully, never invent.",
+            _EXTRACTION_RULES,
+            language_directive(lang),
+        ]
+    )
+    prompt = (
+        f"CURRENT BRIEF (accumulated before the call):\n{json.dumps(base.model_dump(by_alias=True), ensure_ascii=False)}\n\n"
+        f"VOICE TRANSCRIPT (AGENT = the intake assistant, REQUESTOR = the hiring requestor):\n{render_transcript(turns)}\n\n"
+        'Re-emit the FULL updated RoleBrief. Respond as JSON: {"brief": {...}, "shape": "power_unit"|"story"|null}.'
+    )
+
+    artifact, source = generate_with_fallback(
+        provider,
+        prompt,
+        system,
+        deterministic,
+        coerce,
+        _LOG,
+        expected_keys=("brief",),
     )
     artifact["source"] = source
     return artifact
