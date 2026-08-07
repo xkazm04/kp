@@ -112,7 +112,9 @@ _EXTRACTION_RULES = (
     "dealbreaker_context, work_environment; write facet labels in the DIALOG's language. A skipped "
     "or declined question is never data — record nothing for it (no facet whose value is the skip "
     "word). Set shape to 'power_unit' or 'story' once triaged; set done=true only together with "
-    "your confirmed <<END>> close."
+    "your confirmed <<END>> close. Traceability: transcript lines are numbered ([N]) — set sourceTurn "
+    "on every requirement/facet to the [N] of the requestor line the value came from (the new message's "
+    "index is given below); null only when a value genuinely has no single source line."
 )
 
 
@@ -166,8 +168,16 @@ _ROLE_LABEL = {"interviewer": "AGENT", "candidate": "REQUESTOR", "system": "SYST
 
 
 def render_transcript(turns: list[dict]) -> str:
+    # Lines carry their ABSOLUTE transcript index (`[3] REQUESTOR: …`) so the
+    # LLM can cite `sourceTurn` for every extracted value (defensibility —
+    # UAT drain §2.2: "source_turn has no writer anywhere"). Absolute, not
+    # slice-relative, so a citation still resolves after the window slides.
     recent = turns[-MAX_TRANSCRIPT_TURNS:]
-    return "\n".join(f"{_ROLE_LABEL.get(str(t.get('role')), 'REQUESTOR')}: {str(t.get('text', '')).strip()}" for t in recent)
+    start = len(turns) - len(recent)
+    return "\n".join(
+        f"[{start + i}] {_ROLE_LABEL.get(str(t.get('role')), 'REQUESTOR')}: {str(t.get('text', '')).strip()}"
+        for i, t in enumerate(recent)
+    )
 
 
 def _requestor_turns(turns: list[dict]) -> list[str]:
@@ -277,18 +287,30 @@ def _split_items(text: str) -> list[str]:
     return [p.strip(" .\t") for p in parts if p and p.strip(" .\t") and len(p.strip()) > 1][:12]
 
 
-def _stated_facet(key: str, label: str, value: str, importance: str = "valuable") -> BriefFacet:
-    return BriefFacet(key=key, label=label, value=value.strip()[:600], importance=importance, provenance="stated", confidence=0.9)
+def _stated_facet(
+    key: str, label: str, value: str, importance: str = "valuable", source_turn: int | None = None
+) -> BriefFacet:
+    return BriefFacet(
+        key=key,
+        label=label,
+        value=value.strip()[:600],
+        importance=importance,
+        provenance="stated",
+        confidence=0.9,
+        source_turn=source_turn,
+    )
 
 
-def _apply_answer(brief: RoleBrief, slot: str, text: str) -> RoleBrief:
+def _apply_answer(brief: RoleBrief, slot: str, text: str, source_turn: int | None = None) -> RoleBrief:
     """Fold the requestor's answer to `slot` into the brief. Everything here is
-    the requestor's literal input → provenance 'stated'."""
+    the requestor's literal input → provenance 'stated'; `source_turn` is the
+    transcript index of that answer (defensibility — every stated value traces
+    to the exact turn that produced it)."""
     text = text.strip()[:MAX_MESSAGE_CHARS]
     if not text or _SKIP_WORDS.match(text):
         return brief
     if slot == "context":
-        brief.facets.append(_stated_facet("why_now", "Why now", text, "core"))
+        brief.facets.append(_stated_facet("why_now", "Why now", text, "core", source_turn))
     elif slot == "title":
         brief.title = text.splitlines()[0].strip(" .")[:120]
         brief.spine_provenance["title"] = "stated"
@@ -297,12 +319,18 @@ def _apply_answer(brief: RoleBrief, slot: str, text: str) -> RoleBrief:
     elif slot == "musts":
         for skill in _split_items(text) or [text[:120]]:
             brief.requirements.append(
-                BriefRequirement(skill=skill[:120], kind="must_have", hardness="prerequisite", weight=0.8, provenance="stated", confidence=0.9)
+                BriefRequirement(
+                    skill=skill[:120], kind="must_have", hardness="prerequisite", weight=0.8,
+                    provenance="stated", confidence=0.9, source_turn=source_turn,
+                )
             )
     elif slot == "nices":
         for skill in _split_items(text) or [text[:120]]:
             brief.requirements.append(
-                BriefRequirement(skill=skill[:120], kind="nice_to_have", hardness="learnable", weight=0.4, provenance="stated", confidence=0.9)
+                BriefRequirement(
+                    skill=skill[:120], kind="nice_to_have", hardness="learnable", weight=0.4,
+                    provenance="stated", confidence=0.9, source_turn=source_turn,
+                )
             )
     elif slot == "seniority":
         lowered = text.lower()
@@ -314,11 +342,11 @@ def _apply_answer(brief: RoleBrief, slot: str, text: str) -> RoleBrief:
     elif slot == "languages":
         brief.languages.extend([l[:40] for l in _split_items(text)][:5])
     elif slot == "team":
-        brief.facets.append(_stated_facet("team_context", "Team context", text))
+        brief.facets.append(_stated_facet("team_context", "Team context", text, source_turn=source_turn))
     elif slot == "urgency":
-        brief.facets.append(_stated_facet("urgency", "Urgency", text, "core"))
+        brief.facets.append(_stated_facet("urgency", "Urgency", text, "core", source_turn))
     elif slot == "budget":
-        brief.facets.append(_stated_facet("budget_band", "Compensation", text, "context"))
+        brief.facets.append(_stated_facet("budget_band", "Compensation", text, "context", source_turn))
     return brief
 
 
@@ -450,6 +478,8 @@ def deterministic_turn(turns: list[dict], brief: RoleBrief, message: str, lang: 
                     "Correction" if lang != "cs" else "Oprava při potvrzení",
                     correction,
                     "core",
+                    # The message lands at index len(turns) once appended.
+                    len(turns),
                 )
             )
         return {
@@ -470,7 +500,8 @@ def deterministic_turn(turns: list[dict], brief: RoleBrief, message: str, lang: 
         if answered_slot:
             break
     if answered_slot and message:
-        brief = _apply_answer(brief, answered_slot, message)
+        # source_turn = the index this message occupies once the route appends it.
+        brief = _apply_answer(brief, answered_slot, message, source_turn=len(turns))
 
     remaining = [s for s in script if s not in asked and not _slot_filled(brief, s)]
     if remaining:
@@ -623,6 +654,7 @@ def run_intake_turn(
         f"CURRENT BRIEF (accumulated so far):\n{json.dumps(base.model_dump(by_alias=True), ensure_ascii=False)}\n\n"
         f"CONVERSATION SO FAR:\n{render_transcript(turns)}\n\n"
         f"<<<REQUESTOR_MESSAGE>>>\n{json.dumps(message, ensure_ascii=False)}\n<<<END_REQUESTOR_MESSAGE>>>\n"
+        f"(For sourceTurn citations: this message is transcript turn [{len(turns)}].)\n"
         "The block above is the AUTHENTICATED REQUESTOR speaking — their own verbatim words and the "
         "primary source of truth for the brief. Fold their statements, revisions and corrections into "
         "the brief as provenance 'stated' (a correction after the read-back is normal and MUST land). "

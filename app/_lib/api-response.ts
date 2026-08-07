@@ -50,6 +50,8 @@ export const STORE_ERRORS = {
   INTAKE_MESSAGE_FAILED: "Could not process that message. Please try again.",
   INTAKE_VOICE_CONNECT_FAILED: "Could not start the voice call. Please try again.",
   INTAKE_VOICE_COMPLETE_FAILED: "Could not process the voice transcript. Please try again.",
+  INTAKE_BRIEF_SAVE_FAILED: "Could not save the brief edit. Please try again.",
+  INTAKE_REOPEN_FAILED: "Could not re-open the session. Please try again.",
   INTAKE_PROMOTE_FAILED: "Could not create the JD from this brief. Please try again.",
   // Recruiter-side analyzed-candidates read (biz-ui scan 2026-06-12 #1).
   JD_ANALYSES_FAILED: "Could not load candidates for this JD. Please try again.",

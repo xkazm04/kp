@@ -99,6 +99,31 @@ class DeterministicScriptTest(unittest.TestCase):
         agent_turns = [t for t in turns if t["role"] == "interviewer"]
         self.assertLessEqual(len(agent_turns), 8)
 
+    def test_source_turn_traces_every_stated_value(self) -> None:
+        # Defensibility (UAT drain §2.2): the deterministic path stamps the
+        # EXACT transcript index that produced each requirement/facet — the
+        # turn at that index must be the requestor's answer carrying the value.
+        answers = [
+            "Backfill — same as our old Java developer",
+            "Java Developer",
+            "Services run without gaps",
+            "Java, Kafka",
+            "senior",
+            "1.8M CZK",
+            "ok",
+        ]
+        turns, result = _drive(answers)
+        brief = coerce_role_brief(result["brief"])
+        for req in brief.requirements:
+            self.assertIsNotNone(req.source_turn, f"{req.skill} has no source_turn")
+            self.assertEqual(turns[req.source_turn]["role"], "candidate")
+            self.assertIn(req.skill, turns[req.source_turn]["text"])
+        for facet in brief.facets:
+            self.assertIsNotNone(facet.source_turn, f"{facet.key} has no source_turn")
+            self.assertEqual(turns[facet.source_turn]["role"], "candidate")
+        why_now = next(f for f in brief.facets if f.key == "why_now")
+        self.assertEqual(why_now.source_turn, 1)  # the very first requestor turn
+
     def test_readback_correction_lands_and_closes(self) -> None:
         # UAT L1-CONV-2 (3/3 Characters): the read-back's invited correction
         # must LAND — captured as the requestor's stated words — and only then

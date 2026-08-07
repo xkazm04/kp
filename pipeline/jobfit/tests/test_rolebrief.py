@@ -54,6 +54,21 @@ class CoerceRoleBriefTest(unittest.TestCase):
         self.assertEqual(len(brief.facets), 1)
         self.assertEqual(brief.facets[0].importance, "valuable")  # "critical" off-vocab
 
+    def test_requirement_source_turn_coerces(self) -> None:
+        # LLM ints pass (camelCase or snake), garbage/bools drop to None.
+        brief = coerce_role_brief(
+            {
+                "requirements": [
+                    {"skill": "SQL", "sourceTurn": 3},
+                    {"skill": "dbt", "source_turn": 5},
+                    {"skill": "Python", "sourceTurn": True},
+                    {"skill": "Go", "sourceTurn": "seven"},
+                ]
+            }
+        )
+        by_skill = {r.skill: r.source_turn for r in brief.requirements}
+        self.assertEqual(by_skill, {"SQL": 3, "dbt": 5, "Python": None, "Go": None})
+
     def test_camelcase_wire_keys_read(self) -> None:
         brief = coerce_role_brief(
             {

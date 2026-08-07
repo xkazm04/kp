@@ -1,19 +1,70 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CHIP_QUIET, META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { BTN_GHOST, CHIP_QUIET, META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import type { RoleBrief } from "@/app/_lib/rolespec";
+import { JdsIntakeBriefEdit } from "./JdsIntakeBriefEdit";
 
 // The live brief — the surface's signature moment: the requestor WATCHES the
 // structure being built while they talk. Every value carries its provenance
-// (stated = their words · inferred = the agent's reading · default = template)
-// so a proposal can never masquerade as something they said.
+// (stated = their words · inferred = the agent's reading · default = template),
+// its grading (weight/confidence/rationale — the defensibility layer, UAT
+// drain §2.2) and, where traceable, the transcript turn it came from
+// (click → the chat scrolls to and flashes that bubble). Editable in place
+// (UAT drain §2.1) unless the session was promoted — then the JD exists and
+// the brief is frozen.
 
 function ProvenanceChip({ provenance }: { provenance?: string }) {
   const t = useTranslations("library.tab.intake.provenance");
   if (provenance === "stated") return <span className={`${CHIP_QUIET} text-moss`}>{t("stated")}</span>;
   if (provenance === "inferred") return <span className={`${CHIP_QUIET} text-coral`}>{t("inferred")}</span>;
   return <span className={CHIP_QUIET}>{t("default")}</span>;
+}
+
+function TurnChip({ turn, onJump }: { turn?: number | null; onJump?: (turn: number) => void }) {
+  const t = useTranslations("library.tab.intake.defense");
+  if (turn == null) return null;
+  return (
+    <button
+      type="button"
+      className={`${CHIP_QUIET} focus-ring hover:text-ink`}
+      onClick={onJump ? () => onJump(turn) : undefined}
+      title={`${t("fromTurn")} ${turn}`}
+    >
+      {t("fromTurn")} [{turn}]
+    </button>
+  );
+}
+
+function RequirementRow({
+  r,
+  learnableLabel,
+  onJump,
+}: {
+  r: NonNullable<RoleBrief["requirements"]>[number];
+  learnableLabel: string | null;
+  onJump?: (turn: number) => void;
+}) {
+  const t = useTranslations("library.tab.intake.defense");
+  return (
+    <details className="group">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 text-body text-ink">
+        <span>{r.skill}</span>
+        {learnableLabel ? <span className={CHIP_QUIET}>{learnableLabel}</span> : null}
+        <ProvenanceChip provenance={r.provenance} />
+        <TurnChip turn={r.sourceTurn} onJump={onJump} />
+        <span className="text-meta text-steel opacity-0 transition-opacity group-open:opacity-100 group-hover:opacity-100">
+          {t("details")}
+        </span>
+      </summary>
+      <div className="mt-1 pl-1 text-meta text-steel">
+        {`${t("weight")} ${Math.round((r.weight ?? 0) * 100)}% · ${t("confidence")} ${Math.round((r.confidence ?? 0) * 100)}% — ${
+          r.rationale || t("rationaleNone")
+        }`}
+      </div>
+    </details>
+  );
 }
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
@@ -25,8 +76,23 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-export function JdsIntakeBriefPanel({ brief }: { brief: RoleBrief | null }) {
+export function JdsIntakeBriefPanel({
+  brief,
+  frozen,
+  saving,
+  onSaveBrief,
+  onJumpToTurn,
+}: {
+  brief: RoleBrief | null;
+  // Promoted session: the JD exists, the brief is frozen (edit hidden + note).
+  frozen?: boolean;
+  saving?: boolean;
+  onSaveBrief?: (edited: RoleBrief) => void;
+  onJumpToTurn?: (turn: number) => void;
+}) {
   const t = useTranslations("library.tab.intake.brief");
+  const tEdit = useTranslations("library.tab.intake.edit");
+  const [editing, setEditing] = useState(false);
   const musts = (brief?.requirements ?? []).filter((r) => r.kind === "must_have");
   const nices = (brief?.requirements ?? []).filter((r) => r.kind === "nice_to_have");
   const empty =
@@ -35,9 +101,27 @@ export function JdsIntakeBriefPanel({ brief }: { brief: RoleBrief | null }) {
 
   return (
     <div className={`${PANEL_SUNKEN} h-full space-y-5 p-4`}>
-      <div className={META_LABEL}>{t("title")}</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className={META_LABEL}>{t("title")}</div>
+        {!empty && !editing && !frozen && onSaveBrief ? (
+          <button type="button" className={`${BTN_GHOST} h-8 px-2 text-sm`} onClick={() => setEditing(true)}>
+            {tEdit("start")}
+          </button>
+        ) : null}
+      </div>
+      {frozen ? <p className="text-meta text-steel">{tEdit("frozen")}</p> : null}
       {empty ? (
         <p className="text-body text-steel">{t("empty")}</p>
+      ) : editing && brief && onSaveBrief ? (
+        <JdsIntakeBriefEdit
+          brief={brief}
+          saving={saving ?? false}
+          onSave={(edited) => {
+            onSaveBrief(edited);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
       ) : (
         <>
           <Section label={t("role")}>
@@ -65,21 +149,14 @@ export function JdsIntakeBriefPanel({ brief }: { brief: RoleBrief | null }) {
           {musts.length > 0 ? (
             <Section label={t("dealbreakers")}>
               {musts.map((r, i) => (
-                <div key={i} className="flex flex-wrap items-center gap-2 text-body text-ink">
-                  <span>{r.skill}</span>
-                  {r.hardness === "learnable" ? <span className={CHIP_QUIET}>{t("learnable")}</span> : null}
-                  <ProvenanceChip provenance={r.provenance} />
-                </div>
+                <RequirementRow key={i} r={r} learnableLabel={r.hardness === "learnable" ? t("learnable") : null} onJump={onJumpToTurn} />
               ))}
             </Section>
           ) : null}
           {nices.length > 0 ? (
             <Section label={t("niceToHave")}>
               {nices.map((r, i) => (
-                <div key={i} className="flex flex-wrap items-center gap-2 text-body text-ink">
-                  <span>{r.skill}</span>
-                  <ProvenanceChip provenance={r.provenance} />
-                </div>
+                <RequirementRow key={i} r={r} learnableLabel={null} onJump={onJumpToTurn} />
               ))}
             </Section>
           ) : null}
@@ -92,7 +169,8 @@ export function JdsIntakeBriefPanel({ brief }: { brief: RoleBrief | null }) {
             <Section label={t("context")}>
               {(brief?.facets ?? []).map((f, i) => (
                 <div key={i} className="text-body text-ink">
-                  <span className="text-steel">{f.label || f.key}:</span> {f.value} <ProvenanceChip provenance={f.provenance} />
+                  <span className="text-steel">{f.label || f.key}:</span> {f.value} <ProvenanceChip provenance={f.provenance} />{" "}
+                  <TurnChip turn={f.sourceTurn} onJump={onJumpToTurn} />
                 </div>
               ))}
             </Section>

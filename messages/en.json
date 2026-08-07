@@ -1173,7 +1173,9 @@
     "INTAKE_MESSAGE_FAILED": "Could not process that message. Please try again.",
     "INTAKE_PROMOTE_FAILED": "Could not create the JD from this brief. Please try again.",
     "INTAKE_VOICE_CONNECT_FAILED": "Could not start the voice call. Please try again.",
-    "INTAKE_VOICE_COMPLETE_FAILED": "Could not process the voice transcript. Please try again."
+    "INTAKE_VOICE_COMPLETE_FAILED": "Could not process the voice transcript. Please try again.",
+    "INTAKE_BRIEF_SAVE_FAILED": "Could not save the brief edit. Please try again.",
+    "INTAKE_REOPEN_FAILED": "Could not re-open the session. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3148,6 +3150,40 @@
           "unavailable": "Voice isn't configured on this server — continue in text.",
           "failed": "The call didn't go through. Continue in text.",
           "storedNote": "Call transcript saved. AI extraction needs a connected provider — the brief is unchanged; continue in text."
+        },
+        "edit": {
+          "start": "Edit brief",
+          "save": "Save changes",
+          "cancel": "Cancel",
+          "addRequirement": "Add a dealbreaker or nice-to-have",
+          "addFacet": "Add context",
+          "skillPlaceholder": "Skill or capability",
+          "facetLabelPlaceholder": "Label (e.g. Team)",
+          "facetValuePlaceholder": "Value in your words",
+          "remove": "Remove",
+          "frozen": "Promoted — the JD exists, so this brief is frozen. Start a new session for changes.",
+          "saveError": "Could not save the edit. Please try again."
+        },
+        "defense": {
+          "details": "Details",
+          "weight": "weight",
+          "confidence": "confidence",
+          "fromTurn": "turn",
+          "rationaleNone": "No rationale captured."
+        },
+        "export": {
+          "button": "Export",
+          "fileTitle": "Role intake"
+        },
+        "reopen": {
+          "button": "Re-open conversation",
+          "note": "Session re-opened by the requestor.",
+          "error": "Could not re-open. Please try again."
+        },
+        "roles": {
+          "agent": "Agent",
+          "requestor": "You",
+          "system": "System"
         }
       }
     },

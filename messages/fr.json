@@ -1173,7 +1173,9 @@
     "INTAKE_MESSAGE_FAILED": "Impossible de traiter ce message. Veuillez réessayer.",
     "INTAKE_PROMOTE_FAILED": "Impossible de créer la fiche de poste à partir de ce brief. Veuillez réessayer.",
     "INTAKE_VOICE_CONNECT_FAILED": "Impossible de démarrer l'appel vocal. Veuillez réessayer.",
-    "INTAKE_VOICE_COMPLETE_FAILED": "Impossible de traiter la transcription de l'appel. Veuillez réessayer."
+    "INTAKE_VOICE_COMPLETE_FAILED": "Impossible de traiter la transcription de l'appel. Veuillez réessayer.",
+    "INTAKE_BRIEF_SAVE_FAILED": "Impossible d'enregistrer la modification du brief. Veuillez réessayer.",
+    "INTAKE_REOPEN_FAILED": "Impossible de rouvrir la session. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3148,6 +3150,40 @@
           "unavailable": "La voix n'est pas configurée sur ce serveur — continuez par écrit.",
           "failed": "L'appel n'a pas abouti. Continuez par écrit.",
           "storedNote": "Transcription de l'appel enregistrée. L'extraction IA nécessite un fournisseur connecté — le brief est inchangé ; continuez par écrit."
+        },
+        "edit": {
+          "start": "Modifier le brief",
+          "save": "Enregistrer",
+          "cancel": "Annuler",
+          "addRequirement": "Ajouter un indispensable ou un atout",
+          "addFacet": "Ajouter du contexte",
+          "skillPlaceholder": "Compétence ou capacité",
+          "facetLabelPlaceholder": "Libellé (p. ex. Équipe)",
+          "facetValuePlaceholder": "Valeur avec vos mots",
+          "remove": "Retirer",
+          "frozen": "Fiche déjà créée — le brief est figé. Ouvrez une nouvelle session pour le modifier.",
+          "saveError": "Impossible d'enregistrer la modification. Veuillez réessayer."
+        },
+        "defense": {
+          "details": "Détails",
+          "weight": "poids",
+          "confidence": "confiance",
+          "fromTurn": "échange",
+          "rationaleNone": "Aucune justification saisie."
+        },
+        "export": {
+          "button": "Exporter",
+          "fileTitle": "Cadrage du poste"
+        },
+        "reopen": {
+          "button": "Rouvrir la session",
+          "note": "Session rouverte par le demandeur.",
+          "error": "Impossible de rouvrir. Veuillez réessayer."
+        },
+        "roles": {
+          "agent": "Agent",
+          "requestor": "Vous",
+          "system": "Système"
         }
       }
     },

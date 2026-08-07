@@ -176,6 +176,54 @@ export function updateIntakeDialog(
   return run.immediate();
 }
 
+// A human edit of the brief (UAT drain §2.1) — brief_json only; the transcript
+// is untouched (the dialog record stays honest). Refuses promoted sessions at
+// the store level too (the JD exists; the brief behind it is frozen).
+export function updateIntakeBrief(
+  id: string,
+  brief: RoleBrief,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const res = ensureDb()
+    .prepare(
+      `UPDATE role_intakes SET brief_json = ?, title = COALESCE(NULLIF(?, ''), title), updated_at = ?
+       WHERE id = ? AND workspace_id = ? AND status != 'promoted'`
+    )
+    .run(
+      JSON.stringify(brief),
+      typeof brief.title === "string" ? brief.title.trim().slice(0, 200) : "",
+      new Date().toISOString(),
+      id,
+      workspaceId
+    );
+  return res.changes > 0;
+}
+
+// Re-open a completed (NOT promoted) session (UAT drain §2.1): status back to
+// open + a system turn appended so the transcript honestly records the gap.
+// IMMEDIATE read-modify-write like updateIntakeDialog.
+export function reopenIntake(
+  id: string,
+  systemNote: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): RoleIntake | null {
+  const db = ensureDb();
+  const run = db.transaction(() => {
+    const row = db
+      .prepare(`SELECT * FROM role_intakes WHERE id = ? AND workspace_id = ? AND status = 'complete'`)
+      .get(id, workspaceId) as IntakeRow | undefined;
+    if (!row) return null;
+    const intake = fromRow(row);
+    const transcript = [...intake.transcript, { role: "system" as const, text: systemNote, at: new Date().toISOString() }];
+    db.prepare(
+      `UPDATE role_intakes SET status = 'open', transcript_json = ?, updated_at = ?
+       WHERE id = ? AND workspace_id = ?`
+    ).run(JSON.stringify(transcript), new Date().toISOString(), id, workspaceId);
+    return { ...intake, status: "open" as const, transcript };
+  });
+  return run.immediate();
+}
+
 // The promoted RoleBrief behind a job — the back-link consumers (interview
 // grounding, decision audit) read. Latest promoted intake wins when a job was
 // re-promoted. Workspace-scoped like every role_intakes query; callers derive

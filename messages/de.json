@@ -1173,7 +1173,9 @@
     "INTAKE_MESSAGE_FAILED": "Die Nachricht konnte nicht verarbeitet werden. Bitte erneut versuchen.",
     "INTAKE_PROMOTE_FAILED": "Die Stellenbeschreibung konnte aus diesem Briefing nicht erstellt werden. Bitte erneut versuchen.",
     "INTAKE_VOICE_CONNECT_FAILED": "Der Sprachanruf konnte nicht gestartet werden. Bitte erneut versuchen.",
-    "INTAKE_VOICE_COMPLETE_FAILED": "Das Gesprächstranskript konnte nicht verarbeitet werden. Bitte erneut versuchen."
+    "INTAKE_VOICE_COMPLETE_FAILED": "Das Gesprächstranskript konnte nicht verarbeitet werden. Bitte erneut versuchen.",
+    "INTAKE_BRIEF_SAVE_FAILED": "Die Briefing-Änderung konnte nicht gespeichert werden. Bitte erneut versuchen.",
+    "INTAKE_REOPEN_FAILED": "Das Gespräch konnte nicht wieder geöffnet werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3148,6 +3150,40 @@
           "unavailable": "Sprache ist auf diesem Server nicht eingerichtet — bitte im Text fortfahren.",
           "failed": "Der Anruf kam nicht zustande. Bitte im Text fortfahren.",
           "storedNote": "Gesprächstranskript gespeichert. Die KI-Auswertung benötigt einen verbundenen Anbieter — das Briefing blieb unverändert; bitte im Text fortfahren."
+        },
+        "edit": {
+          "start": "Briefing bearbeiten",
+          "save": "Änderungen speichern",
+          "cancel": "Abbrechen",
+          "addRequirement": "K.-o.-Kriterium oder Wunsch hinzufügen",
+          "addFacet": "Kontext hinzufügen",
+          "skillPlaceholder": "Fähigkeit oder Kompetenz",
+          "facetLabelPlaceholder": "Bezeichnung (z. B. Team)",
+          "facetValuePlaceholder": "Wert in Ihren Worten",
+          "remove": "Entfernen",
+          "frozen": "Bereits veröffentlicht — das Briefing ist eingefroren. Für Änderungen ein neues Gespräch starten.",
+          "saveError": "Die Änderung konnte nicht gespeichert werden. Bitte erneut versuchen."
+        },
+        "defense": {
+          "details": "Details",
+          "weight": "Gewicht",
+          "confidence": "Sicherheit",
+          "fromTurn": "Beitrag",
+          "rationaleNone": "Keine Begründung erfasst."
+        },
+        "export": {
+          "button": "Exportieren",
+          "fileTitle": "Rollenaufnahme"
+        },
+        "reopen": {
+          "button": "Gespräch wieder öffnen",
+          "note": "Gespräch vom Anfordernden wieder geöffnet.",
+          "error": "Konnte nicht wieder geöffnet werden. Bitte erneut versuchen."
+        },
+        "roles": {
+          "agent": "Agent",
+          "requestor": "Sie",
+          "system": "System"
         }
       }
     },

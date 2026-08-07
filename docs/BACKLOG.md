@@ -74,13 +74,14 @@ Guardrail: any edit affordance must preserve provenance-chip honesty (a human
 edit is `stated`; an accepted agent suggestion is `stated` only on explicit
 confirm).
 
-- **Editable brief + re-openable session** — click-to-edit brief values
-  (`stated` by definition) + a reopen action on `complete` sessions; also the
-  honest remedy for deterministic comma-split fragility. (Tomáš/Priya; §2.1)
-- **Defensibility layer** — engine writes `facet/requirement.source_turn`
-  (schema slot exists, no writer); brief-panel detail exposing
-  weight/rationale/confidence; print/export of brief + transcript for the
-  director/inspector meeting. (Eva; §2.2)
+- ~~**Editable brief + re-openable session**~~ — SHIPPED 2026-08-07 (edit
+  mode in the brief panel + `PATCH /api/intake/[id]/brief` + reopen with an
+  appended system turn; promoted briefs stay frozen). Pending `/uat recertify`
+  against Tomáš/Priya. (§2.1)
+- ~~**Defensibility layer**~~ — SHIPPED 2026-08-07 (`source_turn` written on
+  both paths with click-to-turn in the panel; weight/rationale/confidence
+  detail rows; markdown export of brief + numbered transcript + provenance).
+  Pending `/uat recertify` against Eva. (§2.2)
 - **Non-tech grade capture** — seniority answers matching no enum token land
   verbatim as a `grade_label` facet (`stated`) instead of vanishing ("Band 5"
   ≠ silence). (Priya; §2.3)

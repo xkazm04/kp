@@ -82,6 +82,7 @@ class BriefRequirement(_Base):
     rationale: str = ""              # why THIS role needs it, in the requestor's terms
     provenance: str = "inferred"     # BRIEF_PROVENANCE
     confidence: float = 0.5          # 0..1 trust in the value
+    source_turn: int | None = None   # transcript turn index the value traces to (defensibility)
 
 
 class BriefFacet(_Base):
@@ -165,6 +166,7 @@ def coerce_role_brief(payload: Any) -> RoleBrief:
         skill = _text(entry.get("skill"))
         if not skill:
             return None
+        source_turn = entry.get("source_turn", entry.get("sourceTurn"))
         return BriefRequirement(
             skill=skill,
             kind=_vocab(entry.get("kind"), _KINDS, "must_have"),
@@ -173,6 +175,7 @@ def coerce_role_brief(payload: Any) -> RoleBrief:
             rationale=_text(entry.get("rationale")),
             provenance=_vocab(entry.get("provenance"), BRIEF_PROVENANCE, "inferred"),
             confidence=_clamp01(entry.get("confidence"), 0.5),
+            source_turn=source_turn if isinstance(source_turn, int) and not isinstance(source_turn, bool) else None,
         )
 
     def facet(entry: Any) -> BriefFacet | None:
