@@ -196,8 +196,10 @@
       ],
       "code_check": "confirmed-absent",
       "verdict": "confirmed",
-      "resolution": "open",
-      "scope_note": "Phase-3 continuation, not a regression."
+      "resolution": "fixed",
+      "scope_note": "Phase-3 continuation, not a regression.",
+      "resolution_evidence": "Direction-2 branch (8146925a, merged 969f2e4c): promote offers the case-design checkbox; the Dev tab fetches GET /api/jds/[slug]?brief=1 and fills DevNeed structurally; graded dealbreakers ride DevNeed.statedRequirements into design_role and the transfer assessment. Code+tests only — 'fixed', not 'resolved-verified': needs a /uat recertify pass against Eva's l2_priority (live Dev-tab pick of a promoted JD).",
+      "ceiling": "Matching engine deliberately does NOT consume weights (calibration-pinned); RoleSpec unchanged (consumer blast radius)."
     },
     {
       "id": "L1-HRBP-6",
