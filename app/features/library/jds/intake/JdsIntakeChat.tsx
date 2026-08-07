@@ -128,7 +128,7 @@ export function JdsIntakeChat({
           </div>
         ) : null}
       </div>
-      <div className="mt-3 flex items-end gap-2">
+      <div className="mt-3 flex flex-wrap items-end gap-2">
         <textarea
           className={`${FIELD} min-h-[3.25rem] flex-1 resize-y`}
           rows={2}

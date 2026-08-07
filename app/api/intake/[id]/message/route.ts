@@ -47,11 +47,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       lang: intake.lang === "cs" ? "cs" : "en",
     });
 
+    // Recertify R-2: the <<END>> sentinel is an engine/eval wire contract, not
+    // copy — strip it at the route boundary so it never reaches the stored
+    // transcript or the requestor's screen.
+    const reply = exchange.reply.replace(/\s*<<END>>\s*/g, " ").trim();
     const now = new Date().toISOString();
     const transcript = [
       ...intake.transcript,
       { role: "candidate" as const, text: message, at: now },
-      { role: "interviewer" as const, text: exchange.reply, at: now },
+      { role: "interviewer" as const, text: reply, at: now },
     ];
     // The brief's evolving title becomes the session title (first write wins
     // via COALESCE only when non-empty — a later rename by the engine sticks).
@@ -68,7 +72,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       ws
     );
     return NextResponse.json({
-      reply: exchange.reply,
+      reply,
       brief: exchange.brief,
       shape: exchange.shape,
       done: exchange.done,

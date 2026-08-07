@@ -72,8 +72,8 @@
       ],
       "code_check": "present-broken",
       "verdict": "confirmed",
-      "resolution": "resolved-verified",
-      "resolution_evidence": "deterministic_turn now reads back WITHOUT <<END>> and waits; confirm closes, anything else lands as a stated 'correction' facet then closes. Pinned by test_readback_correction_lands_and_closes + test_readback_waits_for_confirmation; 100-scenario bank re-certified under the new contract.",
+      "resolution": "fixed",
+      "resolution_evidence": "<<END>> stripped at the message-route boundary before persist/response; engine/eval wire contract unchanged.",
       "ceiling": "Deterministic corrections land as a facet (captured verbatim), not as a parsed field edit — the LLM path does the structural demotion."
     },
     {
@@ -304,8 +304,9 @@
       ],
       "code_check": "present-broken",
       "verdict": "confirmed",
-      "resolution": "open",
-      "scope_note": "Introduced by the voice-slot merge (Direction 3); every keyless deploy sees it on every open intake session."
+      "resolution": "fixed",
+      "scope_note": "Introduced by the voice-slot merge (Direction 3); every keyless deploy sees it on every open intake session.",
+      "resolution_evidence": "Keyless voice note now wraps to its own line (order-last basis-full + flex-wrap composer row); textarea keeps full width. Recertify screenshot pending next pass."
     },
     {
       "id": "R-2",
@@ -328,7 +329,8 @@
       ],
       "code_check": "present-broken",
       "verdict": "confirmed",
-      "resolution": "open"
+      "resolution": "fixed",
+      "resolution_evidence": "<<END>> stripped at the message-route boundary before persist/response; engine/eval wire contract unchanged."
     }
   ]
 }

@@ -238,7 +238,11 @@ export function JdsIntakeVoice({
   }, []);
 
   if (available === false) {
-    return <span className="self-center text-meta text-steel">{t("unavailable")}</span>;
+    // Recertify R-1: rendered inside the composer's flex ROW, this long note
+    // squeezed the textarea to a sliver on every keyless deploy. basis-full +
+    // order-last wraps it onto its own quiet line under the composer instead
+    // (the row is flex-wrap).
+    return <span className="order-last basis-full text-meta text-steel">{t("unavailable")}</span>;
   }
 
   return (
