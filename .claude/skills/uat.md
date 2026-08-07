@@ -1,6 +1,6 @@
 ---
 name: uat
-description: Simulated User Acceptance Testing driven by Characters (representative users with jobs-to-be-done), not feature/code coverage. A capable LLM verifies each user journey in two chronological certification levels — L1 theoretical (over a code-derived surface model, cheap + mass-parallel) then L2 empirical (real browser against the live app, serial) — judging through each Character's own consistent lens (time saved vs the LLM-less way, and senior-in-role quality), with quantified, impact-scored verdicts (estimated time saved + how often × how reachable × how much trust each gap costs). Stack-agnostic; per-app specifics live in the repo's uat/ overlay. Invoke with `/uat init|update|run|recertify|promote [args]`.
+description: Simulated User Acceptance Testing driven by Characters (representative users with jobs-to-be-done), not feature/code coverage. A capable LLM verifies each user journey in two chronological certification levels — L1 theoretical (over a code-derived surface model, cheap + mass-parallel) then L2 empirical (real browser against the live app, serial) — judging through each Character's own consistent lens (time saved vs the LLM-less way, and senior-in-role quality), with quantified, impact-scored verdicts (estimated time saved + how often × how reachable × how much trust each gap costs). Runs are then DRAINED: a systematic pass turns reports into a triaged design backlog (build / concept / decline-with-reason) so the expensive run pays twice. Stack-agnostic; per-app specifics live in the repo's uat/ overlay. Invoke with `/uat init|update|run|recertify|drain|promote [args]`.
 ---
 
 # Simulated UAT — Character-driven acceptance
@@ -129,6 +129,26 @@ Some defects live *between* surfaces, invisible to any single Character×journey
 
 Close the loop after fixes — the artifact that proves the work landed for the *user*, not just the compiler. Given the prior run's `findings.json` (or `--since <commit>`), re-run **only** the affected `character × journey` at L2 against each open finding's specific `l2_priority` question. For each: confirm the fix is *reachable* and *unblocks the job* with fresh live evidence → `resolution: resolved-verified` (+ its `ceiling`); else keep it `open` with exactly what's still missing; if a once-passing check now breaks, mark it `regressed`. Re-measure the journey's **time-saved** and **grounding score** so the run-over-run delta is visible. Output: a diff report (resolved / still-open / regressed + the metric deltas), not a full re-sweep — cheap, targeted, repeatable.
 
+## Mode: `drain`
+
+A run is expensive; its findings table is the *smaller* half of what it bought. The reports also hold Character voices, strengths, near-findings, observations that didn't clear the finding bar, and methodology lessons — signal no other backlog-generation technique produces, because it comes from a consistent judge walking a real job. `drain` extracts it systematically so redesign/new-feature work and execution become the natural follow-up of every run, not an occasional afterthought.
+
+Given a run id (default: the latest), read **everything** the run produced — per-Character reports **including the first-person feedback sections** (the voices routinely carry design signal the findings table strips), `SUMMARY.md`, `findings.json`, and the L2 journals — and produce one analysis document with exactly three sections:
+
+1. **Confirmed-and-fixed** — reference only: what went finding → fix → `resolved-verified`, each with its `ceiling`. Ceilings are *inputs* to section 2, not closed topics.
+2. **Design opportunities** — functionality / UX / dialog-design improvements, ranked by impact, each with: the Character voice or finding it cites, an honest cost/value call, and an explicit recommendation — **`build`** (→ a concrete backlog entry in the repo's tracked backlog), **`concept-doc`** (real design questions remain — write/extend the concept doc instead of coding), or **`decline-with-reason`**. Rank **convergent** findings (multiple Characters independently) above impact arithmetic.
+3. **Methodology lessons** — what the run taught about /uat itself (surface-model blind spots L2 exposed, env-contract drift caught, which finding types each level uniquely produced), folded back into the skill/overlay in the same change when actionable.
+
+Trust rules (the same discipline as findings, applied to opportunities):
+- **No invented user needs.** Every opportunity cites a Character voice (quoted) or a finding id. An idea with no citation doesn't enter the document.
+- **Declines are recorded with reasons** — in the analysis doc *and* the backlog — so a declined idea can't resurface as a fresh one next quarter without new evidence.
+- **Strengths become do-not-touch guardrails**: name them, and phrase them as constraints on the build items (e.g. "any edit affordance must preserve provenance-chip honesty"), not as compliments.
+- **Scope honesty across parallel work**: an opportunity owned by another active workstream is recorded as covered-elsewhere, never double-entered.
+
+Closing the loop: a drained `build` item that ships is **not done at merge** — it re-enters the skill through `recertify`, verified live against the **originating Character's** scored criteria (fresh evidence, `resolved-verified`, its own `ceiling`). Same-day fix→recertify is the gold standard; a "fixed" label aging in a tracker is exactly what this lifecycle exists to prevent. Concept-docs, once built, get a journey (or an extension of the originating one) so the next `run` certifies them.
+
+Where the artifacts live is per-app (the overlay documents it — analysis doc home, backlog file, concept-doc home). Run `drain` after every `run`/`recertify` cycle; a run without a drain is half-billed value.
+
 ## Mode: `promote`
 
 Turn a clean journey into a low-variance **acceptance** gate. Take a journey that reached **L2-pass** on a stable path: freeze its happy path + the acceptance criteria it satisfied into the journey file, set `promotion: acceptance`, note seed/env + known-accepted frictions. `/uat run --acceptance` re-runs every acceptance journey (L2) against its frozen path → pass/fail vs recorded acceptance. Slow — run deliberately, not on every push.
@@ -150,4 +170,6 @@ Per-app values (base URL, port, auth, seed) come from `uat/env.md`; the mechanic
 - **Artifact/concurrency hygiene:** gitignore `runs/*/shots/`; if another agent commits in the same tree, commit artifacts path-scoped in a quiet window (a long pre-commit gate widens the race).
 
 ## Using this on a new app
-1. Drop `/uat` into the repo (`.claude/skills/uat.md` — it's a local, copy-to-other-repos asset). 2. `/uat init` → discovers routes/run-recipe/auth/language, researches, **asks how many Characters (1/5/10)**, scaffolds `uat/`. 3. Resolve env open-questions (esp. offline auth + local-data). 4. `/uat run --l1` for a cheap broad sweep; then `/uat run` for full L1→L2. 5. Fix, then **`/uat recertify`** to re-verify just the touched journeys (resolved-verified + metric deltas). 6. `/uat promote` clean journeys into gates.
+1. Drop `/uat` into the repo (`.claude/skills/uat.md` — it's a local, copy-to-other-repos asset). 2. `/uat init` → discovers routes/run-recipe/auth/language, researches, **asks how many Characters (1/5/10)**, scaffolds `uat/`. 3. Resolve env open-questions (esp. offline auth + local-data). 4. `/uat run --l1` for a cheap broad sweep; then `/uat run` for full L1→L2. 5. Fix, then **`/uat recertify`** to re-verify just the touched journeys (resolved-verified + metric deltas). 6. **`/uat drain`** the run — analysis doc + triaged design backlog + methodology feedback; shipped drain items loop back through `recertify`. 7. `/uat promote` clean journeys into gates.
+
+Two of the L1 instructions the intake pilot proved out, now standing rules: **execute, don't eyeball** — when a claim hinges on a regex/parser/branch, run it against real inputs and cite the reproduction; and **sample out-of-segment Characters** — a Character the product's defaults weren't built for is where default-bias findings come from.

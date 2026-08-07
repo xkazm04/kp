@@ -39,11 +39,24 @@ uat/
 /uat run --surface /          # scope to the workspace dashboard
 /uat run jd-to-shortlist      # one journey, all its Characters
 /uat update                   # diff-aware refresh after code changes
+/uat drain [run-id]           # turn a run's reports into a triaged design backlog
 /uat promote <journey>        # freeze an L2-pass journey into an acceptance gate
 ```
 
 See `env.md` for the dev server / port / auth / seed / language specifics, and
 **resolve its "Open env questions" before relying on L2.**
+
+### Drain artifacts — where they live in THIS repo
+
+- **Analysis docs:** `docs/product/uat-insights/<run-id>.md` (three sections:
+  confirmed-and-fixed · ranked design opportunities with build/concept/decline
+  calls · methodology lessons). First: `2026-08-07-intake.md`.
+- **`build` items:** appended to `docs/BACKLOG.md` under a per-run heading,
+  with Character citations and do-not-touch guardrails.
+- **`concept-doc` items:** `docs/concepts/` (the repo's home for
+  not-yet-implemented design).
+- **Declines:** recorded in both the analysis doc and the backlog entry with
+  reasons — a declined idea needs new evidence to come back.
 
 ---
 

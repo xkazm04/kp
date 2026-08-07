@@ -65,3 +65,34 @@ design). Still open:
 **Design & structure**
 - Visual uplift Phase 2 (tab composition, `PANEL_SUNKEN` migration, `FIELD` height standardization, a `TABLE` recipe that does not yet exist), Phase 3 (contrast/a11y), Phase 4 (delight) are open.
 - Five `.tsx` files have crept past the 200-line invariant since the structure refactor landed — listed in `docs/architecture/app-structure.md` under "Drift since landing".
+
+## Intake — UAT drain 2026-08-07 (see docs/product/uat-insights/2026-08-07-intake.md)
+
+Build-recommended items from the first `/uat drain` pass over run
+`2026-08-07-intake`; each cites its Character evidence in the insights doc.
+Guardrail: any edit affordance must preserve provenance-chip honesty (a human
+edit is `stated`; an accepted agent suggestion is `stated` only on explicit
+confirm).
+
+- **Editable brief + re-openable session** — click-to-edit brief values
+  (`stated` by definition) + a reopen action on `complete` sessions; also the
+  honest remedy for deterministic comma-split fragility. (Tomáš/Priya; §2.1)
+- **Defensibility layer** — engine writes `facet/requirement.source_turn`
+  (schema slot exists, no writer); brief-panel detail exposing
+  weight/rationale/confidence; print/export of brief + transcript for the
+  director/inspector meeting. (Eva; §2.2)
+- **Non-tech grade capture** — seniority answers matching no enum token land
+  verbatim as a `grade_label` facet (`stated`) instead of vanishing ("Band 5"
+  ≠ silence). (Priya; §2.3)
+- **Latency honesty** — elapsed hint + staged copy on the thinking bubble
+  (31–40 s measured live); explicitly not streaming (declined, §2.7). (§2.4)
+- **`llm_era_confused` persona clause** — one `_PERSONA_TECHNIQUE` sentence
+  anchoring role-existence doubt in 90-day outcomes. (§2.6)
+- **Workspace-context grounding of the dialog** — concept-doc first (which
+  org context, prompt budget, a possible `grounded` provenance value);
+  promote to build after the voice plane settles prompt economics. (§2.5)
+
+Declined with reasons (do not resurface without new evidence): streaming
+replies; keyless laddering imitation; smarter deterministic parsing —
+see insights doc §2.7. Dev-case seam is owned by the Direction-2 workstream;
+multi-market comp is already tracked above under Matching & scoring.
