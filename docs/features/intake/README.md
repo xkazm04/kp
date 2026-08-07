@@ -87,7 +87,9 @@ the shared `generate_with_fallback` contract. The UI shows a quiet
 | TS runner | `app/_lib/intake-run.ts` |
 | Brief → JD-build projection (pure) | `app/_lib/intake-brief.ts` |
 | Store | `app/_lib/db/intakes.ts` (`role_intakes`; tenancy: every query workspace-scoped, `intakes-tenancy.test.ts`) |
-| Routes | `app/api/intake/route.ts` (create/list), `[id]` (read), `[id]/message` (exchange), `[id]/promote` |
+| Routes | `app/api/intake/route.ts` (create/list), `[id]` (read), `[id]/message` (exchange), `[id]/promote`, `[id]/brief` (PATCH — human edit), `[id]/reopen` |
+| Edit sanitizer + edit-provenance diff (pure) | `app/_lib/brief-edit.ts` |
+| Export builder (pure) | `app/_lib/intake-export.ts` |
 | Rate limit | `intake-message:<ip>` 30/10min on the message route (pinned in `app/api/rate-limit-contract.test.ts`) |
 | UI | `app/features/library/jds/intake/` (`JdsIntakePanel`, `JdsIntakeChat`, `JdsIntakeBriefPanel`, `jdsIntakeLogic`) |
 
@@ -190,6 +192,42 @@ transcript is stored, the brief stays **unchanged**, the UI says so
 self-hosted), fast turns 60/10min per intake, extraction sweeps 20/10min
 per IP.
 
+## Editable brief + re-openable sessions (UAT drain §2.1)
+
+The requestor can FIX what was captured without a new session:
+
+- **Edit mode** in the live brief panel (`JdsIntakeBriefEdit.tsx`): title,
+  seniority (closed vocab), requirement skill/kind, facet values; delete and
+  add entries. A typed edit is `stated` by definition — but only CHANGED or
+  NEW entries flip (`withEditProvenance`, `app/_lib/brief-edit.ts`): untouched
+  entries keep their provenance/confidence/`sourceTurn`, so an edit pass can't
+  launder inferred values into "stated". Server: `PATCH
+  /api/intake/[id]/brief` clamps SHAPE at the trust boundary
+  (`sanitizeEditedBrief` — vocab/range/caps mirroring the Python coerce);
+  the transcript is never touched by an edit.
+- **Re-open** (`POST /api/intake/[id]/reopen`): a `complete` session flips
+  back to `open` with a system turn appended so the transcript honestly
+  records the gap; the message route accepts again.
+- **Promoted sessions stay frozen** — the JD exists; edit is hidden with a
+  clear note. Re-promoting an edited brief is deliberate future work (an
+  edited brief silently diverging from a published JD would be the dishonest
+  middle ground).
+
+## Defensibility (UAT drain §2.2 — "obhájím to před ředitelem — čím?")
+
+- **`source_turn` is written on both paths**: the deterministic script stamps
+  the exact transcript index that answered each slot; the LLM path gets a
+  NUMBERED transcript (`[N] REQUESTOR: …`) + the new message's index and cites
+  `sourceTurn` per requirement/facet (`_EXTRACTION_RULES`).
+- **The panel shows the grading**: each requirement row expands to
+  weight/confidence/rationale; a "turn [N]" chip on requirements and facets
+  **jumps the chat to the cited bubble** and flashes it — the
+  click-to-evidence moment.
+- **Export**: a markdown download (brief with provenance + grading + turn
+  citations, then the numbered transcript) built client-side
+  (`app/_lib/intake-export.ts`) — the artifact for the director/inspector
+  meeting. A defaulted seniority is visibly flagged in the export.
+
 ## Known gaps
 
 - Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back
@@ -201,7 +239,9 @@ per IP.
   wired.
 - The visual pass in both themes is pending (built from shared
   recipes/tokens; browser verification wasn't available in the build session).
-- Re-opening a `complete` session (append more turns, re-extract) is not yet
-  supported — promote or start a new session.
+- Promoted sessions cannot be edited or re-opened (frozen by design; see
+  above) — re-promote-to-update-the-JD is future work.
+- Deterministic-path corrections at the read-back land as a `correction`
+  facet; a structural field edit is the brief-panel edit mode's job.
 - Decision-audit surfacing of the intake back-link is future
   work.

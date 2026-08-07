@@ -221,7 +221,8 @@ export const roleBriefSchema = z.object({
     weight: z.number(),
     rationale: z.string(),
     provenance: z.string(),
-    confidence: z.number()
+    confidence: z.number(),
+    sourceTurn: z.number().nullish()
   })),
   facets: z.array(z.object({
     key: z.string(),

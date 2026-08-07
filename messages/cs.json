@@ -1174,7 +1174,9 @@
     "INTAKE_PROMOTE_FAILED": "Inzerát se z tohoto zadání nepodařilo vytvořit. Zkuste to prosím znovu.",
     "INTAKE_VOICE_CONNECT_FAILED": "Hlasový hovor se nepodařilo spustit. Zkuste to prosím znovu.",
     "INTAKE_VOICE_TURN_FAILED": "Tuto repliku se nepodařilo zpracovat. Zkuste to prosím znovu.",
-    "INTAKE_VOICE_COMPLETE_FAILED": "Přepis hovoru se nepodařilo zpracovat. Zkuste to prosím znovu."
+    "INTAKE_VOICE_COMPLETE_FAILED": "Přepis hovoru se nepodařilo zpracovat. Zkuste to prosím znovu.",
+    "INTAKE_BRIEF_SAVE_FAILED": "Úpravu zadání se nepodařilo uložit. Zkuste to prosím znovu.",
+    "INTAKE_REOPEN_FAILED": "Rozhovor se nepodařilo znovu otevřít. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3150,6 +3152,40 @@
           "unavailable": "Hlas není na tomto serveru nastaven — pokračujte textem.",
           "failed": "Hovor se nepodařilo spustit. Pokračujte textem.",
           "storedNote": "Přepis hovoru uložen. AI extrakce vyžaduje připojeného poskytovatele — zadání se nezměnilo; pokračujte textem."
+        },
+        "edit": {
+          "start": "Upravit zadání",
+          "save": "Uložit změny",
+          "cancel": "Zrušit",
+          "addRequirement": "Přidat nezbytnost nebo výhodu",
+          "addFacet": "Přidat kontext",
+          "skillPlaceholder": "Dovednost nebo schopnost",
+          "facetLabelPlaceholder": "Popisek (např. Tým)",
+          "facetValuePlaceholder": "Hodnota vašimi slovy",
+          "remove": "Odebrat",
+          "frozen": "Inzerát už existuje — zadání je zamčené. Pro změny založte nový rozhovor.",
+          "saveError": "Úpravu se nepodařilo uložit. Zkuste to prosím znovu."
+        },
+        "defense": {
+          "details": "Podrobnosti",
+          "weight": "váha",
+          "confidence": "jistota",
+          "fromTurn": "replika",
+          "rationaleNone": "Bez zdůvodnění."
+        },
+        "export": {
+          "button": "Exportovat",
+          "fileTitle": "Zadání role"
+        },
+        "reopen": {
+          "button": "Znovu otevřít rozhovor",
+          "note": "Rozhovor znovu otevřel zadavatel.",
+          "error": "Nepodařilo se znovu otevřít. Zkuste to prosím znovu."
+        },
+        "roles": {
+          "agent": "Agent",
+          "requestor": "Vy",
+          "system": "Systém"
         }
       }
     },

@@ -33,6 +33,13 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
     voiceNote,
     applyVoiceResult,
     applyVoiceExchange,
+    saveBrief,
+    savingBrief,
+    reopen,
+    reopening,
+    highlightTurn,
+    jumpToTurn,
+    clearHighlight,
   } = useIntakeLogic(onPromoted);
   // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
   const [withCase, setWithCase] = useState(false);
@@ -99,6 +106,19 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
           <span className={CHIP_QUIET}>{t(`status.${active.status}`)}</span>
         </div>
         <div className="flex items-center gap-3">
+          <ExportButton active={active} />
+          {active.status === "complete" ? (
+            // Re-open (UAT drain §2.1): a completed session can take another
+            // thought; the server appends a system turn so the record is honest.
+            <button
+              type="button"
+              className={`${BTN_GHOST} h-9 px-3 text-sm`}
+              disabled={reopening}
+              onClick={() => reopen(t("reopen.note"))}
+            >
+              {t("reopen.button")}
+            </button>
+          ) : null}
           {active.status === "promoted" && active.jdSlug ? (
             <span className="text-body text-moss">{t("promoted")}</span>
           ) : (
@@ -132,6 +152,8 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
       {voiceNote === "stored" ? <p className="mt-2 text-meta text-steel">{t("voice.storedNote")}</p> : null}
       {error === "send" ? <p className="mt-2 text-body text-red-700">{t("sendError")}</p> : null}
       {error === "promote" ? <p className="mt-2 text-body text-red-700">{t("promoteError")}</p> : null}
+      {error === "saveBrief" ? <p className="mt-2 text-body text-red-700">{t("edit.saveError")}</p> : null}
+      {error === "reopen" ? <p className="mt-2 text-body text-red-700">{t("reopen.error")}</p> : null}
       <div className="mt-4 grid gap-4 lg:grid-cols-[3fr_2fr]">
         <JdsIntakeChat
           transcript={active.transcript}
@@ -149,9 +171,64 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
               />
             ) : null
           }
+          highlightTurn={highlightTurn}
+          onHighlightDone={clearHighlight}
         />
-        <JdsIntakeBriefPanel brief={active.brief} />
+        <JdsIntakeBriefPanel
+          brief={active.brief}
+          frozen={active.status === "promoted"}
+          saving={savingBrief}
+          onSaveBrief={active.status !== "promoted" ? saveBrief : undefined}
+          onJumpToTurn={jumpToTurn}
+        />
       </div>
     </div>
+  );
+}
+
+// The director/inspector artifact (UAT drain §2.2): brief + numbered transcript
+// + provenance as one markdown download, built client-side from the session.
+function ExportButton({ active }: { active: NonNullable<ReturnType<typeof useIntakeLogic>["active"]> }) {
+  const t = useTranslations("library.tab.intake");
+  const tBrief = useTranslations("library.tab.intake.brief");
+  const tProv = useTranslations("library.tab.intake.provenance");
+  const tDef = useTranslations("library.tab.intake.defense");
+  const tRoles = useTranslations("library.tab.intake.roles");
+  if (!active.brief) return null;
+  const download = async () => {
+    const { buildIntakeExportMarkdown } = await import("@/app/_lib/intake-export");
+    const md = buildIntakeExportMarkdown(
+      { title: active.title || active.brief?.title || "", brief: active.brief, transcript: active.transcript },
+      {
+        title: t("export.fileTitle"),
+        role: tBrief("role"),
+        seniority: tBrief("role"),
+        outcomes: tBrief("outcomes"),
+        dealbreakers: tBrief("dealbreakers"),
+        niceToHave: tBrief("niceToHave"),
+        languages: tBrief("languages"),
+        context: tBrief("context"),
+        transcript: t("turns", { count: active.transcript.length }),
+        provenance: { stated: tProv("stated"), inferred: tProv("inferred"), default: tProv("default") },
+        weight: tDef("weight"),
+        confidence: tDef("confidence"),
+        fromTurn: tDef("fromTurn"),
+        agent: tRoles("agent"),
+        requestor: tRoles("requestor"),
+        system: tRoles("system"),
+      }
+    );
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(active.title || "intake").replace(/[^\p{L}\p{N}_-]+/gu, "-").slice(0, 60)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  return (
+    <button type="button" className={`${BTN_GHOST} h-9 px-3 text-sm`} onClick={download}>
+      {t("export.button")}
+    </button>
   );
 }

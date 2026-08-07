@@ -221,9 +221,78 @@ export function useIntakeLogic(onPromoted?: () => void) {
     [loadList]
   );
 
+  // Human brief edit (UAT drain §2.1): PATCH the full edited brief; the server
+  // clamps shape and the store refuses promoted sessions. On success the
+  // session's brief swaps to the server-confirmed copy.
+  const [savingBrief, setSavingBrief] = useState(false);
+  const saveBrief = useCallback(
+    async (brief: RoleBrief): Promise<boolean> => {
+      if (!active || savingBrief) return false;
+      const id = active.id;
+      setSavingBrief(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/intake/${encodeURIComponent(id)}/brief`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brief }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { brief: RoleBrief };
+        if (activeIdRef.current !== id) return true;
+        setActive((s) => (s && s.id === id ? { ...s, brief: data.brief, title: data.brief?.title || s.title } : s));
+        return true;
+      } catch {
+        setError("saveBrief");
+        return false;
+      } finally {
+        setSavingBrief(false);
+      }
+    },
+    [active, savingBrief]
+  );
+
+  // Re-open a completed session (UAT drain §2.1): the server appends a system
+  // turn and flips status; the returned session is authoritative.
+  const [reopening, setReopening] = useState(false);
+  const reopen = useCallback(
+    async (note: string) => {
+      if (!active || reopening) return;
+      const id = active.id;
+      setReopening(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/intake/${encodeURIComponent(id)}/reopen`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ note }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as IntakeSession;
+        if (activeIdRef.current !== id) return;
+        setActive(data);
+        void loadList();
+      } catch {
+        setError("reopen");
+      } finally {
+        setReopening(false);
+      }
+    },
+    [active, reopening, loadList]
+  );
+
+  // Click-to-turn (UAT drain §2.2, the defensibility moment): a source-turn
+  // chip scrolls + flashes the transcript bubble it cites.
+  const [highlightTurn, setHighlightTurn] = useState<number | null>(null);
+  const jumpToTurn = useCallback((turn: number) => {
+    setHighlightTurn(turn);
+  }, []);
+  const clearHighlight = useCallback(() => setHighlightTurn(null), []);
+
   const closeSession = useCallback(() => {
     activeIdRef.current = null;
     setActive(null);
+    setHighlightTurn(null);
     void loadList();
   }, [loadList]);
 
@@ -243,5 +312,12 @@ export function useIntakeLogic(onPromoted?: () => void) {
     voiceNote,
     applyVoiceResult,
     applyVoiceExchange,
+    saveBrief,
+    savingBrief,
+    reopen,
+    reopening,
+    highlightTurn,
+    jumpToTurn,
+    clearHighlight,
   };
 }
