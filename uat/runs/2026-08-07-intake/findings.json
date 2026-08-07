@@ -16,6 +16,12 @@
     "script": "eva-backfill2 (cs, power-unit backfill, 7 exchanges + promote)",
     "verdict": "L2-conditional"
   },
+  "recertify": {
+    "date": "2026-08-07",
+    "driver": "uat/driver/drive-recertify.mjs (flows A–E) + uat/driver/drive-edit-kind.mjs",
+    "report": "uat/runs/2026-08-07-intake-recertify/report.md",
+    "outcome": "All drain build items (2.1a/b/c, 2.2a/b/c, 2.3, 2.4) + L1-EVA-3 resolved-verified live; voice plane remains unverified (no OPENAI_API_KEY on this host); 1 new regression (R-1 composer squeeze) + 1 new polish (R-2 END sentinel leak)."
+  },
   "findings": [
     {
       "id": "L2-INT-1",
@@ -196,10 +202,10 @@
       ],
       "code_check": "confirmed-absent",
       "verdict": "confirmed",
-      "resolution": "fixed",
+      "resolution": "resolved-verified",
       "scope_note": "Phase-3 continuation, not a regression.",
-      "resolution_evidence": "Direction-2 branch (8146925a, merged 969f2e4c): promote offers the case-design checkbox; the Dev tab fetches GET /api/jds/[slug]?brief=1 and fills DevNeed structurally; graded dealbreakers ride DevNeed.statedRequirements into design_role and the transfer assessment. Code+tests only — 'fixed', not 'resolved-verified': needs a /uat recertify pass against Eva's l2_priority (live Dev-tab pick of a promoted JD).",
-      "ceiling": "Matching engine deliberately does NOT consume weights (calibration-pinned); RoleSpec unchanged (consumer blast radius)."
+      "resolution_evidence": "Direction-2 branch (8146925a, merged 969f2e4c): promote offers the case-design checkbox; the Dev tab fetches GET /api/jds/[slug]?brief=1 and fills DevNeed structurally. Recertified live 2026-08-07 (recertify shots D-02-jd-picked.png, C-01/A-*): promoted JD picked in Define-need shows 'Role title, stack and responsibilities are read from this JD'; live ?brief=1 response carries intakeBrief with graded musts Java/Spring/Kafka; promote row shows the case-design checkbox.",
+      "ceiling": "Matching engine deliberately does NOT consume weights (calibration-pinned); RoleSpec unchanged (consumer blast radius). Seniority-selector seeding is provenance-gated (stated only) — briefs promoted before the spine-provenance schema never seed it (correct abstention on legacy data)."
     },
     {
       "id": "L1-HRBP-6",
@@ -247,7 +253,9 @@
       ],
       "code_check": "confirmed-absent",
       "verdict": "confirmed",
-      "resolution": "open"
+      "resolution": "resolved-verified",
+      "resolution_evidence": "Drain §2.4 shipped: staged copy on the thinking bubble (thinkingSlow, JdsIntakeChat.tsx:126). Recertified live 2026-08-07 (A-latency-hint-10s.png): at ~10 s the bubble shows 'Stále přemýšlím — pořádná odpověď obvykle zabere 30–40 sekund.' Measured exchanges this pass 16–40 s — the copy stays truthful.",
+      "ceiling": "Static staged copy, not an elapsed-time counter; streaming explicitly declined (drain §2.7)."
     },
     {
       "id": "STR-1",
@@ -269,6 +277,56 @@
         "uat/runs/2026-08-07-intake/shots/eva-backfill2-*.png"
       ],
       "code_check": "n-a",
+      "verdict": "confirmed",
+      "resolution": "open"
+    },
+    {
+      "id": "R-1",
+      "journey": "role-intake-dialog",
+      "character": "panel (recertify 2026-08-07)",
+      "cert_level": "L2",
+      "type": "regression",
+      "severity": "major",
+      "impact": {
+        "frequency": "high",
+        "reachability": "high",
+        "trust_erosion": "med"
+      },
+      "dimension": "effort",
+      "title": "Keyless voice note squeezes the composer textarea to a ~1-character sliver",
+      "expected": "The voice-unavailable note coexists with a usable composer (wraps below the row or collapses to an icon).",
+      "got": "JdsIntakeVoice's unavailable-state span renders inline in the composer flex row (JdsIntakeChat.tsx:131-155); the long cs note ('Hlas není na tomto serveru nastaven — pokračujte textem.') refuses to shrink and the flex-1 textarea collapses. Typing still works, but the composer is visually unusable at 1440 px.",
+      "evidence": [
+        "uat/runs/2026-08-07-intake-recertify/shots/C-01-promoted-frozen.png",
+        "uat/runs/2026-08-07-intake-recertify/shots/B-01-grade-label.png",
+        "app/features/library/jds/intake/JdsIntakeChat.tsx:131-155",
+        "app/features/library/jds/intake/JdsIntakeVoice.tsx:241"
+      ],
+      "code_check": "present-broken",
+      "verdict": "confirmed",
+      "resolution": "open",
+      "scope_note": "Introduced by the voice-slot merge (Direction 3); every keyless deploy sees it on every open intake session."
+    },
+    {
+      "id": "R-2",
+      "journey": "role-intake-dialog",
+      "character": "panel (recertify 2026-08-07)",
+      "cert_level": "L2",
+      "type": "quality-gap",
+      "severity": "polish",
+      "impact": {
+        "frequency": "med",
+        "reachability": "high",
+        "trust_erosion": "low"
+      },
+      "dimension": "trust",
+      "title": "The close sentinel <<END>> renders verbatim in the final agent bubble",
+      "expected": "Protocol markers never reach the rendered transcript.",
+      "got": "The LLM-path closing reply shows '…můžete ho dál upravit kdykoli. <<END>>' in the chat bubble (the deterministic path strips it).",
+      "evidence": [
+        "uat/runs/2026-08-07-intake-recertify/shots/A-07-reopened.png"
+      ],
+      "code_check": "present-broken",
       "verdict": "confirmed",
       "resolution": "open"
     }

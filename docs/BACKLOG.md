@@ -74,19 +74,26 @@ Guardrail: any edit affordance must preserve provenance-chip honesty (a human
 edit is `stated`; an accepted agent suggestion is `stated` only on explicit
 confirm).
 
-- ~~**Editable brief + re-openable session**~~ — SHIPPED 2026-08-07 (edit
-  mode in the brief panel + `PATCH /api/intake/[id]/brief` + reopen with an
-  appended system turn; promoted briefs stay frozen). Pending `/uat recertify`
-  against Tomáš/Priya. (§2.1)
-- ~~**Defensibility layer**~~ — SHIPPED 2026-08-07 (`source_turn` written on
-  both paths with click-to-turn in the panel; weight/rationale/confidence
-  detail rows; markdown export of brief + numbered transcript + provenance).
-  Pending `/uat recertify` against Eva. (§2.2)
-- **Non-tech grade capture** — seniority answers matching no enum token land
-  verbatim as a `grade_label` facet (`stated`) instead of vanishing ("Band 5"
-  ≠ silence). (Priya; §2.3)
-- **Latency honesty** — elapsed hint + staged copy on the thinking bubble
-  (31–40 s measured live); explicitly not streaming (declined, §2.7). (§2.4)
+- ~~**Editable brief + re-openable session**~~ — SHIPPED + RECERTIFIED
+  2026-08-07 (edit mode in the brief panel + `PATCH /api/intake/[id]/brief` +
+  reopen with an appended system turn; promoted briefs stay frozen). Live
+  evidence in `uat/runs/2026-08-07-intake-recertify/report.md`. (§2.1)
+- ~~**Defensibility layer**~~ — SHIPPED + RECERTIFIED 2026-08-07
+  (`source_turn` with click-to-turn flash, weight/rationale/confidence detail
+  rows, markdown export with provenance + numbered transcript — download
+  captured live). (§2.2)
+- ~~**Non-tech grade capture**~~ — SHIPPED + RECERTIFIED 2026-08-07 ("Band 5,
+  roughly" stored verbatim as a stated `grade_label` facet; seniority stays
+  visibly assumed). (Priya; §2.3)
+- ~~**Latency honesty**~~ — SHIPPED + RECERTIFIED 2026-08-07 (staged
+  "Stále přemýšlím…" second line verified at 10 s; not streaming per §2.7).
+  (§2.4)
+- **Composer squeeze regression (R-1)** — the keyless voice note renders
+  inline in the composer row and collapses the textarea to a sliver
+  (`JdsIntakeVoice.tsx:241` ↔ `JdsIntakeChat.tsx:131-155`); found by the
+  recertify pass, every keyless deploy hits it. Small CSS fix (wrap the note
+  under the row or icon-collapse it). Also minor: the LLM close leaks
+  `<<END>>` into the last bubble (R-2).
 - **`llm_era_confused` persona clause** — one `_PERSONA_TECHNIQUE` sentence
   anchoring role-existence doubt in 90-day outcomes. (§2.6)
 - **Workspace-context grounding of the dialog** — concept-doc first (which
