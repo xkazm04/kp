@@ -3081,7 +3081,57 @@
       "shelfReuseLabel": "One sheet is reusable for",
       "shelfReuseAnalyze": "Score CVs against it",
       "shelfReuseIngest": "Ingest it as an open role",
-      "shelfReuseDuplicate": "Duplicate it for the next opening"
+      "shelfReuseDuplicate": "Duplicate it for the next opening",
+      "intake": {
+        "tabLabel": "Intake",
+        "ledgerTitle": "Role intake sessions",
+        "lede": "Talk the role through instead of writing it — a short guided conversation captures what you actually need, then drafts the JD from it.",
+        "new": "New intake",
+        "starting": "Starting…",
+        "untitled": "Untitled role",
+        "empty": "No intake sessions yet. Start one and describe the need in your own words.",
+        "error": "Something went wrong. Please try again.",
+        "turns": "{count, plural, one {# turn} other {# turns}}",
+        "back": "All sessions",
+        "status": {
+          "open": "In progress",
+          "complete": "Ready",
+          "promoted": "JD created"
+        },
+        "shape": {
+          "powerUnit": "Backfill",
+          "story": "Exploration"
+        },
+        "thinking": "Thinking…",
+        "composer": {
+          "placeholder": "Answer in your own words — vague is fine.",
+          "send": "Send",
+          "closed": "This session is closed."
+        },
+        "degradedNote": "AI is offline — running the guided checklist instead. Your answers are captured all the same.",
+        "sendError": "That message didn't go through. Please try again.",
+        "promote": "Create JD",
+        "promoting": "Creating…",
+        "promoted": "JD created — find it under Saved JDs.",
+        "promoteHint": "Needs at least a role title plus one dealbreaker or 90-day outcome.",
+        "promoteError": "Could not create the JD. Please try again.",
+        "brief": {
+          "title": "Live brief",
+          "empty": "The brief builds itself here as you talk.",
+          "role": "Role",
+          "outcomes": "Done in 90 days",
+          "dealbreakers": "Dealbreakers",
+          "niceToHave": "Nice to have",
+          "learnable": "trainable",
+          "languages": "Languages",
+          "context": "Context"
+        },
+        "provenance": {
+          "stated": "you said",
+          "inferred": "AI reading",
+          "default": "assumed"
+        }
+      }
     },
     "form": {
       "saveAjd": "Save a JD",

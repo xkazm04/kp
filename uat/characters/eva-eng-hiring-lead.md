@@ -102,8 +102,17 @@ assessment a strong senior would walk away from.
       are plausibly faster than her manual baseline *and* raise signal quality.
 - [ ] **language** — The internal authoring/eval UI renders correctly in Czech.
 
+## Behavior modes (dialog-surface overlay — see rubric)
+- `power_unit` shape — her intakes are usually concrete backfills/scale-ups of
+  known engineering seats; she expects the SHORT path and resents coaching
+  depth forced on a transactional request.
+- `over_specifier` — under director pressure she arrives with a laundry list;
+  a good intake ladders it down without arguing.
+
 ## Surface binding (reachable surfaces — judge findings only here)
 Internal user → authed workspace; primarily the **Dev** tab (dev-case authoring,
-lifecycle, cohort, evaluation), plus **Analyze** and **Matrix** for engineer CVs.
+lifecycle, cohort, evaluation), plus **Analyze** and **Matrix** for engineer CVs,
+and **Library → Intake** (she runs role-intake dialogs with her hiring managers
+before authoring a dev case from the promoted need).
 Fixtures: a published dev case + a candidate submission (`devcase/seed_materializer.py`).
 The candidate live-work surface (`/devcase/apply/[token]`) is Sam's, not hers.

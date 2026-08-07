@@ -3081,7 +3081,57 @@
       "shelfReuseLabel": "Ein Blatt lässt sich nutzen für",
       "shelfReuseAnalyze": "Lebensläufe damit bewerten",
       "shelfReuseIngest": "Als offene Stelle übernehmen",
-      "shelfReuseDuplicate": "Für die nächste Vakanz duplizieren"
+      "shelfReuseDuplicate": "Für die nächste Vakanz duplizieren",
+      "intake": {
+        "tabLabel": "Rollenaufnahme",
+        "ledgerTitle": "Rollenaufnahme-Gespräche",
+        "lede": "Die Rolle nicht schreiben, sondern besprechen — ein kurzes geführtes Gespräch erfasst, was Sie wirklich brauchen, und entwirft daraus die Stellenbeschreibung.",
+        "new": "Neues Gespräch",
+        "starting": "Wird gestartet…",
+        "untitled": "Unbenannte Rolle",
+        "empty": "Noch keine Gespräche. Starten Sie eines und beschreiben Sie den Bedarf in eigenen Worten.",
+        "error": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+        "turns": "{count, plural, one {# Beitrag} other {# Beiträge}}",
+        "back": "Alle Gespräche",
+        "status": {
+          "open": "Läuft",
+          "complete": "Bereit",
+          "promoted": "Stellenbeschreibung erstellt"
+        },
+        "shape": {
+          "powerUnit": "Nachbesetzung",
+          "story": "Erkundung"
+        },
+        "thinking": "Denke nach…",
+        "composer": {
+          "placeholder": "Antworten Sie in eigenen Worten — vage ist völlig in Ordnung.",
+          "send": "Senden",
+          "closed": "Dieses Gespräch ist abgeschlossen."
+        },
+        "degradedNote": "KI ist offline — stattdessen läuft die geführte Checkliste. Ihre Antworten werden trotzdem erfasst.",
+        "sendError": "Die Nachricht kam nicht durch. Bitte versuchen Sie es erneut.",
+        "promote": "Stellenbeschreibung erstellen",
+        "promoting": "Wird erstellt…",
+        "promoted": "Stellenbeschreibung erstellt — zu finden unter den gespeicherten.",
+        "promoteHint": "Benötigt mindestens einen Rollentitel plus ein K.-o.-Kriterium oder ein 90-Tage-Ziel.",
+        "promoteError": "Die Stellenbeschreibung konnte nicht erstellt werden. Bitte erneut versuchen.",
+        "brief": {
+          "title": "Live-Briefing",
+          "empty": "Das Briefing entsteht hier von selbst, während Sie sprechen.",
+          "role": "Rolle",
+          "outcomes": "In 90 Tagen erledigt",
+          "dealbreakers": "Unverzichtbar",
+          "niceToHave": "Wünschenswert",
+          "learnable": "erlernbar",
+          "languages": "Sprachen",
+          "context": "Kontext"
+        },
+        "provenance": {
+          "stated": "Ihre Aussage",
+          "inferred": "KI-Deutung",
+          "default": "Annahme"
+        }
+      }
     },
     "form": {
       "saveAjd": "Stellenbeschreibung speichern",

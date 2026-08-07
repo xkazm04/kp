@@ -6,7 +6,7 @@
 //   #4 — the column-header filter menu's roving-focus arrow-key navigation.
 // bug-ui-scan-2026-07-09 (jd-authoring-library-templates #2, #4)
 
-export type LedgerTab = "saved" | "generate";
+export type LedgerTab = "saved" | "generate" | "intake";
 
 // `builderKey` is the React `key` of the Generate panel. Both panels stay mounted
 // (the ledger toggles visibility, it no longer unmounts one), so the ONLY thing

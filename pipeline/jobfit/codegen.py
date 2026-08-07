@@ -22,8 +22,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .devcase.models import RoleSpec
 from .models import AnalysisResult
 from .profile import EVIDENCE_KINDS, SKILL_LEVELS
+from .rolebrief import RoleBrief
 from .taxonomy import UI_PROVENANCE
 
 
@@ -118,15 +120,27 @@ def _is_nullable(sub: dict[str, Any], defs: dict[str, Any]) -> bool:
     return sub.get("type") == "null"
 
 
+# Every Pydantic model exported to the TS side: (model, exported schema const,
+# exported inferred type). RoleSpec/RoleBrief single-source the role shapes the
+# JD builder and role-intake flows share with Python (idea-dcf2460d).
+_EXPORTED_MODELS = (
+    (AnalysisResult, "analysisResultSchema", "AnalysisResult"),
+    (RoleSpec, "roleSpecSchema", "RoleSpec"),
+    (RoleBrief, "roleBriefSchema", "RoleBrief"),
+)
+
+
 def render() -> str:
-    schema = AnalysisResult.model_json_schema(by_alias=True, mode="serialization")
-    defs = schema.pop("$defs", {})
-    body = _emit(schema, defs, indent=0)
-    return (
-        f"{HEADER}\n"
-        f"export const analysisResultSchema = {body};\n\n"
-        f"export type AnalysisResult = z.infer<typeof analysisResultSchema>;\n"
-    )
+    parts = [HEADER]
+    for model, const_name, type_name in _EXPORTED_MODELS:
+        schema = model.model_json_schema(by_alias=True, mode="serialization")
+        defs = schema.pop("$defs", {})
+        body = _emit(schema, defs, indent=0)
+        parts.append(
+            f"\nexport const {const_name} = {body};\n\n"
+            f"export type {type_name} = z.infer<typeof {const_name}>;\n"
+        )
+    return "".join(parts)
 
 
 def _emit_string_list(name: str, values: tuple[str, ...]) -> str:

@@ -61,11 +61,11 @@ def _payload(*, missing: list[str], skills: list[str]) -> dict:
     }
 
 
-def _run(payload: dict, *, jd: str | None) -> object:
+def _run(payload: dict, *, jd: str | None, job_json: str | None = None) -> object:
     with mock.patch.object(P, "extract_text", lambda _p: payload["profile"]["raw_text"]), mock.patch.object(
         P, "analyze_profile_with_gemini", lambda *a, **k: (payload, [], {})
     ):
-        return P.analyze_cv(Path("cv.pdf"), job_description_text=jd)
+        return P.analyze_cv(Path("cv.pdf"), job_description_text=jd, job_json=job_json)
 
 
 class AnalyzeHonestyFieldsTest(unittest.TestCase):
@@ -86,6 +86,39 @@ class AnalyzeHonestyFieldsTest(unittest.TestCase):
         # It is NOT re-asserted as a hard match, and the strength is sub-threshold.
         self.assertNotIn(key, job_fit.matching_skills)
         self.assertLess(job_fit.unproven_skill_strength[key], 0.5)
+
+    def test_structured_job_requirements_are_used_as_stated(self) -> None:
+        # Role-intake Phase 0: when the structured Job backing the JD is passed,
+        # its authored requirement grading is the cross-check universe — the
+        # adjacency reclassification still fires, now against stated requirements
+        # instead of a regex-derived all-must_have flattening.
+        import json
+
+        payload = _payload(missing=["PPC"], skills=["SEO"])
+        job_json = json.dumps(
+            {
+                "id": "jd-test",
+                "title": "PPC Specialist",
+                "company": "Acme",
+                "location": "Praha",
+                "requirements": [{"skill": "PPC", "kind": "must_have", "hardness": "learnable"}],
+            }
+        )
+        result = _run(payload, jd="We need a specialist in PPC campaigns and paid search.", job_json=job_json)
+        job_fit = result.job_fit
+        assert job_fit is not None
+        self.assertIsNotNone(job_fit.unproven_skills)
+        self.assertTrue(any("ppc" in s.lower() for s in job_fit.unproven_skills))
+        # A valid structured job leaves no degradation note behind.
+        self.assertFalse(any("Structured job context" in c for c in result.sanity_checks))
+
+    def test_malformed_job_json_degrades_with_note(self) -> None:
+        # A malformed structured-job payload must not sink the (paid) analysis:
+        # it degrades to the prose-only path and says so in the trust ledger.
+        payload = _payload(missing=["PPC"], skills=["SEO"])
+        result = _run(payload, jd="We need a specialist in PPC campaigns.", job_json="{not json")
+        self.assertIsNotNone(result.job_fit)
+        self.assertTrue(any("Structured job context" in c for c in result.sanity_checks))
 
     def test_jd_less_analysis_has_no_unproven_bucket(self) -> None:
         # No JD → no job_fit at all → the fields never populate (stay None).

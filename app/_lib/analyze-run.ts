@@ -1,5 +1,8 @@
-import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
 import { analysisSchema, type Analysis } from "@/app/_lib/schemas";
+import { getJob } from "@/app/_lib/db/jobs";
+import { jdJobId } from "@/app/_lib/jd-limits";
 import { computeCacheKey, lookupCachedAnalysis, storeCachedAnalysis } from "@/app/_lib/cache";
 import { buildComparison } from "@/app/_lib/comparison";
 import { reconcileScoreTotal } from "@/app/_lib/format";
@@ -111,16 +114,34 @@ export function settleVariants(results: VariantResult[]): SettleDecision {
   };
 }
 
-function cliArgs(cvPath: string, p: AnalyzeParams): string[] {
+function cliArgs(cvPath: string, p: AnalyzeParams, jobStructurePath?: string | null): string[] {
   const args = ["-m", "pipeline.jobfit.cli", cvPath];
   if (p.grounding) args.push("--grounding");
   if (p.blind) args.push("--blind");
   args.push("--lang", p.lang || "en");
   if (p.jobDescriptionPath) args.push("--job-description-path", p.jobDescriptionPath);
   else if (p.jobDescriptionText?.trim()) args.push("--job-description-text", p.jobDescriptionText.trim());
+  if (jobStructurePath) args.push("--job-json", jobStructurePath);
   if (p.companyPath) args.push("--company-path", p.companyPath);
   else if (p.companyText?.trim()) args.push("--company-text", p.companyText.trim());
   return args;
+}
+
+// Role-intake Phase 0: when the analysis targets a library JD, the ingested
+// structured Job at `jd-<slug>` already carries the authored requirement grading
+// (must/nice + prerequisite/learnable) — resolve it server-side and hand it to
+// the pipeline beside the JD prose, so scoring stops re-deriving a flattened
+// requirement list by regex. Best-effort: no ingested job (market-only JD,
+// failed ingest) or no requirements ⇒ prose-only, exactly as before.
+function resolveJobStructure(jdSlug: string | null | undefined): string | null {
+  if (!jdSlug?.trim()) return null;
+  try {
+    const job = getJob(jdJobId(jdSlug.trim()));
+    if (!job || !Array.isArray(job.requirements) || job.requirements.length === 0) return null;
+    return JSON.stringify(job);
+  } catch {
+    return null;
+  }
 }
 
 // Shared shape for every analyze.log line: the request/context fields that are
@@ -151,6 +172,14 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
   try {
     const jdFileBytes = p.jobDescriptionPath ? await readFile(p.jobDescriptionPath) : null;
     const coFileBytes = p.companyPath ? await readFile(p.companyPath) : null;
+    // Structured job context resolved ONCE per run and written beside the other
+    // inputs in baseDir (cleaned up in the finally below); all variants share it.
+    const jobStructureJson = resolveJobStructure(p.jdSlug);
+    let jobStructurePath: string | null = null;
+    if (jobStructureJson) {
+      jobStructurePath = path.join(p.baseDir, "job-structure.json");
+      await writeFile(jobStructurePath, jobStructureJson, "utf-8");
+    }
     const total = p.variants.length;
     let done = 0;
     // Direction 3 — honest progress: emit the phases the TS side can actually
@@ -172,6 +201,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
             grounding: p.grounding,
             lang: p.lang || "en",
             blind: p.blind,
+            jobStructureJson: jobStructureJson ?? undefined,
           });
 
           const cached = lookupCachedAnalysis(cacheKey);
@@ -190,7 +220,7 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
           // /api/tasks/[id] → cancelTask → controller.abort()) actually SIGKILLs the
           // Python child instead of leaving it to finish a billable LLM call whose
           // result is thrown away. spawnPython wires abort → SIGKILL.
-          const { result } = spawnPython(cliArgs(cvPath, p), { signal });
+          const { result } = spawnPython(cliArgs(cvPath, p, jobStructurePath), { signal });
           const { stdout, stderr, exitCode } = await result;
           if (exitCode !== 0) {
             const err = parseStderrError(stderr, exitCode);

@@ -40,6 +40,11 @@ const chunkGap = (minHeight: string) => {
 const LibraryGeneratePanel = dynamic(() => import("./JdsGeneratePanel").then((m) => ({ default: m.LibraryGeneratePanel })), {
   loading: chunkGap("min-h-[20rem]"),
 });
+// Tier 3 like the builder: the intake dialog (chat + live brief) mounts only
+// once the Intake sub-tab is opened.
+const LibraryIntakePanel = dynamic(() => import("./intake/JdsIntakePanel").then((m) => ({ default: m.JdsIntakePanel })), {
+  loading: chunkGap("min-h-[20rem]"),
+});
 
 export function LibrarySavedJdsLedger() {
   const {
@@ -95,6 +100,7 @@ export function LibrarySavedJdsLedger() {
         options={[
           { value: "saved", label: t("savedJds") },
           { value: "generate", label: t("generate") },
+          { value: "intake", label: t("intake.tabLabel") },
         ]}
       />
 
@@ -108,6 +114,13 @@ export function LibrarySavedJdsLedger() {
             what keeps a half-typed draft alive across a manual tab switch. */}
         <Defer strategy="idle" placeholder={<div className="reveal-quiet min-h-[20rem]" aria-hidden />}>
           <LibraryGeneratePanel key={nav.builderKey} onSaved={reload} prefill={prefill} />
+        </Defer>
+      </div>
+      {/* Same mount contract as the builder: stays mounted once idle-mounted, so
+          switching sub-tabs never discards an in-flight dialog's local state. */}
+      <div className={nav.tab === "intake" ? "mt-5" : "hidden"}>
+        <Defer strategy="idle" placeholder={<div className="reveal-quiet min-h-[20rem]" aria-hidden />}>
+          <LibraryIntakePanel onPromoted={reload} />
         </Defer>
       </div>
       <JdsSavedLedgerPanel

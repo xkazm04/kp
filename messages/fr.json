@@ -3081,7 +3081,57 @@
       "shelfReuseLabel": "Une fiche sert à",
       "shelfReuseAnalyze": "Évaluer des CV par rapport à elle",
       "shelfReuseIngest": "La convertir en poste ouvert",
-      "shelfReuseDuplicate": "La dupliquer pour la prochaine ouverture"
+      "shelfReuseDuplicate": "La dupliquer pour la prochaine ouverture",
+      "intake": {
+        "tabLabel": "Cadrage du poste",
+        "ledgerTitle": "Sessions de cadrage",
+        "lede": "Ne rédigez pas le poste, parlez-en — une courte conversation guidée capture votre besoin réel, puis en rédige la fiche de poste.",
+        "new": "Nouvelle session",
+        "starting": "Démarrage…",
+        "untitled": "Poste sans titre",
+        "empty": "Aucune session pour l'instant. Lancez-en une et décrivez le besoin avec vos mots.",
+        "error": "Une erreur est survenue. Veuillez réessayer.",
+        "turns": "{count, plural, one {# échange} other {# échanges}}",
+        "back": "Toutes les sessions",
+        "status": {
+          "open": "En cours",
+          "complete": "Prête",
+          "promoted": "Fiche créée"
+        },
+        "shape": {
+          "powerUnit": "Remplacement",
+          "story": "Exploration"
+        },
+        "thinking": "Réflexion…",
+        "composer": {
+          "placeholder": "Répondez avec vos mots — le flou est permis.",
+          "send": "Envoyer",
+          "closed": "Cette session est close."
+        },
+        "degradedNote": "L'IA est hors ligne — la liste guidée prend le relais. Vos réponses sont enregistrées malgré tout.",
+        "sendError": "Le message n'est pas passé. Veuillez réessayer.",
+        "promote": "Créer la fiche de poste",
+        "promoting": "Création…",
+        "promoted": "Fiche créée — retrouvez-la parmi les fiches enregistrées.",
+        "promoteHint": "Il faut au moins un intitulé de poste plus un critère indispensable ou un objectif à 90 jours.",
+        "promoteError": "Impossible de créer la fiche. Veuillez réessayer.",
+        "brief": {
+          "title": "Brief en direct",
+          "empty": "Le brief se construit ici au fil de la conversation.",
+          "role": "Poste",
+          "outcomes": "Accompli en 90 jours",
+          "dealbreakers": "Indispensables",
+          "niceToHave": "Atouts",
+          "learnable": "apprenable",
+          "languages": "Langues",
+          "context": "Contexte"
+        },
+        "provenance": {
+          "stated": "vos mots",
+          "inferred": "lecture IA",
+          "default": "supposé"
+        }
+      }
     },
     "form": {
       "saveAjd": "Enregistrer une fiche de poste",

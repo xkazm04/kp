@@ -41,6 +41,14 @@ export const STORE_ERRORS = {
   JD_LOAD_FAILED: "Could not load the JD. Please try again.",
   JD_SAVE_FAILED: "Could not save the JD. Please try again.",
   JD_GENERATE_FAILED: "Could not start the AI build. Please try again.",
+  // Role-intake dialog routes (docs/concepts/role-intake-dialog.md): all sit on
+  // better-sqlite3 + the spawned intake engine, whose thrown errors embed
+  // internal detail (paths, provider stderr).
+  INTAKE_CREATE_FAILED: "Could not start the intake session. Please try again.",
+  INTAKE_LIST_FAILED: "Could not load intake sessions. Please try again.",
+  INTAKE_READ_FAILED: "Could not load the intake session. Please try again.",
+  INTAKE_MESSAGE_FAILED: "Could not process that message. Please try again.",
+  INTAKE_PROMOTE_FAILED: "Could not create the JD from this brief. Please try again.",
   // Recruiter-side analyzed-candidates read (biz-ui scan 2026-06-12 #1).
   JD_ANALYSES_FAILED: "Could not load candidates for this JD. Please try again.",
   TEMPLATE_LIST_FAILED: "Could not load templates. Please try again.",

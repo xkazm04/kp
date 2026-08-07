@@ -46,6 +46,13 @@ Two layers:
    pre-paint bootstrap in `app/layout.tsx` (both hardcode the same key — kept in
    lockstep). **The bundled driver seeds this via `addInitScript` (DEV_AUTH=1,
    the default).**
+   > **2026-08-07 drift:** `/` is now ALSO gated **server-side** on the
+   > `kp_entered` cookie (`app/_lib/auth/session.ts::ENTERED_COOKIE`) + the
+   > first-run onboarding wizard (`app/page.tsx::needsOnboarding`). The
+   > localStorage flag alone leaves a fresh browser context on the public
+   > landing. Drivers must ALSO seed the cookie `kp_entered=1`
+   > (`drive-intake.mjs` does; port the same line into drive.mjs/drive-ai.mjs
+   > when they next fail this way).
 2. **Real auth:** `/login` → `POST /api/auth/login` (cookie session), with
    multi-workspace tenancy. Not needed for local L2; note it exists.
 

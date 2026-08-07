@@ -191,3 +191,49 @@ export const analysisResultSchema = z.object({
 });
 
 export type AnalysisResult = z.infer<typeof analysisResultSchema>;
+
+export const roleSpecSchema = z.object({
+  title: z.string(),
+  seniority: z.string(),
+  roleFamily: z.string(),
+  mustHaves: z.array(z.string()),
+  niceToHaves: z.array(z.string()),
+  responsibilities: z.array(z.string()),
+  languages: z.array(z.string()),
+  promptVersion: z.string()
+});
+
+export type RoleSpec = z.infer<typeof roleSpecSchema>;
+
+export const roleBriefSchema = z.object({
+  schemaVersion: z.number(),
+  title: z.string(),
+  seniority: z.string(),
+  roleFamily: z.string(),
+  languages: z.array(z.string()),
+  summary: z.string(),
+  responsibilities: z.array(z.string()),
+  successCriteria: z.array(z.string()),
+  requirements: z.array(z.object({
+    skill: z.string(),
+    kind: z.string(),
+    hardness: z.string(),
+    weight: z.number(),
+    rationale: z.string(),
+    provenance: z.string(),
+    confidence: z.number()
+  })),
+  facets: z.array(z.object({
+    key: z.string(),
+    label: z.string(),
+    value: z.string(),
+    importance: z.string(),
+    provenance: z.string(),
+    confidence: z.number(),
+    sourceTurn: z.number().nullish()
+  })),
+  spineProvenance: z.record(z.string(), z.string()),
+  promptVersion: z.string()
+});
+
+export type RoleBrief = z.infer<typeof roleBriefSchema>;

@@ -61,6 +61,9 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "interview_scorecard": frozenset({CAP_JSON}),
     # Agent-candidate bridge: the job → AgentFitSpec transform (agentfit.py).
     "agent_fit": frozenset({CAP_JSON}),
+    # Role-intake dialog with a hiring requestor (intake.py) — one JSON turn
+    # per exchange (reply + updated RoleBrief).
+    "role_intake": frozenset({CAP_JSON}),
     "github_analysis": frozenset({CAP_JSON}),
     "cv_analysis": frozenset({CAP_FILE_INPUT}),
     "profile_extract": frozenset({CAP_FILE_INPUT}),

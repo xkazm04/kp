@@ -3081,7 +3081,57 @@
       "shelfReuseLabel": "Jeden list využijete pro",
       "shelfReuseAnalyze": "Hodnocení CV proti němu",
       "shelfReuseIngest": "Převod na otevřenou pozici",
-      "shelfReuseDuplicate": "Kopii pro příští nábor"
+      "shelfReuseDuplicate": "Kopii pro příští nábor",
+      "intake": {
+        "tabLabel": "Zadání role",
+        "ledgerTitle": "Rozhovory o nové roli",
+        "lede": "Roli nemusíte psát — krátký vedený rozhovor zachytí, co skutečně potřebujete, a inzerát z něj vznikne sám.",
+        "new": "Nový rozhovor",
+        "starting": "Zakládám…",
+        "untitled": "Nepojmenovaná role",
+        "empty": "Zatím žádné rozhovory. Založte první a popište potřebu vlastními slovy.",
+        "error": "Něco se pokazilo. Zkuste to prosím znovu.",
+        "turns": "{count, plural, one {# replika} few {# repliky} other {# replik}}",
+        "back": "Všechny rozhovory",
+        "status": {
+          "open": "Probíhá",
+          "complete": "Připraveno",
+          "promoted": "Inzerát vytvořen"
+        },
+        "shape": {
+          "powerUnit": "Posila týmu",
+          "story": "Hledání podoby"
+        },
+        "thinking": "Přemýšlím…",
+        "composer": {
+          "placeholder": "Odpovězte vlastními slovy — klidně i mlhavě.",
+          "send": "Odeslat",
+          "closed": "Tento rozhovor je uzavřený."
+        },
+        "degradedNote": "AI je offline — pokračujeme vedeným dotazníkem. Vaše odpovědi se ukládají stejně.",
+        "sendError": "Zprávu se nepodařilo odeslat. Zkuste to prosím znovu.",
+        "promote": "Vytvořit inzerát",
+        "promoting": "Vytvářím…",
+        "promoted": "Inzerát vytvořen — najdete ho mezi uloženými.",
+        "promoteHint": "Je potřeba alespoň název role a jedna nezbytná dovednost nebo cíl na 90 dní.",
+        "promoteError": "Inzerát se nepodařilo vytvořit. Zkuste to prosím znovu.",
+        "brief": {
+          "title": "Živé zadání",
+          "empty": "Zadání se tu skládá samo, jak mluvíte.",
+          "role": "Role",
+          "outcomes": "Hotovo za 90 dní",
+          "dealbreakers": "Nezbytné",
+          "niceToHave": "Výhodou",
+          "learnable": "lze doučit",
+          "languages": "Jazyky",
+          "context": "Kontext"
+        },
+        "provenance": {
+          "stated": "řekli jste",
+          "inferred": "úsudek AI",
+          "default": "předpoklad"
+        }
+      }
     },
     "form": {
       "saveAjd": "Uložit popis pozice",

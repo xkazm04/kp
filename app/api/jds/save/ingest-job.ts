@@ -2,7 +2,7 @@ import { insertJob, jobContentHash, normalizeJob } from "@/app/_lib/job-ingest";
 import { normalizeSalaryBand } from "@/app/_lib/salary-band";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
-import type { RoleSpec } from "@/app/_lib/jd-build-run";
+import { parseRoleSpec } from "@/app/_lib/rolespec";
 
 // Turn a generated JD's role into a structured, matchable Job: build a record
 // from the RoleSpec, normalize it deterministically (salary band, requirements,
@@ -15,7 +15,9 @@ export async function ingestStructuredJob(input: {
   salary?: { suggestedMinimum?: number; suggestedMaximum?: number };
   company?: string;
 }, workspaceId: string = DEFAULT_WORKSPACE_ID): Promise<boolean> {
-  const role = input.role as RoleSpec;
+  // Trust-boundary parse (client-sent on POST /api/jds/save): a malformed role
+  // degrades to {} instead of crashing the `.map` calls below via a blind cast.
+  const role = parseRoleSpec(input.role);
   const record: Record<string, unknown> = {
     title: input.title,
     seniority: role.seniority ?? "medior",
