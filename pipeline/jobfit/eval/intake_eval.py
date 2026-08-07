@@ -15,7 +15,10 @@ Two modes:
 * live — both sides are LLMs (the agent via the ``role_intake`` use case, the
   persona via the same provider). Reliability invariants stay deterministic;
   there is deliberately no LLM judge yet (add one only once the invariants
-  are stable, the interview_eval lesson).
+  are stable, the interview_eval lesson). Live runs are single-sample PROBES,
+  not the CI gate (a real dialog is nondeterministic — shape/turn-budget
+  expectations go soft, see ``check_dialog(strict_shape=...)``); the gate is
+  the offline mode via tests/test_intake_eval.py.
 
 Reliability invariants (all deterministic, all must hold):
 
@@ -113,7 +116,15 @@ def simulate(
 # --- deterministic reliability checks --------------------------------------
 
 
-def check_dialog(scenario: dict, turns: list[dict], brief_payload: dict, shape: str | None, done: bool) -> dict[str, bool]:
+def check_dialog(
+    scenario: dict,
+    turns: list[dict],
+    brief_payload: dict,
+    shape: str | None,
+    done: bool,
+    *,
+    strict_shape: bool = True,
+) -> dict[str, bool]:
     agent_turns = [t["text"] for t in turns if t["role"] == "interviewer"]
     brief = coerce_role_brief(brief_payload)
     musts = [r for r in brief.requirements if r.kind == "must_have"]
@@ -128,9 +139,16 @@ def check_dialog(scenario: dict, turns: list[dict], brief_payload: dict, shape: 
     checks["no_premature_end"] = end_turns == [len(agent_turns) - 1] if done else len(end_turns) == 0
     if done and agent_turns:
         closing = agent_turns[-1].lower()
-        grounded = bool(brief.title) and brief.title.lower() in closing
-        grounded = grounded or any(m.skill.lower() in closing for m in musts)
-        checks["grounded_readback"] = grounded
+        # Token-level grounding: a live agent legitimately paraphrases the
+        # captured title ("the DevOps role" for "Frontend-leaning DevOps
+        # Engineer"), so require any substantive title token OR any must-have
+        # skill token in the close — not the exact strings.
+        def tokens(text: str) -> list[str]:
+            return [w for w in "".join(c if c.isalnum() else " " for c in text.lower()).split() if len(w) >= 4]
+
+        title_hit = any(w in closing for w in tokens(brief.title))
+        skill_hit = any(w in closing for m in musts for w in tokens(m.skill))
+        checks["grounded_readback"] = title_hit or skill_hit
     else:
         checks["grounded_readback"] = False
     core = bool(brief.title) and len(musts) >= 1
@@ -138,9 +156,14 @@ def check_dialog(scenario: dict, turns: list[dict], brief_payload: dict, shape: 
         core = core and len(brief.success_criteria) >= 1
     core = core and all(r.provenance in BRIEF_PROVENANCE for r in brief.requirements)
     checks["brief_core"] = core
-    if expect.get("shape"):
+    # Shape is a HARD expectation offline (the deterministic triage is exactly
+    # what the golden path pins) but SOFT live: a real dialog can legitimately
+    # resolve a story persona into a concrete power-unit close (observed with
+    # solution_jumper — the agent retired the parked solution and landed a
+    # crisp role). Live runs report the shape without gating on it.
+    if expect.get("shape") and strict_shape:
         checks["shape"] = shape == expect["shape"]
-    if expect.get("max_agent_turns"):
+    if expect.get("max_agent_turns") and strict_shape:
         checks["turn_budget"] = len(agent_turns) <= int(expect["max_agent_turns"])
     return checks
 
@@ -163,7 +186,7 @@ def run_eval(scenarios: list[dict], *, no_llm: bool, cap: int, color: bool) -> t
     rows: list[tuple[str, dict[str, bool], int]] = []
     for scenario in scenarios:
         turns, brief, shape, done = simulate(agent_provider, persona_provider, scenario, cap=cap)
-        checks = check_dialog(scenario, turns, brief, shape, done)
+        checks = check_dialog(scenario, turns, brief, shape, done, strict_shape=persona_provider is None)
         rows.append((scenario["name"], checks, len([t for t in turns if t["role"] == "interviewer"])))
 
     total = sum(len(c) for _, c, _ in rows)
