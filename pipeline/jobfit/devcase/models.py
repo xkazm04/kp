@@ -23,6 +23,19 @@ class CodebaseRef(_Base):
     label: str = ""
 
 
+class StatedRequirement(_Base):
+    """One graded requirement carried FROM the hiring intake (RoleBrief) into the
+    need — the requestor's own must/nice + prerequisite/learnable grading with
+    its weight. A projection of rolebrief.BriefRequirement (same vocabulary),
+    kept structurally separate so devcase stays importable without the intake
+    module. Empty list = the need predates the intake flow (JD-first or ad-hoc)."""
+
+    skill: str = ""
+    kind: str = "must_have"          # must_have | nice_to_have
+    hardness: str = "prerequisite"   # prerequisite | learnable
+    weight: float = 0.5              # 0..1 within the kind
+
+
 class DevNeed(_Base):
     """Customer intake: what they actually need a dev for.
 
@@ -30,7 +43,10 @@ class DevNeed(_Base):
     typing metadata), ``jd_text`` carries the full JD body and is the PRIMARY statement
     of the need — ``stack``/``responsibilities`` may legitimately be empty, with the
     analyze step extracting them from the JD. ``jd_slug`` records which library JD the
-    need was built from ("" = ad-hoc need typed by hand)."""
+    need was built from ("" = ad-hoc need typed by hand). ``stated_requirements``
+    carries the role-intake brief's GRADED dealbreakers when the need descends from a
+    promoted intake — role design anchors its must-haves to them (UAT L1-EVA-3:
+    previously the brief died as a structured object at this seam)."""
 
     id: str = ""
     title: str = ""
@@ -42,6 +58,7 @@ class DevNeed(_Base):
     notes: str = ""
     jd_slug: str = ""
     jd_text: str = ""
+    stated_requirements: list[StatedRequirement] = Field(default_factory=list)
 
 
 # --- 2. Reality reflection -------------------------------------------------

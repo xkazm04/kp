@@ -102,7 +102,7 @@ def _result() -> LLMResult:
 
 
 class AdapterEmissionTest(unittest.TestCase):
-    def test_success_emits_one_event_with_operation_and_usage(self) -> None:
+    def test_success_emits_one_event_with_usage_and_use_case_tag(self) -> None:
         ctx = _Ctx(self)
         provider = StubProvider([_result()], use_case="match_reasoning")
         provider.complete("hi")
@@ -110,7 +110,10 @@ class AdapterEmissionTest(unittest.TestCase):
         ev = ctx.events[0]
         self.assertEqual(ev["provider"], "anthropic")
         self.assertEqual(ev["model"], "claude-haiku-4-5")
-        self.assertEqual(ev["operation"], "match_reasoning")
+        # operation is a fixed LightTrack enum — use_case rides on a tag instead,
+        # so it survives (an arbitrary operation deserializes to "other").
+        self.assertEqual(ev["operation"], "chat")
+        self.assertIn("use_case:match_reasoning", ev["tags"])
         self.assertEqual(ev["input_tokens"], 50)
         self.assertEqual(ev["output_tokens"], 10)
         self.assertEqual(ev["cached_input"], 5)
@@ -167,7 +170,8 @@ class MonitoredCliTest(unittest.TestCase):
         ev = ctx.events[0]
         self.assertEqual(ev["provider"], "anthropic")
         self.assertIn("engine:claude_cli", ev["tags"])
-        self.assertEqual(ev["operation"], "match_reasoning")
+        self.assertIn("use_case:match_reasoning", ev["tags"])
+        self.assertEqual(ev["operation"], "chat")
         self.assertEqual(ev["input_tokens"], 200)
         self.assertEqual(ev["cached_input"], 30)
         self.assertEqual(ev["metadata"], {"cost_usd": 0.012})

@@ -119,6 +119,19 @@ A job promoted from an intake grounds downstream conversations:
 rides the experienced-path interviewer brief (`composeBrief`'s `roleIntent`)
 as interviewer-internal context — never the candidate-safe brief.
 
+**Dev-case seam** (closes UAT L1-EVA-3): the brief survives as a structured
+object into work-sample design. (a) Promote offers "also design the
+work-sample case" (checkbox → `caseDesign` in the promote body, same
+backgrounded build). (b) The Dev tab's JD picker fetches
+`GET /api/jds/[slug]?brief=1` (workspace-gated, like `?intent=1`) and fills
+the `DevNeed` from the brief — stack from graded must-haves, responsibilities
+from 90-day outcomes, `roleFamily` from the classified spine — instead of
+markdown re-extraction. (c) The graded dealbreakers themselves ride
+`DevNeed.statedRequirements` (`devcase/models.py::StatedRequirement`):
+`design_role` anchors the RoleSpec's must-haves to them (weight-ordered on
+the deterministic path, instructed on the LLM path), which is what the
+transfer assessment then weighs demonstrated capability against.
+
 ## Known gaps
 
 - Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back
@@ -129,6 +142,5 @@ as interviewer-internal context — never the candidate-safe brief.
   recipes/tokens; browser verification wasn't available in the build session).
 - Re-opening a `complete` session (append more turns, re-extract) is not yet
   supported — promote or start a new session.
-- Intake intent grounds interviews; devcase design consumes the brief only via
-  the promoted `DevNeed`. Decision-audit surfacing of the back-link is future
+- Decision-audit surfacing of the intake back-link is future
   work.

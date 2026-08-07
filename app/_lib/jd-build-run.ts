@@ -7,7 +7,7 @@ import { validateJdBuildInput } from "./jd-limits";
 import { marketSalaryLabel, normalizeMarketSalary, type MarketSalary } from "./salary-band";
 import { type RepoSnapshot } from "./repo-snapshot";
 import { parseRoleSpec, type RoleBrief, type RoleSpec } from "./rolespec";
-import { briefMustSkills, needTextFromBrief } from "./intake-brief";
+import { briefMustSkills, briefStatedRequirements, needTextFromBrief } from "./intake-brief";
 import { failJdAnalysis, finishJdAnalysis } from "./db/jobs";
 import { ingestStructuredJob } from "@/app/api/jds/save/ingest-job";
 import { renderTemplate } from "@/app/features/shared/renderTemplate";
@@ -243,6 +243,9 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
       seniorityTarget: input.seniority || brief?.seniority || "medior",
       roleFamily: input.roleFamily || brief?.roleFamily || "software_engineering",
       notes: needText,
+      // The graded dealbreakers survive INTO role design (UAT L1-EVA-3) —
+      // must/nice + hardness + weight, not just the flattened stack list.
+      ...(brief ? { statedRequirements: briefStatedRequirements(brief) } : {}),
     };
 
     progress?.(0, 2, "Analyzing the need and researching market salary…");

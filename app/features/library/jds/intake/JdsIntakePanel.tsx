@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { briefReadyToPromote } from "@/app/_lib/intake-brief";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, INTRO, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
@@ -17,6 +18,8 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   const locale = useLocale();
   const { sessions, active, sending, creating, promoting, degraded, error, startNew, openSession, closeSession, send, promote } =
     useIntakeLogic(onPromoted);
+  // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
+  const [withCase, setWithCase] = useState(false);
 
   if (!active) {
     return (
@@ -79,19 +82,33 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
           ) : null}
           <span className={CHIP_QUIET}>{t(`status.${active.status}`)}</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {active.status === "promoted" && active.jdSlug ? (
             <span className="text-body text-moss">{t("promoted")}</span>
           ) : (
-            <button
-              type="button"
-              className={`${BTN_SECONDARY} h-9 px-4 text-sm`}
-              disabled={!ready || promoting}
-              onClick={promote}
-              title={ready ? undefined : t("promoteHint")}
-            >
-              {promoting ? t("promoting") : t("promote")}
-            </button>
+            <>
+              {/* Same checklist semantics as the JD builder: the work-sample case
+                  is an explicit opt-in, designed from this same brief. */}
+              <label className="flex cursor-pointer items-center gap-1.5 text-meta text-steel">
+                <input
+                  type="checkbox"
+                  className="accent-coral"
+                  checked={withCase}
+                  onChange={(e) => setWithCase(e.target.checked)}
+                  disabled={promoting}
+                />
+                {t("promoteCase")}
+              </label>
+              <button
+                type="button"
+                className={`${BTN_SECONDARY} h-9 px-4 text-sm`}
+                disabled={!ready || promoting}
+                onClick={() => promote({ caseDesign: withCase })}
+                title={ready ? undefined : t("promoteHint")}
+              >
+                {promoting ? t("promoting") : t("promote")}
+              </button>
+            </>
           )}
         </div>
       </div>

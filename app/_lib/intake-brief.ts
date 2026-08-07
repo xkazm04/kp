@@ -12,6 +12,18 @@ export function briefNiceSkills(brief: RoleBrief): string[] {
   return (brief.requirements ?? []).filter((r) => r.kind === "nice_to_have").map((r) => r.skill);
 }
 
+// The graded projection the devcase chain consumes (DevNeed.statedRequirements
+// ↔ pipeline/jobfit/devcase/models.py::StatedRequirement): the requestor's own
+// must/nice + hardness split with weights, minus the intake-only fields
+// (rationale/provenance/confidence stay on the brief).
+export type StatedRequirement = { skill: string; kind: string; hardness: string; weight: number };
+
+export function briefStatedRequirements(brief: RoleBrief): StatedRequirement[] {
+  return (brief.requirements ?? [])
+    .filter((r) => r.skill)
+    .map((r) => ({ skill: r.skill, kind: r.kind, hardness: r.hardness, weight: r.weight }));
+}
+
 // The composed need text the JD build (and its persisted build_input) receives:
 // the brief's content, flattened in the order the design chain reads best —
 // narrative, outcomes, graded requirements, then the situational facets. This

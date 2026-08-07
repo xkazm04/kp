@@ -91,19 +91,35 @@ needing `file_input` are excluded and keep their dedicated `gemini.py` path.)
 
 ## Observability — LightTrack (`pipeline/jobfit/llm/monitor.py`)
 
-LLM telemetry goes to **LightTrack** (sibling repo `../tracklight`, self-hosted):
+LLM telemetry goes to **LightTrack** (sibling repo `../LightTrack`, self-hosted):
 
 - Every `TextProvider.complete()` and the registry's `MonitoredClaudeCli` emit one
-  event per call: provider, model, tokens (incl. cached), latency, the use case as
-  `operation`, errors, and computed `cost_usd`.
+  event per call: provider, model, tokens (incl. cached), latency, errors, and
+  computed `cost_usd` as metadata (LightTrack prices server-side from its own
+  price book — the two travel side by side as a cross-check).
+- **The use case rides on a `use_case:<name>` tag, NOT `operation`.** LightTrack's
+  `operation` is a fixed 4-variant enum (`chat`/`completion`/`embedding`/`other`)
+  — an arbitrary string silently deserializes to `other`, collapsing every call
+  into one bucket. So `operation` is uniformly `"chat"` (`_OPERATION` in
+  `monitor.py`) and the use case is a tag; `cost_summary` groups by
+  provider+model, per-use-case slicing is tag-filtered. The Claude CLI engine
+  additionally carries `engine:claude_cli` (it reports as provider `anthropic` —
+  it *is* Anthropic spend — so subscription vs metered stays separable).
 - Direct Gemini paths and the TS github-analysis call (via
   `app/_lib/llm-lighttrack.ts`, the TS counterpart to `monitor.py`) meter through
-  the same seam.
+  the same seam. **Known gap:** the TS seam still assigns the use case to
+  `operation`, so TS-originated events collapse to `other` — the Python fix above
+  has not been mirrored there yet.
 - Activation is double-gated (SDK importable AND `LIGHTTRACK_URL` set); emission
   is fire-and-forget on a daemon thread, exception-swallowed — an observability
   outage can never fail an LLM call.
-- Local dev: `pip install -e ../tracklight/clients/python`, run the LightTrack
-  binary, set `LIGHTTRACK_URL` (+`LIGHTTRACK_KEY`/`LIGHTTRACK_PROJECT`) in `.env.local`.
+- Local dev, once: `pip install -e ../LightTrack/clients/python` (editable — kp
+  and LightTrack are co-developed). Each session: `pwsh scripts/lighttrack-dev.ps1`
+  runs `lighttrack-api` from `../LightTrack` in dev auth mode (no API key), SQLite
+  store, `127.0.0.1:8787`. Then set `LIGHTTRACK_URL=http://127.0.0.1:8787` and
+  `LIGHTTRACK_PROJECT=kp` in `.env` (both are listed empty in `.env.example`, so a
+  copied env leaves telemetry off by default). Inspect with
+  `GET /v1/events?project=kp` / `GET /v1/costs?project=kp`.
 
 ## Benchmarks (`pipeline/jobfit/llm/bench/`)
 

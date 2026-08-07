@@ -1,15 +1,18 @@
 import type { OutboxStatus } from "@/app/_lib/comms-status";
 // Single-sourced from the generated schema (superset of the old local shape —
 // adds roleFamily/languages/promptVersion); see app/_lib/rolespec.ts.
-import type { RoleSpec } from "@/app/_lib/rolespec";
+import type { RoleBrief, RoleSpec } from "@/app/_lib/rolespec";
 
 // Summary row from GET /api/jds (the saved-JD library backing the NeedForm picker) —
 // mirrors sub_analyze/AnalyzeTypes.JdSummary; kept local so the dev feature doesn't
 // import the analyze feature for one row shape.
 export type JdSummary = { slug: string; title: string; preview: string; created_at: string };
-// A picked JD with its full body loaded (GET /api/jds/[slug]) — the body becomes
-// need.jdText, the primary statement of the need.
-export type SelectedJd = { slug: string; title: string; body: string };
+// A picked JD with its full body loaded (GET /api/jds/[slug]?brief=1) — the body
+// becomes need.jdText, the primary statement of the need. `brief` is the promoted
+// role-intake RoleBrief behind the JD (null/absent when none): its graded
+// requirements + outcomes fill the need's structured fields instead of being
+// re-extracted from markdown (UAT L1-EVA-3).
+export type SelectedJd = { slug: string; title: string; body: string; brief?: RoleBrief | null };
 
 // Live Work Surface (moonshot E) — one observed process event emitted by the
 // in-product work surface. Free-form JSON (NOT a codegen'd model): persisted to

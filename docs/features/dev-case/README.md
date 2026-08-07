@@ -28,7 +28,14 @@ controls](#anti-delegation-controls-shipped) below. All six are shipped.
    `useDevTabNeedAnalysis.ts` → `pipeline/jobfit/devcase/analyze.py`
    (`analyze_need`), reflecting the stated need against real signals
    (`realStack` **or** `coreResponsibilities` — relaxed to also ground
-   non-software roles).
+   non-software roles). When the picked JD descends from a promoted
+   role-intake, the picker fetches its RoleBrief
+   (`GET /api/jds/[slug]?brief=1`) and the need is filled STRUCTURALLY —
+   stack from graded must-haves, responsibilities from 90-day outcomes,
+   `roleFamily` from the classified spine, plus
+   `DevNeed.statedRequirements` (the requestor's own must/nice + hardness +
+   weight grading), which `design_role` anchors the RoleSpec's must-haves to
+   (see `docs/features/intake/README.md`). JD-only needs behave as before.
 2. **Case + role design.** `pipeline/jobfit/devcase/design.py` (`design_case`,
    `design_role`, prompt `case-design-v6`) produces a `CaseScenario` (brief,
    starting materials, covert tooling-probes, rubric) anchored to the ROLE

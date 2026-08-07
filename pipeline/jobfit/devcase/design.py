@@ -115,6 +115,10 @@ def _human(role_family: str) -> str:
 
 def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None = None, lang: str = "en") -> tuple[dict, str]:
     real = analysis.real_stack or need.stack
+    # Graded dealbreakers from the hiring-intake brief (empty on pre-intake
+    # needs). Serialized by alias so the prompt sees the same camelCase shape
+    # the TS side and the brief use.
+    stated_reqs = [r.model_dump(by_alias=True) for r in need.stated_requirements]
     ctx = {
         "need": {
             "title": need.title,
@@ -124,6 +128,10 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
             # JD-first intake: when the need came from a saved job description its body is
             # the primary statement of what they're hiring for — anchor the role to it.
             "jobDescription": need.jd_text[:4000] or None,
+            # Role-intake grading: the requestor's OWN must/nice + prerequisite/
+            # learnable split with weights — the highest-authority requirement
+            # signal when present (it was read back and confirmed in dialog).
+            "statedRequirements": stated_reqs or None,
         },
         "analysis": {
             "realStack": real,
@@ -136,7 +144,11 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
     prompt = (
         "Design a precise RoleSpec. ANCHOR the role's IDENTITY to what they are HIRING FOR — the stated "
         "title, function (roleFamily) and responsibilities; when a jobDescription is supplied it is the "
-        "authoritative statement of the need, so draw must-haves and responsibilities from it. Do NOT "
+        "authoritative statement of the need, so draw must-haves and responsibilities from it. When "
+        "statedRequirements are supplied they are the requestor's OWN graded dealbreakers, read back and "
+        "confirmed in the hiring intake — every kind=must_have entry must appear in mustHaves (highest "
+        "weight first) unless the analysis concretely contradicts it, and kind=nice_to_have entries "
+        "belong in niceToHaves, never promoted. Do NOT "
         "rename the role to the codebase's domain; "
         "the codebase is where this person will WORK, not what defines the role. Use the REAL stack to "
         "calibrate must-haves and to note honestly what transfers and what is a gap (e.g. a Flask codebase "
@@ -157,12 +169,17 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
 
     def deterministic() -> dict:
         title = need.title or f"{need.seniority_target.title()} {real[0] if real else 'Software'} Engineer"
+        # Stated must-haves (weight-ordered) lead; real-stack fills the remainder —
+        # so a keyless run still honors the intake's confirmed dealbreakers.
+        stated_musts = [r.skill for r in sorted(need.stated_requirements, key=lambda r: -r.weight) if r.kind == "must_have" and r.skill]
+        musts = stated_musts + [s for s in real if s.lower() not in {m.lower() for m in stated_musts}]
+        stated_nices = [r.skill for r in need.stated_requirements if r.kind == "nice_to_have" and r.skill]
         return {
             "title": title,
             "seniority": need.seniority_target,
             "roleFamily": need.role_family,
-            "mustHaves": real[:5],
-            "niceToHaves": [],
+            "mustHaves": musts[:6] if stated_musts else real[:5],
+            "niceToHaves": stated_nices[:5],
             "responsibilities": analysis.core_responsibilities or need.responsibilities or [],
             "languages": ["English"],
         }
