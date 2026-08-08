@@ -1176,7 +1176,8 @@
     "INTAKE_VOICE_TURN_FAILED": "Could not process that utterance. Please try again.",
     "INTAKE_VOICE_COMPLETE_FAILED": "Could not process the voice transcript. Please try again.",
     "INTAKE_BRIEF_SAVE_FAILED": "Could not save the brief edit. Please try again.",
-    "INTAKE_REOPEN_FAILED": "Could not re-open the session. Please try again."
+    "INTAKE_REOPEN_FAILED": "Could not re-open the session. Please try again.",
+    "INTAKE_ATTACHMENT_FAILED": "Could not update the attachments. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3186,6 +3187,41 @@
           "agent": "Agent",
           "requestor": "You",
           "system": "System"
+        },
+        "side": {
+          "brief": "Brief",
+          "draft": "JD draft",
+          "materials": "Materials"
+        },
+        "draft": {
+          "title": "Job description draft",
+          "workingChip": "working draft",
+          "workingNote": "Builds itself from the brief as you talk. The final JD (with market salary research) is generated at Create JD.",
+          "supersedeNote": "An existing JD is attached — promoting this brief creates the updated version.",
+          "empty": "The draft appears here once the brief has a title or requirements.",
+          "untitled": "Untitled role",
+          "level": "{seniority} level",
+          "aboutRole": "About the role",
+          "outcomes": "What success looks like (first 90 days)",
+          "responsibilities": "Responsibilities",
+          "whatBring": "What you'll bring",
+          "niceToHave": "Nice to have",
+          "languages": "Languages"
+        },
+        "attachments": {
+          "title": "Reference materials",
+          "empty": "Nothing attached yet. Add a colleague's note or an existing JD — the assistant will draw on it and ask you to confirm what it takes.",
+          "addNote": "Paste a note",
+          "addJd": "Attach a saved JD",
+          "noteTitlePlaceholder": "Title (e.g. 'Note from the team lead')",
+          "notePlaceholder": "Paste the note or job description text…",
+          "add": "Attach",
+          "cancel": "Cancel",
+          "remove": "Remove",
+          "kindNote": "note",
+          "kindJd": "saved JD",
+          "jdPick": "Pick a saved JD…",
+          "error": "Could not update the attachments. Please try again."
         }
       }
     },

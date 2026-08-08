@@ -1176,7 +1176,8 @@
     "INTAKE_VOICE_TURN_FAILED": "Tuto repliku se nepodařilo zpracovat. Zkuste to prosím znovu.",
     "INTAKE_VOICE_COMPLETE_FAILED": "Přepis hovoru se nepodařilo zpracovat. Zkuste to prosím znovu.",
     "INTAKE_BRIEF_SAVE_FAILED": "Úpravu zadání se nepodařilo uložit. Zkuste to prosím znovu.",
-    "INTAKE_REOPEN_FAILED": "Rozhovor se nepodařilo znovu otevřít. Zkuste to prosím znovu."
+    "INTAKE_REOPEN_FAILED": "Rozhovor se nepodařilo znovu otevřít. Zkuste to prosím znovu.",
+    "INTAKE_ATTACHMENT_FAILED": "Podklady se nepodařilo uložit. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3186,6 +3187,41 @@
           "agent": "Agent",
           "requestor": "Vy",
           "system": "Systém"
+        },
+        "side": {
+          "brief": "Zadání",
+          "draft": "Návrh inzerátu",
+          "materials": "Podklady"
+        },
+        "draft": {
+          "title": "Návrh popisu pozice",
+          "workingChip": "pracovní návrh",
+          "workingNote": "Skládá se ze zadání průběžně, jak mluvíte. Finální inzerát (včetně průzkumu mezd) vznikne při Vytvořit inzerát.",
+          "supersedeNote": "Je přiložen existující inzerát — vytvořením z tohoto zadání vznikne jeho aktualizovaná verze.",
+          "empty": "Návrh se tu objeví, jakmile má zadání název nebo požadavky.",
+          "untitled": "Nepojmenovaná role",
+          "level": "úroveň {seniority}",
+          "aboutRole": "O pozici",
+          "outcomes": "Jak vypadá úspěch (prvních 90 dní)",
+          "responsibilities": "Odpovědnosti",
+          "whatBring": "Co byste měli mít",
+          "niceToHave": "Výhodou",
+          "languages": "Jazyky"
+        },
+        "attachments": {
+          "title": "Podklady",
+          "empty": "Zatím nic. Přiložte poznámku od kolegy nebo existující inzerát — asistent z nich bude čerpat a nechá si vše potvrdit.",
+          "addNote": "Vložit poznámku",
+          "addJd": "Přiložit uložený inzerát",
+          "noteTitlePlaceholder": "Název (např. 'Poznámka od team leada')",
+          "notePlaceholder": "Vložte text poznámky nebo inzerátu…",
+          "add": "Přiložit",
+          "cancel": "Zrušit",
+          "remove": "Odebrat",
+          "kindNote": "poznámka",
+          "kindJd": "uložený inzerát",
+          "jdPick": "Vyberte uložený inzerát…",
+          "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu."
         }
       }
     },

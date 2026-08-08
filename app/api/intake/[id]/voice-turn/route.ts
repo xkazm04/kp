@@ -42,7 +42,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const lang = intake.lang === "cs" ? "cs" : "en";
-    const turn = await runIntakeVoiceTurn({ transcript: intake.transcript, brief: intake.brief, message, lang });
+    const turn = await runIntakeVoiceTurn({ transcript: intake.transcript, brief: intake.brief, message, lang, attachments: intake.attachments });
 
     const now = new Date().toISOString();
     const transcript = [

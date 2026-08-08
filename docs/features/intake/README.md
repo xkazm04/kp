@@ -228,6 +228,42 @@ The requestor can FIX what was captured without a new session:
   (`app/_lib/intake-export.ts`) — the artifact for the director/inspector
   meeting. A defaulted seniority is visibly flagged in the export.
 
+## Attached reference material ("Materials")
+
+A session can carry up to 5 attachments — a pasted **note** (a colleague's
+brief, a legacy JD text) or a **saved JD** picked from the library, resolved
+SERVER-side from the workspace's `jds` row (the client sends only the slug;
+`app/api/intake/[id]/attachments/route.ts`, caps: text ≤20k chars, title
+≤120; promoted sessions frozen). Stored in `role_intakes.attachment_json`
+(`IntakeAttachment` in `app/_lib/db/intakes.ts`).
+
+Grounding: the dialog prompt gains a fenced `ATTACHED_MATERIAL` block
+(`intake.py::_attachments_block`, budget-truncated to ~8k chars total) framed
+as THIRD-PARTY reference data — the agent may mine it, but values proposed
+from it enter the brief as `inferred` (rationale citing the attachment) and
+only become `stated` once the requestor confirms them in dialog/read-back;
+where the material contradicts the live requestor, the requestor wins. The
+voice fast thread sees attachment TITLES only (latency budget). **Keyless the
+attachments are stored and acknowledged once but never mined** — the scripted
+path cannot read prose without a model, so nothing is silently invented; the
+acknowledgement invites pasting key points as answers instead.
+
+## Session layout — chat · brief · JD draft · materials
+
+The session view is chat-primary with a switchable right region
+(`JdsIntakeSidePanel.tsx`: shared-layout segmented pill → Brief / JD draft /
+Materials). The **JD draft** (`JdsIntakeDraftPane.tsx` +
+`app/_lib/intake-draft.ts`) is a DETERMINISTIC client-side render of the
+current RoleBrief in the posting shape of the real build's `composeMarkdown`
+— it updates after every exchange at zero LLM cost, is labeled a working
+draft (the final JD, with market-salary research, is still generated at
+Promote), never prints a `default`-provenance seniority as a decided level,
+and notes when a JD attachment will be superseded at promote. Motion follows
+the repo standard (AnalyzeWorkspace.tsx): pill spring + pane crossfade, chat
+bubbles and status notes fade in/out, the draft crossfades on brief change —
+all flattened under `prefers-reduced-motion`. Both themes are covered at the
+token/recipe level (dark rounded-2xl / sticker shadows on the new surfaces).
+
 ## Known gaps
 
 - Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back
@@ -239,6 +275,11 @@ The requestor can FIX what was captured without a new session:
   wired.
 - The visual pass in both themes is pending (built from shared
   recipes/tokens; browser verification wasn't available in the build session).
+  This includes the tri-pane layout, the JD-draft pane, the attachments pane
+  and their motion — code-level token/dark-variant rigor only so far.
+- Keyless attachment mining is deliberately absent (acknowledged, not mined);
+  the one-shot "propose a brief from a pasted legacy JD" ingest lane stays a
+  concept-doc open question.
 - Promoted sessions cannot be edited or re-opened (frozen by design; see
   above) — re-promote-to-update-the-JD is future work.
 - Deterministic-path corrections at the read-back land as a `correction`

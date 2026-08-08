@@ -264,4 +264,7 @@ session-shape detection heuristic.
   `jd_revisions`.
 - How hard to push inference: should the agent propose a draft brief from a
   pasted legacy JD (ingest direction) so existing corpora onboard into the
-  same schema? Likely yes, as a later ingest lane.
+  same schema? Likely yes, as a later ingest lane. *(First step shipped: a
+  legacy JD/note can be ATTACHED to a session and the dialog mines it —
+  inferred-until-confirmed — see the feature doc's "Attached reference
+  material"; the full one-shot ingest lane remains open.)*

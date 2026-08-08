@@ -3,7 +3,22 @@ import { writeFile } from "node:fs/promises";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 import type { RoleBrief } from "./rolespec";
+import type { IntakeAttachment } from "./db/intakes";
 import type { VoiceTurn } from "./voice/types";
+
+// Shared helper: write the attachment list beside the other inputs and push
+// the CLI flag. Bodies are budget-truncated Python-side; the voice fast thread
+// reads titles only.
+async function pushAttachmentsArg(
+  workdir: string,
+  args: string[],
+  attachments: IntakeAttachment[] | undefined
+): Promise<void> {
+  if (!attachments || attachments.length === 0) return;
+  const p = path.join(workdir, "attachments.json");
+  await writeFile(p, JSON.stringify(attachments), "utf-8");
+  args.push("--attachments-json", p);
+}
 
 // Role-intake dialog runner (docs/concepts/role-intake-dialog.md, Phase 1):
 // one spawned intake_cli exchange per requestor message, mirroring the other
@@ -58,7 +73,7 @@ export type IntakeVoiceTurn = {
 // spoken utterance in → the next spoken utterance out, at speech pace — the
 // conversational brain stays OURS, the provider is only the speech transport.
 export async function runIntakeVoiceTurn(
-  input: { transcript: VoiceTurn[]; brief: RoleBrief | null; message: string; lang: string },
+  input: { transcript: VoiceTurn[]; brief: RoleBrief | null; message: string; lang: string; attachments?: IntakeAttachment[] },
   signal?: AbortSignal
 ): Promise<IntakeVoiceTurn> {
   const workdir = await createWorkdir();
@@ -81,6 +96,7 @@ export async function runIntakeVoiceTurn(
       await writeFile(briefPath, JSON.stringify(input.brief), "utf-8");
       args.push("--brief-json", briefPath);
     }
+    await pushAttachmentsArg(workdir, args, input.attachments);
     const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
@@ -113,7 +129,7 @@ export type IntakeExtractResult = {
 // Post-hang-up batch extraction: the finished voice transcript → the updated
 // RoleBrief in one completion (merge-protected like every text exchange).
 export async function runIntakeTranscriptExtract(
-  input: { transcript: VoiceTurn[]; brief: RoleBrief | null; lang: string },
+  input: { transcript: VoiceTurn[]; brief: RoleBrief | null; lang: string; attachments?: IntakeAttachment[] },
   signal?: AbortSignal
 ): Promise<IntakeExtractResult> {
   const workdir = await createWorkdir();
@@ -134,6 +150,7 @@ export async function runIntakeTranscriptExtract(
       await writeFile(briefPath, JSON.stringify(input.brief), "utf-8");
       args.push("--brief-json", briefPath);
     }
+    await pushAttachmentsArg(workdir, args, input.attachments);
     const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);
@@ -151,7 +168,7 @@ export async function runIntakeTranscriptExtract(
 }
 
 export async function runIntakeExchange(
-  input: { transcript: VoiceTurn[]; brief: RoleBrief | null; message: string; lang: string },
+  input: { transcript: VoiceTurn[]; brief: RoleBrief | null; message: string; lang: string; attachments?: IntakeAttachment[] },
   signal?: AbortSignal
 ): Promise<IntakeExchange> {
   const workdir = await createWorkdir();
@@ -173,6 +190,7 @@ export async function runIntakeExchange(
       await writeFile(briefPath, JSON.stringify(input.brief), "utf-8");
       args.push("--brief-json", briefPath);
     }
+    await pushAttachmentsArg(workdir, args, input.attachments);
     const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
     const { stdout, stderr, exitCode } = await result;
     if (exitCode !== 0) throw new Error(parseStderrError(stderr, exitCode).message);

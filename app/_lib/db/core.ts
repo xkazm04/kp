@@ -962,6 +962,10 @@ export function ensureDb(): Database.Database {
     "ALTER TABLE billing_events ADD COLUMN org_id TEXT",
     "ALTER TABLE billing_credits ADD COLUMN org_id TEXT NOT NULL DEFAULT 'org-default'",
     "ALTER TABLE billing_alerts ADD COLUMN org_id TEXT NOT NULL DEFAULT 'org-default'",
+    // Role-intake attachments (docs/features/intake/README.md): reference
+    // material — a colleague's note or a saved JD — the dialog grounds on.
+    // JSON list of {kind: "note"|"jd", title, text, jdSlug?}.
+    "ALTER TABLE role_intakes ADD COLUMN attachment_json TEXT",
   ]) {
     migrateExec(sql);
   }

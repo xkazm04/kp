@@ -21,6 +21,8 @@ export type IntakeSummary = {
   turnCount: number;
 };
 
+export type IntakeAttachment = { kind: "note" | "jd"; title: string; text: string; jdSlug?: string };
+
 export type IntakeSession = {
   id: string;
   title: string;
@@ -28,6 +30,7 @@ export type IntakeSession = {
   lang: string | null;
   transcript: IntakeTurn[];
   brief: RoleBrief | null;
+  attachments: IntakeAttachment[];
   shape: "power_unit" | "story" | null;
   jdSlug: string | null;
 };
@@ -283,6 +286,40 @@ export function useIntakeLogic(onPromoted?: () => void) {
 
   // Click-to-turn (UAT drain §2.2, the defensibility moment): a source-turn
   // chip scrolls + flashes the transcript bubble it cites.
+  // Reference material (attachments): add a pasted note or a library JD; the
+  // server resolves JD bodies and enforces the caps. State swaps to the
+  // server-confirmed list on success.
+  const [savingAttachment, setSavingAttachment] = useState(false);
+  const mutateAttachments = useCallback(
+    async (body: Record<string, unknown>) => {
+      if (!active || savingAttachment) return;
+      const id = active.id;
+      setSavingAttachment(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/intake/${encodeURIComponent(id)}/attachments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { attachments: IntakeAttachment[] };
+        setActive((s) => (s && s.id === id ? { ...s, attachments: data.attachments } : s));
+      } catch {
+        setError("attachment");
+      } finally {
+        setSavingAttachment(false);
+      }
+    },
+    [active, savingAttachment]
+  );
+  const addAttachment = useCallback(
+    (input: { kind: "note"; title: string; text: string } | { kind: "jd"; jdSlug: string }) =>
+      mutateAttachments({ action: "add", ...input }),
+    [mutateAttachments]
+  );
+  const removeAttachment = useCallback((index: number) => mutateAttachments({ action: "remove", index }), [mutateAttachments]);
+
   const [highlightTurn, setHighlightTurn] = useState<number | null>(null);
   const jumpToTurn = useCallback((turn: number) => {
     setHighlightTurn(turn);
@@ -319,5 +356,8 @@ export function useIntakeLogic(onPromoted?: () => void) {
     highlightTurn,
     jumpToTurn,
     clearHighlight,
+    addAttachment,
+    removeAttachment,
+    savingAttachment,
   };
 }

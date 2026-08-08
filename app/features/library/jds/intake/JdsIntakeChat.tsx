@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, FIELD } from "@/app/_components/ui/recipes";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import type { IntakeTurn } from "./jdsIntakeLogic";
 
 // The conversation column: transcript bubbles + composer. The agent speaks
@@ -35,6 +37,7 @@ export function JdsIntakeChat({
   onHighlightDone?: () => void;
 }) {
   const t = useTranslations("library.tab.intake");
+  const reduced = useReducedMotion();
   const [draft, setDraft] = useState("");
   // Latency honesty (UAT drain 2.4 — 31–40 s measured per live exchange): after
   // ~8 s the thinking bubble gains a quiet second line naming the real wait, so
@@ -97,14 +100,28 @@ export function JdsIntakeChat({
           };
           if (turn.role === "system") {
             return (
-              <div key={i} ref={setRef} className="flex justify-center">
+              <motion.div
+                key={i}
+                ref={setRef}
+                initial={{ opacity: reduced ? 1 : 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: reduced ? 0 : 0.2, ease: "easeOut" }}
+                className="flex justify-center"
+              >
                 <span className="text-meta text-steel">— {turn.text} —</span>
-              </div>
+              </motion.div>
             );
           }
           const flashing = flash === i ? " ring-2 ring-coral" : "";
           return (
-            <div key={i} ref={setRef} className={turn.role === "candidate" ? "flex justify-end" : "flex justify-start"}>
+            <motion.div
+              key={i}
+              ref={setRef}
+              initial={{ opacity: reduced ? 1 : 0, y: reduced ? 0 : 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduced ? 0 : 0.2, ease: "easeOut" }}
+              className={turn.role === "candidate" ? "flex justify-end" : "flex justify-start"}
+            >
               <div
                 className={
                   (turn.role === "candidate"
@@ -116,17 +133,39 @@ export function JdsIntakeChat({
               >
                 {turn.text}
               </div>
-            </div>
+            </motion.div>
           );
         })}
-        {sending ? (
-          <div className="flex justify-start">
-            <div className="rounded-lg bg-stone-100 px-3.5 py-2.5 text-body text-steel dark:rounded-2xl">
-              {t("thinking")}
-              {slowHint ? <div className="mt-1 text-meta text-steel">{t("thinkingSlow")}</div> : null}
-            </div>
-          </div>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {sending ? (
+            <motion.div
+              key="thinking"
+              initial={{ opacity: reduced ? 1 : 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: reduced ? 1 : 0 }}
+              transition={{ duration: reduced ? 0 : 0.18, ease: "easeOut" }}
+              className="flex justify-start"
+            >
+              <div className="rounded-lg bg-stone-100 px-3.5 py-2.5 text-body text-steel dark:rounded-2xl">
+                {t("thinking")}
+                <AnimatePresence initial={false}>
+                  {slowHint ? (
+                    <motion.div
+                      key="slow"
+                      initial={{ opacity: reduced ? 1 : 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: reduced ? 1 : 0 }}
+                      transition={{ duration: reduced ? 0 : 0.18, ease: "easeOut" }}
+                      className="mt-1 text-meta text-steel"
+                    >
+                      {t("thinkingSlow")}
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <textarea

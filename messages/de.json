@@ -1176,7 +1176,8 @@
     "INTAKE_VOICE_TURN_FAILED": "Diese Äußerung konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut.",
     "INTAKE_VOICE_COMPLETE_FAILED": "Das Gesprächstranskript konnte nicht verarbeitet werden. Bitte erneut versuchen.",
     "INTAKE_BRIEF_SAVE_FAILED": "Die Briefing-Änderung konnte nicht gespeichert werden. Bitte erneut versuchen.",
-    "INTAKE_REOPEN_FAILED": "Das Gespräch konnte nicht wieder geöffnet werden. Bitte erneut versuchen."
+    "INTAKE_REOPEN_FAILED": "Das Gespräch konnte nicht wieder geöffnet werden. Bitte erneut versuchen.",
+    "INTAKE_ATTACHMENT_FAILED": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3186,6 +3187,41 @@
           "agent": "Agent",
           "requestor": "Sie",
           "system": "System"
+        },
+        "side": {
+          "brief": "Briefing",
+          "draft": "Anzeigenentwurf",
+          "materials": "Unterlagen"
+        },
+        "draft": {
+          "title": "Entwurf der Stellenbeschreibung",
+          "workingChip": "Arbeitsentwurf",
+          "workingNote": "Entsteht laufend aus dem Briefing, während Sie sprechen. Die finale Anzeige (inkl. Gehaltsrecherche) wird bei „Stellenbeschreibung erstellen“ generiert.",
+          "supersedeNote": "Eine bestehende Anzeige ist angehängt — die Erstellung aus diesem Briefing erzeugt die aktualisierte Fassung.",
+          "empty": "Der Entwurf erscheint hier, sobald das Briefing einen Titel oder Anforderungen hat.",
+          "untitled": "Unbenannte Rolle",
+          "level": "Stufe {seniority}",
+          "aboutRole": "Über die Rolle",
+          "outcomes": "Wie Erfolg aussieht (erste 90 Tage)",
+          "responsibilities": "Aufgaben",
+          "whatBring": "Was Sie mitbringen",
+          "niceToHave": "Wünschenswert",
+          "languages": "Sprachen"
+        },
+        "attachments": {
+          "title": "Unterlagen",
+          "empty": "Noch nichts angehängt. Fügen Sie eine Notiz oder eine bestehende Anzeige hinzu — der Assistent nutzt sie und lässt sich alles bestätigen.",
+          "addNote": "Notiz einfügen",
+          "addJd": "Gespeicherte Anzeige anhängen",
+          "noteTitlePlaceholder": "Titel (z. B. „Notiz vom Teamlead“)",
+          "notePlaceholder": "Text der Notiz oder Anzeige einfügen …",
+          "add": "Anhängen",
+          "cancel": "Abbrechen",
+          "remove": "Entfernen",
+          "kindNote": "Notiz",
+          "kindJd": "gespeicherte Anzeige",
+          "jdPick": "Gespeicherte Anzeige wählen …",
+          "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen."
         }
       }
     },

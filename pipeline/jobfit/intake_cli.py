@@ -11,6 +11,9 @@ Input files keep the arg list short and unambiguous on Windows:
                      text, 30s timeout → deterministic script on any stall)
   --extract-transcript  the PERIODIC extraction thread: RoleBrief extraction
                      over the stored transcript (--transcript-json)
+  --attachments-json reference material attached to the session (list of
+                     {kind,title,text}) — fenced into the dialog prompt; the
+                     voice fast thread sees titles only
   --lang             en|cs (normalized)
   --no-llm           force the deterministic scripted path
 
@@ -42,6 +45,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="One role-intake dialog exchange.")
     parser.add_argument("--transcript-json", type=Path)
     parser.add_argument("--brief-json", type=Path)
+    parser.add_argument("--attachments-json", type=Path)
     parser.add_argument("--message", default="")
     parser.add_argument("--opening", action="store_true")
     parser.add_argument("--voice-turn", action="store_true")
@@ -51,6 +55,9 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        attachments = _load_json(args.attachments_json)
+        if attachments is not None and not isinstance(attachments, list):
+            raise ValueError("--attachments-json must contain a JSON array")
         if args.voice_turn:
             # The FAST voice thread: one spoken utterance, no JSON contract. Its
             # own use case so a fast model can be pinned; short timeout — a slow
@@ -64,7 +71,7 @@ def main() -> int:
                 provider = resolve_provider("role_intake_voice", timeout=30)
                 if provider is not None and not provider.available():
                     provider = None  # documented dance → deterministic fast thread
-            payload = run_voice_turn(provider, turns, brief, args.message, lang=args.lang)
+            payload = run_voice_turn(provider, turns, brief, args.message, lang=args.lang, attachments=attachments)
         elif args.extract_transcript:
             turns = _load_json(args.transcript_json) or []
             if not isinstance(turns, list) or not turns:
@@ -88,7 +95,7 @@ def main() -> int:
                 provider = resolve_provider("role_intake", timeout=120)
                 if provider is not None and not provider.available():
                     provider = None  # documented dance → deterministic fallback
-            payload = run_intake_turn(provider, turns, brief, args.message, lang=args.lang)
+            payload = run_intake_turn(provider, turns, brief, args.message, lang=args.lang, attachments=attachments)
     except ValueError as exc:
         print(json.dumps({"error": str(exc), "status": 400}, ensure_ascii=False), file=sys.stderr)
         return 2

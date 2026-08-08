@@ -45,6 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       brief: intake.brief,
       message,
       lang: intake.lang === "cs" ? "cs" : "en",
+      attachments: intake.attachments,
     });
 
     // Recertify R-2: the <<END>> sentinel is an engine/eval wire contract, not

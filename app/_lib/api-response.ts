@@ -51,6 +51,7 @@ export const STORE_ERRORS = {
   INTAKE_VOICE_CONNECT_FAILED: "Could not start the voice call. Please try again.",
   INTAKE_VOICE_TURN_FAILED: "Could not process that utterance. Please try again.",
   INTAKE_VOICE_COMPLETE_FAILED: "Could not process the voice transcript. Please try again.",
+  INTAKE_ATTACHMENT_FAILED: "Could not update the attachments. Please try again.",
   INTAKE_BRIEF_SAVE_FAILED: "Could not save the brief edit. Please try again.",
   INTAKE_REOPEN_FAILED: "Could not re-open the session. Please try again.",
   INTAKE_PROMOTE_FAILED: "Could not create the JD from this brief. Please try again.",

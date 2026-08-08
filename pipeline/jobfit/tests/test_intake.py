@@ -407,5 +407,86 @@ class CliSmokeTest(unittest.TestCase):
         self.assertEqual(opening["source"], "deterministic")
 
 
+class AttachmentsTest(unittest.TestCase):
+    _ATTACH = [{"kind": "jd", "title": "Legacy JD", "text": "Senior Java Developer. Must: Java, Spring."}]
+
+    def test_llm_prompt_carries_the_fence_and_rules(self) -> None:
+        captured: dict = {}
+
+        class FakeProvider:
+            def complete_json(self, prompt, *, system=None, timeout=None, expected_keys=None):
+                captured["prompt"] = prompt
+                return {"reply": "Noted.", "brief": {}, "shape": "story", "done": False}
+
+        run_intake_turn(FakeProvider(), [], None, "hello", lang="en", attachments=self._ATTACH)
+        self.assertIn("<<<ATTACHED_MATERIAL>>>", captured["prompt"])
+        self.assertIn("Legacy JD", captured["prompt"])
+        # The trust framing: third-party data, inferred-until-confirmed, requestor wins.
+        self.assertIn("REFERENCE MATERIAL", captured["prompt"])
+        self.assertIn("'inferred'", captured["prompt"])
+        self.assertIn("the requestor wins", captured["prompt"])
+
+    def test_no_attachments_means_no_fence(self) -> None:
+        captured: dict = {}
+
+        class FakeProvider:
+            def complete_json(self, prompt, *, system=None, timeout=None, expected_keys=None):
+                captured["prompt"] = prompt
+                return {"reply": "Noted.", "brief": {}, "shape": "story", "done": False}
+
+        run_intake_turn(FakeProvider(), [], None, "hello", lang="en")
+        self.assertNotIn("ATTACHED_MATERIAL", captured["prompt"])
+
+    def test_attachment_budget_truncates(self) -> None:
+        captured: dict = {}
+
+        class FakeProvider:
+            def complete_json(self, prompt, *, system=None, timeout=None, expected_keys=None):
+                captured["prompt"] = prompt
+                return {"reply": "Noted.", "brief": {}, "shape": "story", "done": False}
+
+        big = [{"kind": "note", "title": "Huge", "text": "x" * 20_000}]
+        run_intake_turn(FakeProvider(), [], None, "hello", lang="en", attachments=big)
+        self.assertIn("truncated for the prompt budget", captured["prompt"])
+        self.assertLess(captured["prompt"].count("x"), 12_000)
+
+    def test_deterministic_acknowledges_once_and_never_mines(self) -> None:
+        # Keyless honesty: the scripted path says it can see the material but
+        # cannot mine it — once — and the brief gains nothing from the text.
+        opener = opening_turn("en")
+        turns = [{"role": "interviewer", "text": opener["reply"]}]
+        first = run_intake_turn(
+            None, turns, opener["brief"], "we need a backfill, same as before", lang="en", attachments=self._ATTACH
+        )
+        self.assertIn("attached material", first["reply"].lower())
+        brief = coerce_role_brief(first["brief"])
+        self.assertEqual(brief.requirements, [])  # nothing invented from the JD text
+        # Second exchange: the ack does not repeat.
+        turns2 = turns + [
+            {"role": "candidate", "text": "we need a backfill, same as before"},
+            {"role": "interviewer", "text": first["reply"]},
+        ]
+        second = run_intake_turn(None, turns2, first["brief"], "Java Developer", lang="en", attachments=self._ATTACH)
+        self.assertNotIn("attached material", second["reply"].lower())
+
+    def test_voice_fast_thread_sees_titles_only(self) -> None:
+        captured: dict = {}
+
+        class FakeProvider:
+            def complete(self, prompt, *, system=None, timeout=None):
+                captured["prompt"] = prompt
+
+                class R:
+                    text = "And what should they get done?"
+
+                return R()
+
+        from pipeline.jobfit.intake import run_voice_turn
+
+        run_voice_turn(FakeProvider(), [], None, "hello", lang="en", attachments=self._ATTACH)
+        self.assertIn("Legacy JD", captured["prompt"])
+        self.assertNotIn("Must: Java, Spring.", captured["prompt"])  # body never rides the fast thread
+
+
 if __name__ == "__main__":
     unittest.main()

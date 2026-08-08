@@ -1176,7 +1176,8 @@
     "INTAKE_VOICE_TURN_FAILED": "Impossible de traiter cette réplique. Veuillez réessayer.",
     "INTAKE_VOICE_COMPLETE_FAILED": "Impossible de traiter la transcription de l'appel. Veuillez réessayer.",
     "INTAKE_BRIEF_SAVE_FAILED": "Impossible d'enregistrer la modification du brief. Veuillez réessayer.",
-    "INTAKE_REOPEN_FAILED": "Impossible de rouvrir la session. Veuillez réessayer."
+    "INTAKE_REOPEN_FAILED": "Impossible de rouvrir la session. Veuillez réessayer.",
+    "INTAKE_ATTACHMENT_FAILED": "Impossible d'enregistrer les documents. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -3186,6 +3187,41 @@
           "agent": "Agent",
           "requestor": "Vous",
           "system": "Système"
+        },
+        "side": {
+          "brief": "Brief",
+          "draft": "Brouillon de fiche",
+          "materials": "Documents"
+        },
+        "draft": {
+          "title": "Brouillon de la fiche de poste",
+          "workingChip": "brouillon de travail",
+          "workingNote": "Se construit à partir du brief au fil de la conversation. La fiche finale (avec l'étude de salaire) est générée à « Créer la fiche de poste ».",
+          "supersedeNote": "Une fiche existante est jointe — créer depuis ce brief en produira la version actualisée.",
+          "empty": "Le brouillon apparaît ici dès que le brief a un intitulé ou des exigences.",
+          "untitled": "Poste sans titre",
+          "level": "niveau {seniority}",
+          "aboutRole": "À propos du poste",
+          "outcomes": "À quoi ressemble la réussite (90 premiers jours)",
+          "responsibilities": "Responsabilités",
+          "whatBring": "Ce que vous apportez",
+          "niceToHave": "Atouts",
+          "languages": "Langues"
+        },
+        "attachments": {
+          "title": "Documents",
+          "empty": "Rien de joint pour l'instant. Ajoutez une note d'un collègue ou une fiche existante — l'assistant s'en servira et vous fera tout confirmer.",
+          "addNote": "Coller une note",
+          "addJd": "Joindre une fiche enregistrée",
+          "noteTitlePlaceholder": "Titre (p. ex. « Note du team lead »)",
+          "notePlaceholder": "Collez le texte de la note ou de la fiche…",
+          "add": "Joindre",
+          "cancel": "Annuler",
+          "remove": "Retirer",
+          "kindNote": "note",
+          "kindJd": "fiche enregistrée",
+          "jdPick": "Choisir une fiche enregistrée…",
+          "error": "Impossible d'enregistrer les documents. Veuillez réessayer."
         }
       }
     },

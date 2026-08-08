@@ -24,6 +24,16 @@ export type IntakeStatus = "open" | "complete" | "promoted";
 // yet detected.
 export type IntakeShape = "power_unit" | "story" | null;
 
+// Reference material attached to a session — a colleague's note or a saved JD
+// the dialog grounds on. `text` is the full material (server-resolved for JD
+// kind); size caps live at the route boundary.
+export type IntakeAttachment = {
+  kind: "note" | "jd";
+  title: string;
+  text: string;
+  jdSlug?: string;
+};
+
 export type RoleIntake = {
   id: string;
   workspaceId: string;
@@ -32,6 +42,7 @@ export type RoleIntake = {
   lang: string | null;
   transcript: VoiceTurn[];
   brief: RoleBrief | null;
+  attachments: IntakeAttachment[];
   shape: IntakeShape;
   jdSlug: string | null;
   jobId: string | null;
@@ -47,6 +58,7 @@ type IntakeRow = {
   lang: string | null;
   transcript_json: string | null;
   brief_json: string | null;
+  attachment_json: string | null;
   shape: string | null;
   jd_slug: string | null;
   job_id: string | null;
@@ -67,6 +79,7 @@ function coerceShape(value: string | null): IntakeShape {
 function fromRow(row: IntakeRow): RoleIntake {
   const transcript = safeRowParse<VoiceTurn[]>(row.transcript_json, "roleIntake.transcript", row.id);
   const brief = safeRowParse<RoleBrief>(row.brief_json, "roleIntake.brief", row.id);
+  const attachments = safeRowParse<IntakeAttachment[]>(row.attachment_json, "roleIntake.attachments", row.id);
   return {
     id: row.id,
     workspaceId: row.workspace_id,
@@ -75,6 +88,7 @@ function fromRow(row: IntakeRow): RoleIntake {
     lang: row.lang,
     transcript: Array.isArray(transcript) ? transcript : [],
     brief: brief && typeof brief === "object" ? brief : null,
+    attachments: Array.isArray(attachments) ? attachments : [],
     shape: coerceShape(row.shape),
     jdSlug: row.jd_slug,
     jobId: row.job_id,
@@ -196,6 +210,23 @@ export function updateIntakeBrief(
       id,
       workspaceId
     );
+  return res.changes > 0;
+}
+
+// Replace the session's attachment list (add/remove both route through the
+// route's validated full-list write). Promoted sessions are frozen like the
+// brief — the JD exists, its grounding record shouldn't shift under it.
+export function updateIntakeAttachments(
+  id: string,
+  attachments: IntakeAttachment[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const res = ensureDb()
+    .prepare(
+      `UPDATE role_intakes SET attachment_json = ?, updated_at = ?
+       WHERE id = ? AND workspace_id = ? AND status != 'promoted'`
+    )
+    .run(JSON.stringify(attachments), new Date().toISOString(), id, workspaceId);
   return res.changes > 0;
 }
 

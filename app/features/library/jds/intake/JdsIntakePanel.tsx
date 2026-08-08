@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { briefReadyToPromote } from "@/app/_lib/intake-brief";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, INTRO, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
-import { JdsIntakeBriefPanel } from "./JdsIntakeBriefPanel";
+import { AnimatePresence, motion } from "framer-motion";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { JdsIntakeChat } from "./JdsIntakeChat";
+import { JdsIntakeSidePanel } from "./JdsIntakeSidePanel";
 import { JdsIntakeVoice } from "./JdsIntakeVoice";
 import { useIntakeLogic } from "./jdsIntakeLogic";
 
@@ -40,7 +42,11 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
     highlightTurn,
     jumpToTurn,
     clearHighlight,
+    addAttachment,
+    removeAttachment,
+    savingAttachment,
   } = useIntakeLogic(onPromoted);
+  const reduced = useReducedMotion();
   // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
   const [withCase, setWithCase] = useState(false);
 
@@ -148,12 +154,31 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
           )}
         </div>
       </div>
-      {degraded ? <p className="mt-2 text-meta text-steel">{t("degradedNote")}</p> : null}
-      {voiceNote === "stored" ? <p className="mt-2 text-meta text-steel">{t("voice.storedNote")}</p> : null}
-      {error === "send" ? <p className="mt-2 text-body text-red-700">{t("sendError")}</p> : null}
-      {error === "promote" ? <p className="mt-2 text-body text-red-700">{t("promoteError")}</p> : null}
-      {error === "saveBrief" ? <p className="mt-2 text-body text-red-700">{t("edit.saveError")}</p> : null}
-      {error === "reopen" ? <p className="mt-2 text-body text-red-700">{t("reopen.error")}</p> : null}
+      {/* Status/error lines fade in and out (reduced motion: instant). */}
+      <AnimatePresence initial={false}>
+        {[
+          degraded ? { key: "degraded", cls: "text-meta text-steel", text: t("degradedNote") } : null,
+          voiceNote === "stored" ? { key: "voiceStored", cls: "text-meta text-steel", text: t("voice.storedNote") } : null,
+          error === "send" ? { key: "send", cls: "text-body text-red-700", text: t("sendError") } : null,
+          error === "promote" ? { key: "promote", cls: "text-body text-red-700", text: t("promoteError") } : null,
+          error === "saveBrief" ? { key: "saveBrief", cls: "text-body text-red-700", text: t("edit.saveError") } : null,
+          error === "reopen" ? { key: "reopen", cls: "text-body text-red-700", text: t("reopen.error") } : null,
+          error === "attachment" ? { key: "attachment", cls: "text-body text-red-700", text: t("attachments.error") } : null,
+        ]
+          .filter((n): n is { key: string; cls: string; text: string } => n !== null)
+          .map((n) => (
+            <motion.p
+              key={n.key}
+              initial={{ opacity: reduced ? 1 : 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: reduced ? 1 : 0 }}
+              transition={{ duration: reduced ? 0 : 0.18, ease: "easeOut" }}
+              className={`mt-2 ${n.cls}`}
+            >
+              {n.text}
+            </motion.p>
+          ))}
+      </AnimatePresence>
       <div className="mt-4 grid gap-4 lg:grid-cols-[3fr_2fr]">
         <JdsIntakeChat
           transcript={active.transcript}
@@ -174,12 +199,16 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
           highlightTurn={highlightTurn}
           onHighlightDone={clearHighlight}
         />
-        <JdsIntakeBriefPanel
+        <JdsIntakeSidePanel
           brief={active.brief}
+          attachments={active.attachments ?? []}
           frozen={active.status === "promoted"}
-          saving={savingBrief}
+          savingBrief={savingBrief}
+          savingAttachment={savingAttachment}
           onSaveBrief={active.status !== "promoted" ? saveBrief : undefined}
           onJumpToTurn={jumpToTurn}
+          onAddAttachment={addAttachment}
+          onRemoveAttachment={removeAttachment}
         />
       </div>
     </div>
