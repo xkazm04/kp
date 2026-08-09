@@ -3223,11 +3223,7 @@
           "jdPick": "Gespeicherte Anzeige wählen …",
           "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen."
         },
-        "proto": {
-          "label": "Layout",
-          "variantCurrent": "Aktuell",
-          "variantTriptych": "Triptychon",
-          "variantCockpit": "Cockpit",
+        "columns": {
           "col": {
             "draft": "Stellenbeschreibung",
             "chat": "Gespräch",
@@ -3236,8 +3232,7 @@
           },
           "hide": "Ausblenden: {column}",
           "show": "Einblenden: {column}",
-          "lastOpen": "Die letzte offene Spalte bleibt offen.",
-          "columnsLabel": "Spalten"
+          "lastOpen": "Die letzte offene Spalte bleibt offen."
         }
       }
     },

@@ -6,36 +6,14 @@ import { briefReadyToPromote } from "@/app/_lib/intake-brief";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, INTRO, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
-import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { briefDraftHasContent } from "@/app/_lib/intake-draft";
 import { JdsIntakeAttachmentsPane } from "./JdsIntakeAttachmentsPane";
 import { JdsIntakeBriefPanel } from "./JdsIntakeBriefPanel";
 import { JdsIntakeChat } from "./JdsIntakeChat";
 import { JdsIntakeDraftPane } from "./JdsIntakeDraftPane";
-import { JdsIntakeLayoutCockpit } from "./JdsIntakeLayoutCockpit";
 import { JdsIntakeLayoutTriptych } from "./JdsIntakeLayoutTriptych";
-import { JdsIntakeSidePanel } from "./JdsIntakeSidePanel";
 import { JdsIntakeVoice } from "./JdsIntakeVoice";
 import { useIntakeLogic } from "./jdsIntakeLogic";
-
-// Prototype round 1 (/prototype loop): the session layout is variant-switchable
-// — "current" (baseline, default) vs two directional 3-column arrangements
-// (Triptych spine-fold · Cockpit switchboard). Layout-only: every variant
-// renders the SAME pane content nodes built below; the choice persists per
-// browser. Throwaway scaffold — consolidation removes the switcher.
-const LAYOUT_VARIANTS = ["current", "triptych", "cockpit"] as const;
-type LayoutVariant = (typeof LAYOUT_VARIANTS)[number];
-const VARIANT_STORAGE = "kp-intake-proto-variant";
-
-function readStoredVariant(): LayoutVariant {
-  if (typeof window === "undefined") return "current";
-  try {
-    const raw = window.localStorage.getItem(VARIANT_STORAGE);
-    return (LAYOUT_VARIANTS as readonly string[]).includes(raw ?? "") ? (raw as LayoutVariant) : "current";
-  } catch {
-    return "current";
-  }
-}
 
 // Role-intake dialog surface (docs/concepts/role-intake-dialog.md, Phase 1):
 // a coaching-register conversation with the requestor on the left, the live
@@ -75,15 +53,6 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   const reduced = useReducedMotion();
   // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
   const [withCase, setWithCase] = useState(false);
-  const [layoutVariant, setLayoutVariant] = useState<LayoutVariant>(() => readStoredVariant());
-  const pickVariant = (v: LayoutVariant) => {
-    setLayoutVariant(v);
-    try {
-      window.localStorage.setItem(VARIANT_STORAGE, v);
-    } catch {
-      /* preference just doesn't persist */
-    }
-  };
 
   if (!active) {
     return (
@@ -214,22 +183,10 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             </motion.p>
           ))}
       </AnimatePresence>
-      {/* Prototype switcher (session view only; throwaway scaffold). */}
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className={META_LABEL}>{t("proto.label")}</span>
-        <SegmentedControl
-          label={t("proto.label")}
-          value={layoutVariant}
-          onChange={pickVariant}
-          options={[
-            { value: "current", label: t("proto.variantCurrent") },
-            { value: "triptych", label: t("proto.variantTriptych") },
-            { value: "cockpit", label: t("proto.variantCockpit") },
-          ]}
-        />
-      </div>
-      {(() => {
-        const chatNode = (
+      {/* The Triptych session layout (prototype-round winner, consolidated):
+          three foldable leaves — JD draft · conversation · live brief. */}
+      <JdsIntakeLayoutTriptych
+        chat={
           <JdsIntakeChat
             transcript={active.transcript}
             sending={sending}
@@ -249,61 +206,35 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             highlightTurn={highlightTurn}
             onHighlightDone={clearHighlight}
           />
-        );
-        if (layoutVariant === "current") {
-          return (
-            <div className="mt-4 grid gap-4 lg:grid-cols-[3fr_2fr]">
-              {chatNode}
-              <JdsIntakeSidePanel
-                brief={active.brief}
-                attachments={active.attachments ?? []}
-                frozen={active.status === "promoted"}
-                savingBrief={savingBrief}
-                savingAttachment={savingAttachment}
-                onSaveBrief={active.status !== "promoted" ? saveBrief : undefined}
-                onJumpToTurn={jumpToTurn}
-                onAddAttachment={addAttachment}
-                onRemoveAttachment={removeAttachment}
-              />
-            </div>
-          );
         }
-        const layoutProps = {
-          chat: chatNode,
-          brief: (
-            <JdsIntakeBriefPanel
-              brief={active.brief}
-              frozen={active.status === "promoted"}
-              saving={savingBrief}
-              onSaveBrief={active.status !== "promoted" ? saveBrief : undefined}
-              onJumpToTurn={jumpToTurn}
-              showTitle={false}
-            />
-          ),
-          draft: <JdsIntakeDraftPane brief={active.brief} attachments={active.attachments ?? []} />,
-          materials: (
-            <JdsIntakeAttachmentsPane
-              attachments={active.attachments ?? []}
-              frozen={active.status === "promoted"}
-              saving={savingAttachment}
-              onAdd={addAttachment}
-              onRemove={removeAttachment}
-              showTitle={false}
-            />
-          ),
-          counts: {
-            turns: active.transcript.length,
-            requirements: active.brief?.requirements?.length ?? 0,
-            attachments: (active.attachments ?? []).length,
-            draftReady: briefDraftHasContent(active.brief),
-          },
-        };
-        return layoutVariant === "triptych" ? (
-          <JdsIntakeLayoutTriptych {...layoutProps} />
-        ) : (
-          <JdsIntakeLayoutCockpit {...layoutProps} />
-        );
-      })()}
+        brief={
+          <JdsIntakeBriefPanel
+            brief={active.brief}
+            frozen={active.status === "promoted"}
+            saving={savingBrief}
+            onSaveBrief={active.status !== "promoted" ? saveBrief : undefined}
+            onJumpToTurn={jumpToTurn}
+            showTitle={false}
+          />
+        }
+        draft={<JdsIntakeDraftPane brief={active.brief} attachments={active.attachments ?? []} />}
+        materials={
+          <JdsIntakeAttachmentsPane
+            attachments={active.attachments ?? []}
+            frozen={active.status === "promoted"}
+            saving={savingAttachment}
+            onAdd={addAttachment}
+            onRemove={removeAttachment}
+            showTitle={false}
+          />
+        }
+        counts={{
+          turns: active.transcript.length,
+          requirements: active.brief?.requirements?.length ?? 0,
+          attachments: (active.attachments ?? []).length,
+          draftReady: briefDraftHasContent(active.brief),
+        }}
+      />
     </div>
   );
 }

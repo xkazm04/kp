@@ -3223,11 +3223,7 @@
           "jdPick": "Pick a saved JD…",
           "error": "Could not update the attachments. Please try again."
         },
-        "proto": {
-          "label": "Layout",
-          "variantCurrent": "Current",
-          "variantTriptych": "Triptych",
-          "variantCockpit": "Cockpit",
+        "columns": {
           "col": {
             "draft": "Job description",
             "chat": "Conversation",
@@ -3236,8 +3232,7 @@
           },
           "hide": "Hide: {column}",
           "show": "Show: {column}",
-          "lastOpen": "The last open column stays open.",
-          "columnsLabel": "Columns"
+          "lastOpen": "The last open column stays open."
         }
       }
     },

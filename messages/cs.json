@@ -3223,11 +3223,7 @@
           "jdPick": "Vyberte uložený inzerát…",
           "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu."
         },
-        "proto": {
-          "label": "Rozvržení",
-          "variantCurrent": "Současné",
-          "variantTriptych": "Triptych",
-          "variantCockpit": "Kokpit",
+        "columns": {
           "col": {
             "draft": "Popis pozice",
             "chat": "Rozhovor",
@@ -3236,8 +3232,7 @@
           },
           "hide": "Skrýt: {column}",
           "show": "Zobrazit: {column}",
-          "lastOpen": "Poslední otevřený sloupec zůstává otevřený.",
-          "columnsLabel": "Sloupce"
+          "lastOpen": "Poslední otevřený sloupec zůstává otevřený."
         }
       }
     },
