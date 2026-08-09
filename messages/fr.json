@@ -3222,6 +3222,22 @@
           "kindJd": "fiche enregistrée",
           "jdPick": "Choisir une fiche enregistrée…",
           "error": "Impossible d'enregistrer les documents. Veuillez réessayer."
+        },
+        "proto": {
+          "label": "Disposition",
+          "variantCurrent": "Actuelle",
+          "variantTriptych": "Triptyque",
+          "variantCockpit": "Cockpit",
+          "col": {
+            "draft": "Fiche de poste",
+            "chat": "Conversation",
+            "brief": "Brief en direct",
+            "materials": "Documents"
+          },
+          "hide": "Masquer : {column}",
+          "show": "Afficher : {column}",
+          "lastOpen": "La dernière colonne ouverte reste ouverte.",
+          "columnsLabel": "Colonnes"
         }
       }
     },

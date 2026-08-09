@@ -20,12 +20,15 @@ export function JdsIntakeAttachmentsPane({
   saving,
   onAdd,
   onRemove,
+  // Prototype layouts carry their own column header — suppress the inner title.
+  showTitle = true,
 }: {
   attachments: IntakeAttachment[];
   frozen: boolean;
   saving: boolean;
   onAdd: (input: { kind: "note"; title: string; text: string } | { kind: "jd"; jdSlug: string }) => void;
   onRemove: (index: number) => void;
+  showTitle?: boolean;
 }) {
   const t = useTranslations("library.tab.intake.attachments");
   const reduced = useReducedMotion();
@@ -59,7 +62,7 @@ export function JdsIntakeAttachmentsPane({
 
   return (
     <div className="space-y-3">
-      <div className={META_LABEL}>{t("title")}</div>
+      {showTitle ? <div className={META_LABEL}>{t("title")}</div> : null}
       {attachments.length === 0 ? <p className="text-body text-steel">{t("empty")}</p> : null}
       <AnimatePresence initial={false}>
         {attachments.map((a, i) => (

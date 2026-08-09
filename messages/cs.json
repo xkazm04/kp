@@ -3222,6 +3222,22 @@
           "kindJd": "uložený inzerát",
           "jdPick": "Vyberte uložený inzerát…",
           "error": "Podklady se nepodařilo uložit. Zkuste to prosím znovu."
+        },
+        "proto": {
+          "label": "Rozvržení",
+          "variantCurrent": "Současné",
+          "variantTriptych": "Triptych",
+          "variantCockpit": "Kokpit",
+          "col": {
+            "draft": "Popis pozice",
+            "chat": "Rozhovor",
+            "brief": "Živé zadání",
+            "materials": "Podklady"
+          },
+          "hide": "Skrýt: {column}",
+          "show": "Zobrazit: {column}",
+          "lastOpen": "Poslední otevřený sloupec zůstává otevřený.",
+          "columnsLabel": "Sloupce"
         }
       }
     },

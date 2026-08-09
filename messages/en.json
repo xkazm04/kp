@@ -3222,6 +3222,22 @@
           "kindJd": "saved JD",
           "jdPick": "Pick a saved JD…",
           "error": "Could not update the attachments. Please try again."
+        },
+        "proto": {
+          "label": "Layout",
+          "variantCurrent": "Current",
+          "variantTriptych": "Triptych",
+          "variantCockpit": "Cockpit",
+          "col": {
+            "draft": "Job description",
+            "chat": "Conversation",
+            "brief": "Live brief",
+            "materials": "Materials"
+          },
+          "hide": "Hide: {column}",
+          "show": "Show: {column}",
+          "lastOpen": "The last open column stays open.",
+          "columnsLabel": "Columns"
         }
       }
     },

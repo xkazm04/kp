@@ -3222,6 +3222,22 @@
           "kindJd": "gespeicherte Anzeige",
           "jdPick": "Gespeicherte Anzeige wählen …",
           "error": "Die Unterlagen konnten nicht gespeichert werden. Bitte erneut versuchen."
+        },
+        "proto": {
+          "label": "Layout",
+          "variantCurrent": "Aktuell",
+          "variantTriptych": "Triptychon",
+          "variantCockpit": "Cockpit",
+          "col": {
+            "draft": "Stellenbeschreibung",
+            "chat": "Gespräch",
+            "brief": "Live-Briefing",
+            "materials": "Unterlagen"
+          },
+          "hide": "Ausblenden: {column}",
+          "show": "Einblenden: {column}",
+          "lastOpen": "Die letzte offene Spalte bleibt offen.",
+          "columnsLabel": "Spalten"
         }
       }
     },

@@ -82,6 +82,9 @@ export function JdsIntakeBriefPanel({
   saving,
   onSaveBrief,
   onJumpToTurn,
+  // Prototype layouts carry their own column header — suppress the inner title
+  // so "Živé zadání" doesn't render twice (the edit affordance stays).
+  showTitle = true,
 }: {
   brief: RoleBrief | null;
   // Promoted session: the JD exists, the brief is frozen (edit hidden + note).
@@ -89,6 +92,7 @@ export function JdsIntakeBriefPanel({
   saving?: boolean;
   onSaveBrief?: (edited: RoleBrief) => void;
   onJumpToTurn?: (turn: number) => void;
+  showTitle?: boolean;
 }) {
   const t = useTranslations("library.tab.intake.brief");
   const tEdit = useTranslations("library.tab.intake.edit");
@@ -102,7 +106,7 @@ export function JdsIntakeBriefPanel({
   return (
     <div className={`${PANEL_SUNKEN} h-full space-y-5 p-4`}>
       <div className="flex items-center justify-between gap-2">
-        <div className={META_LABEL}>{t("title")}</div>
+        {showTitle ? <div className={META_LABEL}>{t("title")}</div> : <span />}
         {!empty && !editing && !frozen && onSaveBrief ? (
           <button type="button" className={`${BTN_GHOST} h-8 px-2 text-sm`} onClick={() => setEditing(true)}>
             {tEdit("start")}
