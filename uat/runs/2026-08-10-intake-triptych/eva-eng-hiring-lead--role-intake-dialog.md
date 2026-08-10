@@ -174,3 +174,73 @@ A ty novinky mi sedí do práce víc, než jsem čekala. Přiložím starý inze
 Co zbývá? Drobnosti, ale řeknu je nahlas. Když přiložím starý inzerát, slíbíte mi „aktualizovanou verzi" — a pak mi v ledgeru leží dva inzeráty vedle sebe bez jediné nitky mezi nimi; ředitel se zeptá „který platí?" a já pokrčím rameny. Složený návrh ukazuje počet podkladů místo toho, jestli návrh existuje. A hlasová větev slibuje, že podklady „vytěží jinde" — jenže to jinde je nikdy nedostane; jeden parametr visí ve vzduchu. Nic z toho mi nebrání v práci, textová cesta je čistá.
 
 Adoptuji to? Ano — a tentokrát bez dozoru. Hodinu a půl ruční práce na roli mi to zkrátí na čtvrt hodiny rozhovoru a výstup je lepší než moje poznámky: struktura, provenience, export pro poradu. Kolegyni z druhého squadu bych řekla: přilož starý inzerát, mluv normálně česky, a dívej se vlevo, jak se ti inzerát píše. Jen si po povýšení ukliď ten starý inzerát ručně — zatím.
+
+---
+
+## L2 addendum — empirical pass, 2026-08-10 (live browser, keyed host)
+
+**My L1-pass happy path holds live, end to end, unsupervised.** Driven through
+the real composer in Czech on the reused :3000 dev server (Gemini keyed):
+
+| step | measured |
+|---|---|
+| open session (`Nový rozhovor` → opener) | settled |
+| exchange 1 | **22.4 s** |
+| exchange 2 | **52.3 s** |
+| exchange 3 | **33.3 s** |
+| `Vytvořit inzerát` → promoted | **8.0 s** |
+
+`error: null`, every exchange `settled: true`, no timeout, no lost turn, no
+dead-end. Result: JD `x2bhps4p` „Senior backend engineer — platební tým",
+`analysis_status: ready`. **~2 minutes of model time for a promoted,
+provenance-tracked posting** — the time-saved estimate I gave at L1 (~75–100
+min/role) survives contact with the live app. Latency is the app's own honest
+30–40 s/exchange, and the composer disabling itself while a turn is in flight
+makes the wait legible rather than anxious. This is the strength to protect.
+
+**Czech round-trips intact.** A mid-run scare — a session driven via the API
+stored its Czech turn as mojibake — was **refuted by control**: the identical
+sentence through the real composer stored perfectly (`Odchází nám člověk z
+platebního týmu — nechci nabírat podle starého inzerátu…`). The corruption was my
+own Windows curl payload, not the app. Logged as `L2-REF-1` so nobody re-raises
+it next run.
+
+### L1-EVA-9 — CONFIRMED LIVE, and it is worse than I wrote
+
+I called it "two look-alike JDs". Live, they are **twins**. The draft pane
+rendered the promise verbatim — „Je přiložen existující inzerát — vytvořením z
+tohoto zadání vznikne jeho aktualizovaná verze." — and after promote the Saved
+JDs ledger lists two rows with the **byte-identical title** „Senior Java vývojář
+— platební tým", both „Koncept", both Software/Senior. The predecessor
+`xd5627eu` is not archived, not linked, not marked. Nothing on that screen tells
+you which one is the update.
+
+### L1-EVA-10 — CONFIRMED LIVE, verbatim, and it has a sibling
+
+Folded draft spine: **„Popis pozice 0"** over a fully drafted posting. Exactly
+the string I predicted from `countFor`. But driving it surfaced what none of the
+three of us caught at L1: **the brief spine lies the same way** — „Živé zadání
+0", because it counts `requirements`, which is empty in every live session I
+drove. Fold two leaves on a rich session and the Triptych reads as an empty
+workspace. Filed as `L2-CONV-1`; it means the backlog #4 fix must repair *both*
+branches of `countFor`, not just the draft one.
+
+### Eva, first person — the live verdict
+
+„Za dvě minuty jsem měla inzerát, který bych psala hodinu a půl, a nemusela jsem
+u toho být. To je celý produkt, a naostro to platí — ne jen na papíře.
+
+Co mě naštvalo, je něco jiného, než co jsem čekala. Ne kvalita. Ta sedí.
+Naštvalo mě, že když si ten Triptych složím — a já si ho skládám, protože si
+nechávám otevřený jen rozhovor — tak na mě obě zbylé páteře koukají nulou.
+Nula, nula. Přitom za nimi je hotová pozice a sedm poznámek. Nástroj, který mi o
+sobě tvrdí, že nic nemá, když toho má plno, mě učí své vlastní UI ignorovat. A to
+je horší než chybějící funkce, protože to podkopává i to, co funguje.
+
+A ta ,aktualizovaná verze' — po promotu mám v knihovně dva řádky se **stejným
+názvem**. Ne podobným. Stejným. Až se k tomu za měsíc někdo vrátí, nemá jak
+poznat, který je ten nový. To slíbila věta v UI, ne já.
+
+Pořád podepisuju to, co jsem psala minule: opravy jsou dohledatelné a stroj o
+sobě říká pravdu — sám si označí, co si domyslel. Zůstávám u toho, že to nasadím.
+Ale ty dvě nuly ať někdo opraví dřív, než si na ně tým zvykne."

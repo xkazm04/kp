@@ -61,11 +61,15 @@ async function main() {
       try { window.localStorage.setItem("kp_dev_authed", "1"); } catch {}
     });
   }
-  if (LOCALE) {
-    await context.addCookies([
-      { name: "NEXT_LOCALE", value: LOCALE, url: BASE_URL },
-    ]);
-  }
+  // '/' is ALSO gated SERVER-SIDE on the kp_entered cookie
+  // (app/_lib/auth/session.ts::ENTERED_COOKIE) since the landing/onboarding
+  // split — localStorage dev-auth alone leaves the driver on the public
+  // landing. Seed both. (env.md 2026-08-07 drift note; ported here at L2
+  // 2026-08-10 after this driver reproduced the failure.)
+  const cookies = [];
+  if (DEV_AUTH) cookies.push({ name: "kp_entered", value: "1", url: BASE_URL });
+  if (LOCALE) cookies.push({ name: "NEXT_LOCALE", value: LOCALE, url: BASE_URL });
+  if (cookies.length) await context.addCookies(cookies);
 
   const page = await context.newPage();
   const url = BASE_URL.replace(/\/$/, "") + route;

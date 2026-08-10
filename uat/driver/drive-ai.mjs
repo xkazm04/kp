@@ -81,7 +81,11 @@ async function main() {
   if (DEV_AUTH) {
     await context.addInitScript(() => { try { window.localStorage.setItem("kp_dev_authed", "1"); } catch {} });
   }
-  if (LOCALE) await context.addCookies([{ name: "NEXT_LOCALE", value: LOCALE, url: BASE_URL }]);
+  // Server-side kp_entered gate (see drive.mjs / env.md 2026-08-07 drift note).
+  const cookies = [];
+  if (DEV_AUTH) cookies.push({ name: "kp_entered", value: "1", url: BASE_URL });
+  if (LOCALE) cookies.push({ name: "NEXT_LOCALE", value: LOCALE, url: BASE_URL });
+  if (cookies.length) await context.addCookies(cookies);
 
   const page = await context.newPage();
   const url = BASE_URL.replace(/\/$/, "") + route;

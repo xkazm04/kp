@@ -168,3 +168,108 @@ A ta nová věc s návrhem inzerátu — to je pro mě asi největší posun. J�
 Co mi zůstává v krku: název role. Když přiložím ten starý vypůjčený inzerát "Senior Java Developer", stroj si z něj může název půjčit — a nikde neuvidím, že to není ode mě. U seniority tu značku dali, u názvu ne. Název je přitom to první, co HR uvidí, a to poslední, co chci mít "domyšlené". A ty Podklady samotné — našel jsem je náhodou, schované pod návrhem inzerátu v rozklikávací liště. Kdybych nevěděl, že tam jsou, nasypal bych ten dokument rovnou do chatu. A ještě: píše se mi, že z přiloženého inzerátu "vznikne aktualizovaná verze" — ale ten starý pak v knihovně dál visí vedle nového, jako by se nic nestalo. Tak aktualizovaná, nebo druhá?
 
 Adoptoval bych to? Minule podmíněně, teď už doopravdy — na příští roli to použiju a podklady přiložím schválně, abych viděl, jestli si to tu značku "úsudek AI" u vytěžených věcí opravdu dá. Patnáct minut u stolu místo dvou schůzek a dvou týdnů — jestli tohle projde i naživo, tak jsem to já, kdo to řekne Petrovi z platform týmu, ne HR. Jen ten název role mi prosím označte. Důvěra se pořád buduje po replikách — a tohle je poprvé, co jich přibylo víc, než ubylo.
+
+---
+
+## L2 addendum — empirical pass, 2026-08-10 (live browser + live API, keyed host)
+
+**Environment.** Reused an already-running kp dev server on **:3000** (a second
+instance on :3005 refused to start — `Another next dev server is already
+running`, PID 30424, same dir; per the skill's server-lifecycle rule I reused it
+rather than killing it). `/api/health` → `{"ok":true,"db":"ok","seeds":"ok",
+"engines":{"gemini":true,"claudeCli":true}}`. **Gemini key present → the LLM path
+is what ran**, so keyless/deterministic claims could not be exercised. No OpenAI
+key: the surface says so itself, live — „Hlas není na tomto serveru nastaven —
+pokračujte textem" — so the voice-attachments defect (L1-TOM-cluster #6) stays
+unverified, exactly as the L1 ceiling predicted.
+
+**Driver-contract fix applied before driving.** `drive.mjs` landed on the public
+marketing landing, not the workspace — the 2026-08-07 drift note in `env.md` had
+predicted this and asked for the `kp_entered` cookie to be ported over. Done, in
+`drive.mjs` and `drive-ai.mjs`. A new `uat/driver/drive-l2-inspect.mjs` was added
+for multi-click navigation into an existing session plus spine folding; note for
+the next session: **spine toggles expose their label as an accessible name, not
+visible text**, so `getByText` misses them and `getByRole("button", {name})` is
+required.
+
+### L1-TOM-2 — CONFIRMED LIVE, with a control arm
+
+This is the finding I most wanted driven, and it reproduced cleanly and then
+some.
+
+- **Arm A (attachment).** Fresh intake, attached the saved posting `xd5627eu`
+  „Senior Java vývojář — platební tým" — the borrowed JD. Opening message named
+  no title and explicitly rejected the old posting: *„Přiložil jsem starý
+  inzerát, ale nechci nabírat znovu podle něj…"*. First model turn (`source:
+  "llm"`, 32s) returned `brief.title = "Senior Java vývojář — platební tým"`,
+  `spineProvenance = {title:"inferred", seniority:"inferred"}`.
+- **Arm B (control, no attachment).** Same opening sentence, nothing attached →
+  `title = "Senior backend engineer — platební tým"`. **The attachment drove the
+  title.**
+- **The render.** Live brief: `Role Senior Java vývojář — platební tým senior
+  úsudek AI`. The „úsudek AI" chip sits on **seniority**. The title — engine-
+  stamped `inferred`, lifted verbatim from the posting he is trying to escape —
+  renders **bare**. Two lines below, a salary facet cites its own source
+  faithfully: „Mzdové pásmo: 110 000–150 000 CZK / měsíc (z přiloženého inzerátu,
+  nepotvrzeno requestorem) **úsudek AI**". The discipline is everywhere except
+  the one value his eye lands on first.
+- **Wider than L1 framed it.** Both live sessions — attachment and control —
+  carry `title: "inferred"`. The title is inferred *by default* and never
+  chipped. And it propagates: the sidebar names his session after the borrowed
+  posting („Senior Java vývojář — platební tým · Hledání podoby · 3 repliky"),
+  and it is the draft's `<h2>`.
+
+### L1-TOM-3 — CONFIRMED LIVE, and softer than it looked
+
+`jds.build_input_json` after promote: `needText, seniority, roleFamily, lang,
+options`. No attachments. But the outcome is fine, because `needText` carries the
+distillate: the built JD `t9u3iv9w` opens its requirements with „Java —
+produkční zkušenost (potvrzená tvrdá podmínka requestora)" and „Apache Kafka —
+produkční zkušenost s provozem, ne jen znalost API". The phase boundary holds in
+practice. Keep it minor.
+
+### L1-TOM-5 — CONFIRMED LIVE, including the half I only inferred last time
+
+Expanded, the attachments pane is `group: Podklady0` at the foot of the draft
+leaf — no heading, no cue in the opener. **Folded, it is gone from the
+accessibility tree entirely**; the folded capture contains no „Podklady" node at
+all. A fold persisted in `localStorage` means the attach affordance is invisible
+forever, with nothing hinting it existed. I would never have found it.
+
+### L1-TOM-6 — CONFIRMED LIVE, worse than predicted
+
+The promise rendered verbatim: „Je přiložen existující inzerát — vytvořením z
+tohoto zadání vznikne jeho aktualizovaná verze." After promote, `xd5627eu` is
+still `archived_at = NULL`, the new JD is `t9u3iv9w`, and Saved JDs now shows
+**two rows with the byte-identical title** „Senior Java vývojář — platební tým",
+both „Koncept", both Software/Senior. Not „two look-alike JDs" — two twins.
+
+### New at L2: L2-NEW-2 — my dealbreakers never became requirements
+
+I said „Tvrdá podmínka je Java a Kafka v produkci" and confirmed it the next
+turn. `requirements[]` stayed `[]` — in this session, in the browser session, and
+in the pre-existing 14-turn one. The edit sheet's „Nezbytné / Výhodou" block sits
+there empty. The JD came out right (needText carried them), so nothing broke —
+but what I can *inspect and correct* is thinner than what the system knows, and
+that is the part I was promised control over.
+
+### Tomáš, first person — after seeing it live
+
+„Tak jsem to viděl naostro a je to přesně, jak jsem se bál — ale jinak, než jsem
+čekal. Ten stroj je poctivý. Označil si sám, že si ten název domyslel. Napsal si
+k mzdě, že ji vzal z přiloženého inzerátu a že jsem ji nepotvrdil. To je slušnost,
+kterou jsem od nástroje nečekal.
+
+A pak to celé zahodí tím, že mi ten domyšlený název ukáže holý, nahoře, tučně —
+a ještě tak pojmenuje celou konverzaci v seznamu. Já jsem tam napsal jednu větu:
+*nechci nabírat podle toho starého inzerátu.* A ono to z toho inzerátu vzalo to
+jediné, co jsem chtěl zahodit — jeho jméno. Bez atributu jsem to prostě přehlédl.
+Kdyby tam bylo to samé ,úsudek AI', co má seniorita, opravím to za tři vteřiny.
+
+Dvakrát nula na těch složených sloupcích mě dorazila. Složím si to a vypadá to,
+že jsem neudělal nic. Přitom uvnitř je hotový inzerát a sedm poznámek.
+
+Odpovídá to za půl minuty až minutu, nezasekává se to, a za dvě minuty modelového
+času mám vypsanou pozici. To bych ručně nedal ani za den. Beru to. Ale první, co
+příště udělám, je že ten název přepíšu — a to je přesně ta jedna vteřina
+nedůvěry, kterou tam nemuseli nechat."

@@ -148,3 +148,98 @@ The distance travelled since 2026-08-07 is the story: of the baseline's four maj
 "Now the two things still between us. First: the small print under my lovely draft says the final JD comes 'with market salary research'. There is, I'm told, a switch to turn that off now — on the server. There is no switch on my screen. So every advert I can actually produce still arrives wearing a Prague tech salary I'd have to unpick before a single nurse sees it. Building the override and not giving me the handle is the kind of fix that passes an audit and fails a user. Second: somewhere underneath, my practice nurse is no longer filed as a software engineer — progress — but she's filed as 'general professional', which is a filing cabinet, not a profession, and I can neither see that field nor change it. If the category steers the advert you build me, show me the category.
 
 "Verdict, since you asked last time whether I'd adopt: last week the answer was 'not yet, fix the defaults'. This week it's 'nearly — put the two switches where I can reach them'. The bones were always built for everyone; now most of the defaults are too. Two handles short of a yes."
+
+---
+
+## L2 addendum — empirical pass, 2026-08-10 (live browser + live API, keyed host)
+
+**Environment note that bounds everything below.** The reused dev server on :3000
+reports `engines.gemini: true`. My two majors were both scoped by L1 partly to
+the **keyless / deterministic** path — which cannot be exercised on a keyed host
+without removing the workspace's key, out of scope for this pass. So one of my
+two majors splits into a confirmed half and an untested half. I would rather say
+that than claim a live proof I did not get.
+
+### L1-HRBP-11 — CONFIRMED LIVE, two-arm proof
+
+The cleanest "fix landed ≠ fix reachable" demonstration this run produced.
+
+- **UI arm.** The entire promote area, live, is: `checkbox "Navrhnout rovnou i
+  praktickou úlohu"` + `button "Vytvořit inzerát"`. There is no market-research
+  control on the surface, in the draft pane, or in the edit sheet. And the draft
+  pane states it as settled fact: „Finální inzerát (**včetně průzkumu mezd**)
+  vznikne při Vytvořit inzerát." A browser-driven promote produced
+  `options: {description:true, marketResearch:true, caseDesign:false}` and a JD
+  carrying „**Mzda:** 103 000–154 500 CZK / month — Odhadnuto z interní tabulky
+  mezd podle oborů (bez živých webových podkladů)".
+- **API arm.** `POST /api/intake/{id}/promote {"marketResearch": false}` → 200,
+  `options.marketResearch: false`, and the resulting JD has **no salary line at
+  all**.
+
+So the opt-out I asked for last run exists, works perfectly, and I cannot reach
+it. Note also what the market layer actually is when it fires: an *internal Czech
+salary table*, honestly disclosed as such. For a Band-5 nursing role in GBP that
+is not a wrong number so much as a category error — and it is welded on.
+
+### L1-HRBP-12 — split verdict
+
+**Confirmed live: invisible and uneditable.** The Live brief renders `Role
+Zdravotní sestra medior předpoklad` — title, seniority, its provenance chip, then
+my context facets each tagged „řekli jste". No role family. The „Upravit zadání"
+sheet exposes a title textbox, a seniority combobox (junior/medior/senior/lead),
+a musts/nice-to-haves adder and free-form context rows — and **no roleFamily
+control**. Meanwhile the stored brief for that exact session holds
+`roleFamily: "healthcare_clinical"`. It is classified, it is threaded into the
+build, and it is shown to nobody.
+
+**Not reproduced live: the misclassification.** On this keyed host the LLM path
+classified the Czech nurse corpus **correctly** as `healthcare_clinical`. L1's
+executed reproduction was against the deterministic `classify_role_family` —
+that claim stands on its code evidence, untested here. Honest position: on a
+keyed workspace my nurse is classified right and I still cannot see it; on a
+keyless one L1 showed she is classified wrong and I still cannot see it. The
+missing field is the constant.
+
+**New live detail.** A freshly created intake initialises
+`brief.roleFamily = "software_engineering"` before a single word is spoken. An
+intake abandoned early carries a software family silently.
+
+### L1-HRBP-13 — could not be reproduced (uncertain, not refuted)
+
+Across every live session inspected, `spineProvenance` contains only `title` and
+`seniority` — `role_family` never appears on the LLM path, so the mislabelled
+"inferred" chip has nothing to render from. It is a keyless-path residual. L2
+neither confirms nor refutes it.
+
+### L1-HRBP-15 — CONFIRMED LIVE, verbatim
+
+Folded draft spine: `Zobrazit: Popis pozice` → **„Popis pozice 0"**, over a
+draft holding a full role. And the convergent cluster grew: the **brief** spine
+does the same thing — „Živé zadání 0" over a brief with a title, a seniority,
+seven context facets and two success criteria (see L2-CONV-1). Two of three
+spines badge zero on a rich session.
+
+### Priya, first person — after seeing it live
+
+"I came back to check on two handles. Neither of them exists, and now I have
+watched the machine work without them.
+
+The market read is the one that stings. I promoted a role and the posting came
+back with a Czech salary band on it — properly labelled, from an internal table,
+disclosed as not-live-web. Every part of that is honest. And there is no way for
+me to say *not for this one*. Someone wrote the switch. I read its code in the
+route. I cannot press it. That is a strange kind of frustration: not 'they didn't
+build it', but 'they built it and left me on the wrong side of the glass'.
+
+The family field is quieter and worse. My nurse was classified correctly this
+time — good — and I have no way of knowing that from the screen, because the
+screen never says it. I am asked to trust a category I cannot see, cannot
+confirm, and cannot correct, and it goes on to steer the posting. Everything else
+on that panel tells me where it came from: 'řekli jste', 'úsudek AI',
+'předpoklad'. One field opted out of the whole convention by not appearing.
+
+The dialogue itself is still the best I have used. It listened to 'Band 5' and
+wrote it down in my words instead of translating it into its own. I would put a
+line manager in front of it tomorrow. I still cannot put my name on the output,
+and it is the same two handles as last time — which, after two runs, starts to
+read as a decision rather than a backlog."
