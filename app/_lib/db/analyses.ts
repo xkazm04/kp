@@ -301,6 +301,27 @@ export function listJdFitRows(workspaceId: string = DEFAULT_WORKSPACE_ID, limit 
     .all(workspaceId, limit) as JdFitRow[];
 }
 
+/** Freshest analysis slug per candidate label (case-insensitive), regardless of
+ *  JD targeting — the label-level fallback the decisions peer-context join uses
+ *  for CANDIDATE-level facts (salary expectation, declared skills) when no
+ *  (label, jd_slug)-strict analysis exists. Per-JD facts must NOT be read
+ *  through this map — a jobFit computed against another role would lie. */
+export function freshestAnalysisSlugByLabel(workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 1000): Map<string, string> {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT candidate_label, slug FROM analyses
+       WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`
+    )
+    .all(workspaceId, limit) as { candidate_label: string; slug: string }[];
+  const out = new Map<string, string>();
+  for (const row of rows) {
+    const key = row.candidate_label.trim().toLowerCase();
+    if (!out.has(key)) out.set(key, row.slug);
+  }
+  return out;
+}
+
 // Every analysis tagged with a JD slug, ordered best-score-first. Uses the
 // idx_analyses_jd_slug index — no row cap and no in-memory filter, so the JD
 // page's candidate count stays correct even past 500 total analyses.

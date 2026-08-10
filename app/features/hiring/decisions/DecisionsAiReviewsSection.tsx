@@ -6,6 +6,7 @@
 import { ListChecks, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { AiReviewCard } from "./DecisionsAiReviewCard";
+import type { JobPeerContext, PeerScore } from "./decisionsPeerCompare";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
 
 export function DecisionsAiReviewsSection({
@@ -30,6 +31,8 @@ export function DecisionsAiReviewsSection({
   act,
   setSummaryEntry,
   staleSinceOf,
+  peersOf,
+  peerFactsOf,
 }: {
   visibleAiReviews: Entry[];
   selectMode: boolean;
@@ -52,6 +55,8 @@ export function DecisionsAiReviewsSection({
   act: (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number) => void;
   setSummaryEntry: (e: Entry) => void;
   staleSinceOf: (e: Entry) => string | null;
+  peersOf: (e: Entry) => PeerScore[];
+  peerFactsOf: (e: Entry) => JobPeerContext | null;
 }) {
   const t = useTranslations("decisions");
   if (visibleAiReviews.length === 0) return null;
@@ -187,6 +192,8 @@ export function DecisionsAiReviewsSection({
                 onToggleSelect={eligible ? () => toggleReviewSelect(e) : undefined}
                 onInspect={() => setSummaryEntry(e)}
                 staleSince={staleSinceOf(e)}
+                peers={peersOf(e)}
+                peerFacts={peerFactsOf(e)}
               />
             </div>
           );

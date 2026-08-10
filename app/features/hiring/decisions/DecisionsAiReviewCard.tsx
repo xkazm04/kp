@@ -11,6 +11,8 @@ import { defaultOfferTtlDays } from "@/app/_lib/offer-policy";
 import { CandidateHead, RecBadge } from "./DecisionsShared";
 import { AiReviewCardBody } from "./DecisionsAiReviewCardBody";
 import { useAiReviewCardLogic } from "./decisionsAiReviewCardLogic";
+import { AiReviewCardLadder } from "./DecisionsAiReviewCardLadder";
+import type { JobPeerContext, PeerScore } from "./decisionsPeerCompare";
 import type { Entry } from "@/app/features/shared/decisionsTypes";
 
 export function AiReviewCard({
@@ -34,6 +36,13 @@ export function AiReviewCard({
   // card's score predates it (server-derived in DecisionsTab via the shared
   // isScoreStale rule). Informs, never blocks; null → no chip.
   staleSince,
+  // Peer context for the Ladder body (winner of the /prototype round):
+  // same-job active peers with their canonical scores (client-derived from the
+  // pipeline payload) + the salary/skills facts served by
+  // GET /api/decisions/peer-context. Offer cards ignore both — their
+  // band+deadline body is decision-critical, not prose.
+  peers = [],
+  peerFacts = null,
 }: {
   entry: Entry;
   onAccept: (ttlDays?: number) => void;
@@ -43,6 +52,8 @@ export function AiReviewCard({
   onToggleSelect?: () => void;
   onInspect?: () => void;
   staleSince?: string | null;
+  peers?: PeerScore[];
+  peerFacts?: JobPeerContext | null;
 }) {
   const t = useTranslations("decisions.aiReview");
   const locale = useLocale();
@@ -147,8 +158,15 @@ export function AiReviewCard({
         </div>
       ) : null}
 
+      {/* Offer cards keep the band + deadline body (decision-critical); every
+          other kind renders the Ladder — the AI's prose lives in the
+          Full-analysis modal (AiNarrative), one click away via onInspect. */}
       {parsed ? (
-        <AiReviewCardBody parsed={parsed} isOffer={isOffer} isScorecard={isScorecard} hasBand={hasBand} pricingBasis={pricingBasis} ttlDays={ttlDays} setTtlDays={setTtlDays} t={t} />
+        isOffer ? (
+          <AiReviewCardBody parsed={parsed} hasBand={hasBand} pricingBasis={pricingBasis} ttlDays={ttlDays} setTtlDays={setTtlDays} t={t} />
+        ) : (
+          <AiReviewCardLadder entry={entry} parsed={parsed} isScorecard={isScorecard} peers={peers} peerFacts={peerFacts} />
+        )
       ) : null}
 
       {/* Direction 1 — reach the full analysis (confidence band, score breakdown,

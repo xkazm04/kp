@@ -323,6 +323,44 @@ auto-reject). Python side: `RECOMMENDATIONS` / `RECOMMENDATION_FALLBACK` /
 `decision_config` store and the screen-wave audit records
 (`decision-record-store.ts`).
 
+## Decisions peer context (comparison data for the review queue)
+
+`GET /api/decisions/peer-context?jobs=<id,…>` (operator-gated, tenant-scoped)
+serves the AI-review cards' cross-candidate comparison facts per job: the
+role's `salaryBand`, and per active entry the candidate's saved salary
+expectation plus verified per-JD skill coverage (`jobFit.matchingSkills` /
+`missingSkills` counts) — all read from the freshest stored CV analysis (the
+same freshest-per-(label, jd-slug) map the canonical score uses), never a
+fresh LLM/ranker run. Score *ranking* is client-side: `/api/pipeline` already
+stamps `canonicalScore` on every entry, and
+`app/features/hiring/decisions/decisionsPeerCompare.ts` (unit-tested) ranks a
+card's candidate among the same-job active entries. The single-candidate
+analysis modal additionally retains the full ranked peer rows its existing
+`/api/jobs/[id]/candidates` fetch returns (`decisionsAnalysisSummaryData.ts`)
+for in-modal peer comparison.
+
+The Full-analysis modal ships the **"Bench" layout** (winner of the /prototype
+round, 2026-08-10): a near-fullscreen `Modal size="full"` that treats the
+advance/reject as a field question — verdict band (fit + tier + confidence +
+fact chips), the AI's screening/scorecard narrative moved in from the cards,
+ruled evidence sections, and a sticky ranked bench of the role's other
+candidates with the current candidate's row pinned. Layout:
+`DecisionsAnalysisModalBench.tsx`; shared section pieces:
+`DecisionsAnalysisParts.tsx`; peer viz primitives (score rail, rank chips,
+salary band rail, coverage meter): `DecisionsPeerViz.tsx`. All copy is in the
+`decisions.summary` catalog (4-locale parity).
+
+The AI-review cards ship the **"Ladder" body** (winner of the same round):
+screening/scorecard cards replaced the AI's prose with a ranked
+mini-leaderboard of same-job active peers (self row highlighted, stage chips,
+canonical scores), the salary expectation plotted against the role band, and —
+on scorecards — the rubric dots. The narrative the cards dropped renders in
+the Full-analysis modal's "AI review" section. Offer cards are unchanged:
+their salary-band + deadline body (`DecisionsAiReviewCardBody.tsx`, now
+offer-only) is decision-critical and stays. Ladder body:
+`DecisionsAiReviewCardLadder.tsx`; peer wiring: `useDecisionsQueue`'s
+`peersOf`/`peerFactsOf`.
+
 ## Known gaps
 
 - The route layer diverged from the original one-route-per-task design in

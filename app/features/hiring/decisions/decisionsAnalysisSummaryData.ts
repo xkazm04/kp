@@ -25,12 +25,17 @@ export type AnalysisPayload = {
 // decision carries the same evidence the comparison matrix does. The shared
 // recruiter result view (MatchResultView), single-sourced from MatchTypes.
 export type MatchView = MatchResultView;
-type CandRow = { candidateId: string; result: MatchView };
+type CandRow = { candidateId: string; label?: string; result: MatchView };
+// A ranked peer on the same role — the rest of the rows the candidates fetch
+// already returns (the modal used to discard them). Same producer as `match`,
+// so a peer's total and this candidate's total are always comparable.
+export type PeerRow = { candidateId: string; label: string; result: MatchView };
 
 export function useAnalysisSummaryData(entry: Entry) {
   const [payload, setPayload] = useState<AnalysisPayload | null>(null);
   const [loading, setLoading] = useState(Boolean(entry.candidateId));
   const [match, setMatch] = useState<MatchView | null>(null);
+  const [peers, setPeers] = useState<PeerRow[]>([]);
   const [matchLoading, setMatchLoading] = useState(Boolean(entry.candidateId && entry.jobId));
 
   useEffect(() => {
@@ -56,8 +61,16 @@ export function useAnalysisSummaryData(entry: Entry) {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
       .then((p) => {
         if (!alive) return;
-        const row = (p.candidates as CandRow[] | undefined)?.find((c) => c.candidateId === entry.candidateId);
+        const rows = (p.candidates as CandRow[] | undefined) ?? [];
+        const row = rows.find((c) => c.candidateId === entry.candidateId);
         setMatch(row?.result ?? null);
+        // Every OTHER ranked candidate on this role, for the peer-comparison
+        // variants. Rows without a result/label carry no comparable signal.
+        setPeers(
+          rows
+            .filter((c) => c.candidateId !== entry.candidateId && c.result && typeof c.label === "string")
+            .map((c) => ({ candidateId: c.candidateId, label: c.label as string, result: c.result }))
+        );
       })
       .catch(() => alive && setMatch(null))
       .finally(() => alive && setMatchLoading(false));
@@ -81,5 +94,5 @@ export function useAnalysisSummaryData(entry: Entry) {
   const unprovenLabelKey = (reason: string | undefined): "unprovenAdjacency" | "unprovenProvenance" | "unprovenBoth" | "unprovenClaimed" =>
     reason === "adjacency" ? "unprovenAdjacency" : reason === "provenance" ? "unprovenProvenance" : reason === "both" ? "unprovenBoth" : "unprovenClaimed";
 
-  return { payload, loading, match, matchLoading, skills, matchProv, unproven, unprovenReason, unprovenStrength, unprovenLabelKey };
+  return { payload, loading, match, peers, matchLoading, skills, matchProv, unproven, unprovenReason, unprovenStrength, unprovenLabelKey };
 }

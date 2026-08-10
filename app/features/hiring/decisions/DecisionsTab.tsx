@@ -35,7 +35,8 @@ export function DecisionsTab() {
     selectionDrift, selectMode, setSelectMode, selectedReviewIds,
     toggleReviewSelect, exitSelectMode, selectAllReviews, clearSelectedReviews,
     bulkBusy, bulkResult, confirmingBulkReject, setConfirmingBulkReject, bulkDecideReviews,
-    visibleGroups, act, openGroupEval, decide, evalGroup, evalDrift, staleSinceOf, load,
+    visibleGroups, act, openGroupEval, decide, evalGroup, evalDrift, staleSinceOf,
+    peersOf, peerFactsOf, load,
   } = useDecisionsQueue();
 
   const pendingHeaderCount = activeFilter
@@ -121,6 +122,8 @@ export function DecisionsTab() {
             act={act}
             setSummaryEntry={setSummaryEntry}
             staleSinceOf={staleSinceOf}
+            peersOf={peersOf}
+            peerFactsOf={peerFactsOf}
           />
 
           <section>

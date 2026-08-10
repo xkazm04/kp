@@ -18,6 +18,7 @@ import { ARM_PARAM, parseArmParam } from "@/app/features/shared/groupEvalArm";
 import { isScoreStale, type Entry } from "@/app/features/shared/decisionsTypes";
 import { selectionCacheKey } from "./groupEval/cache-key";
 import { pruneSelection, selectionDriftIds } from "./decisionsSelectionHygiene";
+import { peersForEntry, type JobPeerContext, type PeerContextMap, type PeerScore } from "./decisionsPeerCompare";
 import { roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
 
 export function useDecisionsQueue() {
@@ -94,6 +95,12 @@ export function useDecisionsQueue() {
   // Server derives (jd-freshness route, workspace-scoped); the card applies the
   // shared isScoreStale rule against each entry's canonical analysis timestamp.
   const [jdEditedAt, setJdEditedAt] = useState<Record<string, string | null>>({});
+
+  // Peer-comparison facts (salary expectation + verified per-JD skill coverage
+  // from the freshest stored analysis, plus the role band) per AI-review job —
+  // the card-level "how does this candidate sit vs the rest of the pipeline"
+  // context. Same fetch cadence as jdEditedAt (keyed off the job set).
+  const [peerCtx, setPeerCtx] = useState<PeerContextMap>({});
 
   // idea-e43fa801 — the reconsider (auto-rejected) queue, loaded alongside the
   // pending queue and refreshed on the same signals.
@@ -214,6 +221,19 @@ export function useDecisionsQueue() {
     fetch(`/api/decisions/jd-freshness?jobs=${encodeURIComponent(aiReviewJobKey)}`)
       .then((r) => r.json())
       .then((p) => alive && setJdEditedAt((p.editedAt as Record<string, string | null>) ?? {}))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [aiReviewJobKey]);
+  // Peer-comparison facts for the same job set (salary + skill coverage + role
+  // band). Best-effort: a failure just hides the comparison chrome.
+  useEffect(() => {
+    if (!aiReviewJobKey) return;
+    let alive = true;
+    fetch(`/api/decisions/peer-context?jobs=${encodeURIComponent(aiReviewJobKey)}`)
+      .then((r) => r.json())
+      .then((p) => alive && setPeerCtx((p.jobs as PeerContextMap) ?? {}))
       .catch(() => undefined);
     return () => {
       alive = false;
@@ -517,6 +537,11 @@ export function useDecisionsQueue() {
       ? "transition-all duration-200 ease-in pointer-events-none animate-pulse opacity-50"
       : "transition-all duration-200 ease-in";
 
+  // Card-level peer accessors: score peers from the entries already in hand,
+  // salary/skills facts from the peer-context fetch above.
+  const peersOf = (e: Entry): PeerScore[] => peersForEntry(entries ?? [], e);
+  const peerFactsOf = (e: Entry): JobPeerContext | null => (e.jobId ? peerCtx[e.jobId] ?? null : null);
+
   const evalGroup = evalRole ? groups.find((g) => g.roleKey === evalRole.roleKey) ?? null : null;
 
   // Pool drift: how many candidates were added/removed from this role's pending pool
@@ -578,6 +603,7 @@ export function useDecisionsQueue() {
     act, openGroupEval, decide,
     evalGroup, evalDrift,
     staleSinceOf,
+    peersOf, peerFactsOf,
     load,
   };
 }
