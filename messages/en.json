@@ -3242,7 +3242,12 @@
             "draftReady": "Draft ready",
             "draftEmpty": "Draft still empty"
           },
-          "lastOpen": "The last open column stays open."
+          "lastOpen": "The last open column stays open.",
+          "materials": {
+            "cue": "Holding a team charter, an old posting or notes? They can be attached as materials.",
+            "cueAction": "Open Materials",
+            "reveal": "{count, plural, =0 {Materials — nothing attached yet} one {Materials — # attached} other {Materials — # attached}}"
+          }
         }
       }
     },

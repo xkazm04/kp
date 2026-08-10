@@ -34,10 +34,27 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
   const t = useTranslations("library.tab.intake.columns");
   const reduced = useReducedMotion();
   const [open, setOpen] = useState<IntakeColumnKey[]>(() => readStoredColumns(STORAGE_KEY, DEFAULT_OPEN));
+  // The materials disclosure is controlled so an affordance OUTSIDE the draft
+  // leaf can open it (UAT L1-TOM-5). Deliberately not persisted: the fold state
+  // is a preference, "show me the materials now" is an intent.
+  const [materialsOpen, setMaterialsOpen] = useState(false);
 
   const flip = (key: IntakeColumnKey) => {
     setOpen((prev) => {
       const next = toggleColumn(prev, key);
+      storeColumns(STORAGE_KEY, next);
+      return next;
+    });
+  };
+
+  // One intent, reachable from the spine and from the conversation: show the
+  // materials. Opens the draft leaf if it is folded (the min-one-open guard is
+  // irrelevant here — this only ever ADDS a column) and expands the disclosure.
+  const revealMaterials = () => {
+    setMaterialsOpen(true);
+    setOpen((prev) => {
+      if (prev.includes("draft")) return prev;
+      const next = toggleColumn(prev, "draft");
       storeColumns(STORAGE_KEY, next);
       return next;
     });
@@ -102,11 +119,33 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
                     </button>
                   </div>
                   <div className="min-h-0 flex-1">
-                    {key === "chat" ? props.chat : key === "brief" ? props.brief : (
+                    {key === "chat" ? (
+                      <div className="flex min-h-0 flex-1 flex-col">
+                        {props.chat}
+                        {/* UAT L1-TOM-5 — the discoverability cue the recertify
+                            named: it sits NEXT TO THE CONVERSATION, where the
+                            requestor holding a charter actually is, and it does
+                            not depend on the draft leaf being open. */}
+                        <p className="mt-2 text-meta text-steel">
+                          {t("materials.cue")}{" "}
+                          <button
+                            type="button"
+                            onClick={revealMaterials}
+                            className="focus-ring rounded-md underline underline-offset-2 transition-colors hover:text-ink"
+                          >
+                            {t("materials.cueAction")}
+                          </button>
+                        </p>
+                      </div>
+                    ) : key === "brief" ? props.brief : (
                       <div className="space-y-4">
                         {props.draft}
                         {/* Reference matter folds under the document it feeds. */}
-                        <details className="group rounded-lg border border-stone-200 bg-stone-50 p-3 dark:rounded-2xl">
+                        <details
+                          open={materialsOpen}
+                          onToggle={(e) => setMaterialsOpen(e.currentTarget.open)}
+                          className="group rounded-lg border border-stone-200 bg-stone-50 p-3 dark:rounded-2xl"
+                        >
                           <summary className="focus-ring cursor-pointer list-none text-meta uppercase tracking-wide text-steel transition-colors hover:text-ink">
                             {t("col.materials")}
                             <span className="ml-1.5 rounded-full bg-stone-100 px-1.5 text-sm nums">{props.counts.attachments}</span>
@@ -118,21 +157,40 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
                   </div>
                 </motion.div>
               ) : (
-                <motion.button
-                  key="spine"
-                  type="button"
-                  onClick={() => flip(key)}
-                  aria-expanded={false}
-                  aria-label={t("show", { column: label })}
-                  className="focus-ring flex flex-1 items-center justify-center gap-2 px-3 py-2 text-steel transition-colors hover:text-ink xl:flex-col xl:px-0 xl:py-4"
-                  {...fade}
-                >
-                  <span className="text-meta uppercase tracking-wide xl:[writing-mode:vertical-rl]">{label}</span>
-                  <span className="rounded-full bg-stone-100 px-1.5 text-sm text-steel nums" title={badgeFor(key).hint}>
-                    <span aria-hidden>{badgeFor(key).text}</span>
-                    <span className="sr-only">{badgeFor(key).hint}</span>
-                  </span>
-                </motion.button>
+                <motion.div key="spine" className="flex flex-1 flex-col items-center" {...fade}>
+                  <button
+                    type="button"
+                    onClick={() => flip(key)}
+                    aria-expanded={false}
+                    aria-label={t("show", { column: label })}
+                    className="focus-ring flex flex-1 items-center justify-center gap-2 px-3 py-2 text-steel transition-colors hover:text-ink xl:flex-col xl:px-0 xl:py-4"
+                  >
+                    <span className="text-meta uppercase tracking-wide xl:[writing-mode:vertical-rl]">{label}</span>
+                    <span className="rounded-full bg-stone-100 px-1.5 text-sm text-steel nums" title={badgeFor(key).hint}>
+                      <span aria-hidden>{badgeFor(key).text}</span>
+                      <span className="sr-only">{badgeFor(key).hint}</span>
+                    </span>
+                  </button>
+                  {/* UAT L1-TOM-5 — materials must survive the fold. Folding the
+                      draft leaf used to remove `Podklady` from the page entirely
+                      (absent from the accessibility tree, count 0 in all three
+                      cs arms of the recertify); the affordance now rides on the
+                      spine itself and reopens the leaf with the disclosure
+                      already expanded. */}
+                  {key === "draft" ? (
+                    <button
+                      type="button"
+                      onClick={revealMaterials}
+                      aria-label={t("materials.reveal", { count: props.counts.attachments })}
+                      title={t("materials.reveal", { count: props.counts.attachments })}
+                      className="focus-ring mb-2 flex items-center gap-1 rounded-full bg-stone-100 px-1.5 py-0.5 text-sm text-steel transition-colors hover:text-ink"
+                    >
+                      {/* Paperclip glyph, not copy — the translated meaning rides in aria-label/title. */}
+                      <span aria-hidden>📎</span>
+                      <span aria-hidden className="nums">{props.counts.attachments}</span>
+                    </button>
+                  ) : null}
+                </motion.div>
               )}
             </AnimatePresence>
           </motion.section>

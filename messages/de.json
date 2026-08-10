@@ -3242,7 +3242,12 @@
             "draftReady": "Entwurf bereit",
             "draftEmpty": "Entwurf noch leer"
           },
-          "lastOpen": "Die letzte offene Spalte bleibt offen."
+          "lastOpen": "Die letzte offene Spalte bleibt offen.",
+          "materials": {
+            "cue": "Team-Charta, alte Anzeige oder Notizen zur Hand? Das lässt sich als Unterlage anhängen.",
+            "cueAction": "Unterlagen öffnen",
+            "reveal": "{count, plural, =0 {Unterlagen — noch nichts angehängt} one {Unterlagen — # angehängt} other {Unterlagen — # angehängt}}"
+          }
         }
       }
     },

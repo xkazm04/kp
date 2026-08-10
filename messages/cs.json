@@ -3242,7 +3242,12 @@
             "draftReady": "Návrh připraven",
             "draftEmpty": "Návrh zatím prázdný"
           },
-          "lastOpen": "Poslední otevřený sloupec zůstává otevřený."
+          "lastOpen": "Poslední otevřený sloupec zůstává otevřený.",
+          "materials": {
+            "cue": "Máte týmovou chartu, starý inzerát nebo poznámky? Dají se přiložit jako podklady.",
+            "cueAction": "Otevřít Podklady",
+            "reveal": "{count, plural, =0 {Podklady — zatím nic přiloženo} one {Podklady — # přiložený} few {Podklady — # přiložené} other {Podklady — # přiložených}}"
+          }
         }
       }
     },
