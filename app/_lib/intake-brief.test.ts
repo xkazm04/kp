@@ -5,9 +5,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  briefDealbreakerEvidence,
   briefIntentSummary,
   briefMustSkills,
   briefNiceSkills,
+  briefOutcomeEvidence,
+  briefPromoteBlockers,
   briefReadyToPromote,
   briefStatedRequirements,
   needTextFromBrief,
@@ -53,6 +56,56 @@ test("readiness needs a title plus substance; empty briefs refuse", () => {
   assert.equal(briefReadyToPromote({ title: "X" }), false);
   assert.equal(briefReadyToPromote({ title: "X", successCriteria: ["ships"] }), true);
   assert.equal(briefReadyToPromote({ successCriteria: ["ships"] }), false);
+});
+
+// UAT L2-NEW-2 — the live shape that blocked promote: a rich session whose hard
+// conditions and 90-day outcome live in FACETS because the extraction filed them
+// there (requirements[] and successCriteria[] both empty).
+const facetOnlyBrief: RoleBrief = {
+  title: "Band 5 Registered Nurse",
+  facets: [
+    { key: "why_now", label: "Why now", value: "Two of three nurses are leaving.", importance: "core", provenance: "stated", confidence: 1 },
+    {
+      key: "dealbreaker_context",
+      label: "Dealbreakers",
+      value: "A valid NMC registration and an enhanced DBS.",
+      importance: "core",
+      provenance: "stated",
+      confidence: 1,
+    },
+  ],
+};
+
+test("readiness reads dealbreakers and outcomes in either home (UAT L2-NEW-2)", () => {
+  assert.equal(briefReadyToPromote(facetOnlyBrief), true);
+  assert.deepEqual(briefPromoteBlockers(facetOnlyBrief), []);
+  assert.deepEqual(briefDealbreakerEvidence(facetOnlyBrief), ["A valid NMC registration and an enhanced DBS."]);
+  // A facet-carried 90-day outcome counts too.
+  assert.equal(
+    briefReadyToPromote({
+      title: "X",
+      facets: [{ key: "success_90d", label: "90 days", value: "Runs her own clinic list", importance: "core", provenance: "stated", confidence: 1 }],
+    }),
+    true
+  );
+  // Unrelated context facets are NOT substance — the gate stays a gate.
+  assert.deepEqual(briefPromoteBlockers({ title: "X", facets: [{ key: "why_now", label: "", value: "backfill", importance: "context", provenance: "stated", confidence: 1 }] }), [
+    "substance",
+  ]);
+  // An empty facet value never counts.
+  assert.deepEqual(
+    briefPromoteBlockers({ title: "X", facets: [{ key: "dealbreaker_context", label: "", value: "  ", importance: "core", provenance: "stated", confidence: 1 }] }),
+    ["substance"]
+  );
+});
+
+test("briefPromoteBlockers names every missing piece (UAT L2-RC-1)", () => {
+  assert.deepEqual(briefPromoteBlockers(null), ["title", "substance"]);
+  assert.deepEqual(briefPromoteBlockers({}), ["title", "substance"]);
+  assert.deepEqual(briefPromoteBlockers({ successCriteria: ["ships"] }), ["title"]);
+  assert.deepEqual(briefPromoteBlockers({ title: "X" }), ["substance"]);
+  assert.deepEqual(briefPromoteBlockers(brief), []);
+  assert.deepEqual(briefOutcomeEvidence(brief), ["Weekly reporting runs without manual work"]);
 });
 
 test("briefStatedRequirements projects the graded shape the devcase chain consumes", () => {

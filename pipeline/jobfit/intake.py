@@ -36,7 +36,9 @@ from .taxonomy import ROLE_FAMILIES, classify_role_family
 
 _LOG = logging.getLogger(__name__)
 
-INTAKE_PROMPT_VERSION = "role-intake-v1"
+# v2 adds the ROUTING half of the extraction contract (UAT L2-NEW-2): which
+# structure a captured fact must land in, not only how to grade it once there.
+INTAKE_PROMPT_VERSION = "role-intake-v2"
 MAX_REPLY_CHARS = 1_600
 MAX_MESSAGE_CHARS = 4_000
 MAX_TRANSCRIPT_TURNS = 48  # most recent turns fed back for continuity
@@ -108,7 +110,20 @@ _EXTRACTION_RULES = (
     "assumptions are 'default'. The spine scalars carry provenance too: keep spineProvenance "
     "{title|seniority|roleFamily: stated|inferred|default} truthful — a schema default you never "
     "captured stays 'default'. Grade requirements: kind must_have|nice_to_have, hardness "
-    "prerequisite|learnable, weight 0..1 within the kind. roleFamily must be one of: "
+    "prerequisite|learnable, weight 0..1 within the kind. ROUTING — where a captured fact must "
+    "LAND, which matters as much as how it is graded (UAT L2-NEW-2: live sessions filed hard "
+    "conditions as facet prose and left requirements[] empty, which starved the brief the "
+    "requestor inspects and blocked the promote gate): a named skill, tool, technology, "
+    "certification, licence, registration, language or qualification that the requestor calls "
+    "required, hard, non-negotiable or a dealbreaker MUST become its OWN requirements[] row "
+    "(kind must_have, provenance stated, sourceTurn set) — one row per named condition, the "
+    "moment it is said; do not wait for the read-back or for a 90-day outcome to justify it. "
+    "A stated outcome for the first 90 days MUST become a successCriteria[] entry. Facets are "
+    "never an alternative home for either: dealbreaker_context carries only the STORY behind a "
+    "condition ('a payment must never run twice'), success_90d only the colour around an "
+    "outcome — if you write such a facet, the matching requirements[] / successCriteria[] entry "
+    "has to exist alongside it. Grading may still demote a laddered condition to nice_to_have; "
+    "it never deletes the row. roleFamily must be one of: "
     + ", ".join(ROLE_FAMILIES)
     + " — classify from the conversation, never leave a non-software role on the software default. "
     "Facets are open-vocabulary {key,label,value,importance:core|valuable|context} slots for "

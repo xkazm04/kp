@@ -294,6 +294,11 @@ class RunIntakeTurnTest(unittest.TestCase):
             "regardless of who or what does it",
             # UAT drain 2.3 — out-of-vocabulary grades are captured, never mapped.
             "grade_label",
+            # UAT L2-NEW-2 — the ROUTING half: a named hard condition owns a
+            # requirements[] row, the facet keeps only the story behind it.
+            "ROUTING",
+            "OWN requirements[] row",
+            "never an alternative home",
         ):
             self.assertIn(marker, brief)
 
