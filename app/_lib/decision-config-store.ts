@@ -4,6 +4,7 @@ import {
   COMPLIANCE_DEFAULT,
   type ComplianceRule,
   DecisionConfigError,
+  INTERVIEW_PLAN_DEFAULT,
   SCREENING_DEFAULT,
   validateDecisionConfig,
 } from "./decision-config-schema";
@@ -25,6 +26,7 @@ export type { ScreeningRule } from "./decision-config-schema";
 const DEFAULTS: Record<string, unknown> = {
   screening: SCREENING_DEFAULT,
   compliance: COMPLIANCE_DEFAULT,
+  interviewPlan: INTERVIEW_PLAN_DEFAULT,
 };
 
 let _db: Database.Database | null = null;

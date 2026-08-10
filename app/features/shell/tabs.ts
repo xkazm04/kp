@@ -40,6 +40,9 @@ export const WORKSPACE_TAB_IDS = [
   "organization",
   "branding",
   "integrations",
+  // Hiring-pipeline composer (Settings): how this workspace combines AI/human
+  // interview rounds and approval gates. Appended last (chord rule below).
+  "hiring",
 ] as const;
 
 export type WorkspaceTabId = (typeof WORKSPACE_TAB_IDS)[number];
@@ -187,6 +190,9 @@ export const NAV_GROUPS: NavGroup[] = [
       // untouched (workspaceChords.ts only draws from still-free letters).
       { id: "integrations", label: "Integrations" },
       { id: "workspace", label: "Workspace" },
+      // The hiring-pipeline composer (AI/human rounds + approval gating).
+      // Appended last so every prior `g`-chord assignment is untouched.
+      { id: "hiring", label: "Hiring" },
     ],
   },
 ];

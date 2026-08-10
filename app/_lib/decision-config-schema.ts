@@ -86,18 +86,57 @@ export const COMPLIANCE_DEFAULT: ComplianceRule = {
   jurisdiction: DEFAULT_REGIME_ID,
 };
 
+// The hiring-pipeline plan (Settings → Hiring): which interview rounds run and
+// where a human approves. Persisted per workspace through the same tiered
+// decision-config store; consumed (eventually) by the pipeline action layer —
+// see docs/concepts/interview-rounds.md. The stored shape carries NO round ids
+// (those are UI list keys, minted on load by the composer model).
+export type InterviewPlanGate = "auto" | "human";
+export type InterviewPlanRoundKind = "ai" | "human";
+export type InterviewPlanRound = {
+  kind: InterviewPlanRoundKind;
+  /** Who ratifies the round's verdict. A HUMAN round is always human-gated by
+   *  definition — the validator normalizes it so a stored plan can't claim an
+   *  unattended human interview. */
+  gate: InterviewPlanGate;
+  /** Cohort reducer INTO this round (top N of the previous round's advancers);
+   *  null = everyone. Always null on the first round. */
+  topN: number | null;
+};
+export type InterviewPlanRule = {
+  screeningGate: InterviewPlanGate;
+  rounds: InterviewPlanRound[];
+  offerGate: InterviewPlanGate;
+};
+
+export const INTERVIEW_PLAN_MAX_ROUNDS = 3;
+
+/** Default = the team-hybrid archetype: gated AI round, then a human round for
+ *  the top 3, everything human-approved. */
+export const INTERVIEW_PLAN_DEFAULT: InterviewPlanRule = {
+  screeningGate: "human",
+  rounds: [
+    { kind: "ai", gate: "human", topN: null },
+    { kind: "human", gate: "human", topN: 3 },
+  ],
+  offerGate: "human",
+};
+
 // The phases that have a known, validated config schema today. A write to any
 // other phase is rejected at the boundary rather than persisted into a row that
 // `getAllDecisionConfigs` would never read back anyway.
-export const KNOWN_DECISION_PHASES = ["screening", "compliance"] as const;
+export const KNOWN_DECISION_PHASES = ["screening", "compliance", "interviewPlan"] as const;
 export type DecisionPhase = (typeof KNOWN_DECISION_PHASES)[number];
 
 const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject", "familyFloors", "holdoutPercent"] as const;
 const COMPLIANCE_KEYS = ["jurisdiction"] as const;
+const INTERVIEW_PLAN_KEYS = ["screeningGate", "rounds", "offerGate"] as const;
+const INTERVIEW_PLAN_ROUND_KEYS = ["kind", "gate", "topN"] as const;
 
 export type DecisionConfigResult =
   | { ok: true; phase: "screening"; config: ScreeningRule }
   | { ok: true; phase: "compliance"; config: ComplianceRule }
+  | { ok: true; phase: "interviewPlan"; config: InterviewPlanRule }
   | { ok: false; error: string };
 
 export type ScreeningOverrideResult =
@@ -144,7 +183,51 @@ export function validateDecisionConfig(phase: unknown, rawConfig: unknown): Deci
   }
   // KNOWN_DECISION_PHASES gated entry above; dispatch to the per-phase validator.
   if (phase === "compliance") return validateComplianceRule(rawConfig as Record<string, unknown>);
+  if (phase === "interviewPlan") return validateInterviewPlan(rawConfig as Record<string, unknown>);
   return validateScreeningRule(rawConfig as Record<string, unknown>);
+}
+
+const isGate = (v: unknown): v is InterviewPlanGate => v === "auto" || v === "human";
+
+function validateInterviewPlan(raw: Record<string, unknown>): DecisionConfigResult {
+  const stray = Object.keys(raw).filter((k) => !(INTERVIEW_PLAN_KEYS as readonly string[]).includes(k));
+  if (stray.length > 0) return { ok: false, error: `interviewPlan: unknown key(s) ${stray.join(", ")}.` };
+  if (!isGate(raw.screeningGate)) return { ok: false, error: "interviewPlan.screeningGate must be 'auto' or 'human'." };
+  if (!isGate(raw.offerGate)) return { ok: false, error: "interviewPlan.offerGate must be 'auto' or 'human'." };
+  if (!Array.isArray(raw.rounds)) return { ok: false, error: "interviewPlan.rounds must be an array." };
+  if (raw.rounds.length > INTERVIEW_PLAN_MAX_ROUNDS) {
+    return { ok: false, error: `interviewPlan.rounds is capped at ${INTERVIEW_PLAN_MAX_ROUNDS}.` };
+  }
+  const rounds: InterviewPlanRound[] = [];
+  for (const [i, r] of raw.rounds.entries()) {
+    if (typeof r !== "object" || r === null || Array.isArray(r)) {
+      return { ok: false, error: `interviewPlan.rounds[${i}] must be an object.` };
+    }
+    const rec = r as Record<string, unknown>;
+    const strayR = Object.keys(rec).filter((k) => !(INTERVIEW_PLAN_ROUND_KEYS as readonly string[]).includes(k));
+    if (strayR.length > 0) return { ok: false, error: `interviewPlan.rounds[${i}]: unknown key(s) ${strayR.join(", ")}.` };
+    if (rec.kind !== "ai" && rec.kind !== "human") {
+      return { ok: false, error: `interviewPlan.rounds[${i}].kind must be 'ai' or 'human'.` };
+    }
+    if (!isGate(rec.gate)) return { ok: false, error: `interviewPlan.rounds[${i}].gate must be 'auto' or 'human'.` };
+    let topN: number | null = null;
+    if (rec.topN !== null && rec.topN !== undefined) {
+      if (typeof rec.topN !== "number" || !Number.isFinite(rec.topN)) {
+        return { ok: false, error: `interviewPlan.rounds[${i}].topN must be a number or null.` };
+      }
+      // Out-of-range but coercible → clamp (same posture as the 0–100 fields).
+      topN = Math.max(1, Math.min(50, Math.round(rec.topN)));
+    }
+    rounds.push({
+      kind: rec.kind,
+      // A human round's verdict IS the human decision — never persist it as
+      // unattended, whatever the client sent.
+      gate: rec.kind === "human" ? "human" : rec.gate,
+      // The first round has no previous cohort to reduce.
+      topN: i === 0 ? null : topN,
+    });
+  }
+  return { ok: true, phase: "interviewPlan", config: { screeningGate: raw.screeningGate, rounds, offerGate: raw.offerGate } };
 }
 
 function validateComplianceRule(raw: Record<string, unknown>): DecisionConfigResult {

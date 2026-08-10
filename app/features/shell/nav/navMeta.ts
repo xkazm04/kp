@@ -12,6 +12,7 @@ import {
   Cpu,
   FileSearch,
   FileText,
+  GitBranch,
   Info,
   LayoutDashboard,
   Library,
@@ -69,4 +70,5 @@ export const TAB_ICON: Partial<Record<WorkspaceTabId, LucideIcon>> = {
   billing: CreditCard,
   models: Cpu,
   workspace: SlidersHorizontal,
+  hiring: GitBranch,
 };
