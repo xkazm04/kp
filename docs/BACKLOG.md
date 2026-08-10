@@ -217,3 +217,33 @@ Loop rule: each shipped item re-enters via `/uat recertify` against the
 originating Character's scored criteria — fresh live evidence,
 `resolved-verified`, and its own ceiling. Item 8 is explicitly blocked on a keyed
 host.
+
+### Recertify delta (added 2026-08-10 after `b54c451b` · `dd67bc46` · `41cd5cc3`)
+
+The `/uat recertify` pass closed items 1, 2 and 3 above as `resolved-verified`
+(five findings) and left three rows that §2 did not cover. All three triaged
+**build** — see insights doc §4.
+
+13. **A normally-conducted dialog must yield a promotable brief** —
+    `L2-NEW-2` escalated **minor → major**, `recurrence: 2`. Not just
+    representational any more: both English sessions ended `requirements: []`
+    **and** `successCriteria: []` over nine stated facets, so `Create JD` stayed
+    disabled and the recertify had to `PATCH …/brief` to test promote at all.
+    Root cause: the extraction contract offers two homes for the same fact and
+    ranks neither — `dealbreaker_context` is in the suggested facet vocabulary
+    while `requirements` is described only as a grading rule, so every live
+    session filed its hard conditions as facet prose. Fix both ends: route
+    named hard conditions into `requirements[]` (contract), and let the promote
+    gate count the substance in either home (deterministic, keyless-testable).
+    Supersedes item 6. (§4.1)
+14. **The draft-ready marker must agree with the promote gate** — `L2-RC-1`
+    (minor, new): the repaired spine badges ✓ „Návrh připraven" over a
+    **disabled** `Vytvořit inzerát`, with no visible reason. `draftReady` reads
+    `briefDraftHasContent`, the gate reads `briefReadyToPromote`. Three spine
+    states (empty · drafting · ready) plus a disabled button that names what it
+    is missing. Was flagged as item 3's ceiling before it was a finding. (§4.3)
+- **Item 4 ("Podklady" must survive a fold) stays open** — `41cd5cc3` fixed only
+  its compounding clause (the badge no longer counts attachments). Folded, the
+  materials pane is still absent from the page entirely; the recertify names the
+  remainder exactly: *a discoverability cue near the conversation, or a materials
+  affordance that survives folding the draft leaf*. (§4.2)

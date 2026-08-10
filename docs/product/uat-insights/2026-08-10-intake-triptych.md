@@ -424,3 +424,84 @@ instance first" (already noted in the run report and fixed in the overlay), and
 spine toggles expose their label as an *accessible name* rather than visible
 text, so `getByRole("button", {name})` is required where `getByText` fails
 (already recorded in the run report for the next session's driver work).
+
+---
+
+## 4. Recertify delta — triage of what `/uat recertify` added
+
+Source: `uat/runs/2026-08-10-intake-triptych/recertify.md` + the rows it wrote
+into `findings.json`, after `b54c451b` · `dd67bc46` · `41cd5cc3` shipped. Five
+findings closed `resolved-verified`; three rows are new or changed and were not
+covered by §2. Same rule as above — every item cites a finding id and a
+Character voice, and every item is bound by the guardrails G1–G6.
+
+Triage: **all three are `build`.** None of them opens a design question the
+§2.13/§2.14 concept-docs do not already own.
+
+### 4.1 `L2-NEW-2` escalated minor → major, `recurrence: 2` — **build** (B13, supersedes §2.6)
+
+- **What changed:** §2.6 filed this as *representational* — `needText` carried
+  the dealbreakers, so the JD came out right. The recertify proved it also
+  **blocks the job**: Priya's English session `intake-msn8w5pj-wt3p9t` stated the
+  dealbreakers three times and ended with `requirements: []` **and**
+  `successCriteria: []` over nine facets, so `briefReadyToPromote` refused and
+  `Create JD` stayed disabled. The recertifier had to `PATCH /api/intake/<id>/brief`
+  to reach promote-readiness before `L1-HRBP-11` could be recertified at all.
+- **Voice:** Tomáš, live — *"what I can inspect and correct is thinner than what
+  the system knows, and that is the part I was promised control over."* Priya's
+  recurrence line applies here too: a gap that survives a full run→drain→ship→
+  recertify cycle has now cost trust twice.
+- **Root cause (found this pass, from the stored briefs of all five live
+  sessions):** the extraction contract offers **two homes for the same fact and
+  ranks neither**. `_EXTRACTION_RULES` (`intake.py`) lists `dealbreaker_context`
+  in the suggested facet vocabulary and describes `requirements` only as a
+  *grading* rule (`kind`/`hardness`/`weight`) — never as a *routing* rule saying
+  when a row must exist. The model consistently takes the facet: every live
+  session stored its hard conditions as `dealbreaker_context` / `parked_solution`
+  facet prose (cs: „Platba se nikdy nesmí provést dvakrát; převzetí on-call…";
+  en: "Valid NMC registration and at least two years of post-registration ward
+  experience") with `requirements: []`. Same shape for 90-day outcomes, which
+  land as a `success_90d` facet instead of `successCriteria[]`. So the promote
+  gate reads a **narrower slice of the brief than the brief actually holds** —
+  the same defect class as `L2-CONV-1`, one layer down.
+- **What:** (a) make the extraction contract *route*, not just grade — a named
+  hard condition MUST become a `requirements[]` row, the facet keeps only the
+  story behind it; (b) make `briefReadyToPromote` count the substance the dialog
+  really captured, in **either** home, so a normally-conducted dialog is
+  promotable without an API patch. (b) is deterministic and needs no key — it is
+  what makes the fix testable on a keyless host.
+
+### 4.2 `L1-TOM-5` still open — **build** (B4 restated, placement half)
+
+- **What changed:** the badge half shipped in `41cd5cc3`; the finding's own claim
+  did not move, and the folded case is now *worse framed* — with the draft leaf
+  folded, `Podklady` is absent from the page entirely
+  (`podklady-when-draft-folded: 0` in all three cs arms), while the spine now
+  says „Návrh připraven", which speaks about the draft and never about the
+  materials underneath it.
+- **Still missing (the recertify names it exactly):** *a discoverability cue near
+  the conversation — opener line, empty-state hint, or a materials affordance
+  that survives folding the draft leaf.* The badge repair did not touch placement.
+- **Voice:** Tomáš — „našel jsem je náhodou, schované pod návrhem inzerátu";
+  live: *"I would never have found it."*
+- **What:** a materials affordance on the draft **spine** (so folding can no
+  longer erase it) plus a persistent cue at the foot of the conversation leaf
+  that opens the materials disclosure. **G4: inside the safety rails** — no new
+  column, no change to the min-one-open guard or the persisted folds.
+
+### 4.3 `L2-RC-1` new, minor — **build** (B14)
+
+- **Evidence:** the repaired draft spine badges ✓ „Návrh připraven" on
+  `intake-msn8qwfo-r5qdkf`, a real control-arm session the engine left untitled,
+  while `button "Vytvořit inzerát" [disabled]` sits above it with no visible
+  reason. `draftReady = briefDraftHasContent` (content) vs `briefReadyToPromote`
+  (title + one dealbreaker or outcome) — two different questions, one marker.
+  Introduced by `41cd5cc3` as a residual seam, not a regression; the drain
+  flagged this exact seam as §2.3's ceiling ("ready = has-content, not
+  promotable").
+- **What:** three states on the draft spine (empty · drafting · ready) where
+  *ready* means the promote gate agrees, and a disabled `Create JD` that names
+  what it is missing instead of repeating a generic hint. Ranked with 4.1
+  because both are the same seam read from opposite ends.
+
+**Delta tally: 3 build (B13 · B4-restated · B14) · 0 concept-doc · 0 declines.**
