@@ -1,9 +1,11 @@
 "use client";
 
-// One day×hour grid cell in ScheduleCalendar: the slot-picker button, the
-// candidate chips assigned to this cell, and any read-only booked markers.
-// Split out of ScheduleCalendar.tsx to keep the calendar file under the
-// 200-line cap.
+// One day×hour grid cell in ScheduleCalendar: the candidate chips assigned to
+// this cell and any read-only booked markers. The grid is a DISPLAY of where
+// each interview sits — slot times are set by the candidate's self-scheduling
+// link (or the invite engine), never adjusted by clicking cells here (the
+// slot-picker affordance was removed 2026-08-10). Split out of
+// ScheduleCalendar.tsx to keep the calendar file under the 200-line cap.
 
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
@@ -15,47 +17,33 @@ import { slotParts } from "./scheduleCalendarSlotParts";
 export function ScheduleCalendarCell({
   dayIso,
   dayPast,
-  dayHeaderLabel,
-  dated,
   here,
   booked,
   selectedId,
   onSelect,
-  onPickSlot,
   reduced,
   tCal,
   enumLabel,
 }: {
   dayIso: string;
   dayPast: boolean;
-  dayHeaderLabel: string;
-  dated: string;
   here: SchedEntry[];
   booked: { id: string; dateSlot: string; candidateLabel: string }[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onPickSlot: (slot: string) => void;
   reduced: boolean;
   tCal: ReturnType<typeof useTranslations<"scheduleTab.calendar">>;
   enumLabel: (kind: string, value: string | null) => string;
 }) {
   return (
-    // Cell is a plain container; the chips below are real buttons. A
-    // full-cell slot picker sits behind them — clicks on empty space
-    // fall through to it. Past days can't take a new booking.
+    // Cell is a plain container; the chips below are real buttons (selecting a
+    // chip highlights the same candidate in the aside list). Past days are
+    // washed out.
     <div
       key={dayIso}
       role="cell"
       className={`relative min-h-14 border-l border-stone-100 ${dayPast ? "bg-stone-50" : ""}`}
     >
-      <button
-        type="button"
-        onClick={() => onPickSlot(dated)}
-        disabled={dayPast}
-        aria-label={tCal("assignAria", { slot: dayHeaderLabel })}
-        title={dayPast ? tCal("pastDayTitle") : undefined}
-        className="focus-ring absolute inset-0 transition-colors enabled:hover:bg-coral/5 disabled:cursor-not-allowed"
-      />
       {here.length > 0 ? (
         <div className="pointer-events-none relative space-y-1 p-1.5">
           {here.map((e) => {

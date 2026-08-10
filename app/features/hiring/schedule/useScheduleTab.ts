@@ -199,13 +199,6 @@ export function useScheduleTab() {
     }
   };
 
-  const selected = useMemo(() => (entries ?? []).find((e) => e.id === selectedId) ?? null, [entries, selectedId]);
-
-  const pickSlot = (slot: string) => {
-    if (!selectedId) return;
-    setPicks((p) => ({ ...p, [selectedId]: slot }));
-  };
-
   const act = async (e: SchedEntry, action: "approve_event" | "reject") => {
     setBusy(e.id);
     try {
@@ -285,8 +278,6 @@ export function useScheduleTab() {
     bookedMarkers,
     interviewedEntries,
     startInterview,
-    selected,
-    pickSlot,
     act,
     cardExit,
     slotLabel,

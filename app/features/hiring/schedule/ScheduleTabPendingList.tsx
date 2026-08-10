@@ -19,7 +19,6 @@ export function ScheduleTabPendingList({
   slotLabel,
   selectedId,
   onSelect,
-  selected,
   interviews,
   prepared,
   busy,
@@ -38,7 +37,6 @@ export function ScheduleTabPendingList({
   slotLabel: (slot: string) => string;
   selectedId: string | null;
   onSelect: (id: string) => void;
-  selected: SchedEntry | null;
   interviews: Record<string, IvStatus>;
   prepared: Record<string, { createdAt: string; interviewer: string | null; hasHumanScorecard: boolean; stale: boolean }>;
   busy: string | null;
@@ -164,16 +162,6 @@ export function ScheduleTabPendingList({
           );
         })}
       </AnimatePresence>
-      {calendarEntries.length === 0 ? null : selected ? (
-        <p className="px-1 text-sm text-steel">
-          {t.rich("clickToMove", {
-            name: selected.candidateLabel,
-            b: (chunks) => <span className="font-semibold text-ink">{chunks}</span>,
-          })}
-        </p>
-      ) : (
-        <p className="px-1 text-sm text-steel">{t("selectCandidate")}</p>
-      )}
     </>
   );
 }

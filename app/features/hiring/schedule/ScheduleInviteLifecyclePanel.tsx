@@ -31,14 +31,8 @@ export function InviteLifecyclePanel() {
     armed,
     setArmed,
     busy,
-    rescheduleToken,
-    setRescheduleToken,
-    rescheduleSlots,
-    setRescheduleSlots,
-    rescheduleCalendar,
     runAction,
     reinvite,
-    openReschedule,
     updateInvite,
   } = useScheduleInviteLifecycle();
 
@@ -69,7 +63,6 @@ export function InviteLifecyclePanel() {
 
   const rowProps = {
     t,
-    slotLabel,
     slotLine,
     relayConfigured,
     base,
@@ -77,12 +70,6 @@ export function InviteLifecyclePanel() {
     setArmed,
     busy,
     runAction,
-    rescheduleToken,
-    rescheduleSlots,
-    rescheduleCalendar,
-    openReschedule,
-    setRescheduleToken,
-    setRescheduleSlots,
     onSavedMeetingUrl: (token: string, url: string | null) => updateInvite(token, { meetingUrl: url }),
   };
 

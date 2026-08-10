@@ -694,6 +694,20 @@ export function declineScheduleInviteProposals(token: string): ScheduleInvite | 
 
 /** ISO datetimes already taken by confirmed invites — so two candidates don't
  *  double-book. Returns slot_at (the real identity), not the display label. */
+/** How many confirmed interviews lie in the FUTURE (slot_at strictly after `now`)
+ *  for a workspace — the Schedule nav badge's count: "N upcoming events on the
+ *  calendar", not the reminder queue. Cheap COUNT over the same partial-indexed
+ *  predicate family bookedSlots uses. */
+export function countFutureConfirmedInvites(workspaceId: string = DEFAULT_WORKSPACE_ID, now: number = Date.now()): number {
+  const row = db()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM schedule_invites
+        WHERE status = 'confirmed' AND slot_at IS NOT NULL AND slot_at > ? AND workspace_id = ?`
+    )
+    .get(new Date(now).toISOString(), workspaceId) as { n: number };
+  return row.n;
+}
+
 export function bookedSlots(workspaceId: string = DEFAULT_WORKSPACE_ID): string[] {
   const rows = db()
     .prepare(`SELECT slot_at FROM schedule_invites WHERE status = 'confirmed' AND slot_at IS NOT NULL AND workspace_id = ?`)

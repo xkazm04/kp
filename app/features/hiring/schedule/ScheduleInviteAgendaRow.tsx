@@ -12,13 +12,12 @@ import { CalendarEventChip } from "./ScheduleCalendarEventChip";
 import { MeetingLinkCell } from "./ScheduleMeetingLinkCell";
 import { RecruiterControls } from "./ScheduleInviteRecruiterControls";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
-import type { ArmedAction, RescheduleCalendar } from "./useScheduleInviteLifecycle";
+import type { ArmedAction } from "./useScheduleInviteLifecycle";
 
 export function AgendaRow({
   invite: i,
   inProgress = false,
   t,
-  slotLabel,
   slotLine,
   relayConfigured,
   base,
@@ -26,18 +25,11 @@ export function AgendaRow({
   setArmed,
   busy,
   runAction,
-  rescheduleToken,
-  rescheduleSlots,
-  rescheduleCalendar,
-  openReschedule,
-  setRescheduleToken,
-  setRescheduleSlots,
   onSavedMeetingUrl,
 }: {
   invite: ScheduleInvite;
   inProgress?: boolean;
   t: ReturnType<typeof useTranslations<"scheduleTab.lifecycle">>;
-  slotLabel: (slotAt: string | null, slot?: string | null) => string;
   slotLine: (i: ScheduleInvite) => string;
   relayConfigured: boolean | null;
   base: string;
@@ -45,12 +37,6 @@ export function AgendaRow({
   setArmed: (a: ArmedAction | null) => void;
   busy: string | null;
   runAction: (token: string, action: string, slotAt?: string) => Promise<boolean>;
-  rescheduleToken: string | null;
-  rescheduleSlots: { value: string; label: string }[] | null;
-  rescheduleCalendar: RescheduleCalendar | null;
-  openReschedule: (token: string) => void;
-  setRescheduleToken: (token: string | null) => void;
-  setRescheduleSlots: (slots: { value: string; label: string }[] | null) => void;
   onSavedMeetingUrl: (token: string, url: string | null) => void;
 }) {
   return (
@@ -87,21 +73,7 @@ export function AgendaRow({
           return ev ? <AddToCalendar event={ev} uid={`interview-${i.token}`} /> : null;
         })()}
       </span>
-      <RecruiterControls
-        invite={i}
-        t={t}
-        slotLabel={slotLabel}
-        armed={armed}
-        setArmed={setArmed}
-        busy={busy}
-        runAction={runAction}
-        rescheduleToken={rescheduleToken}
-        rescheduleSlots={rescheduleSlots}
-        rescheduleCalendar={rescheduleCalendar}
-        openReschedule={openReschedule}
-        setRescheduleToken={setRescheduleToken}
-        setRescheduleSlots={setRescheduleSlots}
-      />
+      <RecruiterControls invite={i} t={t} armed={armed} setArmed={setArmed} busy={busy} runAction={runAction} />
     </li>
   );
 }

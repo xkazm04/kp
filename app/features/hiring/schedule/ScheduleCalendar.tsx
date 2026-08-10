@@ -18,19 +18,22 @@ import { ScheduleCalendarCell } from "./ScheduleCalendarCell";
 // collapse into one column, and a booking renders exactly once — in its true week.
 //
 // Picks + booked markers speak the dated "YYYY-MM-DD HH:MM" grammar (interview zone).
-// Each candidate sits in their picked cell; selecting a candidate and clicking a cell
-// re-proposes that dated slot. A coral ring marks the currently selected candidate.
+// Each candidate sits in the cell their slot resolves to (invite engine first, legacy
+// detail as fallback). The grid DISPLAYS times, it never edits them — slot times come
+// from the candidate's self-scheduling link / the invite engine (the click-a-cell
+// re-propose affordance was removed 2026-08-10). A coral ring marks the currently
+// selected candidate.
 //
-// Motion: each chip carries a `layoutId`, so re-proposing glides the chip to the new
-// cell. The grid scrolls horizontally on narrow viewports, so gradient edge-fades hint
-// the Fri column is off-screen. Both snap static under the OS "reduce motion" preference.
+// Motion: each chip carries a `layoutId`, so a slot change from a reload glides the
+// chip to the new cell. The grid scrolls horizontally on narrow viewports, so gradient
+// edge-fades hint the Fri column is off-screen. Both snap static under the OS "reduce
+// motion" preference.
 export function ScheduleCalendar({
   entries,
   picks,
   bookedMarkers = [],
   selectedId,
   onSelect,
-  onPickSlot,
 }: {
   entries: SchedEntry[];
   // entry id → dated slot "YYYY-MM-DD HH:MM" (interview zone).
@@ -41,7 +44,6 @@ export function ScheduleCalendar({
   bookedMarkers?: { id: string; dateSlot: string; candidateLabel: string }[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onPickSlot: (slot: string) => void;
 }) {
   const tCal = useTranslations("scheduleTab.calendar");
   const format = useFormatter();
@@ -165,13 +167,10 @@ export function ScheduleCalendar({
                       key={d.iso}
                       dayIso={d.iso}
                       dayPast={d.past}
-                      dayHeaderLabel={`${headerDate(d)} ${t}`}
-                      dated={`${d.iso} ${t}`}
                       here={inCell(d.iso, rowHour)}
                       booked={bookedInCell(d.iso, rowHour)}
                       selectedId={selectedId}
                       onSelect={onSelect}
-                      onPickSlot={onPickSlot}
                       reduced={reduced}
                       tCal={tCal}
                       enumLabel={enumLabel}

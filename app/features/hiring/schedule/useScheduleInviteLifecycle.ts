@@ -15,16 +15,6 @@ import { useRelativeTime } from "@/app/features/hiring/pipeline/PipelineShared";
 import { useDeliveryCapability } from "@/app/features/shell/useDeliveryCapability";
 import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import type { ScheduleInvite } from "@/app/_lib/schedule-store";
-import { CALENDAR_STATUSES, type CalendarStatus } from "@/app/_lib/calendar/free-busy";
-
-/** What the reschedule picker knows about the calendar behind its offered times — the
- *  honest three-state plus how many slots the calendar removed. Null until loaded. */
-export type RescheduleCalendar = { status: CalendarStatus; dropped: number };
-
-const asCalendarStatus = (v: unknown): CalendarStatus =>
-  // An unknown/absent value is NOT "checked": the whole point is never to claim a
-  // calendar was consulted on anything but the server saying so.
-  CALENDAR_STATUSES.includes(v as CalendarStatus) ? (v as CalendarStatus) : "unavailable";
 
 export type ArmedAction ={ token: string; action: "cancel" | "no_show" | "resolve_reconcile" | "decline_proposals" | "reinvite" };
 
@@ -50,16 +40,10 @@ export function useScheduleInviteLifecycle() {
   const [failed, setFailed] = useState(false);
   // Direction 2 — recruiter-side invite control. `armed` is the two-step inline
   // confirm latch (token+action) reused from the app's delete idiom; `busy` gates a
-  // row while its action is in flight; the reschedule sub-flow loads this team's
-  // offered slots lazily and lets the recruiter pick one.
+  // row while its action is in flight. (The recruiter reschedule sub-flow was
+  // removed 2026-08-10 — time changes come from the candidate's link/proposals.)
   const [armed, setArmed] = useState<ArmedAction | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [rescheduleToken, setRescheduleToken] = useState<string | null>(null);
-  const [rescheduleSlots, setRescheduleSlots] = useState<{ value: string; label: string }[] | null>(null);
-  // W1.4 honesty — the route has always sent calendarChecked/droppedForConflict and this
-  // hook projected the payload down to `slots` alone, so a Google outage, a revoked grant
-  // and a genuinely clear calendar all rendered as an unqualified list of times.
-  const [rescheduleCalendar, setRescheduleCalendar] = useState<RescheduleCalendar | null>(null);
   // Patch one invite in place (e.g. after a meeting link save) so the row + its
   // calendar event refresh without a full refetch.
   const updateInvite = (token: string, patch: Partial<ScheduleInvite>) =>
@@ -125,30 +109,6 @@ export function useScheduleInviteLifecycle() {
     }
   };
 
-  // Open the reschedule sub-flow for a confirmed row: lazily load this team's offered
-  // slots (the same collision-aware mechanism the candidate picker uses).
-  const openReschedule = async (token: string) => {
-    setRescheduleToken(token);
-    setRescheduleSlots(null);
-    setRescheduleCalendar(null);
-    try {
-      // Name the invite so the server conflict-checks its REAL length (a 90-minute
-      // interview was being checked as 45, leaving its second half unchecked).
-      const r = await fetch(`/api/schedule?slots=1&token=${encodeURIComponent(token)}`);
-      const d = await r.json();
-      setRescheduleSlots(Array.isArray(d.slots) ? d.slots : []);
-      setRescheduleCalendar({
-        status: d.calendarChecked === true ? "checked" : asCalendarStatus(d.calendarStatus),
-        dropped: typeof d.droppedForConflict === "number" ? d.droppedForConflict : 0,
-      });
-    } catch {
-      setRescheduleSlots([]);
-      // The request itself failed, so nothing was checked and we cannot say why.
-      setRescheduleCalendar({ status: "unavailable", dropped: 0 });
-      toast.error(t("actionFailed"));
-    }
-  };
-
   // Reload the whole agenda from the ONE scheduling engine. Used after a re-invite (so
   // the freshly-minted pending link appears in the awaiting bucket). useCallback keeps
   // the Date.now() capture out of render scope (react-hooks/purity).
@@ -200,14 +160,8 @@ export function useScheduleInviteLifecycle() {
     armed,
     setArmed,
     busy,
-    rescheduleToken,
-    setRescheduleToken,
-    rescheduleSlots,
-    setRescheduleSlots,
-    rescheduleCalendar,
     runAction,
     reinvite,
-    openReschedule,
     updateInvite,
   };
 }

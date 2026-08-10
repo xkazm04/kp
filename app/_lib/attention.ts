@@ -15,7 +15,7 @@
 // pay for the entire data layer on its first hit. This one line took /api/attention
 // from 68 modules to 43. See "Dev compile cost" in docs/architecture/app-structure.md.
 import { listPipeline } from "./db/pipeline";
-import { dueReminders } from "./schedule-store";
+import { countFutureConfirmedInvites } from "./schedule-store";
 import { listJobStatuses } from "./job-ingest";
 import { needsHumanDecision } from "./approval-kinds";
 import { daysSince, slaForStage } from "@/app/features/shared/pipelineTypes";
@@ -27,7 +27,9 @@ export type AttentionCounts = {
   // counts use STAGE_SLA_DEFAULTS — a recruiter's per-board localStorage
   // overrides are a client concern the badge deliberately approximates.
   pipeline: number;
-  // Schedule invites inside the reminder window → Schedule.
+  // Upcoming calendar events: confirmed interviews whose slot lies in the
+  // future → Schedule. (Was the due-reminder count; repointed 2026-08-10 so the
+  // badge answers "how many interviews are on the calendar ahead of me".)
   schedule: number;
   // Ingested roles still sitting unpublished as drafts → Jobs.
   jobs: number;
@@ -44,7 +46,7 @@ export function attentionCounts(): AttentionCounts {
   const stale = entries.filter(
     (e) => e.status === "active" && e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage)
   ).length;
-  const schedule = dueReminders().length;
+  const schedule = countFutureConfirmedInvites();
   const jobs = Object.values(listJobStatuses()).filter((s) => s === "draft").length;
   const channels = entries.filter((e) => e.status === "active" && e.stage === "Accepted").length;
   return { decisions, pipeline: stale, schedule, jobs, channels };
