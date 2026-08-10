@@ -243,3 +243,71 @@ wrote it down in my words instead of translating it into its own. I would put a
 line manager in front of it tomorrow. I still cannot put my name on the output,
 and it is the same two handles as last time — which, after two runs, starts to
 read as a decision rather than a backlog."
+
+---
+
+## Recertify addendum — 2026-08-10, after the fixes (`b54c451b`, `41cd5cc3`)
+
+Targeted L2 only. Full diff report: [`recertify.md`](./recertify.md). Appended; nothing above is
+edited.
+
+### L1-HRBP-11 → **resolved-verified** (her second-run recurrence, closed)
+
+Two arms, both driven through the UI in her working language:
+
+- The control exists: `checkbox "Research the salary band" [checked]`
+  (`shots/rc-market-off-promote-row.aria.txt:36`). Unchecking flips the working note to
+  *"The final JD is generated at Create JD — without salary research, as you chose."* (`:42`).
+- **Unchecked** (`intake-msn8w5pj-wt3p9t`) → JD `33ydgirz`, 4,434 chars, **no salary line at all**.
+- **Checked** (control, `intake-msn943g0-xdeuya`) → JD `rheb7897` with
+  `**Salary:** 45,000–70,000 CZK / month — Estimated from the internal role-family salary table`.
+
+**Ceiling:** the only remedy is switching it off. There is still no GBP / Agenda-for-Change band;
+the opt-out is per-promote and defaults **on**, so she must remember to untick every time; and
+the tab's intro still promises "researching market salary on the web" unconditionally.
+
+### L1-HRBP-15 → **resolved-verified**
+
+Folded spines now read `Popis pozice · Návrh připraven`, `Živé zadání · 10 položek v zadání`,
+`Rozhovor · 7 replik`. No spine badges its neighbour's contents. Ceiling: `briefItems` is one
+number over three kinds, and "Návrh připraven" means *has content*, not *can be promoted*
+(new finding L2-RC-1).
+
+### L2-NEW-2 → **re-scored minor → major, `recurrence: 2`**
+
+Not a fix under recertification — but it blocked this one. She named the dealbreakers three times
+("a valid NMC registration", "a valid NMC pin and an enhanced DBS") and the brief ended with
+`requirements: []` **and** `successCriteria: []`, which left `Create JD` **disabled**. The
+recertify had to patch the brief through the API before it could promote at all.
+
+### Refuted — `L2-RC-REF-1`
+
+Her English UI first rendered three raw i18n keys where the new strings should be. It was a dev
+server older than the commits (next-intl caches messages per locale); a restart rendered them
+correctly. Recorded, with the precondition added to `env.md` — not counted against the fix.
+
+### Priya, first person — third pass
+
+"Last time I wrote that someone had written the switch, I had read its code in the route, and I
+could not press it. I can press it now. It sits right there next to the case-design box, it is
+one word away from plain — *Research the salary band* — and when I clear it the panel stops
+telling me it is going to research a salary. Then the job description comes out with no pay line
+at all, and that is exactly what I wanted: silence is honest, 45,000 CZK for a Leeds Band 5 is
+not. I ran it both ways to be sure, and the only difference between the two documents was that
+tick.
+
+What I notice is that this is the *second* run where I raised it, and this time it came back
+fixed within the day. That changes how I read the backlog — it now looks like a queue rather than
+a decision.
+
+Two things keep me honest about it. It defaults to on, which means the wrong-market number is
+still the thing that happens if I am tired and click straight through — I would want a clinic
+whose roles are never Czech to be able to say so once, not every time. And clearing the box is
+not the same as getting a band; there is still nothing here that can price an Agenda-for-Change
+role, so my compensation work is unchanged, only no longer contradicted.
+
+The thing that actually cost me time this session was different: I said my dealbreakers three
+times, in plain English, and the brief recorded none of them — and because of that the *Create
+JD* button would not light up at all. A tool that cannot hear "a valid NMC pin is a dealbreaker"
+is not going to be trusted with a safeguarding-sensitive hire. That is now the item standing
+between me and adoption, not the salary switch."

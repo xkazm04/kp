@@ -244,3 +244,52 @@ poznat, který je ten nový. To slíbila věta v UI, ne já.
 Pořád podepisuju to, co jsem psala minule: opravy jsou dohledatelné a stroj o
 sobě říká pravdu — sám si označí, co si domyslel. Zůstávám u toho, že to nasadím.
 Ale ty dvě nuly ať někdo opraví dřív, než si na ně tým zvykne."
+
+---
+
+## Recertify addendum — 2026-08-10, after the fix (`41cd5cc3`)
+
+Targeted L2 only. Full diff report: [`recertify.md`](./recertify.md). Appended; nothing above is
+edited.
+
+### L1-EVA-10 and L2-CONV-1 → **resolved-verified**
+
+Both of my spine findings were one defect and are now one fix. Folded on a rich session
+(`intake-msn8mxc4-77jn8l` — 7 turns, 8 facets, 2 ninety-day criteria, a full drafted JD):
+
+```
+Zobrazit: Popis pozice   →  Popis pozice   Návrh připraven      (✓, aria-hidden; sr-only twin)
+Zobrazit: Živé zadání    →  Živé zadání    10 položek v zadání
+Zobrazit: Rozhovor       →  Rozhovor       7 replik
+```
+
+Reproduced across three sessions. Every branch of the switch was checked live, including the
+`chat` branch nobody had questioned — it was already correct, and now that is on the record
+rather than assumed. The dead `counts.draftReady` finally has a consumer, and the glyph is
+`aria-hidden` with a translated `sr-only` twin, so it reads as words to a screen reader.
+
+**Ceiling:** (a) "Návrh připraven" measures draft *content*, not promote-readiness — a session
+with a drafted JD and no title badges ✓ over a disabled `Vytvořit inzerát` (new finding
+**L2-RC-1**); (b) `briefItems` collapses requirements + facets + criteria into one number, so
+ten context facets and zero dealbreakers look identical to eight dealbreakers — and with
+`requirements[]` empty in every live session (L2-NEW-2, now major), today's count is almost all
+facets; (c) `·` for an empty draft carries no visual meaning without hovering it.
+
+### Eva, first person — third pass
+
+"The thing I said last time was that a tool which tells me it holds nothing while it holds
+plenty teaches me to ignore its own UI. That is fixed, and it is fixed in the way I'd have asked
+for: the draft got a *state* rather than a fake number, because a document is ready or it isn't,
+and the brief got a count of what it actually holds instead of a field the extractor rarely
+fills. Somebody read the shape of the problem, not just the ticket.
+
+What I like even more is the audit trail on the branch nobody complained about — the
+conversation spine was already right, and they say so in the commit. That is the difference
+between fixing a bug and fixing a class of bug.
+
+Where I'd push back: `10 položek v zadání` is now one number over three different kinds of
+thing. Ten pieces of context and zero dealbreakers reads identically to eight dealbreakers, and
+right now it is almost all context, because the dealbreakers still aren't landing anywhere. And
+the ✓ is one notch too confident — I saw it sitting over a *Create JD* button that couldn't be
+clicked. We traded a badge that lied downward for one that can overstate upward. Smaller
+problem, same family. Worth one more pass, not a rollback."

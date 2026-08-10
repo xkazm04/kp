@@ -273,3 +273,60 @@ Odpovídá to za půl minuty až minutu, nezasekává se to, a za dvě minuty mo
 času mám vypsanou pozici. To bych ručně nedal ani za den. Beru to. Ale první, co
 příště udělám, je že ten název přepíšu — a to je přesně ta jedna vteřina
 nedůvěry, kterou tam nemuseli nechat."
+
+---
+
+## Recertify addendum — 2026-08-10, after the fixes (`dd67bc46`, `41cd5cc3`)
+
+Targeted L2 only. Full diff report: [`recertify.md`](./recertify.md). This section is appended;
+nothing above it is edited.
+
+### L1-TOM-2 → **resolved-verified**
+
+My exact transcript from the last pass was replayed into two fresh sessions, one with the old
+posting attached and one without — same words, one variable.
+
+- Attached (`intake-msn8mxc4-77jn8l`): `text: Role Senior Java vývojář — platební tým úsudek AI`
+  + `button "Upravit název"` (`shots/rc-replay-attached-landed.aria.txt:65-66`). The engine said
+  `inferred`; the screen now says it too.
+- Corrected inline: `text: Role Backend inženýr do platebního týmu řekli jste`
+  (`…-edited.aria.txt:65`), and the stored provenance flipped `inferred → stated`.
+- Control (no attachment, identical words): the engine produced **no title at all**. The old
+  posting was doing all the naming.
+
+**Ceiling:** the chip appears only when a title exists (the control arm shows a bare `—`), it
+attributes my *words* and not their *route* (a title I say that happens to match the attachment
+verbatim is chipped "řekli jste"), and the promise that an edit can't launder the rest of the
+brief was untestable live — every facet was already `stated`.
+
+### L1-TOM-5 → **still open**
+
+The badge half is fixed; the burial isn't. With the draft leaf folded, `Podklady` is gone from
+the page entirely (`podklady-when-draft-folded: 0`, all three Czech arms), and the spine now
+says "Návrh připraven" — about the *draft*, never about the materials under it.
+
+### New: L2-RC-1 — "Návrh připraven" over a dead button
+
+The repaired draft spine badged ✓ "Návrh připraven" on a session whose `Vytvořit inzerát` was
+`[disabled]` (`shots/rc-replay-ctrl-landed.aria.txt:38`). The marker measures draft content; the
+gate measures promote-readiness. Minor, open.
+
+### Tomáš, first person — third pass
+
+„Tak jsem to otevřel a ten název konečně nese razítko. `úsudek AI` — a je to pravda, ten název
+mi tam nacpal ten starý inzerát, ne já. To je přesně to, co jsem chtěl: ne aby to hádalo míň,
+ale aby to přiznalo, že hádá. Kliknu na *Upravit název*, přepíšu to, a razítko se překlopí na
+`řekli jste`. Tři vteřiny. Minule jsem psal, že první, co příště udělám, je že ten název
+přepíšu — teď to fakt jde, a stálo mě to jeden klik.
+
+Sloupce už taky nelžou. Složím konverzaci a na hřbetu je *7 replik*, ne nula. Složím zadání a je
+tam *10 položek*. To zní jako drobnost, ale minule mi ten panel tvrdil, že je prázdný, když v něm
+byl hotový inzerát — a já pak takovému UI přestanu věřit celému.
+
+Dvě věci mě pořád štvou. Za prvé: složím sloupec s popisem a *Podklady* zmizí úplně. Já jsem ten
+člověk, co přijde s dokumentem v ruce — a ta jediná díra, kam ho dát, se schová, když si uklidím
+plochu. Za druhé: viděl jsem hřbet, co hlásí *Návrh připraven*, a nad ním tlačítko *Vytvořit
+inzerát*, které nešlo zmáčknout. Jedno mi říká hotovo, druhé mlčí. To je zase ten samý žánr
+problému jako ta nula — jenom obráceně.
+
+Zůstávám. Patnáct minut místo dvou schůzek pořád platí, a teď tomu i věřím."

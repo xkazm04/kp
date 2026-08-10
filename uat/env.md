@@ -35,6 +35,20 @@ resolve them before relying on L2.
 > `dev:inspect`). If none is up, start `npm run dev` in the background and poll
 > `/api/health` for 200 before driving.
 
+> **PRECONDITION (recertify, and any L2 that touches new UI strings): the server
+> must be NEWER than the commits under test.** `i18n/request.ts` loads messages
+> with a per-locale `await import('../messages/<locale>.json')`, and that module
+> is cached at first use — Next hot-reloads the React components but **not** the
+> message catalogue. A dev server started before the commits therefore renders
+> the new components with *pre-fix* strings, i.e. **raw i18n keys**
+> (`checkbox "library.tab.intake.promoteMarket"`). It fails **asymmetrically**:
+> a locale first compiled *after* the commits is fine, so a single-locale run
+> sees nothing wrong and a two-locale run reads it as a shipped i18n regression.
+> Cost the 2026-08-10 recertify a near-miss finding (`L2-RC-REF-1`). Check
+> `Get-CimInstance Win32_Process -Filter "ProcessId=<pid>" | Select CreationDate`
+> against `git log -1 --format=%ci` and restart if the server is older;
+> `touch messages/<locale>.json` is **not** enough.
+
 ## Auth — the offline path (the big unlock for authed coverage)
 
 Two layers:

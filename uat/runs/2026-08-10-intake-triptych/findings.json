@@ -165,13 +165,16 @@
     "evidence": "JdsIntakeLayoutTriptych.tsx:46-47, :118; intakeLayoutShared.ts:18-23; JdsIntakePanel.tsx:235",
     "code_check": "confirmed-present (wrong count) + confirmed-absent (draftReady unused)",
     "verdict": "confirmed",
-    "resolution": "open",
+    "resolution": "resolved-verified",
     "l2_priority": "low",
     "converges_with": [
       "L1-HRBP-15",
       "L1-TOM-5"
     ],
-    "l2_evidence": "CONFIRMED LIVE, verbatim. Folding the draft leaf on a session whose draft holds a full posting yields the spine 'button \"Zobrazit: Popis pozice\": Popis pozice 0' (uat/runs/2026-08-10-intake-triptych/shots/l2-nurse-fold-folded.aria.txt line 37) — a zero badge over a drafted JD, because the badge counts attachments (0) not draftReady."
+    "l2_evidence": "CONFIRMED LIVE, verbatim. Folding the draft leaf on a session whose draft holds a full posting yields the spine 'button \"Zobrazit: Popis pozice\": Popis pozice 0' (uat/runs/2026-08-10-intake-triptych/shots/l2-nurse-fold-folded.aria.txt line 37) — a zero badge over a drafted JD, because the badge counts attachments (0) not draftReady.",
+    "recertified_in": "recertify 2026-08-10 (commits b54c451b · dd67bc46 · 41cd5cc3)",
+    "recertify_evidence": "LIVE ON A RICH SESSION, ALL THREE BRANCHES. Folded spines on intake-msn8mxc4-77jn8l (7 transcript entries, 8 facets, 2 ninety-day criteria, a full drafted JD): `button \"Zobrazit: Popis pozice\": Popis pozice Návrh připraven` (glyph ✓, aria-hidden; sr-only + title 'Návrh připraven'), `button \"Zobrazit: Živé zadání\": Živé zadání 10 položek v zadání` (8 facets + 2 criteria), `button \"Zobrazit: Rozhovor\": Rozhovor 7 replik` (shots/rc-replay-attached-folded-draft-brief.aria.txt:39,46 + shots/rc-replay-attached-journal.json spines-A/spines-B). Reproduced on two further sessions (rc-replay-ctrl: ✓ / 8 položek / 7 replik; rc-tom: ✓ / 5 položek / 5 replik). No spine badges 0 over a populated session, and no spine reports its neighbour's contents.",
+    "ceiling": "(a) 'Návrh připraven' means the draft pane HAS CONTENT, not that it can become a JD: on the untitled control session the draft spine badged ✓ 'Návrh připraven' while `button \"Vytvořit inzerát\" [disabled]` sat above it (shots/rc-replay-ctrl-landed.aria.txt:38) — recorded as the new finding L2-RC-1. (b) briefItems is one number over three different kinds (requirements + facets + successCriteria), so ten context facets and zero dealbreakers badge the same as eight dealbreakers; with requirements[] empty in every live session (L2-NEW-2, still open) today's number is almost entirely facets. (c) The ✓ / · pair is visual-only — '·' for an empty draft carries no meaning without hovering the title attribute (the sr-only hint does serve screen readers)."
   },
   {
     "id": "L1-EVA-11",
@@ -240,9 +243,12 @@
     "evidence": "app/api/intake/[id]/promote/route.ts:43-50; app/features/library/jds/intake/jdsIntakeLogic.ts:150-161; app/features/library/jds/intake/JdsIntakePanel.tsx:148-157; messages/en.json (draft.workingNote)",
     "code_check": "confirmed-present. ceiling note: the single-Czech-market anchor itself remains the documented workspace ceiling (Character surface binding); only the missing UI affordance is scored.",
     "verdict": "confirmed",
-    "resolution": "open",
+    "resolution": "resolved-verified",
     "l2_priority": "high — promote from the UI, inspect the JD's market panel; then promote via API with marketResearch:false to confirm the seam works",
-    "l2_evidence": "CONFIRMED LIVE, two-arm. (a) UI arm: the live promote area exposes exactly one control — checkbox 'Navrhnout rovnou i praktickou úlohu' + button 'Vytvořit inzerát'; no market-research affordance anywhere (uat/runs/2026-08-10-intake-triptych/shots/l2-nurse-landed.aria.txt, l2-tom-attach-landed.aria.txt). The draft pane asserts unconditionally: 'Skládá se ze zadání průběžně, jak mluvíte. Finální inzerát (včetně průzkumu mezd) vznikne při Vytvořit inzerát.' A browser-driven promote (drive-intake.mjs, session intake-msn3bnnp-negmkh) produced jds.build_input_json options={description:true,marketResearch:true,caseDesign:false} and a JD carrying '**Mzda:** 103 000–154 500 CZK / month — Odhadnuto z interní tabulky mezd podle oborů'. (b) API arm: POST /api/intake/intake-msn37gpv-uzfcle/promote {caseDesign:false,marketResearch:false} -> 200, options={...marketResearch:false}, and the resulting JD t9u3iv9w has NO salary/market line at all. The seam works perfectly and is unreachable from the UI — the rubric's 'fix landed != fix reachable' in its purest form."
+    "l2_evidence": "CONFIRMED LIVE, two-arm. (a) UI arm: the live promote area exposes exactly one control — checkbox 'Navrhnout rovnou i praktickou úlohu' + button 'Vytvořit inzerát'; no market-research affordance anywhere (uat/runs/2026-08-10-intake-triptych/shots/l2-nurse-landed.aria.txt, l2-tom-attach-landed.aria.txt). The draft pane asserts unconditionally: 'Skládá se ze zadání průběžně, jak mluvíte. Finální inzerát (včetně průzkumu mezd) vznikne při Vytvořit inzerát.' A browser-driven promote (drive-intake.mjs, session intake-msn3bnnp-negmkh) produced jds.build_input_json options={description:true,marketResearch:true,caseDesign:false} and a JD carrying '**Mzda:** 103 000–154 500 CZK / month — Odhadnuto z interní tabulky mezd podle oborů'. (b) API arm: POST /api/intake/intake-msn37gpv-uzfcle/promote {caseDesign:false,marketResearch:false} -> 200, options={...marketResearch:false}, and the resulting JD t9u3iv9w has NO salary/market line at all. The seam works perfectly and is unreachable from the UI — the rubric's 'fix landed != fix reachable' in its purest form.",
+    "recertified_in": "recertify 2026-08-10 (commits b54c451b · dd67bc46 · 41cd5cc3)",
+    "recertify_evidence": "LIVE, TWO ARMS, BOTH THROUGH THE UI. The promote row now renders the control in both locales: en `checkbox \"Research the salary band\" [checked]` (shots/rc-market-off-promote-row.aria.txt:36), cs `checkbox \"Zjistit i mzdové pásmo\" [checked]` (shots/rc-replay-ctrl-landed.aria.txt:36). Unchecking it flips the draft pane's working note from 'The final JD (with market salary research) is generated at Create JD' to 'The final JD is generated at Create JD — without salary research, as you chose' (same aria file, :42). ARM A (unchecked, session intake-msn8w5pj-wt3p9t): promoted from the browser -> JD 33ydgirz, 4,434 chars, ZERO salary/CZK/GBP lines (shots/rc-market-off-jd.md). ARM B (control, checked, session intake-msn943g0-xdeuya): JD rheb7897 carries '**Salary:** 45,000-70,000 CZK / month' + 'Estimated from the internal role-family salary table (no live web evidence)' (shots/rc-market-on-jd.md). Same brief shape, same locale, one checkbox apart — the handle Priya could read in the route and not press is now the one she presses.",
+    "ceiling": "The only remedy is switching the comp read OFF — there is still no GBP / Agenda-for-Change band. With it ON, a Leeds Band 5 nurse is still priced 45,000-70,000 CZK from an internal Czech role-family table, so her scored criterion ('a salary read in GBP on an AfC band, or settable to it') is met only in its 'or an honest I-cannot-price-this' half. The opt-out is per-promote and defaults ON: there is no workspace / role-family / non-Czech-role default, so she must remember to untick on every single promote. Nothing at the moment of decision tells her the band would be Czech-anchored — the tab's own intro still promises 'researching market salary on the web' unconditionally (messages/en.json:2968)."
   },
   {
     "id": "L1-HRBP-12",
@@ -337,13 +343,16 @@
     "evidence": "JdsIntakeLayoutTriptych.tsx:46-47; intakeLayoutShared.ts:22; JdsIntakePanel.tsx:235",
     "code_check": "confirmed-present",
     "verdict": "confirmed",
-    "resolution": "open",
+    "resolution": "resolved-verified",
     "l2_priority": "low (one glance)",
     "converges_with": [
       "L1-EVA-10",
       "L1-TOM-5"
     ],
-    "l2_evidence": "Same live capture as L1-EVA-10: folded spine reads 'Popis pozice 0' over a populated draft."
+    "l2_evidence": "Same live capture as L1-EVA-10: folded spine reads 'Popis pozice 0' over a populated draft.",
+    "recertified_in": "recertify 2026-08-10 (commits b54c451b · dd67bc46 · 41cd5cc3)",
+    "recertify_evidence": "LIVE ON A RICH SESSION, ALL THREE BRANCHES. Folded spines on intake-msn8mxc4-77jn8l (7 transcript entries, 8 facets, 2 ninety-day criteria, a full drafted JD): `button \"Zobrazit: Popis pozice\": Popis pozice Návrh připraven` (glyph ✓, aria-hidden; sr-only + title 'Návrh připraven'), `button \"Zobrazit: Živé zadání\": Živé zadání 10 položek v zadání` (8 facets + 2 criteria), `button \"Zobrazit: Rozhovor\": Rozhovor 7 replik` (shots/rc-replay-attached-folded-draft-brief.aria.txt:39,46 + shots/rc-replay-attached-journal.json spines-A/spines-B). Reproduced on two further sessions (rc-replay-ctrl: ✓ / 8 položek / 7 replik; rc-tom: ✓ / 5 položek / 5 replik). No spine badges 0 over a populated session, and no spine reports its neighbour's contents.",
+    "ceiling": "(a) 'Návrh připraven' means the draft pane HAS CONTENT, not that it can become a JD: on the untitled control session the draft spine badged ✓ 'Návrh připraven' while `button \"Vytvořit inzerát\" [disabled]` sat above it (shots/rc-replay-ctrl-landed.aria.txt:38) — recorded as the new finding L2-RC-1. (b) briefItems is one number over three different kinds (requirements + facets + successCriteria), so ten context facets and zero dealbreakers badge the same as eight dealbreakers; with requirements[] empty in every live session (L2-NEW-2, still open) today's number is almost entirely facets. (c) The ✓ / · pair is visual-only — '·' for an empty draft carries no meaning without hovering the title attribute (the sr-only hint does serve screen readers)."
   },
   {
     "id": "L1-HRBP-16",
@@ -512,9 +521,12 @@
     "evidence": "app/features/library/jds/intake/JdsIntakeBriefPanel.tsx:131-142; app/_lib/intake-draft.ts:30; pipeline/jobfit/intake.py:108-111, :357-359, :709-711; app/api/intake/[id]/message/route.ts:63-70",
     "code_check": "confirmed-absent (UI consumer for spineProvenance.title; grep over app/features/library/jds/intake/ finds only the seniority read)",
     "verdict": "confirmed",
-    "resolution": "open",
+    "resolution": "resolved-verified",
     "l2_priority": "yes — attach a JD live, watch whether the model proposes its title and how it renders",
-    "l2_evidence": "CONFIRMED LIVE WITH A CONTROL. Arm A: intake-msn37gpv-uzfcle, attachment {kind:'jd',jdSlug:'xd5627eu'} ('Senior Java vývojář — platební tým'), opening message deliberately naming no title and explicitly rejecting the old posting. First model turn (source='llm', 32s) returned brief.title='Senior Java vývojář — platební tým' with spineProvenance={title:'inferred',seniority:'inferred'} — the engine was honest. Arm B (control): intake-msn3bnnp-negmkh, same opening sentence, NO attachment -> title='Senior backend engineer — platební tým'. The attachment demonstrably drove the title. Live rendering (uat/runs/2026-08-10-intake-triptych/shots/l2-tom-attach-landed.aria.txt): 'Role Senior Java vývojář — platební tým senior úsudek AI' — the 'úsudek AI' (inferred) chip sits on SENIORITY; the title renders bare. The same surface chips a salary facet with its source ('Mzdové pásmo: 110 000–150 000 CZK / měsíc (z přiloženého inzerátu, nepotvrzeno requestorem) úsudek AI'), so the provenance discipline is present everywhere except the most prominent value. It also becomes the sidebar session name ('Senior Java vývojář — platební tým Hledání podoby Probíhá 3 repliky') and the draft headline. Broader than L1 framed it: BOTH live sessions carry title provenance 'inferred', so the title is inferred by default and never chipped, attachment or not."
+    "l2_evidence": "CONFIRMED LIVE WITH A CONTROL. Arm A: intake-msn37gpv-uzfcle, attachment {kind:'jd',jdSlug:'xd5627eu'} ('Senior Java vývojář — platební tým'), opening message deliberately naming no title and explicitly rejecting the old posting. First model turn (source='llm', 32s) returned brief.title='Senior Java vývojář — platební tým' with spineProvenance={title:'inferred',seniority:'inferred'} — the engine was honest. Arm B (control): intake-msn3bnnp-negmkh, same opening sentence, NO attachment -> title='Senior backend engineer — platební tým'. The attachment demonstrably drove the title. Live rendering (uat/runs/2026-08-10-intake-triptych/shots/l2-tom-attach-landed.aria.txt): 'Role Senior Java vývojář — platební tým senior úsudek AI' — the 'úsudek AI' (inferred) chip sits on SENIORITY; the title renders bare. The same surface chips a salary facet with its source ('Mzdové pásmo: 110 000–150 000 CZK / měsíc (z přiloženého inzerátu, nepotvrzeno requestorem) úsudek AI'), so the provenance discipline is present everywhere except the most prominent value. It also becomes the sidebar session name ('Senior Java vývojář — platební tým Hledání podoby Probíhá 3 repliky') and the draft headline. Broader than L1 framed it: BOTH live sessions carry title provenance 'inferred', so the title is inferred by default and never chipped, attachment or not.",
+    "recertified_in": "recertify 2026-08-10 (commits b54c451b · dd67bc46 · 41cd5cc3)",
+    "recertify_evidence": "LIVE, WITH THE PRIOR RUN'S EXACT STIMULUS REPLAYED AND A CONTROL ARM. The prior control session's three messages were read back off the live DB (intake-msn3bnnp-negmkh) and replayed verbatim into two new sessions. ATTACHED ARM (intake-msn8mxc4-77jn8l, JD t9u3iv9w 'Senior Java vývojář — platební tým' attached): engine returned title='Senior Java vývojář — platební tým' spineProvenance.title='inferred', and the brief now renders `text: Role Senior Java vývojář — platební tým úsudek AI` + `button \"Upravit název\"` (shots/rc-replay-attached-landed.aria.txt:65-66) — the most prominent value on the surface finally carries its chip. INLINE CORRECTION: typing 'Backend inženýr do platebního týmu' and saving re-renders `text: Role Backend inženýr do platebního týmu řekli jste` (shots/rc-replay-attached-edited.aria.txt:65) and the API confirms spineProvenance.title flipped inferred -> stated. CONTROL ARM (identical words, NO attachment, intake-msn8qwfo-r5qdkf): the engine produced no title at all (title='', provenance 'default') — a sharper causal demonstration than the prior run's, since the attachment is the only variable and without it the title does not exist.",
+    "ceiling": "(a) The chip renders only when a title exists. In the no-attachment control the brief shows a bare '—' with no chip and `button \"Vytvořit inzerát\" [disabled]` — the honest state 'I have no title for you yet' is communicated by an em dash. (b) The chip attributes the WORDS, not their route: a third arm whose opener named the role ('hledám seniorního Java vývojáře do platebního týmu', intake-msn8f4kx-axmvz0) produced a title byte-identical to the attached JD's, chipped `řekli jste` — defensible, but 'you said' now also covers 'the attachment and you happened to agree'. (c) The anti-laundering guarantee could not be exercised live: every facet in both arms was already `stated` before the edit, so the live evidence is neutral on it and it still rests on brief-edit.test.ts."
   },
   {
     "id": "L1-TOM-3",
@@ -586,7 +598,10 @@
       "L1-EVA-10",
       "L1-HRBP-15"
     ],
-    "l2_evidence": "CONFIRMED LIVE including the compounding half. Expanded, the attachments pane appears only as 'group: Podklady0' at the foot of the draft leaf — no heading, no mention in the opener or any empty state. Folded, it is absent from the accessibility tree entirely: the folded capture contains no 'Podklady' node at all (uat/runs/2026-08-10-intake-triptych/shots/l2-nurse-fold-folded.aria.txt vs l2-nurse-fold-landed.aria.txt). A requestor who folds the draft leaf (persisted in localStorage kp-intake-triptych-cols) loses the attach affordance permanently with no cue it existed."
+    "l2_evidence": "CONFIRMED LIVE including the compounding half. Expanded, the attachments pane appears only as 'group: Podklady0' at the foot of the draft leaf — no heading, no mention in the opener or any empty state. Folded, it is absent from the accessibility tree entirely: the folded capture contains no 'Podklady' node at all (uat/runs/2026-08-10-intake-triptych/shots/l2-nurse-fold-folded.aria.txt vs l2-nurse-fold-landed.aria.txt). A requestor who folds the draft leaf (persisted in localStorage kp-intake-triptych-cols) loses the attach affordance permanently with no cue it existed.",
+    "recertified_in": "recertify 2026-08-10 (commits b54c451b · dd67bc46 · 41cd5cc3)",
+    "recertify_evidence": "PARTIALLY ADDRESSED — the compounding clause is fixed, the finding is not. The draft spine no longer badges the attachment count (see L1-EVA-10), but the finding's own claim — 'Podklady is buried, the character most likely to bring materials will not find where to put them' — is unchanged, and the folded case is now worse-framed: with the draft leaf folded, `Podklady` is absent from the page entirely in all three cs arms driven this run (podklady-when-draft-folded: 0 in rc-tom / rc-replay-attached / rc-replay-ctrl journals), and the spine now says 'Návrh připraven', which speaks about the draft and never about the materials underneath it. Expanded, it is still an unlabelled disclosure at the foot of the draft leaf with no mention in the opener or any empty state.",
+    "still_missing": "A discoverability cue near the conversation (opener line, empty-state hint, or a materials affordance that survives folding the draft leaf). The badge repair did not touch placement."
   },
   {
     "id": "L1-TOM-6",
@@ -711,9 +726,12 @@
     ],
     "code_check": "present-broken",
     "verdict": "confirmed",
-    "resolution": "open",
+    "resolution": "resolved-verified",
     "scope_note": "L1 missed this — a surface-model gap: the L1 walkers read countFor's draft branch and stopped, never pairing the brief branch against live brief shape. Fixing the draft badge alone (backlog #4) leaves this one lying.",
-    "suggested_acceptance": "Fold each of the three leaves on a session with a drafted JD and a populated brief; every spine badge reflects what its OWN leaf holds (draftReady, turn count, brief content), never zero."
+    "suggested_acceptance": "Fold each of the three leaves on a session with a drafted JD and a populated brief; every spine badge reflects what its OWN leaf holds (draftReady, turn count, brief content), never zero.",
+    "recertified_in": "recertify 2026-08-10 (commits b54c451b · dd67bc46 · 41cd5cc3)",
+    "recertify_evidence": "LIVE ON A RICH SESSION, ALL THREE BRANCHES. Folded spines on intake-msn8mxc4-77jn8l (7 transcript entries, 8 facets, 2 ninety-day criteria, a full drafted JD): `button \"Zobrazit: Popis pozice\": Popis pozice Návrh připraven` (glyph ✓, aria-hidden; sr-only + title 'Návrh připraven'), `button \"Zobrazit: Živé zadání\": Živé zadání 10 položek v zadání` (8 facets + 2 criteria), `button \"Zobrazit: Rozhovor\": Rozhovor 7 replik` (shots/rc-replay-attached-folded-draft-brief.aria.txt:39,46 + shots/rc-replay-attached-journal.json spines-A/spines-B). Reproduced on two further sessions (rc-replay-ctrl: ✓ / 8 položek / 7 replik; rc-tom: ✓ / 5 položek / 5 replik). No spine badges 0 over a populated session, and no spine reports its neighbour's contents.",
+    "ceiling": "(a) 'Návrh připraven' means the draft pane HAS CONTENT, not that it can become a JD: on the untitled control session the draft spine badged ✓ 'Návrh připraven' while `button \"Vytvořit inzerát\" [disabled]` sat above it (shots/rc-replay-ctrl-landed.aria.txt:38) — recorded as the new finding L2-RC-1. (b) briefItems is one number over three different kinds (requirements + facets + successCriteria), so ten context facets and zero dealbreakers badge the same as eight dealbreakers; with requirements[] empty in every live session (L2-NEW-2, still open) today's number is almost entirely facets. (c) The ✓ / · pair is visual-only — '·' for an empty draft carries no meaning without hovering the title attribute (the sr-only hint does serve screen readers)."
   },
   {
     "id": "L2-NEW-2",
@@ -721,11 +739,11 @@
     "character": "tomas-backend-team-lead",
     "cert_level": "L2",
     "type": "quality-gap",
-    "severity": "minor",
+    "severity": "major",
     "impact": {
-      "frequency": "high",
+      "frequency": "high — every session",
       "reachability": "high",
-      "trust_erosion": "low-med"
+      "trust_erosion": "high"
     },
     "dimension": "senior-quality",
     "title": "Explicitly confirmed dealbreakers never land in the structured brief's requirements[]",
@@ -738,7 +756,16 @@
     "verdict": "confirmed",
     "resolution": "open",
     "scope_note": "Compounds L2-CONV-1: the empty array is also what the brief spine badge counts.",
-    "suggested_acceptance": "State a hard skill and confirm it on the next turn; it appears as a must-have row in the Live brief and in the edit sheet."
+    "suggested_acceptance": "State a hard skill and confirm it on the next turn; it appears as a must-have row in the Live brief and in the edit sheet.",
+    "severity_prior": "minor",
+    "impact_prior": {
+      "frequency": "high",
+      "reachability": "high",
+      "trust_erosion": "low-med"
+    },
+    "recurrence": 2,
+    "recertified_in": "recertify 2026-08-10 (commits b54c451b · dd67bc46 · 41cd5cc3)",
+    "recertify_evidence": "RE-CONFIRMED AND WIDENED while recertifying other findings — it is no longer only 'dealbreakers do not reach requirements[]', it BLOCKS THE JOB. Priya's English session (intake-msn8w5pj-wt3p9t) stated the dealbreakers three times across three exchanges ('a valid NMC registration and at least two years of post-registration ward experience', then 'The absolute dealbreakers are a valid NMC pin and an enhanced DBS') and ended with requirements: [] AND successCriteria: [] over 9 facets. Because briefReadyToPromote requires a title plus one dealbreaker or 90-day outcome, `Create JD` stayed DISABLED and the promote could not happen at all — this run had to PATCH /api/intake/<id>/brief to reach promote-readiness before L1-HRBP-11 could be recertified at all. Both English sessions behaved identically; the Czech sessions did fill successCriteria (2), so the gate opens for them."
   },
   {
     "id": "L2-EVA-S1",
@@ -786,5 +813,58 @@
     "verdict": "refuted",
     "resolution": "by-design",
     "ceiling": "Only the JSON body path was controlled. Nothing here says anything about file-upload or clipboard paths — the attachments API has no file kind, so there was none to test."
+  },
+  {
+    "id": "L2-RC-1",
+    "journey": "role-intake-dialog",
+    "character": "tomas-backend-team-lead",
+    "cert_level": "L2",
+    "type": "confusion",
+    "severity": "minor",
+    "impact": {
+      "frequency": "med — every session with draft content but no title yet",
+      "reachability": "high",
+      "trust_erosion": "low"
+    },
+    "dimension": "clarity",
+    "title": "'Draft ready' badges a draft that cannot be promoted — the new spine marker measures content, not promote-readiness",
+    "expected": "A spine badge that says the draft is ready should agree with the button that acts on it.",
+    "got": "The repaired draft spine reads `draftReady = briefDraftHasContent(brief)` (JdsIntakePanel.tsx:267) while the promote gate is `briefReadyToPromote` (intake-brief.ts:69-74), which additionally requires a title plus one dealbreaker or 90-day outcome. Live on intake-msn8qwfo-r5qdkf (a real control-arm session the engine left untitled): the folded draft spine badges ✓ 'Návrh připraven' while `button \"Vytvořit inzerát\" [disabled]` sits in the promote row, with no visible reason.",
+    "evidence": [
+      "uat/runs/2026-08-10-intake-triptych/shots/rc-replay-ctrl-landed.aria.txt:38 (button \"Vytvořit inzerát\" [disabled])",
+      "uat/runs/2026-08-10-intake-triptych/shots/rc-replay-ctrl-journal.json (spines-A: glyph ✓, srOnly 'Návrh připraven')",
+      "app/features/library/jds/intake/JdsIntakePanel.tsx:267; app/_lib/intake-brief.ts:69-74"
+    ],
+    "code_check": "present-broken",
+    "verdict": "confirmed",
+    "resolution": "open",
+    "introduced_by": "41cd5cc3 (the countFor repair) — the prior badge was wrong in a different way, so this is a residual seam, not a regression",
+    "suggested_acceptance": "On a session the promote gate rejects, the draft spine must not claim readiness — either badge the promote-gate state or word the marker as 'has content'."
+  },
+  {
+    "id": "L2-RC-REF-1",
+    "journey": "role-intake-dialog",
+    "character": "hr-healthcare-clinic-hrbp",
+    "cert_level": "L2",
+    "type": "trust",
+    "severity": "polish",
+    "impact": {
+      "frequency": "low",
+      "reachability": "low",
+      "trust_erosion": "low"
+    },
+    "dimension": "clarity",
+    "title": "REFUTED — the English UI's raw-key render was a stale dev server, not the fix",
+    "expected": "Priya's scored criterion: the internal UI renders correctly in English.",
+    "got": "The first English arm rendered `checkbox \"library.tab.intake.promoteMarket\"`, `paragraph: library.tab.intake.draft.workingNoteNoMarket` and `button \"library.tab.intake.edit.editTitle\"` — three raw i18n keys, all of them strings added by the three commits under test, while the identical Czech arm rendered every one of them translated and messages/en.json held all three at the same paths as cs.json. Cause: the dev server had been running since 13:43, before the 14:28-14:38 commits; next-intl's per-locale `await import('../messages/<locale>.json')` (i18n/request.ts) was cached at first use, so English served a PRE-FIX message bundle while the React components hot-reloaded normally. Czech was first compiled after the commits and was therefore correct. Restarting the server and re-driving the identical probe (intake-msn9cn1o-0swp3k) rendered `checkbox \"Research the salary band\"` and 'The final JD is generated at Create JD — without salary research, as you chose'.",
+    "evidence": [
+      "before restart: uat/runs/2026-08-10-intake-triptych/shots/rc-market-off-landed.aria.txt:64; shots/rc-market-on-promote-row.aria.txt:36",
+      "after restart: uat/runs/2026-08-10-intake-triptych/shots/rc-fold-landed.aria.txt:36; shots/rc-market-off-promote-row.aria.txt:36,42",
+      "i18n/request.ts (per-locale dynamic messages import); dev server pid 11204 created 2026-08-10 13:43, commits 14:28-14:38"
+    ],
+    "code_check": "by-design",
+    "verdict": "refuted",
+    "resolution": "n-a",
+    "ceiling": "The refutation is environmental, not structural: the same trap re-arms on every long-lived dev server, and it fails ASYMMETRICALLY — the locale compiled after the commits looks fine, so a single-locale run would never notice. Recorded as a standing L2/recertify precondition in uat/env.md."
   }
 ]
