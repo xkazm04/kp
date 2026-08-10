@@ -3236,6 +3236,12 @@
           },
           "hide": "Skrýt: {column}",
           "show": "Zobrazit: {column}",
+          "badge": {
+            "turns": "{count, plural, one {# replika} few {# repliky} other {# replik}}",
+            "briefItems": "{count, plural, one {# položka v zadání} few {# položky v zadání} other {# položek v zadání}}",
+            "draftReady": "Návrh připraven",
+            "draftEmpty": "Návrh zatím prázdný"
+          },
           "lastOpen": "Poslední otevřený sloupec zůstává otevřený."
         }
       }

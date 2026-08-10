@@ -254,8 +254,16 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
         }
         counts={{
           turns: active.transcript.length,
-          requirements: active.brief?.requirements?.length ?? 0,
+          // UAT L2-CONV-1: `requirements` alone badged 0 over a brief holding a
+          // title, a seniority, seven facets and two 90-day criteria — the
+          // extraction rarely fills requirements[]. Count what the brief holds.
+          briefItems:
+            (active.brief?.requirements?.length ?? 0) +
+            (active.brief?.facets?.length ?? 0) +
+            (active.brief?.successCriteria?.length ?? 0),
           attachments: (active.attachments ?? []).length,
+          // UAT L1-EVA-10 / L1-HRBP-15: computed since the Triptych shipped and
+          // never consumed — the draft spine now reads it.
           draftReady: briefDraftHasContent(active.brief),
         }}
       />

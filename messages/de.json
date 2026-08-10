@@ -3236,6 +3236,12 @@
           },
           "hide": "Ausblenden: {column}",
           "show": "Einblenden: {column}",
+          "badge": {
+            "turns": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
+            "briefItems": "{count, plural, one {# Eintrag im Briefing} other {# Einträge im Briefing}}",
+            "draftReady": "Entwurf bereit",
+            "draftEmpty": "Entwurf noch leer"
+          },
           "lastOpen": "Die letzte offene Spalte bleibt offen."
         }
       }

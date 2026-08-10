@@ -3236,6 +3236,12 @@
           },
           "hide": "Hide: {column}",
           "show": "Show: {column}",
+          "badge": {
+            "turns": "{count, plural, one {# message} other {# messages}}",
+            "briefItems": "{count, plural, one {# item in the brief} other {# items in the brief}}",
+            "draftReady": "Draft ready",
+            "draftEmpty": "Draft still empty"
+          },
           "lastOpen": "The last open column stays open."
         }
       }

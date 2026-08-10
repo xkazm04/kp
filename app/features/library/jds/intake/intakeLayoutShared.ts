@@ -15,9 +15,20 @@ export type IntakeLayoutProps = {
   brief: ReactNode;
   draft: ReactNode;
   materials: ReactNode;
+  // A folded leaf's spine must still say what THAT leaf holds (UAT L1-EVA-10 ·
+  // L1-HRBP-15 · L1-TOM-5 convergent, widened by L2-CONV-1). So one field per
+  // leaf, each measuring its own content:
+  //   chat  → turns
+  //   brief → briefItems (requirements + facets + 90-day criteria — `requirements`
+  //           alone reads 0 over a rich brief, because the extraction rarely
+  //           fills it: the L2-CONV-1 defect)
+  //   draft → draftReady, a STATE not a count (the draft is one document; a
+  //           number there is meaningless, which is why the old branch borrowed
+  //           its neighbour's attachment count)
+  // `attachments` stays for the materials disclosure inside the draft leaf.
   counts: {
     turns: number;
-    requirements: number;
+    briefItems: number;
     attachments: number;
     draftReady: boolean;
   };

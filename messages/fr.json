@@ -3236,6 +3236,12 @@
           },
           "hide": "Masquer : {column}",
           "show": "Afficher : {column}",
+          "badge": {
+            "turns": "{count, plural, one {# message} other {# messages}}",
+            "briefItems": "{count, plural, one {# élément dans le brief} other {# éléments dans le brief}}",
+            "draftReady": "Brouillon prêt",
+            "draftEmpty": "Brouillon encore vide"
+          },
           "lastOpen": "La dernière colonne ouverte reste ouverte."
         }
       }

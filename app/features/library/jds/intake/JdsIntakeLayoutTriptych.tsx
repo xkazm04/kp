@@ -43,8 +43,21 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
     });
   };
 
-  const countFor = (key: IntakeColumnKey): number =>
-    key === "chat" ? props.counts.turns : key === "brief" ? props.counts.requirements : props.counts.attachments;
+  // Every spine badge reports its OWN leaf (UAT L1-EVA-10 · L1-HRBP-15 ·
+  // L1-TOM-5 convergent ×3, widened by L2-CONV-1 — two of three spines badged
+  // `0` over a full session: the draft spine counted attachments, the brief
+  // spine counted `requirements`, empty in every live session). Fixed per
+  // branch: chat counts turns (already correct, re-audited); brief counts what
+  // the brief actually holds; draft renders the purpose-built `draftReady`
+  // state — a document is ready or it isn't, so it gets a marker, not a number.
+  const badgeFor = (key: IntakeColumnKey): { text: string; hint: string } => {
+    if (key === "chat") return { text: String(props.counts.turns), hint: t("badge.turns", { count: props.counts.turns }) };
+    if (key === "brief") return { text: String(props.counts.briefItems), hint: t("badge.briefItems", { count: props.counts.briefItems }) };
+    // Glyphs, not copy — the translated meaning rides in `hint`.
+    return props.counts.draftReady
+      ? { text: "✓", hint: t("badge.draftReady") }
+      : { text: "·", hint: t("badge.draftEmpty") };
+  };
 
   const fade = {
     initial: { opacity: reduced ? 1 : 0 },
@@ -115,7 +128,10 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
                   {...fade}
                 >
                   <span className="text-meta uppercase tracking-wide xl:[writing-mode:vertical-rl]">{label}</span>
-                  <span className="rounded-full bg-stone-100 px-1.5 text-sm text-steel nums">{countFor(key)}</span>
+                  <span className="rounded-full bg-stone-100 px-1.5 text-sm text-steel nums" title={badgeFor(key).hint}>
+                    <span aria-hidden>{badgeFor(key).text}</span>
+                    <span className="sr-only">{badgeFor(key).hint}</span>
+                  </span>
                 </motion.button>
               )}
             </AnimatePresence>
