@@ -16,7 +16,18 @@ import type { IntakeAttachment } from "./jdsIntakeLogic";
 // working-draft note says so). Each brief change crossfades the document in
 // (keyed re-render), reduced-motion drops to an instant swap.
 
-export function JdsIntakeDraftPane({ brief, attachments }: { brief: RoleBrief | null; attachments: IntakeAttachment[] }) {
+export function JdsIntakeDraftPane({
+  brief,
+  attachments,
+  // UAT L1-HRBP-11: mirrors the promote row's market-research checkbox so this
+  // working note never asserts a comp read the requestor has declined. Default
+  // true = the shipped behaviour.
+  marketResearch = true,
+}: {
+  brief: RoleBrief | null;
+  attachments: IntakeAttachment[];
+  marketResearch?: boolean;
+}) {
   const t = useTranslations("library.tab.intake.draft");
   const reduced = useReducedMotion();
   const md = useMemo(
@@ -41,7 +52,7 @@ export function JdsIntakeDraftPane({ brief, attachments }: { brief: RoleBrief | 
         <span className={META_LABEL}>{t("title")}</span>
         <span className={CHIP_QUIET}>{t("workingChip")}</span>
       </div>
-      <p className="text-meta text-steel">{t("workingNote")}</p>
+      <p className="text-meta text-steel">{marketResearch ? t("workingNote") : t("workingNoteNoMarket")}</p>
       {hasJdAttachment ? <p className="text-meta text-steel">{t("supersedeNote")}</p> : null}
       {briefDraftHasContent(brief) ? (
         <AnimatePresence mode="wait" initial={false}>

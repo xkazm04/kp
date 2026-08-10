@@ -53,6 +53,10 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   const reduced = useReducedMotion();
   // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
   const [withCase, setWithCase] = useState(false);
+  // Market salary research at promote (UAT L1-HRBP-11): the route's opt-out was
+  // API-only, so a non-Czech role could not decline the Czech-market comp read.
+  // Opt-OUT, not opt-in — default true preserves the shipped behaviour.
+  const [withMarket, setWithMarket] = useState(true);
 
   if (!active) {
     return (
@@ -145,11 +149,23 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
                 />
                 {t("promoteCase")}
               </label>
+              {/* UAT L1-HRBP-11 — the handle Priya could read in the route and
+                  not press. Checked = the market band is researched (default). */}
+              <label className="flex cursor-pointer items-center gap-1.5 text-meta text-steel">
+                <input
+                  type="checkbox"
+                  className="accent-coral"
+                  checked={withMarket}
+                  onChange={(e) => setWithMarket(e.target.checked)}
+                  disabled={promoting}
+                />
+                {t("promoteMarket")}
+              </label>
               <button
                 type="button"
                 className={`${BTN_SECONDARY} h-9 px-4 text-sm`}
                 disabled={!ready || promoting}
-                onClick={() => promote({ caseDesign: withCase })}
+                onClick={() => promote({ caseDesign: withCase, marketResearch: withMarket })}
                 title={ready ? undefined : t("promoteHint")}
               >
                 {promoting ? t("promoting") : t("promote")}
@@ -217,7 +233,15 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             showTitle={false}
           />
         }
-        draft={<JdsIntakeDraftPane brief={active.brief} attachments={active.attachments ?? []} />}
+        draft={
+          <JdsIntakeDraftPane
+            brief={active.brief}
+            attachments={active.attachments ?? []}
+            /* UAT L1-HRBP-11: the working note must stop asserting a market read
+               the requestor just declined. */
+            marketResearch={withMarket}
+          />
+        }
         materials={
           <JdsIntakeAttachmentsPane
             attachments={active.attachments ?? []}

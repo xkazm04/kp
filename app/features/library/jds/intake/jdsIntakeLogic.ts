@@ -147,7 +147,7 @@ export function useIntakeLogic(onPromoted?: () => void) {
     [active, sending, loadList]
   );
 
-  const promote = useCallback(async (opts?: { caseDesign?: boolean }) => {
+  const promote = useCallback(async (opts?: { caseDesign?: boolean; marketResearch?: boolean }) => {
     if (!active || promoting) return;
     setPromoting(true);
     setError(null);
@@ -157,7 +157,14 @@ export function useIntakeLogic(onPromoted?: () => void) {
         headers: { "Content-Type": "application/json" },
         // caseDesign (UAT L1-EVA-3): the requestor can have the work-sample case
         // designed from the same brief in the same backgrounded build.
-        body: JSON.stringify({ caseDesign: opts?.caseDesign === true }),
+        // marketResearch (UAT L1-HRBP-11): the opt-out shipped at the route
+        // (promote/route.ts honours `marketResearch !== false`) and the UI never
+        // sent it — "fix landed != fix reachable". Omitting the field keeps the
+        // server default (on), so the pre-existing behaviour is preserved.
+        body: JSON.stringify({
+          caseDesign: opts?.caseDesign === true,
+          marketResearch: opts?.marketResearch !== false,
+        }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as { slug: string };
