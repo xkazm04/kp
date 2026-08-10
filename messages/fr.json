@@ -3161,6 +3161,8 @@
           "cancel": "Annuler",
           "addRequirement": "Ajouter un indispensable ou un atout",
           "addFacet": "Ajouter du contexte",
+          "editTitle": "Modifier l'intitulé",
+          "titleField": "Intitulé du poste",
           "skillPlaceholder": "Compétence ou capacité",
           "facetLabelPlaceholder": "Libellé (p. ex. Équipe)",
           "facetValuePlaceholder": "Valeur avec vos mots",

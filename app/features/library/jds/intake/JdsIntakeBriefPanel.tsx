@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { BTN_GHOST, CHIP_QUIET, META_LABEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import type { RoleBrief } from "@/app/_lib/rolespec";
 import { JdsIntakeBriefEdit } from "./JdsIntakeBriefEdit";
+import { JdsIntakeBriefTitle, ProvenanceChip } from "./JdsIntakeBriefTitle";
 
 // The live brief — the surface's signature moment: the requestor WATCHES the
 // structure being built while they talk. Every value carries its provenance
@@ -14,13 +15,6 @@ import { JdsIntakeBriefEdit } from "./JdsIntakeBriefEdit";
 // (click → the chat scrolls to and flashes that bubble). Editable in place
 // (UAT drain §2.1) unless the session was promoted — then the JD exists and
 // the brief is frozen.
-
-function ProvenanceChip({ provenance }: { provenance?: string }) {
-  const t = useTranslations("library.tab.intake.provenance");
-  if (provenance === "stated") return <span className={`${CHIP_QUIET} text-moss`}>{t("stated")}</span>;
-  if (provenance === "inferred") return <span className={`${CHIP_QUIET} text-coral`}>{t("inferred")}</span>;
-  return <span className={CHIP_QUIET}>{t("default")}</span>;
-}
 
 function TurnChip({ turn, onJump }: { turn?: number | null; onJump?: (turn: number) => void }) {
   const t = useTranslations("library.tab.intake.defense");
@@ -129,17 +123,9 @@ export function JdsIntakeBriefPanel({
       ) : (
         <>
           <Section label={t("role")}>
-            <div className="flex flex-wrap items-center gap-2 text-body text-ink">
-              <span>{brief?.title || "—"}</span>
-              {brief?.seniority ? (
-                <>
-                  <span className={CHIP_QUIET}>{brief.seniority}</span>
-                  {/* Spine provenance (UAT L1-CONV-3): a defaulted seniority must
-                      read as "assumed", never as captured. Missing key = default. */}
-                  <ProvenanceChip provenance={brief?.spineProvenance?.seniority ?? "default"} />
-                </>
-              ) : null}
-            </div>
+            {/* Title + seniority, each chipped, with inline title correction
+                (UAT L1-TOM-2 / L1-CONV-3) — see JdsIntakeBriefTitle. */}
+            <JdsIntakeBriefTitle brief={brief} frozen={frozen} saving={saving} onSaveBrief={onSaveBrief} />
           </Section>
           {(brief?.successCriteria ?? []).length > 0 ? (
             <Section label={t("outcomes")}>

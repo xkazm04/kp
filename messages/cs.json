@@ -3161,6 +3161,8 @@
           "cancel": "Zrušit",
           "addRequirement": "Přidat nezbytnost nebo výhodu",
           "addFacet": "Přidat kontext",
+          "editTitle": "Upravit název",
+          "titleField": "Název role",
           "skillPlaceholder": "Dovednost nebo schopnost",
           "facetLabelPlaceholder": "Popisek (např. Tým)",
           "facetValuePlaceholder": "Hodnota vašimi slovy",

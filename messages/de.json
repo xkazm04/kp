@@ -3161,6 +3161,8 @@
           "cancel": "Abbrechen",
           "addRequirement": "K.-o.-Kriterium oder Wunsch hinzufügen",
           "addFacet": "Kontext hinzufügen",
+          "editTitle": "Titel bearbeiten",
+          "titleField": "Rollenbezeichnung",
           "skillPlaceholder": "Fähigkeit oder Kompetenz",
           "facetLabelPlaceholder": "Bezeichnung (z. B. Team)",
           "facetValuePlaceholder": "Wert in Ihren Worten",

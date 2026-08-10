@@ -3161,6 +3161,8 @@
           "cancel": "Cancel",
           "addRequirement": "Add a dealbreaker or nice-to-have",
           "addFacet": "Add context",
+          "editTitle": "Edit title",
+          "titleField": "Role title",
           "skillPlaceholder": "Skill or capability",
           "facetLabelPlaceholder": "Label (e.g. Team)",
           "facetValuePlaceholder": "Value in your words",
