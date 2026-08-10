@@ -3127,7 +3127,10 @@
         "promoteMarket": "Rechercher aussi la fourchette salariale",
         "promoting": "Création…",
         "promoted": "Fiche créée — retrouvez-la parmi les fiches enregistrées.",
-        "promoteHint": "Il faut au moins un intitulé de poste plus un critère indispensable ou un objectif à 90 jours.",
+        "promoteMissing": {
+          "title": "Il manque encore un intitulé de poste.",
+          "substance": "Il manque encore un critère indispensable ou un objectif à 90 jours."
+        },
         "promoteError": "Impossible de créer la fiche. Veuillez réessayer.",
         "brief": {
           "title": "Brief en direct",
@@ -3240,6 +3243,7 @@
             "turns": "{count, plural, one {# message} other {# messages}}",
             "briefItems": "{count, plural, one {# élément dans le brief} other {# éléments dans le brief}}",
             "draftReady": "Brouillon prêt",
+            "draftDrafting": "Brouillon commencé, pas encore prêt à créer",
             "draftEmpty": "Brouillon encore vide"
           },
           "lastOpen": "La dernière colonne ouverte reste ouverte.",

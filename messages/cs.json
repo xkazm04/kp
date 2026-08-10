@@ -3127,7 +3127,10 @@
         "promoteMarket": "Zjistit i mzdové pásmo",
         "promoting": "Vytvářím…",
         "promoted": "Inzerát vytvořen — najdete ho mezi uloženými.",
-        "promoteHint": "Je potřeba alespoň název role a jedna nezbytná dovednost nebo cíl na 90 dní.",
+        "promoteMissing": {
+          "title": "Zatím chybí název role.",
+          "substance": "Zatím chybí jedna nezbytná podmínka nebo cíl na 90 dní."
+        },
         "promoteError": "Inzerát se nepodařilo vytvořit. Zkuste to prosím znovu.",
         "brief": {
           "title": "Živé zadání",
@@ -3240,6 +3243,7 @@
             "turns": "{count, plural, one {# replika} few {# repliky} other {# replik}}",
             "briefItems": "{count, plural, one {# položka v zadání} few {# položky v zadání} other {# položek v zadání}}",
             "draftReady": "Návrh připraven",
+            "draftDrafting": "Návrh rozepsaný, zatím ho nelze vytvořit",
             "draftEmpty": "Návrh zatím prázdný"
           },
           "lastOpen": "Poslední otevřený sloupec zůstává otevřený.",

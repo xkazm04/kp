@@ -3127,7 +3127,10 @@
         "promoteMarket": "Auch das Gehaltsband recherchieren",
         "promoting": "Wird erstellt…",
         "promoted": "Stellenbeschreibung erstellt — zu finden unter den gespeicherten.",
-        "promoteHint": "Benötigt mindestens einen Rollentitel plus ein K.-o.-Kriterium oder ein 90-Tage-Ziel.",
+        "promoteMissing": {
+          "title": "Es fehlt noch ein Rollentitel.",
+          "substance": "Es fehlt noch ein K.-o.-Kriterium oder ein 90-Tage-Ziel."
+        },
         "promoteError": "Die Stellenbeschreibung konnte nicht erstellt werden. Bitte erneut versuchen.",
         "brief": {
           "title": "Live-Briefing",
@@ -3240,6 +3243,7 @@
             "turns": "{count, plural, one {# Nachricht} other {# Nachrichten}}",
             "briefItems": "{count, plural, one {# Eintrag im Briefing} other {# Einträge im Briefing}}",
             "draftReady": "Entwurf bereit",
+            "draftDrafting": "Entwurf begonnen, noch nicht erstellbar",
             "draftEmpty": "Entwurf noch leer"
           },
           "lastOpen": "Die letzte offene Spalte bleibt offen.",

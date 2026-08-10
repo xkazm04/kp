@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { briefReadyToPromote } from "@/app/_lib/intake-brief";
+import { briefPromoteBlockers } from "@/app/_lib/intake-brief";
 import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, INTRO, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
@@ -104,7 +104,12 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   }
 
   const closed = active.status !== "open";
-  const ready = briefReadyToPromote(active.brief);
+  // UAT L2-RC-1 — the gate must say what it is waiting for. `blockers` is the
+  // same computation `ready` is derived from, so the spine marker, the button
+  // and its hint can never disagree again.
+  const blockers = briefPromoteBlockers(active.brief);
+  const ready = blockers.length === 0;
+  const promoteHint = ready ? undefined : blockers.map((b) => t(`promoteMissing.${b}`)).join(" ");
 
   return (
     <div className={`${PANEL} p-5`}>
@@ -166,7 +171,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
                 className={`${BTN_SECONDARY} h-9 px-4 text-sm`}
                 disabled={!ready || promoting}
                 onClick={() => promote({ caseDesign: withCase, marketResearch: withMarket })}
-                title={ready ? undefined : t("promoteHint")}
+                title={promoteHint}
               >
                 {promoting ? t("promoting") : t("promote")}
               </button>
@@ -265,6 +270,9 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
           // UAT L1-EVA-10 / L1-HRBP-15: computed since the Triptych shipped and
           // never consumed — the draft spine now reads it.
           draftReady: briefDraftHasContent(active.brief),
+          // UAT L2-RC-1: "ready" on the spine must mean the promote gate agrees,
+          // not merely that the draft pane has something in it.
+          draftPromotable: ready,
         }}
       />
     </div>

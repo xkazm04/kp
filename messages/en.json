@@ -3127,7 +3127,10 @@
         "promoteMarket": "Research the salary band",
         "promoting": "Creating…",
         "promoted": "JD created — find it under Saved JDs.",
-        "promoteHint": "Needs at least a role title plus one dealbreaker or 90-day outcome.",
+        "promoteMissing": {
+          "title": "Still needs a role title.",
+          "substance": "Still needs one dealbreaker or one 90-day outcome."
+        },
         "promoteError": "Could not create the JD. Please try again.",
         "brief": {
           "title": "Live brief",
@@ -3240,6 +3243,7 @@
             "turns": "{count, plural, one {# message} other {# messages}}",
             "briefItems": "{count, plural, one {# item in the brief} other {# items in the brief}}",
             "draftReady": "Draft ready",
+            "draftDrafting": "Draft started, not ready to build yet",
             "draftEmpty": "Draft still empty"
           },
           "lastOpen": "The last open column stays open.",

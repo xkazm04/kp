@@ -70,10 +70,13 @@ export function JdsIntakeLayoutTriptych(props: IntakeLayoutProps) {
   const badgeFor = (key: IntakeColumnKey): { text: string; hint: string } => {
     if (key === "chat") return { text: String(props.counts.turns), hint: t("badge.turns", { count: props.counts.turns }) };
     if (key === "brief") return { text: String(props.counts.briefItems), hint: t("badge.briefItems", { count: props.counts.briefItems }) };
-    // Glyphs, not copy — the translated meaning rides in `hint`.
-    return props.counts.draftReady
-      ? { text: "✓", hint: t("badge.draftReady") }
-      : { text: "·", hint: t("badge.draftEmpty") };
+    // Glyphs, not copy — the translated meaning rides in `hint`. Three states,
+    // not two (UAT L2-RC-1): only the state the promote gate itself accepts may
+    // say "ready"; a started-but-unpromotable draft says so instead of claiming
+    // a readiness the disabled `Create JD` button contradicts.
+    if (props.counts.draftPromotable) return { text: "✓", hint: t("badge.draftReady") };
+    if (props.counts.draftReady) return { text: "…", hint: t("badge.draftDrafting") };
+    return { text: "·", hint: t("badge.draftEmpty") };
   };
 
   const fade = {

@@ -22,15 +22,22 @@ export type IntakeLayoutProps = {
   //   brief → briefItems (requirements + facets + 90-day criteria — `requirements`
   //           alone reads 0 over a rich brief, because the extraction rarely
   //           fills it: the L2-CONV-1 defect)
-  //   draft → draftReady, a STATE not a count (the draft is one document; a
-  //           number there is meaningless, which is why the old branch borrowed
-  //           its neighbour's attachment count)
+  //   draft → draftReady + draftPromotable, a STATE not a count (the draft is
+  //           one document; a number there is meaningless, which is why the old
+  //           branch borrowed its neighbour's attachment count). TWO flags
+  //           because they answer different questions and the first one alone
+  //           lied: `draftReady` is "the draft pane has content", while the
+  //           `Create JD` button obeys `briefReadyToPromote`. Live, a session
+  //           the engine left untitled badged ✓ „Návrh připraven" over a
+  //           DISABLED button with no visible reason (UAT L2-RC-1). Only
+  //           `draftPromotable` may claim readiness.
   // `attachments` stays for the materials disclosure inside the draft leaf.
   counts: {
     turns: number;
     briefItems: number;
     attachments: number;
     draftReady: boolean;
+    draftPromotable: boolean;
   };
 };
 
