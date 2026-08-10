@@ -104,3 +104,116 @@ Declined with reasons (do not resurface without new evidence): streaming
 replies; keyless laddering imitation; smarter deterministic parsing —
 see insights doc §2.7. Dev-case seam is owned by the Direction-2 workstream;
 multi-market comp is already tracked above under Matching & scoring.
+
+## Intake — 2026-08-10-intake-triptych drain (see docs/product/uat-insights/2026-08-10-intake-triptych.md)
+
+Build-recommended items from the `/uat drain` pass over run
+`2026-08-10-intake-triptych` (L1 ×3 Characters → L2 live, all three reached L2).
+Each cites its Character evidence in the insights doc; the section number in
+brackets points at the opportunity that justifies it.
+
+**Guardrails on every item below** (strengths named by all three Characters,
+phrased as constraints — insights doc §2 "Guardrails"): G1 any newly visible
+value carries the stated/inferred/default provenance chip · G2 attachment
+fencing stays audit-grade (server-resolved bodies, caps, inferred-until-confirmed,
+keyless-never-mined, frozen after promote) · G3 the live JD draft stays
+deterministic and zero-LLM · G4 fixes work inside the Triptych's safety rails
+(min-one-open, persisted folds, reduced motion, keyboard spines) · G5 keyless
+disclosure is extended earlier, never softened · G6 keep citing the UAT finding
+id at the fix site.
+
+1. **Market-research opt-out in the promote sheet** — the fix exists at the API
+   and is unreachable from the UI (two-arm live proof: browser promote →
+   `marketResearch:true` + a Czech salary band; `POST …/promote
+   {"marketResearch":false}` → no salary line). Add the checkbox beside
+   case-design, wire it through `jdsIntakeLogic.ts:150-161`, and make the draft
+   pane's working-note copy conditional. (`L1-HRBP-11`, major; Priya, 2nd
+   consecutive run; §2.1)
+2. **Title provenance chip + inline title edit** — `spineProvenance.title` is
+   written engine-side and rendered nowhere; live control arm proved an attached
+   JD drives the title, and *both* arms stamped it `inferred`. Extend the
+   seniority chip pattern (`JdsIntakeBriefPanel.tsx:134-141`) to the title at
+   `:131-133`; a typed title is `stated`. (`L1-TOM-2`, major, widened at L2; §2.2)
+3. **Both spine badges must tell the truth** — `countFor` maps the draft leaf to
+   `counts.attachments` while `counts.draftReady` has no consumer, *and* the brief
+   leaf counts `requirements`, empty in every live session: two of three spines
+   badge `0` over a full workspace. Repair both branches (draft = filled-state
+   marker, not a count) and audit the third. (`L1-EVA-10` · `L1-HRBP-15` ·
+   `L1-TOM-5` convergent ×3 + `L2-CONV-1`; ranked 3rd on voice escalation; §2.3)
+4. **"Podklady" must survive a fold** — folded, the attachments pane is absent
+   from the accessibility tree entirely; a persisted fold hides the attach
+   affordance forever. Surface it independently of the draft leaf's fold state
+   plus a cue in the opener/composer. (`L1-TOM-5`, confirmed live; §2.4)
+5. **roleFamily visible, editable, honestly labelled** — classified, threaded
+   into the build, shown to nobody; no control in `JdsIntakeBriefEdit`. Render it
+   with its provenance chip, add a select (a chosen family is `stated`), stamp the
+   zero-signal fallback `default` not `inferred` (`L1-HRBP-13`), and stop
+   initialising a fresh brief to `software_engineering`. (`L1-HRBP-12`, major,
+   confirmed in half; Priya, 2nd consecutive run; §2.5)
+6. **Confirmed dealbreakers must reach `requirements[]`** — "Java and Kafka in
+   production", stated and confirmed, left `requirements[]` empty in all three
+   live sessions; the edit sheet's Nezbytné/Výhodou block sits empty while
+   `needText` carries them into a correct JD. Representational gap that starves
+   the shipped defensibility layer. (`L2-NEW-2`, new at L2; §2.6)
+7. **Supersede: write the link, badge the ledger** — after promote the attached
+   JD is still `archived_at = NULL` and Saved JDs shows two rows with the
+   byte-identical title. Persist the attached `jdSlug` as a `supersedes` pointer
+   (attachments already carry it) and badge both rows. Do **not** block on the
+   lineage concept-doc. (`L1-EVA-9` · `L1-TOM-6` convergent ×2, worse live; §2.7)
+8. **Voice extraction thread receives its attachments** — `--attachments-json` is
+   shipped and loaded, then dropped at `intake_cli.py:85`; `extract_transcript`
+   has no attachments parameter. One-line fix plus a prompt block. **Cannot be
+   `resolved-verified` until a keyed (OpenAI) host runs the recertify.**
+   (`L1-EVA-8` · `L1-HRBP-14` convergent ×2; §2.8)
+9. **Keyless materials copy discloses before the ack** — the empty state promises
+   mining unconditionally; offline the truth arrives only after attach+send.
+   Keyless-conditional copy (G5: earlier, not softer). (`L1-HRBP-16`; §2.9)
+10. **Escape fence markers in attachment text** — `_attachments_block`
+    interpolates raw text between `<<<ATTACHED_MATERIAL>>>` markers, unlike
+    `fenced_untrusted` which json-escapes. Strip/escape + unit test.
+    (`L1-TOM-4`; §2.10)
+11. **Eval bank asserts `role_family`** (and `requirements[]` non-emptiness for
+    confirmed dealbreakers) — `grep role_family intake_eval.py` → zero matches
+    while the bank is organised by family. One assertion per scenario turns two
+    findings into standing regression coverage. (`L1-HRBP-17`; §2.11)
+12. **Delete the dead duplicate `submit` handler** in `JdsIntakeChat.tsx:86-91`
+    (duplicates `submitDraft` at `:198-203`, no callers). (`L1-EVA-12` ·
+    `L1-TOM-9`; §2.12)
+
+Concept-doc first (do not code yet):
+- **JD lineage / versioning model** — successor vs version-chain vs replacement;
+  what happens to live applications, share tokens, comms threads and matching on
+  a superseded posting; three-deep chains; an intake attaching two JDs. Item 7
+  buys the pointer and badge without answering these. (§2.13)
+- **Workspace-context grounding of the dialog** — carried from the 2026-08-07
+  drain §2.5 and re-confirmed: org context / prior sessions / market band scored
+  ✗ in all three Characters' grounding audits. Attachments delivered the
+  user-curated half inside the provenance law; the automatic half still needs its
+  design (which context, prompt budget against 22–52 s exchanges, a possible
+  `grounded` provenance value, privacy scope). (§2.14)
+
+Declined with reasons (do not resurface without new evidence):
+- **Attachments passed through to the promoted JD build** (`L1-TOM-3`) — L2
+  softened it; `needText` carries the distillate and the built JD opened with
+  „Java — produkční zkušenost (potvrzená tvrdá podmínka requestora)". Raw
+  passthrough would bypass the provenance-tracked-distillate boundary that G2
+  protects. Revisit only if a live JD is shown to miss content only the raw
+  attachment held.
+- **Auto-archiving the attached JD on promote** — destructive, and it presumes
+  the "replacement" answer to the lineage question before that question is
+  answered; a wrongly archived posting can hold live applications and share
+  links. Item 7's non-destructive pointer is the honest interim.
+- **Re-affirmed from the 2026-08-07 drain** (no new evidence to overturn):
+  streaming replies (live latency 22.4/52.3/33.3 s behind an honest staged hint
+  drew zero complaints from any of the three Characters); keyless laddering
+  imitation; smarter deterministic answer-parsing.
+
+Covered elsewhere, not double-entered: multi-market compensation stays the
+workspace ceiling tracked above under Matching & scoring (item 1 makes the Czech
+read *skippable*, not right for GBP); the dev-case seam shipped and was
+recertified 2026-08-07.
+
+Loop rule: each shipped item re-enters via `/uat recertify` against the
+originating Character's scored criteria — fresh live evidence,
+`resolved-verified`, and its own ceiling. Item 8 is explicitly blocked on a keyed
+host.
