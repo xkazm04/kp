@@ -163,6 +163,72 @@ function rowToInterview(r: InterviewRow): InterviewSession {
   };
 }
 
+/** Workspace-wide AI-interview history for the Schedule tab's AI-round ledger:
+ *  candidate-mode sessions newest-first, as SUMMARY rows (no transcript blob on
+ *  the wire — the evaluation views fetch the full session by entry on click).
+ *  The verdict is coerced through the canonical recommendation guard so the
+ *  ledger only ever renders a legal advance|hold|reject or a clean null. */
+export type InterviewSessionSummary = {
+  id: string;
+  entryId: string | null;
+  candidateLabel: string | null;
+  jobId: string | null;
+  jobTitle: string | null;
+  provider: VoiceProviderId;
+  status: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  hasTranscript: boolean;
+  recommendation: InterviewRecommendation | null;
+  ratingsCount: number;
+};
+
+export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 100): InterviewSessionSummary[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT id, entry_id, candidate_label, job_id, job_title, provider, status,
+              started_at, ended_at, created_at,
+              (transcript_json IS NOT NULL) AS has_transcript, scorecard_json
+         FROM interview_sessions
+        WHERE mode = 'candidate' AND workspace_id = ?
+        ORDER BY created_at DESC
+        LIMIT ?`
+    )
+    .all(workspaceId, Math.min(Math.max(limit, 1), 500)) as {
+    id: string;
+    entry_id: string | null;
+    candidate_label: string | null;
+    job_id: string | null;
+    job_title: string | null;
+    provider: string;
+    status: string;
+    started_at: string | null;
+    ended_at: string | null;
+    created_at: string;
+    has_transcript: number;
+    scorecard_json: string | null;
+  }[];
+  return rows.map((r) => {
+    const sc = safeRowParse<{ recommendation?: string; ratings?: unknown[] }>(r.scorecard_json, "interview.summary", r.id);
+    return {
+      id: r.id,
+      entryId: r.entry_id,
+      candidateLabel: r.candidate_label,
+      jobId: r.job_id,
+      jobTitle: r.job_title,
+      provider: coerceProviderId(r.provider, "openai"),
+      status: r.status,
+      startedAt: r.started_at,
+      endedAt: r.ended_at,
+      createdAt: r.created_at,
+      hasTranscript: Boolean(r.has_transcript),
+      recommendation: sc?.recommendation != null ? coerceInterviewRecommendation(sc.recommendation) : null,
+      ratingsCount: Array.isArray(sc?.ratings) ? sc.ratings.length : 0,
+    };
+  });
+}
+
 export function createInterviewSession(input: {
   provider: VoiceProviderId;
   language?: string | null;

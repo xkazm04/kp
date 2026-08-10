@@ -1,11 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { Defer } from "@/app/_components/ui/Defer";
+import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { ScheduleEmptyRelay } from "./ScheduleEmptyRelay";
 import { useScheduleTab } from "./useScheduleTab";
 import { ScheduleTabPendingList } from "./ScheduleTabPendingList";
 import { ScheduleTabInterviewedList } from "./ScheduleTabInterviewedList";
+import type { SchedEntry } from "./ScheduleTypes";
+import type { EvalTarget } from "./ScheduleAiRound";
+
+// PROTOTYPE — the AI round subtab (link-out AI-first interviews as a
+// ledger/docket). Lazy like the calendar: it only loads when the recruiter
+// switches rounds.
+const ScheduleAiRound = dynamic(() => import("./ScheduleAiRound").then((m) => ({ default: m.ScheduleAiRound })), {
+  loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden />,
+});
 
 // Tier 3 (docs/design/loading-choreography.md): the calendar grid is the heaviest piece
 // of this tab's primary content (framer-motion layout animation + the week
@@ -48,12 +59,23 @@ export function ScheduleTab() {
     bookedMarkers,
     interviewedEntries,
     startInterview,
-    selected,
-    pickSlot,
     act,
     cardExit,
     slotLabel,
   } = useScheduleTab();
+
+  // PROTOTYPE — which interview round the tab shows. "human" keeps today's
+  // calendar surface byte-identical; "ai" is the new link-out AI-first round.
+  const [round, setRound] = useState<"human" | "ai">("human");
+
+  // The AI ledger reviews HISTORY: a session keeps its entry id after the
+  // pipeline entry advances, so the evaluation modals get a minimal entry
+  // shape synthesized from the session row (the modals read id + labels only).
+  const openEvaluation = (target: EvalTarget) =>
+    setTranscriptEntry(
+      (entries ?? []).find((e) => e.id === target.id) ??
+        ({ id: target.id, candidateLabel: target.candidateLabel, jobTitle: target.jobTitle } as SchedEntry)
+    );
 
   return (
     // Tier 1 (docs/design/loading-choreography.md): header, and the tab's real sections
@@ -66,6 +88,22 @@ export function ScheduleTab() {
         <p className="mt-1 max-w-2xl text-body text-steel">{t("intro")}</p>
       </header>
 
+      {/* Round switcher: the calendar surface below is the HUMAN round; the AI
+          round is the link-out docket. */}
+      <SegmentedControl
+        label={t("rounds.label")}
+        options={[
+          { value: "human", label: t("rounds.human") },
+          { value: "ai", label: t("rounds.ai") },
+        ]}
+        value={round}
+        onChange={setRound}
+      />
+
+      {round === "ai" ? (
+        <ScheduleAiRound calendarEntries={calendarEntries} interviews={interviews} onOpenTranscript={openEvaluation} />
+      ) : (
+        <>
       {/* W6-3 — confirmed bookings, stalled invites and confirm/advance drift:
           the lifecycle the store tracked but no surface ever showed. Deferred a
           frame (tier 3) and code-split: it fetches independently and is
@@ -99,7 +137,6 @@ export function ScheduleTab() {
             bookedMarkers={bookedMarkers}
             selectedId={selectedId}
             onSelect={setSelectedId}
-            onPickSlot={pickSlot}
           />
 
           <aside className="space-y-2">
@@ -110,7 +147,6 @@ export function ScheduleTab() {
               slotLabel={slotLabel}
               selectedId={selectedId}
               onSelect={setSelectedId}
-              selected={selected}
               interviews={interviews}
               prepared={prepared}
               busy={busy}
@@ -136,6 +172,8 @@ export function ScheduleTab() {
         </div>
         )}
       </div>
+        </>
+      )}
 
       {prepEntry ? (
         <InterviewPrepModal

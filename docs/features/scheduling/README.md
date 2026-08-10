@@ -222,6 +222,33 @@ and "add to calendar" links remain the whole story, exactly as before the
 integration. Scopes are deliberately narrow (`calendar.freebusy`,
 `calendar.events`) — kp can learn *that* someone is busy, never *why*.
 
+## 2026-08-10 — display-only calendar, future-events badge, AI-round prototype
+
+- **Operators no longer adjust event times.** The week grid is a DISPLAY of
+  where each interview sits: the click-a-cell re-propose affordance
+  (`ScheduleCalendarCell` slot-picker) and the recruiter Reschedule picker in
+  the invite lifecycle panel (`ScheduleInviteRecruiterControls`) were removed.
+  Times are set by the candidate's self-scheduling link (`/schedule/[token]`,
+  incl. their capped reschedules and proposals — accepting a proposal remains).
+  The server's `reschedule` action still exists (the book path and proposal
+  acceptance use the same machinery), but no operator UI drives it directly.
+- **The Schedule nav badge now counts FUTURE confirmed events**
+  (`countFutureConfirmedInvites` in `schedule-store.ts`, wired in
+  `app/_lib/attention.ts`) — "how many interviews are on the calendar ahead of
+  me", not the due-reminder queue.
+- **The tab has a Human round / AI round switcher.** Human = the calendar
+  surface described above. AI = the **"Docket"** (winner of the /prototype
+  round): three stations — Awaiting link (Generate interview link mints +
+  emails the tokenized `/interview/<token>` URL and copies it) → Link out /
+  live → Completed, whose cards open the compact `ScheduleAiEvalPreview`
+  (verdict + confidence + rubric dots) with the full transcript & scorecard
+  modal one click deeper. Files: `ScheduleAiRound.tsx` + `ScheduleAiDocket.tsx`
+  + `ScheduleAiEvalPreview.tsx`; fed by `GET /api/interview/sessions`
+  (`listRecentInterviewSessions` in `db/interviews.ts`); copy in the
+  `scheduleTab.rounds` / `scheduleTab.aiRound` catalogs (4-locale parity). The
+  wider AI/Human/Hybrid mechanism design lives in
+  `docs/concepts/interview-rounds.md`.
+
 ## Known gaps
 
 - The slot pool is **host-blind**: `KP_INTERVIEW_TIMES` (default 10:00 + 14:00)
