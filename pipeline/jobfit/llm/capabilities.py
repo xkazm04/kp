@@ -98,6 +98,15 @@ DEFAULT_MODELS: dict[str, str | None] = {
 # design stubs judged ~2-3 across three models). These defaults apply when the
 # config row sets no explicit params.maxTokens; an explicit pin still wins.
 USE_CASE_MAX_TOKENS: dict[str, int] = {
+    # The letter/prep tasks all ride "automation": a prep pack (4-6 questions ×
+    # 4 filled fields) or an evidence-anchored letter from a verbose model runs
+    # past 2048 — deepseek's n=4 bench outputs truncated at exactly the ceiling
+    # and shipped the deterministic template 75% of the time.
+    "automation": 4096,
+    # jd_ingest re-emits the posting as `description` plus structured
+    # requirements — long ads truncate at 2048 and the parse dies or drops the
+    # requirements list (bench: 0-25% validity on API adapters, CLI unaffected).
+    "jd_ingest": 6144,
     # One proposal+rationale per candidate in a single call: ~200-250 output
     # tokens × a 60+ pool. 8192 truncated exactly at the ceiling on the
     # 2026-08-11 bench (the CLI reference run needed ~15.6k).

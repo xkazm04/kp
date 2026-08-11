@@ -449,9 +449,12 @@ For each requirement decide kind (must vs nice) and hardness: "prerequisite" if 
 candidate truly cannot do the job without it, "learnable" if it can reasonably be
 picked up on the job.
 Fidelity rules:
-- requirements are SKILLS/QUALIFICATIONS the posting demands of the candidate.
-  Day-to-day DUTIES (what the person will do) belong in the description, never
-  filed as requirements.
+- requirements are the QUALIFICATIONS the posting demands of the candidate —
+  skills, tools, education, experience, and demanded abilities ("professional
+  phone manner", "advanced Excel"), even when the ad states them inside duty
+  descriptions. The DUTIES themselves (tasks the person will perform) stay in
+  the description. requirements must NOT be empty when the posting demands
+  anything of the candidate — every real posting demands something.
 - seniority follows the posting's OWN signals (education and experience demanded,
   scope of duties): an ad asking a high-school diploma and some prior experience
   is "junior" — never default to "medior" when the signals point lower.

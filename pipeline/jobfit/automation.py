@@ -553,7 +553,9 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang:
         "never advise adding something their profile already shows (check experienceHighlights and "
         "skills first); never presuppose work they do not have; advise the one step that most "
         "narrows THIS role's gap. Leave feedback an empty string rather than write generic advice.\n"
-        "Never disclose other candidates; never use protected-characteristic language.\n"
+        "Never disclose other candidates; never use protected-characteristic language. Never imply "
+        "an interview, call, or meeting took place unless the stage they reached says so — a "
+        "screening-stage rejection thanks them for their application, nothing more.\n"
         + _LETTER_GROUNDING
         + _NEUTRAL_STYLE
         + 'Return JSON: { "subject": str, "body": str, "feedback": str, "language": str }. JSON only.'
@@ -611,7 +613,9 @@ def interview_prep(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", 
         + "Anchor every question in a CONCRETE piece of this candidate's evidence — a named project "
         "or highlight, not a bare skill ('In the ingestion rebuild you describe, how did you…', "
         "never 'walk me through a time you used X'). Questions must verify, not assume: no premise "
-        "the evidence doesn't state. Cover the missing must-haves AND, when the candidate states an "
+        "the evidence doesn't state. Fill ALL FOUR fields for every question — an empty "
+        "whatsGoodLooksLike or followUpIfAnswer makes the question unusable to the interviewer. "
+        "Cover the missing must-haves AND, when the candidate states an "
         "aspiration (e.g. lead/architect ambitions), include one question probing readiness for it.\n"
         + 'Return JSON: { "questions": [ { "competency": str, "question": str, "whatsGoodLooksLike": str, '
         '"followUpIfAnswer": str } ], "focusAreas": [str] }. 4-6 questions. JSON only.\n'
@@ -1124,7 +1128,9 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = No
         )
         figure_line = (
             f"{period_en.capitalize()} compensation offered: {recommended:,} {currency}. "
-            "Convey genuine enthusiasm, state the figure exactly once, and invite them to discuss. Keep it concise."
+            "State the figure exactly once IN THE BODY TEXT — never defer it to an attachment, annex, "
+            "or follow-up document (none exists). Convey genuine enthusiasm and invite them to discuss. "
+            "Keep it concise."
         )
 
     prompt = (
