@@ -1685,11 +1685,10 @@
       "onboarding": "Onboarding",
       "jobs": "Pozice",
       "library": "Popisy pozic",
-      "profile": "Profil",
-      "match": "Párování",
+      "archetypes": "Archetypy",
       "analyze": "Analýza",
       "interview": "Simulace pohovoru",
-      "dev": "Vývojové případy",
+      "assignments": "Zadání",
       "analytics": "Analytika",
       "matrix": "Matice",
       "about": "O aplikaci",
@@ -4075,7 +4074,19 @@
       "sourceProfile": "Profil",
       "sourceAnalysis": "Analýza",
       "buildFromAnalysis": "Vytvořit profil",
-      "buildFromAnalysisTitle": "Vytvořit uložený profil z analýzy kandidáta {name}"
+      "buildFromAnalysisTitle": "Vytvořit uložený profil z analýzy kandidáta {name}",
+      "variantLabel": "Rozvržení matice",
+      "variant_atlas": "Atlas",
+      "variant_ledger": "Registr",
+      "variant_baseline": "Tabulka",
+      "groupCount": "Kandidátů: {count}",
+      "emptyCell": "·",
+      "jumpAria": "Přejít na archetyp",
+      "distributionAria": "Rozložení skóre – {archetype}: {bands}",
+      "band_strong": "silných: {count}",
+      "band_mid": "středních: {count}",
+      "band_weak": "slabých: {count}",
+      "band_unscored": "nehodnocených: {count}"
     },
     "roster": {
       "eyebrow": "Uložené profily",
@@ -4101,7 +4112,20 @@
       "deleteConfirm": "Odstranit",
       "deleting": "Odstraňování…",
       "deleteFailed": "Profil se nepodařilo odstranit.",
-      "cancel": "Zrušit"
+      "cancel": "Zrušit",
+      "count": "Uložených profilů: {count}",
+      "countFiltered": "{shown} z {total} profilů",
+      "colName": "Kandidát",
+      "colArchetype": "Archetyp",
+      "colFamily": "Rodina rolí",
+      "colCompleteness": "Úplnost",
+      "colStatus": "Stav",
+      "colActions": "Akce",
+      "status_current": "Aktuální",
+      "status_stale": "Novější CV",
+      "status_retired": "Vyřazený archetyp",
+      "filteredEmpty": "Těmto filtrům neodpovídá žádný profil.",
+      "clearFilters": "Zrušit filtry"
     },
     "result": {
       "confidence": "spolehlivost {pct} %",
@@ -4276,6 +4300,23 @@
       "moreArchetypes": "{count, plural, one {+# další} few {+# další} other {+# dalších}}",
       "matrixCta": "Založit první kartu",
       "matrixCtaAnalyze": "Nebo analyzovat CV"
+    }
+  },
+  "table": {
+    "pager": {
+      "label": "Stránkování tabulky",
+      "range": "{from}–{to} z {total}",
+      "page": "Stránka {page} z {pages}",
+      "prev": "Předchozí stránka",
+      "next": "Další stránka"
+    },
+    "filters": {
+      "search": "Hledat…",
+      "searchOptions": "Hledat v možnostech",
+      "noMatches": "Žádné shody",
+      "searchColumn": "Hledat: {column}…",
+      "allOf": "Vše – {column}",
+      "select": "Vyberte…"
     }
   },
   "channels": {
@@ -4483,21 +4524,6 @@
       "landed": "<b>{name}</b> jsme zapsali do stavu <b>Přijato</b> u pozice {role}{suffix}",
       "stub": " (jako neúplný záznam – text životopisu byl příliš strohý)",
       "openInPipeline": "Otevřít v pipeline"
-    },
-    "filters": {
-      "search": "Hledat…",
-      "searchOptions": "Hledat v možnostech",
-      "noMatches": "Žádné shody",
-      "searchColumn": "Hledat: {column}…",
-      "allOf": "Vše – {column}",
-      "select": "Vyberte…"
-    },
-    "pager": {
-      "label": "Stránkování tabulky",
-      "range": "{from}–{to} z {total}",
-      "page": "Stránka {page} z {pages}",
-      "prev": "Předchozí stránka",
-      "next": "Další stránka"
     },
     "empty": {
       "notConnected": "Nepřipojeno",
@@ -5261,7 +5287,7 @@
         "analyze": "Analýza CV",
         "sourcing": "Proaktivní sourcing",
         "rediscovery": "Znovuobjevení talentů",
-        "devcase": "Vývojový případ"
+        "devcase": "Zadání"
       },
       "variantsTitle": "Kreativní varianty",
       "topByVolume": "top {shown} z {total}",
@@ -5798,7 +5824,11 @@
     "emptyAxisRoles": "Otevřené pozice",
     "emptyAxisNone": "Zatím nic – tato strana mřížky je prázdná.",
     "emptyAxisReadyCandidates": "{count, plural, one {# připraven k vynesení.} few {# připraveni k vynesení.} other {# připraveno k vynesení.}}",
-    "emptyAxisReadyRoles": "{count, plural, one {# připravena k vynesení.} few {# připraveny k vynesení.} other {# připraveno k vynesení.}}"
+    "emptyAxisReadyRoles": "{count, plural, one {# připravena k vynesení.} few {# připraveny k vynesení.} other {# připraveno k vynesení.}}",
+    "modeLabel": "Zobrazení matice",
+    "modeGrid": "Mřížka",
+    "modeFocus": "Detail kandidáta",
+    "introFocus": "Seřaďte jednoho kandidáta podle všech otevřených rolí – včetně vah, zdůvodnění a porovnání rolí, na které v jedné buňce mřížky není místo."
   },
   "analyze": {
     "modeNew": "Nová analýza",
@@ -6172,10 +6202,10 @@
       "interview_scorecard": "Hodnoticí karta pohovoru",
       "weight_proposal": "Návrh vah skórování",
       "jd_ingest": "Načtení popisu pozice",
-      "devcase_analyze": "Vývojový případ – analýza",
-      "devcase_role_design": "Vývojový případ – návrh pozice",
-      "devcase_case_design": "Vývojový případ – návrh zadání",
-      "devcase_interview_scenario": "Vývojový případ – scénář pohovoru",
+      "devcase_analyze": "Zadání – analýza",
+      "devcase_role_design": "Zadání – návrh pozice",
+      "devcase_case_design": "Zadání – návrh zadání",
+      "devcase_interview_scenario": "Zadání – scénář pohovoru",
       "group_compare": "Skupinové porovnání",
       "campaign_pack": "Balíček kampaně"
     },
@@ -6243,14 +6273,14 @@
       "jd_ingest": "Načtení popisu pozice",
       "profile_draft": "Návrh profilu",
       "group_compare": "Skupinové porovnání",
-      "devcase_analyze": "Vývojové případy – analýza",
-      "devcase_role_design": "Vývojové případy – návrh pozice",
-      "devcase_case_design": "Vývojové případy – návrh zadání",
-      "devcase_reflect": "Vývojové případy – reflexe",
-      "devcase_tooling": "Vývojové případy – nástroje",
-      "devcase_evaluate": "Vývojové případy – hodnocení",
-      "devcase_transfer": "Vývojové případy – přenositelnost",
-      "devcase_judge": "Vývojové případy – posouzení",
+      "devcase_analyze": "Zadání – analýza",
+      "devcase_role_design": "Zadání – návrh pozice",
+      "devcase_case_design": "Zadání – návrh zadání",
+      "devcase_reflect": "Zadání – reflexe",
+      "devcase_tooling": "Zadání – nástroje",
+      "devcase_evaluate": "Zadání – hodnocení",
+      "devcase_transfer": "Zadání – přenositelnost",
+      "devcase_judge": "Zadání – posouzení",
       "interview_scorecard": "Hodnoticí karta pohovoru",
       "github_analysis": "Analýza GitHubu",
       "cv_analysis": "Analýza CV",
@@ -6622,7 +6652,12 @@
       "colStatus": "Stav",
       "colSent": "Odesláno",
       "resendTitle": "Doručit tuto zprávu znovu aktivním kanálem (zaznamená se jako nový řádek odchozí pošty)",
-      "retryResend": "Zkusit odeslat znovu"
+      "retryResend": "Zkusit odeslat znovu",
+      "count": "Zpráv: {count}",
+      "countFiltered": "{shown} z {total} zpráv",
+      "deadLetters": "Vyžaduje pozornost: {count}",
+      "filteredEmpty": "Těmto filtrům neodpovídá žádná zpráva.",
+      "clearFilters": "Zrušit filtry"
     },
     "outboxKind": {
       "acknowledgement": "Potvrzení přijetí",
@@ -6665,7 +6700,7 @@
       "intro": "Každá otázka ověřuje, že kandidát skutečně stojí za konkrétním rozhodnutím ve svém řešení. Poznámky „čeho si všímat“ a varovné signály jsou určené jen pro tazatele.",
       "doc": {
         "heading": "Podklady k pohovoru – {case}",
-        "caseFallback": "Vývojový případ",
+        "caseFallback": "Zadání",
         "candidateLine": "Kandidát: {ref}{fit}",
         "fit": "přenositelnost {score}",
         "intro": "Každá otázka ověřuje, že za rozhodnutím ze svého řešení stojí kandidát skutečně sám. Poznámky _čeho si všímat_ / _varovný signál_ jsou určené jen pro tazatele – nikdy je nečtěte nahlas.",
@@ -7669,7 +7704,7 @@
     "eyebrow": "Dohled",
     "title": "Řídicí centrum autonomie",
     "intro": "Lidský dohled nad autonomní náborovou pipeline – nouzová brzda, lidské brány, které čekají na vás, a neměnná auditní stopa každého automatického rozhodnutí (evidence, kterou vysoce rizikový systém AI pro nábor musí vést).",
-    "backToDevCases": "← Vývojové případy",
+    "backToDevCases": "← Zadání",
     "autonomy": {
       "statePaused": "Automatizace je POZASTAVENA",
       "stateRunning": "Automatizace běží",

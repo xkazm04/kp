@@ -1,6 +1,6 @@
-# Dev Case — LLM-era developer assessment
+# Assignments (Dev Case) — LLM-era work-sample assessment
 
-An assignment lifecycle for hiring developers in a world where "is the code
+An assignment lifecycle for hiring in a world where "is the code
 correct" is the wrong question — 100% of a candidate's code can plausibly be
 LLM-generated. Instead of grading raw output, Dev Case grades *how* the
 candidate drove the work: problem framing, tooling fluency, verification
@@ -14,10 +14,20 @@ controls](#anti-delegation-controls-shipped) below. All six are shipped.
 
 ## Entry points
 
-- Recruiter workspace — the **Dev** tab: `app/features/tools/devcases/DevTab.tsx`,
-  routed through `DevTabSwitcher.tsx` / `DevTabDefineView.tsx` (need intake +
-  analysis) / `DevTabCasesView.tsx` (case list) / `DevCaseDetail.tsx` (per-case
-  lifecycle, submissions, evaluation).
+- Recruiter workspace — the **Assignments** tab (`?tab=assignments`; renamed from
+  `?tab=dev`, which still resolves via `LEGACY_TAB_ALIASES` in
+  `app/features/shell/tabs.ts` — the module was never dev-only, and "Dev cases"
+  mis-sold the office/marketing/finance cases it also ships):
+  `app/features/tools/devcases/DevTab.tsx`, routed through `DevTabSwitcher.tsx` /
+  `DevTabDefineView.tsx` (need intake + analysis) / `DevTabCasesView.tsx` (case
+  list) / `DevCaseDetail.tsx` (per-case lifecycle, submissions, evaluation).
+- Outbox — `OutboxSection.tsx` (filter state, dead-letter chip, pager) over
+  `OutboxRows.tsx`, with the ordering/filter rules in the pure `outboxView.ts` and
+  the re-dispatch button in `ResendButton.tsx` (also used by the Channels comms
+  modal). Every message the pipeline sent, dead letters sorted to the top, paged 20
+  at a time via `app/_components/table/TablePager.tsx`. It previously rendered a
+  bare `.slice(0, 50)`, so on a busy workspace a dropped rejection or offer could
+  sit past row 50 with nothing on screen admitting it existed.
 - Candidate apply/work surface — `app/devcase/apply/[token]/page.tsx` +
   `DevApplyForm.tsx`; the in-browser editor is `LiveWorkSurface.tsx`.
 

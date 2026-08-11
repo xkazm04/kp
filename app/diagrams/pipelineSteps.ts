@@ -111,7 +111,7 @@ prof --> db`,
     status: "live",
     summary:
       "A normalized candidate is filtered by hard knock-out gates, then scored against the job corpus with archetype-aware weights over the taxonomy hierarchy. Surfaced in the Match tab and the Matrix grid.",
-    files: ["app/features/tools/match/*", "app/features/insights/matrix/*", "app/api/match/route.ts", "pipeline/jobfit/matching.py"],
+    files: ["app/features/insights/matrix/*", "app/features/insights/matrix/focus/*", "app/api/match/route.ts", "pipeline/jobfit/matching.py"],
     puml: `[Match / Matrix tab] <<auto>> as ui
 [POST /api/match\\n/api/matrix] as api
 [matching.ko_filter\\nscore_job] as fn

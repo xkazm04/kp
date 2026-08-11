@@ -117,10 +117,11 @@ export function useMatchTabRun(t: Translator) {
   const runMatch = () =>
     runMatchFor(source === "profile" ? { profileId: selProfile } : { analysisSlug: selAnalysis });
 
-  // Deep link into Match: ?tab=match&profile=<id> OR ?tab=match&analysis=<slug>
-  // — preselect the matching source and auto-run once. Analysis deep-links are
-  // supported symmetrically with profiles so a persisted CV analysis lands in
-  // Match exactly like a saved profile does. Deferred kick-off (0 ms timer): the
+  // Deep link into candidate focus: ?tab=matrix&profile=<id> OR ?tab=matrix&analysis=<slug>
+  // (legacy ?tab=match resolves here via LEGACY_TAB_ALIASES) — preselect the matching
+  // source and auto-run once. The SAME params also tell MatrixTab to open this mode
+  // rather than the grid. Analysis deep-links are supported symmetrically with
+  // profiles so a persisted CV analysis lands here exactly like a saved profile does. Deferred kick-off (0 ms timer): the
   // preselect setters and runMatchFor's loading flag would otherwise fire
   // synchronously in the effect body and cascade a render before the first
   // commit settles. An unknown id surfaces the honest 404 message from runMatchFor.

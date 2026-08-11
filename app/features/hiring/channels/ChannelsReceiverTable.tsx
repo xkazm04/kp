@@ -9,14 +9,14 @@ import { BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { DEFAULT_LOCALE } from "@/i18n/locales";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import { isReceiverLive } from "@/app/features/hiring/channels/useChannelsReceivers";
-import { clampPage, TablePager, TABLE_PAGE_SIZE } from "@/app/features/hiring/channels/ChannelsTablePager";
+import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
 
 // One receiver per row — the compact table both the Email intake and Ad forms panes
 // render. `endpointFor` yields the per-channel address (an email forwarding address,
 // or a receiver URL). `onSelect` (email only) highlights the row whose setup guide
 // shows. All copy resolves through the `channels.*` catalog (channels-i18n-honesty).
 //
-// Paged in 20s like every other Channels table (ChannelsTablePager). A workspace
+// Paged in 20s like every other studio table (_components/table/TablePager). A workspace
 // with one receiver per open role reaches three figures; the selected row drives the
 // setup guide rendered directly BELOW this table, so an unbounded list would push
 // the guide off-screen away from the row that owns it.
@@ -70,11 +70,11 @@ export function ReceiverTable({
   // inbound applications.
   const [confirmRow, setConfirmRow] = useState<ChannelWebhookRecord | null>(null);
   const confirmLive = confirmRow ? isReceiverLive(confirmRow) : false;
-  // Clamped rather than reset (see ChannelsTablePager): revoking the last receiver
+  // Clamped rather than reset (see _components/table/TablePager): revoking the last receiver
   // on the final page must land the reader on a page that still exists.
   const [page, setPage] = useState(0);
   const safePage = clampPage(page, receivers.length);
-  const shown = receivers.slice(safePage * TABLE_PAGE_SIZE, (safePage + 1) * TABLE_PAGE_SIZE);
+  const shown = pageSlice(receivers, safePage);
   return (
     <>
     <div className="space-y-3">

@@ -35,14 +35,13 @@ const ScheduleTab = dynamic(() => TAB_CHUNKS.schedule().then((m) => ({ default: 
 const OnboardingTab = dynamic(() => TAB_CHUNKS.onboarding().then((m) => ({ default: m.OnboardingTab })), { loading });
 const JobsTab = dynamic(() => TAB_CHUNKS.jobs().then((m) => ({ default: m.JobsTab })), { loading });
 const JdsTab = dynamic(() => TAB_CHUNKS.library().then((m) => ({ default: m.JdsTab })), { loading });
-const MatchTab = dynamic(() => TAB_CHUNKS.match().then((m) => ({ default: m.MatchTab })), { loading });
 const MatrixTab = dynamic(() => TAB_CHUNKS.matrix().then((m) => ({ default: m.MatrixTab })), { loading });
 const AnalyticsTab = dynamic(() => TAB_CHUNKS.analytics().then((m) => ({ default: m.AnalyticsTab })), { loading });
 const PipelineTab = dynamic(() => TAB_CHUNKS.pipeline().then((m) => ({ default: m.PipelineTab })), { loading });
 const AgentsWorkforceTab = dynamic(() => TAB_CHUNKS.agents().then((m) => ({ default: m.AgentsWorkforceTab })), { loading });
 const ChannelsTab = dynamic(() => TAB_CHUNKS.channels().then((m) => ({ default: m.ChannelsTab })), { loading });
-const DevTab = dynamic(() => TAB_CHUNKS.dev().then((m) => ({ default: m.DevTab })), { loading });
-const ProfileTab = dynamic(() => TAB_CHUNKS.profile().then((m) => ({ default: m.ProfileTab })), { loading });
+const DevTab = dynamic(() => TAB_CHUNKS.assignments().then((m) => ({ default: m.DevTab })), { loading });
+const ProfileTab = dynamic(() => TAB_CHUNKS.archetypes().then((m) => ({ default: m.ProfileTab })), { loading });
 const InterviewSimTab = dynamic(() => TAB_CHUNKS.interview().then((m) => ({ default: m.InterviewSimTab })), { loading });
 const TasksTab = dynamic(() => TAB_CHUNKS.tasks().then((m) => ({ default: m.TasksTab })), { loading });
 const BillingTab = dynamic(() => TAB_CHUNKS.billing().then((m) => ({ default: m.BillingTab })), { loading });
@@ -67,8 +66,7 @@ export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceT
         {navActive === "schedule" ? <ScheduleTab /> : null}
         {navActive === "onboarding" ? <OnboardingTab /> : null}
         {navActive === "agents" ? <AgentsWorkforceTab /> : null}
-        {navActive === "profile" ? <ProfileTab /> : null}
-        {navActive === "match" ? <MatchTab /> : null}
+        {navActive === "archetypes" ? <ProfileTab /> : null}
         {navActive === "interview" ? <InterviewSimTab /> : null}
         {navActive === "analyze" ? (
           <AnalyzeWorkspace initialMode={active === "history" ? "history" : "new"} />
@@ -77,7 +75,7 @@ export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceT
         {navActive === "library" ? <JdsTab /> : null}
         {navActive === "matrix" ? <MatrixTab /> : null}
         {navActive === "analytics" ? <AnalyticsTab /> : null}
-        {navActive === "dev" ? <DevTab /> : null}
+        {navActive === "assignments" ? <DevTab /> : null}
         {navActive === "about" ? <AboutTab /> : null}
         {navActive === "tasks" ? <TasksTab /> : null}
         {navActive === "billing" ? <BillingTab /> : null}

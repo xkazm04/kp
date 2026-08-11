@@ -13,7 +13,7 @@ import { Modal } from "@/app/_components/Modal";
 import { BTN_PRIMARY, BTN_SECONDARY, META_LABEL } from "@/app/_components/ui/recipes";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@/i18n/locales";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
-import { SearchSelect } from "./ChannelsFilters";
+import { SearchSelect } from "@/app/_components/table/ColumnFilter";
 import type { ReceiverJob } from "./useChannelsReceivers";
 
 export function AddReceiverModal({

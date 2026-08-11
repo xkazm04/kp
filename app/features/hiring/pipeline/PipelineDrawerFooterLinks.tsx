@@ -22,7 +22,7 @@ export function PipelineDrawerFooterLinks({ candidateId }: { candidateId: string
       {candidateId ? (
         <button
           type="button"
-          onClick={() => router.push(buildUrl({ tab: "match", profile: candidateId }, search.toString()))}
+          onClick={() => router.push(buildUrl({ tab: "matrix", profile: candidateId }, search.toString()))}
           className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
         >
           <ExternalLink size={13} /> {t("openFullMatch")}
@@ -31,7 +31,7 @@ export function PipelineDrawerFooterLinks({ candidateId }: { candidateId: string
       {candidateId ? (
         <button
           type="button"
-          onClick={() => router.push(buildUrl({ tab: "profile", edit: candidateId }, search.toString()))}
+          onClick={() => router.push(buildUrl({ tab: "archetypes", edit: candidateId }, search.toString()))}
           className="focus-ring inline-flex items-center gap-1 text-sm font-semibold text-steel hover:text-coral"
         >
           <Pencil size={13} /> {t("editProfile")}

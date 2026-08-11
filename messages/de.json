@@ -1685,11 +1685,10 @@
       "onboarding": "Onboarding",
       "jobs": "Stellen",
       "library": "Stellenbeschreibungen",
-      "profile": "Profil",
-      "match": "Matching",
+      "archetypes": "Archetypen",
       "analyze": "Analyse",
       "interview": "Interview-Sim",
-      "dev": "Dev-Cases",
+      "assignments": "Aufgaben",
       "analytics": "Analytics",
       "matrix": "Matrix",
       "about": "Über",
@@ -4075,7 +4074,19 @@
       "sourceProfile": "Profil",
       "sourceAnalysis": "Analyse",
       "buildFromAnalysis": "Profil erstellen",
-      "buildFromAnalysisTitle": "Ein gespeichertes Profil aus der Analyse von {name} erstellen"
+      "buildFromAnalysisTitle": "Ein gespeichertes Profil aus der Analyse von {name} erstellen",
+      "variantLabel": "Matrix-Layout",
+      "variant_atlas": "Atlas",
+      "variant_ledger": "Register",
+      "variant_baseline": "Tabelle",
+      "groupCount": "{count} Kandidat:innen",
+      "emptyCell": "·",
+      "jumpAria": "Zu einem Archetyp springen",
+      "distributionAria": "Punkteverteilung {archetype}: {bands}",
+      "band_strong": "{count} stark",
+      "band_mid": "{count} mittel",
+      "band_weak": "{count} schwach",
+      "band_unscored": "{count} nicht bewertet"
     },
     "roster": {
       "eyebrow": "Gespeicherte Profile",
@@ -4101,7 +4112,20 @@
       "deleteConfirm": "Löschen",
       "deleting": "Wird gelöscht…",
       "deleteFailed": "Profil konnte nicht gelöscht werden.",
-      "cancel": "Abbrechen"
+      "cancel": "Abbrechen",
+      "count": "{count} gespeicherte Profile",
+      "countFiltered": "{shown} von {total} Profilen",
+      "colName": "Kandidat:in",
+      "colArchetype": "Archetyp",
+      "colFamily": "Rollenfamilie",
+      "colCompleteness": "Vollständigkeit",
+      "colStatus": "Status",
+      "colActions": "Aktionen",
+      "status_current": "Aktuell",
+      "status_stale": "Neueres CV",
+      "status_retired": "Stillgelegter Archetyp",
+      "filteredEmpty": "Kein Profil entspricht diesen Filtern.",
+      "clearFilters": "Filter zurücksetzen"
     },
     "result": {
       "confidence": "Konfidenz {pct} %",
@@ -4276,6 +4300,23 @@
       "moreArchetypes": "{count, plural, one {+# weiterer} other {+# weitere}}",
       "matrixCta": "Erste Karte ablegen",
       "matrixCtaAnalyze": "Oder einen Lebenslauf analysieren"
+    }
+  },
+  "table": {
+    "pager": {
+      "label": "Tabellenseiten",
+      "range": "{from}–{to} von {total}",
+      "page": "Seite {page} von {pages}",
+      "prev": "Vorherige Seite",
+      "next": "Nächste Seite"
+    },
+    "filters": {
+      "search": "Suchen…",
+      "searchOptions": "Optionen durchsuchen",
+      "noMatches": "Keine Treffer",
+      "searchColumn": "{column} durchsuchen…",
+      "allOf": "Alle – {column}",
+      "select": "Auswählen…"
     }
   },
   "channels": {
@@ -4483,21 +4524,6 @@
       "landed": "<b>{name}</b> ist bei <b>Angenommen</b> zur Stelle {role} gelandet{suffix}",
       "stub": " (als Stub – der Lebenslauftext war zu dünn)",
       "openInPipeline": "In der Pipeline öffnen"
-    },
-    "filters": {
-      "search": "Suchen…",
-      "searchOptions": "Optionen durchsuchen",
-      "noMatches": "Keine Treffer",
-      "searchColumn": "{column} durchsuchen…",
-      "allOf": "Alle – {column}",
-      "select": "Auswählen…"
-    },
-    "pager": {
-      "label": "Tabellenseiten",
-      "range": "{from}–{to} von {total}",
-      "page": "Seite {page} von {pages}",
-      "prev": "Vorherige Seite",
-      "next": "Nächste Seite"
     },
     "empty": {
       "notConnected": "Nicht verbunden",
@@ -5261,7 +5287,7 @@
         "analyze": "CV-Analyse",
         "sourcing": "Proaktives Sourcing",
         "rediscovery": "Talent-Wiederentdeckung",
-        "devcase": "Dev-Case"
+        "devcase": "Aufgabe"
       },
       "variantsTitle": "Anzeigenvarianten",
       "topByVolume": "Top {shown} von {total}",
@@ -5798,7 +5824,11 @@
     "emptyAxisRoles": "Offene Stellen",
     "emptyAxisNone": "Noch nichts – diese Seite des Rasters ist leer.",
     "emptyAxisReadyCandidates": "{count, plural, one {# bereit zum Eintragen.} other {# bereit zum Eintragen.}}",
-    "emptyAxisReadyRoles": "{count, plural, one {# bereit zum Eintragen.} other {# bereit zum Eintragen.}}"
+    "emptyAxisReadyRoles": "{count, plural, one {# bereit zum Eintragen.} other {# bereit zum Eintragen.}}",
+    "modeLabel": "Matrix-Ansicht",
+    "modeGrid": "Raster",
+    "modeFocus": "Kandidat:innen-Fokus",
+    "introFocus": "Ranken Sie eine Person gegen alle offenen Rollen – mit den Gewichtungen, der Begründung und dem Rollenvergleich, für die in einer einzelnen Rasterzelle kein Platz ist."
   },
   "analyze": {
     "modeNew": "Neue Analyse",
@@ -6172,10 +6202,10 @@
       "interview_scorecard": "Interview-Scorecard",
       "weight_proposal": "Gewichtungsvorschlag",
       "jd_ingest": "JD-Parsing",
-      "devcase_analyze": "Dev-Case – analysieren",
-      "devcase_role_design": "Dev-Case – Rollendesign",
-      "devcase_case_design": "Dev-Case – Case-Design",
-      "devcase_interview_scenario": "Dev-Case – Interview-Szenario",
+      "devcase_analyze": "Aufgabe – analysieren",
+      "devcase_role_design": "Aufgabe – Rollendesign",
+      "devcase_case_design": "Aufgabe – Case-Design",
+      "devcase_interview_scenario": "Aufgabe – Interview-Szenario",
       "group_compare": "Gruppenvergleich",
       "campaign_pack": "Kampagnenpaket"
     },
@@ -6243,14 +6273,14 @@
       "jd_ingest": "JD-Import",
       "profile_draft": "Profilentwurf",
       "group_compare": "Gruppenvergleich",
-      "devcase_analyze": "Dev-Cases – analysieren",
-      "devcase_role_design": "Dev-Cases – Rollendesign",
-      "devcase_case_design": "Dev-Cases – Case-Design",
-      "devcase_reflect": "Dev-Cases – reflektieren",
-      "devcase_tooling": "Dev-Cases – Tooling",
-      "devcase_evaluate": "Dev-Cases – bewerten",
-      "devcase_transfer": "Dev-Cases – Transfer",
-      "devcase_judge": "Dev-Cases – beurteilen",
+      "devcase_analyze": "Aufgaben – analysieren",
+      "devcase_role_design": "Aufgaben – Rollendesign",
+      "devcase_case_design": "Aufgaben – Case-Design",
+      "devcase_reflect": "Aufgaben – reflektieren",
+      "devcase_tooling": "Aufgaben – Tooling",
+      "devcase_evaluate": "Aufgaben – bewerten",
+      "devcase_transfer": "Aufgaben – Transfer",
+      "devcase_judge": "Aufgaben – beurteilen",
       "interview_scorecard": "Interview-Scorecard",
       "github_analysis": "GitHub-Analyse",
       "cv_analysis": "CV-Analyse",
@@ -6622,7 +6652,12 @@
       "colStatus": "Status",
       "colSent": "Gesendet",
       "resendTitle": "Diese Nachricht erneut über den aktiven Kanal zustellen (wird als neue Postausgangszeile erfasst)",
-      "retryResend": "Erneut versuchen"
+      "retryResend": "Erneut versuchen",
+      "count": "{count} Nachrichten",
+      "countFiltered": "{shown} von {total} Nachrichten",
+      "deadLetters": "{count} brauchen Aufmerksamkeit",
+      "filteredEmpty": "Keine Nachricht entspricht diesen Filtern.",
+      "clearFilters": "Filter zurücksetzen"
     },
     "outboxKind": {
       "acknowledgement": "Bestätigung",
@@ -6665,7 +6700,7 @@
       "intro": "Jede Frage prüft, ob der Kandidat eine echte Entscheidung aus seiner Einreichung wirklich verantwortet. Die Hinweise „worauf achten“ und die Warnsignale sind nur für die interviewende Person bestimmt.",
       "doc": {
         "heading": "Interview-Kit – {case}",
-        "caseFallback": "Dev-Case",
+        "caseFallback": "Aufgabe",
         "candidateLine": "Kandidat/in: {ref}{fit}",
         "fit": "Transfer-Eignung {score}",
         "intro": "Jede Frage prüft, ob die Kandidatin oder der Kandidat eine echte Entscheidung aus der eigenen Einreichung wirklich verantwortet. Die Notizen _darauf achten_ / _Warnsignal_ sind nur für die Interviewenden – lesen Sie sie niemals laut vor.",
@@ -7669,7 +7704,7 @@
     "eyebrow": "Aufsicht",
     "title": "Kontrollzentrum Autonomie",
     "intro": "Menschliche Aufsicht über die autonome Recruiting-Pipeline – ein Not-Aus, die auf Sie wartenden menschlichen Gates und ein unveränderlicher Audit-Trail jeder automatisierten Entscheidung (die Nachweispflicht, die ein Hochrisiko-AI-System im Recruiting erfüllen muss).",
-    "backToDevCases": "← Dev-Cases",
+    "backToDevCases": "← Aufgaben",
     "autonomy": {
       "statePaused": "Automatisierung ist PAUSIERT",
       "stateRunning": "Automatisierung läuft",

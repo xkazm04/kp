@@ -30,7 +30,7 @@ export const HIT_TYPE_ORDER: SearchHit["type"][] = ["profile", "entry", "job", "
 export function hitHref(hit: SearchHit, search: string): string {
   switch (hit.type) {
     case "profile":
-      return buildUrl({ ...clearedTabScopedParams(), tab: "match", profile: hit.id }, search);
+      return buildUrl({ ...clearedTabScopedParams(), tab: "matrix", profile: hit.id }, search);
     case "entry":
       // No per-entry deep link exists; the board's ?q= filter (ANA1) isolates
       // the candidate by label — same place the drawer opens from.

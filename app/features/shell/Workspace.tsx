@@ -20,8 +20,8 @@ import {
   AGENTS_TAB_IN_NAV,
   buildTabSwitchUrl,
   DEFAULT_TAB,
-  isWorkspaceTabId,
   navLabel,
+  resolveTabParam,
   type WorkspaceTabId,
 } from "./tabs";
 
@@ -70,7 +70,9 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   // setMobileNavOpen is identity-stable, but React Compiler's memoization check
   // requires the declared deps to match what the body references (same as selectTab).
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), [setMobileNavOpen]);
-  const requested: WorkspaceTabId = isWorkspaceTabId(tabParam) ? tabParam : DEFAULT_TAB;
+  // Legacy ids (?tab=profile, ?tab=dev) resolve to their renamed tab rather than
+  // falling back to the default — see LEGACY_TAB_ALIASES in tabs.ts.
+  const requested: WorkspaceTabId = resolveTabParam(tabParam) ?? DEFAULT_TAB;
   // About is a dev-only deep-dive (ABOUT_TAB_IN_NAV) and Agents is experimental
   // (AGENTS_TAB_IN_NAV); when the gate is off, a direct ?tab= deep link falls
   // back to the default so the view can't be reached.

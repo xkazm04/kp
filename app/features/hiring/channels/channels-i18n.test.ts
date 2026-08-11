@@ -37,7 +37,9 @@ const TAGS = { b: chunks, i: chunks, code: chunks, endpoint: () => "hook_x@inbou
 
 // (key, values) exactly as the components call them — kept in lockstep with
 // ChannelsTab / EmailIntakeWizard / AdFormsPane / CvSimCard / channel-receivers /
-// filters / SetupGuide / CommsTable.
+// SetupGuide / CommsTable. The column-filter and pager copy moved OUT of this
+// namespace with the primitives themselves (app/_components/table/*) and is pinned
+// the same way in app/_components/table/table-i18n.test.ts.
 const PLAIN: [string, Record<string, unknown>][] = [
   ["eyebrow", {}],
   ["title", {}],
@@ -116,12 +118,6 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["cvSim.requestFailed", {}],
   ["cvSim.stub", {}],
   ["cvSim.openInPipeline", {}],
-  ["filters.search", {}],
-  ["filters.searchOptions", {}],
-  ["filters.noMatches", {}],
-  ["filters.searchColumn", { column: "Role" }],
-  ["filters.allOf", { column: "Role" }],
-  ["filters.select", {}],
   // Intake-brief empty states (channels.empty.*, keys carried by channelsEmptySpecs).
   ["empty.notConnected", {}],
   ["empty.connectedIdle", {}],
@@ -246,8 +242,6 @@ test("no prototype-stage literal-string disable survives on the Channels surface
     "ChannelsCvSimCard.tsx",
     "ChannelsReceiverTable.tsx",
     "ChannelsAddReceiverModal.tsx",
-    "ChannelsFilters.tsx",
-    "ChannelsFilterMenu.tsx",
     "ChannelsCommsTable.tsx",
     "ChannelsCommsRows.tsx",
     "ChannelsCommsMessageModal.tsx",

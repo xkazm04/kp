@@ -3,6 +3,10 @@
 // `?` overlay in KeyboardShortcuts.tsx consume the same source of truth.
 //
 // The scheme, deterministic and collision-free BY CONSTRUCTION:
+//   Pass 0 — pinned letters: a RENAMED tab (chordPin in tabs.ts) claims the letter
+//     its old id produced, before anything derives. Without this a rename would
+//     reshuffle unrelated tabs — `profile`→`archetypes` would have taken `a` from
+//     Analyze, cascading into Analytics.
 //   Pass 1 — single letters: each tab claims the first letter of its id not yet
 //     taken, in NAV_GROUPS order. This is exactly the original algorithm, so every
 //     tab that had a single-letter chord keeps the same one (p/c/d/s/… — pinned by
@@ -34,11 +38,24 @@ export function deriveChords(): Chord[] {
   const keysById = new Map<WorkspaceTabId, string[]>();
   const overflow: WorkspaceTabDef[] = [];
 
+  // Pass 0 — pinned letters (chordPin, see tabs.ts). Claimed BEFORE the derivation
+  // so a renamed tab keeps the chord its old id happened to produce and, just as
+  // importantly, cannot take a letter the derivation would have given someone else.
+  // Reserving them all up front (rather than in id order) is what makes the pin
+  // position-independent: a pinned tab's letter is unavailable to every other tab,
+  // whether it sits before or after it in NAV_GROUPS.
+  for (const def of tabs) {
+    if (!def.chordPin) continue;
+    singleTaken.add(def.chordPin);
+    keysById.set(def.id, [def.chordPin]);
+  }
+
   // Pass 1 — single letters (unchanged from the original derivation). A def
   // marked chordOverflow (a tab added inside an early group AFTER the singles
   // were pinned) skips straight to Pass 2 so it can't steal a later tab's
   // pinned letter — see the WorkspaceTabDef comment in tabs.ts.
   for (const def of tabs) {
+    if (def.chordPin) continue; // already assigned in Pass 0
     const key = def.chordOverflow ? undefined : firstFreeIdLetter(def.id, singleTaken);
     if (key) {
       singleTaken.add(key);

@@ -91,7 +91,7 @@ export function useProfileTabDeepLinks(args: {
     void reloadArchetypes();
   }, [reloadArchetypes]);
 
-  // Deep link from the pipeline (?tab=profile&edit=<candidateId>): open that
+  // Deep link from the pipeline (?tab=archetypes&edit=<candidateId>): open that
   // profile in the editor. Clear the param up front so closing returns here and a
   // refresh doesn't reopen it. No synchronous setState — the editor opens in the
   // fetch continuation — so the effect stays render-safe.

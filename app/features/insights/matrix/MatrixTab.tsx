@@ -1,5 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { SegmentedControl } from "@/app/_components/SegmentedControl";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
+import { useShellNavigate } from "@/app/features/shell/nav/shallow-nav";
+import { buildUrl } from "@/app/features/shell/tabs";
+import { MatrixCandidateFocus } from "./focus/MatrixCandidateFocus";
 import { MatrixLegend } from "./MatrixShared";
 import { MatrixEmptyState } from "./MatrixEmptyState";
 import { CompletionCta } from "@/app/_components/CompletionCta";
@@ -13,7 +21,42 @@ import { useMatrixTab } from "./useMatrixTab";
 
 export function MatrixTab() {
   const m = useMatrixTab();
-  const { t, enumLabel, data, error, cols, rows, scopedPosition, staleJob } = m;
+  const { t, data, error, cols, rows, scopedPosition, staleJob } = m;
+  const search = useSearchParams();
+  const nav = useShellNavigate();
+  const reduced = useReducedMotion();
+
+  // Two readings of one question, not two features (see MatrixCandidateFocus): the
+  // GRID is pool-first (every candidate × every open role), CANDIDATE FOCUS is
+  // candidate-first (one candidate, every role ranked, with weights and reasoning).
+  //
+  // The URL is the source of truth for which one is showing, because the mode is
+  // reachable from outside this component: a roster row's "Match", the pipeline
+  // drawer, the command palette and a cell's own "View full match" all arrive as
+  // ?profile=<id> (or ?analysis=<slug>), and every one of them used to land on a
+  // separate tab. Deriving from the param — rather than mirroring it into state on
+  // mount — is what makes a SECOND such navigation, while this tab is already open,
+  // switch the mode too.
+  const focusParam = search.get("profile") ?? search.get("analysis");
+  // The manual toggle is stamped with the param it was made AGAINST, so a later
+  // ?profile= arrival expires it automatically. That expiry is what makes clicking
+  // a second cell's "View full match" work after the reader has toggled back to the
+  // grid — and stamping beats an effect that resets the override, which would set
+  // state during render and cascade an extra pass.
+  const [override, setOverride] = useState<{ mode: "grid" | "focus"; forParam: string | null } | null>(null);
+  const mode: "grid" | "focus" =
+    override && override.forParam === focusParam ? override.mode : focusParam ? "focus" : "grid";
+
+  const selectMode = (next: "grid" | "focus") => {
+    // Leaving focus drops the candidate selection from the URL — otherwise the grid
+    // would sit there holding a ?profile= that reads as "focus is showing".
+    if (next === "grid" && focusParam) {
+      nav.replace(buildUrl({ profile: null, analysis: null }, search.toString()));
+      setOverride({ mode: next, forParam: null });
+      return;
+    }
+    setOverride({ mode: next, forParam: focusParam });
+  };
 
   return (
     <>
@@ -27,14 +70,18 @@ export function MatrixTab() {
           <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
           <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
           <p className="mt-1 max-w-2xl text-body text-steel">
-            {staleJob
+            {mode === "focus"
+              ? t("introFocus")
+              : staleJob
               ? t("introStale")
               : scopedPosition
               ? t("introScoped", { title: scopedPosition.title })
               : t("introDefault")}
           </p>
         </div>
-        {!staleJob ? (
+        {/* The grid's filter/sort/export controls belong to the grid alone — focus
+            mode carries its own picker and weights panel. */}
+        {!staleJob && mode === "grid" ? (
           <MatrixToolbar
             data={data}
             rowsLength={rows.length}
@@ -54,6 +101,55 @@ export function MatrixTab() {
         ) : null}
       </header>
 
+      <SegmentedControl
+        label={t("modeLabel")}
+        value={mode}
+        onChange={selectMode}
+        options={[
+          { value: "grid", label: t("modeGrid") },
+          { value: "focus", label: t("modeFocus") },
+        ]}
+      />
+
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={mode}
+          initial={reduced ? { opacity: 0 } : { opacity: 0, x: 8 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduced ? 0.12 : 0.18, ease: "easeOut" }}
+          className="space-y-4"
+        >
+          {mode === "focus" ? <MatrixCandidateFocus /> : <MatrixGridView m={m} />}
+        </motion.div>
+      </AnimatePresence>
+    </section>
+
+      {m.popover ? (
+        <MatrixReasoningPopover
+          popover={m.popover}
+          reasoning={m.reasoning}
+          t={t}
+          blockedLabel={m.blockedLabel}
+          closePopover={m.closePopover}
+          dialogRef={m.dialogRef}
+          onViewFullMatch={() => {
+            const p = m.popover!;
+            m.viewFullMatchAndClose(p.candId, p.posId);
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+// The grid half of the tab: notices, select bar, family filter and the grid itself.
+// Extracted so the mode switch above reads as one line per mode, and so the whole
+// grid subtree unmounts in focus mode rather than sitting hidden behind a CSS toggle.
+function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
+  const { t, enumLabel, data, error, cols, rows, scopedPosition, staleJob } = m;
+  return (
+    <>
       <MatrixDataNotices
         data={data}
         minFit={m.minFit}
@@ -166,22 +262,6 @@ export function MatrixTab() {
           <MatrixLegend />
         </>
       )}
-    </section>
-
-      {m.popover ? (
-        <MatrixReasoningPopover
-          popover={m.popover}
-          reasoning={m.reasoning}
-          t={t}
-          blockedLabel={m.blockedLabel}
-          closePopover={m.closePopover}
-          dialogRef={m.dialogRef}
-          onViewFullMatch={() => {
-            const p = m.popover!;
-            m.viewFullMatchAndClose(p.candId, p.posId);
-          }}
-        />
-      ) : null}
     </>
   );
 }

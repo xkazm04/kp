@@ -138,7 +138,6 @@
         "data/taxonomy.json",
         "app/_lib/candidate-pool.ts",
         "app/_lib/group-eval*.ts",
-        "app/features/tools/match/**",
         "app/features/insights/matrix/**"
       ]
     },

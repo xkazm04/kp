@@ -1,18 +1,23 @@
 "use client";
 
-// One pager for every table on the Channels surface (the comms ledger, the email
-// and ad-form receiver tables).
+// The ONE pager for every long table in the studio — the Channels comms ledger and
+// receiver tables, the Archetypes candidate roster, the Assignments outbox.
 //
-// The ledger used to grow instead of page: a "Show more" button appended another
-// 40 rows to the same DOM list, so a busy workspace ended up scrolling a
-// thousand-row table with the column filters left far above it, and there was no
-// way back to the top of the list except scrolling. A fixed window of 20 keeps the
-// header, the rows and this control on one screen, and makes "where am I" a
-// question the UI answers rather than one the scrollbar hints at.
+// It started life on Channels, where the ledger used to grow instead of page: a
+// "Show more" button appended another 40 rows to the same DOM list, so a busy
+// workspace ended up scrolling a thousand-row table with the column filters left far
+// above it, and there was no way back to the top except scrolling. A fixed window of
+// 20 keeps the header, the rows and this control on one screen, and makes "where am
+// I" a question the UI answers rather than one the scrollbar hints at. It lives here
+// rather than under a feature because the next table to need paging should reach for
+// this one, not re-derive the arithmetic (the roster and the outbox both did — the
+// outbox's version of "paging" was a silent .slice(0, 50) that dropped row 51
+// without ever saying so).
 //
-// Deliberately client-side: these tables already hold their whole result set in
-// memory (the comms read is capped at 200 rows server-side, receivers are a handful
-// per channel), so paging is a slice — no fetch, no spinner, no cursor to keep.
+// Deliberately client-side: the tables using it already hold their whole result set
+// in memory (server reads are capped well under a thousand rows), so paging is a
+// slice — no fetch, no spinner, no cursor to keep. A table whose result set does NOT
+// fit in memory needs a cursor, not this.
 //
 // Renders nothing when everything fits on one page: a pager over a 6-row table is
 // chrome that can only ever say "1–6 of 6".
@@ -20,7 +25,7 @@
 import { useTranslations } from "next-intl";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-/** Rows per page for every Channels table. */
+/** Rows per page, shared by every table so paging feels identical across surfaces. */
 export const TABLE_PAGE_SIZE = 20;
 
 /** Total pages for `total` rows — at least 1, so an empty table is "page 1 of 1". */
@@ -35,6 +40,12 @@ export function clampPage(page: number, total: number, pageSize = TABLE_PAGE_SIZ
   return Math.min(Math.max(0, page), pageCount(total, pageSize) - 1);
 }
 
+/** The `shown` slice for a clamped page — the other half of the arithmetic every
+ *  caller was repeating inline beside clampPage. */
+export function pageSlice<T>(rows: readonly T[], page: number, pageSize = TABLE_PAGE_SIZE): T[] {
+  return rows.slice(page * pageSize, (page + 1) * pageSize);
+}
+
 export function TablePager({
   page,
   total,
@@ -47,7 +58,7 @@ export function TablePager({
   onPage: (page: number) => void;
   pageSize?: number;
 }) {
-  const t = useTranslations("channels.pager");
+  const t = useTranslations("table.pager");
   const pages = pageCount(total, pageSize);
   if (total <= pageSize) return null;
 

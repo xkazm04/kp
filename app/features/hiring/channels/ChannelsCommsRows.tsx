@@ -11,7 +11,7 @@ import { Badge } from "@/app/_components/Badge";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
 import { isUnaddressable } from "@/app/_lib/comms-view";
-import { ColumnFilter, type Option } from "./ChannelsFilters";
+import { ColumnFilter, type Option } from "@/app/_components/table/ColumnFilter";
 import { formatRecordedAt, isActionable, statusTone, type Message, type StatusLabels } from "./channelsCommsHelpers";
 
 export function ChannelsCommsRows({

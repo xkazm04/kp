@@ -4,21 +4,22 @@ import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { ChevronDown, Search } from "lucide-react";
 import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
-import { AnchoredMenu, OptionList, type Option } from "./ChannelsFilterMenu";
+import { AnchoredMenu, OptionList, type Option } from "./FilterMenu";
 
-// Small self-contained filter primitives for the Channels surface: a header-cell
-// ColumnFilter (spreadsheet-style, filter initiated from the column header) and a
-// SearchSelect combobox (a searchable single-select field). Both hang their menu
-// off a FIXED-positioned anchor so it escapes the table's overflow clip, and close
-// on scroll / resize / Escape / backdrop. No third-party combobox in the repo, so
-// this is the shared building block for both the comms table and the webhook forms.
+// The studio's table-filter primitives: a header-cell ColumnFilter (spreadsheet
+// style — the column header IS the filter trigger) and a SearchSelect combobox (a
+// searchable single-select field). Both hang their menu off a FIXED-positioned
+// anchor so it escapes the table's overflow clip, and close on scroll / resize /
+// Escape / backdrop. No third-party combobox in the repo, so this is the shared
+// building block for the comms ledger, the webhook forms, the Archetypes roster and
+// the Assignments outbox alike.
 //
-// channels-i18n-honesty: the column-scoped strings interpolate the column TITLE as
-// given (never lower-cased) — a localized header may be a capitalized German noun, and
-// "All {column}" / "Search {column}" are worded per locale so no gendered article has
-// to be guessed.
+// i18n honesty: the column-scoped strings interpolate the column TITLE as given
+// (never lower-cased) — a localized header may be a capitalized German noun, and
+// "All {column}" / "Search {column}" are worded per locale so no gendered article
+// has to be guessed.
 //
-// The popover shell + option list live in ChannelsFilterMenu.tsx (200-line cap).
+// The popover shell + option list live in FilterMenu.tsx (200-line cap).
 
 export type { Option };
 
@@ -38,7 +39,7 @@ export function ColumnFilter({
   mode?: "select" | "search";
   options?: Option[];
 }) {
-  const t = useTranslations("channels");
+  const t = useTranslations("table");
   const ref = useRef<HTMLButtonElement>(null);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const active = value.trim() !== "";
@@ -104,7 +105,7 @@ export function SearchSelect({
   placeholder?: string;
   id?: string;
 }) {
-  const t = useTranslations("channels");
+  const t = useTranslations("table");
   const ref = useRef<HTMLButtonElement>(null);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const selected = options.find((o) => o.value === value);

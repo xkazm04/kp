@@ -9,7 +9,7 @@ import { ChannelEmpty } from "./ChannelsEmpty";
 import { commsStatusLabels, isActionable, statusTone, type Message, type RefInfo } from "./channelsCommsHelpers";
 import { ChannelsCommsMessageModal } from "./ChannelsCommsMessageModal";
 import { ChannelsCommsRows } from "./ChannelsCommsRows";
-import { clampPage, TablePager, TABLE_PAGE_SIZE } from "./ChannelsTablePager";
+import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
 
 // Communications, redesigned as a compact, column-filterable register (the JD
 // Ledger pattern) instead of the old expand-in-place card list: one row per
@@ -134,7 +134,7 @@ export function CommsTable() {
   // last one must land them on a page that exists, without an effect that could
   // fight the setter above.
   const safePage = clampPage(page, filtered.length);
-  const shown = filtered.slice(safePage * TABLE_PAGE_SIZE, (safePage + 1) * TABLE_PAGE_SIZE);
+  const shown = pageSlice(filtered, safePage);
   const open = openId ? all.find((m) => m.id === openId) ?? null : null;
 
   return (

@@ -1,123 +1,67 @@
 "use client";
 
-import { useState } from "react";
-import { RefreshCw, Send } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useCallback, useMemo, useState } from "react";
+import { AlertTriangle, Send } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { LoadStatus } from "@/app/_components/LoadStatus";
-import { useRelativeTime } from "@/app/_lib/use-relative-time";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
+import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import type { LoadState } from "@/app/_lib/useLoader";
-import type { OutboxStatus } from "@/app/_lib/comms-status";
+import { OutboxRows } from "./OutboxRows";
+import { outboxRows, type OutboxFilters } from "./outboxView";
 import type { OutboxItem } from "./DevTypes";
 
-// W6-1 — re-dispatch a dead-lettered message through the live channel (a NEW
-// outbox row; the original stays as the append-only audit record). Shared by
-// this table and the Channels Comms Center.
-//
-// failure-truth-everywhere: this used to `throw new Error()` on !r.ok — discarding the
-// server's own explanation (409 "already re-sent", 422 "missing fields", 404) — and to
-// flip to "Resent" on any 2xx, INCLUDING the case where the fresh row dead-lettered
-// again. Both halves of a resend's outcome are now reported: why the server refused,
-// and whether the new send actually landed.
-export function ResendButton({ id, onResent, compact = false }: { id: string; onResent?: () => void; compact?: boolean }) {
-  const t = useTranslations("channels.comms");
-  // The outbox-row copy this button needs beyond the shared comms vocabulary.
-  const td = useTranslations("devcase.outbox");
-  // Resolve API failures from the machine `code`, never from the server's
-  // English `error` — see app/_lib/use-error-message.ts.
-  const errMsg = useErrorMessage();
-  const [state, setState] = useState<"idle" | "busy" | "done" | "deadLettered" | "error">("idle");
-  const [message, setMessage] = useState<string | null>(null);
-  const resend = async () => {
-    if (state === "busy" || state === "done") return;
-    setState("busy");
-    setMessage(null);
-    try {
-      const r = await fetch(`/api/comms/${encodeURIComponent(id)}/resend`, { method: "POST" });
-      const payload = (await r.json().catch(() => null)) as
-        | { error?: string; code?: string; entry?: { status?: string; failureDetail?: string | null } }
-        | null;
-      if (!r.ok) {
-        setMessage(t("resendRejected", { reason: errMsg(payload, t("resendFailed")) }));
-        setState("error");
-        return;
-      }
-      // Recorded, but the relay rejected it again — claiming "Resent" here is exactly
-      // the false green the dead-letter state exists to prevent. Refresh either way:
-      // the new row is real audit, whatever its outcome.
-      if (payload?.entry?.status === "failed") {
-        const detail = payload.entry.failureDetail;
-        setMessage(detail ? `${t("resendDeadLettered")} ${t("failureDetail", { detail })}` : t("resendDeadLettered"));
-        setState("deadLettered");
-        onResent?.();
-        return;
-      }
-      setState("done");
-      onResent?.();
-    } catch {
-      setMessage(t("resendFailed"));
-      setState("error");
-    }
-  };
-  const adverse = state === "error" || state === "deadLettered";
-  return (
-    <span className="inline-flex flex-wrap items-center gap-1">
-      <button
-        type="button"
-        onClick={resend}
-        disabled={state === "busy" || state === "done"}
-        title={td("resendTitle")}
-        className={`focus-ring inline-flex shrink-0 items-center gap-1 rounded border border-stone-200 bg-white font-semibold text-coral hover:bg-coral/5 disabled:opacity-50 ${
-          compact ? "px-1.5 py-0.5 text-micro" : "px-2 py-1 text-sm"
-        }`}
-      >
-        <RefreshCw size={compact ? 10 : 12} className={state === "busy" ? "animate-spin" : ""} aria-hidden />
-        {state === "done" ? t("resent") : adverse ? td("retryResend") : state === "busy" ? t("resending") : t("resend")}
-      </button>
-      {message ? (
-        <span
-          role="alert"
-          title={message}
-          className={`${compact ? "text-micro" : "text-sm"} whitespace-normal ${adverse ? "text-red-700" : "text-steel"}`}
-        >
-          {message}
-        </span>
-      ) : null}
-    </span>
-  );
-}
-
-// Badge tints by message kind — positive (invite/outreach/ack) vs. adverse (rejection).
-const KIND_STYLE: Record<string, string> = {
-  invite: "bg-moss/15 text-moss",
-  acknowledgement: "bg-moss/15 text-moss",
-  outreach: "bg-coral/15 text-coral",
-  rejection: "bg-red-50 text-red-700",
-};
-
-// Delivery-status tint — `failed` (dead-letter) is loud so a dropped offer/rejection
-// never reads as benign. `queued` shows the channel (local, terminal dev state).
-const STATUS_STYLE: Record<OutboxStatus, string> = {
-  queued: "text-steel",
-  sent: "text-moss",
-  failed: "text-red-700 font-semibold",
-  bounced: "text-red-800 font-semibold",
-};
-
-/** The Outbox tab: every message the pipeline sent, as a full table. */
+/**
+ * The Outbox tab: every message the pipeline sent.
+ *
+ * It used to render `outbox.slice(0, 50)` — no filters, no sort, no pager, and no
+ * mention anywhere on screen that rows 51+ existed. On a workspace past its first
+ * fifty messages that silently hid the thing this table is FOR: a dead-lettered
+ * rejection or offer that never reached the candidate. Now it is the same register
+ * as the Channels comms ledger — dead letters sorted to the top, per-column filters
+ * in the headers, a one-click "chase dead letters" chip, and a real 20-row pager
+ * (_components/table/TablePager) that says how many rows there are.
+ */
 export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[]; state: LoadState; onResent?: () => void }) {
-  const rel = useRelativeTime();
   const t = useTranslations("devcase.outbox");
   const tc = useTranslations("channels.comms");
   const tk = useTranslations("devcase.outboxKind");
+  const locale = useLocale();
+  const [filters, setFilters] = useState<OutboxFilters>({ q: "", kind: "", status: "" });
+  const [failedOnly, setFailedOnly] = useState(false);
+  const [page, setPage] = useState(0);
+
+  // Any filter change re-cuts the result set, so it also returns to the first page.
+  const patchFilters = useCallback((patch: Partial<OutboxFilters>) => {
+    setFilters((f) => ({ ...f, ...patch }));
+    setPage(0);
+  }, []);
+
   // Message kind + delivery status are enum codes from the store. Render the catalog
   // label when we know the code, else fall back to the raw value (the pipeline may mint
   // a kind before its string lands) — never a blank cell.
-  const kindLabel = (kind: string) => {
-    const key = kind as Parameters<typeof tk>[0];
-    return tk.has(key) ? tk(key) : kind.replace(/_/g, " ");
-  };
-  const STATUS_KEY = { queued: "statusQueued", sent: "statusSent", failed: "statusFailed", bounced: "statusBounced" } as const;
+  const kindLabel = useCallback(
+    (kind: string) => {
+      const key = kind as Parameters<typeof tk>[0];
+      return tk.has(key) ? tk(key) : kind.replace(/_/g, " ");
+    },
+    [tk]
+  );
+  const statusLabel = useCallback(
+    (status: OutboxItem["status"]) => {
+      const KEY = { queued: "statusQueued", sent: "statusSent", failed: "statusFailed", bounced: "statusBounced" } as const;
+      return tc(KEY[status] ?? "statusQueued");
+    },
+    [tc]
+  );
+
+  const view = useMemo(
+    () => outboxRows(outbox, { filters, failedOnly, locale, kindLabel, statusLabel }),
+    [outbox, filters, failedOnly, locale, kindLabel, statusLabel]
+  );
+  const safePage = clampPage(page, view.rows.length);
+  const shown = pageSlice(view.rows, safePage);
+
   if (outbox.length === 0) {
     return (
       <div className="space-y-3">
@@ -130,8 +74,9 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
       </div>
     );
   }
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <p className="text-micro text-steel">
         {t.rich("relayHint", {
           code: (chunks) => <span className="font-mono">{chunks}</span>,
@@ -139,45 +84,47 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
           failed: (chunks) => <span className="font-semibold text-red-700">{chunks}</span>,
         })}
       </p>
-      <div className="overflow-hidden rounded-lg border border-stone-200 bg-white shadow-panel">
-        <table className="w-full border-collapse text-left">
-          <thead>
-            <tr className="border-b border-stone-200 bg-paper/60 text-micro font-semibold uppercase tracking-wide text-steel">
-              <th scope="col" className="px-3 py-2">{t("colKind")}</th>
-              <th scope="col" className="px-3 py-2">{t("colRecipient")}</th>
-              <th scope="col" className="px-3 py-2">{t("colSubject")}</th>
-              <th scope="col" className="px-3 py-2">{t("colStatus")}</th>
-              <th scope="col" className="hidden whitespace-nowrap px-3 py-2 sm:table-cell">{t("colSent")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {outbox.slice(0, 50).map((m, i) => (
-              <tr
-                key={m.id}
-                style={{ animationDelay: `${i * 20}ms` }}
-                className="animate-fade-in border-b border-stone-100 last:border-b-0 motion-reduce:animate-none"
-              >
-                <td className="px-3 py-2">
-                  <span className={`rounded-full px-1.5 py-0.5 text-micro font-semibold uppercase ${KIND_STYLE[m.kind ?? ""] ?? "bg-paper text-steel"}`}>
-                    {kindLabel(m.kind ?? "")}
-                  </span>
-                </td>
-                <td className="max-w-0 truncate px-3 py-2 text-sm text-steel sm:max-w-40">{m.recipient}</td>
-                <td className="max-w-0 truncate px-3 py-2 text-sm text-ink">{m.subject}</td>
-                <td className={`whitespace-nowrap px-3 py-2 text-micro uppercase ${STATUS_STYLE[m.status] ?? "text-steel"}`}>
-                  <span className="inline-flex items-center gap-1.5">
-                    {m.status === "queued" ? `${m.channel}` : tc(STATUS_KEY[m.status] ?? "statusQueued")}
-                    {m.status === "failed" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}
-                  </span>
-                </td>
-                <td className="hidden whitespace-nowrap px-3 py-2 text-sm text-steel sm:table-cell">
-                  {rel(m.createdAt) || "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      {/* Total + a one-click "chase dead letters", exactly as the comms ledger. The
+          count reads off the FILTERED set with the total beside it, so a narrowed
+          view never looks like an outbox that lost rows. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-steel">
+          {view.rows.length === outbox.length
+            ? t("count", { count: outbox.length })
+            : t("countFiltered", { shown: view.rows.length, total: outbox.length })}
+        </p>
+        {view.failedCount > 0 ? (
+          <button
+            type="button"
+            aria-pressed={failedOnly}
+            onClick={() => {
+              setFailedOnly((f) => !f);
+              setPage(0);
+            }}
+            className={CHIP_TOGGLE(failedOnly)}
+          >
+            <AlertTriangle size={12} aria-hidden /> {t("deadLetters", { count: view.failedCount })}
+          </button>
+        ) : null}
       </div>
+
+      <OutboxRows
+        shown={shown}
+        emptyFiltered={view.rows.length === 0}
+        onClearFilters={() => {
+          patchFilters({ q: "", kind: "", status: "" });
+          setFailedOnly(false);
+        }}
+        filters={filters}
+        onFilters={patchFilters}
+        facets={view.facets}
+        kindLabel={kindLabel}
+        statusLabel={statusLabel}
+        onResent={onResent}
+      />
+
+      <TablePager page={safePage} total={view.rows.length} onPage={setPage} />
     </div>
   );
 }

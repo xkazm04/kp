@@ -37,7 +37,7 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
   // API failures resolve from the machine `code`, never the server's English
   // `error` string — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
-  // Deep-link / simulation prefill (jd* query params) — mirrors MatchTab's pattern.
+  // Deep-link / simulation prefill (jd* query params) — mirrors the candidate-focus pattern.
   // A `prefill` prop (Duplicate → Generate) takes precedence over the query params;
   // the component remounts per duplicate, so these mount-time seeds re-read it.
   const sp = useSearchParams();

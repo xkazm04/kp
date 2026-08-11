@@ -8,18 +8,32 @@ import { Select } from "@/app/_components/Select";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useMatchTabRun } from "./useMatchTabRun";
 
+// The Matrix tab's CANDIDATE FOCUS mode — formerly the standalone Match tab.
+//
+// Matrix and Match always answered the same question ("who fits which role?") from
+// two directions: the grid reads it pool-first (every candidate × every open role,
+// one score per cell), this reads it candidate-first (one candidate, every role
+// ranked, with the weights, the reasoning and the job-to-job comparison the grid's
+// single cell has no room for). Shipping them as sibling tabs made that a navigation
+// problem — you left the grid, lost your filters, and re-found the candidate in a
+// dropdown. They are now two modes of one surface: a cell's "View full match" simply
+// switches mode with the candidate already selected.
+//
+// Everything below is the old Match tab body minus its own eyebrow/title header —
+// MatrixTab owns the page header for both modes, so the two no longer each claim to
+// be a different feature.
+//
 // Tier 3 (docs/design/loading-choreography.md): MatchResults.tsx (plus the MatchCard/
 // MatchWeightsPanel/MatchJobCompare subtree it pulls in) is a heavy, purely
-// post-action payload — it never renders on the tab's first frame, only once a
-// match run has returned. Splitting it out of the tab's own chunk keeps tier-1
-// entry light; the chunk-load gap is a quiet reserved box (never a skeleton),
-// distinct from the "Matching…" action-progress text the run button/paragraph
-// already show while the fetch itself is in flight.
+// post-action payload — it never renders on first frame, only once a match run has
+// returned. Splitting it out keeps tier-1 entry light; the chunk-load gap is a quiet
+// reserved box (never a skeleton), distinct from the "Matching…" action-progress
+// text the run button/paragraph already show while the fetch itself is in flight.
 const MatchResults = dynamic(() => import("./MatchResults").then((m) => ({ default: m.MatchResults })), {
   loading: () => <div className="reveal-quiet min-h-[20rem]" aria-hidden />,
 });
 
-export function MatchTab() {
+export function MatrixCandidateFocus() {
   const t = useTranslations("match.tab");
   const enumLabel = useEnumLabel();
   const {
@@ -37,20 +51,13 @@ export function MatchTab() {
   } = useMatchTabRun(t);
 
   return (
-    // Tier 1: header + picker row + results region cascade in as this section's
-    // direct children (stagger-children, globals.css). aria-busy covers only the
-    // first options load (GET /api/profile + /api/analyses) — a later match run
-    // or re-rank never blanks what is already on screen.
-    <section className="stagger-children rounded-lg border border-stone-200 bg-white p-5 shadow-panel" aria-busy={!optionsLoaded}>
-      <header className="border-b border-stone-200 pb-4">
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
-        <p className="mt-2 max-w-3xl text-body text-steel">
-          {t.rich("intro", { strong: (chunks) => <strong>{chunks}</strong> })}
-        </p>
-      </header>
-
-      <div className="mt-4 flex flex-wrap items-end gap-3">
+    // aria-busy covers only the first options load (GET /api/profile +
+    // /api/analyses) — a later match run or re-rank never blanks what is on screen.
+    <section
+      className="stagger-children rounded-lg border border-stone-200 bg-white p-5 shadow-panel"
+      aria-busy={!optionsLoaded}
+    >
+      <div className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
           <span className="text-sm font-semibold uppercase tracking-wide text-steel">{t("source")}</span>
           <SegmentedControl
@@ -159,7 +166,7 @@ export function MatchTab() {
             title={t("emptyPrompt")}
             body={t("emptyChainBody")}
             links={[
-              { tab: "profile", label: t("emptyCtaProfile") },
+              { tab: "archetypes", label: t("emptyCtaProfile") },
               { tab: "analyze", label: t("emptyCtaAnalyze") },
             ]}
           />

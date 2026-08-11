@@ -17,8 +17,12 @@ export const WORKSPACE_TAB_IDS = [
   // via AGENTS_TAB_IN_NAV below, same two-place pattern as the About tab).
   "agents",
   "interview",
-  "profile",
-  "match",
+  // Renamed from "profile": this surface's centre of gravity is the candidate
+  // ARCHETYPE taxonomy (ArchetypeManager) plus the candidates routed to it — the
+  // profile editor is a click-only sub-surface. The old id also collided with the
+  // `profile` deep-link param (a candidate id), which read as the same thing and
+  // is not. Legacy ?tab=profile still resolves — see LEGACY_TAB_ALIASES.
+  "archetypes",
   "analyze",
   // Analyze history is a sub-view reached from the Analyze tab (Workspace maps
   // it onto the Analyze nav item); a valid id but intentionally absent from
@@ -28,7 +32,10 @@ export const WORKSPACE_TAB_IDS = [
   "library",
   "matrix",
   "analytics",
-  "dev",
+  // Renamed from "dev": the work-sample module has never been dev-only — it ships
+  // office/non-engineering cases too, so "Dev cases" mis-sold it as a niche.
+  // Legacy ?tab=dev still resolves — see LEGACY_TAB_ALIASES.
+  "assignments",
   "about",
   // Background tasks is a client-only live view reached from the sidebar footer
   // (TasksIndicator), not a deep-link target — so it's a valid tab id here but
@@ -84,6 +91,14 @@ export type WorkspaceTabDef = {
   // chordOverflow sends it straight to the two-key pass, which only draws from
   // still-free letters and leaves every existing chord untouched.
   chordOverflow?: boolean;
+  // The second chord escape hatch, for the opposite problem to chordOverflow: a tab
+  // that was RENAMED. Chords derive from the tab id, so `profile` → `archetypes`
+  // would have claimed `a` (stealing Analyze's pinned letter and cascading through
+  // Analytics), and `dev` → `assignments` would have claimed `g`. Pinning the letter
+  // the tab already had keeps every derived assignment byte-for-byte what it was —
+  // a rename is a label change, not a reason to move anyone's muscle memory.
+  // Reserved BEFORE the derivation runs, so no other tab can take it either.
+  chordPin?: string;
   badgeKey?: AttentionKey;
   // When set, the badge itself becomes a second click target that opens the tab
   // WITH these deep-link params — landing on the exact slice the count refers to
@@ -147,21 +162,21 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    // Phase 6: Profile + Match are standalone tools (reachable from Channels:
-    // Match = proactive sourcing, Profile = manual add), de-emphasized here.
-    // Dev cases lives here too: it is one more assessment instrument alongside
-    // Analyze/Interview sim, not a product line of its own — the former
-    // single-item "Dev extension" group was a rail slot spent on one tab.
+    // The instrument shelf: the archetype taxonomy + candidate roster
+    // (Archetypes), CV analysis, the interview sim and the work-sample
+    // Assignments. Match used to sit here as a fifth item; it is now Matrix's
+    // candidate-focus mode (Insights), because ranking one candidate against
+    // every role and ranking every candidate against every role are two readings
+    // of one question, not two tools.
     label: "Tools",
     key: "tools",
     items: [
-      { id: "profile", label: "Profile" },
-      { id: "match", label: "Match" },
+      { id: "archetypes", label: "Archetypes", chordPin: "r" },
       { id: "analyze", label: "Analyze" },
       { id: "interview", label: "Interview sim" },
       // Appended last so the flat NAV_GROUPS order (and therefore every derived
       // g-chord) is byte-for-byte what it was under the old group.
-      { id: "dev", label: "Dev cases" },
+      { id: "assignments", label: "Assignments", chordPin: "e" },
     ],
   },
   {
@@ -169,7 +184,7 @@ export const NAV_GROUPS: NavGroup[] = [
     key: "insights",
     items: [
       { id: "analytics", label: "Analytics" },
-      { id: "matrix", label: "Matrix" },
+      { id: "matrix", label: "Matrix", chordPin: "t" },
       ...(ABOUT_TAB_IN_NAV ? [{ id: "about", label: "About" } as WorkspaceTabDef] : []),
     ],
   },
@@ -219,6 +234,35 @@ const TAB_IDS: ReadonlySet<WorkspaceTabId> = new Set(WORKSPACE_TAB_IDS);
 
 export function isWorkspaceTabId(value: string | null | undefined): value is WorkspaceTabId {
   return typeof value === "string" && TAB_IDS.has(value as WorkspaceTabId);
+}
+
+// Retired tab ids that still resolve. A `?tab=` value is not an internal detail —
+// it is in bookmarks, in pasted links, in the harness reports under docs/, and in
+// whatever a customer wrote down. Dropping an id would have silently landed those
+// on Overview, which reads as "the feature is gone" rather than "it moved".
+//
+// This is a REDIRECT table, not a second name: the resolver below maps the legacy
+// id onto the live one, and everything downstream (nav highlight, chunk, chord,
+// analytics) only ever sees the live id. Entries are cheap to keep and should only
+// be removed once the old links are provably dead.
+export const LEGACY_TAB_ALIASES: Readonly<Record<string, WorkspaceTabId>> = {
+  // Tools rebrand: the surface owns the archetype taxonomy, not "profiles".
+  profile: "archetypes",
+  // Work-sample assessments were never dev-only.
+  dev: "assignments",
+  // Match was folded into Matrix as its candidate-focus mode: the two always
+  // answered the same question ("who fits which role?") from opposite directions,
+  // and every ?tab=match link carried a ?profile=/?analysis= that Matrix now reads
+  // to open that mode — so a legacy link lands on the same ranking it always did.
+  match: "matrix",
+};
+
+/** The live tab a `?tab=` value names — following a legacy alias when it names a
+ *  retired id — or null when it names nothing at all. */
+export function resolveTabParam(value: string | null | undefined): WorkspaceTabId | null {
+  if (isWorkspaceTabId(value)) return value;
+  if (typeof value === "string" && value in LEGACY_TAB_ALIASES) return LEGACY_TAB_ALIASES[value];
+  return null;
 }
 
 export function tabHref(id: WorkspaceTabId): string {

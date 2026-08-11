@@ -1685,11 +1685,10 @@
       "onboarding": "Onboarding",
       "jobs": "Postes",
       "library": "Fiches de poste",
-      "profile": "Profil",
-      "match": "Matching",
+      "archetypes": "Archétypes",
       "analyze": "Analyse",
       "interview": "Entretien simulé",
-      "dev": "Cas dev",
+      "assignments": "Exercices",
       "analytics": "Analytique",
       "matrix": "Matrice",
       "about": "À propos",
@@ -4075,7 +4074,19 @@
       "sourceProfile": "Profil",
       "sourceAnalysis": "Analyse",
       "buildFromAnalysis": "Créer un profil",
-      "buildFromAnalysisTitle": "Créer un profil enregistré à partir de l’analyse de {name}"
+      "buildFromAnalysisTitle": "Créer un profil enregistré à partir de l’analyse de {name}",
+      "variantLabel": "Disposition de la matrice",
+      "variant_atlas": "Atlas",
+      "variant_ledger": "Registre",
+      "variant_baseline": "Tableau",
+      "groupCount": "{count} candidat·es",
+      "emptyCell": "·",
+      "jumpAria": "Aller à un archétype",
+      "distributionAria": "Répartition des scores {archetype} : {bands}",
+      "band_strong": "{count} fort·es",
+      "band_mid": "{count} moyen·nes",
+      "band_weak": "{count} faibles",
+      "band_unscored": "{count} non évalué·es"
     },
     "roster": {
       "eyebrow": "Profils enregistrés",
@@ -4101,7 +4112,20 @@
       "deleteConfirm": "Supprimer",
       "deleting": "Suppression…",
       "deleteFailed": "Impossible de supprimer ce profil.",
-      "cancel": "Annuler"
+      "cancel": "Annuler",
+      "count": "{count} profils enregistrés",
+      "countFiltered": "{shown} profils sur {total}",
+      "colName": "Candidat·e",
+      "colArchetype": "Archétype",
+      "colFamily": "Famille de postes",
+      "colCompleteness": "Complétude",
+      "colStatus": "Statut",
+      "colActions": "Actions",
+      "status_current": "À jour",
+      "status_stale": "CV plus récent",
+      "status_retired": "Archétype retiré",
+      "filteredEmpty": "Aucun profil ne correspond à ces filtres.",
+      "clearFilters": "Effacer les filtres"
     },
     "result": {
       "confidence": "confiance {pct} %",
@@ -4276,6 +4300,23 @@
       "moreArchetypes": "{count, plural, one {+# autre} other {+# autres}}",
       "matrixCta": "Classer la première fiche",
       "matrixCtaAnalyze": "Ou analyser un CV"
+    }
+  },
+  "table": {
+    "pager": {
+      "label": "Pages du tableau",
+      "range": "{from}–{to} sur {total}",
+      "page": "Page {page} sur {pages}",
+      "prev": "Page précédente",
+      "next": "Page suivante"
+    },
+    "filters": {
+      "search": "Rechercher…",
+      "searchOptions": "Rechercher dans les options",
+      "noMatches": "Aucun résultat",
+      "searchColumn": "Rechercher : {column}…",
+      "allOf": "Tout – {column}",
+      "select": "Sélectionner…"
     }
   },
   "channels": {
@@ -4483,21 +4524,6 @@
       "landed": "<b>{name}</b> est arrivé à <b>Accepté</b> sur {role}{suffix}",
       "stub": " (en ébauche – le texte du CV était trop mince)",
       "openInPipeline": "Ouvrir dans le pipeline"
-    },
-    "filters": {
-      "search": "Rechercher…",
-      "searchOptions": "Rechercher dans les options",
-      "noMatches": "Aucun résultat",
-      "searchColumn": "Rechercher : {column}…",
-      "allOf": "Tout – {column}",
-      "select": "Sélectionner…"
-    },
-    "pager": {
-      "label": "Pages du tableau",
-      "range": "{from}–{to} sur {total}",
-      "page": "Page {page} sur {pages}",
-      "prev": "Page précédente",
-      "next": "Page suivante"
     },
     "empty": {
       "notConnected": "Non connecté",
@@ -5261,7 +5287,7 @@
         "analyze": "Analyse de CV",
         "sourcing": "Sourcing proactif",
         "rediscovery": "Redécouverte de talents",
-        "devcase": "Cas technique"
+        "devcase": "Exercice"
       },
       "variantsTitle": "Variantes créatives",
       "topByVolume": "top {shown} sur {total}",
@@ -5798,7 +5824,11 @@
     "emptyAxisRoles": "Postes ouverts",
     "emptyAxisNone": "Rien pour l’instant – ce côté de la grille est vide.",
     "emptyAxisReadyCandidates": "{count, plural, one {# prêt à être tracé.} other {# prêts à être tracés.}}",
-    "emptyAxisReadyRoles": "{count, plural, one {# prêt à être tracé.} other {# prêts à être tracés.}}"
+    "emptyAxisReadyRoles": "{count, plural, one {# prêt à être tracé.} other {# prêts à être tracés.}}",
+    "modeLabel": "Vue matrice",
+    "modeGrid": "Grille",
+    "modeFocus": "Focus candidat·e",
+    "introFocus": "Classez une personne face à tous les postes ouverts, avec les pondérations, le raisonnement et la comparaison entre postes qu'une seule cellule ne peut pas contenir."
   },
   "analyze": {
     "modeNew": "Nouvelle analyse",
@@ -6172,10 +6202,10 @@
       "interview_scorecard": "Scorecard d’entretien",
       "weight_proposal": "Proposition de pondération du score",
       "jd_ingest": "Analyse de fiche de poste",
-      "devcase_analyze": "Cas dev – analyse",
-      "devcase_role_design": "Cas dev – conception du poste",
-      "devcase_case_design": "Cas dev – conception du cas",
-      "devcase_interview_scenario": "Cas dev – scénario d’entretien",
+      "devcase_analyze": "Exercices – analyse",
+      "devcase_role_design": "Exercices – conception du poste",
+      "devcase_case_design": "Exercices – conception du cas",
+      "devcase_interview_scenario": "Exercices – scénario d’entretien",
       "group_compare": "Comparaison de groupe",
       "campaign_pack": "Pack de campagne"
     },
@@ -6243,14 +6273,14 @@
       "jd_ingest": "Import de fiche de poste",
       "profile_draft": "Brouillon de profil",
       "group_compare": "Comparaison de groupe",
-      "devcase_analyze": "Cas dev – analyse",
-      "devcase_role_design": "Cas dev – conception du poste",
-      "devcase_case_design": "Cas dev – conception du cas",
-      "devcase_reflect": "Cas dev – réflexion",
-      "devcase_tooling": "Cas dev – outillage",
-      "devcase_evaluate": "Cas dev – évaluation",
-      "devcase_transfer": "Cas dev – transfert",
-      "devcase_judge": "Cas dev – jugement",
+      "devcase_analyze": "Exercices – analyse",
+      "devcase_role_design": "Exercices – conception du poste",
+      "devcase_case_design": "Exercices – conception du cas",
+      "devcase_reflect": "Exercices – réflexion",
+      "devcase_tooling": "Exercices – outillage",
+      "devcase_evaluate": "Exercices – évaluation",
+      "devcase_transfer": "Exercices – transfert",
+      "devcase_judge": "Exercices – jugement",
       "interview_scorecard": "Scorecard d’entretien",
       "github_analysis": "Analyse GitHub",
       "cv_analysis": "Analyse de CV",
@@ -6622,7 +6652,12 @@
       "colStatus": "Statut",
       "colSent": "Envoyé",
       "resendTitle": "Réacheminer ce message par le canal actif (consigné comme une nouvelle ligne de la boîte d’envoi)",
-      "retryResend": "Réessayer l’envoi"
+      "retryResend": "Réessayer l’envoi",
+      "count": "{count} messages",
+      "countFiltered": "{shown} messages sur {total}",
+      "deadLetters": "{count} à traiter",
+      "filteredEmpty": "Aucun message ne correspond à ces filtres.",
+      "clearFilters": "Effacer les filtres"
     },
     "outboxKind": {
       "acknowledgement": "Accusé de réception",
@@ -6665,7 +6700,7 @@
       "intro": "Chaque question vérifie que le candidat assume réellement une décision de son rendu. Les notes « à écouter » et les signaux d’alerte sont réservés à l’intervieweur.",
       "doc": {
         "heading": "Kit d’entretien – {case}",
-        "caseFallback": "Cas technique",
+        "caseFallback": "Exercice",
         "candidateLine": "Candidat(e) : {ref}{fit}",
         "fit": "correspondance de transfert {score}",
         "intro": "Chaque question vérifie que le candidat assume une véritable décision de son rendu. Les notes _à écouter_ / _signal d’alerte_ sont réservées aux personnes qui mènent l’entretien – ne les lisez jamais à voix haute.",
@@ -7522,7 +7557,7 @@
     "eyebrow": "Supervision",
     "title": "Centre de contrôle de l’autonomie",
     "intro": "Supervision humaine du pipeline de recrutement autonome – un coupe-circuit, les validations humaines qui vous attendent et une piste d’audit inaltérable de chaque décision automatisée (la traçabilité qu’exige un système d’AI de recrutement à haut risque).",
-    "backToDevCases": "← Cas dev",
+    "backToDevCases": "← Exercices",
     "autonomy": {
       "statePaused": "L’automatisation est SUSPENDUE",
       "stateRunning": "L’automatisation est active",

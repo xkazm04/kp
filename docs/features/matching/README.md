@@ -7,12 +7,18 @@ archetype detection are `docs/features/candidates/README.md`.
 
 ## Entry points
 
-- **Match tab** — `app/features/tools/match/MatchTab.tsx` (results:
-  `MatchResults.tsx`, `MatchCard.tsx`, per-skill provenance chips:
-  `MatchCardSkillChips.tsx`).
-- **Weights panel** (per-role weight tuning) — `app/features/tools/match/MatchWeightsPanel.tsx`.
-- **Fit matrix** (cross-candidate/cross-job grid) — `app/features/insights/matrix/MatrixTab.tsx`
-  (`MatrixGrid.tsx`, `MatrixReasoningPopover.tsx`).
+- **Fit matrix** (`?tab=matrix`) — `app/features/insights/matrix/MatrixTab.tsx`. One
+  surface, two modes behind a segmented control:
+  - **Grid** (pool-first: every candidate × every open role) — `MatrixGrid.tsx`,
+    `MatrixReasoningPopover.tsx`.
+  - **Candidate focus** (candidate-first: one candidate ranked against every role) —
+    `focus/MatrixCandidateFocus.tsx`, results in `focus/MatchResults.tsx` /
+    `focus/MatchCard.tsx`, per-skill provenance chips in `focus/MatchCardSkillChips.tsx`.
+    This was the standalone **Match tab** until it was folded in; `?tab=match`
+    still resolves (`LEGACY_TAB_ALIASES` in `app/features/shell/tabs.ts`) and the
+    `?profile=<id>` / `?analysis=<slug>` params it always carried are what tell
+    MatrixTab to open focus mode.
+- **Weights panel** (per-role weight tuning) — `app/features/insights/matrix/focus/MatchWeightsPanel.tsx`.
 - **Group evaluation** (fairness matrix, weight rationale) —
   `app/features/hiring/decisions/GroupEvalModal.tsx`, `GroupEvalComparisonCells.tsx`.
 - **Recruiter candidate list** (experienced vs. early-career columns) —
@@ -150,9 +156,8 @@ unproven").
 | Observed-evidence minting | `pipeline/jobfit/live_case.py` |
 | Candidate pool (TS, no-provenance path) | `app/_lib/candidate-pool.ts` |
 | Group evaluation + fairness matrix wiring | `app/_lib/group-eval.ts`, `group-eval-run.ts`, `group-eval-cohort.ts`, `group-eval-differentiators.ts`, `group-eval-governance.ts`, `group-eval-separation.ts` |
-| Match tab UI | `app/features/tools/match/*` |
-| Fit matrix UI | `app/features/insights/matrix/*` |
-| Match reasoning hook | `app/features/tools/match/useMatchCardReasoning.ts` |
+| Fit matrix UI (grid + candidate focus) | `app/features/insights/matrix/*`, `app/features/insights/matrix/focus/*` |
+| Match reasoning hook | `app/features/insights/matrix/focus/useMatchCardReasoning.ts` |
 | Comparison / distribution / adverse-impact | `app/_lib/comparison.ts`, `app/_lib/distribution.ts`, `app/_lib/adverse-impact.ts`, `app/_lib/fit-thresholds.ts`, `app/_lib/factor-points.ts` |
 | Role taxonomy schemas (TS) | `app/_lib/role-families.ts`, `app/_lib/taxonomy.generated.ts` |
 
@@ -237,7 +242,7 @@ currency) but is not exercised by a second seeded market today.
     "pipeline/jobfit/live_case.py", "pipeline/jobfit/models.py",
     "data/taxonomy.json", "pipeline/jobfit/taxonomy_check.py",
     "app/_lib/candidate-pool.ts", "app/_lib/group-eval*.ts",
-    "app/features/tools/match/**", "app/features/insights/matrix/**",
+    "app/features/insights/matrix/**",
     "app/features/library/jobs/JobsRecruiterCandidatesCard.tsx",
     "app/features/library/jobs/JobsCompareInterviews*.tsx",
     "app/features/insights/about/AboutStudents*.tsx"

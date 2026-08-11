@@ -1,10 +1,9 @@
 "use client";
 
-// Shared internal menu pieces for the Channels filter primitives (ColumnFilter,
+// Internal menu pieces for the shared filter primitives (ColumnFilter,
 // SearchSelect): the anchored/fixed-position popover shell and its searchable
-// option-list body. Split out of ChannelsFilters.tsx so that file stays under
-// the 200-line cap. Copy resolves through `channels.filters.*` in four locales
-// (channels-i18n-honesty).
+// option-list body. Split out of ColumnFilter.tsx so that file stays under the
+// 200-line cap. Copy resolves through `table.filters.*` in four locales.
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -34,7 +33,7 @@ export function OptionList({
   /** When set, shows a top row that resets the filter to "" (e.g. "All roles"). */
   clearLabel?: string;
 }) {
-  const t = useTranslations("channels");
+  const t = useTranslations("table");
   const [q, setQ] = useState("");
   const needle = q.trim().toLowerCase();
   const shown = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;

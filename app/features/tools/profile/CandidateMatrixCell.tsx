@@ -22,7 +22,7 @@ export function CandidateMatrixCell({ cand, onEditProfile }: { cand: CandidateRo
   // prefilled from the analysis and STAMPED with source lineage (?fromAnalysis=),
   // so a later re-analysis of the same CV surfaces as staleness on the profile.
   const buildFromAnalysis = () =>
-    cand.slug && router.push(buildUrl({ tab: "profile", fromAnalysis: cand.slug }, ""));
+    cand.slug && router.push(buildUrl({ tab: "archetypes", fromAnalysis: cand.slug }, ""));
   const cellClass =
     "focus-ring group block w-full rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-left hover:border-coral/50 hover:bg-coral/5";
   const body = (

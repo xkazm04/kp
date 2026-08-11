@@ -41,10 +41,10 @@ export function ProfileEditor({
   const params = useSearchParams();
 
   // Build→match handoff: navigate to the Match tab with THIS profile preselected —
-  // MatchTab's ?profile= deep link auto-runs the match (one click, no re-selection).
+  // Matrix's candidate-focus ?profile= deep link auto-runs the match (one click, no re-selection).
   // Only reachable once a real saved id exists (the result panel gates the button).
   const goMatch = (savedId: string) =>
-    router.push(buildUrl({ tab: "match", profile: savedId, edit: null }, params.toString()));
+    router.push(buildUrl({ tab: "matrix", profile: savedId, edit: null }, params.toString()));
 
   const {
     choice, setChoice,

@@ -115,7 +115,7 @@ export function ArchetypeBanner({
         <span className="ml-auto">
           {save.kind === "saved" ? (
             <Link
-              href="/?tab=profile"
+              href="/?tab=archetypes"
               className="focus-ring inline-flex items-center gap-1.5 rounded-md bg-moss/10 px-3 py-1.5 text-sm font-semibold text-moss hover:bg-moss/20"
             >
               <Check size={14} /> {t("archetype.saved")} <ArrowRight size={13} />

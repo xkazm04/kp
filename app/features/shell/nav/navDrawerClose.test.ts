@@ -10,7 +10,7 @@ import { navKey, shouldCloseDrawerOnNav } from "./navDrawerClose.ts";
 
 test("navKey composes pathname + search so a search-only tab switch is a new key", () => {
   assert.equal(navKey("/studio", "tab=jobs"), "/studio?tab=jobs");
-  assert.notEqual(navKey("/studio", "tab=jobs"), navKey("/studio", "tab=match"));
+  assert.notEqual(navKey("/studio", "tab=jobs"), navKey("/studio", "tab=matrix"));
 });
 
 test("navKey with no search is just the pathname (no dangling '?')", () => {
@@ -33,7 +33,7 @@ test("shouldCloseDrawerOnNav closes on the badge-slice navigation", () => {
 });
 
 test("shouldCloseDrawerOnNav closes on a command-palette jump to another tab", () => {
-  assert.equal(shouldCloseDrawerOnNav(navKey("/s", "tab=jobs"), navKey("/s", "tab=match")), true);
+  assert.equal(shouldCloseDrawerOnNav(navKey("/s", "tab=jobs"), navKey("/s", "tab=matrix")), true);
 });
 
 test("shouldCloseDrawerOnNav does NOT close when nothing navigated (e.g. the drawer just opened)", () => {

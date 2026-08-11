@@ -17,10 +17,22 @@ career-switcher) that other features key off. Downstream ranking is
 - **Quick apply** — `app/apply/[id]/quick/QuickApplyForm.tsx`, `app/api/apply/[id]/quick/route.ts`.
 - **Profile editor** — `app/features/tools/profile/ProfileEditor.tsx` (+ `ProfileEditorFields.tsx`,
   `ProfileEditorArchetypeOptions.tsx`).
-- **Profile roster / matrix** — `app/features/tools/profile/ProfileTab.tsx`,
-  `ProfileRoster.tsx`, `CandidateMatrix.tsx`.
-- **Archetype manager** (admin view of the archetype registry) —
-  `app/features/tools/profile/ArchetypeManager.tsx`.
+- **Archetypes tab** (`?tab=archetypes`; renamed from `?tab=profile`, which still
+  resolves via `LEGACY_TAB_ALIASES` in `app/features/shell/tabs.ts`) —
+  `app/features/tools/profile/ProfileTab.tsx`. It carries the archetype registry
+  plus one candidate population under a List | Matrix projection toggle:
+  - **Archetype manager** (admin view of the registry) — `ArchetypeManager.tsx`.
+  - **List** — `ProfileRoster.tsx` (fetch + filter state + pager) over
+    `ProfileRosterTable.tsx` / `ProfileRosterRow.tsx`, with the filter/sort rules in
+    the pure `profileRosterView.ts`. A paginated ledger: in-header column filters
+    (candidate / archetype / role family / status), sortable name + completeness,
+    20 rows a page via the shared `app/_components/table/TablePager.tsx`.
+  - **Matrix** — `CandidateMatrix.tsx`. Currently a `/prototype` host offering three
+    layouts over one grouping model (`candidateMatrixView.ts`): **Atlas** (wrapping
+    tile map of the taxonomy, one archetype expanded at a time),
+    **Ledger** (single column ruled into sticky archetype sections with a jump
+    index) and the original **Table** baseline. Atlas is the default; the winner has
+    not been promoted yet — see Known gaps.
 - **Saved analysis report** — `app/history/[slug]/page.tsx`; history list —
   `app/features/tools/analyze/history/HistoryTab.tsx`.
 - **Public skill credential** — `app/skill/[token]/page.tsx`.
@@ -192,6 +204,9 @@ pipeline/jobfit/eval/fixtures_csas --strict`. Full corpus:
 
 - Salary anchoring still uses the job's band rather than a candidate-seniority
   band when the two diverge (see above) — the one open item from the pilot.
+- The Matrix projection is mid-`/prototype`: three layouts (Atlas / Ledger / Table)
+  ship behind a switcher on the tab itself. One has to win and the other two be
+  deleted — until then the surface carries prototype scaffolding in production.
 - Bilingual skill-label recall (CZ claim text vs. EN Gemini output) is an
   eval-harness measurement gap, not a scoring bug — matched skills are present,
   the eval's substring matcher just can't bridge the language.

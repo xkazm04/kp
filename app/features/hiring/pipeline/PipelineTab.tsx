@@ -109,7 +109,7 @@ export function PipelineTab() {
           body={s.t("emptyBody")}
           links={[
             { tab: "channels", label: s.t("emptyCtaChannels") },
-            { tab: "profile", label: s.t("emptyCtaProfile") },
+            { tab: "archetypes", label: s.t("emptyCtaProfile") },
           ]}
           // 5d2e0998 — the empty board is the first-run moment: offer the
           // guided tour (the simulation walks the whole hiring story live).

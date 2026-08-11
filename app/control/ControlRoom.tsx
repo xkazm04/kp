@@ -94,7 +94,7 @@ export function ControlRoom() {
             <h1 className="mt-1 font-serif text-display text-ink">{t("title")}</h1>
             <p className="mt-1 max-w-2xl text-body text-steel">{t("intro")}</p>
           </div>
-          <Link href="/?tab=dev" className="focus-ring rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:border-coral/40">
+          <Link href="/?tab=assignments" className="focus-ring rounded-md border border-stone-200 bg-white px-3 py-1.5 text-sm font-semibold text-ink hover:border-coral/40">
             {t("backToDevCases")}
           </Link>
         </header>

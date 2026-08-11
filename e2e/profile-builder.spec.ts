@@ -42,7 +42,7 @@ type BuildResponse = {
 type ProfileGet = { profile: { archetype: string | null; completeness: number | null } };
 
 async function openBuilder(page: Page): Promise<void> {
-  await page.goto("/?tab=profile");
+  await page.goto("/?tab=archetypes");
   // The "Build candidate profile" button sits beside the "Candidate view"
   // projection toggle in ProfileTab, so it's reachable from the default List
   // projection — no Matrix switch needed.

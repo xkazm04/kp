@@ -19,11 +19,13 @@ test("existing single-letter chords are unchanged", () => {
     onboarding: "o",
     jobs: "j",
     library: "l",
-    profile: "r",
-    match: "m",
+    // Renamed tabs keep the letter their OLD id derived (chordPin) — profile→r,
+    // dev→e — so the rebrand moved no muscle memory and stole nothing from
+    // Analyze (`a`) or Organization (`g`), which the raw new ids would have.
+    archetypes: "r",
     analyze: "a",
     interview: "i",
-    dev: "e",
+    assignments: "e",
     analytics: "n",
     matrix: "t",
     about: "b",
@@ -53,7 +55,14 @@ test("every nav tab gets a chord", () => {
 test("the previously-dropped tabs now have two-key chords", () => {
   assert.deepEqual(byId.get("branding"), ["f", "b"]);
   assert.deepEqual(byId.get("billing"), ["f", "i"]);
-  assert.deepEqual(byId.get("models"), ["f", "m"]);
+});
+
+// Retiring the Match tab freed `m`, and Models is the next tab whose id claims it —
+// so Models is PROMOTED from `g f m` to `g m`. This is the one chord the Match
+// migration moves, and it moves to a shorter one; everything else above is
+// unchanged, which is what the pin test is here to prove.
+test("models takes the single letter Match freed", () => {
+  assert.deepEqual(byId.get("models"), ["m"]);
 });
 
 // Agents sits INSIDE the first (hiring) group but is marked chordOverflow, so it

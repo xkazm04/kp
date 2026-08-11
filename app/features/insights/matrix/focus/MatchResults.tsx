@@ -51,7 +51,7 @@ export function MatchResults({
   staleness?: { newerSlug: string; newerAnalyzedAt: string } | null;
   onReweight?: (weights?: WeightVector) => void;
   // shortlist-to-group-eval — the cross-candidate session ledger (owned by
-  // MatchTab; this component remounts per candidate) of pipeline entries filed
+  // MatrixCandidateFocus; this component remounts per candidate) of pipeline entries filed
   // from Match, keyed by jobId. Roles with ≥ 2 entries surface the
   // "Compare N in group eval" handoff banner; onFiled records each successful,
   // decision-gated add's entry id. Both optional so Results renders unchanged

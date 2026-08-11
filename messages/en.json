@@ -1685,11 +1685,10 @@
       "onboarding": "Onboarding",
       "jobs": "Jobs",
       "library": "Job descriptions",
-      "profile": "Profile",
-      "match": "Match",
+      "archetypes": "Archetypes",
       "analyze": "Analyze",
       "interview": "Interview sim",
-      "dev": "Dev cases",
+      "assignments": "Assignments",
       "analytics": "Analytics",
       "matrix": "Matrix",
       "about": "About",
@@ -4075,7 +4074,19 @@
       "sourceProfile": "Profile",
       "sourceAnalysis": "Analysis",
       "buildFromAnalysis": "Build profile",
-      "buildFromAnalysisTitle": "Build a saved profile from {name}'s analysis"
+      "buildFromAnalysisTitle": "Build a saved profile from {name}'s analysis",
+      "variantLabel": "Matrix layout",
+      "variant_atlas": "Atlas",
+      "variant_ledger": "Ledger",
+      "variant_baseline": "Table",
+      "groupCount": "{count} candidates",
+      "emptyCell": "·",
+      "jumpAria": "Jump to an archetype",
+      "distributionAria": "{archetype} score spread: {bands}",
+      "band_strong": "{count} strong",
+      "band_mid": "{count} mid",
+      "band_weak": "{count} weak",
+      "band_unscored": "{count} not assessed"
     },
     "roster": {
       "eyebrow": "Saved profiles",
@@ -4101,7 +4112,20 @@
       "deleteConfirm": "Delete",
       "deleting": "Deleting…",
       "deleteFailed": "Couldn't delete that profile.",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "count": "{count} saved profiles",
+      "countFiltered": "{shown} of {total} profiles",
+      "colName": "Candidate",
+      "colArchetype": "Archetype",
+      "colFamily": "Role family",
+      "colCompleteness": "Completeness",
+      "colStatus": "Status",
+      "colActions": "Actions",
+      "status_current": "Current",
+      "status_stale": "Newer CV",
+      "status_retired": "Retired archetype",
+      "filteredEmpty": "No profile matches these filters.",
+      "clearFilters": "Clear filters"
     },
     "result": {
       "confidence": "confidence {pct}%",
@@ -4276,6 +4300,23 @@
       "moreArchetypes": "{count, plural, one {+# more} other {+# more}}",
       "matrixCta": "File the first card",
       "matrixCtaAnalyze": "Or analyze a CV"
+    }
+  },
+  "table": {
+    "pager": {
+      "label": "Table pages",
+      "range": "{from}–{to} of {total}",
+      "page": "Page {page} of {pages}",
+      "prev": "Previous page",
+      "next": "Next page"
+    },
+    "filters": {
+      "search": "Search…",
+      "searchOptions": "Search options",
+      "noMatches": "No matches",
+      "searchColumn": "Search {column}…",
+      "allOf": "All — {column}",
+      "select": "Select…"
     }
   },
   "channels": {
@@ -4483,21 +4524,6 @@
       "landed": "<b>{name}</b> landed at <b>Accepted</b> on {role}{suffix}",
       "stub": " (as a stub — CV text was thin)",
       "openInPipeline": "Open in pipeline"
-    },
-    "filters": {
-      "search": "Search…",
-      "searchOptions": "Search options",
-      "noMatches": "No matches",
-      "searchColumn": "Search {column}…",
-      "allOf": "All — {column}",
-      "select": "Select…"
-    },
-    "pager": {
-      "label": "Table pages",
-      "range": "{from}–{to} of {total}",
-      "page": "Page {page} of {pages}",
-      "prev": "Previous page",
-      "next": "Next page"
     },
     "empty": {
       "notConnected": "Not connected",
@@ -5261,7 +5287,7 @@
         "analyze": "CV analysis",
         "sourcing": "Proactive sourcing",
         "rediscovery": "Talent rediscovery",
-        "devcase": "Dev case"
+        "devcase": "Assignment"
       },
       "variantsTitle": "Creative variants",
       "topByVolume": "top {shown} of {total}",
@@ -5798,7 +5824,11 @@
     "emptyAxisRoles": "Open roles",
     "emptyAxisNone": "None yet — this side of the grid is empty.",
     "emptyAxisReadyCandidates": "{count, plural, one {# ready to plot.} other {# ready to plot.}}",
-    "emptyAxisReadyRoles": "{count, plural, one {# ready to plot.} other {# ready to plot.}}"
+    "emptyAxisReadyRoles": "{count, plural, one {# ready to plot.} other {# ready to plot.}}",
+    "modeLabel": "Matrix view",
+    "modeGrid": "Grid",
+    "modeFocus": "Candidate focus",
+    "introFocus": "Rank one candidate against every open role, with the weights, reasoning and role-to-role comparison a single grid cell has no room for."
   },
   "analyze": {
     "modeNew": "New analysis",
@@ -6172,10 +6202,10 @@
       "interview_scorecard": "Interview scorecard",
       "weight_proposal": "Scoring-weight proposal",
       "jd_ingest": "JD parsing",
-      "devcase_analyze": "Dev case — analyze",
-      "devcase_role_design": "Dev case — role design",
-      "devcase_case_design": "Dev case — case design",
-      "devcase_interview_scenario": "Dev case — interview scenario",
+      "devcase_analyze": "Assignment — analyze",
+      "devcase_role_design": "Assignment — role design",
+      "devcase_case_design": "Assignment — case design",
+      "devcase_interview_scenario": "Assignment — interview scenario",
       "group_compare": "Group compare",
       "campaign_pack": "Campaign pack"
     },
@@ -6243,14 +6273,14 @@
       "jd_ingest": "JD ingest",
       "profile_draft": "Profile draft",
       "group_compare": "Group compare",
-      "devcase_analyze": "Dev cases — analyze",
-      "devcase_role_design": "Dev cases — role design",
-      "devcase_case_design": "Dev cases — case design",
-      "devcase_reflect": "Dev cases — reflect",
-      "devcase_tooling": "Dev cases — tooling",
-      "devcase_evaluate": "Dev cases — evaluate",
-      "devcase_transfer": "Dev cases — transfer",
-      "devcase_judge": "Dev cases — judge",
+      "devcase_analyze": "Assignments — analyze",
+      "devcase_role_design": "Assignments — role design",
+      "devcase_case_design": "Assignments — case design",
+      "devcase_reflect": "Assignments — reflect",
+      "devcase_tooling": "Assignments — tooling",
+      "devcase_evaluate": "Assignments — evaluate",
+      "devcase_transfer": "Assignments — transfer",
+      "devcase_judge": "Assignments — judge",
       "interview_scorecard": "Interview scorecard",
       "github_analysis": "GitHub analysis",
       "cv_analysis": "CV analysis",
@@ -6622,7 +6652,12 @@
       "colStatus": "Status",
       "colSent": "Sent",
       "resendTitle": "Re-deliver this message through the active channel (recorded as a new outbox row)",
-      "retryResend": "Retry resend"
+      "retryResend": "Retry resend",
+      "count": "{count} messages",
+      "countFiltered": "{shown} of {total} messages",
+      "deadLetters": "{count} need attention",
+      "filteredEmpty": "No message matches these filters.",
+      "clearFilters": "Clear filters"
     },
     "outboxKind": {
       "acknowledgement": "acknowledgement",
@@ -6665,7 +6700,7 @@
       "intro": "Each question verifies the candidate owns a real decision from their submission. Listen-for / red-flag notes are interviewer-internal.",
       "doc": {
         "heading": "Interview kit — {case}",
-        "caseFallback": "Dev case",
+        "caseFallback": "Assignment",
         "candidateLine": "Candidate: {ref}{fit}",
         "fit": "transfer fit {score}",
         "intro": "Each question verifies the candidate owns a real decision from their submission. The _listen for_ / _red flag_ notes are interviewer-internal — never read them aloud.",
@@ -7669,7 +7704,7 @@
     "eyebrow": "Oversight",
     "title": "Autonomy control room",
     "intro": "Human oversight for the autonomous hiring pipeline — a kill switch, the human gates awaiting you, and an immutable audit trail of every automated decision (the record-keeping a high-risk AI hiring system requires).",
-    "backToDevCases": "← Dev cases",
+    "backToDevCases": "← Assignments",
     "autonomy": {
       "statePaused": "Automation is PAUSED",
       "stateRunning": "Automation is running",

@@ -14,7 +14,9 @@ import {
   clearedTabScopedParams,
   DEFAULT_TAB,
   isWorkspaceTabId,
+  LEGACY_TAB_ALIASES,
   NAV_GROUPS,
+  resolveTabParam,
   tabHref,
   TAB_SCOPED_PARAM_KEYS,
   WORKSPACE_TAB_IDS,
@@ -66,6 +68,28 @@ test("history and tasks are valid ids but intentionally absent from NAV_GROUPS",
   }
 });
 
+// The Tools rebrand (profile → archetypes, dev → assignments) changed ids that were
+// already in bookmarks and pasted links. Dropping them would have landed those on
+// Overview — a silent "the feature is gone". These three tests pin the redirect.
+test("legacy tab ids resolve to their renamed tab", () => {
+  assert.equal(resolveTabParam("profile"), "archetypes");
+  assert.equal(resolveTabParam("dev"), "assignments");
+});
+
+test("every alias target is a live tab id, and no alias shadows one", () => {
+  for (const [legacy, live] of Object.entries(LEGACY_TAB_ALIASES)) {
+    assert.equal(isWorkspaceTabId(live), true, `alias ${legacy} must point at a live tab id`);
+    // An alias whose own key is still a live id would be dead code that also
+    // silently overrides nothing — a sign the rename was never finished.
+    assert.equal(isWorkspaceTabId(legacy), false, `${legacy} is retired, so it must not also be a live id`);
+  }
+});
+
+test("resolveTabParam passes live ids through and rejects everything else", () => {
+  for (const id of WORKSPACE_TAB_IDS) assert.equal(resolveTabParam(id), id);
+  for (const bad of ["nope", "Profile", "", null, undefined]) assert.equal(resolveTabParam(bad), null);
+});
+
 test("tabHref points the default tab at / and every other tab at /?tab=<id>", () => {
   assert.equal(tabHref(DEFAULT_TAB), "/");
   for (const id of WORKSPACE_TAB_IDS) {
@@ -100,7 +124,7 @@ test("clearedTabScopedParams nulls every tab-scoped key and nothing else", () =>
 test("a tab switch clears every tab-scoped param but preserves the rest", () => {
   // Every tab-scoped key is present, plus an unrelated global param.
   const current =
-    "tab=profile&" + TAB_SCOPED_PARAM_KEYS.map((k) => `${k}=x`).join("&") + "&theme=dark";
+    "tab=archetypes&" + TAB_SCOPED_PARAM_KEYS.map((k) => `${k}=x`).join("&") + "&theme=dark";
   const params = paramsOf(buildTabSwitchUrl("jobs", current));
   assert.equal(params.get("tab"), "jobs");
   for (const key of TAB_SCOPED_PARAM_KEYS) {
@@ -119,7 +143,7 @@ test("selectTab's old literal would have leaked the params added since", () => {
   // Reproduces the original buildUrl({ tab, profile: null, job: null }) call and
   // proves it leaks the deep-link params introduced after it (edit, jd*) — the
   // regression this contract exists to prevent.
-  const leaked = paramsOf(buildTabSwitchUrl("jobs", "tab=profile&edit=cand1&jdTitle=Staff%20Eng"));
+  const leaked = paramsOf(buildTabSwitchUrl("jobs", "tab=archetypes&edit=cand1&jdTitle=Staff%20Eng"));
   assert.equal(leaked.get("edit"), null);
   assert.equal(leaked.get("jdTitle"), null);
 });
@@ -134,11 +158,11 @@ test("buildUrl patches the passed search string and ignores window.location", ()
   const g = globalThis as { window?: unknown };
   const prev = g.window;
   // A stale window.location.search that, if read, would clobber the patch below.
-  g.window = { location: { search: "?tab=profile&profile=STALE" } };
+  g.window = { location: { search: "?tab=archetypes&profile=STALE" } };
   try {
-    // Compose off the *committed* state (tab=match) — the stale window must not leak in.
-    const href = paramsOf(buildUrl({ profile: "fresh" }, "tab=match"));
-    assert.equal(href.get("tab"), "match");
+    // Compose off the *committed* state (tab=matrix) — the stale window must not leak in.
+    const href = paramsOf(buildUrl({ profile: "fresh" }, "tab=matrix"));
+    assert.equal(href.get("tab"), "matrix");
     assert.equal(href.get("profile"), "fresh");
   } finally {
     if (prev === undefined) delete g.window;
@@ -149,8 +173,8 @@ test("buildUrl patches the passed search string and ignores window.location", ()
 test("buildUrl preserves unrelated params already in the search string", () => {
   // The exact lost-nav symptom: a prior nav set job=j1; the next patch (profile=c1)
   // must STACK on it, not drop it.
-  const href = paramsOf(buildUrl({ profile: "c1" }, "tab=match&job=j1"));
-  assert.equal(href.get("tab"), "match");
+  const href = paramsOf(buildUrl({ profile: "c1" }, "tab=matrix&job=j1"));
+  assert.equal(href.get("tab"), "matrix");
   assert.equal(href.get("job"), "j1");
   assert.equal(href.get("profile"), "c1");
 });

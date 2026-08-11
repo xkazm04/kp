@@ -252,9 +252,13 @@ export function useMatrixTab() {
     return { uncovered, total: cols.length };
   }, [cols, colScores]);
 
-  const open = (candId: string, posId: string) => router.push(buildUrl({ tab: "match", profile: candId, job: posId }, search.toString()));
+  // "View full match" no longer LEAVES this tab: Match became Matrix's candidate-focus
+  // mode, so the same params (?profile=<candidate>&job=<position>) now switch mode in
+  // place — MatrixTab derives the mode from ?profile=. The grid's filters, scroll and
+  // scope survive the trip, which they never did across a tab switch.
+  const open = (candId: string, posId: string) => router.push(buildUrl({ tab: "matrix", profile: candId, job: posId }, search.toString()));
 
-  // Navigating to the full Match view — don't restore focus to the now-hidden
+  // Switching to the full ranking — don't restore focus to the now-hidden
   // cell (that's what closePopover does); just clear the ref and close.
   const viewFullMatchAndClose = (candId: string, posId: string) => {
     open(candId, posId);

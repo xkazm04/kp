@@ -23,7 +23,7 @@ export const DISMISS_KEY = "kp-getting-started-dismissed";
 export const STEPS = [
   { key: "company", tab: "organization", target: '[data-sim="org-console"]' },
   { key: "firstRole", tab: "library", target: '[data-sim="jd-builder"]' },
-  { key: "case", tab: "dev", target: '[data-sim="dev-need"]' },
+  { key: "case", tab: "assignments", target: '[data-sim="dev-need"]' },
   { key: "channels", tab: "channels", target: '[data-sim="channel-inbound"]' },
   { key: "team", tab: "organization", target: '[data-sim="org-console"]' },
 ] as const;

@@ -173,11 +173,11 @@ back, keyed by the message's `ref` + `kind`:
 | `app/api/comms/callback/route.ts` | Async bounce/delivery receipt intake. |
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
 | `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsBouncedResend.tsx`) | Channels tab UI: relay config, Comms Center table, bounce resend. |
-| `app/features/hiring/channels/ChannelsTablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
+| `app/features/hiring/channels/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
 
 ## Channels tab: paging and the render cascade
 
-**Every table pages in 20s.** `ChannelsTablePager` is shared by the Comms ledger
+**Every table pages in 20s.** `_components/table/TablePager` is shared by the Comms ledger
 and the email/ad-form receiver tables. It replaced the ledger's "Show more"
 button, which appended another 40 rows to the same list until the column filters
 (which live in the table header) had scrolled far out of reach. Paging is a pure

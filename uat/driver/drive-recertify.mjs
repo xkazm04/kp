@@ -192,7 +192,7 @@ async function flowC() {
 }
 
 async function flowD() {
-  await page.goto(BASE_URL + "/?tab=dev", { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.goto(BASE_URL + "/?tab=assignments", { waitUntil: "domcontentloaded", timeout: 60000 });
   await sleep(3000);
   await page.getByText("Define need", { exact: false }).first().click({ timeout: 15000 });
   await sleep(2000);

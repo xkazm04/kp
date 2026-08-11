@@ -62,7 +62,7 @@ export function usePipelineNavigation({
       setDrawerEntry(e);
       return;
     }
-    const href = buildUrl({ tab: "match", profile: e.candidateId }, search.toString());
+    const href = buildUrl({ tab: "matrix", profile: e.candidateId }, search.toString());
     recordRecent({ type: "profile", id: e.candidateId, label: e.candidateLabel, href });
     nav.push(href);
   };

@@ -59,7 +59,7 @@ export function MatchResultsHeader({
           <button
             type="button"
             onClick={() =>
-              router.push(buildUrl({ tab: "profile", fromAnalysis: staleness.newerSlug, rebuild: matchRef.profileId! }, ""))
+              router.push(buildUrl({ tab: "archetypes", fromAnalysis: staleness.newerSlug, rebuild: matchRef.profileId! }, ""))
             }
             className="focus-ring ml-auto inline-flex h-8 items-center gap-1.5 rounded-md border border-amber-300 bg-white px-2.5 text-sm font-semibold text-amber-800 hover:bg-amber-100"
           >

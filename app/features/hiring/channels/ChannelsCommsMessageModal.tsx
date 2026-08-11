@@ -10,7 +10,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import { Modal } from "@/app/_components/Modal";
 import { labelize } from "@/app/_lib/format";
-import { ResendButton } from "@/app/features/tools/devcases/OutboxSection";
+import { ResendButton } from "@/app/features/tools/devcases/ResendButton";
 import { formatRecordedAt, statusTone, type Message, type StatusLabels } from "./channelsCommsHelpers";
 import { BouncedResend } from "./ChannelsCommsBouncedResend";
 
