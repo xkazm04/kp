@@ -3,7 +3,7 @@
     "id": "cal-020",
     "title": "Attorney in Brooklyn, NY",
     "company": "Brooklyn Defender Services",
-    "role_family": "legal",
+    "role_family": "legal_compliance",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

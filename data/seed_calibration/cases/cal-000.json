@@ -3,7 +3,7 @@
     "id": "cal-000",
     "title": "Administrative assistant",
     "company": "Centers Health CARE",
-    "role_family": "administration",
+    "role_family": "general_professional",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

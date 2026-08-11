@@ -82,6 +82,29 @@ OFFICE_FAMILIES: dict[str, list[str]] = {
     "consulting": ["consultant", "business analyst", "strategy analyst", "management consultant", "advisory"],
 }
 
+# Detection keys above -> the LOCKED 16-family catalog ids (taxonomy.role_family_catalog).
+# The keyword buckets predate the taxonomy lock; stamping their raw keys onto the
+# corpus produced labels no other component knows (the 2026-08-11 bench judge read
+# a CORRECT catalog pick as a contradiction of the seeded "administration", and
+# devcase _comparable_roles found nothing for the off-catalog families). Detection
+# stays fine-grained; only the stamped label is canonical.
+FAMILY_TO_CATALOG: dict[str, str] = {
+    "software_engineering": "software_engineering",
+    "data_ai": "data_ai",
+    "product": "product_project",
+    "project_management": "product_project",
+    "marketing": "sales_marketing",
+    "sales": "sales_marketing",
+    "finance": "finance_accounting",
+    "hr": "hr_people",
+    "legal": "legal_compliance",
+    "operations": "operations_logistics",
+    "customer_success": "customer_support",
+    "design": "creative_design",
+    "administration": "general_professional",
+    "consulting": "general_professional",
+}
+
 # Low-collision tokens for clearly non-office / manual / clinical / field roles —
 # this corpus is OFFICE-based ("desk/knowledge work") by the user's scope.
 NON_OFFICE: tuple[str, ...] = (
@@ -242,8 +265,10 @@ def classify_rows(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]
         fam = classify_family(title, jd)
         if fam is None:
             continue
+        # Group by the fine-grained detection key; STAMP the canonical catalog id.
+        catalog_fam = FAMILY_TO_CATALOG.get(fam, fam)
         by_family.setdefault(fam, []).append(
-            {"title": title, "company": company, "jd_text": jd, "role_family": fam, "seniority": classify_seniority(title)}
+            {"title": title, "company": company, "jd_text": jd, "role_family": catalog_fam, "seniority": classify_seniority(title)}
         )
     for fam in by_family:
         by_family[fam].sort(key=lambda r: (r["title"].lower(), r["jd_text"][:80]))

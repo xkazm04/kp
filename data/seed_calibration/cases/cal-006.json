@@ -3,7 +3,7 @@
     "id": "cal-006",
     "title": "Admin/Clerical Recruiter",
     "company": "Knowledge Services",
-    "role_family": "hr",
+    "role_family": "hr_people",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

@@ -3,7 +3,7 @@
     "id": "cal-018",
     "title": "Accountant",
     "company": "Vita Healthcare Group",
-    "role_family": "finance",
+    "role_family": "finance_accounting",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

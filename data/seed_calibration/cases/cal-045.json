@@ -3,7 +3,7 @@
     "id": "cal-045",
     "title": "Attorney, CAMBA Legal Services, Brooklyn",
     "company": "CAMBA",
-    "role_family": "legal",
+    "role_family": "legal_compliance",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

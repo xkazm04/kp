@@ -3,7 +3,7 @@
     "id": "cal-015",
     "title": "Bank Teller",
     "company": "Bank Of America",
-    "role_family": "customer_success",
+    "role_family": "customer_support",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

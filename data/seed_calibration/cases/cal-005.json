@@ -3,7 +3,7 @@
     "id": "cal-005",
     "title": "Accountant",
     "company": "Robert Half Accountemps",
-    "role_family": "finance",
+    "role_family": "finance_accounting",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

@@ -3,7 +3,7 @@
     "id": "cal-028",
     "title": "Bank Teller",
     "company": "US Bank",
-    "role_family": "customer_success",
+    "role_family": "customer_support",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

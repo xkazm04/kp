@@ -3,7 +3,7 @@
     "id": "cal-011",
     "title": "Account Executive",
     "company": "SPECTRUM",
-    "role_family": "sales",
+    "role_family": "sales_marketing",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

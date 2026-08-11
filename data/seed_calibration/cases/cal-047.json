@@ -3,7 +3,7 @@
     "id": "cal-047",
     "title": "Restaurant Operations Manager",
     "company": "Raising Cane's",
-    "role_family": "operations",
+    "role_family": "operations_logistics",
     "seniority": "senior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

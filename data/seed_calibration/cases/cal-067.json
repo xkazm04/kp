@@ -3,7 +3,7 @@
     "id": "cal-067",
     "title": "Assurance Senior, Public Accounting",
     "company": "Beech Valley Solutions",
-    "role_family": "finance",
+    "role_family": "finance_accounting",
     "seniority": "senior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

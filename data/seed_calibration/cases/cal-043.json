@@ -3,7 +3,7 @@
     "id": "cal-043",
     "title": "Assistant Controller",
     "company": "LHH",
-    "role_family": "finance",
+    "role_family": "finance_accounting",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

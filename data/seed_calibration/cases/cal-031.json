@@ -3,7 +3,7 @@
     "id": "cal-031",
     "title": "Accounting Clerk",
     "company": "Church & Dwight Careers",
-    "role_family": "finance",
+    "role_family": "finance_accounting",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

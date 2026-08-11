@@ -3,7 +3,7 @@
     "id": "cal-091",
     "title": "Corporate Recruiter",
     "company": "CareRev",
-    "role_family": "hr",
+    "role_family": "hr_people",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

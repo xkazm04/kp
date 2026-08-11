@@ -3,7 +3,7 @@
     "id": "cal-032",
     "title": "Career Advisor (Career Coach)",
     "company": "Rora (Formerly Ralph)",
-    "role_family": "hr",
+    "role_family": "hr_people",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

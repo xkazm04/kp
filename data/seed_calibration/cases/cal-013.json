@@ -3,7 +3,7 @@
     "id": "cal-013",
     "title": "Administrative Assistant",
     "company": "Physician Affiliate Group of NY",
-    "role_family": "administration",
+    "role_family": "general_professional",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

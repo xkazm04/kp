@@ -3,7 +3,7 @@
     "id": "cal-061",
     "title": "Accounts Receivable-FC",
     "company": "FCX Performance",
-    "role_family": "sales",
+    "role_family": "sales_marketing",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },

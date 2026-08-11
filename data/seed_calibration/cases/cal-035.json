@@ -3,7 +3,7 @@
     "id": "cal-035",
     "title": "Inventory Clerk",
     "company": "Target Stores",
-    "role_family": "operations",
+    "role_family": "operations_logistics",
     "seniority": "medior",
     "source": "hf:jacob-hugging-face/job-descriptions"
   },
