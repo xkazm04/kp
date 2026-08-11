@@ -251,11 +251,25 @@ def deterministic_reasoning(context: dict[str, Any]) -> dict[str, Any]:
 
 
 def _real_cv_tokens(context: dict[str, Any]) -> set[str]:
-    """High-signal tokens from the candidate's real skills + matched skills — used to
-    check that a model-written strength references something concrete, not boilerplate."""
+    """High-signal tokens from the candidate's REAL CV content — used to check that a
+    model-written strength references something concrete, not boilerplate.
+
+    Draws from skills + matched skills AND the narrative fields the prompt asks the
+    model to cite (summary, experienceHighlights, aspirations, workLinks). The first
+    cut checked skill tags only, so a strength grounded in a highlight — exactly what
+    the prompt demands — matched no token and was silently swapped for the template
+    (2026-08-11 bench: a correct, highlight-grounded rationale shipped as the
+    deterministic strengths list)."""
     cand = context.get("candidate", {})
     match = context.get("match", {})
-    raw = [str(s) for s in (cand.get("skills") or [])] + [str(s) for s in (match.get("matchedSkills") or [])]
+    raw = (
+        [str(s) for s in (cand.get("skills") or [])]
+        + [str(s) for s in (match.get("matchedSkills") or [])]
+        + [str(cand.get("summary") or "")]
+        + [str(h) for h in (cand.get("experienceHighlights") or [])]
+        + [str(a) for a in (cand.get("aspirations") or [])]
+        + [str(w) for w in (cand.get("workLinks") or [])]
+    )
     tokens: set[str] = set()
     for item in raw:
         for tok in re.split(r"[^0-9a-zA-Z+#.]+", item.lower()):
@@ -272,9 +286,16 @@ def _any_strength_grounded(strengths: list[str], tokens: set[str]) -> bool:
     return any(any(tok in s.lower() for tok in tokens) for s in strengths)
 
 
-def _coerce(payload: Any, context: dict[str, Any]) -> dict[str, Any]:
+def _coerce(payload: Any, context: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    """Validate the model payload; returns (reasoning, degraded).
+
+    ``degraded`` is True when the CORE of the result (verdict + strengths) came
+    from the deterministic template rather than the model — the caller reports
+    that as source="deterministic" so a coerced-away answer can never pose as
+    LLM output (truthful delivery claims; the bench's judged-quality axis relies
+    on the same honesty)."""
     if not isinstance(payload, dict):
-        return deterministic_reasoning(context)
+        return deterministic_reasoning(context), True
 
     def _list(key: str) -> list[str]:
         v = payload.get(key)
@@ -287,8 +308,10 @@ def _coerce(payload: Any, context: dict[str, Any]) -> dict[str, Any]:
         "gaps": _list("gaps"),
         "interviewProbes": _list("interviewProbes"),
     }
+    degraded = False
     # If the model under-delivered, backfill from the deterministic template.
     if not out["verdict"] or not out["strengths"]:
+        degraded = True
         fallback = deterministic_reasoning(context)
         out["verdict"] = out["verdict"] or fallback["verdict"]
         out["strengths"] = out["strengths"] or fallback["strengths"]
@@ -305,7 +328,7 @@ def _coerce(payload: Any, context: dict[str, Any]) -> dict[str, Any]:
     # list is never touched.
     if out["strengths"] and not _any_strength_grounded(out["strengths"], _real_cv_tokens(context)):
         out["strengths"] = deterministic_reasoning(context)["strengths"]
-    return out
+    return out, degraded
 
 
 def generate(
@@ -328,6 +351,10 @@ def generate(
     try:
         prompt = f"{build_prompt(context)}\n\n{language_directive(lang)}"
         payload = provider.complete_json(prompt, system=_system_for(job))
-        return _coerce(payload, context), "llm"
+        out, degraded = _coerce(payload, context)
+        # A core-backfilled result IS the deterministic template — say so instead
+        # of billing the fallback's words to the model (the tokens were spent, but
+        # the answer on the wire is not the model's).
+        return out, ("deterministic" if degraded else "llm")
     except Exception:
         return deterministic_reasoning(context), "deterministic"

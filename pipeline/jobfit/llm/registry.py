@@ -21,7 +21,7 @@ from typing import Any
 
 from .adapters import ADAPTERS
 from .base import DEFAULT_TIMEOUT_S, LLMError
-from .capabilities import PROVIDER_CAPABILITIES, default_model, unsupported_caps
+from .capabilities import PROVIDER_CAPABILITIES, default_max_tokens, default_model, unsupported_caps
 from .config import LLMConfig, load_config
 from .monitor import MonitoredClaudeCli
 
@@ -96,8 +96,12 @@ def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
         "timeout": entry.timeout_s or timeout or DEFAULT_TIMEOUT_S,
         "use_case": use_case,
     }
-    if entry.max_tokens:
-        kwargs["max_tokens"] = entry.max_tokens
+    # Explicit params.maxTokens wins; else the per-use-case heavy-output default
+    # (capabilities.USE_CASE_MAX_TOKENS) — without it, big structured payloads
+    # truncate at the base 2048 cost cap and ship the deterministic fallback.
+    max_tokens = entry.max_tokens or default_max_tokens(use_case)
+    if max_tokens:
+        kwargs["max_tokens"] = max_tokens
     if provider_name == "azure_openai":
         kwargs["endpoint"] = keys.endpoint if keys else None
         kwargs["api_version"] = keys.api_version if keys else None

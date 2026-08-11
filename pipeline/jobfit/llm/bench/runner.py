@@ -17,7 +17,7 @@ from typing import Any, Callable, Sequence
 
 from ...claude_cli import ClaudeCliProvider
 from ..adapters import ADAPTERS
-from ..capabilities import default_model
+from ..capabilities import default_max_tokens, default_model
 from ..monitor import MonitoredClaudeCli
 from .scenarios import REGISTRY_USE_CASE, Scenario, scenarios_for
 
@@ -76,7 +76,13 @@ def build_provider(target: BenchTarget, use_case: str) -> Any:
     model = target.model or default_model(registry_use_case, target.provider)
     if not model:
         raise ValueError(f"target {target.label!r} needs an explicit model (e.g. azure_openai:<deployment>)")
-    return ADAPTERS[target.provider](model=model, use_case=registry_use_case)
+    kwargs: dict[str, Any] = {"model": model, "use_case": registry_use_case}
+    # Same heavy-output ceiling the production registry applies — without it the
+    # bench measures 2048-token truncation, not the model (2026-08-05 artifact).
+    max_tokens = default_max_tokens(registry_use_case)
+    if max_tokens:
+        kwargs["max_tokens"] = max_tokens
+    return ADAPTERS[target.provider](**kwargs)
 
 
 def record_calls(provider: Any) -> list[Any]:

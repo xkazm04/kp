@@ -40,7 +40,7 @@ from ...match_reasoning import generate
 from ...matching import MatchCandidate, load_corpus, score_job
 from ...profile import CandidateProfileV2
 from ...transform import build_match_candidate
-from ...weight_proposal import generate as weight_proposal_generate
+from ...weight_proposal import generate as weight_proposal_generate, proposal_context
 from . import contracts
 
 # A generic interviewer transcript used to seed the interview_scorecard op — role-agnostic
@@ -151,6 +151,58 @@ class Scenario:
     meta: dict[str, Any] = field(default_factory=dict)
 
 
+# meta["judgeInput"] — a compact excerpt of the REAL input the production call
+# renders into its prompt, stamped by each builder so the LLM judge can check
+# the output's claims against evidence instead of scoring style in a vacuum
+# (judge.py shows it under its own "Input evidence" heading, truncated there
+# too).
+#
+# COMPLETENESS over brevity (calib-a lesson, 2026-08-11): the first cut carried
+# only label/skills/summary — the judge then scored a model 2/10 for "fabricating"
+# a Seznam.cz role that is VERBATIM in the candidate's experience_highlights, and
+# campaign copy for "inventing" the employer that sits in the job's description
+# excerpt. An evidence-grounded judge with starved evidence manufactures
+# fabrication findings — so the excerpt must cover every fact CATEGORY the
+# production prompt feeds the model (highlights, education, aspirations, the
+# description excerpt), even if each is truncated.
+_JI_MAX = 4000
+
+
+def _ji(text: str) -> str:
+    return text[:_JI_MAX]
+
+
+def _candidate_facts(candidate: MatchCandidate, m) -> str:
+    """The candidate×match facts most outputs must stay grounded in — every
+    category the production prompts feed (skills, highlights, education,
+    aspirations, languages), not just the skill list."""
+    highlights = "; ".join(h[:220] for h in (candidate.experience_highlights or [])[:4]) or "-"
+    return _ji(
+        f"Candidate: {candidate.label} — {candidate.seniority} {candidate.archetype}; "
+        f"education: {candidate.education_level}; years: {candidate.years_experience}; "
+        f"languages: {', '.join(candidate.languages or []) or '-'}; "
+        f"skills: {', '.join(candidate.skills[:12])}; summary: {candidate.summary or '-'}\n"
+        f"Experience highlights: {highlights}\n"
+        f"Aspirations: {', '.join((candidate.aspirations or [])[:3]) or '-'}; "
+        f"potential: {candidate.potential_score}\n"
+        f"Match: total {m.total}/100; matched: {', '.join(m.matched_skills[:8]) or '-'}; "
+        f"missing: {', '.join(m.missing_skills[:8]) or '-'}; tier: {m.fit_tier}"
+    )
+
+
+def _job_facts(job) -> str:
+    return _ji(
+        f"Job: {job.title} ({job.id}), {job.seniority} {job.role_family}; "
+        f"company: {job.company or '-'}; location: {job.location or '-'}; "
+        f"work mode: {getattr(job, 'work_mode', '') or '-'}; "
+        f"languages: {', '.join(job.languages or []) or '-'}; "
+        f"skills: {', '.join((job.detected_skills or [])[:12])}; "
+        f"salary band: {list(job.salary_band or []) or None}; "
+        f"requirements: {'; '.join(f'{r.skill} ({r.kind})' for r in (job.requirements or [])[:6])}\n"
+        f"Description excerpt: {(job.description or '')[:600]}"
+    )
+
+
 def load_seed_candidates(limit: int | None = None) -> list[MatchCandidate]:
     """Seed CandidateProfileV2 rows → MatchCandidate, via the same transform
     production uses for --profile-json input. Malformed rows are skipped —
@@ -196,7 +248,8 @@ def match_reasoning_scenarios(*, limit: int = 8, lang: str = "en") -> list[Scena
                 use_case="match_reasoning",
                 run=run,
                 contract=contracts.match_reasoning,
-                meta={"jobId": job.id, "candidate": candidate.label, "matchTotal": m.total, "lang": lang},
+                meta={"jobId": job.id, "candidate": candidate.label, "matchTotal": m.total, "lang": lang,
+                      "judgeInput": _candidate_facts(candidate, m) + "\n" + _job_facts(job)},
             )
         )
     return out
@@ -217,7 +270,8 @@ def automation_screen_scenarios(*, limit: int = 8, lang: str = "en") -> list[Sce
                 use_case="automation_screen",
                 run=run,
                 contract=contracts.automation_screen,
-                meta={"jobId": job.id, "candidate": candidate.label, "matchTotal": m.total},
+                meta={"jobId": job.id, "candidate": candidate.label, "matchTotal": m.total,
+                      "judgeInput": _candidate_facts(candidate, m) + "\n" + _job_facts(job)},
             )
         )
     return out
@@ -239,7 +293,8 @@ def automation_outreach_scenarios(*, limit: int = 8, lang: str = "en") -> list[S
                 use_case="automation_outreach",
                 run=run,
                 contract=contracts.automation_outreach,
-                meta={"jobId": job.id, "candidate": candidate.label},
+                meta={"jobId": job.id, "candidate": candidate.label,
+                      "judgeInput": _candidate_facts(candidate, m) + "\n" + _job_facts(job)},
             )
         )
     return out
@@ -260,7 +315,8 @@ def automation_rejection_scenarios(*, limit: int = 8, lang: str = "en") -> list[
                 use_case="automation_rejection",
                 run=run,
                 contract=contracts.automation_rejection,
-                meta={"jobId": job.id, "candidate": candidate.label},
+                meta={"jobId": job.id, "candidate": candidate.label,
+                      "judgeInput": _candidate_facts(candidate, m) + "\n" + _job_facts(job)},
             )
         )
     return out
@@ -281,7 +337,8 @@ def automation_offer_scenarios(*, limit: int = 8, lang: str = "en") -> list[Scen
                 use_case="automation_offer",
                 run=run,
                 contract=contracts.automation_offer,
-                meta={"jobId": job.id, "candidate": candidate.label, "matchTotal": m.total},
+                meta={"jobId": job.id, "candidate": candidate.label, "matchTotal": m.total,
+                      "judgeInput": _candidate_facts(candidate, m) + "\n" + _job_facts(job)},
             )
         )
     return out
@@ -301,7 +358,8 @@ def interview_prep_scenarios(*, limit: int = 8, lang: str = "en") -> list[Scenar
                 use_case="interview_prep",
                 run=run,
                 contract=contracts.interview_prep,
-                meta={"jobId": job.id, "candidate": candidate.label, "matchTotal": m.total},
+                meta={"jobId": job.id, "candidate": candidate.label, "matchTotal": m.total,
+                      "judgeInput": _candidate_facts(candidate, m) + "\n" + _job_facts(job)},
             )
         )
     return out
@@ -320,7 +378,8 @@ def interview_scorecard_scenarios(*, limit: int = 8, lang: str = "en") -> list[S
                 use_case="interview_scorecard",
                 run=run,
                 contract=contracts.interview_scorecard,
-                meta={"jobId": job.id, "candidate": candidate.label},
+                meta={"jobId": job.id, "candidate": candidate.label,
+                      "judgeInput": _ji("Job: " + job.title + " (" + job.seniority + " " + job.role_family + ")\nTranscript:\n" + _SEED_TRANSCRIPT)},
             )
         )
     return out
@@ -342,7 +401,13 @@ def weight_proposal_scenarios(*, limit: int = 8, lang: str = "en") -> list[Scena
                 use_case="weight_proposal",
                 run=run,
                 contract=contracts.weight_proposal,
-                meta={"jobId": job.id, "nCandidates": len(cand_pairs)},
+                meta={"jobId": job.id, "nCandidates": len(cand_pairs),
+                      "judgeInput": _ji(_job_facts(job) + "\nPer-candidate rows (archetype, dims, matched-must-have provenance): "
+                                        + json.dumps([{"id": r["candidateId"], "arch": r["archetype"],
+                                                       "dims": r["dimensionScores"], "mustProv": r["matchedMustHaves"],
+                                                       "missing": r["missingMustHaves"][:4], "potential": r["potentialScore"],
+                                                       "bounds": r["weightBounds"]}
+                                                      for r in proposal_context(cand_pairs, job)["candidates"]], ensure_ascii=False))},
             )
         )
     return out
@@ -365,7 +430,8 @@ def jd_ingest_scenarios(*, limit: int = 8, lang: str = "en") -> list[Scenario]:
                 use_case="jd_ingest",
                 run=run,
                 contract=contracts.jd_ingest,
-                meta={"jobId": jd.get("id"), "title": jd.get("title"), "roleFamily": jd.get("role_family")},
+                meta={"jobId": jd.get("id"), "title": jd.get("title"), "roleFamily": jd.get("role_family"),
+                      "judgeInput": _ji(jd.get("jd_text") or "")},
             )
         )
     return out
@@ -394,7 +460,8 @@ def devcase_analyze_scenarios(*, limit: int = 8, lang: str = "en") -> list[Scena
                 use_case="devcase_analyze",
                 run=run,
                 contract=contracts.devcase_analyze,
-                meta={"jobId": jd["id"], "title": jd["title"], "roleFamily": jd["role_family"]},
+                meta={"jobId": jd["id"], "title": jd["title"], "roleFamily": jd["role_family"],
+                      "judgeInput": _ji(jd["jd_text"])},
             )
         )
     return out
@@ -416,7 +483,8 @@ def devcase_role_design_scenarios(*, limit: int = 8, lang: str = "en") -> list[S
                 use_case="devcase_role_design",
                 run=run,
                 contract=contracts.devcase_role_design,
-                meta={"jobId": need.id, "title": need.title, "roleFamily": need.role_family},
+                meta={"jobId": need.id, "title": need.title, "roleFamily": need.role_family,
+                      "judgeInput": _ji("JD (" + need.title + "):\n" + need.jd_text)},
             )
         )
     return out
@@ -439,7 +507,8 @@ def devcase_case_design_scenarios(*, limit: int = 8, lang: str = "en") -> list[S
                 use_case="devcase_case_design",
                 run=run,
                 contract=contracts.devcase_case_design,
-                meta={"jobId": need.id, "title": need.title},
+                meta={"jobId": need.id, "title": need.title,
+                      "judgeInput": _ji("Role: " + str(role.get("title", need.title)) + "\nJD:\n" + need.jd_text)},
             )
         )
     return out
@@ -451,6 +520,11 @@ def devcase_interview_scenario_scenarios(*, limit: int = 8, lang: str = "en") ->
         case = CaseScenario.model_validate(cal["case"])
         role = RoleSpec.model_validate(cal["role"])
         job_id = cal.get("job", {}).get("id", f"cal-{i:03d}")
+        # Fixture completeness: the calibration cases predate case ids, so the
+        # scenario's case_id passthrough surfaced as an empty string the judge
+        # (rightly) flagged. Production cases always carry an id.
+        if not case.id:
+            case = case.model_copy(update={"id": job_id})
 
         def run(provider: Any, case=case, role=role, lang=lang):
             return scenario_from_case(case, role, provider=provider, lang=lang)
@@ -461,7 +535,11 @@ def devcase_interview_scenario_scenarios(*, limit: int = 8, lang: str = "en") ->
                 use_case="devcase_interview_scenario",
                 run=run,
                 contract=contracts.devcase_interview_scenario,
-                meta={"jobId": job_id, "caseTitle": case.title},
+                meta={"jobId": job_id, "caseTitle": case.title,
+                      "judgeInput": _ji("Case: " + case.title + " (role: " + role.title + ")\nBrief: "
+                                        + str(getattr(case, "brief", "") or "") + "\nTasks: "
+                                        + "; ".join((case.tasks or [])[:6]) + "\nCover probes: "
+                                        + "; ".join(f"{cp.id}@{cp.where}: {cp.reveals}" for cp in (case.cover_probes or [])[:4]))},
             )
         )
     return out
@@ -518,7 +596,8 @@ def group_compare_scenarios(*, limit: int = 8, lang: str = "en") -> list[Scenari
                 use_case="group_compare",
                 run=run,
                 contract=contracts.group_compare,
-                meta={"jobId": job.id, "roleTitle": job.title, "nCandidates": len(scored)},
+                meta={"jobId": job.id, "roleTitle": job.title, "nCandidates": len(scored),
+                      "judgeInput": _ji(json.dumps(context, ensure_ascii=False))},
             )
         )
     return out
@@ -539,7 +618,8 @@ def campaign_pack_scenarios(*, limit: int = 8, lang: str = "en") -> list[Scenari
                 use_case="campaign_pack",
                 run=run,
                 contract=contracts.campaign_pack,
-                meta={"jobId": job.id, "lang": lang},
+                meta={"jobId": job.id, "lang": lang,
+                      "judgeInput": _ji(_job_facts(job) + "\nApply URL: https://example.invalid/apply/" + job.id + "/quick")},
             )
         )
     return out

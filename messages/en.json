@@ -6219,7 +6219,6 @@
       "title": "Routing",
       "intro": "A pinned row overrides the built-in default for that use case; use cases without a pin run on the built-in default (Claude CLI in local development).",
       "colUseCase": "Use case",
-      "recTitle": "Best measured model for this use case: {model} ({score})",
       "colProvider": "Provider",
       "colModel": "Model",
       "colState": "State",
@@ -6245,7 +6244,16 @@
       "testOkNoLatency": "OK — {provider} / {model}",
       "testFailed": "Test failed.",
       "testUnavailable": "The test endpoint isn't available yet.",
-      "updated": "Updated {date}"
+      "updated": "Updated {date}",
+      "sections": {
+        "matching": "Matching & decisions",
+        "automation": "Automation & outreach",
+        "roles": "Roles & intake",
+        "profiles": "Candidates & profiles",
+        "interviews": "Interviews",
+        "assignments": "Assignments",
+        "other": "Other"
+      }
     },
     "usage": {
       "title": "Usage & cost",
@@ -6329,6 +6337,32 @@
       "kpSecretHint": "Fix: set the KP_SECRET environment variable on the server, then save again.",
       "replace": "Replace key",
       "replaceWarning": "A key already exists for {provider} ({scope}). Saving overwrites it — this can't be undone."
+    },
+    "useCaseDesc": {
+      "match_reasoning": "Writes the recruiter-facing rationale for why a candidate fits a job — or doesn't.",
+      "group_compare": "Compares a role's shortlist head-to-head and recommends the next action.",
+      "weight_proposal": "Proposes how to weight skills, career and personality when ranking a group against a role.",
+      "agent_fit": "Turns a job into an agent-fit spec for the agent–candidate bridge.",
+      "automation": "Drafts the pipeline's messages: screening summaries, outreach, rejections, offers and interview prep.",
+      "campaign_pack": "Builds the job-ad campaign pack — feed-ready ad variants and 15-second video scripts.",
+      "jd_ingest": "Parses a pasted job posting into structured fields.",
+      "role_intake": "Leads the hiring-need dialog that turns a conversation into a role brief.",
+      "role_intake_voice": "The spoken side of the role intake — fast plain-text turns at speech pace.",
+      "cv_analysis": "Reads an uploaded CV into the full analysis and job-fit scoring.",
+      "profile_extract": "Extracts a structured candidate profile from an uploaded document.",
+      "profile_draft": "Drafts a candidate profile from partial input in the profile builder.",
+      "github_analysis": "Reads a candidate's public GitHub for engineering signals.",
+      "interview_scorecard": "Turns an interview transcript into a structured scorecard with a recommendation.",
+      "devcase_analyze": "Analyzes a role's real stack, gaps and risks before an assignment is designed.",
+      "devcase_role_design": "Designs the role spec an assignment is built against.",
+      "devcase_case_design": "Designs the hands-on case itself: brief, tasks, hidden probes and rubric.",
+      "devcase_interview_scenario": "Turns a designed case into a live interview scenario.",
+      "devcase_seed": "Materializes the assignment's starter repository and the frozen baseline solve.",
+      "devcase_reflect": "Generates reflection questions from the candidate's commits.",
+      "devcase_evaluate": "Scores a submitted assignment against the case rubric; also serves the in-session chat.",
+      "devcase_judge": "The independent second-model judge over assignment evaluations.",
+      "devcase_tooling": "Reserved for the assignment tooling evaluator — no live call site yet.",
+      "devcase_transfer": "Reserved for the assignment transfer evaluator — no live call site yet."
     }
   },
   "jdPublic": {

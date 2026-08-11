@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import dynamic from "next/dynamic";
 import { Defer } from "@/app/_components/ui/Defer";
@@ -9,6 +9,7 @@ import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { labelize } from "@/app/_lib/format";
 import type { LlmConfigRow } from "@/app/_lib/db/llm";
 import { ModelsRoutingRow } from "./ModelsRoutingRow";
+import { sectionizeUseCases } from "./modelsRoutingSections";
 
 // Tier 3 (docs/design/loading-choreography.md): the three panels below the routing
 // table are secondary — nobody opens Models to read the usage ledger first. They
@@ -68,12 +69,25 @@ export function ModelsTab() {
     return t.has(key) ? t(key) : labelize(useCase);
   };
 
+  // One-sentence "where the LLM applies" description per use case — the ★
+  // best-measured hint moved to the Measured-quality panel; a routing row now
+  // explains its process step instead. Absent key → no line (never a raw id).
+  const descFor = (useCase: string): string | null => {
+    const key = `useCaseDesc.${useCase}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : null;
+  };
+
+  const sectionTitle = (key: string): string => {
+    const k = `routing.sections.${key}` as Parameters<typeof t>[0];
+    return t.has(k) ? t(k) : labelize(key);
+  };
+
   const rowFor = (useCase: string): LlmConfigRow | null =>
     config?.rows.find((r) => r.useCase === useCase) ?? null;
 
-  // The catch-all "*" leads the table (LLM_USE_CASES already orders it first;
-  // re-sorting here keeps that true even if the server list changes).
-  const useCases = config ? [...config.useCases].sort((a, b) => (a === "*" ? -1 : b === "*" ? 1 : 0)) : [];
+  // The server list partitioned into the curated functional sections (the "*"
+  // catch-all leads as its own section; unknown server ids trail under "other").
+  const sections = config ? sectionizeUseCases(config.useCases) : [];
 
   return (
     // Tier 1: the header + whatever has arrived cascade in as this section's
@@ -124,21 +138,34 @@ export function ModelsTab() {
                 </tr>
               </thead>
               <tbody>
-                {useCases.map((useCase) => {
-                  const row = rowFor(useCase);
-                  return (
-                    <ModelsRoutingRow
-                      // Re-key on the saved pin so a fresh server row resets the draft.
-                      key={`${useCase}:${row ? `${row.provider}:${row.model ?? ""}:${row.updatedAt}` : "default"}`}
-                      useCase={useCase}
-                      label={labelFor(useCase)}
-                      hint={useCase === "*" ? t("routing.defaultRowHint") : null}
-                      row={row}
-                      providers={config.providers}
-                      onRows={(rows) => setConfig((c) => (c ? { ...c, rows } : c))}
-                    />
-                  );
-                })}
+                {sections.map((section) => (
+                  <Fragment key={section.key}>
+                    {/* The "default" section is the single "*" row — its own hint
+                        explains it, so a header above it would just repeat it. */}
+                    {section.key !== "default" ? (
+                      <tr>
+                        <th colSpan={5} scope="colgroup" className="pb-1.5 pt-5 text-left">
+                          <span className={EYEBROW}>{sectionTitle(section.key)}</span>
+                        </th>
+                      </tr>
+                    ) : null}
+                    {section.useCases.map((useCase) => {
+                      const row = rowFor(useCase);
+                      return (
+                        <ModelsRoutingRow
+                          // Re-key on the saved pin so a fresh server row resets the draft.
+                          key={`${useCase}:${row ? `${row.provider}:${row.model ?? ""}:${row.updatedAt}` : "default"}`}
+                          useCase={useCase}
+                          label={labelFor(useCase)}
+                          description={useCase === "*" ? t("routing.defaultRowHint") : descFor(useCase)}
+                          row={row}
+                          providers={config.providers}
+                          onRows={(rows) => setConfig((c) => (c ? { ...c, rows } : c))}
+                        />
+                      );
+                    })}
+                  </Fragment>
+                ))}
               </tbody>
             </table>
           </div>

@@ -64,9 +64,13 @@ class LlmPathTest(unittest.TestCase):
         self.assertEqual(r["verdict"], "Good fit.")
 
     def test_partial_llm_payload_backfilled(self) -> None:
-        # Missing verdict + strengths -> backfilled from the deterministic template.
+        # Missing verdict + strengths -> backfilled from the deterministic template,
+        # and the SOURCE says so: the core of the answer is the template, so
+        # reporting "llm" would bill the fallback's words to the model (the
+        # 2026-08-11 bench caught exactly that green lie contaminating the
+        # judged-quality axis).
         r, source = generate(CAND, JOB, score_job(CAND, JOB), provider=FakeProvider({"gaps": ["x"]}))
-        self.assertEqual(source, "llm")
+        self.assertEqual(source, "deterministic")
         self.assertTrue(r["verdict"])
         self.assertTrue(r["strengths"])
 

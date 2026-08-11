@@ -77,7 +77,8 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
 # no default on purpose: the model IS the customer's deployment name.
 DEFAULT_MODELS: dict[str, str | None] = {
     "anthropic": "claude-haiku-4-5",
-    "openai": "gpt-5-mini",
+    # gpt-5.4-mini (2026-03-17) superseded gpt-5-mini — same tier, current version.
+    "openai": "gpt-5.4-mini",
     "gemini": "gemini-3.6-flash",
     "azure_openai": None,
     "claude_cli": None,  # the CLI's configured default
@@ -88,6 +89,29 @@ DEFAULT_MODELS: dict[str, str | None] = {
     # Qwen Cloud models are addressed by slug — always explicit, like OpenRouter.
     "qwen": None,
 }
+
+# Heavy-output use cases: the payload is structurally LARGE (a proposal per
+# candidate in one call, ~8 ad variants with video scripts, a full case design),
+# so the base DEFAULT_MAX_TOKENS=2048 cost cap TRUNCATES it on API adapters —
+# the JSON then fails the coercion boundary and the identical deterministic
+# fallback ships instead. The 2026-08-05 bench hit exactly this (scorecard/case
+# design stubs judged ~2-3 across three models). These defaults apply when the
+# config row sets no explicit params.maxTokens; an explicit pin still wins.
+USE_CASE_MAX_TOKENS: dict[str, int] = {
+    "weight_proposal": 8192,
+    "campaign_pack": 8192,
+    "interview_scorecard": 6144,
+    "devcase_case_design": 8192,
+    "devcase_role_design": 6144,
+    "devcase_analyze": 6144,
+    "devcase_interview_scenario": 6144,
+    "group_compare": 4096,
+}
+
+
+def default_max_tokens(use_case: str) -> int | None:
+    return USE_CASE_MAX_TOKENS.get(use_case)
+
 
 # Quality-sensitive use cases step up a model class when no model is pinned.
 USE_CASE_MODEL_OVERRIDES: dict[tuple[str, str], str] = {

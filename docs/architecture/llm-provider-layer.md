@@ -47,7 +47,7 @@ deliberate bench run to pick metered default models, org-level (per-tenant)
 | Claude CLI | `pipeline/jobfit/claude_cli.py` | Subprocess provider, **local/dev only** (subscription billing — fine for one dev machine, not for hosted SaaS). |
 | OpenRouter | `openrouter.py` | Bench-only adapter — routes many third-party models through one key for the model-matrix comparison (`docs/architecture/llm-model-matrix.md`); not a production routing target. |
 | Ollama | `ollama.py` | First-class local/on-box models through Ollama's OpenAI-compatible `/v1`. Keyless (not offered in the keys form); models addressed by tag (`lfm2.5:8b`) with no built-in default; endpoint defaults to `http://localhost:11434/v1`, overridable via `keys.ollama.baseUrl` in `KP_LLM_CONFIG` or the `OLLAMA_BASE_URL` env var. |
-| Qwen Cloud | `qwen.py` | qwencloud.com / DashScope-intl **compatible mode** (`https://dashscope-intl.aliyuncs.com/compatible-mode/v1`, override `QWEN_BASE_URL`). One key (`QWEN_API_KEY`/`DASHSCOPE_API_KEY`) serves the Qwen family plus hosted third-party models (`glm-5.2`, `deepseek-v4-flash-0731`) by explicit slug — an OpenRouter-style gateway that IS a production routing target. |
+| Qwen Cloud | `qwen.py` | qwencloud.com / DashScope-intl **compatible mode** (`https://dashscope-intl.aliyuncs.com/compatible-mode/v1`, override `QWEN_BASE_URL`). One key (`QWEN_API_KEY`/`DASHSCOPE_API_KEY`) serves the Qwen family plus hosted third-party models (`deepseek-v4-flash-0731`) by explicit slug — an OpenRouter-style gateway that IS a production routing target. |
 
 Every call site already has a deterministic fallback and an envelope
 `source: "llm" | "deterministic"` (`reasoning-cache-policy.ts` depends on this
@@ -124,6 +124,18 @@ LLM telemetry goes to **LightTrack** (sibling repo `../LightTrack`, self-hosted)
   copied env leaves telemetry off by default). Inspect with
   `GET /v1/events?project=kp` / `GET /v1/costs?project=kp`.
 
+## Output-token ceilings (`capabilities.USE_CASE_MAX_TOKENS`)
+
+The base `DEFAULT_MAX_TOKENS = 2048` is a cost cap sized for the sub-KB JSON most
+wrapped use cases return. Heavy-output use cases (one proposal per candidate in a
+single `weight_proposal` call, ~8 `campaign_pack` variants with video scripts, the
+devcase design artifacts) structurally exceed it on API adapters — the JSON
+truncates, fails coercion, and the deterministic fallback ships, which the
+2026-08-05 bench misread as model weakness. `USE_CASE_MAX_TOKENS` raises the
+default per use case (4–8k); an explicit `params.maxTokens` on the config row
+still wins, and both the production registry and the bench runner apply the same
+table so the bench measures what production runs.
+
 ## Benchmarks (`pipeline/jobfit/llm/bench/`)
 
 Drives the real production functions (same prompts, coercion, fallbacks) over the
@@ -132,6 +144,14 @@ See `docs/architecture/llm-model-matrix.md` for the latest measured results and
 `bake_quality.py` for how results feed the in-app Models-tab scorecard
 (`app/_lib/llm-quality.ts`, `app/_lib/llm-quality-scores.ts` — generated, do not
 hand-edit).
+
+The LLM-as-judge (`bench/judge.py`) scores against an **anchored rubric** (bands
+defined by the decision a recruiter would make with the output; a flawless output
+must land 9–10) and sees an **input-evidence excerpt** per scenario
+(`meta["judgeInput"]`, stamped in `bench/scenarios.py` — the JD text, transcript,
+or candidate×match facts) so correctness is graded against evidence. The earlier
+unanchored, evidence-free judge compressed the whole 7-model matrix into the 5–8
+band. `--judge-model` picks the CLI model alias for the judge seat (e.g. `fable`).
 
 ## Invariants
 

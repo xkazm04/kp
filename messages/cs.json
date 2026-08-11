@@ -6219,7 +6219,6 @@
       "title": "Směrování",
       "intro": "Připnutý řádek přepíše vestavěné výchozí nastavení dané úlohy; úlohy bez připnutí běží na vestavěném výchozím modelu (lokálně Claude CLI).",
       "colUseCase": "Úloha",
-      "recTitle": "Nejlepší naměřený model pro tuto úlohu: {model} ({score})",
       "colProvider": "Poskytovatel",
       "colModel": "Model",
       "colState": "Stav",
@@ -6245,7 +6244,16 @@
       "testOkNoLatency": "OK – {provider} / {model}",
       "testFailed": "Test selhal.",
       "testUnavailable": "Testovací endpoint zatím není k dispozici.",
-      "updated": "Aktualizováno {date}"
+      "updated": "Aktualizováno {date}",
+      "sections": {
+        "matching": "Párování a rozhodování",
+        "automation": "Automatizace a komunikace",
+        "roles": "Pozice a jejich zadání",
+        "profiles": "Kandidáti a profily",
+        "interviews": "Pohovory",
+        "assignments": "Zadání",
+        "other": "Ostatní"
+      }
     },
     "usage": {
       "title": "Spotřeba a náklady",
@@ -6329,6 +6337,32 @@
       "kpSecretHint": "Řešení: nastavte na serveru proměnnou prostředí KP_SECRET a uložte klíč znovu.",
       "replace": "Nahradit klíč",
       "replaceWarning": "Klíč pro {provider} ({scope}) už existuje. Uložením jej přepíšete – tuto akci nejde vrátit zpět."
+    },
+    "useCaseDesc": {
+      "match_reasoning": "Píše zdůvodnění pro náboráře, proč kandidát na pozici sedí – nebo nesedí.",
+      "group_compare": "Porovná užší výběr pozice kandidáta proti kandidátovi a doporučí další krok.",
+      "weight_proposal": "Navrhuje, jak při řazení skupiny vůči pozici vážit dovednosti, kariéru a osobnost.",
+      "agent_fit": "Převádí pozici na specifikaci agent-fit pro most mezi agenty a kandidáty.",
+      "automation": "Připravuje zprávy v pipeline: shrnutí screeningu, oslovení, zamítnutí, nabídky a přípravu na pohovor.",
+      "campaign_pack": "Sestaví kampaňový balíček inzerátu – varianty pro sociální sítě a 15sekundové video scénáře.",
+      "jd_ingest": "Převede vložený inzerát na strukturovaná pole.",
+      "role_intake": "Vede dialog o náborové potřebě, který z rozhovoru vytvoří zadání pozice.",
+      "role_intake_voice": "Mluvená větev zadávání pozice – rychlé textové repliky v tempu řeči.",
+      "cv_analysis": "Načte nahrané CV do úplné analýzy a skórování shody s pozicí.",
+      "profile_extract": "Vytěží strukturovaný profil kandidáta z nahraného dokumentu.",
+      "profile_draft": "Navrhne profil kandidáta z částečných vstupů v editoru profilu.",
+      "github_analysis": "Čte veřejný GitHub kandidáta a hledá inženýrské signály.",
+      "interview_scorecard": "Převede přepis pohovoru na strukturovanou hodnoticí kartu s doporučením.",
+      "devcase_analyze": "Analyzuje skutečný stack, mezery a rizika pozice před návrhem zadání.",
+      "devcase_role_design": "Navrhne specifikaci role, na kterou se zadání staví.",
+      "devcase_case_design": "Navrhne samotný praktický úkol: brief, úlohy, skryté sondy a rubriku.",
+      "devcase_interview_scenario": "Převede navržený úkol na scénář živého pohovoru.",
+      "devcase_seed": "Vytvoří startovní repozitář zadání a zmrazené výchozí řešení.",
+      "devcase_reflect": "Generuje reflexní otázky z commitů kandidáta.",
+      "devcase_evaluate": "Hodnotí odevzdané zadání podle rubriky úkolu; obsluhuje i chat během session.",
+      "devcase_judge": "Nezávislý druhý model, který posuzuje hodnocení zadání.",
+      "devcase_tooling": "Rezervováno pro vyhodnocení použitých nástrojů – zatím bez živého volání.",
+      "devcase_transfer": "Rezervováno pro vyhodnocení přenositelnosti – zatím bez živého volání."
     }
   },
   "jdPublic": {

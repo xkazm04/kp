@@ -1,8 +1,8 @@
 """Qwen Cloud adapter — Alibaba's model marketplace (qwencloud.com / DashScope
 international) through its OpenAI compatible-mode endpoint. One key serves the
-Qwen family plus hosted third-party models (``glm-5.2``,
-``deepseek-v4-flash-0731``, …), so like OpenRouter it is a "many models through
-one key" gateway: models are addressed by slug and there is no built-in default
+Qwen family plus hosted third-party models (``deepseek-v4-flash-0731``, …), so
+like OpenRouter it is a "many models through one key" gateway: models are
+addressed by slug and there is no built-in default
 (capabilities.DEFAULT_MODELS["qwen"] = None).
 
 Inherits the OpenAI chat-completions call and the base's prompt-embedded JSON

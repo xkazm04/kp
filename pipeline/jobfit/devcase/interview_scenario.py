@@ -26,7 +26,7 @@ from .provenance import generate_with_fallback
 
 _LOG = logging.getLogger(__name__)
 
-INTERVIEW_SCENARIO_PROMPT_VERSION = "interview-scenario-v1"
+INTERVIEW_SCENARIO_PROMPT_VERSION = "interview-scenario-v2"
 
 # The shared skeleton — also imported by app/_lib/student-interview.ts, so the
 # phase structure can never drift between the generator and the agent brief.
@@ -54,6 +54,25 @@ _SCRIPT: dict[str, Any] = _load_script()
 
 # Keep the narrated intro tight — roughly two minutes of speech.
 _INTRO_MAX = 600
+
+
+def _clip_intro(text: str) -> str:
+    """Cap the intro WITHOUT chopping mid-sentence. The old hard slice shipped
+    intros ending "…step away for a short" — a spoken artifact cut mid-word is
+    unusable, and the 2026-08-11 bench judge flagged it on every scenario. Cut at
+    the last sentence end inside the cap; only when a single sentence overflows
+    the whole cap fall back to a word-boundary ellipsis."""
+    text = text.strip()
+    if len(text) <= _INTRO_MAX:
+        return text
+    window = text[:_INTRO_MAX]
+    cut = max(window.rfind("."), window.rfind("!"), window.rfind("?"))
+    if cut > _INTRO_MAX // 3:
+        return window[: cut + 1]
+    trimmed = window[: _INTRO_MAX - 1]
+    if " " in trimmed:
+        trimmed = trimmed[: trimmed.rfind(" ")]
+    return trimmed.rstrip() + "…"
 
 _SYSTEM = (
     "You turn a designed work-sample case into the material for a live, AI-led interview with an "
@@ -110,9 +129,7 @@ def deterministic_scenario(case: CaseScenario, role: RoleSpec) -> InterviewScena
             if probe0 and probe0.reveals.strip():
                 p.listen_for = probe0.reveals.strip()
             p.case_ref = f"coverProbes[{probe0.id}]" if probe0 and probe0.id else ("coverProbes[0]" if probe0 else "")
-    intro = f"{case.title or 'A short scenario'}: {(case.brief or 'a short work scenario').strip()}"
-    if len(intro) > _INTRO_MAX:
-        intro = intro[: _INTRO_MAX - 1].rstrip() + "…"
+    intro = _clip_intro(f"{case.title or 'A short scenario'}: {(case.brief or 'a short work scenario').strip()}")
     return InterviewScenario(
         case_id=case.id,
         role_title=role.title,
@@ -147,8 +164,9 @@ def build_prompt(case: CaseScenario, role: RoleSpec) -> str:
     return (
         "Instantiate the case-grounded interview phases for this role from this case. Use ONLY these facts:\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
-        "Write (1) caseIntro: at most two minutes of plain spoken narration introducing the scenario to the "
-        "candidate — context and the problem, NO solutions, NO mention of probes; and (2) for EACH phase in "
+        "Write (1) caseIntro: plain spoken narration introducing the scenario to the candidate — context "
+        f"and the problem, NO solutions, NO mention of probes, UNDER {_INTRO_MAX} characters ending on a "
+        "complete sentence (it is delivered verbatim by a voice agent); and (2) for EACH phase in "
         "caseGroundedPhases, a concrete probe drawn from the case: Mechanism = why the case is shaped the way "
         "it is / what breaks; Counterfactual = flip one REAL constraint of the case; Coachability = the ONE "
         "hint the agent should offer mid-discussion, derived from a cover probe, plus what good uptake looks "
@@ -165,7 +183,7 @@ def _coerce(payload: Any, case: CaseScenario, role: RoleSpec) -> InterviewScenar
         return out
     intro = str(payload.get("caseIntro") or "").strip()
     if intro:
-        out.case_intro = intro[:_INTRO_MAX]
+        out.case_intro = _clip_intro(intro)
     by_phase: dict[str, dict] = {}
     for p in payload.get("phases") or []:
         if isinstance(p, dict) and p.get("phase"):

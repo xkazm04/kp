@@ -84,7 +84,7 @@ class RoutingTest(unittest.TestCase):
         with llm_config({"useCases": {"*": {"provider": "openai"}}}):
             provider = resolve_provider("match_reasoning")
         self.assertIsInstance(provider, OpenAIProvider)
-        self.assertEqual(provider.model, "gpt-5-mini")
+        self.assertEqual(provider.model, "gpt-5.4-mini")
 
     def test_specific_row_beats_wildcard(self) -> None:
         cfg = {
@@ -145,13 +145,13 @@ class RoutingTest(unittest.TestCase):
             with self.assertRaises(LLMError):
                 resolve_provider("match_reasoning")
         cfg = {
-            "useCases": {"match_reasoning": {"provider": "qwen", "model": "glm-5.2"}},
+            "useCases": {"match_reasoning": {"provider": "qwen", "model": "deepseek-v4-flash-0731"}},
             "keys": {"qwen": {"apiKey": "sk-test"}},
         }
         with llm_config(cfg):
             provider = resolve_provider("match_reasoning")
         self.assertIsInstance(provider, QwenProvider)
-        self.assertEqual(provider.model, "glm-5.2")
+        self.assertEqual(provider.model, "deepseek-v4-flash-0731")
         self.assertEqual(provider.api_key, "sk-test")
 
     def test_azure_requires_explicit_model(self) -> None:

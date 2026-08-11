@@ -6219,7 +6219,6 @@
       "title": "Routage",
       "intro": "Une ligne épinglée remplace le modèle par défaut intégré pour ce cas d’usage. Les cas d’usage sans épingle utilisent le modèle par défaut intégré (Claude CLI en développement local).",
       "colUseCase": "Cas d’usage",
-      "recTitle": "Meilleur modèle mesuré pour ce cas d’usage : {model} ({score})",
       "colProvider": "Fournisseur",
       "colModel": "Modèle",
       "colState": "État",
@@ -6245,7 +6244,16 @@
       "testOkNoLatency": "OK – {provider} / {model}",
       "testFailed": "Échec du test.",
       "testUnavailable": "Le point de terminaison de test n’est pas encore disponible.",
-      "updated": "Mis à jour le {date}"
+      "updated": "Mis à jour le {date}",
+      "sections": {
+        "matching": "Matching et décisions",
+        "automation": "Automatisation et prise de contact",
+        "roles": "Postes et cadrage",
+        "profiles": "Candidats et profils",
+        "interviews": "Entretiens",
+        "assignments": "Exercices",
+        "other": "Autres"
+      }
     },
     "usage": {
       "title": "Utilisation et coût",
@@ -6329,6 +6337,32 @@
       "kpSecretHint": "Correction : définissez la variable d’environnement KP_SECRET sur le serveur, puis réenregistrez.",
       "replace": "Remplacer la clé",
       "replaceWarning": "Une clé existe déjà pour {provider} ({scope}). L’enregistrement l’écrasera – action irréversible."
+    },
+    "useCaseDesc": {
+      "match_reasoning": "Rédige l'argumentaire destiné au recruteur expliquant pourquoi un candidat convient au poste – ou non.",
+      "group_compare": "Compare la shortlist d'un poste en face-à-face et recommande la prochaine action.",
+      "weight_proposal": "Propose la pondération des compétences, du parcours et de la personnalité pour classer un groupe sur un poste.",
+      "agent_fit": "Transforme un poste en spécification agent-fit pour la passerelle agents-candidats.",
+      "automation": "Rédige les messages du pipeline : synthèses de présélection, prises de contact, refus, offres et préparation d'entretien.",
+      "campaign_pack": "Construit le pack de campagne de l’annonce – variantes prêtes pour les réseaux sociaux et scripts vidéo de 15 secondes.",
+      "jd_ingest": "Convertit une annonce collée en champs structurés.",
+      "role_intake": "Mène le dialogue de besoin qui transforme une conversation en brief de poste.",
+      "role_intake_voice": "Le volet parlé du cadrage de poste – répliques texte rapides au rythme de la parole.",
+      "cv_analysis": "Lit un CV téléversé pour produire l'analyse complète et le score d'adéquation.",
+      "profile_extract": "Extrait un profil candidat structuré d'un document téléversé.",
+      "profile_draft": "Ébauche un profil candidat à partir d'entrées partielles dans l'éditeur de profil.",
+      "github_analysis": "Lit le GitHub public d'un candidat à la recherche de signaux d'ingénierie.",
+      "interview_scorecard": "Transforme la transcription d'un entretien en scorecard structurée avec recommandation.",
+      "devcase_analyze": "Analyse la stack réelle, les manques et les risques d'un poste avant de concevoir un exercice.",
+      "devcase_role_design": "Conçoit la spécification de rôle sur laquelle l'exercice est construit.",
+      "devcase_case_design": "Conçoit l'exercice pratique lui-même : brief, tâches, sondes cachées et grille.",
+      "devcase_interview_scenario": "Transforme un exercice conçu en scénario d'entretien en direct.",
+      "devcase_seed": "Matérialise le dépôt de départ de l'exercice et la solution de référence figée.",
+      "devcase_reflect": "Génère des questions de réflexion à partir des commits du candidat.",
+      "devcase_evaluate": "Note un exercice soumis selon la grille ; sert aussi le chat de session.",
+      "devcase_judge": "Le second modèle indépendant qui juge les évaluations d'exercices.",
+      "devcase_tooling": "Réservé à l'évaluation de l'outillage – pas encore d'appel actif.",
+      "devcase_transfer": "Réservé à l'évaluation du transfert – pas encore d'appel actif."
     }
   },
   "jdPublic": {

@@ -6,31 +6,30 @@ import { Badge } from "@/app/_components/Badge";
 import { Select } from "@/app/_components/Select";
 import { TextInput } from "@/app/_components/TextInput";
 import type { LlmConfigRow } from "@/app/_lib/db/llm";
-import { bestModelForUseCase } from "@/app/_lib/llm-quality";
-import { QUALITY_SCORES, hasQualityScores } from "@/app/_lib/llm-quality-scores";
 import { saveRoutingPin, resetRoutingPin } from "./modelsRoutingActions";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ModelsRoutingRowActions } from "./ModelsRoutingRowActions";
 import { useProviderName } from "./modelsProviderNames";
 
-const shortModel = (slug: string) => slug.split("/").pop() ?? slug;
-const STAR = "★"; // decorative marker for the measured-best-model hint (not translatable copy)
-
 // One routing row: the pin editor for a single use case. Local draft state
 // (provider/model) initializes from the pinned row; the parent re-keys this
 // component on every saved change, so a fresh server row resets the draft.
-// Split out of ModelsTab.tsx (formerly RoutingRow).
+// Split out of ModelsTab.tsx (formerly RoutingRow). The ★ best-measured-model
+// hint that used to sit under the label moved to the Measured-quality panel;
+// the row now carries a one-sentence description of the process step instead
+// (models.useCaseDesc.<id>, threaded in by the parent).
 export function ModelsRoutingRow({
   useCase,
   label,
-  hint,
+  description,
   row,
   providers,
   onRows,
 }: {
   useCase: string;
   label: string;
-  hint: string | null;
+  /** One short sentence: where in the hiring process this LLM call applies. */
+  description: string | null;
   row: LlmConfigRow | null;
   providers: string[];
   onRows: (rows: LlmConfigRow[]) => void;
@@ -48,9 +47,6 @@ export function ModelsRoutingRow({
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
 
   const dirty = provider !== (row?.provider ?? "") || model.trim() !== (row?.model ?? "");
-  // Best measured model for this use case (across its bench ops) — an evidence
-  // hint the operator can pin. Null for the "*" catch-all and unmeasured cases.
-  const rec = hasQualityScores() ? bestModelForUseCase(QUALITY_SCORES, useCase) : null;
 
   const save = async () => {
     if (!provider || busy) return;
@@ -115,15 +111,7 @@ export function ModelsRoutingRow({
       <tr className="border-b border-stone-100 align-top">
         <td className="py-2.5 pr-3">
           <p className="text-base font-medium text-ink">{label}</p>
-          {rec ? (
-            <p
-              className="mt-0.5 text-sm font-medium text-moss"
-              title={t("recTitle", { model: rec.model, score: rec.composite.toFixed(1) })}
-            >
-              {STAR} {shortModel(rec.model)} {rec.composite.toFixed(1)}
-            </p>
-          ) : null}
-          {hint ? <p className="mt-0.5 text-sm text-steel">{hint}</p> : null}
+          {description ? <p className="mt-0.5 max-w-xs text-sm text-steel">{description}</p> : null}
           {row ? (
             <p className="mt-0.5 text-sm text-steel">
               {t("updated", { date: format.dateTime(new Date(row.updatedAt), { dateStyle: "medium" }) })}

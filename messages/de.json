@@ -6219,7 +6219,6 @@
       "title": "Routing",
       "intro": "Eine angeheftete Zeile überschreibt den integrierten Standard für diesen Anwendungsfall; Anwendungsfälle ohne Anheftung laufen auf dem integrierten Standard (Claude CLI in der lokalen Entwicklung).",
       "colUseCase": "Anwendungsfall",
-      "recTitle": "Bestgemessenes Modell für diesen Anwendungsfall: {model} ({score})",
       "colProvider": "Anbieter",
       "colModel": "Modell",
       "colState": "Status",
@@ -6245,7 +6244,16 @@
       "testOkNoLatency": "OK – {provider} / {model}",
       "testFailed": "Test fehlgeschlagen.",
       "testUnavailable": "Der Test-Endpunkt ist noch nicht verfügbar.",
-      "updated": "Aktualisiert {date}"
+      "updated": "Aktualisiert {date}",
+      "sections": {
+        "matching": "Matching & Entscheidungen",
+        "automation": "Automatisierung & Ansprache",
+        "roles": "Rollen & Aufnahme",
+        "profiles": "Kandidaten & Profile",
+        "interviews": "Interviews",
+        "assignments": "Aufgaben",
+        "other": "Sonstiges"
+      }
     },
     "usage": {
       "title": "Nutzung & Kosten",
@@ -6329,6 +6337,32 @@
       "kpSecretHint": "Lösung: Setzen Sie die Umgebungsvariable KP_SECRET auf dem Server und speichern Sie erneut.",
       "replace": "Schlüssel ersetzen",
       "replaceWarning": "Für {provider} ({scope}) existiert bereits ein Schlüssel. Beim Speichern wird er überschrieben – das lässt sich nicht rückgängig machen."
+    },
+    "useCaseDesc": {
+      "match_reasoning": "Schreibt die Begründung für Recruiter, warum ein Kandidat auf eine Stelle passt – oder nicht.",
+      "group_compare": "Vergleicht die Shortlist einer Stelle direkt und empfiehlt den nächsten Schritt.",
+      "weight_proposal": "Schlägt vor, wie Skills, Werdegang und Persönlichkeit beim Ranking einer Gruppe gewichtet werden.",
+      "agent_fit": "Wandelt eine Stelle in eine Agent-Fit-Spezifikation für die Agent-Kandidaten-Brücke um.",
+      "automation": "Entwirft die Nachrichten der Pipeline: Screening-Zusammenfassungen, Ansprache, Absagen, Angebote und Interviewvorbereitung.",
+      "campaign_pack": "Erstellt das Kampagnenpaket der Stellenanzeige – Feed-taugliche Anzeigenvarianten und 15-Sekunden-Videoskripte.",
+      "jd_ingest": "Wandelt eine eingefügte Stellenanzeige in strukturierte Felder um.",
+      "role_intake": "Führt den Bedarfsdialog, der aus einem Gespräch ein Rollenbriefing macht.",
+      "role_intake_voice": "Der gesprochene Zweig der Rollenaufnahme – schnelle Textrepliken im Sprechtempo.",
+      "cv_analysis": "Liest einen hochgeladenen Lebenslauf in die vollständige Analyse und das Job-Fit-Scoring ein.",
+      "profile_extract": "Extrahiert ein strukturiertes Kandidatenprofil aus einem hochgeladenen Dokument.",
+      "profile_draft": "Entwirft ein Kandidatenprofil aus Teilangaben im Profil-Builder.",
+      "github_analysis": "Liest das öffentliche GitHub-Profil eines Kandidaten auf Engineering-Signale.",
+      "interview_scorecard": "Wandelt ein Interviewtranskript in eine strukturierte Scorecard mit Empfehlung um.",
+      "devcase_analyze": "Analysiert Stack, Lücken und Risiken einer Rolle, bevor eine Aufgabe entworfen wird.",
+      "devcase_role_design": "Entwirft die Rollenspezifikation, auf der eine Aufgabe aufbaut.",
+      "devcase_case_design": "Entwirft die praktische Aufgabe selbst: Briefing, Aufgaben, verdeckte Prüfpunkte und Rubrik.",
+      "devcase_interview_scenario": "Macht aus einer entworfenen Aufgabe ein Szenario für ein Live-Interview.",
+      "devcase_seed": "Erstellt das Start-Repository der Aufgabe und die eingefrorene Referenzlösung.",
+      "devcase_reflect": "Erzeugt Reflexionsfragen aus den Commits des Kandidaten.",
+      "devcase_evaluate": "Bewertet eine eingereichte Aufgabe anhand der Rubrik; bedient auch den Chat in der Session.",
+      "devcase_judge": "Das unabhängige Zweitmodell, das Aufgabenbewertungen beurteilt.",
+      "devcase_tooling": "Reserviert für die Tooling-Auswertung – noch ohne aktiven Aufruf.",
+      "devcase_transfer": "Reserviert für die Transfer-Auswertung – noch ohne aktiven Aufruf."
     }
   },
   "jdPublic": {

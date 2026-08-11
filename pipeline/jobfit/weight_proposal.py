@@ -23,7 +23,7 @@ from .i18n import language_directive
 from .jobs import Job
 from .matching import MatchCandidate, propose_weights, score_job, weight_bounds, weights_for
 
-WEIGHT_PROPOSAL_PROMPT_VERSION = "weight-proposal-v1"
+WEIGHT_PROPOSAL_PROMPT_VERSION = "weight-proposal-v2"
 
 _DIMENSION_KEYS = ("skills", "career", "personal")
 
@@ -88,6 +88,10 @@ def build_prompt(context: dict[str, Any]) -> str:
         "internship/open_source); shift toward career/potential when the case rests on trajectory rather "
         "than proven skill; keep the baseline when there is no clear signal. Weights are a fairness lens, "
         "not a lever to inflate a favourite — never zero out a dimension.\n"
+        "Each rationale must cite at least one CONCRETE fact from that candidate's own row — a named "
+        "skill with its provenance, a named missing must-have, or their potential score — never a "
+        "generic score-tier phrase, and never the same sentence reused across candidates (a reviewer "
+        "must be able to check every rationale against the row it cites).\n"
         'Return JSON: { "proposals": [ { "candidateId": str, "weights": { "skills": number, '
         '"career": number, "personal": number }, "rationale": str (ONE sentence citing the decisive '
         "evidence) } ] }. Cover every candidate, by candidateId. JSON only."

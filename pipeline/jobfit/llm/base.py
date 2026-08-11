@@ -60,15 +60,21 @@ MTOK_PRICES: dict[str, tuple[float, float]] = {
     "claude-haiku-4-5": (1.00, 5.00),
     "claude-sonnet-4-6": (3.00, 15.00),
     "claude-opus-4-8": (5.00, 25.00),
-    # estimates — confirm against the provider price books (see note above)
-    "gemini-3.6-flash": (1.50, 7.50),
+    # Claude 5 family (platform.claude.com pricing, 2026-08-11; sonnet-5 lists an
+    # intro $2/$10 through 2026-08-31 — booked at the standard rate deliberately
+    # so cost comparisons don't silently improve when the promo lapses).
+    "claude-sonnet-5": (3.00, 15.00),
+    "claude-opus-5": (5.00, 25.00),
+    # provider price books, 2026-08-11 (requesty/wavespeed/deepseek listings)
+    "gemini-3.6-flash": (1.50, 7.00),
     "gemini-3-flash-preview": (0.30, 2.50),
     "gemini-2.5-flash": (0.30, 2.50),
     "gpt-5-mini": (0.25, 2.00),
+    "gpt-5.4-mini": (0.75, 4.50),
     # Qwen Cloud (qwencloud.com model pages, 2026-08-05 list prices)
     "qwen3.8-max": (2.00, 6.00),
-    "glm-5.2": (1.40, 4.40),
-    "deepseek-v4-flash": (0.20, 0.40),  # prefix-matches the dated -0731 slug
+    # GA 2026-07-31 repriced ($0.14/$0.28); prefix-matches the dated -0731 slug
+    "deepseek-v4-flash": (0.14, 0.28),
 }
 
 
