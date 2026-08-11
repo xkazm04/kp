@@ -23,9 +23,10 @@ been extended to them.
 app/features/
   hiring/       channels, decisions (+groupEval), onboarding, pipeline, schedule
   library/      jds, jobs
-  insights/     about, analytics, matrix
+  insights/     about, analytics, matrix (+ matrix/focus — the candidate-focus
+                mode, formerly the standalone Match tab)
   settings/     billing, branding, integrations, models, organization, workspace
-  tools/        analyze, devcases, interview, match, profile
+  tools/        analyze, devcases, interview, profile
   shell/        Workspace.tsx + nav/, simulation/, tasks/, setup/ (the frame
                 the menu lives in — sidebar, command palette, keyboard chords,
                 tab catalog, background tasks, simulation dock)
@@ -36,6 +37,15 @@ app/features/
 
 This matches the refactor's target 1:1 (menu group → tab → folder). `shell/`
 is not a menu entry.
+
+Two folder names deliberately no longer match their tab id: `tools/profile/` is the
+**Archetypes** tab (`?tab=archetypes`) and `tools/devcases/` is **Assignments**
+(`?tab=assignments`). The ids were renamed for what the surfaces actually are; the
+folders were left alone so the rename stayed a routing/label change rather than a
+several-hundred-file move. `LEGACY_TAB_ALIASES` in `shell/tabs.ts` keeps the old
+`?tab=profile` / `?tab=dev` / `?tab=match` links resolving — a `?tab=` value lives in
+bookmarks and pasted links, so dropping one would land those on Overview and read as
+"the feature is gone".
 
 ## How a tab switch works (and why it costs nothing)
 
@@ -86,6 +96,14 @@ it on nav-item hover **and** focus (a keyboard user never hovers) and inside
 tabs on `requestIdleCallback` after mount. All idempotent, all fire-and-forget — a
 failed prefetch is swallowed, and the render path re-requests and surfaces a real
 failure through the tab's `ErrorBoundary`.
+
+Warming is also **section-level**. In the two-level rail (`NavSectionRail`), a
+second-level tab is two interactions away: open the group, then click the item.
+Per-item hover only fires once the panel is already open, so reaching e.g.
+Settings → Branding still paid for the chunk at click time. The rail button now
+warms every chunk in its group on hover, focus and click (`prefetchSection`), so
+opening a section starts all of its tabs' downloads at once — 2–7 small chunks
+per group, deduped per document by `prefetchTabChunk`.
 
 ## Why `shared/` exists
 
@@ -169,7 +187,64 @@ Historical artefacts (`docs/harness/**` scan reports, `uat/**`, `casesim/**`,
 (`sub_pipeline/`, `sub_jobs/`, etc.) — these are records of what was true at
 the time and are deliberately left alone.
 
-## Dev compile cost — why a cold tab takes seconds
+## Dev compile cost — what is actually slow, and what is not
+
+**Read the table before optimising anything here.** Measured 2026-08-07 with
+`scripts/perf/devbench.mjs` (cold = `.next/dev/cache/turbopack` wiped; each run
+fetches `/`, the 10 APIs the page really calls, and every `_next` asset in the HTML):
+
+| Scenario | Boot | First `/` | Assets | Total |
+| --- | --- | --- | --- | --- |
+| Restart, **persistent cache intact** | 0.7 s | 4.2 s | — | **4.9 s** |
+| Restart, **cache wiped** | 0.7 s | 10.9 s | 24 files · 6.4 MB · 1.5 s | **13.0 s** |
+| Warm `/` (already compiled) | — | **0.14 s** | — | — |
+| Warm API (`/api/attention` … `/api/comms`) | — | 7–212 ms | — | — |
+| First fetch of **all 30 tab chunks** | — | 12–56 ms each | 20.7 MB | **0.67 s** |
+
+Three conclusions that keep getting re-litigated:
+
+1. **Steady state is already fast.** A restart is ~5 s, a compiled page 140 ms, a
+   tab switch 12–56 ms. Turbopack's filesystem cache (`.next/dev/cache/turbopack`,
+   on by default since 16.1) is what buys this — **never `rm -rf .next`** to "fix"
+   a dev problem; it converts a 5 s restart into a 13 s one.
+2. **Tabs do not compile on demand.** Turbopack's lazy bundling is per *route*, not
+   per dynamic chunk: `/` builds all 23 tab chunks (~20 MB) with the page, so by the
+   time you click a tab its chunk is already on disk. "Each tab recompiles" is not a
+   real effect — what looks like it in the log is a route's *first* compile.
+3. **A 40 s+ compile means mass invalidation, not a slow bundler.** After a
+   316-file commit the trace showed `ensure-page /page` = 41.0 s. Two `GET /` lines
+   (43 s and 21.3 s) in that log were **one** compile — the second request started
+   20 s in and ended at the same instant. Read `.next/dev/trace` before believing a
+   dev-log number: `handle-request` spans overlap, `compile-path` does not.
+
+### Turbopack config flags: measured, none of them help
+
+Against the 13.0 s cold baseline, on `next@16.3.0-canary`:
+
+| Flag | Result |
+| --- | --- |
+| `turbopackFileSystemCacheForDev` | **already `true`** by default — this is the 4.9 s restart |
+| `optimizePackageImports` | Next already auto-applies `lucide-react` + `recharts` (`server/config.js`); the repo's 780 lucide import sites are covered |
+| `turbopackSourceMaps: false` | 11.1 s — no win, loses dev stack traces |
+| `turbopackMemoryEviction: false` | 11.4 s — no win |
+| `turbopackRemoveUnusedExports/Imports: true` | **crashes** — Turbopack panic, "export usage not found" on the server-actions loader |
+| `turbopackModuleFragments: true` | **crashes** — breaks `@sentry/react`'s `ErrorBoundary` export |
+
+Both crashing flags are dev-default `false` for a reason; do not enable them.
+
+### Why `/` is the expensive route
+
+`app/page.tsx` reaches **983 first-party modules** — 234 statically, 749 only via
+`next/dynamic`. That is the whole product behind one URL, which is inherent to the
+`?tab=`-driven single-page workspace: `WorkspaceTabChunks` names all 23 tab loaders
+at module scope. Shrinking this means changing that architecture, not adding a flag.
+
+Non-config factors that dominated the worst observed runs, in order: a mass source
+change invalidating the cache; **other `next dev` servers on the same box** (three
+were live on :3001/:3002/:3005 holding 6.6 GB); and Windows Defender real-time
+scanning a 768 MB cache directory with no exclusion.
+
+### API route graphs
 
 `next dev` compiles a route's **entire module graph** on first hit, with no
 tree-shaking. Measured 2026-08-06 against the running dev server, the cost tracks
@@ -208,7 +283,9 @@ at once:
 taxes every route downstream. `import type` is free (erased before bundling), so
 type-only barrel imports need no change.
 
-Still outstanding: the 112 routes importing the barrel directly, and
-`app/_lib/interview-run.ts` (115 modules · 1.14 MB) — `/api/schedule` imports it
-for the single `plannedInterviewMinutes` helper, which wants extracting into a leaf
-module.
+Both follow-ups are now done (cfdf06b6): the barrel sweep rewrote 178 files to
+slice imports — **one** non-type importer of `@/app/_lib/db` remains — and
+`plannedInterviewMinutes` moved into the leaf `app/_lib/interview-planned-minutes.ts`,
+so `/api/schedule` no longer drags in `interview-run.ts` (115 modules · 1.14 MB).
+That work is why every API route in the table above now answers in 7–212 ms warm;
+it did **not** move `/`, which is bounded by the 983-module page graph instead.
