@@ -2,7 +2,7 @@
   "hiringPlan": {
     "eyebrow": "Einstellungen · Hiring",
     "title": "Hiring-Pipeline",
-    "intro": "Stellen Sie zusammen, wie Kandidat/innen von der Bewerbung zum Angebot gelangen: welche Interviewrunden laufen (KI oder menschlich), auf wen sich das Feld zwischen den Runden verengt und wo ein Mensch freigibt. Die Panels unten zeigen, was Ihre Wahl mit den Tabs Übersicht, Entscheidungen und Kalender macht.",
+    "intro": "Stellen Sie zusammen, wie Kandidat/innen von der Bewerbung zum Angebot gelangen.",
     "startFrom": "Starten mit",
     "presetLean": "Solo / schlank",
     "presetHybrid": "Team-Hybrid",
@@ -4753,7 +4753,7 @@
   },
   "workspaceAdmin": {
     "title": "Arbeitsbereiche",
-    "intro": "Mit Arbeitsbereichen können Sie kp-Daten in getrennte Mandanten isolieren. Die Isolation je Arbeitsbereich wird noch entwickelt, daher läuft die App derzeit als ein einzelner Arbeitsbereich.",
+    "intro": "kp-Daten in getrennte Mandanten isolieren.",
     "scopeNote": "Hinweis: Bisher sind nur die Analysen je Arbeitsbereich isoliert. Andere Daten (Stellen, Pipeline, Interviews usw.) werden noch über Arbeitsbereiche hinweg geteilt, bis die Isolation je Tabelle abgeschlossen ist – ein neuer Arbeitsbereich zeigt also leere Analysen, aber ansonsten dasselbe.",
     "lockedNote": "Arbeitsbereiche sind auf einen einzigen Mandanten beschränkt, bis die Datenisolation je Arbeitsbereich abgeschlossen ist – die meisten Daten (Kandidaten, Pipeline, Abrechnung, Interviews) sind noch nicht zugeordnet, sodass das Erstellen oder Wechseln von Arbeitsbereichen sie über Mandanten hinweg offenlegen würde. Erstellen und Wechseln sind bis dahin deaktiviert.",
     "loading": "Wird geladen…",
@@ -5909,7 +5909,7 @@
     "tab": {
       "eyebrow": "Verbundene Dienste",
       "title": "Integrationen",
-      "intro": "Verbinden Sie die externen Systeme, aus denen kp liest und in die es schreibt. Zugangsdaten werden verschlüsselt gespeichert und nie wieder angezeigt – Sie können sie ersetzen oder entfernen, aber nicht auslesen."
+      "intro": "Verbinden Sie die externen Systeme, aus denen kp liest und in die es schreibt."
     },
     "calendar": {
       "title": "Google Kalender",
@@ -6121,7 +6121,7 @@
   "branding": {
     "eyebrow": "White-Label",
     "title": "Branding",
-    "intro": "Versehen Sie den gesamten Arbeitsbereich – sowie die Angebots-, Bewerbungs- und Planungsseiten, die Ihre Kandidaten sehen – mit Name, Farbe und Logo Ihrer Organisation.",
+    "intro": "Name, Farbe und Logo Ihrer Organisation.",
     "nameLabel": "Anzeigename",
     "namePlaceholder": "Ihr Firmen- oder Produktname",
     "nameHelp": "Wird in der Seitenleiste und im Browser-Tab angezeigt.",

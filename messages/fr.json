@@ -2,7 +2,7 @@
   "hiringPlan": {
     "eyebrow": "Paramètres · Recrutement",
     "title": "Pipeline de recrutement",
-    "intro": "Composez le parcours des candidats de la candidature à l’offre : quels tours d’entretien ont lieu (IA ou humain), sur qui le champ se resserre entre les tours, et où un humain valide. Les panneaux ci-dessous montrent l’effet de vos choix sur les onglets Aperçu, Décisions et Calendrier.",
+    "intro": "Composez le parcours des candidats de la candidature à l’offre.",
     "startFrom": "Partir de",
     "presetLean": "Solo / léger",
     "presetHybrid": "Hybride d’équipe",
@@ -4753,7 +4753,7 @@
   },
   "workspaceAdmin": {
     "title": "Espaces de travail",
-    "intro": "Les espaces de travail vous permettront d’isoler les données kp dans des locataires distincts. L’isolation par espace de travail est encore en construction. L’application fonctionne donc actuellement comme un espace de travail unique.",
+    "intro": "Isolez les données kp dans des locataires distincts.",
     "scopeNote": "À noter : seul le module Analyses est isolé par espace de travail pour l’instant. Les autres données (postes, pipeline, entretiens, etc.) restent partagées entre les espaces de travail tant que le cloisonnement par table n’est pas terminé – un nouvel espace de travail affiche donc des Analyses vides, mais tout le reste identique.",
     "lockedNote": "Les espaces de travail sont verrouillés sur un locataire unique tant que l’isolation des données par espace de travail n’est pas terminée – la plupart des données (candidats, pipeline, facturation, entretiens) ne sont pas encore cloisonnées, si bien que créer ou changer d’espace de travail les exposerait entre locataires. La création et le changement sont désactivés d’ici là.",
     "loading": "Chargement…",
@@ -5909,7 +5909,7 @@
     "tab": {
       "eyebrow": "Services connectés",
       "title": "Intégrations",
-      "intro": "Connectez les systèmes externes que kp lit et alimente. Les identifiants sont chiffrés au stockage et ne sont jamais réaffichés – vous pouvez les remplacer ou les supprimer, jamais les relire."
+      "intro": "Connectez les systèmes externes que kp lit et alimente."
     },
     "calendar": {
       "title": "Google Agenda",
@@ -6121,7 +6121,7 @@
   "branding": {
     "eyebrow": "Marque blanche",
     "title": "Image de marque",
-    "intro": "Affichez le nom, la couleur et le logo de votre organisation sur tout l’espace de travail – ainsi que sur les pages d’offre, de candidature et de planification que voient vos candidats.",
+    "intro": "Le nom, la couleur et le logo de votre organisation.",
     "nameLabel": "Nom affiché",
     "namePlaceholder": "Nom de votre entreprise ou produit",
     "nameHelp": "Affiché dans la barre latérale et l’onglet du navigateur.",

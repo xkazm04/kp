@@ -2,7 +2,7 @@
   "hiringPlan": {
     "eyebrow": "Nastavení · Nábor",
     "title": "Náborová pipeline",
-    "intro": "Sestavte, jak kandidáti postupují od přihlášky k nabídce: která kola pohovorů proběhnou (AI, nebo lidská), na koho se pole mezi koly zúží a kde rozhoduje člověk. Panely níže ukazují, co vaše volby udělají se záložkami Přehled, Rozhodnutí a Kalendář.",
+    "intro": "Sestavte, jak kandidáti postupují od přihlášky k nabídce.",
     "startFrom": "Začít od",
     "presetLean": "Sólo / štíhlý",
     "presetHybrid": "Týmový hybrid",
@@ -4753,7 +4753,7 @@
   },
   "workspaceAdmin": {
     "title": "Pracovní prostory",
-    "intro": "Pracovní prostory umožní oddělit data kp do samostatných tenantů. Izolace po prostorech se zatím dokončuje, takže aplikace teď běží jako jeden pracovní prostor.",
+    "intro": "Oddělte data kp do samostatných tenantů.",
     "scopeNote": "Upozornění: zatím je podle pracovního prostoru izolovaná jen sekce Analýzy. Ostatní data (pozice, pipeline, pohovory atd.) jsou napříč prostory sdílená, dokud nebude dokončeno oddělení dat na úrovni jednotlivých tabulek – nový prostor tedy zobrazí prázdné Analýzy, ale vše ostatní stejné.",
     "lockedNote": "Pracovní prostory jsou uzamčené na jednoho tenanta, dokud nebude dokončená izolace dat po prostorech – většina dat (kandidáti, pipeline, fakturace, pohovory) zatím není oddělená, takže vytvoření nebo přepnutí prostoru by je zpřístupnilo napříč tenanty. Vytváření a přepínání jsou do té doby zakázané.",
     "loading": "Načítání…",
@@ -5909,7 +5909,7 @@
     "tab": {
       "eyebrow": "Připojené služby",
       "title": "Integrace",
-      "intro": "Připojte externí systémy, ze kterých kp čte a do kterých zapisuje. Přihlašovací údaje se ukládají šifrovaně a už se nikdy nezobrazí – můžete je nahradit nebo odebrat, ale ne přečíst."
+      "intro": "Připojte externí systémy, ze kterých kp čte a do kterých zapisuje."
     },
     "calendar": {
       "title": "Google Calendar",
@@ -6121,7 +6121,7 @@
   "branding": {
     "eyebrow": "White-label",
     "title": "Branding",
-    "intro": "Umístěte název, barvu a logo své organizace do celého pracovního prostoru – i na stránky nabídky, přihlášky a plánování, které vidí kandidáti.",
+    "intro": "Název, barva a logo vaší organizace.",
     "nameLabel": "Zobrazovaný název",
     "namePlaceholder": "Název vaší firmy nebo produktu",
     "nameHelp": "Zobrazuje se v postranním panelu a na kartě prohlížeče.",
