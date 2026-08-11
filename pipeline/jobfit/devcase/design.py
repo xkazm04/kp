@@ -20,7 +20,7 @@ from .provenance import generate_with_fallback, str_list as _str_list
 
 _LOG = logging.getLogger(__name__)
 
-ROLE_DESIGN_PROMPT_VERSION = "role-design-v3"  # v3: JD-first intake — full JD body anchors the role
+ROLE_DESIGN_PROMPT_VERSION = "role-design-v4"  # v4: grounding rules — must-haves trace to stated input, seniority read off JD signals (2026-08-11 bench)
 CASE_DESIGN_PROMPT_VERSION = "case-design-v6"  # v6: midFlightUpdate — a requirement change revealed mid-session, so one-shot generation is structurally impossible (LLM-era controls #5)
 
 # Hard cap on case length (UAT M8). The case's instrument is AMBIGUITY + a visible
@@ -155,6 +155,14 @@ def design_role(need: DevNeed, analysis: NeedAnalysis, *, provider: Any | None =
         "for a 'Backend Engineer' is fine and Python transfers; a security role on a data-pipeline codebase "
         "stays a security role). Calibrate scope to the seniority. Lightly ground against the comparable "
         "market roles.\n"
+        "Grounding rules (a spec that inflates the need mis-hires): every mustHave must trace to "
+        "something the need/JD/analysis actually STATES — never promote a named tool, product, or "
+        "process the input does not mention into a requirement (illustrative examples belong in "
+        "niceToHaves, phrased as 'e.g.', or nowhere). Keep the must-have list short and decisive "
+        "(≤8) rather than exhaustive. Read the seniority off the JD's own signals (education asked, "
+        "experience asked, scope of duties) — do not default to the seniorityTarget when the JD "
+        "plainly describes a more junior or senior role; carry the JD's explicitly named candidate "
+        "traits into the spec before adding anything of your own.\n"
         f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
         'Return JSON: { "title": str, "seniority": "junior|medior|senior|lead", "roleFamily": str, '
         '"mustHaves": [str], "niceToHaves": [str], "responsibilities": [str], "languages": [str] }. JSON only.'

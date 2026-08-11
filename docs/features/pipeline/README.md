@@ -64,6 +64,15 @@ replaced an earlier `Sourced` → `AI-matched` → `Screening` naming (see
    of them (see Surface below); `app/_lib/automation-fairness.ts` re-asserts
    the auto-reject invariant at the TS boundary (`assertAutoRejectFair`) as a
    defense-in-depth check independent of the Python gate.
+   The candidate-facing letters (outreach v3 / rejection v3 / offer v4, since
+   the 2026-08-11 bench round) draw on a shared `_letter_context` evidence
+   block (highlights, aspirations, match data, job facts) and are prompted to
+   anchor on the strongest candidate-specific hooks; the rejection must name
+   the actual decisive gap and its feedback is evidence-checked (never advises
+   what the CV already shows). The interview prep pack (v2) anchors every
+   question in a named highlight and probes stated aspirations. A result whose
+   coercion discarded the model's payload now reports `source=deterministic`
+   (`_generate`'s truthful-source rule).
 5. **Offer-stage group evaluation.** `GroupEvalModal` /
    `app/_lib/group-eval-run.ts` compares a role's candidates (incorporating the
    interview scorecard, not just match score) before a recruiter extends an

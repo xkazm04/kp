@@ -42,7 +42,9 @@ WORK_MODES = ("remote", "hybrid", "onsite")
 SENIORITIES = ("junior", "medior", "senior", "lead")
 KINDS = ("must_have", "nice_to_have")
 HARDNESS = ("prerequisite", "learnable")
-EDU_LEVELS = ("phd", "master", "bachelor", "university", "none")
+# high_school added 2026-08-11: postings demanding a HS diploma had no legal value,
+# so extraction was forced into the "none"-vs-diploma self-contradiction the bench flagged.
+EDU_LEVELS = ("phd", "master", "bachelor", "university", "high_school", "none")
 
 # -- default policy (single source of truth) --------------------------------
 # THE one place the locale/market defaults live. ``normalize_job`` stamps these onto
@@ -282,7 +284,12 @@ def compute_entry_profile(
         # Senior-only postings keep a low ceiling so students aren't lured in.
         score = min(score, 0.15)
 
-    rationale_bits = [f"seniority={seniority}", f"min_years={years:g}"]
+    # Label the assumption: when the posting states no experience figure, `years`
+    # is a seniority-derived default — a rationale asserting bare "min_years=3"
+    # beside minYearsExperience=null reads as a self-contradiction (2026-08-11
+    # bench flagged it on every jd_ingest scenario without a stated figure).
+    years_bit = f"min_years={years:g}" + ("" if min_years is not None else " (assumed from seniority)")
+    rationale_bits = [f"seniority={seniority}", years_bit]
     if entry_signal:
         rationale_bits.append("ad uses early-career language")
     if musts:
@@ -427,7 +434,7 @@ def _build_extraction_prompt() -> str:
   "role_family": "{_role_family_enum()}",
   "languages": [str],
   "min_years_experience": number|null,
-  "min_education": "phd|master|bachelor|university|none"|null,
+  "min_education": "phd|master|bachelor|university|high_school|none"|null,
   "salary_min": number|null, "salary_max": number|null,
   "description": str,
   "requirements": [ {{ "skill": str, "kind": "must_have|nice_to_have", "hardness": "prerequisite|learnable" }} ]
@@ -440,7 +447,20 @@ salary_min/salary_max: the {gross_period_phrase(ACTIVE_MARKET.period)} pay range
 whatever currency it uses; null when the ad states no pay — NEVER estimate one.
 For each requirement decide kind (must vs nice) and hardness: "prerequisite" if a
 candidate truly cannot do the job without it, "learnable" if it can reasonably be
-picked up on the job. Output JSON only.
+picked up on the job.
+Fidelity rules:
+- requirements are SKILLS/QUALIFICATIONS the posting demands of the candidate.
+  Day-to-day DUTIES (what the person will do) belong in the description, never
+  filed as requirements.
+- seniority follows the posting's OWN signals (education and experience demanded,
+  scope of duties): an ad asking a high-school diploma and some prior experience
+  is "junior" — never default to "medior" when the signals point lower.
+- Keep the fields consistent with each other: if a requirement or the posting
+  names an education level, min_education must state that same level (a posting
+  demanding a high-school diploma is min_education "high_school", never "none").
+- company/location/work_mode: only what the posting itself states — null when
+  absent, never a guess.
+Output JSON only.
 
 POSTING:
 """

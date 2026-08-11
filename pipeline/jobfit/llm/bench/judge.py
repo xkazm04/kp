@@ -37,7 +37,13 @@ _USE_CASE_TASK: dict[str, str] = {
     "interview_prep": "build an interviewer prep pack — competency-targeted questions + focus areas",
     "interview_scorecard": "synthesize a structured interview scorecard (per-competency ratings + a recommendation) from an interview transcript",
     "weight_proposal": "propose per-candidate scoring weights (skills/career/personal, summing to 1.0 within each candidate's stated bounds) + a one-sentence evidence-citing rationale per candidate, for ranking a group against a role",
-    "jd_ingest": "parse a prose job posting into a structured job (title, seniority, requirements, responsibilities)",
+    # The Job schema has no separate responsibilities field by design — duties
+    # live in the description; requirements are candidate qualifications only.
+    "jd_ingest": (
+        "parse a prose job posting into a structured job (title, seniority, education, "
+        "requirements as candidate qualifications; day-to-day duties belong in the description "
+        "prose — a separate responsibilities list is NOT part of this deliverable)"
+    ),
     "devcase_analyze": "from a job ad, analyze the role's real technical stack, core responsibilities, stated-vs-real gaps, complexity and risk areas",
     "devcase_role_design": "design a role spec (title, seniority, must-haves, nice-to-haves, responsibilities) from the need + its analysis",
     "devcase_case_design": "design a hands-on work-sample case (brief, tasks, covert probes, rubric) grounded in the role's real stack",

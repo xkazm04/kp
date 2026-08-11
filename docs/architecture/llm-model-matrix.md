@@ -151,6 +151,28 @@ reflects API-equivalent pricing, not subscription marginal cost; a transient
 DNS outage during the first API pass was detected and those cells re-run
 (`full-api` → `full-api2`), so no outage books against model reliability.
 
+## Prompt-tuning addendum (same day, opus-only verification)
+
+The weak ops were then tuned — prompts, not models (records:
+`tmp/bench/round-20260811/tune-a|b|c`, n=2, opus-5, Fable judge; the full-grid
+numbers above predate these fixes and now UNDERSTATE the tuned ops):
+
+| op | grid (opus) | tuned | what changed |
+|---|--:|--:|---|
+| automation_rejection | 5.8 | **8.5** | letters get the shared `_letter_context` evidence; the body names the real decisive gap; when the tier is strong the honest reason is competition, never an invented gap; feedback is evidence-checked |
+| automation_offer | 8.0 | **9.0** | cites real profile facts, alludes to (never quotes) aspirations, decided-offer register, consistent sender voice |
+| automation_outreach | 7.4 | **8.0** | anchors on aspirations → highlights → matched skills; names what is distinctive about the role |
+| interview_prep | 8.3 | **9.0** | questions anchor in named highlights, verify rather than assume, probe stated aspirations |
+| match_reasoning | 8.2 | **9.0** | aspirations for every archetype, verdict states total+tier, probes without unstated premises, no constructed URLs/metrics |
+| devcase_role_design | 7.8 | **9.0** | must-haves trace to stated input; seniority read off JD signals |
+| jd_ingest | 7.3 | 7.5 | `high_school` added to the education enum (the "none-vs-diploma" contradiction was a schema gap), duties-vs-requirements rule, assumption-labelled entry rationale; residual is role-family classification, a taxonomy problem not a prompt one |
+
+Comms letters also carry hardened Czech register rules (consistent vykání,
+plural sender voice, gender-neutrality by recast, single-script output). All
+letter/prep/reasoning prompt versions bumped in lockstep with the TS cache
+mirrors (`automation-run.ts` / `reasoning-run.ts`), so cached prior outputs
+self-invalidate.
+
 ## Prior rounds
 
 - **2026-07-07** — 15 ops × 7 models via OpenRouter, unanchored Claude-CLI

@@ -138,11 +138,19 @@ competencies and early-career candidates on 6 BARS-anchored constructs
 (problem decomposition, learning agility, coachability, conceptual depth,
 motivation & direction, communication & collaboration); every rating requires a
 verbatim transcript quote, and "not assessed" is a legal answer. Match
-reasoning (`pipeline/jobfit/match_reasoning.py`) is archetype-conditional:
+reasoning (`pipeline/jobfit/match_reasoning.py`, prompt `match-reasoning-v3`)
+is archetype-conditional:
 experienced candidates get track-record verification, students get a
 "judge on potential" frame, career-switchers get a bridge narrative (prior-domain
 maturity de-risks the switch; new-domain hard skills read "learnable but
-unproven").
+unproven"). Since the 2026-08-11 bench round: `aspirations` feed the context
+for every archetype (not early-career only), the verdict must state the match
+total + tier in words, probes must verify rather than embed unstated premises,
+the grounding post-check accepts highlight/summary-grounded strengths, and a
+core-backfilled result reports `source=deterministic`. The `jd_ingest`
+extraction prompt (`jobs.py`) gained fidelity rules in the same round: duties
+never filed as requirements, `min_education` consistent with the stated
+requirements, company/location/work-mode never guessed.
 
 ## Surface
 

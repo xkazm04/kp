@@ -43,9 +43,14 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   // v2 — the candidate-facing letter tasks take an explicit --lang (the entry's
   // resolved comms locale) and their prompts carry the gender-neutral-Czech +
   // no-invented-terms directives; bumped so cached v1 letters self-invalidate.
-  outreach: "outreach-v2",
-  rejection: "rejection-v2",
-  prep: "interview-prep-v1",
+  // v3 (prep v2 / offer v4) — 2026-08-11 bench round: letters get the shared
+  // evidence context + anchoring/grounding rules, rejection names the decisive
+  // gap with evidence-checked feedback, prep anchors questions in concrete
+  // highlights and covers stated aspirations; bumped so cached prior letters
+  // self-invalidate. Lockstep with the Python *_PROMPT_VERSION constants.
+  outreach: "outreach-v3",
+  rejection: "rejection-v3",
+  prep: "interview-prep-v2",
   // v5 — the read-back exchange is emitted as STRUCTURED `entities` (confirmed /
   // corrected heard→meant / unconfirmed) beside the prose trust rule, so the recruiter
   // gets a cue that "Rust" in the transcript meant React; bumped so cached v4
@@ -58,7 +63,7 @@ export const AUTOMATION_VERSION: Record<string, string> = {
   // v3 — the offer payload carries its structured pricing basis (matchBasis, the
   // draft-time fresh fit check) and a rationale that names that producer
   // (REC-01/OO-L2-10); bumped so cached v2 payloads self-invalidate.
-  offer: "offer-v3",
+  offer: "offer-v4",
 };
 // LETTER_LANG_TASKS — candidate-facing letters; their language is the entry's
 // resolved comms locale (explicit apply choice, else the workspace default —

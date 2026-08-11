@@ -16,7 +16,7 @@ import { isLocale } from "@/i18n/locales";
 // drift here leaves the reasoning cache silently stale. The pairing is enforced
 // by pipeline/jobfit/tests/test_prompt_version_sync.py (CI fails on divergence).
 // Exported so the cache-first test can reconstruct the exact key runReasoning uses.
-export const REASONING_PROMPT_VERSION = "match-reasoning-v2";
+export const REASONING_PROMPT_VERSION = "match-reasoning-v3";
 const CACHE_TTL_HOURS = 168;
 
 export class ReasoningError extends Error {

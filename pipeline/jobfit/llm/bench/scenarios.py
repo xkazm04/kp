@@ -185,8 +185,12 @@ def _candidate_facts(candidate: MatchCandidate, m) -> str:
         f"Experience highlights: {highlights}\n"
         f"Aspirations: {', '.join((candidate.aspirations or [])[:3]) or '-'}; "
         f"potential: {candidate.potential_score}\n"
-        f"Match: total {m.total}/100; matched: {', '.join(m.matched_skills[:8]) or '-'}; "
-        f"missing: {', '.join(m.missing_skills[:8]) or '-'}; tier: {m.fit_tier}"
+        f"Match: total {m.total}/100; sub-scores: skills {m.skills_score:.2f}, career "
+        f"{m.career_score:.2f}, personal {m.personal_score:.2f}; "
+        f"matched: {', '.join(m.matched_skills[:8]) or '-'}; "
+        f"missing: {', '.join(m.missing_skills[:8]) or '-'}; tier: {m.fit_tier}\n"
+        f"Skill provenance: {json.dumps({s: candidate.skill_provenance.get(s, candidate.provenance_default) for s in m.matched_skills[:8]}, ensure_ascii=False)}; "
+        f"work links: {', '.join(candidate.work_links[:3]) or 'none'}"
     )
 
 

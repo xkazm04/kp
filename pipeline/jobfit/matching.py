@@ -40,7 +40,7 @@ from .taxonomy import (
 )
 
 _SENIORITY_RANK = {"junior": 1, "medior": 2, "senior": 3, "lead": 4}
-_EDU_RANK = {"none": 0, "university": 1, "bachelor": 2, "master": 3, "phd": 4}
+_EDU_RANK = {"none": 0, "high_school": 1, "university": 2, "bachelor": 3, "master": 4, "phd": 5}
 
 # Language alias buckets so "Czech (native)" satisfies a "Czech" requirement. Now
 # data-driven (data/taxonomy.json::language_aliases, loaded + validated in

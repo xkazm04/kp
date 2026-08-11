@@ -34,9 +34,16 @@ SCREENING_PROMPT_VERSION = "screening-v2"
 # locale) overrides the CV-language guess, and the prompts carry the
 # gender-neutral style directive; the offer prompt additionally forbids inventing
 # a deadline/start date (both are appended deterministically at dispatch).
-OUTREACH_PROMPT_VERSION = "outreach-v2"
-REJECTION_PROMPT_VERSION = "rejection-v2"
-PREP_PROMPT_VERSION = "interview-prep-v1"
+# v3 (offer v4) — 2026-08-11 bench round: the letters now receive the shared
+# _letter_context evidence (highlights, aspirations, match, job facts — they were
+# starved to a name + skill tags, so no model could personalize), anchor on the
+# strongest candidate-specific hooks under _LETTER_GROUNDING, the rejection names
+# the actual decisive gap + evidence-checked feedback, and _NEUTRAL_STYLE demands
+# grammatical neutrality by RECAST (no plural-for-one, no slash forms, no
+# mixed-script output).
+OUTREACH_PROMPT_VERSION = "outreach-v3"
+REJECTION_PROMPT_VERSION = "rejection-v3"
+PREP_PROMPT_VERSION = "interview-prep-v2"
 # scorecard-v5: the read-back exchange is now emitted as STRUCTURED `entities`
 # (confirmed / corrected heard→meant / unconfirmed) alongside the prose trust rule,
 # so a recruiter sees that "Rust" in the raw transcript actually meant React — not
@@ -50,7 +57,7 @@ REMATCH_PROMPT_VERSION = "rematch-v1"
 # rides structured as `matchBasis` (rendered under its own label by the approval
 # card, REC-01/OO-L2-10) and the rationale prose says "fresh fit check", not a
 # bare "Match", so it can't read as the entry's stored match score.
-OFFER_PROMPT_VERSION = "offer-v3"
+OFFER_PROMPT_VERSION = "offer-v4"
 
 # Task 7 thresholds — tunable per market/season (the only place rules live).
 POLICY: dict[str, int] = {
@@ -210,7 +217,63 @@ _NEUTRAL_STYLE = (
     "Use gender-neutral wording about the candidate throughout — never gendered noun/adjective/"
     "participle forms for them (in Czech avoid constructions like 'takového kolegu' / 'takovou "
     "kolegyni' or 'rád/ráda'; prefer direct formal address ('Vy') and neutral phrasing such as "
-    "'přesně takovou posilu jsme hledali').\n"
+    "'přesně takovou posilu jsme hledali'). Achieve neutrality by RECASTING, never by breaking "
+    "grammar: no plural agreement for one person (not 'jste věnovali' to an individual), no "
+    "slash forms ('věnoval/a') — prefer nominal or present-tense constructions that need no "
+    "gendered participle ('Děkujeme za Váš čas', 'Vaše zkušenosti nás zaujaly').\n"
+    "The SENDER is the hiring team: keep first-person plural consistently ('rádi bychom', never "
+    "'ráda bychom'), and keep the formal register (vykání) consistent to the last sentence — one "
+    "slip into tykání ruins an otherwise formal letter.\n"
+    "Write ONLY in the requested language — never mix in words or characters from any other "
+    "language or script.\n"
+)
+
+
+def _letter_context(candidate: MatchCandidate, job: Job, m: Any | None = None) -> dict[str, Any]:
+    """Compact candidate×job evidence for the candidate-facing letter prompts.
+
+    The 2026-08-11 bench found the letters starved: outreach saw a name + three
+    skill strings, rejection not even the match — so no model COULD personalize,
+    and every judge verdict read "pasteable onto any candidate". This is the
+    letters' shared fact base; each prompt states what to anchor on."""
+    ctx: dict[str, Any] = {
+        "candidate": {
+            "name": candidate.label,
+            "seniority": candidate.seniority,
+            "summary": candidate.summary or None,
+            "skills": candidate.skills[:10],
+            "experienceHighlights": candidate.experience_highlights[:3],
+            "aspirations": candidate.aspirations[:3] or None,
+        },
+        "job": {
+            "title": job.title,
+            "company": job.company,
+            "seniority": job.seniority,
+            "location": job.location or None,
+            "workMode": job.work_mode or None,
+            "keySkills": (job.detected_skills or [])[:8],
+            "descriptionExcerpt": (job.description or "")[:400] or None,
+        },
+    }
+    if m is not None:
+        ctx["match"] = {
+            "total": m.total,
+            "tier": m.fit_tier,
+            "matchedSkills": m.matched_skills[:8],
+            "missingMustHaves": m.missing_skills[:6],
+        }
+    return ctx
+
+
+# Shared grounding rule for every candidate-facing letter: the failure mode the
+# bench surfaced was not fluency but unsupported claims and unused evidence.
+_LETTER_GROUNDING = (
+    "Ground every claim in the supplied facts: never assert meetings, team reactions, benefits, "
+    "interest, or abilities that are not in them. Anchor the message on the STRONGEST "
+    "candidate-specific hooks available, in this order: (1) a stated aspiration that maps to this "
+    "role or company, (2) a concrete experience highlight, (3) the matched skills. Name at least "
+    "two specific facts from THIS candidate's profile — if the body could be sent to a different "
+    "candidate unchanged, it is wrong.\n"
 )
 
 
@@ -428,9 +491,15 @@ def draft_outreach(candidate: MatchCandidate, job: Job, strengths: list[str], *,
     lang = _letter_lang(candidate, lang)
     strong = strengths or candidate.skills[:3]
     prompt = (
-        f"Draft a short, warm first-contact outreach message in {lang} inviting this candidate to apply.\n"
-        f"Candidate: {candidate.label}; target: {job.title} at {job.company}.\n"
-        f"Reference these strengths naturally: {', '.join(strong) or 'their background'}.\n"
+        f"Draft a short, warm first-contact outreach message in {lang} inviting this candidate to apply. "
+        "Use ONLY these facts:\n"
+        f"{json.dumps(_letter_context(candidate, job), ensure_ascii=False, indent=2)}\n\n"
+        f"Matched strengths to weave in naturally: {', '.join(strong) or 'their background'}.\n"
+        + _LETTER_GROUNDING
+        + "Open with the candidate's name. Say in one sentence what is DISTINCTIVE about this role "
+        "(from the job facts — its stack, product, or context), so they see why it fits THEM "
+        "specifically. Where the candidate's background differs from the role's stack, address the "
+        "bridge honestly instead of ignoring it.\n"
         + _NEUTRAL_STYLE
         + 'Return JSON: { "subject": str, "body": str, "language": str }. Keep it concise and non-creepy. JSON only.'
     )
@@ -470,9 +539,22 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang:
     lang = _letter_lang(candidate, lang)
     missing = m.missing_skills
     prompt = (
-        f"Draft a respectful, specific, fair rejection message in {lang} for {candidate.label}, who reached the "
-        f"{stage} stage for {job.title} at {job.company}. Optionally include one piece of constructive feedback. "
+        f"Draft a respectful, specific, fair rejection message in {lang} for this candidate, who reached the "
+        f"{stage} stage. Use ONLY these facts:\n"
+        f"{json.dumps(_letter_context(candidate, job, m), ensure_ascii=False, indent=2)}\n\n"
+        "The body must name the ACTUAL decisive reason, kindly and concretely — drawn from "
+        "missingMustHaves or the match tier, never a generic 'we proceeded with other candidates' "
+        "alone. When missingMustHaves is empty and the tier is strong, do NOT invent a skill gap "
+        "(a claimed gap the candidate's own highlights disprove is the worst possible letter): the "
+        "honest reason is that another candidate matched this role's specific needs even more "
+        "closely — say that gracefully. Acknowledge one real strength from their profile so the "
+        "message reads as considered, not templated.\n"
+        "Feedback rules — the feedback must survive a check against the candidate's own evidence: "
+        "never advise adding something their profile already shows (check experienceHighlights and "
+        "skills first); never presuppose work they do not have; advise the one step that most "
+        "narrows THIS role's gap. Leave feedback an empty string rather than write generic advice.\n"
         "Never disclose other candidates; never use protected-characteristic language.\n"
+        + _LETTER_GROUNDING
         + _NEUTRAL_STYLE
         + 'Return JSON: { "subject": str, "body": str, "feedback": str, "language": str }. JSON only.'
     )
@@ -526,6 +608,11 @@ def interview_prep(candidate: MatchCandidate, job: Job, m, *, lang: str = "en", 
             if early
             else "Probe depth and the missing must-haves.\n"
         )
+        + "Anchor every question in a CONCRETE piece of this candidate's evidence — a named project "
+        "or highlight, not a bare skill ('In the ingestion rebuild you describe, how did you…', "
+        "never 'walk me through a time you used X'). Questions must verify, not assume: no premise "
+        "the evidence doesn't state. Cover the missing must-haves AND, when the candidate states an "
+        "aspiration (e.g. lead/architect ambitions), include one question probing readiness for it.\n"
         + 'Return JSON: { "questions": [ { "competency": str, "question": str, "whatsGoodLooksLike": str, '
         '"followUpIfAnswer": str } ], "focusAreas": [str] }. 4-6 questions. JSON only.\n'
         # PREP2 — questions/whatsGoodLooksLike/followUp + focusAreas are the
@@ -1041,8 +1128,16 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = No
         )
 
     prompt = (
-        f"Draft a warm, professional job-offer message in {lang} for {candidate.label} for the role "
-        f"{job.title} at {job.company}. " + figure_line + "\n"
+        f"Draft a warm, professional job-offer message in {lang} for this candidate. Use ONLY these facts:\n"
+        f"{json.dumps(_letter_context(candidate, job, m), ensure_ascii=False, indent=2)}\n\n"
+        + figure_line + "\n"
+        + "Say WHY the team is making this offer by citing one or two real facts from the candidate's "
+        "profile (a matched strength, a concrete highlight, a stated aspiration this role serves) — "
+        "never invented sentiment ('the team loved meeting you') the facts don't contain. Allude to "
+        "an aspiration professionally rather than quoting it back verbatim ('a role with room to "
+        "grow toward X', not 'your goal is X'). Write with the settled confidence of a DECIDED "
+        "offer — never pitch them to apply. Mention the work mode when the job facts state one.\n"
+        + _LETTER_GROUNDING
         + _NEUTRAL_STYLE
         # OO-L1-04 — the response deadline is a per-offer lever chosen at approval
         # time and the start date is agreed later; both are APPENDED to the letter

@@ -19,7 +19,7 @@ from .jobs import Job
 from .matching import MatchCandidate, MatchResult, fit_tier_for
 from .taxonomy import ROLE_FAMILY_DESCRIPTIONS
 
-REASONING_PROMPT_VERSION = "match-reasoning-v2"
+REASONING_PROMPT_VERSION = "match-reasoning-v3"
 
 
 def _system_for(job: Job) -> str:
@@ -62,11 +62,14 @@ def reasoning_context(candidate: MatchCandidate, job: Job, m: MatchResult) -> di
         "summary": candidate.summary,
         "experienceHighlights": candidate.experience_highlights[:5],
         "workLinks": candidate.work_links[:5],
+        # Stated aspirations are the strongest motivation/direction-fit signal for
+        # EVERY archetype (the 2026-08-11 bench judge repeatedly flagged rationales
+        # and prep packs that ignored them) — not an early-career-only fact.
+        "aspirations": candidate.aspirations,
     }
     if candidate.archetype in _EARLY_CAREER:
         cand["potentialScore"] = candidate.potential_score
         cand["learningSignals"] = candidate.learning_signals
-        cand["aspirations"] = candidate.aspirations
         # how verifiable the matched skills are (academic/project vs professional)
         cand["skillProvenance"] = {
             s: candidate.skill_provenance.get(s, candidate.provenance_default) for s in m.matched_skills[:10]
@@ -132,7 +135,15 @@ def build_prompt(context: dict[str, Any]) -> str:
         '  "interviewProbes": [str] (2-3 questions to validate fit / probe gaps) }\n'
         "Be specific and honest: cite at least one concrete detail from the candidate's "
         "experienceHighlights/summary (and their workLinks where relevant) — never generic "
-        "boilerplate that would fit any candidate. JSON only."
+        "boilerplate that would fit any candidate.\n"
+        "The verdict must state the match total and tier in words (e.g. 'strong fit at 77/100') "
+        "so the prose can be checked against the score. Weigh the candidate's stated aspirations "
+        "when judging motivation/direction fit — an aspiration pointing at (or away from) this "
+        "role is decisive evidence, not color. Interview probes VERIFY, they never assume: do not "
+        "embed a premise the facts don't state (ask 'did X involve Kafka?', not 'walk me through "
+        "the Kafka architecture in X' when Kafka is only a listed skill). Cite numbers and links "
+        "exactly as given: never construct a URL, repository name, or metric that is not verbatim "
+        "in the facts — when workLinks is empty there is no link to cite. JSON only."
     )
 
 
