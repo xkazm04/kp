@@ -361,6 +361,25 @@ offer-only) is decision-critical and stays. Ladder body:
 `DecisionsAiReviewCardLadder.tsx`; peer wiring: `useDecisionsQueue`'s
 `peersOf`/`peerFactsOf`.
 
+## Hybrid handoff (interviewPlan enforcement)
+
+Accepting an AI round's `scorecard_review` — when the workspace's hiring plan
+(Settings → Hiring, the `interviewPlan` decision-config phase) runs a HUMAN
+round after the AI round — routes the candidate BACK to the `calendar` gate
+(human-round scheduling) instead of the generic advance toward Offer:
+`runPipelineEntryAction` (`pipeline-entry-action.ts`) checks
+`planRoutesAiScorecardToHumanRound(getInterviewPlan(ws))`, keeps the stage,
+re-arms the calendar approval, records a `human_round_queued` event and seals
+the decision with `policyVersion: "interview-plan"`. Guards: only AI-sourced
+scorecards (`approvalDetail.source !== "human"`), only pre-Offer stages. The
+Decisions queue narrates the handoff via the "queued on Schedule" banner
+(`routedToHumanRound` on the accept response). The plan's other two gates are
+enforced at the automation apply boundary (`automation-run.ts`):
+`screeningGate: "auto"` auto-ratifies parked ADVANCE screening verdicts (hold/
+reject always park); `offerGate: "auto"` auto-extends priced offer drafts via
+the shared `extendDraftedOffer` path (unpriced fail-safe drafts always park).
+Full plan mechanics: `docs/features/hiring-pipeline/README.md`.
+
 ## Known gaps
 
 - The route layer diverged from the original one-route-per-task design in

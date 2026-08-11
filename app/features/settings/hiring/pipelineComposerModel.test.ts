@@ -1,6 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { validateDecisionConfig } from "@/app/_lib/decision-config-schema";
+import {
+  planHasRound,
+  planRoutesAiScorecardToHumanRound,
+  validateDecisionConfig,
+  type InterviewPlanRule,
+} from "@/app/_lib/decision-config-schema";
 import {
   deriveImpact,
   fromStoredPlan,
@@ -94,6 +99,36 @@ test("the interviewPlan validator rejects stray keys and bad shapes", () => {
     }).ok,
     false,
     "rounds cap enforced"
+  );
+});
+
+const rule = (rounds: InterviewPlanRule["rounds"]): InterviewPlanRule => ({ screeningGate: "human", rounds, offerGate: "human" });
+
+test("planHasRound reports which Schedule surfaces the plan lights up", () => {
+  assert.equal(planHasRound(rule([{ kind: "ai", gate: "human", topN: null }]), "ai"), true);
+  assert.equal(planHasRound(rule([{ kind: "ai", gate: "human", topN: null }]), "human"), false);
+  assert.equal(planHasRound(rule([]), "ai"), false);
+});
+
+test("the hybrid handoff fires only when a HUMAN round follows the AI round", () => {
+  const hybrid = rule([
+    { kind: "ai", gate: "human", topN: null },
+    { kind: "human", gate: "human", topN: 3 },
+  ]);
+  assert.equal(planRoutesAiScorecardToHumanRound(hybrid), true);
+  // AI-only plan: the scorecard accept advances toward Offer as today.
+  assert.equal(planRoutesAiScorecardToHumanRound(rule([{ kind: "ai", gate: "human", topN: null }])), false);
+  // Human-only plan: there is no AI scorecard to route.
+  assert.equal(planRoutesAiScorecardToHumanRound(rule([{ kind: "human", gate: "human", topN: null }])), false);
+  // A human round BEFORE the ai round does not count as a follow-up.
+  assert.equal(
+    planRoutesAiScorecardToHumanRound(
+      rule([
+        { kind: "human", gate: "human", topN: null },
+        { kind: "ai", gate: "human", topN: 3 },
+      ])
+    ),
+    false
   );
 });
 

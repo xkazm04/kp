@@ -1,8 +1,18 @@
 import type { PipelineEntry } from "@/app/_lib/db/core";
-import { actOnPipelineEntry, getPipelineEntry, PIPELINE_STAGES, setApproval, setPipelineEntryStage, type PipelineAction } from "@/app/_lib/db/pipeline";
+import {
+  actOnPipelineEntry,
+  getPipelineEntry,
+  PIPELINE_STAGES,
+  recordAutomationEvent,
+  setApproval,
+  setPipelineEntryStage,
+  type PipelineAction,
+} from "@/app/_lib/db/pipeline";
 import { dispatchOffer, dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { getOrCreateOpenOffer } from "@/app/_lib/offers-store";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { planRoutesAiScorecardToHumanRound } from "@/app/_lib/decision-config-schema";
+import { getInterviewPlan } from "@/app/_lib/interview-plan";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 
 // One canonical move/decide action against a single pipeline entry, shared by the
@@ -77,10 +87,13 @@ const err = (status: number, error: string, extra: Record<string, unknown> = {})
   body: { error, ...extra },
 });
 
-// Human gate for the offer: approving a drafted offer EXTENDS it to the candidate
+// Gate for the offer: approving a drafted offer EXTENDS it to the candidate
 // with a secure accept/decline link, rather than bare-advancing to Hired. The
 // Hired move happens only when the candidate accepts (see /api/offer/[token]).
-async function extendOffer(
+// Exported for the interviewPlan offerGate="auto" path (automation-run.ts),
+// which extends a freshly-drafted offer unattended — same idempotent
+// open-offer reuse, same truthful dispatch, sealActor names the machine.
+export async function extendDraftedOffer(
   entry: PipelineEntry,
   workspaceId: string,
   origin: string,
@@ -191,7 +204,7 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
 
   // Approving a drafted offer extends it to the candidate (not a bare Hire click).
   if (action === "accept" && current.stage === "Offer" && current.approvalKind === "offer_review") {
-    return await extendOffer(current, workspaceId, origin, input.ttlDays, simActor ? SIM_SEAL_ACTOR : "human:recruiter");
+    return await extendDraftedOffer(current, workspaceId, origin, input.ttlDays, simActor ? SIM_SEAL_ACTOR : "human:recruiter");
   }
 
   // Hired is terminal and OUTCOME-bearing (same rule as the set_stage guard): a
@@ -202,6 +215,53 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
       422,
       "Hired is set when the candidate accepts an offer, not by advancing them. Draft and extend an offer instead."
     );
+  }
+
+  // HYBRID HANDOFF (interviewPlan) — accepting an AI round's scorecard, when the
+  // workspace plan runs a HUMAN round after it, routes the candidate BACK to the
+  // calendar gate (human-round scheduling on the Schedule tab) instead of the
+  // generic advance toward Offer. Only AI scorecards hand off: a HUMAN-conducted
+  // scorecard (approvalDetail.source === "human") is the later round's own verdict
+  // and keeps today's advance. Guarded to pre-Offer stages: a scorecard that
+  // somehow rides an Offer-stage entry is past the interview loop. Best-effort
+  // plan read — a config hiccup falls back to the shipped default plan.
+  if (
+    action === "accept" &&
+    current.approvalKind === "scorecard_review" &&
+    (PIPELINE_STAGES as readonly string[]).indexOf(current.stage) < (PIPELINE_STAGES as readonly string[]).indexOf("Offer")
+  ) {
+    let scorecardSource: string | null = null;
+    try {
+      scorecardSource = ((JSON.parse(current.approvalDetail ?? "{}") as { source?: unknown }).source as string) ?? null;
+    } catch {
+      scorecardSource = null;
+    }
+    if (scorecardSource !== "human" && planRoutesAiScorecardToHumanRound(getInterviewPlan(workspaceId))) {
+      // Stage stays put (they are still interviewing); the calendar gate re-arms
+      // with the default proposed slot the screening accept uses, so the
+      // candidate lands on the Schedule tab's human-round pending list.
+      setApproval(id, "calendar", "Tue 14:00", workspaceId);
+      // Auditable in the candidate timeline + sealed in the decision chain: the
+      // human ratified the AI verdict AND the plan chose the next gate.
+      recordAutomationEvent(id, "human_round_queued", "AI round passed — queued for the human round per the hiring plan.", workspaceId);
+      const { aiRecommendation, aiConfidence } = aiVerdict(current);
+      sealDecisionSafe({
+        kind: simActor ? "auto_advanced" : "advanced",
+        actor: simActor ? SIM_SEAL_ACTOR : "human:recruiter",
+        policyVersion: "interview-plan",
+        candidateRef: id,
+        rationale: (typeof input.detail === "string" && input.detail.trim()) || "AI scorecard accepted — routed to the human round per the hiring plan.",
+        reasonCode: "accept",
+        inputs: {
+          fromStage: current.stage,
+          aiRecommendation,
+          aiConfidence,
+          approvalKind: current.approvalKind,
+          handoff: "human_round",
+        },
+      });
+      return ok({ entry: getPipelineEntry(id, workspaceId), routedToHumanRound: true });
+    }
   }
 
   const detail = typeof input.detail === "string" ? input.detail : undefined;

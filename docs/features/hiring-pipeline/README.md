@@ -44,12 +44,49 @@ tier). No new table — the tenancy manifest is untouched.
 `deriveImpact()`, `matchesPreset()`, and the wire conversions
 `toStoredPlan()` / `fromStoredPlan()` / `planEqualsStored()`.
 
+## Enforcement (what the plan drives today)
+
+- **Hybrid handoff** (`pipeline-entry-action.ts`): accepting an AI round's
+  scorecard, when the plan runs a HUMAN round after it
+  (`planRoutesAiScorecardToHumanRound`), routes the candidate back to the
+  calendar gate (human-round scheduling) instead of advancing toward Offer —
+  stage stays Interview, a `human_round_queued` event lands on the timeline,
+  and the decision seals with `policyVersion: "interview-plan"` +
+  `inputs.handoff`. A HUMAN-conducted scorecard (`approvalDetail.source ===
+  "human"`) always advances as before. The Decisions queue narrates the
+  handoff through the same "queued on Schedule" banner as an accepted
+  screening.
+- **Schedule surfaces** (`ScheduleTab.tsx`): the Human/AI round switcher is
+  plan-aware — only the rounds the plan runs are offered (single-surface plans
+  render that surface with no switcher), the plan's FIRST round is the default
+  view (never overriding a manual switch), and a human-only plan hides the
+  "Start AI interview" launcher on pending cards. Server read:
+  `app/_lib/interview-plan.ts` (`getInterviewPlan`); pure helpers
+  (`planHasRound`, `planRoutesAiScorecardToHumanRound`) in
+  `decision-config-schema.ts`.
+
+- **Auto screening gate** (`automation-run.ts`, screen task):
+  `screeningGate: "auto"` ratifies a parked screening review UNATTENDED when
+  the AI's recommendation is **advance** (i.e. it parked only for confidence)
+  — through the same accept machinery a recruiter's click uses (advance +
+  calendar gate, `auto_advanced` event, sealed with actor
+  `auto:interview-plan`), CAS-guarded on the just-set approval. **hold and
+  reject recommendations always park** — auto mode never overrides a cautious
+  or adverse verdict, preserving the fairness posture. `"human"` (default) is
+  today's behavior byte-identical.
+- **Auto offer gate** (`automation-run.ts`, offer task): `offerGate: "auto"`
+  extends a freshly-drafted offer unattended via the shared
+  `extendDraftedOffer` path (idempotent open-offer reuse, truthful sent/queued
+  dispatch, sealed `offer_terms` with the machine as actor, `applied:
+  "offer_sent"` + an `offer_auto_extended` event). Hard guards: an UNPRICED
+  fail-safe draft always parks for a human to price; an extend failure parks
+  the draft at `offer_review` as if the gate were human.
+
 ## Known gaps
 
-- The plan is stored and previewed but **not yet enforced**: the pipeline
-  action layer, Schedule's round switcher and the Decisions queues do not read
-  it yet. The enforcement design (plan-aware routing on accept, hybrid cohort
-  reducer as a sealed decision, onboarding step) lives in
-  `docs/concepts/interview-rounds.md`.
+- The top-N cohort reducer is advisory (the Decisions cards' peer rank shows
+  the standing); it does not auto-cut the cohort.
+- Multi-round sequencing beyond one AI round needs a per-entry round pointer;
+  today the handoff anchors on the plan's first AI round.
 - Saving writes the team tier only; there is no org-baseline editor UI yet
   (the store supports it).

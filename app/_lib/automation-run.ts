@@ -16,6 +16,9 @@ import {
   UI_LANG_TASKS,
 } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
+import { getInterviewPlan } from "./interview-plan";
+import { extendDraftedOffer } from "./pipeline-entry-action";
+import { sealDecisionSafe } from "./decision-record-store";
 import { resolveCommsLocale } from "./comms-locale";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
 import { isLocale, type Locale } from "@/i18n/locales";
@@ -296,8 +299,38 @@ export async function runAutomationTask(
     if (holdForReview) {
       setApproval(entry.id, "screening_review", JSON.stringify(result), workspaceId);
       recordAutomationEvent(entry.id, "screening_hold", readRecommendation(result, task), workspaceId);
+      // interviewPlan screeningGate="auto" — the workspace chose to trust the
+      // AI's ADVANCE verdicts: a review parked only for confidence (recommendation
+      // advance, route hold) is ratified unattended through the SAME accept
+      // machinery a recruiter's click uses (advance + calendar gate + auto_advanced
+      // event), CAS-guarded on the approval just set. hold/reject recommendations
+      // ALWAYS park — auto mode never overrides a cautious or adverse verdict.
+      if (
+        getInterviewPlan(workspaceId).screeningGate === "auto" &&
+        coerceInterviewRecommendation(String((result as { recommendation?: unknown }).recommendation ?? "")) === "advance"
+      ) {
+        const ratified = actOnPipelineEntry(
+          entry.id,
+          "accept",
+          undefined,
+          { expectedApprovalKind: "screening_review", actor: "system" },
+          workspaceId
+        );
+        if (ratified) {
+          sealDecisionSafe({
+            kind: "auto_advanced",
+            actor: "auto:interview-plan",
+            policyVersion: "interview-plan",
+            candidateRef: entry.id,
+            rationale: "Screening advance verdict auto-ratified per the hiring plan (screening gate: auto).",
+            reasonCode: "accept",
+            inputs: { fromStage: entry.stage, approvalKind: "screening_review" },
+          });
+          applied = "auto_ratified";
+        }
+      }
     }
-    applied = screenApplied;
+    if (applied !== "auto_ratified") applied = screenApplied;
   } else if (task === "scorecard") {
     setApproval(entry.id, "scorecard_review", JSON.stringify(result), workspaceId);
     recordAutomationEvent(entry.id, "interview_scorecard", readRecommendation(result, task), workspaceId);
@@ -306,6 +339,30 @@ export async function runAutomationTask(
     setApproval(entry.id, "offer_review", JSON.stringify(result), workspaceId);
     recordAutomationEvent(entry.id, "offer_drafted", String(result.recommended ?? ""), workspaceId);
     applied = "offer_ready";
+    // interviewPlan offerGate="auto" — extend the freshly-drafted offer to the
+    // candidate unattended, through the SAME extend path a recruiter's approval
+    // uses (idempotent open-offer reuse, truthful sent/queued dispatch, sealed
+    // offer_terms with the machine as actor). Two hard guards:
+    //   • an UNPRICED fail-safe draft (recommended null — no figure was willing
+    //     to be invented) ALWAYS parks for a human to price it;
+    //   • the extend runs on the FRESH row (the approval just written), so a
+    //     concurrent decision can't be clobbered.
+    // Origin "" → publicBaseUrl resolves the configured/canonical public origin
+    // (never a request Host), which is exactly right for a background extend.
+    if (getInterviewPlan(workspaceId).offerGate === "auto" && result.recommended != null) {
+      const fresh = getPipelineEntry(entry.id, workspaceId);
+      if (fresh && fresh.approvalKind === "offer_review") {
+        try {
+          await extendDraftedOffer(fresh, workspaceId, "", null, "auto:interview-plan");
+          recordAutomationEvent(entry.id, "offer_auto_extended", "Offer extended unattended per the hiring plan (offer gate: auto).", workspaceId);
+          applied = "offer_sent";
+        } catch (error) {
+          // The draft is parked at offer_review as if the gate were human — an
+          // auto-extend failure must never lose the draft.
+          console.error("[automation:offer] auto-extend failed; draft parked for human approval", error);
+        }
+      }
+    }
   } else if (task === "rematch") {
     if (result.found && result.jobId) {
       // createPipelineEntry is idempotent (a corpus edit self-invalidates the

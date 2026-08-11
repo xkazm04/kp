@@ -428,7 +428,13 @@ export function useDecisionsQueue() {
       // Surface the offer-extension result instead of discarding it (OO-L1-02):
       // the response carries the candidate's secure accept/decline link — confirm
       // the send with a toast and keep the link copyable in the banner below.
-      const p = (await r.json().catch(() => null)) as { offerExtended?: boolean; link?: unknown } | null;
+      const p = (await r.json().catch(() => null)) as { offerExtended?: boolean; link?: unknown; routedToHumanRound?: boolean } | null;
+      // HYBRID HANDOFF (interviewPlan): the accepted AI scorecard routed the
+      // candidate to the human round's calendar gate — narrate the Schedule
+      // handoff exactly like an accepted screening does.
+      if (action === "accept" && e.approvalKind === "scorecard_review" && p?.routedToHumanRound) {
+        setQueuedLabels((prev) => [...prev, e.candidateLabel]);
+      }
       if (action === "accept" && e.approvalKind === "offer_review" && p?.offerExtended && typeof p.link === "string") {
         const link = p.link;
         if (relayConfigured === false) toast.info(t("offerSent.toastQueued", { name: e.candidateLabel }));

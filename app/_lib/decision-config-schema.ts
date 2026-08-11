@@ -111,6 +111,24 @@ export type InterviewPlanRule = {
 
 export const INTERVIEW_PLAN_MAX_ROUNDS = 3;
 
+/** Does the plan run at least one round of this kind? Drives which Schedule
+ *  surfaces (AI docket / human calendar) are live for the workspace. Pure —
+ *  shared by the client tab and the server routing. */
+export function planHasRound(plan: InterviewPlanRule, kind: InterviewPlanRoundKind): boolean {
+  return plan.rounds.some((r) => r.kind === kind);
+}
+
+/** The hybrid handoff rule: after an AI round's scorecard is ACCEPTED, does a
+ *  HUMAN round still follow in the plan? True → the accept routes the candidate
+ *  back to the calendar gate (human-round scheduling) instead of advancing
+ *  toward Offer. Anchored on the FIRST ai round — the product runs one AI round
+ *  today; a second AI round would need a per-entry round pointer to sequence. */
+export function planRoutesAiScorecardToHumanRound(plan: InterviewPlanRule): boolean {
+  const aiIdx = plan.rounds.findIndex((r) => r.kind === "ai");
+  if (aiIdx === -1) return false;
+  return plan.rounds.slice(aiIdx + 1).some((r) => r.kind === "human");
+}
+
 /** Default = the team-hybrid archetype: gated AI round, then a human round for
  *  the top 3, everything human-approved. */
 export const INTERVIEW_PLAN_DEFAULT: InterviewPlanRule = {

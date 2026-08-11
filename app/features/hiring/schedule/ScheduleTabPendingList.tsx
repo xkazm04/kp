@@ -46,7 +46,8 @@ export function ScheduleTabPendingList({
   cardExit: (dir: "confirm" | "decline") => TargetAndTransition;
   onPrep: (e: SchedEntry) => void;
   onTranscript: (e: SchedEntry) => void;
-  onStartInterview: (e: SchedEntry) => void;
+  // Absent when the workspace plan runs no AI round — the launcher is hidden.
+  onStartInterview?: (e: SchedEntry) => void;
   onAct: (e: SchedEntry, action: "approve_event" | "reject") => void;
 }) {
   return (
@@ -120,7 +121,7 @@ export function ScheduleTabPendingList({
                   </span>
                   {t("interviewLive")}
                 </span>
-              ) : (
+              ) : onStartInterview ? (
                 <button
                   type="button"
                   onClick={() => onStartInterview(e)}
@@ -130,7 +131,7 @@ export function ScheduleTabPendingList({
                   <Phone size={14} className="text-coral" />
                   {creatingIv === e.id ? t("opening") : t("startInterview")}
                 </button>
-              )}
+              ) : null}
               <div className="mt-1.5 flex gap-1.5">
                 <button
                   type="button"

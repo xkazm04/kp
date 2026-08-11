@@ -236,6 +236,11 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   (`countFutureConfirmedInvites` in `schedule-store.ts`, wired in
   `app/_lib/attention.ts`) — "how many interviews are on the calendar ahead of
   me", not the due-reminder queue.
+- **The round switcher is plan-aware** (Settings → Hiring, `interviewPlan`):
+  only the rounds the workspace plan runs are offered (a single-surface plan
+  renders that surface with no switcher), the plan's first round is the default
+  view, and a human-only plan hides the "Start AI interview" launcher on
+  pending cards. Best-effort config read — a fetch failure shows both surfaces.
 - **The tab has a Human round / AI round switcher.** Human = the calendar
   surface described above. AI = the **"Docket"** (winner of the /prototype
   round): three stations — Awaiting link (Generate interview link mints +

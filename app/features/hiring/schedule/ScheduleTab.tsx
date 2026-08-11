@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Defer } from "@/app/_components/ui/Defer";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
+import { planHasRound, type InterviewPlanRule } from "@/app/_lib/decision-config-schema";
 import { ScheduleEmptyRelay } from "./ScheduleEmptyRelay";
 import { useScheduleTab } from "./useScheduleTab";
 import { ScheduleTabPendingList } from "./ScheduleTabPendingList";
@@ -11,9 +12,8 @@ import { ScheduleTabInterviewedList } from "./ScheduleTabInterviewedList";
 import type { SchedEntry } from "./ScheduleTypes";
 import type { EvalTarget } from "./ScheduleAiRound";
 
-// PROTOTYPE — the AI round subtab (link-out AI-first interviews as a
-// ledger/docket). Lazy like the calendar: it only loads when the recruiter
-// switches rounds.
+// The AI round subtab (link-out AI-first interviews as the Docket). Lazy like
+// the calendar: it only loads when the recruiter switches rounds.
 const ScheduleAiRound = dynamic(() => import("./ScheduleAiRound").then((m) => ({ default: m.ScheduleAiRound })), {
   loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden />,
 });
@@ -64,9 +64,41 @@ export function ScheduleTab() {
     slotLabel,
   } = useScheduleTab();
 
-  // PROTOTYPE — which interview round the tab shows. "human" keeps today's
-  // calendar surface byte-identical; "ai" is the new link-out AI-first round.
+  // Which interview round the tab shows — plan-aware (Settings → Hiring): the
+  // workspace's interviewPlan decides which surfaces exist at all, and the
+  // FIRST round in the plan is the default view. Best-effort fetch: a config
+  // hiccup keeps both surfaces visible (today's behavior). The recruiter's own
+  // switch is never overridden — the plan default applies once, on load, and
+  // only if they haven't switched yet.
   const [round, setRound] = useState<"human" | "ai">("human");
+  const [plan, setPlan] = useState<InterviewPlanRule | null>(null);
+  const userSwitched = useRef(false);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/decisions/config")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error())))
+      .then((p) => alive && setPlan((p.configs?.interviewPlan as InterviewPlanRule) ?? null))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const hasAiRound = plan ? planHasRound(plan, "ai") : true;
+  const hasHumanRound = plan ? planHasRound(plan, "human") : true;
+  useEffect(() => {
+    if (!plan || userSwitched.current) return;
+    // Reconciling the default view to the loaded plan — the legitimate effect
+    // use; a plan whose first round matches the current view is a no-op.
+    const first = plan.rounds[0]?.kind;
+    const target: "human" | "ai" = first === "ai" && hasAiRound ? "ai" : hasHumanRound ? "human" : "ai";
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setRound((cur) => (cur === target ? cur : target));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan]);
+  const pickRound = (r: "human" | "ai") => {
+    userSwitched.current = true;
+    setRound(r);
+  };
 
   // The AI ledger reviews HISTORY: a session keeps its entry id after the
   // pipeline entry advances, so the evaluation modals get a minimal entry
@@ -89,18 +121,21 @@ export function ScheduleTab() {
       </header>
 
       {/* Round switcher: the calendar surface below is the HUMAN round; the AI
-          round is the link-out docket. */}
-      <SegmentedControl
-        label={t("rounds.label")}
-        options={[
-          { value: "human", label: t("rounds.human") },
-          { value: "ai", label: t("rounds.ai") },
-        ]}
-        value={round}
-        onChange={setRound}
-      />
+          round is the link-out docket. Hidden when the workspace plan runs only
+          one kind of round — the single live surface renders directly. */}
+      {hasAiRound && hasHumanRound ? (
+        <SegmentedControl
+          label={t("rounds.label")}
+          options={[
+            { value: "human", label: t("rounds.human") },
+            { value: "ai", label: t("rounds.ai") },
+          ]}
+          value={round}
+          onChange={pickRound}
+        />
+      ) : null}
 
-      {round === "ai" ? (
+      {(hasAiRound && !hasHumanRound) || (round === "ai" && hasAiRound) ? (
         <ScheduleAiRound calendarEntries={calendarEntries} interviews={interviews} onOpenTranscript={openEvaluation} />
       ) : (
         <>
@@ -156,7 +191,8 @@ export function ScheduleTab() {
               cardExit={cardExit}
               onPrep={setPrepEntry}
               onTranscript={setTranscriptEntry}
-              onStartInterview={startInterview}
+              // Plan-aware: a human-only plan offers no AI-interview launcher.
+              onStartInterview={hasAiRound ? startInterview : undefined}
               onAct={act}
             />
 
