@@ -128,6 +128,13 @@ noun in every locale.
 the hook has no translator, both failure paths render the same line, and the copy
 lives at `workspaceAdmin.members.loadError`.
 
+It fires `GET /api/org/members` and `GET /api/org/invites` **in parallel**. The
+invite request used to wait for the members payload to prove `canManage`, which
+cost the console two serial round-trips on first paint. The permission check now
+decides only what is KEPT: the invites response is discarded unless
+`canManage` is true (a caller without `members:manage` gets a 403 there, handled
+as "no invites"), so nothing gated is ever rendered.
+
 ## Data model
 
 `organizations`, `users`, `memberships` (user × team/workspace × role),

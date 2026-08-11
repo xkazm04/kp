@@ -106,7 +106,10 @@ export function OrganizationConsole({
     // no data (name/domain/language are already hydrated by the caller); aria-busy
     // covers only the first member-roster fetch — a later reload() never re-arms it
     // (useOrganizationMembers's `loading` only ever goes true -> false once).
-    <section className="stagger-children mx-auto max-w-6xl space-y-6" aria-busy={loading}>
+    // No container of its own: the shell already centers and pads every tab
+    // (Workspace.tsx). A second mx-auto/max-w here made Organization stop short
+    // of the width every other Settings tab uses.
+    <section className="stagger-children space-y-6" aria-busy={loading}>
       <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b border-stone-200 pb-5">
         <div>
           <p className={EYEBROW}>{t("eyebrow")}</p>

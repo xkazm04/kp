@@ -22,6 +22,7 @@ export function BrandingEditorForm({
   status,
   onSave,
   onReset,
+  disabled = false,
 }: {
   name: string;
   onNameChange: (v: string) => void;
@@ -36,6 +37,11 @@ export function BrandingEditorForm({
   status: { kind: "saved" | "error"; text: string } | null;
   onSave: () => void;
   onReset: () => void;
+  /** True while GET /api/brand is still in flight. The form's frame, labels and
+   *  help text are hardcoded, so they paint on the first frame; only the FIELDS
+   *  wait — inert until the saved values land, so a keystroke typed into the gap
+   *  can't be silently overwritten when the payload arrives. */
+  disabled?: boolean;
 }) {
   const t = useTranslations("branding");
 
@@ -52,6 +58,7 @@ export function BrandingEditorForm({
           maxLength={60}
           onChange={(e) => onNameChange(e.target.value)}
           placeholder={t("namePlaceholder")}
+          disabled={disabled}
           className={`${FIELD} mt-1 w-full`}
         />
         <p className="mt-1 text-sm text-steel">{t("nameHelp")}</p>
@@ -68,6 +75,7 @@ export function BrandingEditorForm({
             value={effectiveAccent}
             onChange={(e) => onAccentChange(e.target.value)}
             aria-label={t("accentLabel")}
+            disabled={disabled}
             className="h-9 w-12 shrink-0 cursor-pointer rounded-md border border-stone-200 bg-white p-0.5"
           />
           <input
@@ -76,6 +84,7 @@ export function BrandingEditorForm({
             onChange={(e) => onAccentChange(e.target.value)}
             placeholder={CORAL}
             spellCheck={false}
+            disabled={disabled}
             className={`${FIELD} w-32 nums`}
           />
           {accent.trim() ? (
@@ -103,6 +112,7 @@ export function BrandingEditorForm({
           onChange={(e) => onLogoChange(e.target.value)}
           placeholder="https://…/logo.png"
           spellCheck={false}
+          disabled={disabled}
           className={`${FIELD} mt-1 w-full`}
         />
         <p className="mt-1 text-sm text-steel">{t("logoHelp")}</p>

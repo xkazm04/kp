@@ -108,6 +108,21 @@ A region whose content depends on a fetch renders, in the same geometry, one of:
 decides what an *empty* region shows — nothing more. Re-fetches settle silently
 behind the current content.
 
+**A form is chrome; only its VALUES are data.** Panel frames, labels, help text
+and buttons are hardcoded — hold a `reveal-quiet` box for a *region*, never for a
+settings form that a round-trip fills with three strings. Render the form on the
+first frame and pass a `disabled` flag while the fetch is in flight, so a
+keystroke typed into the gap can't be silently overwritten when the payload
+lands. `Settings → Branding` (`BrandingTab` + `BrandingEditorForm`) is the
+reference: it used to hold a 26rem box for a layout that needed no data to draw.
+
+**Don't gate a `<Defer>` subtree on the parent's fetch.** A secondary panel that
+owns its own data (`Settings → Models`' keys/usage panels) must mount on its own
+schedule; gating it on the primary payload turns two independent requests into a
+serial waterfall — parent round-trip, then chunk download, then the child's fetch.
+`<Defer>` alone already keeps it off the first frame, which is the only thing such
+a gate ever buys.
+
 ### Tier 3 — deferring the heavy stuff
 
 `app/_components/ui/Defer.tsx`:

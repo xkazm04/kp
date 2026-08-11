@@ -34,7 +34,15 @@ export function useOrganizationMembers() {
   // callbacks, deferred off the effect's synchronous pass. Still returns the
   // promise so action handlers can `await reload()` after a mutation.
   const reload = useCallback(() => {
-    return fetch("/api/org/members")
+    // Both requests leave together. Invites used to wait for the members payload
+    // to prove `canManage`, which made the console's first paint cost two serial
+    // round-trips for a roster nobody can act on until both have landed. The
+    // permission check still decides what we KEEP: a caller without
+    // members:manage gets a 403 here (handled below as "no invites") and the
+    // response is discarded either way, so nothing gated is rendered.
+    const membersReq = fetch("/api/org/members");
+    const invitesReq = fetch("/api/org/invites").catch(() => null);
+    return membersReq
       .then(async (r): Promise<void> => {
         // Canonical English, for the console log only — never rendered.
         if (!r.ok) throw new Error("Failed to load members");
@@ -42,13 +50,9 @@ export function useOrganizationMembers() {
         setMembers(data.members);
         setCanManage(data.canManage);
         setCallerCaps(data.callerCapabilities);
-        // Pending invites are members:manage-gated; only fetch them when we may see them.
-        if (data.canManage) {
-          const ri = await fetch("/api/org/invites");
-          setInvites(ri.ok ? ((await ri.json()) as { invites: InviteDto[] }).invites : []);
-        } else {
-          setInvites([]);
-        }
+        // Pending invites are members:manage-gated; only render them when we may see them.
+        const ri = data.canManage ? await invitesReq : null;
+        setInvites(ri && ri.ok ? ((await ri.json()) as { invites: InviteDto[] }).invites : []);
         setError(false);
       })
       .catch(() => {

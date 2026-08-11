@@ -109,6 +109,17 @@ export function NavSectionRail({
   const groupLabel = (group: NavGroup) =>
     navText(`groups.${sectionOf(group)}`, group.label ?? HIRING_FALLBACK_LABEL);
 
+  // Warm every chunk in a group the moment the RAIL button is pointed at. The
+  // per-item hover (NavPanelItem's onPrefetch) only fires once the panel is
+  // already open, so reaching a second-level tab was two sequential waits: open
+  // the section, then start the chunk on the item hover a beat before the click.
+  // Groups are 2–7 small tab chunks, and prefetchTabChunk is idempotent per
+  // document, so this is at most one extra download per group per session.
+  const prefetchSection = (group: NavGroup) => {
+    if (!onPrefetchTab) return;
+    for (const item of group.items) onPrefetchTab(item.id);
+  };
+
   const railButton = (group: NavGroup) => {
     const section = sectionOf(group);
     const Icon = SECTION_ICON[section];
@@ -118,7 +129,12 @@ export function NavSectionRail({
       <button
         key={section}
         type="button"
-        onClick={() => setOpenSection(section)}
+        onClick={() => {
+          setOpenSection(section);
+          prefetchSection(group);
+        }}
+        onMouseEnter={() => prefetchSection(group)}
+        onFocus={() => prefetchSection(group)}
         aria-pressed={current}
         title={label}
         className={`focus-ring flex flex-col items-center gap-1 rounded-lg px-1 py-2 transition-colors ${

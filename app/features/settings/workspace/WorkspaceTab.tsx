@@ -5,6 +5,7 @@ import { Check, Plus, AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { TextInput } from "@/app/_components/TextInput";
+import { INTRO } from "@/app/_components/ui/recipes";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { Workspace } from "@/app/_lib/db/workspaces";
 
@@ -71,11 +72,16 @@ export function WorkspaceTab() {
     // cascade in together; the header and note need no data and never wait on the
     // fetch. aria-busy covers the first load only (mirrors useJsonFetch's own
     // one-way data===null -> data!==null transition on a normal first mount).
-    <section className="stagger-children mx-auto max-w-2xl px-4 py-8" aria-busy={!data && !error}>
+    //
+    // No container of its own: the shell already centers and pads every tab
+    // (Workspace.tsx's mx-auto max-w-[108rem] px-4 py-8 wrapper). A second
+    // mx-auto/max-w/px here is what made this tab render narrower and inset
+    // relative to every other Settings tab.
+    <section className="stagger-children" aria-busy={!data && !error}>
       <h2 className="font-serif text-display text-ink">{t("title")}</h2>
-      <p className="mt-1 max-w-prose text-body text-steel">{t("intro")}</p>
+      <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
 
-      <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+      <div className="mt-4 flex max-w-2xl items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
         <span>{locked ? t("lockedNote") : t("scopeNote")}</span>
       </div>

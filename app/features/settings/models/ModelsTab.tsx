@@ -146,24 +146,23 @@ export function ModelsTab() {
       ) : null}
 
       {/* Tier 3: secondary panels, one idle beat after the routing table paints.
-          Each is its own chunk, so this tab's entry payload is the table only. */}
-      {config ? (
-        <Defer strategy="next-frame">
-          <QualityOverview />
-        </Defer>
-      ) : null}
+          Each is its own chunk, so this tab's entry payload is the table only.
+          NOT gated on `config`: these panels own their own data (keys, usage) and
+          are otherwise hardcoded chrome, so waiting for /api/llm/config made the
+          tab a serial waterfall — config round-trip, THEN chunk download, THEN
+          their own fetches. <Defer> already keeps them off the first frame, which
+          is the only thing the gate was actually buying. */}
+      <Defer strategy="next-frame">
+        <QualityOverview />
+      </Defer>
 
-      {config ? (
-        <Defer strategy="idle">
-          <KeysPanel />
-        </Defer>
-      ) : null}
+      <Defer strategy="idle">
+        <KeysPanel />
+      </Defer>
 
-      {config ? (
-        <Defer strategy="idle">
-          <UsagePanel />
-        </Defer>
-      ) : null}
+      <Defer strategy="idle">
+        <UsagePanel />
+      </Defer>
     </section>
   );
 }

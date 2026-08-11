@@ -20,7 +20,10 @@ Backend shipped and in production use:
 - Headless admin API: `/api/llm/config`, `/api/llm/keys`, `/api/llm/test`,
   `/api/llm/usage` — BYOM keys encrypted at rest (AES-256-GCM under `KP_SECRET`,
   never echoed back after save). UI: **Settings → Models**
-  (`app/features/settings/models/ModelsTab.tsx`).
+  (`app/features/settings/models/ModelsTab.tsx`). The tab's three secondary
+  panels (quality overview, keys, usage) are `<Defer>`-mounted own chunks that
+  own their own fetches — they are **not** gated on `/api/llm/config`, so the
+  routing table's round-trip no longer serializes ahead of theirs.
 - Most production use cases ported: `match_reasoning`, `automation` (screen/
   outreach/reject/prep/scorecard/rematch), `campaign_pack`, `jd_ingest`,
   `group_compare`, `weight_proposal`, `devcase/*`, `profile_draft`

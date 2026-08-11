@@ -132,10 +132,13 @@ export function BrandingTab() {
   }, [baseline]);
 
   return (
-    // Tier 1: the header is chrome — the form frame + editor panel are the
-    // second direct stagger child, so they cascade in as a single unit. Tier 2
-    // lives inside that child: a quiet reserved-height box while the config
-    // fetch is in flight (never a skeleton), the real editor once it arrives.
+    // Tier 1: the header AND the editor/preview layout are chrome — panel frames,
+    // labels, help text and the preview are hardcoded, so they paint on the first
+    // frame without waiting on GET /api/brand. Only the field VALUES are data;
+    // the form stays inert (disabled) until they land, so a keystroke typed into
+    // the gap can't be clobbered by the payload. (Was a held 26rem box for the
+    // whole layout — the tab looked empty for a round-trip that renders nothing
+    // but three input values.)
     <section className="stagger-children space-y-6" aria-busy={!loaded && !loadFailed}>
       <header>
         <p className={EYEBROW}>{t("eyebrow")}</p>
@@ -147,8 +150,6 @@ export function BrandingTab() {
         <div className={`${PANEL_SUNKEN} p-4`}>
           <p className="text-base text-coral">{t("loadFailed")}</p>
         </div>
-      ) : !loaded ? (
-        <div className="reveal-quiet min-h-[26rem]" aria-hidden />
       ) : (
         <div className="animate-arrive-in grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
           {/* Editor */}
@@ -171,6 +172,7 @@ export function BrandingTab() {
             status={status}
             onSave={save}
             onReset={reset}
+            disabled={!loaded}
           />
 
           {/* Live preview — tier 3: secondary to the editor, its own chunk,
