@@ -99,7 +99,9 @@ class DynamicWeightTest(unittest.TestCase):
         weak = _student(skill_provenance={"Python": "self_declared"})
         weak_proposed, weak_notes = propose_weights(weak, job)
         self.assertEqual(weak_proposed, dict(base))
-        self.assertFalse(weak_notes)
+        # Baseline proposals now carry an auditable baseline note (never silent).
+        self.assertEqual(len(weak_notes), 1)
+        self.assertIn("Baseline", weak_notes[0])
 
     def test_score_job_weights_override_is_opt_in(self):
         job = _job()
@@ -187,7 +189,9 @@ class NonTechScoringContractTest(unittest.TestCase):
         weak = _nurse_student(skill_provenance={"intensive care": "self_declared"})
         weak_proposed, weak_notes = propose_weights(weak, job)
         self.assertEqual(weak_proposed, dict(base))
-        self.assertFalse(weak_notes)
+        # Baseline proposals now carry an auditable baseline note (never silent).
+        self.assertEqual(len(weak_notes), 1)
+        self.assertIn("Baseline", weak_notes[0])
 
     def test_fairness_matrix_ranks_the_stronger_nurse_first(self):
         job = _nurse_job()

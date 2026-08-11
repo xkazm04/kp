@@ -119,13 +119,19 @@ def coerce_recommendation(value: Any, default: str = RECOMMENDATION_FALLBACK) ->
 
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
-    """Try the LLM; on missing provider OR any error, use the deterministic builder."""
+    """Try the LLM; on missing provider OR any error, use the deterministic builder.
+
+    Truthful source: when coercion discards the model's payload entirely, the
+    result is byte-identical to the deterministic template — report THAT as
+    ``deterministic`` (the tokens were spent, but the answer on the wire is not
+    the model's). The 2026-08-11 bench caught a template-for-template payload
+    graded as the model's work; same honesty rule as match_reasoning._coerce."""
     if provider is None:
         return deterministic(), "deterministic"
     try:
         payload = provider.complete_json(prompt, system=_system_prompt())
         result = coerce(payload)
-        return result, "llm"
+        return result, ("deterministic" if result == deterministic() else "llm")
     except Exception:
         return deterministic(), "deterministic"
 

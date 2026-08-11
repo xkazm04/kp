@@ -21,7 +21,7 @@ from typing import Any
 
 from .i18n import language_directive
 from .jobs import Job
-from .matching import MatchCandidate, propose_weights, score_job, weight_bounds, weights_for
+from .matching import MatchCandidate, propose_weights, resolve_weights, score_job, weight_bounds, weights_for
 
 WEIGHT_PROPOSAL_PROMPT_VERSION = "weight-proposal-v2"
 
@@ -83,7 +83,9 @@ def build_prompt(context: dict[str, Any]) -> str:
         "Tune the scoring weights for EACH candidate for this one role. Use ONLY these facts:\n"
         f"{json.dumps(context, ensure_ascii=False, indent=2)}\n\n"
         "For each candidate propose weights for the three dimensions (skills, career, personal) that "
-        "sum to 1.0 and stay within that candidate's weightBounds. Shift weight TOWARD skills when the "
+        "sum to 1.0 and stay within that candidate's weightBounds — the bounds are HARD LIMITS: when "
+        "your preferred value would cross a bound, output the bound value itself (e.g. bounds "
+        "[0.35, 0.6] and a preference of 0.62 -> output 0.6). Shift weight TOWARD skills when the "
         "role's must-haves are backed by high-trust, demonstrated evidence (observed > professional > "
         "internship/open_source); shift toward career/potential when the case rests on trajectory rather "
         "than proven skill; keep the baseline when there is no clear signal. Weights are a fairness lens, "
@@ -101,11 +103,17 @@ def build_prompt(context: dict[str, Any]) -> str:
 def deterministic_proposals(
     candidates: list[tuple[str, MatchCandidate]], job: Job
 ) -> dict[str, dict[str, Any]]:
-    """Relevance-driven proposal per candidate from matching.propose_weights — never fails."""
+    """Relevance-driven proposal per candidate from matching.propose_weights — never fails.
+
+    Resolved through the bounds (resolve_weights, idempotent) before it ships:
+    propose_weights returns a PRE-bounds vector (the +0.12 skills bump can land at
+    0.62 against a 0.6 ceiling), and an artifact that advertises per-candidate
+    bounds must not itself violate them — downstream application re-resolves and
+    gets the identical vector."""
     out: dict[str, dict[str, Any]] = {}
     for cid, cand in candidates:
         weights, notes = propose_weights(cand, job)
-        out[cid] = {"weights": weights, "rationale": notes}
+        out[cid] = {"weights": resolve_weights(cand.archetype, weights), "rationale": notes}
     return out
 
 
@@ -113,6 +121,7 @@ def _coerce(
     payload: Any, candidates: list[tuple[str, MatchCandidate]], job: Job
 ) -> dict[str, dict[str, Any]]:
     fallback = deterministic_proposals(candidates, job)
+    arch_by_id = {cid: cand.archetype for cid, cand in candidates}
     by_id: dict[str, dict[str, Any]] = {}
     if isinstance(payload, dict):
         for p in payload.get("proposals") or []:
@@ -126,11 +135,30 @@ def _coerce(
                 weights = {k: float(raw[k]) for k in _DIMENSION_KEYS}
             except (KeyError, TypeError, ValueError):
                 continue
+            # Resolve into the candidate's bounds at the trust boundary (same
+            # projection the scorer applies; idempotent) — the model is TOLD the
+            # bounds are hard limits, and the artifact must honor its own contract
+            # even when the model overshoots.
+            arch = arch_by_id.get(str(cid))
+            if arch:
+                weights = resolve_weights(arch, weights)
             rationale = str(p.get("rationale") or "").strip()
             by_id[str(cid)] = {"weights": weights, "rationale": [rationale] if rationale else []}
     # Backfill any candidate the model missed or garbled with the deterministic proposal,
-    # so every candidate always has a (bounded-downstream) weighting.
-    return {cid: by_id.get(cid) or fallback[cid] for cid, _cand in candidates}
+    # so every candidate always has a (bounded-downstream) weighting. A model proposal
+    # whose rationale came back EMPTY keeps its weights but takes the deterministic
+    # rationale — the contract is one auditable reason per candidate, and the
+    # 2026-08-11 bench found ~85% of rationales empty across every model.
+    out: dict[str, dict[str, Any]] = {}
+    for cid, _cand in candidates:
+        entry = by_id.get(cid)
+        if entry is None:
+            out[cid] = fallback[cid]
+        elif not entry["rationale"]:
+            out[cid] = {"weights": entry["weights"], "rationale": fallback[cid]["rationale"]}
+        else:
+            out[cid] = entry
+    return out
 
 
 def generate(
@@ -141,8 +169,9 @@ def generate(
     provider: Any | None = None,
 ) -> tuple[dict[str, dict[str, Any]], str]:
     """Return ({candidateId: {weights, rationale}}, source) where source is 'llm' or
-    'deterministic'. Weights are RAW proposals — resolve_weights enforces the bounds
-    where they are applied (matching.fairness_matrix). ``lang`` localizes only the
+    'deterministic'. Weights ship already RESOLVED into each candidate's bounds
+    (resolve_weights at the trust boundary; downstream re-resolution in
+    matching.fairness_matrix is idempotent). ``lang`` localizes only the
     per-candidate rationale text; the numeric weights are language-agnostic."""
     if provider is None or not candidates:
         return deterministic_proposals(candidates, job), "deterministic"

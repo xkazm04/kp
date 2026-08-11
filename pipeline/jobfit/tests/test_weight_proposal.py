@@ -56,7 +56,10 @@ class WeightProposalTest(unittest.TestCase):
         # Ada's observed, role-relevant must-have leans her toward skills vs Bo (baseline).
         self.assertGreater(proposals["a"]["weights"]["skills"], proposals["b"]["weights"]["skills"])
         self.assertTrue(proposals["a"]["rationale"])
-        self.assertEqual(proposals["b"]["rationale"], [])
+        # A baseline proposal now carries its own auditable reason instead of a
+        # silent empty list (2026-08-11 bench: ~85% of rationales surfaced empty).
+        self.assertTrue(proposals["b"]["rationale"])
+        self.assertIn("Baseline", proposals["b"]["rationale"][0])
 
     def test_llm_proposals_are_used(self):
         provider = _FakeProvider(
@@ -72,7 +75,10 @@ class WeightProposalTest(unittest.TestCase):
         self.assertEqual(provider.calls, 1)  # ONE pool-level call, not one per candidate
         self.assertEqual(proposals["a"]["weights"], {"skills": 0.5, "career": 0.3, "personal": 0.2})
         self.assertEqual(proposals["a"]["rationale"], ["Observed Python."])
-        self.assertEqual(proposals["b"]["rationale"], [])  # empty rationale -> empty list
+        # An empty model rationale keeps the model's WEIGHTS but takes the
+        # deterministic rationale — one auditable reason per candidate, always.
+        self.assertEqual(proposals["b"]["weights"], {"skills": 0.4, "career": 0.4, "personal": 0.2})
+        self.assertTrue(proposals["b"]["rationale"])
 
     def test_missing_candidate_is_backfilled_from_deterministic(self):
         provider = _FakeProvider(

@@ -1,313 +1,163 @@
-# LLM model matrix — which model for which recruiter task (judged, 15 ops × 7 models)
+# LLM model matrix — which model for which recruiter task (judged, 15 ops × 4 models)
 
-> **Dated benchmark snapshot** (generated 2026-07-07). Rerun via
+> **Dated benchmark snapshot** (generated 2026-08-11). Rerun via
 > `docs/architecture/llm-provider-layer.md` → Benchmarks before treating any
 > single number here as current — models and prices move.
 
 **What ran:** the bench harness (`pipeline/jobfit/llm/bench/`) over **15 production
-use cases × 7 models**, all routed through **OpenRouter** (one BYOM key, apples-to-apples),
-on the **seed corpus** (`data/seed_candidates`, `data/seed_calibration`) through the *real*
-production functions — same prompts, same coercion, same deterministic fallbacks. Each cell
-is `--limit 2` (n=2 scenarios). Every **real LLM** output was scored on relevance /
-correctness / task-adherence (1–10) by an **LLM-as-judge = the Claude CLI** (`bench_judge`),
-a different engine than any target column, so no target grades its own generation.
+use cases × 4 models** on the seed corpus (`data/seed_candidates`,
+`data/seed_calibration`) through the *real* production functions — same prompts, same
+coercion, same deterministic fallbacks. Each cell is `--limit 2` (n=2 scenarios).
+Targets ran on their **native providers** (gemini / qwen-gateway / Claude CLI), not
+OpenRouter. Judge = **Fable 5** via the Claude CLI (`--judge-model fable`), scoring
+relevance / correctness / adherence 1–10 against an **anchored rubric** with
+**per-scenario input evidence** (see below — this round's numbers are NOT comparable
+to the 2026-07-07 matrix).
 
-The score shown is a **composite 0–10** (`app/_lib/llm-quality.ts`): correctness 0.40 +
-adherence 0.35 + relevance 0.25, with a validity penalty. It is measured from the model's
-**real LLM output only** — a scenario that errored or fell back to the deterministic template
-is the *same* template for every model, so it never feeds quality; it counts against
-**reliability** (`llmRate`) instead. This is the exact number the in-app Models-tab scorecard
-shows.
+Targets: `gemini-3.6-flash` (gemini), `deepseek-v4-flash` (qwen gateway, GA slug),
+`claude-sonnet-5` and `claude-opus-5` (Claude CLI). `gpt-5.4-mini` is the openai
+provider default but was NOT measurable (no `OPENAI_API_KEY` in this environment);
+`glm-5.2` / `tencent-hy3` / `mimo-v2.5-pro` were **descoped** this round.
+Records: `tmp/bench/round-20260811/` (`full-api-keep` + `full-api2-keep` +
+`full-api3` + `full-cli`; the `calib-a`/`calib-b` dirs are the judge-calibration
+evidence).
 
-Targets: `z-ai/glm-5.2`, `deepseek/deepseek-v4-flash`, `xiaomi/mimo-v2.5-pro`,
-`openai/gpt-5.4-mini`, `anthropic/claude-sonnet-5`, `google/gemini-3.5-flash`, and
-`tencent/hy3` (added later, run solo at limit 2). Records: `tmp/bench-full` (11 ops) +
-`tmp/bench-new` (4 ops) + `tmp/bench-tencent` (hy3).
+## Why this round's scale is different (the 7.2 ceiling was the harness)
 
-> **Read the caveats before acting on this.** n=2 per cell means ±0.5–1.0 of noise; the
-> judge is Claude-family (possible style bias); there is **no cost axis** (OpenRouter returned
-> no per-call `$`). This ranks **quality, reliability and latency, not spend**. Treat the grid
-> as *directional*, not a leaderboard to 2 decimals.
+The 2026-07-07 matrix averaged ~7 with no cell above 8.6 — which read as "all
+models are mediocre". Re-evaluation showed the ceiling was **ours**, not the
+models':
 
-## The grid (composite 0–10; ⚠ = reliability < 90%; — = never produced usable output)
+1. **Unanchored judge** — "score 1–10, be critical" compresses an LLM judge into
+   the 5–8 band. The rubric now anchors each band to the decision a recruiter
+   would make (9–10 = ship as-is) and instructs the judge to use the tails.
+2. **Evidence-free judge** — the judge saw seed *ids*, never the input, so it
+   couldn't ground correctness (and once evidence was added, an *excerpt that was
+   too thin* made it read grounded facts as fabrications — a model scored 2/10
+   for "inventing" a role that was verbatim in the candidate's highlights).
+   Every scenario now stamps `meta.judgeInput` covering every fact category the
+   production prompt feeds.
+3. **Wrong task description** — the campaign_pack judge graded "channels, copy,
+   targeting", a deliverable the op never produces.
+4. **2048-token output ceiling** — weight_proposal (one proposal × 66 candidates),
+   campaign_pack and the devcase designs truncated on API adapters and shipped
+   fallback stubs (`capabilities.USE_CASE_MAX_TOKENS` now sizes these per op;
+   weight_proposal needs 16k).
+5. **Silent template backfill** — `match_reasoning` and the `automation.py` ops
+   could coerce a failed payload to the deterministic template and still report
+   `source="llm"`, so the judge graded the *fallback* as the model. Sources are
+   now truthful, and judged quality measures only real model output.
 
-| op | glm-5.2 | deepseek | mimo | gpt-mini | sonnet-5 | gemini | hy3 |
-|---|--:|--:|--:|--:|--:|--:|--:|
-| automation_offer | 7.3 | 7.8 | 7.7 | 8.2 | 8.2 | 7.8 | **8.4** |
-| automation_outreach | 6.6 | 6.0 | 6.3 | 6.8 | **7.0** | 6.7 | 6.6 |
-| automation_rejection | 6.7 | 7.2 | 5.3 ⚠ | 6.7 | 7.9 | **8.1** | 6.7 |
-| automation_screen | 8.2 | 7.8 | 8.1 | **8.4** | 7.0 | 8.2 | 7.3 |
-| campaign_pack | 3.4 | **6.6** ⚠ | 3.4 | 6.2 | 3.8 | 6.0 | 4.9 |
-| devcase_analyze | **8.6** | 7.8 | 5.2 | 8.4 | 5.7 | 8.2 | 3.1 ⚠ |
-| devcase_case_design | 4.2 | 5.4 | 4.0 | 7.0 | 4.9 | **7.1** | 3.0 ⚠ |
-| devcase_interview_scenario | 5.0 | 5.0 | 4.8 ⚠ | 5.0 | 5.5 | **6.0** | 4.8 ⚠ |
-| devcase_role_design | 7.9 | **8.2** | **8.2** | 8.1 | 7.8 | 7.4 | — |
-| group_compare | 7.3 | 7.7 | 7.5 ⚠ | 7.3 | **8.4** | 7.6 | 7.2 |
-| interview_prep | 8.4 | 7.7 | 5.2 | 8.5 | **8.6** | 7.8 | 7.2 |
-| interview_scorecard | 7.3 | 6.7 | 5.1 | **8.2** | 7.8 | 7.0 | 7.8 |
-| jd_ingest | **7.1** | 5.6 | 1.6 | 5.5 | 6.1 | 5.2 | — |
-| match_reasoning | 7.8 | **8.2** | 6.5 | 8.2 | 7.9 | 6.7 | 8.1 |
-| weight_proposal | 5.0 | **6.5** | 4.5 ⚠ | 5.0 | 5.3 | 5.2 | 5.5 |
-| **mean** | 6.72 | 6.95 | 5.56 | **7.17** | 6.79 | 7.00 | 6.20 |
-| **reliability** | 100% | 97% | 87% | 100% | 100% | 100% | 88% |
-| **median p50** | 18.2s | 16.7s | 34.2s | 5.9s | 12.1s | **3.8s** | 35.8s |
+Production fixes that fell out of the recalibration: sentence-aware
+`caseIntro` clipping (interview scenarios shipped mid-word cuts), weight
+proposals resolved into each candidate's bounds at the trust boundary, an
+always-auditable rationale per weight proposal, and the match-reasoning
+grounding check accepting highlight-grounded strengths (it was silently
+replacing good output with the template).
 
-Bold = each op's winner. hy3 is measured on 13/15 ops; `—` on role_design (always fell back)
-and jd_ingest (both attempts hit tencent-side **429**s).
+Calibration evidence (sonnet-5, same scenarios, before → after):
+campaign_pack 3.5 → 8.0 · devcase_interview_scenario 4.5 → 8.5 ·
+match_reasoning artifacts eliminated. weight_proposal on the flash tier:
+4.5 → 7.0–7.5 after the ceiling + bounds fixes.
+
+## The grid (composite 0–10: correctness 0.40 + adherence 0.35 + relevance 0.25)
+
+| op | gemini-3.6-flash | deepseek-v4-flash | sonnet-5 | opus-5 |
+|---|--:|--:|--:|--:|
+| automation_offer | **8.6** | 8.5 | 8.5 | 8.0 |
+| automation_outreach | 6.3 | 6.2 | 5.8 | **7.4** |
+| automation_rejection | 5.6 | 6.1 | **7.0** | 5.8 |
+| automation_screen | **8.8** | 7.9 | 8.2 | 8.4 |
+| campaign_pack | 8.6 | **8.8** | 8.4 | 8.6 |
+| devcase_analyze | 8.4 | 7.9 | 8.5 | **8.7** |
+| devcase_case_design | 8.7 | 8.0 | 8.8 | **9.0** |
+| devcase_interview_scenario | 8.0 | 7.8 | 7.3 | **8.7** |
+| devcase_role_design | **8.4** | 8.2 | 8.2 | 7.8 |
+| group_compare | **9.4** | 8.4 | 8.9 | 9.3 |
+| interview_prep | **9.4** | 8.3 | 8.8 | 8.3 |
+| interview_scorecard | 8.4 | 8.6 | **9.0** | 8.8 |
+| jd_ingest | 4.1 | 6.5 | 6.8 | **7.3** |
+| match_reasoning | **8.8** | 8.4 | 8.4 | 8.2 |
+| weight_proposal | 7.3 | 8.0 | 7.8 | **8.4** |
+| **mean** | 7.9 | 7.8 | 8.0 | **8.2** |
+| **reliability** | 97% | 93% | 97% | 100% |
+| **median p50** | **10s** | 14s | 24s | 26s |
+| **$/task (measured)** | ~$0.005–0.06 | **~$0.0002–0.006** | ~$0.15–0.27 (CLI) | ~$0.21–0.58 (CLI) |
+
+Bold = op winner. n=2/cell — ties and sub-0.5 gaps are noise.
 
 ## Headline reads
 
-1. **No model wins everything, and the top five are tight.** Overall means span 6.72–7.17 for
-   five of seven models; the op winner rotates — deepseek 4, gemini/sonnet 3, gpt-mini/glm 2,
-   hy3 1, mimo 0. Choose **per-op**, not globally.
+1. **The 8–9 band is real now.** 12 of 15 ops have a winner at ≥8.0; the panel
+   means sit 7.8–8.2 vs the old 5.6–7.2. What remains below 7 is
+   concentrated, not diffuse.
+2. **claude-opus-5 is the quality ceiling** (8.2 mean, 6 op wins, 100%
+   reliability) — it wins the *hard* ops (case design 9.0, interview scenario
+   8.7, weight proposal 8.4, jd_ingest 7.3). It is also the slowest and most
+   expensive column; buy it for the assignment-design pipeline, not for volume.
+3. **gemini-3.6-flash is the workhorse** — 7.9 mean at ~10s median and
+   fractions of a cent, winning 6 ops outright (group_compare 9.4,
+   interview_prep 9.4, match_reasoning 8.8, screen 8.8). One real weakness:
+   **jd_ingest 4.1** (structured JD parsing, 50% contract validity) — do not
+   route jd_ingest to it.
+4. **deepseek-v4-flash is the budget pick** (7.8 mean at ~$0.0002–0.006/task,
+   GA repricing) — within noise of gemini on most ops, no sub-6 cell except the
+   comms pair, but the lowest reliability (93%) and long tails on big payloads
+   (weight_proposal p50 2min).
+5. **claude-sonnet-5** (8.0 mean) wins scorecard 9.0 and rejection 7.0;
+   the middle option when the CLI subscription is already paid.
+6. **The comms low-ceiling is genuine.** outreach (5.8–7.4) and rejection
+   (5.6–7.0) stay low for every model under an evidence-grounded judge —
+   short persuasive prose with thin per-candidate evidence. That is the next
+   *prompt* target, not a model-selection problem.
 
-2. **gpt-5.4-mini and gemini-3.5-flash are the value picks.** Top-two mean quality *and* the
-   two fastest columns (5.9 s / **3.8 s**), 100% reliable, never below ~5. If you want one
-   default across the board, it's one of these two.
+## Per-op routing recommendation
 
-3. **deepseek-v4-flash is the reasoning specialist** — most op wins (4: campaign_pack,
-   role_design, match_reasoning, weight_proposal) and the only model that clears the two
-   hardest ops — but **slow** (16.7 s median, long tails).
-
-4. **claude-sonnet-5 is a comms specialist, not a generalist.** Wins the human-voice ops
-   (outreach, group_compare, interview_prep) and near-tops offer, but bottoms the
-   analytical/structured ops (campaign_pack 3.8, case_design 4.9, analyze 5.7). That the
-   Claude-CLI *judge* marks a Claude *generator* down here is a good validity signal — though
-   shared-family style bias can't be fully excluded.
-
-5. **mimo-v2.5-pro is the laggard; tencent/hy3 is capable but slow and flaky.** mimo: lowest
-   mean (5.56), slowest tier, 87% reliable. hy3: mid-pack **when it works** (6.20, even wins
-   automation_offer and is strong on match_reasoning 8.1 / interview_scorecard 7.8) but the
-   **slowest** (35.8 s) and **88% reliable** — tencent-side 429s made jd_ingest and role_design
-   unmeasurable. Not a safe default on this evidence.
-
-## Per-op recommendations
-
-| op | pick | runner-up | note |
-|---|---|---|---|
-| match_reasoning | deepseek / gpt-mini (8.2) | hy3 (8.1) | gpt-mini ~3× faster than deepseek |
-| automation_screen | gpt-mini (8.4) | glm / gemini (8.2) | pick on speed → gemini |
-| automation_offer | hy3 (8.4) | gpt-mini / sonnet (8.2) | hy3 wins but is slow; gpt-mini the practical pick |
-| automation_outreach | sonnet (7.0) | gpt-mini (6.8) | low-ceiling op for everyone |
-| automation_rejection | gemini (8.1) | sonnet (7.9) | mimo weak (5.3 ⚠) |
-| interview_prep | sonnet (8.6) | gpt-mini (8.5) | mimo collapses (5.2) |
-| interview_scorecard | gpt-mini (8.2) | sonnet / hy3 (7.8) | |
-| weight_proposal | deepseek (6.5) | hy3 (5.5) | **hard for all — see below** |
-| jd_ingest | glm (7.1) | sonnet (6.1) | mimo unusable (1.6); hy3 429'd out |
-| devcase_analyze | glm (8.6) | gpt-mini (8.4) | sonnet (5.7), mimo (5.2), hy3 (3.1 ⚠) trail hard |
-| devcase_role_design | deepseek / mimo (8.2) | gpt-mini (8.1) | flattest op — anything ≥7.4 works |
-| devcase_case_design | gemini (7.1) | gpt-mini (7.0) | glm/mimo/sonnet/hy3 weak (3.0–4.9) |
-| devcase_interview_scenario | gemini (6.0) | sonnet (5.5) | low-ceiling op |
-| group_compare | sonnet (8.4) | deepseek (7.7) | |
-| campaign_pack | deepseek (6.6) | gpt-mini (6.2) | **hardest op — see below** |
-
-## The hard ops (low ceilings across the whole panel)
-
-- **campaign_pack (~4.9 avg).** Multi-variant ad copy with channel/targeting constraints. Only
-  deepseek (6.6) and gpt-mini/gemini (~6) are usable; glm/mimo bottom out at 3.4. Needs prompt
-  work or a stronger tier, not a model swap.
-- **devcase_interview_scenario (~5.2), devcase_case_design (~5.1), weight_proposal (~5.4).**
-  Complex structured generation / reasoning-under-constraints — where mid-tier models are
-  weakest. case_design has a wide spread (3.0→7.1), so the model **does** matter there.
-
-The **easy ops** (winner ≥8, most of the field ≥7): automation_offer, automation_screen,
-devcase_analyze, devcase_role_design, interview_prep. Route these on **latency/reliability** —
-quality is effectively solved for the whole panel.
-
-## Per-model profiles
-
-- **gpt-5.4-mini** — best mean (7.17), fast (5.9 s), 100% reliable, no weak spot below 5. The
-  safe default.
-- **gemini-3.5-flash** — 7.00 mean, **fastest by far** (3.8 s), 100% reliable. Weakest on
-  jd_ingest (5.2). Best latency/quality trade in the panel.
-- **deepseek-v4-flash** — 6.95 mean, most op wins (4), the reasoning/structured specialist —
-  but slow (16.7 s) with long tails, and one deterministic fallback (campaign_pack, 97%).
-- **claude-sonnet-5** — 6.79 mean; comms specialist (wins outreach/group_compare/interview_prep)
-  that bottoms the analytical ops. 100% reliable, mid speed.
-- **glm-5.2** — 6.72 mean, best at devcase_analyze (8.6) and jd_ingest (7.1), but slow (18.2 s)
-  and weak on campaign_pack / case_design.
-- **tencent/hy3** — 6.20 mean on the 13 ops it completed; wins automation_offer, strong on
-  match_reasoning (8.1). But the **slowest** (35.8 s) and **88% reliable** (tencent-side 429s
-  blanked jd_ingest + role_design). Capable but operationally flaky via OpenRouter today.
-- **mimo-v2.5-pro** — 5.56 mean, slow (34.2 s), 87% reliable, no op wins, unusable on jd_ingest
-  (1.6). Not production-ready for this workload.
-
-## Reliability (the source-aware correction)
-
-A deterministic fallback is the *identical* template for every model, so judging it measures
-nothing about the model — the bake **excludes fallbacks/errors from quality** and books them
-against `llmRate`. Latency is LLM-only too, so the near-instant fallback can't fake a fast p50.
-Cells flagged ⚠ (reliability < 90%) or `—` (0 usable outputs) are where a model *often or
-always failed*, even if its rare successes scored well:
-
-- **tencent/hy3** — 429-rate-limited on OpenRouter: jd_ingest + role_design blanked, several
-  ops at 50%. Running it **solo** lifted its overall llmRate from **22% → 77%**, confirming the
-  first (concurrent) run's failures were contention, not the model.
-- **mimo-v2.5-pro** — 87% reliable; multiple 50% cells and the unusable jd_ingest.
-- **deepseek** — one campaign_pack fallback (97%). Everyone else 100%.
-
-## Caveats (don't over-read this)
-
-- **n=2 per cell.** Half-point scores are the median of two runs; a single run can move a cell
-  ±0.5–1.0. Ties and sub-0.5 gaps are noise. Re-run at `--limit 8+` before treating any single
-  number as load-bearing. (A `--limit 6` full re-run was attempted and stopped; hy3 was added
-  at limit 2 to stay consistent with the existing data.)
-- **Judge = Claude CLI.** One judge engine, Claude-family. It marks the Claude generator down
-  on several ops (good), but shared-family style preference can't be excluded. A second judge
-  from a different family would strengthen this.
-- **No cost axis.** OpenRouter returned no per-call `$` and these slugs aren't in the price
-  book. Output-token counts in each `summary.md` are a rough cost proxy (mimo/deepseek/hy3 are
-  the token-heaviest).
-- **Judge sees context, not full raw input** — it weights coherence/adherence/completeness and
-  does not re-verify factual correctness against the full rendered prompt (the prompt says so).
+| op | pin | note |
+|---|---|---|
+| match_reasoning, group_compare, interview_prep, automation_screen/offer | gemini-3.6-flash | top or tied-top quality AND the fastest/cheapest column |
+| campaign_pack | deepseek-v4-flash (gemini within noise) | background op — cost rules |
+| interview_scorecard | claude-sonnet-5 (deepseek close at 1/100th cost) | online op |
+| jd_ingest | claude-opus-5 (7.3) / sonnet-5 | gemini unusable (4.1); the op itself needs prompt work |
+| weight_proposal | claude-opus-5 (8.4); deepseek (8.0) for budget | slowest op everywhere — consider batching |
+| devcase_analyze / case_design / interview_scenario | claude-opus-5 | the quality-critical assignment pipeline |
+| devcase_role_design | gemini-3.6-flash | flattest op — anything ≥7.8 works |
+| automation_outreach / rejection | sonnet-5 / opus-5, but see §6 | low ceiling panel-wide; fix the prompt first |
 
 ## In-app scorecard (Models tab)
 
-This data is surfaced to operators in **Settings → Models**
-(`app/features/settings/models/ModelsTab.tsx`) so BYOM users can balance a package on
-evidence, not vibes:
-
-- **Measured model quality** (`app/features/settings/models/ModelsQualityOverview.tsx`) — a per-model ranking (composite score,
-  ops won, coverage, median speed, ⚠ reliability) plus a **best-model-per-case** board.
-- **Routing ★ hint** — each routing row shows the best measured model for that use case
-  (`bestModelForUseCase` rolls the comms sub-ops up into the `automation` use case).
-
-Pipeline: Python bench matrix → `bake_quality.py` → `app/_lib/llm-quality-scores.ts`
-(generated, **do not hand-edit**) → pure helpers in `app/_lib/llm-quality.ts` → the UI.
-Composite weighting and the op→use-case map live in `llm-quality.ts`; re-bake after any run:
-
-```bash
-python -m pipeline.jobfit.llm.bench.bake_quality tmp/bench-full tmp/bench-new tmp/bench-tencent
-# → rewrites app/_lib/llm-quality-scores.ts (commit it)
-```
+Pipeline: bench matrix → `bake_quality.py` → `app/_lib/llm-quality-scores.ts`
+(generated, **do not hand-edit**) → `app/_lib/llm-quality.ts` → **Settings →
+Models** (`ModelsQualityOverview.tsx`). This round bakes judge label `fable-5`
+and drops the descoped models from the scorecard.
 
 ## Reproduce
 
 ```bash
-# generation + judged scorecard for any op set (spends real tokens)
-OPENROUTER_API_KEY=… python -m pipeline.jobfit.llm.bench.bench_cli \
-  --use-cases match_reasoning,campaign_pack,group_compare \
-  --targets openrouter:openai/gpt-5.4-mini,openrouter:google/gemini-3.5-flash \
-  --limit 8 --judge --out tmp/bench
+# calibrate the judge on the strongest model first, then run the matrix
+LIGHTTRACK_QUIET=1 python -m pipeline.jobfit.llm.bench.bench_cli \
+  --use-cases match_reasoning,campaign_pack,weight_proposal \
+  --targets gemini:gemini-3.6-flash,qwen:deepseek-v4-flash,claude_cli:claude-sonnet-5,claude_cli:claude-opus-5 \
+  --limit 2 --judge --judge-model fable --out tmp/bench/<round>
 
-# a --judge pass prints "judged N/M" and WARNs loudly if the Claude-CLI judge scored 0
-# (unauthenticated / usage-capped) — so an empty judge column can't ship silently.
-# A model that 429s under concurrency (e.g. tencent/hy3) is best run SOLO.
+python -m pipeline.jobfit.llm.bench.bake_quality tmp/bench/<round>/... --judge fable-5
+# → rewrites app/_lib/llm-quality-scores.ts (commit it)
 ```
 
-_Generated 2026-07-07 from `tmp/bench-full` + `tmp/bench-new` + `tmp/bench-tencent`.
-15 ops × 7 models, n=2/cell, judge = Claude CLI, composite + reliability from real LLM output._
+Caveats: n=2/cell (±0.5–1.0 noise); the judge is Claude-family scoring two
+Claude targets (style-bias risk on the *ordering* of sonnet vs opus; the API
+models are graded cross-family); CLI $/task includes per-call process spawn and
+reflects API-equivalent pricing, not subscription marginal cost; a transient
+DNS outage during the first API pass was detected and those cells re-run
+(`full-api` → `full-api2`), so no outage books against model reliability.
 
----
+## Prior rounds
 
-## Local-model snapshot — Claude CLI (Sonnet) vs Ollama `lfm2.5:8b` (2026-08-05)
-
-First run of the new first-class **ollama** provider (`adapters/ollama.py`): can an 8B
-edge model (LFM2.5-8B-A1B, Q4, ~5 GB, fully local) stand in for the commercial default?
-8 ops × n=3 × both targets, judge = Claude CLI, records in `tmp/bench/sonnet-vs-lfm25/`.
-
-| op | sonnet judge | lfm2.5 judge | gap | sonnet valid | lfm valid | sonnet p50 | lfm p50 |
-|---|--:|--:|--:|--:|--:|--:|--:|
-| jd_ingest | 6.0 | 5.0 | −1.0 | 100% | 100% | 8.6s | 8.8s |
-| automation_screen | 8.0 | 6.7 | −1.3 | 100% | 100% | 11.5s | 5.4s |
-| match_reasoning | 7.3 | 5.7 | −1.6 | 100% | 67% | 12.7s | 6.5s |
-| devcase_case_design | 8.0 | 6.0 | −2.0 | 100% | 100% | 62.9s | 11.4s |
-| campaign_pack | 6.0 | 3.3 | −2.7 | 100% | 100% | 35.9s | 17.4s |
-| interview_scorecard | 7.3 | 4.3 | −3.0 | 100% | 100% | 17.1s | 11.2s |
-| weight_proposal | 7.7 | 3.7 | −4.0 | 100% | 100% | 110.5s | 30.4s |
-| group_compare | 8.3 | 4.3 | −4.0 | 100% | 100% | 15.6s | 9.0s |
-| **mean** | **7.3** | **4.9** | **−2.4** | 100% | 96% | | |
-
-**Read:** the failure mode is NOT format (JSON validity 96%, llmRate 100%, zero errors —
-the wrapper's `complete_json` guard holds) and NOT speed (2–4× faster than the CLI, which
-pays per-call process spawn). It is **substance under complexity**: the judge transcripts
-show internal contradictions (rationale vs verdict, rating vs summary), dropped
-deliverables (campaign packs with no channels/targeting), empty rationales at scale
-(weight_proposal: ~62/66 candidates unjustified), and unnormalized weight vectors.
-Single-extraction and single-decision ops (jd_ingest, automation_screen) are within ~1
-point — plausible with a fallback-review UX; anything multi-candidate, multi-deliverable,
-or long-form is not usable from this tier yet.
-
-Caveats: n=3/cell; judge is Claude-family scoring a Claude generator (style-bias risk —
-the −2.4 mean gap is directional); CLI latency includes subprocess startup, so it
-understates the API-side Sonnet.
-
-### Expanded run — Opus + Qwen Cloud (same day)
-
-Same 8 ops × n=3, adding `claude_cli:opus` and the new **qwen** provider
-(qwencloud.com / DashScope-intl compatible mode, one key): `qwen3.8-max` ($2/$6),
-`glm-5.2` ($1.4/$4.4), `deepseek-v4-flash-0731` ($0.2/$0.4). Records in
-`tmp/bench/expanded/`. Judge-score grid (⚠ = llmRate < 100%, i.e. some scenarios
-degraded to the deterministic fallback and were scored as served):
-
-**Judged quality** (1–10, real LLM outputs only — recomputed after the axis
-separation below; fallback-contaminated cells from the first cut are corrected):
-
-| use case | sonnet | opus | qwen3.8-max | glm-5.2 | deepseek-v4 | lfm2.5:8b |
-|---|--:|--:|--:|--:|--:|--:|
-| automation_screen | 8.0 | 6.3 | 5.5 | 7.0 | 6.3 | 6.7 |
-| campaign_pack | 6.0 | 5.0 | 3.0 | 3.3 | 3.0 | 3.3 |
-| devcase_case_design | 8.0 | 7.7 | 3.0 | 3.0 | 3.0 | 6.0 |
-| group_compare | 8.3 | 7.0 | 5.0 | 6.5 | 7.0 | 4.3 |
-| interview_scorecard | 7.3 | 7.0 | 3.0 | 2.0 | 2.0 | 4.3 |
-| jd_ingest | 6.0 | 6.0 | 5.0 | 4.0 | 4.3 | 5.0 |
-| match_reasoning | 7.3 | 6.0 | 6.7 | 7.3 | 8.0 | 5.7 |
-| weight_proposal | 7.7 | 5.7 | 4.0 | 4.0 | 4.0 | 3.7 |
-| **mean** | **7.3** | **6.3** | **4.4** | **4.6** | **4.7** | **4.9** |
-
-**Measured reliability** (llm-rate % — how often the model itself served) and
-**economics** (8-op means):
-
-| model | llm-rate | $/task | p50 | weakest reliability cells |
-|---|--:|--:|--:|---|
-| sonnet (CLI) | 100% | $0.191 | 34.4s | — |
-| opus (CLI) | 100% | $0.309 | 47.5s | — |
-| qwen3.8-max | 66% | $0.020 | 57.0s | devcase/group/scorecard/weights all 33% |
-| glm-5.2 | 92% | $0.013 | 41.7s | group_compare, weight_proposal 67% |
-| deepseek-v4-flash | 88% | $0.0015 | 26.9s | campaign, devcase, scorecard 67% |
-| lfm2.5:8b (local) | 100% | $0 | 12.5s | — |
-
-**Reads:**
-- **Opus buys nothing here.** −1.0 vs Sonnet on mean, 2–3× the latency
-  (devcase p50 149s, weight_proposal 110s), ~1.5–3× the per-run cost ($0.63–$1.95
-  per 3 scenarios). These short structured recruiter tasks don't reward the
-  extra-deliberation tier; note the Claude-family judge scored both, so the
-  *ordering* between the two Claude models is judged by their own family.
-- **deepseek-v4-flash is the cost-performance outlier**: 8.0 on match_reasoning
-  (top of the column) at $0.002/3-runs — ~1/200th of Sonnet's CLI-equivalent API
-  cost — and respectable on group_compare (7.0). Cheap enough to be the obvious
-  cloud BYOM default for simple reasoning ops.
-- **The interview_scorecard collapse (all qwen-cloud ≤2.3) is partly a wrapper
-  artifact**: their verbose JSON hits the 2048 default maxTokens ceiling,
-  truncates, and the production path coerces to the "3 / Not assessed" fallback
-  stub — which the judge then scores. Re-run with `params.maxTokens` raised
-  before concluding these models can't do scorecards. Same suspicion applies to
-  devcase_case_design (out-tok 3.2–4.0k against the ceiling).
-- **The local 8B (lfm2.5) holds the challenger tier's average** (4.9 vs 4.4–4.7)
-  while being the only zero-cost, zero-egress option — the open-model story is
-  credible for extraction/single-decision ops, not yet for multi-deliverable ones.
-
-### Evaluation mechanics — the three axes are separate (since 2026-08-05)
-
-The scorecard keeps **judged quality** and **measured cost/reliability** next to
-each other without letting them contaminate one another:
-
-- **Judged quality** — `bench/judge.py` scores **real LLM outputs only**
-  (`source == "llm"`). A run that degraded to the deterministic fallback is the
-  same template for every model; scoring it would measure the fallback, not the
-  model (the first expanded cut hit exactly this on interview_scorecard).
-- **Measured reliability** — `errors` / `validRate` / `llmRate` in
-  `runner.summarize()`: did the model actually serve, and was the payload
-  well-shaped. Fallbacks live here, as a low llm-rate.
-- **Measured economics + latency** — `costPerTaskUsd` (from the envelopes'
-  `cost_usd`) and `p50Ms`/`p95Ms`. Which one binds is framed by the op's
-  **mode** (`scenarios.OP_MODES`): *online* ops (a person waits in the UI —
-  match_reasoning, jd_ingest, scorecard, group_compare, weight_proposal,
-  interview_prep) answer to latency; *background* ops (automation passes,
-  campaign_pack, devcase design) answer to $/task.
-
-`summary.md` prints all three groups per row (`judge* | valid | llm | err |
-$/task | p50 | p95`) with the footnote pinned to the table.
-
-_Expanded run generated 2026-08-05 from `tmp/bench/sonnet-vs-lfm25` +
-`tmp/bench/expanded`. 8 ops × 6 models, n=3/cell, judge = Claude CLI._
+- **2026-07-07** — 15 ops × 7 models via OpenRouter, unanchored Claude-CLI
+  judge (means 5.6–7.2; glm/hy3/mimo still in scope). Superseded and NOT
+  score-comparable (see "Why this round's scale is different"). In git history
+  of this file.
+- **2026-08-05** — local-model snapshot (Claude CLI vs Ollama `lfm2.5:8b`,
+  + qwen-cloud expansion): the 8B edge tier held ~4.9 vs sonnet 7.3 under the
+  old judge; substance-under-complexity, not format, was the failure mode.
+  Also in git history; re-run under the new judge before citing numbers.

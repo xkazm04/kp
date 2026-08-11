@@ -743,6 +743,14 @@ def propose_weights(candidate: MatchCandidate, job: Job) -> tuple[dict[str, floa
             f"{len(relevant_strong)} must-have skill(s) backed by high-trust evidence "
             "— weighting demonstrated skill higher"
         )
+    else:
+        # Always give the proposal an auditable reason — a silent empty list read
+        # as "no rationale" everywhere it surfaced (fairness matrix, the LLM
+        # proposer's per-candidate backfill, the 2026-08-11 bench).
+        notes.append(
+            f"Baseline {candidate.archetype} weights kept — no high-trust must-have "
+            "evidence to shift on"
+        )
     return base, notes
 
 

@@ -98,7 +98,10 @@ DEFAULT_MODELS: dict[str, str | None] = {
 # design stubs judged ~2-3 across three models). These defaults apply when the
 # config row sets no explicit params.maxTokens; an explicit pin still wins.
 USE_CASE_MAX_TOKENS: dict[str, int] = {
-    "weight_proposal": 8192,
+    # One proposal+rationale per candidate in a single call: ~200-250 output
+    # tokens × a 60+ pool. 8192 truncated exactly at the ceiling on the
+    # 2026-08-11 bench (the CLI reference run needed ~15.6k).
+    "weight_proposal": 16384,
     "campaign_pack": 8192,
     "interview_scorecard": 6144,
     "devcase_case_design": 8192,

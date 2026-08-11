@@ -109,7 +109,8 @@ class FairnessCheckTest(unittest.TestCase):
         # Ada's observed, role-relevant must-have earns a weight adjustment (audited);
         # Bo (no relevant high-trust evidence) keeps the baseline.
         self.assertTrue(fm["weightNotes"]["a"])
-        self.assertFalse(fm["weightNotes"]["b"])
+        # Baseline weights carry their own note now — audited, never silent.
+        self.assertIn("Baseline", fm["weightNotes"]["b"][0])
         # The stronger, observed-skill candidate is robustly first across schemes.
         self.assertEqual(fm["ranking"][0], "Ada")
 
