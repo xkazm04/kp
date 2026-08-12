@@ -17,7 +17,7 @@
 //      absent / a foreign marker was found) and never the marker string itself —
 //      printing `watermark.expected` would teach a candidate exactly what to strip.
 import { Link2, Link2Off, ShieldCheck, ShieldAlert, ShieldQuestion, Clock, type LucideIcon } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { Integrity } from "./DevTypes";
 
 type Tone = "ok" | "alert" | "unknown";
@@ -38,9 +38,19 @@ function Fact({ tone, Icon, label, title }: { tone: Tone; Icon: LucideIcon; labe
 
 export function DevEvalPanelIntegrity({ integrity }: { integrity: Integrity }) {
   const t = useTranslations("devcase.integrity");
+  const locale = useLocale();
   const { chain, backdatedEvents, maxClockDriftMs, watermark } = integrity;
   // Seconds, one decimal — the raw ms figure is precise noise to a recruiter.
   const driftSeconds = Math.round(maxClockDriftMs / 100) / 10;
+  // Locale-formatted unit (grouping, decimal separator and "s" abbreviation all
+  // vary by reader locale), fed into the message as one placeholder rather than
+  // gluing a hardcoded "s" onto the raw number in the catalog.
+  const driftLabel = new Intl.NumberFormat(locale, {
+    style: "unit",
+    unit: "second",
+    unitDisplay: "narrow",
+    maximumFractionDigits: 1,
+  }).format(driftSeconds);
 
   return (
     <div className="mt-2 border-t border-stone-100 pt-2">
@@ -68,7 +78,7 @@ export function DevEvalPanelIntegrity({ integrity }: { integrity: Integrity }) {
             tone="alert"
             Icon={Clock}
             label={t("backdated", { count: backdatedEvents })}
-            title={t("backdatedTitle", { count: backdatedEvents, seconds: driftSeconds })}
+            title={t("backdatedTitle", { count: backdatedEvents, seconds: driftLabel })}
           />
         ) : chain.events > 0 ? (
           <Fact tone="ok" Icon={Clock} label={t("clockConsistent")} title={t("clockConsistentTitle")} />

@@ -88,7 +88,7 @@ export function AgentsWorkforceRow({
           </button>
         </td>
         <td className="px-4 py-3">
-          <span className="text-base text-ink nums" title={t("spendNote")}>
+          <span className="text-base text-ink nums" title={t("spendNote", { zero: fmtUsd(0, locale) })}>
             {agent.budgetUsd != null
               ? t("spendOfBudget", {
                   spent: fmtUsd(agent.aggregates.monthCostUsd, locale),
@@ -164,7 +164,7 @@ export function AgentsWorkforceRow({
                 ))}
               </ul>
             )}
-            <p className="mt-2 text-sm text-stone-500">{t("spendNote")}</p>
+            <p className="mt-2 text-sm text-stone-500">{t("spendNote", { zero: fmtUsd(0, locale) })}</p>
             <button type="button" onClick={() => void refresh()} disabled={refreshing} className={`${BTN_SECONDARY} mt-3 h-8 px-3 text-sm`}>
               <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} aria-hidden />
               {refreshing ? t("detail.refreshing") : t("detail.refresh")}

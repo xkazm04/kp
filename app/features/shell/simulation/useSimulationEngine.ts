@@ -5,7 +5,7 @@
 // the group-evaluation runner (runGroupEval). Takes the provider's shared
 // ctrl ref + patch/beat/log so this stays wired to the SAME run-control state.
 import { useCallback, type MutableRefObject } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { resolveErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { GroupEvalPayload } from "@/app/features/hiring/decisions/GroupEvalModal";
@@ -36,6 +36,7 @@ export function useSimulationEngine({
   // unavailable notice). Each of these lands in the public demo's visible
   // "Failed: …" status or in the comparison modal, so none of it may stay English.
   const tSim = useTranslations("simulation");
+  const locale = useLocale();
   const errMsg = useCallback(
     (payload: ApiErrorPayload, fallback: string) => {
       type ErrorKey = Parameters<typeof tErrors>[0];
@@ -192,7 +193,13 @@ export function useSimulationEngine({
           // Timed out waiting for the evaluation to be written. Surface it explicitly
           // (the modal renders this message) rather than dropping to a blank/"run one"
           // comparison during the climactic Offer step.
-          const error = tSim("error.groupEvalTimeout", { seconds: Math.round(TIMEOUT_MS / 1000) });
+          const timeoutLabel = new Intl.NumberFormat(locale, {
+            style: "unit",
+            unit: "second",
+            unitDisplay: "narrow",
+            maximumFractionDigits: 0,
+          }).format(Math.round(TIMEOUT_MS / 1000));
+          const error = tSim("error.groupEvalTimeout", { seconds: timeoutLabel });
           patch({ groupEval: { roleTitle, payload: null, loading: false, error } });
           log(tSim("log.groupEvalTimedOut"));
         }
@@ -205,7 +212,7 @@ export function useSimulationEngine({
         });
       }
     },
-    [ctrl, entriesFor, log, patch, tSim]
+    [ctrl, entriesFor, locale, log, patch, tSim]
   );
 
   return { getEntries, entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval };

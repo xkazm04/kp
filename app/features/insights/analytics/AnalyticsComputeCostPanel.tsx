@@ -51,7 +51,9 @@ export function ComputeCostPanel({
           <p className="mt-1 text-sm text-steel">{t("basis", { calls: computeCost.calls })}</p>
           <p className="mt-0.5 text-sm text-steel">{t("accountScope")}</p>
           {computeCost.unpricedCalls > 0 ? (
-            <p className="mt-0.5 text-sm text-dial-amber">{t("unpriced", { count: computeCost.unpricedCalls })}</p>
+            <p className="mt-0.5 text-sm text-dial-amber">
+              {t("unpriced", { count: computeCost.unpricedCalls, zero: usd(0) })}
+            </p>
           ) : null}
 
           {/* Blended cost per hire — two currencies, side by side, never summed (no FX). */}
