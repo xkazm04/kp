@@ -5,17 +5,51 @@ Raised by the 2026-08-12 `/i18n-translate` full sweep. These are defects in
 locale, and the skill's standing rule is to report them rather than fix them
 silently: changing source copy is a product decision, not a translation one.
 
-None of these were changed. The one deliberate exception in that sweep was the
-no-em-dash recast, which was explicitly authorized (see
+None of these were changed by the sweep itself. The one deliberate exception in
+that sweep was the no-em-dash recast, which was explicitly authorized (see
 [`contract.md`](./contract.md) §5).
 
 **291 keys** flagged across 5 classes.
+
+## 2026-08-12 fix pass (14 keys resolved)
+
+A follow-up pass fixed a first batch, prioritized per the operator's
+instructions: hardcoded currency/amounts first (real call-site changes, not
+just catalog edits), then missing ICU plurals, then the "several claims in
+one value" class, then a clean concatenation split, then mechanical wording
+fixes. Rows fixed are marked **RESOLVED 2026-08-12** inline below, with what
+changed and (where relevant) which component. Highlights:
+
+- **Currency/duration (4 keys, call-site changes):** `agentsWorkforce.spendNote`,
+  `analytics.compute.unpriced` ("$0" → a `{zero}` placeholder formatted via
+  `fmtUsd()`/`useFormatter()`); `devcase.integrity.backdatedTitle`,
+  `simulation.error.groupEvalTimeout` (glued "s" unit → `Intl.NumberFormat`
+  duration formatting at the call site).
+- **Missing ICU plural (8 keys, catalog-only):** `devcase.outbox.count`,
+  `devcase.outbox.deadLetters`, `nav.attentionBadge`, `nav.attentionBadgeGo`,
+  `profile.matrix.groupCount`, `profile.roster.count`, `analyze.charsCount`.
+  Call sites already passed a raw numeric count, so no code changes were
+  needed. `devcase.outbox.countFiltered` and `devcase.cohort.evaluated`
+  (grouped with these in the original list) are left open — see their row.
+- **Several distinct claims (1 of 3 keys):** `channels.email.notWiredHowTo`
+  split into `notWiredHowTo` + `notWiredHowToSetup`. `data.eraseExplainer` and
+  `jobs.tab.intro` left open — both are single GDPR/product-intro paragraphs
+  where splitting changes the key shape and reads as a bigger call than this
+  pass should make unilaterally; see their rows.
+- **Other (2 keys, mechanical only):** `about.archLink` ("&" → "and"),
+  `integrations.ats.tokenPlaceholderKeep` (double-space typo).
+
+Not started in this pass: the remaining ~76 missing-plural keys, the ~38
+concatenation keys, the ~136 "Other" keys, and `data.eraseExplainer` /
+`jobs.tab.intro` from the "several claims" class. All of the "Hardcoded
+currency" class not listed above as resolved (mostly `analytics.roi.*` and
+the `landing.pricing.*` tiers) is also still open — see "Left open" below.
 
 ## Other (wording, jargon, or leaked internal detail) (138)
 
 | key | problem |
 |-----|---------|
-| `about.archLink` | "(v1 & v2)" uses an ampersand in prose. cs/fr both correctly expanded it to "a"/"et"; de kept "&". A plain "and" in the source would remove the ambiguity. |
+| `about.archLink` | **RESOLVED 2026-08-12** — en now reads "and"; de fixed to match. "(v1 & v2)" uses an ampersand in prose. cs/fr both correctly expanded it to "a"/"et"; de kept "&". A plain "and" in the source would remove the ambiguity. |
 | `about.intro` | The rich tags wrap the English colour word as their own content (<moss>moss</moss>, <coral>coral</coral>). cs/fr translate the visible word, de leaves it as capitalised English "Moss"/"Coral" — the string cannot be consistent across locales because the tag name and the visible label are the same token. The visible label should be a separate key from the token name. |
 | `about.students.colConstruct` | "Construct" (psychometrics sense) is a bare noun with no context in a table header; it collides with the everyday verb sense and forced fr to substitute "Critère". A source like "Construct measured" or a description key would disambiguate. |
 | `about.students.scriptFootnote` | Same shape: one ~50-word sentence chaining three unrelated rules with commas plus "and". I had to split it to remove the dash; it should have been separate keys or a list from the start. |
@@ -63,7 +97,7 @@ no-em-dash recast, which was explicitly authorized (see
 | `feedback.done` | Bare "Done" is ambiguous between a status readout and a dismiss button. It is a button here (app/features/shell/nav/FeedbackDialog.tsx:110) but the same leaf reads as a status elsewhere (InterviewAttachToCandidate.tsx:67 renders a t("done") as a <p>). A translator with no call site will guess wrong; "Close" would be unambiguous for the button. |
 | `hiringPlan.gateAria` | "Approval gating" as an aria-label for a two-option group (Human approves / Auto) does not say it is a mode selector; every locale has drifted to naming one option or a metaphor (cs "Schvalovací brána", de "Freigabe-Schranke", fr named only the human option). "Approval mode" would be translatable. |
 | `history.colJd` | The column header is the bare abbreviation "JD", which is opaque outside English-speaking recruiting and gives translators no head noun to work from. "Job description" as the source value would let each locale pick its own short form; as written, de had simply been left as "JD". |
-| `integrations.ats.tokenPlaceholderKeep` | Contains a double space before the parenthesis ("••••••••  (leave blank to keep)"). It is faithfully mirrored in cs/de/fr, so the typo is now in four catalogs. |
+| `integrations.ats.tokenPlaceholderKeep` | **RESOLVED 2026-08-12** — double space fixed in all four locales. Contains a double space before the parenthesis ("••••••••  (leave blank to keep)"). It is faithfully mirrored in cs/de/fr, so the typo is now in four catalogs. |
 | `integrations.calendar.connectedAtLabel` | The bare label "Connected" is reused for two different things in one panel: here it labels a TIMESTAMP field (fr correctly had to write "Connecté le"), while integrations.personas.statusConnected uses "Connected" as a STATUS chip. Locales that need a case or a preposition cannot tell them apart from the string alone. Consider "Connected on" for the timestamp label. |
 | `integrations.saved` | "Webhook settings saved." sits in the integrations namespace whose visible panels are Google Calendar, ATS connections and the Personas bridge — none of which is a webhook. Either the key is dead (no webhook form under app/features/settings/integrations) or the message names the wrong object; worth a `grep -rn '"saved"' app` before any locale spends effort on it. |
 | `interview.voice.keysNotConfigured` | "{provider} keys not configured" places a brand placeholder in an English attributive-noun slot. German has to hyphenate it ("{provider}-Schlüssel") and cs/fr must invert to "Klíče {provider}" / "Clés {provider}"; a phrasing like "Keys for {provider} are not configured" would be locale-safe. |
@@ -168,7 +202,7 @@ no-em-dash recast, which was explicitly authorized (see
 | `analytics.offers.notEnough` | "{n} of {min} needed" is a flat string; the verb does not agree at n=1, and Czech has to invert the sentence to dodge it. |
 | `analytics.orgBenchmark.footnote` | "across {teams} teams" is a flat string that needs a plural ("1 teams"). |
 | `analytics.orgBenchmark.locked` | {teams} is a bare count with no ICU plural, so English renders "1 contributing so far" and the German copies the bug. I made the English count-safe by moving the number to the end after a colon ("Contributing so far: {teams}."), but the real fix is a plural on the source. Czech already works around it with its own plural block. |
-| `analyze.charsCount` | "{count} chars" is a flat interpolated count with no ICU plural, and abbreviates the head noun. Every inflecting locale has to invent the plural block (cs already had one, fr did not and rendered "1 caractères"). Should ship as {count, plural, one {# character} other {# characters}}. |
+| `analyze.charsCount` | **RESOLVED 2026-08-12** — en now `{count, plural, one {# character} other {# characters}}`. "{count} chars" is a flat interpolated count with no ICU plural, and abbreviates the head noun. Every inflecting locale has to invent the plural block (cs already had one, fr did not and rendered "1 caractères"). Should ship as {count, plural, one {# character} other {# characters}}. |
 | `analyze.stages.readingSub` | "the uploaded file(s)" uses the parenthetical-plural hack instead of an ICU plural. The count is known at that point; "(s)" is untranslatable into cs/de/fr and forces each locale to guess a number. |
 | `channels.receivers.confirmLive` | A long shared tail sits outside the plural block and the plural block is only the first sentence, so translators cannot move count-agreeing words into the branches. Compounded by "The forwarding rule / ad flow" using a slash as an inline disjunction, which several languages cannot render as a slash. |
 | `channels.waiting` | "{count} waiting in the pipeline" is a flat string with an interpolated count and no ICU plural, so every target language has to invent the plural structure itself (cs already does). Wrapping the count in a plural in en would make the intent explicit and the parity check meaningful. |
@@ -179,9 +213,9 @@ no-em-dash recast, which was explicitly authorized (see
 | `decisions.rules.ruleFamilyAppend` | Same concatenation chain: the value starts with " · " and carries a plural whose branches differ only in singular/plural of the appended noun. It cannot be re-ordered by a translator relative to ruleSentence/ruleLog, which is exactly what German verb-final and French adjective placement would want. |
 | `decisions.wave.rejectedHeading` | The ICU plural has two identical branches: `{count, plural, one {Rejected (#)} other {Rejected (#)}}`. The plural carries no information in English, but every locale must still carry (and a reviewer must still check) dead branches — and it invites translators to expand cs to one/few/other for nothing. Should be a flat `Rejected ({count})`. |
 | `devcase.checks.canaryUngradable` | Both ICU branches are identical in en ("one {# not gradable} other {# not gradable}"), so the plural block does no work in the source. Harmless, but it signals to translators that no agreement is needed — fr correctly expanded it (évaluable/évaluables), which is exactly the divergence a reviewer would otherwise flag as a format drift. |
-| `devcase.outbox.count` | "{count} messages" likewise has no plural branches; renders "1 messages". cs escapes via the count-invariant "Zpráv: {count}", but de/fr are pinned to the defect. |
-| `devcase.outbox.count / devcase.outbox.countFiltered / devcase.outbox.deadLetters / devcase.cohort.evaluated` | Flat interpolated counts with a plural noun or verb and no ICU plural ("{count} messages", "{count} need attention"). English itself renders "1 messages" / "1 need attention"; every locale has to invent the plural. These should be ICU plurals in en.json. |
-| `devcase.outbox.deadLetters` | "{count} need attention" has no ICU plural, so it renders "1 need attention". Every locale inherits the break: de "{count} brauchen Aufmerksamkeit" is ungrammatical at 1 (cs and fr dodged it with count-invariant recasts). Needs {count, plural, one {…} other {…}} in en before the locales can be fixed cleanly. |
+| `devcase.outbox.count` | **RESOLVED 2026-08-12** — en/cs expanded to ICU plurals (de/fr already were). "{count} messages" likewise has no plural branches; renders "1 messages". cs escapes via the count-invariant "Zpráv: {count}", but de/fr are pinned to the defect. |
+| `devcase.outbox.count / devcase.outbox.countFiltered / devcase.outbox.deadLetters / devcase.cohort.evaluated` | **PARTIALLY RESOLVED 2026-08-12** — `count` and `deadLetters` fixed (see their own rows). `countFiltered` ("{shown} of {total} messages") and `cohort.evaluated` left open: both need a product decision on whether `messages`/`evaluated` should agree with `shown`/`total` or with the live count, which is a judgment call past what this pass covers. Flat interpolated counts with a plural noun or verb and no ICU plural ("{count} messages", "{count} need attention"). English itself renders "1 messages" / "1 need attention"; every locale has to invent the plural. These should be ICU plurals in en.json. |
+| `devcase.outbox.deadLetters` | **RESOLVED 2026-08-12** — en now an ICU plural. "{count} need attention" has no ICU plural, so it renders "1 need attention". Every locale inherits the break: de "{count} brauchen Aufmerksamkeit" is ungrammatical at 1 (cs and fr dodged it with count-invariant recasts). Needs {count, plural, one {…} other {…}} in en before the locales can be fixed cleanly. |
 | `devcase.probeAudit.strong` | Flat count: "{loadBearing} of {total} probes are load-bearing" has no ICU plural, so Czech cannot agree the noun (1 sonda / 3 sondy / 5 sond) and has to be written around with a colon construction ("Nosných sond: X z Y"). Same defect in devcase.probeAudit.weak. |
 | `interviewSim.regularDesc` | "under {min} minutes" hardcodes the unit word next to a bare number placeholder, so no locale can use ICU plural agreement on the unit. Fine for de/fr/en, but a Czech-style unit-agreeing language cannot render it correctly for all values. |
 | `jobs.candidates.notEligible` | "{count} not eligible (KO-filtered)" duplicates jobs.candidates.notEligibleWhy ("Not eligible (#): see why") almost exactly, but only the latter is written as an ICU plural. The flat form is what let fr freeze "non éligibles" and break at count=1. Both should be plural-shaped in en so every locale is forced to expand branches. |
@@ -205,8 +239,8 @@ no-em-dash recast, which was explicitly authorized (see
 | `models.quality.method` | "{limit} run(s)/cell" is a flat string with a parenthesised plural. It needs an ICU plural on {limit}; the "(s)" form is also explicitly banned by the French guide (FR-PLURAL), so fr currently ships "exécution(s)" as the least-bad option. Same for "{limit} Lauf/Läufe" in de, which is a hand-rolled slash plural. |
 | `models.usage.cache` | Flat count nouns with no ICU plural: "{rows} cached responses · {expired} expired awaiting cleanup" breaks at rows=1 / expired=1 in every locale. cs has already been expanded to one/few/other locally; de and fr are stuck echoing the flat English shape. The en source should carry {rows, plural, …} and {expired, plural, …} so all locales can branch from it. |
 | `models.usage.fallbackCalls` | "{count} fallback" is a bare adjective fragment with no head noun and no plural, so every target locale has to guess the elided noun (calls) and invent its own agreement. cs guessed "volání", de left "Fallback", fr left "de repli" — three different shapes from one ambiguous source. |
-| `nav.attentionBadge` | "{count} need attention" is flat, with a plural verb and no ICU plural block. Ungrammatical in English itself at count=1 ("1 need attention"), and it forces every locale to invent the plural structure. Rendered as an aria-label, so a screen reader reads the defect aloud. Should be {count, plural, one {# needs attention} other {# need attention}}. |
-| `nav.attentionBadgeGo` | The English is a flat string with an unagreed verb: "{count} need attention" renders "1 need attention". It should be an ICU plural (one {# needs attention} other {# need attention}). de is flat for the same reason ("{count} benötigen Aufmerksamkeit" is wrong at 1). I expanded cs to one/few/other as the Czech CLDR categories require, but did not restructure en/de plurals in this dash pass. Its sibling nav.attentionBadge (NavSectionRail.tsx:85) very likely has the same defect and should be checked in the same fix. |
+| `nav.attentionBadge` | **RESOLVED 2026-08-12** — en now an ICU plural (`one {# needs attention} other {# need attention}`). "{count} need attention" is flat, with a plural verb and no ICU plural block. Ungrammatical in English itself at count=1 ("1 need attention"), and it forces every locale to invent the plural structure. Rendered as an aria-label, so a screen reader reads the defect aloud. Should be {count, plural, one {# needs attention} other {# need attention}}. |
+| `nav.attentionBadgeGo` | **RESOLVED 2026-08-12** — en now an ICU plural, same shape as attentionBadge. The English is a flat string with an unagreed verb: "{count} need attention" renders "1 need attention". It should be an ICU plural (one {# needs attention} other {# need attention}). de is flat for the same reason ("{count} benötigen Aufmerksamkeit" is wrong at 1). I expanded cs to one/few/other as the Czech CLDR categories require, but did not restructure en/de plurals in this dash pass. Its sibling nav.attentionBadge (NavSectionRail.tsx:85) very likely has the same defect and should be checked in the same fix. |
 | `offer.deadlineHours` | "{hours, plural, one {# hour} other {# hours}} left." puts the count-carrying plural first and the predicate outside it. Inflected languages need the verb inside the branches (cs already does: "zbývá # hodina" / "zbývají # hodiny"), so the English shape silently invites the agreement bug in any locale that copies it. Wrapping the whole clause in the plural in the source would remove the trap. |
 | `onboarding.ledgerSignaturesCount` | "{count} requested" is flat. Fine in English (participle invariant) but it gives every gendered/number-agreeing locale no branch to hang agreement on; fr resorted to "demandé(s)". |
 | `onboarding.preboardQuestions` | The English put the agreeing verb OUTSIDE the plural block: "{count, plural, one {# pre-boarding question} other {# ...questions}} go to the new hire — {list}", so the `one` branch rendered "1 pre-boarding question GO to the new hire". The dash recast forced me into this string, so I moved the verb inside the branches (goes/go) in all four locales. Flagging it because it is a source agreement bug, not a punctuation one, and the same shape likely recurs elsewhere. |
@@ -227,8 +261,8 @@ no-em-dash recast, which was explicitly authorized (see
 | `profile.empty.filed` | Declared as an ICU plural but the only call site (`ProfileEmptyStates.tsx:144`) hardcodes `{ count: 0 }`, and both en branches are byte-identical ("# filed"). Dead branch structure: it forces every locale to guess the referent noun for a count that is always zero. |
 | `profile.empty.moreArchetypes` | Both en plural branches are identical ("+# more"), so the plural carries no information in the source and gives translators no cue about the elided head noun (archetypes). de/cs/fr each had to infer it. |
 | `profile.matrix.band_strong` | The band chips ("{count} strong", "{count} mid", "{count} weak", "{count} not assessed") are elliptical adjective fragments with the head noun omitted. English gets away with it; Czech has to choose a case and gender for the missing noun (the catalog currently uses a genitive-plural escape, "silných: {count}"). Spelling the noun out in en, or documenting the intended head noun, would let all three locales agree properly. |
-| `profile.matrix.groupCount` | "{count} candidates" is a flat string with no ICU plural, so it renders "1 candidates". The call site (CandidateMatrixFilterBar.tsx:93) passes the real group total, which can be 1. Needs `{count, plural, one {# candidate} other {# candidates}}` in en before the locales can expand correctly (cs needs one/few/other). |
-| `profile.roster.count` | Same defect: "{count} saved profiles" renders "1 saved profiles". Should be an ICU plural in en. |
+| `profile.matrix.groupCount` | **RESOLVED 2026-08-12** — en/cs/de/fr all expanded to ICU plurals. "{count} candidates" is a flat string with no ICU plural, so it renders "1 candidates". The call site (CandidateMatrixFilterBar.tsx:93) passes the real group total, which can be 1. Needs `{count, plural, one {# candidate} other {# candidates}}` in en before the locales can expand correctly (cs needs one/few/other). |
+| `profile.roster.count` | **RESOLVED 2026-08-12** — en/cs/de/fr all expanded to ICU plurals. Same defect: "{count} saved profiles" renders "1 saved profiles". Should be an ICU plural in en. |
 | `report.archetype.fillGaps` | Flat '({count})' beside a noun phrase; no plural branches. Czech and the German article would both want agreement if the count ever moves inline. |
 | `report.compare.reasonSkillsLine` | '{count} skills indexed' is flat with no ICU plural; breaks at count=1 in every locale. cs supplied its own branches, de/fr did not, so the three locales now disagree structurally on the same source string. |
 | `report.compare.reasonSummary` | '{yrs} yrs surfaced' is a flat string with no ICU plural and an abbreviation ('yrs') that does not survive translation. cs had to invent the plural branches itself; de/fr rendered a bare number that will read wrong at yrs=1. Should be a `{yrs, plural, …}` message in en. |
@@ -289,13 +323,25 @@ no-em-dash recast, which was explicitly authorized (see
 
 ## Hardcoded currency, amounts, dates or latencies (27)
 
+**Left open, needs a product decision:** the `analytics.roi.*` and
+`landing.pricing.tiers.*` / `landing.pricing.footnote2` rows below hardcode
+`CZK`/`Kč` as literal text rather than a formatted placeholder. Unlike the
+`spendNote`/`unpriced`/`backdatedTitle`/`groupEvalTimeout` keys fixed in the
+2026-08-12 pass (which only needed the *number* run through Intl), these
+name the *currency itself* in prose — and `app/_lib/format.ts` documents
+`APP_CURRENCY = "CZK"` as a deliberate single-currency product decision
+("The app does not do FX"). Reformatting them to a locale-neutral currency
+placeholder is only worth doing once multi-currency billing is a real
+question; until then the literal CZK/Kč is an accurate statement of how the
+product works, not a formatting bug. Flagging here rather than fixing.
+
 | key | problem |
 |-----|---------|
 | `about.students.scoringFootnote` | ~60-word footnote concatenating four independent claims (hover behaviour, Adéla's average, Bára's band, Cyril's delivery) plus hardcoded person names and the literal "4.3" / "4/5" numbers. cs and de must carry the whole block in one value and run 15-30% longer. Worth splitting into 3-4 keys; the decimal should come through Intl, not as literal "4.3". |
 | `aboutPage.art.design.bandValue` | Hardcoded salary range "120k — 165k" with no currency and no Intl formatting. cs already diverged to "120–165 tis."; de/fr keep the English "k" abbreviation, which is not the local convention. Should be a formatted number pair, not a literal. |
-| `agentsWorkforce.spendNote` | Hardcoded currency symbol: "$0" is baked into the string in all four locales. Per contract §9 currency must be formatted at runtime via ICU/Intl; a CZK/EUR-market operator sees a dollar amount that no locale controls. Needs a placeholder plus a number/currency format, or the amount removed from the copy. |
+| `agentsWorkforce.spendNote` | **RESOLVED 2026-08-12** — "$0" replaced with a `{zero}` placeholder, formatted via `fmtUsd()` at the call site (AgentsWorkforceRow.tsx, AgentsWorkforceRoster.tsx). Hardcoded currency symbol: "$0" is baked into the string in all four locales. Per contract §9 currency must be formatted at runtime via ICU/Intl; a CZK/EUR-market operator sees a dollar amount that no locale controls. Needs a placeholder plus a number/currency format, or the amount removed from the copy. |
 | `analytics.compute.perHireNote` | USD and CZK are hardcoded currency codes in prose. Correct as a statement of fact today, but it hard-codes the ledger's pricing currency into copy that will drift if a second billing currency is ever supported. |
-| `analytics.compute.unpriced` | "$0" is a hardcoded currency literal inside the message, in every locale. A CZK-market workspace sees a dollar amount. It should be an Intl-formatted placeholder, not a baked symbol. |
+| `analytics.compute.unpriced` | **RESOLVED 2026-08-12** — "$0" replaced with a `{zero}` placeholder, formatted via `useFormatter()` at the call site (AnalyticsComputeCostPanel.tsx). "$0" is a hardcoded currency literal inside the message, in every locale. A CZK-market workspace sees a dollar amount. It should be an Intl-formatted placeholder, not a baked symbol. |
 | `analytics.roi.basis` | "{actions} automated actions, at {rate} CZK/hour." is flat and renders "1 automated actions" in English when totalActions is 1 (reachable: automation-roi.ts sums per-kind counts with no floor). Needs a plural in the source. |
 | `analytics.roi.headline / analytics.roi.basis / analytics.roi.rateSuffix / analytics.channels.colSpend` | Currency is hardcoded as "CZK" in the source string rather than formatted at runtime, so no locale can render EUR/USD for a non-Czech tenant. contract.md §9 says never hardcode currency; here the currency code is baked into en itself, which caps every locale. |
 | `analytics.roi.perHire` | Hardcoded unit abbreviation "h" and the "~" / "≈" symbols are baked into the message rather than formatted; "h" is not the natural hour abbreviation in every target locale (de wants "Std."). |
@@ -303,7 +349,7 @@ no-em-dash recast, which was explicitly authorized (see
 | `channels.empty.comms.effort` | Sibling keys channels.empty.email.effort and channels.empty.ads.effort share the same shape with the duration hardcoded as a literal numeral in prose ("About 2 / 3 / 5 minutes"). No placeholder, so the number cannot be formatted per locale and there is no plural branch for a hypothetical "1 minute". |
 | `decisions.compliance.anyAdverse` | Hardcoded literal "80%" (the four-fifths threshold) inside the copy rather than a placeholder fed from the same constant the check uses. If the threshold is ever configurable the string silently lies, and each locale hand-writes the percent spacing. |
 | `decisions.wave.reasons.holdout` | Hardcoded "%" glued to {pct}. Czech wants a space before the percent sign when it is a noun ("{pct} %"), French wants a narrow no-break space; the source shape forces each locale to hand-edit the symbol instead of formatting the number. |
-| `devcase.integrity.backdatedTitle` | Hardcoded unit suffix "{seconds}s". Every other locale needs a space and a different abbreviation (cs/de/fr use "{seconds} s"); the unit belongs in the value per locale or in an Intl unit format, not glued to the placeholder in the source. |
+| `devcase.integrity.backdatedTitle` | **RESOLVED 2026-08-12** — the glued "s" unit removed; the call site now formats the whole duration via `Intl.NumberFormat(locale, {style:"unit"})` (DevEvalPanelIntegrity.tsx). Hardcoded unit suffix "{seconds}s". Every other locale needs a space and a different abbreviation (cs/de/fr use "{seconds} s"); the unit belongs in the value per locale or in an Intl unit format, not glued to the placeholder in the source. |
 | `diagrams.items.tobe.blurb` | The phase list "Design JD · Source · Intake · Screen · Interview · Offer · Hired" is hardcoded English inside a translatable prose value. Every locale ships untranslated English stage names mid-sentence, and they will silently diverge from the real stage labels if a stage is ever renamed. Should interpolate the stage-label keys instead. |
 | `integrations.personas.timeoutBody` | Hardcoded duration: "The request expires after 5 minutes". Per contract.md §9 numbers should come through a placeholder so the copy cannot drift from the real pairing TTL; all four locales now carry the literal 5. |
 | `jobs.posting.lifecycle.jd` | "JD source" uses the internal abbreviation JD in a user-visible lifecycle segment. Every other user-facing string in the namespace spells out "Job descriptions" / "job description"; the abbreviation has no currency outside English-speaking recruiting. |
@@ -317,13 +363,13 @@ no-em-dash recast, which was explicitly authorized (see
 | `pipeline.result.band` | `{currency}` is a separate trailing placeholder appended after a pre-formatted `{min}–{max}` range. Currency position and spacing are locale-dependent and cannot be moved by a translator without breaking the digits-only en dash. Should be one Intl-formatted value, not three placeholders. |
 | `pipeline.result.perMonth` | "/ mo" is a hardcoded period abbreviation glued to a number formatted separately (PipelineCandidateResultView.tsx:117 uses toLocaleString). Locales cannot move the unit relative to the figure, and the space handling before "/" is not expressible. |
 | `report.anchorBand` | Currency and period are hardcoded English-side ('CZK/mo'), not formatted at runtime. Contract §9 forbids hardcoded localized currency; this pins the product to CZK in every locale. |
-| `simulation.error.groupEvalTimeout` | '{seconds}s' hardcodes the unit suffix into the string instead of formatting a duration. Also forces the translator to hand-insert a non-breaking space (CS-NBSP / DE-NBSP) that a formatter would supply. |
+| `simulation.error.groupEvalTimeout` | **RESOLVED 2026-08-12** — same fix as backdatedTitle, applied in useSimulationEngine.ts. '{seconds}s' hardcodes the unit suffix into the string instead of formatting a duration. Also forces the translator to hand-insert a non-breaking space (CS-NBSP / DE-NBSP) that a formatter would supply. |
 
 ## One value carrying several distinct claims (3)
 
 | key | problem |
 |-----|---------|
-| `channels.email.notWiredHowTo` | One string carries four distinct instructions (what already works, how to route a provider, which env var to set, what appears afterwards). At 60+ words it is the longest value in the batch and forces every locale into a wall of text in a hint slot. Should be split into a lead sentence plus a list. |
+| `channels.email.notWiredHowTo` | **RESOLVED 2026-08-12** — split into `notWiredHowTo` (lead sentence) + `notWiredHowToSetup` (setup instructions); ChannelsEmailIntakeWizard.tsx now renders two paragraphs. One string carries four distinct instructions (what already works, how to route a provider, which env var to set, what appears afterwards). At 60+ words it is the longest value in the batch and forces every locale into a wall of text in a hint slot. Should be split into a lead sentence plus a list. |
 | `data.eraseExplainer` | One 70-word GDPR paragraph carrying four distinct claims (what is deleted, what is kept and why, the sealed decision record, the legal-defence basis). It is a single flat string, so no locale can re-order or split it for readability and no surface can render the list as a real list. Splitting it into 2-3 keys (or making the deleted-data list a structured array) would raise quality in every locale; I only recast the dash into a colon rather than restructuring. |
 | `jobs.tab.intro` | One 55-word sentence carrying a parenthetical, a rich tag, and (before this rewrite) a dashed aside. Even recast to a colon it is at the limit of what a tab intro should carry; the second half is really a second paragraph. Reported, not split, since splitting would change the key shape. |
 
