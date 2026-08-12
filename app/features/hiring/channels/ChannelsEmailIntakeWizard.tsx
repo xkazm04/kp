@@ -54,8 +54,9 @@ function ForwardingNotWired({ receiverUrl, role }: { receiverUrl: string; role: 
       <p className="mt-2 text-sm text-steel">
         <CopyChip value={receiverUrl} />
       </p>
+      <p className="mt-2 text-sm text-steel">{t("email.notWiredHowTo")}</p>
       <p className="mt-2 text-sm text-steel">
-        {t.rich("email.notWiredHowTo", {
+        {t.rich("email.notWiredHowToSetup", {
           code: (chunks) => <code className="rounded bg-stone-100 px-1 text-ink">{chunks}</code>,
         })}
       </p>
