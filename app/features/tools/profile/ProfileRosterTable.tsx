@@ -5,42 +5,56 @@
 // pager) so both stay under the 200-line cap.
 
 import { useTranslations } from "next-intl";
-import { ArrowDown, ArrowUp, UserSearch } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, UserSearch } from "lucide-react";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { ProfileRosterRow } from "./ProfileRosterRow";
 import type { RosterFacets, RosterFilters, RosterSort, RosterSortCol } from "./profileRosterView";
 import type { RosterProfile, StaleMap } from "./ProfileRosterTypes";
 
-// A header that sorts its column. Clicking the active column flips direction, so
-// "least complete first" is one extra click rather than a second control — and the
-// arrow says which way it currently reads instead of leaving the reader to infer it
-// from the rows.
-function SortHeader({
-  col,
+// A column header: the name once, then icon controls for whatever that column can
+// do. Naming the column in the label AND again inside each control spelled
+// "Candidate ↑ Candidate ▾", which reads as a duplication bug rather than as two
+// affordances — so the controls are glyphs and take their accessible names from
+// `title` (nothing is lost for AT, only the visual repetition).
+function ColumnHead({
   title,
+  sortCol,
   sort,
   onSort,
+  children,
 }: {
-  col: RosterSortCol;
   title: string;
+  /** Omit for a column with no meaningful order (Status, Archetype…). */
+  sortCol?: RosterSortCol;
   sort: RosterSort;
   onSort: (sort: RosterSort) => void;
+  /** The column's ColumnFilter, if it has one. */
+  children?: React.ReactNode;
 }) {
-  const active = sort.col === col;
-  const Arrow = active && sort.dir === "desc" ? ArrowDown : ArrowUp;
+  const t = useTranslations("profile.roster");
+  const active = sortCol != null && sort.col === sortCol;
+  // Direction is shown only on the ACTIVE column: an idle column showing "↑" claims
+  // an ordering it isn't imposing. Idle columns get the neutral two-way glyph.
+  const SortIcon = !active ? ArrowUpDown : sort.dir === "desc" ? ArrowDown : ArrowUp;
   return (
-    <button
-      type="button"
-      onClick={() => onSort({ col, dir: active && sort.dir === "asc" ? "desc" : "asc" })}
-      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
-      className={`focus-ring inline-flex items-center gap-1 rounded px-1 py-0.5 ${META_LABEL} ${
-        active ? "text-coral" : "hover:text-ink"
-      }`}
-    >
-      {title}
-      <Arrow size={12} className={active ? "" : "opacity-30"} aria-hidden />
-    </button>
+    <span className="inline-flex items-center gap-1">
+      <span className={`${META_LABEL} ${active ? "text-coral" : ""}`}>{title}</span>
+      {sortCol ? (
+        <button
+          type="button"
+          onClick={() => onSort({ col: sortCol, dir: active && sort.dir === "asc" ? "desc" : "asc" })}
+          aria-label={t("sortBy", { column: title })}
+          title={t("sortBy", { column: title })}
+          className={`focus-ring inline-flex h-6 w-6 items-center justify-center rounded transition-colors ${
+            active ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
+          }`}
+        >
+          <SortIcon size={13} className={active ? "" : "opacity-60"} aria-hidden />
+        </button>
+      ) : null}
+      {children}
+    </span>
   );
 }
 
@@ -111,45 +125,50 @@ export function ProfileRosterTable({
       <table className="w-full min-w-[44rem] border-collapse text-left">
         <thead>
           <tr className="border-b border-stone-200 bg-paper/60">
-            {/* Name is both the sort key and the search box: the header carries the
-                sort, the filter chevron beside it opens the search. */}
+            {/* Name carries both controls: sort, and a search box behind the
+                magnifier. Both are glyphs, so the column is named once. */}
             <th scope="col" className="px-3 py-2">
-              <span className="inline-flex items-center gap-1.5">
-                <SortHeader col="name" title={t("colName")} sort={sort} onSort={onSort} />
-                <ColumnFilter
-                  title={t("colName")}
-                  mode="search"
-                  value={filters.q}
-                  onChange={(q) => onFilters({ q })}
-                />
-              </span>
+              <ColumnHead title={t("colName")} sortCol="name" sort={sort} onSort={onSort}>
+                <ColumnFilter title={t("colName")} mode="search" trigger="icon" value={filters.q} onChange={(q) => onFilters({ q })} />
+              </ColumnHead>
             </th>
             <th scope="col" className="px-3 py-2">
-              <ColumnFilter
-                title={t("colArchetype")}
-                value={filters.archetype}
-                onChange={(archetype) => onFilters({ archetype })}
-                options={facets.archetypes}
-              />
+              <ColumnHead title={t("colArchetype")} sortCol="archetype" sort={sort} onSort={onSort}>
+                <ColumnFilter
+                  title={t("colArchetype")}
+                  trigger="icon"
+                  value={filters.archetype}
+                  onChange={(archetype) => onFilters({ archetype })}
+                  options={facets.archetypes}
+                />
+              </ColumnHead>
             </th>
             <th scope="col" className="hidden px-3 py-2 md:table-cell">
-              <ColumnFilter
-                title={t("colFamily")}
-                value={filters.family}
-                onChange={(family) => onFilters({ family })}
-                options={facets.families}
-              />
+              <ColumnHead title={t("colFamily")} sortCol="family" sort={sort} onSort={onSort}>
+                <ColumnFilter
+                  title={t("colFamily")}
+                  trigger="icon"
+                  value={filters.family}
+                  onChange={(family) => onFilters({ family })}
+                  options={facets.families}
+                />
+              </ColumnHead>
             </th>
             <th scope="col" className="px-3 py-2">
-              <SortHeader col="completeness" title={t("colCompleteness")} sort={sort} onSort={onSort} />
+              <ColumnHead title={t("colCompleteness")} sortCol="completeness" sort={sort} onSort={onSort} />
             </th>
             <th scope="col" className="px-3 py-2">
-              <ColumnFilter
-                title={t("colStatus")}
-                value={filters.status}
-                onChange={(status) => onFilters({ status })}
-                options={facets.statuses}
-              />
+              {/* Status has no meaningful order (retired vs. newer-CV is not a
+                  ranking), so it filters but does not sort. */}
+              <ColumnHead title={t("colStatus")} sort={sort} onSort={onSort}>
+                <ColumnFilter
+                  title={t("colStatus")}
+                  trigger="icon"
+                  value={filters.status}
+                  onChange={(status) => onFilters({ status })}
+                  options={facets.statuses}
+                />
+              </ColumnHead>
             </th>
             <th scope="col" className={`px-3 py-2 text-right ${META_LABEL}`}>
               <span className="sr-only">{t("colActions")}</span>

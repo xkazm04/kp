@@ -27,12 +27,16 @@ career-switcher) that other features key off. Downstream ranking is
     the pure `profileRosterView.ts`. A paginated ledger: in-header column filters
     (candidate / archetype / role family / status), sortable name + completeness,
     20 rows a page via the shared `app/_components/table/TablePager.tsx`.
-  - **Matrix** — `CandidateMatrix.tsx`. Currently a `/prototype` host offering three
-    layouts over one grouping model (`candidateMatrixView.ts`): **Atlas** (wrapping
-    tile map of the taxonomy, one archetype expanded at a time),
-    **Ledger** (single column ruled into sticky archetype sections with a jump
-    index) and the original **Table** baseline. Atlas is the default; the winner has
-    not been promoted yet — see Known gaps.
+  - **Matrix** — `CandidateMatrix.tsx` (fetch + population filters + detail modal)
+    over `CandidateMatrixBoard.tsx`: the population as a **board of archetype
+    lanes**, every lane on screen at once (lanes wrap rather than scrolling
+    sideways), each with a score-distribution bar summarizing its cohort shape.
+    Grouping/filtering rules are the pure `candidateMatrixView.ts`.
+    `CandidateChip.tsx` is the unit a lane tiles and carries only what you scan by —
+    name, `ScoreBadge`, a seniority glyph, and one action icon (save an analysed CV
+    as a profile, or edit a saved one). Role, role family and source live in
+    `CandidateMatrixFilterBar.tsx` (population filters) and
+    `CandidateDetailModal.tsx` (per-candidate detail) rather than on every card.
 - **Saved analysis report** — `app/history/[slug]/page.tsx`; history list —
   `app/features/tools/analyze/history/HistoryTab.tsx`.
 - **Public skill credential** — `app/skill/[token]/page.tsx`.
@@ -204,9 +208,6 @@ pipeline/jobfit/eval/fixtures_csas --strict`. Full corpus:
 
 - Salary anchoring still uses the job's band rather than a candidate-seniority
   band when the two diverge (see above) — the one open item from the pilot.
-- The Matrix projection is mid-`/prototype`: three layouts (Atlas / Ledger / Table)
-  ship behind a switcher on the tab itself. One has to win and the other two be
-  deleted — until then the surface carries prototype scaffolding in production.
 - Bilingual skill-label recall (CZ claim text vs. EN Gemini output) is an
   eval-harness measurement gap, not a scoring bug — matched skills are present,
   the eval's substring matcher just can't bridge the language.

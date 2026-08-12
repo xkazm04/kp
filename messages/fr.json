@@ -4069,24 +4069,34 @@
       "loadFailed": "Impossible de charger les candidats.",
       "emptyTitle": "Aucun candidat pour l’instant",
       "emptyBody": "Créez un profil ci-dessus, ou lancez un CV dans l’onglet <b>Analyse</b> – chacun est orienté vers un archétype et apparaît ici.",
-      "openAnalysisTitle": "Ouvrir l’analyse de {name}",
       "openProfileTitle": "Modifier le profil de {name}",
       "sourceProfile": "Profil",
       "sourceAnalysis": "Analyse",
       "buildFromAnalysis": "Créer un profil",
       "buildFromAnalysisTitle": "Créer un profil enregistré à partir de l’analyse de {name}",
-      "variantLabel": "Disposition de la matrice",
-      "variant_atlas": "Atlas",
-      "variant_ledger": "Registre",
-      "variant_baseline": "Tableau",
       "groupCount": "{count} candidat·es",
-      "emptyCell": "·",
-      "jumpAria": "Aller à un archétype",
       "distributionAria": "Répartition des scores {archetype} : {bands}",
       "band_strong": "{count} fort·es",
       "band_mid": "{count} moyen·nes",
       "band_weak": "{count} faibles",
-      "band_unscored": "{count} non évalué·es"
+      "band_unscored": "{count} non évalué·es",
+      "colSeniority": "Séniorité",
+      "colSource": "Source",
+      "colScore": "Score",
+      "seniorityUnknown": "Séniorité inconnue",
+      "filterName": "Rechercher des candidat·es…",
+      "filterAllFamilies": "Toutes les familles de postes",
+      "filterAllSeniorities": "Toutes les séniorités",
+      "filterAllSources": "Toutes les sources",
+      "countFiltered": "{shown} sur {total}",
+      "clearFilters": "Effacer",
+      "openDetailTitle": "Ouvrir la fiche de {name}",
+      "openProfileAction": "Modifier le profil",
+      "openAnalysisAction": "Ouvrir l'analyse",
+      "scoreProfileNote": "Les profils enregistrés n'ont pas de score propre.",
+      "colArchetype": "Archétype",
+      "colFamily": "Famille de postes",
+      "filteredEmpty": "Aucun·e candidat·e ne correspond à ces filtres."
     },
     "roster": {
       "eyebrow": "Profils enregistrés",
@@ -4125,7 +4135,8 @@
       "status_stale": "CV plus récent",
       "status_retired": "Archétype retiré",
       "filteredEmpty": "Aucun profil ne correspond à ces filtres.",
-      "clearFilters": "Effacer les filtres"
+      "clearFilters": "Effacer les filtres",
+      "sortBy": "Trier par {column}"
     },
     "result": {
       "confidence": "confiance {pct} %",
@@ -4316,7 +4327,8 @@
       "noMatches": "Aucun résultat",
       "searchColumn": "Rechercher : {column}…",
       "allOf": "Tout – {column}",
-      "select": "Sélectionner…"
+      "select": "Sélectionner…",
+      "filterColumn": "Filtrer {column}"
     }
   },
   "channels": {

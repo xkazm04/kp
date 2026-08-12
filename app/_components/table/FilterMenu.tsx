@@ -6,6 +6,7 @@
 // 200-line cap. Copy resolves through `table.filters.*` in four locales.
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Check, Search } from "lucide-react";
 import { FIELD } from "@/app/_components/ui/recipes";
@@ -75,6 +76,16 @@ export function OptionList({
 
 // A menu pinned under a measured anchor rect, fixed to the viewport so it isn't
 // clipped by a scrolling table. Renders a full-viewport backdrop that closes it.
+//
+// PORTALED TO document.body, for the same reason Modal is (see its header): the
+// rect comes from getBoundingClientRect, i.e. VIEWPORT coordinates, but `position:
+// fixed` resolves against the nearest ancestor that establishes a containing block
+// — and a `transform` does exactly that. Any tab that fades its body in with a
+// framer `motion.div` (the Archetypes projection switch, the Matrix mode switch)
+// silently became that ancestor, so the menu landed offset by the wrapper's own
+// origin — reading as "the popup opens in the middle of the table". Rendering into
+// document.body means the coordinates and the containing block are the same space
+// again, whatever the call site is nested in.
 export function AnchoredMenu({
   anchor,
   onClose,
@@ -100,15 +111,25 @@ export function AnchoredMenu({
       window.removeEventListener("keydown", onKey);
     };
   }, [onClose]);
-  const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+  // No document during SSR / the first render pass — nothing to portal into yet.
+  if (typeof document === "undefined") return null;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
   const left = Math.max(8, Math.min(anchor.left, vw - width - 8));
-  return (
+  // Flip above the trigger when the menu would run off the bottom (a filter in the
+  // last visible header row of a tall page). The option list caps at ~16rem, so
+  // 280px is a safe worst-case height to reserve.
+  const below = anchor.bottom + 4;
+  const flip = below + 280 > vh && anchor.top > vh - anchor.bottom;
+  const style = flip ? { bottom: vh - anchor.top + 4, left, width } : { top: below, left, width };
+  return createPortal(
     <>
       {/* z above the Modal overlay (z-50) so the menu works inside the Add modal. */}
       <button type="button" aria-hidden tabIndex={-1} onClick={onClose} className="fixed inset-0 z-[60] cursor-default" />
-      <div style={{ top: anchor.bottom + 4, left, width }} className="fixed z-[70] rounded-lg border border-stone-200 bg-white shadow-pop">
+      <div style={style} className="fixed z-[70] rounded-lg border border-stone-200 bg-white shadow-pop">
         {children}
       </div>
-    </>
+    </>,
+    document.body
   );
 }

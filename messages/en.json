@@ -4069,24 +4069,34 @@
       "loadFailed": "Couldn't load candidates.",
       "emptyTitle": "No candidates yet",
       "emptyBody": "Build a profile above, or run a CV in the <b>Analyze</b> tab — each is routed to an archetype and appears here.",
-      "openAnalysisTitle": "Open {name}'s analysis",
       "openProfileTitle": "Edit {name}'s profile",
       "sourceProfile": "Profile",
       "sourceAnalysis": "Analysis",
       "buildFromAnalysis": "Build profile",
       "buildFromAnalysisTitle": "Build a saved profile from {name}'s analysis",
-      "variantLabel": "Matrix layout",
-      "variant_atlas": "Atlas",
-      "variant_ledger": "Ledger",
-      "variant_baseline": "Table",
       "groupCount": "{count} candidates",
-      "emptyCell": "·",
-      "jumpAria": "Jump to an archetype",
       "distributionAria": "{archetype} score spread: {bands}",
       "band_strong": "{count} strong",
       "band_mid": "{count} mid",
       "band_weak": "{count} weak",
-      "band_unscored": "{count} not assessed"
+      "band_unscored": "{count} not assessed",
+      "colSeniority": "Seniority",
+      "colSource": "Source",
+      "colScore": "Score",
+      "seniorityUnknown": "Seniority not known",
+      "filterName": "Search candidates…",
+      "filterAllFamilies": "All role families",
+      "filterAllSeniorities": "All seniorities",
+      "filterAllSources": "All sources",
+      "countFiltered": "{shown} of {total}",
+      "clearFilters": "Clear",
+      "openDetailTitle": "Open {name}'s details",
+      "openProfileAction": "Edit profile",
+      "openAnalysisAction": "Open analysis",
+      "scoreProfileNote": "Saved profiles carry no score of their own.",
+      "colArchetype": "Archetype",
+      "colFamily": "Role family",
+      "filteredEmpty": "No candidate matches these filters."
     },
     "roster": {
       "eyebrow": "Saved profiles",
@@ -4125,7 +4135,8 @@
       "status_stale": "Newer CV",
       "status_retired": "Retired archetype",
       "filteredEmpty": "No profile matches these filters.",
-      "clearFilters": "Clear filters"
+      "clearFilters": "Clear filters",
+      "sortBy": "Sort by {column}"
     },
     "result": {
       "confidence": "confidence {pct}%",
@@ -4316,7 +4327,8 @@
       "noMatches": "No matches",
       "searchColumn": "Search {column}…",
       "allOf": "All — {column}",
-      "select": "Select…"
+      "select": "Select…",
+      "filterColumn": "Filter {column}"
     }
   },
   "channels": {

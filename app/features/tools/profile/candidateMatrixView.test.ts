@@ -4,7 +4,15 @@
 // projection is a candidate nobody will ever look at again.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { archetypeColumns, bandOf, groupByArchetype, largestGroupId } from "./candidateMatrixView.ts";
+import {
+  archetypeColumns,
+  bandOf,
+  candidateFacets,
+  filterCandidates,
+  groupByArchetype,
+  hasActiveFilters,
+  NO_CANDIDATE_FILTERS,
+} from "./candidateMatrixView.ts";
 import type { ArchetypeDef, CandidateRow } from "@/app/features/shared/profileTypes";
 
 const C = (key: string, name: string, archetype: string, score: number | null): CandidateRow => ({
@@ -68,11 +76,9 @@ test("band counts always sum to the group size — the distribution bar cannot l
   }
 });
 
-test("empty groups are dropped by default and kept on request", () => {
+test("an archetype nobody routed to is dropped — no lane that can only say 0", () => {
   const cols = archetypeColumns(ARCHETYPES, CANDS);
   assert.equal(groupByArchetype(CANDS, cols).some((g) => g.candidates.length === 0), false);
-  const withEmpty = groupByArchetype(CANDS, cols, { emptyGroups: true });
-  assert.equal(withEmpty.length, cols.length, "the whole taxonomy is available for a coverage read");
 });
 
 test("every candidate lands in exactly one group — none may be dropped", () => {
@@ -81,8 +87,65 @@ test("every candidate lands in exactly one group — none may be dropped", () =>
   assert.deepEqual(placed, CANDS.map((c) => c.key).sort());
 });
 
-test("the opening group is the biggest one, so the first screen is never empty", () => {
-  const groups = groupByArchetype(CANDS, archetypeColumns(ARCHETYPES, CANDS));
-  assert.equal(largestGroupId(groups), "bau");
-  assert.equal(largestGroupId([]), null);
+/* ── Filtering (round 2) ──────────────────────────────────────────────────────
+ * Role family, seniority and source moved OFF the candidate card and INTO a
+ * filter bar above the view. That trade only pays if the filters actually work,
+ * so these pin the predicate the cards no longer print. */
+
+const POOL: CandidateRow[] = [
+  { ...C("p1", "Ada Senior", "bau", 90), role: "engineering", seniority: "senior", source: "profile" },
+  { ...C("p2", "Bob Junior", "bau", 40), role: "engineering", seniority: "junior" },
+  { ...C("p3", "Cleo Lead", "student", 70), role: "design", seniority: "lead" },
+  { ...C("p4", "Dee Unknown", "bau", null), role: null, seniority: null },
+];
+
+const withFilters = (patch: Partial<typeof NO_CANDIDATE_FILTERS>) => ({ ...NO_CANDIDATE_FILTERS, ...patch });
+
+test("no filters means no filtering — the bar starts inert", () => {
+  assert.equal(hasActiveFilters(NO_CANDIDATE_FILTERS), false);
+  assert.equal(filterCandidates(POOL, NO_CANDIDATE_FILTERS).length, POOL.length);
+  assert.equal(hasActiveFilters(withFilters({ seniority: "senior" })), true);
+  // Whitespace is not a filter — a stray space must not narrow the population.
+  assert.equal(hasActiveFilters(withFilters({ q: "   " })), false);
+});
+
+test("each filter narrows on the facts the card stopped printing, and they compose", () => {
+  const ids = (patch: Partial<typeof NO_CANDIDATE_FILTERS>) =>
+    filterCandidates(POOL, withFilters(patch)).map((c) => c.key);
+  assert.deepEqual(ids({ q: "ada" }), ["p1"], "name search is case-insensitive and substring");
+  assert.deepEqual(ids({ seniority: "senior" }), ["p1"]);
+  assert.deepEqual(ids({ family: "engineering" }), ["p1", "p2"]);
+  assert.deepEqual(ids({ source: "profile" }), ["p1"]);
+  assert.deepEqual(ids({ family: "engineering", seniority: "junior" }), ["p2"], "filters compose (AND)");
+  assert.deepEqual(ids({ family: "design", seniority: "junior" }), [], "a contradictory pair is empty, not everything");
+});
+
+test("a candidate with no role/seniority is hidden by those filters but never by a blank one", () => {
+  // "Unknown" must not silently satisfy every filter — that would smuggle
+  // unclassified people into a cohort the recruiter thinks they scoped.
+  assert.equal(filterCandidates(POOL, withFilters({ seniority: "junior" })).some((c) => c.key === "p4"), false);
+  assert.equal(filterCandidates(POOL, withFilters({ family: "engineering" })).some((c) => c.key === "p4"), false);
+  assert.equal(filterCandidates(POOL, NO_CANDIDATE_FILTERS).some((c) => c.key === "p4"), true);
+});
+
+test("seniority facets keep LADDER order, families are locale-collated", () => {
+  const f = candidateFacets(POOL, { locale: "en", label: (g, s) => `${g}:${s}` });
+  // junior → lead is a scale; alphabetizing it (junior, lead, senior) would hide that.
+  assert.deepEqual(f.seniorities.map((o) => o.value), ["junior", "senior", "lead"]);
+  assert.deepEqual(f.families.map((o) => o.value), ["design", "engineering"]);
+  // Only what is PRESENT: nobody is `medior`, so it is not offered.
+  assert.equal(f.seniorities.some((o) => o.value === "medior"), false);
+});
+
+test("an off-ladder seniority is still filterable, sorted after the known levels", () => {
+  const odd = [...POOL, { ...C("p5", "Eve Principal", "bau", 60), seniority: "principal", role: null }];
+  const f = candidateFacets(odd, { locale: "en", label: (g, s) => `${g}:${s}` });
+  assert.deepEqual(f.seniorities.map((o) => o.value), ["junior", "senior", "lead", "principal"]);
+  assert.deepEqual(filterCandidates(odd, withFilters({ seniority: "principal" })).map((c) => c.key), ["p5"]);
+});
+
+test("filterCandidates never mutates the input array", () => {
+  const order = POOL.map((c) => c.key);
+  filterCandidates(POOL, withFilters({ seniority: "senior" }));
+  assert.deepEqual(POOL.map((c) => c.key), order);
 });

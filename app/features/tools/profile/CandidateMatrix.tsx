@@ -1,30 +1,44 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
-import { SegmentedControl } from "@/app/_components/SegmentedControl";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
+import { buildUrl } from "@/app/features/shell/tabs";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ProfileEmptyState } from "./ProfileEmptyStates";
-import { CandidateMatrixAtlas } from "./CandidateMatrixAtlas";
-import { CandidateMatrixBaseline } from "./CandidateMatrixBaseline";
-import { CandidateMatrixLedger } from "./CandidateMatrixLedger";
-import { archetypeColumns } from "./candidateMatrixView";
+import { CandidateDetailModal } from "./CandidateDetailModal";
+import { CandidateMatrixBoard } from "./CandidateMatrixBoard";
+import { CandidateMatrixFilterBar } from "./CandidateMatrixFilterBar";
+import {
+  archetypeColumns,
+  candidateFacets,
+  filterCandidates,
+  hasActiveFilters,
+  NO_CANDIDATE_FILTERS,
+  type CandidateFilters,
+} from "./candidateMatrixView";
 import type { ArchetypeDef, CandidateRow } from "@/app/features/shared/profileTypes";
 
-// PROTOTYPE HOST (/prototype round 1). Owns the fetch, the panel chrome and the
-// empty/error states; the three variants below are pure presentation over the same
-// (candidates, columns) props, so switching between them cannot change the data.
+// The Matrix projection of the Archetypes tab: the candidate population as a BOARD
+// of archetype lanes. Owns the fetch, the population filters, the detail modal and
+// the panel chrome; CandidateMatrixBoard is pure presentation over (candidates,
+// columns).
 //
-// The problem under test: the baseline is an archetype × candidate TABLE, and every
-// candidate routes to exactly one archetype — so the grid is ~94% grey dots and
-// orienting in it means scrolling both axes. Both variants remove the horizontal
-// axis entirely; they disagree about what replaces it.
-//   · Atlas  — the taxonomy as a wrapping MAP of tiles (whole taxonomy in one
-//              eyeful, each tile carrying count + cohort shape), one territory
-//              expanded at a time.
-//   · Ledger — ONE column ruled into sticky archetype sections, with a chip index
-//              to jump; everyone visible, continuously, never sideways.
-const VARIANTS = ["atlas", "ledger", "baseline"] as const;
-type Variant = (typeof VARIANTS)[number];
+// This is the consolidated winner of a two-round `/prototype` run, and what it beat
+// is worth keeping written down, because each loss was a specific lesson:
+//   · Table (the original) — an archetype × candidate grid. Every candidate routes
+//     to exactly ONE archetype, so ~94% of its cells were grey dots and finding
+//     anyone meant scrolling both axes.
+//   · Atlas — a tile map of the taxonomy that expanded one archetype at a time. It
+//     read well but charged a click before showing a single name.
+//   · Deck — one dense ranked grid with archetype demoted to a tag. Denser, but it
+//     threw away the per-archetype cohort shape that answers "where is my pool
+//     actually concentrated".
+//   · Ledger — one column with sticky archetype sections. Fine, but strictly less
+//     visible at once than lanes for the same scroll.
+// Board keeps every archetype on screen (lanes WRAP rather than scrolling sideways)
+// and gives each one a distribution bar, so the comparison the others lost is the
+// thing you see first.
 
 export function CandidateMatrix({
   archetypes,
@@ -34,21 +48,25 @@ export function CandidateMatrix({
   archivedArchetypeIds,
 }: {
   archetypes: ArchetypeDef[];
-  /** Open the editor for a saved profile cell (same ?edit= flow the roster uses). */
+  /** Open the editor for a saved profile (same ?edit= flow the roster uses). */
   onEditProfile: (id: string) => void;
   /** Create CTA for the EMPTY state only — the always-on create button lives next
    *  to the projection toggle on ProfileTab, reachable from List and Matrix alike. */
   onNewProfile?: () => void;
   /** Bump to force a refetch (e.g. after a roster delete elsewhere on the tab). */
   reloadKey?: number;
-  /** Ids of retired archetypes — a retired column with candidates is flagged; an
-   *  EMPTY retired column is pruned (no dead all-dots column). */
+  /** Ids of retired archetypes — a retired group with candidates is flagged; an
+   *  EMPTY retired group is pruned (no dead all-dots column). */
   archivedArchetypeIds?: readonly string[];
 }) {
   const t = useTranslations("profile.matrix");
+  const locale = useLocale();
+  const enumLabel = useEnumLabel();
+  const router = useRouter();
   const [candidates, setCandidates] = useState<CandidateRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [variant, setVariant] = useState<Variant>("atlas");
+  const [filters, setFilters] = useState<CandidateFilters>(NO_CANDIDATE_FILTERS);
+  const [detail, setDetail] = useState<CandidateRow | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -73,18 +91,38 @@ export function CandidateMatrix({
     };
   }, [t, reloadKey]);
 
+  const all = useMemo(() => candidates ?? [], [candidates]);
+  const shown = useMemo(() => filterCandidates(all, filters), [all, filters]);
+  // Columns derive from the FILTERED set so an archetype nobody in view routed to
+  // doesn't linger as an empty lane.
   const columns = useMemo(
-    () => archetypeColumns(archetypes, candidates ?? [], archivedArchetypeIds ?? []),
-    [archetypes, candidates, archivedArchetypeIds]
+    () => archetypeColumns(archetypes, shown, archivedArchetypeIds ?? []),
+    [archetypes, shown, archivedArchetypeIds]
+  );
+  const facets = useMemo(
+    () => candidateFacets(all, { locale, label: (group, slug) => enumLabel(group, slug) }),
+    [all, locale, enumLabel]
   );
 
-  const body = () => {
-    if (!candidates) return null;
-    const props = { candidates, columns, onEditProfile };
-    if (variant === "atlas") return <CandidateMatrixAtlas {...props} />;
-    if (variant === "ledger") return <CandidateMatrixLedger {...props} />;
-    return <CandidateMatrixBaseline {...props} />;
-  };
+  const patchFilters = useCallback((patch: Partial<CandidateFilters>) => setFilters((f) => ({ ...f, ...patch })), []);
+  // Promote an analysed CV into a saved, matchable profile — prefilled and STAMPED
+  // with source lineage (?fromAnalysis=), so a later re-analysis of the same CV
+  // surfaces as staleness on the profile.
+  const buildFromAnalysis = useCallback(
+    (slug: string) => router.push(buildUrl({ tab: "archetypes", fromAnalysis: slug }, "")),
+    [router]
+  );
+  // The chip's single action icon: edit a saved profile, or save an analysis as one.
+  const onSave = useCallback(
+    (cand: CandidateRow) => {
+      if (cand.source === "profile") {
+        if (cand.id) onEditProfile(cand.id);
+      } else if (cand.slug) {
+        buildFromAnalysis(cand.slug);
+      }
+    },
+    [onEditProfile, buildFromAnalysis]
+  );
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -105,20 +143,37 @@ export function CandidateMatrix({
           // never reset `candidates` to null, so a refetch settles silently behind
           // whatever is already on screen.
           <div className="h-32 reveal-quiet" aria-hidden />
-        ) : candidates.length === 0 ? (
+        ) : all.length === 0 ? (
           <ProfileEmptyState view="matrix" archetypes={archetypes} onNewProfile={onNewProfile} />
         ) : (
           <>
-            <SegmentedControl
-              label={t("variantLabel")}
-              value={variant}
-              onChange={setVariant}
-              options={VARIANTS.map((v) => ({ value: v, label: t(`variant_${v}` as "variant_atlas") }))}
+            <CandidateMatrixFilterBar
+              filters={filters}
+              onFilters={patchFilters}
+              families={facets.families}
+              seniorities={facets.seniorities}
+              shown={shown.length}
+              total={all.length}
+              // Whether a filter is SET, not whether it changed the count: filtering
+              // to `source=analysis` in a pool that is all analyses narrows nothing,
+              // and hiding the Clear button there would leave an active filter with
+              // no visible way to undo it.
+              filtered={hasActiveFilters(filters)}
+              onClear={() => setFilters(NO_CANDIDATE_FILTERS)}
             />
-            {body()}
+            <CandidateMatrixBoard candidates={shown} columns={columns} onOpen={setDetail} onSave={onSave} />
           </>
         )}
       </div>
+
+      {detail ? (
+        <CandidateDetailModal
+          cand={detail}
+          onClose={() => setDetail(null)}
+          onEditProfile={onEditProfile}
+          onBuildFromAnalysis={buildFromAnalysis}
+        />
+      ) : null}
     </section>
   );
 }

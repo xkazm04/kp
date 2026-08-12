@@ -1,14 +1,17 @@
-// Pure view model shared by every candidate-matrix variant: the archetype columns
-// and the candidates grouped under them, with the score distribution each group
-// summarizes to.
+// Pure view model behind the candidate Board: the archetype lanes, the candidates
+// grouped into them, the score distribution each lane summarizes to, and the
+// population filters.
 //
-// The baseline table's shape is the thing being fixed here. It renders one column
-// per archetype × one row per candidate, and every candidate belongs to exactly ONE
-// archetype — so a workspace with 16 archetypes and 300 candidates draws 4,800 cells
-// to carry 300 facts, 94% of them a grey dot. The recruiter then has to scroll BOTH
-// axes to find anyone. Grouping the candidates under their archetype (below) turns
-// the same data into 16 groups of ~19, which both variants can render without a
-// horizontal axis at all.
+// The shape it replaced is worth stating, because it is why the grouping exists at
+// all. The original matrix was one column per archetype × one row per candidate,
+// and every candidate belongs to exactly ONE archetype — so a workspace with 16
+// archetypes and 300 candidates drew 4,800 cells to carry 300 facts, 94% of them a
+// grey dot, and finding anyone meant scrolling both axes. Grouping the candidates
+// under their archetype turns the same data into 16 lanes of ~19, which renders
+// with no horizontal axis at all.
+//
+// React- and next-intl-free so the rules unit-test directly (candidateMatrixView.test.ts);
+// the locale-bound pieces (collator locale, label resolver) are passed in.
 
 import { scoreTone } from "@/app/_lib/format";
 import { archetypeDisplayKey } from "@/app/_lib/archetypes";
@@ -62,15 +65,12 @@ export function archetypeColumns(
 /**
  * Candidates grouped under their archetype, strongest first within each group.
  *
- * `emptyGroups: false` drops archetypes nobody routed to — the right default for
- * the detail-on-demand variants, where an empty group is a tile that can only ever
- * say "0". Pass true when the caller genuinely wants the whole taxonomy shown
- * (e.g. a coverage read: "which archetypes have we sourced nobody for?").
+ * Archetypes nobody routed to are dropped: an empty lane is a header, a border and
+ * a distribution bar that can only ever say "0".
  */
 export function groupByArchetype(
   candidates: readonly CandidateRow[],
-  columns: readonly ArchetypeColumn[],
-  opts: { emptyGroups?: boolean } = {}
+  columns: readonly ArchetypeColumn[]
 ): ArchetypeGroup[] {
   const byId = new Map<string, CandidateRow[]>(columns.map((c) => [c.id, []]));
   for (const cand of candidates) {
@@ -92,14 +92,72 @@ export function groupByArchetype(
     return { ...col, candidates: rows, bands };
   });
 
-  return opts.emptyGroups ? groups : groups.filter((g) => g.candidates.length > 0);
+  return groups.filter((g) => g.candidates.length > 0);
 }
 
-/** The group a variant should open on: the biggest one, so the first screen shows
- *  the map AND a real cohort rather than an empty "pick something above" panel.
- *  Ties break on column order, which is the registry's own ordering. */
-export function largestGroupId(groups: readonly ArchetypeGroup[]): string | null {
-  let best: ArchetypeGroup | null = null;
-  for (const g of groups) if (!best || g.candidates.length > best.candidates.length) best = g;
-  return best?.id ?? null;
+/* ── Filtering ──────────────────────────────────────────────────────────────
+ * Role family, role and seniority used to be printed INSIDE every candidate
+ * card, which is what made the cards wordy: three lines of metadata per person,
+ * repeated for hundreds of people, none of it what you scan for. They are
+ * questions about the POPULATION ("show me the senior engineers"), not facts you
+ * read one candidate at a time — so they belong in a filter bar above the view
+ * and in the per-candidate detail modal, not on the card. */
+
+export type CandidateFilters = {
+  /** Free text over the candidate name. */
+  q: string;
+  /** Role-family wire value — "" means all. */
+  family: string;
+  /** Seniority wire value — "" means all. */
+  seniority: string;
+  /** "profile" | "analysis" — which store the candidate came from; "" means all. */
+  source: string;
+};
+
+export const NO_CANDIDATE_FILTERS: CandidateFilters = { q: "", family: "", seniority: "", source: "" };
+
+/** True when nothing is narrowing the population — lets a caller tell "no results"
+ *  from "no candidates" without re-deriving the predicate. */
+export function hasActiveFilters(f: CandidateFilters): boolean {
+  return Boolean(f.q.trim() || f.family || f.seniority || f.source);
+}
+
+export function filterCandidates(
+  candidates: readonly CandidateRow[],
+  filters: CandidateFilters
+): CandidateRow[] {
+  const needle = filters.q.trim().toLowerCase();
+  return candidates.filter((c) => {
+    if (needle && !c.name.toLowerCase().includes(needle)) return false;
+    if (filters.family && c.role !== filters.family) return false;
+    if (filters.seniority && c.seniority !== filters.seniority) return false;
+    if (filters.source && c.source !== filters.source) return false;
+    return true;
+  });
+}
+
+/** Options for the filter bar — only values actually present in the population,
+ *  so a menu can never offer a filter that yields nothing. Sorted through the
+ *  caller's collator: a plain .sort() puts Č/Ř/Š/Ž after Z, which reads as broken
+ *  in cs. Seniority keeps its LADDER order (junior → lead) rather than being
+ *  alphabetized — it is a scale, and sorting a scale alphabetically hides that. */
+export const SENIORITY_ORDER: readonly string[] = ["junior", "medior", "senior", "lead"];
+
+export function candidateFacets(
+  candidates: readonly CandidateRow[],
+  opts: { locale: string; label: (group: string, slug: string) => string }
+): { families: { value: string; label: string }[]; seniorities: { value: string; label: string }[] } {
+  const collator = new Intl.Collator(opts.locale);
+  const families = [...new Set(candidates.map((c) => c.role).filter((r): r is string => Boolean(r)))]
+    .map((value) => ({ value, label: opts.label("family", value) }))
+    .sort((a, b) => collator.compare(a.label, b.label));
+
+  const present = new Set(candidates.map((c) => c.seniority).filter((s): s is string => Boolean(s)));
+  const known = SENIORITY_ORDER.filter((s) => present.has(s));
+  // Anything the ladder doesn't know about still has to be filterable — it just
+  // sorts after the ladder rather than being silently dropped.
+  const unknown = [...present].filter((s) => !SENIORITY_ORDER.includes(s)).sort(collator.compare);
+  const seniorities = [...known, ...unknown].map((value) => ({ value, label: opts.label("seniority", value) }));
+
+  return { families, seniorities };
 }

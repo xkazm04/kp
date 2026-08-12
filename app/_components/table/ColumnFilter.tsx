@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Filter, Search } from "lucide-react";
 import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 import { AnchoredMenu, OptionList, type Option } from "./FilterMenu";
 
@@ -32,33 +32,67 @@ export function ColumnFilter({
   onChange,
   mode = "select",
   options = [],
+  trigger = "title",
 }: {
   title: string;
   value: string;
   onChange: (value: string) => void;
   mode?: "select" | "search";
   options?: Option[];
+  /**
+   * What the reader clicks to open the menu.
+   *
+   * `"title"` (default) makes the column header itself the trigger — right when
+   * the header has nothing else to do. `"icon"` renders a compact glyph instead,
+   * for a header that ALSO carries a sort control: rendering the title in both
+   * spelled the column name twice ("Candidate ↑ Candidate ▾"), which read as a
+   * duplication bug rather than as two controls. The icon keeps its accessible
+   * name from `title`, so nothing is lost for AT — only the visual repetition.
+   */
+  trigger?: "title" | "icon";
 }) {
   const t = useTranslations("table");
   const ref = useRef<HTMLButtonElement>(null);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const active = value.trim() !== "";
+  const open = () => setAnchor(anchor ? null : ref.current!.getBoundingClientRect());
+  const TriggerIcon = mode === "search" ? Search : Filter;
+  const label = mode === "search" ? t("filters.searchColumn", { column: title }) : t("filters.filterColumn", { column: title });
   return (
     <>
-      <button
-        ref={ref}
-        type="button"
-        onClick={() => setAnchor(anchor ? null : ref.current!.getBoundingClientRect())}
-        aria-expanded={Boolean(anchor)}
-        className={`focus-ring inline-flex items-center gap-1 rounded px-1 py-0.5 ${META_LABEL} ${active ? "text-coral" : "hover:text-ink"}`}
-      >
-        {title}
-        {active ? (
-          <span className="h-1.5 w-1.5 rounded-full bg-coral" aria-hidden />
-        ) : (
-          <ChevronDown size={12} className="opacity-50" aria-hidden />
-        )}
-      </button>
+      {trigger === "icon" ? (
+        <button
+          ref={ref}
+          type="button"
+          onClick={open}
+          aria-expanded={Boolean(anchor)}
+          aria-label={label}
+          title={label}
+          className={`focus-ring relative inline-flex h-6 w-6 items-center justify-center rounded transition-colors ${
+            active ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
+          }`}
+        >
+          <TriggerIcon size={13} aria-hidden />
+          {/* A filter that is ON must say so even when the menu is shut — otherwise
+              a narrowed table looks like a table that lost rows. */}
+          {active ? <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-coral" aria-hidden /> : null}
+        </button>
+      ) : (
+        <button
+          ref={ref}
+          type="button"
+          onClick={open}
+          aria-expanded={Boolean(anchor)}
+          className={`focus-ring inline-flex items-center gap-1 rounded px-1 py-0.5 ${META_LABEL} ${active ? "text-coral" : "hover:text-ink"}`}
+        >
+          {title}
+          {active ? (
+            <span className="h-1.5 w-1.5 rounded-full bg-coral" aria-hidden />
+          ) : (
+            <ChevronDown size={12} className="opacity-50" aria-hidden />
+          )}
+        </button>
+      )}
       {anchor ? (
         <AnchoredMenu anchor={anchor} width={224} onClose={() => setAnchor(null)}>
           {mode === "search" ? (

@@ -4069,24 +4069,34 @@
       "loadFailed": "Kandidaten konnten nicht geladen werden.",
       "emptyTitle": "Noch keine Kandidaten",
       "emptyBody": "Erstellen Sie oben ein Profil oder analysieren Sie einen Lebenslauf im Tab <b>Analyse</b> – jedes wird einem Archetyp zugewiesen und erscheint hier.",
-      "openAnalysisTitle": "Analyse von {name} öffnen",
       "openProfileTitle": "Profil von {name} bearbeiten",
       "sourceProfile": "Profil",
       "sourceAnalysis": "Analyse",
       "buildFromAnalysis": "Profil erstellen",
       "buildFromAnalysisTitle": "Ein gespeichertes Profil aus der Analyse von {name} erstellen",
-      "variantLabel": "Matrix-Layout",
-      "variant_atlas": "Atlas",
-      "variant_ledger": "Register",
-      "variant_baseline": "Tabelle",
       "groupCount": "{count} Kandidat:innen",
-      "emptyCell": "·",
-      "jumpAria": "Zu einem Archetyp springen",
       "distributionAria": "Punkteverteilung {archetype}: {bands}",
       "band_strong": "{count} stark",
       "band_mid": "{count} mittel",
       "band_weak": "{count} schwach",
-      "band_unscored": "{count} nicht bewertet"
+      "band_unscored": "{count} nicht bewertet",
+      "colSeniority": "Senioritätsstufe",
+      "colSource": "Quelle",
+      "colScore": "Punktzahl",
+      "seniorityUnknown": "Senioritätsstufe unbekannt",
+      "filterName": "Kandidat:innen suchen…",
+      "filterAllFamilies": "Alle Rollenfamilien",
+      "filterAllSeniorities": "Alle Stufen",
+      "filterAllSources": "Alle Quellen",
+      "countFiltered": "{shown} von {total}",
+      "clearFilters": "Zurücksetzen",
+      "openDetailTitle": "Details zu {name} öffnen",
+      "openProfileAction": "Profil bearbeiten",
+      "openAnalysisAction": "Analyse öffnen",
+      "scoreProfileNote": "Gespeicherte Profile haben keine eigene Punktzahl.",
+      "colArchetype": "Archetyp",
+      "colFamily": "Rollenfamilie",
+      "filteredEmpty": "Kein:e Kandidat:in entspricht diesen Filtern."
     },
     "roster": {
       "eyebrow": "Gespeicherte Profile",
@@ -4125,7 +4135,8 @@
       "status_stale": "Neueres CV",
       "status_retired": "Stillgelegter Archetyp",
       "filteredEmpty": "Kein Profil entspricht diesen Filtern.",
-      "clearFilters": "Filter zurücksetzen"
+      "clearFilters": "Filter zurücksetzen",
+      "sortBy": "Nach {column} sortieren"
     },
     "result": {
       "confidence": "Konfidenz {pct} %",
@@ -4316,7 +4327,8 @@
       "noMatches": "Keine Treffer",
       "searchColumn": "{column} durchsuchen…",
       "allOf": "Alle – {column}",
-      "select": "Auswählen…"
+      "select": "Auswählen…",
+      "filterColumn": "{column} filtern"
     }
   },
   "channels": {

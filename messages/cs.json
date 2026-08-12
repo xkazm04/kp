@@ -4069,24 +4069,34 @@
       "loadFailed": "Kandidáty se nepodařilo načíst.",
       "emptyTitle": "Zatím žádní kandidáti",
       "emptyBody": "Vytvořte profil výše nebo nechte analyzovat CV v záložce <b>Analýza</b> – každý se směruje do archetypu a objeví se tady.",
-      "openAnalysisTitle": "Otevřít analýzu – {name}",
       "openProfileTitle": "Upravit profil – {name}",
       "sourceProfile": "Profil",
       "sourceAnalysis": "Analýza",
       "buildFromAnalysis": "Vytvořit profil",
       "buildFromAnalysisTitle": "Vytvořit uložený profil z analýzy kandidáta {name}",
-      "variantLabel": "Rozvržení matice",
-      "variant_atlas": "Atlas",
-      "variant_ledger": "Registr",
-      "variant_baseline": "Tabulka",
       "groupCount": "Kandidátů: {count}",
-      "emptyCell": "·",
-      "jumpAria": "Přejít na archetyp",
       "distributionAria": "Rozložení skóre – {archetype}: {bands}",
       "band_strong": "silných: {count}",
       "band_mid": "středních: {count}",
       "band_weak": "slabých: {count}",
-      "band_unscored": "nehodnocených: {count}"
+      "band_unscored": "nehodnocených: {count}",
+      "colSeniority": "Seniorita",
+      "colSource": "Zdroj",
+      "colScore": "Skóre",
+      "seniorityUnknown": "Seniorita není známa",
+      "filterName": "Hledat kandidáty…",
+      "filterAllFamilies": "Všechny rodiny rolí",
+      "filterAllSeniorities": "Všechny seniority",
+      "filterAllSources": "Všechny zdroje",
+      "countFiltered": "{shown} z {total}",
+      "clearFilters": "Zrušit",
+      "openDetailTitle": "Otevřít detail – {name}",
+      "openProfileAction": "Upravit profil",
+      "openAnalysisAction": "Otevřít analýzu",
+      "scoreProfileNote": "Uložené profily nemají vlastní skóre.",
+      "colArchetype": "Archetyp",
+      "colFamily": "Rodina rolí",
+      "filteredEmpty": "Těmto filtrům neodpovídá žádný kandidát."
     },
     "roster": {
       "eyebrow": "Uložené profily",
@@ -4125,7 +4135,8 @@
       "status_stale": "Novější CV",
       "status_retired": "Vyřazený archetyp",
       "filteredEmpty": "Těmto filtrům neodpovídá žádný profil.",
-      "clearFilters": "Zrušit filtry"
+      "clearFilters": "Zrušit filtry",
+      "sortBy": "Seřadit podle: {column}"
     },
     "result": {
       "confidence": "spolehlivost {pct} %",
@@ -4316,7 +4327,8 @@
       "noMatches": "Žádné shody",
       "searchColumn": "Hledat: {column}…",
       "allOf": "Vše – {column}",
-      "select": "Vyberte…"
+      "select": "Vyberte…",
+      "filterColumn": "Filtrovat: {column}"
     }
   },
   "channels": {
