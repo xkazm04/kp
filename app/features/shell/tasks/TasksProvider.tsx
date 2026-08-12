@@ -164,6 +164,26 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
 
   const clearStartError = useCallback(() => setStartError(null), []);
 
+  // Read/unread ack: stamp seen_at server-side, then refresh so the indicator
+  // badge clears on the next paint. Best-effort — a failed ack just leaves the
+  // rows unread; the tab retries on its next dwell.
+  const markSeen = useCallback(
+    async (ids: string[]) => {
+      if (ids.length === 0) return;
+      try {
+        await fetch("/api/tasks/seen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        });
+        void refresh();
+      } catch {
+        /* best-effort — unread state persists until the next successful ack */
+      }
+    },
+    [refresh]
+  );
+
   // Memoize the context value so it only changes when the task list REALLY changes
   // (the signature-gated refresh above keeps `tasks` referentially stable across
   // no-op polls) or a start error flips — instead of rebuilding a fresh object,
@@ -182,8 +202,9 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       findActive: (predicate) => tasks.find((t) => ACTIVE(t) && predicate(t)),
       startError,
       clearStartError,
+      markSeen,
     }),
-    [tasks, startTask, retryTask, cancelTask, refresh, fetchTask, startError, clearStartError]
+    [tasks, startTask, retryTask, cancelTask, refresh, fetchTask, startError, clearStartError, markSeen]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

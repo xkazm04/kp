@@ -1695,7 +1695,8 @@
       "billing": "Facturation",
       "models": "Modèles",
       "integrations": "Intégrations",
-      "agents": "Agents"
+      "agents": "Agents",
+      "activity": "Activité"
     },
     "groups": {
       "hiring": "Recrutement",
@@ -7605,7 +7606,9 @@
       "queued": "En file d’attente…",
       "running": "En cours…",
       "leaveNote": "S’exécute en arrière-plan – vous pouvez continuer à travailler ailleurs ; le résultat apparaît dans les Tâches en arrière-plan."
-    }
+    },
+    "unreadDone": "{count, plural, one {# tâche terminée non lue} other {# tâches terminées non lues}}",
+    "unreadRow": "Nouveau – terminé pendant que vous travailliez ailleurs"
   },
   "control": {
     "eyebrow": "Supervision",
@@ -7853,5 +7856,23 @@
       "empty": "Aucun retour pour l’instant.",
       "version": "v{version}"
     }
+  },
+  "activity": {
+    "eyebrow": "Analyses",
+    "title": "Activité IA",
+    "intro": "Chaque action LLM de l’espace de travail, de la plus récente – cas d’usage, fournisseur, modèle, jetons, coût, et si la réponse vient du modèle ou du repli déterministe. Affiche les {window} dernières actions ; les dépenses plus anciennes restent dans le récapitulatif d’utilisation des modèles.",
+    "loadError": "Impossible de charger le journal d’activité.",
+    "empty": "Aucune action LLM pour l’instant – elles apparaissent dès la première fonction IA exécutée.",
+    "noMatches": "Aucune action ne correspond aux filtres actuels.",
+    "colWhen": "Quand",
+    "colUseCase": "Cas d’usage",
+    "colProvider": "Fournisseur",
+    "colModel": "Modèle",
+    "colTokens": "Jetons entrée/sortie",
+    "colCost": "Coût",
+    "colSource": "Répondu par",
+    "tokens": "{input} / {output}",
+    "sourceLlm": "Modèle",
+    "sourceDeterministic": "Repli"
   }
 }

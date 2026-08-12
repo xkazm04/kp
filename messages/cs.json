@@ -1695,7 +1695,8 @@
       "billing": "Fakturace",
       "models": "Modely",
       "integrations": "Integrace",
-      "agents": "Agenti"
+      "agents": "Agenti",
+      "activity": "Aktivita"
     },
     "groups": {
       "hiring": "Nábor",
@@ -7605,7 +7606,9 @@
       "queued": "Ve frontě…",
       "running": "Pracuji…",
       "leaveNote": "Běží na pozadí – můžete mezitím pracovat jinde; výsledek najdete v Úlohách na pozadí."
-    }
+    },
+    "unreadDone": "{count, plural, one {# nepřečtená dokončená úloha} few {# nepřečtené dokončené úlohy} other {# nepřečtených dokončených úloh}}",
+    "unreadRow": "Nové – dokončeno, zatímco jste pracovali jinde"
   },
   "legal": {
     "updated": "Poslední aktualizace: {date}",
@@ -7853,5 +7856,23 @@
       "empty": "Zatím žádná zpětná vazba.",
       "version": "v{version}"
     }
+  },
+  "activity": {
+    "eyebrow": "Přehledy",
+    "title": "AI aktivita",
+    "intro": "Každá LLM akce pracovního prostoru, od nejnovější – use case, poskytovatel, model, tokeny, cena a zda odpověděl model, nebo deterministická záloha. Zobrazuje posledních {window} akcí; starší útrata zůstává v souhrnu využití na kartě Modely.",
+    "loadError": "Záznam aktivity se nepodařilo načíst.",
+    "empty": "Zatím žádné LLM akce – objeví se hned po prvním spuštění AI funkce.",
+    "noMatches": "Aktuálním filtrům neodpovídají žádné akce.",
+    "colWhen": "Kdy",
+    "colUseCase": "Use case",
+    "colProvider": "Poskytovatel",
+    "colModel": "Model",
+    "colTokens": "Tokeny in/out",
+    "colCost": "Cena",
+    "colSource": "Odpověděl",
+    "tokens": "{input} / {output}",
+    "sourceLlm": "Model",
+    "sourceDeterministic": "Záloha"
   }
 }

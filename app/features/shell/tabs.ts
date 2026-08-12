@@ -32,6 +32,9 @@ export const WORKSPACE_TAB_IDS = [
   "library",
   "matrix",
   "analytics",
+  // The LLM activity log (Insights) — the row-level audit trail of every AI
+  // action, now that they all run as background tasks.
+  "activity",
   // Renamed from "dev": the work-sample module has never been dev-only — it ships
   // office/non-engineering cases too, so "Dev cases" mis-sold it as a niche.
   // Legacy ?tab=dev still resolves — see LEGACY_TAB_ALIASES.
@@ -185,6 +188,10 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: "analytics", label: "Analytics" },
       { id: "matrix", label: "Matrix", chordPin: "t" },
+      // The LLM activity audit log. Appended into an early group AFTER the
+      // single-letter chords were pinned, so it must not claim one (chordOverflow
+      // sends it to the two-key pass) — same rule as "agents".
+      { id: "activity", label: "Activity", chordOverflow: true },
       ...(ABOUT_TAB_IN_NAV ? [{ id: "about", label: "About" } as WorkspaceTabDef] : []),
     ],
   },

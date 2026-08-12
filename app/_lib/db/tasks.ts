@@ -48,6 +48,9 @@ export type TaskRecord = {
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
+  /** When the finished outcome was acknowledged in the Background-tasks view;
+   *  null = unread (the TasksIndicator badge counts these). */
+  seenAt: string | null;
 };
 
 type TaskRow = {
@@ -66,6 +69,7 @@ type TaskRow = {
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+  seen_at: string | null;
 };
 
 function rowToTask(r: TaskRow): TaskRecord {
@@ -85,6 +89,7 @@ function rowToTask(r: TaskRow): TaskRecord {
     createdAt: r.created_at,
     startedAt: r.started_at,
     finishedAt: r.finished_at,
+    seenAt: r.seen_at,
   };
 }
 
@@ -97,7 +102,7 @@ function rowToTask(r: TaskRow): TaskRecord {
 // therefore project ONLY these light columns and leave result/params null; the
 // full blob is fetched on demand for ONE row via getTask (GET /api/tasks/[id]).
 const TASK_LITE_COLUMNS =
-  "id, kind, workspace_id, dedupe_key, label, status, error, progress_done, progress_total, progress_msg, created_at, started_at, finished_at";
+  "id, kind, workspace_id, dedupe_key, label, status, error, progress_done, progress_total, progress_msg, created_at, started_at, finished_at, seen_at";
 
 type TaskLiteRow = Omit<TaskRow, "params_json" | "result_json">;
 
@@ -118,7 +123,26 @@ function rowToTaskLite(r: TaskLiteRow): TaskRecord {
     createdAt: r.created_at,
     startedAt: r.started_at,
     finishedAt: r.finished_at,
+    seenAt: r.seen_at,
   };
+}
+
+/** Acknowledge finished tasks (read/unread): stamp seen_at on the given TERMINAL
+ *  rows, scoped to the caller's workspace. Active rows are excluded so a finish
+ *  that lands after the ack still counts as unread. Returns rows stamped. */
+export function markTasksSeen(ids: string[], workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  if (ids.length === 0) return 0;
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  const stmt = db.prepare(
+    `UPDATE tasks SET seen_at = ? WHERE id = ? AND workspace_id = ? AND seen_at IS NULL AND status NOT IN ('queued','running')`
+  );
+  let changed = 0;
+  const tx = db.transaction((batch: string[]) => {
+    for (const id of batch) changed += stmt.run(now, id, workspaceId).changes as number;
+  });
+  tx(ids);
+  return changed;
 }
 
 export function createTask(

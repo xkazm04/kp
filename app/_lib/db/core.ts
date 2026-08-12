@@ -1220,6 +1220,12 @@ export function ensureDb(): Database.Database {
     // workspace_id; the by-id runner ops and the global boot-recovery / readiness probes
     // stay global (tasks-tenancy.test.ts).
     "ALTER TABLE tasks ADD COLUMN workspace_id TEXT NOT NULL DEFAULT 'workspace'",
+    // Read/unread tracking for finished tasks (background-mode round, 2026-08-12):
+    // NULL = the outcome has not been acknowledged in the Background-tasks view;
+    // the TasksIndicator badge counts terminal rows with seen_at IS NULL so a
+    // recruiter who navigated away can't miss a finish. Server-side (not a
+    // localStorage watermark) so the ack survives browsers and sessions.
+    "ALTER TABLE tasks ADD COLUMN seen_at TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

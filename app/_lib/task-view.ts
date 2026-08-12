@@ -23,6 +23,9 @@ export type TaskSignatureRow = {
   error: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  /** Read/unread ack — in the signature so a mark-seen actually clears the
+   *  indicator badge on the next poll (an unchanged-signature poll is a no-op). */
+  seenAt: string | null;
 };
 
 /** A cheap order-sensitive fingerprint of the rendered task state. Equal strings
@@ -32,7 +35,7 @@ export function tasksSignature(tasks: readonly TaskSignatureRow[]): string {
   return tasks
     .map(
       (t) =>
-        `${t.id}${t.status}${t.progressDone}${t.progressTotal}${t.progressMsg ?? ""}${t.label ?? ""}${t.error ?? ""}${t.startedAt ?? ""}${t.finishedAt ?? ""}`
+        `${t.id}${t.status}${t.progressDone}${t.progressTotal}${t.progressMsg ?? ""}${t.label ?? ""}${t.error ?? ""}${t.startedAt ?? ""}${t.finishedAt ?? ""}${t.seenAt ?? ""}`
     )
     .join("");
 }

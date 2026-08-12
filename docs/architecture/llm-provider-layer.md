@@ -153,6 +153,36 @@ or candidate×match facts) so correctness is graded against evidence. The earlie
 unanchored, evidence-free judge compressed the whole 7-model matrix into the 5–8
 band. `--judge-model` picks the CLI model alias for the judge seat (e.g. `fable`).
 
+## Background-mode contract + the Activity log (2026-08-12)
+
+Every heavy one-shot LLM action runs as a **background task** (`app/_lib/tasks.ts`
+kinds; the measured p50s in the model matrix motivated the move — 9–60s API-side,
+up to 150s via the CLI). The UI contract is **wait-or-leave**: the surface that
+started a run watches it with `useTaskResult(taskId)` and renders the shared
+`TaskFlightNote` ("runs in the background — you can keep working elsewhere"); a
+recruiter who leaves picks the outcome up via the read/unread trail:
+
+- every finished task carries a server-side `seen_at` ack (`tasks.seen_at`,
+  `POST /api/tasks/seen`); the sidebar `TasksIndicator` badges **unread**
+  failures (coral) and unread successes (moss) and leads to the Tasks tab, which
+  stamps the ack only after the rows have been on screen for a short dwell;
+- conversational turns (role intake, devcase session chat) and the sub-15s
+  interactive matrix-reasoning popover stay synchronous by design — you cannot
+  "return later" to a dialog turn.
+
+The sync routes remain as thin convenience wrappers over the same runners
+(`campaign-run.ts`, `profile-draft-run.ts`, `reasoning-run.ts` — the
+`llm-spawn-contract.test.ts` map pins where the spawn + `buildLlmConfigEnv`
+contract lives).
+
+**Insights → Activity** (`app/features/insights/activity/ActivityTab.tsx`,
+`GET /api/llm/activity`) is the row-level audit trail of the `llm_usage` ledger:
+every individual LLM action newest-first — use case, provider, model, tokens,
+cost (null renders as unknown, never $0), and llm-vs-deterministic source — in a
+paginated table built from the shared primitives (`ColumnFilter` headers +
+`TablePager` over the bounded `LLM_ACTIVITY_WINDOW` of 500 rows; older spend
+stays in the Models tab's daily rollup).
+
 ## Invariants
 
 1. **Deterministic fallbacks stay** — adapter failure never surfaces as a broken

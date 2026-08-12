@@ -158,6 +158,58 @@ export function ingestLlmUsageLog(logPath: string): number {
   return rows.length;
 }
 
+// ---- Activity log (Insights → Activity) ------------------------------------
+
+export type LlmActivityRow = {
+  id: number;
+  ts: string;
+  useCase: string;
+  provider: string;
+  model: string | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cachedTokens: number | null;
+  costUsd: number | null;
+  source: string;
+  requestId: string | null;
+};
+
+/** How many ledger rows the Activity tab loads — a bounded in-memory window the
+ *  shared client-side TablePager slices (its documented contract). The tab says
+ *  the window size out loud; older spend stays summarized in aggregateLlmUsage. */
+export const LLM_ACTIVITY_WINDOW = 500;
+
+/**
+ * The most recent individual LLM actions, newest first — the row-level audit
+ * trail behind the Activity tab (the Models usage panel reads the daily rollup,
+ * aggregateLlmUsage, instead). Bounded by `limit`; org-level like the rest of
+ * the ledger (llm_usage is tenancy-exempt config/metering).
+ */
+export function listLlmActivity(limit = LLM_ACTIVITY_WINDOW): LlmActivityRow[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT id, ts, use_case, provider, model, input_tokens, output_tokens, cached_tokens, cost_usd, source, request_id
+         FROM llm_usage
+        ORDER BY ts DESC, id DESC
+        LIMIT ?`
+    )
+    .all(limit) as Array<Record<string, unknown>>;
+  return rows.map((r) => ({
+    id: Number(r.id),
+    ts: r.ts as string,
+    useCase: r.use_case as string,
+    provider: r.provider as string,
+    model: (r.model as string) ?? null,
+    inputTokens: r.input_tokens == null ? null : Number(r.input_tokens),
+    outputTokens: r.output_tokens == null ? null : Number(r.output_tokens),
+    cachedTokens: r.cached_tokens == null ? null : Number(r.cached_tokens),
+    costUsd: r.cost_usd == null ? null : Number(r.cost_usd),
+    source: r.source as string,
+    requestId: (r.request_id as string) ?? null,
+  }));
+}
+
 export type LlmUsageAggregateRow = {
   day: string;
   useCase: string;

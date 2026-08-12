@@ -2,6 +2,7 @@
 // from the tabs.ts catalog (which stays a JSX-free, server-safe module) so the
 // lucide component references live only in the client nav layer.
 import {
+  Activity,
   BarChart3,
   Bot,
   Briefcase,
@@ -62,6 +63,7 @@ export const TAB_ICON: Partial<Record<WorkspaceTabId, LucideIcon>> = {
   interview: Mic,
   assignments: Code2,
   analytics: TrendingUp,
+  activity: Activity,
   matrix: Table,
   about: Info,
   organization: Building2,

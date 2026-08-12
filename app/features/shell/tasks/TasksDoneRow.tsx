@@ -163,6 +163,18 @@ export function DoneRow({ task, animateDelayMs = null }: { task: Task; animateDe
               <ChevronRight size={13} className="shrink-0 text-steel" aria-hidden />
             )}
             <span className="min-w-0 truncate">{renderTaskLabel(t, task)}</span>
+            {/* Unread dot: this outcome finished while the recruiter was elsewhere
+                and has not been acknowledged yet. The tab's dwell-ack (TasksTab)
+                stamps seen_at ~1.5s after the row is on screen; the dot clears on
+                the poll that follows. */}
+            {task.seenAt === null ? (
+              <span
+                role="status"
+                aria-label={t("unreadRow")}
+                title={t("unreadRow")}
+                className="ml-1 inline-block h-2 w-2 shrink-0 rounded-full bg-coral"
+              />
+            ) : null}
           </p>
           {failed && task.error ? <p className="mt-0.5 break-words text-sm text-coral">{task.error}</p> : null}
           <p className="mt-0.5 font-mono text-sm text-steel/70">{task.kind}</p>

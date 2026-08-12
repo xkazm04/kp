@@ -91,6 +91,11 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   },
   interview_prep: (p) => stableKey("interview_prep", p.entryId), // one plan per entry; re-trigger reuses an in-flight run
   agent_fit: (p) => stableKey("agent_fit", p.jobId), // one transform per job; a re-trigger reuses the in-flight run
+  // One pack per (job, language): a double-click on Generate reuses the in-flight
+  // run, while switching the language toggle starts its own.
+  campaign: (p) => stableKey("campaign", p.jobId, p.lang),
+  // profile_draft has NO builder on purpose: each draft is a fresh creative pass
+  // over free-text notes — no stable identity, so every run gets a unique key.
 };
 
 /**

@@ -26,8 +26,11 @@ const LLM_SPAWN_MODULES: Record<string, string> = {
   "_lib/recruiter-run.ts": "weight_proposal",
   "_lib/group-eval-run.ts": "group_compare",
   "_lib/jd-build-run.ts": "grounded_salary (env inert today — direct gemini.py path)",
-  "api/jobs/[id]/campaign/route.ts": "campaign_pack",
-  "api/profile/draft/route.ts": "profile_draft",
+  // Background-mode round (2026-08-12): campaign + profile-draft spawns moved out
+  // of their route bodies into shared runners so the task kinds reuse them; the
+  // routes are thin sync wrappers now and the env contract rides the runner.
+  "_lib/campaign-run.ts": "campaign_pack",
+  "_lib/profile-draft-run.ts": "profile_draft",
   "api/llm/test/route.ts": "any (canary)",
 };
 

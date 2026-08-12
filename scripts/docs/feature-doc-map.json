@@ -1,5 +1,5 @@
 {
-  "_comment": "Source -> doc map used by scripts/docs/check-doc-sync.mjs (Stop hook). Each entry couples a set of source globs to the doc that describes them: when a turn edits matching source and touches no file under docs/features/, docs/architecture/ or docs/design/, the hook exits 2 and names the doc. Globs support * (within a path segment) and ** (any depth) only — no brace expansion. Skip patterns (tests, generated code, .claude/, docs themselves, app/landing) live in the script. When you add a feature area, add its entry here in the same change.",
+  "_comment": "Source -> doc map used by scripts/docs/check-doc-sync.mjs (Stop hook). Each entry couples a set of source globs to the doc that describes them: when a turn edits matching source and touches no file under docs/features/, docs/architecture/ or docs/design/, the hook exits 2 and names the doc. Globs support * (within a path segment) and ** (any depth) only \u2014 no brace expansion. Skip patterns (tests, generated code, .claude/, docs themselves, app/landing) live in the script. When you add a feature area, add its entry here in the same change.",
   "entries": [
     {
       "doc": "docs/features/hiring-pipeline/README.md",
@@ -267,7 +267,9 @@
         "app/_lib/provider-key-precedence.ts",
         "app/_lib/db/llm.ts",
         "app/api/llm/**",
-        "app/features/settings/models/**"
+        "app/features/settings/models/**",
+        "app/features/insights/activity/**",
+        "app/api/llm/activity/**"
       ]
     },
     {

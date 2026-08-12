@@ -35,7 +35,23 @@ const IntegrationsCard = dynamic(() => import("./TasksIntegrationsCard").then((m
 
 export function TasksTab() {
   const t = useTranslations("tasks");
-  const { tasks, cancelTask, refresh, startError, clearStartError } = useTasks();
+  const { tasks, cancelTask, refresh, startError, clearStartError, markSeen } = useTasks();
+
+  // Read/unread ack: after the unread finished rows have actually been on screen
+  // for a short dwell, stamp their seen_at (server-side) so the indicator badge
+  // clears. The dwell (not an instant ack on mount) is what makes "seen" honest —
+  // a tab flicked past for 200ms doesn't count. Keyed by the unread id set so a
+  // finish that lands while the tab is open gets its own dwell.
+  const unseenIds = tasks
+    .filter((task) => !ACTIVE(task) && task.seenAt === null)
+    .map((task) => task.id);
+  const unseenKey = unseenIds.join(",");
+  useEffect(() => {
+    if (!unseenKey) return;
+    const ids = unseenKey.split(",");
+    const timer = window.setTimeout(() => void markSeen(ids), 1500);
+    return () => window.clearTimeout(timer);
+  }, [unseenKey, markSeen]);
   // TasksProvider exposes no loading flag (`tasks` starts `[]` and stays `[]`
   // whether the first poll hasn't landed yet or genuinely found nothing), so
   // the tab tracks its own first-load signal here rather than touching the

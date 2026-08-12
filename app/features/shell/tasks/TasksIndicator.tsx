@@ -1,21 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, X } from "lucide-react";
 import { useTasks } from "./TasksProvider";
+import { UNSEEN_DONE } from "./tasksProviderTypes";
 import { METER_BARS_PER_ROW, taskMeterRows } from "./tasksTaskMeter";
 import { navItemClass } from "../tabs";
-
-// DATA5 — the "something failed while you were elsewhere" watermark. Failures
-// that finished after the last time the tasks tab was open count as unseen;
-// opening the tab acknowledges them (the timestamp persists across sessions).
-const FAILED_SEEN_KEY = "kp.tasksFailedSeenAt";
 
 // Sidebar-footer entry for the Background tasks view. It no longer expands an
 // inline list — clicking navigates to the dedicated ?tab=tasks page (onOpen).
 // What stays here is the always-at-a-glance signal: a live running count, a
-// start-failure alert, and an unseen-failures badge — visible from any tab.
+// start-failure alert, and the UNREAD badges — visible from any tab.
+//
+// Read/unread (background-mode round, 2026-08-12): every finished task carries a
+// server-side seen_at ack (null = unread). The badges here count unread rows —
+// failures separately in coral, successes in moss — and clicking the entry leads
+// straight to them; the Tasks tab stamps the ack after the rows have actually
+// been on screen (a short dwell in TasksTab), so an outcome can't be "seen" by a
+// badge the recruiter never followed. This replaced the localStorage failure
+// watermark: the ack now survives browsers/sessions and covers successes too —
+// with every LLM action running as a background task, a finished-while-elsewhere
+// result is the norm, not the exception.
 //
 // Unlike every other nav row this one carries NO leading icon: the label is the
 // longest in the sidebar and the icon pushed it onto a second line beside the
@@ -25,38 +30,9 @@ const FAILED_SEEN_KEY = "kp.tasksFailedSeenAt";
 export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: () => void }) {
   const { tasks, running, startError, clearStartError } = useTasks();
   const t = useTranslations("tasks");
-  const [seenAt, setSeenAt] = useState("");
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(FAILED_SEEN_KEY);
-      // localStorage is client-only — a mount effect is the SSR-safe hydration
-      // path (the kp.pipelineViews convention); one-time set, not cascading.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setSeenAt(raw);
-    } catch {
-      /* unavailable — every failure counts as unseen this session */
-    }
-  }, []);
-  // While the tab is open the user IS seeing the failures — keep the ack
-  // watermark current so leaving the tab starts a fresh window.
-  useEffect(() => {
-    if (!active) return;
-    const now = new Date().toISOString();
-    try {
-      localStorage.setItem(FAILED_SEEN_KEY, now);
-    } catch {
-      /* in-memory ack still applies this session */
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirrors the external ack write above; runs only while the tasks tab is open
-    setSeenAt(now);
-  }, [active, tasks]);
-  const unseenFailed = active
-    ? 0
-    : tasks.filter(
-        (t) =>
-          (t.status === "failed" || t.status === "interrupted") &&
-          (t.finishedAt ?? t.createdAt) > seenAt
-      ).length;
+  const unseen = tasks.filter(UNSEEN_DONE);
+  const unseenFailed = unseen.filter((x) => x.status === "failed" || x.status === "interrupted").length;
+  const unseenOk = unseen.length - unseenFailed;
 
   return (
     <div className="border-t border-stone-200 px-3 py-3">
@@ -89,8 +65,8 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
         {/* Row 1 — the label on ONE line (no icon), badges pushed right. */}
         <span className="flex w-full items-center gap-2">
           <span className="min-w-0 flex-1 truncate text-left">{t("label")}</span>
-          {/* aria-live so a screen reader hears the running count tick up/down — the whole
-              point of this always-at-a-glance signal, previously announced visual-only. */}
+          {/* aria-live so a screen reader hears the counts tick — the whole point
+              of this always-at-a-glance signal, previously announced visual-only. */}
           {unseenFailed > 0 ? (
             <span
               aria-live="polite"
@@ -98,6 +74,17 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
               className="inline-flex shrink-0 items-center gap-1 rounded-full bg-coral/10 px-1.5 text-sm font-semibold text-coral"
             >
               <AlertTriangle size={10} aria-hidden /> {unseenFailed}
+            </span>
+          ) : null}
+          {/* Unread finished-OK outcomes — the "your result is ready" signal for
+              runs the recruiter navigated away from. Cleared by visiting the tab. */}
+          {unseenOk > 0 ? (
+            <span
+              aria-live="polite"
+              aria-label={t("unreadDone", { count: unseenOk })}
+              className="shrink-0 rounded-full bg-moss/15 px-1.5 text-sm font-semibold text-moss"
+            >
+              {unseenOk}
             </span>
           ) : null}
           {running.length > 0 ? (
@@ -108,7 +95,7 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
             >
               {running.length}
             </span>
-          ) : tasks.length > 0 && unseenFailed === 0 ? (
+          ) : tasks.length > 0 && unseen.length === 0 ? (
             <span className="shrink-0 text-sm text-steel">{tasks.length}</span>
           ) : null}
         </span>

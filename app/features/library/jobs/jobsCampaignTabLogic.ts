@@ -6,23 +6,33 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
+import { useTaskResult } from "@/app/features/shell/tasks/useTaskResult";
 import { isLocale, type Locale } from "@/i18n/locales";
 import { BEATS, HOOK_LABEL_KEY, isHookType, WARN_KEY, type PackRecord } from "./jobsCampaignTabTypes";
 
-export function useCampaignTabLogic(jobId: string, appLocale: string) {
+export function useCampaignTabLogic(jobId: string, appLocale: string, jobTitle?: string) {
   const t = useTranslations("jobs.campaign");
+  const { startTask } = useTasks();
   const [lang, setLang] = useState<Locale>(isLocale(appLocale) ? appLocale : "en");
   const [record, setRecord] = useState<PackRecord | null>(null);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Which copy button just fired ("v3" / "all") — drives the brief ✓ flash.
   const [copied, setCopied] = useState<string | null>(null);
+  // Generation runs as the background task kind "campaign" (wait-or-leave: the
+  // pack persists server-side, so navigating away loses nothing and the unread
+  // badge flags the finish). `watch` tracks the run; on success the stored pack
+  // is re-fetched below.
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const watch = useTaskResult(taskId);
 
   // The (job, lang) pair whose pack is loaded/in-flight — fetch fires once per
   // pair, and a stale response from a quick lang toggle can't clobber the
-  // current one (every state write re-checks the key).
+  // current one (every state write re-checks the key). `reloadNonce` forces a
+  // re-fetch of the SAME pair after a finished generation task saves a new pack.
   const requestKeyRef = useRef<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   // Load the stored pack whenever the language toggles; a failure surfaces as
   // the load error, an absent pack as the empty state. Deferred kick-off (0 ms
@@ -49,27 +59,47 @@ export function useCampaignTabLogic(jobId: string, appLocale: string) {
         });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [jobId, lang, t]);
+  }, [jobId, lang, t, reloadNonce]);
+
+  const generating = watch.active || watch.loading;
 
   const generate = async () => {
     if (generating) return;
-    setGenerating(true);
     setError(null);
-    try {
-      const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/campaign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lang }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
-      setRecord((d.pack as PackRecord | null) ?? null);
-    } catch (e) {
-      setError(e instanceof Error && e.message ? e.message : t("generateFailed"));
-    } finally {
-      setGenerating(false);
-    }
+    const task = await startTask("campaign", {
+      jobId,
+      lang,
+      jobTitle: jobTitle ?? jobId,
+      // The quick-apply CTA must be absolute; the background handler has no
+      // request to read an origin from, so it travels with the params.
+      origin: window.location.origin,
+    });
+    if (task) setTaskId(task.id);
   };
+
+  // React to the flight's outcome: on success the handler has SAVED the pack, so
+  // re-fetch the stored record (cheap GET — the task result carries the pack too,
+  // but the GET keeps one canonical read path); on failure surface the error.
+  useEffect(() => {
+    if (!taskId) return;
+    const done = watch.status === "succeeded" && watch.full;
+    const dead = watch.status === "failed" || watch.status === "interrupted" || watch.status === "canceled";
+    if (!done && !dead) return;
+    // Deferred (0 ms timer) kick-off — no synchronous setState in the effect
+    // body (react-hooks/set-state-in-effect), same pattern as the load effect.
+    const timer = window.setTimeout(() => {
+      setTaskId(null);
+      if (done) {
+        requestKeyRef.current = null; // invalidate the (job, lang) fetch key → reload below
+        setReloadNonce((n) => n + 1);
+      } else {
+        // The task runner's own stored diagnostic, passed through unchanged (no
+        // machine code to resolve) — ternary, not ||, per use-error-message.ts.
+        setError(watch.error ? watch.error : t("generateFailed"));
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [taskId, watch.status, watch.full, watch.error, t]);
 
   const copyText = async (key: string, text: string) => {
     try {
@@ -109,5 +139,5 @@ export function useCampaignTabLogic(jobId: string, appLocale: string) {
       .filter(Boolean)
       .join("\n");
 
-  return { t, lang, setLang, record, loading, generating, error, copied, generate, copyText, pack, variants, warnings, packMarkdown };
+  return { t, lang, setLang, record, loading, generating, error, copied, generate, copyText, pack, variants, warnings, packMarkdown, watch };
 }

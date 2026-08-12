@@ -23,8 +23,11 @@ function read(rel: string): string {
   return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 }
 
-test("draft route parses CLI stdout via parsePythonJson, never a raw JSON.parse(stdout)", () => {
-  const src = read("./route.ts");
+test("draft runner parses CLI stdout via parsePythonJson, never a raw JSON.parse(stdout)", () => {
+  // Background-mode round (2026-08-12): the spawn moved from the route body into
+  // the shared runner (app/_lib/profile-draft-run.ts) so the task kind
+  // "profile_draft" reuses it — the parse contract rides the runner now.
+  const src = read("../../../_lib/profile-draft-run.ts");
   // The exact pre-fix hazard: a bare parse of the child's stdout chokes on trailing
   // interpreter teardown noise and 500s an otherwise-successful draft.
   assert.doesNotMatch(

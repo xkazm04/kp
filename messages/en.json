@@ -1695,7 +1695,8 @@
       "billing": "Billing",
       "models": "Models",
       "integrations": "Integrations",
-      "agents": "Agents"
+      "agents": "Agents",
+      "activity": "Activity"
     },
     "groups": {
       "hiring": "Hiring",
@@ -7605,7 +7606,9 @@
       "queued": "Queued…",
       "running": "Working…",
       "leaveNote": "Runs in the background — you can keep working elsewhere; the outcome lands in Background tasks."
-    }
+    },
+    "unreadDone": "{count, plural, one {# finished task unread} other {# finished tasks unread}}",
+    "unreadRow": "New — finished while you were elsewhere"
   },
   "legal": {
     "updated": "Last updated: {date}",
@@ -7853,5 +7856,23 @@
       "empty": "No feedback yet.",
       "version": "v{version}"
     }
+  },
+  "activity": {
+    "eyebrow": "Insights",
+    "title": "AI activity",
+    "intro": "Every LLM action the workspace ran, newest first — use case, provider, model, tokens, cost, and whether the model or the deterministic fallback answered. Shows the last {window} actions; older spend stays in the Models usage rollup.",
+    "loadError": "Couldn’t load the activity ledger.",
+    "empty": "No LLM actions recorded yet — they appear here the moment the first AI feature runs.",
+    "noMatches": "No actions match the current filters.",
+    "colWhen": "When",
+    "colUseCase": "Use case",
+    "colProvider": "Provider",
+    "colModel": "Model",
+    "colTokens": "Tokens in/out",
+    "colCost": "Cost",
+    "colSource": "Answered by",
+    "tokens": "{input} / {output}",
+    "sourceLlm": "Model",
+    "sourceDeterministic": "Fallback"
   }
 }

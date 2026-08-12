@@ -8,6 +8,7 @@ import { LOCALES } from "@/i18n/locales";
 import { WARN_KEY } from "./jobsCampaignTabTypes";
 import { useCampaignTabLogic } from "./jobsCampaignTabLogic";
 import { JobsCampaignTabVariantCard } from "./JobsCampaignTabVariantCard";
+import { TaskFlightNote } from "@/app/features/shell/tasks/TaskFlightNote";
 
 // E1 (Erika gap) — the Campaign tab of the job posting modal: feed-ready ad-copy
 // variants + 15-second video scripts per candidate language, every CTA pointing
@@ -18,7 +19,7 @@ export function CampaignTab({ jobId }: { jobId: string }) {
   const appLocale = useLocale();
   const router = useRouter();
   const search = useSearchParams();
-  const { t, lang, setLang, record, loading, generating, error, copied, generate, copyText, pack, variants, warnings, packMarkdown } =
+  const { t, lang, setLang, record, loading, generating, error, copied, generate, copyText, pack, variants, warnings, packMarkdown, watch } =
     useCampaignTabLogic(jobId, appLocale);
 
   return (
@@ -61,6 +62,10 @@ export function CampaignTab({ jobId }: { jobId: string }) {
           </button>
         </div>
       </div>
+
+      {/* Wait-or-leave: generation runs as a background task — the note says the
+          run survives navigation and lands in Background tasks. */}
+      <TaskFlightNote watch={watch} className="mt-3" />
 
       {error ? (
         <p role="alert" className="mt-3 rounded-md bg-red-50 p-2.5 text-sm text-red-700">

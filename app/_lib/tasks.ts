@@ -20,6 +20,8 @@ import { runGroupEval } from "./group-eval-run";
 import { runJdBuild } from "./jd-build-run";
 import { runInterviewPrep } from "./interview-prep-run";
 import { runAgentFit } from "./agent-hire/transform-run";
+import { runCampaign, type CampaignParams } from "./campaign-run";
+import { runProfileDraft, type ProfileDraftParams } from "./profile-draft-run";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
 import { encodeTaskLabel } from "./task-label";
@@ -221,6 +223,20 @@ const HANDLERS: Record<string, Spec> = {
   agent_fit: {
     run: (ctx) => runAgentFit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
     label: (p) => encodeTaskLabel("agentFit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
+  },
+  // Campaign pack (background path of POST /api/jobs/[id]/campaign): the pack
+  // persists in campaign_packs, so leaving mid-run loses nothing — the Campaign
+  // tab reloads the finished pack on the next visit.
+  campaign: {
+    run: (ctx) => runCampaign(ctx.params as unknown as CampaignParams, ctx.signal, ctx.workspaceId),
+    label: (p) => encodeTaskLabel("campaign", { job: detail(p.jobTitle, p.jobId) ?? "" }),
+  },
+  // AI profile draft (background path of POST /api/profile/draft): the draft is
+  // the task RESULT (not persisted) — the editor applies it live when watched,
+  // and it stays readable from the Background-tasks view otherwise.
+  profile_draft: {
+    run: (ctx) => runProfileDraft(ctx.params as unknown as ProfileDraftParams, ctx.signal),
+    label: () => encodeTaskLabel("profileDraft"),
   },
 };
 

@@ -1695,7 +1695,8 @@
       "billing": "Abrechnung",
       "models": "Modelle",
       "integrations": "Integrationen",
-      "agents": "Agenten"
+      "agents": "Agenten",
+      "activity": "Aktivität"
     },
     "groups": {
       "hiring": "Recruiting",
@@ -7605,7 +7606,9 @@
       "queued": "In der Warteschlange…",
       "running": "Wird bearbeitet…",
       "leaveNote": "Läuft im Hintergrund – Sie können währenddessen weiterarbeiten; das Ergebnis erscheint unter Hintergrundaufgaben."
-    }
+    },
+    "unreadDone": "{count, plural, one {# ungelesene abgeschlossene Aufgabe} other {# ungelesene abgeschlossene Aufgaben}}",
+    "unreadRow": "Neu – abgeschlossen, während Sie woanders gearbeitet haben"
   },
   "legal": {
     "updated": "Zuletzt aktualisiert: {date}",
@@ -7853,5 +7856,23 @@
       "empty": "Noch kein Feedback.",
       "version": "v{version}"
     }
+  },
+  "activity": {
+    "eyebrow": "Einblicke",
+    "title": "KI-Aktivität",
+    "intro": "Jede LLM-Aktion des Arbeitsbereichs, neueste zuerst – Use Case, Anbieter, Modell, Tokens, Kosten und ob das Modell oder der deterministische Fallback geantwortet hat. Zeigt die letzten {window} Aktionen; ältere Ausgaben bleiben in der Nutzungsübersicht der Modelle.",
+    "loadError": "Das Aktivitätsprotokoll konnte nicht geladen werden.",
+    "empty": "Noch keine LLM-Aktionen – sie erscheinen hier, sobald die erste KI-Funktion läuft.",
+    "noMatches": "Keine Aktionen entsprechen den aktuellen Filtern.",
+    "colWhen": "Wann",
+    "colUseCase": "Use Case",
+    "colProvider": "Anbieter",
+    "colModel": "Modell",
+    "colTokens": "Tokens ein/aus",
+    "colCost": "Kosten",
+    "colSource": "Beantwortet von",
+    "tokens": "{input} / {output}",
+    "sourceLlm": "Modell",
+    "sourceDeterministic": "Fallback"
   }
 }

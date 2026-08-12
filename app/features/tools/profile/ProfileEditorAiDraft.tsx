@@ -1,15 +1,22 @@
 "use client";
 
-// AI-assisted draft panel split out of ProfileEditor.tsx: owns its own open/text/loading/
-// error/note state and the /api/profile/draft fetch; hands the hydrated draft back to the
-// parent editor via onApplied so the parent's form state stays the single source of truth.
-import { useState } from "react";
+// AI-assisted draft panel split out of ProfileEditor.tsx: owns its own open/text/error/
+// note state and the draft run; hands the hydrated draft back to the parent editor via
+// onApplied so the parent's form state stays the single source of truth.
+//
+// Drafting runs as the background task kind "profile_draft" (wait-or-leave): the run
+// survives navigation, and when the recruiter stays the finished draft applies live via
+// useTaskResult. If they leave, the draft remains readable on the task's result in the
+// Background-tasks view — flagged by the unread badge.
+import { useEffect, useState } from "react";
 import { Sparkles, Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ProfilePayload } from "@/app/features/shared/profileTypes";
 import { Textarea } from "./ProfileFields";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { useErrorMessage } from "@/app/_lib/use-error-message";
+import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
+import { useTaskResult } from "@/app/features/shell/tasks/useTaskResult";
+import { TaskFlightNote } from "@/app/features/shell/tasks/TaskFlightNote";
 
 export type ProfileDraft = {
   profile: ProfilePayload;
@@ -19,39 +26,55 @@ export type ProfileDraft = {
 
 export function ProfileEditorAiDraft({ onApplied }: { onApplied: (draft: ProfileDraft) => void }) {
   const t = useTranslations("profile.editor");
-  // Resolve API failures from the machine `code`, never from the server's
-  // English `error` — see app/_lib/use-error-message.ts.
-  const errMsg = useErrorMessage();
   const enumLabel = useEnumLabel();
+  const { startTask } = useTasks();
 
   const [aiOpen, setAiOpen] = useState(false);
   const [aiText, setAiText] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiNote, setAiNote] = useState<string | null>(null);
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const watch = useTaskResult(taskId);
+  const aiLoading = watch.active || watch.loading;
 
   const runDraft = async () => {
     if (!aiText.trim() || aiLoading) return;
-    setAiLoading(true);
     setAiError(null);
     setAiNote(null);
-    try {
-      const r = await fetch("/api/profile/draft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: aiText }),
-      });
-      const payload = await r.json();
-      if (!r.ok) throw new Error(errMsg(payload, t("draftFailedStatus", { status: r.status })));
-      onApplied(payload);
-      const label = enumLabel("archetype", payload.archetype);
-      setAiNote(t("draftedAs", { label, pct: Math.round((payload.confidence ?? 0) * 100) }));
-    } catch (caught) {
-      setAiError(caught instanceof Error ? caught.message : t("aiDraftFailed"));
-    } finally {
-      setAiLoading(false);
-    }
+    const task = await startTask("profile_draft", { text: aiText });
+    if (task) setTaskId(task.id);
   };
+
+  // React to the flight's outcome: apply the draft into the editor on success,
+  // surface the task's error otherwise. Runs only while a task is being watched.
+  useEffect(() => {
+    if (!taskId) return;
+    const full = watch.status === "succeeded" ? watch.full : null;
+    const dead = watch.status === "failed" || watch.status === "interrupted" || watch.status === "canceled";
+    if (!full && !dead) return;
+    // Deferred (0 ms timer) kick-off — no synchronous setState in the effect
+    // body (react-hooks/set-state-in-effect), the repo's established pattern.
+    const timer = window.setTimeout(() => {
+      setTaskId(null);
+      if (full) {
+        const payload = full.result as (ProfileDraft & { confidence?: number }) | null;
+        if (!payload || typeof payload !== "object" || !payload.profile) {
+          setAiError(t("aiDraftFailed"));
+          return;
+        }
+        onApplied(payload);
+        const label = enumLabel("archetype", payload.archetype);
+        setAiNote(t("draftedAs", { label, pct: Math.round((payload.confidence ?? 0) * 100) }));
+      } else {
+        // The task runner's own stored diagnostic, passed through unchanged (no
+        // machine code to resolve) — ternary, not ||, per use-error-message.ts.
+        setAiError(watch.error ? watch.error : t("aiDraftFailed"));
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // onApplied/enumLabel are stable enough per render for this outcome hook; the
+    // guard on taskId + terminal status makes re-entry impossible.
+  }, [taskId, watch.status, watch.full, watch.error, onApplied, enumLabel, t]);
 
   return (
     <div className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-3">
@@ -86,6 +109,7 @@ export function ProfileEditorAiDraft({ onApplied }: { onApplied: (draft: Profile
             </button>
             <span className="text-sm text-steel">{t("draftSavedHint")}</span>
           </div>
+          <TaskFlightNote watch={watch} className="mt-2" />
           {aiNote ? <p className="mt-2 text-sm font-medium text-moss" role="status">{aiNote}</p> : null}
           {aiError ? <p className="mt-2 text-sm text-red-700" role="alert">{aiError}</p> : null}
         </div>

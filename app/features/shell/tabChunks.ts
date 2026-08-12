@@ -29,6 +29,7 @@ export const TAB_CHUNKS = {
   library: () => import("../library/jds/JdsTab"),
   matrix: () => import("../insights/matrix/MatrixTab"),
   analytics: () => import("../insights/analytics/AnalyticsTab"),
+  activity: () => import("../insights/activity/ActivityTab"),
   pipeline: () => import("../hiring/pipeline/PipelineTab"),
   agents: () => import("../agents-workforce/AgentsWorkforceTab"),
   channels: () => import("../hiring/channels/ChannelsTab"),

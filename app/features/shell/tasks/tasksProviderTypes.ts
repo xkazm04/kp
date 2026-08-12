@@ -24,6 +24,9 @@ export type Task = {
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
+  /** Read/unread ack for finished outcomes — null = unread (drives the
+   *  TasksIndicator unread badge; stamped via POST /api/tasks/seen). */
+  seenAt: string | null;
 };
 
 export type TasksCtx = {
@@ -50,6 +53,12 @@ export type TasksCtx = {
   /** Last start failure, surfaced by the indicator so a dead click isn't silent. */
   startError: TaskStartError | null;
   clearStartError: () => void;
+  /** Acknowledge finished tasks (read/unread) — stamps seen_at server-side and
+   *  refreshes so the indicator badge clears on the next paint. */
+  markSeen: (ids: string[]) => Promise<void>;
 };
 
 export const ACTIVE = (t: Task) => t.status === "running" || t.status === "queued";
+
+/** Terminal and not yet acknowledged — the rows the unread badge counts. */
+export const UNSEEN_DONE = (t: Task) => !ACTIVE(t) && t.seenAt === null;

@@ -16,7 +16,14 @@ const row = (over: Partial<TaskSignatureRow> = {}): TaskSignatureRow => ({
   error: null,
   startedAt: "2026-07-13T12:00:00.000Z",
   finishedAt: null,
+  seenAt: null,
   ...over,
+});
+
+test("a mark-seen ack changes the signature (so the unread badge clears on the next poll)", () => {
+  const unread = [row({ status: "succeeded", finishedAt: "2026-07-13T12:01:00.000Z" })];
+  const seen = [row({ status: "succeeded", finishedAt: "2026-07-13T12:01:00.000Z", seenAt: "2026-07-13T12:02:00.000Z" })];
+  assert.notEqual(tasksSignature(unread), tasksSignature(seen));
 });
 
 test("an identical poll produces an identical signature (so the commit is skipped)", () => {
