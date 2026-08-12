@@ -105,6 +105,13 @@ before this rule existed.
 This rule applies to catalog **values**. Code comments, `docs/`, and commit
 messages are out of scope — they are not user-facing.
 
+**It is gated.** `npm run i18n:check` fails on any em dash in any catalog, and on
+any en dash that is not between numbers, naming the key and quoting the span.
+The gate exists because the rule decayed without one: within hours of the sweep
+that cleared all four catalogs, a parallel session added four new keys carrying
+em dashes. It had no way to know the rule existed, which is precisely the case a
+gate covers and a doc does not.
+
 ## 6. Do-not-translate seeds
 
 **Brand / product:** kp, CandiDate, KandiDate, KP studio, Spark, Studio Light,

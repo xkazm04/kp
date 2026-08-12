@@ -195,10 +195,40 @@ const base = loadCatalog(defaultFile);
 const baseKeys = Object.keys(base);
 const problems = [];
 
+// ---- The no-dash house rule (docs/i18n/contract.md §5) -----------------------
+// `—` (U+2014) is banned in catalog copy outright; `–` (U+2013) survives only
+// between numbers. This is gated rather than merely documented because a rule
+// with no gate decays: within hours of the 2026-08-12 sweep clearing all four
+// catalogs, a parallel session added four new keys carrying em dashes, entirely
+// reasonably — it had no way to know. Prose is a shared surface, so the check
+// belongs where the other catalog invariants already live.
+//
+// "Numeric" includes a placeholder that renders a number (`{min}–{max}`,
+// `{lo, number}–{hi, number}`) and an abbreviated magnitude (`120k–165k`), not
+// just a bare digit — otherwise every legitimate salary band fails.
+const RANGE_LEFT = /(?:\d[kKmM%]?|\})\s*$/;
+const RANGE_RIGHT = /^\s*(?:\d|\{)/;
+function dashError(value) {
+  if (typeof value !== "string") return null;
+  if (value.includes("—")) {
+    return "em dash (U+2014) in catalog copy — recast into sentence syntax (a full stop, a colon before a list, a comma pair, or parentheses in a tight label). See docs/i18n/contract.md §5";
+  }
+  let i = -1;
+  while ((i = value.indexOf("–", i + 1)) !== -1) {
+    if (!(RANGE_LEFT.test(value.slice(0, i)) && RANGE_RIGHT.test(value.slice(i + 1)))) {
+      const ctx = value.slice(Math.max(0, i - 20), i + 21);
+      return `en dash (U+2013) used as prose punctuation in "…${ctx}…" — it is only allowed between numbers. See docs/i18n/contract.md §5`;
+    }
+  }
+  return null;
+}
+
 // Default catalog must itself be ICU-valid (brace balance + full compile).
 for (const key of baseKeys) {
   const err = braceError(base[key]) || icuError(base[key], DEFAULT_LOCALE);
   if (err) problems.push(`${DEFAULT_LOCALE}: "${key}" — ${err}`);
+  const dash = dashError(base[key]);
+  if (dash) problems.push(`${DEFAULT_LOCALE}: "${key}" — ${dash}`);
 }
 
 for (const file of files) {
@@ -214,6 +244,8 @@ for (const file of files) {
     }
     const err = braceError(catalog[key]) || icuError(catalog[key], locale);
     if (err) problems.push(`${locale}: "${key}" — ${err}`);
+    const dash = dashError(catalog[key]);
+    if (dash) problems.push(`${locale}: "${key}" — ${dash}`);
     const baseVars = argNames(base[key]);
     const localeVars = argNames(catalog[key]);
     for (const v of baseVars) {

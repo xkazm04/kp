@@ -7606,10 +7606,10 @@
     "flight": {
       "queued": "En file d’attente…",
       "running": "En cours…",
-      "leaveNote": "S’exécute en arrière-plan – vous pouvez continuer à travailler ailleurs ; le résultat apparaît dans les Tâches en arrière-plan."
+      "leaveNote": "S’exécute en arrière-plan. Vous pouvez continuer à travailler ailleurs, le résultat arrive dans les tâches en arrière-plan."
     },
     "unreadDone": "{count, plural, one {# tâche terminée non lue} other {# tâches terminées non lues}}",
-    "unreadRow": "Nouveau – terminé pendant que vous travailliez ailleurs"
+    "unreadRow": "Nouveau, terminé pendant que vous étiez ailleurs"
   },
   "control": {
     "eyebrow": "Supervision",
@@ -7861,9 +7861,9 @@
   "activity": {
     "eyebrow": "Analyses",
     "title": "Activité IA",
-    "intro": "Chaque action LLM de l’espace de travail, de la plus récente – cas d’usage, fournisseur, modèle, jetons, coût, et si la réponse vient du modèle ou du repli déterministe. Affiche les {window} dernières actions ; les dépenses plus anciennes restent dans le récapitulatif d’utilisation des modèles.",
+    "intro": "Chaque action LLM exécutée par l’espace de travail, de la plus récente : cas d’usage, fournisseur, modèle, tokens, coût et si la réponse vient du modèle ou du repli déterministe. Affiche les {window} dernières actions ; les dépenses plus anciennes restent dans le récapitulatif d’usage des Modèles.",
     "loadError": "Impossible de charger le journal d’activité.",
-    "empty": "Aucune action LLM pour l’instant – elles apparaissent dès la première fonction IA exécutée.",
+    "empty": "Aucune action LLM enregistrée pour l’instant. Elles apparaîtront dès l’exécution de la première fonctionnalité AI.",
     "noMatches": "Aucune action ne correspond aux filtres actuels.",
     "colWhen": "Quand",
     "colUseCase": "Cas d’usage",

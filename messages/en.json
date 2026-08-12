@@ -7606,10 +7606,10 @@
     "flight": {
       "queued": "Queued…",
       "running": "Working…",
-      "leaveNote": "Runs in the background — you can keep working elsewhere; the outcome lands in Background tasks."
+      "leaveNote": "Runs in the background. You can keep working elsewhere, and the outcome lands in Background tasks."
     },
     "unreadDone": "{count, plural, one {# finished task unread} other {# finished tasks unread}}",
-    "unreadRow": "New — finished while you were elsewhere"
+    "unreadRow": "New, finished while you were elsewhere"
   },
   "legal": {
     "updated": "Last updated: {date}",
@@ -7861,9 +7861,9 @@
   "activity": {
     "eyebrow": "Insights",
     "title": "AI activity",
-    "intro": "Every LLM action the workspace ran, newest first — use case, provider, model, tokens, cost, and whether the model or the deterministic fallback answered. Shows the last {window} actions; older spend stays in the Models usage rollup.",
+    "intro": "Every LLM action the workspace ran, newest first: use case, provider, model, tokens, cost, and whether the model or the deterministic fallback answered. Shows the last {window} actions; older spend stays in the Models usage rollup.",
     "loadError": "Couldn’t load the activity ledger.",
-    "empty": "No LLM actions recorded yet — they appear here the moment the first AI feature runs.",
+    "empty": "No LLM actions recorded yet. They appear here the moment the first AI feature runs.",
     "noMatches": "No actions match the current filters.",
     "colWhen": "When",
     "colUseCase": "Use case",
