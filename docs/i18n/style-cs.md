@@ -28,8 +28,12 @@ on buttons/labels/headings. ("Popisy pozic", "Vývojové případy", "Řídicí 
   „možná"").
 - **Ellipsis:** real **…** (U+2026), not three dots. Progress states end with it:
   "Spouštění…", "Probíhá průchod…".
-- **Dashes:** em dash **—** for asides (as in en). Number ranges use **–** (en
-  dash) or "až".
+- **Dashes:** none in prose. **—** (U+2014) is not Czech punctuation and is
+  banned outright (`contract.md` §5); **–** (pomlčka, U+2013) is the Czech
+  device, but kp does not use it as a prose dash either. Recast: a full stop and
+  a second sentence, a colon before a list, a comma pair for a parenthetical, or
+  závorky in a tight label. Number ranges keep **–** closed up (`3–7`,
+  `100–240 V`) or use "až".
 - **Non-breaking space** before units and after single-letter prepositions
   (v, k, s, z, o, u) where practical: "5 min", "k rozhodnutí".
 - **Percent:** a **space** before `%` when it is a noun ("{pct} %", "shoda 60 %",

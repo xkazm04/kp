@@ -212,6 +212,69 @@ in its posting-strings table) and `marketSalaryLabel` in `salary-band.ts`, which
 carry one language's prose under another's digit grouping. That is the same split
 the next section draws for *copy*.
 
+## Choosing the app language
+
+`LOCALES` in `i18n/locales.ts` is the **only** enumeration of languages. Three
+surfaces let a user pick one, and all three write the same two authorities:
+
+| Surface | File |
+| --- | --- |
+| Sidebar rail toggle (studio) | `app/features/shell/nav/NavRailPreferences.tsx` |
+| Public candidate pages (`/apply`, `/status`) | `app/_components/LanguageSwitcher.tsx` |
+| Organization settings + first-run wizard | `app/features/settings/organization/OrganizationGeneralPanel.tsx`, `app/features/shell/setup/SetupWelcomeStep.tsx` |
+
+The public switcher writes only the UI cookie (`setLocale`, `i18n/actions.ts`).
+The two **org-level** surfaces write both authorities through `setOrgLanguage`
+(`app/_lib/org-actions.ts`), because an org's language has to reach code that
+runs with no request cookie:
+
+1. the **`NEXT_LOCALE` cookie** — the UI and request-scoped generation (CV
+   analysis, JD build, match reasoning);
+2. the **workspace default locale** (`setWorkspaceDefaultLocale`) — background
+   automation passes and candidate-comms fallback.
+
+Either way the caller follows with `router.refresh()` so the server re-renders
+under the new locale.
+
+### `AppLanguage` is `Locale`, not a subset of it
+
+`APP_LANGUAGES` in `app/features/shared/memberUi.ts` carries each language's own
+**endonym** ("English", "Čeština", "Deutsch", "Français"). Endonyms are proper
+nouns, so they are deliberately not translated — see "named constants that are
+not copy" above.
+
+That list was pinned at `en`/`cs` while the `de`/`fr` catalogs were still
+landing, and stayed that way after they shipped. The result was an org-language
+control and an onboarding wizard offering **two of the four languages the app
+actually ships** — a picker that silently could not reach half the product.
+`AppLanguage` is now `Locale` itself, and a type-level exhaustiveness check in
+`memberUi.ts` turns a locale added to `LOCALES` without an endonym row into a
+`tsc` error. The two vocabularies cannot drift again.
+
+**In the first-run wizard, language is step 1** (`SetupWelcomeStep`), above the
+value props, and it switches the app immediately. It previously sat on step 2 as
+a draft value that only reached the server at `finish()`, which meant a reader
+who could not read English picked their language and then watched the wizard stay
+in English for three more steps. The wizard's draft seeds from the live locale
+(`useLocale()` in `OnboardingExperience`) rather than a hardcoded `"en"`, so
+finishing never silently switches a Czech browser back to English. Preview mode
+is the one exception: it moves the local draft only, because its ribbon promises
+that nothing persists.
+
+## House style: no em dashes in catalog copy
+
+`—` (U+2014) must not appear in any value in any catalog. The dash-as-aside habit
+is a written-web tic rather than sentence structure. kp's UI copy recasts instead:
+a full stop and a second sentence, a colon before a list or an expansion, a
+comma pair for a real parenthetical, or parentheses inside a tight label. `–`
+(U+2013) survives only between digits (`3–5 days`).
+
+The rule, its recast table, and the reasoning live in
+[`docs/i18n/contract.md`](../i18n/contract.md) §5, which is also where the
+per-locale style guides now defer for dash policy. It applies to catalog values
+only: code comments, `docs/`, and commit messages are not user-facing and are out
+of scope.
+
 ## Two readers: the UI user and the document reader
 
 Every string belongs on one of two sides, and the side decides the mechanism.

@@ -123,7 +123,7 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
                   <p className={`mt-2 max-w-md ${INTRO}`}>{t(`steps.${step.id}.blurb`)}</p>
 
                   <div className="mt-6">
-                    {step.id === "welcome" ? <WelcomeStep /> : null}
+                    {step.id === "welcome" ? <WelcomeStep ctrl={ctrl} /> : null}
                     {step.id === "company" ? <CompanyStep ctrl={ctrl} /> : null}
                     {step.id === "team" ? (
                       <div className="max-w-md">

@@ -51,7 +51,11 @@ export function OrganizationGeneralPanel({
       </p>
 
       <p className={`${META_LABEL} mt-4`}>{t("languageLabel")}</p>
-      <div role="group" aria-label={t("languageLabel")} className={`${TOGGLE_GROUP} mt-1`}>
+      {/* flex-wrap because this group holds full endonyms, not locale codes: at
+          four languages ("English · Čeština · Deutsch · Français") the row is
+          wider than this single-column panel and clipped "Français" at the card
+          edge. The shared TOGGLE_GROUP stays nowrap for the code-based switchers. */}
+      <div role="group" aria-label={t("languageLabel")} className={`${TOGGLE_GROUP} mt-1 flex-wrap`}>
         {APP_LANGUAGES.map((l) => {
           const isActive = language === l.value;
           return (

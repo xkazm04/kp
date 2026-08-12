@@ -3,16 +3,16 @@
 import { useState } from "react";
 import { Check } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { TextInput } from "@/app/_components/TextInput";
-import { APP_LANGUAGES, type AppLanguage } from "@/app/features/shared/memberUi";
 import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 import { accentIsLegible, normalizeHex6, sanitizeLogoUrl } from "@/app/_lib/brand-config";
 import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
 import type { OnboardingCtrl } from "./setupSteps";
 
-// Company step — org name (required), app language, and an OPTIONAL first brand
-// touch (accent + logo, persisted via PUT /api/brand at finish). The accent
+// Company step — org name (required) and an OPTIONAL first brand touch (accent +
+// logo, persisted via PUT /api/brand at finish). App language used to live here;
+// it moved to the Welcome step, where it switches the app for real instead of
+// sitting as a draft value until finish(). The accent
 // swatches are stored brand VALUES (data fed to the brand config), not styling —
 // they render via inline style the same way BrandingTab previews an arbitrary
 // customer hex; the surrounding chrome stays fully tokenized.
@@ -52,18 +52,6 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
           placeholder={t("namePlaceholder")}
           className={`${FIELD} mt-1 w-full py-2.5 text-lg`}
         />
-      </div>
-
-      <div>
-        <span className={`${META_LABEL} block`}>{t("languageLabel")}</span>
-        <div className="mt-1">
-          <SegmentedControl<AppLanguage>
-            label={t("languageLabel")}
-            value={ctrl.state.language}
-            onChange={(language) => ctrl.update({ language })}
-            options={APP_LANGUAGES.map((l) => ({ value: l.value, label: l.native }))}
-          />
-        </div>
       </div>
 
       <fieldset>

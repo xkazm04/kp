@@ -30,7 +30,11 @@ faithful translation won't fit a chip/column, shorten the label, not the meaning
 - **Ellipsis:** real … (U+2026): "Wird ausgeführt…".
 - **ß vs ss:** use ß after long vowels/diphthongs ("Schließen", "groß"); ss after
   short vowels. Never fold ß to "ss" in a label that wants ß.
-- **Dash:** em dash — for asides.
+- **Dash:** none in prose. **—** (U+2014) is an English device and is banned
+  outright (`contract.md` §5); the German Gedankenstrich **–** is correct German
+  but kp does not use it as a prose dash either. Recast: a full stop and a second
+  sentence, a colon before a list, a comma pair for a parenthetical, or Klammern
+  in a tight label. **–** survives only in number ranges (`3–5 Tage`).
 
 ## Grammar
 

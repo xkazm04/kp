@@ -122,7 +122,12 @@ translator** from the caller:
 | `capabilityMeta` | `(t: PermissionsTranslator)` — replaces the old `CAPABILITY_META` constant; `CAPABILITY_ORDER` keeps the slug order and the catalog key per row (a capability slug carries a `:` and cannot be a catalog key) |
 
 `APP_LANGUAGES.native` stays untranslated on purpose — an endonym is a proper
-noun in every locale.
+noun in every locale. The list covers **all four** `LOCALES` (it was pinned at
+`en`/`cs` until 2026-08, which left the General panel's language control and the
+first-run wizard offering half the languages the app ships); `AppLanguage` is now
+`Locale` itself and a type-level exhaustiveness check in `memberUi.ts` fails
+`tsc` if a locale gains no endonym row. See
+[`docs/architecture/localization.md`](../../architecture/localization.md#choosing-the-app-language).
 
 `useOrganizationMembers` exposes `error` as a **boolean flag**, not a message:
 the hook has no translator, both failure paths render the same line, and the copy

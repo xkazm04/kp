@@ -33,7 +33,7 @@ export type InterviewKitInput = {
 /** The kit's headings and labels, resolved for the reader. Passed in so the
  *  builder stays pure and import-free (the shape rule). */
 export type InterviewKitStrings = {
-  /** "Interview kit — {case}" */
+  /** "Interview kit: {case}" */
   heading: (caseTitle: string) => string;
   /** Stands in for an unnamed case. */
   caseFallback: string;

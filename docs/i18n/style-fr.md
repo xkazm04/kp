@@ -23,7 +23,11 @@ add exclamation marks the English lacks.
   e.g. "Continuer ?", "Attention :", "3 postes ; 2 offres". This is mandatory
   French typography; a plain space or none reads as an error.
 - **Ellipsis:** real … (U+2026): "Chargement…".
-- **Dash:** em dash — for asides.
+- **Dash:** none in prose. **—** (U+2014) is not French punctuation and is banned
+  outright (`contract.md` §5); the **–** the guide previously allowed is not used
+  as a prose dash either. Recast: a full stop and a second sentence, a colon
+  before a list, a comma pair for a parenthetical, or des parenthèses in a tight
+  label. **–** survives only in number ranges (`3–5 jours`).
 - **Apostrophe:** a straight `'` is acceptable in JSON; the typographic `'`
   (U+2019) is nicer where practical ("l'offre").
 

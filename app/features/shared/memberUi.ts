@@ -2,6 +2,7 @@ import { Clock, MinusCircle } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import type { BadgeContent } from "@/app/_components/Badge";
 import type { Capability, MemberRole } from "@/app/_lib/auth/roles";
+import type { Locale } from "@/i18n/locales";
 
 // Presentational helpers for the REAL role slugs (auth/roles), replacing the mock
 // module on the Organization page. Colours resolve through the token seam, so both
@@ -20,14 +21,36 @@ export type MembersTranslator = ReturnType<typeof useTranslations<"workspaceAdmi
 /** The `workspaceAdmin.permissions` translator — capability labels/descriptions. */
 export type PermissionsTranslator = ReturnType<typeof useTranslations<"workspaceAdmin.permissions">>;
 
-// The two app languages the org can run in. `native` is each language's own
-// endonym — a proper noun in every locale, so it is deliberately NOT translated
+// The app languages the org can run in. `native` is each language's own endonym,
+// a proper noun in every locale, so it is deliberately NOT translated
 // (docs/architecture/localization.md, "named constants that are not copy").
-export type AppLanguage = "en" | "cs";
-export const APP_LANGUAGES: { value: AppLanguage; native: string }[] = [
+//
+// This IS the locale universe, not a subset of it: the list was pinned at en/cs
+// while de/fr catalogs were still landing, which left the org-language control
+// and the onboarding wizard offering two of the four languages the app actually
+// ships — a picker that silently couldn't reach half the product. `AppLanguage`
+// is now `Locale` itself, so adding a locale to i18n/locales.ts carries both
+// surfaces with it and the two vocabularies can never drift again.
+export type AppLanguage = Locale;
+export const APP_LANGUAGES = [
   { value: "en", native: "English" },
   { value: "cs", native: "Čeština" },
-];
+  { value: "de", native: "Deutsch" },
+  { value: "fr", native: "Français" },
+] as const satisfies readonly { value: Locale; native: string }[];
+
+// Compile-time proof that the endonym list COVERS the locale universe (the
+// `satisfies` above only proves the reverse — that no row invents a locale).
+// A locale added to LOCALES without a row here is a `tsc` error, not a language
+// quietly missing from every picker.
+type _MissingEndonym = Exclude<Locale, (typeof APP_LANGUAGES)[number]["value"]>;
+const _appLanguagesCoverLocales: _MissingEndonym extends never ? true : never = true;
+void _appLanguagesCoverLocales;
+
+/** The endonym for a locale ("Deutsch"), for pickers and summary lines. */
+export function languageNative(locale: Locale): string {
+  return APP_LANGUAGES.find((l) => l.value === locale)?.native ?? locale;
+}
 
 // Roles assignable from the invite + per-member dropdowns. Owner is excluded —
 // ownership moves by promotion, not a casual dropdown pick, and the last-owner

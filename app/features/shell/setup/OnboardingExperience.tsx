@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { OnboardingWizard } from "./SetupOnboardingWizard";
 import { INITIAL_SETUP, SETUP_STEPS, stepSatisfied, type OnboardingCtrl, type SetupInvite, type SetupState } from "./setupSteps";
@@ -25,7 +25,13 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   const router = useRouter();
   const t = useTranslations("setup");
   const [stepIndex, setStepIndex] = useState(0);
-  const [state, setState] = useState<SetupState>(INITIAL_SETUP);
+  // Seed the language draft from the locale the app is ACTUALLY running in
+  // (cookie, else Accept-Language, else en) rather than the hardcoded "en" in
+  // INITIAL_SETUP — otherwise a browser that already resolved to Czech opens the
+  // wizard with "English" selected under Czech copy, and finishing would quietly
+  // switch the workspace back to English.
+  const appLocale = useLocale();
+  const [state, setState] = useState<SetupState>(() => ({ ...INITIAL_SETUP, language: appLocale }));
   const finishing = useRef(false);
 
   // Stamp the first-run outcome so the '/' gate stops showing the wizard. Fire-

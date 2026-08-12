@@ -9,7 +9,7 @@
 import { ArrowRight, Check, ListChecks, Play, Rocket, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
-import { APP_LANGUAGES } from "@/app/features/shared/memberUi";
+import { languageNative } from "@/app/features/shared/memberUi";
 import { EYEBROW } from "@/app/_components/ui/recipes";
 import { SetupEngineStatusNote } from "./SetupEngineStatusNote";
 import { roleStepComplete, type OnboardingCtrl } from "./setupSteps";
@@ -18,7 +18,7 @@ export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.handoff");
   const sim = useSimulation();
   const { orgName, language, invites, role } = ctrl.state;
-  const lang = APP_LANGUAGES.find((l) => l.value === language)?.native ?? language;
+  const lang = languageNative(language);
   const imported = role.mode === "import";
   const hasRole = roleStepComplete(role);
 

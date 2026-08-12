@@ -22,7 +22,7 @@ test("renders a numbered kit with header, fit, and internal notes", () => {
     },
     EN
   );
-  assert.match(md, /# Interview kit — Payments service/);
+  assert.match(md, /# Interview kit: Payments service/);
   assert.match(md, /transfer fit 82/);
   assert.match(md, /## 1\. Why did you keep the legacy adapter\?/);
   assert.match(md, /Decision under test: read-before-break/);
