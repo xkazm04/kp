@@ -9,6 +9,7 @@
 // shape + validation). The stored shape carries no round ids — those are UI
 // list keys minted here on load (fromStoredPlan / toStoredPlan below).
 import type { InterviewPlanRule } from "@/app/_lib/decision-config-schema";
+import { DEFAULT_STAGE_AXIS, stagesWithRole, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
 
 export type GateMode = "auto" | "human";
 export type RoundKind = "ai" | "human";
@@ -71,11 +72,21 @@ export const PRESETS: Preset[] = [
 
 // ---- Derived impact --------------------------------------------------------
 
+/** One column of the REAL board, annotated with what this plan runs there. */
+export type PlanOverviewStation = {
+  /** A stage id from the axis — the same id PipelineBoard renders as a column. */
+  stageId: string;
+  role: StageDef["role"];
+  /** The plan's rounds that execute at this stage, in order. Empty for stages the
+   *  plan says nothing about (the entry column, the terminal column). */
+  rounds: RoundKind[];
+};
+
 /** What each Hiring tab would show under this plan — structured facts, the
  *  components own the copy. */
 export type PlanImpact = {
-  /** Funnel stations the Overview board renders, in order. */
-  overview: ("screened" | "ai_interview" | "human_interview" | "offer" | "hired")[];
+  /** The Overview board's columns, in board order, annotated per station. */
+  overview: PlanOverviewStation[];
   /** Human queues appearing in Decisions, in pipeline order. */
   decisions: ("screening_review" | "ai_scorecard_review" | "human_scorecard_review" | "offer_review")[];
   /** Which Schedule surfaces are in play. */
@@ -84,17 +95,52 @@ export type PlanImpact = {
   humanTouchpoints: number;
 };
 
-export function deriveImpact(plan: PipelinePlan): PlanImpact {
-  const overview: PlanImpact["overview"] = ["screened"];
+/**
+ * Derive the impact of a plan ON THE ACTUAL BOARD.
+ *
+ * This used to emit its own private vocabulary — `screened → ai_interview →
+ * human_interview → offer → hired` — under a panel headed "Overview". The real
+ * Overview renders `Accepted → Screened → Interview → Offer → Hired`, so the
+ * preview was three things wrong at once: it omitted the entry column, it
+ * invented an AI/human interview split the board has no columns for, and it
+ * labelled everything from `hiringPlan.impact.ov*` while the board's headers come
+ * from `enums.stage.*`. Whatever it was showing, it was not a preview.
+ *
+ * Now it walks the board axis itself and annotates each column with the rounds
+ * the plan runs there. Where a plan declares more rounds than the axis has
+ * interview stages — the default plan does exactly this: two rounds, one
+ * `Interview` column — the extra rounds stack onto the last interview stage and
+ * the preview SAYS SO rather than inventing a column. That is the honest picture
+ * of today's product: the hybrid handoff runs a second round without moving the
+ * candidate off the Interview column.
+ */
+export function deriveImpact(plan: PipelinePlan, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): PlanImpact {
+  const interviewStages = stagesWithRole("interview", axis);
+  // Rounds bind to interview stages left-to-right; any surplus stacks on the last
+  // one (see the doc comment). A plan with rounds and an axis with no interview
+  // stage at all drops them onto no station — the board genuinely has nowhere to
+  // draw them, and pretending otherwise is what this rewrite exists to stop.
+  const roundsByStage = new Map<string, RoundKind[]>();
+  plan.rounds.forEach((round, i) => {
+    const stageId = interviewStages[Math.min(i, interviewStages.length - 1)];
+    if (!stageId) return;
+    roundsByStage.set(stageId, [...(roundsByStage.get(stageId) ?? []), round.kind]);
+  });
+
+  const overview: PlanOverviewStation[] = axis.map((stage) => ({
+    stageId: stage.id,
+    role: stage.role,
+    rounds: roundsByStage.get(stage.id) ?? [],
+  }));
+
   const decisions: PlanImpact["decisions"] = [];
   if (plan.screeningGate === "human") decisions.push("screening_review");
   for (const r of plan.rounds) {
-    overview.push(r.kind === "ai" ? "ai_interview" : "human_interview");
     if (r.kind === "human") decisions.push("human_scorecard_review");
     else if (r.gate === "human") decisions.push("ai_scorecard_review");
   }
-  overview.push("offer", "hired");
   if (plan.offerGate === "human") decisions.push("offer_review");
+
   return {
     overview,
     decisions,
@@ -105,6 +151,14 @@ export function deriveImpact(plan: PipelinePlan): PlanImpact {
     humanTouchpoints: decisions.length,
   };
 }
+
+/** The board stage each fixed composer row governs, so the Settings table names
+ *  the same columns the board draws instead of its own private station words. */
+export const COMPOSER_STATIONS = {
+  screening: stageWithRole("screening"),
+  interview: stagesWithRole("interview"),
+  offer: stageWithRole("offer"),
+} as const;
 
 /** Persisted wire shape → UI plan (mints round ids for list keys). */
 export function fromStoredPlan(rule: InterviewPlanRule): PipelinePlan {

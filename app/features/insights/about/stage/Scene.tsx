@@ -53,8 +53,14 @@ export function Scene({
       aria-labelledby={`${chapter.id}-title`}
       className="scroll-mt-8 border-t border-stone-200 py-12 first:border-t-0 first:pt-2"
     >
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:gap-12">
-        <header className="lg:pt-6">
+      {/* Copy above, art full width below — NOT side by side.
+          These diagrams are laid out in percent-of-field, so every column the
+          copy takes is width the geometry loses; at a 22rem copy column the
+          art had ~600px and every label inside it truncated. Stacking gives the
+          mechanism the full measure and costs only vertical space, which a
+          scroll-driven deck has plenty of. */}
+      <div className="space-y-8">
+        <header className="max-w-2xl">
           <p className="flex items-baseline gap-3">
             <span className="nums font-serif text-h2 leading-none text-stone-300" aria-hidden>
               {String(chapter.n).padStart(2, "0")}
@@ -76,8 +82,8 @@ export function Scene({
           ) : null}
         </header>
 
-        {/* The art column. `min-w-0` so an SVG that wants to be wide shrinks with
-            the grid track instead of forcing the page to scroll sideways. */}
+        {/* `min-w-0` so an SVG that wants to be wide shrinks with its parent
+            instead of forcing the page to scroll sideways. */}
         <div className="min-w-0">{children}</div>
       </div>
     </section>

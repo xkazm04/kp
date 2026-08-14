@@ -1,5 +1,5 @@
 import { ensureDb } from "./core";
-import { PIPELINE_STAGES } from "../pipeline-stages";
+import { PIPELINE_STAGES, screeningGateIndex } from "../pipeline-stages";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 // Cross-company reference tier (E0 Phase 2, tier-2) — org-wide AGGREGATE benchmarks a
@@ -14,7 +14,11 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 export const BENCHMARK_MIN_ENTRIES = 20; // too small a sample is noise, not a benchmark
 export const BENCHMARK_MIN_TEAMS = 2; // k-anonymity: an org benchmark is never a window onto ONE other team
 
-const INTERVIEW_IDX = PIPELINE_STAGES.indexOf("Interview");
+// "Reached interview or beyond" — the same gate the archetype-fairness metric
+// uses, read from stage ROLES rather than the literal "Interview" so a renamed or
+// split interview column can't silently redefine what this benchmark counts.
+// Resolves to index 2 on the default axis, unchanged.
+const INTERVIEW_IDX = screeningGateIndex();
 
 export type HiringStats = {
   totalEntries: number;

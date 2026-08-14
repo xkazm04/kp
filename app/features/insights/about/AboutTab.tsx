@@ -1,118 +1,106 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowRight, Play } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { Defer } from "@/app/_components/ui/Defer";
+import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
-import { allCoverageItems, coverageGroups, GROUP_EARLY, type CoverageItem } from "./AboutCoverageData";
+import { CHAPTERS } from "./chapters";
+import { ChapterRail } from "./ChapterRail";
+import { Scene } from "./stage/Scene";
+import { useSceneClock } from "./stage/useSceneClock";
 
-// Tier 3 (docs/design/loading-choreography.md): Markdown pulls in the PlantUML
-// diagram chain (parse/layout/measure — ~600 lines of layout code) to render
-// every capability's `puml` fence. That chain gets its own chunk so the tab's
-// entry payload is the header + nav, not a diagram engine nobody asked for yet.
-const Markdown = dynamic(() => import("../../../_components/Markdown").then((m) => ({ default: m.Markdown })), {
-  loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden />,
+/*
+ * About — how the six mechanisms actually work.
+ *
+ * This replaces a 24-item capability browser that rendered a PlantUML diagram
+ * and a paragraph per item. That surface answered "what is in here"; nobody
+ * needed that answer, because the nav already gives it. This one answers the
+ * question a reader actually arrives with: *why should I believe any of this
+ * works*. Six chapters, each a self-playing diagram of a real mechanism, with
+ * the product's own identifiers on the parts.
+ *
+ * Loading: each chapter's art is its own chunk. The chapter frames (heading,
+ * lede, anchor) are always in the server HTML, so the rail, deep links and the
+ * whole argument survive with JavaScript still in flight — only the moving
+ * parts stream in.
+ */
+
+const JdScene = dynamic(() => import("./scenes/jd").then((m) => ({ default: m.JdScene })), {
+  loading: () => <div className="reveal-quiet min-h-[30rem]" aria-hidden />,
 });
-const StudentsAbout = dynamic(() => import("./AboutStudents").then((m) => ({ default: m.StudentsAbout })), {
-  loading: () => <div className="reveal-quiet min-h-[16rem]" aria-hidden />,
-});
+
+/** Placeholder for a chapter whose art is not built yet. Honest about it. */
+function Pending({ chapter }: { chapter: (typeof CHAPTERS)[number] }) {
+  return (
+    <div className="grid min-h-[14rem] place-items-center rounded-lg border border-dashed border-stone-300 p-6">
+      <p className="text-base text-stone-400">Scene for “{chapter.title}” not built yet.</p>
+    </div>
+  );
+}
+
+/**
+ * One chapter. Owns its clock ref via `Scene` so the art below can be swapped
+ * without the frame losing its anchor or its place in the rail.
+ */
+function Chapter({ chapter, children }: { chapter: (typeof CHAPTERS)[number]; children: React.ReactNode }) {
+  // The frame itself doesn't animate; it only needs an element to hang the
+  // anchor and the observer on. Each art component runs its own clock.
+  const { ref } = useSceneClock(1);
+  return (
+    <Scene chapter={chapter} sceneRef={ref}>
+      {children}
+    </Scene>
+  );
+}
 
 export function AboutTab() {
-  const t = useTranslations("about");
-  const [selected, setSelected] = useState<CoverageItem>(allCoverageItems[0]);
-  // 5d2e0998 — the guided tour's persistent home: About explains the product,
-  // the simulation SHOWS it (Design → Source → Screen → Interview → Offer →
-  // Hired, live, across the real tabs).
   const sim = useSimulation();
 
   return (
-    // Tier 1: no fetch here (About is fully static) — the cascade is purely
-    // about not building the whole page in one frame. Header + the nav/content
-    // grid are this section's only direct children, so they're what stagger in.
-    <section className="stagger-children rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
-      <header className="border-b border-stone-200 pb-4">
-        <p className="text-meta uppercase text-coral">{t("eyebrow")}</p>
-        <h2 className="mt-1 font-serif text-display text-ink">{t("title")}</h2>
-        <p className="mt-2 max-w-3xl text-body text-steel">
-          {t.rich("intro", {
-            moss: (chunks) => <span className="font-medium text-moss">{chunks}</span>,
-            coral: (chunks) => <span className="font-medium text-coral">{chunks}</span>,
-            dashed: (chunks) => <span className="font-medium text-steel">{chunks}</span>,
-          })}
+    <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel sm:p-6">
+      <header className="max-w-3xl border-b border-stone-200 pb-6">
+        <p className={EYEBROW}>How it works</p>
+        <h2 className={`mt-1 ${TITLE_DISPLAY}`}>Six mechanisms, shown running</h2>
+        <p className={`mt-3 ${INTRO}`}>
+          Hiring software asks you to trust a number. These are the six places this product produces one — how a role
+          gets written, how a person gets scored, who gets filtered and by what, how different kinds of candidate are
+          kept from being flattened into one rule, what a work sample can still prove, and where a human has to decide.
+          Every threshold named below is a constant in the running code.
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5">
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
           <Link
             href="/diagrams"
             className="focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
           >
-            {t("archLink")} <ArrowRight size={15} />
+            Architecture diagrams <ArrowRight size={15} aria-hidden />
           </Link>
           {!sim.running ? (
             <button
               type="button"
               onClick={sim.start}
-              title={t("tourTitle")}
+              title="Walk the pipeline live, across the real tabs"
               className="focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
             >
-              <Play size={15} aria-hidden /> {t("tourLink")}
+              <Play size={15} aria-hidden /> Watch the guided tour
             </button>
           ) : null}
         </div>
       </header>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <nav
-          aria-label={t("capabilitiesNav")}
-          className="space-y-4 rounded-lg border border-stone-200 bg-paper p-2"
-        >
-          {coverageGroups.map((group) => (
-            <div key={group.label}>
-              <p className="px-3 pb-1 pt-1 text-meta uppercase text-steel">{group.label}</p>
-              <ul className="space-y-1">
-                {group.items.map((item) => {
-                  const active = item.slug === selected.slug;
-                  return (
-                    <li key={item.slug}>
-                      <button
-                        type="button"
-                        onClick={() => setSelected(item)}
-                        aria-pressed={active}
-                        className={`focus-ring w-full rounded-md px-3 py-2 text-left text-base font-medium transition-colors ${
-                          active ? "bg-white text-ink shadow-panel" : "text-ink hover:bg-white"
-                        }`}
-                      >
-                        {item.title}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+      <div className="mt-8 grid gap-10 xl:grid-cols-[minmax(0,1fr)_13rem]">
+        <div className="min-w-0">
+          {CHAPTERS.map((chapter) => (
+            <Chapter key={chapter.id} chapter={chapter}>
+              {chapter.id === "job-descriptions" ? <JdScene /> : <Pending chapter={chapter} />}
+            </Chapter>
           ))}
-        </nav>
+        </div>
 
-        {/* Tier 3: the selected panel carries the PlantUML-rendering Markdown —
-            on the stacked (< lg) layout it sits below the nav, genuinely below
-            the fold, so it mounts on scroll-into-view rather than on entry. The
-            reserved-height placeholder keeps the grid from jumping. */}
-        <Defer strategy="visible" placeholder={<div className="reveal-quiet min-h-[26rem]" aria-hidden />}>
-          {selected.group === GROUP_EARLY ? (
-            // The early-career thesis gets a dedicated tabbed page: the card's
-            // diagram + description stay the default view, with a worked scoring
-            // example and the interview thought-script as sibling tabs.
-            <StudentsAbout item={selected} />
-          ) : (
-            <article className="rounded-lg border border-stone-200 bg-white p-5">
-              <p className="text-meta uppercase text-coral">{t("capability")}</p>
-              <h3 className="mt-1 font-serif text-h2 text-ink">{selected.title}</h3>
-              <p className="mt-2 text-base leading-7 text-steel">{selected.lead}</p>
-              <Markdown content={selected.body} className="mt-4" />
-            </article>
-          )}
-        </Defer>
+        {/* Rail parks in the right gutter and is last in the DOM on purpose:
+            a table of contents is navigation, so a screen reader and a narrow
+            viewport both meet the chapters first. */}
+        <ChapterRail chapters={CHAPTERS} />
       </div>
     </section>
   );

@@ -3,21 +3,27 @@
 // so the "which stages can a card at X move to" contract is unit-testable in
 // isolation and shared by CandidateRow's move menu without re-hardcoding stage
 // literals that could drift from the canonical axis.
-import { PIPELINE_STAGES } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, stageWithRole } from "@/app/_lib/pipeline-stages";
 
 /** The stages a candidate currently at `currentStage` may be moved TO from the
  *  board menu — the canonical stage axis MINUS:
  *    - `currentStage` itself (moving a card to the column it already sits in is a
  *      no-op the board's move handler ignores), and
- *    - "Hired", which the set_stage route rejects with a 422 (Hired is reached
- *      only when a candidate ACCEPTS an offer, never by a manual move). Offering
- *      it would be a dead control that always errors, so the keyboard twin omits
- *      it — mirroring the server guard and the drawer's SLA-editor filter.
+ *    - the TERMINAL stage, which the set_stage route rejects with a 422 (it is
+ *      reached only when a candidate ACCEPTS an offer, never by a manual move).
+ *      Offering it would be a dead control that always errors, so the keyboard
+ *      twin omits it — mirroring the server guard and the drawer's SLA-editor
+ *      filter.
+ *
+ *  The exclusion reads the terminal ROLE rather than the literal "Hired": a
+ *  workspace that renames its final column must not suddenly be offered a move
+ *  that always 422s. On the default axis this resolves to "Hired", unchanged.
  *
  *  Order follows PIPELINE_STAGES so the menu reads down the funnel. An unknown /
- *  legacy `currentStage` (not on the axis) simply yields every non-Hired stage. */
+ *  legacy `currentStage` (not on the axis) simply yields every non-terminal stage. */
 export function moveTargetStages(currentStage: string): string[] {
-  return (PIPELINE_STAGES as readonly string[]).filter((s) => s !== currentStage && s !== "Hired");
+  const terminal = stageWithRole("terminal", DEFAULT_STAGE_AXIS);
+  return (PIPELINE_STAGES as readonly string[]).filter((s) => s !== currentStage && s !== terminal);
 }
 
 /** A sentinel `currentStage` that matches NO stage on the canonical axis, so

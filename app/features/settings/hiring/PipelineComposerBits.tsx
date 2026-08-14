@@ -8,6 +8,7 @@
 import { Bot, CalendarClock, LayoutDashboard, Scale, UserRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { deriveImpact, type GateMode, type PipelinePlan, type RoundKind } from "./pipelineComposerModel";
 
 export function GateToggle({ value, onChange, compact = false }: { value: GateMode; onChange: (v: GateMode) => void; compact?: boolean }) {
@@ -76,14 +77,12 @@ function ImpactPanel({ icon, title, children }: { icon: React.ReactNode; title: 
 
 export function PlanImpactStrip({ plan }: { plan: PipelinePlan }) {
   const t = useTranslations("hiringPlan.impact");
+  // The board's OWN stage labels (enums.stage.*) — the same catalog PipelineBoard
+  // renders its column headers from. The strip used to have a private label set
+  // (ovScreened / ovAiInterview / …) naming stations the board does not have,
+  // which is why Settings and Overview read as two unrelated products.
+  const enumLabel = useEnumLabel();
   const impact = deriveImpact(plan);
-  const ovLabel: Record<string, string> = {
-    screened: t("ovScreened"),
-    ai_interview: t("ovAiInterview"),
-    human_interview: t("ovHumanInterview"),
-    offer: t("ovOffer"),
-    hired: t("ovHired"),
-  };
   const decLabel: Record<string, string> = {
     screening_review: t("decScreening"),
     ai_scorecard_review: t("decAiScorecard"),
@@ -95,11 +94,28 @@ export function PlanImpactStrip({ plan }: { plan: PipelinePlan }) {
       <p className="text-meta uppercase tracking-wide text-steel">{t("heading")}</p>
       <div className="mt-2 grid gap-3 lg:grid-cols-3">
         <ImpactPanel icon={<LayoutDashboard size={12} className="text-coral" aria-hidden />} title={t("overview")}>
-          {impact.overview.map((s, i) => (
-            <span key={i} className="inline-flex items-center gap-1.5">
-              {i > 0 ? <span className="text-steel/50" aria-hidden>→</span> : null}
-              <span className={`rounded-full px-2 py-0.5 text-sm font-semibold ${s === "ai_interview" ? "bg-coral/10 text-coral" : s === "human_interview" ? "bg-blue-50 text-blue-700" : "bg-stone-100 text-steel"}`}>
-                {ovLabel[s]}
+          {/* One chip per REAL board column, in board order, tinted by whether this
+              plan runs anything there. A column carrying rounds gets them listed
+              underneath — that is how the default plan's two rounds in one
+              Interview column become visible instead of imaginary. */}
+          {impact.overview.map((station, i) => (
+            <span key={station.stageId} className="inline-flex items-center gap-1.5">
+              {i > 0 ? (
+                <span className="text-steel/50" aria-hidden>
+                  →
+                </span>
+              ) : null}
+              <span
+                className={`rounded-full px-2 py-0.5 text-sm font-semibold ${
+                  station.rounds.length > 0 ? "bg-coral/10 text-coral" : "bg-stone-100 text-steel"
+                }`}
+              >
+                {enumLabel("stage", station.stageId)}
+                {station.rounds.length > 0 ? (
+                  <span className="ml-1 font-normal">
+                    {station.rounds.map((kind) => (kind === "ai" ? t("roundAi") : t("roundHuman"))).join(" → ")}
+                  </span>
+                ) : null}
               </span>
             </span>
           ))}

@@ -8,11 +8,17 @@
 // presets sit above the table.
 import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { MAX_ROUNDS, newRound, PRESETS, type PipelinePlan, type PlanRound, type PresetId } from "./pipelineComposerModel";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { COMPOSER_STATIONS, MAX_ROUNDS, newRound, PRESETS, type PipelinePlan, type PlanRound, type PresetId } from "./pipelineComposerModel";
 import { GateToggle, KindToggle, TopNControl } from "./PipelineComposerBits";
 
 export function PipelineComposerMatrix({ plan, onChange }: { plan: PipelinePlan; onChange: (p: PipelinePlan) => void }) {
   const t = useTranslations("hiringPlan");
+  // Station rows name the BOARD's columns (enums.stage.*), not private words. The
+  // fixed rows had their own copy — "Screening" / "Offer" — while the board drew
+  // "Screened" / "Offer", so the two tables never looked like the same pipeline.
+  const enumLabel = useEnumLabel();
+  const stationLabel = (stageId: string | null, fallback: string) => (stageId ? enumLabel("stage", stageId) : fallback);
   const patchRound = (id: string, patch: Partial<PlanRound>) =>
     onChange({ ...plan, rounds: plan.rounds.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
   const presetLabel: Record<PresetId, string> = {
@@ -50,7 +56,9 @@ export function PipelineComposerMatrix({ plan, onChange }: { plan: PipelinePlan;
           </thead>
           <tbody>
             <tr className="border-b border-stone-100">
-              <td className="px-3 py-2 font-semibold text-ink">{t("stationScreening")}</td>
+              <td className="px-3 py-2 font-semibold text-ink">
+                {stationLabel(COMPOSER_STATIONS.screening, t("stationScreening"))}
+              </td>
               <td className="px-3 py-2 text-sm text-steel">{t("modeAiAlways")}</td>
               <td className="px-3 py-2">
                 <GateToggle compact value={plan.screeningGate} onChange={(v) => onChange({ ...plan, screeningGate: v })} />
@@ -60,7 +68,15 @@ export function PipelineComposerMatrix({ plan, onChange }: { plan: PipelinePlan;
             </tr>
             {plan.rounds.map((r, i) => (
               <tr key={r.id} className="border-b border-stone-100">
-                <td className="px-3 py-2 font-semibold text-ink">{t("stationRound", { n: i + 1 })}</td>
+                {/* A round runs AT a board column; name it so the reader can find
+                    the card there. Until P3 makes rounds and interview stages 1:1,
+                    several rounds can share one column — the label says which. */}
+                <td className="px-3 py-2 font-semibold text-ink">
+                  {t("stationRound", { n: i + 1 })}
+                  <span className="ml-1.5 font-normal text-sm text-steel">
+                    {stationLabel(COMPOSER_STATIONS.interview[Math.min(i, COMPOSER_STATIONS.interview.length - 1)] ?? null, "")}
+                  </span>
+                </td>
                 <td className="px-3 py-2">
                   <KindToggle value={r.kind} onChange={(kind) => patchRound(r.id, { kind })} />
                 </td>
@@ -91,7 +107,7 @@ export function PipelineComposerMatrix({ plan, onChange }: { plan: PipelinePlan;
               </tr>
             ))}
             <tr className="border-b border-stone-100">
-              <td className="px-3 py-2 font-semibold text-ink">{t("stationOffer")}</td>
+              <td className="px-3 py-2 font-semibold text-ink">{stationLabel(COMPOSER_STATIONS.offer, t("stationOffer"))}</td>
               <td className="px-3 py-2 text-sm text-steel">{t("modeDraftedByAi")}</td>
               <td className="px-3 py-2">
                 <GateToggle compact value={plan.offerGate} onChange={(v) => onChange({ ...plan, offerGate: v })} />
