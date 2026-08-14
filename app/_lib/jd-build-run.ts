@@ -196,7 +196,20 @@ function composeMarkdown(
 
 type Progress = (done: number, total: number, msg?: string) => void;
 
-export async function runJdBuild(params: Record<string, unknown>, progress?: Progress, signal?: AbortSignal): Promise<Record<string, unknown>> {
+/** `workspaceId` is the tenant this build runs for — the task's own workspace, which is
+ *  the one the placeholder JD row was inserted for (/api/jds/generate, the intake
+ *  promote route and the Ledger's retry all stamp the task with it). It exists for the
+ *  ingest below: writing the matchable `jd-<slug>` opening unscoped filed a non-default
+ *  team's freshly generated role into the DEFAULT team's corpus, so the team that ran
+ *  the build watched their JD go "ready" and then never found its opening in Jobs (with
+ *  no way to source it into their pipeline), while a team that wrote nothing collected
+ *  the row. Omitted ⇒ ingestStructuredJob's own default, i.e. the single-tenant path. */
+export async function runJdBuild(
+  params: Record<string, unknown>,
+  progress?: Progress,
+  signal?: AbortSignal,
+  workspaceId?: string
+): Promise<Record<string, unknown>> {
   const input = params as unknown as JdBuildInput;
   // JDL5 — the JD output language (validated to en|cs; anything else → en).
   const lang = input.lang === "cs" ? "cs" : "en";
@@ -329,7 +342,12 @@ export async function runJdBuild(params: Record<string, unknown>, progress?: Pro
       // "Ingest as job" retry can fix it up.
       if (options.description && spec) {
         try {
-          await ingestStructuredJob({ slug: jdSlug, title, markdown, role: spec, salary: salary?.result, company: input.company });
+          // Same tenant the placeholder JD row lives in (see workspaceId above), so the
+          // opening lands in the corpus of the team that generated it.
+          await ingestStructuredJob(
+            { slug: jdSlug, title, markdown, role: spec, salary: salary?.result, company: input.company },
+            workspaceId
+          );
         } catch {
           /* best-effort ingest — never blocks the saved JD */
         }

@@ -334,7 +334,25 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       const entry = getPipelineEntry(invite.entryId, invite.workspaceId);
       if (!entry) return blindClaim;
       try {
-        actOnPipelineEntry(entry.id, "approve_event", slot);
+        // TENANCY: the advance runs in the INVITE's workspace — the very one the entry
+        // was just read from on the line above. Omitted, it fell back to
+        // DEFAULT_WORKSPACE_ID and actOnPipelineEntry's `WHERE id = ? AND workspace_id = ?`
+        // matched nothing on any other team: the candidate booked a slot and got their
+        // confirmation email while the recruiter's board never recorded the slot and never
+        // advanced to Interview. Worse, a tenant miss RETURNS NULL rather than throwing, so
+        // the catch below — the only thing that raises needs_reconcile — never fired and
+        // the drift was invisible on both sides. `undefined` for opts keeps the human
+        // actor / no-CAS default. (Token route: no session, so the invite is the authority.)
+        const advanced = actOnPipelineEntry(entry.id, "approve_event", slot, undefined, invite.workspaceId);
+        // A null return is the OTHER silent failure mode (the entry was deleted or went
+        // terminal between the active-guard above and this write). Same user-visible drift
+        // as a throw — a booked candidate whose card never moved — so it earns the same
+        // reconcile flag instead of passing for a clean success.
+        if (!advanced) {
+          const reason = "pipeline entry did not advance (no matching active entry)";
+          markScheduleInviteNeedsReconcile(token, reason);
+          await logScheduleReconcile({ token, entry_id: entry.id, slot, error: reason });
+        }
       } catch (advanceError) {
         // The slot is recorded and the candidate sees "booked", but the pipeline
         // entry didn't advance (stage gate not ready) — make the drift findable
@@ -392,7 +410,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // Best-effort by construction — syncInterviewEvent records its own outcome on the
     // invite and never throws, so a Google outage cannot half-commit a booking.
     const writeCalendarEvent = async (booked: ScheduleInvite): Promise<void> => {
-      const entry = invite.entryId ? getPipelineEntry(invite.entryId) : null;
+      // TENANCY: the same workspace every other entry lookup in this handler uses (the
+      // active-guard and recordBooking both read it off the invite). Omitted, this one
+      // fell back to the default team and returned null for every other team, so the
+      // calendar event was written WITHOUT the candidate as an attendee — the interviewer
+      // got a block of time on their calendar and the candidate never got the invitation.
+      const entry = invite.entryId ? getPipelineEntry(invite.entryId, invite.workspaceId) : null;
       await syncInterviewEvent(booked, {
         // The candidate joins the event as an attendee when we hold a real address;
         // `contact` also stores phone numbers, which event-sync filters out.

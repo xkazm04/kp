@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob } from "@/app/_lib/db/jobs";
 import { getPipelineEntry, setApproval } from "@/app/_lib/db/pipeline";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";
 import { normalizeSalaryBand } from "@/app/_lib/salary-band";
 import { SIM_SALARY } from "@/app/features/shell/simulation/constants";
@@ -13,7 +14,13 @@ export async function POST(request: NextRequest) {
   try {
     const { entryId } = (await request.json()) as { entryId?: string };
     if (!entryId) return NextResponse.json({ error: "entryId is required." }, { status: 400 });
-    const entry = getPipelineEntry(entryId);
+    // Tenant: look the entry up in the CALLER'S team. Unscoped, this read only ever
+    // found DEFAULT-team entries, so on any other team the run's own candidate came
+    // back null and the demo died on "Pipeline entry not found" one step from the
+    // offer — and the scoping doubles as the authorization check, since a stranger's
+    // entryId simply doesn't resolve.
+    const workspaceId = await currentWorkspace();
+    const entry = getPipelineEntry(entryId, workspaceId);
     if (!entry) return NextResponse.json({ error: "Pipeline entry not found." }, { status: 404 });
 
     const band = (entry.jobId ? getJob(entry.jobId)?.salaryBand : null) ?? [];
@@ -34,7 +41,10 @@ export async function POST(request: NextRequest) {
       salaryMax: max,
       rationale: "Salary positioned at the role-band midpoint, scaled by fit.",
     };
-    setApproval(entryId, "offer_review", JSON.stringify(draft));
+    // The entry we just read is the tenant authority for the write (same row, same
+    // team) — an unscoped setApproval matched nothing off the default team, so the
+    // offer card never appeared in Decisions and "Send offer" had nothing to extend.
+    setApproval(entryId, "offer_review", JSON.stringify(draft), entry.workspaceId);
     return NextResponse.json({ ok: true, draft });
   } catch (error) {
     return jsonError(error, "Offer draft failed.");

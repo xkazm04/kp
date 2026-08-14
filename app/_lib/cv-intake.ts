@@ -3,7 +3,6 @@ import { applyDedupeKey, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
 import { createPipelineEntry, recordEntryConsent } from "@/app/_lib/db/pipeline";
-import { DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { markSimTitle } from "@/app/features/shell/simulation/constants";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import { randomId } from "@/app/_lib/random-id";
@@ -99,7 +98,8 @@ export async function ingestCvApplication(input: {
    *  inbound behavior); the simulation passes false so repeat runs stay clean. */
   sendAck?: boolean;
   /** The team the applicant is filed into — defaults to the job's owning team (a public
-   *  applicant has no session); the webhook receiver overrides with its own workspace. */
+   *  applicant has no session); the webhook receiver overrides with its own workspace,
+   *  and a sim run with the operator's own team (see simCvIntakeTarget). */
   workspaceId?: string;
   /** Stored `job_title` for the pipeline entry — defaults to the job's real title.
    *  The sim path overrides it with a `(SIM)`-marked title (see simCvIntakeTarget) so
@@ -167,16 +167,28 @@ export async function ingestCvApplication(input: {
 }
 
 // The write target for a SIMULATED CV intake (the keyless "Test with a real CV"
-// channels card + /api/sim/apply-cv). Critical tenant-isolation seam: a demo/sim CV
-// must NEVER be filed into the job OWNER's real pipeline. Unlike the real inbound
-// path — which files into the opening's owning team via getJobWorkspace — a sim run
-// is scoped to the sim/demo workspace (DEFAULT_WORKSPACE_ID, where resetSim and the
-// sibling sim/inbound already operate) and its stored title carries the `(SIM)`
-// marker. That single marker is BOTH the purge key (resetSim) and the analytics
-// read-side exclusion (SIM_TITLE_LIKE), so a demo CV is fully purgeable and never
-// counts as a real applicant/hire — regardless of which real role it was tested
-// against. The candidate is still MATCHED against the real job (buildApplicantProfile
-// reads the real title); only the stored entry's workspace + title are scoped here.
-export function simCvIntakeTarget(job: Job): { workspaceId: string; jobTitle: string } {
-  return { workspaceId: DEFAULT_WORKSPACE_ID, jobTitle: markSimTitle(job.title) };
+// channels card + /api/sim/apply-cv + /api/sim/inbound). A sim run lands on the
+// CALLER'S OWN board — `workspaceId` is the session's team, resolved by the route —
+// with a `(SIM)`-marked stored title. That single marker is BOTH the purge key
+// (resetSim deletes `job_title LIKE '%(SIM)%' AND workspace_id = ?`) and the
+// analytics read-side exclusion (SIM_TITLE_LIKE), so a demo CV is fully purgeable
+// and never counts as a real applicant/hire — even though it now sits on a real
+// team's board. The candidate is still MATCHED against the real job
+// (buildApplicantProfile reads the real title); only the stored entry's workspace +
+// title are decided here.
+//
+// This used to hardcode DEFAULT_WORKSPACE_ID, guarding the intent "a demo CV must
+// NEVER be filed into the job OWNER's real pipeline". That intent pre-dates
+// multi-workspace and the `(SIM)` marker now carries it (purgeable + funnel-excluded);
+// with KP_MULTI_WORKSPACE on, the hardcode was itself the defect. A team pressed
+// "Receive a test application", the row landed on the DEFAULT team's board, the
+// guided walk then read its own correctly-scoped /api/pipeline, found nothing, and
+// halted on error.noScreened — and because /api/sim/reset purges only the caller's
+// workspace, the orphan was unreachable, so every retry left one more demo row in a
+// stranger's pipeline and analytics.
+//
+// `workspaceId` is REQUIRED, deliberately: a defaulted tenant argument here is
+// exactly how the sim wrote into someone else's tenant in the first place.
+export function simCvIntakeTarget(job: Job, workspaceId: string): { workspaceId: string; jobTitle: string } {
+  return { workspaceId, jobTitle: markSimTitle(job.title) };
 }

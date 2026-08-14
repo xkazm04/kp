@@ -186,7 +186,13 @@ export async function POST(request: Request) {
       // so a re-book is safe; a terminal entry no-ops (returns null → not advanced).
       let advanced = false;
       try {
-        advanced = actOnPipelineEntry(entry.id, "approve_event", resolved.label) != null;
+        // TENANCY: `ws` is the authenticated team this entry was itself read from (above).
+        // Omitted, the advance ran against DEFAULT_WORKSPACE_ID and matched no row on any
+        // other team — so a recruiter's grid booking confirmed the invite and wrote the
+        // calendar event while the board card sat in Screening and the sealed record was
+        // stamped with the qualified "didn't advance" reasonCode, every single time.
+        // `undefined` for opts keeps the human actor / no-CAS default.
+        advanced = actOnPipelineEntry(entry.id, "approve_event", resolved.label, undefined, ws) != null;
       } catch (advanceError) {
         markScheduleInviteNeedsReconcile(bookedInvite.token, advanceError instanceof Error ? advanceError.message : String(advanceError));
       }
@@ -313,7 +319,13 @@ export async function POST(request: Request) {
         if (invite.entryId) {
           let advanced = false;
           try {
-            advanced = actOnPipelineEntry(invite.entryId, "approve_event", offered.label) != null;
+            // TENANCY: `ws` — the authenticated team, already proven to own this invite by
+            // the `invite.workspaceId !== ws` 404 above. Omitted, the advance fell back to
+            // DEFAULT_WORKSPACE_ID and matched nothing on any other team: accepting the
+            // candidate's proposed time booked the slot and wrote the calendar event, but
+            // the board card never moved to Interview and the sealed decision recorded the
+            // qualified "didn't advance" reasonCode instead of a clean scheduled outcome.
+            advanced = actOnPipelineEntry(invite.entryId, "approve_event", offered.label, undefined, ws) != null;
           } catch (advanceError) {
             markScheduleInviteNeedsReconcile(body.token, advanceError instanceof Error ? advanceError.message : String(advanceError));
           }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isEarlyCareer } from "@/app/_lib/archetypes";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { interviewedForJob, latestInterviewByEntry } from "@/app/_lib/db/interviews";
 import { listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { getHumanScorecard } from "@/app/_lib/interview-prep";
@@ -30,11 +31,20 @@ export async function GET(request: NextRequest) {
   const jobId = request.nextUrl.searchParams.get("job");
   if (!jobId) return NextResponse.json({ error: "job is required" }, { status: 400 });
   try {
+    // Tenancy — BOTH cohort reads below are scoped to the caller's own team. The
+    // seeded jobs corpus is SHARED (workspace_id NULL), so two teams legitimately
+    // run their own candidates under the SAME job id; unscoped, the grid resolved
+    // against the default team and rendered ITS candidate names, AI scorecards and
+    // human verdicts — the most sensitive screen in the product — to anyone else
+    // opening compare on a corpus role. A gated recruiter route, so the session is
+    // the authority; and pipeline_entries / interview_sessions always carry a real
+    // workspace_id (never the corpus NULL), so strict equality is right here.
+    const workspace = await currentWorkspace();
     // Attach each candidate's human scorecard (PREP1), if a recruiter filled one
     // from the prep rubric — so the compare grid shows the human verdict + ratings
     // alongside the AI screen, not just the voice-synthesized one. Null for the
     // common case of no human round.
-    const voice = interviewedForJob(jobId).map((c) => ({
+    const voice = interviewedForJob(jobId, workspace).map((c) => ({
       ...c,
       humanScorecard: c.entryId ? getHumanScorecard(c.entryId) : null,
       telemetry: telemetryForEntry(c.entryId),
@@ -49,7 +59,7 @@ export async function GET(request: NextRequest) {
     // scoringModel derives from the entry archetype, the same split
     // rubricForArchetype scored them on.
     const voiceEntryIds = new Set(voice.map((c) => c.entryId).filter(Boolean));
-    const humanOnly = listEntriesForJob(jobId)
+    const humanOnly = listEntriesForJob(jobId, workspace)
       .filter((e) => !voiceEntryIds.has(e.id))
       .map((e) => ({ entry: e, sc: getHumanScorecard(e.id) }))
       .filter((pair) => pair.sc != null)

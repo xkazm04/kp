@@ -36,7 +36,15 @@ const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)),
 
 test("the sim inbound route derives its write target from simCvIntakeTarget", () => {
   assert.match(src, /import \{ simCvIntakeTarget \}/, "the shared sim-scoping helper is the source of truth");
-  assert.match(src, /simCvIntakeTarget\(job\)/, "the target is derived from the real job");
+  // The helper takes the CALLER'S team explicitly. It used to be single-argument and
+  // pinned internally to the default workspace, which stranded every other team's demo
+  // on a board they could not see; requiring the second argument here is what stops
+  // that from being reintroduced.
+  assert.match(
+    src,
+    /simCvIntakeTarget\(job, await currentWorkspace\(\)\)/,
+    "the target is derived from the real job AND the caller's own workspace"
+  );
 });
 
 test("both the dedupe READ and the entry WRITE are scoped to the sim workspace", () => {
@@ -54,13 +62,18 @@ test("a sim-inbound entry lands in the demo workspace, stays out of the real fun
   assert.ok(job, "precondition: the opening exists");
   assert.equal(getJobWorkspace(job.id), OWNER_WS, "precondition: another team owns the opening");
 
-  const target = simCvIntakeTarget(job);
-  assert.equal(target.workspaceId, DEFAULT_WORKSPACE_ID);
+  // The CALLER'S team, not the default one: pinning this to DEFAULT satisfied the
+  // "never the job owner" rule only while there was a single tenant, and once
+  // multi-workspace was on it stranded every other team's demo on the default board.
+  const CALLER_WS = "team-running-the-demo";
+  const target = simCvIntakeTarget(job, CALLER_WS);
+  assert.equal(target.workspaceId, CALLER_WS);
   assert.notEqual(target.workspaceId, OWNER_WS, "a demo applicant never lands in the job owner's pipeline");
+  assert.notEqual(target.workspaceId, DEFAULT_WORKSPACE_ID, "nor on the default team, invisible to whoever ran it");
   assert.ok(isSimTitle(target.jobTitle));
 
   const ownerBefore = pipelineAnalytics(null, undefined, OWNER_WS);
-  const demoBefore = pipelineAnalytics();
+  const demoBefore = pipelineAnalytics(null, undefined, CALLER_WS);
 
   // Exactly the write the fixed route makes.
   const { entry } = createPipelineEntry({
@@ -79,11 +92,13 @@ test("a sim-inbound entry lands in the demo workspace, stays out of the real fun
   assert.equal(ownerRows.c, 0, "the job owner's pipeline gains NO row from a sim inbound");
 
   const ownerAfter = pipelineAnalytics(null, undefined, OWNER_WS);
-  const demoAfter = pipelineAnalytics();
+  const demoAfter = pipelineAnalytics(null, undefined, CALLER_WS);
   assert.equal(ownerAfter.total, ownerBefore.total, "owner workspace applicant count unchanged");
   assert.equal(demoAfter.total, demoBefore.total, "the demo applicant is excluded from the real funnel by its marker");
 
-  const cleared = resetSim();
+  // Scoped to the same team the write targeted — a default-workspace purge would
+  // have left this row behind forever.
+  const cleared = resetSim(CALLER_WS);
   assert.ok(cleared.entries >= 1, "resetSim reports purging the sim entry");
   const gone = ensureDb().prepare(`SELECT COUNT(*) AS c FROM pipeline_entries WHERE id = ?`).get(entry.id) as { c: number };
   assert.equal(gone.c, 0, "no unpurgeable residue after resetSim");

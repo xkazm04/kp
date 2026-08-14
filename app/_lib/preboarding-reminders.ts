@@ -1,5 +1,5 @@
 import { dispatchPreboardingReminder } from "./comms-dispatch";
-import { getPipelineEntry } from "./db/pipeline";
+import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
 import { duePreboardingReminders, markPreboardingReminded } from "./onboarding-store";
 import { listOffersForEntry } from "./offers-store";
 import { preboardingReminderCutoffIso } from "./preboarding-reminder-policy";
@@ -22,7 +22,14 @@ export async function sendDuePreboardingReminders(nowMs: number = Date.now()): P
   let sent = 0;
   for (const run of due) {
     if (!run.entryId) continue; // no entry → no deliverable recipient
-    const entry = getPipelineEntry(run.entryId);
+    // Tenant: the heartbeat has no session, and an OnboardingRun doesn't surface its
+    // workspace column — so derive it from the run's own hire, the same by-id read of
+    // pipeline_entries.workspace_id that startRun stamps the run with. Bare, this
+    // by-id entry read fell to DEFAULT_WORKSPACE_ID and returned null for every other
+    // team, so the `continue` below silently swallowed their hires: the one pre-boarding
+    // questionnaire nudge was never sent, and the Onboarding tab's run card sat at
+    // "intake pending" forever for a candidate who had simply closed the tab.
+    const entry = getPipelineEntry(run.entryId, getEntryWorkspace(run.entryId));
     if (!entry) continue; // entry vanished between the run row and now
     // The candidate's onboarding credential is their accepted offer's token (offers #5).
     const accepted = listOffersForEntry(run.entryId).find((o) => o.status === "accepted");

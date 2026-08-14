@@ -5,7 +5,7 @@ import { getDevCase, getSubmission } from "./db/devcase";
 import { getJob, getJobWorkspace } from "./db/jobs";
 import { promotedBriefForJob } from "./db/intakes";
 import { briefIntentSummary } from "./intake-brief";
-import { getPipelineEntry } from "./db/pipeline";
+import { getEntryWorkspace, getPipelineEntry } from "./db/pipeline";
 import type { PipelineEntry } from "./db/core";
 import type { VoiceTurn } from "./voice/types";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
@@ -221,8 +221,18 @@ function composeDebriefBrief(
 }
 
 /** Build the interviewer brief + candidate-facing run-of-show titles for an
- *  entry, grounded in the rich interview-prep artifact (generated if missing). */
-export async function buildGroundedInterview(entryId: string): Promise<{
+ *  entry, grounded in the rich interview-prep artifact (generated if missing).
+ *
+ *  Tenancy — a caller that HAS a session (POST /api/interview/create already
+ *  resolves `currentWorkspace()` for its billing gate) should pass it: a foreign
+ *  entry id then resolves to nothing, which is exactly the 404 a cross-team
+ *  "Create link" deserves. A caller with no session (scripts, the eval harness)
+ *  omits it and the ENTRY's own team is used — the by-id rule the sibling token
+ *  flows follow (/api/interview/complete, /api/status/[token]). Either beats the
+ *  bare read this replaces, which resolved against the DEFAULT team: on any other
+ *  workspace "Create link" threw "pipeline entry not found", so the candidate
+ *  drawer's voice-screen action and the Schedule tab's AI round were dead. */
+export async function buildGroundedInterview(entryId: string, workspaceId?: string): Promise<{
   instructions: string;
   runOfShow: string[];
   durationMin: number;
@@ -230,7 +240,8 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   jobId: string | null;
   jobTitle: string | null;
 }> {
-  const entry = getPipelineEntry(entryId);
+  const ws = workspaceId ?? getEntryWorkspace(entryId);
+  const entry = getPipelineEntry(entryId, ws);
   if (!entry) throw new Error("pipeline entry not found");
 
   const job = entry.jobId ? getJob(entry.jobId) : null;
@@ -305,11 +316,20 @@ export async function buildGroundedInterview(entryId: string): Promise<{
   let prep = (getInterviewPrep(entryId)?.payload as PrepPayload | undefined) ?? undefined;
   if (!prep || !(prep.chronology && prep.chronology.length)) {
     try {
-      prep = (await runInterviewPrep({
-        entryId,
-        candidateLabel: entry.candidateLabel,
-        jobTitle: entry.jobTitle,
-      })) as PrepPayload;
+      // Same tenant as the entry above (3rd arg): the generated pack's task row and
+      // its own entry re-read are workspace-filtered, so an unscoped generation on
+      // any other team read back a null entry — the early-career plan silently came
+      // out in the EXPERIENCED chronology shape and the pack lost its industry
+      // rubric axes, for the one candidate the agent was about to interview.
+      prep = (await runInterviewPrep(
+        {
+          entryId,
+          candidateLabel: entry.candidateLabel,
+          jobTitle: entry.jobTitle,
+        },
+        undefined,
+        ws
+      )) as PrepPayload;
     } catch {
       /* prep unavailable (no profile / CLI absent) — fall back to a generic brief */
     }
@@ -357,7 +377,12 @@ export async function buildGroundedInterview(entryId: string): Promise<{
  *  (never generates missing prep); returns null when there is nothing grounded
  *  to say, so the caller falls back to the generic candidate-safe prompt. */
 export function buildCandidateSafeBrief(entryId: string): string | null {
-  const entry = getPipelineEntry(entryId);
+  // Tenant from the ENTRY, never a session: the only caller is the PUBLIC token
+  // route /api/interview/connect, where the candidate has no workspace. Bare, this
+  // read resolved against the DEFAULT team and returned null everywhere else, so
+  // every other team's candidate heard the generic ungrounded prompt — no company,
+  // no role, none of the run-of-show the recruiter had just built for them.
+  const entry = getPipelineEntry(entryId, getEntryWorkspace(entryId));
   if (!entry) return null;
 
   const job = entry.jobId ? getJob(entry.jobId) : null;

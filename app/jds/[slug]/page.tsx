@@ -5,10 +5,11 @@ import { getTranslations } from "next-intl/server";
 import { Send, UserPlus } from "lucide-react";
 import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
 import { RecordRecent } from "@/app/features/shell/RecordRecent";
-import { getJob, loadJd, type JdRow } from "@/app/_lib/db/jobs";
+import { getJob, getJobWorkspace, loadJd, type JdRow } from "@/app/_lib/db/jobs";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { isOperator } from "@/app/_lib/auth/require-operator";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jdMarketResearchAvailable } from "@/app/features/library/jds/jdsLibrary";
 import { JdActions } from "./JdActions";
 import { JdBody } from "./JdBody";
@@ -27,6 +28,21 @@ function metaDescription(markdown: string): string {
   return text.length > 155 ? `${text.slice(0, 152).trimEnd()}…` : text;
 }
 
+// Tenancy — WHICH team's JD this public page serves. This is the candidate-facing
+// share link and a candidate has no session, so the caller's workspace cannot be the
+// authority here: loadJd's defaulted argument pinned every visitor to the default
+// team, so once a second team existed, the role they published and shared 404'd for
+// the very people they sent the link to (and unfurled as a bare URL). The JD row
+// itself is the authority, and the linked `jd-<slug>` opening carries that team
+// (/api/jds/save ingests it under the JD's workspace) — so derive the tenant from
+// it, with the same by-id resolver the public apply intake uses to file a candidate
+// into the OPENING's team. No opening ingested ⇒ the default workspace, i.e.
+// unchanged from today. Because loadJd matches on it, a row that comes back is
+// always a row that lives in this workspace.
+function jdOwnerWorkspace(slug: string): string {
+  return getJobWorkspace(jdJobId(slug));
+}
+
 // SEO / share metadata for the flagship public JD page — without this a shared link
 // (the documented "shareable ?lang=cs links" use case) unfurled as a bare URL with the
 // app-default title and was invisible to search. Archived roles return noindex so a
@@ -36,7 +52,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   let jd: JdRow | null = null;
   try {
-    jd = loadJd(slug);
+    jd = loadJd(slug, jdOwnerWorkspace(slug));
   } catch {
     jd = null;
   }
@@ -70,10 +86,13 @@ export default async function JdDetailPage({
 
   // The JD body is the primary, public, shareable content. Load it independently so
   // a transient SQLite error (a locked WAL mid-write, a corrupt row) renders a scoped
-  // in-shell message instead of crashing the whole route into the Next error boundary.
+  // in-shell message instead of crashing the whole route into the Next error boundary
+  // — the owner lookup is a DB read too, so it belongs inside the same guard.
   let jd: JdRow | null;
+  let owner: string;
   try {
-    jd = loadJd(slug);
+    owner = jdOwnerWorkspace(slug);
+    jd = loadJd(slug, owner);
   } catch {
     return (
       <WorkspaceShell active="library">
@@ -102,9 +121,13 @@ export default async function JdDetailPage({
 
   // This page is public + shareable, so the Edit / Archive / Revert controls must
   // not render for a candidate visiting via the share link. Only an operator sees
-  // them (open mode = trusted local; otherwise a valid session). The backing
-  // PATCH/revisions routes enforce the same gate server-side.
-  const canManage = await isOperator();
+  // them (open mode = trusted local; otherwise a valid session), and only from the
+  // team that owns the JD. That second half matters now that the page resolves ANY
+  // team's shared role: the backing PATCH/revisions routes are workspace-scoped, so
+  // a visiting team's recruiter — or, in open mode, where isOperator() is true for
+  // everyone, a candidate on the share link — would be shown Edit/Archive buttons
+  // whose every click comes back "JD not found."
+  const canManage = (await isOperator()) && (await currentWorkspace()) === owner;
 
   // The lint's salary-suppression seam (JdActions' editor now runs the same live
   // lint as the ledger). This page loads the JD's stored build artifacts

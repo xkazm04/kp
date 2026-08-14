@@ -17,8 +17,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     // Shared pool (v2 profiles + saved CV analyses) — the same population
     // rediscovery scores, so the two views never diverge. Workspace-scoped so a
-    // job only ranks against its own tenant's candidates.
-    const { entries, truncated } = buildCandidatePool(await currentWorkspace());
+    // job only ranks against its own tenant's candidates. Resolved ONCE and reused
+    // by the sourcing-state decoration below: the pool and the pipeline it is
+    // decorated against must be read from the same tenant or the join is nonsense.
+    const workspaceId = await currentWorkspace();
+    const { entries, truncated } = buildCandidatePool(workspaceId);
 
     if (entries.length === 0) {
       return NextResponse.json({ job: null, candidates: [], note: "No saved candidates yet." });
@@ -42,11 +45,20 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     // already sent a first-touch — showed fresh, active buttons. The durable
     // truth was always server-side (entries keyed jobId+candidateId; the
     // per-entry outreach_sent event); decorate each ranked row with it.
-    const jobEntries = listEntriesForJob(id).filter((e) => e.status === "active" && e.candidateId);
+    //
+    // Both reads carry `workspaceId`. Bare, they answered for the DEFAULT tenant, so
+    // on any other team no entry and no outreach marker ever matched and the whole
+    // decoration collapsed to `inPipeline: null, outreachSent: false` — every
+    // already-filed, already-contacted candidate came back wearing a fresh
+    // "+ pipeline" / "Reach out" button, and a recruiter clicking it sent a second
+    // first-touch email to someone already mid-funnel. That is precisely the
+    // regression W8-5 above exists to prevent, reintroduced one tenant over.
+    const jobEntries = listEntriesForJob(id, workspaceId).filter((e) => e.status === "active" && e.candidateId);
     const entryByCandidate = new Map(jobEntries.map((e) => [e.candidateId as string, e]));
     const reachedEntryIds = entryIdsWithEvent(
       jobEntries.map((e) => e.id),
-      "outreach_sent"
+      "outreach_sent",
+      workspaceId
     );
     for (const row of payload.candidates ?? []) {
       const candidateId = typeof row.candidateId === "string" ? row.candidateId : null;

@@ -25,7 +25,14 @@ export async function sendDueOfferReminders(): Promise<number> {
     if (!offer.entryId) continue;
     // Claim first: only the writer that flips reminded_at proceeds to dispatch.
     if (!markOfferReminded(offer.token)) continue;
-    const entry = getPipelineEntry(offer.entryId);
+    // Tenant: the OFFER ROW is the only authority here — the heartbeat has no session,
+    // so there is no currentWorkspace() to ask. offer.workspaceId is the workspace
+    // stamped from the entry at createOffer. Bare, this by-id read fell to
+    // DEFAULT_WORKSPACE_ID and returned null for every other team, so the `continue`
+    // below dropped them AFTER the claim above had already burned their one-shot
+    // reminder: a non-default team's candidate got no heads-up at all and watched a
+    // live offer lapse in silence, with reminded_at stamped as if we'd nudged them.
+    const entry = getPipelineEntry(offer.entryId, offer.workspaceId);
     if (!entry) continue; // entry vanished between the offer row and now — nothing to send
     const base = publicBaseUrl(); // heartbeat has no request origin → APP_BASE_URL / "" fallback
     const link = `${base}/offer/${offer.token}`;

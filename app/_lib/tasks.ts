@@ -210,7 +210,13 @@ const HANDLERS: Record<string, Spec> = {
     label: (p) => encodeTaskLabel("groupEval", { role: detail(p.roleTitle, p.roleKey) ?? "" }),
   },
   jd_build: {
-    run: (ctx) => runJdBuild(ctx.params, ctx.progress, ctx.signal),
+    // The tenant rides the task row (every jd_build producer — /api/jds/generate,
+    // /api/intake/[id]/promote, /api/jds/[slug]/retry-analysis — stamps it), so the
+    // build files its matchable `jd-<slug>` opening into the team that asked for it.
+    // Without this the JD row was created for the right team while its OPENING went
+    // to the default one: the building team watched their JD flip to "ready" and then
+    // never found it in Jobs, so "Source into Pipeline" dead-ended.
+    run: (ctx) => runJdBuild(ctx.params, ctx.progress, ctx.signal, ctx.workspaceId),
     label: (p) => {
       const title = detail(p.title);
       return title ? encodeTaskLabel("jdBuild", { title }) : encodeTaskLabel("jdBuildUntitled");

@@ -118,10 +118,28 @@ async function runProfileCli(draft: { profile: unknown; signals: unknown }, cont
 // the id has no profile row (the degraded-stub case: candidateId is a random
 // label-only id), updateProfile misses and we fall through to a normal save — the
 // caller re-points the entry at the new id.
+//
+// Tenant (P1): `workspaceId` is the team the profile row is FILED INTO, and it must
+// be the SAME team the caller stamps on the pipeline entry it attaches this profile
+// to. Left out, both writes fall back to the store's default workspace: a candidate
+// who applied to a role owned by another team got their entry filed into that team
+// while their profile landed in the default one — so the sourcing recruiter opened
+// the applicant they had just ingested and found no CV behind them, the Match pool
+// never saw them, and their gap follow-up 404'd (apply/[id]/followup reads
+// getProfileRecord(profileId, getJobWorkspace(job.id)) — a lookup that can only find
+// a row saved under that same tenant).
+//
+// It is a CALLER argument on purpose, not derived here from `job`: the entry's team
+// is not always the job's owner. The CV simulation deliberately matches against a
+// real team's opening while filing the demo candidate into the sim workspace
+// (simCvIntakeTarget), so a getJobWorkspace(job.id) derivation inside this function
+// would drop demo profiles into the job owner's real candidate pool — un-purgeable
+// by resetSim, which is exactly the leak cv-intake-sim-scope.test.ts exists to stop.
 export async function buildApplicantProfile(
   job: ReturnType<typeof getJob>,
   answers: ApplyAnswers,
-  intoProfileId?: string | null
+  intoProfileId?: string | null,
+  workspaceId?: string
 ): Promise<BuildOutcome> {
   if (!job) return { ok: false, reason: degradedReason("role not found at intake") };
   const normalized = await runProfileCli(buildApplyProfileDraft(job, answers), `job ${job.id}`);
@@ -134,10 +152,13 @@ export async function buildApplicantProfile(
     completeness,
     payload: profile,
   };
-  if (intoProfileId && updateProfile(intoProfileId, profileFields)) {
+  // Both writes carry the caller's tenant (see the note above). Passing `undefined`
+  // is the pre-tenancy behaviour — the store's own default workspace — so a caller
+  // that has not been threaded yet is unchanged, not newly mis-filed.
+  if (intoProfileId && updateProfile(intoProfileId, profileFields, workspaceId)) {
     return { ok: true, id: intoProfileId, archetype, missingGaps };
   }
-  const saved = saveProfile(profileFields);
+  const saved = saveProfile(profileFields, workspaceId);
   return { ok: true, id: saved.id, archetype, missingGaps };
 }
 

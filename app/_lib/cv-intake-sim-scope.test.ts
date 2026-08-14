@@ -1,13 +1,20 @@
-// Finding gsim #1 — /api/sim/apply-cv must file a SIMULATED CV into the sim/demo
-// workspace (DEFAULT_WORKSPACE_ID) with a `(SIM)`-marked title, NEVER the job
+// Finding gsim #1 — /api/sim/apply-cv must NEVER file a SIMULATED CV into the job
 // OWNER's real pipeline. Pre-fix the route derived the write target from
-// getJobWorkspace(job) (the owner's team, or the default corpus workspace) and
-// stamped the real, UNMARKED title, so a keyless demo CV became a permanent,
-// analytics-counted, un-purgeable REAL entry in someone else's workspace.
+// getJobWorkspace(job) (the owner's team) and stamped the real, UNMARKED title, so a
+// keyless demo CV became a permanent, analytics-counted, un-purgeable REAL entry in
+// someone else's workspace.
 //
-// This pins the three guarantees the fix restores:
-//   (1) simCvIntakeTarget never returns the job owner's workspace and always marks
-//       the stored title (the write-scoping decision the route now makes);
+// MULTI-WORKSPACE UPDATE: the original fix pinned the target to DEFAULT_WORKSPACE_ID.
+// That satisfied gsim #1 by accident of there being only one tenant — and once
+// KP_MULTI_WORKSPACE was on it became its own bug: a team pressed "Simulate inbound",
+// the row landed on the DEFAULT team's board, the walk then read its own correctly
+// scoped pipeline, found nothing, and halted. simCvIntakeTarget now takes the CALLER'S
+// team explicitly. gsim #1 still holds — the caller is not the job owner — and it now
+// holds for the RIGHT reason rather than by single-tenancy.
+//
+// This pins the three guarantees:
+//   (1) simCvIntakeTarget returns the CALLER's workspace, never the job owner's, and
+//       always marks the stored title (the write-scoping decision the route makes);
 //   (2) a so-scoped entry leaves NO row in the owner's workspace and is FULLY
 //       purged by resetSim();
 //   (3) it never enters the real hire-rate / funnel in EITHER workspace.
@@ -28,6 +35,7 @@ import { ensureDb } from "./db/core.ts";
 after(() => cleanupUnitDb());
 
 const OWNER_WS = "team-real-owner"; // a REAL team that owns the tested opening
+const CALLER_WS = "team-running-the-demo"; // the team actually pressing the button
 const REAL_TITLE = "Staff Platform Engineer";
 
 test("a simulated CV never lands in the job owner's workspace, is purged by resetSim, and never counts in the real hire-rate", () => {
@@ -37,18 +45,20 @@ test("a simulated CV never lands in the job owner's workspace, is purged by rese
   assert.ok(job, "precondition: the opening exists");
   assert.equal(getJobWorkspace(job.id), OWNER_WS, "precondition: the opening is owned by the real team");
 
-  // (1) The write-scoping decision the route makes: sim writes target the demo /
-  //     default workspace with a `(SIM)`-marked title — NOT the owner's team, NOT
-  //     the real, unmarked title.
-  const target = simCvIntakeTarget(job);
-  assert.equal(target.workspaceId, DEFAULT_WORKSPACE_ID, "sim CV is scoped to the demo/default workspace");
+  // (1) The write-scoping decision the route makes: sim writes target the CALLER'S
+  //     own team with a `(SIM)`-marked title — NOT the owner's team, NOT the real,
+  //     unmarked title. The caller's team is what makes the demo visible to the
+  //     person running it; the marker is what keeps it purgeable and out of metrics.
+  const target = simCvIntakeTarget(job, CALLER_WS);
+  assert.equal(target.workspaceId, CALLER_WS, "sim CV is scoped to the team running the demo");
   assert.notEqual(target.workspaceId, getJobWorkspace(job.id), "sim CV must NOT be scoped to the job owner's workspace");
+  assert.notEqual(target.workspaceId, DEFAULT_WORKSPACE_ID, "nor silently to the default team, which is what stranded it");
   assert.ok(isSimTitle(target.jobTitle), "the stored title carries the (SIM) marker so it's purgeable + analytics-excluded");
   assert.equal(target.jobTitle, markSimTitle(REAL_TITLE));
 
   // Snapshot the REAL hire-rate of BOTH workspaces before the sim write.
   const ownerBefore = pipelineAnalytics(null, undefined, OWNER_WS);
-  const demoBefore = pipelineAnalytics(); // defaults to DEFAULT_WORKSPACE_ID
+  const demoBefore = pipelineAnalytics(null, undefined, CALLER_WS);
 
   // File the sim CV exactly the way the fixed route does (createPipelineEntry with
   // the sim target) — at "Hired", the worst case for hire-rate corruption.
@@ -71,19 +81,20 @@ test("a simulated CV never lands in the job owner's workspace, is purged by rese
   const demoRow = ensureDb()
     .prepare(`SELECT job_title, workspace_id FROM pipeline_entries WHERE id = ?`)
     .get(entry.id) as { job_title: string; workspace_id: string };
-  assert.equal(demoRow.workspace_id, DEFAULT_WORKSPACE_ID);
+  assert.equal(demoRow.workspace_id, CALLER_WS);
   assert.ok(isSimTitle(demoRow.job_title));
 
   // (3) The sim "hire" never moves the REAL hire-rate/funnel in EITHER workspace.
   const ownerAfter = pipelineAnalytics(null, undefined, OWNER_WS);
-  const demoAfter = pipelineAnalytics();
+  const demoAfter = pipelineAnalytics(null, undefined, CALLER_WS);
   assert.equal(ownerAfter.total, ownerBefore.total, "owner workspace applicant count unchanged");
   assert.equal(ownerAfter.hired, ownerBefore.hired, "owner workspace hire count unchanged");
-  assert.equal(demoAfter.total, demoBefore.total, "demo workspace real applicant count unchanged (sim row excluded by marker)");
+  assert.equal(demoAfter.total, demoBefore.total, "the running team's real applicant count is unchanged (sim row excluded by marker)");
   assert.equal(demoAfter.hired, demoBefore.hired, "the demo 'hire' never counts as a real hire");
 
-  // (2b) resetSim() (defaults to the demo/default workspace) fully purges it.
-  const cleared = resetSim();
+  // (2b) resetSim(), scoped to the same team, fully purges it. Scoping matters:
+  //       a default-workspace purge would have left this row behind forever.
+  const cleared = resetSim(CALLER_WS);
   assert.ok(cleared.entries >= 1, "resetSim reports purging the sim entry");
   const gone = ensureDb().prepare(`SELECT COUNT(*) AS c FROM pipeline_entries WHERE id = ?`).get(entry.id) as { c: number };
   assert.equal(gone.c, 0, "the sim entry is gone after resetSim — no unpurgeable residue");

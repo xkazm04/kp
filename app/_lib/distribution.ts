@@ -42,7 +42,18 @@ export class LocalDistributionAdapter implements DistributionAdapter {
   }
 
   async pull(postingId: string): Promise<DevSubmission[]> {
-    return listSubmissions(postingId);
+    // TENANT: dev_submissions is workspace-scoped, and an adapter drains a channel
+    // off-request (a poll / inbound webhook, never a session), so the POSTING row is
+    // the only authority on whose submissions these are. Deriving it here rather than
+    // widening the DistributionAdapter signature means no present or future channel
+    // can forget it. Unscoped, this listed the DEFAULT team's submissions for the
+    // posting id, so any other team's pull came back empty and the candidates who
+    // applied through that channel were never seen. getPosting is a by-id point read
+    // on a globally-unique PK (tenancy.ts exempts those); a posting that no longer
+    // exists has no submissions to pull.
+    const posting = getPosting(postingId);
+    if (!posting) return [];
+    return listSubmissions(postingId, posting.workspaceId);
   }
 }
 
@@ -124,8 +135,19 @@ export async function intakeSubmission(input: {
   // finds an existing-but-unacked row still fires the ack. (At-least-once for the
   // candidate ack — a rare concurrent double-submit may send twice, a benign
   // duplicate, unlike the silent permanent drop it replaces.)
+  //
+  // TENANT: dev_outbox is workspace-scoped, and intake arrives off-session (public
+  // apply form / inbound webhook), so the SUBMISSION row is the authority. Both halves
+  // of the durable marker use it — the probe reads that team's outbox AND the ack below
+  // is recorded into it — because they must agree: an ack filed under the default team
+  // but probed for under the submission's own would look permanently missing and
+  // re-send on every retry. Unscoped, a non-default team's candidate acknowledgements
+  // piled up in the DEFAULT team's Comms Center, invisible to the recruiters who owe
+  // the candidate the reply. (Legacy acks written before this scoping sit in the
+  // default team, so their first retry re-sends once — the same benign duplicate the
+  // at-least-once contract above already accepts.)
   const alreadyAcknowledged =
-    listOutboxFiltered({ ref: submission.id, kind: "acknowledgement", limit: 1 }).length > 0;
+    listOutboxFiltered({ ref: submission.id, kind: "acknowledgement", limit: 1 }, submission.workspaceId).length > 0;
   if (!alreadyAcknowledged) {
     // The acknowledgement goes to the CANDIDATE, so it is written in their
     // language via the locale-pinned comms translator, not the recruiter's
@@ -144,6 +166,12 @@ export async function intakeSubmission(input: {
       ].join("\n"),
       kind: "acknowledgement",
       ref: submission.id,
+      // The ref is a SUBMISSION id, so it resolves to no pipeline entry — this is the
+      // entry-less case recordOutbox's explicit tenant exists for (see the TENANT
+      // CONTRACT in comms.ts). Without it the ack row lands in the default workspace
+      // and the probe above, which now looks in the submission's own team, would never
+      // find it.
+      workspaceId: submission.workspaceId,
     });
   }
   return { submission, isNew: created };

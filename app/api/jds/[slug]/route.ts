@@ -13,31 +13,37 @@ export const maxDuration = 60;
 export async function GET(request: Request, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params;
   try {
-    const row = loadJd(slug);
+    // Tenancy: serve the JD from the CALLER'S library. `/api/jds/*` is a gated
+    // recruiter route (never public — the share link is the /jds/[slug] page, see
+    // public-routes.ts), so the session workspace is the authority, and loadJd's
+    // defaulted argument was wrong in both directions. It 404'd a non-default team's
+    // OWN JD everywhere this endpoint feeds — the Ledger detail modal, Duplicate, the
+    // Analyze saved-JD picker, the Dev tab's brief — because the row sat in their
+    // workspace while the read looked in the default one; and it handed the DEFAULT
+    // team's full body + build artifacts (a private, often unfinished draft) to any
+    // other team's signed-in recruiter who knew the slug.
+    const ws = await currentWorkspace();
+    const row = loadJd(slug, ws);
     if (!row) {
       return NextResponse.json({ error: "JD not found." }, { status: 404 });
     }
     // The JD detail is public/shareable, but the stored build intent
     // (build_input_json — the recruiter's raw "describe the need" text) is
-    // internal authoring material and must not ride the public payload. It is
-    // returned only when explicitly requested (?intent=1) by a caller whose
-    // workspace owns the row — the recruiter Ledger's Duplicate flow — so a
-    // cross-tenant or share-link fetch never sees it.
+    // internal authoring material and must not ride the plain detail payload. It is
+    // returned only when explicitly requested (?intent=1) — the recruiter Ledger's
+    // Duplicate flow. Workspace ownership IS the scoped load above: a caller who
+    // doesn't own the row never reaches this line.
     const { build_input_json, ...publicRow } = row;
     const params = new URL(request.url).searchParams;
-    const wantsIntent = params.has("intent");
-    if (wantsIntent && loadJd(slug, await currentWorkspace())) {
+    if (params.has("intent")) {
       return NextResponse.json({ ...publicRow, build_input_json });
     }
     // ?brief=1 — the promoted role-intake brief behind this JD (Dev tab's
     // structured-need read, UAT L1-EVA-3). Internal authoring material like
-    // build_input_json: gated on workspace ownership, never on the public/
-    // share-link payload. Null when no promoted intake backs the JD.
+    // build_input_json, and read from the same workspace that owns the JD. Null
+    // when no promoted intake backs the JD.
     if (params.has("brief")) {
-      const ws = await currentWorkspace();
-      if (loadJd(slug, ws)) {
-        return NextResponse.json({ ...publicRow, intakeBrief: promotedBriefForJob(jdJobId(slug), ws) });
-      }
+      return NextResponse.json({ ...publicRow, intakeBrief: promotedBriefForJob(jdJobId(slug), ws) });
     }
     return NextResponse.json(publicRow);
   } catch (error) {

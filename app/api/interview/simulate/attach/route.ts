@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { getInterviewSessionByToken } from "@/app/_lib/db/interviews";
 import { recordSimTranscriptAttached } from "@/app/_lib/db/pipeline";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -34,7 +35,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Simulation session not found." }, { status: 404 });
     }
     const detail = [session.jobTitle, session.endedAt ? "completed" : session.status].filter(Boolean).join(" · ") || null;
-    const ok = recordSimTranscriptAttached(entryId, detail);
+    // Tenancy: the annotation write matches the entry on workspace_id, so the
+    // unscoped call looked for the candidate in the DEFAULT team and found nobody —
+    // "attach this practice interview to a candidate" answered `entry not found`
+    // for EVERY candidate on every other team, killing the feature exactly as the
+    // mode:"test" guard above once did. Gated recruiter action, so the caller's own
+    // tenant is the authority; the picker's entry ids come from the already-scoped
+    // /api/pipeline, so a caller can only ever name one of their own.
+    const ok = recordSimTranscriptAttached(entryId, detail, await currentWorkspace());
     if (!ok) return NextResponse.json({ error: "entry not found" }, { status: 404 });
     return NextResponse.json({ ok: true });
   } catch (error) {

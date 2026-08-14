@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession, getInterviewSessionByToken, isInterviewLinkExpired, markInterviewStarted, revokeInterviewSession, setInterviewSessionProvider } from "@/app/_lib/db/interviews";
-import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { getEntryWorkspace, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { isTerminalEntryStatus } from "@/app/_lib/pipeline-status";
 import {
   coerceLanguage,
@@ -87,7 +87,14 @@ export async function POST(request: NextRequest) {
       );
     }
     if (session0?.entryId) {
-      const entry = getPipelineEntry(session0.entryId);
+      // Tenant from the ENTRY, not a session — this is a public token route and the
+      // candidate has no workspace cookie (the same rule /api/interview/complete and
+      // the /status/[token] routes follow). Bare, the read resolved against the
+      // DEFAULT team and returned null for every other one, so the terminal guard
+      // below never fired: a rejected or withdrawn candidate could still start the
+      // AI screen — and burn real ElevenLabs / OpenAI Realtime minutes against their
+      // former employer's meter — on a link the recruiter believed was dead.
+      const entry = getPipelineEntry(session0.entryId, getEntryWorkspace(session0.entryId));
       if (entry && isTerminalEntryStatus(entry.status)) {
         revokeInterviewSession(session0.id);
         return NextResponse.json({ error: "This interview link is no longer active." }, { status: 409 });

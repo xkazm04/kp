@@ -325,8 +325,14 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       let evaluated = 0;
       let failed = 0;
       let sawAny = false;
+      // TENANT: dev_submissions is workspace-scoped and this runner is off-request (no
+      // session), so the LIFECYCLE row is the authority — the same rule the sourcing
+      // step above follows. Unscoped, a non-default team's lifecycle enumerated the
+      // DEFAULT team's submissions for its own posting id, found none, and parked
+      // forever on "awaiting submissions": every take-home that team's candidates
+      // actually submitted sat unevaluated and the lifecycle never advanced.
       for (let pass = 0; pass < MAX_COLLECT_PASSES; pass += 1) {
-        const subs = lc.postingId ? listSubmissions(lc.postingId) : [];
+        const subs = lc.postingId ? listSubmissions(lc.postingId, lc.workspaceId) : [];
         if (subs.length > 0) sawAny = true;
         const todo = subs.filter((s) => !s.evaluation && !attempted.has(s.id));
         if (todo.length === 0) break;
@@ -361,7 +367,12 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       // Floor is calibration-adjustable (Direction E): a human applies an outcome-driven
       // suggestion via dev_control; we fall back to the DEV_POLICY default when unset.
       const floor = activePromoteFloor();
-      const ranked = (lc.postingId ? listSubmissions(lc.postingId) : [])
+      // Scoped to the lifecycle's own team for the same reason as the collecting drain
+      // above (off-request, so the lifecycle row is the authority). Unscoped, a
+      // non-default team ranked an empty set: the stage reported "promoted 0/3", the
+      // lifecycle went terminal, and candidates who had already been scored were never
+      // put on the board or told they were moving forward.
+      const ranked = (lc.postingId ? listSubmissions(lc.postingId, lc.workspaceId) : [])
         .filter((s) => (s.transferScore ?? 0) >= floor)
         .sort((a, b) => (b.transferScore ?? 0) - (a.transferScore ?? 0))
         .slice(0, DEV_POLICY.promoteTopN);

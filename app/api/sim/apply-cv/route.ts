@@ -4,6 +4,7 @@ import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
 import { jsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { extractUploadedText, ingestCvApplication, simCvIntakeTarget } from "@/app/_lib/cv-intake";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 
 export const maxDuration = 60;
@@ -52,12 +53,14 @@ export async function POST(request: NextRequest) {
     // Attribution: which channel the demo is exercising (email inbox vs. ad form).
     const channel = String(form.get("channel") ?? "email");
 
-    // Tenant isolation: scope the sim write to the sim/demo workspace with a
-    // `(SIM)`-marked title — NEVER the job owner's real pipeline (the default
-    // getJobWorkspace target). This keeps a demo CV purgeable by resetSim and
-    // excluded from the real analytics funnel/hire-rate. The match is still built
-    // against the real job.
-    const target = simCvIntakeTarget(job);
+    // Tenant: scope the sim write to the CALLER'S OWN team with a `(SIM)`-marked
+    // title — not the job owner's team (the ingestCvApplication getJobWorkspace
+    // default), and not the default team the helper used to hardcode. A recruiter
+    // testing a CV against a shared-corpus role got no row on their own board and no
+    // way to purge the one they did create. The marker keeps the demo CV purgeable by
+    // resetSim and excluded from the real analytics funnel/hire-rate; the match is
+    // still built against the real job.
+    const target = simCvIntakeTarget(job, await currentWorkspace());
     const result = await ingestCvApplication({
       job,
       name: name || deriveNameFromFile(file.name),

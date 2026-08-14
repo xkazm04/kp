@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { promptCacheStats } from "@/app/_lib/db/analyses";
 import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
 import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
@@ -17,7 +18,24 @@ import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler
 // Unlike /api/health this always answers 200 with the payload — it is a
 // dashboard read, not a readiness probe; `ok`/`degradedReasons` carry the
 // health verdict inside the body.
+//
+// OPERATOR-GATED (the /api/brand split: open read where the data is harmless,
+// gated where it isn't — here it isn't). Everything below is DEPLOYMENT-wide by
+// design and stays that way: coreTableCounts() runs an unscoped
+// `SELECT COUNT(*)` over jobs/profiles/pipeline_entries/analyses/tasks, the
+// queue counts every tenant's runs, and the telemetry tails one shared log set.
+// That is correct for a host-operator read and wrong for a tenant one — ungated,
+// any signed-in member of ANY workspace, plus the anonymous /api/demo visitor,
+// could read off the System strip how many candidates and analyses every other
+// team on the box has. So the counts stay global; the caller now has to earn
+// them. Not a tenancy fix (there is nothing here to scope) — an authz one.
+//
+// Callers already treat a non-200 as "no telemetry" rather than an error
+// (useSpendData drops the engine lines), so a demo session loses the strip
+// instead of seeing a failure it can do nothing about.
 export async function GET() {
+  const denied = await requireOperator();
+  if (denied) return denied;
   try {
     const degradedReasons: string[] = [];
     const seed = getSeedHealth();
