@@ -1,20 +1,31 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { Rocket } from "lucide-react";
 import { isLocale } from "@/i18n/locales";
 import { setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
 import { readClientOrgName } from "@/app/_lib/org-settings";
+import { Defer } from "@/app/_components/ui/Defer";
 import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { OnboardingExperience } from "@/app/features/shell/setup/OnboardingExperience";
 import { OrganizationGeneralPanel } from "./OrganizationGeneralPanel";
 import type { AppLanguage } from "@/app/features/shared/memberUi";
 
+// Tier 3 (docs/design/loading-choreography.md): backup/restore is the tab's
+// secondary surface — nobody opens Organization to take a database dump first —
+// so it gets its own chunk and mounts an idle beat after the console.
+const OrganizationBackupPanel = dynamic(
+  () => import("./OrganizationBackupPanel").then((m) => ({ default: m.OrganizationBackupPanel })),
+  { loading: () => <div className="reveal-quiet min-h-[12rem]" aria-hidden /> }
+);
+
 // Organization settings — the COMPANY's identity, and nothing else. The org NAME
 // and app LANGUAGE are real, persisted settings (name → the kp_org_name cookie;
-// language → the app locale + workspace default).
+// language → the app locale + workspace default). Backup & restore lives here too:
+// a whole-database dump/restore is org-level administration, not a task readout.
 //
 // Member administration used to sit on this tab and moved to Settings → Workspaces
 // (app/features/settings/workspace/WorkspaceTab.tsx). The reason is structural, not
@@ -77,7 +88,10 @@ export function OrganizationTab() {
         <div>
           <p className={EYEBROW}>{t("eyebrow")}</p>
           <h1 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h1>
-          <p className={`mt-2 max-w-xl ${INTRO}`}>{t("intro")}</p>
+          {/* No max-width clamp: this subtitle is one short sentence pair and
+              should read as one line. `max-w-xl` broke it across two even on a
+              wide screen, which made a 12-word lede look like a paragraph. */}
+          <p className={`mt-2 ${INTRO}`}>{t("intro")}</p>
         </div>
         <button
           type="button"
@@ -99,6 +113,10 @@ export function OrganizationTab() {
           onLanguageChange={onLanguageChange}
         />
       </div>
+
+      <Defer strategy="idle">
+        <OrganizationBackupPanel />
+      </Defer>
 
       {onboarding ? <OnboardingExperience mode="preview" onClose={() => setOnboarding(false)} /> : null}
     </div>

@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { existsSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { cleanupUnitDb, UNIT_DB_DIR } from "../testing/unit-db.ts";
-import { aggregateLlmUsage, ingestLlmUsageLog } from "./llm.ts";
+import { aggregateLlmUsage, ingestLlmUsageLog, listLlmActivity } from "./llm.ts";
 
 after(() => {
   cleanupUnitDb();
@@ -62,4 +62,52 @@ test("ingest folds a deterministic fallback line and the aggregate exposes it as
 
   assert.ok(llm, "the real LLM call still aggregates beside it");
   assert.equal(llm!.costUsd, 0.012);
+});
+
+// The middle link of the Activity row-detail chain. The two ends are pinned
+// elsewhere — the TS scope → child env in llm-request-context.test.ts, the child
+// env → ledger line in test_llm_monitor.py — but a request_id dropped between
+// the sidecar and listLlmActivity would break the feature with every other test
+// still green: the rows would simply keep the nulls they had for their whole
+// life, which is also the legitimate unlinked case and so reads as normal.
+test("a sidecar line's request_id survives the fold and reaches the activity row", () => {
+  const sidecar = path.join(UNIT_DB_DIR, "llm-usage-request-id.ndjson");
+  const LINKED = JSON.stringify({
+    use_case: "jd_build",
+    provider: "claude_cli",
+    model: "claude-cli-default",
+    input_tokens: 10,
+    output_tokens: 5,
+    cached_tokens: null,
+    cost_usd: 0.001,
+    source: "llm",
+    request_id: "t_linked_run",
+  });
+  // Same shape minus the key — a spawn outside any tracked run.
+  const UNLINKED = JSON.stringify({
+    use_case: "jd_build",
+    provider: "claude_cli",
+    model: "claude-cli-default",
+    input_tokens: 10,
+    output_tokens: 5,
+    cached_tokens: null,
+    cost_usd: 0.001,
+    source: "llm",
+    request_id: null,
+  });
+  writeFileSync(sidecar, `${LINKED}\n${UNLINKED}\n`, "utf-8");
+  assert.equal(ingestLlmUsageLog(sidecar), 2);
+
+  const rows = listLlmActivity().filter((r) => r.useCase === "jd_build");
+  assert.equal(rows.length, 2);
+  assert.equal(
+    rows.filter((r) => r.requestId === "t_linked_run").length,
+    1,
+    "the linked row carries the task id the detail fetches its output with"
+  );
+  assert.equal(
+    rows.filter((r) => r.requestId === null).length,
+    1,
+    "the unlinked row stays null — it must not inherit a sibling's run"
+  );
 });

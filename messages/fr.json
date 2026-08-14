@@ -4856,7 +4856,19 @@
       "backup": {
         "title": "Sauvegarde et restauration",
         "meta": "base de données complète",
-        "intro": "Un seul fichier JSON contient toute la base de données kp : l’ensemble des données de tous les espaces de travail (hors cache de prompts et état du gestionnaire de tâches), et non la portion d’un seul espace. Faites une sauvegarde avant une action groupée risquée. La restauration déplace la base entière d’une machine à l’autre. L’export et la restauration par espace de travail sont une lacune connue, et la restauration est entièrement refusée quand le mode multi-espaces est actif, car elle remplacerait tous les espaces d’un coup.",
+        "lede": "Déplacez toutes les données sous forme d’un seul fichier.",
+        "flowExport": "Sauvegarde",
+        "flowExportA": "Toutes les données",
+        "flowExportB": "Un fichier",
+        "exportNote": "Lecture seule. Rien ne change ici.",
+        "flowRestore": "Restauration",
+        "flowRestoreA": "Votre fichier",
+        "flowRestoreB": "Aperçu",
+        "flowRestoreC": "Toutes les données",
+        "restoreNote": "Rien n’est écrasé tant que vous n’avez pas saisi {word}.",
+        "scopeAll": "Couvre tous les espaces de travail, pas seulement celui-ci",
+        "scopeExcluded": "Exclut le cache IA et la file d’attente des tâches",
+        "scopeSingle": "La restauration est refusée lorsque plusieurs espaces de travail sont actifs",
         "download": "Télécharger la sauvegarde",
         "restoreFrom": "Restaurer depuis un fichier…",
         "working": "Traitement…",
@@ -5126,9 +5138,18 @@
   "analytics": {
     "sections": {
       "label": "Section d’analyse",
-      "performance": { "name": "Performance", "hint": "Entonnoir, prévision, postes" },
-      "economics": { "name": "Économie", "hint": "Dépenses, sources, ROI" },
-      "quality": { "name": "Qualité et audit", "hint": "Calibrage, décisions" }
+      "performance": {
+        "name": "Performance",
+        "hint": "Entonnoir, prévision, postes"
+      },
+      "economics": {
+        "name": "Économie",
+        "hint": "Dépenses, sources, ROI"
+      },
+      "quality": {
+        "name": "Qualité et audit",
+        "hint": "Calibrage, décisions"
+      }
     },
     "statHiredOfTotal": "sur {total}",
     "bottleneckPlain": "{count} candidats bloqués à l’étape {stage} depuis {days} jours en moyenne",
@@ -6343,7 +6364,8 @@
       "colBest": "Meilleur modèle",
       "colRunnerUp": "Second",
       "na": "n.d.",
-      "method": "Mesuré le {date} · juge {judge} · {n} cas · {limit} exécution(s)/cellule. Composite 0–10 : justesse + respect de la tâche pondérés plus haut, pertinence plus bas. Sortie non valide pénalisée. De faibles nombres d’exécutions sont bruités, à considérer comme indicatifs."
+      "method": "Mesuré le {date} · juge {judge} · {n} cas · {limit} exécution(s)/cellule. Composite 0–10 : justesse + respect de la tâche pondérés plus haut, pertinence plus bas. Sortie non valide pénalisée. De faibles nombres d’exécutions sont bruités, à considérer comme indicatifs.",
+      "empty": "Aucune qualité mesurée pour l’instant. Ce déploiement ne contient pas de matrice de référence, il n’y a donc rien à classer."
     },
     "benchOps": {
       "match_reasoning": "Raisonnement de matching",
@@ -6368,6 +6390,26 @@
     "loading": "Chargement des paramètres des modèles…",
     "loadFailed": "Impossible de charger les paramètres des modèles. Vérifiez la connexion et réessayez.",
     "retry": "Réessayer",
+    "sections": {
+      "label": "Sections des modèles",
+      "routing": "Routage",
+      "quality": "Qualité des modèles",
+      "keys": "Clés API (BYOM)"
+    },
+    "testReason": {
+      "auth": "Le fournisseur a rejeté cette clé.",
+      "rate_limit": "Le fournisseur a limité le test. Réessayez dans un instant.",
+      "connection": "Impossible de joindre le fournisseur.",
+      "timeout": "Le fournisseur n’a pas répondu à temps.",
+      "invalid_model": "Le fournisseur a rejeté le modèle ou la requête.",
+      "permission": "Cette clé n’a pas accès à ce modèle.",
+      "unavailable": "Rien à appeler : aucune clé ni SDK utilisable sur le serveur.",
+      "bad_payload": "Le fournisseur a répondu, mais pas ce qui était demandé.",
+      "provider_error": "Le fournisseur a refusé le test.",
+      "model_required": "Indiquez le modèle ou le déploiement à appeler, puis relancez le test.",
+      "not_found": "Cette clé n’est plus enregistrée. Rechargez le panneau.",
+      "unknown_provider": "Ce fournisseur n’utilise pas de clé enregistrée."
+    },
     "routing": {
       "title": "Routage",
       "intro": "Une ligne épinglée remplace le modèle par défaut intégré pour ce cas d’usage. Les cas d’usage sans épingle utilisent le modèle par défaut intégré (Claude CLI en développement local).",
@@ -6511,7 +6553,15 @@
       "saveFailed": "Impossible d’enregistrer la clé.",
       "kpSecretHint": "Correction : définissez la variable d’environnement KP_SECRET sur le serveur, puis réenregistrez.",
       "replace": "Remplacer la clé",
-      "replaceWarning": "Une clé existe déjà pour {provider} ({scope}). L’enregistrement l’écrasera. Cette action est irréversible."
+      "replaceWarning": "Une clé existe déjà pour {provider} ({scope}). L’enregistrement l’écrasera. Cette action est irréversible.",
+      "test": "Tester",
+      "testing": "Test en cours…",
+      "testAria": "Envoyer une requête de test avec la clé {provider} ({scope})",
+      "testOk": "La clé fonctionne. {model} a répondu en {latency} ms.",
+      "testOkNoLatency": "La clé fonctionne. {model} a répondu.",
+      "testFailed": "Échec du test.",
+      "testModelLabel": "Modèle à appeler",
+      "testModelPlaceholder": "déploiement ou identifiant de modèle"
     },
     "useCaseDesc": {
       "match_reasoning": "Rédige l’argumentaire destiné au recruteur expliquant pourquoi un candidat convient au poste, ou non.",

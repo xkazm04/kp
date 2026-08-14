@@ -18,6 +18,7 @@ import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { labelize } from "@/app/_lib/format";
+import { ActivityDetailModal } from "./ActivityDetailModal";
 import type { LlmActivityRow } from "@/app/_lib/db/llm";
 
 type Payload = { rows: LlmActivityRow[]; window: number };
@@ -33,6 +34,10 @@ export function ActivityTab() {
   const [useCaseFilter, setUseCaseFilter] = useState("");
   const [providerFilter, setProviderFilter] = useState("");
   const [page, setPage] = useState(0);
+  // The row whose detail is open. Held as the ROW, not an id: the table already
+  // has the ledger facts in hand, so the modal paints them on the first frame
+  // and only the linked run's output has to be fetched.
+  const [detail, setDetail] = useState<LlmActivityRow | null>(null);
 
   // Use-case display name with the app-wide has() fallback (the Models tab's
   // convention) — a new server-side use case renders labelized, never crashes.
@@ -104,9 +109,27 @@ export function ActivityTab() {
               </thead>
               <tbody>
                 {shown.map((r) => (
-                  <tr key={r.id} className="border-b border-stone-100 align-top">
+                  // Row-click opens the detail. The whole row is the mouse target
+                  // (a tr can't be a button), while the timestamp cell holds a real
+                  // <button> so the same affordance is reachable by keyboard and
+                  // announced by assistive tech — clicking the row is a shortcut for
+                  // pressing it, not the only way in.
+                  <tr
+                    key={r.id}
+                    onClick={() => setDetail(r)}
+                    className="cursor-pointer border-b border-stone-100 align-top transition-colors hover:bg-paper/70"
+                  >
                     <td className="whitespace-nowrap py-2 pr-3 text-sm text-steel nums">
-                      {format.dateTime(new Date(r.ts), { dateStyle: "medium", timeStyle: "short" })}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation(); // the row handler would fire a second time
+                          setDetail(r);
+                        }}
+                        className="focus-ring rounded text-left underline-offset-2 hover:text-ink hover:underline"
+                      >
+                        {format.dateTime(new Date(r.ts), { dateStyle: "medium", timeStyle: "short" })}
+                      </button>
                     </td>
                     <td className="py-2 pr-3 text-ink">{caseLabel(r.useCase)}</td>
                     <td className="py-2 pr-3 text-steel">{r.provider}</td>
@@ -140,6 +163,8 @@ export function ActivityTab() {
           )}
         </div>
       )}
+
+      {detail ? <ActivityDetailModal row={detail} caseLabel={caseLabel} onClose={() => setDetail(null)} /> : null}
     </section>
   );
 }

@@ -7,10 +7,17 @@ import { UNSEEN_DONE } from "./tasksProviderTypes";
 import { METER_BARS_PER_ROW, taskMeterRows } from "./tasksTaskMeter";
 import { navItemClass } from "../tabs";
 
-// Sidebar-footer entry for the Background tasks view. It no longer expands an
+// Sidebar-footer entry for the AI tasks view. It no longer expands an
 // inline list — clicking navigates to the dedicated ?tab=tasks page (onOpen).
-// What stays here is the always-at-a-glance signal: a live running count, a
+// What stays here is the always-at-a-glance signal: a live ONGOING count, a
 // start-failure alert, and the UNREAD badges — visible from any tab.
+//
+// The count is deliberately "how much is running", never "how much has run":
+// with no active task this row used to fall back to `tasks.length`, the size of
+// the whole recent window, so a quiet workspace read as a permanent grey "23"
+// beside the label — a finished-task tally dressed as a workload signal. When
+// nothing is running there is no number to show, and the row says so by showing
+// none.
 //
 // Read/unread (background-mode round, 2026-08-12): every finished task carries a
 // server-side seen_at ack (null = unread). The badges here count unread rows —
@@ -95,8 +102,6 @@ export function TasksIndicator({ active, onOpen }: { active: boolean; onOpen: ()
             >
               {running.length}
             </span>
-          ) : tasks.length > 0 && unseen.length === 0 ? (
-            <span className="shrink-0 text-sm text-steel">{tasks.length}</span>
           ) : null}
         </span>
 

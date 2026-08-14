@@ -4,6 +4,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { positiveNumericEnv } from "./env";
+import { currentLlmRequestId } from "./llm-request-context";
 
 // Fold a finished spawn's LLM-usage sidecar (NDJSON written by Python's
 // monitor.emit_result) into the llm_usage ledger, then delete it. Lazy dynamic
@@ -131,6 +132,14 @@ export function spawnPython(
   // token so the child meters nothing and we skip ingest below.
   const optOut = meteringOptOut();
   const usageLogPath = optOut ?? path.join(os.tmpdir(), `kp-llm-usage-${process.pid}-${randomUUID()}.ndjson`);
+  // The run this spawn belongs to, if any — the ambient task id opened by the
+  // background-task runner (llm-request-context.ts). Python stamps it onto each
+  // ledger line as `request_id`, which is how an Insights → Activity row finds
+  // the task whose output it produced. Null outside a task scope (a route that
+  // spawns Python inline, a CLI, a test): the row simply has no linked run, and
+  // the Activity detail degrades to the ledger fields alone. Only set when
+  // present so a scope-less spawn inherits nothing from a stale parent env.
+  const llmRequestId = currentLlmRequestId();
   const child = spawn(PYTHON_CMD, args, {
     // cwd defaults to the parent's process.cwd() (the project root, where the
     // `pipeline` package is importable for `python -m`); passing it explicitly is
@@ -143,6 +152,7 @@ export function spawnPython(
       PYTHONUTF8: "1",
       PYTHONIOENCODING: "utf-8",
       KP_LLM_USAGE_LOG: usageLogPath,
+      ...(llmRequestId ? { KP_LLM_REQUEST_ID: llmRequestId } : {}),
       ...(opts.env ?? {}),
     },
     windowsHide: true,

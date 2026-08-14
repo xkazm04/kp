@@ -7,6 +7,7 @@ import { BTN_SECONDARY, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes
 import { labelize } from "@/app/_lib/format";
 import type { LlmUsageAggregateRow } from "@/app/_lib/db/llm";
 import { foldByUseCase, sumTotals } from "./modelsUsagePanelLogic";
+import { ModelsSystemStrip } from "./ModelsSystemStrip";
 
 // Usage & cost panel — the Models tab's read surface over the llm_usage ledger
 // (GET /api/llm/usage). The route returns per (day × use_case × provider ×
@@ -15,6 +16,13 @@ import { foldByUseCase, sumTotals } from "./modelsUsagePanelLogic";
 // Read-only telemetry: no actions, so an empty ledger is a quiet sunken note,
 // not an error. The fold (incl. the deterministic-vs-LLM split #5 and the
 // unpriced-cost signal #3) lives in usage-panel-logic.ts so it's unit-testable.
+//
+// This is now the single LLM-telemetry overview: the Background-tasks tab's
+// standalone "System" card was reporting the same prompt cache and a 7-day token
+// total this ledger already covers per use case over 30 days, so it was folded in
+// as ModelsSystemStrip (engine availability, run queue, automation clock, 7-day
+// analyze rollups, stage timings, comms/schedule failure counters) and its
+// duplicated halves were dropped rather than kept in two places.
 
 type UsagePayload = {
   days: number;
@@ -67,6 +75,11 @@ export function UsagePanel() {
         <Activity size={16} className="text-coral" aria-hidden /> {t("title")}
       </h3>
       <p className="mt-1 max-w-3xl text-sm text-steel">{t("intro", { days: data?.days ?? 30 })}</p>
+
+      {/* Engine health first: a stalled scheduler or a missing key is the context
+          that explains a suspiciously cheap week in the ledger below. Owns its own
+          /api/ops fetch, so it never gates the ledger's. */}
+      <ModelsSystemStrip />
 
       {loadFailed ? (
         <div className="mt-3 flex flex-wrap items-center gap-3">

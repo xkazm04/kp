@@ -1,195 +1,74 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useState } from "react";
 import dynamic from "next/dynamic";
-import { Defer } from "@/app/_components/ui/Defer";
-import { BTN_SECONDARY, EYEBROW, INTRO, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
+import { useTranslations } from "next-intl";
+import { SegmentedControl } from "@/app/_components/SegmentedControl";
+import { EYEBROW, INTRO } from "@/app/_components/ui/recipes";
 import { SectionTitle } from "@/app/_components/ui/SectionTitle";
-import { labelize } from "@/app/_lib/format";
-import type { LlmConfigRow } from "@/app/_lib/db/llm";
-import { ModelsRoutingRow } from "./ModelsRoutingRow";
-import { sectionizeUseCases } from "./modelsRoutingSections";
 
-// Tier 3 (docs/design/loading-choreography.md): the three panels below the routing
-// table are secondary — nobody opens Models to read the usage ledger first. They
-// get their own chunks so the tab's first paint carries the routing table alone,
-// and each mounts an idle beat later via <Defer> instead of piling onto the same
-// frame. The chunk gap is a quiet reserved box, never a skeleton.
+// Models tab — the LLM provider layer's admin surface
+// (docs/architecture/llm-provider-layer.md), split into three switchable
+// sections rather than one long scroll:
+//
+//   Routing      pin a provider/model per use case
+//   Quality      the baked bench matrix: per-model ranking + best model per case
+//   Keys (BYOM)  the write-only provider key store, and a Test that proves a key
+//
+// The stack version made the tab a ~4-screen scroll whose parts answer three
+// unrelated questions ("what runs where", "what is good", "what am I paying
+// with"), and every one of them loaded on entry. Sections are mutually exclusive
+// now, so each fetch happens when its section is actually opened — the tab's
+// entry payload is the header, the switcher and the routing table.
+//
+// Usage & cost used to be a fourth panel here. It lives on Billing now: metered
+// spend is a billing question, and keeping it next to the plan and the meters
+// means one place answers "what did this cost".
+
+// Each section is its own chunk; the switcher mounts one at a time. The chunk gap
+// is a quiet reserved box, never a skeleton (docs/design/loading-choreography.md).
 const chunkGap = (minHeight: string) => {
   const Gap = () => <div className={`reveal-quiet ${minHeight}`} aria-hidden />;
-  Gap.displayName = "ModelsPanelGap";
+  Gap.displayName = "ModelsSectionGap";
   return Gap;
 };
+const RoutingPanel = dynamic(() => import("./ModelsRoutingPanel").then((m) => ({ default: m.ModelsRoutingPanel })), {
+  loading: chunkGap("min-h-[26rem]"),
+});
 const QualityOverview = dynamic(() => import("./ModelsQualityOverview").then((m) => ({ default: m.QualityOverview })), {
-  loading: chunkGap("min-h-[14rem]"),
+  loading: chunkGap("min-h-[20rem]"),
 });
 const KeysPanel = dynamic(() => import("./ModelsKeysPanel").then((m) => ({ default: m.KeysPanel })), {
   loading: chunkGap("min-h-[16rem]"),
 });
-const UsagePanel = dynamic(() => import("./ModelsUsagePanel").then((m) => ({ default: m.UsagePanel })), {
-  loading: chunkGap("min-h-[12rem]"),
-});
 
-// Models tab — the LLM provider layer's admin surface (docs/architecture/llm-provider-layer.md):
-// pin a provider/model per use case (rows in GET /api/llm/config are EXPLICIT
-// pins; a use case without a row runs the built-in default, Claude CLI locally)
-// and manage the write-only provider key store. The "*" use case is the
-// catch-all pin every unpinned use case inherits before the built-in default.
-
-type ConfigPayload = { rows: LlmConfigRow[]; providers: string[]; useCases: string[] };
-
+const SECTIONS = ["routing", "quality", "keys"] as const;
+type Section = (typeof SECTIONS)[number];
 
 export function ModelsTab() {
   const t = useTranslations("models");
-  const [config, setConfig] = useState<ConfigPayload | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-
-  // State updates only happen in the async callbacks (never synchronously in
-  // the effect body); the retry button clears the failure flag in its event
-  // handler before re-firing.
-  const load = useCallback(() => {
-    fetch("/api/llm/config")
-      .then((r) => {
-        if (!r.ok) throw new Error();
-        return r.json();
-      })
-      .then((p) => setConfig(p as ConfigPayload))
-      .catch(() => setLoadFailed(true));
-  }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Display name with the app-wide has() fallback — a use case added on the
-  // server before the catalog catches up renders labelized, never crashes.
-  const labelFor = (useCase: string): string => {
-    if (useCase === "*") return t("routing.defaultRow");
-    const key = `useCases.${useCase}` as Parameters<typeof t>[0];
-    return t.has(key) ? t(key) : labelize(useCase);
-  };
-
-  // One-sentence "where the LLM applies" description per use case — the ★
-  // best-measured hint moved to the Measured-quality panel; a routing row now
-  // explains its process step instead. Absent key → no line (never a raw id).
-  const descFor = (useCase: string): string | null => {
-    const key = `useCaseDesc.${useCase}` as Parameters<typeof t>[0];
-    return t.has(key) ? t(key) : null;
-  };
-
-  const sectionTitle = (key: string): string => {
-    const k = `routing.sections.${key}` as Parameters<typeof t>[0];
-    return t.has(k) ? t(k) : labelize(key);
-  };
-
-  const rowFor = (useCase: string): LlmConfigRow | null =>
-    config?.rows.find((r) => r.useCase === useCase) ?? null;
-
-  // The server list partitioned into the curated functional sections (the "*"
-  // catch-all leads as its own section; unknown server ids trail under "other").
-  const sections = config ? sectionizeUseCases(config.useCases) : [];
+  const [section, setSection] = useState<Section>("routing");
 
   return (
-    // Tier 1: the header + whatever has arrived cascade in as this section's
-    // direct children (stagger-children, globals.css). aria-busy covers the
-    // first load only — a later refresh never blanks what is already here.
-    <section className="stagger-children space-y-6" aria-busy={!config && !loadFailed}>
+    // Tier 1: header + switcher are chrome and paint immediately; the active
+    // section owns its own first-load state, so there is no tab-level aria-busy.
+    <section className="stagger-children space-y-6">
       <header>
         <p className={EYEBROW}>{t("eyebrow")}</p>
         <SectionTitle className="mt-1">{t("title")}</SectionTitle>
         <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
       </header>
 
-      {loadFailed ? (
-        <div className={`${PANEL_SUNKEN} flex flex-wrap items-center gap-3 p-4`}>
-          <p className="text-base text-coral">{t("loadFailed")}</p>
-          <button
-            type="button"
-            onClick={() => {
-              setLoadFailed(false);
-              load();
-            }}
-            className={`${BTN_SECONDARY} h-8 px-3 text-sm`}
-          >
-            {t("retry")}
-          </button>
-        </div>
-      ) : null}
+      <SegmentedControl
+        label={t("sections.label")}
+        value={section}
+        onChange={setSection}
+        options={SECTIONS.map((id) => ({ value: id, label: t(`sections.${id}`) }))}
+      />
 
-      {/* Tier 2: the config fetch is in flight and there is nothing to show yet.
-          Hold the routing table's height so the page doesn't jump when it lands,
-          and stay invisible for 150ms so a warm response paints nothing at all.
-          (Was two pulsing skeleton slabs that drew a table nobody was getting.) */}
-      {!config && !loadFailed ? <div className="reveal-quiet min-h-[26rem]" aria-hidden /> : null}
-
-      {config ? (
-        <div className={`${PANEL} p-5`}>
-          <h3 className="font-serif text-h3 text-ink">{t("routing.title")}</h3>
-          <p className="mt-1 max-w-3xl text-sm text-steel">{t("routing.intro")}</p>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[52rem] text-base">
-              <thead>
-                <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">
-                  <th className="pb-2 pr-3 font-semibold">{t("routing.colUseCase")}</th>
-                  <th className="pb-2 pr-3 font-semibold">{t("routing.colProvider")}</th>
-                  <th className="pb-2 pr-3 font-semibold">{t("routing.colModel")}</th>
-                  <th className="pb-2 pr-3 font-semibold">{t("routing.colState")}</th>
-                  <th className="pb-2 text-right font-semibold">{t("routing.colActions")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sections.map((section) => (
-                  <Fragment key={section.key}>
-                    {/* The "default" section is the single "*" row — its own hint
-                        explains it, so a header above it would just repeat it. */}
-                    {section.key !== "default" ? (
-                      <tr>
-                        <th colSpan={5} scope="colgroup" className="pb-1.5 pt-5 text-left">
-                          <span className={EYEBROW}>{sectionTitle(section.key)}</span>
-                        </th>
-                      </tr>
-                    ) : null}
-                    {section.useCases.map((useCase) => {
-                      const row = rowFor(useCase);
-                      return (
-                        <ModelsRoutingRow
-                          // Re-key on the saved pin so a fresh server row resets the draft.
-                          key={`${useCase}:${row ? `${row.provider}:${row.model ?? ""}:${row.updatedAt}` : "default"}`}
-                          useCase={useCase}
-                          label={labelFor(useCase)}
-                          description={useCase === "*" ? t("routing.defaultRowHint") : descFor(useCase)}
-                          row={row}
-                          providers={config.providers}
-                          onRows={(rows) => setConfig((c) => (c ? { ...c, rows } : c))}
-                        />
-                      );
-                    })}
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Tier 3: secondary panels, one idle beat after the routing table paints.
-          Each is its own chunk, so this tab's entry payload is the table only.
-          NOT gated on `config`: these panels own their own data (keys, usage) and
-          are otherwise hardcoded chrome, so waiting for /api/llm/config made the
-          tab a serial waterfall — config round-trip, THEN chunk download, THEN
-          their own fetches. <Defer> already keeps them off the first frame, which
-          is the only thing the gate was actually buying. */}
-      <Defer strategy="next-frame">
-        <QualityOverview />
-      </Defer>
-
-      <Defer strategy="idle">
-        <KeysPanel />
-      </Defer>
-
-      <Defer strategy="idle">
-        <UsagePanel />
-      </Defer>
+      {section === "routing" ? <RoutingPanel /> : null}
+      {section === "quality" ? <QualityOverview /> : null}
+      {section === "keys" ? <KeysPanel /> : null}
     </section>
   );
 }

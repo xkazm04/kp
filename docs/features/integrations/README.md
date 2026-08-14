@@ -1,16 +1,21 @@
-# Integrations — Google Calendar and inbound ATS connections
+# Integrations — Google Calendar, ATS connections, ATS write-back
 
-The credential surface for the outside systems kp reads from. Two integrations live here,
-both optional, both degrading to the app's keyless behaviour when they are not configured:
+The credential surface for the outside systems kp talks to. Three integrations live here,
+all optional, all degrading to the app's keyless behaviour when they are not configured:
 
 - **Google Calendar** — free/busy lookups so a proposed interview slot is one the
   interviewer can actually make, plus the event write-back for a confirmed interview.
-- **ATS connections** — per-provider API credentials for reading applications out of an
-  applicant tracking system (Recruitee, Recruitis, Teamio).
+- **ATS connections (inbound)** — per-provider API credentials for reading applications
+  out of an applicant tracking system (Recruitee, Recruitis, Teamio).
+- **ATS/HRIS write-back (outbound)** — the signed `kp.ats.v1` webhook that mirrors hiring
+  outcomes into a system of record.
 
-Outbound egress (the signed `kp.ats.v1` write-back webhook) is a different seam and is
-documented in [../comms/outbound-export.md](../comms/outbound-export.md); its UI still
-lives on the Background tasks tab.
+Inbound and outbound are the two halves of one ATS seam, so they sit together here. The
+outbound panel used to live on the Background-tasks tab, which is where the operator-only
+surfaces had collected; it moved because an operator asking "what can this connect to"
+looks at Settings → Integrations. The *engine* behind it (envelope, signing, delivery) is
+still documented in [../comms/outbound-export.md](../comms/outbound-export.md) — only the
+door is here.
 
 ## Entry point
 
@@ -109,16 +114,41 @@ base URL, an API token and a field map.
 The field map (`app/_lib/ats/field-map.ts`) is *not* editable from this tab yet — see
 Known gaps.
 
+## ATS / HRIS write-back (outbound)
+
+The mirror image of the section above: a single signed webhook that POSTs a normalized,
+versioned candidate record (`kp.ats.v1`) to a system of record when a subscribed hiring
+outcome fires. Configured through `POST /api/ats/config`; `IntegrationsWebhookPanel`
+renders the endpoint, the signing secret, the four subscribable events
+(`candidate.hired`, `candidate.rejected`, `offer.accepted`, `offer.declined`) and a test
+ping (`POST /api/ats/test`).
+
+- **The secret is write-only**, same contract as the inbound token: `GET` returns
+  `hasSecret` only, and an untouched field leaves the stored secret in place. When set,
+  deliveries carry an HMAC-SHA256 `X-Kp-Signature`.
+- **An empty URL disables delivery** rather than queuing undeliverable events.
+- **The panel states its own ceiling**: this is vendor-neutral egress, not a certified
+  Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it. Only
+  `candidate.hired` fires live today (on offer-accept); the other three are reserved for
+  their lifecycle hooks, and the UI says so.
+- **Pull works too**: `GET /api/ats/candidate/<entryId>` returns the same record on demand.
+
+The envelope, signing and delivery/retry semantics live in
+[../comms/outbound-export.md](../comms/outbound-export.md).
+
 ## Surface
 
 | Path | Role |
 | --- | --- |
-| `app/features/settings/integrations/IntegrationsTab.tsx` | Tab shell; calendar panel eager, ATS panel deferred |
+| `app/features/settings/integrations/IntegrationsTab.tsx` | Tab shell; calendar panel eager, every other panel deferred |
 | `app/features/settings/integrations/IntegrationsCalendarPanel.tsx` | Connect / status / partial-grant / disconnect |
 | `app/features/settings/integrations/IntegrationsCallbackBanner.tsx` | Renders one OAuth callback outcome |
 | `app/features/settings/integrations/IntegrationsAtsPanel.tsx` | List + save/remove orchestration |
 | `app/features/settings/integrations/IntegrationsAtsForm.tsx` | Add/update form |
 | `app/features/settings/integrations/IntegrationsAtsRow.tsx` | One stored connection + removal confirm |
+| `app/features/settings/integrations/IntegrationsWebhookPanel.tsx` | Outbound `kp.ats.v1` write-back: endpoint, signing secret, event subscriptions, test ping |
+| `app/features/settings/integrations/IntegrationsWebhookFields.tsx` | That panel's form fields (URL / secret / events) |
+| `app/api/ats/config/route.ts`, `app/api/ats/test/route.ts` | Write-back config (secret write-only) + test delivery |
 | `app/_lib/calendar/callback-status.ts` | Canonical callback vocabulary + tone + scope slug |
 | `app/_lib/calendar/google-oauth.ts` | Scopes, consent URL, token exchange, revoke, `missingScopes` |
 | `app/_lib/calendar/token-store.ts` | Encrypted per-workspace grant; `getCalendarConnection` never returns a token |

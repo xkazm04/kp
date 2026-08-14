@@ -29,7 +29,7 @@ app/features/
   tools/        analyze, devcases, interview, profile
   shell/        Workspace.tsx + nav/, simulation/, tasks/, setup/ (the frame
                 the menu lives in — sidebar, command palette, keyboard chords,
-                tab catalog, background tasks, simulation dock)
+                tab catalog, AI tasks, simulation dock)
   shared/       cross-cutting types/logic with 2+ feature-group consumers
                 (MatchPresentation, decisionsTypes, groupEvalTypes,
                 matchTypes, pipelineTypes, profileTypes, renderTemplate, …)
@@ -121,6 +121,38 @@ Before the refactor, three things made the tree impossible to split cleanly:
 Anything with more than one feature-group consumer now lives in
 `app/features/shared/`. Nothing in `shared/` may import from a feature group —
 the dependency runs one way.
+
+## `shell/tasks/` — the AI-tasks surface
+
+`?tab=tasks` (labelled **AI tasks**; the id, the chunk and the catalog namespace
+stay `tasks`) is a client-only live view reached from the sidebar footer, not a
+deep-link target — so it is a valid `WorkspaceTabId` but absent from `NAV_GROUPS`.
+
+| File | Role |
+| --- | --- |
+| `TasksProvider.tsx` + `tasksProviderTypes.ts` | Mounted above the tabs: the 2s/6s poll, start/cancel/retry, the read/unread ack. Survives tab switches |
+| `TasksIndicator.tsx` | Sidebar-footer entry: ONGOING count, unread badges, start-failure alert, load meter |
+| `TasksTab.tsx` | Header, start-error banner, the filter state (shared by the live table and the history pager), the dwell-ack |
+| `TasksRunsPanel.tsx` | The recent window as ONE paginated table (`TablePager`, 20 rows) |
+| `TasksTable.tsx` | Table shell + `ColumnFilter` headers, shared by the live window and history |
+| `TasksTableRow.tsx` + `TasksRowActions.tsx` + `TasksOutcome.tsx` | One row shape for every status: progress bar + Cancel while active, outcome drawer + Retry once terminal |
+| `TasksHistory.tsx` | Runs older than the recent window, via the shared infinite-scroll engine |
+| `tasksTabHelpers.ts` (+ `.test.ts`) | Status metadata, the terminal/all status vocabularies, `sortTasks`, time/duration formatting |
+
+Two shape decisions are load-bearing:
+
+- **One table, not two lists.** In-progress and Done used to be separate card
+  lists under separate headings, with no shared sort, filters or pager. They are
+  one table now; `sortTasks` (unit-tested) carries what the headings did — running
+  first, then queued, then terminal runs newest-first.
+- **The tab owns only tasks.** Three unrelated operator panels used to hang below
+  the lists because this was "the operator's tab". They now live where they
+  belong: the System health readout folded into **Models → Usage & cost**
+  (`settings/models/ModelsSystemStrip.tsx`, which already reported half of it),
+  Backup & restore into **Settings → Organization**
+  (`settings/organization/OrganizationBackupPanel.tsx`), and the outbound
+  `kp.ats.v1` webhook into **Settings → Integrations**
+  (`settings/integrations/IntegrationsWebhookPanel.tsx`).
 
 ## Pinned filenames
 

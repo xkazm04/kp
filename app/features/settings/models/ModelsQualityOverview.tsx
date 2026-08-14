@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { PANEL } from "@/app/_components/ui/recipes";
+import { PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
 import {
   BENCH_OPS,
@@ -50,7 +50,17 @@ function rankOp(scores: QualityScores, op: string): OpRank[] {
 export function QualityOverview() {
   const t = useTranslations("models.quality");
   const tOp = useTranslations("models.benchOps");
-  if (!hasQualityScores()) return null;
+  // With no baked matrix this used to render NOTHING, which was fine while it was
+  // one panel among several. It is a whole switchable section now, so silence
+  // would read as a broken tab: say the deployment has no measurements instead.
+  if (!hasQualityScores()) {
+    return (
+      <div>
+        <h3 className="font-serif text-h3 text-ink">{t("title")}</h3>
+        <p className={`${PANEL_SUNKEN} mt-3 p-4 text-base text-steel`}>{t("empty")}</p>
+      </div>
+    );
+  }
 
   const ranking = modelRanking(QUALITY_SCORES);
   const totalOps = Object.keys(QUALITY_SCORES.cells).length;

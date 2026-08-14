@@ -55,6 +55,38 @@ export function duration(start: string | null, end: string | null): string | nul
   return rem ? `${mins}m ${rem}s` : `${mins}m`;
 }
 
-// DATA6 — the status values the filter chips offer (terminal states only; the
-// In-progress group is narrowed by kind/text but not by these).
-export const FILTER_STATUSES: TaskStatus[] = ["failed", "interrupted", "succeeded", "canceled"];
+// DATA6 — the status values the Status column filter offers, in reading order:
+// what is happening now first, then how runs ended. This was terminal-only while
+// the tab drew two separate lists (In progress / Done) and the chips only ever
+// narrowed the second one; the consolidated run table holds both, so "show me
+// only what is queued" is now a question the filter can answer.
+/** The statuses a run can END in — and the only ones the history trail stores
+ *  (app/api/tasks/history/route.ts keeps the wire-side copy of this allow-list). */
+export const TERMINAL_STATUSES: TaskStatus[] = ["succeeded", "failed", "canceled", "interrupted"];
+
+export const ALL_STATUSES: TaskStatus[] = ["running", "queued", ...TERMINAL_STATUSES];
+
+// Active states sort above terminal ones; within each band the newest run leads.
+// Consolidating the two groups into one table means ORDER now carries what the
+// two headings used to, so it is pinned here (and unit-tested) rather than left
+// to whatever order the API happened to return.
+const STATUS_RANK: Record<TaskStatus, number> = {
+  running: 0,
+  queued: 1,
+  succeeded: 2,
+  failed: 2,
+  canceled: 2,
+  interrupted: 2,
+};
+
+/** The timestamp a row is ordered by: when it ended, else when it started, else
+ *  when it was enqueued. 0 for an unparseable stamp (sorts last, never NaN). */
+export function taskTime(task: Task): number {
+  const ms = Date.parse(task.finishedAt ?? task.startedAt ?? task.createdAt);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+/** One list: running, then queued, then terminal runs newest-first. Pure. */
+export function sortTasks(tasks: readonly Task[]): Task[] {
+  return [...tasks].sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status] || taskTime(b) - taskTime(a));
+}

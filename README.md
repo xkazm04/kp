@@ -146,6 +146,11 @@ source mapping is OFF until you relaunch with `npm run dev:inspect`. A gated Tur
 (`scripts/dev-inspector/`) stamps host JSX with `data-loc` only when `DEV_INSPECT=1`; the overlay
 (`app/_dev-inspector/`) reads it at runtime. Both are absent from production.
 
+The loader runs on **Turbopack**, like every other command here. It briefly ran on webpack after
+a 2026-06-18 worker-storm incident; a rule `condition` (Next 16) now keeps it off `node_modules`
+and Next internals, which was the cause. `npm run dev:inspect:webpack` is the escape hatch if the
+Turbopack path ever misbehaves — same stamps, slower compile. See the comment in `next.config.ts`.
+
 ### Workspace data — seeding, dump & restore
 
 Everything the app persists lives in **one SQLite file**: `data/kp.sqlite` (override with `KP_DB_PATH`). All ~26 tables — pipeline entries/events, profiles, jobs, analyses, interview sessions & preps, dev cases/postings/submissions/lifecycle, offers, schedule invites, scheduler state, group evals, JD templates, decision config, audit — share that file; `db.ts` and each isolated store create their tables lazily and run their own ALTER-if-missing migrations on boot.

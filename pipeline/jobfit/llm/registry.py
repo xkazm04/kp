@@ -50,6 +50,58 @@ def _production_gemini_default(use_case: str, cfg: LLMConfig | None, timeout: in
     return provider if provider.available() else None
 
 
+# The use case a bare provider/key probe runs under. Deliberately its OWN name
+# rather than borrowing a production one: the probe is real metered spend, so it
+# lands in the usage ledger, and filing it under `match_reasoning` would inflate a
+# real use case's call count with admin traffic. Unknown use cases fall back to
+# {json} requirements and no max-tokens override, which is exactly what a
+# hello-world canary wants.
+KEY_PROBE_USE_CASE = "key_probe"
+
+
+def probe_provider(provider_name: str, *, model: str | None = None, timeout: int | None = None) -> Any:
+    """Adapter for ONE provider by name, bypassing use-case routing entirely.
+
+    ``resolve_provider`` answers "who serves this use case"; this answers "can
+    this provider's credentials complete a request at all". That is the question
+    the Models keys panel asks when an operator saves a key and presses Test, and
+    routing must not enter into it: a key can be perfectly valid while no use case
+    is pinned to its provider.
+
+    Raises LLMError for an unknown provider or one whose model cannot be resolved
+    (Azure deployments, OpenRouter/Ollama/Qwen slugs are customer-named, so the
+    caller must pass ``model``). Missing keys/SDKs report through ``available()``
+    as usual, not by raising.
+    """
+    if provider_name not in PROVIDER_CAPABILITIES:
+        raise LLMError(f"unknown LLM provider {provider_name!r} (known: {sorted(PROVIDER_CAPABILITIES)})")
+
+    cfg = load_config()
+    timeout_s = timeout or DEFAULT_TIMEOUT_S
+
+    if provider_name == "claude_cli":
+        return MonitoredClaudeCli(model=model, timeout=timeout_s, use_case=KEY_PROBE_USE_CASE)
+
+    resolved_model = model or default_model(KEY_PROBE_USE_CASE, provider_name)
+    if not resolved_model:
+        raise LLMError(f"provider {provider_name!r} needs an explicit model to probe (no built-in default)")
+
+    keys = cfg.keys.get(provider_name) if cfg else None
+    kwargs: dict[str, Any] = {
+        "model": resolved_model,
+        "api_key": keys.api_key if keys else None,
+        "timeout": timeout_s,
+        "use_case": KEY_PROBE_USE_CASE,
+    }
+    if provider_name == "azure_openai":
+        kwargs["endpoint"] = keys.endpoint if keys else None
+        kwargs["api_version"] = keys.api_version if keys else None
+    elif provider_name in ("openai", "ollama", "qwen"):
+        kwargs["base_url"] = keys.base_url if keys else None
+
+    return ADAPTERS[provider_name](**kwargs)
+
+
 def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
     """Provider instance for ``use_case`` (ClaudeCliProvider-compatible)."""
     cfg = load_config()

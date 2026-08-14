@@ -4856,7 +4856,19 @@
       "backup": {
         "title": "Zálohování a obnovení",
         "meta": "celá databáze",
-        "intro": "Jeden soubor JSON obsahuje celou databázi kp: všechna data napříč všemi pracovními prostory (bez cache promptů a stavu běhu úloh), ne výřez jednoho prostoru. Zálohujte před riskantní hromadnou akcí; obnovení přenese celou databázi mezi počítači. Export a obnovení po jednotlivých prostorech jsou známým nedostatkem a obnovení je při zapnutém režimu více prostorů zcela odmítnuto, protože by přepsalo všechny prostory najednou.",
+        "lede": "Přesuňte všechna data ven i zpět jako jeden soubor.",
+        "flowExport": "Záloha",
+        "flowExportA": "Všechna data",
+        "flowExportB": "Jeden soubor",
+        "exportNote": "Jen ke čtení. Tady se nic nemění.",
+        "flowRestore": "Obnovení",
+        "flowRestoreA": "Váš soubor",
+        "flowRestoreB": "Náhled",
+        "flowRestoreC": "Všechna data",
+        "restoreNote": "Nic se nepřepíše, dokud nenapíšete {word}.",
+        "scopeAll": "Zahrnuje všechny pracovní prostory, nejen tento",
+        "scopeExcluded": "Vynechává cache AI a frontu úloh",
+        "scopeSingle": "Obnovení je odmítnuto, když je zapnuto více pracovních prostorů",
         "download": "Stáhnout zálohu",
         "restoreFrom": "Obnovit ze souboru…",
         "working": "Zpracování…",
@@ -5126,9 +5138,18 @@
   "analytics": {
     "sections": {
       "label": "Sekce analytiky",
-      "performance": { "name": "Výkon", "hint": "Trychtýř, výhled, role" },
-      "economics": { "name": "Ekonomika", "hint": "Náklady, zdroje, ROI" },
-      "quality": { "name": "Kvalita a audit", "hint": "Kalibrace, rozhodnutí" }
+      "performance": {
+        "name": "Výkon",
+        "hint": "Trychtýř, výhled, role"
+      },
+      "economics": {
+        "name": "Ekonomika",
+        "hint": "Náklady, zdroje, ROI"
+      },
+      "quality": {
+        "name": "Kvalita a audit",
+        "hint": "Kalibrace, rozhodnutí"
+      }
     },
     "statHiredOfTotal": "z {total}",
     "bottleneckPlain": "{count} kandidátů uvízlo ve fázi {stage}, v průměru {days} dní",
@@ -6343,7 +6364,8 @@
       "colBest": "Nejlepší model",
       "colRunnerUp": "Druhý",
       "na": "n/a",
-      "method": "Změřeno {date} · rozhodčí {judge} · {n} případů · {limit} běhů/buňka. Složené skóre 0–10: správnost a splnění úkolu váženo výše, relevance níže; nevalidní výstup penalizován. Malý počet běhů je nespolehlivý, berte ho proto jen orientačně."
+      "method": "Změřeno {date} · rozhodčí {judge} · {n} případů · {limit} běhů/buňka. Složené skóre 0–10: správnost a splnění úkolu váženo výše, relevance níže; nevalidní výstup penalizován. Malý počet běhů je nespolehlivý, berte ho proto jen orientačně.",
+      "empty": "Zatím žádná naměřená kvalita. Toto nasazení nemá zabudovanou srovnávací matici, takže není co řadit."
     },
     "benchOps": {
       "match_reasoning": "Zdůvodnění shody",
@@ -6368,6 +6390,26 @@
     "loading": "Načítá se nastavení modelů…",
     "loadFailed": "Nastavení modelů se nepodařilo načíst. Zkontrolujte připojení a zkuste to znovu.",
     "retry": "Zkusit znovu",
+    "sections": {
+      "label": "Sekce modelů",
+      "routing": "Směrování",
+      "quality": "Kvalita modelů",
+      "keys": "API klíče (BYOM)"
+    },
+    "testReason": {
+      "auth": "Poskytovatel tento klíč odmítl.",
+      "rate_limit": "Poskytovatel test omezil kvůli limitu. Zkuste to za chvíli znovu.",
+      "connection": "K poskytovateli se nepodařilo připojit.",
+      "timeout": "Poskytovatel neodpověděl včas.",
+      "invalid_model": "Poskytovatel odmítl model nebo požadavek.",
+      "permission": "Tento klíč nemá k danému modelu přístup.",
+      "unavailable": "Není co volat: na serveru chybí použitelný klíč nebo SDK.",
+      "bad_payload": "Poskytovatel odpověděl, ale ne tím, co bylo požadováno.",
+      "provider_error": "Poskytovatel test odmítl.",
+      "model_required": "Zadejte název modelu nebo nasazení a test spusťte znovu.",
+      "not_found": "Tento klíč už není uložen. Načtěte panel znovu.",
+      "unknown_provider": "Tento poskytovatel uložený klíč nepoužívá."
+    },
     "routing": {
       "title": "Směrování",
       "intro": "Připnutý řádek přepíše vestavěné výchozí nastavení dané úlohy; úlohy bez připnutí běží na vestavěném výchozím modelu (lokálně Claude CLI).",
@@ -6511,7 +6553,15 @@
       "saveFailed": "Klíč se nepodařilo uložit.",
       "kpSecretHint": "Řešení: nastavte na serveru proměnnou prostředí KP_SECRET a uložte klíč znovu.",
       "replace": "Nahradit klíč",
-      "replaceWarning": "Klíč pro {provider} ({scope}) už existuje. Uložením jej přepíšete. Tuto akci nejde vrátit zpět."
+      "replaceWarning": "Klíč pro {provider} ({scope}) už existuje. Uložením jej přepíšete. Tuto akci nejde vrátit zpět.",
+      "test": "Otestovat",
+      "testing": "Testuji…",
+      "testAria": "Odeslat testovací požadavek s klíčem {provider} ({scope})",
+      "testOk": "Klíč funguje. Model {model} odpověděl za {latency} ms.",
+      "testOkNoLatency": "Klíč funguje. Model {model} odpověděl.",
+      "testFailed": "Test selhal.",
+      "testModelLabel": "Model k volání",
+      "testModelPlaceholder": "nasazení nebo identifikátor modelu"
     },
     "useCaseDesc": {
       "match_reasoning": "Píše zdůvodnění pro náboráře, proč kandidát na pozici sedí, nebo nesedí.",

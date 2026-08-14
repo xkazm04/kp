@@ -363,15 +363,20 @@ the pack (it is on the JSON response too), so it is resolved at **build** time, 
 render time, and `metric-pack.test.ts` asserts a Czech pack contains no English
 basis sentence.
 
-`TasksSystemCard` used to be listed here as a sanctioned "untranslated admin
-readout". It is not one any more, and the reasoning it rested on is worth
+The old `TasksSystemCard` used to be listed here as a sanctioned "untranslated
+admin readout". It is not one any more, and the reasoning it rested on is worth
 recording because it recurs: the card's own comment justified English "like the
 rest of this surface", the sibling cards justified it "like SystemCard", and the
 circle held after the surface around them was localized. An operator reading a
-health panel is a UI user. The whole Background-tasks tab now reads from the
-`tasks` namespace; what stays English there is machine payload — `/api/ops`'s
-`degradedReasons` (canonical server diagnostics, no `code` to resolve), engine
-and table names, stage keys, and the env-var / PATH preflight tooltips.
+health panel is a UI user. Those three panels have since moved to the surfaces
+that own them — the health readout into Models → Usage & cost
+(`models.system`), backup/restore into Settings → Organization
+(`workspaceAdmin.org.backup`), the ATS write-back webhook into Settings →
+Integrations (`integrations.webhook`) — and each moved WITH its catalog subtree,
+so the namespace still names the surface. What stays English is machine payload:
+`/api/ops`'s `degradedReasons` (canonical server diagnostics, no `code` to
+resolve), engine and table names, stage keys, task-kind slugs, and the env-var /
+PATH preflight tooltips.
 
 ### A third case: a string written with no reader at all
 

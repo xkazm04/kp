@@ -212,6 +212,55 @@ class LedgerSidecarTest(unittest.TestCase):
             self.assertEqual(row["cost_usd"], 0.0001)
             self.assertEqual(row["source"], "llm")
 
+    def test_ledger_line_carries_the_request_id_when_set(self) -> None:
+        """The join key behind Insights → Activity's row detail. KP_LLM_REQUEST_ID
+        is set per spawn by python-runner.ts from the ambient background-task
+        scope; it rides the ledger line as `request_id`, which parseLedgerLine
+        already maps into llm_usage. Without it the column stays the null it was
+        for its whole life and no activity row can reach its output."""
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.ndjson")
+            env = {"KP_LLM_USAGE_LOG": path, "KP_LLM_REQUEST_ID": "t_abc123"}
+            with mock.patch.dict(os.environ, env, clear=False):
+                os.environ.pop("LIGHTTRACK_URL", None)
+                StubProvider([_result()], use_case="match_reasoning").complete("hi")
+            row = json.loads(open(path, encoding="utf-8").read().splitlines()[0])
+            self.assertEqual(row["request_id"], "t_abc123")
+
+    def test_request_id_is_null_outside_a_tracked_run(self) -> None:
+        """A CLI spawned outside a task scope (an inline route, a direct run, a
+        test) must emit request_id: null — NOT a stale value and not a missing
+        key. The TS side reads the key defensively either way, but a null is the
+        honest "this call belonged to no tracked run"."""
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.ndjson")
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": path}, clear=False):
+                os.environ.pop("LIGHTTRACK_URL", None)
+                os.environ.pop("KP_LLM_REQUEST_ID", None)
+                StubProvider([_result()], use_case="match_reasoning").complete("hi")
+            row = json.loads(open(path, encoding="utf-8").read().splitlines()[0])
+            self.assertIn("request_id", row)
+            self.assertIsNone(row["request_id"])
+
+    def test_blank_request_id_is_treated_as_absent(self) -> None:
+        """An empty/whitespace env value is the same fact as unset — it must not
+        become an empty-string request_id that the detail would then try to fetch
+        a task for."""
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.ndjson")
+            env = {"KP_LLM_USAGE_LOG": path, "KP_LLM_REQUEST_ID": "   "}
+            with mock.patch.dict(os.environ, env, clear=False):
+                os.environ.pop("LIGHTTRACK_URL", None)
+                StubProvider([_result()], use_case="match_reasoning").complete("hi")
+            row = json.loads(open(path, encoding="utf-8").read().splitlines()[0])
+            self.assertIsNone(row["request_id"])
+
     def test_no_ledger_file_when_env_unset(self) -> None:
         monitor.reset()
         self.addCleanup(monitor.reset)

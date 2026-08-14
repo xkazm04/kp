@@ -2,6 +2,7 @@ import { lifecycleByPosting } from "./db/devcase";
 import { getPipelineEntry, listActiveEntriesForAutomation } from "./db/pipeline";
 import { createTask, finishTask, getActiveTaskByDedupe, getTask, interruptStaleTasks, listQueuedTaskIds, listRunningTaskTimes, pruneFinishedTasks, markTaskRunning, setTaskProgress, type TaskRecord } from "./db/tasks";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { withLlmRequestId } from "./llm-request-context";
 import {
   TASK_MAX_RUNTIME_MS,
   TASK_RETENTION_DAYS,
@@ -407,13 +408,20 @@ async function runOne(id: string): Promise<void> {
     running += 1;
     controllers.set(id, controller);
     markTaskRunning(id);
-    const runPromise = spec.run({
-      taskId: id,
-      workspaceId: task.workspaceId,
-      params: (task.params as Record<string, unknown>) ?? {},
-      progress: (d, t, m) => setTaskProgress(id, d, t, m),
-      signal: controller.signal,
-    });
+    // Open the ambient LLM-request scope around the handler: every spawnPython
+    // call it makes, at any async depth, tags its metered ledger rows with this
+    // task id (see llm-request-context.ts). That's the join key the Insights →
+    // Activity row-click detail uses to fetch the run whose output the row
+    // produced — without it, `request_id` stays the null it has always been.
+    const runPromise = withLlmRequestId(id, () =>
+      spec.run({
+        taskId: id,
+        workspaceId: task.workspaceId,
+        params: (task.params as Record<string, unknown>) ?? {},
+        progress: (d, t, m) => setTaskProgress(id, d, t, m),
+        signal: controller.signal,
+      })
+    );
     // A hung handler that loses this race is orphaned (a JS promise can't be
     // force-killed); swallow any late rejection so it can't surface as an
     // unhandledRejection after we've already moved the slot on.

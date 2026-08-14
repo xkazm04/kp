@@ -57,6 +57,17 @@ def _ledger_path() -> str | None:
     return raw
 
 
+def _request_id() -> str | None:
+    """The background-task run this spawn belongs to, set per spawn by the TS
+    seam (python-runner.ts) from the ambient task scope. Stamped onto every
+    ledger line as ``request_id`` — the join key the Insights → Activity detail
+    uses to pull up the run whose output the row produced. Absent when the CLI
+    was spawned outside a task (an inline route, a direct CLI run, a test): the
+    column stays null, exactly as it was before this was wired."""
+    raw = os.getenv("KP_LLM_REQUEST_ID")
+    return raw.strip() or None if raw else None
+
+
 def reset() -> None:
     """Forget the cached client (tests; env changes mid-process)."""
     global _client_cache
@@ -141,6 +152,7 @@ def _append_ledger(
                 "cached_tokens": cached_tokens,
                 "cost_usd": cost_usd,
                 "source": source,
+                "request_id": _request_id(),
             },
             ensure_ascii=False,
         )

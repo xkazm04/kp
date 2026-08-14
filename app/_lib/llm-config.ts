@@ -71,6 +71,12 @@ export function isKeyableProvider(value: unknown): value is LlmProvider {
   return isLlmProvider(value) && !KEYLESS_PROVIDERS.includes(value);
 }
 
+// Which providers must be told a model (Azure deployments, OpenRouter/Qwen/Ollama
+// slugs) lives in its own store-free module so the browser and `node --test` can
+// both load it; re-exported here so llm-config stays the one import for the
+// provider catalogs.
+export { MODEL_REQUIRED_PROVIDERS, providerNeedsExplicitModel } from "./llm-model-defaults";
+
 export function isLlmUseCase(value: unknown): value is LlmUseCase {
   return typeof value === "string" && (LLM_USE_CASES as readonly string[]).includes(value);
 }
@@ -243,4 +249,24 @@ export function buildLlmConfigEnv(): Record<string, string> {
   }
 
   return { [KP_LLM_CONFIG_ENV]: JSON.stringify({ useCases, keys }) };
+}
+
+/**
+ * Env fragment for a canary against ONE stored key — the keys panel's Test
+ * button. Deliberately NOT `buildLlmConfigEnv()`: that builder applies the
+ * byom-over-platform precedence, so a "Test" on a platform row would silently
+ * prove the BYOM key sitting above it and report success for a credential that
+ * was never called. This carries exactly the (provider, scope) row asked about
+ * and no routing at all, so the verdict is about that key and nothing else.
+ *
+ * Returns null when the row does not exist. Decryption failures throw, same
+ * contract as buildLlmConfigEnv.
+ */
+export function buildProviderKeyProbeEnv(provider: string, scope: string): Record<string, string> | null {
+  const row = listProviderKeys().find((candidate) => candidate.provider === provider && candidate.scope === scope);
+  if (!row) return null;
+  const entry: KeysEntry = { apiKey: decryptProviderSecret(row.keyCiphertext) };
+  if (typeof row.meta.endpoint === "string") entry.endpoint = row.meta.endpoint;
+  if (typeof row.meta.apiVersion === "string") entry.apiVersion = row.meta.apiVersion;
+  return { [KP_LLM_CONFIG_ENV]: JSON.stringify({ useCases: {}, keys: { [provider]: entry } }) };
 }

@@ -1,23 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
+import { AnimatePresence, motion } from "framer-motion";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
-import { Defer } from "@/app/_components/ui/Defer";
 import { AnalyticsHeader } from "./AnalyticsHeader";
-import { AnalyticsMainGrid } from "./AnalyticsMainGrid";
-import { AnalyticsByRoleTable } from "./AnalyticsByRoleTable";
-import {
-  MomentumPanel,
-  OrgBenchmarkPanel,
-  CalibrationPanel,
-  DecisionRecordsPanel,
-  ChannelEconomicsPanel,
-  ComputeCostPanel,
-  DecisionLog,
-} from "./AnalyticsTabChunks";
+import { AnalyticsSectionNav } from "./sections/AnalyticsSectionNav";
+import { resolveAnalyticsSection, type AnalyticsSectionId } from "./sections/analyticsSections";
 import type { Analytics } from "./AnalyticsTypes";
 
 // Re-exported for the split-out panels/tests that still import these two
@@ -29,13 +22,32 @@ export { DeltaChip } from "./AnalyticsDeltaChip";
 export { InlineNumberSave } from "./AnalyticsInlineNumberSave";
 export type { Analytics } from "./AnalyticsTypes";
 
+// Each section is its own chunk. This is the point of the split: the tab used to
+// be one ~10-panel scroll whose entire cost — the reliability diagram, the sealed
+// floor strip, the paged decision log, several tables — was paid on every visit,
+// including by the reader who came for the funnel. Now only the active section's
+// code is fetched. The gap is a quiet reserved box, never a skeleton.
+const sectionGap = () => <div className="reveal-quiet min-h-[28rem]" aria-hidden />;
+const PerformanceSection = dynamic(() => import("./sections/PerformanceSection").then((m) => ({ default: m.PerformanceSection })), {
+  loading: sectionGap,
+});
+const EconomicsSection = dynamic(() => import("./sections/EconomicsSection").then((m) => ({ default: m.EconomicsSection })), {
+  loading: sectionGap,
+});
+const QualitySection = dynamic(() => import("./sections/QualitySection").then((m) => ({ default: m.QualitySection })), {
+  loading: sectionGap,
+});
+
 export function AnalyticsTab() {
   const t = useTranslations("analytics");
   const enumLabel = useEnumLabel();
   const search = useSearchParams();
+  const router = useRouter();
+  const reduced = useReducedMotion();
+
   // Review-only: see the funnel zero state on any workspace (see the branch below).
   const forceFunnelEmpty = search.get("funnelEmpty") === "1";
-  const router = useRouter();
+
   // ANA2 — cohort window. Changing it swaps the fetch URL; useJsonFetch refires
   // on the change (prior data stays visible until the new payload lands).
   // Held in the URL (?win=30|90; absent = all time), NOT component state: a
@@ -47,6 +59,15 @@ export function AnalyticsTab() {
   const days: number | null = winParam === "30" ? 30 : winParam === "90" ? 90 : null;
   const setDays = (w: number | null) =>
     router.replace(buildUrl({ win: w ? String(w) : null }, search.toString()), { scroll: false });
+
+  // The active section rides the URL for the same reasons the window does — a
+  // link to "Analytics → Quality & audit" is a thing people send each other, and
+  // an auditor who reloads should land back where they were. Unknown values fall
+  // back to the default rather than rendering nothing (resolveAnalyticsSection).
+  const section = resolveAnalyticsSection(search.get("sec"));
+  const setSection = (id: AnalyticsSectionId) =>
+    router.replace(buildUrl({ sec: id }, search.toString()), { scroll: false });
+
   const { data, error, reload } = useJsonFetch<Analytics>(
     days ? `/api/analytics?days=${days}` : "/api/analytics",
     t("loadFailed")
@@ -61,20 +82,22 @@ export function AnalyticsTab() {
 
   // ce8e3c9e — index the per-stage conversion deltas by stage for the funnel render.
   // Guarded (data may still be null): computed once here instead of duplicated at
-  // each of the two call sites below.
+  // each of the call sites below.
   const maxReached = data ? Math.max(1, ...data.funnel.map((f) => f.reached)) : 1;
   const convDeltaByStage = new Map((data?.deltas?.funnel ?? []).map((f) => [f.stage, f.conversionPct]));
 
   return (
-    // Tier 1 (docs/design/loading-choreography.md): the header + window switcher render
+    // Tier 1 (docs/design/loading-choreography.md): the header + switchers render
     // on the first frame regardless of the fetch; aria-busy covers the initial
     // load only — a later refresh (window switch, reload()) never blanks what's
     // already on screen.
     <section className="stagger-children space-y-6" aria-busy={!data && !error}>
       <AnalyticsHeader data={data} error={error} days={days} setDays={setDays} />
 
-      {/* Tier 2: the error affordance the tab already used, now nested under the
-          always-rendering header instead of replacing the whole tab. */}
+      <AnalyticsSectionNav section={section} onSection={setSection} />
+
+      {/* Tier 2: the error affordance, nested under the always-rendering header
+          and switcher instead of replacing the whole tab. */}
       {error ? (
         <div role="alert" className="flex flex-wrap items-center gap-3 text-base text-coral">
           <span>{error}</span>
@@ -88,89 +111,39 @@ export function AnalyticsTab() {
         </div>
       ) : null}
 
-      {/* Tier 2: the primary funnel/forecast/archetype/automation/source grid —
-          the tab's main event. Hold its height while the fetch is in flight
+      {/* Tier 2: hold the height while the first fetch is in flight
           (reveal-quiet: invisible for 150ms so a fast response paints nothing),
-          then fade the real content in place once it lands. A later refresh
-          re-renders this same branch silently — data already on screen is never
-          blanked because `data` stays non-null across a reload(). */}
+          then fade the section in. A later refresh re-renders the same branch
+          silently — `data` stays non-null across a reload(), so nothing blanks. */}
       {!data && !error ? (
         <div className="reveal-quiet min-h-[28rem]" aria-hidden />
       ) : data ? (
-        <AnalyticsMainGrid
-          data={data}
-          enumLabel={enumLabel}
-          maxReached={maxReached}
-          convDeltaByStage={convDeltaByStage}
-          boardHref={boardHref}
-          forceFunnelEmpty={forceFunnelEmpty}
-          reload={reload}
-          tabScopedSearch={search.toString()}
-        />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={section}
+            initial={reduced ? { opacity: 0 } : { opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduced ? 0.12 : 0.18, ease: "easeOut" }}
+          >
+            {section === "performance" ? (
+              <PerformanceSection
+                data={data}
+                enumLabel={enumLabel}
+                maxReached={maxReached}
+                convDeltaByStage={convDeltaByStage}
+                boardHref={boardHref}
+                forceFunnelEmpty={forceFunnelEmpty}
+                reload={reload}
+              />
+            ) : null}
+            {section === "economics" ? (
+              <EconomicsSection data={data} reload={reload} tabScopedSearch={search.toString()} />
+            ) : null}
+            {section === "quality" ? <QualitySection /> : null}
+          </motion.div>
+        </AnimatePresence>
       ) : null}
-
-      {/* Tier 3 (docs/design/loading-choreography.md): MomentumPanel is just below the
-          primary grid — its own chunk, one frame later so it never competes with
-          the funnel/forecast paint. */}
-      {data ? (
-        <Defer strategy="next-frame">
-          <MomentumPanel weeks={data.momentum} />
-        </Defer>
-      ) : null}
-
-      {/* Tier 3: each of these runs its OWN fetch, independent of the main
-          analytics payload — never held on a sibling (law 4). They mount an idle
-          beat later purely so their charts/tables don't all commit on one frame. */}
-      <Defer strategy="idle">
-        <OrgBenchmarkPanel />
-      </Defer>
-
-      <Defer strategy="idle">
-        <CalibrationPanel />
-      </Defer>
-
-      <Defer strategy="idle">
-        <DecisionRecordsPanel />
-      </Defer>
-
-      {/* Tier 3: heavy, data-dependent, below-the-fold tables — deferred until
-          scrolled near (strategy="visible"); most sessions never build them. */}
-      {data ? (
-        <Defer strategy="visible">
-          <ChannelEconomicsPanel
-            rows={data.byChannel}
-            deltas={data.deltas?.byChannel ?? null}
-            variants={data.byVariant}
-            variantTotal={data.byVariantTotal}
-            recommendations={data.variantRecommendations}
-            onSpendSaved={reload}
-            windowed={data.windowDays != null}
-          />
-        </Defer>
-      ) : null}
-
-      {data ? (
-        <Defer strategy="visible">
-          <ComputeCostPanel
-            computeCost={data.computeCost}
-            costPerHireCzk={data.costPerHireCzk}
-            hired={data.hired}
-            windowed={data.windowDays != null}
-          />
-        </Defer>
-      ) : null}
-
-      {data ? (
-        <Defer strategy="visible">
-          <AnalyticsByRoleTable data={data} boardHref={boardHref} />
-        </Defer>
-      ) : null}
-
-      {/* Tier 3: the paged decision log — its own fetch (useInfiniteScroll), own
-          chunk, deferred until scrolled near like the tables above it. */}
-      <Defer strategy="visible">
-        <DecisionLog />
-      </Defer>
     </section>
   );
 }

@@ -149,17 +149,56 @@ const nextConfig: NextConfig = {
 // DEV_INSPECT=1), so a normal `npm run dev` and every production build are
 // completely unaffected. See scripts/dev-inspector/.
 //
-// Registered through WEBPACK (`enforce: 'pre'`), NOT Turbopack. Turbopack runs
-// JS loaders in Node subprocess workers that over-spawn and orphan on Windows:
-// on 2026-06-18 a `dev:inspect` run leaked ~2,800 parked node workers (15.8 GB)
-// because the dev server's loader workers were never reaped. webpack's loader
-// pipeline runs in-process and is bounded, so the inspector is storm-free.
-// `npm run dev:inspect` therefore launches `next dev --webpack` (see
-// package.json) to select this path. Under Turbopack this rule is never
-// registered at all, so the inspector simply no-ops instead of storming
-// (fail-safe) if someone runs DEV_INSPECT=1 without --webpack.
-if (process.env.DEV_INSPECT === "1") {
-  const loader = path.join(process.cwd(), "scripts", "dev-inspector", "source-loc-loader.cjs");
+// TURBOPACK is the default path, matching the rest of the repo (Next 16 runs
+// Turbopack for `next dev` and `next build`; `--webpack` is the opt-OUT).
+//
+// This ran on webpack from 2026-06-18 to 2026-08-13. Turbopack executes JS
+// loaders in Node subprocess workers, the rule was unconditional, and Windows
+// does not cascade a kill down the process tree — so one `dev:inspect` run
+// leaked ~2,800 parked node workers holding 15.8 GB. Two things changed since:
+//   - `condition` on a Turbopack rule (new in Next 16.0) keeps the loader off
+//     everything but this repo's own dev-mode JSX. `{ not: "foreign" }` excludes
+//     node_modules AND Next's internals — the bulk of the module graph — so
+//     those modules are never dispatched to a worker at all, rather than
+//     dispatched and no-op'd inside the loader.
+//   - scripts/dev-guard.mjs now reaps the whole tree (`taskkill /T /F`) on every
+//     exit path and trips a circuit breaker at DEV_GUARD_MAX_NODE, so a storm
+//     can neither survive the dev server nor run away while it is up.
+//
+// Measured on Windows when this moved back (2026-08-13), baseline 10 node procs:
+// a COLD compile (turbopack cache wiped) of 22 routes peaked at 29, and 12
+// consecutive HMR recompiles of a hot component held flat at 29 with no worker
+// accumulation — against a breaker at 150 and an old failure mode of ~2,800.
+// Output is identical between bundlers: 101 `data-loc` stamps on `/?tab=hiring`
+// either way.
+//
+// `npm run dev:inspect:webpack` still selects the webpack branch further below
+// as an escape hatch. Reach for it only if the Turbopack path misbehaves.
+if (process.env.DEV_INSPECT === "1" && process.env.DEV_INSPECT_BUNDLER !== "webpack") {
+  const loader = path.join(import.meta.dirname, "scripts", "dev-inspector", "source-loc-loader.cjs");
+  // NOT restricted to the `browser` condition: a host element rendered by a
+  // Server Component reaches the DOM through the RSC payload, so the server
+  // compile has to be stamped too or server-rendered markup carries no data-loc.
+  const inspectorRule: NonNullable<NonNullable<NextConfig["turbopack"]>["rules"]>[string] = {
+    condition: { all: [{ not: "foreign" }, "development"] },
+    loaders: [{ loader, options: { rootDir: import.meta.dirname } }],
+  };
+  // Merge — `turbopack.root` above is load-bearing for the loader's asset
+  // filesystem (the app/*-icon metadata routes fail without it).
+  nextConfig.turbopack = {
+    ...nextConfig.turbopack,
+    rules: { "*.tsx": inspectorRule, "*.jsx": inspectorRule },
+  };
+}
+
+// The webpack escape hatch for the inspector — `npm run dev:inspect:webpack`
+// (DEV_INSPECT_BUNDLER=webpack + `next dev --webpack`). Kept because this is the
+// configuration that was proven storm-free on Windows for two months; see the
+// history in the Turbopack block above. A `webpack` key present in the config
+// makes `next build` fail fast under Turbopack, which is why it stays gated
+// behind the env var rather than being registered unconditionally.
+if (process.env.DEV_INSPECT === "1" && process.env.DEV_INSPECT_BUNDLER === "webpack") {
+  const loader = path.join(import.meta.dirname, "scripts", "dev-inspector", "source-loc-loader.cjs");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   nextConfig.webpack = (config: any, context: any) => {
     config.module = config.module || { rules: [] };

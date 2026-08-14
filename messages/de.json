@@ -4856,7 +4856,19 @@
       "backup": {
         "title": "Sicherung & Wiederherstellung",
         "meta": "gesamte Datenbank",
-        "intro": "Eine einzige JSON-Datei enthält die gesamte kp-Datenbank: alle Daten über alle Arbeitsbereiche hinweg (ohne Prompt-Cache und Zustand des Task-Runners), nicht den Ausschnitt eines einzelnen Arbeitsbereichs. Erstellen Sie eine Sicherung vor einer riskanten Massenaktion; die Wiederherstellung verschiebt die ganze Datenbank zwischen Rechnern. Export und Wiederherstellung je Arbeitsbereich sind eine bekannte Lücke, und die Wiederherstellung wird im Mehrbereichsmodus vollständig abgelehnt, weil sie alle Bereiche auf einmal ersetzen würde.",
+        "lede": "Verschieben Sie alle Daten als eine einzige Datei.",
+        "flowExport": "Sicherung",
+        "flowExportA": "Alle Daten",
+        "flowExportB": "Eine Datei",
+        "exportNote": "Nur lesend. Hier ändert sich nichts.",
+        "flowRestore": "Wiederherstellung",
+        "flowRestoreA": "Ihre Datei",
+        "flowRestoreB": "Vorschau",
+        "flowRestoreC": "Alle Daten",
+        "restoreNote": "Es wird nichts überschrieben, bis Sie {word} eintippen.",
+        "scopeAll": "Umfasst alle Workspaces, nicht nur diesen",
+        "scopeExcluded": "Ohne KI-Cache und Aufgabenwarteschlange",
+        "scopeSingle": "Wiederherstellung wird abgelehnt, solange mehrere Workspaces aktiv sind",
         "download": "Sicherung herunterladen",
         "restoreFrom": "Aus Datei wiederherstellen…",
         "working": "Wird ausgeführt…",
@@ -5126,9 +5138,18 @@
   "analytics": {
     "sections": {
       "label": "Analytics-Bereich",
-      "performance": { "name": "Leistung", "hint": "Funnel, Prognose, Rollen" },
-      "economics": { "name": "Wirtschaftlichkeit", "hint": "Kosten, Quellen, ROI" },
-      "quality": { "name": "Qualität & Audit", "hint": "Kalibrierung, Entscheidungen" }
+      "performance": {
+        "name": "Leistung",
+        "hint": "Funnel, Prognose, Rollen"
+      },
+      "economics": {
+        "name": "Wirtschaftlichkeit",
+        "hint": "Kosten, Quellen, ROI"
+      },
+      "quality": {
+        "name": "Qualität & Audit",
+        "hint": "Kalibrierung, Entscheidungen"
+      }
     },
     "statHiredOfTotal": "von {total}",
     "bottleneckPlain": "{count} Kandidaten hängen in {stage} fest, im Schnitt {days} Tage",
@@ -6343,7 +6364,8 @@
       "colBest": "Top-Modell",
       "colRunnerUp": "Zweitbestes",
       "na": "k. A.",
-      "method": "Gemessen am {date} · Judge {judge} · {n} Fälle · {limit} Lauf/Läufe pro Zelle. Gesamtscore 0–10: Korrektheit + Aufgabentreue höher gewichtet, Relevanz niedriger; ungültige Ausgabe wird abgewertet. Kleine Laufzahlen sind verrauscht, verstehen Sie sie daher nur als Richtungsangabe."
+      "method": "Gemessen am {date} · Judge {judge} · {n} Fälle · {limit} Lauf/Läufe pro Zelle. Gesamtscore 0–10: Korrektheit + Aufgabentreue höher gewichtet, Relevanz niedriger; ungültige Ausgabe wird abgewertet. Kleine Laufzahlen sind verrauscht, verstehen Sie sie daher nur als Richtungsangabe.",
+      "empty": "Noch keine Messwerte. Diese Installation enthält keine eingebackene Benchmark-Matrix, also gibt es nichts zu ranken."
     },
     "benchOps": {
       "match_reasoning": "Match-Begründung",
@@ -6368,6 +6390,26 @@
     "loading": "Modelleinstellungen werden geladen…",
     "loadFailed": "Modelleinstellungen konnten nicht geladen werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
     "retry": "Erneut versuchen",
+    "sections": {
+      "label": "Modellbereiche",
+      "routing": "Routing",
+      "quality": "Modellqualität",
+      "keys": "API-Schlüssel (BYOM)"
+    },
+    "testReason": {
+      "auth": "Der Anbieter hat diesen Schlüssel abgelehnt.",
+      "rate_limit": "Der Anbieter hat den Test gedrosselt. Versuchen Sie es gleich erneut.",
+      "connection": "Der Anbieter war nicht erreichbar.",
+      "timeout": "Der Anbieter hat nicht rechtzeitig geantwortet.",
+      "invalid_model": "Der Anbieter hat das Modell oder die Anfrage abgelehnt.",
+      "permission": "Dieser Schlüssel hat keinen Zugriff auf dieses Modell.",
+      "unavailable": "Nichts zu rufen: kein nutzbarer Schlüssel und kein SDK auf dem Server.",
+      "bad_payload": "Der Anbieter hat geantwortet, aber nicht mit dem Angeforderten.",
+      "provider_error": "Der Anbieter hat den Test verweigert.",
+      "model_required": "Nennen Sie das Modell oder Deployment und starten Sie den Test erneut.",
+      "not_found": "Dieser Schlüssel ist nicht mehr gespeichert. Laden Sie das Panel neu.",
+      "unknown_provider": "Dieser Anbieter nimmt keinen gespeicherten Schlüssel."
+    },
     "routing": {
       "title": "Routing",
       "intro": "Eine angeheftete Zeile überschreibt den integrierten Standard für diesen Anwendungsfall; Anwendungsfälle ohne Anheftung laufen auf dem integrierten Standard (Claude CLI in der lokalen Entwicklung).",
@@ -6511,7 +6553,15 @@
       "saveFailed": "Schlüssel konnte nicht gespeichert werden.",
       "kpSecretHint": "Lösung: Setzen Sie die Umgebungsvariable KP_SECRET auf dem Server und speichern Sie erneut.",
       "replace": "Schlüssel ersetzen",
-      "replaceWarning": "Für {provider} ({scope}) existiert bereits ein Schlüssel. Beim Speichern wird er überschrieben. Das lässt sich nicht rückgängig machen."
+      "replaceWarning": "Für {provider} ({scope}) existiert bereits ein Schlüssel. Beim Speichern wird er überschrieben. Das lässt sich nicht rückgängig machen.",
+      "test": "Testen",
+      "testing": "Test läuft…",
+      "testAria": "Testanfrage mit dem {provider}-Schlüssel ({scope}) senden",
+      "testOk": "Schlüssel funktioniert. {model} antwortete in {latency} ms.",
+      "testOkNoLatency": "Schlüssel funktioniert. {model} hat geantwortet.",
+      "testFailed": "Test fehlgeschlagen.",
+      "testModelLabel": "Aufzurufendes Modell",
+      "testModelPlaceholder": "Deployment oder Modell-Slug"
     },
     "useCaseDesc": {
       "match_reasoning": "Schreibt die Begründung für Recruiter, warum ein Kandidat auf eine Stelle passt oder eben nicht.",

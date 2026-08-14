@@ -4856,7 +4856,19 @@
       "backup": {
         "title": "Backup & restore",
         "meta": "full database",
-        "intro": "One JSON file carries the entire kp database: all data across every workspace (prompt cache and task runner state excluded), not a single workspace's slice. Take a backup before a risky bulk action; restore moves the whole database between machines. Per-workspace export and restore is a known gap, and restore is refused entirely while multi-workspace is on, because it would replace every workspace at once.",
+        "lede": "Move all data in and out as one file.",
+        "flowExport": "Back up",
+        "flowExportA": "All data",
+        "flowExportB": "One file",
+        "exportNote": "Read only. Nothing here changes.",
+        "flowRestore": "Restore",
+        "flowRestoreA": "Your file",
+        "flowRestoreB": "Preview",
+        "flowRestoreC": "All data",
+        "restoreNote": "Nothing is overwritten until you type {word}.",
+        "scopeAll": "Covers every workspace, not just this one",
+        "scopeExcluded": "Leaves out the AI cache and the task queue",
+        "scopeSingle": "Restore is refused while multiple workspaces are on",
         "download": "Download backup",
         "restoreFrom": "Restore from file…",
         "working": "Working…",
@@ -5126,9 +5138,18 @@
   "analytics": {
     "sections": {
       "label": "Analytics section",
-      "performance": { "name": "Performance", "hint": "Funnel, forecast, roles" },
-      "economics": { "name": "Economics", "hint": "Spend, sources, ROI" },
-      "quality": { "name": "Quality & audit", "hint": "Calibration, decisions" }
+      "performance": {
+        "name": "Performance",
+        "hint": "Funnel, forecast, roles"
+      },
+      "economics": {
+        "name": "Economics",
+        "hint": "Spend, sources, ROI"
+      },
+      "quality": {
+        "name": "Quality & audit",
+        "hint": "Calibration, decisions"
+      }
     },
     "statHiredOfTotal": "of {total}",
     "bottleneckPlain": "{count} candidates stuck at {stage} for {days} days on average",
@@ -6343,7 +6364,8 @@
       "colBest": "Top model",
       "colRunnerUp": "Runner-up",
       "na": "n/a",
-      "method": "Measured {date} · judge {judge} · {n} cases · {limit} run(s)/cell. Composite 0–10: correctness + task-adherence weighted higher, relevance lower; invalid output penalised. Small run counts are noisy, so treat them as directional."
+      "method": "Measured {date} · judge {judge} · {n} cases · {limit} run(s)/cell. Composite 0–10: correctness + task-adherence weighted higher, relevance lower; invalid output penalised. Small run counts are noisy, so treat them as directional.",
+      "empty": "No measured quality yet. This deployment has no baked benchmark matrix, so there is nothing to rank."
     },
     "benchOps": {
       "match_reasoning": "Match reasoning",
@@ -6368,6 +6390,26 @@
     "loading": "Loading model settings…",
     "loadFailed": "Couldn’t load model settings. Check the connection and try again.",
     "retry": "Try again",
+    "sections": {
+      "label": "Models sections",
+      "routing": "Routing",
+      "quality": "Model quality",
+      "keys": "API keys (BYOM)"
+    },
+    "testReason": {
+      "auth": "The provider rejected this key.",
+      "rate_limit": "The provider rate-limited the test. Try again shortly.",
+      "connection": "Could not reach the provider.",
+      "timeout": "The provider did not answer in time.",
+      "invalid_model": "The provider rejected the model or the request.",
+      "permission": "This key has no access to that model.",
+      "unavailable": "Nothing to call: no usable key or SDK on the server.",
+      "bad_payload": "The provider answered, but not with what was asked for.",
+      "provider_error": "The provider refused the test.",
+      "model_required": "Name the model or deployment to call, then run the test again.",
+      "not_found": "That key is no longer stored. Reload the panel.",
+      "unknown_provider": "That provider does not take a stored key."
+    },
     "routing": {
       "title": "Routing",
       "intro": "A pinned row overrides the built-in default for that use case; use cases without a pin run on the built-in default (Claude CLI in local development).",
@@ -6511,7 +6553,15 @@
       "saveFailed": "Couldn't save the key.",
       "kpSecretHint": "Fix: set the KP_SECRET environment variable on the server, then save again.",
       "replace": "Replace key",
-      "replaceWarning": "A key already exists for {provider} ({scope}). Saving overwrites it. This can’t be undone."
+      "replaceWarning": "A key already exists for {provider} ({scope}). Saving overwrites it. This can’t be undone.",
+      "test": "Test",
+      "testing": "Testing…",
+      "testAria": "Send a test request with the {provider} {scope} key",
+      "testOk": "Key works. {model} answered in {latency} ms.",
+      "testOkNoLatency": "Key works. {model} answered.",
+      "testFailed": "Test failed.",
+      "testModelLabel": "Model to call",
+      "testModelPlaceholder": "deployment or model slug"
     },
     "useCaseDesc": {
       "match_reasoning": "Writes the recruiter-facing rationale for why a candidate fits a job, or doesn’t.",

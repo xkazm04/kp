@@ -183,6 +183,66 @@ paginated table built from the shared primitives (`ColumnFilter` headers +
 `TablePager` over the bounded `LLM_ACTIVITY_WINDOW` of 500 rows; older spend
 stays in the Models tab's daily rollup).
 
+#### Row detail: from "what it cost" to "what it produced"
+
+`llm_usage` stores meters, never content — so a row cannot carry the model's
+answer. It can carry the *run* that produced it. `request_id` had been in the
+schema (and in `parseLedgerLine`) since T0.1 with nothing ever writing it; it is
+now the background-task id, stamped along this chain:
+
+| Step | Where |
+| --- | --- |
+| Open an ambient request scope around the task handler | `app/_lib/tasks.ts` → `withLlmRequestId` |
+| Carry it across async boundaries (`AsyncLocalStorage`) | `app/_lib/llm-request-context.ts` |
+| Hand it to the child as `KP_LLM_REQUEST_ID` | `app/_lib/python-runner.ts` (beside `KP_LLM_USAGE_LOG`) |
+| Write it onto every metered ledger line | `pipeline/jobfit/llm/monitor.py` → `_append_ledger` / `_request_id` |
+| Map it into the row | `app/_lib/llm-usage-ledger.ts` → `parseLedgerLine` (already did) |
+
+`AsyncLocalStorage` rather than a threaded parameter because `spawnPython` is
+called from ~20 modules, most several frames below the runner: the plumbing stays
+at the two ends that care, and no intermediate call site can forget to forward it.
+
+Clicking a row opens `ActivityDetailModal.tsx` — the ledger facts (including
+cached tokens, which the table has no room for), then the linked run's output
+fetched from `GET /api/tasks/[id]`, the one endpoint serving the full `result`
+blob (the 2s task poll projects it away). Arbitrary result shapes are rendered by
+`app/_components/ui/StructuredReadout.tsx`, which presents by *structure* rather
+than by payload knowledge (scalars → fact rows, arrays of objects → tables,
+long strings → prose, nesting → indented sections) and is depth/count-capped with
+the overflow stated out loud.
+
+Three degradations, kept distinct because they are different facts: **no request
+id** (the call ran outside a tracked task — an inline route or a direct CLI, so
+nothing was stored), **id but no task** (aged out of task retention), **task but
+no result** (the run stored none). Only new rows link; the pre-existing window
+keeps its historical nulls.
+
+The **AI tasks** tab (`?tab=tasks`, `app/features/shell/tasks/**`) is the runtime
+half of the same story — what is running right now, what finished, what failed and
+can be replayed — as one paginated, column-filtered table over the recent window
+plus an on-demand history pager. It is the run log, not the spend log: it holds
+tasks, and nothing else.
+
+### One LLM-telemetry overview, not two
+
+**Models → Usage & cost** (`ModelsUsagePanel.tsx`, `GET /api/llm/usage`) is the
+single place the workspace answers "what is the LLM layer doing and what does it
+cost". It folds the ledger per use case over 30 days (calls, tokens in/out,
+cached, est. cost, the deterministic-fallback split, the unpriced-spend footnote)
+and carries `ModelsSystemStrip.tsx` above the table: engine availability
+(Gemini key / Claude CLI on `PATH`), the run queue, the automation-clock
+heartbeat, seed health, 7-day analyze rollups (cache hit rate, avg duration),
+average stage timings, and the comms/schedule failure counters — all from
+`GET /api/ops`.
+
+That strip was a standalone "System" card on the tasks tab. It reported the same
+prompt-cache rows and a 7-day token total this ledger already covered, so it was
+folded in and the duplicated halves dropped rather than left to drift apart. The
+health line renders **above** the ledger because it is the precondition for
+reading it: a stalled scheduler or a missing key explains a suspiciously cheap
+week. `degradedReasons` from `/api/ops` stay canonical English server diagnostics
+(no `code` to resolve) — see [localization.md](./localization.md).
+
 ## Invariants
 
 1. **Deterministic fallbacks stay** — adapter failure never surfaces as a broken

@@ -1,16 +1,22 @@
-"""CLI: one canary completion through the configured provider for a use case.
+"""CLI: one canary completion, either through a use case's configured provider
+or straight at one named provider.
 
     python -m pipeline.jobfit.llm.test_cli --use-case match_reasoning
+    python -m pipeline.jobfit.llm.test_cli --provider anthropic [--model claude-haiku-4-5]
 
-Resolves the provider exactly like production (KP_LLM_CONFIG env → registry),
-runs a trivial JSON prompt, and emits one JSON line:
+``--use-case`` resolves the provider exactly like production (KP_LLM_CONFIG env →
+registry) and answers "is this pin working". ``--provider`` bypasses routing and
+answers the different question the keys panel asks: "does this credential work at
+all", which must be answerable for a provider no use case is pinned to yet.
+
+Either way it runs a trivial JSON prompt and emits one JSON line:
 
     { "ok": true, "provider": "anthropic", "model": "claude-haiku-4-5",
       "latencyMs": 812, "usage": {...} }
 
 On failure: { "ok": false, "provider": ..., "model": ..., "error": "..." }
-with exit code 0 (the verdict IS the payload — the admin Test button renders
-it either way). Invoked by /api/llm/test.
+with exit code 0 (the verdict IS the payload — the admin Test buttons render
+it either way). Invoked by /api/llm/test and /api/llm/keys/test.
 """
 
 from __future__ import annotations
@@ -19,18 +25,24 @@ import argparse
 import json
 import time
 
-from .registry import resolve_provider
+from .registry import probe_provider, resolve_provider
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Canary-test the configured LLM provider for a use case.")
-    parser.add_argument("--use-case", required=True)
+    parser = argparse.ArgumentParser(description="Canary-test an LLM provider.")
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument("--use-case", help="Resolve through the configured routing for this use case.")
+    target.add_argument("--provider", help="Probe this provider directly, ignoring routing.")
+    parser.add_argument("--model", help="Explicit model/deployment/slug (required for providers with no built-in default).")
     args = parser.parse_args(argv)
 
-    provider_name = "unknown"
+    provider_name = args.provider or "unknown"
     model = None
     try:
-        provider = resolve_provider(args.use_case, timeout=60)
+        if args.provider:
+            provider = probe_provider(args.provider, model=args.model, timeout=60)
+        else:
+            provider = resolve_provider(args.use_case, timeout=60)
         provider_name = getattr(provider, "name", type(provider).__name__)
         model = getattr(provider, "model", None)
         if type(provider).__name__ in ("ClaudeCliProvider", "MonitoredClaudeCli"):

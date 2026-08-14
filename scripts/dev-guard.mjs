@@ -9,13 +9,15 @@
 // Turbopack runs JS loaders in node subprocess workers; on Windows those workers
 // are NOT killed when the parent dev server stops (Windows doesn't cascade a
 // kill down the tree), so closing the terminal / stopping `next dev` stranded
-// them. The root cause was fixed by moving the loader to webpack, but this guard
-// is the defense-in-depth that makes ANY future dev-server worker leak
-// impossible: whatever spawns under the dev command dies with it.
+// them. The immediate fix was to move the loader to webpack; on 2026-08-13 it
+// moved back to Turbopack, narrowed by a rule `condition` so the loader is never
+// dispatched for node_modules or Next internals (see next.config.ts). This guard
+// is the defense-in-depth that makes ANY dev-server worker leak impossible
+// regardless of bundler: whatever spawns under the dev command dies with it.
 //
 // Usage:  node scripts/dev-guard.mjs <command> [args...]
 //   e.g.  node scripts/dev-guard.mjs next dev
-//         cross-env DEV_INSPECT=1 DEV_GUARD_MAX_NODE=150 node scripts/dev-guard.mjs next dev --webpack
+//         cross-env DEV_INSPECT=1 DEV_GUARD_MAX_NODE=150 node scripts/dev-guard.mjs next dev
 //
 // Env:
 //   DEV_GUARD_MAX_NODE      if set, enable the storm circuit breaker: trip when the

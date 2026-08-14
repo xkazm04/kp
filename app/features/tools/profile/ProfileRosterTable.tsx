@@ -5,58 +5,21 @@
 // pager) so both stay under the 200-line cap.
 
 import { useTranslations } from "next-intl";
-import { ArrowDown, ArrowUp, ArrowUpDown, UserSearch } from "lucide-react";
+import { UserSearch } from "lucide-react";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
+import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { ProfileRosterRow } from "./ProfileRosterRow";
 import type { RosterFacets, RosterFilters, RosterSort, RosterSortCol } from "./profileRosterView";
 import type { RosterProfile, StaleMap } from "./ProfileRosterTypes";
 
-// A column header: the name once, then icon controls for whatever that column can
-// do. Naming the column in the label AND again inside each control spelled
-// "Candidate ↑ Candidate ▾", which reads as a duplication bug rather than as two
-// affordances — so the controls are glyphs and take their accessible names from
-// `title` (nothing is lost for AT, only the visual repetition).
-function ColumnHead({
-  title,
-  sortCol,
-  sort,
-  onSort,
-  children,
-}: {
-  title: string;
-  /** Omit for a column with no meaningful order (Status, Archetype…). */
-  sortCol?: RosterSortCol;
-  sort: RosterSort;
-  onSort: (sort: RosterSort) => void;
-  /** The column's ColumnFilter, if it has one. */
-  children?: React.ReactNode;
-}) {
-  const t = useTranslations("profile.roster");
-  const active = sortCol != null && sort.col === sortCol;
-  // Direction is shown only on the ACTIVE column: an idle column showing "↑" claims
-  // an ordering it isn't imposing. Idle columns get the neutral two-way glyph.
-  const SortIcon = !active ? ArrowUpDown : sort.dir === "desc" ? ArrowDown : ArrowUp;
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className={`${META_LABEL} ${active ? "text-coral" : ""}`}>{title}</span>
-      {sortCol ? (
-        <button
-          type="button"
-          onClick={() => onSort({ col: sortCol, dir: active && sort.dir === "asc" ? "desc" : "asc" })}
-          aria-label={t("sortBy", { column: title })}
-          title={t("sortBy", { column: title })}
-          className={`focus-ring inline-flex h-6 w-6 items-center justify-center rounded transition-colors ${
-            active ? "bg-coral/10 text-coral" : "text-steel hover:bg-stone-100 hover:text-ink"
-          }`}
-        >
-          <SortIcon size={13} className={active ? "" : "opacity-60"} aria-hidden />
-        </button>
-      ) : null}
-      {children}
-    </span>
-  );
-}
+// The local ColumnHead this file used to carry is now the shared
+// app/_components/table/ColumnHead — same glyph-only controls (naming the column
+// in the label AND again inside each control spelled "Candidate ↑ Candidate ▾",
+// which reads as a duplication bug rather than as two affordances), and it
+// additionally renders the `<th>` so `aria-sort` is set. This copy never was, so
+// a screen-reader user could operate the sort and never learn the table was
+// sorted at all.
 
 export function ProfileRosterTable({
   shown,
@@ -103,6 +66,12 @@ export function ProfileRosterTable({
   onConfirmDelete: (id: string) => void;
 }) {
   const t = useTranslations("profile.roster");
+  // The shared ColumnHead reports the clicked COLUMN; this roster's owner state
+  // is a full {col, dir}. Toggle semantics kept byte-identical to the local
+  // header this replaced — a new column starts ascending — so promoting the
+  // component changes accessibility (aria-sort) and nothing the reader does.
+  const toggleSort = (col: RosterSortCol) =>
+    onSort({ col, dir: sort.col === col && sort.dir === "asc" ? "desc" : "asc" });
 
   if (emptyFiltered) {
     return (
@@ -127,49 +96,39 @@ export function ProfileRosterTable({
           <tr className="border-b border-stone-200 bg-paper/60">
             {/* Name carries both controls: sort, and a search box behind the
                 magnifier. Both are glyphs, so the column is named once. */}
-            <th scope="col" className="px-3 py-2">
-              <ColumnHead title={t("colName")} sortCol="name" sort={sort} onSort={onSort}>
-                <ColumnFilter title={t("colName")} mode="search" trigger="icon" value={filters.q} onChange={(q) => onFilters({ q })} />
-              </ColumnHead>
-            </th>
-            <th scope="col" className="px-3 py-2">
-              <ColumnHead title={t("colArchetype")} sortCol="archetype" sort={sort} onSort={onSort}>
-                <ColumnFilter
-                  title={t("colArchetype")}
-                  trigger="icon"
-                  value={filters.archetype}
-                  onChange={(archetype) => onFilters({ archetype })}
-                  options={facets.archetypes}
-                />
-              </ColumnHead>
-            </th>
-            <th scope="col" className="hidden px-3 py-2 md:table-cell">
-              <ColumnHead title={t("colFamily")} sortCol="family" sort={sort} onSort={onSort}>
-                <ColumnFilter
-                  title={t("colFamily")}
-                  trigger="icon"
-                  value={filters.family}
-                  onChange={(family) => onFilters({ family })}
-                  options={facets.families}
-                />
-              </ColumnHead>
-            </th>
-            <th scope="col" className="px-3 py-2">
-              <ColumnHead title={t("colCompleteness")} sortCol="completeness" sort={sort} onSort={onSort} />
-            </th>
-            <th scope="col" className="px-3 py-2">
-              {/* Status has no meaningful order (retired vs. newer-CV is not a
-                  ranking), so it filters but does not sort. */}
-              <ColumnHead title={t("colStatus")} sort={sort} onSort={onSort}>
-                <ColumnFilter
-                  title={t("colStatus")}
-                  trigger="icon"
-                  value={filters.status}
-                  onChange={(status) => onFilters({ status })}
-                  options={facets.statuses}
-                />
-              </ColumnHead>
-            </th>
+            <ColumnHead title={t("colName")} sortCol="name" sort={sort} onSort={toggleSort} className="px-3 py-2">
+              <ColumnFilter title={t("colName")} mode="search" trigger="icon" value={filters.q} onChange={(q) => onFilters({ q })} />
+            </ColumnHead>
+            <ColumnHead title={t("colArchetype")} sortCol="archetype" sort={sort} onSort={toggleSort} className="px-3 py-2">
+              <ColumnFilter
+                title={t("colArchetype")}
+                trigger="icon"
+                value={filters.archetype}
+                onChange={(archetype) => onFilters({ archetype })}
+                options={facets.archetypes}
+              />
+            </ColumnHead>
+            <ColumnHead title={t("colFamily")} sortCol="family" sort={sort} onSort={toggleSort} className="hidden px-3 py-2 md:table-cell">
+              <ColumnFilter
+                title={t("colFamily")}
+                trigger="icon"
+                value={filters.family}
+                onChange={(family) => onFilters({ family })}
+                options={facets.families}
+              />
+            </ColumnHead>
+            <ColumnHead title={t("colCompleteness")} sortCol="completeness" sort={sort} onSort={toggleSort} className="px-3 py-2" />
+            {/* Status has no meaningful order (retired vs. newer-CV is not a
+                ranking), so it filters but does not sort. */}
+            <ColumnHead title={t("colStatus")} sort={sort} onSort={toggleSort} className="px-3 py-2">
+              <ColumnFilter
+                title={t("colStatus")}
+                trigger="icon"
+                value={filters.status}
+                onChange={(status) => onFilters({ status })}
+                options={facets.statuses}
+              />
+            </ColumnHead>
             <th scope="col" className={`px-3 py-2 text-right ${META_LABEL}`}>
               <span className="sr-only">{t("colActions")}</span>
             </th>

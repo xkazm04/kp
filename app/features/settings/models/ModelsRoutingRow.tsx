@@ -10,6 +10,7 @@ import { saveRoutingPin, resetRoutingPin } from "./modelsRoutingActions";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ModelsRoutingRowActions } from "./ModelsRoutingRowActions";
 import { useProviderName } from "./modelsProviderNames";
+import { useTestReason, type ModelsTestVerdict } from "./modelsTestReason";
 
 // One routing row: the pin editor for a single use case. Local draft state
 // (provider/model) initializes from the pinned row; the parent re-keys this
@@ -41,6 +42,11 @@ export function ModelsRoutingRow({
   const errMsg = useErrorMessage();
   const format = useFormatter();
   const providerName = useProviderName();
+  // Failures resolve through the SHARED canary reason catalog, not the `errors`
+  // namespace: the route classifies the provider failure into a stable code
+  // (auth / rate_limit / connection / …) and every one of them used to collapse
+  // to a flat "Test failed." here, because `errors` carries none of those codes.
+  const reasonFor = useTestReason();
   const [provider, setProvider] = useState(row?.provider ?? "");
   const [model, setModel] = useState(row?.model ?? "");
   const [busy, setBusy] = useState<"save" | "reset" | "test" | null>(null);
@@ -82,15 +88,10 @@ export function ModelsRoutingRow({
         body: JSON.stringify({ useCase }),
       });
       if (r.status === 404) throw new Error(t("testUnavailable"));
-      const p = (await r.json().catch(() => ({}))) as {
-        ok?: boolean;
-        provider?: string;
-        model?: string;
-        latencyMs?: number;
-        error?: string;
-        code?: string;
-      };
-      if (!r.ok || p.ok !== true) throw new Error(errMsg(p, t("testFailed")));
+      const p = (await r.json().catch(() => ({}))) as ModelsTestVerdict;
+      // A canary code first (the specific reason), then the `errors` namespace for
+      // a plain envelope failure, then this row's generic fallback.
+      if (!r.ok || p.ok !== true) throw new Error(reasonFor(p, errMsg(p, t("testFailed"))));
       const testedModel = p.model ?? "—";
       setNote({
         ok: true,
