@@ -8,9 +8,10 @@ import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
+import { useUrlInboxState } from "@/app/features/shell/nav/useUrlInboxState";
 import { AnalyticsHeader } from "./AnalyticsHeader";
 import { AnalyticsSectionNav } from "./sections/AnalyticsSectionNav";
-import { resolveAnalyticsSection, type AnalyticsSectionId } from "./sections/analyticsSections";
+import { isAnalyticsSectionId, resolveAnalyticsSection, type AnalyticsSectionId } from "./sections/analyticsSections";
 import type { Analytics } from "./AnalyticsTypes";
 
 // Re-exported for the split-out panels/tests that still import these two
@@ -60,13 +61,18 @@ export function AnalyticsTab() {
   const setDays = (w: number | null) =>
     router.replace(buildUrl({ win: w ? String(w) : null }, search.toString()), { scroll: false });
 
-  // The active section rides the URL for the same reasons the window does — a
-  // link to "Analytics → Quality & audit" is a thing people send each other, and
-  // an auditor who reloads should land back where they were. Unknown values fall
-  // back to the default rather than rendering nothing (resolveAnalyticsSection).
-  const section = resolveAnalyticsSection(search.get("sec"));
-  const setSection = (id: AnalyticsSectionId) =>
-    router.replace(buildUrl({ sec: id }, search.toString()), { scroll: false });
+  // The active section is APP STATE, with `?sec=` as an inbox only: a link to
+  // "Analytics → Quality & audit" is a thing people send each other and must
+  // still land, but clicking between sections writes nothing to the URL. Same
+  // contract as the tab itself — see shell/nav/useUrlInboxState.ts.
+  //
+  // `parse` returns null for an unknown value so the current section is left
+  // alone; resolveAnalyticsSection's default only applies to the cold start.
+  const [section, setSection] = useUrlInboxState<AnalyticsSectionId>(
+    "sec",
+    (raw) => (raw != null && isAnalyticsSectionId(raw) ? raw : null),
+    resolveAnalyticsSection(search.get("sec"))
+  );
 
   const { data, error, reload } = useJsonFetch<Analytics>(
     days ? `/api/analytics?days=${days}` : "/api/analytics",

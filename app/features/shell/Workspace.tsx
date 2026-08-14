@@ -7,6 +7,7 @@ import { useBrand } from "@/app/_components/BrandProvider";
 import { KeyboardShortcuts } from "./WorkspaceKeyboardShortcuts";
 import { navKey, shouldCloseDrawerOnNav } from "./nav/navDrawerClose";
 import { useShellNavigate } from "./nav/shallow-nav";
+import { useUrlInboxState } from "./nav/useUrlInboxState";
 import { prefetchTabChunk, warmLikelyTabChunks } from "./tabChunks";
 import { isMainInert } from "./nav/navDrawerA11y";
 import { useAttention } from "./useAttention";
@@ -18,7 +19,8 @@ import { SimSurfaces, FirstRunOnboarding } from "./WorkspaceSimSurfaces";
 import {
   ABOUT_TAB_IN_NAV,
   AGENTS_TAB_IN_NAV,
-  buildTabSwitchUrl,
+  buildUrl,
+  clearedTabScopedParams,
   DEFAULT_TAB,
   navLabel,
   resolveTabParam,
@@ -43,7 +45,6 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   // back to the English label baked into tabs.ts for any not-yet-translated entry.
   const navText = (key: string, fallback: string): string => navLabel(t, key, fallback);
   const search = params.toString();
-  const tabParam = params.get("tab");
   // SHELL2 — live "what needs my attention" counts behind the nav badges.
   const attention = useAttention();
   // White-label mark for the rail top (workspace logo, else the KandiDate mark).
@@ -70,16 +71,26 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   // setMobileNavOpen is identity-stable, but React Compiler's memoization check
   // requires the declared deps to match what the body references (same as selectTab).
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), [setMobileNavOpen]);
-  // Legacy ids (?tab=profile, ?tab=dev) resolve to their renamed tab rather than
-  // falling back to the default — see LEGACY_TAB_ALIASES in tabs.ts.
-  const requested: WorkspaceTabId = resolveTabParam(tabParam) ?? DEFAULT_TAB;
-  // About is a dev-only deep-dive (ABOUT_TAB_IN_NAV) and Agents is experimental
-  // (AGENTS_TAB_IN_NAV); when the gate is off, a direct ?tab= deep link falls
-  // back to the default so the view can't be reached.
-  const active: WorkspaceTabId =
-    (requested === "about" && !ABOUT_TAB_IN_NAV) || (requested === "agents" && !AGENTS_TAB_IN_NAV)
-      ? DEFAULT_TAB
-      : requested;
+  // The active tab lives in APP STATE; `?tab=` is only an inbox for arrivals
+  // (deep links, comms emails, TasksIndicator, CompletionCta), consumed and
+  // cleared on receipt. See nav/useUrlInboxState.ts for why.
+  //
+  // `parse` owns the whole vocabulary so the hook stays generic: legacy ids
+  // (?tab=profile, ?tab=dev) resolve to their renamed tab via LEGACY_TAB_ALIASES,
+  // and a gated tab (About is dev-only via ABOUT_TAB_IN_NAV, Agents experimental
+  // via AGENTS_TAB_IN_NAV) is REJECTED here rather than adopted-then-corrected —
+  // returning null leaves the current tab alone, so a link to a gated view is
+  // inert instead of bouncing the reader to the default.
+  const [active, setActive] = useUrlInboxState<WorkspaceTabId>(
+    "tab",
+    (raw) => {
+      const requested = resolveTabParam(raw);
+      if (requested == null) return null;
+      if ((requested === "about" && !ABOUT_TAB_IN_NAV) || (requested === "agents" && !AGENTS_TAB_IN_NAV)) return null;
+      return requested;
+    },
+    DEFAULT_TAB
+  );
   // History is consolidated into Analyze; ?tab=history opens Analyze in history mode.
   const navActive: WorkspaceTabId = active === "history" ? "analyze" : active;
 
@@ -89,16 +100,22 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   const selectTab = useCallback(
     (id: WorkspaceTabId): void => {
       setMobileNavOpen(false); // a tab pick on mobile closes the drawer
-      // Start the destination's code-split chunk before the URL flips, so the
-      // fetch overlaps the swap instead of following it. A no-op once warm.
+      // Start the destination's code-split chunk before the swap, so the fetch
+      // overlaps it instead of following it. A no-op once warm.
       prefetchTabChunk(id);
-      // push, not replace — a tab switch is the navigation users most expect
-      // Back to undo; replace made Back exit the workspace entirely.
-      nav.push(buildTabSwitchUrl(id, search));
+      setActive(id);
+      // The switch itself writes nothing to the URL. The ONE thing that still
+      // must: tab-scoped deep-link params (?profile=, ?job=, ?edit=, ?jd*) are
+      // still read from the URL by their tabs, so a leftover selection would be
+      // inherited by the destination — the exact leak clearedTabScopedParams
+      // exists to prevent. Only written when one is actually present, so the
+      // ordinary click still touches nothing.
+      const stale = Object.keys(clearedTabScopedParams()).some((k) => params.get(k) != null);
+      if (stale) nav.replace(buildUrl(clearedTabScopedParams(), search));
     },
     // setMobileNavOpen is identity-stable, but React Compiler's memoization
     // check requires the declared deps to match what the body references.
-    [nav, search, setMobileNavOpen]
+    [nav, params, search, setActive, setMobileNavOpen]
   );
 
   // a11y — on a tab switch, move focus to the <main> landmark (reusing the

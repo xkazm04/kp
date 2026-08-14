@@ -25,15 +25,30 @@ guard (`sections/analyticsSections.ts`) — the same shape as
 instead of rendering nothing. Covered by `sections/analyticsSections.test.ts` and
 `e2e/analytics-sections.spec.ts`.
 
-`?sec=` rides the URL for the same reason `?win=` does: a link to
-"Analytics → Quality & audit" is a thing people send each other, and an auditor
-who reloads should land back where they were. Both are written with
-`router.replace` (no history spam) and neither is tab-scoped.
+`?sec=` is an **inbox, not state**: the active section lives in React state and
+the param is read only on arrival, then cleared
+(`shell/nav/useUrlInboxState.ts`). A link to "Analytics → Quality & audit" still
+lands, but clicking between sections writes nothing to the URL. `?win=` is
+different and stays a real URL param — it is a *view preference* that should
+survive a round-trip to the board and back, and it changes the fetch.
 
 **Each section is its own chunk** (`next/dynamic` in `AnalyticsTab.tsx`), with a
 second level of per-panel chunks inside (`sections/sectionChunks.tsx`). A reader
 in Economics never downloads the reliability diagram, the sealed-floor strip or
 the paged decision log.
+
+### Economics is one comparison board
+
+The Economics round closed on **Board** (`sections/EconomicsBoard.tsx`): the page
+carried three acquisition tables with three different taxonomies — first-touch
+`bySource`, stored `byChannel`, and per-creative variants — and left the reader to
+normalise the columns. The board puts every surface in one sortable table with the
+same unit-economics columns.
+
+The taxonomies are **grouped and labelled, never merged**: the type chip is part
+of each row's identity, because those three are genuinely different measurements.
+A dash under Spend means "not measured for this kind of surface", not "free", and
+the table says so under the rule.
 
 ### Performance reads as a brief
 

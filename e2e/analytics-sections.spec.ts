@@ -31,7 +31,22 @@ test.describe("Analytics — three sections behind the switcher", () => {
     await expect(page.getByText(/candidates in play/i).first()).toBeVisible();
   });
 
-  test("?sec= deep-links straight into a section", async ({ page }) => {
+  test("?sec= deep-links straight into a section, then clears itself", async ({ page }) => {
+    await page.goto("/?tab=analytics&sec=quality");
+    await expect(sectionNav(page).getByRole("radio", { name: /quality/i })).toHaveAttribute("aria-checked", "true");
+    // The URL is an INBOX, not the state: both params are consumed on arrival and
+    // cleared, so the address bar does not accumulate view state. A param left
+    // behind would also break the next link to the same value — not a change,
+    // so nothing would happen and the link would look dead.
+    await expect(page).toHaveURL(/^[^?]*\/?$/);
+  });
+
+  test("a second link to the SAME section still works after the first", async ({ page }) => {
+    // The regression the read-then-clear design exists to prevent.
+    await page.goto("/?tab=analytics&sec=quality");
+    await expect(sectionNav(page).getByRole("radio", { name: /quality/i })).toHaveAttribute("aria-checked", "true");
+    await sectionNav(page).getByRole("radio", { name: /performance/i }).click();
+    await expect(sectionNav(page).getByRole("radio", { name: /performance/i })).toHaveAttribute("aria-checked", "true");
     await page.goto("/?tab=analytics&sec=quality");
     await expect(sectionNav(page).getByRole("radio", { name: /quality/i })).toHaveAttribute("aria-checked", "true");
   });
@@ -44,18 +59,26 @@ test.describe("Analytics — three sections behind the switcher", () => {
     await expect(page.getByText(/candidates in play/i).first()).toBeVisible();
   });
 
-  test("switching sections swaps the content and writes back to the URL", async ({ page }) => {
+  test("switching sections swaps the content and writes NOTHING to the URL", async ({ page }) => {
     await page.goto("/?tab=analytics");
+    // Let the inbox finish consuming ?tab= before sampling the URL — the arrival
+    // cleanup is itself a (one-time) rewrite, and capturing mid-flight would
+    // compare against a URL the app is about to legitimately change.
+    await expect(sectionNav(page)).toBeVisible();
+    await expect(page).toHaveURL(/^[^?]*\/?$/);
+    const before = page.url();
 
     await sectionNav(page).getByRole("radio", { name: /economics/i }).click();
-    await expect(page).toHaveURL(/sec=economics/);
     await expect(sectionNav(page).getByRole("radio", { name: /economics/i })).toHaveAttribute("aria-checked", "true");
+    // The section is app state now; clicking around must not touch the query.
+    expect(page.url()).toBe(before);
     // Performance's brief must be GONE — a switcher that only adds content would
     // leave the tab exactly as long as it was before the split.
     await expect(page.getByText(/candidates in play/i)).toHaveCount(0);
 
     await sectionNav(page).getByRole("radio", { name: /quality/i }).click();
-    await expect(page).toHaveURL(/sec=quality/);
+    await expect(sectionNav(page).getByRole("radio", { name: /quality/i })).toHaveAttribute("aria-checked", "true");
+    expect(page.url()).toBe(before);
   });
 });
 

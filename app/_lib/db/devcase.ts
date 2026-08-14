@@ -24,6 +24,8 @@ export type DevCaseRecord = {
   seed: unknown;
   status: string;
   createdAt: string;
+  /** The owning tenant — same rationale as DevSubmission.workspaceId. */
+  workspaceId: string;
 };
 
 type DevCaseRow = {
@@ -39,6 +41,9 @@ type DevCaseRow = {
   seed_json: string | null;
   status: string;
   created_at: string;
+  // Present on every row (reads are SELECT *); mapped so a caller holding a case
+  // never has to be told its tenant.
+  workspace_id?: string | null;
 };
 
 function rowToDevCase(r: DevCaseRow): DevCaseRecord {
@@ -55,6 +60,7 @@ function rowToDevCase(r: DevCaseRow): DevCaseRecord {
     seed: safeRowParse(r.seed_json, "devCase.seed", r.id),
     status: r.status,
     createdAt: r.created_at,
+    workspaceId: (r.workspace_id ?? null) || DEFAULT_WORKSPACE_ID,
   };
 }
 
@@ -330,6 +336,8 @@ export type Posting = {
   status: string;
   createdAt: string;
   submissionCount?: number;
+  /** The owning tenant — same rationale as DevSubmission.workspaceId above. */
+  workspaceId: string;
 };
 
 export type DevSubmission = {
@@ -343,6 +351,12 @@ export type DevSubmission = {
   evaluation: unknown;
   transferScore: number | null;
   receivedAt: string;
+  // The owning tenant, surfaced for the same reason PipelineEntry.workspaceId is:
+  // getSubmission is a by-id point read (globally-unique id, so exempt from
+  // WHERE-scoping), but promoteSubmission then WRITES a pipeline entry, an
+  // approval and an event off it — and with no tenant on hand those all landed on
+  // the default team. A caller holding a submission must not have to be told.
+  workspaceId: string;
 };
 
 function rowToSubmission(r: Record<string, unknown>): DevSubmission {
@@ -357,6 +371,7 @@ function rowToSubmission(r: Record<string, unknown>): DevSubmission {
     evaluation: safeRowParse(r.eval_json as string | null, "submission.eval", r.id as string),
     transferScore: r.transfer_score == null ? null : Number(r.transfer_score),
     receivedAt: r.received_at as string,
+    workspaceId: ((r.workspace_id as string) ?? null) || DEFAULT_WORKSPACE_ID,
   };
 }
 
@@ -531,6 +546,7 @@ function rowToPosting(r: Record<string, unknown>): Posting {
     caseTitle: (r.case_title as string) ?? null,
     status: r.status as string,
     createdAt: r.created_at as string,
+    workspaceId: ((r.workspace_id as string) ?? null) || DEFAULT_WORKSPACE_ID,
   };
 }
 
@@ -582,17 +598,10 @@ export function listPostings(workspaceId: string = DEFAULT_WORKSPACE_ID): Postin
        FROM dev_postings p WHERE p.workspace_id = ? ORDER BY p.created_at DESC`
     )
     .all(workspaceId) as Array<Record<string, unknown>>;
-  return rows.map((r) => ({
-    id: r.id as string,
-    caseId: (r.case_id as string) ?? null,
-    channel: r.channel as string,
-    token: (r.token as string) ?? null,
-    roleTitle: (r.role_title as string) ?? null,
-    caseTitle: (r.case_title as string) ?? null,
-    status: r.status as string,
-    createdAt: r.created_at as string,
-    submissionCount: Number(r.submission_count ?? 0),
-  }));
+  // Through rowToPosting rather than a second inline mapper: this list hand-rolled
+  // the same eight fields, so a field added to Posting landed in one mapper and
+  // not the other (which is exactly how it missed workspaceId).
+  return rows.map((r) => ({ ...rowToPosting(r), submissionCount: Number(r.submission_count ?? 0) }));
 }
 
 export function getPostingByToken(token: string): Posting | null {

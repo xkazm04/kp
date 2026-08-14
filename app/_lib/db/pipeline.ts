@@ -269,8 +269,13 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     consentExpiresAt: r.consent_expires_at ?? null,
     consentSource: r.consent_source ?? null,
     anonymizedAt: r.anonymized_at ?? null,
-    // The column is NOT NULL in the schema; the fallback covers a hand-written
-    // row in a test fixture, and matches every store default in this file.
+    // CONTRACT: every query that feeds rowToEntry must SELECT workspace_id. Most
+    // are `SELECT *` and get it free; the two explicit column lists in this file
+    // (listPipeline, listReconsiderQueue) name it deliberately. Omitting it does
+    // not fail — it silently reports the DEFAULT team for a row that belongs to
+    // another, which is worse than the missing field this replaced, because the
+    // value now looks authoritative. devcase-source-promote-tenancy.test.ts
+    // catches it behaviourally; a source-level check would not.
     workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID,
   };
 }
@@ -432,7 +437,7 @@ export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): Pipeli
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason, github_json, github_handle, notes,
-              source_channel, source_campaign, source_variant
+              source_channel, source_campaign, source_variant, workspace_id
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
        ORDER BY job_title, match_score DESC`
     )
@@ -659,7 +664,7 @@ export function listReconsiderQueue(limit = 50, workspaceId: string = DEFAULT_WO
     .prepare(
       `SELECT e.id, e.candidate_id, e.candidate_label, e.archetype, e.role_family, e.job_id, e.job_title,
               e.stage, e.match_score, e.status, e.approval_kind, e.approval_detail, e.created_at, e.stage_changed_at,
-              e.intake_degraded, e.intake_degraded_reason,
+              e.intake_degraded, e.intake_degraded_reason, e.workspace_id,
               MAX(ev.created_at) AS rejected_at
          FROM pipeline_entries e
          JOIN pipeline_events ev ON ev.entry_id = e.id AND ev.kind = 'auto_rejected'
@@ -1618,7 +1623,9 @@ export function listActiveEntriesForAutomation(): AutomationEntry[] {
   );
   return rows.map((r) => {
     const days = r.stage_changed_at ? Math.floor((Date.now() - Date.parse(r.stage_changed_at)) / 86_400_000) : 0;
-    return { ...rowToEntry(r), daysInStage: days, recentScreening: recent.has(r.id), workspaceId: r.workspace_id };
+    // workspaceId comes from rowToEntry now — it used to be re-read here because
+    // PipelineEntry didn't carry it.
+    return { ...rowToEntry(r), daysInStage: days, recentScreening: recent.has(r.id) };
   });
 }
 

@@ -49,10 +49,45 @@ bookmarks and pasted links, so dropping one would land those on Overview and rea
 
 ## How a tab switch works (and why it costs nothing)
 
-The workspace is **one route**: `/` plus query params. `?tab=` picks the panel,
-and every selection and filter (`?profile=`, `?job=`, `?q=`, `?quick=`, `?score=`,
-`?source=`, `?sort=`, `?stage=`) is a param on the same page. The server render of
-`/` reads **none** of them — only `?sim=auto` and `?onboarding=1`.
+The workspace is **one route**: `/` plus query params. Every selection and filter
+(`?profile=`, `?job=`, `?q=`, `?quick=`, `?score=`, `?source=`, `?sort=`,
+`?stage=`) is a param on the same page. The server render of `/` reads **none** of
+them — only `?sim=auto` and `?onboarding=1`.
+
+### The view selectors are app state; the URL is their inbox
+
+`?tab=` (the panel) and `?sec=` (the Analytics section) are the exception: they no
+longer *are* the state. `app/features/shell/nav/useUrlInboxState.ts` holds the
+value in React state and treats the query as a **one-shot inbox** — read when
+something arrives in it, then cleared:
+
+- an incoming deep link still lands (a comms email, `TasksIndicator`,
+  `CompletionCta`, a link a colleague sent) — *arriving* is the param appearing;
+- clicking around writes **nothing**: no query churn, no history spam;
+- the param cannot go stale, which fixes a bug the naive "read it once" version
+  has — leave `?tab=x` in the bar and a second link to the *same* `?tab=x` is not
+  a change, so nothing happens and the link looks broken.
+
+The arrival is adopted **during render** (React's "adjusting state when a prop
+changes" pattern, guarded by the previously-seen param) rather than in an effect,
+so there is no frame of the wrong tab before a correction. The effect does only
+the side effect: emptying the inbox.
+
+`parse` owns the vocabulary, so legacy ids (`?tab=profile`, `?tab=dev`) still
+resolve via `LEGACY_TAB_ALIASES` and a gated tab (`ABOUT_TAB_IN_NAV`,
+`AGENTS_TAB_IN_NAV`) is *rejected* rather than adopted-then-corrected — a link to
+a gated view is inert instead of bouncing the reader to the default.
+
+**Trade-off, chosen deliberately:** with no URL write there is no history entry
+per switch, so Back no longer steps through tabs — it leaves the workspace.
+Restoring that means carrying the tab in history *state* rather than the query.
+
+`selectTab` still writes the URL in exactly one case: when a tab-scoped
+deep-link param (`?profile=`, `?job=`, `?edit=`, `?jd*` — the `clearedTabScopedParams`
+allowlist) is actually present, so the destination cannot inherit the previous
+tab's selection. The ordinary click touches nothing.
+
+Pinned by `e2e/shell-tab-state.spec.ts` and `e2e/analytics-sections.spec.ts`.
 
 That mattered, because `/` is `export const instant = false` (it awaits
 `searchParams` and reads cookies for the entry + first-run gates, so it cannot be

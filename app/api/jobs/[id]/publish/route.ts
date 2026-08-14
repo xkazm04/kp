@@ -93,7 +93,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         // Thread the request's AbortSignal so abandoning the publish (closing the
         // modal mid-source) SIGKILLs the sourcing child instead of leaving it to
         // run — and keep spending — to the backstop.
-        const outcome = await runSourceForRole(role, { signal: request.signal });
+        // Same team the entries below are stamped with. This read was unscoped
+        // while that write was already correct — the dangerous half: the board
+        // filled with rows that looked native but held the DEFAULT team's real
+        // candidates (name, id, archetype, score).
+        const outcome = await runSourceForRole(role, { signal: request.signal, workspaceId: ws });
         skipped = outcome.skipped;
         for (const m of outcome.candidates) {
           if (!m.candidateId) continue;

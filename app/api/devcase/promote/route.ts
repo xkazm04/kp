@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSubmission } from "@/app/_lib/db/devcase";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { mintObservedFromSubmission, promoteSubmission } from "@/app/_lib/devcase-run";
 import { activePromoteFloor } from "@/app/_lib/devcase-orchestrator";
 
@@ -15,7 +16,13 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as { submissionId?: string };
     if (!body.submissionId) return NextResponse.json({ error: "submissionId is required." }, { status: 400 });
     const sub = getSubmission(body.submissionId);
-    if (!sub) return NextResponse.json({ error: "submission not found" }, { status: 404 });
+    // getSubmission is a by-id point read (globally-unique id), so ownership is
+    // checked here: promoting writes a pipeline entry carrying the candidate's
+    // name and contact, and a known id from another team must not be promotable.
+    // promoteSubmission itself derives every write's tenant from this same row.
+    if (!sub || sub.workspaceId !== (await currentWorkspace())) {
+      return NextResponse.json({ error: "submission not found" }, { status: 404 });
+    }
     if (!sub.evaluation) return NextResponse.json({ error: "evaluate the submission first." }, { status: 400 });
     const result = promoteSubmission(body.submissionId, activePromoteFloor());
     // Take-home -> observed bridge (best-effort): a promoted submission cleared the

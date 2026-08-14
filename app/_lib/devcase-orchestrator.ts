@@ -273,9 +273,17 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
       let sourcingError: string | null = null;
       try {
         const roleTitle = lc.role?.title ?? lc.title ?? "Dev case";
-        const outcome = await runSourceForRole(lc.role ?? {});
+        // Off-request (the runner has no session), so the LIFECYCLE row is the
+        // authority on which team is sourcing. Both halves get the same one: an
+        // unscoped read here ranked the default team's candidates and then seeded
+        // them into this lifecycle's workspace.
+        const outcome = await runSourceForRole(lc.role ?? {}, { workspaceId: lc.workspaceId });
         skipped = outcome.skipped;
-        sourced = seedPipelineFromMatches(outcome.candidates, { caseId: lc.caseId, roleTitle }).added;
+        sourced = seedPipelineFromMatches(outcome.candidates, {
+          caseId: lc.caseId,
+          roleTitle,
+          workspaceId: lc.workspaceId,
+        }).added;
       } catch (err) {
         // Sourcing is best-effort — never block publishing — but record the failure so a real
         // crash (e.g. the matching bridge threw) is distinguishable from a legitimately empty

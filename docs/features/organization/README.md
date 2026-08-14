@@ -106,6 +106,19 @@ Safe on the wire: `/api/pipeline` serves this type to the RECRUITER client, whic
 already knows its own workspace, and every candidate-facing token route projects
 explicit fields rather than serializing a row.
 
+**The contract this creates:** every query feeding `rowToEntry` must `SELECT
+workspace_id`. Most are `SELECT *` and get it free; the two explicit column lists
+(`listPipeline`, `listReconsiderQueue`) name it deliberately. Omitting it does not
+fail — the row silently reports the DEFAULT team, which is *worse* than the missing
+field it replaced, because the value now looks authoritative. That regression was
+caught by a behavioural test, not a source-level one; `listPipeline` shipped it for
+exactly one commit.
+
+`DevCaseRecord`, `Posting` and `DevSubmission` carry `workspaceId` for the same
+reason (`app/_lib/db/devcase.ts`). `listPostings` used to hand-roll a second mapper
+beside `rowToPosting`, which is precisely how it missed the new field; it now
+composes the shared one.
+
 **Read paths closed since the manifest went green** (each was previously listed
 here as a gap; re-verify against the code before re-adding any of them):
 

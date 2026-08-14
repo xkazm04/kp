@@ -38,6 +38,11 @@ export async function POST(request: NextRequest) {
       // Queued, not sent: it waits in the outbox for the recruiter to dispatch.
       status: "queued",
       ref: sub.id,
+      // `ref` here is a SUBMISSION id, not a pipeline entry id, so recordOutbox's
+      // ref-based tenant resolution finds no entry and falls back to this — which
+      // was previously omitted, filing the drafted candidate letter (their name and
+      // their strengths/gaps) into the DEFAULT team's outbox instead of this one's.
+      workspaceId: sub.workspaceId,
     });
     return NextResponse.json({ ok: true, outboxId: entry.id });
   } catch (error) {

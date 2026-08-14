@@ -65,10 +65,13 @@ export function inferLocaleFromLanguages(languages: readonly unknown[] | null | 
  *  the profile up and infer from its `languages`. Null when the profile is
  *  missing/unreadable or carries no language signal — the entry stores NULL and
  *  the workspace default applies at dispatch. Never throws. */
-export function inferProfileLocale(candidateId: string | null | undefined): Locale | null {
+export function inferProfileLocale(candidateId: string | null | undefined, workspaceId?: string): Locale | null {
   if (!candidateId) return null;
   try {
-    const rec = getProfileRecord(candidateId);
+    // Scoped: an unscoped read resolved against the default team, so on any other
+    // workspace this missed and every entry it stamped got `locale: null` —
+    // degrading all downstream candidate comms to the workspace default language.
+    const rec = getProfileRecord(candidateId, workspaceId);
     const languages = (rec?.payload as { languages?: unknown[] } | null)?.languages;
     return inferLocaleFromLanguages(Array.isArray(languages) ? languages : null);
   } catch {

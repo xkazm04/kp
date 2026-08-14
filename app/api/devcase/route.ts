@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { listDevCases, saveDevCase } from "@/app/_lib/db/devcase";
 import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
 import { recordAudit } from "@/app/_lib/dev-control";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
 // GET: approved case scenarios. POST: the human gate — approve a designed role+case.
 export async function GET() {
   try {
-    return NextResponse.json({ cases: listDevCases() });
+    // Scoped: an unscoped list showed the DEFAULT team's approved cases — full
+    // role/case/need JSON — in every other team's Cases table, beside their own
+    // postings. The sibling routes (/postings, /lifecycle, /comms) already scope.
+    return NextResponse.json({ cases: listDevCases(undefined, await currentWorkspace()) });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to list cases." }, { status: 500 });
   }
@@ -36,12 +40,15 @@ export async function POST(request: NextRequest) {
     if (!gate.ok) {
       return NextResponse.json({ error: gate.error, code: gate.code, verdict: gate.verdict }, { status: gate.status });
     }
-    const saved = saveDevCase({
-      need: body.need ?? null,
-      analysis: body.analysis ?? null,
-      role: body.role,
-      case: body.case,
-    });
+    const saved = saveDevCase(
+      {
+        need: body.need ?? null,
+        analysis: body.analysis ?? null,
+        role: body.role,
+        case: body.case,
+      },
+      await currentWorkspace()
+    );
     // Audit the human approval exactly as the lifecycle route does (any probe-audit
     // override is recorded). Separation of duties (author != approver) is a larger
     // product change and is intentionally NOT enforced here — see the follow-up note.

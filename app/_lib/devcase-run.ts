@@ -371,13 +371,20 @@ export async function mintObservedFromCaseInterview(
  *  profile honestly: an exact profile-record id wins; otherwise a UNIQUE
  *  case-insensitive label match. Ambiguous or unknown refs resolve to null (mint
  *  nothing) — observed evidence must never land on the wrong person's profile. */
+// Both lookups run in the SUBMISSION's own team. Unscoped they searched the
+// default tenant, so on any other workspace the by-id read missed and the
+// by-label fallback scanned another team's roster — either failing to find a real
+// profile, or (worse) resolving to a same-named person in a different company and
+// then writing observed skills onto THAT profile.
 function profileForSubmission(sub: DevSubmission): NonNullable<ReturnType<typeof getProfileRecord>> | null {
   const ref = (sub.candidateRef ?? "").trim();
   if (!ref) return null;
-  const byId = getProfileRecord(ref);
+  const byId = getProfileRecord(ref, sub.workspaceId);
   if (byId) return byId;
   const needle = ref.toLowerCase();
-  const matches = listProfileRecords().filter((p) => (p.row.label ?? "").trim().toLowerCase() === needle);
+  const matches = listProfileRecords(undefined, sub.workspaceId).filter(
+    (p) => (p.row.label ?? "").trim().toLowerCase() === needle
+  );
   return matches.length === 1 ? matches[0] : null;
 }
 
@@ -429,14 +436,21 @@ export async function mintObservedFromSubmission(
   const credited = payload.result.creditedSkills ?? [];
   const profile = payload.result.profile;
   if (credited.length === 0 || !profile) return { credited: [], applied: false };
-  updateProfile(rec.row.id, {
-    label: (profile.displayName as string) || rec.row.label,
-    archetype: (profile.archetype as string) ?? rec.row.archetype,
-    roleFamily: (profile.roleFamily as string) ?? rec.row.role_family,
-    completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
-    payload: profile,
-  });
-  if (entryId) recordAutomationEvent(entryId, "observed_minted", credited.join(", "));
+  // The profile was resolved in the submission's team (profileForSubmission), so
+  // the write must target the same one — otherwise the update silently matches no
+  // row and the demonstrated skills are never credited.
+  updateProfile(
+    rec.row.id,
+    {
+      label: (profile.displayName as string) || rec.row.label,
+      archetype: (profile.archetype as string) ?? rec.row.archetype,
+      roleFamily: (profile.roleFamily as string) ?? rec.row.role_family,
+      completeness: typeof profile.completeness === "number" ? profile.completeness : rec.row.completeness,
+      payload: profile,
+    },
+    sub.workspaceId
+  );
+  if (entryId) recordAutomationEvent(entryId, "observed_minted", credited.join(", "), sub.workspaceId);
   return { credited, applied: true };
 }
 
@@ -663,9 +677,14 @@ export type SourceOutcome = { candidates: Sourced[]; skipped: number; skippedRea
 // request is abandoned, so it's SIGKILLed instead of running to the backstop.
 export async function runSourceForRole(
   role: Record<string, unknown>,
-  { topN = 8, floor = 45, signal }: { topN?: number; floor?: number; signal?: AbortSignal } = {},
+  // `workspaceId` is the team whose candidate pool is ranked. It is REQUIRED in
+  // practice: an omitted one ranked the DEFAULT team's profiles, and the caller
+  // then filed those matches under its own workspace — copying another tenant's
+  // real people (name, id, archetype, score) onto this team's board. Optional only
+  // so the signature stays compatible with the store default everywhere else.
+  { topN = 8, floor = 45, signal, workspaceId }: { topN?: number; floor?: number; signal?: AbortSignal; workspaceId?: string } = {},
 ): Promise<SourceOutcome> {
-  const profiles = listMatrixProfiles();
+  const profiles = listMatrixProfiles(undefined, workspaceId);
   if (profiles.length === 0) return { candidates: [], skipped: 0, skippedReasons: [] };
   const payload = await runDevcaseCli<{ result: SourceOutcome }>(
     async (workdir) => {
@@ -701,7 +720,10 @@ export async function runSourceForRole(
 // candidateId; returns the number of pipeline entries created.
 export function seedPipelineFromMatches(
   matches: readonly Sourced[],
-  opts: { caseId: string | null; roleTitle: string },
+  // `workspaceId` must be the SAME team runSourceForRole ranked. Passing one here
+  // while omitting it there is the dangerous half-fix: the entries land correctly
+  // but the people in them belong to another tenant.
+  opts: { caseId: string | null; roleTitle: string; workspaceId?: string },
 ): { added: number } {
   let added = 0;
   for (const m of matches) {
@@ -719,8 +741,10 @@ export function seedPipelineFromMatches(
       sourceChannel: "devcase",
       // Case-sourced candidates come from saved profiles — infer their comms
       // language from the CV languages (backlog #34); NULL resolves to the
-      // workspace default at dispatch.
-      locale: inferProfileLocale(m.candidateId),
+      // workspace default at dispatch. Scoped, or the profile read misses on any
+      // other team and every entry is stamped locale:null.
+      locale: inferProfileLocale(m.candidateId, opts.workspaceId),
+      workspaceId: opts.workspaceId,
     });
     added += 1;
   }
@@ -784,6 +808,13 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
       : null;
   const lowConfidence = evalConfidence != null && evalConfidence <= LOW_EVAL_CONFIDENCE;
 
+  // TENANT: the SUBMISSION's own team owns everything this function writes — the
+  // pipeline entry, the screening card and the audit event. There is no session
+  // here (the orchestrator calls this off-request), so the submission row is the
+  // authority. All three writes previously omitted it, so a non-default team's
+  // "Promote to pipeline" reported success while the candidate's name and contact
+  // landed on the DEFAULT team's board and never appeared on the promoting team's.
+  const workspaceId = sub.workspaceId;
   const { entry } = createPipelineEntry({
     candidateId: `ds-${sub.id}`,
     candidateLabel: sub.candidateRef ?? "Candidate",
@@ -797,6 +828,7 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
     locale: lifecycle?.lang ?? null,
     // d95fed6d — origin marker: the drawer says "via dev case" and links back.
     sourceChannel: "devcase",
+    workspaceId,
   });
   const recommendation: PromoteResult["recommendation"] =
     score >= floor && !suspectAuth && !lowConfidence ? "advance" : "hold";
@@ -828,8 +860,9 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
       rationale: `${String(evaluation.summary ?? "")} ${String(transfer.roleFitRationale ?? "")}`.trim() || "Dev-case evaluation.",
       strengths: (evaluation.strengths as string[]) ?? [],
       redFlags,
-    })
+    }),
+    workspaceId
   );
-  recordAutomationEvent(entry.id, "screening_hold", `promoted from dev case — ${recommendation}: ${reasons.join("; ")}`);
+  recordAutomationEvent(entry.id, "screening_hold", `promoted from dev case — ${recommendation}: ${reasons.join("; ")}`, workspaceId);
   return { entryId: entry.id, recommendation, reasons };
 }
