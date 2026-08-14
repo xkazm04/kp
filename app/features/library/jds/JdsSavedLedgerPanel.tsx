@@ -2,7 +2,8 @@
 
 import type { useTranslations } from "next-intl";
 import { CompletionCta } from "@/app/_components/CompletionCta";
-import type { CoachHandoffBlock, JdRow, StatusFilter } from "./jdsLibrary";
+import type { SortState } from "@/app/_components/table/useTableSort";
+import type { CoachHandoffBlock, JdRow, JdSortCol, StatusFilter } from "./jdsLibrary";
 import { CoachHandoffTrace } from "./JdsLedgerCoachTrace";
 import { JdsLedgerTable } from "./JdsLedgerTable";
 import type { FilterOption } from "./JdsLedgerFilterMenu";
@@ -36,6 +37,8 @@ export function JdsSavedLedgerPanel({
   status,
   setStatus,
   statusOptions,
+  sort,
+  onSort,
   duplicating,
   onOpenRow,
   onDuplicate,
@@ -66,6 +69,8 @@ export function JdsSavedLedgerPanel({
   status: StatusFilter;
   setStatus: (v: StatusFilter) => void;
   statusOptions: FilterOption[];
+  sort: SortState<JdSortCol>;
+  onSort: (col: JdSortCol) => void;
   duplicating: string | null;
   onOpenRow: (row: JdRow) => void;
   onDuplicate: (row: JdRow) => void;
@@ -121,6 +126,8 @@ export function JdsSavedLedgerPanel({
             status={status}
             setStatus={setStatus}
             statusOptions={statusOptions}
+            sort={sort}
+            onSort={onSort}
             reload={reload}
             duplicating={duplicating}
             onOpenRow={onOpenRow}

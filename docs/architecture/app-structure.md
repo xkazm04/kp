@@ -147,9 +147,9 @@ Two shape decisions are load-bearing:
   first, then queued, then terminal runs newest-first.
 - **The tab owns only tasks.** Three unrelated operator panels used to hang below
   the lists because this was "the operator's tab". They now live where they
-  belong: the System health readout folded into **Models → Usage & cost**
-  (`settings/models/ModelsSystemStrip.tsx`, which already reported half of it),
-  Backup & restore into **Settings → Organization**
+  belong: the System health readout folded into the consolidated **Billing →
+  Usage & cost** section (`settings/billing/spend/**`, which already reported
+  half of it), Backup & restore into **Settings → Organization**
   (`settings/organization/OrganizationBackupPanel.tsx`), and the outbound
   `kp.ats.v1` webhook into **Settings → Integrations**
   (`settings/integrations/IntegrationsWebhookPanel.tsx`).

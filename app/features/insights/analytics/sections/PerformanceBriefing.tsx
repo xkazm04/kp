@@ -43,7 +43,13 @@ function Band({
   return (
     <section className="border-t border-stone-200 pt-6">
       <p className={EYEBROW}>{eyebrow}</p>
-      <SectionTitle className="mt-1 max-w-3xl !text-h1">{claim}</SectionTitle>
+      {/* No max-width on the claim. A band header is one short sentence and the
+          measure that keeps BODY copy readable was breaking it onto a second row
+          while most of the row sat empty — a two-line heading reads as two ideas.
+          `text-balance` splits the rare genuinely-long claim evenly instead of
+          leaving one orphaned word below. Context and evidence below keep their
+          reading measure; only the heading is released from it. */}
+      <SectionTitle className="mt-1 text-balance !text-h1">{claim}</SectionTitle>
       {context ? <p className="mt-3 max-w-2xl text-body leading-relaxed text-steel">{context}</p> : null}
       {children ? <div className="mt-5">{children}</div> : null}
     </section>

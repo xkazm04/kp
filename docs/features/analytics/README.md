@@ -35,15 +35,24 @@ second level of per-panel chunks inside (`sections/sectionChunks.tsx`). A reader
 in Economics never downloads the reliability diagram, the sealed-floor strip or
 the paged decision log.
 
-### Performance is mid-prototype
+### Performance reads as a brief
 
-The Performance section currently hosts a **throwaway variant switcher**
-(`sections/PerformanceSection.tsx`) with `PerformanceBaseline` as the default and
-three directional designs beside it — `PerformanceFlightDeck` (cockpit),
-`PerformanceBriefing` (editorial claims + evidence), `PerformanceScoreboard`
-(role league table). When a direction is chosen, the switcher and the losing
-files are deleted and the winner renders directly. Nothing else depends on the
-switcher; every variant takes the same `PerformanceProps`.
+The prototype round closed on the **Briefing** direction
+(`sections/PerformanceBriefing.tsx`), so the variant switcher and the three
+losing designs are gone. What distinguishes it from the panel grid it replaced:
+each band opens with a **claim computed from the data** ("Candidates are stalling
+at Offer, 75 days on average") and the chart underneath is the evidence for that
+claim, rather than the point of the band. Where the data can't support a claim,
+the band says so instead of rendering an inconclusive chart.
+
+Band headings deliberately carry **no max-width** — the measure that keeps body
+copy readable was breaking one-sentence headings onto a second row with most of
+the row empty, and a two-line heading reads as two ideas. `text-balance` handles
+the rare genuinely-long claim.
+
+The **scoreboard** direction was not wasted: its per-role overview moved to the
+JD library, which is where a recruiter is already looking at their roles. See
+`docs/features/jobs/README.md` and `app/_components/ui/PipelineShapeBar.tsx`.
 
 ## API surface
 
@@ -96,9 +105,11 @@ These are load-bearing, not stylistic:
 
 ## Known gaps
 
-- **`byJob` is volume-capped server-side.** A league-table design that ranks by
-  hire rate over that capped set can hide its own leader; committing to the
-  Scoreboard variant means ranking server-side or returning every role.
+- **`byJob` is volume-capped server-side.** The by-role table shows only the
+  highest-volume roles (`byJobTotal` vs `byJob.length`, stated in the header).
+  Any future design that RANKS roles here — rather than merely listing them —
+  needs the cap lifted or the ranking done server-side, or it can hide its own
+  leader: a small role with a great hire rate that missed the volume cut.
 - **The decision log throws a `FORMATTING_ERROR` on some rows.**
   `waveReasonText` (`app/_lib/decision-attribution.ts`) formats a message with
   `{pct}`/`{n}`/`{rank}` placeholders that some wave reasons don't supply, and

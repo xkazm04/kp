@@ -223,25 +223,72 @@ can be replayed — as one paginated, column-filtered table over the recent wind
 plus an on-demand history pager. It is the run log, not the spend log: it holds
 tasks, and nothing else.
 
-### One LLM-telemetry overview, not two
+### Where spend is read: Billing, not Models
 
-**Models → Usage & cost** (`ModelsUsagePanel.tsx`, `GET /api/llm/usage`) is the
-single place the workspace answers "what is the LLM layer doing and what does it
-cost". It folds the ledger per use case over 30 days (calls, tokens in/out,
-cached, est. cost, the deterministic-fallback split, the unpriced-spend footnote)
-and carries `ModelsSystemStrip.tsx` above the table: engine availability
-(Gemini key / Claude CLI on `PATH`), the run queue, the automation-clock
-heartbeat, seed health, 7-day analyze rollups (cache hit rate, avg duration),
-average stage timings, and the comms/schedule failure counters — all from
-`GET /api/ops`.
+Metered spend is a **billing** question, so the whole Usage & cost surface lives
+on **Settings → Billing** (`app/features/settings/billing/spend/`), not on
+Models. One section there answers it, from three sources at once:
 
-That strip was a standalone "System" card on the tasks tab. It reported the same
-prompt-cache rows and a 7-day token total this ledger already covered, so it was
-folded in and the duplicated halves dropped rather than left to drift apart. The
-health line renders **above** the ledger because it is the precondition for
-reading it: a stalled scheduler or a missing key explains a suspiciously cheap
-week. `degradedReasons` from `/api/ops` stay canonical English server diagnostics
-(no `code` to resolve) — see [localization.md](./localization.md).
+| Source | What it contributes |
+| --- | --- |
+| `GET /api/billing` (prop from the tab) | This period's plan meters: included allowance, remaining, pack credits |
+| `GET /api/llm/usage` | The `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`) |
+| `GET /api/ops` | Engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
+
+`useSpendData.ts` owns both fetches for the whole section — one loading state,
+one failure state. The ledger read is THE failure (it is the section's subject);
+a dead `/api/ops` just drops the engine lines rather than erroring the section.
+`degradedReasons` stay canonical English server diagnostics (no `code` to
+resolve) — see [localization.md](./localization.md).
+
+This replaced two half-answers that had drifted: a Usage panel on Models and a
+separate meters card on Billing, neither of which knew what the other showed. An
+intermediate consolidation NESTED the ops readout inside the usage panel, which
+gave the surface two borders, two headings and two staggered spinners for one
+question; the section is flat now, with ruled bands rather than nested cards.
+
+### The Models tab is three sections, not one scroll
+
+`ModelsTab.tsx` is a `SegmentedControl` over three mutually exclusive sections,
+each its own chunk with its own fetch:
+
+- **Routing** (`ModelsRoutingPanel.tsx`) — the per-use-case pin table.
+- **Quality** (`ModelsQualityOverview.tsx`) — the baked bench matrix: per-model
+  ranking + best model per case. With no baked matrix it says so (it used to
+  render nothing, which reads as a broken tab once it is a whole section).
+- **API keys / BYOM** (`ModelsKeysPanel.tsx`) — the write-only key store.
+
+### Proving a key: `POST /api/llm/keys/test`
+
+Saving a key used to end at "Saved". The first evidence that a pasted credential
+worked arrived later, from a hiring action quietly failing over to its
+deterministic fallback — the worst place to discover it. Each stored key row now
+has a **Test** that fires a hello-world completion through the real adapter.
+
+It is a distinct endpoint from `POST /api/llm/test`, which canaries a use case's
+ROUTING, because the two answer different questions: a key can be perfectly valid
+while nothing routes to its provider, which is the normal state right after
+saving one.
+
+- Python: `registry.probe_provider(name, model=…)` builds an adapter by provider
+  NAME, bypassing use-case routing; `test_cli.py --provider` drives it. The probe
+  runs under its own `KEY_PROBE_USE_CASE = "key_probe"` so admin traffic lands in
+  the ledger under its own name instead of inflating a real use case.
+- TS: `buildProviderKeyProbeEnv(provider, scope)` emits a `KP_LLM_CONFIG` with
+  exactly the row being asked about and no routing — deliberately NOT
+  `buildLlmConfigEnv()`, whose byom-over-platform precedence would let a
+  "Test" on a platform row be silently answered by the BYOM key above it.
+- Providers with no built-in default model (Azure deployments, OpenRouter/Qwen/
+  Ollama slugs — `MODEL_REQUIRED_PROVIDERS` in `app/_lib/llm-model-defaults.ts`,
+  kept in lockstep with `capabilities.DEFAULT_MODELS` by
+  `llm-model-required.test.ts`) get a `model_required` verdict up front, which is
+  what reveals the model field, instead of a request that could only fail as a
+  generic `invalid_model`.
+- Both Test buttons now render the **reason**, not just "failed":
+  `modelsTestReason.ts` maps the verdict's stable code (auth / rate_limit /
+  connection / timeout / …) onto localized copy. The codes were always computed
+  server-side and always thrown away by the client, which resolved them through
+  the `errors` namespace — a namespace that carries none of them.
 
 ## Invariants
 

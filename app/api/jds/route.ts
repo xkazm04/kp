@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { countAnalysesByJd } from "@/app/_lib/db/analyses";
+import { listJobPipelineStats } from "@/app/_lib/db/pipeline";
 import { listJds, saveJd } from "@/app/_lib/db/jobs";
 import { listJobRoleMeta, listJobStatuses } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
@@ -27,9 +28,17 @@ export async function GET() {
     // feed the library's Field and Seniority columns; an analysis-only JD with no
     // job behind it has neither and renders "—".
     const roleMeta = listJobRoleMeta(ws);
+    // Each row's live PIPELINE state (one GROUP BY for all rows), so the library
+    // answers "how is this role actually doing" beside "does this JD exist" — the
+    // per-role overview the Analytics scoreboard prototype proved was worth
+    // having, moved to where a recruiter is already looking at their roles.
+    // `analysisCount` is a different fact and stays: CVs analyzed AGAINST the JD,
+    // which includes people who were never filed into the pipeline.
+    const pipelineStats = listJobPipelineStats(ws);
     const jds = rows.map((row) => {
       const jobId = jdJobId(row.slug);
       const meta = roleMeta[jobId];
+      const p = pipelineStats[jobId];
       return {
         ...row,
         jobStatus: statuses[jobId] ?? null,
@@ -37,6 +46,10 @@ export async function GET() {
         roleFamily: meta?.roleFamily ?? null,
         seniority: meta?.seniority ?? null,
         company: meta?.company ?? null,
+        // Absent (not zeroed) for an analysis-only JD with no linked job: "no
+        // pipeline yet" and "a pipeline with nobody in it" are different facts,
+        // and the column renders them differently.
+        pipeline: p ? { ...p, hireRatePct: p.total ? Math.round((p.hired / p.total) * 100) : 0 } : null,
       };
     });
     return NextResponse.json({ jds });

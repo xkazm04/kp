@@ -596,6 +596,43 @@ export function listEntriesForJob(jobId: string, workspaceId: string = DEFAULT_W
   return rows.map(rowToEntry);
 }
 
+/** Per-job pipeline rollup: how many candidates a role holds, how many cleared
+ *  screening, and how many were hired. One GROUP BY for every job, so the JD
+ *  library can show each role's pipeline state without N queries or pulling the
+ *  whole analytics payload (the same "one query for all rows" shape as
+ *  listJobStatuses / listJobRoleMeta / countAnalysesByJd, which the JD list route
+ *  already composes).
+ *
+ *  Keyed by `job_id`, not by title: the library joins on jdJobId(slug), and two
+ *  roles can legitimately share a title. The analytics `byJob` table groups by
+ *  TITLE because it reports on roles as the recruiter names them; this reports on
+ *  a specific JD's linked job, which is a different question with a different key.
+ *
+ *  The "reached interview" threshold is hasAdvancedPastScreening, the single
+ *  source analytics uses for byJob — so the two surfaces cannot drift apart and
+ *  report different numbers for the same role. */
+export function listJobPipelineStats(
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): Record<string, { total: number; reachedInterview: number; hired: number }> {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT job_id, stage, COUNT(*) AS n
+         FROM pipeline_entries
+        WHERE job_id IS NOT NULL AND workspace_id = ?
+        GROUP BY job_id, stage`
+    )
+    .all(workspaceId) as { job_id: string; stage: string; n: number }[];
+  const out: Record<string, { total: number; reachedInterview: number; hired: number }> = {};
+  for (const r of rows) {
+    const m = (out[r.job_id] ??= { total: 0, reachedInterview: 0, hired: 0 });
+    m.total += r.n;
+    if (hasAdvancedPastScreening(r.stage)) m.reachedInterview += r.n;
+    if (r.stage === "Hired") m.hired += r.n;
+  }
+  return out;
+}
+
 // --- Human re-review of auto-rejections (idea-e43fa801) ----------------------
 //
 // The screening wave auto-rejects the bottom cohort and the rejection is

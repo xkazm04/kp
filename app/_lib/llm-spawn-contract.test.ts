@@ -34,6 +34,14 @@ const LLM_SPAWN_MODULES: Record<string, string> = {
   "api/llm/test/route.ts": "any (canary)",
 };
 
+// DELIBERATE EXCLUSION: api/llm/keys/test/route.ts also spawns test_cli, but with
+// buildProviderKeyProbeEnv(provider, scope) instead — a config carrying ONE key
+// row and no routing. That is the point of it: buildLlmConfigEnv applies the
+// byom-over-platform precedence, so probing a platform row through it would be
+// silently answered by the BYOM key above it and report a pass for a credential
+// that was never called. Adding it to the map above would assert the wrong
+// contract, not a missing one.
+
 for (const [rel, useCase] of Object.entries(LLM_SPAWN_MODULES)) {
   test(`${rel} passes buildLlmConfigEnv to its LLM spawn (${useCase})`, () => {
     const source = readFileSync(path.join(APP_ROOT, rel), "utf-8");

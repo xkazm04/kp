@@ -8,7 +8,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { LlmUsageAggregateRow } from "@/app/_lib/db";
-import { foldByUseCase, sumTotals } from "./modelsUsagePanelLogic.ts";
+import { foldByUseCase, sumTotals } from "./spendUsageFold.ts";
 
 // LlmUsageAggregateRow-shaped rows (day×provider×model rollups the route returns).
 const row = (over: Partial<LlmUsageAggregateRow>): LlmUsageAggregateRow => ({

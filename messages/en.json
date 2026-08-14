@@ -3105,6 +3105,9 @@
       "colField": "Field",
       "colSeniority": "Seniority",
       "colStatus": "Status",
+      "hiredInline": "{n} hired ({pct}%)",
+      "colPipeline": "Pipeline",
+      "noLinkedJob": "No linked job yet, so this JD has no pipeline.",
       "colAnalyzed": "Analyzed",
       "colSaved": "Saved",
       "colActions": "Actions",
@@ -4316,6 +4319,9 @@
       "matrixCtaAnalyze": "Or analyze a CV"
     }
   },
+  "pipelineShape": {
+    "aria": "{role}: {total} in pipeline, {interviewed} reached interview, {hired} hired"
+  },
   "table": {
     "pager": {
       "label": "Table pages",
@@ -5151,14 +5157,6 @@
         "hint": "Calibration, decisions"
       }
     },
-    "statHiredOfTotal": "of {total}",
-    "bottleneckPlain": "{count} candidates stuck at {stage} for {days} days on average",
-    "deckAttention": "Needs attention",
-    "deckAllClear": "Nothing is off target.",
-    "deckExpectedHires": "expected hires",
-    "deckVelocity": "Weekly inflow",
-    "deckPerWeek": "new candidates / week",
-    "deckVsPrior": "vs. prior period",
     "briefEyebrow": "This week's brief",
     "briefLede": "<n>{total}</n> candidates in play, {active} still moving, {hired} hired.",
     "briefTthLine": "It takes {days} days on average to get from applied to hired.",
@@ -5183,12 +5181,6 @@
     "briefMomentumClaim": "How the last weeks moved.",
     "briefBandRoles": "By role",
     "briefRolesClaim": "Which roles are carrying the pipeline.",
-    "scoreboardShape": "Shape",
-    "scoreboardShapeAria": "{role}: {total} in pipeline, {interviewed} reached interview, {hired} hired",
-    "scoreboardNoMatches": "No roles match that search.",
-    "scoreboardOpenRoles": "Open roles",
-    "scoreboardRanked": "{count} ranked",
-    "scoreboardGoals": "Goals",
     "orgBenchmark": {
       "title": "Company benchmark",
       "subtitle": "How your team compares to the whole company (anonymized aggregate).",
@@ -6297,6 +6289,16 @@
       "remaining": "{remaining} remaining",
       "credits": "{credits, plural, one {+# pack credit} other {+# pack credits}}",
       "empty": "No usage meters yet."
+    },
+    "spend": {
+      "title": "Usage & cost",
+      "intro": "What this period consumed, and what the AI behind it cost.",
+      "statCost": "Estimated cost",
+      "windowDays": "last {days} days",
+      "allowance": "Included allowance",
+      "breakdown": "By use case",
+      "engineTitle": "Engine",
+      "noSpend": "No metered AI calls in this window yet."
     },
     "plans": {
       "title": "Plans",

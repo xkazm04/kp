@@ -9,6 +9,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { useTableSort } from "@/app/_components/table/useTableSort";
 import { useJdLibrary } from "./jdsHooks";
 import {
   coachHandoffBlock,
@@ -17,9 +18,11 @@ import {
   seniorityMeta,
   statusCounts,
   STATUS_FILTERS,
+  JD_SORT_ACCESSORS,
   type CoachHandoffBlock,
   type GeneratePrefill,
   type JdRow,
+  type JdSortCol,
   type StatusFilter,
 } from "./jdsLibrary";
 import { parseCoachEditParam, COACH_EDIT_PARAM, type CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
@@ -133,10 +136,19 @@ export function useLedgerLogic() {
   };
 
   const counts = useMemo(() => (rows ? statusCounts(rows) : null), [rows]);
-  const visible = useMemo(
+  // Two stages, deliberately: filterAndSortJds still owns FILTERING (and supplies
+  // the newest-first default), then the shared useTableSort re-ranks that result
+  // by whichever column the reader picked. Keeping them separate means the column
+  // sort never has to re-implement the filter predicates, and "recent" stays the
+  // ordering anyone who never touches a header sees.
+  const filtered = useMemo(
     () => (rows ? filterAndSortJds(rows, { query, status, field, seniority, sort: "recent" }) : []),
     [rows, query, status, field, seniority]
   );
+  const { sorted: visible, sort, toggle: onSort } = useTableSort<JdRow, JdSortCol>(filtered, JD_SORT_ACCESSORS, {
+    col: "saved",
+    dir: "desc",
+  });
 
   // Column-header dropdown options, each sorted by display name ascending. Field
   // and Seniority are data-driven facets (only values present in the library);
@@ -222,6 +234,8 @@ export function useLedgerLogic() {
     duplicating,
     startDuplicate,
     visible,
+    sort,
+    onSort,
     fieldOptions,
     seniorityOptions,
     statusOptions,

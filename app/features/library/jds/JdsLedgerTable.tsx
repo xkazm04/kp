@@ -2,14 +2,17 @@
 
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import type { JdRow, StatusFilter } from "./jdsLibrary";
+import type { SortState } from "@/app/_components/table/useTableSort";
+import type { JdRow, JdSortCol, StatusFilter } from "./jdsLibrary";
 import { LibraryEmptyStates } from "./JdsEmptyStates";
 import type { FilterOption } from "./JdsLedgerFilterMenu";
 import { JdsLedgerTableHead } from "./JdsLedgerTableHead";
 import { JdsLedgerRow } from "./JdsLedgerRow";
 
-// The table has seven columns; kept in one place so the "no match" row spans them.
-const COLS = 7;
+// The table's column count; kept in one place so the "no match" / empty / loading
+// rows span them all. Bumped 7 → 9 when the per-role Pipeline and Hired columns
+// arrived from the Analytics scoreboard prototype.
+const COLS = 9;
 
 // The saved-JD table: filterable column headers + rows, plus its own empty/no-
 // match/loading states — extracted verbatim from LibrarySavedJdsLedger.tsx so
@@ -30,6 +33,8 @@ export function JdsLedgerTable({
   status,
   setStatus,
   statusOptions,
+  sort,
+  onSort,
   reload,
   duplicating,
   onOpenRow,
@@ -52,6 +57,8 @@ export function JdsLedgerTable({
   status: StatusFilter;
   setStatus: (v: StatusFilter) => void;
   statusOptions: FilterOption[];
+  sort: SortState<JdSortCol>;
+  onSort: (col: JdSortCol) => void;
   reload: () => void;
   duplicating: string | null;
   onOpenRow: (row: JdRow) => void;
@@ -61,6 +68,11 @@ export function JdsLedgerTable({
 }) {
   const t = useTranslations("library.tab");
   const enumLabel = useEnumLabel();
+  // The shape bars scale against the busiest role IN THE FULL LIBRARY, not the
+  // filtered view: rescaling on every filter change would make the same role's
+  // bar jump size for no reason the reader caused, and the comparison it exists
+  // to support is between roles, not between filter states.
+  const peak = Math.max(1, ...(rows ?? []).map((r) => r.pipeline?.total ?? 0));
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left">
@@ -78,6 +90,8 @@ export function JdsLedgerTable({
           status={status}
           setStatus={setStatus}
           statusOptions={statusOptions}
+          sort={sort}
+          onSort={onSort}
           t={t}
         />
         <tbody className={`divide-y divide-stone-200 ${rows && visible.length > 0 ? "animate-arrive-in" : ""}`}>
@@ -116,6 +130,7 @@ export function JdsLedgerTable({
                 enumLabel={enumLabel}
                 reload={reload}
                 duplicating={duplicating}
+                peak={peak}
                 onOpenRow={onOpenRow}
                 onDuplicate={onDuplicate}
                 onIngested={onIngested}

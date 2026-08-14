@@ -67,6 +67,20 @@ export type JdRow = {
   analysis_status?: "analyzing" | "ready" | "failed" | null;
   // The owning jd_build task — lets the row show live progress from TasksProvider.
   analysis_task_id?: string | null;
+  // Live pipeline state of the linked jd-<slug> job: how many candidates it holds,
+  // how many cleared screening, how many were hired. `null` when no job is linked
+  // (an analysis-only JD) — distinct from a linked job whose pipeline is empty,
+  // which is `{ total: 0, … }`. Threshold matches analytics' byJob exactly
+  // (hasAdvancedPastScreening), so the two surfaces cannot report different
+  // numbers for the same role.
+  pipeline?: JdPipelineStats | null;
+};
+
+export type JdPipelineStats = {
+  total: number;
+  reachedInterview: number;
+  hired: number;
+  hireRatePct: number;
 };
 
 // Prefill for the Generate form when Duplicating a role: the fields we can
@@ -203,6 +217,25 @@ export type StatusFilter = (typeof STATUS_FILTERS)[number]["value"];
 // this list used to carry were never rendered by anything.
 export const SORTS = ["recent", "candidates", "title"] as const;
 export type SortKey = (typeof SORTS)[number];
+
+// The COLUMN sort axis, distinct from SortKey above: SortKey is the ledger's
+// single default ordering (the table always asked for "recent"), while these are
+// the columns a reader can re-rank by from the header. Kept alongside so the
+// accessor map below and the header cells can never name a column the other
+// doesn't have.
+export const JD_SORT_COLS = ["pipeline", "analyzed", "saved"] as const;
+export type JdSortCol = (typeof JD_SORT_COLS)[number];
+
+/** What each sortable column contributes to the ordering. Null means "no value"
+ *  and sorts LAST in both directions (see useTableSort/compareCells) — which is
+ *  the point for `pipeline`: an analysis-only JD has no linked job, so it has no
+ *  pipeline at all. Ranking it as a zero would bury real but quiet roles beneath
+ *  JDs that were never even ingested. */
+export const JD_SORT_ACCESSORS: Record<JdSortCol, (r: JdRow) => string | number | null> = {
+  pipeline: (r) => r.pipeline?.total ?? null,
+  analyzed: (r) => r.analysisCount ?? 0,
+  saved: (r) => r.created_at,
+};
 
 export function filterAndSortJds(
   rows: JdRow[],

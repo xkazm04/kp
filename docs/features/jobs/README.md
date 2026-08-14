@@ -170,6 +170,38 @@ is out of scope (kp generates scripts only).
 | `pipeline/jobfit/campaign.py`, `campaign_cli.py` | Campaign pack generation engine (E1). |
 | `app/features/library/jobs/**` (`JobsDraftsPanel.tsx`, `JobsPostingModal.tsx` / `jobsPostingModalLogic.ts`) | Jobs tab UI: drafts list, publish/close actions, campaign tab. |
 
+## The JD ledger shows each role's live pipeline
+
+The saved-JD table carries a **Pipeline** column: a stacked shape bar
+(`app/_components/ui/PipelineShapeBar.tsx` — width encodes volume against the
+busiest role, segments encode reached-interview and hired), the headcount, and
+the hires when there are any. It arrived from an Analytics prototype whose
+per-role league table proved useful but was one tab away from where a recruiter
+actually looks at their roles.
+
+- **Source:** `listJobPipelineStats()` (`app/_lib/db/pipeline.ts`) — one GROUP BY
+  for every job, composed into `GET /api/jds` beside the existing
+  `listJobStatuses` / `listJobRoleMeta` / `countAnalysesByJd` passes.
+- **Join key is `job_id`** (`jdJobId(slug)` → `jd-<slug>`), the same key the
+  Field/Seniority/Status columns already use — not the title. Analytics' `byJob`
+  groups by TITLE because it reports on roles as the recruiter names them; this
+  reports on one JD's linked job.
+- **"Reached interview" is `hasAdvancedPastScreening`**, the single source
+  analytics uses, so the two surfaces cannot report different numbers for the
+  same role.
+- **No linked job renders `—`, never `0`.** "This JD was never ingested" and
+  "this role has nobody in it yet" are different facts; the sort accessor returns
+  `null` for the first so it sorts last in both directions rather than ranking as
+  a zero and burying real-but-quiet roles.
+- The quantitative columns (Pipeline / Analyzed / Saved) sort via the shared
+  `app/_components/table/ColumnHead` + `useTableSort` and carry `aria-sort`. The
+  categorical ones keep their existing filter-trigger headers — `ColumnHeaderFilter`
+  here has no icon-only mode, so nesting it would print the column name twice.
+
+> Note: a seeded/demo database can show `—` on every row. Seeded corpus jobs
+> (`job-000…`) are ingested directly and are not JD-backed, so nothing joins.
+> The column populates for JDs ingested through the library's own "Ingest as job".
+
 ## Data model
 
 `jobs` (structured, matchable — `status`, `salary_min/max`, `payload_json`),

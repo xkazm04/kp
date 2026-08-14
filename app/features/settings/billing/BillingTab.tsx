@@ -23,6 +23,12 @@ import type { BillingPayload } from "./billingTypes";
 const PlanCatalog = dynamic(() => import("./BillingPlanCatalog").then((m) => ({ default: m.PlanCatalog })), {
   loading: () => <div className="reveal-quiet min-h-[20rem]" aria-hidden />,
 });
+// Usage & cost — the consolidated spend section that moved off the Models tab
+// (spend/). Its own chunk and an idle mount: it owns two server reads of its
+// own, and the plan card above it must not wait on them.
+const SpendSection = dynamic(() => import("./spend/BillingSpendSection").then((m) => ({ default: m.BillingSpendSection })), {
+  loading: () => <div className="reveal-quiet min-h-[22rem]" aria-hidden />,
+});
 
 // Billing tab — the GET /api/billing overview rendered for a recruiter: the
 // entitled plan, this period's meter usage (included allowance + pack credits),
@@ -152,11 +158,18 @@ export function BillingTab() {
         <BillingCurrentPlanPanel
           data={data}
           statusLabel={statusLabel}
-          meterName={meterName}
           onManage={openPortal}
           portalBusy={portalBusy}
           portalNote={portalNote}
         />
+      ) : null}
+
+      {/* Tier 3: the consolidated Usage & cost section — this period's allowance
+          meters, the per-use-case AI ledger and the engine facts, in ONE surface. */}
+      {data ? (
+        <Defer strategy="idle" placeholder={<div className="reveal-quiet min-h-[22rem]" aria-hidden />}>
+          <SpendSection data={data} meterName={meterName} />
+        </Defer>
       ) : null}
 
       {/* Tier 3: the plan catalog + minutes pack, one idle beat after the primary

@@ -3,12 +3,22 @@
 import { Search, X } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import { META_LABEL } from "@/app/_components/ui/recipes";
-import type { StatusFilter } from "./jdsLibrary";
+import { ColumnHead } from "@/app/_components/table/ColumnHead";
+import type { SortState } from "@/app/_components/table/useTableSort";
+import type { JdSortCol, StatusFilter } from "./jdsLibrary";
 import { ColumnHeaderFilter, type FilterOption } from "./JdsLedgerFilterMenu";
 
 // The saved-JD table's column-header row (Role search + Field/Seniority/Status
 // filter menus) — extracted verbatim from JdsLedgerTable.tsx so that file stays
 // under the 200-line split threshold.
+//
+// The QUANTITATIVE columns (Pipeline / Analyzed / Saved) use the shared
+// table/ColumnHead, so they sort and carry aria-sort. The four categorical ones
+// keep their existing bare headers: each already IS a filter trigger, and this
+// file's ColumnHeaderFilter has no icon-only mode like the shared ColumnFilter's
+// `trigger="icon"` — nesting it under ColumnHead would print the column name
+// twice ("Field ⇅ Field ▾"). Filtering is also the more useful verb on a closed
+// vocabulary; ordering is what the numbers needed.
 export function JdsLedgerTableHead({
   query,
   setQuery,
@@ -23,6 +33,8 @@ export function JdsLedgerTableHead({
   status,
   setStatus,
   statusOptions,
+  sort,
+  onSort,
   t,
 }: {
   query: string;
@@ -38,13 +50,15 @@ export function JdsLedgerTableHead({
   status: StatusFilter;
   setStatus: (v: StatusFilter) => void;
   statusOptions: FilterOption[];
+  sort: SortState<JdSortCol>;
+  onSort: (col: JdSortCol) => void;
   t: ReturnType<typeof useTranslations<"library.tab">>;
 }) {
   return (
     <thead>
       <tr className="border-b border-stone-200">
         {/* Role — the search affordance lives here (no separate toolbar). */}
-        <th scope="col" className={`${META_LABEL} px-4 py-2.5`}>
+        <th scope="col" className={`${META_LABEL} px-3 py-2.5`}>
           {searchOpen || query ? (
             <div className="relative flex items-center">
               <Search size={14} className="pointer-events-none absolute left-2 text-steel" aria-hidden />
@@ -90,13 +104,13 @@ export function JdsLedgerTableHead({
             </span>
           )}
         </th>
-        <th scope="col" className={`${META_LABEL} px-4 py-2.5`}>
+        <th scope="col" className={`${META_LABEL} px-3 py-2.5`}>
           <ColumnHeaderFilter title={t("colField")} options={fieldOptions} selected={field} onSelect={setField} />
         </th>
-        <th scope="col" className={`${META_LABEL} px-4 py-2.5`}>
+        <th scope="col" className={`${META_LABEL} px-3 py-2.5`}>
           <ColumnHeaderFilter title={t("colSeniority")} options={seniorityOptions} selected={seniority} onSelect={setSeniority} />
         </th>
-        <th scope="col" className={`${META_LABEL} px-4 py-2.5`}>
+        <th scope="col" className={`${META_LABEL} px-3 py-2.5`}>
           <ColumnHeaderFilter
             title={t("colStatus")}
             options={statusOptions}
@@ -104,9 +118,14 @@ export function JdsLedgerTableHead({
             onSelect={(v) => setStatus((v as StatusFilter) ?? "all")}
           />
         </th>
-        <th scope="col" className={`${META_LABEL} whitespace-nowrap px-4 py-2.5`}>{t("colAnalyzed")}</th>
-        <th scope="col" className={`${META_LABEL} whitespace-nowrap px-4 py-2.5`}>{t("colSaved")}</th>
-        <th scope="col" className={`${META_LABEL} px-4 py-2.5 text-right`}>{t("colActions")}</th>
+        {/* The role's live pipeline state, brought here from the Analytics
+            scoreboard prototype: this is where a recruiter is already looking at
+            their roles, so "how is this one doing" belongs beside "does this JD
+            exist" rather than one tab away. */}
+        <ColumnHead title={t("colPipeline")} sortCol="pipeline" sort={sort} onSort={onSort} className="whitespace-nowrap px-3 py-2.5" />
+        <ColumnHead title={t("colAnalyzed")} sortCol="analyzed" sort={sort} onSort={onSort} align="right" className="whitespace-nowrap px-3 py-2.5" />
+        <ColumnHead title={t("colSaved")} sortCol="saved" sort={sort} onSort={onSort} className="whitespace-nowrap px-3 py-2.5" />
+        <th scope="col" className={`${META_LABEL} px-3 py-2.5 text-right`}>{t("colActions")}</th>
       </tr>
     </thead>
   );

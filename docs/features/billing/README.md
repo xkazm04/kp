@@ -43,6 +43,8 @@ friction at zero users.
 | Enforcement | `app/_lib/billing/enforce.ts` | Hard 402 gates (`quota_exceeded`) at metered-work creation points. |
 | DB | `app/_lib/db/billing.ts` | `billing_state`, `billing_events`, `billing_credits`, `billing_usage`, `billing_alerts` — all **org-keyed** (`org_id`, org-plan Phase 3 data layer): one subscription + ledger per org, shared across its teams. Accessors default to the seeded org, so single-org deployments read the exact rows they always did. `billingOrgForWorkspace` (entitlements.ts) maps the routes' existing `workspace` seam to its org (unknown/demo scopes fail closed to an empty scope); the webhook attributes an event via checkout metadata (`kpOrgId`) → stored subscription/customer → default org (`resolveBillingOrg`, sync.ts). Pinned by `app/_lib/db/billing-tenancy.test.ts`. |
 | Routes | `app/api/billing/route.ts`, `checkout/route.ts`, `webhook/route.ts`, `portal/route.ts` (see below) | |
+| UI — plan | `app/features/settings/billing/BillingTab.tsx`, `BillingCurrentPlanPanel.tsx`, `BillingPlanCatalog.tsx`, `BillingStatusBanners.tsx` | |
+| UI — usage & cost | `app/features/settings/billing/spend/**` | Consolidated spend section (see below); moved here from the Models tab. |
 
 ```
 checkout:   POST /api/billing/checkout {plan|pack} → gateway → provider URL (redirect)
@@ -55,6 +57,49 @@ manage:     POST /api/billing/portal → provider customer-portal URL
 
 **Money state is only ever written by the webhook path** — never trusted from the
 client, never inferred from a checkout redirect.
+
+### The Usage & cost section (`app/features/settings/billing/spend/`)
+
+The billing tab renders the plan card, then **one** consolidated spend section,
+then the plan catalog. The section combines three reads that used to live on two
+different tabs:
+
+| Source | Contribution |
+|---|---|
+| the tab's `GET /api/billing` payload | this period's plan meters: allowance, remaining, pack credits |
+| `GET /api/llm/usage` | the `llm_usage` ledger folded per use case over 30 days (`spendUsageFold.ts`, unit-tested) |
+| `GET /api/ops` | engine availability, run queue, automation clock, 7-day analyze rollups, comms/schedule failure counters |
+
+`useSpendData.ts` owns both fetches, so the section has **one** loading state and
+**one** failure state. The ledger read is the failure that matters; a dead
+`/api/ops` drops the engine lines rather than erroring the section.
+
+Why it moved: "how much allowance is left" and "what did the AI actually cost"
+are one question, and they were being answered by a meters card here and a Usage
+panel on the Models tab that never referenced each other. Metered spend belongs
+next to the plan that meters it. The AI-layer plumbing those numbers come from is
+still documented in
+[../../architecture/llm-provider-layer.md](../../architecture/llm-provider-layer.md).
+
+**The layout is an attribution chart** (`BillingSpendPanel.tsx`): one
+proportional bar per use case, widest first, with its share of total spend, so
+"role intake costs four times what JD ingest does" is a glance rather than a
+calculation. The plan allowance is a narrow left rail (an entitlement constrains
+the chart; it is not a peer of it) and engine health is a footer line. Chosen
+over two rejected directions — a "Statement" (one headline figure, then ruled
+bands of arithmetic) and a "Cockpit" (a uniform gauge grid treating a plan
+allowance and a cache-hit rate as the same instrument).
+
+`SpendEngineFacts` renders the three failure counters (`deadLetters7d`,
+`reconcileFailures`, `noSlotStalls`) **only when non-zero**. This footer is the
+only screen in the app carrying the latter two, so hiding them unconditionally
+would delete an alarm rather than quiet it.
+
+Known gap from the move: the per-use-case **token columns** (in / out / cached)
+and the 7-day **cache-hit rate**, **average analysis duration** and **stage
+timings** that the old Models panel + System card showed are not on this layout.
+They are still in `GET /api/llm/usage` and `GET /api/ops`; folding the useful
+ones into the footer is a small additive change if they turn out to be missed.
 
 ## Entitlement semantics (`entitlements.ts`)
 

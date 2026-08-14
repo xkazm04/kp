@@ -3105,6 +3105,9 @@
       "colField": "Domaine",
       "colSeniority": "Séniorité",
       "colStatus": "Statut",
+      "hiredInline": "{n} recrutés ({pct} %)",
+      "colPipeline": "Pipeline",
+      "noLinkedJob": "Aucun poste lié pour l’instant, cette fiche n’a donc pas de pipeline.",
       "colAnalyzed": "Analysé",
       "colSaved": "Enregistré",
       "colActions": "Actions",
@@ -4316,6 +4319,9 @@
       "matrixCtaAnalyze": "Ou analyser un CV"
     }
   },
+  "pipelineShape": {
+    "aria": "{role} : {total} dans le pipeline, {interviewed} arrivés en entretien, {hired} recrutés"
+  },
   "table": {
     "pager": {
       "label": "Pages du tableau",
@@ -5151,14 +5157,6 @@
         "hint": "Calibrage, décisions"
       }
     },
-    "statHiredOfTotal": "sur {total}",
-    "bottleneckPlain": "{count} candidats bloqués à l’étape {stage} depuis {days} jours en moyenne",
-    "deckAttention": "Demande attention",
-    "deckAllClear": "Rien n’est hors objectif.",
-    "deckExpectedHires": "recrutements attendus",
-    "deckVelocity": "Flux hebdomadaire",
-    "deckPerWeek": "nouveaux candidats / semaine",
-    "deckVsPrior": "vs période précédente",
     "briefEyebrow": "Le point de la semaine",
     "briefLede": "<n>{total}</n> candidats en lice, {active} encore en mouvement, {hired} recrutés.",
     "briefTthLine": "Il faut en moyenne {days} jours entre la candidature et le recrutement.",
@@ -5183,12 +5181,6 @@
     "briefMomentumClaim": "Comment les dernières semaines ont évolué.",
     "briefBandRoles": "Par poste",
     "briefRolesClaim": "Quels postes portent le pipeline.",
-    "scoreboardShape": "Profil",
-    "scoreboardShapeAria": "{role} : {total} dans le pipeline, {interviewed} arrivés en entretien, {hired} recrutés",
-    "scoreboardNoMatches": "Aucun poste ne correspond à cette recherche.",
-    "scoreboardOpenRoles": "Postes ouverts",
-    "scoreboardRanked": "{count} classés",
-    "scoreboardGoals": "Objectifs",
     "orgBenchmark": {
       "title": "Comparatif de l’entreprise",
       "subtitle": "Comment votre équipe se situe par rapport à l’ensemble de l’entreprise (agrégat anonymisé).",
@@ -6297,6 +6289,16 @@
       "remaining": "{remaining} restants",
       "credits": "{credits, plural, one {+# crédit de pack} other {+# crédits de pack}}",
       "empty": "Aucun compteur d’utilisation pour l’instant."
+    },
+    "spend": {
+      "title": "Utilisation et coûts",
+      "intro": "Ce que cette période a consommé, et ce que l’IA derrière a coûté.",
+      "statCost": "Coût estimé",
+      "windowDays": "{days} derniers jours",
+      "allowance": "Quota inclus",
+      "breakdown": "Par cas d’usage",
+      "engineTitle": "Moteur",
+      "noSpend": "Aucun appel IA mesuré sur cette période pour l’instant."
     },
     "plans": {
       "title": "Forfaits",

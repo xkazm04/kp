@@ -26,8 +26,9 @@ test.describe("Analytics — three sections behind the switcher", () => {
 
     // Default landing section — a bare ?tab=analytics must resolve to one.
     await expect(nav.getByRole("radio", { name: /performance/i })).toHaveAttribute("aria-checked", "true");
-    // Its content, not just its tab: the funnel card is Performance's centrepiece.
-    await expect(page.getByRole("heading", { name: /funnel/i }).first()).toBeVisible();
+    // Its content, not just its tab. The Briefing baseline leads with a computed
+    // lede rather than a chart title, so that is the stable marker.
+    await expect(page.getByText(/candidates in play/i).first()).toBeVisible();
   });
 
   test("?sec= deep-links straight into a section", async ({ page }) => {
@@ -40,7 +41,7 @@ test.describe("Analytics — three sections behind the switcher", () => {
     // hand-edited link resolving to a section that does not exist.
     await page.goto("/?tab=analytics&sec=not-a-section");
     await expect(sectionNav(page).getByRole("radio", { name: /performance/i })).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByRole("heading", { name: /funnel/i }).first()).toBeVisible();
+    await expect(page.getByText(/candidates in play/i).first()).toBeVisible();
   });
 
   test("switching sections swaps the content and writes back to the URL", async ({ page }) => {
@@ -49,44 +50,26 @@ test.describe("Analytics — three sections behind the switcher", () => {
     await sectionNav(page).getByRole("radio", { name: /economics/i }).click();
     await expect(page).toHaveURL(/sec=economics/);
     await expect(sectionNav(page).getByRole("radio", { name: /economics/i })).toHaveAttribute("aria-checked", "true");
-    // Performance's funnel must be GONE — a switcher that only adds content
-    // would leave the tab exactly as long as it was before the split.
-    await expect(page.getByRole("heading", { name: /^funnel$/i })).toHaveCount(0);
+    // Performance's brief must be GONE — a switcher that only adds content would
+    // leave the tab exactly as long as it was before the split.
+    await expect(page.getByText(/candidates in play/i)).toHaveCount(0);
 
     await sectionNav(page).getByRole("radio", { name: /quality/i }).click();
     await expect(page).toHaveURL(/sec=quality/);
   });
 });
 
-test.describe("Analytics — Performance prototype variants", () => {
-  // Every variant renders the same payload through a different mental model;
-  // the check is that each one mounts and paints real content, since a variant
-  // that throws would otherwise only be caught by opening it by hand.
-  for (const variant of ["Flight deck", "Briefing", "Scoreboard"] as const) {
-    test(`the ${variant} variant renders`, async ({ page }) => {
-      await page.goto("/?tab=analytics");
-      await page.getByRole("button", { name: variant, exact: true }).click();
-      await expect(page.getByRole("button", { name: variant, exact: true })).toHaveAttribute("aria-pressed", "true");
-      // Something real painted — not an error boundary, not an empty div.
-      await expect(page.locator("section[aria-busy]")).toBeVisible();
-      await expect(page.getByRole("heading").first()).toBeVisible();
-    });
-  }
-
-  test("the Scoreboard's role table sorts, and marks the sorted column for AT", async ({ page }) => {
+test.describe("Analytics — Performance reads as a brief", () => {
+  // The prototype round closed on the Briefing direction. What distinguishes it
+  // from the grid it replaced is that each band opens with a CLAIM derived from
+  // the data rather than a chart title, so that is what this checks — a
+  // regression to generic panel headings would pass a "does it render" test.
+  test("the section leads with a computed claim, not a chart title", async ({ page }) => {
     await page.goto("/?tab=analytics");
-    await page.getByRole("button", { name: "Scoreboard", exact: true }).click();
-
-    // The scoreboard opens already ranked by hire rate: a league table that
-    // arrives unsorted has not made its argument.
-    const hireRateHeader = page.getByRole("columnheader", { name: /hire rate/i });
-    await expect(hireRateHeader).toHaveAttribute("aria-sort", "descending");
-
-    // Sorting another column moves the aria-sort with it — the state the two
-    // hand-rolled sort headers in this repo never exposed at all.
-    const pipelineHeader = page.getByRole("columnheader", { name: /in pipeline/i });
-    await pipelineHeader.getByRole("button").click();
-    await expect(pipelineHeader).toHaveAttribute("aria-sort", /ascending|descending/);
-    await expect(hireRateHeader).toHaveAttribute("aria-sort", "none");
+    await expect(page.getByText(/candidates in play/i).first()).toBeVisible();
+    // The funnel band's claim states a stage or a verdict, never just "Funnel".
+    await expect(
+      page.getByRole("heading", { name: /stalling at|weakest link|clearing its goal|come through the funnel/i }).first()
+    ).toBeVisible();
   });
 });

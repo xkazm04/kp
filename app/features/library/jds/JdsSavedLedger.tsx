@@ -78,6 +78,8 @@ export function LibrarySavedJdsLedger() {
     duplicating,
     startDuplicate,
     visible,
+    sort,
+    onSort,
     fieldOptions,
     seniorityOptions,
     statusOptions,
@@ -148,6 +150,8 @@ export function LibrarySavedJdsLedger() {
         status={status}
         setStatus={setStatus}
         statusOptions={statusOptions}
+        sort={sort}
+        onSort={onSort}
         duplicating={duplicating}
         onOpenRow={setOpenRow}
         onDuplicate={startDuplicate}

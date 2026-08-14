@@ -3105,6 +3105,9 @@
       "colField": "Obor",
       "colSeniority": "Seniorita",
       "colStatus": "Stav",
+      "hiredInline": "{n} přijato ({pct} %)",
+      "colPipeline": "Pipeline",
+      "noLinkedJob": "Zatím není napojená pozice, takže tento popis nemá pipeline.",
       "colAnalyzed": "Analyzováno",
       "colSaved": "Uloženo",
       "colActions": "Akce",
@@ -4316,6 +4319,9 @@
       "matrixCtaAnalyze": "Nebo analyzovat CV"
     }
   },
+  "pipelineShape": {
+    "aria": "{role}: {total} v pipeline, {interviewed} došlo k pohovoru, {hired} přijato"
+  },
   "table": {
     "pager": {
       "label": "Stránkování tabulky",
@@ -5151,14 +5157,6 @@
         "hint": "Kalibrace, rozhodnutí"
       }
     },
-    "statHiredOfTotal": "z {total}",
-    "bottleneckPlain": "{count} kandidátů uvízlo ve fázi {stage}, v průměru {days} dní",
-    "deckAttention": "Vyžaduje pozornost",
-    "deckAllClear": "Nic není mimo cíl.",
-    "deckExpectedHires": "očekávané nábory",
-    "deckVelocity": "Týdenní přírůstek",
-    "deckPerWeek": "nových kandidátů / týden",
-    "deckVsPrior": "oproti minulému období",
     "briefEyebrow": "Souhrn týdne",
     "briefLede": "<n>{total}</n> kandidátů ve hře, {active} se stále posouvá, {hired} přijato.",
     "briefTthLine": "Cesta od přihlášky k přijetí trvá v průměru {days} dní.",
@@ -5183,12 +5181,6 @@
     "briefMomentumClaim": "Jak se hýbaly poslední týdny.",
     "briefBandRoles": "Podle rolí",
     "briefRolesClaim": "Které role táhnou pipeline.",
-    "scoreboardShape": "Tvar",
-    "scoreboardShapeAria": "{role}: {total} v pipeline, {interviewed} došlo k pohovoru, {hired} přijato",
-    "scoreboardNoMatches": "Hledání neodpovídá žádná role.",
-    "scoreboardOpenRoles": "Otevřené role",
-    "scoreboardRanked": "{count} v žebříčku",
-    "scoreboardGoals": "Cíle",
     "orgBenchmark": {
       "title": "Firemní srovnání",
       "subtitle": "Jak si váš tým vede oproti celé firmě (anonymizovaný souhrn).",
@@ -6297,6 +6289,16 @@
       "remaining": "Zbývá {remaining}",
       "credits": "{credits, plural, one {+# kredit z balíčku} few {+# kredity z balíčku} many {+# kreditu z balíčku} other {+# kreditů z balíčku}}",
       "empty": "Zatím žádné ukazatele čerpání."
+    },
+    "spend": {
+      "title": "Spotřeba a náklady",
+      "intro": "Co toto období spotřebovalo a kolik stála AI za tím.",
+      "statCost": "Odhadované náklady",
+      "windowDays": "posledních {days} dní",
+      "allowance": "Zahrnutý limit",
+      "breakdown": "Podle případu užití",
+      "engineTitle": "Engine",
+      "noSpend": "V tomto období zatím nejsou žádná měřená volání AI."
     },
     "plans": {
       "title": "Tarify",

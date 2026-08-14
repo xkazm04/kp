@@ -3105,6 +3105,9 @@
       "colField": "Fachgebiet",
       "colSeniority": "Seniorität",
       "colStatus": "Status",
+      "hiredInline": "{n} eingestellt ({pct} %)",
+      "colPipeline": "Pipeline",
+      "noLinkedJob": "Noch keine verknüpfte Stelle, daher hat diese JD keine Pipeline.",
       "colAnalyzed": "Analysiert",
       "colSaved": "Gespeichert",
       "colActions": "Aktionen",
@@ -4316,6 +4319,9 @@
       "matrixCtaAnalyze": "Oder einen Lebenslauf analysieren"
     }
   },
+  "pipelineShape": {
+    "aria": "{role}: {total} in der Pipeline, {interviewed} bis zum Interview, {hired} eingestellt"
+  },
   "table": {
     "pager": {
       "label": "Tabellenseiten",
@@ -5151,14 +5157,6 @@
         "hint": "Kalibrierung, Entscheidungen"
       }
     },
-    "statHiredOfTotal": "von {total}",
-    "bottleneckPlain": "{count} Kandidaten hängen in {stage} fest, im Schnitt {days} Tage",
-    "deckAttention": "Braucht Aufmerksamkeit",
-    "deckAllClear": "Nichts liegt außerhalb der Ziele.",
-    "deckExpectedHires": "erwartete Einstellungen",
-    "deckVelocity": "Zulauf pro Woche",
-    "deckPerWeek": "neue Kandidaten / Woche",
-    "deckVsPrior": "ggü. Vorperiode",
     "briefEyebrow": "Der Wochenbericht",
     "briefLede": "<n>{total}</n> Kandidaten im Rennen, {active} weiterhin in Bewegung, {hired} eingestellt.",
     "briefTthLine": "Von der Bewerbung bis zur Einstellung dauert es im Schnitt {days} Tage.",
@@ -5183,12 +5181,6 @@
     "briefMomentumClaim": "Wie sich die letzten Wochen bewegt haben.",
     "briefBandRoles": "Nach Rolle",
     "briefRolesClaim": "Welche Rollen die Pipeline tragen.",
-    "scoreboardShape": "Form",
-    "scoreboardShapeAria": "{role}: {total} in der Pipeline, {interviewed} bis zum Interview, {hired} eingestellt",
-    "scoreboardNoMatches": "Keine Rolle passt zu dieser Suche.",
-    "scoreboardOpenRoles": "Offene Rollen",
-    "scoreboardRanked": "{count} im Ranking",
-    "scoreboardGoals": "Ziele",
     "orgBenchmark": {
       "title": "Unternehmens-Benchmark",
       "subtitle": "Wie Ihr Team im Vergleich zum gesamten Unternehmen abschneidet (anonymisierte Aggregation).",
@@ -6297,6 +6289,16 @@
       "remaining": "{remaining} verbleibend",
       "credits": "{credits, plural, one {+# Paket-Credit} other {+# Paket-Credits}}",
       "empty": "Noch keine Nutzungszähler."
+    },
+    "spend": {
+      "title": "Nutzung & Kosten",
+      "intro": "Was dieser Zeitraum verbraucht hat und was die KI dahinter gekostet hat.",
+      "statCost": "Geschätzte Kosten",
+      "windowDays": "letzte {days} Tage",
+      "allowance": "Enthaltenes Kontingent",
+      "breakdown": "Nach Anwendungsfall",
+      "engineTitle": "Engine",
+      "noSpend": "In diesem Zeitraum gibt es noch keine gemessenen KI-Aufrufe."
     },
     "plans": {
       "title": "Tarife",
