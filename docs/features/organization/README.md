@@ -83,6 +83,32 @@ workspace-scoped. As of this pass:
 Reference implementation for scoping a new table: `app/_lib/db/{analyses,profiles}.ts`
 + their `*-tenancy.test.ts`.
 
+### The route layer, and where the guard belongs
+
+The 40-odd `*-tenancy.test.ts` files pin the SQL **inside** store modules. Every one
+of them passed while the app leaked across tenants, because the defect was never in
+the SQL — it was one layer up. ~200 store functions **default** their tenant, so a
+route that omits the argument silently reads or writes the default team, and no
+store-level test can see it. A tab-by-tab audit found ~90 such call sites.
+
+`app/api/route-tenancy-coverage.test.ts` closes that as a **ratchet**: it derives the
+tenant-defaulting surface from source, finds every route call that omits the argument,
+and asserts the offender set equals a documented allowlist. **The allowlist is empty
+and the test passes** — the route layer is clean, and a new route that forgets fails CI.
+
+Two notes for anyone editing that scanner. Comments **inside** a parameter list contain
+commas (`actOnPipelineEntry`'s `actor` note makes a naive splitter see 7 parameters,
+not 5), and `Record<string, unknown>` splits on its own comma unless generics are
+stripped — while *arguments* need the opposite rule, because `=>` reads as a closing
+angle. Each side gets the rule that fits it. A guard that cries wolf is worse than
+none: the response to a false positive is an allowlist entry, which enshrines it.
+
+Resolve a tenant in this order: from an entity already in scope
+(`entry.workspaceId`, `invite.workspaceId`, `sub.workspaceId`, `offer.workspaceId`);
+else derived from a linked one (`getEntryWorkspace`, `getJobWorkspace`); else — **only
+on a session route, never a public token route or an off-request sweep** —
+`await currentWorkspace()`.
+
 ### `PipelineEntry` carries its own tenant
 
 `PipelineEntry.workspaceId` exists because its ABSENCE was the root of a whole
