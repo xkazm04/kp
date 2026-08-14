@@ -37,8 +37,10 @@ export async function POST(request: NextRequest) {
     // choice (validated), else the recruiter's active locale; persisted on the
     // lifecycle and threaded to the dev-case CLIs by the orchestrator.
     const lang = isLocale(body.lang) ? body.lang : await getServerLocale();
-    const lc = createLifecycle(body.need, body.auto !== false, lang, await currentWorkspace()); // default fully-auto
-    const task = startTask("lifecycle", { lifecycleId: lc.id, title: lc.title });
+    const lc = createLifecycle(body.need, body.auto !== false, lang, workspace); // default fully-auto
+    // The runner task must carry the lifecycle's own tenant, or the row is created
+    // for this team and its progress appears in the default team's tray.
+    const task = startTask("lifecycle", { lifecycleId: lc.id, title: lc.title }, workspace);
     return NextResponse.json({ lifecycle: lc, task });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to start lifecycle." }, { status: 500 });

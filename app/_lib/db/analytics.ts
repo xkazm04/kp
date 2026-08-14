@@ -833,6 +833,19 @@ function escapeLike(q: string): string {
 // over indexed-enough tables (all are small, capped per type) — newest rows
 // first so the recently-touched record the recruiter is hunting for surfaces on
 // top. Read-only; the route wraps it in safeJsonError.
+//
+// EVERY sub-query below filters on the tenant. That is worth stating because it
+// was true of only ONE of the five: `workspaceId` was threaded in from the route
+// and then bound for `pipeline_entries` alone, so the command palette answered
+// two typed letters with another team's candidate profiles, analysis scores, job
+// openings and JD drafts — each hit deep-linking straight to the record. The
+// predicates are not uniform, and copying the wrong one silently re-opens it:
+//   profiles / jds / analyses  strict `workspace_id = ?` (team-private)
+//   jobs                       `(workspace_id IS NULL OR = ?)` — NULL rows are the
+//                              shared cross-company reference corpus every team
+//                              matches against, so they MUST stay visible
+// Each matches the canonical list read for that table (db/profiles.ts:89,
+// db/jobs.ts:157 and :361, db/analyses.ts:115).
 export function searchEntities(query: string, limitPerType = 5, workspaceId: string = DEFAULT_WORKSPACE_ID): SearchHit[] {
   const db = ensureDb();
   const like = `%${escapeLike(query)}%`;
@@ -840,10 +853,10 @@ export function searchEntities(query: string, limitPerType = 5, workspaceId: str
 
   const profiles = db
     .prepare(
-      `SELECT id, label, archetype FROM profiles WHERE label LIKE ? ESCAPE '\\'
+      `SELECT id, label, archetype FROM profiles WHERE label LIKE ? ESCAPE '\\' AND workspace_id = ?
        ORDER BY created_at DESC LIMIT ?`
     )
-    .all(like, limitPerType) as { id: string; label: string; archetype: string | null }[];
+    .all(like, workspaceId, limitPerType) as { id: string; label: string; archetype: string | null }[];
   for (const p of profiles) hits.push({ type: "profile", id: p.id, label: p.label, sub: p.archetype });
 
   const entries = db
@@ -861,30 +874,33 @@ export function searchEntities(query: string, limitPerType = 5, workspaceId: str
       sub: [e.job_title, e.stage].filter(Boolean).join(" · ") || null,
     });
 
+  // Dual-tier: NULL workspace_id is the shared corpus, so it stays searchable.
   const jobs = db
     .prepare(
-      `SELECT id, title, company FROM jobs WHERE title LIKE ? ESCAPE '\\' OR company LIKE ? ESCAPE '\\'
+      `SELECT id, title, company FROM jobs
+       WHERE (title LIKE ? ESCAPE '\\' OR company LIKE ? ESCAPE '\\')
+         AND (workspace_id IS NULL OR workspace_id = ?)
        ORDER BY created_at DESC LIMIT ?`
     )
-    .all(like, like, limitPerType) as { id: string; title: string; company: string | null }[];
+    .all(like, like, workspaceId, limitPerType) as { id: string; title: string; company: string | null }[];
   for (const j of jobs) hits.push({ type: "job", id: j.id, label: j.title, sub: j.company });
 
   const jds = db
     .prepare(
       `SELECT slug, title FROM jds
-       WHERE (title LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\') AND archived_at IS NULL
+       WHERE (title LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\') AND archived_at IS NULL AND workspace_id = ?
        ORDER BY created_at DESC LIMIT ?`
     )
-    .all(like, like, limitPerType) as { slug: string; title: string }[];
+    .all(like, like, workspaceId, limitPerType) as { slug: string; title: string }[];
   for (const d of jds) hits.push({ type: "jd", id: d.slug, label: d.title, sub: d.slug });
 
   const analyses = db
     .prepare(
       `SELECT slug, candidate_label, score FROM analyses
-       WHERE candidate_label LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\'
+       WHERE (candidate_label LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\') AND workspace_id = ?
        ORDER BY created_at DESC LIMIT ?`
     )
-    .all(like, like, limitPerType) as { slug: string; candidate_label: string | null; score: number | null }[];
+    .all(like, like, workspaceId, limitPerType) as { slug: string; candidate_label: string | null; score: number | null }[];
   for (const a of analyses)
     hits.push({
       type: "analysis",

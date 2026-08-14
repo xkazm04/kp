@@ -107,7 +107,9 @@ export async function POST(request: Request) {
       templateBody,
       jdSlug: slug,
       options,
-    });
+      // The JD row is inserted for `ws`; the build task must run as the same tenant
+      // or the Ledger shows an "Analyzing" chip whose run lives in another team's tray.
+    }, ws);
     // 3. Link the row to its task so the Ledger can show live progress / retry.
     setJdAnalysisTask(slug, task.id);
     return NextResponse.json({ slug, taskId: task.id });

@@ -128,13 +128,26 @@ test("the session-derived dev-studio routes resolve currentWorkspace() and threa
   const lifecycle = code("lifecycle/route.ts");
   assert.match(lifecycle, /currentWorkspace\(\)/);
   assert.match(lifecycle, /listLifecycles\([^)]*currentWorkspace\(\)[^)]*\)/, "lifecycle GET must scope listLifecycles");
-  assert.match(lifecycle, /createLifecycle\([^)]*currentWorkspace\(\)[^)]*\)/, "lifecycle POST must scope createLifecycle");
+  // The POST resolves the tenant ONCE into `workspace` and passes that to the
+  // metering gate, createLifecycle and the runner task alike. Accept either the
+  // inline call or that variable: pinning the inline form would have forced a
+  // third redundant `await currentWorkspace()` in one handler, and the sibling
+  // assertions below already read the variable form (`listPostings(ws)`).
+  assert.match(lifecycle, /const workspace = await currentWorkspace\(\)/, "the POST resolves the tenant once");
+  assert.match(lifecycle, /createLifecycle\([^)]*(currentWorkspace\(\)|workspace)[^)]*\)/, "lifecycle POST must scope createLifecycle");
+  // The runner task must carry it too — the row was created for this team while
+  // its task ran as the default one, so progress surfaced in the wrong tray.
+  assert.match(lifecycle, /startTask\("lifecycle",[^)]*,\s*workspace\s*\)/, "the lifecycle runner task must be scoped");
   assert.doesNotMatch(lifecycle, /listLifecycles\(\)/, "no bare listLifecycles() may remain");
 
   const control = code("control/route.ts");
   assert.match(control, /currentWorkspace\(\)/);
   assert.match(control, /reconcile\(\s*await currentWorkspace\(\)\s*\)/, "reconcile must sweep the caller's workspace");
   assert.doesNotMatch(control, /listLifecycles\(\)/, "the control room's GET must be workspace-scoped");
+  // The reconcile sweep spawns runners: both the dedupe probe and the task must
+  // use the workspace being swept, or it checks the default team and duplicates.
+  assert.match(control, /getActiveTaskByDedupe\([^)]*,\s*workspaceId\s*\)/, "the dedupe probe must be scoped");
+  assert.match(control, /startTask\("lifecycle",[^)]*,\s*workspaceId\s*\)/, "the resumed runner must be scoped");
 
   const postings = code("postings/route.ts");
   assert.match(postings, /listPostings\(\s*ws\s*\)/);

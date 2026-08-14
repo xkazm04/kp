@@ -69,7 +69,8 @@ export async function POST(_request: Request, context: { params: Promise<{ slug:
     markJdAnalyzing(slug);
     // Force jdSlug even for legacy params so the replay re-fills THIS row. The old
     // task is terminal, so its (now slug-keyed) dedupe entry won't merge this run.
-    const task = startTask("jd_build", { ...replayParams, jdSlug: slug });
+    // Same tenant the JD row lives in (proven by the scoped loadJd above).
+    const task = startTask("jd_build", { ...replayParams, jdSlug: slug }, ws);
     setJdAnalysisTask(slug, task.id);
     return NextResponse.json({ taskId: task.id });
   } catch (error) {

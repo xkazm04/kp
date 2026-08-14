@@ -21,8 +21,11 @@ function reconcile(workspaceId: string): number {
   let resumed = 0;
   for (const lc of listLifecycles(50, workspaceId)) {
     if (TERMINAL.has(lc.stage)) continue;
-    if (getActiveTaskByDedupe(`lifecycle:${lc.id}`)) continue;
-    startTask("lifecycle", { lifecycleId: lc.id, title: lc.title });
+    // Both halves take the tenant: the dedupe probe has to look in the workspace the
+    // sweep is recovering (otherwise it checks the default team and happily spawns a
+    // duplicate runner), and the task itself has to run as that team.
+    if (getActiveTaskByDedupe(`lifecycle:${lc.id}`, workspaceId)) continue;
+    startTask("lifecycle", { lifecycleId: lc.id, title: lc.title }, workspaceId);
     resumed += 1;
   }
   return resumed;

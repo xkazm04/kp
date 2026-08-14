@@ -63,7 +63,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       lang,
       jdSlug: slug,
       options,
-    });
+      // Same tenant as the placeholder JD row inserted just above.
+    }, ws);
     setJdAnalysisTask(slug, task.id);
     // jdJobId(slug) is the DETERMINISTIC id the best-effort ingest will use;
     // stamped now so the back-link exists even while the build is running.

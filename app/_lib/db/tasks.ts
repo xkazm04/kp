@@ -174,9 +174,25 @@ export function createTask(
   return getTask(id)!;
 }
 
-export function getTask(id: string): TaskRecord | null {
+/** One task by id. `workspaceId` is OPTIONAL because the two classes of caller
+ *  genuinely differ, and conflating them is how this leaked:
+ *
+ *    - the RUNNER and createTask read by id with no tenant — correct, they act on
+ *      whatever row they just wrote or picked up off the queue;
+ *    - a ROUTE must always pass one. A task row carries `params` and `result`,
+ *      i.e. the full input and output of an AI run (CV text, candidate reports),
+ *      and the id is not a secret: `llm_usage.request_id` IS the task id and the
+ *      Activity tab renders that ledger deployment-wide. Without the tenant an
+ *      operator could click any Activity row and read another team's run.
+ *
+ *  Omitting it therefore means "system context", never "any caller". */
+export function getTask(id: string, workspaceId?: string): TaskRecord | null {
   const db = ensureDb();
-  const r = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id) as TaskRow | undefined;
+  const r = (
+    workspaceId === undefined
+      ? db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id)
+      : db.prepare(`SELECT * FROM tasks WHERE id = ? AND workspace_id = ?`).get(id, workspaceId)
+  ) as TaskRow | undefined;
   return r ? rowToTask(r) : null;
 }
 

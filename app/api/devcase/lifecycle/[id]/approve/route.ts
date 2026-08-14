@@ -80,7 +80,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         { status: 409 }
       );
     }
-    const task = startTask("lifecycle", { lifecycleId: id, title: lc.title });
+    // Tenant derived from the lifecycle itself, not the session — this is a by-id
+    // route, and the row is the authority on which team the resumed runner belongs to.
+    const task = startTask("lifecycle", { lifecycleId: id, title: lc.title }, lc.workspaceId);
     return NextResponse.json({ ok: true, task });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Approve failed." }, { status: 500 });

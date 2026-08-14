@@ -101,6 +101,25 @@ here as a gap; re-verify against the code before re-adding any of them):
   with `getEntryWorkspace(entryId)`, matching the sibling `/decisions` route. A
   non-default team's candidate used to get a 404 on their own status link, and any
   score that landed was filed under the default team's experience metric.
+- **Global search (⌘K)** — `searchEntities` bound its `workspaceId` for
+  `pipeline_entries` only; profiles, jobs, JDs and analyses accepted the argument
+  and ignored it, so two typed letters returned another team's candidate profiles,
+  analysis scores and JD drafts, each hit deep-linking to the record. All five now
+  filter, with the two predicates that table class requires — strict
+  `workspace_id = ?` for the team-private tables, `(workspace_id IS NULL OR = ?)`
+  for `jobs`, whose NULL rows are the shared cross-company corpus
+  (`db/search-tenancy.test.ts` pins both, including that the corpus stays visible).
+- **Background tasks** — all five routes (`/api/tasks`, `/history`, `/seen`,
+  `/[id]`, `/[id]/retry`) resolve `currentWorkspace()`, and `getTask` takes an
+  optional tenant that routes must pass. This is the single door for every AI job
+  the UI starts (`TasksProvider.startTask`), so omitting it broke both directions
+  at once: the tray listed the default tenant's rows — task labels embed candidate
+  names — and a non-default team's task was stamped for the default tenant, so its
+  handler looked the entry up in the wrong team. Six server-side `startTask` sites
+  (jd_build ×3, lifecycle ×3) were threaded too. `getTask`'s ownership check also
+  closes the Activity chain: `llm_usage.request_id` IS the task id and that ledger
+  is deployment-global, so every task id on the box is enumerable from the UI
+  (`app/api/tasks/tasks-route-tenancy.test.ts`).
 
 ## Authority — org-wide vs per-workspace
 
@@ -185,6 +204,15 @@ itself as non-destructive and skips the typed confirmation. The copy is fully lo
 (`workspaceAdmin.org.backup`) — comprehension is a safety property here, not a nicety —
 while the table names it lists stay verbatim, being schema identifiers.
 
+**The explanation is a diagram, not a paragraph** (`OrganizationBackupFlow.tsx`). The panel
+used to open with a four-line intro carrying five facts at once, which nobody reads before
+clicking and which is too late by the time the confirm dialog is up. Two lanes show the
+artefact chain each button walks — `all data → one file` and `your file → preview → all
+data` — with the destructive terminal node drawn in coral, so the dangerous direction LOOKS
+dangerous before any prose is read. The three scope facts (every workspace, cache/queue
+excluded, refused under multi-workspace) are three separate lines instead of subordinate
+clauses, and the internal codename is gone from user-facing copy.
+
 **The scope is the whole installation, not one workspace.** One file carries all data
 across every workspace (prompt cache and task-runner state excluded); the panel says so.
 Per-workspace export/restore waits on workspace data isolation.
@@ -265,11 +293,16 @@ The data-layer work is complete; what remains before `KP_MULTI_WORKSPACE` goes
 live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 `docs/product/enterprise-readiness.md` §1):
 
-- **Per-workspace export/import.** `/api/workspace/export` reads the whole DB
-  regardless of caller, and `/api/workspace/import` answers **503** while the flag
-  is on (it DROPs and reloads every table — `multi-workspace-guard.test.ts`). So
-  enabling multi-workspace disables restore. This is the biggest remaining reason
-  the flag stays off in production.
+- **Per-workspace export/import.** BOTH halves now answer **503** while
+  `KP_MULTI_WORKSPACE` is on (`export-guard.test.ts`, `multi-workspace-guard.test.ts`).
+  Import was already guarded; export — the exfiltration half — was not, and
+  `requireOperator()` is no substitute: it passes open mode or any valid non-demo
+  session and reads neither membership nor role, so any member of any team could
+  have downloaded every other team's data in one request. Enabling multi-workspace
+  therefore disables backup AND restore until a per-workspace version exists
+  (filter every table by `workspace_id`; restore as delete-by-workspace + insert,
+  never `DROP TABLE`). This is the biggest remaining reason the flag stays off in
+  production.
 - **Org-level billing with seats** — the org-keyed DATA layer has landed
   (`org_id` on every billing table, org-keyed entitlement/reducer lookups,
   webhook attribution via checkout metadata; `app/_lib/db/billing-tenancy.test.ts`).

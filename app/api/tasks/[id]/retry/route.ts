@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTask } from "@/app/_lib/db/tasks";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { isKnownKind, startTask } from "@/app/_lib/tasks";
 
 
@@ -17,7 +18,10 @@ const RETRYABLE = new Set(["failed", "interrupted", "canceled"]);
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
-    const task = getTask(id);
+    // Scoped read: a retry both reveals the original row and spends money, so
+    // another team's task must be unreachable here, not merely unstartable.
+    const ws = await currentWorkspace();
+    const task = getTask(id, ws);
     if (!task) return NextResponse.json({ error: "task not found" }, { status: 404 });
     if (!RETRYABLE.has(task.status)) {
       return NextResponse.json(
@@ -29,7 +33,11 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     if (!isKnownKind(task.kind)) {
       return NextResponse.json({ error: `This task kind ("${task.kind}") no longer exists.` }, { status: 400 });
     }
-    const started = startTask(task.kind, (task.params as Record<string, unknown>) ?? {});
+    // The replay is stamped for the SAME tenant the original ran in (which the
+    // ownership check above has already proven is the caller's own). Dropping it
+    // here re-ran the work as the default tenant, so a non-default team's retry
+    // silently executed against another team's data.
+    const started = startTask(task.kind, (task.params as Record<string, unknown>) ?? {}, ws);
     return NextResponse.json({ task: started });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to retry the task.";

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { countTaskHistory, listTaskHistory } from "@/app/_lib/db/tasks";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { recentTaskCutoffIso } from "@/app/_lib/tasks";
 
 
@@ -38,8 +39,11 @@ export async function GET(request: Request) {
       status: FILTER_STATUSES.has(rawStatus) ? rawStatus : undefined,
     };
     const before = recentTaskCutoffIso();
-    const total = countTaskHistory(before, filter);
-    const tasks = listTaskHistory(before, limit, offset, filter);
+    // Same tenant scope as the live poll: task labels carry candidate names, so an
+    // unscoped history paged another team's roster into this one.
+    const ws = await currentWorkspace();
+    const total = countTaskHistory(before, filter, ws);
+    const tasks = listTaskHistory(before, limit, offset, filter, ws);
     const nextOffset = offset + tasks.length;
     return NextResponse.json({ tasks, total, hasMore: nextOffset < total, nextOffset });
   } catch (error) {

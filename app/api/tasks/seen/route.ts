@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { markTasksSeen } from "@/app/_lib/db/tasks";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 // POST { ids: string[] } — acknowledge finished tasks (read/unread). Stamps
 // seen_at on the given TERMINAL rows; active rows are ignored so a finish that
@@ -15,7 +16,9 @@ export async function POST(request: NextRequest) {
       ? (body.ids as unknown[]).filter((x): x is string => typeof x === "string" && x.length > 0).slice(0, MAX_IDS)
       : [];
     if (ids.length === 0) return NextResponse.json({ seen: 0 });
-    return NextResponse.json({ seen: markTasksSeen(ids) });
+    // Scoped so an ack can only clear THIS team's unread flags — the store already
+    // filters on it, the route just never supplied one.
+    return NextResponse.json({ seen: markTasksSeen(ids, await currentWorkspace()) });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to mark tasks seen." },
