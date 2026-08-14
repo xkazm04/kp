@@ -24,12 +24,18 @@ import {
 // pure buildAtsRecord; this module is the DB-fetch + HTTP delivery around it.
 
 /** Build the portable record for one candidate, or null if the entry is gone.
- *  Pulls the latest SEALED decision (candidateRef = entry id) and the offer comp. */
-export function getAtsRecord(entryId: string): AtsCandidateRecord | null {
-  const entry = getPipelineEntry(entryId);
+ *  Pulls the latest SEALED decision (candidateRef = entry id) and the offer comp.
+ *
+ *  TENANCY: `workspaceId` is the caller's team. Both reads below were unscoped, so
+ *  this only ever served the DEFAULT tenant — a non-default team's ATS connector
+ *  got 404 for every one of its own candidates, and the decision chain it read was
+ *  the wrong team's. The entry is fetched first precisely so the decision lookup
+ *  can key off the tenant it proves. */
+export function getAtsRecord(entryId: string, workspaceId?: string): AtsCandidateRecord | null {
+  const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry) return null;
   const job = entry.jobId ? getJob(entry.jobId) : null;
-  const latest = listDecisionRecords({ candidateRef: entryId, limit: 1 })[0] ?? null;
+  const latest = listDecisionRecords({ candidateRef: entryId, limit: 1, workspaceId: entry.workspaceId })[0] ?? null;
   // Which offer's comp the record carries: the offer that actually caused the
   // hire, not the oldest on file. getOpenOfferForEntry only matches status
   // 'extended', so at candidate.hired time (offer already 'accepted') it returns

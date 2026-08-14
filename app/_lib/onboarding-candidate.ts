@@ -89,7 +89,12 @@ export function submitCandidateIntake(token: string, answers: Record<string, unk
       // bounded number of times before giving up, so a single blip no longer diverges the
       // People-team signal from the persisted answers. The catch remains the last resort
       // for a genuinely permanent failure (which is re-thrown by retryTransientSync).
-      retryTransientSync(() => recordAutomationEvent(offer.entryId!, "onboarding_intake_submitted", offer.jobTitle ?? ""));
+      // Public token flow, so the tenant comes from the OFFER row the token
+      // resolved to — never a session, and never the default (which is what an
+      // omitted argument silently meant, blanking the timeline row's metadata).
+      retryTransientSync(() =>
+        recordAutomationEvent(offer.entryId!, "onboarding_intake_submitted", offer.jobTitle ?? "", offer.workspaceId)
+      );
     } catch (e) {
       console.error("[onboarding] intake saved but timeline event failed after retries", e);
     }

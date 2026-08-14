@@ -1885,6 +1885,20 @@ export type PipelineEntry = {
   consentExpiresAt: string | null;
   consentSource: string | null;
   anonymizedAt: string | null;
+  // The team this entry belongs to. Surfaced BECAUSE its absence was the root of a
+  // whole family of cross-tenant defects: the row has always carried workspace_id,
+  // but rowToEntry dropped it, so every function handed a PipelineEntry had to be
+  // passed the tenant separately — and ~24 call sites simply didn't, silently
+  // falling back to DEFAULT_WORKSPACE_ID (blank automation events, comms envelopes
+  // with no candidate context, rejection letters missing their feedback). The
+  // automation path had already worked around this by widening the type locally
+  // (`AutomationEntry = PipelineEntry & { workspaceId }`), which was the tell.
+  //
+  // Safe on the wire: /api/pipeline serves this type to the RECRUITER client,
+  // which already knows its own workspace, and every candidate-facing token route
+  // projects explicit fields rather than serializing a row (see the erasure-token
+  // note above, and publicInviteView in api/schedule/[token]).
+  workspaceId: string;
 };
 
 export function recordEvent(

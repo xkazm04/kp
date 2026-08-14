@@ -74,9 +74,9 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // decline path's conditional event), so a closed entry can't grow a phantom
       // offer_accepted; record the conflict instead so a recruiter can see it.
       if (hired) {
-        recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "");
+        recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "", offer.workspaceId);
       } else {
-        recordAutomationEvent(offer.entryId, "offer_accept_blocked", "accepted on a closed entry — not advanced to Hired");
+        recordAutomationEvent(offer.entryId, "offer_accept_blocked", "accepted on a closed entry — not advanced to Hired", offer.workspaceId);
       }
       // W5-2 (DEVO2) — a hired "ds-" (promoted-submission) entry auto-feeds the
       // dev-case calibration loop. Best-effort: calibration must never affect
@@ -119,7 +119,8 @@ export async function respondToOffer(token: string, response: "accept" | "declin
           recordAutomationEvent(
             offer.entryId,
             "onboarding_failed",
-            err instanceof Error ? err.message.slice(0, 160) : "onboarding dispatch failed"
+            err instanceof Error ? err.message.slice(0, 160) : "onboarding dispatch failed",
+            offer.workspaceId
           );
           console.error(
             `[offer] accepted + Hired but onboarding dispatch failed for entry ${offer.entryId}:`,
@@ -151,7 +152,7 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     // the entry's timeline when it did, so a Hired candidate's history can't grow a
     // phantom `offer_declined` (recordAutomationEvent logs the entry's CURRENT stage).
     const transitioned = markEntryStatus(offer.entryId, "declined", offer.workspaceId);
-    if (transitioned) recordAutomationEvent(offer.entryId, "offer_declined", offer.jobTitle ?? "");
+    if (transitioned) recordAutomationEvent(offer.entryId, "offer_declined", offer.jobTitle ?? "", offer.workspaceId);
   }
   return { ok: true, status: "declined", alreadyResponded: false, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
 }

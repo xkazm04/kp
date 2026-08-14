@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAtsRecord } from "@/app/_lib/ats-egress";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { ensureDb, recordEvent } from "@/app/_lib/db/core";
 import { buildAtsExportAudit } from "../ats-candidate-audit.ts";
 
@@ -18,7 +19,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const denied = await requireOperator();
   if (denied) return denied;
   const { id } = await params;
-  const record = getAtsRecord(id);
+  // Scoped to the caller's team: this is the only ATS route that touches per-tenant
+  // candidate PII, and it was the only one not resolving a tenant — so it served
+  // the default workspace to everyone and 404'd every other team's own candidates.
+  const record = getAtsRecord(id, await currentWorkspace());
   if (!record) {
     return NextResponse.json({ error: "Candidate not found." }, { status: 404 });
   }

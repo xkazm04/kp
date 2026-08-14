@@ -83,7 +83,15 @@ class WebhookChannel implements CommsChannel {
   async send(msg: OutboundMessage): Promise<OutboxEntry> {
     // `ref` is the pipeline entry id for every pipeline dispatcher; dev-case and
     // slot refs simply miss and ship null context (the flat fields still deliver).
-    const envelope = buildCommEnvelope(msg, msg.ref ? getPipelineEntry(msg.ref) : null, new Date().toISOString());
+    // Scoped to the message's own tenant: an unscoped read resolved against the
+    // default team, so on any other workspace the lookup missed and EVERY relayed
+    // message shipped an envelope with no candidate, role or stage — leaving the
+    // receiving ATS unable to map it back to a person.
+    const envelope = buildCommEnvelope(
+      msg,
+      msg.ref ? getPipelineEntry(msg.ref, msg.workspaceId ?? undefined) : null,
+      new Date().toISOString()
+    );
     const { status, attempts, detail } = await this.deliver(envelope);
     if (status === "failed") await this.alertDeadLetter(msg, attempts, detail);
     // failure-truth-everywhere: `detail` is the precise reason this attempt died

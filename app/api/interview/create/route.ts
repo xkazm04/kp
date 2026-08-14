@@ -112,11 +112,14 @@ export async function POST(request: NextRequest) {
         const link = `${publicBaseUrl(new URL(request.url).origin)}/interview/${session.token}`;
         // SIM3 — invite in the applicant's language; the session carries no
         // locale, so read it off the entry (one lookup, only on a delivered invite).
-        const inviteLocale = getPipelineEntry(entryId)?.locale ?? null;
+        // Scoped: an unscoped read resolved against the default team, so on any
+        // other workspace this returned null and every invite fell back to the
+        // workspace default language instead of the candidate's own.
+        const inviteLocale = getPipelineEntry(entryId, workspace)?.locale ?? null;
         const status = await dispatchInterviewInvite(
           { id: entryId, candidateLabel: session.candidateLabel, jobTitle: session.jobTitle, locale: inviteLocale },
           link,
-          { durationMin: grounded.durationMin }
+          { durationMin: grounded.durationMin, workspaceId: workspace }
         );
         delivery = deliveryClaim(isRelayConfigured(), status);
         delivered = delivery !== "failed";

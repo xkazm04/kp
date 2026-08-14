@@ -207,7 +207,7 @@ export function expireOfferIfDue(token: string, nowMs: number = Date.now()): Off
   // Record the lapse like every sibling offer transition (sent/accepted/declined),
   // so a dead offer leaves an audit trail, surfaces on the candidate timeline, and
   // doesn't read as "still pending" in accept-rate/funnel analytics.
-  if (row.entryId) recordAutomationEvent(row.entryId, "offer_expired", row.jobTitle ?? "");
+  if (row.entryId) recordAutomationEvent(row.entryId, "offer_expired", row.jobTitle ?? "", row.workspaceId);
   return row;
 }
 
@@ -223,11 +223,15 @@ export function lapseExpiredOffers(nowMs: number = Date.now()): number {
     .prepare(
       `UPDATE offers SET status = 'expired'
        WHERE status = 'extended' AND expires_at IS NOT NULL AND expires_at <= ?
-       RETURNING entry_id, job_title`
+       RETURNING entry_id, job_title, workspace_id`
     )
-    .all(new Date(nowMs).toISOString()) as Array<{ entry_id: string | null; job_title: string | null }>;
+    .all(new Date(nowMs).toISOString()) as Array<{ entry_id: string | null; job_title: string | null; workspace_id: string | null }>;
   for (const r of lapsed) {
-    if (r.entry_id) recordAutomationEvent(r.entry_id, "offer_expired", r.job_title ?? "");
+    // A GLOBAL sweep across every tenant (the heartbeat has no session), so each
+    // event is stamped with the offer row's OWN team — not the caller's and not
+    // the default. Returning workspace_id from the UPDATE is what makes that
+    // possible without a second query per row.
+    if (r.entry_id) recordAutomationEvent(r.entry_id, "offer_expired", r.job_title ?? "", r.workspace_id ?? undefined);
   }
   return lapsed.length;
 }

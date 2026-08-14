@@ -231,6 +231,9 @@ type PipelineRow = {
   consent_source?: string | null;
   anonymized_at?: string | null;
   erasure_token?: string | null;
+  // Present on every row (all reads are SELECT *); mapped onto PipelineEntry so a
+  // caller holding an entry never has to be told its tenant separately.
+  workspace_id?: string | null;
 };
 
 function rowToEntry(r: PipelineRow): PipelineEntry {
@@ -266,6 +269,9 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     consentExpiresAt: r.consent_expires_at ?? null,
     consentSource: r.consent_source ?? null,
     anonymizedAt: r.anonymized_at ?? null,
+    // The column is NOT NULL in the schema; the fallback covers a hand-written
+    // row in a test fixture, and matches every store default in this file.
+    workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID,
   };
 }
 
@@ -1536,7 +1542,10 @@ export function anonymizeExpiredConsents(nowIso: string = new Date().toISOString
 // it cannot see the number — so this constant is the one place the window is defined.
 export const SCREENING_OVERRIDE_GUARD_HOURS = 24;
 
-export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean; workspaceId: string };
+// `workspaceId` used to be widened in here because PipelineEntry didn't carry it —
+// that local workaround is what proved the base type should. It now comes from
+// PipelineEntry itself; this type only adds the two automation-pass derivations.
+export type AutomationEntry = PipelineEntry & { daysInStage: number; recentScreening: boolean };
 
 export function getPipelineEntry(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
   const db = ensureDb();

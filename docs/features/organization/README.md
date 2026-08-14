@@ -83,6 +83,29 @@ workspace-scoped. As of this pass:
 Reference implementation for scoping a new table: `app/_lib/db/{analyses,profiles}.ts`
 + their `*-tenancy.test.ts`.
 
+### `PipelineEntry` carries its own tenant
+
+`PipelineEntry.workspaceId` exists because its ABSENCE was the root of a whole
+family of defects. The row always had `workspace_id`; `rowToEntry` dropped it, so
+every function handed an entry had to be told the tenant separately — and ~24 call
+sites simply weren't, silently falling back to `DEFAULT_WORKSPACE_ID`. The
+automation pass had already worked around this by widening the type locally
+(`AutomationEntry = PipelineEntry & { workspaceId }`), which was the tell.
+
+The visible symptom was subtle rather than loud, which is why it survived:
+`recordAutomationEvent` writes the event to the RIGHT tenant (`recordEvent`
+derives that from an unscoped by-id read) but looked its DISPLAY metadata up with
+a tenant-scoped query. On any non-default team the lookup missed, so every
+automation event — outreach sent, interview scheduled, rejection sent, offer sent,
+onboarding started — was written with NULL `candidate_label` / `job_title` /
+`archetype` / `to_stage` and rendered in the Activity feed and drawer history as an
+anonymous row. `app/_lib/automation-event-tenancy.test.ts` pins the behaviour, the
+field, and a source assertion that every `comms-dispatch` dispatcher passes it.
+
+Safe on the wire: `/api/pipeline` serves this type to the RECRUITER client, which
+already knows its own workspace, and every candidate-facing token route projects
+explicit fields rather than serializing a row.
+
 **Read paths closed since the manifest went green** (each was previously listed
 here as a gap; re-verify against the code before re-adding any of them):
 

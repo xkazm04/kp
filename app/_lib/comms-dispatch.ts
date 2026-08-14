@@ -120,11 +120,15 @@ type CandidateCommTarget = {
   candidateId?: string | null;
   contact?: string | null;
   anonymizedAt?: string | null;
+  // The entry's own team. Optional because two callers pass a structural subtype
+  // assembled from an invite/session rather than a PipelineEntry; they supply the
+  // tenant through their own `opts.workspaceId` instead.
+  workspaceId?: string | null;
 };
 
 async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator): Promise<string> {
   if (entry.anonymizedAt || !entry.id) return ""; // already scrubbed, or no entry to manage
-  const token = ensureErasureToken(entry.id);
+  const token = ensureErasureToken(entry.id, entry.workspaceId ?? undefined);
   if (!token) return "";
   return "\n\n" + t("dataFooter", { link: `${await candidateLinkBase()}/data/${encodeURIComponent(token)}` });
 }
@@ -184,7 +188,7 @@ export async function dispatchApplicationReceived(
   // touchpoint that lets the candidate check where they stand after the tab is gone.
   if (opts?.statusLink) body += `\n\n${t("ack.statusLine", { link: opts.statusLink })}`;
   await sendCandidateComm(entry, t, { subject, body, kind: "acknowledgement" });
-  recordAutomationEvent(entry.id, "acknowledgement_sent", role);
+  recordAutomationEvent(entry.id, "acknowledgement_sent", role, entry.workspaceId);
 }
 
 /** Outcome of an outreach dispatch: delivered, or SUPPRESSED for a consent reason
@@ -223,15 +227,15 @@ export async function dispatchOutreach(
   });
   if (suppress) {
     // Audit the refusal so the absence of a send is visible, not silent.
-    recordAutomationEvent(entry.id, "outreach_suppressed", suppress);
+    recordAutomationEvent(entry.id, "outreach_suppressed", suppress, entry.workspaceId);
     return { sent: false, reason: suppress };
   }
   // W2.3 — the sequence stops once the person answers it (or a recruiter stops it by
   // hand). Checked AFTER consent so the irreversible gate stays first, and audited the
   // same way: a send that did not happen must be visible in the log.
-  const halt = outreachHaltFor(entry.id);
+  const halt = outreachHaltFor(entry.id, entry.workspaceId);
   if (halt) {
-    recordAutomationEvent(entry.id, "outreach_suppressed", halt);
+    recordAutomationEvent(entry.id, "outreach_suppressed", halt, entry.workspaceId);
     return { sent: false, reason: halt };
   }
   const t = await commsTranslator(entry.locale);
@@ -242,8 +246,8 @@ export async function dispatchOutreach(
   // Recorded only after the send actually happened — counting an attempt would make a
   // failed send look like a contact, and `sends > 0` is what later distinguishes a reply
   // from a fresh application.
-  recordOutreachSend(entry.id);
-  recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "");
+  recordOutreachSend(entry.id, entry.workspaceId);
+  recordAutomationEvent(entry.id, "outreach_sent", entry.jobTitle ?? "", entry.workspaceId);
   return { sent: true };
 }
 
@@ -268,7 +272,7 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
   // Workspace resolution matches every sibling dispatcher in this module (they all let
   // recordAutomationEvent take the default): PipelineEntry carries no workspaceId, and a
   // lone deviation here would read as a tenancy fix while being a guess.
-  const feedback = buildRejectionFeedback({ profileGaps: entryProfileGaps(entry.id) });
+  const feedback = buildRejectionFeedback({ profileGaps: entryProfileGaps(entry.id, entry.workspaceId) });
   const feedbackBlock = renderRejectionFeedback(feedback, t("rejection.feedbackIntro"), t("rejection.feedbackOutro"));
 
   const subject = t("rejection.subject", { role });
@@ -287,7 +291,8 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
       feedback.filtered ? "protected-filter:fired" : null,
     ]
       .filter(Boolean)
-      .join(" · ")
+      .join(" · "),
+    entry.workspaceId
   );
 }
 
@@ -352,7 +357,7 @@ export async function dispatchOffer(
   const termsBlock = terms.length > 0 ? `${terms.join("\n")}\n\n` : "";
   const body = `${letter}\n\n` + termsBlock + t("offer.responseFooter", { link: responseLink });
   await sendCandidateComm(entry, t, { subject, body, kind: "offer" });
-  recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "");
+  recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "", entry.workspaceId);
 }
 
 /** Confirm a candidate's self-booked interview slot. For a normal booking this
@@ -382,7 +387,7 @@ export async function dispatchInterviewConfirmation(
   // the .ics. ABSOLUTE, resolved via publicBaseUrl by the caller.
   const footer = opts?.rescheduleLink ? `\n\n${t("interviewConfirmation.linkFooter", { link: opts.rescheduleLink })}` : "";
   const status = await sendCandidateComm(entry, t, { subject, body: body + footer, kind: "interview_confirmation" });
-  recordAutomationEvent(entry.id, "interview_scheduled", slot);
+  recordAutomationEvent(entry.id, "interview_scheduled", slot, entry.workspaceId);
   return status;
 }
 
@@ -414,7 +419,7 @@ export async function dispatchInterviewerBrief(
   if (!address) {
     // Assigned but unaddressable (a bare name), or unassigned — surface the gap so
     // the prep pack doesn't silently never reach the person running the round.
-    if (entry.id && assigned) recordAutomationEvent(entry.id, "interviewer_brief_skipped", assigned);
+    if (entry.id && assigned) recordAutomationEvent(entry.id, "interviewer_brief_skipped", assigned, entry.workspaceId);
     return false;
   }
   const t = await commsTranslator(opts.lang);
@@ -446,7 +451,7 @@ export async function dispatchInterviewerBrief(
   }
 
   await sendComm({ to: address, subject, body, kind: "interviewer_brief", ref: entry.id ?? undefined });
-  if (entry.id) recordAutomationEvent(entry.id, "interviewer_brief_sent", name);
+  if (entry.id) recordAutomationEvent(entry.id, "interviewer_brief_sent", name, entry.workspaceId);
   return true;
 }
 
@@ -470,7 +475,7 @@ export async function dispatchScheduleInvite(
   const subject = t("scheduleInvite.subject", { role });
   const body = t("scheduleInvite.body", { name, role, link, length, team: t("team") });
   const status = await sendCandidateComm(entry, t, { subject, body, kind: "schedule_invite" });
-  recordAutomationEvent(entry.id, "schedule_invite_sent", role);
+  recordAutomationEvent(entry.id, "schedule_invite_sent", role, entry.workspaceId);
   return status;
 }
 
@@ -510,7 +515,10 @@ export async function dispatchInterviewReminder(
   // Post-send: the reminder is delivered. Do not let an audit-log failure re-throw —
   // that would look like a delivery failure and trigger a duplicate send.
   try {
-    if (entry.id) recordAutomationEvent(entry.id, "interview_reminder_sent", slot);
+    // Same fallback tenant the send above uses: this entry is a structural subtype
+    // (the sweep can hand us a reminder whose linked entry is gone), so the invite
+    // row's own team is the authority, not a field on `entry`.
+    if (entry.id) recordAutomationEvent(entry.id, "interview_reminder_sent", slot, opts?.workspaceId ?? undefined);
   } catch (e) {
     console.error(`[reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
   }
@@ -527,7 +535,10 @@ export async function dispatchInterviewReminder(
 export async function dispatchInterviewInvite(
   entry: { id?: string | null; candidateLabel?: string | null; candidateId?: string | null; jobTitle?: string | null; locale?: string | null },
   link: string,
-  opts?: { durationMin?: number | null }
+  // `workspaceId` mirrors dispatchInterviewReminder: this entry is a structural
+  // subtype, so the caller supplies the tenant for the outbox row and the audit
+  // event. Without it both landed on the default team.
+  opts?: { durationMin?: number | null; workspaceId?: string | null }
 ): Promise<OutboxStatus> {
   const t = await commsTranslator(entry.locale);
   const name = greetName(entry, t);
@@ -535,8 +546,14 @@ export async function dispatchInterviewInvite(
   const length = opts?.durationMin ? t("interviewInvite.length", { minutes: opts.durationMin }) : "";
   const subject = t("interviewInvite.subject", { role });
   const body = t("interviewInvite.body", { name, role, link, length, team: t("team") });
-  const status = await sendCandidateComm(entry, t, { subject, body, kind: "interview_invite", ref: entry.id ?? link });
-  if (entry.id) recordAutomationEvent(entry.id, "interview_invite_sent", role);
+  const status = await sendCandidateComm(entry, t, {
+    subject,
+    body,
+    kind: "interview_invite",
+    ref: entry.id ?? link,
+    workspaceId: opts?.workspaceId,
+  });
+  if (entry.id) recordAutomationEvent(entry.id, "interview_invite_sent", role, opts?.workspaceId ?? undefined);
   return status;
 }
 
@@ -560,7 +577,7 @@ export async function dispatchOnboarding(entry: PipelineEntry, onboardingToken?:
     : "";
   const body = t("onboarding.body", { name: greetName(entry, t), role, team: t("team") }) + footer;
   await sendCandidateComm(entry, t, { subject, body, kind: "onboarding" });
-  recordAutomationEvent(entry.id, "onboarding_started", role);
+  recordAutomationEvent(entry.id, "onboarding_started", role, entry.workspaceId);
 }
 
 /** The single pre-boarding nudge (candidate-onboarding-hand-off #3): re-sends the
@@ -575,7 +592,7 @@ export async function dispatchPreboardingReminder(entry: PipelineEntry, link: st
   const subject = t("onboardingReminder.subject", { role });
   const body = t("onboardingReminder.body", { name: greetName(entry, t), role, link, team: t("team") });
   await sendCandidateComm(entry, t, { subject, body, kind: "onboarding_reminder", ref: entry.id ?? link });
-  if (entry.id) recordAutomationEvent(entry.id, "onboarding_reminder_sent", role);
+  if (entry.id) recordAutomationEvent(entry.id, "onboarding_reminder_sent", role, entry.workspaceId);
 }
 
 /** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid
@@ -606,7 +623,7 @@ export async function dispatchOfferReminder(entry: PipelineEntry, link: string, 
   const body = t("offerReminder.body", { name, role, deadline, link, team: t("team") });
   await sendCandidateComm(entry, t, { subject, body, kind: "offer_reminder", ref: entry.id ?? link });
   try {
-    recordAutomationEvent(entry.id, "offer_reminder_sent", role);
+    recordAutomationEvent(entry.id, "offer_reminder_sent", role, entry.workspaceId);
   } catch (e) {
     console.error(`[offer-reminder] delivered but audit-log write failed for entry ${entry.id}: ${e instanceof Error ? e.message : e}`);
   }

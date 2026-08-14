@@ -6,6 +6,7 @@ import { coerceInterviewRecommendation, isInterviewRecommendation } from "@/app/
 import { flagOffRubricRatings, rubricCoverage, rubricForArchetype, rubricVersionHash } from "@/app/_lib/interview-rubric";
 import { RATING_MAX } from "@/app/_lib/format";
 import { MAX_ENTRY_ID_LEN } from "@/app/_lib/entries-param";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { safeJsonError } from "@/app/_lib/api-response";
 import type { Scorecard, ScorecardRating } from "@/app/_lib/interview-scorecard";
 
@@ -36,7 +37,15 @@ export async function POST(request: NextRequest) {
 
     // Resolve the entry once: its archetype + role-family fix the CURRENT rubric
     // (below) and it drives the gating decision at the end.
-    const pipelineEntry = getPipelineEntry(entry);
+    //
+    // SCOPED. Unscoped, this resolved against the default team, so on any other
+    // workspace `pipelineEntry` was null and the whole gating block below was
+    // skipped: the scorecard saved with no rubric version and no coverage, and
+    // `gated` stayed false forever — a human-led interview never reached the
+    // Decisions queue and the Interview -> Offer gate never opened. That is exactly
+    // the defect the DEC1 note further down was written to fix.
+    const ws = await currentWorkspace();
+    const pipelineEntry = getPipelineEntry(entry, ws);
 
     const parsed: ScorecardRating[] = [];
     if (Array.isArray(body.ratings)) {
@@ -125,8 +134,8 @@ export async function POST(request: NextRequest) {
         pipelineEntry.stage === "Interview" &&
         (pipelineEntry.approvalKind === null || pipelineEntry.approvalKind === "calendar")
       ) {
-        setApproval(entry, "scorecard_review", JSON.stringify(scorecard));
-        recordAutomationEvent(entry, "interview_scorecard", `human: ${scorecard.recommendation}`);
+        setApproval(entry, "scorecard_review", JSON.stringify(scorecard), pipelineEntry.workspaceId);
+        recordAutomationEvent(entry, "interview_scorecard", `human: ${scorecard.recommendation}`, pipelineEntry.workspaceId);
         gated = true;
       }
     }
