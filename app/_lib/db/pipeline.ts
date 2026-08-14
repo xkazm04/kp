@@ -1464,7 +1464,15 @@ export function anonymizeEntry(entryId: string, reason: "expiry" | "erasure" = "
     db.prepare(`UPDATE pipeline_events SET candidate_label = ? WHERE entry_id = ? AND workspace_id = ?`).run(masked, entryId, workspaceId);
     // Scrub the linked CV profile (PII out, scores kept). Best-effort: a missing
     // profile (recruiter stub) just means there was no CV blob to scrub.
-    if (row.candidate_id) anonymizeProfile(row.candidate_id);
+    //
+    // SCOPED — every other statement in this transaction already is, and this one
+    // being bare is why erasure was only half-done outside the default team:
+    // anonymizeProfile starts with getProfileRecord(id, workspaceId) and returns
+    // false on a miss, so the entry was masked and stamped anonymized_at while the
+    // candidate's CV payload — the largest PII blob in the system — survived intact
+    // and the caller was told the erasure succeeded. `profiles` is workspace-scoped
+    // with no by-id exemption, so the id alone was never enough.
+    if (row.candidate_id) anonymizeProfile(row.candidate_id, workspaceId);
     // GDPR Art. 17: the saved `analyses` rows hold the FULL CV payload (rawText,
     // name, email, phone, verbatim evidence) + a github_json dossier. They have no
     // FK back to the entry, so match on the NORMALIZED candidate_label — LOWER(TRIM(...))

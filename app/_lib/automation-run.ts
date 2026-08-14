@@ -165,7 +165,15 @@ export async function runAutomationTask(
   // scored. The static seed file Python would otherwise read never reflects ingested/
   // published openings, so without this rematch could never even see a newer better
   // fit (idea-e01935e9). Other tasks score a single job and skip the corpus entirely.
-  const corpusJobs = task === "rematch" ? listCorpusJobs() : null;
+  // Scoped like every other read in this function. listCorpusJobs is dual-tier —
+  // `(workspace_id IS NULL OR workspace_id = ?)`, the shared seeded corpus PLUS this
+  // team's own published roles — so a bare call scored the candidate against the
+  // corpus plus the DEFAULT team's openings and never against the caller's. Three
+  // effects: a team's own better-fit role was invisible (rematch reported
+  // no_alternative); when it did fire it planted an entry in this team pointing at
+  // ANOTHER team's job id; and the corpus fingerprint below was computed over the
+  // wrong set, so publishing or closing a role never invalidated the 168h cache.
+  const corpusJobs = task === "rematch" ? listCorpusJobs(workspaceId) : null;
   // GH7 — serialize the entry's compact GitHub evidence ONCE for the tasks whose
   // prompts consume it (GITHUB_EVIDENCE_TASKS = screen/prep/scorecard): the same
   // bytes are written to github.json for Python below AND folded into the cache
