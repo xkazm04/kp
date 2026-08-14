@@ -12,18 +12,61 @@
 // next-server-hooks.mjs BEFORE dynamically importing a route module; never in app code.
 export class NextRequest extends Request {}
 
+// `NextResponse` carries a `cookies` writer that plain `Response` does not, and
+// handlers that re-mint the session (auth/switch-workspace, login, logout) call it
+// straight after `NextResponse.json(...)`. Without it those handlers throw inside
+// their own try/catch and answer 500, which reads in a test like a product failure.
+// Minimal, header-level implementation: enough to assert that a cookie was set and
+// with what value.
+function withCookies(response) {
+  const serialize = (name, value, opts = {}) => {
+    const parts = [`${name}=${value}`];
+    if (opts.maxAge !== undefined) parts.push(`Max-Age=${opts.maxAge}`);
+    if (opts.path) parts.push(`Path=${opts.path}`);
+    if (opts.expires) parts.push(`Expires=${new Date(opts.expires).toUTCString()}`);
+    if (opts.sameSite) parts.push(`SameSite=${opts.sameSite}`);
+    if (opts.httpOnly) parts.push("HttpOnly");
+    if (opts.secure) parts.push("Secure");
+    return parts.join("; ");
+  };
+  response.cookies = {
+    set(name, value, opts) {
+      // Object form: cookies.set({ name, value, ...opts })
+      if (typeof name === "object" && name !== null) {
+        const { name: n, value: v, ...rest } = name;
+        response.headers.append("set-cookie", serialize(n, v, rest));
+      } else {
+        response.headers.append("set-cookie", serialize(name, value, opts));
+      }
+      return response.cookies;
+    },
+    delete(name) {
+      response.headers.append("set-cookie", serialize(typeof name === "object" ? name.name : name, "", { maxAge: 0, path: "/" }));
+      return response.cookies;
+    },
+    get(name) {
+      const raw = response.headers.get("set-cookie") ?? "";
+      const hit = raw.split(/,\s*(?=[^;=]+=)/).find((c) => c.startsWith(`${name}=`));
+      return hit ? { name, value: hit.slice(name.length + 1).split(";")[0] } : undefined;
+    },
+  };
+  return response;
+}
+
 export const NextResponse = {
   json(body, init = {}) {
-    return new Response(JSON.stringify(body), {
-      status: init.status ?? 200,
-      headers: { "content-type": "application/json", ...(init.headers ?? {}) },
-    });
+    return withCookies(
+      new Response(JSON.stringify(body), {
+        status: init.status ?? 200,
+        headers: { "content-type": "application/json", ...(init.headers ?? {}) },
+      })
+    );
   },
   redirect(url, status = 307) {
-    return new Response(null, { status, headers: { location: String(url) } });
+    return withCookies(new Response(null, { status, headers: { location: String(url) } }));
   },
   next() {
-    return new Response(null, { status: 200 });
+    return withCookies(new Response(null, { status: 200 }));
   },
 };
 

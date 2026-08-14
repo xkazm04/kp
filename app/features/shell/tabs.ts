@@ -211,7 +211,7 @@ export const NAV_GROUPS: NavGroup[] = [
       // inbound ATS connectors. Appended last so every prior `g`-chord assignment is
       // untouched (workspaceChords.ts only draws from still-free letters).
       { id: "integrations", label: "Integrations" },
-      { id: "workspace", label: "Workspace" },
+      { id: "workspace", label: "Workspaces" },
       // The hiring-pipeline composer (AI/human rounds + approval gating).
       // Appended last so every prior `g`-chord assignment is untouched.
       { id: "hiring", label: "Hiring" },

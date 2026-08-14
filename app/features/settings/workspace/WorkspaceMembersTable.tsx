@@ -1,48 +1,56 @@
 "use client";
 
-import { SlidersHorizontal, Trash2 } from "lucide-react";
+import { LogOut, SlidersHorizontal } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { initials } from "@/app/_lib/initials";
 import { Badge } from "@/app/_components/Badge";
 import { Select } from "@/app/_components/Select";
 import { BTN_GHOST } from "@/app/_components/ui/recipes";
 import { ASSIGNABLE_ROLES, roleLabel, roleTone, statusBadge } from "@/app/features/shared/memberUi";
-import { hasCustomPermissions, primaryTeam } from "./organizationMemberHelpers";
-import type { MemberTeam, OrgMemberDto } from "./useOrganizationMembers";
+import { hasCustomPermissions, memberName, teamFor } from "./workspaceAdminHelpers";
+import type { MemberTeam, OrgMemberDto } from "./useWorkspaceAdmin";
 
-// Organization console — the members table itself (roster rows: role select,
-// status/disable toggle, permissions edit, remove). Split out of
-// OrganizationMembersPanel.tsx.
-export function OrganizationMembersTable({
+// The roster of ONE team: role select, account status, permissions, and "remove
+// from this team". Moved here from settings/organization (was
+// OrganizationMembersTable) and re-keyed from primaryTeam(m) — seat [0] — to
+// teamFor(m, workspaceId), so a person who belongs to three teams now shows three
+// different roles instead of the same one three times.
+//
+// The trailing action is deliberately NOT account deletion any more: taking
+// somebody off a team is reversible and routine, deleting their account is neither.
+// That lives in the By-person view, where the blast radius is legible.
+export function WorkspaceMembersTable({
   members,
+  workspaceId,
   loading,
   error,
   canManage,
   onPatchMember,
   onEditPermissions,
-  onConfirmRemove,
+  onConfirmRemoveFromWorkspace,
 }: {
   members: OrgMemberDto[];
+  workspaceId: string;
   loading: boolean;
   /** The roster fetch failed. A flag, not a message — the copy lives in the catalog. */
   error: boolean;
   canManage: boolean;
   onPatchMember: (userId: string, body: Record<string, unknown>) => void;
   onEditPermissions: (member: OrgMemberDto, team: MemberTeam) => void;
-  onConfirmRemove: (member: OrgMemberDto) => void;
+  onConfirmRemoveFromWorkspace: (member: OrgMemberDto) => void;
 }) {
   const t = useTranslations("workspaceAdmin.members");
-  // Members table. Tier 2: the roster fetch is in flight and there is
-  // nothing to show yet — hold the table's height and stay invisible for
-  // 150ms so a warm response never flashes a false "no members" empty
-  // state. (Was a bare "Loading members…" line, same anti-pattern as an
-  // empty gap: it painted immediately and told the user nothing useful.)
+  // Tier 2: the roster fetch is in flight and there is nothing to show yet — hold
+  // the table's height and stay invisible for 150ms so a warm response never
+  // flashes a false "no members" empty state.
   return (
     <div className="overflow-x-auto">
       {loading ? (
         <div className="reveal-quiet min-h-[14rem]" aria-hidden />
       ) : error ? (
         <p className="px-5 py-6 text-sm text-coral">{t("loadError")}</p>
+      ) : members.length === 0 ? (
+        <p className="px-5 py-6 text-sm text-steel">{t("noMembers")}</p>
       ) : (
         <div className="animate-arrive-in">
           <table className="w-full min-w-[38rem] text-left">
@@ -57,11 +65,11 @@ export function OrganizationMembersTable({
             </thead>
             <tbody className="divide-y divide-stone-100">
               {members.map((m) => {
-                const team = primaryTeam(m);
+                const team = teamFor(m, workspaceId);
                 const isOwner = team?.role === "owner";
                 const disabled = m.user.status === "disabled";
                 const custom = team ? hasCustomPermissions(team) : false;
-                const displayName = m.user.name ?? m.user.email;
+                const displayName = memberName(m);
                 return (
                   <tr key={m.user.id} className="align-middle">
                     <td className="px-5 py-3">
@@ -84,7 +92,7 @@ export function OrganizationMembersTable({
                       {canManage && team && !isOwner ? (
                         <Select
                           value={team.role}
-                          onChange={(v) => onPatchMember(m.user.id, { workspaceId: team.workspaceId, role: v })}
+                          onChange={(v) => onPatchMember(m.user.id, { workspaceId, role: v })}
                           ariaLabel={t("roleAria", { name: displayName })}
                           size="sm"
                           options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, t) }))}
@@ -131,12 +139,12 @@ export function OrganizationMembersTable({
                       {canManage && !isOwner ? (
                         <button
                           type="button"
-                          onClick={() => onConfirmRemove(m)}
+                          onClick={() => onConfirmRemoveFromWorkspace(m)}
                           className={`${BTN_GHOST} h-8 w-8 justify-center`}
-                          aria-label={t("removeAria", { name: displayName })}
-                          title={t("removeAria", { name: displayName })}
+                          aria-label={t("removeFromWorkspaceAria", { name: displayName })}
+                          title={t("removeFromWorkspace")}
                         >
-                          <Trash2 size={15} aria-hidden />
+                          <LogOut size={15} aria-hidden />
                         </button>
                       ) : null}
                     </td>

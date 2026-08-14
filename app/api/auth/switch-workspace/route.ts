@@ -10,7 +10,7 @@ import {
   isOperatorSession,
   type SessionClaims,
 } from "@/app/_lib/auth/session";
-import { getWorkspace, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
+import { getWorkspace, getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "@/app/_lib/db/workspaces";
 import { getMembership } from "@/app/_lib/db/memberships";
 import { canSwitchWorkspace } from "@/app/_lib/workspace-lock";
 import { jsonError } from "@/app/_lib/api-response";
@@ -41,13 +41,34 @@ export async function POST(request: Request) {
     if (!workspaceId || !getWorkspace(workspaceId)) {
       return NextResponse.json({ error: "Unknown workspace." }, { status: 404 });
     }
+    // MEMBERSHIP is the authority to enter a team — existence never was. This route
+    // used to mint a session for any workspace that merely existed, leaving the
+    // real check to the empty-capability 403s every downstream route would then
+    // return; with multi-workspace on that let any signed-in user park a session on
+    // any tenant. Two conditions now, both fail-closed:
+    //   1. the target belongs to the caller's own organization, and
+    //   2. the caller actually holds a membership there.
+    // Org-wide ADMINS can administer a team they don't belong to (seats, rename) —
+    // but administering is not entering: without a membership their capabilities
+    // inside it resolve empty, so switching would only strand them in a workspace
+    // that answers 403 to everything. Operator / open-dev sessions carry no user
+    // identity and keep their existing free rein.
+    const userId = currentUserId(session);
+    if (userId) {
+      const sessionOrg = currentOrgId(session);
+      if (sessionOrg && getWorkspaceOrgId(workspaceId) !== sessionOrg) {
+        return NextResponse.json({ error: "Unknown workspace." }, { status: 404 });
+      }
+      if (!getMembership(userId, workspaceId)) {
+        return NextResponse.json({ error: "You are not a member of that workspace." }, { status: 403 });
+      }
+    }
     // Carry the caller's identity across the re-mint. Dropping it used to hand the new
     // cookie to resolveCaller() with no `sub`, which read that absence as "operator" and
     // granted owner capabilities — so any member could switch to the default workspace and
     // return an owner. `role` is recomputed against the TARGET team (a user's role is
     // per-membership, not global); capabilities are still resolved live from the DB, so the
     // claim is for display and must never be the authority.
-    const userId = currentUserId(session);
     const res = NextResponse.json({ ok: true, workspace: workspaceId });
     const claims: SessionClaims = isOperatorSession(session)
       ? { op: true }

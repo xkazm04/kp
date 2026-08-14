@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { DEFAULT_ORG_ID } from "./db/organizations.ts";
 import { createWorkspace } from "./db/workspaces.ts";
-import { verifyCredentials, getUserByEmail } from "./db/users.ts";
+import { verifyCredentials, getUserByEmail, createUser } from "./db/users.ts";
 import {
   listOrgMembers,
   inviteMember,
@@ -12,6 +12,8 @@ import {
   removeMember,
   setMemberPermissions,
   setMemberStatus,
+  addMemberToWorkspace,
+  removeMemberFromWorkspace,
 } from "./org-service.ts";
 
 after(() => cleanupUnitDb());
@@ -107,4 +109,76 @@ test("accept returns the invite's team/role, not the member's oldest membership"
   // …even though the older default-team viewer membership still exists (what [0] returned).
   const teams = listOrgMembers().find((m) => m.user.email === "david.benes@csas.cz")!.teams;
   assert.ok(teams.some((t) => t.workspaceId === "workspace" && t.role === "viewer"), "old membership still present");
+});
+
+// ---- Per-workspace membership (the Workspaces console's write path) --------
+// memberships have always been many-to-many, but nothing could CREATE the second
+// seat from the app: invites default to one team and the members route only ever
+// re-roled an existing membership. These two are what the console calls.
+
+test("addMemberToWorkspace seats an existing member on a SECOND team without touching the first", () => {
+  const teamC = createWorkspace("Team C");
+  const before = listOrgMembers().find((m) => m.user.id === "usr-seed-marketa")!;
+  assert.equal(before.teams.length, 1, "precondition: one seat");
+
+  assert.deepEqual(addMemberToWorkspace("usr-seed-marketa", teamC.id, "hiring_manager"), { ok: true });
+
+  const after = listOrgMembers().find((m) => m.user.id === "usr-seed-marketa")!;
+  assert.equal(after.teams.length, 2);
+  assert.equal(after.teams.find((t) => t.workspaceId === "workspace")!.role, "recruiter", "original seat unchanged");
+  assert.equal(after.teams.find((t) => t.workspaceId === teamC.id)!.role, "hiring_manager", "new seat holds its own role");
+});
+
+test("addMemberToWorkspace is an upsert: re-adding changes the role on that team only", () => {
+  const teamD = createWorkspace("Team D");
+  addMemberToWorkspace("usr-seed-marketa", teamD.id, "viewer");
+  addMemberToWorkspace("usr-seed-marketa", teamD.id, "admin");
+  const teams = listOrgMembers().find((m) => m.user.id === "usr-seed-marketa")!.teams;
+  assert.equal(teams.filter((t) => t.workspaceId === teamD.id).length, 1, "no duplicate membership");
+  assert.equal(teams.find((t) => t.workspaceId === teamD.id)!.role, "admin");
+  assert.equal(teams.find((t) => t.workspaceId === "workspace")!.role, "recruiter", "other seats untouched");
+});
+
+test("addMemberToWorkspace refuses a workspace outside the user's org, and an unknown one", () => {
+  const foreign = createWorkspace("Other Co team", "org-elsewhere");
+  assert.deepEqual(addMemberToWorkspace("usr-seed-marketa", foreign.id, "recruiter"), { ok: false, reason: "cross_org" });
+  assert.deepEqual(addMemberToWorkspace("usr-seed-marketa", "ws-does-not-exist", "recruiter"), { ok: false, reason: "no_workspace" });
+  assert.deepEqual(addMemberToWorkspace("usr-nobody", "workspace", "recruiter"), { ok: false, reason: "no_user" });
+});
+
+test("removeMemberFromWorkspace drops ONE seat and keeps the account", () => {
+  const teamE = createWorkspace("Team E");
+  addMemberToWorkspace("usr-seed-marketa", teamE.id, "recruiter");
+  assert.deepEqual(removeMemberFromWorkspace("usr-seed-marketa", teamE.id), { ok: true });
+
+  const member = listOrgMembers().find((m) => m.user.id === "usr-seed-marketa");
+  assert.ok(member, "the account survives — this is not removeMember()");
+  assert.ok(!member!.teams.some((t) => t.workspaceId === teamE.id), "the seat is gone");
+  assert.ok(member!.teams.some((t) => t.workspaceId === "workspace"), "every other seat stays");
+  // Not a member any more, so a second removal is a 404-shaped refusal.
+  assert.deepEqual(removeMemberFromWorkspace("usr-seed-marketa", teamE.id), { ok: false, reason: "not_member" });
+});
+
+// Built in its OWN org so the assertion can't be perturbed by whatever earlier
+// tests in this file did to the seeded ČS roster's owner set — the guard is
+// org-wide by definition, so it needs an org it fully controls.
+test("removeMemberFromWorkspace refuses to strip the org's last owner seat", () => {
+  const orgId = "org-lastowner";
+  const teamA = createWorkspace("Solo team A", orgId);
+  const owner = createUser({ orgId, email: "solo.owner@example.test", name: "Solo Owner", status: "active", password: "solo-pw-1234" });
+  addMemberToWorkspace(owner.id, teamA.id, "owner");
+
+  // One owner, one seat: the org would be left unadministerable.
+  assert.deepEqual(removeMemberFromWorkspace(owner.id, teamA.id), { ok: false, reason: "last_owner" });
+
+  // A sole owner who owns TWO teams may give one up — the org keeps an owner.
+  const teamB = createWorkspace("Solo team B", orgId);
+  addMemberToWorkspace(owner.id, teamB.id, "owner");
+  assert.deepEqual(removeMemberFromWorkspace(owner.id, teamB.id), { ok: true });
+  assert.deepEqual(removeMemberFromWorkspace(owner.id, teamA.id), { ok: false, reason: "last_owner" }, "back to one owner seat");
+
+  // A NON-owner seat held by that same sole owner is freely removable.
+  const teamC = createWorkspace("Solo team C", orgId);
+  addMemberToWorkspace(owner.id, teamC.id, "viewer");
+  assert.deepEqual(removeMemberFromWorkspace(owner.id, teamC.id), { ok: true });
 });

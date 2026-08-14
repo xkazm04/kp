@@ -3,7 +3,9 @@ import { connection, NextResponse } from "next/server";
 import { SESSION_COOKIE } from "./edge-verify";
 import { verifySession, currentWorkspaceId, currentUserId, currentOrgId, isOperatorSession, DEMO_WORKSPACE, type SessionPayload } from "./session";
 import { roleCapabilities, type Capability, type MemberRole } from "./roles";
-import { getMembership, capabilitiesForUserInWorkspace } from "../db/memberships";
+import { orgAdminCapabilities, orgCapabilityCeiling, workspaceCapabilities, type MembershipGrant } from "./org-authority";
+import { getMembership, capabilitiesForUserInWorkspace, listMembershipsForUser } from "../db/memberships";
+import { getWorkspaceOrgId, listWorkspacesByOrg } from "../db/workspaces";
 
 // Per-user identity + capability gate for REQUEST scope (route handlers / server
 // components) — the P0 companion to require-operator.ts. require-operator answers
@@ -97,4 +99,87 @@ export async function requireCapability(cap: Capability): Promise<NextResponse |
   const caller = await resolveCaller();
   if (caller.caps.has(cap)) return null;
   return NextResponse.json({ error: caller.authed ? "Forbidden" : "Unauthorized" }, { status: caller.authed ? 403 : 401 });
+}
+
+// ---- Cross-workspace authority (P2) ----------------------------------------
+// resolveCaller() above answers "what can this caller do HERE?" — always against
+// the session's own workspace. The workspaces console needs the other question:
+// "what can this caller do on THAT workspace?", because administering seats is a
+// company-level job (an admin adjusts any team) while candidate data stays
+// team-private. org-authority.ts owns the policy; these two wrappers feed it the
+// live DB rows. Both fail closed outside the caller's org.
+
+/** The caller's memberships within one org (their own org), as capability grants. */
+function orgMembershipGrants(userId: string, orgId: string): MembershipGrant[] {
+  const orgWorkspaces = new Set(listWorkspacesByOrg(orgId).map((w) => w.id));
+  return listMembershipsForUser(userId)
+    .filter((m) => orgWorkspaces.has(m.workspaceId))
+    .map((m) => ({ role: m.role, overrides: m.overrides }));
+}
+
+/** The caller's effective capabilities ON A SPECIFIC workspace: their membership
+ *  there unioned with their org-wide ADMIN capabilities. Empty when the workspace
+ *  sits outside the caller's org. Open-dev / operator sessions fold to owner, the
+ *  same shortcut resolveCaller() takes. */
+export async function callerWorkspaceCapabilities(workspaceId: string): Promise<ReadonlySet<Capability>> {
+  if (!process.env.KP_OPERATOR_PASSWORD) return OWNER_CAPS; // open dev
+  const s = await currentSession();
+  if (!s) return EMPTY_CAPS;
+  if (isOperatorSession(s)) return OWNER_CAPS;
+  const userId = currentUserId(s);
+  const orgId = currentOrgId(s);
+  if (!userId || !orgId) return EMPTY_CAPS;
+  // Tenant boundary: never resolve authority over another org's workspace, even
+  // for an owner. An unlinked legacy workspace (org_id NULL) is treated as foreign.
+  if (getWorkspaceOrgId(workspaceId) !== orgId) return EMPTY_CAPS;
+  return workspaceCapabilities(capabilitiesForUserInWorkspace(userId, workspaceId), orgMembershipGrants(userId, orgId));
+}
+
+/** Route gate for a call that TARGETS one workspace. 401 unauthenticated, 403
+ *  authenticated but under-privileged. A workspace outside the caller's org
+ *  answers 404 — a cross-org probe must not learn that the id exists. */
+export async function requireWorkspaceCapability(workspaceId: string, cap: Capability): Promise<NextResponse | null> {
+  const caps = await callerWorkspaceCapabilities(workspaceId);
+  if (caps.has(cap)) return null;
+  const caller = await resolveCaller();
+  if (!caller.authed) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const s = await currentSession();
+  const orgId = s ? currentOrgId(s) : null;
+  if (orgId && getWorkspaceOrgId(workspaceId) !== orgId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+}
+
+/** The caller's ORG-WIDE administrative capabilities — for calls that target no
+ *  single workspace yet (creating one) or that decide how much of the org's
+ *  workspace list to reveal. */
+export async function callerOrgCapabilities(): Promise<ReadonlySet<Capability>> {
+  if (!process.env.KP_OPERATOR_PASSWORD) return OWNER_CAPS; // open dev
+  const s = await currentSession();
+  if (!s) return EMPTY_CAPS;
+  if (isOperatorSession(s)) return OWNER_CAPS;
+  const userId = currentUserId(s);
+  const orgId = currentOrgId(s);
+  if (!userId || !orgId) return EMPTY_CAPS;
+  return orgAdminCapabilities(orgMembershipGrants(userId, orgId));
+}
+
+/** Route gate for an org-wide administrative call (e.g. create a workspace). */
+export async function requireOrgCapability(cap: Capability): Promise<NextResponse | null> {
+  if ((await callerOrgCapabilities()).has(cap)) return null;
+  const caller = await resolveCaller();
+  return NextResponse.json({ error: caller.authed ? "Forbidden" : "Unauthorized" }, { status: caller.authed ? 403 : 401 });
+}
+
+/** The ceiling on what the caller may GRANT — everything they hold anywhere in
+ *  their org. Feed this to `canAssignRole`, never to an access check: see the
+ *  contract on `orgCapabilityCeiling`. */
+export async function callerDelegationCeiling(): Promise<ReadonlySet<Capability>> {
+  if (!process.env.KP_OPERATOR_PASSWORD) return OWNER_CAPS; // open dev
+  const s = await currentSession();
+  if (!s) return EMPTY_CAPS;
+  if (isOperatorSession(s)) return OWNER_CAPS;
+  const userId = currentUserId(s);
+  const orgId = currentOrgId(s);
+  if (!userId || !orgId) return EMPTY_CAPS;
+  return orgCapabilityCeiling(orgMembershipGrants(userId, orgId));
 }

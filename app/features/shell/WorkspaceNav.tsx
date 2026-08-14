@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
 import { RecentsNav } from "./WorkspaceRecentsNav";
 import { NavFeedbackButton } from "./nav/NavFeedbackButton";
@@ -28,7 +29,9 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
   // a store fault must not take the whole page down for a badge.
   let attention: AttentionCounts | null = null;
   try {
-    attention = attentionCounts();
+    // Same tenant scope as /api/attention: the badges describe the workspace this
+    // session is signed into, never the default one.
+    attention = attentionCounts(await currentWorkspace());
   } catch (error) {
     console.error("[WorkspaceNav] attention counts unavailable", error);
   }

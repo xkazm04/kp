@@ -43,12 +43,24 @@ The single fact that shapes this entire backlog (from
   `ats_config`, `analytics_targets`, `decision_config`, `jd_templates`, `llm_usage`) is
   classified **exempt** (org-level, not per-team).
 
-**Remaining before the actual `KP_MULTI_WORKSPACE` flip** (the last mile, all noted in
-`app/_lib/tenancy.ts`): give the pipeline entry-id scheme a workspace component, widen
-the `tasks` dedup index to `(workspace_id, dedupe_key)`, thread the real session
-workspace through the inbound lead-intake chain and the mutating routes (today they use
-the default workspace). The **data layer** — the hard, exhaustive part — is complete.
-Full detail: `docs/features/organization/README.md` (Known gaps).
+- **The console, shipped.** Settings → Workspaces administers teams *and* the
+  people on them, in two lenses (by workspace / by person). Memberships were
+  always many-to-many; the UI now says so, so one person can hold different roles
+  on several teams. `app/_lib/auth/org-authority.ts` states the authority split it
+  runs on: administrative capability is **org-wide**, operational capability stays
+  **per workspace**. The workspace routes enforce org and membership boundaries
+  (`switch-workspace` requires a real seat; `GET /api/workspaces` is org-filtered;
+  `POST` is `team:manage`-gated and seats its creator).
+
+**Remaining before the actual `KP_MULTI_WORKSPACE` flip:** per-workspace
+export/import is the real blocker — `/api/workspace/export` dumps the whole DB and
+`/api/workspace/import` answers 503 once the flag is on, so enabling
+multi-workspace disables restore. Billing seats (§6) are the other. The earlier
+last-mile list (entry-id scheme, `tasks` dedup index, inbound lead-intake
+threading, workspace-blind attention badges and public status/NPS reads) is
+**closed** — verified in `app/_lib/tenancy.ts` and
+`docs/features/organization/README.md`. The **data layer** — the hard, exhaustive
+part — is complete. Full detail: `docs/features/organization/README.md` (Known gaps).
 
 **Consequence — the E0-gated pillars are now UNBLOCKED:** SSO can provision *users into
 roles* (they exist), audit can stamp the real `userId`, and the decision chain is already

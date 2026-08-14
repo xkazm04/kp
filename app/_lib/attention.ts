@@ -39,15 +39,25 @@ export type AttentionCounts = {
   channels: number;
 };
 
-export function attentionCounts(): AttentionCounts {
+/** The badge counts for ONE tenant. Every read below is workspace-scoped; the
+ *  parameter exists because this module is the ONLY place that decides which
+ *  workspace the sidebar is describing.
+ *
+ *  It used to take none, so all three reads fell through to their
+ *  DEFAULT_WORKSPACE_ID default and a recruiter signed into any other team saw
+ *  the default team's counts on every badge — the last workspace-blind read path
+ *  in the recruiter shell (docs/features/organization/README.md, Known gaps).
+ *  Callers pass `await currentWorkspace()`; the default is kept so background
+ *  callers and tests behave as before. */
+export function attentionCounts(workspaceId?: string): AttentionCounts {
   // listPipeline already excludes terminal (rejected/declined) entries.
-  const entries = listPipeline();
+  const entries = listPipeline(workspaceId);
   const decisions = entries.filter((e) => e.status === "active" && needsHumanDecision(e.approvalKind)).length;
   const stale = entries.filter(
     (e) => e.status === "active" && e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage)
   ).length;
-  const schedule = countFutureConfirmedInvites();
-  const jobs = Object.values(listJobStatuses()).filter((s) => s === "draft").length;
+  const schedule = countFutureConfirmedInvites(workspaceId);
+  const jobs = Object.values(listJobStatuses(workspaceId)).filter((s) => s === "draft").length;
   const channels = entries.filter((e) => e.status === "active" && e.stage === "Accepted").length;
   return { decisions, pipeline: stale, schedule, jobs, channels };
 }

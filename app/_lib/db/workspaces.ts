@@ -99,6 +99,34 @@ export function createWorkspace(name: string, orgId: string = DEFAULT_ORG_ID): W
   return { id, name: cleanName, orgId, type: "team", createdAt };
 }
 
+/** Rename a team. Same 80-char clamp + empty fallback as createWorkspace, so the
+ *  two write paths can't disagree about what a legal name is. Returns the updated
+ *  row, or null when no workspace matched. */
+export function renameWorkspace(id: string, name: string): Workspace | null {
+  const db = ensureDb();
+  const cleanName = name.trim().slice(0, 80) || "Untitled workspace";
+  const info = db.prepare(`UPDATE workspaces SET name = ? WHERE id = ?`).run(cleanName, id);
+  return Number(info.changes) > 0 ? getWorkspace(id) : null;
+}
+
+/** The teams a user actually belongs to, in the same created_at order as
+ *  listWorkspaces/listWorkspacesByOrg. The membership-filtered counterpart of
+ *  listWorkspacesByOrg: GET /api/workspaces shows a plain member THIS, and an
+ *  org-wide admin the full org list. */
+export function listWorkspacesForUser(userId: string): Workspace[] {
+  const db = ensureDb();
+  return (
+    db
+      .prepare(
+        `SELECT w.* FROM workspaces w
+         JOIN memberships m ON m.workspace_id = w.id
+         WHERE m.user_id = ?
+         ORDER BY w.created_at ASC`,
+      )
+      .all(userId) as Record<string, unknown>[]
+  ).map(rowToWorkspace);
+}
+
 /** All teams in an org (the org's workspace list). */
 export function listWorkspacesByOrg(orgId: string): Workspace[] {
   const db = ensureDb();

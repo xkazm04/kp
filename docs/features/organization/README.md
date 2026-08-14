@@ -14,8 +14,10 @@ inventing a second scoping dimension.
 
 ## Entry points
 
-- **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`,
-  `OrganizationConsole.tsx`) — general org settings, member roster, invites.
+- **Settings → Workspaces** (`app/features/settings/workspace/WorkspaceTab.tsx`) —
+  the console for teams **and** the people on them. See *Surface* below.
+- **Settings → Organization** (`app/features/settings/organization/OrganizationTab.tsx`)
+  — company identity only: org name, app language, backup/restore.
 - `/api/auth/switch-workspace` — re-mints the session for a different team.
 - Onboarding wizard (`app/features/shell/setup/`) — first-run org setup.
 - **Self-serve signup** (`/signup` + `POST /api/auth/register`) — public
@@ -81,19 +83,111 @@ workspace-scoped. As of this pass:
 Reference implementation for scoping a new table: `app/_lib/db/{analyses,profiles}.ts`
 + their `*-tenancy.test.ts`.
 
+**Read paths closed since the manifest went green** (each was previously listed
+here as a gap; re-verify against the code before re-adding any of them):
+
+- The pipeline entry-id scheme carries a workspace component for non-default
+  teams, and the `tasks` active-dedup index is `(workspace_id, dedupe_key)`
+  (`uq_tasks_active_dedupe_ws`).
+- The inbound channel receiver files each lead into the webhook's own team
+  (`webhook.workspaceId` through `lead-intake`/`cv-intake`).
+- **Sidebar attention badges** — `attentionCounts(workspaceId)`
+  (`app/_lib/attention.ts`) now takes the tenant and forwards it to
+  `listPipeline` / `countFutureConfirmedInvites` / `listJobStatuses`; both call
+  sites (`/api/attention` and the server-rendered `WorkspaceNav`) pass
+  `await currentWorkspace()`. They previously reported the default team's backlog
+  to everyone.
+- **Public status + NPS** — `/api/status/[token]` and `.../nps` derive the tenant
+  with `getEntryWorkspace(entryId)`, matching the sibling `/decisions` route. A
+  non-default team's candidate used to get a 404 on their own status link, and any
+  score that landed was filed under the default team's experience metric.
+
+## Authority — org-wide vs per-workspace
+
+A role lives on a **membership**, so it is per team. That makes "an admin can
+administer any team in the company" inexpressible with `resolveCaller()` alone,
+which only ever resolves against the session's workspace.
+`app/_lib/auth/org-authority.ts` states the split explicitly:
+
+- **Administrative** capability (`org:manage`, `members:manage`, `team:manage`)
+  is **org-wide** — holding it in any one team confers it over every team of that
+  org. `orgAdminCapabilities()` computes the union.
+- **Operational** capability (`read`, `pipeline:write`) stays **per workspace** —
+  owning team A never reveals team B's candidates.
+
+Request-scope wrappers live in `current-user.ts`:
+`callerWorkspaceCapabilities(workspaceId)` / `requireWorkspaceCapability(ws, cap)`
+(404 for a workspace outside the caller's org, so a cross-org probe learns
+nothing) and `callerOrgCapabilities()` / `requireOrgCapability(cap)` for calls
+that target no single workspace, i.e. creating one.
+
+**Entering** a team is separate from administering it:
+`POST /api/auth/switch-workspace` requires a real membership (plus an org match).
+An org admin can seat people on a team they don't belong to, but cannot park a
+session on it — without a membership their capabilities inside it resolve empty,
+so the session would 403 on everything anyway.
+
 ## Surface
 
 | Layer | File(s) |
 |---|---|
 | Org/member/invite API | `app/api/org/members/route.ts`, `app/api/org/members/[userId]/route.ts`, `app/api/org/invites/route.ts`, `app/api/org/invites/[token]/route.ts` |
-| Workspace switch/list | `app/api/auth/switch-workspace/route.ts`, `app/api/workspaces/route.ts` |
+| Workspace API | `app/api/workspaces/route.ts` (GET org-filtered list + memberCount/role/canManage; POST `team:manage`-gated, stamps the caller's org, seats the creator as owner), `app/api/workspaces/[id]/route.ts` (rename), `app/api/workspaces/[id]/members/[userId]/route.ts` (PUT seat/re-role, DELETE unseat) |
+| Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required |
 | Whole-workspace export/import | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts` |
-| DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts` |
-| RBAC | `app/_lib/auth/roles.ts` |
+| DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
+| RBAC | `app/_lib/auth/roles.ts`, `app/_lib/auth/org-authority.ts` |
 | Tenancy manifest | `app/_lib/tenancy.ts`, `app/_lib/workspace-lock.ts` |
-| Business logic | `app/_lib/org-actions.ts`, `app/_lib/org-service.ts`, `app/_lib/bulk-invite.ts` |
-| UI | `app/features/settings/organization/*` (`OrganizationTab`, `OrganizationConsole`, `OrganizationGeneralPanel`, `OrganizationMembersPanel`, `OrganizationMembersTable`, `OrganizationMemberConfirmModals`, `OrganizationMemberPermissionsModal`, `useOrganizationMembers`, `organizationMemberHelpers`) |
+| Business logic | `app/_lib/org-actions.ts`, `app/_lib/org-service.ts` (`addMemberToWorkspace`, `removeMemberFromWorkspace`), `app/_lib/bulk-invite.ts` |
+| Workspaces console UI | `app/features/settings/workspace/*` (`WorkspaceTab` shell, `WorkspaceRail`, `WorkspaceDetailPanel`, `WorkspacePeoplePanel`, `WorkspaceMembersTable`, `MemberPermissionsModal`, `MemberConfirmModals`, `useWorkspaceAdmin`, `workspaceAdminHelpers`) |
+| Organization UI | `app/features/settings/organization/*` (`OrganizationTab`, `OrganizationGeneralPanel`) |
+| Backup & restore UI | `app/features/settings/organization/OrganizationBackupPanel.tsx`, `OrganizationBackupRestorePlan.tsx` |
 | Shared presenters | `app/features/shared/memberUi.ts` — role labels/tints, member-status badges, the assignable-role list, the overridable-capability rows |
+
+### The Workspaces console
+
+Two lenses over one dataset (`useWorkspaceAdmin` composes `/api/workspaces` +
+`/api/org/members` + `/api/org/invites` in a single parallel fetch):
+
+- **By workspace** — a rail of the org's teams (name, seat count, which one the
+  session is in) beside one team's detail: inline rename, Switch, its roster, and
+  two ways to add somebody — seat an existing colleague, or invite an address.
+  Both write against the selected workspace.
+- **By person** — one row per colleague with **every** seat they hold as an
+  editable chip, plus a `+` to add another and the account-deletion action.
+
+`workspaceAdminHelpers.teamFor(m, workspaceId)` replaced `primaryTeam(m) =
+m.teams[0]` — the single line that made the app single-team. Memberships have
+always been many-to-many (`UNIQUE(user_id, workspace_id)`), but every surface read
+seat [0], so a person on three teams showed one role three times and there was no
+way to put them on a second team.
+
+Removing somebody **from a workspace** and removing them **from the organization**
+are now distinct actions with distinct confirms: the first is reversible in two
+clicks, the second deletes the account. They used to be the same red X.
+
+The deployment lock (`KP_MULTI_WORKSPACE`) gates create / rename / switch only.
+Member administration is org-scoped and stays fully usable while it is off.
+
+### Backup & restore
+
+The whole-database dump/restore (`GET /api/workspace/export`, `POST
+/api/workspace/import`) is reachable from this tab, `<Defer>`-mounted below the identity
+panel. It used to sit on the Background-tasks tab, beside a health readout and a webhook
+form, because that tab was where the operator-only surfaces had collected; taking and
+replacing a database snapshot is organization administration, so it lives with the rest of
+it now.
+
+Restore is deliberately two-step and loud: pick a file → the route returns a **dry-run
+plan** (every table, its row count, and which live tables already hold data) → the operator
+types `REPLACE` to confirm. A dump whose tables are all empty on the live side reports
+itself as non-destructive and skips the typed confirmation. The copy is fully localized
+(`workspaceAdmin.org.backup`) — comprehension is a safety property here, not a nicety —
+while the table names it lists stay verbatim, being schema identifiers.
+
+**The scope is the whole installation, not one workspace.** One file carries all data
+across every workspace (prompt cache and task-runner state excluded); the panel says so.
+Per-workspace export/restore waits on workspace data isolation.
 
 ## Copy & localization
 
@@ -129,16 +223,21 @@ first-run wizard offering half the languages the app ships); `AppLanguage` is no
 `tsc` if a locale gains no endonym row. See
 [`docs/architecture/localization.md`](../../architecture/localization.md#choosing-the-app-language).
 
-`useOrganizationMembers` exposes `error` as a **boolean flag**, not a message:
-the hook has no translator, both failure paths render the same line, and the copy
-lives at `workspaceAdmin.members.loadError`.
+`useWorkspaceAdmin` exposes `error` as a **boolean flag**, not a message: the hook
+has no translator, every failure path renders the same line, and the copy lives at
+`workspaceAdmin.members.loadError`.
 
-It fires `GET /api/org/members` and `GET /api/org/invites` **in parallel**. The
-invite request used to wait for the members payload to prove `canManage`, which
-cost the console two serial round-trips on first paint. The permission check now
-decides only what is KEPT: the invites response is discarded unless
-`canManage` is true (a caller without `members:manage` gets a 403 there, handled
-as "no invites"), so nothing gated is ever rendered.
+It fires `GET /api/workspaces`, `GET /api/org/members` and `GET /api/org/invites`
+**in parallel**. The invite request used to wait for the members payload to prove
+`canManage`, which cost the console two serial round-trips on first paint. The
+permission check now decides only what is KEPT: the invites response is discarded
+unless `canManage` is true (a caller without `members:manage` gets a 403 there,
+handled as "no invites"), so nothing gated is ever rendered.
+
+`DEFAULT_WORKSPACE_ID` reaches the console through the `/api/workspaces` payload
+(`defaultWorkspace`), not an import — `db/workspaces.ts` opens better-sqlite3 and
+cannot enter a client bundle. It is used only to bucket legacy invites, whose
+`workspace_id` is nullable.
 
 ## Data model
 
@@ -152,9 +251,13 @@ enterprise-readiness roadmap for sequencing.
 
 ## Feature flag
 
-`/api/auth/switch-workspace` still hard-locks any non-default workspace target
-behind `KP_MULTI_WORKSPACE` (`workspace-lock.ts`) — the tenancy data layer is
-ready, but multi-workspace is not yet turned on for production traffic.
+`KP_MULTI_WORKSPACE` (`workspace-lock.ts`) gates workspace **create, rename and
+switch**; member administration is org-scoped and works with it off. It is
+default-OFF, but it is no longer "wait for the data layer" — that is done. It is
+an operator's opt-in to running more than one tenant in a database, and what still
+argues for OFF in production is the export/import and billing-seat gaps below.
+`assertTenancyReady` (`db/core.ts`) re-proves the manifest at boot when it is on,
+so turning it on can only fail loudly.
 
 ## Known gaps
 
@@ -162,20 +265,11 @@ The data-layer work is complete; what remains before `KP_MULTI_WORKSPACE` goes
 live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 `docs/product/enterprise-readiness.md` §1):
 
-- Give the pipeline entry-id scheme a workspace component (today only the
-  DEFAULT workspace's `m-<key>-<job>` id is guaranteed collision-safe).
-- Widen the `tasks` dedup index to `(workspace_id, dedupe_key)`.
-- Thread the real session workspace through the inbound lead-intake chain and
-  the remaining mutating routes (some still default to the default workspace).
-- **The sidebar attention badges are default-workspace-only.**
-  `attentionCounts()` (`app/_lib/attention.ts`) calls `listPipeline()` and
-  `listJobStatuses()` with no workspace argument — both default to
-  `DEFAULT_WORKSPACE_ID` — and `dueReminders()` takes no workspace parameter at
-  all, so it counts across every tenant. Neither `/api/attention` nor the
-  server-rendered `WorkspaceNav` passes `currentWorkspace()` in. On a non-default
-  workspace every badge therefore reports another tenant's counts. Fixing it needs
-  a workspace argument on all three reads (`dueReminders` is the only one that
-  needs a new store-level parameter) plus the two call sites.
+- **Per-workspace export/import.** `/api/workspace/export` reads the whole DB
+  regardless of caller, and `/api/workspace/import` answers **503** while the flag
+  is on (it DROPs and reloads every table — `multi-workspace-guard.test.ts`). So
+  enabling multi-workspace disables restore. This is the biggest remaining reason
+  the flag stays off in production.
 - **Org-level billing with seats** — the org-keyed DATA layer has landed
   (`org_id` on every billing table, org-keyed entitlement/reducer lookups,
   webhook attribution via checkout metadata; `app/_lib/db/billing-tenancy.test.ts`).
@@ -185,10 +279,11 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 - **Per-team `llm_usage` attribution** — the usage ledger is global; it's
   written from the Python sidecar off the request path, so propagating org/team
   through the spawn is non-trivial (`docs/architecture/llm-provider-layer.md`).
-- Per-workspace export/import (today's `/api/workspace/export` reads the whole
-  DB regardless of caller — a cross-tenant channel the moment multi-tenant is on).
 - Per-session revocation (stateless 7-day tokens can't be killed early) —
   needed before enterprise SSO / audit tracks can close out.
+- **No workspace deletion.** Rename exists; delete does not, deliberately — a
+  team's candidates, decisions and audit chain outlive its label, and there is no
+  reassign-or-purge story yet.
 - **`POST /api/org/invites` emits no error `code`.** All three of its refusals —
   invalid address (400), inviting above your own privileges (403), and the
   address already belonging to an active member (409) — return only a canonical

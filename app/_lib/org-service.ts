@@ -15,9 +15,10 @@ import {
   getMembership,
   listMembershipsForUser,
   listMembershipsForWorkspace,
+  removeMembership,
   setMembershipOverrides,
 } from "./db/memberships";
-import { listWorkspacesByOrg, DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { listWorkspacesByOrg, getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { createInvite, getRedeemableInvite, markInviteAccepted, type Invite } from "./db/invites";
 import { resolveCapabilities, type Capability, type CapabilityOverride, type MemberRole } from "./auth/roles";
 
@@ -120,7 +121,14 @@ function isSoleOwner(orgId: string, userId: string): boolean {
   return owners.size === 1 && owners.has(userId);
 }
 
-export type MemberOpResult = { ok: boolean; reason?: "not_member" | "no_user" | "last_owner" };
+/** How many owner-role seats one user holds across the org's teams. A sole owner
+ *  who owns two teams may still be removed from one of them. */
+function ownerSeatCount(orgId: string, userId: string): number {
+  const orgWorkspaces = new Set(listWorkspacesByOrg(orgId).map((w) => w.id));
+  return listMembershipsForUser(userId).filter((m) => m.role === "owner" && orgWorkspaces.has(m.workspaceId)).length;
+}
+
+export type MemberOpResult = { ok: boolean; reason?: "not_member" | "no_user" | "last_owner" | "no_workspace" | "cross_org" };
 
 /** Change a member's role on a team. Refuses to demote the org's last owner. */
 export function changeMemberRole(userId: string, workspaceId: string, role: MemberRole): MemberOpResult {
@@ -132,6 +140,41 @@ export function changeMemberRole(userId: string, workspaceId: string, role: Memb
     return { ok: false, reason: "last_owner" };
   }
   upsertMembership(userId, workspaceId, role);
+  return { ok: true };
+}
+
+/** Add a member to a team, or change the role they already hold there (the
+ *  membership is upserted on (user, workspace), so this is the one write path for
+ *  both). A user may hold memberships in SEVERAL teams of their org — that is what
+ *  the workspaces console manipulates — but never across orgs: the team must
+ *  belong to the same organization as the user, or the write is refused. */
+export function addMemberToWorkspace(userId: string, workspaceId: string, role: MemberRole): MemberOpResult {
+  const user = getUserById(userId);
+  if (!user) return { ok: false, reason: "no_user" };
+  const orgId = getWorkspaceOrgId(workspaceId);
+  if (!orgId) return { ok: false, reason: "no_workspace" };
+  if (orgId !== user.orgId) return { ok: false, reason: "cross_org" };
+  upsertMembership(userId, workspaceId, role);
+  return { ok: true };
+}
+
+/** Remove ONE membership — the person keeps their account and every other team.
+ *  The counterpart of removeMember() below, which deletes the account outright;
+ *  keeping the two apart is why the console can offer "remove from this workspace"
+ *  as a reversible action. Refuses when it would strip the org's last owner. */
+export function removeMemberFromWorkspace(userId: string, workspaceId: string): MemberOpResult {
+  const user = getUserById(userId);
+  if (!user) return { ok: false, reason: "no_user" };
+  const membership = getMembership(userId, workspaceId);
+  if (!membership) return { ok: false, reason: "not_member" };
+  // Last-owner backstop, applied to the ORG (an org with no owner can never be
+  // administered again). Dropping one owner membership is fine while the same
+  // person owns another team, or while somebody else owns one — so the refusal is
+  // narrow: they are the org's only owner AND this is their only owner seat.
+  if (membership.role === "owner" && isSoleOwner(user.orgId, userId) && ownerSeatCount(user.orgId, userId) <= 1) {
+    return { ok: false, reason: "last_owner" };
+  }
+  removeMembership(userId, workspaceId);
   return { ok: true };
 }
 

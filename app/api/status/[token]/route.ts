@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getJob } from "@/app/_lib/db/jobs";
-import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { getEntryWorkspace, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
 import { candidateStatusFor } from "@/app/_lib/application-status";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
@@ -34,7 +34,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     }
     const entryId = getEntryIdByStatusToken(token);
     if (!entryId) return NextResponse.json({ error: "not found" }, { status: 404 });
-    const entry = getPipelineEntry(entryId);
+    // Tenant scope from the entry itself (token-driven flow, no session), exactly
+    // as the sibling /decisions route does. Without it this read fell through to
+    // DEFAULT_WORKSPACE_ID, so a candidate of any other team got a 404 on their
+    // own status link.
+    const entry = getPipelineEntry(entryId, getEntryWorkspace(entryId));
     if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
     const company = entry.jobId ? getJob(entry.jobId)?.company ?? null : null;
     return jsonOk({

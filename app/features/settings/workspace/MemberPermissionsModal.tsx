@@ -7,7 +7,7 @@ import { toast } from "@/app/_components/toast-store";
 import { BTN_GHOST, BTN_PRIMARY } from "@/app/_components/ui/recipes";
 import { roleCapabilities, type Capability } from "@/app/_lib/auth/roles";
 import { capabilityMeta, roleLabel } from "@/app/features/shared/memberUi";
-import type { MemberTeam, OrgMemberDto } from "./useOrganizationMembers";
+import type { MemberTeam, OrgMemberDto } from "./useWorkspaceAdmin";
 
 // Per-user permission editor. Toggles the OVERRIDABLE capabilities on top of the
 // member's role defaults; the server computes the grant/revoke delta. A cap the

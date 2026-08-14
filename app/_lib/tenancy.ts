@@ -68,11 +68,10 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // team's metric pack: pooling it would let one team's candidate-experience number be
   // computed from another team's rejections. Every read/write in candidate-nps-store.ts
   // filters workspace_id, and the recruiter-side summary reads the caller's workspace.
-  // NOTE — same known limitation as the inbound channel receiver above: the PUBLIC write
-  // (/api/status/[token]/nps) still records on the DEFAULT workspace, because
-  // PipelineEntry carries no workspaceId to derive from. Thread the entry's tenant
-  // through before KP_MULTI_WORKSPACE is enabled, or a second team's candidate feedback
-  // lands in the default team's pack.
+  // The PUBLIC write (/api/status/[token]/nps) derives its tenant with
+  // getEntryWorkspace(entryId) — the same rule the sibling /decisions route uses —
+  // so a second team's candidate feedback lands in THEIR pack. (It used to fall
+  // through to the default workspace, which also 404'd their status page.)
   "candidate_nps",
   // Recruiter feedback door (feedback-store.ts): in-product "Send feedback"
   // submissions. Scoped because a message can name a team's candidates/roles and
@@ -103,9 +102,9 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // channel_spend (per-team spend; PK widened to (channel, workspace_id)) filter on
   // workspace_id; dev_outbox (the comms outbox) auto-derives each message's tenant
   // from its referenced entry. The public receiver's token-keyed liveness counters
-  // are exempt (channels-tenancy.test.ts). NOTE: the inbound receiver still files a
-  // lead via intakeLead on the DEFAULT workspace — thread webhook.workspaceId through
-  // the intake chain (lead-intake/cv-intake) before KP_MULTI_WORKSPACE is enabled.
+  // are exempt (channels-tenancy.test.ts). The inbound receiver files each lead into
+  // the team that minted the webhook (`webhook.workspaceId` threaded through
+  // lead-intake/cv-intake, which also falls back to the opening's own workspace).
   "channel_webhooks",
   "channel_spend",
   "dev_outbox",
@@ -117,9 +116,10 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // Phase 1 — the Schedule surface (self-scheduling invites). The recruiter agenda +
   // invite creation + per-team slot-collision checks filter workspace_id (derived from
   // the linked entry). The candidate token flow, the reminder heartbeat's by-id ops,
-  // and the global dueReminders sweep are exempt (schedule-tenancy.test.ts). NOTE: a
+  // and the global dueReminders sweep are exempt (schedule-tenancy.test.ts). A
   // lazy-store table (own connection in schedule-store.ts) — its migration lives there,
-  // not core.ts, so the boot-guard's live-table list must include it before flag enable.
+  // not core.ts, so it is also listed in TENANCY_LAZY_TABLES, which assertTenancyReady
+  // unions in so the boot guard sees it whether or not the store has run yet.
   "schedule_invites",
   // Phase 1 — the Dev-case surface (devcase.ts): the recruiter enumeration reads
   // (listDevCases/listLifecycles/listPostings/listSubmissions) + every INSERT carry
