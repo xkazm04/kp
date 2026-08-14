@@ -10,7 +10,7 @@ import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { sharedGetJson } from "@/app/features/shared/sharedGet";
 import { boardSignature, eventsSignature } from "./pipelineRenderDiet";
 import { postPipelineAction } from "@/app/_lib/useAddToPipeline";
-import type { Entry, PipelineEvent } from "@/app/features/shared/pipelineTypes";
+import { DEFAULT_BOARD_AXIS, type Entry, type PipelineEvent, type StageDef } from "@/app/features/shared/pipelineTypes";
 import { pipelineActionReason } from "./pipelineTabHelpers";
 import type { PipelineTabTranslator } from "./pipelineTranslator";
 
@@ -26,6 +26,11 @@ export function usePipelineBoardData({
   drawerOpen: boolean;
 }) {
   const [entries, setEntries] = useState<Entry[] | null>(null);
+  // The board's COLUMNS, resolved per workspace and served alongside the entries.
+  // Seeded with the shipped axis so the first frame paints the right number of
+  // columns instead of flashing an empty grid; the payload replaces it.
+  const [axis, setAxis] = useState<readonly StageDef[]>(DEFAULT_BOARD_AXIS);
+  const [retiredStages, setRetiredStages] = useState<readonly StageDef[]>([]);
   const [events, setEvents] = useState<PipelineEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   // Activity-feed health is tracked separately from the board: a failed events
@@ -76,11 +81,23 @@ export function usePipelineBoardData({
     const controller = new AbortController();
     abortRef.current = controller;
     const { signal } = controller;
-    sharedGetJson<{ entries?: Entry[]; error?: string }>("/api/pipeline", { refresh: !opts?.shared })
+    sharedGetJson<{ entries?: Entry[]; stages?: StageDef[]; retiredStages?: StageDef[]; error?: string }>("/api/pipeline", {
+      refresh: !opts?.shared,
+    })
       .then((p) => {
         if (signal.aborted) return; // a newer load superseded this one
         if (p.error) throw new Error(p.error);
         const next = (p.entries as Entry[]) ?? [];
+        // Committed by identity comparison, not a signature: the axis changes
+        // rarely (a Settings save) and is a handful of objects, so the cheap
+        // JSON compare keeps the board from re-bucketing on every 30s poll.
+        if (Array.isArray(p.stages) && p.stages.length > 0) {
+          setAxis((cur) => (JSON.stringify(cur) === JSON.stringify(p.stages) ? cur : p.stages!));
+        }
+        setRetiredStages((cur) => {
+          const incoming = p.retiredStages ?? [];
+          return JSON.stringify(cur) === JSON.stringify(incoming) ? cur : incoming;
+        });
         // Content-equality short-circuit: only reset the entries array when the
         // rendered content actually changed. setError(null) below is a no-op
         // re-render when error is already null (React bails on an identical value).
@@ -187,7 +204,7 @@ export function usePipelineBoardData({
     }
   };
 
-  return { entries, events, error, eventsError, load, moveError, setMoveError, moveEntry };
+  return { entries, axis, retiredStages, events, error, eventsError, load, moveError, setMoveError, moveEntry };
 }
 
 export type PipelineBoardData = ReturnType<typeof usePipelineBoardData>;

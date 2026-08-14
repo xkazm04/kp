@@ -17,7 +17,7 @@ three, including the reader who came for the funnel.
 | --- | --- | --- |
 | `performance` (default) | How is hiring going? | funnel, forecast, momentum, by-role, archetype, company benchmark |
 | `economics` | What does it cost, and what earns it back? | automation ROI, source, channel economics, compute cost |
-| `quality` | Can I trust the scoring, and prove what we decided? | calibration, decision records, decision log |
+| `quality` | Can I trust the scoring, and prove what we decided? | trust verdict, calibration, decision records, decision log |
 
 The section vocabulary is one literal array with a derived union and a runtime
 guard (`sections/analyticsSections.ts`) — the same shape as
@@ -49,6 +49,42 @@ The taxonomies are **grouped and labelled, never merged**: the type chip is part
 of each row's identity, because those three are genuinely different measurements.
 A dash under Spend means "not measured for this kind of surface", not "free", and
 the table says so under the rule.
+
+### Quality leads with a trust verdict
+
+The Quality round closed on **Instrument** (`sections/QualityInstrument.tsx`). It
+answers the question that comes *before* every decision below it — should this
+score be allowed to decide at all — as one computed verdict from the Brier score
+against the 0.25 a coin flip scores, with a recommended action.
+
+The honesty gate is the **headline**, not a caveat: below `minOutcomes` the
+verdict is "there is not enough evidence to judge the score yet", with the sample
+counted out. The baseline buried that inside the calibration panel.
+
+#### Both audit lists are tables now
+
+The decision log and the sealed records were an infinite scroll and an unbounded
+`<ul>` respectively — a 66-link chain rendered the section ~9,000px tall. Both are
+now sortable, filterable, paged tables on the shared kit, but they sit on
+**opposite sides** of it, and the reason is worth keeping:
+
+| | Decision log | Sealed records |
+| --- | --- | --- |
+| Sort + page | **Server** (`?sort=`/`?dir=`/`offset`) | Client (`useTableSort` + `TablePager`) |
+| Why | The trail must stay reachable in full, so it can't be held in memory — and sorting the 20 rows on screen would look like ranking the whole trail | `/api/decisions/records` returns the whole chain anyway (verifying tamper-evidence means walking every link), so paging is a slice |
+
+Server-side ordering lives in `listPipelineEvents` (`app/_lib/db/pipeline.ts`)
+behind `EVENT_SORT_COLUMNS`, an **allowlist**: the column arrives from a query
+param and lands in `ORDER BY`, where a binding cannot stand in for an identifier,
+so the guard *is* the injection defence. Every ordering appends `id DESC` as a
+stable tiebreak — without it two events sharing a timestamp can swap between two
+pages of the same query, showing one row twice and skipping another. NULLs sort
+last in both directions, matching the client comparator so the two halves of the
+kit can't disagree about what "missing" means. Covered by
+`db/pipeline-events-sort.test.ts` and `e2e/quality-tables.spec.ts`.
+
+The records table keeps `seq` visible in every ordering: it is the chain's own
+order, so a re-sorted **view** must never be mistakable for the chain itself.
 
 ### Performance reads as a brief
 

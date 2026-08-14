@@ -3,7 +3,7 @@
 // so the "which stages can a card at X move to" contract is unit-testable in
 // isolation and shared by CandidateRow's move menu without re-hardcoding stage
 // literals that could drift from the canonical axis.
-import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, stageWithRole } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_STAGE_AXIS, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
 
 /** The stages a candidate currently at `currentStage` may be moved TO from the
  *  board menu — the canonical stage axis MINUS:
@@ -19,11 +19,16 @@ import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, stageWithRole } from "@/app/_lib/p
  *  workspace that renames its final column must not suddenly be offered a move
  *  that always 422s. On the default axis this resolves to "Hired", unchanged.
  *
- *  Order follows PIPELINE_STAGES so the menu reads down the funnel. An unknown /
- *  legacy `currentStage` (not on the axis) simply yields every non-terminal stage. */
-export function moveTargetStages(currentStage: string): string[] {
-  const terminal = stageWithRole("terminal", DEFAULT_STAGE_AXIS);
-  return (PIPELINE_STAGES as readonly string[]).filter((s) => s !== currentStage && s !== terminal);
+ *  Order follows the axis so the menu reads down the funnel. An unknown / legacy
+ *  `currentStage` (not on the axis) simply yields every non-terminal stage —
+ *  which is exactly what the off-axis strip needs to offer a stranded candidate
+ *  somewhere real to go.
+ *
+ *  `axis` defaults to the shipped board so every existing call site (and the
+ *  drawer, and the bulk bar) keeps working; the board passes the workspace's. */
+export function moveTargetStages(currentStage: string, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): string[] {
+  const terminal = stageWithRole("terminal", axis);
+  return axis.map((s) => s.id).filter((s) => s !== currentStage && s !== terminal);
 }
 
 /** A sentinel `currentStage` that matches NO stage on the canonical axis, so
@@ -46,8 +51,8 @@ const NO_CURRENT_STAGE = "\u0000no-current-stage";
  *  no round trip, so offering a stage some of the selection already sits in is
  *  harmless where offering Hired is not. Derived from `moveTargetStages` so the Hired
  *  rule has exactly one definition; order follows PIPELINE_STAGES. */
-export function bulkMoveTargetStages(): string[] {
-  return moveTargetStages(NO_CURRENT_STAGE);
+export function bulkMoveTargetStages(axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): string[] {
+  return moveTargetStages(NO_CURRENT_STAGE, axis);
 }
 
 /** The full option list for the drawer's "Move to stage" <Select> (bug-ui
@@ -59,7 +64,7 @@ export function bulkMoveTargetStages(): string[] {
  *  errored, so it is excluded UNLESS the candidate already sits at Hired (then it
  *  is the current stage and stays, so the Select still has a valid selected row).
  *  Kept in canonical funnel order so the menu reads down the funnel. */
-export function moveStageSelectValues(currentStage: string): string[] {
-  const targets = new Set(moveTargetStages(currentStage));
-  return (PIPELINE_STAGES as readonly string[]).filter((s) => s === currentStage || targets.has(s));
+export function moveStageSelectValues(currentStage: string, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): string[] {
+  const targets = new Set(moveTargetStages(currentStage, axis));
+  return axis.map((s) => s.id).filter((s) => s === currentStage || targets.has(s));
 }

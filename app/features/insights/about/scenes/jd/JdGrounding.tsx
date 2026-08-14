@@ -5,6 +5,7 @@ import { Field, Part, Slot, Wire, Wires } from "../../stage/parts";
 import { useSceneClock } from "../../stage/useSceneClock";
 import { INK, SKIN } from "../../stage/motion";
 import { stageOf, type Rect } from "../../stage/stages";
+import { bowFor, leftOf, rightOf, sCurve } from "../../stage/threads";
 
 /*
  * Variant B — THE GROUNDING.
@@ -57,20 +58,10 @@ const rowRect = (i: number): Rect => ({ x: 46, y: 4 + i * (ROW_H + ROW_GAP), w: 
 // Each row lands on its own beat, starting at 3.
 const landsAt = (i: number) => 3 + i;
 
-// Anchor points: the wire leaves a source's right edge and meets the row's left
-// edge. Both are derived from the same rects the boxes are drawn from, so a
-// layout tweak can never leave a thread pointing at nothing.
-const srcAnchor = (i: number) => ({ x: SOURCES[i].rect.x + SOURCES[i].rect.w, y: SOURCES[i].rect.y + SOURCES[i].rect.h / 2 });
-const rowAnchor = (i: number) => ({ x: 46, y: rowRect(i).y + ROW_H / 2 });
-
-/** A flat-ish S-curve. Authored bow, not a straight line: six identical
- *  diagonals read as a machine stamping parts rather than as six separate
- *  claims each finding its own evidence. */
+/** Anchors come from the shared helpers, so they are derived from the same
+ *  rects the boxes are drawn from and can never point at empty space. */
 function thread(i: number): string {
-  const from = srcAnchor(REQS[i].src as number);
-  const to = rowAnchor(i);
-  const dx = (to.x - from.x) * 0.55;
-  return `M ${from.x} ${from.y} C ${from.x + dx} ${from.y}, ${to.x - dx} ${to.y}, ${to.x} ${to.y}`;
+  return sCurve(rightOf(SOURCES[REQS[i].src as number].rect), leftOf(rowRect(i)), bowFor(i));
 }
 
 const STATUS: Record<number, string> = {

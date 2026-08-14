@@ -1,7 +1,9 @@
 import { Briefcase, GraduationCap, Repeat, type LucideIcon } from "lucide-react";
 import type { GithubEvidenceSummary } from "@/app/_lib/github-summary";
 import type { MatchScoreProvenance } from "@/app/_lib/match-score";
-import { PIPELINE_STAGES } from "@/app/_lib/pipeline-stages";
+import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, type StageDef } from "@/app/_lib/pipeline-stages";
+
+export type { StageDef } from "@/app/_lib/pipeline-stages";
 
 export type Entry = {
   id: string;
@@ -87,6 +89,12 @@ export type PipelineEvent = {
 // readonly string[] so the existing `.includes(someString)` call sites keep
 // working without per-site narrowing.
 export const STAGES: readonly string[] = PIPELINE_STAGES;
+
+/** The shipped board axis (ids + labels + roles), for a client that has not yet
+ *  been handed the workspace's own. `PipelineBoard` takes the resolved axis from
+ *  GET /api/pipeline and falls back to this, so a caller mid-migration renders
+ *  exactly what it always did rather than an empty board. */
+export const DEFAULT_BOARD_AXIS: readonly StageDef[] = DEFAULT_STAGE_AXIS;
 
 // One-line, new-user-friendly explanation of what each board stage represents,
 // surfaced as the column-header tooltip so the funnel is self-explaining.

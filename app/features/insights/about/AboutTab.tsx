@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowRight, Play } from "lucide-react";
@@ -8,7 +9,6 @@ import { useSimulation } from "@/app/features/shell/simulation/SimulationProvide
 import { CHAPTERS } from "./chapters";
 import { ChapterRail } from "./ChapterRail";
 import { Scene } from "./stage/Scene";
-import { useSceneClock } from "./stage/useSceneClock";
 
 /*
  * About — how the six mechanisms actually work.
@@ -26,9 +26,30 @@ import { useSceneClock } from "./stage/useSceneClock";
  * parts stream in.
  */
 
-const JdScene = dynamic(() => import("./scenes/jd").then((m) => ({ default: m.JdScene })), {
-  loading: () => <div className="reveal-quiet min-h-[30rem]" aria-hidden />,
+// One chunk per chapter. The frames below are always in the server HTML, so the
+// rail, the anchors and the whole argument survive with the art still in
+// flight — only the moving parts stream in.
+//
+// The `{ loading }` object is repeated per call rather than hoisted to a shared
+// const: next/dynamic's options are read at BUILD time by the compiler, so they
+// must be an inline object literal. Hoisting it fails the build outright with
+// "next/dynamic options must be an object literal".
+const Loading = () => <div className="reveal-quiet min-h-[30rem]" aria-hidden />;
+
+const JdScene = dynamic(() => import("./scenes/jd").then((m) => ({ default: m.JdScene })), { loading: Loading });
+const ScoringScene = dynamic(() => import("./scenes/scoring").then((m) => ({ default: m.ScoringScene })), {
+  loading: Loading,
 });
+const ScreeningScene = dynamic(() => import("./scenes/screening").then((m) => ({ default: m.ScreeningScene })), {
+  loading: Loading,
+});
+
+/** Chapter id → its art. Chapters absent here render the honest placeholder. */
+const SCENES: Record<string, React.ComponentType> = {
+  "job-descriptions": JdScene,
+  scoring: ScoringScene,
+  screening: ScreeningScene,
+};
 
 /** Placeholder for a chapter whose art is not built yet. Honest about it. */
 function Pending({ chapter }: { chapter: (typeof CHAPTERS)[number] }) {
@@ -40,13 +61,18 @@ function Pending({ chapter }: { chapter: (typeof CHAPTERS)[number] }) {
 }
 
 /**
- * One chapter. Owns its clock ref via `Scene` so the art below can be swapped
- * without the frame losing its anchor or its place in the rail.
+ * One chapter frame.
+ *
+ * A plain `useRef`, NOT a scene clock. The frame carries no motion of its own —
+ * it only needs an element for the anchor and the rail's observer — and giving
+ * it a clock was an actual bug, not just waste: each chapter then ran its own
+ * 900ms interval whose `setTick` re-rendered the whole scene subtree on a
+ * cadence unrelated to that scene's clock. Every `Part` inside was knocked back
+ * to its `initial` (opacity 0) mid-flight, so labels flickered and most of the
+ * diagram never became visible. One clock per scene, owned by the art.
  */
 function Chapter({ chapter, children }: { chapter: (typeof CHAPTERS)[number]; children: React.ReactNode }) {
-  // The frame itself doesn't animate; it only needs an element to hang the
-  // anchor and the observer on. Each art component runs its own clock.
-  const { ref } = useSceneClock(1);
+  const ref = useRef<HTMLDivElement>(null);
   return (
     <Scene chapter={chapter} sceneRef={ref}>
       {children}
@@ -90,11 +116,14 @@ export function AboutTab() {
 
       <div className="mt-8 grid gap-10 xl:grid-cols-[minmax(0,1fr)_13rem]">
         <div className="min-w-0">
-          {CHAPTERS.map((chapter) => (
-            <Chapter key={chapter.id} chapter={chapter}>
-              {chapter.id === "job-descriptions" ? <JdScene /> : <Pending chapter={chapter} />}
-            </Chapter>
-          ))}
+          {CHAPTERS.map((chapter) => {
+            const Art = SCENES[chapter.id];
+            return (
+              <Chapter key={chapter.id} chapter={chapter}>
+                {Art ? <Art /> : <Pending chapter={chapter} />}
+              </Chapter>
+            );
+          })}
         </div>
 
         {/* Rail parks in the right gutter and is last in the DOM on purpose:

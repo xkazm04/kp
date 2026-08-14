@@ -1,10 +1,11 @@
 // Pure-logic coverage for the board's lane×stage bucketing. No DB, no React — the
-// fold rule (each entry in exactly one cell; an unmapped stage folds into column 0;
-// order preserved) is the correctness-critical half of the memoization refactor
-// that replaced the per-cell `lane.filter(...)`.
+// placement rule (each entry in at most one cell, against the axis it is GIVEN;
+// an off-axis entry surfaced rather than folded; order preserved) is the
+// correctness-critical half of both the memoization refactor that replaced the
+// per-cell `lane.filter(...)` and the editable-axis work that followed it.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { bucketLaneEntries, boardVisibleOrder } from "./pipelineBoardLayout.ts";
+import { boardVisibleOrder, bucketLaneEntries, offAxisEntries } from "./pipelineBoardLayout.ts";
 import { STAGES, type Entry, type Position } from "@/app/features/shared/pipelineTypes";
 
 const pos = (id: string): Position => ({ id, title: id, family: "", count: 0 });
@@ -32,10 +33,37 @@ test("each entry lands in exactly its stage column, within its lane", () => {
   assert.equal(placed, 3);
 });
 
-test("an unmapped/legacy stage folds into the first column, not lost", () => {
+test("an off-axis stage lands in NO cell — it belongs to the off-axis strip", () => {
+  // This used to fold into column 0. That was right while the axis was a
+  // compile-time constant (an unknown stage could only be a legacy row, and
+  // visible-but-wrong beat invisible). With an editable axis the fold is the
+  // worst option available: remove a column and its candidates would silently
+  // reappear at the top of the funnel, indistinguishable from a mass reset.
   const positions = [pos("job-a")];
   const cells = bucketLaneEntries(positions, [entry("x", "job-a", "LegacyStage")]);
-  assert.deepEqual(cells.get("job-a")![0].map((e) => e.id), ["x"], "unmapped stage is visible in column 0");
+  const placed = cells.get("job-a")!.flat().map((e) => e.id);
+  assert.deepEqual(placed, [], "an off-axis entry occupies no column");
+  assert.deepEqual(offAxisEntries([entry("x", "job-a", "LegacyStage")]).map((e) => e.id), ["x"]);
+});
+
+test("offAxisEntries reports only genuinely off-axis stages, preserving input order", () => {
+  const entries = [
+    entry("legacy", "job-a", "LegacyStage"),
+    entry("ok", "job-a", "Accepted"),
+    entry("retired", "job-a", "Second interview"),
+  ];
+  assert.deepEqual(offAxisEntries(entries).map((e) => e.id), ["legacy", "retired"]);
+  // Against a wider axis, the same entry is on-board and no longer stranded.
+  assert.deepEqual(offAxisEntries(entries, [...STAGES, "Second interview"]).map((e) => e.id), ["legacy"]);
+});
+
+test("bucketLaneEntries buckets against the axis it is GIVEN, not the shipped one", () => {
+  const positions = [pos("job-a")];
+  const columns = ["Accepted", "Tech screen", "Onsite", "Hired"];
+  const cells = bucketLaneEntries(positions, [entry("t", "job-a", "Tech screen"), entry("o", "job-a", "Onsite")], columns);
+  assert.equal(cells.get("job-a")!.length, columns.length, "one cell per given column");
+  assert.deepEqual(cells.get("job-a")![1].map((e) => e.id), ["t"]);
+  assert.deepEqual(cells.get("job-a")![2].map((e) => e.id), ["o"]);
 });
 
 test("order within a cell follows input order", () => {
@@ -83,9 +111,18 @@ test("boardVisibleOrder drops entries whose lane isn't rendered, mirroring the b
   assert.deepEqual(order.map((e) => e.id), ["a1"]);
 });
 
-test("boardVisibleOrder folds an unmapped stage into column 0 (still walked, not lost)", () => {
+test("boardVisibleOrder walks the grid first, then the off-axis strip", () => {
   const positions = [pos("job-a")];
   const order = boardVisibleOrder(positions, [entry("legacy", "job-a", "LegacyStage"), entry("acc", "job-a", "Accepted")]);
-  // Both land in column 0 (Accepted is index 0), input order preserved.
-  assert.deepEqual(order.map((e) => e.id), ["legacy", "acc"]);
+  // The stranded candidate is still REACHABLE by the drawer's prev/next — it is
+  // on screen in the off-axis strip, and a card you can see but cannot step to
+  // reads as a broken control — but it sorts after everything on the board,
+  // which is where the eye finds it.
+  assert.deepEqual(order.map((e) => e.id), ["acc", "legacy"]);
+});
+
+test("boardVisibleOrder drops an off-axis entry whose LANE isn't rendered either", () => {
+  const positions = [pos("job-a")];
+  const order = boardVisibleOrder(positions, [entry("other", "job-b", "LegacyStage"), entry("acc", "job-a", "Accepted")]);
+  assert.deepEqual(order.map((e) => e.id), ["acc"], "lane filtering still wins over the strip");
 });

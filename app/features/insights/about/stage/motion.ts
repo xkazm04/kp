@@ -68,7 +68,8 @@ export const TICK_MS = 900;
  * colour.** Scoped, never `transition-all`, so a transform handled by framer and
  * a colour handled by CSS can't fight over the same property.
  */
-export const SKIN = "transition-[background-color,border-color,color,box-shadow] duration-500";
+export const SKIN =
+  "transition-[background-color,border-color,color,box-shadow,transform] duration-500 ease-out";
 
 /**
  * Stroke colours for the connector layers.

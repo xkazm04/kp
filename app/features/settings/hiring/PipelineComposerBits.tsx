@@ -9,6 +9,7 @@ import { Bot, CalendarClock, LayoutDashboard, Scale, UserRound } from "lucide-re
 import { useTranslations } from "next-intl";
 import { TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { DEFAULT_STAGE_AXIS, type StageDef } from "@/app/_lib/pipeline-stages";
 import { deriveImpact, type GateMode, type PipelinePlan, type RoundKind } from "./pipelineComposerModel";
 
 export function GateToggle({ value, onChange, compact = false }: { value: GateMode; onChange: (v: GateMode) => void; compact?: boolean }) {
@@ -75,14 +76,19 @@ function ImpactPanel({ icon, title, children }: { icon: React.ReactNode; title: 
   );
 }
 
-export function PlanImpactStrip({ plan }: { plan: PipelinePlan }) {
+export function PlanImpactStrip({ plan, axis = DEFAULT_STAGE_AXIS }: { plan: PipelinePlan; axis?: readonly StageDef[] }) {
   const t = useTranslations("hiringPlan.impact");
   // The board's OWN stage labels (enums.stage.*) — the same catalog PipelineBoard
   // renders its column headers from. The strip used to have a private label set
   // (ovScreened / ovAiInterview / …) naming stations the board does not have,
   // which is why Settings and Overview read as two unrelated products.
   const enumLabel = useEnumLabel();
-  const impact = deriveImpact(plan);
+  // A workspace-renamed column shows its own words; a shipped one stays localized.
+  const stationLabel = (id: string): string => {
+    const stage = axis.find((s) => s.id === id);
+    return stage && stage.label !== stage.id ? stage.label : enumLabel("stage", id);
+  };
+  const impact = deriveImpact(plan, axis);
   const decLabel: Record<string, string> = {
     screening_review: t("decScreening"),
     ai_scorecard_review: t("decAiScorecard"),
@@ -110,7 +116,7 @@ export function PlanImpactStrip({ plan }: { plan: PipelinePlan }) {
                   station.rounds.length > 0 ? "bg-coral/10 text-coral" : "bg-stone-100 text-steel"
                 }`}
               >
-                {enumLabel("stage", station.stageId)}
+                {stationLabel(station.stageId)}
                 {station.rounds.length > 0 ? (
                   <span className="ml-1 font-normal">
                     {station.rounds.map((kind) => (kind === "ai" ? t("roundAi") : t("roundHuman"))).join(" → ")}

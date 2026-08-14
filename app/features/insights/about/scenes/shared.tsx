@@ -1,0 +1,113 @@
+"use client";
+
+import type { ReactNode } from "react";
+
+/*
+ * Pieces every scene repeats, hoisted the moment a second chapter needed them.
+ *
+ * The status line is part of the deck's contract, not decoration: each scene
+ * carries exactly ONE line of monospace text under the field, phase-mapped,
+ * naming what the machine is doing in its own vocabulary. The picture carries
+ * the shape of the mechanism; the line carries the identifier a sceptical
+ * reader could go and grep for. Keeping it to one line is what stops these
+ * scenes from growing captions that explain the animation instead of the
+ * mechanism.
+ */
+
+/**
+ * Build a phase → text lookup that holds the last set value.
+ *
+ * Scenes declare status only on the beats where the wording should CHANGE,
+ * which keeps the table readable as prose and means a re-timed scene doesn't
+ * need every intermediate beat re-stated.
+ */
+export function statusPicker(table: Record<number, string>): (phase: number) => string {
+  const first = table[0] ?? "";
+  return (phase: number) => {
+    for (let p = phase; p >= 0; p--) {
+      const hit = table[p];
+      if (hit) return hit;
+    }
+    return first;
+  };
+}
+
+/**
+ * The status line itself.
+ *
+ * Crossfades on change via a CSS transition on a keyed span rather than
+ * `AnimatePresence`: the text is replaced in place, nothing needs to animate
+ * out, and a JS presence wrapper here would be a third animation system in a
+ * scene that already has two.
+ */
+export function SceneStatus({ text, reduced }: { phase: number; text: string; reduced: boolean }) {
+  return (
+    <p className="mt-4 min-h-[1.5rem] font-mono text-meta text-steel">
+      <span
+        key={text}
+        className="inline-block"
+        style={{
+          animation: reduced ? undefined : "fade-in 320ms ease-out both",
+        }}
+      >
+        {text}
+      </span>
+    </p>
+  );
+}
+
+/** A lane's human name — uppercase tracking reads as a section marker. */
+export function LaneLabel({ children }: { children: ReactNode }) {
+  return <p className="text-meta uppercase tracking-wide text-steel">{children}</p>;
+}
+
+/**
+ * A lane labelled by its real code identifier.
+ *
+ * Deliberately NOT uppercased: `statedVsRealGaps` shouted as STATEDVSREALGAPS
+ * loses the camel case that makes it greppable, which is the only reason to
+ * print an identifier at all.
+ */
+export function CodeLabel({ children }: { children: ReactNode }) {
+  return <p className="truncate font-mono text-meta text-steel">{children}</p>;
+}
+
+/**
+ * A weight/score bar that grows from its left edge.
+ *
+ * CSS, not framer: these appear a dozen at a time inside scenes that re-render
+ * every 900ms, and a JS-driven animation per bar is both wasteful and — as the
+ * chapter-1 cascade bug showed — fragile under that much re-rendering.
+ */
+export function Bar({
+  value,
+  shown,
+  reduced,
+  tone = "moss",
+  className = "",
+}: {
+  /** 0..1 */
+  value: number;
+  shown: boolean;
+  reduced: boolean;
+  tone?: "moss" | "amber" | "coral" | "steel";
+  className?: string;
+}) {
+  const fill = {
+    moss: "bg-moss",
+    amber: "bg-dial-amber",
+    coral: "bg-coral",
+    steel: "bg-steel",
+  }[tone];
+  return (
+    <span className={`block h-1.5 overflow-hidden rounded-full bg-stone-100 ${className}`}>
+      <span
+        className={`block h-full rounded-full ${fill}`}
+        style={{
+          width: shown ? `${Math.round(value * 100)}%` : "0%",
+          transition: reduced ? "none" : "width 560ms cubic-bezier(0.16,1,0.3,1)",
+        }}
+      />
+    </span>
+  );
+}

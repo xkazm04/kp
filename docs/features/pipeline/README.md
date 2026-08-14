@@ -30,6 +30,97 @@ quick-apply / channel webhook) or proactively sourced/rediscovered. This
 replaced an earlier `Sourced` → `AI-matched` → `Screening` naming (see
 "Corrections" below); legacy stage names are no longer used in code.
 
+### Stage roles — meaning does not live on the name
+
+The board's columns are becoming workspace-editable (Settings → Hiring composes
+them), which is only survivable if no rule reads a stage's *name*. Almost every
+rule used to: the fairness metric was literally
+`indexOf(stage) >= indexOf("Interview")`, the move menu excluded the string
+`"Hired"`, org benchmarks indexed off `"Interview"`. Rename or reorder a column
+under those and they quietly answer a different question.
+
+Each stage therefore carries a **role**, and the rules read that instead:
+
+```ts
+StageDef = { id, label, role }
+StageRole = "entry" | "screening" | "interview" | "offer" | "terminal" | "custom"
+```
+
+| | |
+|---|---|
+| `id` | What is **stored** (`pipeline_entries.stage`, both `pipeline_events` stage columns). Never shown. |
+| `label` | What is **shown**. Editable once the axis is per-workspace; renaming then touches no rows. |
+| `role` | What the stage **means**. Every ordinal rule resolves through this. |
+
+`DEFAULT_STAGE_AXIS` is the one literal both the board and the composer read.
+Ids are deliberately the stages' existing canonical names, so introducing the
+layer required **no data migration** — minting fresh slugs would have forced one
+across entries, events, analytics history and the ATS field map for zero
+behavioural gain.
+
+The gate the fairness metric measures against is `screeningGateIndex()`: the
+first `interview` stage, falling back to `offer`, then `terminal`, then "nobody
+is past it". So `hasAdvancedPastScreening` keeps meaning "got a real look" on an
+axis with three interview rounds, none at all, or five renamed columns.
+`SCREENING_STAGES` (the positions where a manual AI screen is meaningful) is now
+*everything before that gate*, so the two can no longer drift apart — they are
+computed from the same index. Pinned by `app/_lib/pipeline-stage-roles.test.ts`,
+which asserts both that the role layer reproduces today's answers byte-for-byte
+on the default axis and that it stays correct on axes the default one cannot
+express.
+
+**Still name-coupled** (owed by a later phase): `automation-run.ts` and
+`pipeline-entry-action.ts` advance to literal `"Offer"` / `"Hired"`, and
+`application-status.ts` keeps its own inlined stage→candidate-status map.
+
+### The axis is per-workspace data
+
+The five columns are the *default*, not the definition. A workspace's own axis is
+stored as the **`pipelineStages`** phase of the tiered decision-config store —
+the same store the interview plan uses, so no new table and the tenancy manifest
+is untouched. Its code default is built from `DEFAULT_STAGE_AXIS`
+(`PIPELINE_STAGES_DEFAULT` in `decision-config-schema.ts`), so a workspace that
+has never touched Settings renders exactly what it always did.
+
+```
+GET /api/pipeline → { entries, stages: StageDef[], retiredStages: StageDef[] }
+```
+
+`app/_lib/pipeline-axis.ts` holds the pure resolution (client-safe: the board
+resolves retired labels and detects off-axis entries in the browser);
+`pipeline-axis-server.ts` is the only DB-touching half. The board takes `axis`
+from that payload instead of importing the constant — the field already existed
+and was ignored, which is why the two could never disagree. Grid geometry
+(`boardGrid` / `boardMinWidth`) is a function of the column count, and
+`moveTargetStages` / `bulkMoveTargetStages` / `moveStageSelectValues` all take
+the axis (defaulting to the shipped one, so untouched call sites keep working).
+
+The validator enforces only what the rest of the product resolves through: an
+axis opens with its single `entry` stage, ends with its single `terminal` stage,
+carries at most one `offer`, and has unique, bounded ids. Everything else is
+open — any number of screening stages, interview rounds or `custom` columns, in
+any order, under any name.
+
+**`retired` is the half that makes removal safe.** A dropped column is moved
+there rather than deleted, so historical `pipeline_events` and a stranded
+candidate's stage still resolve to a label instead of a bare id. `POST
+/api/pipeline` accepts retired stages too: a candidate standing on one is
+somewhere legitimate until a migration moves them, and rejecting the write would
+lose the application.
+
+### Off the board
+
+`bucketLaneEntries` used to fold an unknown stage into **column 0**. That was
+right while the axis was constant — an unknown stage could only be a legacy row,
+and visible-but-wrong beats invisible. Under an editable axis it becomes the
+worst option available: remove a column and its candidates silently reappear at
+the top of the funnel, indistinguishable from a mass reset.
+
+They now land in no cell and are rendered by `PipelineBoardOffAxisStrip` — named,
+grouped by the column they were stranded on, with one "Move all to…" control per
+group. `boardVisibleOrder` appends them after the grid so the drawer's prev/next
+can still reach them (a card you can see but cannot step to reads as broken).
+
 ## Flows
 
 1. **Screening (LLM-assisted, fairness-gated).** `screen_candidate()` in

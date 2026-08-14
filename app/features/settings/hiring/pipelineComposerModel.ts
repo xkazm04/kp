@@ -153,12 +153,18 @@ export function deriveImpact(plan: PipelinePlan, axis: readonly StageDef[] = DEF
 }
 
 /** The board stage each fixed composer row governs, so the Settings table names
- *  the same columns the board draws instead of its own private station words. */
-export const COMPOSER_STATIONS = {
-  screening: stageWithRole("screening"),
-  interview: stagesWithRole("interview"),
-  offer: stageWithRole("offer"),
-} as const;
+ *  the same columns the board draws instead of its own private station words.
+ *
+ *  A function of the axis, not a module constant: the axis is per-workspace data
+ *  and, in the composer, a live DRAFT — a frozen lookup would label the policy
+ *  rows with the shipped column names while the reader was busy renaming them. */
+export function composerStations(axis: readonly StageDef[] = DEFAULT_STAGE_AXIS) {
+  return {
+    screening: stageWithRole("screening", axis),
+    interview: stagesWithRole("interview", axis),
+    offer: stageWithRole("offer", axis),
+  };
+}
 
 /** Persisted wire shape → UI plan (mints round ids for list keys). */
 export function fromStoredPlan(rule: InterviewPlanRule): PipelinePlan {

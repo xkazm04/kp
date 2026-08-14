@@ -22,6 +22,37 @@ funnel stations, the human queues appearing in Decisions (with a
 decisions-per-hire count), and which Schedule surfaces (AI-round docket /
 calendar + self-scheduling) are in play.
 
+## The preview previews the REAL board
+
+`deriveImpact().overview` used to emit its own station vocabulary — `screened →
+ai_interview → human_interview → offer → hired` — under a panel headed
+"Overview". The actual Overview renders `Accepted → Screened → Interview → Offer
+→ Hired`. Three mismatches at once: the entry column was missing, the AI/human
+interview split had no columns behind it, and the labels came from
+`hiringPlan.impact.ov*` while the board's headers come from `enums.stage.*`.
+Whatever that panel was showing, it was not a preview — and it is the main
+reason Settings and Overview read as two unrelated products.
+
+It now walks `DEFAULT_STAGE_AXIS` (`app/_lib/pipeline-stages.ts` — the same
+literal the board reads) and returns one `PlanOverviewStation` per real column,
+annotated with the rounds the plan runs there. The strip renders those with
+`enumLabel("stage", …)`, so the chips and the board headers are the same strings
+in every locale. The composer's fixed station rows are labelled from the axis
+too (`COMPOSER_STATIONS`), so "Screened" and "Offer" name columns you can go and
+look at.
+
+**One round is not one column, yet.** The shipped default plan runs *two* rounds
+(AI, then human) across the *one* `Interview` column — that is what the hybrid
+handoff does at runtime: it queues a human round without moving the candidate off
+Interview. Rounds therefore bind to interview stages left-to-right and any
+surplus **stacks on the last one**, which the preview states (`Interview AI →
+Human`) instead of drawing a column that does not exist. Making rounds and
+interview stages 1:1 is the job of the per-workspace-axis phase.
+
+Pinned by `pipelineComposerModel.test.ts`: every preset's preview must equal the
+real axis, no phantom columns, and the composer's fixed rows must point at stages
+that exist.
+
 ## Persistence — save-gated by design
 
 Edits accumulate as a local **draft**; nothing is stored until **Save plan** —

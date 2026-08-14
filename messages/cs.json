@@ -2367,6 +2367,13 @@
       "errorPreview": "Náhled průchodu se nepodařilo zobrazit.",
       "errorNetwork": "Nepodařilo se spojit se serverem.",
       "errorRun": "Průchod se nepodařilo spustit."
+    },
+    "offAxis": {
+      "title": "Mimo nástěnku",
+      "intro": "{count, plural, one {# kandidát je ve fázi, kterou tato nástěnka už nemá.} few {# kandidáti jsou ve fázích, které tato nástěnka už nemá.} other {# kandidátů je ve fázích, které tato nástěnka už nemá.}} Přesuňte je do existující fáze, jinak zůstanou pro trychtýř neviditelní.",
+      "onStage": "{stage} · {count}",
+      "moveAll": "Přesunout všechny do…",
+      "moveAria": "Přesunout všechny uvízlé ve fázi {stage} do jiné fáze"
     }
   },
   "decisions": {
@@ -5179,16 +5186,6 @@
     "briefBandRoles": "Podle rolí",
     "briefRolesClaim": "Které role táhnou pipeline.",
     "quality": {
-      "dossierEyebrow": "Záznam rozhodnutí",
-      "chainUnavailable": "Řetěz rozhodnutí se nepodařilo načíst.",
-      "chainEmptyTitle": "Zatím nebylo nic zapečetěno.",
-      "chainEmptyBody": "Zapečetěné záznamy vznikají, jak automatizace rozhoduje. Až proběhne screening, právě tady doložíte, co se stalo a proč.",
-      "chainSealed": "Zapečetěno a neporušeno: {count} rozhodnutí",
-      "chainSealedBody": "Každý záznam hashuje ten předchozí, takže jakákoli úprava staršího rozhodnutí by řetěz porušila. Nic takového nenastalo.",
-      "chainBroken": "Řetěz se láme u záznamu {seq}",
-      "chainBrokenBody": "Záznam už neodpovídá hashi, který si o něm poznamenal následující. Vše od tohoto místa dál berte jako neověřené a řetěz před dalšími kroky vyexportujte.",
-      "appendixLabel": "Příloha: nástroj",
-      "appendixBody": "Jak dobře skóre, které tato rozhodnutí řídilo, předpovídá skutečný výsledek. Podpůrný důkaz k záznamu výše, ne jeho předmět.",
       "instrumentEyebrow": "Dá se skóre věřit?",
       "calibrationUnavailable": "Kalibraci se nepodařilo načíst.",
       "verdictGood": "Screeningové skóre je dobře kalibrované.",
@@ -5204,18 +5201,7 @@
       "statBrier": "Brier",
       "statCoin": "Hod mincí",
       "evidenceLabel": "Doklady: co rozhodlo",
-      "evidenceBody": "Zapečetěný záznam a celá stopa, pro ověření tvrzení výše proti jednotlivým rozhodnutím.",
-      "timelineTitle": "Pravidla a jejich dopady",
-      "timelineLegend": "Od nejnovějších",
-      "timelineIntro": "Změny prahu a rozhodnutí kolem nich na jedné časové ose. V panelech níže žijí odděleně, takže změna a posun, který po ní přišel, se nikdy neukážou spolu.",
-      "timelineEmpty": "Zatím nic zaznamenáno. Změny prahu a automatická rozhodnutí se tu objeví, jak budou vznikat.",
-      "policyMoved": "Práh screeningu se posunul z {from} na {to}",
-      "policyChanged": "Práh screeningu se změnil",
-      "policyGlobal": "Všechny role",
-      "policyStamp": "{at}, provedl {by}",
-      "policyUnknownActor": "neznámý",
-      "boardLevel": "Na úrovni nástěnky",
-      "timelineCaveat": "Toto ukazuje sled, ne příčinu. Změna v řádcích pod posunem prahu jeho důsledkem být může i nemusí; měří se to v panelu kalibrace níže."
+      "evidenceBody": "Zapečetěný záznam a celá stopa, pro ověření tvrzení výše proti jednotlivým rozhodnutím."
     },
     "econ": {
       "colPerHire": "Na nábor",
@@ -5396,7 +5382,14 @@
       "broken": "Narušena integrita řetězce u záznamu č. {seq}. Zapečetěný záznam byl změněn nebo odstraněn.",
       "export": "Exportovat spis (JSON)",
       "viewCandidate": "Otevřít tohoto kandidáta na nástěnce",
-      "refUnresolved": "Subjekt tohoto záznamu už není aktivní položkou v pipeline. Záznamy přežívají položky."
+      "refUnresolved": "Subjekt tohoto záznamu už není aktivní položkou v pipeline. Záznamy přežívají položky.",
+      "colSeq": "#",
+      "colKind": "Druh",
+      "colSubject": "Předmět",
+      "colRationale": "Odůvodnění",
+      "colActor": "Původce",
+      "colSealed": "Zapečetěno",
+      "noMatches": "Filtrům neodpovídá žádný záznam."
     },
     "forecast": {
       "title": "Prognóza přijetí",
@@ -5623,7 +5616,16 @@
         "interviewer_brief_sent": "Podklad pro tazatele ve frontě v Outboxu (nedoručeno)",
         "onboarding_reminder_sent": "Připomínka před nástupem ve frontě v Outboxu (nedoručeno)",
         "comm_resent": "Zpráva znovu zařazena do Outboxu (nedoručeno)"
-      }
+      },
+      "colWhen": "Kdy",
+      "colCandidate": "Kandidát",
+      "colRole": "Role",
+      "colDecision": "Rozhodnutí",
+      "colBy": "Kdo",
+      "colDetail": "Detail",
+      "boardLevelRow": "Na úrovni nástěnky",
+      "noMatches": "Filtrům neodpovídá žádné rozhodnutí.",
+      "exportPage": "Exportovat stránku"
     },
     "automation": {
       "title": "Dopad automatizace",

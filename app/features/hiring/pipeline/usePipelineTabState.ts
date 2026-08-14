@@ -63,11 +63,12 @@ export function usePipelineTabState() {
 
   // The board's data plane: entries/events/error + the self-sequencing load(), its
   // 30s poll (paused while the drawer is open), and the optimistic drag move.
-  const { entries, events, error, eventsError, load, moveError, setMoveError, moveEntry } = usePipelineBoardData({
+  const board = usePipelineBoardData({
     t,
     slaOverrides,
     drawerOpen: drawerEntry != null,
   });
+  const { entries, events, error, eventsError, load, moveError, setMoveError, moveEntry } = board;
   // The compound filters + their two-way URL sync, and the visible-scope signature
   // the bulk confirms are stamped with.
   const filters = usePipelineFilters();
@@ -116,7 +117,11 @@ export function usePipelineTabState() {
   // global filtered sort — so "next" walks the column the recruiter is reading
   // instead of jumping across stages. Derived from the same boardPositions +
   // filteredEntries the board renders, so it can never diverge from what's on screen.
-  const cohortOrder = useMemo(() => boardVisibleOrder(boardPositions, filteredEntries), [boardPositions, filteredEntries]);
+  const boardColumns = useMemo(() => board.axis.map((s) => s.id), [board.axis]);
+  const cohortOrder = useMemo(
+    () => boardVisibleOrder(boardPositions, filteredEntries, boardColumns),
+    [boardPositions, filteredEntries, boardColumns]
+  );
 
   // Bulk select mode + the four batch actions, resolved against exactly what the
   // board renders (filteredEntries) and scoped by what it was showing (visibleScope).
@@ -144,7 +149,7 @@ export function usePipelineTabState() {
       )
     );
     const sorted = sortFilteredEntries(cohort, sort);
-    const ordered = boardVisibleOrder(groupPositions(sorted), sorted);
+    const ordered = boardVisibleOrder(groupPositions(sorted), sorted, boardColumns);
     if (ordered.length > 0) setDrawerEntry(ordered[0]);
   };
 
@@ -182,6 +187,7 @@ export function usePipelineTabState() {
     slaOverrides, setStageSla, editingSla, setEditingSla,
     positions, activeCount, interviewCount, staleCount, degradedCount, approvals,
     filteredEntries, boardPositions, cohortOrder, filtering,
+    axis: board.axis, retiredStages: board.retiredStages,
     isStale, moveError, setMoveError, moveEntry,
     openActions: nav.openActions, openEntryById: nav.openEntryById, openProfile: nav.openProfile,
     openJob: nav.openJob, openPositionRanking: nav.openPositionRanking, goToDecisions: nav.goToDecisions,

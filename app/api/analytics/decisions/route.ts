@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { countPipelineEvents, listPipelineEvents, listPipeline, hasEvent, type PipelineEvent } from "@/app/_lib/db/pipeline";
+import {
+  countPipelineEvents,
+  isPipelineEventSortColumn,
+  listPipelineEvents,
+  listPipeline,
+  hasEvent,
+  type PipelineEvent,
+} from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { listDecisionRecordsForRefs } from "@/app/_lib/decision-record-store";
 import {
@@ -124,6 +131,15 @@ export async function GET(request: Request) {
     const limit = clampInt(searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
     const offset = clampInt(searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
     const kinds = resolveKindFilter(searchParams.get("kind"), searchParams.get("attribution"));
+    // Sorting is SERVER-side because the log is server-paged: a client comparator
+    // would reorder only the 20 rows already on screen while looking like it had
+    // ranked the whole trail. Unknown/absent column → the default newest-first,
+    // and the column itself is allowlisted in the store (it lands in ORDER BY,
+    // where a binding cannot stand in for an identifier).
+    const sortParam = searchParams.get("sort");
+    const sort = isPipelineEventSortColumn(sortParam)
+      ? ({ col: sortParam, dir: searchParams.get("dir") === "asc" ? "asc" : "desc" } as const)
+      : undefined;
     // P1 — the decision log is a per-team audit trail; scope both the count and
     // the page to the caller's workspace (previously unscoped → every team saw
     // the default workspace's trail).
@@ -131,7 +147,7 @@ export async function GET(request: Request) {
     const total = countPipelineEvents(kinds, ws);
     // log-tells-the-whole-story: enrich the page with the sealed-record joins (cohort
     // provenance, auto-reject reason, rematch counterpart link) before returning it.
-    const decisions = enrichPage(listPipelineEvents(limit, offset, kinds, ws), ws);
+    const decisions = enrichPage(listPipelineEvents(limit, offset, kinds, ws, sort), ws);
     const nextOffset = offset + decisions.length;
     return NextResponse.json({ decisions, total, hasMore: nextOffset < total, nextOffset });
   } catch (error) {

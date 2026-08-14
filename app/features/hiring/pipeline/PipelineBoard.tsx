@@ -3,18 +3,23 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { Legend } from "./PipelineShared";
-import { bucketLaneEntries } from "./pipelineBoardLayout";
+import { bucketLaneEntries, offAxisEntries } from "./pipelineBoardLayout";
 import { moveTargetStages } from "./pipelineMoveTargets";
 import { StageCell } from "./PipelineBoardStageCell";
 import { PipelineBoardToolbar } from "./PipelineBoardToolbar";
+import { PipelineBoardOffAxisStrip } from "./PipelineBoardOffAxisStrip";
 import { usePipelineBoardScroll } from "./usePipelineBoardScroll";
-import { BOARD_GRID, BOARD_MIN_WIDTH, EMPTY_SELECTION } from "./pipelineBoardGrid";
-import { STAGE_HELP, STAGES, type Entry, type Position } from "@/app/features/shared/pipelineTypes";
+import { boardGrid, boardMinWidth, EMPTY_SELECTION } from "./pipelineBoardGrid";
+import { STAGE_HELP, type Entry, type Position } from "@/app/features/shared/pipelineTypes";
+import { DEFAULT_BOARD_AXIS } from "@/app/features/shared/pipelineTypes";
 
 export function PipelineBoard({
   positions,
   entries,
+  axis = DEFAULT_BOARD_AXIS,
+  retiredStages = [],
   isStale,
   openPositionRanking,
   openProfile,
@@ -27,6 +32,12 @@ export function PipelineBoard({
 }: {
   positions: Position[];
   entries: Entry[];
+  /** The columns THIS WORKSPACE renders, from GET /api/pipeline. Defaults to the
+   *  shipped axis so a caller that has not threaded it through still works. */
+  axis?: readonly StageDef[];
+  /** Columns the workspace has dropped — used to NAME a stranded candidate's
+   *  stage in the off-axis strip instead of showing a bare id. */
+  retiredStages?: readonly StageDef[];
   isStale: (e: Entry) => boolean;
   openPositionRanking: (jobId: string) => void;
   openProfile: (e: Entry) => void;
@@ -42,10 +53,18 @@ export function PipelineBoard({
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
+  const columns = useMemo(() => axis.map((s) => s.id), [axis]);
   // Bucket every entry into its [lane][stage] cell in ONE memoized pass — replaces
   // the per-position × per-stage `lane.filter(...)` that re-scanned the whole entry
   // list for every cell each render.
-  const cellsByLane = useMemo(() => bucketLaneEntries(positions, entries), [positions, entries]);
+  const cellsByLane = useMemo(() => bucketLaneEntries(positions, entries, columns), [positions, entries, columns]);
+  // Candidates standing on a column this board does not render — a retired stage,
+  // or a legacy one. Surfaced in their own strip rather than folded into column 0
+  // (see pipelineBoardLayout): under an editable axis, a silent fold would make a
+  // removed column look like a mass reset to the top of the funnel.
+  const stranded = useMemo(() => offAxisEntries(entries, columns), [entries, columns]);
+  const grid = useMemo(() => boardGrid(columns.length), [columns.length]);
+  const minWidth = useMemo(() => boardMinWidth(columns.length), [columns.length]);
   // The candidate currently being dragged (pointer DnD). Lifted here so any cell's
   // drop can resolve the source row regardless of which column started the drag.
   const [dragging, setDragging] = useState<Entry | null>(null);
@@ -62,17 +81,25 @@ export function PipelineBoard({
   // onMove so its 422 surfaces, but we don't announce a success that rolls back.
   const handleMove = (entry: Entry, toStage: string) => {
     if (entry.stage === toStage) return;
-    if (moveTargetStages(entry.stage).includes(toStage)) {
+    if (moveTargetStages(entry.stage, axis).includes(toStage)) {
       setAnnounce(t("board.movedAnnounce", { name: entry.candidateLabel, stage: enumLabel("stage", toStage) }));
     }
     onMove?.(entry, toStage);
   };
   // Stage help tooltip: catalog `stageHelp.<stage>`, falling back to the English
-  // STAGE_HELP source (then the raw stage) for any unmapped stage.
+  // STAGE_HELP source (then the raw stage) for any unmapped stage. A
+  // workspace-invented column has no catalog entry and no help text — the raw id
+  // is the honest fallback, and the recruiter named it themselves.
   const stageHelp = (s: string): string => {
     const k = `stageHelp.${s}` as Parameters<typeof t>[0];
     return t.has(k) ? t(k) : STAGE_HELP[s] ?? s;
   };
+  // A shipped stage renders through the shared enum catalog (localized in four
+  // locales); a workspace-authored one renders its own stored label. `label ===
+  // id` marks a stage the workspace has not renamed, which is exactly the set the
+  // catalog covers.
+  const stageColumnLabel = (stage: StageDef): string =>
+    stage.label === stage.id ? enumLabel("stage", stage.id) : stage.label;
 
   return (
     // No panel chrome of its own: the board is now the bottom layer of the board
@@ -102,19 +129,23 @@ export function PipelineBoard({
         }}
         className="focus-ring overflow-x-auto bg-white"
       >
-        <div style={BOARD_MIN_WIDTH}>
-          <div className="grid border-b border-stone-200 bg-paper" style={BOARD_GRID}>
+        <div style={minWidth}>
+          <div className="grid border-b border-stone-200 bg-paper" style={grid}>
             <div className="sticky left-0 z-20 border-r border-stone-200 bg-paper px-3 py-2 text-meta uppercase text-steel">{t("board.position")}</div>
-            {STAGES.map((s, i) => (
+            {axis.map((stage, i) => (
               <button
-                key={s}
+                key={stage.id}
                 type="button"
                 data-stage-header
                 onClick={centerColumn}
-                title={stageHelp(s)}
+                title={stageHelp(stage.id)}
                 className="focus-ring cursor-pointer border-r border-stone-200 px-3 py-2 text-center text-meta uppercase text-steel transition-colors last:border-0 hover:bg-stone-100 hover:text-coral"
               >
-                <span className="text-stone-400">{i + 1}.</span> {enumLabel("stage", s)}
+                {/* A workspace's own label wins; the shipped stages keep resolving
+                    through enums.stage.* so they stay localized in four locales.
+                    A renamed column is the recruiter's own words, untranslated —
+                    which is correct: nobody else authored them. */}
+                <span className="text-stone-400">{i + 1}.</span> {stageColumnLabel(stage)}
               </button>
             ))}
           </div>
@@ -124,9 +155,9 @@ export function PipelineBoard({
             // derivation as the lane COUNT in PipelineTab.groupPositions — a 2-way vs
             // 3-way fallback mismatch once counted an entry under "?" but placed it in
             // no lane). Empty per-stage arrays fall back if the lane somehow vanished.
-            const laneCells = cellsByLane.get(pos.id) ?? STAGES.map(() => [] as Entry[]);
+            const laneCells = cellsByLane.get(pos.id) ?? columns.map(() => [] as Entry[]);
             return (
-              <div key={pos.id} className="grid border-b border-stone-200 last:border-0" style={BOARD_GRID}>
+              <div key={pos.id} className="grid border-b border-stone-200 last:border-0" style={grid}>
                 <div className="sticky left-0 z-10 border-r border-stone-200 bg-white px-3 py-3">
                   <button
                     type="button"
@@ -145,10 +176,10 @@ export function PipelineBoard({
                     {t("board.rankCandidates")}
                   </button>
                 </div>
-                {STAGES.map((stage, i) => {
-                  // Precomputed by bucketLaneEntries: the entry whose stage isn't a
-                  // known column is already folded into the first column (index 0) so
-                  // it stays visible + actionable rather than vanishing while counted.
+                {columns.map((stage, i) => {
+                  // Precomputed by bucketLaneEntries. An entry whose stage is not a
+                  // column here lands in NO cell — it is rendered by the off-axis
+                  // strip below instead of being folded into column 0.
                   const cellEntries = laneCells[i];
                   // Key by stage ONLY (stable across polls) — the "+N more" expansion
                   // is now reset by a render-phase population-change check inside
@@ -185,6 +216,18 @@ export function PipelineBoard({
           })}
         </div>
       </div>
+      {/* Candidates on a column this board no longer draws. Loud by design: the
+          only alternative is losing track of them. */}
+      {stranded.length > 0 ? (
+        <PipelineBoardOffAxisStrip
+          entries={stranded}
+          retiredStages={retiredStages}
+          openProfile={openProfile}
+          onMove={onMove ? handleMove : undefined}
+          axis={axis}
+        />
+      ) : null}
+
       <div className="border-t border-stone-200 px-4 py-2.5">
         <Legend />
       </div>

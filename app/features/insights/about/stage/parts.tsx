@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { motion } from "framer-motion";
-import { ARRIVE, SKIN, STAMP } from "./motion";
+import { SKIN } from "./motion";
 import { atStage, rectStyle, stepDelay, type ModuleStage, type Rect } from "./stages";
 
 /*
@@ -45,6 +45,25 @@ export function Field({
 /**
  * One part of a stage arriving. `i` is its place in the sub-beat cascade, so a
  * group of parts reads as a single gesture rather than as a list loading in.
+ *
+ * Deliberately CSS, not framer, and deliberately ALWAYS MOUNTED. Both choices
+ * are the fix for a real bug:
+ *
+ *   - This component used to `return null` while hidden. That contradicted the
+ *     rule at the top of this file, and it broke the cascade outright: a framer
+ *     animation carrying a `delay` that is unmounted before the delay elapses
+ *     never starts, so it leaves the element pinned at its `initial` — every
+ *     part with `i > 0` stayed invisible for the whole loop while the `i = 0`
+ *     part of each group appeared normally.
+ *   - Staying mounted also means the reveal is a plain class flip on a stable
+ *     element, which a CSS transition handles natively and which no amount of
+ *     re-rendering from the scene clock can interrupt. Scenes re-render every
+ *     900ms; JS-scheduled per-part animations are simply the wrong tool here,
+ *     and there can be forty parts in one scene.
+ *
+ * The text stays in the accessibility tree throughout. That is intended: a
+ * screen-reader user gets the finished diagram as stable prose instead of a
+ * moving target, which is the same thing reduced motion gets.
  */
 export function Part({
   show,
@@ -63,17 +82,25 @@ export function Part({
   style?: CSSProperties;
   children: ReactNode;
 }) {
-  if (!show) return null;
+  // Duration and delay are inline rather than `duration-*` utilities on
+  // purpose: two Tailwind classes that set the same property have no defined
+  // precedence from the order they appear in a template string, so a
+  // `duration-0 duration-500` pair would resolve by stylesheet order and the
+  // reduced-motion branch could silently lose.
+  const delayMs = reduced ? 0 : Math.round(stepDelay(i, lead) * 1000);
   return (
-    <motion.span
-      className={className}
-      style={style}
-      initial={reduced ? false : { opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={reduced ? { duration: 0 } : { ...ARRIVE, delay: stepDelay(i, lead) }}
+    <span
+      className={`transition-[opacity,transform] ease-out ${
+        show ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0"
+      } ${className}`}
+      style={{
+        transitionDuration: reduced ? "0ms" : "450ms",
+        transitionDelay: show ? `${delayMs}ms` : "0ms",
+        ...style,
+      }}
     >
       {children}
-    </motion.span>
+    </span>
   );
 }
 
@@ -101,23 +128,20 @@ export function Slot({
 }) {
   const solid = atStage(stage, "shell");
   return (
-    <motion.div
+    <div
       className={`absolute overflow-hidden rounded-lg border ${SKIN} ${
         solid
           ? chosen
             ? "border-coral bg-white shadow-panel"
             : "border-stone-200 bg-white shadow-panel"
           : "border-dashed border-stone-300 bg-transparent"
-      } ${className}`}
-      style={rectStyle(rect)}
+      } ${chosen && !reduced ? "scale-[1.02]" : "scale-100"} ${className}`}
       // Only the commit beat moves geometry, and only by 2%. Position is owned
-      // by the percent rect so a settle can never drift a connector anchor.
-      initial={false}
-      animate={{ scale: chosen && !reduced ? 1.02 : 1 }}
-      transition={reduced ? { duration: 0 } : STAMP}
+      // by the percent rect, so the settle can never drift a connector anchor.
+      style={{ ...rectStyle(rect), transitionDuration: reduced ? "0ms" : "500ms" }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 

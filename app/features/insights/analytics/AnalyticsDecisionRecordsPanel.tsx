@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ShieldCheck, ShieldAlert, Download } from "lucide-react";
@@ -8,6 +7,7 @@ import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { downloadFile } from "@/app/_lib/export-utils";
 import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { waveReasonText } from "@/app/_lib/decision-attribution";
+import { DecisionRecordsTable } from "./sections/DecisionRecordsTable";
 // `import type` only — decision-record-store has server imports; types are erased.
 import type { DecisionRecord, ChainVerdict } from "@/app/_lib/decision-record-store";
 
@@ -18,14 +18,10 @@ import type { DecisionRecord, ChainVerdict } from "@/app/_lib/decision-record-st
 
 // `resolved` (Direction 2) maps a record's candidateRef → the live board entry it
 // still points at, so a record whose subject is on the board can be opened there;
-// a ref that no longer resolves (records outlive entries) stays plain text.
+// a ref that no longer resolves (records outlive entries) stays plain text. The
+// row rendering (subject link, timestamp) moved to sections/DecisionRecordsTable.
 type Payload = { records: DecisionRecord[]; chain: ChainVerdict; resolved?: Record<string, { label: string; live: boolean }> };
 
-function fmtTime(iso: string): string {
-  // Deterministic, locale-free: YYYY-MM-DD HH:MM. Avoids a hydration mismatch from
-  // toLocaleString and keeps the audit timestamp unambiguous.
-  return iso.length >= 16 ? `${iso.slice(0, 10)} ${iso.slice(11, 16)}` : iso;
-}
 
 export function DecisionRecordsPanel() {
   const t = useTranslations("analytics.decisionRecords");
@@ -124,44 +120,14 @@ export function DecisionRecordsPanel() {
           {data.records.length === 0 ? (
             <p className="mt-4 text-sm text-stone-400">{t("empty")}</p>
           ) : (
-            <ul className="mt-4 divide-y divide-stone-100">
-              {data.records.map((r) => {
-                const subject = data.resolved?.[r.candidateRef];
-                return (
-                <li key={r.seq} className="py-2.5 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium text-ink">{r.kind.replace(/_/g, " ")}</span>
-                    <span className="shrink-0 font-mono text-xs text-stone-400">{r.actor}</span>
-                  </div>
-                  <p className="mt-0.5 text-stone-600">{localizedRationale(r)}</p>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-stone-400">
-                    <span className="font-mono">#{r.seq}</span>
-                    {/* Direction 2 — open the subject on the board when the ref still
-                        resolves to a live entry; otherwise plain text (a record
-                        outlives its entry; policy records have no candidate). */}
-                    {subject?.live ? (
-                      <Link
-                        href={boardHref(subject.label)}
-                        title={t("viewCandidate")}
-                        className="focus-ring rounded font-mono text-steel underline-offset-2 hover:text-coral hover:underline"
-                      >
-                        {subject.label}
-                      </Link>
-                    ) : (
-                      <span className="font-mono" title={t("refUnresolved")}>
-                        {r.candidateRef}
-                      </span>
-                    )}
-                    <span>{fmtTime(r.createdAt)}</span>
-                    {/* truncated content hash — the visible fingerprint of the seal */}
-                    <span className="font-mono" title={r.contentHash}>
-                      {r.contentHash.slice(0, 8)}…
-                    </span>
-                  </div>
-                </li>
-                );
-              })}
-            </ul>
+            // Was an unbounded <ul> that rendered EVERY sealed record: a 66-link
+            // chain made this section ~9,000px tall, and a chain only grows.
+            <DecisionRecordsTable
+              records={data.records}
+              resolved={data.resolved}
+              rationaleOf={localizedRationale}
+              boardHref={boardHref}
+            />
           )}
         </>
       )}

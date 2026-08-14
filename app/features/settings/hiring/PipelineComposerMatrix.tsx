@@ -9,16 +9,33 @@
 import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { COMPOSER_STATIONS, MAX_ROUNDS, newRound, PRESETS, type PipelinePlan, type PlanRound, type PresetId } from "./pipelineComposerModel";
+import { composerStations, MAX_ROUNDS, newRound, PRESETS, type PipelinePlan, type PlanRound, type PresetId } from "./pipelineComposerModel";
+import { DEFAULT_STAGE_AXIS, type StageDef } from "@/app/_lib/pipeline-stages";
 import { GateToggle, KindToggle, TopNControl } from "./PipelineComposerBits";
 
-export function PipelineComposerMatrix({ plan, onChange }: { plan: PipelinePlan; onChange: (p: PipelinePlan) => void }) {
+export function PipelineComposerMatrix({
+  plan,
+  onChange,
+  axis = DEFAULT_STAGE_AXIS,
+}: {
+  plan: PipelinePlan;
+  onChange: (p: PipelinePlan) => void;
+  /** The DRAFT axis, so the policy rows rename live with the steps editor. */
+  axis?: readonly StageDef[];
+}) {
   const t = useTranslations("hiringPlan");
   // Station rows name the BOARD's columns (enums.stage.*), not private words. The
   // fixed rows had their own copy — "Screening" / "Offer" — while the board drew
   // "Screened" / "Offer", so the two tables never looked like the same pipeline.
   const enumLabel = useEnumLabel();
-  const stationLabel = (stageId: string | null, fallback: string) => (stageId ? enumLabel("stage", stageId) : fallback);
+  const stations = composerStations(axis);
+  // A workspace-renamed column shows its own words; a shipped one stays localized
+  // through the shared enum catalog. Same rule the board header uses.
+  const stationLabel = (stageId: string | null, fallback: string) => {
+    if (!stageId) return fallback;
+    const stage = axis.find((s) => s.id === stageId);
+    return stage && stage.label !== stage.id ? stage.label : enumLabel("stage", stageId);
+  };
   const patchRound = (id: string, patch: Partial<PlanRound>) =>
     onChange({ ...plan, rounds: plan.rounds.map((r) => (r.id === id ? { ...r, ...patch } : r)) });
   const presetLabel: Record<PresetId, string> = {
@@ -57,7 +74,7 @@ export function PipelineComposerMatrix({ plan, onChange }: { plan: PipelinePlan;
           <tbody>
             <tr className="border-b border-stone-100">
               <td className="px-3 py-2 font-semibold text-ink">
-                {stationLabel(COMPOSER_STATIONS.screening, t("stationScreening"))}
+                {stationLabel(stations.screening, t("stationScreening"))}
               </td>
               <td className="px-3 py-2 text-sm text-steel">{t("modeAiAlways")}</td>
               <td className="px-3 py-2">
@@ -74,7 +91,7 @@ export function PipelineComposerMatrix({ plan, onChange }: { plan: PipelinePlan;
                 <td className="px-3 py-2 font-semibold text-ink">
                   {t("stationRound", { n: i + 1 })}
                   <span className="ml-1.5 font-normal text-sm text-steel">
-                    {stationLabel(COMPOSER_STATIONS.interview[Math.min(i, COMPOSER_STATIONS.interview.length - 1)] ?? null, "")}
+                    {stationLabel(stations.interview[Math.min(i, stations.interview.length - 1)] ?? null, "")}
                   </span>
                 </td>
                 <td className="px-3 py-2">
@@ -107,7 +124,7 @@ export function PipelineComposerMatrix({ plan, onChange }: { plan: PipelinePlan;
               </tr>
             ))}
             <tr className="border-b border-stone-100">
-              <td className="px-3 py-2 font-semibold text-ink">{stationLabel(COMPOSER_STATIONS.offer, t("stationOffer"))}</td>
+              <td className="px-3 py-2 font-semibold text-ink">{stationLabel(stations.offer, t("stationOffer"))}</td>
               <td className="px-3 py-2 text-sm text-steel">{t("modeDraftedByAi")}</td>
               <td className="px-3 py-2">
                 <GateToggle compact value={plan.offerGate} onChange={(v) => onChange({ ...plan, offerGate: v })} />

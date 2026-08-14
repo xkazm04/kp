@@ -2367,6 +2367,13 @@
       "errorPreview": "Vorschau des Durchlaufs nicht möglich.",
       "errorNetwork": "Server nicht erreichbar.",
       "errorRun": "Der Durchlauf konnte nicht ausgeführt werden."
+    },
+    "offAxis": {
+      "title": "Außerhalb des Boards",
+      "intro": "{count, plural, one {# Kandidat steht auf einer Stufe, die dieses Board nicht mehr hat.} other {# Kandidaten stehen auf Stufen, die dieses Board nicht mehr hat.}} Verschieben Sie sie auf eine vorhandene Stufe, sonst bleiben sie für den Funnel unsichtbar.",
+      "onStage": "{stage} · {count}",
+      "moveAll": "Alle verschieben nach…",
+      "moveAria": "Alle auf {stage} gestrandeten Kandidaten auf eine andere Stufe verschieben"
     }
   },
   "decisions": {
@@ -5179,16 +5186,6 @@
     "briefBandRoles": "Nach Rolle",
     "briefRolesClaim": "Welche Rollen die Pipeline tragen.",
     "quality": {
-      "dossierEyebrow": "Entscheidungsprotokoll",
-      "chainUnavailable": "Die Entscheidungskette konnte nicht gelesen werden.",
-      "chainEmptyTitle": "Bisher wurde nichts versiegelt.",
-      "chainEmptyBody": "Versiegelte Einträge entstehen, während die Automatisierung entscheidet. Sobald das Screening läuft, belegen Sie hier, was passiert ist und warum.",
-      "chainSealed": "{count} Entscheidungen versiegelt und unversehrt",
-      "chainSealedBody": "Jeder Eintrag hasht den vorherigen, eine Änderung an einer früheren Entscheidung würde die Kette also brechen. Das ist nicht geschehen.",
-      "chainBroken": "Die Kette bricht bei Eintrag {seq}",
-      "chainBrokenBody": "Ein Eintrag passt nicht mehr zu dem Hash, den der nächste für ihn festgehalten hat. Behandeln Sie alles ab dort als ungeprüft und exportieren Sie die Kette, bevor Sie handeln.",
-      "appendixLabel": "Anhang: das Instrument",
-      "appendixBody": "Wie gut der Score, der diese Entscheidungen getragen hat, den tatsächlichen Ausgang vorhersagt. Belegmaterial zum Protokoll oben, nicht dessen Gegenstand.",
       "instrumentEyebrow": "Ist dem Score zu trauen?",
       "calibrationUnavailable": "Die Kalibrierung konnte nicht gelesen werden.",
       "verdictGood": "Der Screening-Score ist gut kalibriert.",
@@ -5204,18 +5201,7 @@
       "statBrier": "Brier",
       "statCoin": "Münzwurf",
       "evidenceLabel": "Belege: was entschieden wurde",
-      "evidenceBody": "Das versiegelte Protokoll und die vollständige Spur, um die Aussagen oben an einzelnen Entscheidungen zu prüfen.",
-      "timelineTitle": "Regeln und ihre Wirkung",
-      "timelineLegend": "Neueste zuerst",
-      "timelineIntro": "Schwellenänderungen und die Entscheidungen darum herum auf einer Zeitachse. In den Panels unten liegen sie getrennt, eine Änderung und die darauf folgende Verschiebung erscheinen also nie zusammen.",
-      "timelineEmpty": "Noch nichts erfasst. Schwellenänderungen und automatische Entscheidungen erscheinen hier, sobald sie geschehen.",
-      "policyMoved": "Screening-Schwelle von {from} auf {to} verschoben",
-      "policyChanged": "Screening-Schwelle geändert",
-      "policyGlobal": "Alle Rollen",
-      "policyStamp": "{at} durch {by}",
-      "policyUnknownActor": "unbekannt",
-      "boardLevel": "Board-Ebene",
-      "timelineCaveat": "Das zeigt Reihenfolge, nicht Ursache. Eine Veränderung in den Zeilen unter einer Schwellenverschiebung kann deren Wirkung sein, muss es aber nicht; gemessen wird das im Kalibrierungs-Panel unten."
+      "evidenceBody": "Das versiegelte Protokoll und die vollständige Spur, um die Aussagen oben an einzelnen Entscheidungen zu prüfen."
     },
     "econ": {
       "colPerHire": "Pro Einstellung",
@@ -5396,7 +5382,14 @@
       "broken": "Kettenintegrität bei Datensatz #{seq} verletzt. Ein versiegelter Datensatz wurde verändert oder entfernt.",
       "export": "Dossier exportieren (JSON)",
       "viewCandidate": "Diesen Kandidaten im Board öffnen",
-      "refUnresolved": "Das Subjekt dieses Datensatzes ist kein aktiver Pipeline-Eintrag mehr. Datensätze überdauern Einträge."
+      "refUnresolved": "Das Subjekt dieses Datensatzes ist kein aktiver Pipeline-Eintrag mehr. Datensätze überdauern Einträge.",
+      "colSeq": "#",
+      "colKind": "Art",
+      "colSubject": "Betreff",
+      "colRationale": "Begründung",
+      "colActor": "Akteur",
+      "colSealed": "Versiegelt",
+      "noMatches": "Kein Eintrag passt zu den Filtern."
     },
     "forecast": {
       "title": "Einstellungsprognose",
@@ -5623,7 +5616,16 @@
         "interviewer_brief_sent": "Interviewer-Briefing im Postausgang eingereiht (nicht zugestellt)",
         "onboarding_reminder_sent": "Pre-Boarding-Erinnerung im Postausgang eingereiht (nicht zugestellt)",
         "comm_resent": "Nachricht erneut im Postausgang eingereiht (nicht zugestellt)"
-      }
+      },
+      "colWhen": "Wann",
+      "colCandidate": "Kandidat",
+      "colRole": "Rolle",
+      "colDecision": "Entscheidung",
+      "colBy": "Von",
+      "colDetail": "Detail",
+      "boardLevelRow": "Board-Ebene",
+      "noMatches": "Keine Entscheidung passt zu den Filtern.",
+      "exportPage": "Seite exportieren"
     },
     "automation": {
       "title": "Wirkung der Automatisierung",

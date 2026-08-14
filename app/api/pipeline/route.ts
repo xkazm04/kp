@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createPipelineEntry, listPipeline, PIPELINE_STAGES } from "@/app/_lib/db/pipeline";
+import { createPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { knownStageIds } from "@/app/_lib/pipeline-axis";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { withCanonicalScoresCached } from "@/app/_lib/pipeline-score-cache";
@@ -17,7 +19,15 @@ export async function GET() {
     // Canonical scores via the per-workspace, short-TTL fit-map memo (identical
     // payload shape; only the analyses query is cached — see pipeline-score-cache.ts).
     const entries = withCanonicalScoresCached(listPipeline(ws), ws);
-    return NextResponse.json({ entries, stages: PIPELINE_STAGES });
+    // The board's columns ride out WITH the entries, resolved for this workspace.
+    // They used to be the compile-time PIPELINE_STAGES name list, which the board
+    // ignored in favour of importing the same constant — so the payload field
+    // existed but nothing could ever make the two disagree. Now it is the axis:
+    // ids the entries are keyed by, labels to render, roles the rules resolve
+    // through, plus the retired columns so a stranded candidate's stage still has
+    // a name.
+    const axis = getPipelineAxis(ws);
+    return NextResponse.json({ entries, stages: axis.stages, retiredStages: axis.retired });
   } catch (error) {
     return safeJsonError(error, "api:pipeline", "PIPELINE_LIST_FAILED");
   }
@@ -54,14 +64,22 @@ export async function POST(request: NextRequest) {
       githubJson = JSON.stringify(summary);
     }
     // Reject an unknown stage at the boundary: createPipelineEntry inserts any
-    // string, but PipelineBoard only renders lanes for PIPELINE_STAGES, so a typo'd
-    // or renamed stage would persist then silently vanish from the board. Omitting
-    // stage is fine — createPipelineEntry defaults it to "Screened".
-    if (body.stage !== undefined && !(PIPELINE_STAGES as readonly string[]).includes(body.stage)) {
-      return NextResponse.json(
-        { error: `Unknown stage "${body.stage}". Expected one of: ${PIPELINE_STAGES.join(", ")}.` },
-        { status: 400 }
-      );
+    // string, but the board only renders columns the workspace's axis declares, so
+    // a typo'd or renamed stage would persist then silently vanish from the board.
+    // Validated against THIS WORKSPACE's axis rather than the compile-time list —
+    // a team that renamed its columns must be able to file candidates onto them.
+    // Retired stages count as known: they are a legitimate place for a candidate
+    // to still be standing (e.g. an ATS sync replaying an older mapping) until a
+    // migration moves them, and rejecting the write would lose the application.
+    if (body.stage !== undefined) {
+      const axis = getPipelineAxis(await currentWorkspace());
+      const known = knownStageIds(axis);
+      if (!known.has(body.stage)) {
+        return NextResponse.json(
+          { error: `Unknown stage "${body.stage}". Expected one of: ${axis.stages.map((s) => s.id).join(", ")}.` },
+          { status: 400 }
+        );
+      }
     }
     // d95fed6d — optional provenance: which surface filed this candidate.
     // Bounded + shape-checked at the boundary (a slug-like token, not prose);

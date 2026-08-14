@@ -10,6 +10,10 @@
 
 import { DEFAULT_REGIME_ID, REGIME_IDS, type RegimeId } from "./compliance-regimes.ts";
 import { ROLE_FAMILY_SLUGS } from "./role-families.ts";
+// pipeline-stages.ts is equally dependency-free (no DB, no alias), so importing
+// the shipped axis here keeps this module loadable by `node --test` and the
+// browser alike — and makes the board the literal source of the axis default.
+import { DEFAULT_STAGE_AXIS } from "./pipeline-stages.ts";
 
 // Screening auto-reject: drop the bottom `rejectBottomPercent` of a role's
 // matched candidates that are ALSO below `maxMatchToReject` match — never
@@ -140,21 +144,65 @@ export const INTERVIEW_PLAN_DEFAULT: InterviewPlanRule = {
   offerGate: "human",
 };
 
+// ---- pipelineStages: the board's own column axis, per workspace -------------
+//
+// The five board columns were a compile-time literal (PIPELINE_STAGES). This
+// phase is how a workspace overrides them. Deliberately the SAME tiered
+// decision-config store the interview plan uses rather than a new table: the
+// tenancy manifest stays untouched, and the axis inherits the org-baseline /
+// team-override tiering that hiring policy already has.
+//
+// `retired` is the half that makes an editable axis safe. A stage removed from
+// the LIVE axis is moved here rather than deleted, so historical
+// `pipeline_events` rows and analytics buckets referencing it still resolve to a
+// label instead of rendering a raw id — and so a candidate found sitting on it
+// can be named in the migration prompt. The board renders only `stages`.
+export type PipelineStageRoleWire = "entry" | "screening" | "interview" | "offer" | "terminal" | "custom";
+export type PipelineStageWire = { id: string; label: string; role: PipelineStageRoleWire };
+export type PipelineStagesRule = {
+  stages: PipelineStageWire[];
+  retired: PipelineStageWire[];
+};
+
+/** Hard ceiling on board columns. The board scrolls horizontally at 280px per
+ *  column, so this is a usability bound, not a storage one. */
+export const PIPELINE_STAGES_MAX = 12;
+
+/** The shipped axis, as a stored config. Built from DEFAULT_STAGE_AXIS so the
+ *  board and the "no override yet" config can never be two different lists —
+ *  the direction of truth the whole synchronization pass exists to establish. */
+export const PIPELINE_STAGES_DEFAULT: PipelineStagesRule = {
+  stages: DEFAULT_STAGE_AXIS.map((s) => ({ id: s.id, label: s.label, role: s.role as PipelineStageRoleWire })),
+  retired: [],
+};
+
+const STAGE_ROLES: readonly PipelineStageRoleWire[] = ["entry", "screening", "interview", "offer", "terminal", "custom"];
+/** Roles that may appear AT MOST once: they answer "where does the funnel start /
+ *  end / close", which cannot have two answers. `screening`, `interview` and
+ *  `custom` repeat freely. */
+const UNIQUE_ROLES: readonly PipelineStageRoleWire[] = ["entry", "terminal", "offer"];
+/** Roles an axis MUST carry, because product rules resolve through them: a funnel
+ *  needs somewhere to enter and somewhere to end. */
+const REQUIRED_ROLES: readonly PipelineStageRoleWire[] = ["entry", "terminal"];
+
 // The phases that have a known, validated config schema today. A write to any
 // other phase is rejected at the boundary rather than persisted into a row that
 // `getAllDecisionConfigs` would never read back anyway.
-export const KNOWN_DECISION_PHASES = ["screening", "compliance", "interviewPlan"] as const;
+export const KNOWN_DECISION_PHASES = ["screening", "compliance", "interviewPlan", "pipelineStages"] as const;
 export type DecisionPhase = (typeof KNOWN_DECISION_PHASES)[number];
 
 const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject", "familyFloors", "holdoutPercent"] as const;
 const COMPLIANCE_KEYS = ["jurisdiction"] as const;
 const INTERVIEW_PLAN_KEYS = ["screeningGate", "rounds", "offerGate"] as const;
 const INTERVIEW_PLAN_ROUND_KEYS = ["kind", "gate", "topN"] as const;
+const PIPELINE_STAGES_KEYS = ["stages", "retired"] as const;
+const STAGE_KEYS = ["id", "label", "role"] as const;
 
 export type DecisionConfigResult =
   | { ok: true; phase: "screening"; config: ScreeningRule }
   | { ok: true; phase: "compliance"; config: ComplianceRule }
   | { ok: true; phase: "interviewPlan"; config: InterviewPlanRule }
+  | { ok: true; phase: "pipelineStages"; config: PipelineStagesRule }
   | { ok: false; error: string };
 
 export type ScreeningOverrideResult =
@@ -202,7 +250,101 @@ export function validateDecisionConfig(phase: unknown, rawConfig: unknown): Deci
   // KNOWN_DECISION_PHASES gated entry above; dispatch to the per-phase validator.
   if (phase === "compliance") return validateComplianceRule(rawConfig as Record<string, unknown>);
   if (phase === "interviewPlan") return validateInterviewPlan(rawConfig as Record<string, unknown>);
+  if (phase === "pipelineStages") return validatePipelineStages(rawConfig as Record<string, unknown>);
   return validateScreeningRule(rawConfig as Record<string, unknown>);
+}
+
+const isStageRole = (v: unknown): v is PipelineStageRoleWire =>
+  typeof v === "string" && (STAGE_ROLES as readonly string[]).includes(v);
+
+/** One stage entry: a stable id, a shown label, a role that carries the meaning. */
+function validateStage(raw: unknown, path: string): { ok: true; stage: PipelineStageWire } | { ok: false; error: string } {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return { ok: false, error: `${path} must be an object.` };
+  const rec = raw as Record<string, unknown>;
+  const stray = Object.keys(rec).filter((k) => !(STAGE_KEYS as readonly string[]).includes(k));
+  if (stray.length > 0) return { ok: false, error: `${path}: unknown key(s) ${stray.join(", ")}.` };
+  // The id is what lands in pipeline_entries.stage and both pipeline_events stage
+  // columns, so it is bounded and shape-checked like any other wire identifier.
+  // A label may be anything printable the recruiter types; it is never a key.
+  if (typeof rec.id !== "string" || !/^[A-Za-z0-9][A-Za-z0-9 _-]{0,39}$/.test(rec.id)) {
+    return { ok: false, error: `${path}.id must be 1-40 chars of letters, digits, space, hyphen or underscore.` };
+  }
+  if (typeof rec.label !== "string" || rec.label.trim() === "" || rec.label.length > 60) {
+    return { ok: false, error: `${path}.label must be 1-60 characters.` };
+  }
+  if (!isStageRole(rec.role)) return { ok: false, error: `${path}.role must be one of: ${STAGE_ROLES.join(", ")}.` };
+  return { ok: true, stage: { id: rec.id, label: rec.label.trim(), role: rec.role } };
+}
+
+function validateStageList(
+  raw: unknown,
+  path: string,
+  max: number
+): { ok: true; stages: PipelineStageWire[] } | { ok: false; error: string } {
+  if (!Array.isArray(raw)) return { ok: false, error: `${path} must be an array.` };
+  if (raw.length > max) return { ok: false, error: `${path} is capped at ${max} entries.` };
+  const stages: PipelineStageWire[] = [];
+  const seen = new Set<string>();
+  for (const [i, entry] of raw.entries()) {
+    const result = validateStage(entry, `${path}[${i}]`);
+    if (!result.ok) return result;
+    // Duplicate ids would make `pipeline_entries.stage` ambiguous — two columns
+    // would claim the same candidates, and a migration could not name a target.
+    if (seen.has(result.stage.id)) return { ok: false, error: `${path}: duplicate stage id "${result.stage.id}".` };
+    seen.add(result.stage.id);
+    stages.push(result.stage);
+  }
+  return { ok: true, stages };
+}
+
+/**
+ * Validate a workspace's board axis.
+ *
+ * Beyond shape, this enforces the two invariants the rest of the product resolves
+ * through — an axis needs somewhere to ENTER and somewhere to END, and the roles
+ * that answer a "where" question may not have two answers. Everything else is
+ * open: any number of screening stages, interview rounds or custom columns, in
+ * any order, under any name.
+ *
+ * A live stage and a retired one may not share an id: `pipeline_entries.stage`
+ * would then resolve to two different columns depending on which list was
+ * consulted.
+ */
+function validatePipelineStages(raw: Record<string, unknown>): DecisionConfigResult {
+  const stray = Object.keys(raw).filter((k) => !(PIPELINE_STAGES_KEYS as readonly string[]).includes(k));
+  if (stray.length > 0) return { ok: false, error: `pipelineStages: unknown key(s) ${stray.join(", ")}.` };
+
+  const live = validateStageList(raw.stages, "pipelineStages.stages", PIPELINE_STAGES_MAX);
+  if (!live.ok) return live;
+  if (live.stages.length < 2) return { ok: false, error: "pipelineStages.stages needs at least an entry and a terminal stage." };
+
+  for (const role of REQUIRED_ROLES) {
+    if (!live.stages.some((s) => s.role === role)) {
+      return { ok: false, error: `pipelineStages.stages must contain exactly one "${role}" stage.` };
+    }
+  }
+  for (const role of UNIQUE_ROLES) {
+    const count = live.stages.filter((s) => s.role === role).length;
+    if (count > 1) return { ok: false, error: `pipelineStages.stages may contain at most one "${role}" stage (found ${count}).` };
+  }
+  // Ordering invariant: the funnel runs one way. An entry stage after the
+  // terminal one would make every ordinal rule (past-screening, benchmarks,
+  // move targets) answer nonsense while still type-checking.
+  const entryIdx = live.stages.findIndex((s) => s.role === "entry");
+  const terminalIdx = live.stages.findIndex((s) => s.role === "terminal");
+  if (entryIdx !== 0) return { ok: false, error: "pipelineStages.stages must open with the entry stage." };
+  if (terminalIdx !== live.stages.length - 1) return { ok: false, error: "pipelineStages.stages must end with the terminal stage." };
+
+  // `retired` defaults to empty: an axis that has never dropped a column has no
+  // tombstones, and requiring the key would break every hand-written config.
+  const retiredRaw = raw.retired === undefined ? [] : raw.retired;
+  const retired = validateStageList(retiredRaw, "pipelineStages.retired", PIPELINE_STAGES_MAX * 4);
+  if (!retired.ok) return retired;
+  const liveIds = new Set(live.stages.map((s) => s.id));
+  const clash = retired.stages.find((s) => liveIds.has(s.id));
+  if (clash) return { ok: false, error: `pipelineStages: "${clash.id}" is both live and retired.` };
+
+  return { ok: true, phase: "pipelineStages", config: { stages: live.stages, retired: retired.stages } };
 }
 
 const isGate = (v: unknown): v is InterviewPlanGate => v === "auto" || v === "human";

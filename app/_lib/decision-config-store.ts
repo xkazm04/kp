@@ -5,6 +5,7 @@ import {
   type ComplianceRule,
   DecisionConfigError,
   INTERVIEW_PLAN_DEFAULT,
+  PIPELINE_STAGES_DEFAULT,
   SCREENING_DEFAULT,
   validateDecisionConfig,
 } from "./decision-config-schema";
@@ -27,6 +28,11 @@ const DEFAULTS: Record<string, unknown> = {
   screening: SCREENING_DEFAULT,
   compliance: COMPLIANCE_DEFAULT,
   interviewPlan: INTERVIEW_PLAN_DEFAULT,
+  // The board's column axis. Its default is the shipped board itself — the ONE
+  // literal in pipeline-stages.ts — so a workspace that has never touched
+  // Settings → Hiring renders exactly what it always did, and the composer can
+  // never offer a station the board does not draw.
+  pipelineStages: PIPELINE_STAGES_DEFAULT,
 };
 
 let _db: Database.Database | null = null;

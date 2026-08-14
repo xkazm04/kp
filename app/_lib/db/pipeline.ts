@@ -66,13 +66,54 @@ function eventKindClause(kinds?: readonly string[]): { sql: string; params: stri
   return { sql: ` AND kind IN (${bounded.map(() => "?").join(", ")})`, params: [...bounded] };
 }
 
-export function listPipelineEvents(limit = 40, offset = 0, kinds?: readonly string[], workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEvent[] {
+/** The columns the decision log may order by, mapped to real SQL.
+ *
+ *  An ALLOWLIST, not a passthrough: the sort column reaches this from a query
+ *  param, and interpolating a caller-supplied string into ORDER BY is a SQL
+ *  injection even though better-sqlite3 parameterizes everything else here —
+ *  bindings cannot stand in for an identifier, so the safety has to come from
+ *  the value never being caller-controlled in the first place.
+ *
+ *  `id DESC` is appended to every ordering as a stable tiebreak. Without it two
+ *  events sharing a timestamp can swap places between two pages of the SAME
+ *  query, so a row is shown twice and another never at all — the classic
+ *  unstable-pagination bug, and worse here than usual because this is the audit
+ *  trail. */
+const EVENT_SORT_COLUMNS = {
+  createdAt: "created_at",
+  candidateLabel: "candidate_label",
+  jobTitle: "job_title",
+  kind: "kind",
+} as const;
+
+export type PipelineEventSortColumn = keyof typeof EVENT_SORT_COLUMNS;
+
+export function isPipelineEventSortColumn(value: string | null | undefined): value is PipelineEventSortColumn {
+  return value != null && Object.prototype.hasOwnProperty.call(EVENT_SORT_COLUMNS, value);
+}
+
+export function listPipelineEvents(
+  limit = 40,
+  offset = 0,
+  kinds?: readonly string[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  sort?: { col: PipelineEventSortColumn; dir: "asc" | "desc" }
+): PipelineEvent[] {
   const db = ensureDb();
   const filter = eventKindClause(kinds);
+  // Resolved through the allowlist above, never interpolated from the caller.
+  const col = EVENT_SORT_COLUMNS[sort?.col ?? "createdAt"];
+  const dir = sort?.dir === "asc" ? "ASC" : "DESC";
+  // NULLS: candidate_label / job_title are null on board-level events. SQLite
+  // sorts NULL first ascending, which would open the table with a page of rows
+  // that have nothing in the column being sorted. Push them last in BOTH
+  // directions — the same rule the client-side useTableSort comparator keeps, so
+  // the two halves of the table kit cannot disagree about what "missing" means.
+  const orderBy = `(${col} IS NULL) ASC, ${col} ${dir}, id DESC`;
   const rows = db
     .prepare(
       `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
-       FROM pipeline_events WHERE workspace_id = ?${filter.sql} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
+       FROM pipeline_events WHERE workspace_id = ?${filter.sql} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
     )
     .all(workspaceId, ...filter.params, limit, offset) as Array<{
     id: number;
@@ -641,6 +682,31 @@ export function listJobPipelineStats(
     if (hasAdvancedPastScreening(r.stage)) m.reachedInterview += r.n;
     if (r.stage === "Hired") m.hired += r.n;
   }
+  return out;
+}
+
+/** How many ACTIVE candidates sit on each stage, keyed by the stored stage value.
+ *
+ *  The question Settings → Hiring asks before letting a column be removed:
+ *  "who is standing here?". Deliberately over the raw `stage` column rather than
+ *  the resolved axis, so it also reports occupants of stages the axis no longer
+ *  declares — those are exactly the people a migration has to account for, and a
+ *  count that quietly omitted them would make an unsafe edit look safe.
+ *
+ *  Terminal rows (`rejected` / `declined`) are excluded to match `listPipeline`:
+ *  the board does not show them, so removing their column strands nobody. */
+export function countPipelineByStage(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, number> {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT stage, COUNT(*) AS n
+         FROM pipeline_entries
+        WHERE workspace_id = ? AND status NOT IN ('rejected', 'declined')
+        GROUP BY stage`
+    )
+    .all(workspaceId) as { stage: string; n: number }[];
+  const out: Record<string, number> = {};
+  for (const r of rows) out[r.stage] = r.n;
   return out;
 }
 

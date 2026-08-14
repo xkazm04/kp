@@ -74,7 +74,19 @@ test("GET /api/pipeline returns the canonical stage axis and only active entries
   const res = await boardGet();
   assert.equal(res.status, 200);
   const body = await res.json();
-  assert.deepEqual(body.stages, [...PIPELINE_STAGES]);
+  // The payload now carries the RESOLVED axis (id + label + role), not a name
+  // list: the board renders these columns instead of importing the constant, so
+  // a workspace override reaches the board through this field. With no override
+  // stored it is the shipped axis, unchanged.
+  assert.deepEqual(
+    (body.stages as Array<{ id: string }>).map((s) => s.id),
+    [...PIPELINE_STAGES]
+  );
+  assert.ok(
+    (body.stages as Array<{ role?: string }>).every((s) => typeof s.role === "string"),
+    "every column carries the role the product rules resolve through"
+  );
+  assert.deepEqual(body.retiredStages, [], "a workspace that has dropped no column has no tombstones");
   const ids = new Set((body.entries as Array<{ id: string }>).map((e) => e.id));
   assert.ok(ids.has(live.entry.id));
   assert.ok(!ids.has(closed.entry.id), "a rejected entry must not ride the board payload");

@@ -2367,6 +2367,13 @@
       "errorPreview": "Couldn't preview the pass.",
       "errorNetwork": "Couldn't reach the server.",
       "errorRun": "The pass failed to run."
+    },
+    "offAxis": {
+      "title": "Off the board",
+      "intro": "{count, plural, one {# candidate sits on a stage this board no longer has.} other {# candidates sit on stages this board no longer has.}} Move them somewhere real, or they stay invisible to the funnel.",
+      "onStage": "{stage} · {count}",
+      "moveAll": "Move all to…",
+      "moveAria": "Move everyone stranded on {stage} to another stage"
     }
   },
   "decisions": {
@@ -5179,16 +5186,6 @@
     "briefBandRoles": "By role",
     "briefRolesClaim": "Which roles are carrying the pipeline.",
     "quality": {
-      "dossierEyebrow": "Decision record",
-      "chainUnavailable": "The decision chain could not be read.",
-      "chainEmptyTitle": "Nothing has been sealed yet.",
-      "chainEmptyBody": "Sealed records are written as the automation decides. Once screening runs, this is where you prove what happened and why.",
-      "chainSealed": "{count} decisions sealed and intact",
-      "chainSealedBody": "Every record hashes the one before it, so any edit to an earlier decision would break the chain. Nothing has.",
-      "chainBroken": "The chain breaks at record {seq}",
-      "chainBrokenBody": "A record no longer matches the hash the next one recorded for it. Treat everything from that point on as unverified and export the chain before acting.",
-      "appendixLabel": "Appendix: the instrument",
-      "appendixBody": "How well the score that drove these decisions predicts what actually happened. Supporting evidence for the record above, not the subject of it.",
       "instrumentEyebrow": "Can the score be trusted?",
       "calibrationUnavailable": "Calibration could not be read.",
       "verdictGood": "The screening score is well calibrated.",
@@ -5204,18 +5201,7 @@
       "statBrier": "Brier",
       "statCoin": "Coin flip",
       "evidenceLabel": "Evidence: what it decided",
-      "evidenceBody": "The sealed record and the full trail, for checking the claims above against individual decisions.",
-      "timelineTitle": "Policy and its effects",
-      "timelineLegend": "Newest first",
-      "timelineIntro": "Threshold changes and the decisions around them on one clock. In the panels below these live apart, so a change and the shift that followed it never appear together.",
-      "timelineEmpty": "Nothing recorded yet. Threshold changes and automated decisions appear here as they happen.",
-      "policyMoved": "Screening floor moved {from} to {to}",
-      "policyChanged": "Screening floor changed",
-      "policyGlobal": "All roles",
-      "policyStamp": "{at} by {by}",
-      "policyUnknownActor": "unknown",
-      "boardLevel": "Board-level",
-      "timelineCaveat": "This shows sequence, not cause. A change in the rows under a threshold move may or may not be its effect; the calibration panel below is where that gets measured."
+      "evidenceBody": "The sealed record and the full trail, for checking the claims above against individual decisions."
     },
     "econ": {
       "colPerHire": "Per hire",
@@ -5396,7 +5382,14 @@
       "broken": "Chain integrity broken at record #{seq}. A sealed record was altered or removed.",
       "export": "Export dossier (JSON)",
       "viewCandidate": "Open this candidate on the board",
-      "refUnresolved": "This record's subject is no longer an active pipeline entry. Records outlive entries."
+      "refUnresolved": "This record's subject is no longer an active pipeline entry. Records outlive entries.",
+      "colSeq": "#",
+      "colKind": "Kind",
+      "colSubject": "Subject",
+      "colRationale": "Rationale",
+      "colActor": "Actor",
+      "colSealed": "Sealed",
+      "noMatches": "No records match the current filters."
     },
     "forecast": {
       "title": "Hire forecast",
@@ -5623,7 +5616,16 @@
         "interviewer_brief_sent": "Interviewer brief queued in Outbox (not delivered)",
         "onboarding_reminder_sent": "Pre-boarding reminder queued in Outbox (not delivered)",
         "comm_resent": "Message re-queued in Outbox (not delivered)"
-      }
+      },
+      "colWhen": "When",
+      "colCandidate": "Candidate",
+      "colRole": "Role",
+      "colDecision": "Decision",
+      "colBy": "By",
+      "colDetail": "Detail",
+      "boardLevelRow": "Board-level",
+      "noMatches": "No decisions match the current filters.",
+      "exportPage": "Export page"
     },
     "automation": {
       "title": "Automation impact",

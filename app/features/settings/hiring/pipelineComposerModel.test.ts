@@ -6,7 +6,9 @@ import {
   validateDecisionConfig,
   type InterviewPlanRule,
 } from "@/app/_lib/decision-config-schema";
+import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, type StageDef } from "@/app/_lib/pipeline-stages";
 import {
+  COMPOSER_STATIONS,
   deriveImpact,
   fromStoredPlan,
   matchesPreset,
@@ -17,10 +19,72 @@ import {
   type PipelinePlan,
 } from "./pipelineComposerModel";
 
+// ---- The preview must preview the REAL board -------------------------------
+// This is the contract the whole P0 pass exists to create: before it, the impact
+// strip emitted its own station vocabulary ("screened", "ai_interview", …) under
+// a heading that said "Overview", so Settings and the board described two
+// different products. Every assertion below fails the moment they diverge again.
+
+const stageIds = (impact: ReturnType<typeof deriveImpact>) => impact.overview.map((s) => s.stageId);
+
+test("the preview's stations ARE the board's columns, in board order", () => {
+  for (const preset of PRESETS) {
+    assert.deepEqual(
+      stageIds(deriveImpact(preset.plan())),
+      [...PIPELINE_STAGES],
+      `${preset.id} must preview the real axis`
+    );
+  }
+});
+
+test("a plan with no rounds still previews every board column (they exist regardless)", () => {
+  const impact = deriveImpact({ screeningGate: "human", rounds: [], offerGate: "human" });
+  assert.deepEqual(stageIds(impact), [...PIPELINE_STAGES]);
+  assert.deepEqual(
+    impact.overview.filter((s) => s.rounds.length > 0),
+    [],
+    "no rounds means no station carries one"
+  );
+});
+
+test("rounds land on interview stages, and a surplus round stacks rather than inventing a column", () => {
+  // The shipped default: two rounds, one Interview column. The old preview drew a
+  // phantom second column for this; the honest answer is one column running two
+  // rounds, which is exactly what the hybrid handoff does at runtime.
+  const impact = deriveImpact(PRESETS.find((p) => p.id === "hybrid")!.plan());
+  const interview = impact.overview.find((s) => s.role === "interview")!;
+  assert.deepEqual(interview.rounds, ["ai", "human"]);
+  assert.equal(stageIds(impact).length, PIPELINE_STAGES.length, "no phantom columns");
+});
+
+test("rounds bind to interview stages left-to-right when the axis has several", () => {
+  const axis: StageDef[] = [
+    { id: "In", label: "In", role: "entry" },
+    { id: "Screen", label: "Screen", role: "screening" },
+    { id: "R1", label: "R1", role: "interview" },
+    { id: "R2", label: "R2", role: "interview" },
+    { id: "Out", label: "Out", role: "terminal" },
+  ];
+  const impact = deriveImpact({ screeningGate: "human", rounds: [newRound("ai"), newRound("human")], offerGate: "human" }, axis);
+  assert.deepEqual(impact.overview.find((s) => s.stageId === "R1")!.rounds, ["ai"]);
+  assert.deepEqual(impact.overview.find((s) => s.stageId === "R2")!.rounds, ["human"]);
+});
+
+test("the composer's fixed rows point at real board stages", () => {
+  assert.equal(COMPOSER_STATIONS.screening, "Screened");
+  assert.equal(COMPOSER_STATIONS.offer, "Offer");
+  assert.deepEqual(COMPOSER_STATIONS.interview, ["Interview"]);
+  for (const id of [COMPOSER_STATIONS.screening, COMPOSER_STATIONS.offer, ...COMPOSER_STATIONS.interview]) {
+    assert.ok(
+      DEFAULT_STAGE_AXIS.some((s) => s.id === id),
+      `${id} must be a real board column`
+    );
+  }
+});
+
 test("lean preset: auto screening, one gated AI round, human offer", () => {
   const plan = PRESETS.find((p) => p.id === "lean")!.plan();
   const impact = deriveImpact(plan);
-  assert.deepEqual(impact.overview, ["screened", "ai_interview", "offer", "hired"]);
   assert.deepEqual(impact.decisions, ["ai_scorecard_review", "offer_review"]);
   assert.deepEqual(impact.schedule, { aiRound: true, humanRound: false });
   assert.equal(impact.humanTouchpoints, 2);
@@ -48,9 +112,8 @@ test("an ungated AI round produces no Decisions queue; a human round always does
   assert.deepEqual(deriveImpact(plan).decisions, ["human_scorecard_review"]);
 });
 
-test("zero rounds still yields a coherent funnel (screen → offer → hired)", () => {
+test("zero rounds lights up no Schedule surface", () => {
   const impact = deriveImpact({ screeningGate: "human", rounds: [], offerGate: "human" });
-  assert.deepEqual(impact.overview, ["screened", "offer", "hired"]);
   assert.deepEqual(impact.schedule, { aiRound: false, humanRound: false });
 });
 

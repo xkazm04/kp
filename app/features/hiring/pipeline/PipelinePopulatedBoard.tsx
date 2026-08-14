@@ -120,6 +120,8 @@ export function PipelinePopulatedBoard({
             <PipelineBoard
               positions={s.boardPositions}
               entries={s.filteredEntries}
+              axis={s.axis}
+              retiredStages={s.retiredStages}
               isStale={s.isStale}
               openPositionRanking={s.openPositionRanking}
               openProfile={s.openProfile}
