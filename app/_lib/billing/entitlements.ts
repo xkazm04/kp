@@ -13,6 +13,7 @@
 
 import { billingUsageFor, creditBalance, getBillingState, grantBillingCredits, incrementBillingUsage, type BillingStateRow } from "../db/billing";
 import { ensureDb } from "../db/core";
+import { listProviderKeys } from "../db/llm";
 import { DEFAULT_ORG_ID } from "../db/organizations";
 import { getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "../db/workspaces";
 import { currentPeriod, PLANS, type Meter, type PlanDef, type PlanId } from "./plans";
@@ -130,8 +131,42 @@ export function splitSpend(
   return { fromIncluded, fromCredits, remainingAfter };
 }
 
-export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date(), orgId: string = DEFAULT_ORG_ID): MeterOverview {
+/** True when a customer key has actually been entered — a `byom`-scope row in
+ *  provider_keys, which is exactly what the admin surface writes when someone pastes
+ *  their own key. `platform` rows and env vars are deliberately NOT accepted here:
+ *  those are the DEPLOYMENT's keys, i.e. ours on the hosted product, and treating
+ *  them as the customer's is the whole hole this closes. */
+export function byomKeyConfigured(): boolean {
+  return listProviderKeys().some((row) => row.scope === "byom");
+}
+
+/** The limit that actually applies, which is `plan.limits[meter]` for every plan but
+ *  one.
+ *
+ *  BYOM sells UNLIMITED COMPUTE ON THE CUSTOMER'S OWN KEY — that is the entire
+ *  premise of the tier, and it is priced at half of Starter because the model spend
+ *  is theirs, not ours. Nothing checked that the key existed. So a BYOM subscriber
+ *  who never pasted a key got `ai_candidates: null` and `case_designs: null` resolved
+ *  against OUR provider keys: unlimited analyses and case designs, on our spend, for
+ *  120 Kč a month. Not a rounding error — an unbounded one, and the cheapest paid
+ *  tier is where it sat.
+ *
+ *  Until the key is there, those two meters fall back to the FREE tier's allowance.
+ *  A nudge, not a punishment: everything keeps working at trial scale, the Billing
+ *  panel shows the smaller number, and pasting a key restores unlimited on the next
+ *  request with no plan change. The outcome meters (roles, hires) are untouched —
+ *  those are our product either way, and BYOM already carries Starter's numbers there.
+ *
+ *  Self-hosted installs are unaffected: with no billing provider there is no
+ *  subscription row, so `entitledPlan` returns `free` and this branch never runs. */
+export function effectiveLimit(plan: PlanDef, meter: Meter): number | null {
   const limit = plan.limits[meter];
+  if (plan.id !== "byom" || limit !== null) return limit;
+  return byomKeyConfigured() ? null : PLANS.free.limits[meter];
+}
+
+export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date(), orgId: string = DEFAULT_ORG_ID): MeterOverview {
+  const limit = effectiveLimit(plan, meter);
   const used = billingUsageFor(meter, currentPeriod(now), orgId);
   // Clamp the spendable/displayed balance at >=0: a refund claw-back (a negative
   // ledger row) that exceeds the minutes still on hand drives the raw SUM negative,
@@ -208,7 +243,10 @@ export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new 
   // tenant's ORG. Omitted → the default org, the exact rows it always debited.
   const orgId = billingOrgForWorkspace(workspace);
   const plan = entitledPlan(getBillingState(orgId), now);
-  const limit = plan.limits[meter];
+  // The DEBIT reads the same effective limit as the gate: an unfunded BYOM tier is
+  // metered, so its credit split behaves like any other limited plan rather than
+  // skipping the ledger entirely.
+  const limit = effectiveLimit(plan, meter);
   const period = currentPeriod(now);
   const db = ensureDb();
   db.transaction(() => {

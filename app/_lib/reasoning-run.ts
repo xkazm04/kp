@@ -113,7 +113,11 @@ export async function runReasoning(
     // same path a provider outage takes — and stays uncached (source !=
     // "llm"), so it upgrades the moment allowance returns. No extra debit:
     // reasoning is part of the analyze-debited candidate bundle.
-    if (!meterAllows("ai_candidates")) args.push("--no-llm");
+    // …on THIS team's allowance. Unscoped, this read the DEFAULT team's meter, so a
+    // non-default team got template rationales while its own allowance was untouched,
+    // and kept its LLM rationales after the default team ran out. (automation-run.ts
+    // passes the same argument for the same reason.)
+    if (!meterAllows("ai_candidates", { workspace: workspaceId })) args.push("--no-llm");
 
     const { result } = spawnPython(args, { signal, env: buildLlmConfigEnv() });
     const { stdout, stderr, exitCode } = await result;

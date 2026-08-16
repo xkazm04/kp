@@ -65,13 +65,18 @@ export async function POST(request: NextRequest) {
     // a loopback/private service), where the call spends no allowance to gate.
     // Metering a free simulation would make a self-hosted install run out of a
     // budget it is not consuming — which is the whole reason to self-host.
+    // Resolved ONCE and used for both the gate and the session's tenant stamp. A
+    // simulation has no pipeline entry, so without this the gate checked the caller's
+    // allowance while /complete debited the DEFAULT team's meter — two tenants for one
+    // call, and a self-serve org could burn a demo on somebody else's budget.
+    const workspace = await currentWorkspace();
     if (!isSelfHostedProvider(provider)) {
-      // Org attribution (org-plan Phase 3): the gate reads the caller's tenant.
-      const quota = meterGate("interview_minutes", { minUnits: durationMin, workspace: await currentWorkspace() });
+      const quota = meterGate("interview_minutes", { minUnits: durationMin, workspace });
       if (quota) return NextResponse.json(quota, { status: 402 });
     }
 
     const session = createInterviewSession({
+      workspaceId: workspace,
       provider,
       mode: "candidate",
       candidateLabel,

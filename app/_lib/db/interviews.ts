@@ -113,6 +113,14 @@ export type InterviewSession = {
   scorecard: unknown | null;
   createdAt: string;
   updatedAt: string | null;
+  /** The team this session belongs to. The ROW always had it; this type dropped it,
+   *  so every caller holding a session had to be told the tenant separately — and
+   *  the minutes debit in /api/interview/complete wasn't, re-deriving it from the
+   *  entry and landing entry-less sessions (every simulation) on the DEFAULT team's
+   *  meter while the gate had checked the caller's. Same defect shape, and same fix,
+   *  as PipelineEntry.workspaceId. Every read here is `SELECT *`, so surfacing it
+   *  costs nothing. */
+  workspaceId: string;
 };
 
 type InterviewRow = {
@@ -136,6 +144,7 @@ type InterviewRow = {
   scorecard_json: string | null;
   created_at: string;
   updated_at: string | null;
+  workspace_id: string | null;
 };
 
 function rowToInterview(r: InterviewRow): InterviewSession {
@@ -160,6 +169,9 @@ function rowToInterview(r: InterviewRow): InterviewSession {
     scorecard: safeRowParse<unknown>(r.scorecard_json, "interview.scorecard", r.id),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    // Pre-tenancy rows have no workspace_id; they predate multi-workspace and are
+    // the default team's by definition.
+    workspaceId: r.workspace_id ?? DEFAULT_WORKSPACE_ID,
   };
 }
 
@@ -240,15 +252,22 @@ export function createInterviewSession(input: {
   instructions?: string | null;
   runOfShow?: string[] | null;
   durationMin?: number | null;
+  /** The CALLER's team, for a session with no pipeline entry to inherit from — a
+   *  simulation or a test call. Without it those sessions were stamped with the
+   *  default team while their minutes gate had been checked against the caller's,
+   *  so the gate and the debit read two different tenants. An entry, when present,
+   *  still wins: it is the authoritative tenant for a real candidate. */
+  workspaceId?: string | null;
 }): InterviewSession {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("iv");
   const token = randomToken("tk");
   // Tenant (P1): a session inherits its pipeline entry's workspace (by-id read, guarded).
-  // A test-mode session with no entry falls back to the default workspace. Every other
-  // op is by the globally-unique id/token/entry_id; the by-job enumeration filters this.
-  let workspaceId = DEFAULT_WORKSPACE_ID;
+  // With no entry it takes the caller's team, and only falls back to the default when
+  // the caller had none either. Every other op is by the globally-unique
+  // id/token/entry_id; the by-job enumeration filters this.
+  let workspaceId = input.workspaceId || DEFAULT_WORKSPACE_ID;
   if (input.entryId) {
     try {
       const ws = db.prepare(`SELECT workspace_id FROM pipeline_entries WHERE id = ?`).get(input.entryId) as { workspace_id?: string } | undefined;

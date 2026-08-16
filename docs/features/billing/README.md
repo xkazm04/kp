@@ -43,9 +43,35 @@ way — a manual move to it is refused in `pipeline-entry-action.ts`.
 
 **AI candidates, case designs and interview minutes remain metered** behind those,
 as a safety net with a generous allowance normal use does not reach. They bound a
-runaway rather than setting the price — which matters because BYOM grants unlimited
-analysis on our keys with no key check, and `llm_usage` carries no `org_id`, so there
-is no cost ledger to fall back on.
+runaway rather than setting the price — which matters because `llm_usage` still
+carries no `org_id`, so there is no per-customer cost ledger to fall back on.
+
+**BYOM's unlimited compute is unlimited on the CUSTOMER'S key** (`effectiveLimit` in
+`billing/entitlements.ts`). That is the premise of the tier, and it is priced at half
+of Starter because the model spend is theirs. Nothing used to check that the key
+existed, so a BYOM subscriber who never pasted one resolved `ai_candidates: null` and
+`case_designs: null` against OUR provider keys — unbounded analyses and case designs,
+on our spend, on the cheapest paid tier. The unlimited grant now requires a
+`byom`-scope row in `provider_keys` (what the admin surface writes when a customer
+enters their key; `platform` rows and env vars are the DEPLOYMENT's keys and
+deliberately do not count). Without it those two meters fall back to the FREE tier's
+allowance — a nudge, not a punishment: everything keeps working at trial scale, the
+Billing panel shows the smaller number, and pasting a key restores unlimited on the
+next request with no plan change. The outcome meters are untouched: roles and hires
+are our product either way. Self-hosted installs never reach this branch (no billing
+provider ⇒ no subscription row ⇒ the free plan). Pinned by
+`app/_lib/billing/meter-attribution.test.ts` and `app/_lib/billing-reserve.test.ts`.
+
+**The gate and the debit must read the same tenant**, which twice they did not:
+
+| Where | The divergence | Now |
+| --- | --- | --- |
+| Voice **simulation** (`/api/interview/simulate` → `/api/interview/complete`) | gated on the caller's org, debited on the DEFAULT one — an entry-less session was stamped with the default team, and the debit re-derived the tenant from the (absent) entry | the caller's team is resolved once, stamped on the session row, and the debit reads `session.workspaceId` |
+| Match-reasoning **degrade** (`reasoning-run.ts`) | asked the DEFAULT team's meter whether to fall back to templates, whichever team was asking | `meterAllows("ai_candidates", { workspace: workspaceId })`, the argument the caller already had |
+
+`InterviewSession.workspaceId` exists for the same reason `PipelineEntry.workspaceId`
+does: the row always had the column, the type dropped it, and every caller holding one
+had to be told the tenant separately — until one wasn't.
 
 **The active-jobs cap is gone.** It was a CONCURRENCY limit ("how many roles may be
 open at once") counted per WORKSPACE while reading an ORG plan, so a five-team org
@@ -246,5 +272,8 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
   `llm_usage` attribution. The metered-work debit call sites now thread the
   requesting workspace (analyze, interview complete, dev-case lifecycle/redesign);
   background/legacy paths without a tenant default to the seeded org.
-- BYOM tier enforcement (key-presence checks gating the unlimited meters) not
-  built.
+- Per-team metering breakdowns: meters are ORG-scoped by design (one subscription
+  per customer company), so a multi-team org cannot see which team spent what.
+  `llm_usage` still carries no `org_id`, which is the other half of the same gap —
+  it is written from the Python sidecar off the request path, so propagating the
+  tenant through the spawn is the actual work.

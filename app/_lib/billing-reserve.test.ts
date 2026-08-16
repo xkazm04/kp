@@ -51,6 +51,7 @@ const { upsertBillingState, billingUsageFor } = await import("./db.ts");
 const { recordMeterUsage } = await import("./billing/entitlements.ts");
 const { meterGate, maxBillableInterviewMin } = await import("./billing/enforce.ts");
 const { PLANS, currentPeriod } = await import("./billing/plans.ts");
+const { upsertProviderKey, deleteProviderKey } = await import("./db/llm.ts");
 
 import type { Meter, PlanId } from "./billing/plans.ts";
 
@@ -138,8 +139,22 @@ test("N concurrent analyze submits: exactly `remaining` pass, the next is refuse
 });
 
 test("an unlimited (null) meter proceeds regardless of in-flight or worst-case reserve", () => {
-  // BYOM: ai_candidates unlimited (customer's own keys) → gate always proceeds.
+  // BYOM: ai_candidates unlimited — but only ON THE CUSTOMER'S OWN KEY, which is what
+  // the tier sells. The key has to exist for the grant to apply (effectiveLimit); an
+  // unfunded BYOM subscription is metered like the free tier, see below.
   upsertBillingState({ plan: "byom", status: "active", provider: "polar", currentPeriodEnd: "2999-12-31T00:00:00Z" });
+  upsertProviderKey({ provider: "gemini", scope: "byom", keyCiphertext: "customer-key" });
   assert.equal(meterGate("ai_candidates", { inFlight: 1000 }), null);
   assert.equal(meterGate("ai_candidates", { minUnits: maxBillableInterviewMin(30), inFlight: 5 }), null);
+});
+
+test("BYOM without a customer key is NOT unlimited — the grant is on their key, not ours", () => {
+  // The hole this closes: the cheapest paid tier resolved `null` against OUR provider
+  // keys, so a subscriber who never pasted one ran unbounded analyses on our spend.
+  upsertBillingState({ plan: "byom", status: "active", provider: "polar", currentPeriodEnd: "2999-12-31T00:00:00Z" });
+  deleteProviderKey("gemini", "byom");
+  const verdict = meterGate("ai_candidates", { inFlight: 1000 });
+  assert.ok(verdict, "an unfunded BYOM tier is metered");
+  assert.equal(verdict.meter, "ai_candidates");
+  assert.equal(verdict.plan, "byom", "the plan is unchanged — only the allowance falls back");
 });
