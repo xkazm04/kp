@@ -10,12 +10,20 @@ import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { OrganizationBackupFlow } from "./OrganizationBackupFlow";
 import { OrganizationBackupRestorePlan, type BackupPlan as Plan } from "./OrganizationBackupRestorePlan";
 
-// DATA3 — workspace backup/restore from the UI. The complete portable
-// dump/restore existed CLI-only (scripts/db-dump.mjs + db-load.mjs); this panel
-// makes "snapshot before a risky bulk action" and "hand a colleague a
-// reproducible demo workspace" one click each. Restore is two-step: pick a
-// file → see the dry-run plan (and which live tables would be replaced) →
+// DATA3 — ORGANIZATION backup/restore from the UI. The portable dump/restore
+// existed CLI-only (scripts/db-dump.mjs + db-load.mjs); this panel makes
+// "snapshot before a risky bulk action" one click. Restore is two-step: pick a
+// file → see the dry-run plan (and how much live data would be replaced) →
 // explicitly confirm.
+//
+// SCOPE: the pair used to move the WHOLE DATABASE, which could not survive
+// multi-tenancy and was hard-refused once KP_MULTI_WORKSPACE went on. It now
+// covers the caller's ORGANIZATION — every team in it, its people, its billing
+// record — and restores IN PLACE, into the deployment the file came from. Two
+// things it deliberately does not do, both surfaced in the copy rather than left
+// to be discovered: it does not carry integration settings and provider keys
+// (deployment secrets, and the six singleton config tables carry no org id), and
+// it is not a way to move an organization between deployments.
 //
 // It used to sit on the Background-tasks tab, beside a health readout and an
 // outbound webhook form, because that tab was where the operator-only surfaces
@@ -60,6 +68,11 @@ export function OrganizationBackupPanel() {
     setConfirmText("");
   };
 
+  // Config the restore could not bring back, reported by the server and shown as
+  // its own line: a summary that only counts what WAS restored would let an
+  // operator walk away believing their relay and ATS settings came with it.
+  const [notCarried, setNotCarried] = useState<string[]>([]);
+
   const exportWorkspace = async () => {
     setBusy(true);
     setError(null);
@@ -71,7 +84,7 @@ export function OrganizationBackupPanel() {
         throw new Error(errMsg(body, t("exportFailedStatus", { status: r.status })));
       }
       const text = await r.text();
-      downloadFile(`kp-dump-${new Date().toISOString().replace(/[:.]/g, "-")}.json`, text, "application/json");
+      downloadFile(`kp-org-${new Date().toISOString().replace(/[:.]/g, "-")}.json`, text, "application/json");
     } catch (e) {
       setError(e instanceof Error ? e.message : t("exportFailed"));
     } finally {
@@ -111,12 +124,17 @@ export function OrganizationBackupPanel() {
       const r = await fetch("/api/workspace/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dump, apply: true, replace: plan.populated.length > 0 }),
+        body: JSON.stringify({ dump, apply: true, replace: plan.totalExisting > 0 }),
       });
-      const body = (await r.json().catch(() => null)) as { loaded?: { name: string; rows: number }[]; error?: string; code?: string } | null;
-      if (!r.ok || !body?.loaded) throw new Error(errMsg(body, t("restoreFailedStatus", { status: r.status })));
-      const rows = body.loaded.reduce((total, tbl) => total + tbl.rows, 0);
-      setDone(t("restored", { tables: body.loaded.length, rows }));
+      const body = (await r.json().catch(() => null)) as {
+        restored?: { tables: { name: string; deleted: number; inserted: number }[]; notRestored: string[] };
+        error?: string;
+        code?: string;
+      } | null;
+      if (!r.ok || !body?.restored) throw new Error(errMsg(body, t("restoreFailedStatus", { status: r.status })));
+      const rows = body.restored.tables.reduce((total, tbl) => total + tbl.inserted, 0);
+      setDone(t("restored", { tables: body.restored.tables.length, rows }));
+      setNotCarried(body.restored.notRestored ?? []);
       reset();
       notifyDataChanged();
     } catch (e) {
@@ -169,9 +187,13 @@ export function OrganizationBackupPanel() {
         </p>
       ) : null}
       {done ? (
-        <p role="status" className="mt-3 rounded-md border border-moss/40 bg-moss/5 px-3 py-2 text-sm font-medium text-moss">
-          {done}
-        </p>
+        <div role="status" className="mt-3 rounded-md border border-moss/40 bg-moss/5 px-3 py-2 text-sm">
+          <p className="font-medium text-moss">{done}</p>
+          {notCarried.length > 0 ? (
+            /* Table NAMES stay verbatim in every locale — they are schema identifiers. */
+            <p className="mt-1 text-steel">{t("notCarried", { tables: notCarried.join(", ") })}</p>
+          ) : null}
+        </div>
       ) : null}
 
       {plan ? (

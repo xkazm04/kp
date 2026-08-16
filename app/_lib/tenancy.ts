@@ -136,16 +136,6 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // session's workspace at INSERT (appendDevSessionChat); by-session reads are
   // exempt like the sibling event log.
   "dev_session_chat",
-  // Phase 1 — the onboarding hand-off (onboarding-store.ts): listTemplates/listRuns +
-  // the intake-submitted set + every INSERT filter/stamp workspace_id. Templates are
-  // per-team; a run derives its tenant from the Hired candidate's entry; child rows
-  // (task states / intake / signatures) from their run. by-id/run_id ops and the
-  // pre-boarding reminder sweep are exempt (onboarding-tenancy.test.ts).
-  "onboarding_templates",
-  "onboarding_runs",
-  "onboarding_task_states",
-  "onboarding_intake",
-  "onboarding_signatures",
   // Phase 1 — rediscovery_alerts (standing silver-medalist feed): record stamps +
   // list filters workspace_id; dismiss is by-id (rediscovery-tenancy.test.ts).
   "rediscovery_alerts",
@@ -316,11 +306,6 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "job_ingests",
   "login_attempts",
   "offers",
-  "onboarding_intake",
-  "onboarding_runs",
-  "onboarding_signatures",
-  "onboarding_task_states",
-  "onboarding_templates",
   "personas_bridge",
   "rediscovery_alerts",
   "schedule_invites",
@@ -328,18 +313,43 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "scheduler_runs",
 ]);
 
+/** RETIRED tables: rows a PREVIOUS version of kp wrote and no current code path
+ *  creates, reads or writes. The post-hire onboarding module was removed (kp is a
+ *  hiring studio; the hand-off after Hired belongs to the HRIS the ATS webhook
+ *  feeds) WITHOUT a drop migration, so a database created before that removal still
+ *  carries these five tables and their rows. sqlite_master therefore still reports
+ *  them, and the boot guard would count each as an unscoped gap and refuse to start.
+ *
+ *  This is deliberately its OWN category rather than a quiet addition to
+ *  TENANCY_EXEMPT_TABLES: exempt means "genuinely global, and that is correct".
+ *  These are neither global nor correct — they are inert. A table no code queries
+ *  cannot leak across tenants, which is why it is safe to pass the guard; but it is
+ *  also not something to hold up as verified, which is why it does not go back in
+ *  TENANCY_SCOPED_TABLES (its colocated proof, onboarding-tenancy.test.ts, is gone
+ *  with the feature). If a future table name is reused, remove it from here first —
+ *  a live table hiding behind a retirement note is exactly the silent hole the
+ *  manifest exists to prevent. */
+export const TENANCY_RETIRED_TABLES: ReadonlySet<string> = new Set([
+  "onboarding_intake",
+  "onboarding_runs",
+  "onboarding_signatures",
+  "onboarding_task_states",
+  "onboarding_templates",
+]);
+
 /** The per-tenant tables that still lack verified workspace scoping, given the full
  *  list of tables in the DB. A table is a gap unless it is verified-scoped, exempt,
- *  or a sqlite-internal table. Sorted for stable error messages / tests. */
+ *  retired, or a sqlite-internal table. Sorted for stable error messages / tests. */
 export function tenancyGaps(
   allTables: Iterable<string>,
   scoped: ReadonlySet<string> = TENANCY_SCOPED_TABLES,
   exempt: ReadonlySet<string> = TENANCY_EXEMPT_TABLES,
+  retired: ReadonlySet<string> = TENANCY_RETIRED_TABLES,
 ): string[] {
   const gaps: string[] = [];
   for (const t of allTables) {
     if (!t || t.startsWith("sqlite_")) continue;
-    if (scoped.has(t) || exempt.has(t)) continue;
+    if (scoped.has(t) || exempt.has(t) || retired.has(t)) continue;
     gaps.push(t);
   }
   return gaps.sort();
@@ -370,3 +380,100 @@ export function assertTenancyReady(
     );
   }
 }
+
+// ---- Org-scoped backup manifest --------------------------------------------
+//
+// The whole-database dump could not survive multi-tenancy: it enumerated
+// `sqlite_master` and did `SELECT * FROM <table>` with no predicate, so one team's
+// "Download backup" handed them every other tenant's candidates — and both routes
+// had to be refused outright once KP_MULTI_WORKSPACE went on.
+//
+// The replacement backs up ONE ORGANIZATION, and it is driven by THIS MANIFEST
+// rather than by sqlite_master. That is the point: a table nobody classified is a
+// table nobody decided about, and enumerating the live schema silently swept up
+// retired tables, deployment secrets and the shared corpus. Here an unclassified
+// table fails `tenancy-coverage.test.ts` instead.
+//
+// Defaults do the bulk of the work, so only genuine exceptions are hand-listed:
+// every TENANCY_SCOPED_TABLES member is "workspace", every TENANCY_EXEMPT_TABLES
+// member is "exclude", and ORG_EXPORT_OVERRIDES names the rest.
+
+export type OrgExportClass =
+  /** `WHERE workspace_id IN (the org's workspaces)`. Also the right rule for the
+   *  dual-tier `jobs` table, whose NULL rows are the SHARED cross-company corpus —
+   *  deployment reference data, identical everywhere, not the org's property. */
+  | "workspace"
+  /** `WHERE org_id = ?`. */
+  | "org"
+  /** `WHERE workspace_id IS NULL OR workspace_id IN (...)`. The opposite reading of
+   *  NULL from `jobs`: here the null tier is the ORG's own shared layer (its curated
+   *  template library, its compliance jurisdiction and screening baseline), so a
+   *  backup that dropped it would silently reset the org to code defaults. */
+  | "org_shared"
+  /** `WHERE user_id IN (the org's users)` — a child with no tenant column. */
+  | "by_user"
+  /** The union of both arms: a membership is the only place a role lives, and a
+   *  user of this org may hold one on another org's team (nothing forbids it), so
+   *  either arm alone silently strips somebody's access. */
+  | "membership"
+  /** Not the org's to carry: deployment config and secrets, provider-global
+   *  ledgers, caches, runner state, retired tables. */
+  | "exclude";
+
+export const ORG_EXPORT_OVERRIDES: ReadonlyMap<string, OrgExportClass> = new Map<string, OrgExportClass>([
+  // Identity — the minimum that makes a restored org coherent. Without
+  // user_credentials nobody can log in; without memberships nobody has a role.
+  ["organizations", "org"],
+  ["workspaces", "org"],
+  ["users", "org"],
+  ["user_credentials", "by_user"],
+  ["memberships", "membership"],
+  ["invites", "org"],
+
+  // Billing is org-keyed and belongs to the org's record.
+  ["billing_state", "org"],
+  ["billing_credits", "org"],
+  ["billing_usage", "org"],
+  ["billing_alerts", "org"],
+  // …except the webhook dedup ledger: its PK is the PROVIDER's globally-unique
+  // event id (org_id is attribution only), so it is not org data and its keys
+  // collide by construction.
+  ["billing_events", "exclude"],
+
+  // The two genuinely org-shared null tiers (see "org_shared" above).
+  ["jd_templates", "org_shared"],
+  ["decision_config", "org_shared"],
+
+  // Runner state, not org data — and already the whole-DB dump's documented skip.
+  ["tasks", "exclude"],
+]);
+
+/** The export class for one table. Unknown ⇒ null, which the coverage test turns
+ *  into a build failure rather than a silent omission. */
+export function orgExportClass(
+  table: string,
+  scoped: ReadonlySet<string> = TENANCY_SCOPED_TABLES,
+  exempt: ReadonlySet<string> = TENANCY_EXEMPT_TABLES,
+  retired: ReadonlySet<string> = TENANCY_RETIRED_TABLES,
+): OrgExportClass | null {
+  const override = ORG_EXPORT_OVERRIDES.get(table);
+  if (override) return override;
+  if (retired.has(table)) return "exclude";
+  if (scoped.has(table)) return "workspace";
+  if (exempt.has(table)) return "exclude";
+  return null;
+}
+
+/** SIX tables tenancy.ts calls "org-level" that carry NO org_id — they are literal
+ *  singletons (`CHECK (id = 1)`, a fixed ROW_ID, or a provider PK). A backup cannot
+ *  say which org owns them, so an org restore leaves them alone and the org
+ *  re-enters its integration settings. Re-keying them by org is the prerequisite
+ *  for carrying them, and is tracked in docs/features/organization/README.md. */
+export const ORG_CONFIG_NOT_PORTABLE: ReadonlySet<string> = new Set([
+  "brand_settings",
+  "ats_config",
+  "ats_connections",
+  "ats_delivery",
+  "comms_relay_config",
+  "personas_bridge",
+]);

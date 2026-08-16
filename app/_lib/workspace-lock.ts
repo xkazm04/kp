@@ -11,10 +11,10 @@
 //
 // So the lock is no longer "wait for the data layer". It is an operator's explicit
 // opt-in to running more than one tenant in a database, and it stays default-OFF
-// for two honest reasons:
-//   1. whole-DB export/import is still not per-workspace (`/api/workspace/export`
-//      dumps everything; import self-refuses with 503 once this flag is on), and
-//   2. billing is per-ORG with no seat enforcement yet.
+// because billing is per-ORG and metered per outcome, with no per-team attribution
+// yet — one org's teams share one meter. (The other long-standing reason, whole-DB
+// export/import, is closed: both halves now move ONE ORGANIZATION, scoped by the
+// tenancy manifest — `dumpOrg`/`restoreOrg` in db-portability.ts.)
 // Set KP_MULTI_WORKSPACE=1 to turn it on. The boot guard still refuses to start if
 // a newly-added table ever regresses the manifest, so flipping it can only fail
 // loud, never silently.

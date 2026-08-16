@@ -114,7 +114,7 @@ name variants — this closes what was gap G3 in the original conformity pack.
 | Compliance posture board | `app/trust/page.tsx`, `app/trust/TrustContent.tsx`, `app/_lib/trust-posture.ts` |
 | Public compliance JSON | `app/api/compliance/route.ts` |
 | Operator identity for sealed approvals | `app/_lib/auth/operator-approver.ts` (env `KP_OPERATOR_NAME`) |
-| Whole-DB export/import (not yet per-tenant) | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` |
+| Org backup/restore (per-tenant) | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` (`dumpOrg`/`restoreOrg`), scope from `app/_lib/tenancy.ts` `orgExportClass` |
 
 ## Data model
 
@@ -137,10 +137,10 @@ as of this doc:
 - **G4** — no `audit_events` table for auth/config/PII-read/export events (Art. 12).
 - **G5** — sealed-record actor is a role string (`"operator (single-operator deployment)"`) unless `KP_OPERATOR_NAME` is set; not yet threaded to the per-user identity that the E0 tenancy work introduced (Art. 14).
 - **G6** — log-retention window is undocumented (never pruned, but no stated policy).
-- **G7** — no signed/SIEM audit export; only the whole-DB dump exists.
+- **G7** — no signed/SIEM audit export; only the org backup exists.
 - **G8** — no training/seed-data governance artifact.
 - **G10** — no post-market monitoring or incident-reporting runbook (Art. 72/73).
-- **G12** — decision chain is now per-tenant, but `workspace/export` and `workspace/import` remain whole-database dumps guarded only by mode checks — must be reworked before `KP_MULTI_WORKSPACE` ships.
+- **G12** — **closed.** The decision chain is per-tenant, and `workspace/export` / `workspace/import` now move ONE ORGANIZATION (`dumpOrg` / `restoreOrg`), scoped by the tenancy manifest and gated on `org:manage`. What remains is narrower and documented rather than open: a backup restores in place, into the deployment it came from, and does not carry the six singleton config tables (`ORG_CONFIG_NOT_PORTABLE`).
 - **G13** — the no-demographic-data posture needs to be documented as a deliberate choice (with its limits) rather than left implicit.
 - **G14** — no EU-database registration / CE-marking scaffolding (premature until G1/G2 ship).
 

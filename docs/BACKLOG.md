@@ -59,7 +59,7 @@ design). Still open:
 **Platform**
 - `KP_TRUSTED_PROXY` is real, tested (`app/_lib/rate-limit.test.ts`), and required by the self-hosting production checklist — but **missing from `.env.example`**.
 - `cv_analysis` is Gemini-only; no per-tenant `llm_usage` attribution.
-- Tenancy last mile: pipeline entry-id workspace component, tasks dedup index, per-session revocation, per-workspace export/import.
+- Tenancy last mile: per-session revocation. (Entry-id workspace component, tasks dedup index and per-tenant export/import have shipped — see `docs/features/organization/README.md`.)
 - Enterprise track still open: E-SSO-2/3/5, E-AUD-2/3/4, E-SH-1 (license decision), E-SH-3 (Postgres build), E-SH-6, E5 (SOC 2), E-GDPR-1/3/4/5, E6 (org-level billing/seats). BYOM tier enforcement unbuilt.
 
 **Design & structure**

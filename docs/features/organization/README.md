@@ -215,7 +215,7 @@ so the session would 403 on everything anyway.
 | Org/member/invite API | `app/api/org/members/route.ts`, `app/api/org/members/[userId]/route.ts`, `app/api/org/invites/route.ts`, `app/api/org/invites/[token]/route.ts` |
 | Workspace API | `app/api/workspaces/route.ts` (GET org-filtered list + memberCount/role/canManage; POST `team:manage`-gated, stamps the caller's org, seats the creator as owner), `app/api/workspaces/[id]/route.ts` (rename), `app/api/workspaces/[id]/members/[userId]/route.ts` (PUT seat/re-role, DELETE unseat) |
 | Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required |
-| Whole-workspace export/import | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts` |
+| Org backup/restore | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` (`dumpOrg`, `restoreOrg`, `planOrgRestore`) |
 | DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
 | RBAC | `app/_lib/auth/roles.ts`, `app/_lib/auth/org-authority.ts` |
 | Tenancy manifest | `app/_lib/tenancy.ts`, `app/_lib/workspace-lock.ts` |
@@ -252,32 +252,60 @@ Member administration is org-scoped and stays fully usable while it is off.
 
 ### Backup & restore
 
-The whole-database dump/restore (`GET /api/workspace/export`, `POST
-/api/workspace/import`) is reachable from this tab, `<Defer>`-mounted below the identity
-panel. It used to sit on the Background-tasks tab, beside a health readout and a webhook
-form, because that tab was where the operator-only surfaces had collected; taking and
-replacing a database snapshot is organization administration, so it lives with the rest of
-it now.
+`GET /api/workspace/export` downloads **the caller's organization** as one
+`kp-org-dump` file; `POST /api/workspace/import` restores it. Both are reachable from
+this tab, `<Defer>`-mounted below the identity panel. They used to sit on the
+Background-tasks tab, beside a health readout and a webhook form, because that tab was
+where the operator-only surfaces had collected; taking and replacing a snapshot is
+organization administration, so it lives with the rest of it now.
+
+**Scope comes from the tenancy manifest, not from `sqlite_master`.**
+`orgExportClass(table)` (`app/_lib/tenancy.ts`) classifies every table —
+`workspace` (the org's teams), `org` (`org_id = ?`), `org_shared` (the null tier),
+`by_user`, `membership`, `exclude` — and the defaults derive from
+`TENANCY_SCOPED_TABLES` / `TENANCY_EXEMPT_TABLES`, so only 14 genuine exceptions are
+hand-listed in `ORG_EXPORT_OVERRIDES`. A table nobody classified fails
+`tenancy-coverage.test.ts` rather than being dumped on the guess that whatever it
+holds is safe to hand over. That is the whole reason the old whole-DB pair could not
+survive multi-tenancy: it enumerated the live schema and read every table with no
+predicate, so one team's "Download backup" handed them every other tenant's
+candidates, and the restore `DROP`ped tables the other tenants were still using.
+Both routes were hard-refused (503) with the flag on until this replacement landed.
+
+Gating is two-layer: `requireOperator()` (a valid non-demo session) **and**
+`requireOrgCapability("org:manage")`. The second is the one that matters under
+multi-workspace — `requireOperator` reads neither membership nor role, so it alone
+would let any signed-in member export the whole company.
 
 Restore is deliberately two-step and loud: pick a file → the route returns a **dry-run
-plan** (every table, its row count, and which live tables already hold data) → the operator
-types `REPLACE` to confirm. A dump whose tables are all empty on the live side reports
-itself as non-destructive and skips the typed confirmation. The copy is fully localized
-(`workspaceAdmin.org.backup`) — comprehension is a safety property here, not a nicety —
-while the table names it lists stay verbatim, being schema identifiers.
+plan** (per table, the rows the file carries against the rows the restore would delete
+first) → the operator types `REPLACE` to confirm. "Destructive" is decided by what
+would be **deleted**, not by how many tables the file names — a plan can carry
+thousands of rows and destroy nothing, or carry none and empty a live table. The write
+itself is `DELETE`-by-scope + `INSERT` in one transaction, never `DROP TABLE`, because
+another org's rows live in the same tables; and the delete scope is the union of the
+file's teams and the org's teams **today**, so a team created after the backup is
+removed with its rows instead of being stranded behind a deleted `workspaces` row. The
+copy is fully localized (`workspaceAdmin.org.backup`) — comprehension is a safety
+property here, not a nicety — while the table names it lists stay verbatim, being
+schema identifiers.
+
+Round-trip behaviour is pinned by `app/_lib/db-portability-org.test.ts` (multi-org:
+scope, refusal, rollback, the bystander org) and
+`app/_lib/db-portability-shared-tier.test.ts` (single-org: the shared library comes
+back). The whole-DB `dumpWorkspace` / `loadWorkspace` remain in
+`app/_lib/db-portability.ts` for the CLI scripts only; `export-guard.test.ts` asserts
+neither route reaches for them again.
 
 **The explanation is a diagram, not a paragraph** (`OrganizationBackupFlow.tsx`). The panel
 used to open with a four-line intro carrying five facts at once, which nobody reads before
 clicking and which is too late by the time the confirm dialog is up. Two lanes show the
-artefact chain each button walks — `all data → one file` and `your file → preview → all
-data` — with the destructive terminal node drawn in coral, so the dangerous direction LOOKS
-dangerous before any prose is read. The three scope facts (every workspace, cache/queue
-excluded, refused under multi-workspace) are three separate lines instead of subordinate
-clauses, and the internal codename is gone from user-facing copy.
-
-**The scope is the whole installation, not one workspace.** One file carries all data
-across every workspace (prompt cache and task-runner state excluded); the panel says so.
-Per-workspace export/restore waits on workspace data isolation.
+artefact chain each button walks — `your organization → one file` and `your file → preview
+→ your organization` — with the destructive terminal node drawn in coral, so the dangerous
+direction LOOKS dangerous before any prose is read. The three scope facts (every team in
+the org, integration settings and provider keys excluded, restores back into this
+deployment) are three separate lines instead of subordinate clauses, and the internal
+codename is gone from user-facing copy.
 
 ## Copy & localization
 
@@ -355,16 +383,29 @@ The data-layer work is complete; what remains before `KP_MULTI_WORKSPACE` goes
 live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
 `docs/product/enterprise-readiness.md` §1):
 
-- **Per-workspace export/import.** BOTH halves now answer **503** while
-  `KP_MULTI_WORKSPACE` is on (`export-guard.test.ts`, `multi-workspace-guard.test.ts`).
-  Import was already guarded; export — the exfiltration half — was not, and
-  `requireOperator()` is no substitute: it passes open mode or any valid non-demo
-  session and reads neither membership nor role, so any member of any team could
-  have downloaded every other team's data in one request. Enabling multi-workspace
-  therefore disables backup AND restore until a per-workspace version exists
-  (filter every table by `workspace_id`; restore as delete-by-workspace + insert,
-  never `DROP TABLE`). This is the biggest remaining reason the flag stays off in
-  production.
+- **Backup does not move an org between deployments.** The org backup restores
+  **in place** — into the deployment the file came from — and the import refuses a
+  file naming any other org. That is what makes it safe to ship: the ids in the
+  file are already this deployment's. Carrying an org to a *different* install
+  needs four things re-keyed first: `org-default` / `workspace` / `tpl-standard`
+  are seeded into every deployment (id collisions), `users.email` is globally
+  UNIQUE (account collisions), `decision_config`'s org tier is UNIQUE on `(phase)`
+  alone so two orgs' defaults cannot coexist, and the HMAC chains in
+  `decision_records` / `skill_profiles` verify against deployment-local key
+  material.
+- **Six config tables are not carried by a backup** (`ORG_CONFIG_NOT_PORTABLE` in
+  `app/_lib/tenancy.ts`): `brand_settings`, `ats_config`, `ats_connections`,
+  `ats_delivery`, `comms_relay_config`, `personas_bridge`. Each is a literal
+  singleton (`CHECK (id = 1)`, a fixed row id, or a provider PK) carrying no
+  `org_id`, so a backup cannot say which org owns them. The restore **reports**
+  the list (`notRestored`, surfaced in the panel) rather than leaving the operator
+  to discover it; re-keying them by org is the prerequisite for carrying them.
+- **The shared template/decision tier is skipped when a second org is present.**
+  `jd_templates` and `decision_config` keep the org tier in `workspace_id IS NULL`,
+  and the schema holds exactly one such tier per deployment. Restoring it on a
+  single-org install is correct and happens; on a multi-org install it would reset
+  a bystander's library, so it is left alone and the plan says so
+  (`sharedTierRestored: false`).
 - **Org-level billing with seats** — the org-keyed DATA layer has landed
   (`org_id` on every billing table, org-keyed entitlement/reducer lookups,
   webhook attribution via checkout metadata; `app/_lib/db/billing-tenancy.test.ts`).

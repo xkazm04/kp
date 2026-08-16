@@ -3,7 +3,13 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { TENANCY_SCOPED_TABLES, TENANCY_EXEMPT_TABLES, TENANCY_LAZY_TABLES } from "./tenancy.ts";
+import {
+  TENANCY_SCOPED_TABLES,
+  TENANCY_EXEMPT_TABLES,
+  TENANCY_LAZY_TABLES,
+  ORG_CONFIG_NOT_PORTABLE,
+  orgExportClass,
+} from "./tenancy.ts";
 
 // Manifest completeness (P1) — closes the boot-guard LAZY-STORE-TABLE HOLE statically.
 // assertTenancyReady reads the LIVE sqlite_master list, but ~22 tables are created on
@@ -53,16 +59,44 @@ for (const f of walk(libDir)) {
 // job-ingest.ts mirrors `jobs` (eager) but uniquely owns `job_ingests` (lazy).
 for (const t of coreTables) lazyDerived.delete(t);
 
-test("every table the codebase declares is classified in the tenancy manifest (scoped ∪ exempt)", () => {
+test("every table the codebase declares is classified in the tenancy manifest (scoped ∪ exempt ∪ retired)", () => {
   assert.ok(declared.size >= 40, `expected to scan the whole schema, only found ${declared.size} tables`);
+  // Retired counts as classified: a table no current code path reads or writes cannot
+  // leak across tenants, and it is named in its own set precisely so "inert" is never
+  // mistaken for "verified". Leaving it out here would fail the build for a table a
+  // removed feature left behind in existing databases.
   const unclassified = [...declared]
-    .filter((t) => !TENANCY_SCOPED_TABLES.has(t) && !TENANCY_EXEMPT_TABLES.has(t))
+    .filter((t) => !TENANCY_SCOPED_TABLES.has(t) && !TENANCY_EXEMPT_TABLES.has(t) && !TENANCY_RETIRED_TABLES.has(t))
     .sort();
   assert.deepEqual(
     unclassified,
     [],
     `these declared tables are neither scoped nor exempt (the boot guard would miss the lazy ones):\n  ${unclassified.join("\n  ")}`
   );
+});
+
+test("every declared table has an ORG EXPORT class — a new table is never dumped on a guess", () => {
+  // dumpOrg is driven by this manifest rather than by sqlite_master, precisely so a
+  // table nobody classified cannot be swept into a customer's backup by default. The
+  // classes derive from the two sets above (scoped ⇒ "workspace", exempt ⇒ "exclude"),
+  // so this only fails for a table whose export rule genuinely needs a decision — and
+  // then it fails HERE, in CI, instead of by leaking or by silently omitting somebody's
+  // data. Add it to ORG_EXPORT_OVERRIDES with the reasoning.
+  const unclassified = [...declared].filter((t) => orgExportClass(t) === null).sort();
+  assert.deepEqual(
+    unclassified,
+    [],
+    `these tables have no org-export class (dumpOrg would silently skip them):\n  ${unclassified.join("\n  ")}`
+  );
+});
+
+test("the six non-portable config tables are excluded from the export, not merely documented", () => {
+  // ORG_CONFIG_NOT_PORTABLE is what the restore REPORTS to the operator. If one of
+  // those tables were also classified as carryable, the file would contain rows the
+  // summary promises are absent — a documented gap that isn't the real behaviour.
+  for (const table of ORG_CONFIG_NOT_PORTABLE) {
+    assert.equal(orgExportClass(table), "exclude", `${table} is named as not portable, so it must not be exported`);
+  }
 });
 
 test("TENANCY_LAZY_TABLES exactly matches the source's own-connection CREATEs (runtime enumeration can't drift)", () => {

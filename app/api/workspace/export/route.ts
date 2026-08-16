@@ -1,59 +1,56 @@
 import { NextResponse } from "next/server";
-import { dumpWorkspace } from "@/app/_lib/db-portability";
+import { dumpOrg } from "@/app/_lib/db-portability";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { multiWorkspaceEnabled } from "@/app/_lib/workspace-lock";
+import { currentUser, requireOrgCapability } from "@/app/_lib/auth/current-user";
+import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 
-
-// DATA3 — download the ENTIRE kp database as one portable kp-db-dump JSON file
-// (the db-dump.mjs format; db-load.mjs and the import endpoint both restore
-// it). Skips gemini_cache + tasks by default, same as the script's documented
-// suggestion.
+// Download THE CALLER'S ORGANIZATION as one portable kp-org-dump JSON file:
+// every team's data, the org's identity (users, memberships, invites) and its
+// billing record. The import route restores it in place.
 //
-// SCOPE NOTE (tri-scan #2): this is a WHOLE-DATABASE dump, NOT a per-workspace
-// export — dumpWorkspace() reads every table regardless of the caller's workspace.
-// That is safe only under the single-tenant lock (workspace-lock.ts), so the guard
-// below refuses it outright once KP_MULTI_WORKSPACE is on. Reworking this to a
-// per-workspace export (filter every table by workspace_id, and the import to
-// restore into one workspace) is what lifts the guard.
+// This replaced a WHOLE-DATABASE dump. That version enumerated sqlite_master and
+// did `SELECT * FROM <table>` with no predicate, so with KP_MULTI_WORKSPACE on any
+// signed-in member could download every other team's candidates, contacts and
+// transcripts in one request — which is why it was hard-refused (503) rather than
+// shipped. The scope now comes from the tenancy manifest (`orgExportClass`), so a
+// table nobody classified fails the coverage test instead of being handed over on
+// the guess that whatever it holds is safe.
 //
-// SECURITY NOTE: this exports FULL PII (candidates, contacts, transcripts). Like
-// every recruiter API it relies on the proxy auth gate (active when
-// KP_OPERATOR_PASSWORD is set); see auth-sessions-tenancy.md #3 for fail-open-by-default.
+// What is deliberately NOT in the file: the shared job corpus (deployment reference
+// data), provider keys and ATS/relay/scheduler settings (deployment secrets), the
+// prompt cache and runner state, and the six singleton config tables that carry no
+// org_id — see ORG_CONFIG_NOT_PORTABLE, echoed into the payload's `notPortable` so
+// the reason travels with the file.
+//
+// SECURITY: this exports FULL PII (candidates, contacts, transcripts) for the whole
+// org, so it is gated twice — a valid non-demo session, AND org:manage.
 export async function GET() {
-  // Defense-in-depth beyond the proxy session gate: this streams FULL PII for every
-  // table, so it must be operator-only. requireOperator() also rejects the anonymous
-  // demo session (which the proxy would otherwise accept).
+  // 401 for unauthenticated and for the anonymous demo session (which the proxy
+  // would otherwise accept).
   const denied = await requireOperator();
   if (denied) return denied;
-  // Hard mode-guard, the READ half of the pair the import route already carries.
-  // Only import grew this check, which left the exfiltration half open: `dumpWorkspace()`
-  // reads EVERY table with no workspace filter, and `requireOperator()` is deliberately
-  // coarse — open mode or any valid non-demo session passes it, and it reads no
-  // membership or role. So with multi-workspace on, any signed-in member of any team
-  // could download every other team's candidates, contacts, transcripts, decision
-  // records and consent events in one request. Refuse until the per-workspace export
-  // exists; a single-tenant deployment is unaffected.
-  if (multiWorkspaceEnabled()) {
-    return NextResponse.json(
-      {
-        error:
-          "Whole-database export is disabled in multi-workspace mode: it would hand one team every other team's data. Unset KP_MULTI_WORKSPACE for a single-tenant backup, or wait for per-workspace export.",
-      },
-      { status: 503 }
-    );
-  }
+  // 403 for a signed-in member who is not an org administrator. Backing up the
+  // organization is an owner/admin act, not something a recruiter does — and this
+  // is the check that makes the export safe under multi-workspace, because it is
+  // resolved org-wide from live memberships rather than from the session's team.
+  const underPrivileged = await requireOrgCapability("org:manage");
+  if (underPrivileged) return underPrivileged;
   try {
-    const payload = dumpWorkspace();
+    const orgId = (await currentUser()).orgId ?? DEFAULT_ORG_ID;
+    const payload = dumpOrg(orgId);
     const stamp = payload.createdAt.replace(/[:.]/g, "-");
+    // The org id reaches a Content-Disposition header, so keep it to a filename-safe
+    // subset rather than trusting it to be one.
+    const slug = orgId.replace(/[^A-Za-z0-9_-]/g, "") || "org";
     return new NextResponse(JSON.stringify(payload), {
       headers: {
         "Content-Type": "application/json",
-        "Content-Disposition": `attachment; filename="kp-dump-${stamp}.json"`,
+        "Content-Disposition": `attachment; filename="kp-org-${slug}-${stamp}.json"`,
       },
     });
   } catch (error) {
     console.error("[api/workspace/export] dump failed", error);
-    const message = error instanceof Error ? error.message : "Failed to export the workspace.";
+    const message = error instanceof Error ? error.message : "Failed to export the organization.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
