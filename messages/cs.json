@@ -55,7 +55,43 @@
     "loadFailed": "Náborový plán se nepodařilo načíst.",
     "unsaved": "Neuložené změny. Živá politika stále používá naposledy uložený plán.",
     "allSaved": "Vše uloženo.",
-    "discard": "Zahodit změny"
+    "discard": "Zahodit změny",
+    "blocked": "Před uložením opravte problémy výše.",
+    "steps": {
+      "title": "Kroky náboru",
+      "meta": "{count} z {max} kroků",
+      "intro": "Sloupce, které kreslí vaše nástěnka. Přejmenovávejte klidně: uložený klíč se nemění, takže historie a reporting zůstanou nedotčené.",
+      "addStep": "Přidat krok",
+      "newStepLabel": "Nový krok",
+      "new": "Nový",
+      "idTitle": "Uložený klíč. Při přejmenování kroku se nemění.",
+      "labelAria": "Název kroku {position}",
+      "roleAria": "Co {stage} znamená v procesu",
+      "moveUpAria": "Posunout {stage} dříve",
+      "moveDownAria": "Posunout {stage} později",
+      "removeAria": "Odebrat {stage}",
+      "problemTooFew": "Nábor potřebuje aspoň první a poslední krok.",
+      "problemTooMany": "Nejvýše {max} kroků.",
+      "problemEmptyLabel": "Každý krok potřebuje název.",
+      "problemDuplicateLabel": "Dva kroky se jmenují „{label}“. Pojmenujte je odlišně.",
+      "problemMissingRole": "Jeden krok musí být označen jako „{role}“.",
+      "problemDuplicateRole": "Jako „{role}“ může být označen jen jeden krok.",
+      "problemEntryNotFirst": "První krok musí být ten, kam kandidáti přicházejí.",
+      "problemTerminalNotLast": "Poslední krok musí být ten, který nábor uzavírá.",
+      "strandedTitle": "V těchto krocích stále jsou kandidáti",
+      "strandedRow": "{stage} · {count, plural, one {# kandidát} few {# kandidáti} other {# kandidátů}}",
+      "strandedHint": "Vyberte, kam jednotlivé skupiny přejdou. Přesun proběhne při uložení a každý kandidát dostane záznam v historii s vysvětlením.",
+      "mapAria": "Kam mají přejít kandidáti z fáze {stage}?",
+      "mapChoose": "Vyberte krok…"
+    },
+    "roles": {
+      "entry": "Sem přicházejí",
+      "screening": "Screening",
+      "interview": "Pohovor",
+      "offer": "Nabídka",
+      "terminal": "Přijat",
+      "custom": "Jiné"
+    }
   },
   "diagrams": {
     "eyebrow": "Architektura",
@@ -440,15 +476,6 @@
       "length": " Trvá přibližně {minutes, plural, one {# minutu} few {# minuty} other {# minut}}.",
       "body": "Dobrý den, {name},\n\nzveme vás na krátké první kolo s AI na pozici {role}.{length} Můžete jej absolvovat, kdykoli budete připraveni, přes svůj zabezpečený odkaz:\n{link}\n\nProbíhá přímo ve vašem prohlížeči. Po vyzvání jen povolte přístup k mikrofonu.\n\nTěšíme se,\n{team}"
     },
-    "onboarding": {
-      "subject": "Vítejte u nás: {role}",
-      "body": "Dobrý den, {name},\n\nmáme velkou radost, že se k nám připojujete jako {role}! Vítejte v týmu.\n\nVáš onboarding už běží. Náš personální tým se vám brzy ozve s datem nástupu, dokumenty, vybavením a plánem prvního týdne, abyste se mohli rychle zapojit.\n\nMoc se na spolupráci těšíme.\n\nSrdečně,\n{team}",
-      "linkFooter": "Věnujte prosím chvíli vyplnění několika údajů před nástupem, abychom pro vás mohli vše připravit:\n{link}"
-    },
-    "onboardingReminder": {
-      "subject": "Krátká připomínka: váš dotazník před nástupem na pozici {role}",
-      "body": "Dobrý den, {name},\n\nještě jednou vítejte a gratulujeme k pozici {role}! Všimli jsme si, že váš dotazník před nástupem je stále otevřený. Vyplnění zabere jen pár minut a umožní nám připravit vše na váš první den.\n\nMůžete jej vyplnit zde, kdykoli se vám to hodí:\n{link}\n\nPokud jste jej již vyplnili, této zprávy si prosím nevšímejte.\n\nSrdečně,\n{team}"
-    },
     "devcaseFeedback": {
       "subject": "Váš úkol domů: pár poznámek",
       "subjectRole": "Váš úkol na pozici {role}: pár poznámek",
@@ -809,9 +836,9 @@
           "usd": "bez karty, bez stopek",
           "cta": "Začít zdarma",
           "features": [
-            "1 aktivní pozice",
-            "5 AI kandidátů měsíčně",
-            "1 návrh dev casu",
+            "1 zveřejněná pozice",
+            "1 nábor",
+            "25 AI kandidátů měsíčně",
             "Neomezené párování, pipeline a plánování"
           ]
         },
@@ -823,10 +850,10 @@
           "usd": "≈ 10 $ měsíčně",
           "cta": "Vybrat Starter",
           "features": [
-            "100 AI kandidátů měsíčně",
-            "5 návrhů dev casů",
-            "30 minut AI pohovorů",
-            "Neomezené pozice a kampaňové balíčky"
+            "3 zveřejněné pozice měsíčně",
+            "2 nábory měsíčně",
+            "300 AI kandidátů měsíčně",
+            "30 minut AI pohovorů"
           ]
         },
         "growth": {
@@ -837,10 +864,10 @@
           "usd": "≈ 20 $ měsíčně",
           "cta": "Vybrat Growth",
           "features": [
-            "400 AI kandidátů měsíčně",
-            "20 návrhů dev casů",
-            "120 minut AI pohovorů",
-            "Vše ze Starteru, jen větší"
+            "10 zveřejněných pozic měsíčně",
+            "8 náborů měsíčně",
+            "1 200 AI kandidátů měsíčně",
+            "120 minut AI pohovorů"
           ]
         },
         "byom": {
@@ -853,13 +880,13 @@
           "badge": "přineste si klíče",
           "features": [
             "Zapojte klíče Gemini, OpenAI, Azure nebo Anthropic",
-            "Pohovory běží na vašem klíči ElevenLabs",
-            "Neomezená AI – fakturují vám vaši poskytovatelé",
-            "Účtujeme jen za mašinerii"
+            "Neomezený AI screening — účtují vám vaši poskytovatelé",
+            "3 zveřejněné pozice a 2 nábory měsíčně",
+            "Účtujeme si jen za mechaniku"
           ]
         }
       },
-      "footnote1": "„AI kandidát“ = jeden člověk plně zpracovaný: CV ohodnoceno, spárováno, zdůvodněno, oslovení připraveno",
+      "footnote1": "Platíte za výsledky: za pozici uvedenou na trh a za přijatého člověka. AI screening běží pod velkorysým limitem, na který běžně nenarazíte.",
       "footnote2": "došly minuty? Balíčky 100 minut pohovorů · 790 Kč (k jakémukoli tarifu, i BYOM)",
       "enterprise": {
         "eyebrow": "Pro celou firmu",
@@ -983,7 +1010,7 @@
       },
       "offer": {
         "note": "v čísle žádný model",
-        "title": "{name} · nabídka → první den",
+        "title": "{name} · nabídka → přijat/a",
         "steps": {
           "figure": {
             "label": "Částka nabídky",
@@ -997,9 +1024,9 @@
             "label": "Přijato",
             "detail": "kandidát se překlápí na Přijat/a"
           },
-          "onboarding": {
-            "label": "Spuštěn onboarding",
-            "detail": "checklist + přednástupní formulář"
+          "handoff": {
+            "label": "Předáno",
+            "detail": "přijetí zrcadleno do vašeho ATS"
           }
         }
       },
@@ -1131,12 +1158,12 @@
       },
       "hired": {
         "seal": "Přijat/a",
-        "onboarding": "onboarding · první den se rozjíždí",
         "tasks": {
-          "preboarding": "Odeslán přednástupní balíček",
-          "equipment": "Vyžádána technika",
-          "buddy": "Přidělen buddy"
-        }
+          "record": "Záznam o rozhodnutí uzavřen",
+          "ats": "ATS informován",
+          "role": "Role uzavřena"
+        },
+        "handoff": "předáno · role uzavřena"
       }
     },
     "meta": {
@@ -1207,7 +1234,6 @@
     "DATA_LOOKUP_FAILED": "Nepodařilo se teď načíst vaše údaje. Zkuste to prosím znovu.",
     "DATA_ERASE_FAILED": "Nepodařilo se teď dokončit výmaz. Zkuste to prosím znovu.",
     "CONSENT_LOOKUP_FAILED": "Nepodařilo se načíst podrobnosti souhlasu. Zkuste to prosím znovu.",
-    "ONBOARDING_FAILED": "Nepodařilo se dokončit krok onboardingu. Zkuste to prosím znovu.",
     "COMMAND_FAILED": "Nepodařilo se spustit tento příkaz. Zkuste to prosím znovu.",
     "BENCHMARK_FAILED": "Nepodařilo se načíst firemní srovnání. Zkuste to prosím znovu.",
     "AGENT_FIT_FAILED": "Nepodařilo se spustit analýzu vhodnosti agenta. Zkuste to prosím znovu.",
@@ -1235,7 +1261,9 @@
     "INTAKE_VOICE_COMPLETE_FAILED": "Přepis hovoru se nepodařilo zpracovat. Zkuste to prosím znovu.",
     "INTAKE_BRIEF_SAVE_FAILED": "Úpravu zadání se nepodařilo uložit. Zkuste to prosím znovu.",
     "INTAKE_REOPEN_FAILED": "Rozhovor se nepodařilo znovu otevřít. Zkuste to prosím znovu.",
-    "INTAKE_ATTACHMENT_FAILED": "Podklady se nepodařilo uložit. Zkuste to prosím znovu."
+    "INTAKE_ATTACHMENT_FAILED": "Podklady se nepodařilo uložit. Zkuste to prosím znovu.",
+    "STAGE_IMPACT_FAILED": "Nepodařilo se zjistit, kdo je v kterém kroku náboru. Zkuste to znovu.",
+    "STAGE_MIGRATION_FAILED": "Změnu náboru se nepodařilo použít. Zkuste to znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1267,7 +1295,6 @@
     "acceptedTitle": "🎉 Nabídka přijata",
     "acceptedBodyCompany": "Vítejte ve společnosti {company}! Náš personální tým se vám brzy ozve s podrobnostmi k nástupu.",
     "acceptedBodyGeneric": "Skvělé, vítejte v týmu! Náš personální tým se vám brzy ozve s podrobnostmi k nástupu.",
-    "onboardingCta": "Zahájit nástup",
     "declinedTitle": "Odpověď zaznamenána",
     "declinedBody": "Děkujeme, že jste nám dali vědět. Přejeme vám vše nejlepší.",
     "loadFailed": "Tuto nabídku se nepodařilo načíst.",
@@ -1679,7 +1706,6 @@
       "channels": "Kanály",
       "decisions": "Rozhodnutí",
       "schedule": "Plánování",
-      "onboarding": "Onboarding",
       "jobs": "Pozice",
       "library": "Popisy pozic",
       "archetypes": "Archetypy",
@@ -1784,8 +1810,6 @@
       "schedule_invite": "Pozvánka k výběru termínu",
       "interview_reminder": "Připomenutí pohovoru",
       "interview_invite": "Pozvánka na pohovor",
-      "onboarding": "Onboarding",
-      "onboarding_reminder": "Připomenutí onboardingu",
       "offer_reminder": "Připomenutí nabídky"
     },
     "provenance": {
@@ -1888,15 +1912,12 @@
       "interview_reminder_sent": "dostal/a připomenutí pohovoru",
       "interviewer_brief_sent": "byl/a shrnut/a v podkladech pro tazatele",
       "interviewer_brief_skipped": "nemá odeslané podklady pro tazatele (chybí adresa)",
-      "onboarding_reminder_sent": "dostal/a připomenutí před nástupem",
       "offer_sent": "dostal/a nabídku",
       "comm_resent": "dostal/a zprávu znovu",
       "interview_scheduled": "potvrdil/a termín pohovoru",
       "offer_accepted": "přijal/a nabídku",
       "offer_declined": "odmítl/a nabídku",
       "offer_expired": "nechal/a nabídku vypršet bez odpovědi",
-      "onboarding_started": "zahájil/a nástupní proces",
-      "onboarding_failed": "nebyl/a předán/a do nástupního procesu",
       "rejection_comms_failed": "nedostal/a zamítací e-mail, zařazení do fronty selhalo",
       "fairness_gate_unknown_archetype": "narazil/a na kontrolu férovosti (neznámý archetyp)",
       "fairness_gate_blocked_reject": "nebyl/a automaticky zamítnut/a, zabránila tomu kontrola férovosti",
@@ -1910,7 +1931,8 @@
       "github_evidence_attached": "má připojené důkazy z GitHubu",
       "ats_export": "byl/a vyexportován/a do ATS",
       "profile_enriched": "sám/sama doplnil/a chybějící údaje profilu",
-      "unknownKind": "zaznamenal/a nerozpoznanou událost ({kind})"
+      "unknownKind": "zaznamenal/a nerozpoznanou událost ({kind})",
+      "stage_migrated": "byl přesunut do fáze {stage} při odebrání kroku náboru"
     },
     "relTime": {
       "today": "dnes",
@@ -5576,7 +5598,6 @@
         "offer_accepted": "Nabídka přijata",
         "offer_declined": "Nabídka odmítnuta",
         "offer_expired": "Platnost nabídky vypršela",
-        "onboarding_started": "Onboarding zahájen",
         "auto_rejected": "Automaticky zamítnuto (pravidla)",
         "auto_advanced": "Automaticky postoupeno (pravidla)",
         "ko_declined": "Vyřazeno na vstupních podmínkách (KO)",
@@ -5587,9 +5608,7 @@
         "interview_reminder_sent": "Připomínka pohovoru odeslána",
         "interviewer_brief_sent": "Tazatel informován",
         "interviewer_brief_skipped": "Podklad pro tazatele přeskočen (chybí e-mail)",
-        "onboarding_reminder_sent": "Připomínka před nástupem odeslána",
         "comm_resent": "Zpráva odeslána znovu",
-        "onboarding_failed": "Odeslání onboardingu selhalo",
         "rejection_comms_failed": "E-mail o zamítnutí selhal",
         "moved": "Fáze nastavena ručně",
         "matched": "Spárováno s pozicí",
@@ -5614,7 +5633,6 @@
         "schedule_invite_sent": "Odkaz na výběr termínu ve frontě v Outboxu (nedoručeno)",
         "interview_reminder_sent": "Připomínka pohovoru ve frontě v Outboxu (nedoručeno)",
         "interviewer_brief_sent": "Podklad pro tazatele ve frontě v Outboxu (nedoručeno)",
-        "onboarding_reminder_sent": "Připomínka před nástupem ve frontě v Outboxu (nedoručeno)",
         "comm_resent": "Zpráva znovu zařazena do Outboxu (nedoručeno)"
       },
       "colWhen": "Kdy",
@@ -5708,181 +5726,6 @@
       "notPublishable": "**Není připraveno k publikování.** Následující metriky zatím nejde obhájit:",
       "disclaimer": "_Údaje popisují vlastní zaznamenanou činnost tohoto pracovního prostoru. kp nepočítá procentní zlepšení oproti stavu před nasazením kp. Takové srovnání patří tomu, kdo má k dispozici předchozí čísla._"
     }
-  },
-  "candidateOnboarding": {
-    "eyebrow": "Nástup",
-    "welcome": "Vítejte v týmu!",
-    "welcomeName": "Vítejte v týmu, {name}!",
-    "roleAt": "{role} ve společnosti {company}",
-    "roleGeneric": "Vaše nová pozice",
-    "intro": "Vaše nabídka je přijata. Gratulujeme! Než nastoupíte, jeden rychlý krok: vyplňte pár údajů, ať pro vás můžeme vše připravit.",
-    "fieldPreferredName": "Preferované jméno",
-    "fieldTshirtSize": "Velikost trička",
-    "fieldDietaryNeeds": "Stravovací požadavky",
-    "fieldEquipmentPrefs": "Preference vybavení",
-    "fieldEmergencyContact": "Nouzový kontakt",
-    "fieldStartDateConfirm": "Potvrďte datum nástupu",
-    "submit": "Odeslat údaje",
-    "submitting": "Odesílání…",
-    "submitFailed": "Údaje se nepodařilo uložit. Zkuste to prosím znovu.",
-    "savedTitle": "Děkujeme, vše je hotovo",
-    "savedBody": "Vaše údaje jsme uložili a předali týmu. Brzy se vám ozve s datem nástupu a plánem prvního dne.",
-    "editAgain": "Upravit údaje",
-    "loadFailed": "Vaše přednástupní údaje se nepodařilo načíst.",
-    "invalidLink": "Tento odkaz na nástup není platný",
-    "invalidLinkBody": "Odkaz může být chybně zadaný nebo už není aktivní. Pokud jste přijali nabídku, kontaktujte náborový tým.",
-    "fieldLicenseNumber": "Číslo licence nebo registrace",
-    "fieldLicenseExpiry": "Platnost licence do",
-    "fieldImmunizationStatus": "Stav očkování",
-    "fieldCertifications": "Certifikace a oprávnění, která máte",
-    "fieldPpeSize": "Velikost OOPP a obuvi",
-    "fieldGithubHandle": "GitHub nebo portfolio",
-    "fieldWorkAuthorization": "Stav oprávnění k práci",
-    "fieldAvailability": "Vaše týdenní dostupnost"
-  },
-  "onboarding": {
-    "eyebrow": "Předání",
-    "title": "Onboarding",
-    "intro": "Spusťte pro každého nového kolegu opakovatelný checklist, shromážděte jeho údaje před nástupem a sledujte podpisy dokumentů. Onboarding navazuje tam, kde končí nabídka.",
-    "loading": "Načítání…",
-    "readyTitle": "Připraveni k onboardingu",
-    "readyEmpty": "Žádní přijatí kandidáti nečekají. Označte kandidáta v pipeline jako „Přijat/a“ a spusťte jeho onboarding.",
-    "aCandidate": "Kandidát",
-    "startCta": "Spustit onboarding",
-    "runsTitle": "Probíhá",
-    "runsEmpty": "Zatím žádné onboardingy.",
-    "complete": "Hotovo",
-    "progress": "{done}/{total} hotovo",
-    "back": "Zpět na onboarding",
-    "checklist": "Checklist",
-    "questionnaire": "Dotazník před nástupem",
-    "questionnaireNote": "Údaje, které nový kolega sdílí před prvním dnem. Uloží se do jeho záznamu.",
-    "questionnairePending": "Dotazník nevyplněn",
-    "questionnaireDone": "Dotazník vyplněn",
-    "signatures": "Dokumenty k podpisu",
-    "signSeamNote": "Ukázkové podepisování. Připojte poskytovatele eIDAS (např. Signicat, DocuSign), aby byly podpisy právně závazné.",
-    "recordEyebrow": "Záznam",
-    "recordEmptyTitle": "Žádné předání v evidenci",
-    "recordBodyStarved": "Onboarding je záznam jednoho předání. Otevře se, jakmile kandidát dosáhne stavu „Přijat/a“, a uzavře se, jakmile se splní poslední úkol. Zatím žádný kandidát stavu „Přijat/a“ nedosáhl, takže tady není co otevřít.",
-    "recordBodyReady": "Onboarding je záznam jednoho předání. Otevře se, jakmile kandidát dosáhne stavu „Přijat/a“, a uzavře se, jakmile se splní poslední úkol. Tady je záznam, který se chystáte otevřít.",
-    "recordOpensWhen": "Záznam se otevře, když",
-    "recordAlsoWaiting": "Další čekající",
-    "upstreamToHired": "Přesunout kandidáta do stavu „Přijat/a“",
-    "upstreamCloseDecision": "Uzavřít otevřené rozhodnutí",
-    "upstreamOpenPipeline": "Otevřít nábor",
-    "upstreamReviewDecisions": "Zkontrolovat rozhodnutí",
-    "nobodyHiredTitle": "Zatím nikdo nebyl přijat",
-    "nobodyHiredBody": "Onboarding je posledním článkem řetězce: začíná ve chvíli, kdy kandidát dosáhne stavu „Přijat/a“. Přesuňte někoho v pipeline do stavu „Přijat/a“ (obvykle hned po přijaté nabídce) a jeho první den se zobrazí tady.",
-    "firstDayEyebrow": "První den",
-    "firstDayTitle": "{count, plural, one {Jeden přijatý kandidát čeká na první den} few {# přijatí kandidáti čekají na první den} other {# přijatých kandidátů čeká na první den}}",
-    "firstDayIntro": "Plán níže už existuje. Spuštěním onboardingu ho předáte konkrétní osobě, otevřete jí dotazník před nástupem a začnete sledovat, co už je skutečně hotové.",
-    "dayPlanLabel": "Den, který tento plán popisuje",
-    "onlyStandardPlan": "Zatím existuje jen standardní plán. Upravte ho nebo přidejte další níže.",
-    "preboardQuestions": "{count, plural, one {Novému kolegovi půjde # otázka před nástupem: {list}} few {Novému kolegovi půjdou # otázky před nástupem: {list}} other {Novému kolegovi půjde # otázek před nástupem: {list}}}",
-    "noPreboardQuestions": "Tento plán se nového kolegy před nástupem na nic neptá.",
-    "thenInOrder": "Dále v pořadí",
-    "beforeDayOne": "Před nástupem",
-    "hireLabel": "Nový kolega",
-    "recordFilledFromPipeline": "Doplní se ze záznamu v pipeline, jakmile se onboarding otevře.",
-    "doneLabel": "Hotovo",
-    "standardTemplateFallback": "standardní šablona",
-    "recordStampedFrom": "Vychází ze šablony <b>{template}</b>, zatím jediné, která existuje.",
-    "ledgerChecklistHolds": "Všechny úkoly ze šablony, u každého je zaznamenáno, kdo a kdy ho splnil.",
-    "ledgerSignaturesCount": "{count} vyžádáno",
-    "signed": "Podepsáno",
-    "markSigned": "Označit jako podepsané",
-    "docPlaceholder": "Název dokumentu (např. Pracovní smlouva)",
-    "requestSign": "Vyžádat podpis",
-    "withTemplate": "Šablona",
-    "templatesTitle": "Šablony onboardingu",
-    "templatesNote": "Vytvořte oborovou šablonu (checklist a přednástupní dotazník) a podle ní onboardujte nové kolegy.",
-    "newTemplate": "Nová šablona",
-    "templateMeta": "{tasks, plural, one {# úkol} few {# úkoly} other {# úkolů}} · {questions, plural, one {# otázka} few {# otázky} other {# otázek}}",
-    "fromPreset": "Začít z předlohy",
-    "choosePreset": "Vyberte obor…",
-    "templateNamePlaceholder": "Název šablony",
-    "tasksLabel": "Úkoly checklistu",
-    "taskPlaceholder": "např. Ověřit odbornou licenci",
-    "addTask": "Přidat úkol",
-    "questionsLabel": "Přednástupní otázky",
-    "questionPlaceholder": "např. Číslo licence / registrace",
-    "addQuestion": "Přidat otázku",
-    "saveTemplate": "Uložit šablonu",
-    "saving": "Ukládání…",
-    "cancel": "Zrušit",
-    "nameRequired": "Zadejte název šablony.",
-    "needTask": "Přidejte alespoň jeden úkol.",
-    "saveFailed": "Šablonu se nepodařilo uložit.",
-    "field": {
-      "preferredName": "Preferované jméno",
-      "tshirtSize": "Velikost trička",
-      "dietaryNeeds": "Stravovací požadavky",
-      "equipmentPrefs": "Preference vybavení",
-      "emergencyContact": "Nouzový kontakt",
-      "startDateConfirm": "Potvrzené datum nástupu",
-      "licenseNumber": "Číslo licence nebo registrace",
-      "licenseExpiry": "Platnost licence do",
-      "immunizationStatus": "Stav očkování",
-      "certifications": "Držené certifikace a oprávnění",
-      "ppeSize": "Velikost OOPP a obuvi",
-      "githubHandle": "GitHub nebo portfolio",
-      "workAuthorization": "Stav oprávnění k práci",
-      "availability": "Týdenní dostupnost"
-    },
-    "task": {
-      "contract": "Poslat a podepsat pracovní smlouvu",
-      "documents": "Shromáždit doklad totožnosti, daňové a bankovní údaje",
-      "equipment": "Objednat notebook a vybavení",
-      "accounts": "Založit e-mail a systémové účty",
-      "buddy": "Přidělit onboarding buddyho",
-      "firstday": "Sdílet plán a program prvního dne",
-      "intro": "Naplánovat seznamovací schůzku s týmem",
-      "license-verify": "Ověřit odbornou licenci u vydávající instituce",
-      "credential-check": "Kontrola kvalifikace a atestací",
-      "background": "Prověrka minulosti a reference",
-      "immunization": "Shromáždit očkovací průkaz a zdravotní dokumentaci",
-      "compliance-training": "Školení o ochraně dat a bezpečnosti pacientů",
-      "equipment-badge": "Vydat kartu, vybavení a přístupy do systémů",
-      "firstday-unit": "Sdílet plán prvního dne a seznámení s oddělením",
-      "safety-orientation": "Vstupní školení BOZP",
-      "ppe": "Vydat OOPP a bezpečnostní vybavení",
-      "drug-screen": "Vstupní test na návykové látky",
-      "cert-verify": "Ověřit řemeslné certifikace a oprávnění",
-      "equipment-tools": "Vydat nářadí a vybavení",
-      "site-assignment": "Přiřadit pracoviště a směnu",
-      "contract-offer": "Poslat a podepsat nabídku a pracovní smlouvu",
-      "ip-nda": "Podepsat převod práv k IP, NDA a dokumenty k podílům",
-      "accounts-repo": "Založit účty a přístup k repozitářům a nástrojům",
-      "firstweek": "Sdílet plán a cíle prvního týdne",
-      "work-auth": "Ověřit oprávnění k práci (povolení k zaměstnání)",
-      "uniform": "Vydat pracovní oděv a skříňku",
-      "pos-training": "Zaškolení na pokladnu, provoz a stanoviště",
-      "cert": "Potravinářský průkaz nebo certifikace pro pozici (pokud je potřeba)",
-      "schedule": "Nastavit rozvrh směn a dostupnost"
-    },
-    "preset": {
-      "general": {
-        "name": "Standardní onboarding",
-        "industry": "Obecné / kancelář"
-      },
-      "healthcare_clinical": {
-        "name": "Onboarding ve zdravotnictví",
-        "industry": "Zdravotnictví a klinický provoz"
-      },
-      "skilled_trades": {
-        "name": "Onboarding v řemeslech a výrobě",
-        "industry": "Řemesla, výroba a stavebnictví"
-      },
-      "tech_startup": {
-        "name": "Onboarding ve startupu a IT",
-        "industry": "Technologie a startupy"
-      },
-      "frontline_service": {
-        "name": "Onboarding pro provozní pozice",
-        "industry": "Maloobchod, pohostinství a gastronomie"
-      }
-    },
-    "removeRow": "Odebrat řádek"
   },
   "matrix": {
     "loadFailed": "Načtení selhalo.",
@@ -6296,6 +6139,8 @@
       "canceled": "Zrušeno"
     },
     "meters": {
+      "job_posts": "Zveřejněné pozice",
+      "hires": "Nábory",
       "ai_candidates": "AI kandidáti",
       "case_designs": "Návrhy úloh",
       "interview_minutes": "Minuty pohovorů"
@@ -6329,7 +6174,6 @@
       "approxUsd": "≈ {price}",
       "perMonth": "měsíčně",
       "unlimited": "Bez limitu",
-      "activeJobs": "Aktivní pozice",
       "cta": "Přejít na tento tarif",
       "manageCta": "Změnit v portálu",
       "redirecting": "Přesměrování…",
@@ -6953,9 +6797,7 @@
       "interview_reminder": "Připomenutí pohovoru",
       "interview_invite": "Pozvánka na pohovor",
       "interviewer_brief": "Podklady pro tazatele",
-      "schedule_invite": "Pozvánka k naplánování",
-      "onboarding": "Onboarding",
-      "onboarding_reminder": "Připomenutí onboardingu"
+      "schedule_invite": "Pozvánka k naplánování"
     },
     "cohort": {
       "title": "Přehled sond napříč kohortou",
@@ -7646,10 +7488,10 @@
         "edgeLink": "zabezpečený odkaz"
       },
       "hired": {
-        "title": "Přijetí: startuje onboarding",
+        "title": "Přijetí: role se uzavírá",
         "accepted": "Nabídka přijata",
         "move": "Přesun do stavu Přijat/a",
-        "onboarding": "Onboarding\\nuvítání · první týden"
+        "handoff": "Předání\\nATS · HRIS"
       }
     }
   },
@@ -8038,5 +7880,186 @@
   "readout": {
     "empty": "Nic zaznamenáno",
     "more": "{count, plural, one {+# další} few {+# další} many {+# dalších} other {+# dalších}}"
+  },
+  "about": {
+    "eyebrow": "Jak to funguje",
+    "title": "Šest mechanismů za chodu",
+    "intro": "Náborový software po vás chce, abyste věřili nějakému číslu. Tohle je šest míst, kde ho tento produkt vytváří: jak vznikne popis pozice, jak se ohodnotí člověk, koho a podle čeho odfiltrujeme, jak zabráníme tomu, aby různé typy kandidátů spadly pod jedno pravidlo, co ještě dokáže prokázat pracovní ukázka a kde musí rozhodnout člověk. Každý práh uvedený níže je konstanta v běžícím kódu.",
+    "archLink": "Architektonické diagramy",
+    "tourLink": "Spustit řízenou prohlídku",
+    "tourTitle": "Projděte si pipeline naživo napříč skutečnými záložkami",
+    "chaptersNav": "Kapitoly",
+    "chapters": {
+      "jd": {
+        "eyebrow": "Popisy pozic",
+        "title": "Tři průchody a nic vymyšleného",
+        "lede": "Zaškrtnete, co se má vytvořit, a nezaškrtnutý krok nikdy nespustí žádný proces. První průchod porovná vaše zadání se skutečnou codebase a nahlásí, kde se rozcházejí; druhý z něj udělá požadavky, které musí být dohledatelné k něčemu skutečně vyřčenému; třetí odvodí mzdové rozpětí z otevřeného webu. Poslední dva běží vedle sebe. Samotný dokument pak sestaví kód, nepíše ho model.",
+        "tab": "Otevřít Popisy pozic"
+      },
+      "scoring": {
+        "eyebrow": "Hodnocení kandidátů",
+        "title": "Tři odpovědi, ne dvě",
+        "lede": "Požadovaná dovednost dostane oproti profilu skóre mezi nulou a jedničkou a podle toho, kam spadne, se také vykáže. Nad 0,5 platí za doloženou a nese si svou sílu, takže z 0,55 se nikdy nestane 1,0. Pod 0,5 a nad nulou je neprokázaná a rovnou říká proč: důkaz byl jen příbuzný, nebo slabě podložený, nebo obojí. Za chybějící se označí jen přesná nula. Produkt se dvěma přihrádkami musí slabý signál prohlásit buď za shodu, nebo za mezeru, a obojí je špatně.",
+        "tab": "Otevřít Analýzu"
+      },
+      "screening": {
+        "eyebrow": "Screening",
+        "title": "Nejdřív levné filtry, drahý úsudek až nakonec",
+        "lede": "Screening je seřazený podle ceny. Tvrdé podmínky projdou všechny, deterministické skóre se spočítá tomu, kdo je přežije, a model má uvažovat jen o užším výběru, který se dostane nahoru. Nic, co stojí peníze, neběží nad kandidátem, který už byl vyřazen.",
+        "tab": "Otevřít Přehled"
+      },
+      "archetypes": {
+        "eyebrow": "Archetypy",
+        "title": "Stejné tři sloty, jiné váhy",
+        "lede": "Studenta a patnáct let zkušeného člověka nelze seřadit jedním pravidlem, aniž by jeden z nich nespravedlivě prohrál. Kandidát se proto zařadí k archetypu a ten mění význam tří hodnoticích dimenzí: u profilů na začátku kariéry se z kariéry stává potenciál a z osobní roviny vhodnost. Dva ze tří archetypů jsou chráněné a nikdy je nelze zamítnout automaticky.",
+        "tab": "Otevřít Archetypy"
+      },
+      "assignments": {
+        "eyebrow": "Zadání",
+        "title": "Pracovní ukázka, která přežije delegování",
+        "lede": "Domácí úkol může modelu předat kdokoli. Případ je proto postavený tak, aby měl vypovídací hodnotu i pak: obsahuje záměrnou nedourčenost, pasti, které trestají sebejisté hádání, a změnu zadání, která dorazí až po zahájení práce. Hodnotí se úvaha, kterou kandidát předvede, ne to, jestli výsledek zkompiluje.",
+        "tab": "Otevřít Zadání"
+      },
+      "gates": {
+        "eyebrow": "Lidské kontrolní body",
+        "title": "Stroj řadí, rozhoduje člověk",
+        "lede": "Každá akce, která dojde ke kandidátovi, projde nejdřív člověkem. Úkolem systému je dorazit k tomu okamžiku s poskládanými důkazy a sepsanou úvahou: co se hodnotilo, na jakém základě a v čem si systém nebyl jistý. Rozhodnutí, které pak člověk udělá, se zaznamená jako jeho.",
+        "tab": "Otevřít Rozhodnutí"
+      }
+    },
+    "jd": {
+      "input": "Vstup",
+      "sources": {
+        "needLabel": "Vaše zadání",
+        "needDetail": "Co jste napsali nebo nadiktovali",
+        "jdLabel": "Text popisu pozice",
+        "jdDetail": "Prvních 4 000 znaků",
+        "codeLabel": "Codebase",
+        "codeDetail": "31k řádků · jazyky · závislosti"
+      },
+      "must": "nutné",
+      "nice": "výhodou",
+      "noSource": "bez zdroje",
+      "gap": "Uvedená technologie není v codebase doložena: <k>Kafka</k>",
+      "gapNote": "Ukážeme vám ji jako mezeru k vyjasnění, nezapíšeme ji potichu do pozice.",
+      "status": {
+        "s0": "role-design-v4 · pravidla dohledatelnosti aktivní",
+        "s2": "kandidátské požadavky: 7",
+        "s3": "každý musí být dohledatelný k něčemu, co vstupy skutečně uvádějí",
+        "s9": "Kafka nemá oporu v žádném ze vstupů",
+        "s10": "vyřazeno dřív, než se dostalo do dokumentu",
+        "s11": "statedVsRealGaps: místo toho jsme to nahlásili vám",
+        "s12": "ponecháno 6 nutných · tvrdý strop 8"
+      }
+    },
+    "scoring": {
+      "matched": "doloženo",
+      "unproven": "neprokázáno",
+      "missing": "chybí",
+      "adjacency": "příbuznost",
+      "provenance": "původ",
+      "both": "obojí",
+      "note": "Příbuzná dovednost je záměrně pod čarou, aby ji nikdy nešlo počítat jako tu skutečnou. Bez prostřední přihrádky by se slabý signál musel prohlásit buď za shodu, nebo za mezeru. Jedno kandidátovi lichotí, druhé je vůči němu nespravedlivé. Takhle je vidět, co se skutečně našlo.",
+      "status": {
+        "s0": "požadavky pozice: sedm nutných",
+        "s2": "_MATCH_THRESHOLD = 0.5",
+        "s3": "každý požadavek dostane oproti profilu skóre 0..1",
+        "s9": "neprokázáno s sebou nese důvod: příbuznost · původ · obojí",
+        "s10": "_SIBLING_MATCH = 0.4, záměrně pod čarou"
+      }
+    },
+    "screening": {
+      "layerA": "Tvrdé podmínky na všechny: jazyk, seniorita, vzdělání, režim práce",
+      "layerB": "Vážené skóre pro ty, kdo prošli, seřazené a stále deterministické",
+      "layerC": "Model, jen na užší výběr, s cache na dvojici kandidát × pozice",
+      "free": "zdarma",
+      "paid": "placené",
+      "ko": {
+        "language": "vyžadovala jazyk, který v profilu není",
+        "seniority": "byla mimo senioritní rozsah kandidáta",
+        "education": "vyžadovala vyšší vzdělání",
+        "workMode": "neodpovídala preferovanému režimu práce"
+      },
+      "cost": "Vrstvy A a B žádný API klíč nepotřebují. Bez klíče screening pořád řadí. Jen se zastaví před uvažováním.",
+      "status": {
+        "s0": "{n} kandidátů na jednu pozici",
+        "s2": "ko_filter: tvrdé podmínky, deterministické, bez API klíče",
+        "s3": "vyřazeno {n}, každý s pojmenovaným důvodem",
+        "s4": "score_job: vážené skóre, stále deterministické, stále zdarma",
+        "s7": "match_reasoning: model, jen na prvních {n}",
+        "s9": "jediný placený krok nikdy neuvidí kandidáta, který už byl vyřazen"
+      },
+      "costLabel": "cena"
+    },
+    "archetypes": {
+      "signals": {
+        "enrolled": "aktuálně studuje",
+        "yreLow": "méně než 1 rok relevantní praxe",
+        "educationDominant": "vzdělání je hlavní blok CV",
+        "substantial": "má podstatnou praxi"
+      },
+      "targets": {
+        "student": "Student",
+        "bau": "Zkušený",
+        "switcher": "Měnící obor"
+      },
+      "confidence": "jistota {value}",
+      "declaration": "Pokud si archetyp určil sám kandidát, jeho volba vítězí a má jistotu 0,9. Protichůdný signál ji nikdy nepřebije. Sníží jistotu na 0,65 a připojí důvod, který pak panel měkkých signálů znovu vystaví člověku k posouzení.",
+      "fallback": "Když se neozve vůbec nic, výsledkem je <k>bau</k> s jistotou 0,4. To číslo je záměrně pod prahem 0,55 pro revizi, takže zařazení provedené bez důkazů se vždy ukáže jako něco ke kontrole, místo aby tiše prošlo jako výsledek.",
+      "status": {
+        "s0": "registry.detect(): pravidlový engine, bez modelu",
+        "s1": "signály vytažené z profilu",
+        "s3": "každý signál hlasuje s danou vahou",
+        "s7": "argmax, shody rozhoduje pořadí deklarace v JSON",
+        "s8": "jistota = 4.5 / {total} = {value}",
+        "s9": "vlastní deklarace má jistotu 0,9 a nikdy se nepřebíjí",
+        "s10": "nenavedený fallback je 0,4, pod prahem 0,55 pro revizi"
+      }
+    },
+    "assignments": {
+      "seed": "výchozí podklady",
+      "seedBody": "Výchozí materiály, pro oba stejné",
+      "baselineBody": "Holý model s pokynem na nic se neptat a nic nezpochybňovat",
+      "frozen": "zmrazeno při schválení",
+      "submission": "odevzdání",
+      "submissionBody": "Co s týmiž soubory skutečně udělal kandidát",
+      "deltaBaseline": "řádky přidané holým modelem",
+      "deltaSubmission": "řádky přidané kandidátem",
+      "note": "Nad {aim} produkt vypíše otázku, ne srážku: proberte naživo, co tento člověk přidal nad rámec holého modelu. Některé části skutečného úkolu mají jedno zjevné řešení a hodnotit překryv jako vinu by kandidáty trestalo za to, že je udělali správně.",
+      "status": {
+        "s0": "případ je schválen a výchozí podklady vytvořeny",
+        "s2": "baseline-solve-v1: holý model s pokynem vše delegovat",
+        "s3": "zmrazeno pro každý případ, nikdy se negeneruje znovu",
+        "s4": "kandidát odevzdává",
+        "s5": "obě strany se zredukují na to, co k podkladům PŘIDALY",
+        "s7": "Jaccard nad přidanými řádky, po cestách, vážený velikostí sjednocení",
+        "s8": "překryv {value}",
+        "s9": "cílem je {aim} a jde o podnět k pohovoru, ne o postih"
+      }
+    },
+    "gates": {
+      "actions": {
+        "advance": "Postoupit na pohovor",
+        "hold": "Pozdržet k posouzení",
+        "reject": "Zamítnout",
+        "offer": "Poslat nabídku"
+      },
+      "gate": "člověk",
+      "stops": "zastaví se",
+      "applied": "provedeno automaticky",
+      "noteRejection": "Podstatný je řádek se zamítnutím. Průchod ho spočítá, protáhne ho kontrolou spravedlnosti a pak ho odmítne provést a zařadí ho člověku. Zamítnutí je jediná nevratná akce v produktu, kterou kandidát uvidí, takže ji nic neprovádí samo od sebe.",
+      "noteAutonomous": "Postupy, pozdržení, upozornění, hodnocení a příprava návrhů zůstávají automatické, a právě to, že to říkáme na rovinu, dává zbytku tvrzení váhu.",
+      "noteHired": "Přijat na téhle cestě vůbec není. Ruční přesun na Přijat vrátí 422, protože tuhle fázi nastavuje přijetí nabídky kandidátem a nic jiného.",
+      "status": {
+        "s0": "bezobslužný průchod navrhuje čtyři akce",
+        "s2": "approvalKind: jedno pole rozhoduje, co se zastaví",
+        "s3": "postup: provedeno a zapsáno do časové osy",
+        "s4": "pozdržení: provedeno",
+        "s5": "zamítnutí: spočítáno, pak zařazeno místo provedení",
+        "s6": "nabídka: připravena, pak zařazena",
+        "s7": "AUTO1 RETIRED: průchod už zamítnutí vůbec neprovádí",
+        "s9": "na Přijat se odsud nedostane nikdo"
+      }
+    }
   }
 }

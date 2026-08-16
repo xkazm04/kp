@@ -58,10 +58,6 @@ function PlanCard({
             <span className="font-medium text-ink nums">{limit === null ? t("unlimited") : limit}</span>
           </li>
         ))}
-        <li className="flex items-baseline justify-between gap-2">
-          <span className="text-steel">{t("activeJobs")}</span>
-          <span className="font-medium text-ink nums">{plan.activeJobs === null ? t("unlimited") : plan.activeJobs}</span>
-        </li>
       </ul>
       {plan.contactSales ? (
         // Enterprise is never bought here — route to a real sales contact instead of

@@ -25,11 +25,13 @@ export const QUOTA_CODE = "quota_exceeded" as const;
 export type QuotaVerdict = {
   error: string;
   code: typeof QUOTA_CODE;
-  meter: Meter | "active_jobs";
+  meter: Meter;
   plan: string;
 };
 
 const METER_LABELS: Record<Meter, string> = {
+  job_posts: "published role allowance",
+  hires: "hire allowance",
   ai_candidates: "AI candidate allowance",
   case_designs: "case design allowance",
   interview_minutes: "interview minutes",
@@ -104,17 +106,18 @@ export function meterAllows(meter: Meter, opts: { now?: Date; workspace?: string
   return meterAllowance(meter, opts.now ?? new Date(), opts.workspace).allowed;
 }
 
-/** Active-job cap (free plan: 1). `publishedCount` = authored jobs currently
- *  'published'; seeded corpus jobs (NULL status) don't count. `workspace` scopes
- *  the plan read to the caller's org like meterGate (the count itself is the
- *  caller's job — pass a workspace-filtered count alongside). */
-export function activeJobsGate(publishedCount: number, now: Date = new Date(), workspace?: string): QuotaVerdict | null {
-  const plan = entitledPlan(getBillingState(billingOrgForWorkspace(workspace)), now);
-  if (plan.activeJobs === null || publishedCount < plan.activeJobs) return null;
-  return {
-    error: `The ${plan.name} plan allows ${plan.activeJobs} active job${plan.activeJobs === 1 ? "" : "s"} — close one or upgrade in Billing.`,
-    code: QUOTA_CODE,
-    meter: "active_jobs",
-    plan: plan.id,
-  };
+/** The publish gate, replacing the old active-job CAP.
+ *
+ *  Two things changed, both deliberate. It is now a METER (publishes this month)
+ *  rather than a concurrency limit (roles open right now): an outcome-priced product
+ *  charges for taking a role to market, and then has no business telling you how many
+ *  may be open at once. And it is ORG-scoped like every other meter — the cap it
+ *  replaces counted `published` jobs per WORKSPACE while reading an ORG plan, so a
+ *  five-team org silently got five times the free allowance.
+ *
+ *  The debit is once per job EVER, not per publish: `setJobStatus` stamps
+ *  `published_at = COALESCE(published_at, now)`, so closing and reopening a role does
+ *  not charge again. Gate and debit both live inside the publish transaction. */
+export function jobPostGate(now: Date = new Date(), workspace?: string): QuotaVerdict | null {
+  return meterGate("job_posts", { now, workspace });
 }

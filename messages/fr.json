@@ -55,7 +55,43 @@
     "loadFailed": "Impossible de charger le plan de recrutement.",
     "unsaved": "Modifications non enregistrées. La politique active utilise toujours le dernier plan enregistré.",
     "allSaved": "Tout est enregistré.",
-    "discard": "Abandonner les modifications"
+    "discard": "Abandonner les modifications",
+    "blocked": "Corrigez les problèmes ci-dessus avant d’enregistrer.",
+    "steps": {
+      "title": "Étapes du pipeline",
+      "meta": "{count} étapes sur {max}",
+      "intro": "Les colonnes que dessine votre tableau. Renommez librement : la clé enregistrée ne bouge pas, l’historique et les rapports restent intacts.",
+      "addStep": "Ajouter une étape",
+      "newStepLabel": "Nouvelle étape",
+      "new": "Nouveau",
+      "idTitle": "La clé enregistrée. Elle ne change pas lors d’un renommage.",
+      "labelAria": "Nom de l’étape {position}",
+      "roleAria": "Ce que {stage} signifie dans le processus",
+      "moveUpAria": "Déplacer {stage} plus tôt",
+      "moveDownAria": "Déplacer {stage} plus tard",
+      "removeAria": "Supprimer {stage}",
+      "problemTooFew": "Un pipeline a besoin au moins d’une première et d’une dernière étape.",
+      "problemTooMany": "{max} étapes au maximum.",
+      "problemEmptyLabel": "Chaque étape a besoin d’un nom.",
+      "problemDuplicateLabel": "Deux étapes s’appellent « {label} ». Donnez-leur des noms différents.",
+      "problemMissingRole": "Une étape doit être marquée « {role} ».",
+      "problemDuplicateRole": "Une seule étape peut être marquée « {role} ».",
+      "problemEntryNotFirst": "La première étape doit être celle où arrivent les candidats.",
+      "problemTerminalNotLast": "La dernière étape doit être celle qui conclut un recrutement.",
+      "strandedTitle": "Ces étapes contiennent encore des candidats",
+      "strandedRow": "{stage} · {count, plural, one {# candidat} other {# candidats}}",
+      "strandedHint": "Choisissez où va chaque groupe. Le déplacement a lieu à l’enregistrement, et chaque candidat reçoit une entrée d’historique expliquant pourquoi.",
+      "mapAria": "Où doivent aller les candidats de l’étape {stage} ?",
+      "mapChoose": "Choisir une étape…"
+    },
+    "roles": {
+      "entry": "Point d’entrée",
+      "screening": "Présélection",
+      "interview": "Entretien",
+      "offer": "Offre",
+      "terminal": "Recruté",
+      "custom": "Autre"
+    }
   },
   "diagrams": {
     "eyebrow": "Architecture",
@@ -440,15 +476,6 @@
       "length": " Cela prend environ {minutes} minutes.",
       "body": "Bonjour {name},\n\nNous vous invitons à une courte présélection de premier tour guidée par AI pour {role}.{length} Vous pouvez la passer quand vous le souhaitez, avec votre lien sécurisé :\n{link}\n\nElle se déroule directement dans votre navigateur. Autorisez simplement l’accès au microphone lorsque cela vous est demandé.\n\nAu plaisir,\n{team}"
     },
-    "onboarding": {
-      "subject": "Bienvenue à bord : {role}",
-      "body": "Bonjour {name},\n\nNous sommes ravis de vous accueillir en tant que {role} ! Bienvenue dans l’équipe.\n\nVotre intégration est désormais lancée. Notre équipe RH vous contactera sous peu au sujet de votre date de début, des formalités, du matériel et d’un plan pour la première semaine afin que vous puissiez démarrer sur les chapeaux de roues.\n\nNous avons hâte de travailler avec vous.\n\nChaleureusement,\n{team}",
-      "linkFooter": "Prenez un moment pour nous communiquer quelques informations de pré-intégration afin que tout soit prêt pour vous :\n{link}"
-    },
-    "onboardingReminder": {
-      "subject": "Petit rappel : votre pré-intégration pour {role}",
-      "body": "Bonjour {name},\n\nEncore bienvenue, et félicitations pour {role} ! Nous avons remarqué que votre questionnaire de pré-intégration est toujours ouvert. Il ne prend que quelques minutes et nous permet de tout préparer pour votre premier jour.\n\nVous pouvez le compléter ici quand cela vous convient :\n{link}\n\nSi vous l’avez déjà fait, merci d’ignorer ce message.\n\nChaleureusement,\n{team}"
-    },
     "devcaseFeedback": {
       "subject": "Votre exercice : quelques retours",
       "subjectRole": "Votre exercice pour le poste de {role} : quelques retours",
@@ -809,9 +836,9 @@
           "usd": "sans carte, sans compteur",
           "cta": "Commencer gratuitement",
           "features": [
-            "1 poste actif",
-            "5 candidats AI par mois",
-            "1 cas dev conçu",
+            "1 poste publié",
+            "1 recrutement",
+            "25 candidats IA par mois",
             "Matching, pipeline et planification illimités"
           ]
         },
@@ -823,10 +850,10 @@
           "usd": "≈ 10 $ par mois",
           "cta": "Choisir Starter",
           "features": [
-            "100 candidats AI par mois",
-            "5 cas dev conçus",
-            "30 minutes d’entretien AI",
-            "Postes et packs de campagne illimités"
+            "3 postes publiés par mois",
+            "2 recrutements par mois",
+            "300 candidats IA par mois",
+            "30 minutes d’entretien IA"
           ]
         },
         "growth": {
@@ -837,10 +864,10 @@
           "usd": "≈ 20 $ par mois",
           "cta": "Choisir Growth",
           "features": [
-            "400 candidats AI par mois",
-            "20 cas dev conçus",
-            "120 minutes d’entretien AI",
-            "Tout Starter, en plus grand"
+            "10 postes publiés par mois",
+            "8 recrutements par mois",
+            "1 200 candidats IA par mois",
+            "120 minutes d’entretien IA"
           ]
         },
         "byom": {
@@ -853,13 +880,13 @@
           "badge": "apportez vos clés",
           "features": [
             "Branchez vos clés Gemini, OpenAI, Azure ou Anthropic",
-            "Votre clé ElevenLabs mène les entretiens",
-            "AI illimitée – vos fournisseurs vous facturent",
-            "Nous facturons uniquement la machinerie"
+            "Tri par IA illimité — vos fournisseurs vous facturent",
+            "3 postes publiés et 2 recrutements par mois",
+            "Nous facturons uniquement la mécanique"
           ]
         }
       },
-      "footnote1": "« candidat AI » = une personne entièrement traitée : CV noté, mis en correspondance, analysé, message de contact rédigé",
+      "footnote1": "Vous payez les résultats : un poste mis sur le marché et une personne recrutée. Le tri par IA tourne sous un quota généreux que vous n’atteindrez normalement pas.",
       "footnote2": "à court de minutes ? packs de 100 minutes d’entretien · 790 Kč (tous les forfaits, même BYOM)",
       "enterprise": {
         "eyebrow": "À l’échelle de l’organisation",
@@ -983,7 +1010,7 @@
       },
       "offer": {
         "note": "aucun modèle dans le chiffre",
-        "title": "{name} · offre → premier jour",
+        "title": "{name} · offre → recruté",
         "steps": {
           "figure": {
             "label": "Montant de l’offre",
@@ -997,9 +1024,9 @@
             "label": "Acceptée",
             "detail": "le candidat bascule sur Recruté"
           },
-          "onboarding": {
-            "label": "Onboarding déclenché",
-            "detail": "checklist + formulaire de pré-intégration"
+          "handoff": {
+            "label": "Transmis",
+            "detail": "recrutement répercuté dans votre ATS"
           }
         }
       },
@@ -1131,12 +1158,12 @@
       },
       "hired": {
         "seal": "Recruté",
-        "onboarding": "intégration · le premier jour démarre",
         "tasks": {
-          "preboarding": "Pré-intégration envoyée",
-          "equipment": "Matériel demandé",
-          "buddy": "Binôme désigné"
-        }
+          "record": "Dossier de décision scellé",
+          "ats": "ATS notifié",
+          "role": "Poste clôturé"
+        },
+        "handoff": "transmis · poste clôturé"
       }
     },
     "meta": {
@@ -1207,7 +1234,6 @@
     "DATA_LOOKUP_FAILED": "Impossible de charger vos données pour le moment. Veuillez réessayer.",
     "DATA_ERASE_FAILED": "Impossible de finaliser l’effacement pour le moment. Veuillez réessayer.",
     "CONSENT_LOOKUP_FAILED": "Impossible de charger le détail des consentements. Veuillez réessayer.",
-    "ONBOARDING_FAILED": "Impossible de terminer cette étape d’intégration. Veuillez réessayer.",
     "COMMAND_FAILED": "Impossible d’exécuter cette commande. Veuillez réessayer.",
     "BENCHMARK_FAILED": "Impossible de charger le référentiel de l’organisation. Veuillez réessayer.",
     "AGENT_FIT_FAILED": "Impossible de lancer l’analyse d’adéquation de l’agent. Veuillez réessayer.",
@@ -1235,7 +1261,9 @@
     "INTAKE_VOICE_COMPLETE_FAILED": "Impossible de traiter la transcription de l’appel. Veuillez réessayer.",
     "INTAKE_BRIEF_SAVE_FAILED": "Impossible d’enregistrer la modification du brief. Veuillez réessayer.",
     "INTAKE_REOPEN_FAILED": "Impossible de rouvrir la session. Veuillez réessayer.",
-    "INTAKE_ATTACHMENT_FAILED": "Impossible d’enregistrer les documents. Veuillez réessayer."
+    "INTAKE_ATTACHMENT_FAILED": "Impossible d’enregistrer les documents. Veuillez réessayer.",
+    "STAGE_IMPACT_FAILED": "Impossible de vérifier qui se trouve à chaque étape du pipeline. Réessayez.",
+    "STAGE_MIGRATION_FAILED": "Impossible d’appliquer la modification du pipeline. Réessayez."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1267,7 +1295,6 @@
     "acceptedTitle": "🎉 Offre acceptée",
     "acceptedBodyCompany": "Bienvenue chez {company} ! Notre équipe RH vous contactera sous peu avec les détails de votre intégration.",
     "acceptedBodyGeneric": "Merveilleux, bienvenue à bord ! Notre équipe RH vous contactera sous peu avec les détails de votre intégration.",
-    "onboardingCta": "Démarrer votre intégration",
     "declinedTitle": "Réponse enregistrée",
     "declinedBody": "Merci de nous en avoir informés. Nous vous souhaitons le meilleur.",
     "loadFailed": "Impossible de charger cette offre.",
@@ -1679,7 +1706,6 @@
       "channels": "Canaux",
       "decisions": "Décisions",
       "schedule": "Planification",
-      "onboarding": "Onboarding",
       "jobs": "Postes",
       "library": "Fiches de poste",
       "archetypes": "Archétypes",
@@ -1784,8 +1810,6 @@
       "schedule_invite": "Invitation à planifier",
       "interview_reminder": "Rappel d’entretien",
       "interview_invite": "Invitation à l’entretien",
-      "onboarding": "Intégration",
-      "onboarding_reminder": "Rappel d’intégration",
       "offer_reminder": "Rappel d’offre"
     },
     "provenance": {
@@ -1888,15 +1912,12 @@
       "interview_reminder_sent": "a reçu un rappel d’entretien",
       "interviewer_brief_sent": "a fait l’objet d’un brief pour l’intervieweur",
       "interviewer_brief_skipped": "aucun briefing d’intervieweur (pas d’adresse au dossier)",
-      "onboarding_reminder_sent": "a reçu un rappel de pré-intégration",
       "offer_sent": "a reçu une offre",
       "comm_resent": "s’est vu renvoyer un message",
       "interview_scheduled": "a confirmé un créneau d’entretien",
       "offer_accepted": "a accepté l’offre",
       "offer_declined": "a refusé l’offre",
       "offer_expired": "a laissé l’offre expirer sans réponse",
-      "onboarding_started": "a commencé l’intégration",
-      "onboarding_failed": "n’a pas pu être transmis à l’intégration",
       "rejection_comms_failed": "n’a pas reçu de refus (mise en file échouée)",
       "fairness_gate_unknown_archetype": "a déclenché le garde-fou d’équité (archétype inconnu)",
       "fairness_gate_blocked_reject": "a échappé à un rejet automatique grâce au garde-fou d’équité",
@@ -1910,7 +1931,8 @@
       "github_evidence_attached": "a été enrichi de preuves GitHub",
       "ats_export": "a été exporté vers un ATS",
       "profile_enriched": "a comblé lui-même les lacunes de son profil",
-      "unknownKind": "a produit un événement non reconnu ({kind})"
+      "unknownKind": "a produit un événement non reconnu ({kind})",
+      "stage_migrated": "a été déplacé vers {stage} lors de la suppression d’une étape du pipeline"
     },
     "relTime": {
       "today": "aujourd’hui",
@@ -5576,7 +5598,6 @@
         "offer_accepted": "Offre acceptée",
         "offer_declined": "Offre refusée",
         "offer_expired": "Offre expirée",
-        "onboarding_started": "Onboarding démarré",
         "auto_rejected": "Rejeté automatiquement (politique)",
         "auto_advanced": "Avancé automatiquement (politique)",
         "ko_declined": "Écarté à l’éligibilité (KO)",
@@ -5587,9 +5608,7 @@
         "interview_reminder_sent": "Rappel d’entretien envoyé",
         "interviewer_brief_sent": "Intervieweur briefé",
         "interviewer_brief_skipped": "Brief de l’intervieweur ignoré (pas d’e-mail)",
-        "onboarding_reminder_sent": "Rappel avant intégration envoyé",
         "comm_resent": "Message renvoyé",
-        "onboarding_failed": "Échec de l’envoi de l’onboarding",
         "rejection_comms_failed": "Échec de l’e-mail de refus",
         "moved": "Étape définie manuellement",
         "matched": "Matché à un poste",
@@ -5614,7 +5633,6 @@
         "schedule_invite_sent": "Lien de planification en file d’attente dans la boîte d’envoi (non remis)",
         "interview_reminder_sent": "Rappel d’entretien en file d’attente dans la boîte d’envoi (non remis)",
         "interviewer_brief_sent": "Brief de l’intervieweur en file d’attente dans la boîte d’envoi (non remis)",
-        "onboarding_reminder_sent": "Rappel avant intégration en file d’attente dans la boîte d’envoi (non remis)",
         "comm_resent": "Message remis en file d’attente dans la boîte d’envoi (non remis)"
       },
       "colWhen": "Quand",
@@ -5708,181 +5726,6 @@
       "notPublishable": "**Non publiable en l’état.** Les métriques suivantes ne peuvent pas encore être défendues :",
       "disclaimer": "_Les chiffres décrivent l’activité enregistrée de cet espace de travail. kp ne calcule pas de pourcentage d’amélioration par rapport à une référence antérieure à kp. Cette comparaison revient à qui détient les chiffres précédents._"
     }
-  },
-  "candidateOnboarding": {
-    "eyebrow": "Intégration",
-    "welcome": "Bienvenue à bord !",
-    "welcomeName": "Bienvenue à bord, {name} !",
-    "roleAt": "{role} chez {company}",
-    "roleGeneric": "Votre nouveau poste",
-    "intro": "Votre offre est acceptée. Félicitations ! Une petite étape avant le jour J : partagez quelques informations de pré-intégration pour que tout soit prêt à votre arrivée.",
-    "fieldPreferredName": "Prénom d’usage",
-    "fieldTshirtSize": "Taille de t-shirt",
-    "fieldDietaryNeeds": "Besoins alimentaires",
-    "fieldEquipmentPrefs": "Préférences d’équipement",
-    "fieldEmergencyContact": "Contact d’urgence",
-    "fieldStartDateConfirm": "Confirmez votre date de début",
-    "submit": "Envoyer mes informations",
-    "submitting": "Envoi…",
-    "submitFailed": "Impossible d’enregistrer vos informations. Veuillez réessayer.",
-    "savedTitle": "Merci, tout est prêt",
-    "savedBody": "Nous avons enregistré vos informations et les avons transmises à l’équipe. Elle vous contactera avec votre date de début et le programme du premier jour.",
-    "editAgain": "Modifier mes informations",
-    "loadFailed": "Impossible de charger votre intégration.",
-    "invalidLink": "Ce lien d’intégration n’est pas valide",
-    "invalidLinkBody": "Le lien est peut-être mal saisi ou n’est plus actif. Si vous avez accepté une offre, contactez l’équipe de recrutement.",
-    "fieldLicenseNumber": "Numéro de licence ou d’enregistrement",
-    "fieldLicenseExpiry": "Date d’expiration de la licence",
-    "fieldImmunizationStatus": "Statut vaccinal",
-    "fieldCertifications": "Certifications et habilitations que vous détenez",
-    "fieldPpeSize": "Taille EPI et chaussures",
-    "fieldGithubHandle": "GitHub ou portfolio",
-    "fieldWorkAuthorization": "Statut de votre autorisation de travail",
-    "fieldAvailability": "Votre disponibilité hebdomadaire"
-  },
-  "onboarding": {
-    "eyebrow": "Passation",
-    "title": "Onboarding",
-    "intro": "Déroulez une checklist réutilisable pour chaque nouvelle recrue, recueillez ses informations de pré-intégration et suivez les signatures de documents. L’onboarding reprend là où l’offre s’arrête.",
-    "loading": "Chargement…",
-    "readyTitle": "Prêts pour l’intégration",
-    "readyEmpty": "Aucun candidat recruté en attente. Marquez un candidat comme « Recruté » dans le pipeline pour démarrer son onboarding.",
-    "aCandidate": "Candidat(e)",
-    "startCta": "Démarrer l’onboarding",
-    "runsTitle": "En cours",
-    "runsEmpty": "Aucun onboarding en cours pour l’instant.",
-    "complete": "Terminé",
-    "progress": "{done}/{total} terminés",
-    "back": "Retour à l’onboarding",
-    "checklist": "Checklist",
-    "questionnaire": "Questionnaire de pré-intégration",
-    "questionnaireNote": "Informations que la nouvelle recrue partage avant le premier jour. Elles sont enregistrées dans son dossier.",
-    "questionnairePending": "Questionnaire en attente",
-    "questionnaireDone": "Questionnaire terminé",
-    "signatures": "Documents à signer",
-    "signSeamNote": "Signature de démonstration. Connectez un fournisseur eIDAS (p. ex. Signicat, DocuSign) pour les rendre juridiquement contraignantes.",
-    "recordEyebrow": "Dossier",
-    "recordEmptyTitle": "Aucune passation enregistrée",
-    "recordBodyStarved": "Un onboarding est le dossier d’une passation. Il s’ouvre dès qu’un candidat atteint le statut « Recruté » et se referme une fois la dernière tâche cochée. Aucun candidat n’a encore atteint le statut « Recruté », donc aucun dossier à ouvrir.",
-    "recordBodyReady": "Un onboarding est le dossier d’une passation. Il s’ouvre dès qu’un candidat atteint le statut « Recruté » et se referme une fois la dernière tâche cochée. Voici le dossier que vous êtes sur le point d’ouvrir.",
-    "recordOpensWhen": "Un dossier s’ouvre quand",
-    "recordAlsoWaiting": "Également en attente",
-    "upstreamToHired": "Faire passer un candidat au statut « Recruté »",
-    "upstreamCloseDecision": "Clôturer une décision ouverte",
-    "upstreamOpenPipeline": "Ouvrir le recrutement",
-    "upstreamReviewDecisions": "Consulter les décisions",
-    "nobodyHiredTitle": "Personne n’a encore été recruté",
-    "nobodyHiredBody": "L’onboarding est le dernier maillon de la chaîne : il démarre dès qu’un candidat atteint le statut « Recruté ». Faites passer quelqu’un au statut « Recruté » dans le pipeline (généralement juste après une offre acceptée) et son premier jour apparaît ici.",
-    "firstDayEyebrow": "Premier jour",
-    "firstDayTitle": "{count, plural, one {Une personne recrutée attend son premier jour} other {# personnes recrutées attendent leur premier jour}}",
-    "firstDayIntro": "Le plan ci-dessous existe déjà. Démarrer un onboarding le transmet à une personne nommément désignée, ouvre son questionnaire de pré-intégration et commence à suivre ce qui a réellement été fait.",
-    "dayPlanLabel": "La journée que ce plan décrit",
-    "onlyStandardPlan": "Seul le plan standard existe pour l’instant. Modifiez-le ou ajoutez-en un autre ci-dessous.",
-    "preboardQuestions": "{count, plural, one {# question de pré-intégration est envoyée à la nouvelle recrue : {list}} other {# questions de pré-intégration sont envoyées à la nouvelle recrue : {list}}}",
-    "noPreboardQuestions": "Ce plan ne demande rien à la nouvelle recrue avant le premier jour.",
-    "thenInOrder": "Ensuite, dans l’ordre",
-    "beforeDayOne": "Avant le premier jour",
-    "hireLabel": "Recrue",
-    "recordFilledFromPipeline": "Complété à partir de la fiche du pipeline dès l’ouverture de l’onboarding.",
-    "doneLabel": "Terminé",
-    "standardTemplateFallback": "le modèle standard",
-    "recordStampedFrom": "Créé à partir du modèle <b>{template}</b>, le seul pour l’instant.",
-    "ledgerChecklistHolds": "Chaque tâche du modèle, avec la mention de qui l’a cochée et quand.",
-    "ledgerSignaturesCount": "{count} demandé(s)",
-    "signed": "Signé",
-    "markSigned": "Marquer comme signé",
-    "docPlaceholder": "Nom du document (ex. contrat de travail)",
-    "requestSign": "Demander la signature",
-    "withTemplate": "Modèle",
-    "templatesTitle": "Modèles d’onboarding",
-    "templatesNote": "Créez un modèle par secteur (une checklist et un questionnaire de pré-intégration), puis intégrez vos recrues avec.",
-    "newTemplate": "Nouveau modèle",
-    "templateMeta": "{tasks, plural, one {# tâche} other {# tâches}} · {questions, plural, one {# question} other {# questions}}",
-    "fromPreset": "Partir d’un préréglage",
-    "choosePreset": "Choisissez un secteur…",
-    "templateNamePlaceholder": "Nom du modèle",
-    "tasksLabel": "Tâches de la checklist",
-    "taskPlaceholder": "ex. vérifier la licence professionnelle",
-    "addTask": "Ajouter une tâche",
-    "questionsLabel": "Questions de pré-intégration",
-    "questionPlaceholder": "ex. numéro de licence / d’enregistrement",
-    "addQuestion": "Ajouter une question",
-    "saveTemplate": "Enregistrer le modèle",
-    "saving": "Enregistrement…",
-    "cancel": "Annuler",
-    "nameRequired": "Donnez un nom au modèle.",
-    "needTask": "Ajoutez au moins une tâche à la checklist.",
-    "saveFailed": "Impossible d’enregistrer le modèle.",
-    "field": {
-      "preferredName": "Nom d’usage",
-      "tshirtSize": "Taille de t-shirt",
-      "dietaryNeeds": "Besoins alimentaires",
-      "equipmentPrefs": "Préférences d’équipement",
-      "emergencyContact": "Contact d’urgence",
-      "startDateConfirm": "Date de début confirmée",
-      "licenseNumber": "Numéro de licence ou d’enregistrement",
-      "licenseExpiry": "Date d’expiration de la licence",
-      "immunizationStatus": "Statut vaccinal",
-      "certifications": "Certifications et habilitations détenues",
-      "ppeSize": "Taille EPI et chaussures",
-      "githubHandle": "GitHub ou portfolio",
-      "workAuthorization": "Statut de l’autorisation de travail",
-      "availability": "Disponibilité hebdomadaire"
-    },
-    "task": {
-      "contract": "Envoyer et faire signer le contrat de travail",
-      "documents": "Recueillir pièce d’identité, données fiscales et bancaires",
-      "equipment": "Commander l’ordinateur portable et le matériel",
-      "accounts": "Créer les comptes e-mail et systèmes",
-      "buddy": "Désigner un parrain d’intégration",
-      "firstday": "Partager le programme du premier jour",
-      "intro": "Planifier la réunion de présentation à l’équipe",
-      "license-verify": "Vérifier la licence professionnelle auprès de l’émetteur",
-      "credential-check": "Contrôle des qualifications et des certifications",
-      "background": "Vérification des antécédents et références",
-      "immunization": "Recueillir le carnet de vaccination et le dossier médical",
-      "compliance-training": "Formation à la conformité et à la sécurité des patients",
-      "equipment-badge": "Remettre le badge, le matériel et les accès systèmes",
-      "firstday-unit": "Partager le programme du premier jour et la visite du service",
-      "safety-orientation": "Formation initiale à la sécurité au travail",
-      "ppe": "Remettre les EPI et l’équipement de sécurité",
-      "drug-screen": "Dépistage de stupéfiants avant embauche",
-      "cert-verify": "Vérifier les certifications et habilitations métier",
-      "equipment-tools": "Remettre l’outillage et l’équipement",
-      "site-assignment": "Affecter le site et l’équipe de travail",
-      "contract-offer": "Envoyer et faire signer l’offre et le contrat de travail",
-      "ip-nda": "Faire signer la cession de PI, le NDA et les documents d’actionnariat",
-      "accounts-repo": "Créer les comptes et les accès aux dépôts et outils",
-      "firstweek": "Partager le plan et les objectifs de la première semaine",
-      "work-auth": "Confirmer l’autorisation de travail (titre de séjour ou droit au travail)",
-      "uniform": "Remettre l’uniforme et le casier",
-      "pos-training": "Formation caisse, salle et poste",
-      "cert": "Certificat d’hygiène alimentaire ou du poste (si requis)",
-      "schedule": "Mettre en place le planning et les disponibilités"
-    },
-    "preset": {
-      "general": {
-        "name": "Intégration standard",
-        "industry": "Général / bureau"
-      },
-      "healthcare_clinical": {
-        "name": "Intégration en santé",
-        "industry": "Santé et milieu clinique"
-      },
-      "skilled_trades": {
-        "name": "Intégration en métiers et production",
-        "industry": "Métiers manuels, industrie et construction"
-      },
-      "tech_startup": {
-        "name": "Intégration startup et tech",
-        "industry": "Technologie et startups"
-      },
-      "frontline_service": {
-        "name": "Intégration des postes opérationnels",
-        "industry": "Commerce, hôtellerie et restauration"
-      }
-    },
-    "removeRow": "Supprimer la ligne"
   },
   "matrix": {
     "loadFailed": "Échec du chargement.",
@@ -6296,6 +6139,8 @@
       "canceled": "Annulé"
     },
     "meters": {
+      "job_posts": "Postes publiés",
+      "hires": "Recrutements",
       "ai_candidates": "Candidats AI",
       "case_designs": "Conceptions de cas",
       "interview_minutes": "Minutes d’entretien"
@@ -6329,7 +6174,6 @@
       "approxUsd": "≈ {price}",
       "perMonth": "par mois",
       "unlimited": "Illimité",
-      "activeJobs": "Postes actifs",
       "cta": "Passer à ce forfait",
       "manageCta": "Modifier dans le portail",
       "redirecting": "Redirection…",
@@ -6953,9 +6797,7 @@
       "interview_reminder": "Rappel d’entretien",
       "interview_invite": "Invitation à l’entretien",
       "interviewer_brief": "Brief de l’intervieweur",
-      "schedule_invite": "Invitation à planifier",
-      "onboarding": "Intégration",
-      "onboarding_reminder": "Rappel d’intégration"
+      "schedule_invite": "Invitation à planifier"
     },
     "cohort": {
       "title": "Analyse des sondes sur la cohorte",
@@ -7646,10 +7488,10 @@
         "edgeLink": "lien sécurisé"
       },
       "hired": {
-        "title": "Recruté : l’onboarding démarre",
+        "title": "Recruté : le poste se ferme",
         "accepted": "Offre acceptée",
         "move": "Passage à Recruté",
-        "onboarding": "Onboarding\\naccueil · première semaine"
+        "handoff": "Transmission\\nATS · SIRH"
       }
     }
   },
@@ -8038,5 +7880,186 @@
   "readout": {
     "empty": "Rien d’enregistré",
     "more": "{count, plural, =1 {+1 de plus} other {+# de plus}}"
+  },
+  "about": {
+    "eyebrow": "Comment cela fonctionne",
+    "title": "Six mécanismes en fonctionnement",
+    "intro": "Les logiciels de recrutement vous demandent de faire confiance à un chiffre. Voici les six endroits où ce produit en produit un : comment une fiche de poste est rédigée, comment une personne est évaluée, qui est filtré et sur quel critère, comment différents profils de candidat sont préservés d'une règle unique, ce qu'un exercice pratique peut encore prouver, et où une personne doit trancher. Chaque seuil nommé ci-dessous est une constante dans le code en production.",
+    "archLink": "Schémas d'architecture",
+    "tourLink": "Voir la visite guidée",
+    "tourTitle": "Parcourir la pipeline en direct, à travers les vrais onglets",
+    "chaptersNav": "Chapitres",
+    "chapters": {
+      "jd": {
+        "eyebrow": "Fiches de poste",
+        "title": "Trois passes, et rien d'inventé",
+        "lede": "Vous cochez ce qui doit être produit, et une étape non cochée ne lance jamais de processus. Une passe confronte votre besoin à la codebase réelle et signale les divergences ; une deuxième en tire des exigences qui doivent remonter à quelque chose de réellement énoncé ; une troisième établit la fourchette salariale à partir du web ouvert. Les deux dernières tournent en parallèle. Le document lui-même est ensuite assemblé par le code plutôt qu'écrit par le modèle.",
+        "tab": "Ouvrir Fiches de poste"
+      },
+      "scoring": {
+        "eyebrow": "Évaluation des candidats",
+        "title": "Trois réponses, pas deux",
+        "lede": "Une compétence exigée reçoit face au profil une note entre zéro et un, et l'endroit où elle tombe détermine la façon dont elle est restituée. Au-dessus de 0,5 elle compte comme établie, accompagnée de sa force, de sorte qu'un 0,55 n'est jamais présenté comme un 1,0. En dessous de 0,5 et au-dessus de zéro elle est non prouvée, et elle en donne la raison : la preuve était seulement voisine, ou faiblement sourcée, ou les deux. Seul un zéro exact est qualifié de manquant. Un produit à deux catégories doit appeler un signal faible soit correspondance soit lacune, et les deux sont faux.",
+        "tab": "Ouvrir Analyse"
+      },
+      "screening": {
+        "eyebrow": "Présélection",
+        "title": "D'abord les filtres bon marché, le jugement coûteux en dernier",
+        "lede": "La présélection est ordonnée par coût. Les critères éliminatoires passent sur tout le monde, un scoreur déterministe sur les personnes restantes, et le modèle n'est sollicité que sur la liste restreinte qui remonte. Rien de payant ne tourne sur une personne déjà écartée.",
+        "tab": "Ouvrir Vue d’ensemble"
+      },
+      "archetypes": {
+        "eyebrow": "Archétypes",
+        "title": "Les mêmes trois emplacements, pondérés différemment",
+        "lede": "Une étudiante et un profil de quinze ans d'expérience ne peuvent pas être classés par une règle unique sans que l'un des deux perde injustement. Une personne est donc orientée vers un archétype, et celui-ci change le sens des trois dimensions d'évaluation : pour les profils en début de carrière, Carrière devient Potentiel et Personnel devient Adéquation. Deux des trois archétypes sont protégés et ne peuvent jamais être rejetés automatiquement.",
+        "tab": "Ouvrir Archétypes"
+      },
+      "assignments": {
+        "eyebrow": "Exercices",
+        "title": "Un exercice pratique qui résiste à la délégation",
+        "lede": "N'importe qui peut confier un devoir à un modèle. Le cas est donc conçu pour rester instructif même alors : il comporte une sous-spécification délibérée, des pièges qui sanctionnent les suppositions assurées, et un changement de consigne qui arrive après le début du travail. Ce qui est évalué, c'est le raisonnement montré, pas le fait que le résultat compile.",
+        "tab": "Ouvrir Exercices"
+      },
+      "gates": {
+        "eyebrow": "Points de contrôle humains",
+        "title": "La machine classe, une personne décide",
+        "lede": "Toute action qui atteint un candidat passe d'abord par une personne. Le rôle du système est d'arriver à ce moment avec les preuves rassemblées et le raisonnement écrit : ce qui a été évalué, sur quelle base, et ce dont il n'était pas sûr. La décision que prend ensuite une personne est enregistrée comme la sienne.",
+        "tab": "Ouvrir Décisions"
+      }
+    },
+    "jd": {
+      "input": "Entrée",
+      "sources": {
+        "needLabel": "Votre besoin",
+        "needDetail": "Ce que vous avez saisi ou dicté",
+        "jdLabel": "Le texte de la fiche de poste",
+        "jdDetail": "4 000 premiers caractères",
+        "codeLabel": "La codebase",
+        "codeDetail": "31k lignes · langages · dépendances"
+      },
+      "must": "indispensable",
+      "nice": "apprécié",
+      "noSource": "sans source",
+      "gap": "Stack annoncée non attestée dans la codebase : <k>Kafka</k>",
+      "gapNote": "Présentée comme un écart à clarifier, et non inscrite discrètement dans le poste.",
+      "status": {
+        "s0": "role-design-v4 · règles de traçabilité actives",
+        "s2": "exigences candidates : 7",
+        "s3": "chacune doit remonter à quelque chose que les entrées énoncent vraiment",
+        "s9": "Kafka n'est étayée par aucune entrée",
+        "s10": "écartée avant d'atteindre le document",
+        "s11": "statedVsRealGaps : signalé à vous à la place",
+        "s12": "6 indispensables retenues · plafond strict 8"
+      }
+    },
+    "scoring": {
+      "matched": "établie",
+      "unproven": "non prouvée",
+      "missing": "manquante",
+      "adjacency": "voisinage",
+      "provenance": "provenance",
+      "both": "les deux",
+      "note": "Une compétence voisine passe volontairement sous la ligne, pour ne jamais pouvoir compter comme la vraie. Sans catégorie intermédiaire, un signal faible devrait être appelé soit correspondance soit lacune. L'un flatte la personne, l'autre est injuste envers elle. Ici on dit ce qui a réellement été observé.",
+      "status": {
+        "s0": "exigences du poste : sept indispensables",
+        "s2": "_MATCH_THRESHOLD = 0.5",
+        "s3": "chaque exigence est notée de 0 à 1 face au profil",
+        "s9": "non prouvée porte une raison : voisinage · provenance · les deux",
+        "s10": "_SIBLING_MATCH = 0.4, sous la ligne par conception"
+      }
+    },
+    "screening": {
+      "layerA": "Critères éliminatoires pour tous : langue, séniorité, formation, mode de travail",
+      "layerB": "Scoreur pondéré sur les personnes restantes, classé et toujours déterministe",
+      "layerC": "Le modèle, sur la liste restreinte, mis en cache par candidat × poste",
+      "free": "gratuit",
+      "paid": "payant",
+      "ko": {
+        "language": "exigeait une langue absente du profil",
+        "seniority": "se situait hors de la fourchette de séniorité",
+        "education": "exigeait un niveau de formation supérieur",
+        "workMode": "ne correspondait pas au mode de travail souhaité"
+      },
+      "cost": "Les couches A et B ne demandent aucune clé d'API. Sans clé, la présélection classe toujours. Elle s'arrête simplement avant le raisonnement.",
+      "status": {
+        "s0": "{n} candidats pour un poste",
+        "s2": "ko_filter : critères éliminatoires, déterministes, sans clé d'API",
+        "s3": "{n} écartés, chacun avec une raison nommée",
+        "s4": "score_job : scoreur pondéré, toujours déterministe, toujours gratuit",
+        "s7": "match_reasoning : le modèle, sur les {n} premiers seulement",
+        "s9": "la seule étape payante ne voit jamais une personne déjà écartée"
+      },
+      "costLabel": "coût"
+    },
+    "archetypes": {
+      "signals": {
+        "enrolled": "actuellement inscrit",
+        "yreLow": "moins d'un an d'expérience pertinente",
+        "educationDominant": "la formation est le bloc dominant du CV",
+        "substantial": "possède une expérience substantielle"
+      },
+      "targets": {
+        "student": "Étudiant",
+        "bau": "Expérimenté",
+        "switcher": "Reconversion"
+      },
+      "confidence": "confiance {value}",
+      "declaration": "Si la personne a déclaré elle-même son archétype, cette déclaration l'emporte et vaut 0,9. Un signal contradictoire ne la remplace jamais. Il abaisse la confiance à 0,65 et ajoute une raison, que le panneau des signaux faibles réexpose ensuite à un humain.",
+      "fallback": "Quand rien ne se déclenche, le résultat est <k>bau</k> à 0,4. Ce chiffre se situe volontairement sous le seuil de revue de 0,55, si bien qu'une orientation décidée sans preuve apparaît toujours comme à vérifier plutôt que de passer discrètement pour un résultat.",
+      "status": {
+        "s0": "registry.detect() : un moteur de règles, sans modèle",
+        "s1": "signaux extraits du profil",
+        "s3": "chaque signal vote avec un poids déclaré",
+        "s7": "argmax, égalités départagées par l'ordre de déclaration dans le JSON",
+        "s8": "confiance = 4.5 / {total} = {value}",
+        "s9": "une auto-déclaration vaut 0,9 et n'est jamais remplacée",
+        "s10": "le repli non guidé est 0,4, sous le seuil de revue de 0,55"
+      }
+    },
+    "assignments": {
+      "seed": "les matériaux de départ",
+      "seedBody": "Matériaux de départ, identiques pour les deux",
+      "baselineBody": "Un modèle nu, à qui on demande de ne rien demander et de ne rien questionner",
+      "frozen": "figé à la validation",
+      "submission": "le rendu",
+      "submissionBody": "Ce que la personne a réellement fait des mêmes fichiers",
+      "deltaBaseline": "lignes ajoutées par le modèle nu",
+      "deltaSubmission": "lignes ajoutées par la personne",
+      "note": "Au-dessus de {aim}, le produit affiche une question et non un retrait de points : explorez en entretien ce que cette personne a apporté au-delà du modèle nu. Certaines parties d'une tâche réelle n'ont qu'une réponse évidente, et compter le recouvrement comme une faute punirait les candidats de les avoir réussies.",
+      "status": {
+        "s0": "le cas est validé et les matériaux de départ sont générés",
+        "s2": "baseline-solve-v1 : un modèle nu, à qui on demande de tout déléguer",
+        "s3": "figé par cas, jamais régénéré",
+        "s4": "la personne rend son travail",
+        "s5": "les deux côtés sont réduits à ce qu'ils ont AJOUTÉ aux matériaux",
+        "s7": "Jaccard sur les lignes ajoutées, par chemin, pondéré par la taille de l'union",
+        "s8": "recouvrement {value}",
+        "s9": "la cible est {aim}, et c'est une amorce d'entretien plutôt qu'une sanction"
+      }
+    },
+    "gates": {
+      "actions": {
+        "advance": "Faire avancer vers l'entretien",
+        "hold": "Mettre en attente pour revue",
+        "reject": "Rejeter",
+        "offer": "Envoyer une offre"
+      },
+      "gate": "une personne",
+      "stops": "s'arrête",
+      "applied": "appliqué automatiquement",
+      "noteRejection": "La ligne qui compte est celle du rejet. La passe le calcule, le fait passer par le garde-fou d'équité, puis refuse de l'appliquer et le met en file pour une personne. Un rejet est la seule action irréversible et visible par le candidat dans le produit, donc rien ne l'applique de lui-même.",
+      "noteAutonomous": "Les avancées, les mises en attente, les alertes, l'évaluation et la rédaction des brouillons restent autonomes, et c'est le fait de le dire franchement qui donne du poids au reste.",
+      "noteHired": "Recruté ne se trouve pas du tout sur ce chemin. Un passage manuel à Recruté renvoie 422, car cette étape est fixée par l'acceptation d'une offre par le candidat et par rien d'autre.",
+      "status": {
+        "s0": "la passe non supervisée propose quatre actions",
+        "s2": "approvalKind : un seul champ décide de ce qui s'arrête",
+        "s3": "avancée : appliquée et inscrite dans la chronologie",
+        "s4": "mise en attente : appliquée",
+        "s5": "rejet : calculé, puis mis en file au lieu d'être appliqué",
+        "s6": "offre : rédigée, puis mise en file",
+        "s7": "AUTO1 RETIRED : la passe n'applique plus aucun rejet",
+        "s9": "personne n'atteint Recruté depuis ici"
+      }
+    }
   }
 }

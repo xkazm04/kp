@@ -55,7 +55,43 @@
     "loadFailed": "Failed to load the hiring plan.",
     "unsaved": "Unsaved changes. The live policy still uses the last saved plan.",
     "allSaved": "All changes saved.",
-    "discard": "Discard changes"
+    "discard": "Discard changes",
+    "blocked": "Fix the problems above before saving.",
+    "steps": {
+      "title": "Pipeline steps",
+      "meta": "{count} of {max} steps",
+      "intro": "The columns your board draws. Rename freely: the stored key never moves, so history and reporting stay intact.",
+      "addStep": "Add step",
+      "newStepLabel": "New step",
+      "new": "New",
+      "idTitle": "The stored key. It never changes when you rename a step.",
+      "labelAria": "Name of step {position}",
+      "roleAria": "What {stage} means in the process",
+      "moveUpAria": "Move {stage} earlier",
+      "moveDownAria": "Move {stage} later",
+      "removeAria": "Remove {stage}",
+      "problemTooFew": "A pipeline needs at least a first and a last step.",
+      "problemTooMany": "At most {max} steps.",
+      "problemEmptyLabel": "Every step needs a name.",
+      "problemDuplicateLabel": "Two steps are both called “{label}”. Give them different names.",
+      "problemMissingRole": "One step must be marked “{role}”.",
+      "problemDuplicateRole": "Only one step can be marked “{role}”.",
+      "problemEntryNotFirst": "The first step must be the one candidates arrive at.",
+      "problemTerminalNotLast": "The last step must be the one that closes a hire.",
+      "strandedTitle": "These steps still hold candidates",
+      "strandedRow": "{stage} · {count, plural, one {# candidate} other {# candidates}}",
+      "strandedHint": "Pick where each group goes. They move when you save, and every candidate gets a history entry explaining why.",
+      "mapAria": "Where should candidates on {stage} go?",
+      "mapChoose": "Choose a step…"
+    },
+    "roles": {
+      "entry": "Arrives here",
+      "screening": "Screening",
+      "interview": "Interview",
+      "offer": "Offer",
+      "terminal": "Hired",
+      "custom": "Other"
+    }
   },
   "diagrams": {
     "eyebrow": "Architecture",
@@ -440,15 +476,6 @@
       "length": " It takes about {minutes} minutes.",
       "body": "Hi {name},\n\nYou're invited to a short AI-guided first-round screen for {role}.{length} You can take it whenever you're ready using your secure link:\n{link}\n\nIt runs right in your browser. Just allow microphone access when prompted.\n\nLooking forward to it,\n{team}"
     },
-    "onboarding": {
-      "subject": "Welcome aboard: {role}",
-      "body": "Hi {name},\n\nWe're delighted you're joining us as {role}! Welcome to the team.\n\nYour onboarding is now underway. Our People team will reach out shortly with your start date, paperwork, equipment, and a first-week plan so you can hit the ground running.\n\nWe can't wait to work with you.\n\nWarmly,\n{team}",
-      "linkFooter": "Take a moment to share a few pre-boarding details so we can have everything ready for you:\n{link}"
-    },
-    "onboardingReminder": {
-      "subject": "A quick reminder: your pre-boarding for {role}",
-      "body": "Hi {name},\n\nWelcome again, and congratulations on {role}! We noticed your pre-boarding questionnaire is still open. It only takes a couple of minutes, and it lets us have everything ready for your first day.\n\nYou can complete it here whenever suits you:\n{link}\n\nIf you've already done this, please ignore this note.\n\nWarmly,\n{team}"
-    },
     "devcaseFeedback": {
       "subject": "Your take-home exercise: a few notes",
       "subjectRole": "Your {role} exercise: a few notes",
@@ -809,9 +836,9 @@
           "usd": "no card, no clock",
           "cta": "Start free",
           "features": [
-            "1 active job",
-            "5 AI candidates a month",
-            "1 dev case design",
+            "1 published role",
+            "1 hire",
+            "25 AI candidates a month",
             "Unlimited matching, pipeline & scheduling"
           ]
         },
@@ -823,10 +850,10 @@
           "usd": "≈ $10 a month",
           "cta": "Pick Starter",
           "features": [
-            "100 AI candidates a month",
-            "5 dev case designs",
-            "30 AI interview minutes",
-            "Unlimited jobs & campaign packs"
+            "3 published roles a month",
+            "2 hires a month",
+            "300 AI candidates a month",
+            "30 AI interview minutes"
           ]
         },
         "growth": {
@@ -837,10 +864,10 @@
           "usd": "≈ $20 a month",
           "cta": "Pick Growth",
           "features": [
-            "400 AI candidates a month",
-            "20 dev case designs",
-            "120 AI interview minutes",
-            "Everything in Starter, just bigger"
+            "10 published roles a month",
+            "8 hires a month",
+            "1,200 AI candidates a month",
+            "120 AI interview minutes"
           ]
         },
         "byom": {
@@ -853,13 +880,13 @@
           "badge": "bring your keys",
           "features": [
             "Plug in Gemini, OpenAI, Azure or Anthropic keys",
-            "Your ElevenLabs key runs the interviews",
-            "Unlimited AI — your providers bill you",
+            "Unlimited AI screening — your providers bill you",
+            "3 published roles and 2 hires a month",
             "We charge for the machinery only"
           ]
         }
       },
-      "footnote1": "“AI candidate” = one person fully worked: CV scored, matched, reasoned about, outreach drafted",
+      "footnote1": "You pay for outcomes: a role taken to market, and a person hired. AI screening runs behind a generous allowance you will not normally reach.",
       "footnote2": "out of minutes? 100-minute interview packs · 790 Kč (any tier, even BYOM)",
       "enterprise": {
         "eyebrow": "At org scale",
@@ -983,7 +1010,7 @@
       },
       "offer": {
         "note": "no model in the number",
-        "title": "{name} · offer → day one",
+        "title": "{name} · offer → hired",
         "steps": {
           "figure": {
             "label": "Offer figure",
@@ -997,9 +1024,9 @@
             "label": "Accepted",
             "detail": "candidate flips to Hired"
           },
-          "onboarding": {
-            "label": "Onboarding fired",
-            "detail": "checklist + pre-boarding form"
+          "handoff": {
+            "label": "Handed off",
+            "detail": "hire mirrored to your ATS"
           }
         }
       },
@@ -1131,12 +1158,12 @@
       },
       "hired": {
         "seal": "Hired",
-        "onboarding": "onboarding · day one in motion",
         "tasks": {
-          "preboarding": "Pre-boarding sent",
-          "equipment": "Equipment requested",
-          "buddy": "Buddy assigned"
-        }
+          "record": "Decision record sealed",
+          "ats": "ATS notified",
+          "role": "Role closed"
+        },
+        "handoff": "handed off · role closed"
       }
     },
     "meta": {
@@ -1207,7 +1234,6 @@
     "DATA_LOOKUP_FAILED": "Could not load your data right now. Please try again.",
     "DATA_ERASE_FAILED": "Could not complete the erasure right now. Please try again.",
     "CONSENT_LOOKUP_FAILED": "Could not load consent details. Please try again.",
-    "ONBOARDING_FAILED": "Could not complete the onboarding action. Please try again.",
     "COMMAND_FAILED": "Could not run that command. Please try again.",
     "BENCHMARK_FAILED": "Could not load the org benchmark. Please try again.",
     "AGENT_FIT_FAILED": "Could not start the agent-fit analysis. Please try again.",
@@ -1235,7 +1261,9 @@
     "INTAKE_VOICE_COMPLETE_FAILED": "Could not process the voice transcript. Please try again.",
     "INTAKE_BRIEF_SAVE_FAILED": "Could not save the brief edit. Please try again.",
     "INTAKE_REOPEN_FAILED": "Could not re-open the session. Please try again.",
-    "INTAKE_ATTACHMENT_FAILED": "Could not update the attachments. Please try again."
+    "INTAKE_ATTACHMENT_FAILED": "Could not update the attachments. Please try again.",
+    "STAGE_IMPACT_FAILED": "Could not check who is on each pipeline step. Try again.",
+    "STAGE_MIGRATION_FAILED": "Could not apply the pipeline change. Try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1267,7 +1295,6 @@
     "acceptedTitle": "🎉 Offer accepted",
     "acceptedBodyCompany": "Welcome to {company}! Our People team will be in touch shortly with your onboarding details.",
     "acceptedBodyGeneric": "Wonderful, welcome aboard! Our People team will be in touch shortly with your onboarding details.",
-    "onboardingCta": "Start your onboarding",
     "declinedTitle": "Response recorded",
     "declinedBody": "Thank you for letting us know. We wish you all the best.",
     "loadFailed": "Could not load this offer.",
@@ -1679,7 +1706,6 @@
       "channels": "Channels",
       "decisions": "Decisions",
       "schedule": "Schedule",
-      "onboarding": "Onboarding",
       "jobs": "Jobs",
       "library": "Job descriptions",
       "archetypes": "Archetypes",
@@ -1784,8 +1810,6 @@
       "schedule_invite": "Scheduling invite",
       "interview_reminder": "Interview reminder",
       "interview_invite": "Interview invite",
-      "onboarding": "Onboarding",
-      "onboarding_reminder": "Onboarding reminder",
       "offer_reminder": "Offer reminder"
     },
     "provenance": {
@@ -1888,15 +1912,12 @@
       "interview_reminder_sent": "was sent an interview reminder",
       "interviewer_brief_sent": "had their interviewer briefed",
       "interviewer_brief_skipped": "got no interviewer brief (no address on file)",
-      "onboarding_reminder_sent": "was sent a pre-boarding reminder",
       "offer_sent": "was sent an offer",
       "comm_resent": "had a message resent",
       "interview_scheduled": "confirmed an interview slot",
       "offer_accepted": "accepted the offer",
       "offer_declined": "declined the offer",
       "offer_expired": "had their offer expire unanswered",
-      "onboarding_started": "started onboarding",
-      "onboarding_failed": "had the onboarding dispatch fail",
       "rejection_comms_failed": "had the rejection email fail to queue",
       "fairness_gate_unknown_archetype": "hit the fairness gate (archetype unknown)",
       "fairness_gate_blocked_reject": "had an auto-reject blocked by the fairness gate",
@@ -1910,7 +1931,8 @@
       "github_evidence_attached": "had GitHub evidence attached",
       "ats_export": "was exported to an ATS",
       "profile_enriched": "completed their own profile gaps",
-      "unknownKind": "logged an unrecognized event ({kind})"
+      "unknownKind": "logged an unrecognized event ({kind})",
+      "stage_migrated": "was moved to {stage} when a pipeline step was removed"
     },
     "relTime": {
       "today": "today",
@@ -5576,7 +5598,6 @@
         "offer_accepted": "Offer accepted",
         "offer_declined": "Offer declined",
         "offer_expired": "Offer expired",
-        "onboarding_started": "Onboarding started",
         "auto_rejected": "Auto-rejected (policy)",
         "auto_advanced": "Auto-advanced (policy)",
         "ko_declined": "Turned away at eligibility (KO)",
@@ -5587,9 +5608,7 @@
         "interview_reminder_sent": "Interview reminder sent",
         "interviewer_brief_sent": "Interviewer briefed",
         "interviewer_brief_skipped": "Interviewer brief skipped (no email)",
-        "onboarding_reminder_sent": "Pre-boarding reminder sent",
         "comm_resent": "Message resent",
-        "onboarding_failed": "Onboarding dispatch failed",
         "rejection_comms_failed": "Rejection email failed",
         "moved": "Stage set manually",
         "matched": "Matched to role",
@@ -5614,7 +5633,6 @@
         "schedule_invite_sent": "Scheduling link queued in Outbox (not delivered)",
         "interview_reminder_sent": "Interview reminder queued in Outbox (not delivered)",
         "interviewer_brief_sent": "Interviewer brief queued in Outbox (not delivered)",
-        "onboarding_reminder_sent": "Pre-boarding reminder queued in Outbox (not delivered)",
         "comm_resent": "Message re-queued in Outbox (not delivered)"
       },
       "colWhen": "When",
@@ -5708,181 +5726,6 @@
       "notPublishable": "**Not publication-ready.** The following metrics cannot yet be defended:",
       "disclaimer": "_Figures describe this workspace's own recorded activity. kp does not compute an improvement percentage against a pre-kp baseline. That comparison belongs to whoever holds the prior numbers._"
     }
-  },
-  "candidateOnboarding": {
-    "eyebrow": "Onboarding",
-    "welcome": "Welcome aboard!",
-    "welcomeName": "Welcome aboard, {name}!",
-    "roleAt": "{role} at {company}",
-    "roleGeneric": "Your new role",
-    "intro": "Your offer is accepted. Congratulations! One quick step before day one: share a few pre-boarding details so we can have everything ready for you.",
-    "fieldPreferredName": "Preferred name",
-    "fieldTshirtSize": "T-shirt size",
-    "fieldDietaryNeeds": "Dietary needs",
-    "fieldEquipmentPrefs": "Equipment preferences",
-    "fieldEmergencyContact": "Emergency contact",
-    "fieldStartDateConfirm": "Confirm your start date",
-    "submit": "Send my details",
-    "submitting": "Sending…",
-    "submitFailed": "Could not save your details. Please try again.",
-    "savedTitle": "Thanks, you're all set",
-    "savedBody": "We've saved your details and shared them with the team. They'll be in touch with your start date and first-day plan.",
-    "editAgain": "Update my details",
-    "loadFailed": "Could not load your onboarding.",
-    "invalidLink": "This onboarding link isn't valid",
-    "invalidLinkBody": "The link may be mistyped or no longer active. If you've accepted an offer, contact the hiring team.",
-    "fieldLicenseNumber": "License / registration number",
-    "fieldLicenseExpiry": "License expiry date",
-    "fieldImmunizationStatus": "Immunization status",
-    "fieldCertifications": "Certifications / licenses you hold",
-    "fieldPpeSize": "PPE / boot size",
-    "fieldGithubHandle": "GitHub / portfolio handle",
-    "fieldWorkAuthorization": "Work-authorization status",
-    "fieldAvailability": "Your weekly availability"
-  },
-  "onboarding": {
-    "eyebrow": "Hand-off",
-    "title": "Onboarding",
-    "intro": "Run a repeatable checklist for every new hire, collect their pre-boarding details, and track document signatures. Onboarding picks up where the offer leaves off.",
-    "loading": "Loading…",
-    "readyTitle": "Ready to onboard",
-    "readyEmpty": "No hired candidates waiting. Mark a candidate Hired in the pipeline to start their onboarding.",
-    "aCandidate": "Candidate",
-    "startCta": "Start onboarding",
-    "runsTitle": "In progress",
-    "runsEmpty": "No onboarding runs yet.",
-    "complete": "Complete",
-    "progress": "{done}/{total} done",
-    "back": "Back to onboarding",
-    "checklist": "Checklist",
-    "questionnaire": "Pre-boarding questionnaire",
-    "questionnaireNote": "Details the new hire shares before day one, saved to their record.",
-    "questionnairePending": "Questionnaire pending",
-    "questionnaireDone": "Questionnaire done",
-    "signatures": "Documents to sign",
-    "signSeamNote": "Demo signing. Connect an eIDAS provider (e.g. Signicat, DocuSign) to make these legally binding.",
-    "recordEyebrow": "Record",
-    "recordEmptyTitle": "No hand-off on file",
-    "recordBodyStarved": "A run is the record of one hand-off. It opens when a candidate reaches Hired and closes when the last task is ticked. No candidate has reached Hired, so there is nothing on file to open.",
-    "recordBodyReady": "A run is the record of one hand-off. It opens when a candidate reaches Hired and closes when the last task is ticked. Here is the record you are about to open.",
-    "recordOpensWhen": "A record opens when",
-    "recordAlsoWaiting": "Also waiting",
-    "upstreamToHired": "Move a candidate to Hired",
-    "upstreamCloseDecision": "Close an open decision",
-    "upstreamOpenPipeline": "Open the pipeline",
-    "upstreamReviewDecisions": "Review decisions",
-    "nobodyHiredTitle": "Nobody has been hired yet",
-    "nobodyHiredBody": "Onboarding is the last link in the chain: it starts the moment a candidate reaches Hired. Move someone to Hired in the pipeline (usually straight after an accepted offer) and their first day appears here.",
-    "firstDayEyebrow": "First day",
-    "firstDayTitle": "{count, plural, one {One hire is waiting for a first day} other {# hires are waiting for a first day}}",
-    "firstDayIntro": "The plan below already exists. Starting a run hands it to a named person, opens their pre-boarding questionnaire, and begins tracking what has actually been done.",
-    "dayPlanLabel": "The day this plan describes",
-    "onlyStandardPlan": "Only the standard plan exists so far. Edit it or add another below.",
-    "preboardQuestions": "{count, plural, one {# pre-boarding question goes to the new hire: {list}} other {# pre-boarding questions go to the new hire: {list}}}",
-    "noPreboardQuestions": "This plan asks the new hire nothing before day one.",
-    "thenInOrder": "Then, in order",
-    "beforeDayOne": "Before day one",
-    "hireLabel": "Hire",
-    "recordFilledFromPipeline": "Filled in from the pipeline entry when the run opens.",
-    "doneLabel": "Done",
-    "standardTemplateFallback": "the standard template",
-    "recordStampedFrom": "Stamped from <b>{template}</b>, the only template so far.",
-    "ledgerChecklistHolds": "Every task from the template, each stamped with who ticked it and when.",
-    "ledgerSignaturesCount": "{count} requested",
-    "signed": "Signed",
-    "markSigned": "Mark signed",
-    "docPlaceholder": "Document name (e.g. Employment contract)",
-    "requestSign": "Request signature",
-    "withTemplate": "Template",
-    "templatesTitle": "Onboarding templates",
-    "templatesNote": "Create an industry template (a checklist plus a pre-boarding questionnaire), then onboard hires with it.",
-    "newTemplate": "New template",
-    "templateMeta": "{tasks} tasks · {questions} questions",
-    "fromPreset": "Start from a preset",
-    "choosePreset": "Choose an industry…",
-    "templateNamePlaceholder": "Template name",
-    "tasksLabel": "Checklist tasks",
-    "taskPlaceholder": "e.g. Verify professional license",
-    "addTask": "Add task",
-    "questionsLabel": "Pre-boarding questions",
-    "questionPlaceholder": "e.g. License / registration number",
-    "addQuestion": "Add question",
-    "saveTemplate": "Save template",
-    "saving": "Saving…",
-    "cancel": "Cancel",
-    "nameRequired": "Give the template a name.",
-    "needTask": "Add at least one checklist task.",
-    "saveFailed": "Could not save the template.",
-    "field": {
-      "preferredName": "Preferred name",
-      "tshirtSize": "T-shirt size",
-      "dietaryNeeds": "Dietary needs",
-      "equipmentPrefs": "Equipment preferences",
-      "emergencyContact": "Emergency contact",
-      "startDateConfirm": "Confirmed start date",
-      "licenseNumber": "License / registration number",
-      "licenseExpiry": "License expiry date",
-      "immunizationStatus": "Immunization status",
-      "certifications": "Certifications / licenses held",
-      "ppeSize": "PPE / boot size",
-      "githubHandle": "GitHub / portfolio handle",
-      "workAuthorization": "Work-authorization status",
-      "availability": "Weekly availability"
-    },
-    "task": {
-      "contract": "Send & sign the employment contract",
-      "documents": "Collect ID, tax and bank details",
-      "equipment": "Order laptop and equipment",
-      "accounts": "Create email and system accounts",
-      "buddy": "Assign an onboarding buddy",
-      "firstday": "Share the first-day plan and agenda",
-      "intro": "Schedule the team intro meeting",
-      "license-verify": "Verify professional license (primary-source)",
-      "credential-check": "Credentialing & board-certification check",
-      "background": "Background check & references",
-      "immunization": "Collect immunization / health records",
-      "compliance-training": "HIPAA / patient-safety compliance training",
-      "equipment-badge": "Issue badge, equipment and system access",
-      "firstday-unit": "Share the first-day plan and unit orientation",
-      "safety-orientation": "Safety orientation (OSHA / BOZP)",
-      "ppe": "Issue PPE and safety equipment",
-      "drug-screen": "Pre-employment drug screen",
-      "cert-verify": "Verify trade certifications / licenses",
-      "equipment-tools": "Issue tools and equipment",
-      "site-assignment": "Site / shift assignment",
-      "contract-offer": "Send & sign the offer & employment contract",
-      "ip-nda": "Sign IP assignment, NDA & equity / option docs",
-      "accounts-repo": "Create accounts and repo / tool access",
-      "firstweek": "Share the first-week plan and goals",
-      "work-auth": "Confirm work authorization (e.g. I-9 / right to work)",
-      "uniform": "Issue uniform and locker",
-      "pos-training": "POS / floor / station training",
-      "cert": "Food-handler / role certification (if required)",
-      "schedule": "Set up the schedule and availability"
-    },
-    "preset": {
-      "general": {
-        "name": "Standard onboarding",
-        "industry": "General / office"
-      },
-      "healthcare_clinical": {
-        "name": "Clinical / healthcare onboarding",
-        "industry": "Healthcare & clinical"
-      },
-      "skilled_trades": {
-        "name": "Trades / manufacturing onboarding",
-        "industry": "Skilled trades, manufacturing & construction"
-      },
-      "tech_startup": {
-        "name": "Startup / tech onboarding",
-        "industry": "Tech & startups"
-      },
-      "frontline_service": {
-        "name": "Frontline / hourly onboarding",
-        "industry": "Retail, hospitality & food service"
-      }
-    },
-    "removeRow": "Remove row"
   },
   "matrix": {
     "loadFailed": "Load failed.",
@@ -6296,6 +6139,8 @@
       "canceled": "Canceled"
     },
     "meters": {
+      "job_posts": "Published roles",
+      "hires": "Hires",
       "ai_candidates": "AI candidates",
       "case_designs": "Case designs",
       "interview_minutes": "Interview minutes"
@@ -6329,7 +6174,6 @@
       "approxUsd": "≈ {price}",
       "perMonth": "per month",
       "unlimited": "Unlimited",
-      "activeJobs": "Active jobs",
       "cta": "Switch to this plan",
       "manageCta": "Change in portal",
       "redirecting": "Redirecting…",
@@ -6953,9 +6797,7 @@
       "interview_reminder": "interview reminder",
       "interview_invite": "interview invite",
       "interviewer_brief": "interviewer brief",
-      "schedule_invite": "scheduling invite",
-      "onboarding": "onboarding",
-      "onboarding_reminder": "onboarding reminder"
+      "schedule_invite": "scheduling invite"
     },
     "cohort": {
       "title": "Cohort probe insights",
@@ -7646,10 +7488,10 @@
         "edgeLink": "secure token link"
       },
       "hired": {
-        "title": "Hired: onboarding kicks off",
+        "title": "Hired: the role closes",
         "accepted": "Offer accepted",
         "move": "Move to Hired",
-        "onboarding": "Onboarding\\nwelcome · first week"
+        "handoff": "Handoff\\nATS · HRIS"
       }
     }
   },
@@ -8038,5 +7880,186 @@
   "readout": {
     "empty": "Nothing recorded",
     "more": "{count, plural, =1 {+1 more} other {+# more}}"
+  },
+  "about": {
+    "eyebrow": "How it works",
+    "title": "Six mechanisms, shown running",
+    "intro": "Hiring software asks you to trust a number. These are the six places this product produces one: how a role gets written, how a person gets scored, who gets filtered and by what, how different kinds of candidate are kept from being flattened into one rule, what a work sample can still prove, and where a human has to decide. Every threshold named below is a constant in the running code.",
+    "archLink": "Architecture diagrams",
+    "tourLink": "Watch the guided tour",
+    "tourTitle": "Walk the pipeline live, across the real tabs",
+    "chaptersNav": "Chapters",
+    "chapters": {
+      "jd": {
+        "eyebrow": "Job descriptions",
+        "title": "Three passes, and nothing invented",
+        "lede": "You tick what should be built, and an unticked step never spawns a process. One pass reads your need against the real codebase and reports where they disagree; a second turns it into requirements that must trace back to something actually stated; a third prices the band from the open web. The last two run side by side. The document itself is then assembled in code rather than written by the model.",
+        "tab": "Open Job descriptions"
+      },
+      "scoring": {
+        "eyebrow": "Candidate scoring",
+        "title": "Three answers, not two",
+        "lede": "A required skill scores between zero and one against the profile, and where it lands decides how it gets reported. Above 0.5 it counts as matched, carried with its strength so a 0.55 is never shown as a 1.0. Below 0.5 but above zero it is unproven, and it says why: the evidence was adjacent, or it was weakly sourced, or both. Only an exact zero is called missing. A product with two buckets has to call a weak signal either a match or a gap, and both of those are wrong.",
+        "tab": "Open Analyze"
+      },
+      "screening": {
+        "eyebrow": "Screening",
+        "title": "Cheap filters first, expensive judgement last",
+        "lede": "Screening is ordered by cost. Hard gates run on everyone, a deterministic scorer runs on whoever survives, and the model is asked to reason only about the shortlist that reaches the top. Nothing that costs money runs on a candidate who was already ruled out.",
+        "tab": "Open Overview"
+      },
+      "archetypes": {
+        "eyebrow": "Archetypes",
+        "title": "The same three slots, weighted differently",
+        "lede": "A student and a fifteen-year veteran cannot be ranked by one rule without one of them losing unfairly. So a candidate is routed to an archetype, and the archetype changes what the three scoring dimensions mean: for early-career profiles, Career becomes Potential and Personal becomes Fit. Two of the three archetypes are fairness-protected and can never be auto-rejected.",
+        "tab": "Open Archetypes"
+      },
+      "assignments": {
+        "eyebrow": "Assignments",
+        "title": "A work sample that survives being delegated",
+        "lede": "Anyone can hand a take-home to a model. So the case is built to be informative even then: it carries deliberate under-specification, traps that punish confident guessing, and a mid-flight change that arrives after the work has started. What is graded is the reasoning the candidate shows, not whether the answer compiles.",
+        "tab": "Open Assignments"
+      },
+      "gates": {
+        "eyebrow": "Human gates",
+        "title": "The machine ranks, a person decides",
+        "lede": "Every action that reaches a candidate passes a person first. The system's job is to arrive at that moment with the evidence assembled and the reasoning written down: what was scored, on what basis, and what it was not confident about. The decision a person then makes is recorded as theirs.",
+        "tab": "Open Decisions"
+      }
+    },
+    "jd": {
+      "input": "Input",
+      "sources": {
+        "needLabel": "Your need",
+        "needDetail": "What you typed or dictated",
+        "jdLabel": "The JD text",
+        "jdDetail": "First 4 000 characters",
+        "codeLabel": "The codebase",
+        "codeDetail": "31k LOC · languages · deps"
+      },
+      "must": "must have",
+      "nice": "nice to have",
+      "noSource": "no source",
+      "gap": "Stated stack not evident in the codebase: <k>Kafka</k>",
+      "gapNote": "Surfaced to you as a gap to resolve, not quietly written into the role.",
+      "status": {
+        "s0": "role-design-v4 · grounding rules active",
+        "s2": "candidate requirements: 7",
+        "s3": "each must trace to something the inputs actually state",
+        "s9": "Kafka has no supporting statement in any input",
+        "s10": "dropped before it reached the document",
+        "s11": "statedVsRealGaps: reported to you instead",
+        "s12": "6 must-haves kept · hard cap 8"
+      }
+    },
+    "scoring": {
+      "matched": "matched",
+      "unproven": "unproven",
+      "missing": "missing",
+      "adjacency": "adjacency",
+      "provenance": "provenance",
+      "both": "both",
+      "note": "An adjacent skill scores below the line on purpose, so it can never be counted as the real one. Without a middle bucket a weak signal has to be called either a match or a gap. One flatters the candidate, the other is unfair to them. This says what was actually seen.",
+      "status": {
+        "s0": "job requirements: seven must-haves",
+        "s2": "_MATCH_THRESHOLD = 0.5",
+        "s3": "each requirement scores 0..1 against the profile",
+        "s9": "unproven carries a reason: adjacency · provenance · both",
+        "s10": "_SIBLING_MATCH = 0.4, below the line by design"
+      }
+    },
+    "screening": {
+      "layerA": "Hard gates on everyone: language, seniority, education, work mode",
+      "layerB": "Weighted scorer over whoever survived, ranked and still deterministic",
+      "layerC": "The model, on the shortlist, cached per candidate × job",
+      "free": "free",
+      "paid": "paid",
+      "ko": {
+        "language": "required a language not in the profile",
+        "seniority": "sat outside the candidate's seniority range",
+        "education": "required a higher education level",
+        "workMode": "didn't match the work-mode preference"
+      },
+      "cost": "Layers A and B need no API key. Keyless, screening still ranks. It just stops short of reasoning.",
+      "status": {
+        "s0": "{n} candidates against one role",
+        "s2": "ko_filter: hard gates, deterministic, no API key",
+        "s3": "{n} ruled out, each with a named reason",
+        "s4": "score_job: weighted scorer, still deterministic, still free",
+        "s7": "match_reasoning: the model, on the top {n} only",
+        "s9": "the only paid step never sees a candidate already ruled out"
+      },
+      "costLabel": "cost"
+    },
+    "archetypes": {
+      "signals": {
+        "enrolled": "currently enrolled",
+        "yreLow": "under 1 year of relevant experience",
+        "educationDominant": "education is the dominant CV block",
+        "substantial": "has substantial experience"
+      },
+      "targets": {
+        "student": "Student",
+        "bau": "Experienced",
+        "switcher": "Switcher"
+      },
+      "confidence": "confidence {value}",
+      "declaration": "If the candidate declared an archetype themselves, that declaration wins and is trusted at 0.9. A contradicting signal never overrides it. It lowers the confidence to 0.65 and appends a reason, which the soft-signal panel then republishes for a human to look at.",
+      "fallback": "When nothing fires at all the result is <k>bau</k> at 0.4. That number sits below the 0.55 review threshold on purpose, so a routing decision made with no evidence always shows up as one that needs checking rather than passing quietly as a result.",
+      "status": {
+        "s0": "registry.detect(): a rules engine, no model involved",
+        "s1": "signals extracted from the profile",
+        "s3": "each signal votes with a stated weight",
+        "s7": "argmax, ties broken by declaration order in the JSON",
+        "s8": "confidence = 4.5 / {total} = {value}",
+        "s9": "a self-declaration is trusted at 0.9 and never overridden",
+        "s10": "the unguided fallback is 0.4, below the 0.55 review threshold"
+      }
+    },
+    "assignments": {
+      "seed": "the seed",
+      "seedBody": "Starting materials, identical for both",
+      "baselineBody": "A bare model, told to ask nothing and question nothing",
+      "frozen": "frozen at approval",
+      "submission": "the submission",
+      "submissionBody": "What the candidate actually did with the same files",
+      "deltaBaseline": "lines added by the bare model",
+      "deltaSubmission": "lines added by the candidate",
+      "note": "Above {aim} the product prints a question rather than a deduction: probe live what this person added beyond the bare model. Some parts of a real task have one obvious answer, and scoring overlap as guilt would punish candidates for getting those right.",
+      "status": {
+        "s0": "the case is approved, and the seed is materialised",
+        "s2": "baseline-solve-v1: a bare model, told to delegate completely",
+        "s3": "frozen per case, never regenerated",
+        "s4": "the candidate submits",
+        "s5": "both sides are reduced to what they ADDED to the seed",
+        "s7": "Jaccard over added lines, per path, weighted by union size",
+        "s8": "overlap {value}",
+        "s9": "aim is {aim}, and it is an interview prompt rather than a penalty"
+      }
+    },
+    "gates": {
+      "actions": {
+        "advance": "Advance to Interview",
+        "hold": "Hold for review",
+        "reject": "Reject",
+        "offer": "Extend an offer"
+      },
+      "gate": "a person",
+      "stops": "stops",
+      "applied": "applied automatically",
+      "noteRejection": "The rejection row is the one that matters. The pass computes it, clears it through the fairness gate, and then refuses to apply it, queueing it for a person instead. A rejection is the one irreversible, candidate-visible adverse action in the product, so nothing applies one on its own.",
+      "noteAutonomous": "Advances, holds, alerts, scoring and drafting stay autonomous, and naming that plainly is what makes the rest of the claim worth anything.",
+      "noteHired": "Hired is not on this road at all. A manual move to Hired returns 422, because that stage is set when the candidate accepts an offer and by nothing else.",
+      "status": {
+        "s0": "the unattended pass proposes four actions",
+        "s2": "approvalKind: one field decides what parks",
+        "s3": "advance: applied, and written to the timeline",
+        "s4": "hold: applied",
+        "s5": "reject: computed, then queued instead of applied",
+        "s6": "offer: drafted, then queued",
+        "s7": "AUTO1 RETIRED: the pass no longer applies a rejection at all",
+        "s9": "Hired is not reachable from here by anyone"
+      }
+    }
   }
 }

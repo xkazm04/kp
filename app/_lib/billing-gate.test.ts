@@ -59,9 +59,9 @@ const { getBillingState, upsertBillingState, creditBalance, billingUsageFor, rec
 const { billingOverview, entitledPlan, hasActiveSubscription, meterAllowance, recordMeterUsage } = await import(
   "./billing/entitlements.ts"
 );
-const { activeJobsGate, meterGate } = await import("./billing/enforce.ts");
+const { jobPostGate, meterGate } = await import("./billing/enforce.ts");
 const { ingestBillingWebhook } = await import("./billing/sync.ts");
-const { currentPeriod } = await import("./billing/plans.ts");
+const { currentPeriod, PLANS } = await import("./billing/plans.ts");
 
 import type { BillingEvent, BillingGateway, ProductMap } from "./billing/gateway.ts";
 
@@ -142,23 +142,29 @@ function subEventFor(
 
 // ---- the gate, end to end ----------------------------------------------------
 
+// The numbers come from the CATALOG, not from literals here. These assertions used to
+// hardcode 5 / 100 / 400 and broke as a set every time pricing was tuned — which made
+// a pricing change look like a regression. What is worth pinning is the BEHAVIOUR: the
+// overview reflects the plan, the allowance is consumed, and then it blocks.
+const FREE_AI = PLANS.free.limits.ai_candidates as number;
+
 test("a fresh workspace is on the free plan with free limits", () => {
   const overview = billingOverview();
   assert.equal(overview.plan.id, "free");
   const candidates = overview.meters.find((m) => m.meter === "ai_candidates");
   assert.deepEqual(
     { limit: candidates?.limit, used: candidates?.used, remaining: candidates?.remaining },
-    { limit: 5, used: 0, remaining: 5 }
+    { limit: FREE_AI, used: 0, remaining: FREE_AI }
   );
   assert.equal(meterAllowance("interview_minutes").allowed, false); // free includes 0 minutes
 });
 
 test("usage debits the monthly allowance until it blocks", () => {
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < FREE_AI; i++) {
     assert.equal(meterAllowance("ai_candidates").allowed, true);
     recordMeterUsage("ai_candidates");
   }
-  assert.equal(billingUsageFor("ai_candidates", currentPeriod()), 5);
+  assert.equal(billingUsageFor("ai_candidates", currentPeriod()), FREE_AI);
   const allowance = meterAllowance("ai_candidates");
   assert.deepEqual({ allowed: allowance.allowed, reason: allowance.reason }, { allowed: false, reason: "limit_reached" });
 });
@@ -190,7 +196,11 @@ test("a subscription webhook upgrades the entitled plan and limits", () => {
   const overview = billingOverview();
   assert.equal(overview.plan.id, "starter");
   const candidates = overview.meters.find((m) => m.meter === "ai_candidates");
-  assert.deepEqual({ limit: candidates?.limit, remaining: candidates?.remaining }, { limit: 100, remaining: 95 });
+  const starterAi = PLANS.starter.limits.ai_candidates as number;
+  assert.deepEqual(
+    { limit: candidates?.limit, remaining: candidates?.remaining },
+    { limit: starterAi, remaining: starterAi - FREE_AI }
+  );
   // 30 included − 8 already used this month + 92 credits
   const minutes = overview.meters.find((m) => m.meter === "interview_minutes");
   assert.equal(minutes?.remaining, 30 - 8 + 92);
@@ -227,7 +237,7 @@ test("canceled with an unparseable period end keeps the plan (don't cut a paying
 
 test("meterGate verdicts: exhausted allowance blocks, credits keep a meter open", () => {
   upsertBillingState({ plan: "free", status: "none", provider: "polar" });
-  // ai_candidates: 5/5 used earlier in this file → hard gate fires.
+  // ai_candidates: the free allowance was fully consumed earlier in this file → hard gate fires.
   const verdict = meterGate("ai_candidates");
   assert.equal(verdict?.code, "quota_exceeded");
   assert.equal(verdict?.meter, "ai_candidates");
@@ -260,14 +270,34 @@ test("billing alerts: a paid-but-unmapped event is recorded as a queryable workl
   assert.equal(listBillingAlerts().length, n);
 });
 
-test("activeJobsGate caps free at 1 published job; paid plans are uncapped", () => {
+// Replaces the old activeJobsGate test DELIBERATELY, not incidentally. That gate was a
+// CONCURRENCY cap ("how many roles may be open at once") counted per WORKSPACE while
+// reading an ORG plan — so a five-team org silently got five times the free allowance.
+// Taking a role to market is now a metered unit like any other: counted per org, per
+// month, and consumed rather than occupied.
+test("jobPostGate meters published roles per org, and paid plans get their allowance", () => {
   upsertBillingState({ plan: "free", status: "none", provider: "polar" });
-  assert.equal(activeJobsGate(0), null);
-  const verdict = activeJobsGate(1);
-  assert.equal(verdict?.code, "quota_exceeded");
-  assert.equal(verdict?.meter, "active_jobs");
+  assert.equal(jobPostGate(), null, "the free plan's first role publishes");
+  recordMeterUsage("job_posts", 1);
+  const verdict = jobPostGate();
+  assert.equal(verdict?.code, "quota_exceeded", "…and the second is refused");
+  assert.equal(verdict?.meter, "job_posts", "the verdict names the meter, not a cap");
+
   upsertBillingState({ plan: "growth", status: "active", provider: "polar" });
-  assert.equal(activeJobsGate(25), null);
+  assert.equal(jobPostGate(), null, "upgrading restores headroom against the same usage");
+});
+
+// The hire meter is the other half of the outcome model, and its contract is the
+// OPPOSITE: it debits without a gate. A candidate accepting an offer must never fail
+// because the recruiter's org is over its allowance, so overage is billed, not blocked.
+test("hires debit past the included allowance rather than refusing", () => {
+  upsertBillingState({ plan: "free", status: "none", provider: "polar" });
+  const period = currentPeriod(new Date());
+  const before = billingUsageFor("hires", period);
+  recordMeterUsage("hires", 1);
+  recordMeterUsage("hires", 1); // free includes 1 — the second is overage
+  assert.equal(billingUsageFor("hires", period), before + 2, "both hires are recorded, neither is refused");
+  assert.equal(meterAllowance("hires", new Date()).allowed, false, "…and Billing can see the org is over");
 });
 
 // ---- finding #2: failed-payment statuses are bounded, not entitled forever -----

@@ -55,7 +55,43 @@
     "loadFailed": "Hiring-Plan konnte nicht geladen werden.",
     "unsaved": "Ungespeicherte Änderungen. Die aktive Richtlinie nutzt weiterhin den zuletzt gespeicherten Plan.",
     "allSaved": "Alles gespeichert.",
-    "discard": "Änderungen verwerfen"
+    "discard": "Änderungen verwerfen",
+    "blocked": "Beheben Sie die Probleme oben, bevor Sie speichern.",
+    "steps": {
+      "title": "Pipeline-Schritte",
+      "meta": "{count} von {max} Schritten",
+      "intro": "Die Spalten, die Ihr Board zeichnet. Benennen Sie frei um: der gespeicherte Schlüssel bleibt, Historie und Auswertung bleiben intakt.",
+      "addStep": "Schritt hinzufügen",
+      "newStepLabel": "Neuer Schritt",
+      "new": "Neu",
+      "idTitle": "Der gespeicherte Schlüssel. Er ändert sich beim Umbenennen nicht.",
+      "labelAria": "Name von Schritt {position}",
+      "roleAria": "Was {stage} im Prozess bedeutet",
+      "moveUpAria": "{stage} nach vorn verschieben",
+      "moveDownAria": "{stage} nach hinten verschieben",
+      "removeAria": "{stage} entfernen",
+      "problemTooFew": "Eine Pipeline braucht mindestens einen ersten und einen letzten Schritt.",
+      "problemTooMany": "Höchstens {max} Schritte.",
+      "problemEmptyLabel": "Jeder Schritt braucht einen Namen.",
+      "problemDuplicateLabel": "Zwei Schritte heißen beide „{label}“. Vergeben Sie unterschiedliche Namen.",
+      "problemMissingRole": "Ein Schritt muss als „{role}“ markiert sein.",
+      "problemDuplicateRole": "Nur ein Schritt darf als „{role}“ markiert sein.",
+      "problemEntryNotFirst": "Der erste Schritt muss der Eingang für Kandidaten sein.",
+      "problemTerminalNotLast": "Der letzte Schritt muss der Abschluss einer Einstellung sein.",
+      "strandedTitle": "In diesen Schritten stehen noch Kandidaten",
+      "strandedRow": "{stage} · {count, plural, one {# Kandidat} other {# Kandidaten}}",
+      "strandedHint": "Wählen Sie, wohin jede Gruppe geht. Der Wechsel erfolgt beim Speichern, und jeder Kandidat erhält einen Verlaufseintrag mit der Begründung.",
+      "mapAria": "Wohin sollen Kandidaten aus {stage} wechseln?",
+      "mapChoose": "Schritt wählen…"
+    },
+    "roles": {
+      "entry": "Eingang",
+      "screening": "Screening",
+      "interview": "Interview",
+      "offer": "Angebot",
+      "terminal": "Eingestellt",
+      "custom": "Sonstiges"
+    }
   },
   "diagrams": {
     "eyebrow": "Architektur",
@@ -440,15 +476,6 @@
       "length": " Es dauert etwa {minutes} Minuten.",
       "body": "Hallo {name},\n\nwir laden Sie zu einem kurzen, AI-geführten Screening der ersten Runde für {role} ein.{length} Sie können es jederzeit über Ihren sicheren Link absolvieren, sobald Sie bereit sind:\n{link}\n\nEs läuft direkt in Ihrem Browser. Erlauben Sie einfach den Mikrofonzugriff, wenn Sie dazu aufgefordert werden.\n\nWir freuen uns darauf,\n{team}"
     },
-    "onboarding": {
-      "subject": "Willkommen an Bord: {role}",
-      "body": "Hallo {name},\n\nwir freuen uns sehr, dass Sie als {role} zu uns kommen! Willkommen im Team.\n\nIhr Onboarding läuft nun an. Unser People-Team meldet sich in Kürze mit Ihrem Startdatum, den Unterlagen, der Ausstattung und einem Plan für die erste Woche, damit Sie gleich durchstarten können.\n\nWir freuen uns riesig auf die Zusammenarbeit mit Ihnen.\n\nHerzliche Grüße,\n{team}",
-      "linkFooter": "Nehmen Sie sich einen Moment, um uns einige Angaben fürs Pre-Boarding mitzuteilen, damit wir alles für Sie bereithalten können:\n{link}"
-    },
-    "onboardingReminder": {
-      "subject": "Eine kurze Erinnerung: Ihr Pre-Boarding für {role}",
-      "body": "Hallo {name},\n\nnochmals willkommen und herzlichen Glückwunsch zu {role}! Uns ist aufgefallen, dass Ihr Pre-Boarding-Fragebogen noch offen ist. Er dauert nur ein paar Minuten und ermöglicht es uns, alles für Ihren ersten Tag vorzubereiten.\n\nSie können ihn ausfüllen, wann immer es Ihnen passt:\n{link}\n\nFalls Sie das bereits erledigt haben, ignorieren Sie diese Nachricht bitte.\n\nHerzliche Grüße,\n{team}"
-    },
     "devcaseFeedback": {
       "subject": "Ihre Übungsaufgabe: ein paar Anmerkungen",
       "subjectRole": "Ihre Aufgabe für {role}: ein paar Anmerkungen",
@@ -809,9 +836,9 @@
           "usd": "keine Karte, kein Zeitlimit",
           "cta": "Gratis starten",
           "features": [
-            "1 aktive Stelle",
-            "5 AI-Kandidaten pro Monat",
-            "1 Dev-Case-Design",
+            "1 veröffentlichte Rolle",
+            "1 Einstellung",
+            "25 KI-Kandidaten pro Monat",
             "Unbegrenztes Matching, Pipeline & Planung"
           ]
         },
@@ -823,10 +850,10 @@
           "usd": "≈ 10 $ pro Monat",
           "cta": "Starter wählen",
           "features": [
-            "100 AI-Kandidaten pro Monat",
-            "5 Dev-Case-Designs",
-            "30 AI-Interviewminuten",
-            "Unbegrenzte Stellen & Kampagnenpakete"
+            "3 veröffentlichte Rollen pro Monat",
+            "2 Einstellungen pro Monat",
+            "300 KI-Kandidaten pro Monat",
+            "30 KI-Interviewminuten"
           ]
         },
         "growth": {
@@ -837,10 +864,10 @@
           "usd": "≈ 20 $ pro Monat",
           "cta": "Growth wählen",
           "features": [
-            "400 AI-Kandidaten pro Monat",
-            "20 Dev-Case-Designs",
-            "120 AI-Interviewminuten",
-            "Alles aus Starter, nur größer"
+            "10 veröffentlichte Rollen pro Monat",
+            "8 Einstellungen pro Monat",
+            "1.200 KI-Kandidaten pro Monat",
+            "120 KI-Interviewminuten"
           ]
         },
         "byom": {
@@ -852,14 +879,14 @@
           "cta": "Schlüssel mitbringen",
           "badge": "Schlüssel mitbringen",
           "features": [
-            "Gemini-, OpenAI-, Azure- oder Anthropic-Schlüssel einbinden",
-            "Ihr ElevenLabs-Schlüssel führt die Interviews",
-            "Unbegrenzte AI – Ihre Anbieter rechnen mit Ihnen ab",
+            "Gemini-, OpenAI-, Azure- oder Anthropic-Keys einbinden",
+            "Unbegrenztes KI-Screening — Ihre Anbieter rechnen ab",
+            "3 veröffentlichte Rollen und 2 Einstellungen pro Monat",
             "Wir berechnen nur die Maschinerie"
           ]
         }
       },
-      "footnote1": "„AI-Kandidat“ = eine vollständig bearbeitete Person: Lebenslauf bewertet, abgeglichen, durchdacht, Ansprache entworfen",
+      "footnote1": "Sie zahlen für Ergebnisse: eine ausgeschriebene Rolle und eine eingestellte Person. Das KI-Screening läuft unter einem großzügigen Kontingent, das Sie normalerweise nicht erreichen.",
       "footnote2": "Minuten aufgebraucht? 100-Minuten-Interviewpakete · 790 Kč (für jeden Tarif, sogar BYOM)",
       "enterprise": {
         "eyebrow": "Auf Organisationsebene",
@@ -983,7 +1010,7 @@
       },
       "offer": {
         "note": "kein Modell in der Zahl",
-        "title": "{name} · Angebot → Tag eins",
+        "title": "{name} · Angebot → eingestellt",
         "steps": {
           "figure": {
             "label": "Angebotshöhe",
@@ -997,9 +1024,9 @@
             "label": "Angenommen",
             "detail": "Kandidat springt auf Eingestellt"
           },
-          "onboarding": {
-            "label": "Onboarding ausgelöst",
-            "detail": "Checkliste + Pre-Boarding-Formular"
+          "handoff": {
+            "label": "Übergeben",
+            "detail": "Einstellung in Ihr ATS gespiegelt"
           }
         }
       },
@@ -1131,12 +1158,12 @@
       },
       "hired": {
         "seal": "Eingestellt",
-        "onboarding": "Onboarding · Tag eins läuft an",
         "tasks": {
-          "preboarding": "Pre-Boarding verschickt",
-          "equipment": "Ausstattung angefordert",
-          "buddy": "Buddy zugewiesen"
-        }
+          "record": "Entscheidungsprotokoll versiegelt",
+          "ats": "ATS benachrichtigt",
+          "role": "Rolle geschlossen"
+        },
+        "handoff": "übergeben · Rolle geschlossen"
       }
     },
     "meta": {
@@ -1207,7 +1234,6 @@
     "DATA_LOOKUP_FAILED": "Ihre Daten konnten gerade nicht geladen werden. Bitte versuchen Sie es erneut.",
     "DATA_ERASE_FAILED": "Die Löschung konnte gerade nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
     "CONSENT_LOOKUP_FAILED": "Die Einwilligungsdetails konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-    "ONBOARDING_FAILED": "Der Onboarding-Schritt konnte nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
     "COMMAND_FAILED": "Dieser Befehl konnte nicht ausgeführt werden. Bitte versuchen Sie es erneut.",
     "BENCHMARK_FAILED": "Der Unternehmens-Benchmark konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "AGENT_FIT_FAILED": "Die Agent-Eignungsanalyse konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
@@ -1235,7 +1261,9 @@
     "INTAKE_VOICE_COMPLETE_FAILED": "Das Gesprächstranskript konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut.",
     "INTAKE_BRIEF_SAVE_FAILED": "Die Briefing-Änderung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "INTAKE_REOPEN_FAILED": "Die Aufnahme-Sitzung konnte nicht wieder geöffnet werden. Bitte versuchen Sie es erneut.",
-    "INTAKE_ATTACHMENT_FAILED": "Die Unterlagen konnten nicht gespeichert werden. Bitte versuchen Sie es erneut."
+    "INTAKE_ATTACHMENT_FAILED": "Die Unterlagen konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+    "STAGE_IMPACT_FAILED": "Es konnte nicht geprüft werden, wer auf welchem Pipeline-Schritt steht. Versuchen Sie es erneut.",
+    "STAGE_MIGRATION_FAILED": "Die Pipeline-Änderung konnte nicht angewendet werden. Versuchen Sie es erneut."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1267,7 +1295,6 @@
     "acceptedTitle": "🎉 Angebot angenommen",
     "acceptedBodyCompany": "Willkommen bei {company}! Unser People-Team meldet sich in Kürze mit Ihren Onboarding-Details.",
     "acceptedBodyGeneric": "Wunderbar, willkommen an Bord! Unser People-Team meldet sich in Kürze mit Ihren Onboarding-Details.",
-    "onboardingCta": "Onboarding starten",
     "declinedTitle": "Antwort erfasst",
     "declinedBody": "Danke für Ihre Rückmeldung. Wir wünschen Ihnen alles Gute.",
     "loadFailed": "Dieses Angebot konnte nicht geladen werden.",
@@ -1679,7 +1706,6 @@
       "channels": "Kanäle",
       "decisions": "Entscheidungen",
       "schedule": "Planung",
-      "onboarding": "Onboarding",
       "jobs": "Stellen",
       "library": "Stellenbeschreibungen",
       "archetypes": "Archetypen",
@@ -1784,8 +1810,6 @@
       "schedule_invite": "Terminplanungseinladung",
       "interview_reminder": "Interview-Erinnerung",
       "interview_invite": "Interview-Einladung",
-      "onboarding": "Onboarding",
-      "onboarding_reminder": "Onboarding-Erinnerung",
       "offer_reminder": "Angebotserinnerung"
     },
     "provenance": {
@@ -1888,15 +1912,12 @@
       "interview_reminder_sent": "hat eine Interview-Erinnerung erhalten",
       "interviewer_brief_sent": "wurde für den Interviewer aufbereitet",
       "interviewer_brief_skipped": "kein Interviewer-Briefing (keine Adresse hinterlegt)",
-      "onboarding_reminder_sent": "hat eine Pre-Boarding-Erinnerung erhalten",
       "offer_sent": "hat ein Angebot erhalten",
       "comm_resent": "hat eine Nachricht erneut erhalten",
       "interview_scheduled": "hat einen Interviewtermin bestätigt",
       "offer_accepted": "hat das Angebot angenommen",
       "offer_declined": "hat das Angebot abgelehnt",
       "offer_expired": "ließ das Angebot unbeantwortet verfallen",
-      "onboarding_started": "hat das Onboarding begonnen",
-      "onboarding_failed": "konnte nicht ans Onboarding übergeben werden",
       "rejection_comms_failed": "hat keine Absage-E-Mail erhalten (Einreihung fehlgeschlagen)",
       "fairness_gate_unknown_archetype": "traf auf die Fairness-Schranke (Archetyp unbekannt)",
       "fairness_gate_blocked_reject": "wurde von der Fairness-Schranke vor einer automatischen Ablehnung bewahrt",
@@ -1910,7 +1931,8 @@
       "github_evidence_attached": "wurde um GitHub-Nachweise ergänzt",
       "ats_export": "wurde in ein ATS exportiert",
       "profile_enriched": "hat die eigenen Profillücken geschlossen",
-      "unknownKind": "hat ein unbekanntes Ereignis erzeugt ({kind})"
+      "unknownKind": "hat ein unbekanntes Ereignis erzeugt ({kind})",
+      "stage_migrated": "wurde nach {stage} verschoben, als ein Pipeline-Schritt entfernt wurde"
     },
     "relTime": {
       "today": "heute",
@@ -5576,7 +5598,6 @@
         "offer_accepted": "Angebot angenommen",
         "offer_declined": "Angebot abgelehnt",
         "offer_expired": "Angebot abgelaufen",
-        "onboarding_started": "Onboarding gestartet",
         "auto_rejected": "Automatisch abgelehnt (Richtlinie)",
         "auto_advanced": "Automatisch weitergeleitet (Richtlinie)",
         "ko_declined": "Am Eignungs-Gate abgewiesen (KO)",
@@ -5587,9 +5608,7 @@
         "interview_reminder_sent": "Interview-Erinnerung gesendet",
         "interviewer_brief_sent": "Interviewer gebrieft",
         "interviewer_brief_skipped": "Interviewer-Briefing übersprungen (keine E-Mail)",
-        "onboarding_reminder_sent": "Pre-Boarding-Erinnerung gesendet",
         "comm_resent": "Nachricht erneut gesendet",
-        "onboarding_failed": "Onboarding-Versand fehlgeschlagen",
         "rejection_comms_failed": "Absage-E-Mail fehlgeschlagen",
         "moved": "Phase manuell gesetzt",
         "matched": "Auf Stelle gematcht",
@@ -5614,7 +5633,6 @@
         "schedule_invite_sent": "Terminlink im Postausgang eingereiht (nicht zugestellt)",
         "interview_reminder_sent": "Interview-Erinnerung im Postausgang eingereiht (nicht zugestellt)",
         "interviewer_brief_sent": "Interviewer-Briefing im Postausgang eingereiht (nicht zugestellt)",
-        "onboarding_reminder_sent": "Pre-Boarding-Erinnerung im Postausgang eingereiht (nicht zugestellt)",
         "comm_resent": "Nachricht erneut im Postausgang eingereiht (nicht zugestellt)"
       },
       "colWhen": "Wann",
@@ -5708,181 +5726,6 @@
       "notPublishable": "**Nicht veröffentlichungsreif.** Die folgenden Kennzahlen lassen sich noch nicht belegen:",
       "disclaimer": "_Die Zahlen beschreiben die eigene erfasste Aktivität dieses Arbeitsbereichs. kp berechnet keine prozentuale Verbesserung gegenüber einer Ausgangsbasis vor kp. Dieser Vergleich gehört demjenigen, der die früheren Zahlen hat._"
     }
-  },
-  "candidateOnboarding": {
-    "eyebrow": "Onboarding",
-    "welcome": "Willkommen an Bord!",
-    "welcomeName": "Willkommen an Bord, {name}!",
-    "roleAt": "{role} bei {company}",
-    "roleGeneric": "Ihre neue Stelle",
-    "intro": "Ihr Angebot ist angenommen. Herzlichen Glückwunsch! Ein kurzer Schritt vor dem ersten Tag: Teilen Sie uns ein paar Pre-Boarding-Angaben mit, damit für Sie alles bereitsteht.",
-    "fieldPreferredName": "Rufname",
-    "fieldTshirtSize": "T-Shirt-Größe",
-    "fieldDietaryNeeds": "Ernährungsbedürfnisse",
-    "fieldEquipmentPrefs": "Ausstattungswünsche",
-    "fieldEmergencyContact": "Notfallkontakt",
-    "fieldStartDateConfirm": "Bestätigen Sie Ihr Startdatum",
-    "submit": "Angaben senden",
-    "submitting": "Wird gesendet…",
-    "submitFailed": "Ihre Angaben konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-    "savedTitle": "Danke, alles erledigt",
-    "savedBody": "Wir haben Ihre Angaben gespeichert und mit dem Team geteilt. Das Team meldet sich bei Ihnen mit Ihrem Startdatum und dem Plan für den ersten Tag.",
-    "editAgain": "Angaben aktualisieren",
-    "loadFailed": "Ihr Onboarding konnte nicht geladen werden.",
-    "invalidLink": "Dieser Onboarding-Link ist ungültig",
-    "invalidLinkBody": "Der Link ist möglicherweise falsch eingegeben oder nicht mehr aktiv. Wenn Sie ein Angebot angenommen haben, wenden Sie sich an das Recruiting-Team.",
-    "fieldLicenseNumber": "Lizenz- oder Registriernummer",
-    "fieldLicenseExpiry": "Lizenz gültig bis",
-    "fieldImmunizationStatus": "Impfstatus",
-    "fieldCertifications": "Ihre Zertifikate und Befähigungsnachweise",
-    "fieldPpeSize": "PSA- und Schuhgröße",
-    "fieldGithubHandle": "GitHub oder Portfolio",
-    "fieldWorkAuthorization": "Status Ihrer Arbeitserlaubnis",
-    "fieldAvailability": "Ihre wöchentliche Verfügbarkeit"
-  },
-  "onboarding": {
-    "eyebrow": "Übergabe",
-    "title": "Onboarding",
-    "intro": "Arbeiten Sie für jede Neueinstellung eine wiederholbare Checkliste ab, erfassen Sie die Pre-Boarding-Angaben und verfolgen Sie Dokumentunterschriften. Das Onboarding setzt dort an, wo das Angebot endet.",
-    "loading": "Wird geladen…",
-    "readyTitle": "Bereit fürs Onboarding",
-    "readyEmpty": "Keine eingestellten Kandidaten in Wartestellung. Markieren Sie einen Kandidaten in der Pipeline als „Eingestellt“, um sein Onboarding zu starten.",
-    "aCandidate": "Kandidat",
-    "startCta": "Onboarding starten",
-    "runsTitle": "In Bearbeitung",
-    "runsEmpty": "Noch keine Onboarding-Durchläufe.",
-    "complete": "Abgeschlossen",
-    "progress": "{done}/{total} erledigt",
-    "back": "Zurück zum Onboarding",
-    "checklist": "Checkliste",
-    "questionnaire": "Pre-Boarding-Fragebogen",
-    "questionnaireNote": "Angaben, die die neue Person vor dem ersten Tag teilt. Gespeichert werden sie in ihrem Datensatz.",
-    "questionnairePending": "Fragebogen ausstehend",
-    "questionnaireDone": "Fragebogen erledigt",
-    "signatures": "Zu unterschreibende Dokumente",
-    "signSeamNote": "Demo-Signatur. Verbinden Sie einen eIDAS-Anbieter (z. B. Signicat, DocuSign), um diese rechtsverbindlich zu machen.",
-    "recordEyebrow": "Datensatz",
-    "recordEmptyTitle": "Keine Übergabe erfasst",
-    "recordBodyStarved": "Ein Onboarding ist der Datensatz einer Übergabe. Er wird eröffnet, sobald ein Kandidat den Status „Eingestellt“ erreicht, und geschlossen, sobald die letzte Aufgabe erledigt ist. Noch hat kein Kandidat den Status „Eingestellt“ erreicht, es gibt also nichts zu öffnen.",
-    "recordBodyReady": "Ein Onboarding ist der Datensatz einer Übergabe. Er wird eröffnet, sobald ein Kandidat den Status „Eingestellt“ erreicht, und geschlossen, sobald die letzte Aufgabe erledigt ist. Hier ist der Datensatz, den Sie gleich öffnen.",
-    "recordOpensWhen": "Ein Datensatz wird eröffnet, wenn",
-    "recordAlsoWaiting": "Ebenfalls in Wartestellung",
-    "upstreamToHired": "Kandidat in den Status „Eingestellt“ verschieben",
-    "upstreamCloseDecision": "Offene Entscheidung abschließen",
-    "upstreamOpenPipeline": "Recruiting öffnen",
-    "upstreamReviewDecisions": "Entscheidungen prüfen",
-    "nobodyHiredTitle": "Noch niemand wurde eingestellt",
-    "nobodyHiredBody": "Das Onboarding ist das letzte Glied der Kette: Es beginnt in dem Moment, in dem ein Kandidat den Status „Eingestellt“ erreicht. Verschieben Sie jemanden in der Pipeline auf „Eingestellt“ (meist direkt nach einem angenommenen Angebot), und der erste Arbeitstag erscheint hier.",
-    "firstDayEyebrow": "Erster Arbeitstag",
-    "firstDayTitle": "{count, plural, one {Eine neue Person wartet auf ihren ersten Arbeitstag} other {# neue Personen warten auf ihren ersten Arbeitstag}}",
-    "firstDayIntro": "Der untenstehende Plan existiert bereits. Wenn Sie ein Onboarding starten, übergeben Sie ihn an eine namentlich genannte Person, öffnen deren Pre-Boarding-Fragebogen und beginnen zu verfolgen, was tatsächlich erledigt wurde.",
-    "dayPlanLabel": "Der Tag, den dieser Plan beschreibt",
-    "onlyStandardPlan": "Bisher gibt es nur den Standardplan. Bearbeiten Sie ihn oder fügen Sie unten einen weiteren hinzu.",
-    "preboardQuestions": "{count, plural, one {# Pre-Boarding-Frage geht an die neue Person: {list}} other {# Pre-Boarding-Fragen gehen an die neue Person: {list}}}",
-    "noPreboardQuestions": "Dieser Plan fragt die neue Person vor dem ersten Tag nichts.",
-    "thenInOrder": "Der Reihe nach",
-    "beforeDayOne": "Vor dem ersten Tag",
-    "hireLabel": "Neue Person",
-    "recordFilledFromPipeline": "Wird aus dem Pipeline-Eintrag übernommen, sobald das Onboarding beginnt.",
-    "doneLabel": "Erledigt",
-    "standardTemplateFallback": "die Standardvorlage",
-    "recordStampedFrom": "Erstellt aus der Vorlage <b>{template}</b>, der bisher einzigen.",
-    "ledgerChecklistHolds": "Jede Aufgabe aus der Vorlage, jeweils mit Vermerk, wer sie wann erledigt hat.",
-    "ledgerSignaturesCount": "{count} angefordert",
-    "signed": "Unterschrieben",
-    "markSigned": "Als unterschrieben markieren",
-    "docPlaceholder": "Dokumentname (z. B. Arbeitsvertrag)",
-    "requestSign": "Unterschrift anfordern",
-    "withTemplate": "Vorlage",
-    "templatesTitle": "Onboarding-Vorlagen",
-    "templatesNote": "Erstellen Sie eine Branchenvorlage (eine Checkliste plus Pre-Boarding-Fragebogen) und starten Sie damit das Onboarding neuer Mitarbeiter.",
-    "newTemplate": "Neue Vorlage",
-    "templateMeta": "{tasks, plural, one {# Aufgabe} other {# Aufgaben}} · {questions, plural, one {# Frage} other {# Fragen}}",
-    "fromPreset": "Aus Voreinstellung starten",
-    "choosePreset": "Branche wählen…",
-    "templateNamePlaceholder": "Vorlagenname",
-    "tasksLabel": "Checklistenaufgaben",
-    "taskPlaceholder": "z. B. Berufszulassung prüfen",
-    "addTask": "Aufgabe hinzufügen",
-    "questionsLabel": "Pre-Boarding-Fragen",
-    "questionPlaceholder": "z. B. Lizenz-/Registrierungsnummer",
-    "addQuestion": "Frage hinzufügen",
-    "saveTemplate": "Vorlage speichern",
-    "saving": "Wird gespeichert…",
-    "cancel": "Abbrechen",
-    "nameRequired": "Geben Sie der Vorlage einen Namen.",
-    "needTask": "Fügen Sie mindestens eine Checklistenaufgabe hinzu.",
-    "saveFailed": "Die Vorlage konnte nicht gespeichert werden.",
-    "field": {
-      "preferredName": "Bevorzugter Name",
-      "tshirtSize": "T-Shirt-Größe",
-      "dietaryNeeds": "Ernährungsbedürfnisse",
-      "equipmentPrefs": "Ausstattungswünsche",
-      "emergencyContact": "Notfallkontakt",
-      "startDateConfirm": "Bestätigtes Startdatum",
-      "licenseNumber": "Lizenz- oder Registrierungsnummer",
-      "licenseExpiry": "Lizenz gültig bis",
-      "immunizationStatus": "Impfstatus",
-      "certifications": "Vorhandene Zertifikate und Befähigungsnachweise",
-      "ppeSize": "PSA- und Schuhgröße",
-      "githubHandle": "GitHub oder Portfolio",
-      "workAuthorization": "Status der Arbeitserlaubnis",
-      "availability": "Wöchentliche Verfügbarkeit"
-    },
-    "task": {
-      "contract": "Arbeitsvertrag senden & unterschreiben lassen",
-      "documents": "Ausweis-, Steuer- und Bankdaten einholen",
-      "equipment": "Laptop und Ausstattung bestellen",
-      "accounts": "E-Mail- und Systemkonten anlegen",
-      "buddy": "Onboarding-Buddy zuweisen",
-      "firstday": "Plan und Agenda für den ersten Tag teilen",
-      "intro": "Kennenlerntermin mit dem Team planen",
-      "license-verify": "Berufszulassung bei der ausstellenden Stelle prüfen",
-      "credential-check": "Qualifikations- und Facharztnachweise prüfen",
-      "background": "Hintergrundprüfung & Referenzen",
-      "immunization": "Impf- und Gesundheitsnachweise einholen",
-      "compliance-training": "Schulung zu Datenschutz und Patientensicherheit",
-      "equipment-badge": "Ausweis, Ausstattung und Systemzugänge ausgeben",
-      "firstday-unit": "Plan für den ersten Tag und Stationseinführung teilen",
-      "safety-orientation": "Sicherheitsunterweisung (Arbeitsschutz)",
-      "ppe": "PSA und Sicherheitsausrüstung ausgeben",
-      "drug-screen": "Drogentest vor Arbeitsantritt",
-      "cert-verify": "Handwerkszertifikate und Befähigungsnachweise prüfen",
-      "equipment-tools": "Werkzeug und Ausrüstung ausgeben",
-      "site-assignment": "Einsatzort und Schicht zuweisen",
-      "contract-offer": "Angebot & Arbeitsvertrag senden und unterschreiben lassen",
-      "ip-nda": "IP-Übertragung, NDA & Beteiligungsunterlagen unterschreiben lassen",
-      "accounts-repo": "Konten sowie Repo- und Tool-Zugänge anlegen",
-      "firstweek": "Plan und Ziele der ersten Woche teilen",
-      "work-auth": "Arbeitserlaubnis bestätigen (Aufenthalts- oder Arbeitstitel)",
-      "uniform": "Arbeitskleidung und Spind ausgeben",
-      "pos-training": "Einweisung an Kasse, Fläche und Station",
-      "cert": "Gesundheitszeugnis oder stellenspezifischer Nachweis (falls erforderlich)",
-      "schedule": "Dienstplan und Verfügbarkeit einrichten"
-    },
-    "preset": {
-      "general": {
-        "name": "Standard-Onboarding",
-        "industry": "Allgemein / Büro"
-      },
-      "healthcare_clinical": {
-        "name": "Onboarding im Gesundheitswesen",
-        "industry": "Gesundheitswesen und Klinik"
-      },
-      "skilled_trades": {
-        "name": "Onboarding in Handwerk und Produktion",
-        "industry": "Handwerk, Produktion und Bau"
-      },
-      "tech_startup": {
-        "name": "Onboarding für Startup und Tech",
-        "industry": "Technologie und Startups"
-      },
-      "frontline_service": {
-        "name": "Onboarding für den operativen Einsatz",
-        "industry": "Handel, Hotellerie und Gastronomie"
-      }
-    },
-    "removeRow": "Zeile entfernen"
   },
   "matrix": {
     "loadFailed": "Laden fehlgeschlagen.",
@@ -6296,6 +6139,8 @@
       "canceled": "Gekündigt"
     },
     "meters": {
+      "job_posts": "Veröffentlichte Rollen",
+      "hires": "Einstellungen",
       "ai_candidates": "AI-Kandidaten",
       "case_designs": "Case-Designs",
       "interview_minutes": "Interview-Minuten"
@@ -6329,7 +6174,6 @@
       "approxUsd": "≈ {price}",
       "perMonth": "pro Monat",
       "unlimited": "Unbegrenzt",
-      "activeJobs": "Aktive Stellen",
       "cta": "Zu diesem Tarif wechseln",
       "manageCta": "Im Portal ändern",
       "redirecting": "Weiterleitung…",
@@ -6953,9 +6797,7 @@
       "interview_reminder": "Interviewerinnerung",
       "interview_invite": "Interview-Einladung",
       "interviewer_brief": "Interviewer-Briefing",
-      "schedule_invite": "Termin-Einladung",
-      "onboarding": "Onboarding",
-      "onboarding_reminder": "Onboarding-Erinnerung"
+      "schedule_invite": "Termin-Einladung"
     },
     "cohort": {
       "title": "Kohorten-Auswertung der Prüfpunkte",
@@ -7646,10 +7488,10 @@
         "edgeLink": "sicherer Token-Link"
       },
       "hired": {
-        "title": "Eingestellt: das Onboarding startet",
+        "title": "Eingestellt: die Rolle schließt",
         "accepted": "Angebot angenommen",
         "move": "Nach Eingestellt verschieben",
-        "onboarding": "Onboarding\\nWillkommen · erste Woche"
+        "handoff": "Übergabe\\nATS · HRIS"
       }
     }
   },
@@ -8038,5 +7880,186 @@
   "readout": {
     "empty": "Nichts erfasst",
     "more": "{count, plural, =1 {+1 weitere} other {+# weitere}}"
+  },
+  "about": {
+    "eyebrow": "So funktioniert es",
+    "title": "Sechs Mechanismen im Betrieb",
+    "intro": "Recruiting-Software verlangt, dass Sie einer Zahl vertrauen. Dies sind die sechs Stellen, an denen dieses Produkt eine erzeugt: wie eine Stellenbeschreibung entsteht, wie eine Person bewertet wird, wer wodurch herausgefiltert wird, wie verhindert wird, dass unterschiedliche Arten von Kandidat/innen unter eine einzige Regel fallen, was eine Arbeitsprobe noch belegen kann und wo ein Mensch entscheiden muss. Jede unten genannte Schwelle ist eine Konstante im laufenden Code.",
+    "archLink": "Architekturdiagramme",
+    "tourLink": "Geführte Tour ansehen",
+    "tourTitle": "Die Pipeline live durch die echten Tabs verfolgen",
+    "chaptersNav": "Kapitel",
+    "chapters": {
+      "jd": {
+        "eyebrow": "Stellenbeschreibungen",
+        "title": "Drei Durchläufe, und nichts erfunden",
+        "lede": "Sie haken an, was gebaut werden soll, und ein nicht angehakter Schritt startet nie einen Prozess. Ein Durchlauf liest Ihren Bedarf gegen die reale Codebase und meldet, wo beide sich widersprechen; ein zweiter macht daraus Anforderungen, die auf etwas tatsächlich Gesagtes zurückführbar sein müssen; ein dritter ermittelt die Gehaltsspanne aus dem offenen Web. Die letzten beiden laufen nebeneinander. Das Dokument selbst wird anschließend im Code zusammengesetzt und nicht vom Modell geschrieben.",
+        "tab": "Stellenbeschreibungen öffnen"
+      },
+      "scoring": {
+        "eyebrow": "Kandidatenbewertung",
+        "title": "Drei Antworten, nicht zwei",
+        "lede": "Eine geforderte Fähigkeit erhält gegen das Profil einen Wert zwischen null und eins, und wo dieser landet, entscheidet über die Darstellung. Über 0,5 gilt sie als belegt und trägt ihre Stärke mit, sodass aus einer 0,55 nie eine 1,0 wird. Unter 0,5 und über null ist sie unbelegt und nennt den Grund: der Nachweis war nur verwandt, oder schwach hinterlegt, oder beides. Nur eine exakte Null heißt fehlend. Ein Produkt mit zwei Fächern muss ein schwaches Signal entweder Treffer oder Lücke nennen, und beides ist falsch.",
+        "tab": "Analyse öffnen"
+      },
+      "screening": {
+        "eyebrow": "Screening",
+        "title": "Zuerst günstige Filter, teures Urteil zuletzt",
+        "lede": "Screening ist nach Kosten geordnet. Harte Kriterien laufen über alle, ein deterministischer Scorer über alle Verbliebenen, und das Modell soll nur über die engere Auswahl nachdenken, die oben ankommt. Nichts, was Geld kostet, läuft über eine Person, die bereits ausgeschlossen wurde.",
+        "tab": "Übersicht öffnen"
+      },
+      "archetypes": {
+        "eyebrow": "Archetypen",
+        "title": "Dieselben drei Slots, anders gewichtet",
+        "lede": "Eine Studentin und ein Profi mit fünfzehn Jahren Erfahrung lassen sich nicht nach einer Regel sortieren, ohne dass eine Seite unfair verliert. Deshalb wird eine Person einem Archetyp zugeordnet, und dieser ändert die Bedeutung der drei Bewertungsdimensionen: bei Profilen am Karrierebeginn wird aus Karriere Potenzial und aus Persönlichem Passung. Zwei der drei Archetypen sind geschützt und können nie automatisch abgelehnt werden.",
+        "tab": "Archetypen öffnen"
+      },
+      "assignments": {
+        "eyebrow": "Aufgaben",
+        "title": "Eine Arbeitsprobe, die das Delegieren übersteht",
+        "lede": "Jede Person kann eine Hausaufgabe an ein Modell geben. Die Fallstudie ist deshalb so gebaut, dass sie auch dann aussagekräftig bleibt: Sie enthält bewusste Unschärfe, Fallen, die selbstsicheres Raten bestrafen, und eine Änderung mitten im Lauf, die erst nach Arbeitsbeginn eintrifft. Bewertet wird die gezeigte Überlegung, nicht ob das Ergebnis kompiliert.",
+        "tab": "Aufgaben öffnen"
+      },
+      "gates": {
+        "eyebrow": "Menschliche Prüfpunkte",
+        "title": "Die Maschine sortiert, ein Mensch entscheidet",
+        "lede": "Jede Aktion, die eine Person erreicht, geht zuerst durch einen Menschen. Aufgabe des Systems ist es, in diesem Moment mit zusammengetragenen Nachweisen und ausformulierter Begründung anzukommen: was bewertet wurde, auf welcher Grundlage, und worin das System unsicher war. Die Entscheidung, die ein Mensch dann trifft, wird als seine festgehalten.",
+        "tab": "Entscheidungen öffnen"
+      }
+    },
+    "jd": {
+      "input": "Eingabe",
+      "sources": {
+        "needLabel": "Ihr Bedarf",
+        "needDetail": "Was Sie getippt oder diktiert haben",
+        "jdLabel": "Der Text der Stellenbeschreibung",
+        "jdDetail": "Erste 4 000 Zeichen",
+        "codeLabel": "Die Codebase",
+        "codeDetail": "31k Zeilen · Sprachen · Abhängigkeiten"
+      },
+      "must": "Muss",
+      "nice": "Wünschenswert",
+      "noSource": "keine Quelle",
+      "gap": "Genannter Stack in der Codebase nicht belegt: <k>Kafka</k>",
+      "gapNote": "Wird Ihnen als zu klärende Lücke gezeigt, nicht still in die Stelle geschrieben.",
+      "status": {
+        "s0": "role-design-v4 · Rückführungsregeln aktiv",
+        "s2": "Anforderungskandidaten: 7",
+        "s3": "jede muss auf etwas zurückführbar sein, das die Eingaben wirklich nennen",
+        "s9": "Kafka hat in keiner Eingabe eine Stütze",
+        "s10": "verworfen, bevor es ins Dokument kam",
+        "s11": "statedVsRealGaps: stattdessen an Sie gemeldet",
+        "s12": "6 Muss-Kriterien behalten · hartes Limit 8"
+      }
+    },
+    "scoring": {
+      "matched": "belegt",
+      "unproven": "unbelegt",
+      "missing": "fehlend",
+      "adjacency": "Verwandtschaft",
+      "provenance": "Herkunft",
+      "both": "beides",
+      "note": "Eine verwandte Fähigkeit liegt bewusst unter der Linie, damit sie nie als die echte zählt. Ohne mittleres Fach müsste ein schwaches Signal entweder Treffer oder Lücke heißen. Das eine schmeichelt der Person, das andere ist ihr gegenüber unfair. So steht da, was tatsächlich gesehen wurde.",
+      "status": {
+        "s0": "Stellenanforderungen: sieben Muss-Kriterien",
+        "s2": "_MATCH_THRESHOLD = 0.5",
+        "s3": "jede Anforderung erhält gegen das Profil 0..1",
+        "s9": "unbelegt trägt einen Grund: Verwandtschaft · Herkunft · beides",
+        "s10": "_SIBLING_MATCH = 0.4, bewusst unter der Linie"
+      }
+    },
+    "screening": {
+      "layerA": "Harte Kriterien für alle: Sprache, Seniorität, Bildung, Arbeitsmodell",
+      "layerB": "Gewichteter Scorer über die Verbliebenen, sortiert und weiter deterministisch",
+      "layerC": "Das Modell, nur auf der engeren Auswahl, je Person × Stelle gecacht",
+      "free": "kostenlos",
+      "paid": "kostenpflichtig",
+      "ko": {
+        "language": "verlangte eine Sprache, die im Profil fehlt",
+        "seniority": "lag außerhalb der Senioritätsspanne der Person",
+        "education": "verlangte einen höheren Bildungsabschluss",
+        "workMode": "passte nicht zum bevorzugten Arbeitsmodell"
+      },
+      "cost": "Ebene A und B brauchen keinen API-Schlüssel. Ohne Schlüssel sortiert das Screening weiterhin. Es hört nur vor dem Nachdenken auf.",
+      "status": {
+        "s0": "{n} Personen auf eine Stelle",
+        "s2": "ko_filter: harte Kriterien, deterministisch, ohne API-Schlüssel",
+        "s3": "{n} ausgeschlossen, jeweils mit benanntem Grund",
+        "s4": "score_job: gewichteter Scorer, weiter deterministisch, weiter kostenlos",
+        "s7": "match_reasoning: das Modell, nur auf den Top {n}",
+        "s9": "der einzige kostenpflichtige Schritt sieht nie eine bereits ausgeschlossene Person"
+      },
+      "costLabel": "Kosten"
+    },
+    "archetypes": {
+      "signals": {
+        "enrolled": "aktuell eingeschrieben",
+        "yreLow": "unter 1 Jahr einschlägige Erfahrung",
+        "educationDominant": "Bildung ist der dominante Block im Lebenslauf",
+        "substantial": "hat substanzielle Erfahrung"
+      },
+      "targets": {
+        "student": "Studium",
+        "bau": "Erfahren",
+        "switcher": "Quereinstieg"
+      },
+      "confidence": "Konfidenz {value}",
+      "declaration": "Hat die Person den Archetyp selbst angegeben, gewinnt diese Angabe und gilt mit 0,9. Ein widersprechendes Signal überschreibt sie nie. Es senkt die Konfidenz auf 0,65 und hängt einen Grund an, den das Panel der weichen Signale dann für einen Menschen sichtbar macht.",
+      "fallback": "Feuert überhaupt nichts, lautet das Ergebnis <k>bau</k> mit 0,4. Diese Zahl liegt bewusst unter der Prüfschwelle von 0,55, sodass eine ohne Nachweise getroffene Zuordnung immer als prüfbedürftig erscheint, statt still als Ergebnis durchzugehen.",
+      "status": {
+        "s0": "registry.detect(): eine Regel-Engine, ohne Modell",
+        "s1": "aus dem Profil gezogene Signale",
+        "s3": "jedes Signal stimmt mit einem festgelegten Gewicht ab",
+        "s7": "argmax, Gleichstand nach Deklarationsreihenfolge im JSON",
+        "s8": "Konfidenz = 4.5 / {total} = {value}",
+        "s9": "eine Selbstangabe gilt mit 0,9 und wird nie überschrieben",
+        "s10": "der ungeführte Fallback ist 0,4, unter der Prüfschwelle von 0,55"
+      }
+    },
+    "assignments": {
+      "seed": "das Ausgangsmaterial",
+      "seedBody": "Ausgangsmaterial, für beide identisch",
+      "baselineBody": "Ein nacktes Modell, angewiesen nichts zu fragen und nichts zu hinterfragen",
+      "frozen": "bei Freigabe eingefroren",
+      "submission": "die Abgabe",
+      "submissionBody": "Was die Person mit denselben Dateien tatsächlich getan hat",
+      "deltaBaseline": "vom nackten Modell ergänzte Zeilen",
+      "deltaSubmission": "von der Person ergänzte Zeilen",
+      "note": "Über {aim} gibt das Produkt eine Frage aus, keinen Abzug: prüfen Sie im Gespräch, was diese Person über das nackte Modell hinaus beigetragen hat. Manche Teile einer echten Aufgabe haben genau eine naheliegende Lösung, und Überschneidung als Schuld zu werten würde Menschen dafür bestrafen, dass sie sie richtig gelöst haben.",
+      "status": {
+        "s0": "die Fallstudie ist freigegeben und das Ausgangsmaterial erzeugt",
+        "s2": "baseline-solve-v1: ein nacktes Modell, angewiesen vollständig zu delegieren",
+        "s3": "je Fallstudie eingefroren, nie neu erzeugt",
+        "s4": "die Person gibt ab",
+        "s5": "beide Seiten werden darauf reduziert, was sie ERGÄNZT haben",
+        "s7": "Jaccard über ergänzte Zeilen, je Pfad, nach Vereinigungsgröße gewichtet",
+        "s8": "Überschneidung {value}",
+        "s9": "Zielwert ist {aim}, und es ist ein Gesprächsimpuls statt einer Strafe"
+      }
+    },
+    "gates": {
+      "actions": {
+        "advance": "Zum Interview weiterleiten",
+        "hold": "Zur Prüfung zurückhalten",
+        "reject": "Ablehnen",
+        "offer": "Angebot senden"
+      },
+      "gate": "ein Mensch",
+      "stops": "stoppt",
+      "applied": "automatisch ausgeführt",
+      "noteRejection": "Entscheidend ist die Zeile mit der Ablehnung. Der Durchlauf berechnet sie, führt sie durch das Fairness-Gate und weigert sich dann, sie auszuführen, und stellt sie stattdessen einem Menschen in die Warteschlange. Eine Ablehnung ist die eine unumkehrbare, für die Person sichtbare Maßnahme im Produkt, also führt sie nichts von allein aus.",
+      "noteAutonomous": "Weiterleitungen, Zurückstellungen, Hinweise, Bewertung und Entwürfe bleiben autonom, und genau dass wir das klar benennen, gibt dem Rest der Aussage Gewicht.",
+      "noteHired": "Eingestellt liegt gar nicht auf diesem Weg. Ein manueller Wechsel zu Eingestellt liefert 422, denn diese Phase setzt die Annahme eines Angebots durch die Person und sonst nichts.",
+      "status": {
+        "s0": "der unbeaufsichtigte Durchlauf schlägt vier Aktionen vor",
+        "s2": "approvalKind: ein Feld entscheidet, was anhält",
+        "s3": "Weiterleitung: ausgeführt und in die Chronik geschrieben",
+        "s4": "Zurückstellung: ausgeführt",
+        "s5": "Ablehnung: berechnet, dann eingereiht statt ausgeführt",
+        "s6": "Angebot: entworfen, dann eingereiht",
+        "s7": "AUTO1 RETIRED: der Durchlauf führt Ablehnungen gar nicht mehr aus",
+        "s9": "zu Eingestellt gelangt von hier aus niemand"
+      }
+    }
   }
 }

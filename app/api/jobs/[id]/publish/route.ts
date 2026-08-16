@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { activeJobsGate } from "@/app/_lib/billing";
+import { jobPostGate, recordMeterUsage } from "@/app/_lib/billing";
 import { ensureDb } from "@/app/_lib/db/core";
 import { canWriteJobLifecycle, getJob } from "@/app/_lib/db/jobs";
 import { createPipelineEntry, reopenEntriesByJobId } from "@/app/_lib/db/pipeline";
-import { countPublishedJobs, getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
+import { getJobStatus, setJobStatus } from "@/app/_lib/job-ingest";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { runSourceForRole } from "@/app/_lib/devcase-run";
 import { raiseRediscoveryAlertsForJob } from "@/app/_lib/rediscover";
@@ -32,21 +32,28 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // endpoint doesn't confirm another tenant's job id exists.
     if (!canWriteJobLifecycle(id, ws)) return NextResponse.json({ error: "Job not found." }, { status: 404 });
 
-    // Billing hard gate: the free plan allows 1 concurrently-active authored job.
-    // Re-publishing an already-live job is always allowed (idempotent). The count
-    // check and the status flip run in ONE db.transaction so two concurrent
-    // publishes can't both read count=0 and both go live, bypassing the cap. (No
-    // await sits between the count and the flip and better-sqlite3 is synchronous,
-    // so this is atomic today too; the transaction enforces the invariant if an
-    // await is ever introduced into this critical section.)
-    const gate = ensureDb().transaction((): { already: boolean; wasClosed: boolean; quota: ReturnType<typeof activeJobsGate> } => {
+    // Billing hard gate: one of the two units the customer actually pays for — a role
+    // taken to market. Re-publishing an already-live job is always allowed and never
+    // charges (idempotent). The gate, the status flip and the debit run in ONE
+    // db.transaction so two concurrent publishes can't both pass on the last included
+    // unit, and so a refused publish can never leave a debit behind. (No await sits
+    // between them and better-sqlite3 is synchronous, so this is atomic today too;
+    // the transaction enforces the invariant if an await is ever introduced here.)
+    const gate = ensureDb().transaction((): { already: boolean; wasClosed: boolean; quota: ReturnType<typeof jobPostGate> } => {
       const prevStatus = getJobStatus(id);
       const wasPublished = prevStatus === "published";
       if (wasPublished) return { already: true, wasClosed: false, quota: null };
-      // Org attribution (org-plan Phase 3): the plan read follows the caller's
-      // tenant; the count is already workspace-filtered.
-      const quota = activeJobsGate(countPublishedJobs(ws), new Date(), ws);
-      if (!quota) setJobStatus(id, "published");
+      // Taking a role to market is one of the two things the customer actually pays
+      // for, so the gate and the debit are the same transaction as the status flip:
+      // a publish that is refused must not charge, and one that succeeds must not
+      // escape the meter. `published_at` is COALESCE-stamped inside setJobStatus, so
+      // this fires once per job EVER — closing and reopening a role never re-charges,
+      // which is why the debit sits under the `wasPublished` early-return above.
+      const quota = jobPostGate(new Date(), ws);
+      if (!quota) {
+        setJobStatus(id, "published");
+        recordMeterUsage("job_posts", 1, new Date(), ws);
+      }
       // A reopen is a closed→published transition; remember it so the entries this
       // role's close withdrew are restored explicitly below (not left to sourcing).
       return { already: false, wasClosed: prevStatus === "closed", quota };

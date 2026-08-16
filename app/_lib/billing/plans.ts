@@ -8,7 +8,20 @@
 // provider's product objects (Polar products are multi-currency) — the code
 // only ever references products by id.
 
-export const METERS = ["ai_candidates", "case_designs", "interview_minutes"] as const;
+// OUTCOME METERS FIRST. The headline price is what the customer got — a role taken
+// to market, and a person hired — not how much compute we spent getting there.
+// `ai_candidates` stays behind them as a SAFETY NET with a generous allowance:
+// normal use never touches it, but it bounds a runaway (the BYOM tier already grants
+// unlimited analysis on our keys with no key check, and there is no cost ledger to
+// fall back on — llm_usage carries no org_id).
+//
+// The two outcome meters are gated DIFFERENTLY, and the difference is load-bearing:
+//   job_posts  is a RECRUITER action, so it gates (402) — the same place the old
+//              active-jobs cap sat, in the publish transaction.
+//   hires      is a CANDIDATE action. It is DEBITED BUT NEVER GATED: a candidate
+//              accepting an offer must not fail because the recruiter is over quota.
+//              Overage is billed, never blocked. See offer-finalize.ts.
+export const METERS = ["job_posts", "hires", "ai_candidates", "case_designs", "interview_minutes"] as const;
 export type Meter = (typeof METERS)[number];
 
 export const PLAN_IDS = ["free", "starter", "growth", "byom", "enterprise"] as const;
@@ -21,8 +34,6 @@ export type PlanDef = {
   priceUsdApprox: number;
   /** Per-month included allowance per meter; null = unlimited. */
   limits: Record<Meter, number | null>;
-  /** Concurrent active jobs; null = unlimited. */
-  activeJobs: number | null;
   /** Contact-sales tier: custom-priced, negotiated per hiring volume — not sold
    *  through self-serve checkout. The published price is "Custom", entitlement is
    *  granted per contract, and the UI shows a "Talk to sales" path instead of a
@@ -36,8 +47,10 @@ export const PLANS: Record<PlanId, PlanDef> = {
     name: "Free",
     priceCzk: 0,
     priceUsdApprox: 0,
-    limits: { ai_candidates: 5, case_designs: 1, interview_minutes: 0 },
-    activeJobs: 1,
+    // One role and one hire: the whole funnel is walkable end to end on Free, which
+    // is the point of a trial for an outcome-priced product. A second hire is the
+    // upgrade moment.
+    limits: { job_posts: 1, hires: 1, ai_candidates: 25, case_designs: 1, interview_minutes: 0 },
   },
   starter: {
     id: "starter",
@@ -46,8 +59,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     // implied rate is ~24 Kč/$ (BYOM 120 Kč ≈ $5), so $10 → 240 Kč.
     priceCzk: 240,
     priceUsdApprox: 10,
-    limits: { ai_candidates: 100, case_designs: 5, interview_minutes: 30 },
-    activeJobs: null,
+    limits: { job_posts: 3, hires: 2, ai_candidates: 300, case_designs: 5, interview_minutes: 30 },
   },
   growth: {
     id: "growth",
@@ -55,16 +67,17 @@ export const PLANS: Record<PlanId, PlanDef> = {
     // Tuned to $20/mo (2026-07-05); $20 → 480 Kč at ~24 Kč/$.
     priceCzk: 480,
     priceUsdApprox: 20,
-    limits: { ai_candidates: 400, case_designs: 20, interview_minutes: 120 },
-    activeJobs: null,
+    limits: { job_posts: 10, hires: 8, ai_candidates: 1200, case_designs: 20, interview_minutes: 120 },
   },
   byom: {
     id: "byom",
     name: "BYOM",
     priceCzk: 120,
     priceUsdApprox: 5,
-    limits: { ai_candidates: null, case_designs: null, interview_minutes: 0 },
-    activeJobs: null,
+    // BYOM buys unlimited COMPUTE on the customer's own keys — that is what the tier
+    // means. It does not buy unlimited outcomes: roles and hires are our product, not
+    // their model spend, so they carry the Starter allowance.
+    limits: { job_posts: 3, hires: 2, ai_candidates: null, case_designs: null, interview_minutes: 0 },
   },
   enterprise: {
     id: "enterprise",
@@ -78,8 +91,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     priceCzk: 0,
     priceUsdApprox: 0,
     contactSales: true,
-    limits: { ai_candidates: null, case_designs: null, interview_minutes: null },
-    activeJobs: null,
+    limits: { job_posts: null, hires: null, ai_candidates: null, case_designs: null, interview_minutes: null },
   },
 };
 

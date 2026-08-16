@@ -16,7 +16,7 @@ export {
   type BillingOverview,
   type MeterOverview,
 } from "./entitlements";
-export { activeJobsGate, meterAllows, meterGate, QUOTA_CODE, type QuotaVerdict } from "./enforce";
+export { jobPostGate, meterAllows, meterGate, QUOTA_CODE, type QuotaVerdict } from "./enforce";
 export {
   currentPeriod,
   isPackId,

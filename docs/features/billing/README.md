@@ -1,8 +1,14 @@
 # Billing — payment gate + Polar
 
-Status: backend shipped and enforcement wired. Outstanding: a richer pricing/
-billing UI surface and org-level (seat-based) billing (tracked in
-`docs/product/enterprise-readiness.md` §8 / E6).
+Status: backend shipped and enforcement wired, on an **outcome-priced** model.
+Outstanding: a richer pricing/billing UI surface.
+
+**There are no seats and never have been.** An earlier version of this line read
+"org-level (seat-based) billing" as an outstanding item, and that phrasing was
+routinely misread as a description of the present. Pricing has always been a flat
+monthly subscription per ORG with metered allowances — nothing is priced per user,
+per member or per quantity. Per-seat pricing is not planned: the meters below price
+outcomes instead.
 
 ## Entry points
 
@@ -13,9 +19,38 @@ billing UI surface and org-level (seat-based) billing (tracked in
 ## Pricing model
 
 Free / Starter 240 Kč ≈ $10 / Growth 480 Kč ≈ $20 / BYOM 120 Kč ≈ $5
-(`app/_lib/billing/plans.ts`), metered in **AI candidates, case designs, interview
-minutes** — never tokens — plus one-time **minute packs** (100 min / 790 Kč) on
+(`app/_lib/billing/plans.ts`), plus one-time **minute packs** (100 min / 790 Kč) on
 any tier. CZK is the primary display currency at the app's implied ~24 Kč/$ rate.
+
+**The customer pays for outcomes.** Two meters carry the headline price:
+
+| Meter | Debited when | Gated? |
+| --- | --- | --- |
+| `job_posts` | a role is published — `published_at` is `COALESCE`-stamped, so **once per job ever**; closing and reopening never re-charges | **Yes**, 402 in the publish transaction |
+| `hires` | a candidate accepts an offer, on the compare-and-swap winner in `offer-finalize.ts` | **Never** |
+
+The asymmetry is deliberate and load-bearing. Publishing is a RECRUITER action, so
+refusing it is reasonable. A hire fires on the CANDIDATE's accept — a person taking a
+job must never fail because the recruiter's org is over its allowance, so overage is
+billed and surfaced, never blocked. The debit is also best-effort there: a metering
+fault must not turn a successful acceptance into an error.
+
+Exactly-once on both sides comes from existing invariants rather than new bookkeeping:
+`setJobStatus` stamps `published_at` under `COALESCE`, and `markOfferResponded` is a
+DB CAS (`UPDATE offers SET status=? WHERE token=? AND status='extended' RETURNING *`)
+so only the first responder is claimed. The terminal stage cannot be reached any other
+way — a manual move to it is refused in `pipeline-entry-action.ts`.
+
+**AI candidates, case designs and interview minutes remain metered** behind those,
+as a safety net with a generous allowance normal use does not reach. They bound a
+runaway rather than setting the price — which matters because BYOM grants unlimited
+analysis on our keys with no key check, and `llm_usage` carries no `org_id`, so there
+is no cost ledger to fall back on.
+
+**The active-jobs cap is gone.** It was a CONCURRENCY limit ("how many roles may be
+open at once") counted per WORKSPACE while reading an ORG plan, so a five-team org
+silently got five times the free allowance. Publishing is now a metered unit like any
+other: counted per org, per month, consumed rather than occupied.
 
 **Enterprise** is a fifth, **contact-sales** tier (`plans.ts`, `contactSales: true`):
 custom-priced, unlimited meters, granted per signed contract — never sold through

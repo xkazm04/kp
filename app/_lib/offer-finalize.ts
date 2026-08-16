@@ -2,12 +2,11 @@ import type { RefusalErrorCode } from "./api-response";
 import { getJob } from "./db/jobs";
 import { actOnPipelineEntry, recordAutomationEvent } from "./db/pipeline";
 import { dispatchAtsEvent } from "./ats-egress";
-import { dispatchOnboarding } from "./comms-dispatch";
 import { recordAudit } from "./dev-control";
+import { recordMeterUsage } from "./billing";
 import { recordPipelineOutcome } from "./dev-outcomes";
 import { expireOfferIfDue, getOfferByToken, markEntryStatus, markOfferResponded, type OfferRow } from "./offers-store";
 import { offerHoursRemaining } from "./offer-policy";
-import { startRun } from "./onboarding-store";
 
 // Direction #4 — capture the candidate's offer response and run the terminal
 // transitions. The offer DECISION was the recruiter's (extend); here we record
@@ -47,8 +46,8 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   // The CAS in markOfferResponded is the ONLY claim that counts (idea-e80f60f1):
   // the status read above is a snapshot, and two concurrent responses (candidate
   // double-click; candidate + recruiter-on-behalf) both pass it. Previously the
-  // result was ignored and BOTH callers ran the terminal side effects — double
-  // onboarding dispatch, phantom Hired transitions, duplicate automation events.
+  // result was ignored and BOTH callers ran the terminal side effects — phantom
+  // Hired transitions, duplicate automation events, a doubled ATS hire webhook.
   // Now the loser reports the recorded outcome and touches nothing.
   //
   // The CAS-loser path is identical for both responses: report the AUTHORITATIVE
@@ -68,13 +67,34 @@ export async function respondToOffer(token: string, response: "accept" | "declin
       // the candidate's response, not a recruiter click — logs `auto_advanced`.
       // actOnPipelineEntry now refuses to advance a TERMINAL entry, so a stale
       // offer link accepted after the candidate was rejected/closed elsewhere
-      // returns null instead of resurrecting them to Hired + firing onboarding.
+      // returns null instead of resurrecting them to Hired.
       const hired = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" }, offer.workspaceId);
       // Only stamp the accept on the timeline when it actually advanced (mirrors the
       // decline path's conditional event), so a closed entry can't grow a phantom
       // offer_accepted; record the conflict instead so a recruiter can see it.
       if (hired) {
         recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "", offer.workspaceId);
+        // THE HIRE METER — the headline unit of an outcome-priced product, debited
+        // here because this is the only place a candidate can reach the terminal
+        // stage (a manual move to it is refused in pipeline-entry-action.ts) and
+        // because markOfferResponded above is a DB compare-and-swap: only the first
+        // responder gets `claimed`, so this fires exactly once per hire even if the
+        // candidate double-clicks or the link is opened twice.
+        //
+        // DEBITED, NEVER GATED. There is no meterGate before it and there must not
+        // be: this runs on the CANDIDATE's accept, and a person accepting a job must
+        // never fail because the recruiter's org is over its allowance. Overage is
+        // billed and surfaced in Billing; it is never a reason to break the moment
+        // the whole product exists to produce. Best-effort for the same reason — a
+        // metering fault must not turn a successful acceptance into an error.
+        try {
+          recordMeterUsage("hires", 1, new Date(), offer.workspaceId);
+        } catch (meterErr) {
+          console.error(
+            `[offer] hired ${offer.entryId} but the hire meter did not record:`,
+            meterErr instanceof Error ? meterErr.message : meterErr
+          );
+        }
       } else {
         recordAutomationEvent(offer.entryId, "offer_accept_blocked", "accepted on a closed entry — not advanced to Hired", offer.workspaceId);
       }
@@ -95,38 +115,10 @@ export async function respondToOffer(token: string, response: "accept" | "declin
           console.error("[offer] outcome auto-record failed", err);
         }
       }
-      // Onboarding hook — fires on the move to Hired. The accept already committed (offer
-      // accepted + entry Hired), and a retry early-returns "accepted" — so a comms blip here
-      // must NOT 500 (that masks the gap as success) or leave zero signal. Mirror the schedule
-      // confirm flow: catch the dispatch failure, record a durable operator-visible reconcile
-      // event so onboarding can be re-triggered, and still return ok.
+      // Hired is the TERMINAL state kp owns. What happens after the hire — pre-boarding
+      // paperwork, equipment, day one — is deliberately out of scope: this is a hiring
+      // studio, and the post-hire hand-off belongs to the HRIS the webhook below feeds.
       if (hired) {
-        // Start the onboarding run on the hire (idempotent — one run per entry) so the
-        // candidate's onboarding link has a run to fill AND the hire immediately appears
-        // in the recruiter's onboarding hand-off tab. Best-effort: a failure here must not
-        // break the accept (the dispatch below still links the candidate to onboarding,
-        // and the page lazily ensures a run if this missed).
-        try {
-          startRun({ entryId: hired.id, candidateLabel: hired.candidateLabel, jobTitle: hired.jobTitle });
-        } catch (e) {
-          console.error(`[offer] onboarding run start failed for entry ${offer.entryId}:`, e);
-        }
-        try {
-          // The accepted offer's token doubles as the onboarding link (offers #5), so the
-          // welcome comm lands the candidate on a concrete next-step page, not a promise.
-          await dispatchOnboarding(hired, offer.token);
-        } catch (err) {
-          recordAutomationEvent(
-            offer.entryId,
-            "onboarding_failed",
-            err instanceof Error ? err.message.slice(0, 160) : "onboarding dispatch failed",
-            offer.workspaceId
-          );
-          console.error(
-            `[offer] accepted + Hired but onboarding dispatch failed for entry ${offer.entryId}:`,
-            err instanceof Error ? err.message : err
-          );
-        }
         // P1-5 — mirror the hire into any configured ATS/HRIS webhook so the
         // system of record gets the outcome without re-keying (Marcus #12).
         // Fire-and-forget + self-contained best-effort: a no-op unless a webhook
