@@ -1,14 +1,15 @@
-// Critical-path journey: first-run wizard (IMPORT path) → JD in the Library →
-// recruiter mints a self-scheduling invite from the pipeline drawer → the
-// candidate (fresh context, no auth cookie) books a slot on /schedule/[token] →
-// the recruiter's Schedule tab reflects the confirmed interview → the candidate
-// withdraws (terminal card), freeing the slot so repeated runs don't drain the
-// 21-day horizon.
+// Critical-path journey: first-run wizard (through its Pipeline step, which
+// writes the board's columns) → JD in the Library → recruiter mints a
+// self-scheduling invite from the pipeline drawer → the candidate (fresh context,
+// no auth cookie) books a slot on /schedule/[token] → the recruiter's Schedule tab
+// reflects the confirmed interview → the candidate withdraws (terminal card),
+// freeing the slot so repeated runs don't drain the 21-day horizon.
 //
 // FULLY DETERMINISTIC — no GEMINI/Claude/ElevenLabs key is needed anywhere:
-//   • the wizard's IMPORT path saves the JD as-is (POST /api/jds) — the only AI
-//     step (ingest-job's LLM parse) is fire-and-forget in the product and never
-//     asserted here;
+//   • the wizard persists a board-axis rename (POST /api/pipeline/stage-migration)
+//     and the JD leg saves a description as-is (POST /api/jds) — the only AI step
+//     (ingest-job's LLM parse) is fire-and-forget in the product and is never
+//     called here;
 //   • /api/extract-text shells to the local Python extractor (pipeline.jobfit.
 //     extract_cli) — Python + repo deps must be on PATH, same requirement as
 //     `npm run build` (schemas:gen);
@@ -29,6 +30,7 @@
 // and seedDevAuth stamps the first-run gate, so this file needs no manual seed.
 // Copy assertions deliberately avoid the public landing (another workstream owns
 // that copy); every asserted string lives in the workspace/schedule namespaces.
+import { readFileSync } from "fs";
 import path from "path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -46,6 +48,10 @@ test.beforeEach(async ({ page }) => {
 // persisted in the same dev database.
 const runId = Date.now().toString(36);
 const JD_TITLE = `E2E Journey QA Automation Engineer ${runId}`;
+// The wizard renames the board's first column to this. Only the LABEL moves —
+// the stored stage id stays "Accepted", which is why the later steps can still
+// find seeded entries by stage.
+const STAGE_LABEL = `E2E Arrivals ${runId}`;
 const jdFixture = path.join(process.cwd(), "e2e", "fixtures", "journey-jd.txt");
 
 // Shared across the serial steps.
@@ -89,7 +95,10 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
   }).toPass({ timeout: 30_000 });
 }
 
-test("first-run wizard IMPORT path saves the JD and it lands in the Library", async ({ page }) => {
+test("first-run wizard walks to the hand-off and its Pipeline step saves the board", async ({ page }) => {
+  // Above the suite default (120s): five crossfaded steps plus two server actions
+  // at the end, and against a dev server each of those is a first-call compile.
+  test.setTimeout(240_000);
   // `?onboarding=1` is the single-load escape hatch — it opens the LIVE wizard
   // regardless of the workspace's onboarding stamp (app/page.tsx).
   await page.goto("/?onboarding=1");
@@ -106,56 +115,88 @@ test("first-run wizard IMPORT path saves the JD and it lands in the Library", as
   const team = wizard.getByRole("heading", { name: "Bring your team in" });
   await advanceStep(company, wizard.getByRole("button", { name: "Continue" }), team);
 
-  // Team: explicitly skippable — no invites in this journey.
-  const firstRole = wizard.getByRole("heading", { name: "Describe your first role" });
-  await advanceStep(team, wizard.getByRole("button", { name: "Skip for now" }), firstRole);
+  // Team is optional and no longer carries its own "Skip for now": its Continue
+  // was never gated, so the second button was two ways to do one thing (the rail
+  // marks the step Optional instead). No invites in this journey.
+  const pipeline = wizard.getByRole("heading", { name: "Shape your hiring board" });
+  await advanceStep(team, wizard.getByRole("button", { name: "Continue" }), pipeline);
 
-  // First role, IMPORT mode: upload the fixture JD; /api/extract-text (the
-  // Python extractor) fills the body and the file name derives no title because
-  // we set ours first.
-  const importRadio = wizard.getByRole("radio", { name: "Import existing" });
-  await expect(async () => {
-    if (!(await importRadio.isChecked())) await importRadio.click().catch(() => undefined);
-    await expect(importRadio).toBeChecked({ timeout: 1500 });
-  }).toPass({ timeout: 30_000 });
-  await wizard.locator("#setup-role-title").fill(JD_TITLE);
-  await wizard.locator('input[type="file"]').setInputFiles(jdFixture);
-  // The extractor round-trip proves /api/extract-text worked (generous budget —
-  // the first Python spawn on a cold machine is the slow one).
-  await expect(wizard.locator("#setup-role-import-body")).toHaveValue(/QA Automation Engineer/, {
-    timeout: 60_000
-  });
+  // Pipeline step (the one that replaced "First role"): the board's REAL columns
+  // load from /api/decisions/config, so waiting for column 1 to carry a value is
+  // the honest ready signal. Renaming it is the edit that proves the step writes
+  // to the draft — and the one whose stored key must NOT move, which the rest of
+  // this journey then relies on (it filters entries by the stage ID "Screened").
+  const firstColumn = wizard.getByRole("textbox", { name: "Name of step 1" });
+  await expect(firstColumn).toHaveValue(/\S/, { timeout: 30_000 });
+  await firstColumn.fill(STAGE_LABEL);
 
   const handoff = wizard.getByRole("heading", { name: "You're all set" });
-  await advanceStep(firstRole, wizard.getByRole("button", { name: "Continue" }), handoff);
+  await advanceStep(pipeline, wizard.getByRole("button", { name: "Continue" }), handoff);
 
-  // Finish via "Explore on my own" — persistOnboardingSetup POSTs the imported
-  // JD to /api/jds (the ingest-job follow-up is best-effort and not asserted).
-  let jdSaved: { slug?: string } | null = null;
-  const jdResponse = page
-    .waitForResponse(
-      (r) => new URL(r.url()).pathname === "/api/jds" && r.request().method() === "POST",
-      { timeout: 60_000 }
-    )
-    .then(async (r) => {
-      expect(r.ok(), `POST /api/jds responded ${r.status()}`).toBe(true);
-      jdSaved = (await r.json()) as { slug?: string };
-      return r;
-    });
+  // Finish via "Explore on my own", then assert the STORED axis rather than the
+  // request that carried it: a POST in the network log proves an attempt, and this
+  // step's whole point is that the board actually keeps the shape. (The write goes
+  // through /api/pipeline/stage-migration, which applies the config and any forced
+  // candidate moves as one operation; a rename moves nobody, so `migrate` is
+  // empty.)
+  //
+  // Generous budget on purpose: finish() runs the org-name and language SERVER
+  // ACTIONS before it reaches the axis, and against a dev server those compile on
+  // first call — well past the suite's default 30s expect window on a cold
+  // instance. The production run in the header does it in a fraction of that.
   const soloTile = wizard.getByRole("button", { name: /Explore on my own/ });
   await expect(async () => {
-    if (!jdSaved) await soloTile.click().catch(() => undefined);
-    expect(jdSaved, "the wizard's finish should POST the imported JD").not.toBeNull();
-  }).toPass({ timeout: 60_000 });
-  await jdResponse;
-  expect(jdSaved!.slug, "saved JD should carry a slug").toBeTruthy();
-  // Deliberately do NOT wait for the wizard to close itself: after the /api/jds
-  // save it fires a best-effort ingest-job follow-up, and on a machine with LLM
-  // keys that call runs an unbounded AI parse before finish() unwinds. The JD is
-  // already persisted (response above); navigating away is the deterministic end
-  // of the wizard, exactly as it is for a real user who moves on.
+    // Re-clicked only while the tile is still there (the dev hydration gap can eat
+    // the first click). finish() is re-entrancy guarded, so an extra click during
+    // a run in flight is a no-op, never a second write.
+    if (await soloTile.isVisible().catch(() => false)) await soloTile.click().catch(() => undefined);
+    const config = await page.request.get("/api/decisions/config");
+    expect(config.ok(), `GET /api/decisions/config responded ${config.status()}`).toBe(true);
+    const payload = (await config.json()) as {
+      configs?: { pipelineStages?: { stages?: { id: string; label: string }[] } };
+    };
+    const first = payload.configs?.pipelineStages?.stages?.[0];
+    // The label moved; the stored key did NOT — that is the contract that lets the
+    // rest of this journey keep finding entries by the stage id.
+    expect(first?.label, "the wizard's finish should save the renamed column").toBe(STAGE_LABEL);
+    expect(first?.id, "renaming a column must not move its stored key").toBe("Accepted");
+  }).toPass({ timeout: 120_000 });
+  // No separate "and the board draws it" hop: this IS the axis the Pipeline tab
+  // reads (getPipelineAxis), and the next steps of this journey then drive that
+  // board — finding a seeded candidate row and its menu on it — which is a
+  // stronger check that a renamed axis stays usable than a header-text assertion.
+});
 
-  // The imported JD is visible in the Library ledger.
+test("an existing job description is extracted and lands in the Library", async ({ page }) => {
+  // The wizard used to own this leg (its First-role step had an IMPORT mode that
+  // uploaded a file). That step is gone — a JD build belongs to the Library, where
+  // it has a ledger and a retry, and the Getting-started checklist walks a new
+  // operator there. The COVERAGE is what mattered here, so it moved down to the
+  // two endpoints the import path exercised, driven through the recruiter's
+  // authenticated request context:
+  //   • /api/extract-text — shells to the local Python extractor
+  //     (pipeline.jobfit.extract_cli), the one Python dependency of this spec;
+  //   • /api/jds — saves the description as-is, no AI build, keyless-safe.
+  // (The ingest-job follow-up is fire-and-forget in the product and, on a machine
+  // WITH LLM keys, runs an unbounded parse — deliberately not called here.)
+  const extracted = await page.request.post("/api/extract-text", {
+    multipart: {
+      file: { name: "journey-jd.txt", mimeType: "text/plain", buffer: readFileSync(jdFixture) },
+    },
+    // Generous: the first Python spawn on a cold machine is the slow one.
+    timeout: 60_000,
+  });
+  expect(extracted.ok(), `POST /api/extract-text responded ${extracted.status()}`).toBe(true);
+  const { text } = (await extracted.json()) as { text?: string };
+  expect(text, "the extractor should return the fixture's text").toMatch(/QA Automation Engineer/);
+
+  const saved = await page.request.post("/api/jds", {
+    data: { title: JD_TITLE, body: text },
+  });
+  expect(saved.ok(), `POST /api/jds responded ${saved.status()}`).toBe(true);
+  expect(((await saved.json()) as { slug?: string }).slug, "saved JD should carry a slug").toBeTruthy();
+
+  // And it renders in the Library ledger.
   await page.goto("/?tab=library");
   await expect(page.getByRole("button", { name: JD_TITLE }).first()).toBeVisible({ timeout: 30_000 });
 });

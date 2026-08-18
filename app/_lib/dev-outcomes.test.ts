@@ -44,7 +44,19 @@ registerHooks({
 const { cleanupUnitDb, UNIT_DB_PATH: TMP } = await import("./testing/unit-db.ts");
 after(cleanupUnitDb);
 
-const { recordOutcome, recordPipelineOutcome, latestOutcomeByRefs, listOutcomes, calibrate } = await import("./dev-outcomes.ts");
+const {
+  recordOutcome,
+  recordPipelineOutcome,
+  latestOutcomeByRefs,
+  listOutcomes,
+  calibrate,
+  // UAT KAT-L1-002 — the workspace-side capture path (see the block of tests at the
+  // foot of this file).
+  countRatedHires,
+  hireOutcomeRef,
+  recordHirePerformance,
+  PIPELINE_OUTCOME_REF_PREFIX,
+} = await import("./dev-outcomes.ts");
 
 type Row = {
   id: number;
@@ -182,6 +194,87 @@ test("latestOutcomeByRefs returns the newest row per ref and only the asked-for 
   assert.equal(latest.get("s2")?.outcome, "withdrawn");
   assert.equal(latest.has("s-unknown"), false);
   assert.equal(latestOutcomeByRefs([]).size, 0);
+});
+
+// ── UAT KAT-L1-002 — the on-the-job rating, captured from the recruiting workspace ──
+//
+// The blocker was that the 1..5 performance field had exactly one writer (the dev-case
+// control room), so "did the 90 %-match candidates get hired AND stay?" had no data
+// path. These pin the properties that make the new path safe to add to the SAME store
+// the promote-floor calibration reads: one row per hire (a devcase-promoted candidate
+// must UPDATE the auto-recorded row, never mint a second decided outcome), a ref space
+// that cannot collide with a submission id, and an unrated hire that stays unrated.
+
+test("hireOutcomeRef routes a devcase-promoted hire to its submission ref and everyone else to a namespaced one", () => {
+  // Mirrors recordPipelineOutcome's own derivation — the two must agree or a rating
+  // would open a second decided row for the same person.
+  assert.equal(hireOutcomeRef({ id: "m-cand-013-job-000", candidateId: "ds-sub_42" }), "sub_42");
+  assert.equal(hireOutcomeRef({ id: "pe-043", candidateId: "cand-043" }), `${PIPELINE_OUTCOME_REF_PREFIX}pe-043`);
+  assert.equal(hireOutcomeRef({ id: "pe-043", candidateId: null }), `${PIPELINE_OUTCOME_REF_PREFIX}pe-043`);
+  // The namespace is what keeps a seeded entry id like "pe-043" out of the submission
+  // ref space; both id spaces are alphanumeric+dash, so the colon cannot occur in one.
+  assert.ok(PIPELINE_OUTCOME_REF_PREFIX.includes(":"));
+});
+
+test("rating a devcase-promoted hire updates the auto-recorded row — never a second decided outcome", () => {
+  assert.equal(recordPipelineOutcome({ candidateId: "ds-s9", candidateLabel: "bob", matchScore: 72 }, "hired"), true);
+  const verdict = recordHirePerformance({ id: "m-bob-job-1", candidateId: "ds-s9", candidateLabel: "bob", matchScore: 72 }, 4);
+  assert.equal(verdict, "updated");
+  const all = rows();
+  assert.equal(all.length, 1);
+  assert.equal(all[0].ref, "s9");
+  assert.equal(all[0].performance, 4);
+  assert.equal(all[0].predicted_score, 72); // the rating lands beside the score that predicted it
+  assert.equal(calibrate(55).resolved, 1); // one decided outcome, not two
+});
+
+test("rating an ordinary board hire inserts one row, and a correction updates it in place", () => {
+  const entry = { id: "pe-043", candidateId: "cand-043", candidateLabel: "Eliška Králová", matchScore: 46 };
+  assert.equal(recordHirePerformance(entry, 2), "inserted");
+  assert.equal(recordHirePerformance(entry, 5), "updated"); // a mis-click is corrected, not doubled
+  const all = rows();
+  assert.equal(all.length, 1);
+  assert.equal(all[0].ref, `${PIPELINE_OUTCOME_REF_PREFIX}pe-043`);
+  assert.equal(all[0].outcome, "hired");
+  assert.equal(all[0].performance, 5);
+  assert.equal(all[0].candidate_ref, "Eliška Králová");
+});
+
+test("an out-of-range or absent match score is dropped, never clamped onto the rating", () => {
+  recordHirePerformance({ id: "pe-1", candidateId: null, candidateLabel: "a", matchScore: 850 }, 3);
+  recordHirePerformance({ id: "pe-2", candidateId: null, candidateLabel: "b", matchScore: null }, 3);
+  const all = rows();
+  assert.deepEqual(all.map((r) => r.predicted_score), [null, null]);
+});
+
+test("a rating outside 1..5 is refused at the store, not persisted", () => {
+  const entry = { id: "pe-9", candidateId: null, candidateLabel: "z", matchScore: 70 };
+  assert.throws(() => recordHirePerformance(entry, 0));
+  assert.throws(() => recordHirePerformance(entry, 6));
+  assert.throws(() => recordHirePerformance(entry, 3.5));
+  assert.equal(rows().length, 0);
+});
+
+test("countRatedHires counts only hires carrying a rating — an unrated hire is absent, never a zero", () => {
+  recordHirePerformance({ id: "pe-1", candidateId: null, candidateLabel: "a", matchScore: 70 }, 4);
+  // A hire the pipeline auto-recorded but nobody has rated yet.
+  recordPipelineOutcome({ candidateId: "ds-s2", candidateLabel: "b", matchScore: 80 }, "hired");
+  // …and outcomes that can never carry a rating at all.
+  recordOutcome({ ref: "r1", outcome: "rejected", predictedScore: 40 });
+  recordOutcome({ ref: "r2", outcome: "pending" });
+  assert.equal(countRatedHires(), 1);
+  const unrated = latestOutcomeByRefs(["s2"]).get("s2");
+  assert.equal(unrated?.outcome, "hired");
+  assert.equal(unrated?.performance, null); // unrated reads as unrated
+});
+
+test("ratings are per workspace — one team's on-the-job data never counts for another", () => {
+  recordHirePerformance({ id: "pe-1", candidateId: null, candidateLabel: "a", matchScore: 70 }, 4, "workspace");
+  recordHirePerformance({ id: "pe-1", candidateId: null, candidateLabel: "a", matchScore: 70 }, 2, "other-team");
+  assert.equal(countRatedHires("workspace"), 1);
+  assert.equal(countRatedHires("other-team"), 1);
+  assert.equal(rows().length, 2); // same ref, two tenants — no cross-tenant upsert
+  assert.equal(latestOutcomeByRefs([`${PIPELINE_OUTCOME_REF_PREFIX}pe-1`], "workspace").get(`${PIPELINE_OUTCOME_REF_PREFIX}pe-1`)?.performance, 4);
 });
 
 test("calibrate counts an upserted ref once — a re-record cannot inflate the resolved sample", () => {

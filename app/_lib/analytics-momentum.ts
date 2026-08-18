@@ -46,11 +46,16 @@ export function momentumWeekLabel(weekStart: string, locale: string): string {
 
 export function weeklyMomentum(
   events: MomentumEvent[],
-  opts?: { weeks?: number; now?: number }
+  // `terminalStage` is the workspace's own final column. Passed in rather than
+  // hardcoded so a renamed terminal column still fills the `hired` series; the
+  // default keeps this pure module correct for the shipped axis and for callers
+  // that cannot resolve one.
+  opts?: { weeks?: number; now?: number; terminalStage?: string }
 ): MomentumWeek[] {
   const weeks = Math.max(1, opts?.weeks ?? MOMENTUM_WEEKS);
   const now = opts?.now ?? Date.now();
   const start = now - weeks * WEEK_MS;
+  const terminalStage = opts?.terminalStage ?? "Hired";
   const buckets: MomentumWeek[] = Array.from({ length: weeks }, (_, i) => ({
     weekStart: new Date(start + i * WEEK_MS).toISOString().slice(0, 10),
     added: 0,
@@ -66,7 +71,7 @@ export function weeklyMomentum(
     const idx = Math.min(weeks - 1, Math.floor((ms - start) / WEEK_MS));
     const b = buckets[idx];
     if (e.kind === "added" || e.kind === "intake_degraded") b.added += 1;
-    else if ((e.kind === "advanced" || e.kind === "auto_advanced") && e.toStage === "Hired") b.hired += 1;
+    else if ((e.kind === "advanced" || e.kind === "auto_advanced") && e.toStage === terminalStage) b.hired += 1;
     else if (e.kind === "advanced" || e.kind === "auto_advanced") b.advanced += 1;
     else if (e.kind === "rejected" || e.kind === "auto_rejected") b.rejected += 1;
   }

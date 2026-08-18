@@ -15,7 +15,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { ensureDb } from "./db/core.ts";
-import { parseFeedbackSubmission } from "./feedback.ts";
+import { parseFeedbackSubmission, replyEmailFrom } from "./feedback.ts";
 import { listFeedback, recordFeedback } from "./feedback-store.ts";
 
 after(() => cleanupUnitDb());
@@ -41,11 +41,13 @@ test("migration pin: a fresh DB carries the feedback table, all columns, and the
 });
 
 test("a validated submission round-trips and lists newest-first", () => {
-  const first = parseFeedbackSubmission({ message: "The pipeline board is great", email: "a@b.cz", route: "/?tab=pipeline" });
-  const second = parseFeedbackSubmission({ message: "Second note", email: "", route: "not-a-path" });
+  const first = parseFeedbackSubmission({ message: "The pipeline board is great", route: "/?tab=pipeline" });
+  const second = parseFeedbackSubmission({ message: "Second note", route: "not-a-path" });
   assert.ok(first.ok && second.ok);
-  recordFeedback({ ...first.value, appVersion: "0.1.0" });
-  recordFeedback({ ...second.value, appVersion: null });
+  // The reply address is stamped by the ROUTE from the session user, never parsed
+  // out of the body — recordFeedback takes it as its own field.
+  recordFeedback({ ...first.value, email: replyEmailFrom("a@b.cz"), appVersion: "0.1.0" });
+  recordFeedback({ ...second.value, email: null, appVersion: null });
   const rows = listFeedback();
   assert.ok(rows.length >= 2);
   assert.equal(rows[0].message, "Second note");
@@ -60,7 +62,7 @@ test("a validated submission round-trips and lists newest-first", () => {
 test("tenancy: reads filter and writes stamp workspace_id — no cross-tenant leak", () => {
   const sub = parseFeedbackSubmission({ message: "Beta team private note" });
   assert.ok(sub.ok);
-  recordFeedback({ ...sub.value, appVersion: null }, "team-beta");
+  recordFeedback({ ...sub.value, email: null, appVersion: null }, "team-beta");
   const beta = listFeedback(50, "team-beta");
   assert.equal(beta.length, 1, "team-beta must see exactly its own row");
   assert.equal(beta[0].message, "Beta team private note");
@@ -74,7 +76,15 @@ test("validation refuses instead of coercing", () => {
   assert.equal(parseFeedbackSubmission({}).ok, false);
   assert.equal(parseFeedbackSubmission({ message: "   " }).ok, false);
   assert.equal(parseFeedbackSubmission({ message: "x".repeat(2001) }).ok, false);
-  assert.equal(parseFeedbackSubmission({ message: "ok", email: "not-an-email" }).ok, false);
+  // A body-supplied address is IGNORED, not honoured: identity comes from the
+  // session, so a spoofed "email" field must never reach the stored row.
+  const spoofed = parseFeedbackSubmission({ message: "ok", email: "someone.else@corp.example" });
+  assert.ok(spoofed.ok && !("email" in spoofed.value), "the parser must not carry a client-supplied email");
+  // …and the server-side normaliser drops anything undeliverable rather than storing it.
+  assert.equal(replyEmailFrom("not-an-email"), null);
+  assert.equal(replyEmailFrom("  "), null);
+  assert.equal(replyEmailFrom(null), null);
+  assert.equal(replyEmailFrom("a@b.cz"), "a@b.cz");
   const dropped = parseFeedbackSubmission({ message: "ok", route: "https://evil.example/phish" });
   assert.ok(dropped.ok && dropped.value.route === null, "an absolute URL must not be stored as a route");
   const protocolRelative = parseFeedbackSubmission({ message: "ok", route: "//evil.example" });

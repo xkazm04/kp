@@ -5,21 +5,25 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
-import { TextInput } from "@/app/_components/TextInput";
-import { KBD } from "@/app/_components/ui/recipes";
 import { recordRecent, useRecents } from "./recents";
 import { paletteItemId, paletteListView } from "./workspacePaletteResults";
-import { useSimulation } from "./simulation/SimulationProvider";
-import { WorkspaceCommandPaletteList } from "./WorkspaceCommandPaletteList";
+import { useOptionalSimulation } from "./simulation/SimulationProvider";
 import { useWorkspaceCommandPaletteItems } from "./useWorkspaceCommandPaletteItems";
 import { useWorkspaceCommandPaletteSearch } from "./useWorkspaceCommandPaletteSearch";
-import type { PaletteItem } from "./workspaceCommandPaletteTypes";
+import { WorkspacePaletteLedger } from "./WorkspacePaletteLedger";
+import type { PaletteItem, PaletteViewProps } from "./workspaceCommandPaletteTypes";
 
 // SHELL1 — the global command palette: one Ctrl/Cmd+K surface that searches
 // candidates, pipeline entries, jobs, saved JDs and analyses (via /api/search)
 // and doubles as a tab navigator (actions derived from NAV_GROUPS). Enter (or a
 // click) navigates through the SAME deep links the rest of the app uses, so the
 // palette can never land somewhere a sidebar click couldn't.
+//
+// The trigger is a RAIL button (icon + label, first in the rail's bottom group,
+// on the SPA shell AND the link-mode deep-link sidebar) and the surface is a
+// top-centre dialog — the launcher idiom: the eye starts at the input and results
+// grow downward. This host owns all state; the body is WorkspacePaletteLedger
+// (index + live preview pane — the /prototype winner).
 
 export function CommandPalette() {
   const t = useTranslations("palette");
@@ -33,13 +37,11 @@ export function CommandPalette() {
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   // The server renders "Ctrl K"; an Apple client computes "⌘K" at hydration.
-  // suppressHydrationWarning on the <kbd> below owns that known, intentional
-  // mismatch — no state/effect needed for a value that never changes after load.
+  // suppressHydrationWarning on the <kbd> owns that known, intentional mismatch.
   const kbdHint = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘K" : "Ctrl K";
 
   // Opening always starts from a clean slate (reset in the event handlers, not
-  // an effect, so a stale query/result list never flashes and no synchronous
-  // set-state-in-effect is needed).
+  // an effect, so a stale query/result list never flashes).
   const openPalette = useCallback(() => {
     setQuery("");
     resetSearch();
@@ -55,8 +57,7 @@ export function CommandPalette() {
   }, [open]);
 
   // The global shortcut. Fires everywhere — including inside inputs (the
-  // palette IS the escape hatch) — but never while typing means losing work:
-  // preventDefault stops the browser's own Ctrl+K (search-bar focus).
+  // palette IS the escape hatch); preventDefault stops the browser's own Ctrl+K.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -69,8 +70,8 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", onKey);
   }, [openPalette]);
 
-  // Modal's focus trap lands on its first focusable (the header close button);
-  // a rAF runs after that effect, so the input wins the opening focus.
+  // Modal's focus trap lands on its first focusable; a rAF runs after that
+  // effect, so the input wins the opening focus.
   useEffect(() => {
     if (!open) return;
     const id = requestAnimationFrame(() => inputRef.current?.focus());
@@ -78,18 +79,17 @@ export function CommandPalette() {
   }, [open]);
 
   const recents = useRecents();
-  // 5d2e0998 — the guided tour as a palette command, so the simulation's
-  // chronological story stays reachable after first-run (it otherwise hides in
-  // the collapsed SimBar footer pill).
-  const sim = useSimulation();
-
+  // 5d2e0998 — the guided tour as a palette command. Null on the deep-link pages
+  // (no SimulationProvider there): reported as "running" so the command is
+  // simply not offered.
+  const sim = useOptionalSimulation();
   const items = useWorkspaceCommandPaletteItems({
     query,
     hits,
     search,
     recents,
-    simRunning: sim.running,
-    simStart: sim.start,
+    simRunning: sim ? sim.running : true,
+    simStart: sim ? sim.start : () => {},
     nav,
     t,
   });
@@ -98,17 +98,13 @@ export function CommandPalette() {
   const active = Math.min(selected, Math.max(0, items.length - 1));
 
   // #3 — keep the keyboard-highlighted option scrolled into the listbox viewport.
-  // aria-activedescendant moves the a11y focus but never scrolls the container, so on a
-  // long result set (recents + tabs + entity hits > the 50vh list) ArrowDown slid the
-  // active row out of sight. `block: "nearest"` scrolls only when it's actually clipped.
   useEffect(() => {
     if (!open) return;
     document.getElementById(paletteItemId(active))?.scrollIntoView({ block: "nearest" });
   }, [active, open]);
 
   const go = (item: PaletteItem) => {
-    // SHELL3: an entity pick is exactly the "I opened this" moment recents
-    // exist to capture (tab actions aren't — they're navigation, not work).
+    // SHELL3: an entity pick is exactly the "I opened this" moment recents capture.
     if (item.recent && item.href) {
       recordRecent({ type: item.recent.type, id: item.recent.id, label: item.label, href: item.href });
     }
@@ -117,14 +113,18 @@ export function CommandPalette() {
     else if (item.href) router.push(item.href);
   };
 
-  // #4 — pure decision for the results region: Searching affordance, dim-stale, or
-  // the no-results/empty placeholder (see workspacePaletteResults.ts).
-  const listView = paletteListView({
-    loading,
-    queryLen: query.trim().length,
-    itemCount: items.length,
-    hasError: !!error,
-  });
+  // #4 — pure decision for the results region (see workspacePaletteResults.ts).
+  const listView = paletteListView({ loading, queryLen: query.trim().length, itemCount: items.length, hasError: !!error });
+
+  const onQueryChange = (value: string) => {
+    setQuery(value);
+    setSelected(0);
+    // Pending from the first keystroke (the search effect only schedules the
+    // debounced fetch), so the list can't sit on the prior query's results
+    // without a signal that a newer term is being fetched.
+    if (value.trim().length < 2) resetSearch();
+    else markPending();
+  };
 
   const onInputKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
@@ -139,62 +139,43 @@ export function CommandPalette() {
     }
   };
 
+  const view: PaletteViewProps = {
+    inputRef,
+    query,
+    onQueryChange,
+    onInputKey,
+    items,
+    active,
+    listView,
+    error,
+    kbdHint,
+    t,
+    nav,
+    go,
+    setSelected,
+    onClose: () => setOpen(false),
+  };
+
+  const label = t("title");
   return (
     <>
+      {/* Rail trigger — icon + label like the section buttons above it (the rail
+          is the wayfinding surface), the shortcut in the tooltip. */}
       <button
         type="button"
         onClick={openPalette}
-        className="focus-ring flex w-full items-center gap-2 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-left text-sm text-steel hover:border-coral/40 hover:text-ink"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        title={`${label} (${kbdHint})`}
+        className="focus-ring flex w-full flex-col items-center gap-1 rounded-lg px-1 py-2 text-steel transition-colors hover:bg-stone-100 hover:text-ink"
       >
-        <Search size={14} aria-hidden />
-        <span className="flex-1 truncate">{t("trigger")}</span>
-        <kbd suppressHydrationWarning className={`${KBD} text-[11px]`}>
-          {kbdHint}
-        </kbd>
+        <Search size={20} aria-hidden />
+        <span className="text-[13px] font-semibold leading-tight">{label}</span>
       </button>
 
       {open ? (
-        <Modal title={t("title")} onClose={() => setOpen(false)} size="xl">
-          <div className="space-y-3">
-            <TextInput
-              ref={inputRef}
-              type="search"
-              role="combobox"
-              aria-expanded={items.length > 0}
-              aria-controls="palette-results"
-              aria-activedescendant={items[active] ? paletteItemId(active) : undefined}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setSelected(0);
-                if (e.target.value.trim().length < 2) {
-                  resetSearch();
-                } else {
-                  // Pending from the first keystroke (the search effect only schedules
-                  // the debounced fetch), so the list can't sit on the prior query's
-                  // results without a signal that a newer term is being fetched.
-                  markPending();
-                }
-              }}
-              onKeyDown={onInputKey}
-              placeholder={t("placeholder")}
-            />
-            {error ? <p className="text-sm text-coral">{error}</p> : null}
-            {listView.showSearching ? (
-              <p className="px-2 text-sm text-steel" aria-live="polite">
-                {t("searching")}
-              </p>
-            ) : null}
-            <WorkspaceCommandPaletteList
-              items={items}
-              active={active}
-              listView={listView}
-              query={query}
-              t={t}
-              go={go}
-              setSelected={setSelected}
-            />
-          </div>
+        <Modal title={label} onClose={() => setOpen(false)} size="3xl" placement="top" bare>
+          <WorkspacePaletteLedger {...view} />
         </Modal>
       ) : null}
     </>

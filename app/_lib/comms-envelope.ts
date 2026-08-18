@@ -42,8 +42,6 @@ export const KNOWN_COMM_KINDS = [
   "interview_invite",
   "interviewer_brief",
   "schedule_invite",
-  "onboarding",
-  "onboarding_reminder",
 ] as const;
 
 // Structural subset of PipelineEntry (kept import-free so the module stays

@@ -6,6 +6,8 @@ import {
   recommendScreeningThreshold,
   computeThresholdEffect,
   calibrationLeakage,
+  asCalibrationOutcome,
+  CALIBRATION_OUTCOME_AXES,
   MIN_CALIBRATION_OUTCOMES,
   MIN_CALIBRATION_BAND_OUTCOMES,
   MIN_THRESHOLD_EFFECT_OUTCOMES,
@@ -326,4 +328,73 @@ test("every source names a non-empty coupling story", () => {
     const l = calibrationLeakage(s);
     assert.ok(l.note.length > 0, `${s} must state how its label is produced`);
   }
+});
+
+// ─── The outcome axis (UAT KAT-L1-003) ────────────────────────────────────────
+
+test("the outcome vocabulary is closed and defaults to the historical label", () => {
+  assert.deepEqual([...CALIBRATION_OUTCOME_AXES], ["advance", "hired"]);
+  // Anything that isn't the new axis stays on the one every existing reader knows —
+  // a typo in a query string may not silently redefine what "success" means.
+  assert.equal(asCalibrationOutcome("hired"), "hired");
+  assert.equal(asCalibrationOutcome("advance"), "advance");
+  assert.equal(asCalibrationOutcome("Hired"), "advance");
+  assert.equal(asCalibrationOutcome(""), "advance");
+  assert.equal(asCalibrationOutcome(null), "advance");
+  assert.equal(asCalibrationOutcome(undefined), "advance");
+});
+
+test("the hire axis gets its OWN coupling story, and it is not a downgrade", () => {
+  const hire = calibrationLeakage("pipeline", "hired");
+  const screen = calibrationLeakage("pipeline", "advance");
+  assert.notEqual(hire.code, screen.code, "the hire axis must not inherit the screening story");
+  assert.equal(hire.code, "score-caused-rejects");
+  // The point that is IN ITS FAVOUR, and must be stated rather than assumed: the
+  // positive label is a chain of human decisions the score did not make.
+  assert.match(hire.note, /not produced by the score|did not/i);
+  // …and the point that keeps it honest: the negatives still contain every
+  // auto-rejection the score produced, so the level does NOT drop. This is what
+  // keeps the structural bar in calibrationVerdict.ts applying to this arm too.
+  assert.equal(hire.level, "high", "a less circular arm is still a circular one");
+  assert.match(hire.note, /less circular/i);
+  assert.ok(hire.ceiling.length > 0, "the hire axis must name what it still cannot show");
+  // It must never be mistaken for a hire-QUALITY measure: nobody has entered a
+  // performance rating anywhere in kp.
+  assert.match(hire.ceiling, /performed/i);
+});
+
+test("the axis defaults to the screening story, and every arm states one", () => {
+  assert.deepEqual(calibrationLeakage("pipeline"), calibrationLeakage("pipeline", "advance"));
+  for (const s of ["pipeline", "analysis", "holdout"] as const) {
+    for (const o of CALIBRATION_OUTCOME_AXES) {
+      const l = calibrationLeakage(s, o);
+      assert.ok(l.note.length > 0, `${s}/${o} must state how its label is produced`);
+      assert.ok(l.ceiling.length > 0, `${s}/${o} must name its remaining limit`);
+    }
+  }
+});
+
+test("a hire cohort's tiny positive count cannot manufacture a flattering number", () => {
+  // The arithmetic guardrail for the low base rate the hire axis brings. A cohort
+  // that hires 1 in 20 has baseBrier 0.0475, so the constant predictor is already
+  // very good and a 0-100 match score read as a hire probability is far worse than
+  // it — which is what the skill score must say, loudly, rather than rounding to
+  // something comfortable. (`calibrationSkill` itself is pinned in
+  // calibrationVerdict.test.ts; this pins the honesty GATE around it.)
+  const pairs: ScoreOutcome[] = [
+    { score: 90, outcome: 1 },
+    ...Array.from({ length: 19 }, () => ({ score: 70, outcome: 0 })),
+  ];
+  const r = computeCalibration(pairs);
+  assert.equal(r.n, 20);
+  assert.equal(r.positives, 1);
+  assert.equal(r.calibrated, true, "the gate is n >= minOutcomes on THIS arm's own count");
+  // Nineteen 0.70 predictions against a 0 outcome: the Brier is dominated by them.
+  assert.ok(r.brier! > 0.4, `expected a badly-scored arm, got ${r.brier}`);
+
+  // …and one positive short of the gate, the SAME cohort is refused a curve —
+  // the honesty gate applies per arm, not once for the workspace.
+  const short = computeCalibration(pairs.slice(0, 19));
+  assert.equal(short.calibrated, false);
+  assert.equal(short.n, 19);
 });

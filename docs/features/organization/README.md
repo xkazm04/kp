@@ -66,7 +66,7 @@ workspace-scoped. As of this pass:
 - **`tenancyGaps()` is ZERO** and `assertTenancyReady(multiWorkspace=true)`
   passes — every per-team table's read+write paths are workspace-scoped, each
   proven by a colocated `*-tenancy.test.ts` (20+ such files: pipeline, jobs
-  corpus, channels, schedule, dev-case + onboarding, offers/status-links/
+  corpus, channels, schedule, dev-case, offers/status-links/
   skill-profiles, interviews, the background-task queue, `decision_records`).
 - **`decision_records`** — the tamper-evident hiring-decision hash chain — has
   been **re-architected to per-tenant chains** (was previously a single global
@@ -123,7 +123,7 @@ The visible symptom was subtle rather than loud, which is why it survived:
 derives that from an unscoped by-id read) but looked its DISPLAY metadata up with
 a tenant-scoped query. On any non-default team the lookup missed, so every
 automation event — outreach sent, interview scheduled, rejection sent, offer sent,
-onboarding started — was written with NULL `candidate_label` / `job_title` /
+offer accepted — was written with NULL `candidate_label` / `job_title` /
 `archetype` / `to_stage` and rendered in the Activity feed and drawer history as an
 anonymous row. `app/_lib/automation-event-tenancy.test.ts` pins the behaviour, the
 field, and a source assertion that every `comms-dispatch` dispatcher passes it.

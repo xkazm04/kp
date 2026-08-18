@@ -24,7 +24,6 @@ export const TAB_CHUNKS = {
   analyze: () => import("../tools/analyze/AnalyzeWorkspace"),
   decisions: () => import("../hiring/decisions/DecisionsTab"),
   schedule: () => import("../hiring/schedule/ScheduleTab"),
-  onboarding: () => import("../hiring/onboarding/OnboardingTab"),
   jobs: () => import("../library/jobs/JobsTab"),
   library: () => import("../library/jds/JdsTab"),
   matrix: () => import("../insights/matrix/MatrixTab"),

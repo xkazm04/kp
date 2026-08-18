@@ -254,6 +254,83 @@ test("rotation verifies old rows under a retired key, and a dropped retired key 
 // If the key is accidentally un-set after a chain is already keyed, sealing keyless
 // would create a permanent downgrade break. The seal refuses (throws) instead, so the
 // chain stays verifiable and the misconfiguration is loud.
+// --- 8. The KEY CENSUS that conditions the on-screen claim (UAT LUC-ANA-1) ---------
+// The panel used to render „Odolné proti manipulaci" (tamper-RESISTANT) over 66 records
+// that were all key_id '' — i.e. over exactly the rows test 4 above proves it cannot
+// vouch for. `ok` could not carry that distinction, so the verdict now ships the census
+// and the badge branches on it. These assertions are what stop the strong claim from
+// coming back: keyed=false is the live deployment's state.
+test("the verdict reports the key census, so the badge can condition its claim on the key", () => {
+  const ws = "ws-census-keyless";
+  ["cs1", "cs2"].forEach((id) => seedEntry(id, ws));
+  seal("cs1");
+  seal("cs2");
+  const keyless = verifyDecisionChain(ws);
+  assert.equal(keyless.ok, true, "a never-keyed chain is internally consistent…");
+  assert.equal(keyless.keyed, false, "…and must NOT report itself as keyed");
+  assert.equal(keyless.keylessCount, 2, "every link is keyless");
+  assert.equal(keyless.firstKeyedSeq, null, "there is no keyed link to anchor the prefix");
+});
+
+test("a fully keyed chain reports keyed:true with no keyless links", () => {
+  const ws = "ws-census-keyed";
+  ["ck1", "ck2"].forEach((id) => seedEntry(id, ws));
+  withKey("k1", KEY_A, () => {
+    seal("ck1");
+    seal("ck2");
+    const v = verifyDecisionChain(ws);
+    assert.equal(v.keyed, true);
+    assert.equal(v.keylessCount, 0);
+    assert.equal(v.firstKeyedSeq, rows(ws)[0].seq, "the whole chain is keyed from its genesis link");
+  });
+});
+
+test("a MIXED chain is not 'keyed', and names where the keyed protection begins", () => {
+  // The honest middle state: the pre-key prefix carries no MAC of its own, but a forge
+  // cascades into the first keyed link. The surface may say so — and must not round the
+  // chain up to fully keyed.
+  const ws = "ws-census-mixed";
+  ["cm1", "cm2", "cm3"].forEach((id) => seedEntry(id, ws));
+  seal("cm1");
+  seal("cm2");
+  withKey("k1", KEY_A, () => {
+    seal("cm3");
+    const v = verifyDecisionChain(ws);
+    assert.equal(v.ok, true);
+    assert.equal(v.keyed, false, "one keyless link is enough to disqualify the strong claim");
+    assert.equal(v.keylessCount, 2);
+    assert.equal(v.firstKeyedSeq, rows(ws)[2].seq, "protection begins at the first keyed link");
+  });
+});
+
+test("the census survives a BROKEN verdict (the claim can't quietly upgrade on failure)", () => {
+  const ws = "ws-census-broken";
+  ["cb1", "cb2"].forEach((id) => seedEntry(id, ws));
+  seal("cb1");
+  seal("cb2");
+  const rs = rows(ws);
+  const last = rs[rs.length - 1];
+  // A clumsy edit: payload rewritten WITHOUT re-hashing → the chain breaks.
+  tamperRow(last.seq, { payload_json: JSON.stringify({ rationale: "clumsy" }) });
+  const v = verifyDecisionChain(ws);
+  assert.equal(v.ok, false);
+  assert.equal(v.brokenAtSeq, last.seq);
+  assert.equal(v.count, 2, "the census still describes the whole chain");
+  assert.equal(v.keylessCount, 2);
+  assert.equal(v.keyed, false);
+});
+
+test("an empty chain is not 'keyed' (no records is not a security property)", () => {
+  assert.deepEqual(verifyDecisionChain("ws-census-empty"), {
+    ok: true,
+    count: 0,
+    brokenAtSeq: null,
+    keyed: false,
+    keylessCount: 0,
+    firstKeyedSeq: null,
+  });
+});
+
 test("appending onto a keyed chain with the key removed throws (no silent downgrade)", () => {
   const ws = "ws-safety";
   ["sf1", "sf2"].forEach((id) => seedEntry(id, ws));

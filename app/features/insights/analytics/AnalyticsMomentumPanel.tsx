@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { momentumWeekLabel, type MomentumWeek } from "@/app/_lib/analytics-momentum";
+import { momentumIsQuiet } from "./performanceBands";
 
 // ANA2 — the weekly trend: grouped mini-bars per rolling week (newest right),
 // one bar per series. Heights normalize against the single largest weekly count
@@ -21,7 +22,11 @@ export function MomentumPanel({ weeks }: { weeks: MomentumWeek[] }) {
   const t = useTranslations("analytics");
   const locale = useLocale();
   const max = Math.max(1, ...weeks.flatMap((w) => MOMENTUM_SERIES.map((s) => w[s.key])));
-  const quiet = weeks.every((w) => MOMENTUM_SERIES.every((s) => w[s.key] === 0));
+  // UAT TOM-ANA-12 — lifted into performanceBands so the Briefing's momentum band
+  // decides its heading by the SAME test this panel uses to decide its content. The
+  // heading and the chart under it are now one condition, not two that agreed by
+  // coincidence until an empty tenant pulled them apart.
+  const quiet = momentumIsQuiet(weeks);
   // weekStart is a UTC calendar date; render it pinned to UTC so the label shows the
   // correct day in every client timezone (see momentumWeekLabel).
   const weekLabel = (iso: string) => momentumWeekLabel(iso, locale);

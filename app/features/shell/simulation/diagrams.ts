@@ -91,10 +91,10 @@ ext --> cand : secure token link
 @enduml`,
 
   hired: `@startuml
-title Hired: onboarding kicks off
+title Hired: the role closes
 [Offer accepted] <<gate>> as acc
 [Move to Hired] <<focus>> as hire
-[Onboarding\\nwelcome · first week] <<focus>> as onb
+[Handoff\\nATS · HRIS webhook] <<focus>> as onb
 acc --> hire
 hire --> onb
 @enduml`,

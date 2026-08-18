@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
-import { RecentsNav } from "./WorkspaceRecentsNav";
+import { CommandPalette } from "./WorkspaceCommandPalette";
 import { NavFeedbackButton } from "./nav/NavFeedbackButton";
 import { RailBrandMark } from "./nav/NavRailBrandMark";
 import { RailPreferences } from "./nav/NavRailPreferences";
@@ -21,8 +22,8 @@ import { NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 // serializable props + the chrome slots; i18n labels and the badge-slice hrefs resolve
 // INSIDE the client renderer (a Server Component can't pass a client component a
 // function — a navText/onSelect callback), which is exactly why the shared renderer
-// self-resolves them. The TasksIndicator + CommandPalette are SPA-only and
-// intentionally omitted here.
+// self-resolves them. The TasksIndicator is SPA-only and intentionally omitted here;
+// the CommandPalette (rail search) mounts on both.
 export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
   // SHELL2 — same badge counts as the interactive shell, computed server-side at
   // render (a detail page is a snapshot; the SPA shell owns the live poll). Best-effort:
@@ -65,18 +66,19 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
           // white-label logo shows on the rail; falls back to the KandiDate mark.
           <RailBrandMark />
         }
-        panelHeader={
-          // SHELL3: same Recent group as the interactive shell — a client island, since
-          // localStorage is unreachable from this server component.
-          <RecentsNav />
-        }
         // Theme, language and sign-out flip/act on detail pages too — client
-        // islands like RecentsNav, and now the SAME controls as the interactive
+        // islands, and now the SAME controls as the interactive
         // shell (the old panel footer here carried the theme toggle but no
         // language switcher). The TasksIndicator stays SPA-only, so this sidebar
         // has no panel footer at all.
         railFooter={
           <>
+            {/* Global search on every route — same rail button + Ctrl/Cmd+K as the
+                SPA shell (the tour command is absent here: no SimulationProvider).
+                Suspense: the palette reads useSearchParams from a client island. */}
+            <Suspense fallback={null}>
+              <CommandPalette />
+            </Suspense>
             <NavFeedbackButton />
             <RailPreferences />
             {/* Drop the dev session and return to the landing. */}

@@ -29,7 +29,7 @@ package "Offer" {
   [Deliver offer · capture\naccept / decline -> Hired] <<auto>> as close
 }
 package "Hired" {
-  [Onboarding handoff] <<auto>> as hire
+  [Hire handoff to the HRIS] <<auto>> as hire
 }
 
 [Scheduler / cron\ndrives time-based steps] <<auto>> as cron

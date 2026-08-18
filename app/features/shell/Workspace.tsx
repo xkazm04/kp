@@ -3,7 +3,6 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { useBrand } from "@/app/_components/BrandProvider";
 import { KeyboardShortcuts } from "./WorkspaceKeyboardShortcuts";
 import { navKey, shouldCloseDrawerOnNav } from "./nav/navDrawerClose";
 import { useShellNavigate } from "./nav/shallow-nav";
@@ -17,7 +16,6 @@ import { WorkspaceNavDrawer } from "./WorkspaceNavDrawer";
 import { WorkspaceTabPanel } from "./WorkspaceTabChunks";
 import { SimSurfaces, FirstRunOnboarding } from "./WorkspaceSimSurfaces";
 import {
-  ABOUT_TAB_IN_NAV,
   AGENTS_TAB_IN_NAV,
   buildUrl,
   clearedTabScopedParams,
@@ -47,8 +45,6 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   const search = params.toString();
   // SHELL2 — live "what needs my attention" counts behind the nav badges.
   const attention = useAttention();
-  // White-label mark for the rail top (workspace logo, else the KandiDate mark).
-  const { logoUrl } = useBrand();
   // Below `md` the sidebar is an off-canvas drawer (a permanent rail at md+). Without
   // this, the full ~16-item nav stacked above content and pushed every page below the
   // fold on a phone — the studio was close to unusable on a handset.
@@ -77,16 +73,16 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   //
   // `parse` owns the whole vocabulary so the hook stays generic: legacy ids
   // (?tab=profile, ?tab=dev) resolve to their renamed tab via LEGACY_TAB_ALIASES,
-  // and a gated tab (About is dev-only via ABOUT_TAB_IN_NAV, Agents experimental
-  // via AGENTS_TAB_IN_NAV) is REJECTED here rather than adopted-then-corrected —
-  // returning null leaves the current tab alone, so a link to a gated view is
-  // inert instead of bouncing the reader to the default.
+  // and a gated tab (Agents, experimental via AGENTS_TAB_IN_NAV) is REJECTED
+  // here rather than adopted-then-corrected. Returning null leaves the current
+  // tab alone, so a link to a gated view is inert instead of bouncing the
+  // reader to the default.
   const [active, setActive] = useUrlInboxState<WorkspaceTabId>(
     "tab",
     (raw) => {
       const requested = resolveTabParam(raw);
       if (requested == null) return null;
-      if ((requested === "about" && !ABOUT_TAB_IN_NAV) || (requested === "agents" && !AGENTS_TAB_IN_NAV)) return null;
+      if (requested === "agents" && !AGENTS_TAB_IN_NAV) return null;
       return requested;
     },
     DEFAULT_TAB
@@ -191,7 +187,6 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
         active={active}
         attention={attention}
         search={search}
-        logoUrl={logoUrl}
         selectTab={selectTab}
         onSliceNav={(href) => nav.push(href)}
         onPrefetchTab={prefetchTabChunk}

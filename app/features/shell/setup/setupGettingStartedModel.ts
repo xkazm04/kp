@@ -13,26 +13,26 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import type { GettingStarted } from "@/app/_lib/getting-started";
 
 /** Per-browser dismissal preference (the repo's convention for user-scoped UI state). */
 export const DISMISS_KEY = "kp-getting-started-dismissed";
 
+/**
+ * The four core steps — the ones a workspace genuinely cannot hire without.
+ * Inviting teammates used to ride along as an optional fifth mark; it was the one
+ * step that never gated anything, so it no longer competes for attention here.
+ * The server still reports `team` in the payload for surfaces that care.
+ */
 export const STEPS = [
-  { key: "company", tab: "organization", target: '[data-sim="org-console"]' },
-  { key: "firstRole", tab: "library", target: '[data-sim="jd-builder"]' },
-  { key: "case", tab: "assignments", target: '[data-sim="dev-need"]' },
-  { key: "channels", tab: "channels", target: '[data-sim="channel-inbound"]' },
-  { key: "team", tab: "organization", target: '[data-sim="org-console"]' },
+  { key: "company", tab: "organization" },
+  { key: "firstRole", tab: "library" },
+  { key: "case", tab: "assignments" },
+  { key: "channels", tab: "channels" },
 ] as const;
 
 export type Step = (typeof STEPS)[number];
 export type StepKey = Step["key"];
-
-/** The four core steps; `team` is a bonus and never counts toward progress. */
-export const CORE_STEPS = STEPS.filter((s) => s.key !== "team");
 
 export function stepDone(key: StepKey, d: GettingStarted): boolean {
   switch (key) {
@@ -44,8 +44,6 @@ export function stepDone(key: StepKey, d: GettingStarted): boolean {
       return d.caseDesigned;
     case "channels":
       return d.channels === "verified";
-    case "team":
-      return d.team;
   }
 }
 
@@ -59,14 +57,14 @@ export function stepNote(key: StepKey, d: GettingStarted): StepNote | null {
   return null;
 }
 
-/** How many of the four core steps are genuinely complete. */
-export function coreDoneCount(d: GettingStarted): number {
-  return CORE_STEPS.filter((s) => stepDone(s.key, d)).length;
+/** How many of the four steps are genuinely complete. */
+export function doneCount(d: GettingStarted): number {
+  return STEPS.filter((s) => stepDone(s.key, d)).length;
 }
 
-/** The first core step that isn't done yet — the honest "do this next". */
+/** The first step that isn't done yet — the honest "do this next". */
 export function nextStep(d: GettingStarted): Step | null {
-  return CORE_STEPS.find((s) => !stepDone(s.key, d)) ?? null;
+  return STEPS.find((s) => !stepDone(s.key, d)) ?? null;
 }
 
 /**
@@ -118,48 +116,6 @@ export function useGettingStarted() {
 export function useOpenStep() {
   const router = useRouter();
   return useCallback((step: Step) => router.push(`/?tab=${step.tab}`), [router]);
-}
-
-/**
- * Navigate to the step's real tab, wait for its anchor, then light a one-off
- * SimSpotlight coachmark that the next click (or Escape) clears — the guided-tour
- * spotlight reused without running the tour.
- */
-export function useShowMe() {
-  const router = useRouter();
-  const sim = useSimulation();
-  const t = useTranslations("setup.checklist");
-
-  return useCallback(
-    (step: Step) => {
-      router.push(`/?tab=${step.tab}`);
-      const light = () => {
-        sim.coachmark({
-          selector: step.target,
-          title: t(`coach.${step.key}.title`),
-          caption: t(`coach.${step.key}.caption`),
-        });
-        const clear = () => {
-          sim.coachmark(null);
-          document.removeEventListener("pointerdown", clear);
-          document.removeEventListener("keydown", onKey);
-        };
-        const onKey = (e: KeyboardEvent) => e.key === "Escape" && clear();
-        document.addEventListener("pointerdown", clear);
-        document.addEventListener("keydown", onKey);
-      };
-      let tries = 0;
-      const seek = () => {
-        if (document.querySelector(step.target)) {
-          light();
-        } else if (++tries < 25) {
-          window.setTimeout(seek, 200);
-        }
-      };
-      window.setTimeout(seek, 250);
-    },
-    [router, sim, t]
-  );
 }
 
 /** Props every Getting-started variant receives from the switcher. */

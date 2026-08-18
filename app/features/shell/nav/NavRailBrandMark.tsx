@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useTranslations } from "next-intl";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { useBrand } from "@/app/_components/BrandProvider";
 
@@ -8,16 +10,26 @@ import { useBrand } from "@/app/_components/BrandProvider";
 // white-label logo when set, else the default KandiDate mark. A client island because
 // the brand context (BrandProvider) is only reachable on the client — so the
 // server-rendered deep-link sidebar can still show a configured logo.
+//
+// The mark is the way home: a real anchor to `/`, not an onClick, so it keeps
+// middle-click / open-in-new-tab and works identically in the SPA shell and on the
+// server-rendered deep-link pages (where there is no tab-switch callback to call).
+// `/` is gated server-side (kp_entered + first-run wizard), so this is the same door
+// the rest of the app uses, never a bypass.
 export function RailBrandMark() {
   const { logoUrl } = useBrand();
+  const t = useTranslations("nav");
+  const label = t("home");
   return (
     <div className="mb-1 hidden justify-center py-1 md:flex">
-      {logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- external brand logo URL, not a bundled asset
-        <img src={logoUrl} alt="" className="h-8 w-8 rounded-lg object-contain" />
-      ) : (
-        <KandidateMark className="h-8 w-8 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)] dark:-rotate-3" />
-      )}
+      <Link href="/" aria-label={label} title={label} className="focus-ring rounded-lg">
+        {logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- external brand logo URL, not a bundled asset
+          <img src={logoUrl} alt="" className="h-8 w-8 rounded-lg object-contain" />
+        ) : (
+          <KandidateMark className="h-8 w-8 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)] dark:-rotate-3" />
+        )}
+      </Link>
     </div>
   );
 }

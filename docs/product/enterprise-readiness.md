@@ -35,7 +35,7 @@ The single fact that shapes this entire backlog (from
   `assertTenancyReady(multiWorkspace=true)` passes. Every per-team table's read+write
   paths are workspace-scoped, proven by **20+ colocated `*-tenancy.test.ts`** source
   guards: the pipeline (highest-PII), jobs corpus (shared-tier), channels, schedule
-  (per-team calendar), dev-case + onboarding flows, offers/status-links/
+  (per-team calendar), dev-case flows, offers/status-links/
   skill-profiles (by-token, safe-by-key), interviews, the background-task queue
   (UI scoped / runner global), and `decision_records` — the tamper-evident hash
   chain, **re-architected to per-tenant chains** (§3's hard item).

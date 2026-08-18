@@ -17,9 +17,9 @@
 // cannot be held in memory — and sorting the 20 rows on screen would look like
 // ranking the whole trail while doing nothing of the sort. The pager therefore
 // drives `offset`, and the header drives `?sort=`/`?dir=`.
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Download } from "lucide-react";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
@@ -31,7 +31,21 @@ import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { pageCount, TABLE_PAGE_SIZE, TablePager } from "@/app/_components/table/TablePager";
 import type { SortState } from "@/app/_components/table/useTableSort";
 import { PANEL } from "@/app/_components/ui/recipes";
-import { ATTRIBUTION_BADGE, decisionMeta, type Decision, type DecisionPage } from "../analyticsDecisionLogTypes";
+import {
+  ATTRIBUTION_BADGE,
+  decisionMeta,
+  formatAuditTime,
+  resolveAuditTimeZone,
+  withExportProvenance,
+  type Decision,
+  type DecisionPage,
+} from "../analyticsDecisionLogTypes";
+
+/** Page size for the whole-trail export's chained reads. The route caps `limit`
+ *  at 50, so this is the largest page it will honour: 174 rows = 4 requests. */
+const TRAIL_FETCH_LIMIT = 50;
+/** Hard stop on the export loop, so a paging bug can never spin forever. */
+const TRAIL_MAX_PAGES = 400;
 
 /** Mirrors the store's allowlist (db/pipeline.ts EVENT_SORT_COLUMNS). */
 type Col = "createdAt" | "candidateLabel" | "jobTitle" | "kind";
@@ -51,23 +65,53 @@ export function DecisionLogTable({
 }) {
   const t = useTranslations("analytics.log");
   const tWave = useTranslations("decisions.wave");
+  const locale = useLocale();
   const enumLabel = useEnumLabel();
   const relayConfigured = useDeliveryCapability();
 
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState<SortState<Col>>({ col: "createdAt", dir: "desc" });
+  // UAT LUC-ANA-5 — subject search. `subject` is what the reader is typing;
+  // `query` is what has actually been sent. Debounced because every change is a
+  // server read of the whole trail's refinement path, not a client filter.
+  const [subject, setSubject] = useState("");
+  const [query, setQuery] = useState("");
+  const [trailBusy, setTrailBusy] = useState(false);
+  const [trailError, setTrailError] = useState<string | null>(null);
 
-  const url = useMemo(() => {
-    const params = new URLSearchParams({
-      offset: String(page * TABLE_PAGE_SIZE),
-      limit: String(TABLE_PAGE_SIZE),
-      sort: sort.col,
-      dir: sort.dir,
-    });
-    if (kind) params.set("kind", kind);
-    else if (attribution) params.set("attribution", attribution);
-    return `/api/analytics/decisions?${params.toString()}`;
-  }, [page, sort.col, sort.dir, kind, attribution]);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setQuery(subject.trim());
+      setPage(0);
+    }, 250);
+    return () => clearTimeout(id);
+  }, [subject]);
+
+  // UAT LUC-ANA-7 — ONE clock for this surface. The rows used to print
+  // `createdAt.slice(0,16)`, a UTC instant with no marker that a Prague reader
+  // read as local, while the CSV wrote the true ISO: screen and export disagreed
+  // by two hours on an audit artifact. Both now render through formatAuditTime in
+  // this zone, the export carries the ISO instant BESIDE the rendered one, and the
+  // zone is named in both places.
+  const zone = useMemo(() => resolveAuditTimeZone(), []);
+
+  const queryUrl = useCallback(
+    (offset: number, limit: number) => {
+      const params = new URLSearchParams({ offset: String(offset), limit: String(limit), sort: sort.col, dir: sort.dir, locale });
+      // UAT LUC-ANA-12 — send BOTH. This was `if (kind) … else if (attribution)`, so
+      // picking a decision kind quietly stopped sending the Kdo filter while its column
+      // kept the active dot lit: the table said it had narrowed on two axes and had
+      // narrowed on one. The route now intersects them (and answers an empty page for a
+      // contradictory pair) rather than choosing a winner.
+      if (kind) params.set("kind", kind);
+      if (attribution) params.set("attribution", attribution);
+      if (query) params.set("q", query);
+      return `/api/analytics/decisions?${params.toString()}`;
+    },
+    [sort.col, sort.dir, kind, attribution, query, locale]
+  );
+
+  const url = useMemo(() => queryUrl(page * TABLE_PAGE_SIZE, TABLE_PAGE_SIZE), [queryUrl, page]);
 
   const { data, error } = useJsonFetch<DecisionPage>(url, t("loadFailed"));
   const rows = data?.decisions ?? [];
@@ -104,15 +148,36 @@ export function DecisionLogTable({
     { value: "human", label: t("attribution.human") },
   ];
 
-  // Exports the CURRENT page, and the header says so — the previous version
-  // exported "the loaded set", a number that depended on how far the reader had
-  // happened to scroll and was therefore impossible to describe in the file.
-  const exportCsv = () => {
-    downloadFile(
-      "kp-decision-log.csv",
-      toCsv([
-        [t("csvTime"), t("csvAttribution"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvCohort"), t("csvDetail")],
-        ...rows.map((d) => [
+  // UAT LUC-ANA-11 — the active narrowing, spelled out for the export's provenance
+  // block. An audit CSV that does not carry its own filters cannot be reproduced,
+  // and a reader who receives it has no way to know what was left out.
+  const filterPieces = [
+    kind ? `${t("colDecision")}: ${kindLabel(t, kind, { relayConfigured })}` : null,
+    attribution ? `${t("colBy")}: ${t(`attribution.${attribution}` as Parameters<typeof t>[0])}` : null,
+    query ? `${t("colCandidate")}: ${query}` : null,
+  ].filter((p): p is string => p !== null);
+  const filtersText = filterPieces.length > 0 ? filterPieces.join(" · ") : t("filtersNone");
+
+  // Both exports go through ONE builder, so the page export and the whole-trail
+  // export can never carry different columns or a different clock — only a
+  // different declared scope.
+  const csvFor = (list: Decision[], scope: string): string =>
+    toCsv(
+      withExportProvenance(
+        [
+          [t("provExport"), t("title")],
+          [t("provGenerated"), formatAuditTime(new Date().toISOString(), locale, zone)],
+          [t("provZone"), zone],
+          [t("provLocale"), locale],
+          [t("provScope"), scope],
+          [t("provFilters"), filtersText],
+        ],
+        // The rendered time AND the ISO instant, in that order: the first matches
+        // the screen, the second is the unambiguous machine value. Dropping either
+        // is what made the two disagree.
+        [t("csvTimeLocal", { zone }), t("csvTimeIso"), t("csvAttribution"), t("csvKind"), t("csvCandidate"), t("csvRole"), t("csvCohort"), t("csvDetail")],
+        list.map((d) => [
+          formatAuditTime(d.createdAt, locale, zone),
           d.createdAt,
           t(`attribution.${decisionMeta(d.kind).attribution}` as Parameters<typeof t>[0]),
           kindLabel(t, d.kind, { relayConfigured }),
@@ -120,20 +185,61 @@ export function DecisionLogTable({
           d.jobTitle,
           d.cohort ? cohortText(d.cohort) : null,
           detailText(d),
-        ]),
-      ]),
-      "text/csv"
+        ])
+      )
     );
+
+  // Exports the CURRENT page, and the header says so — the previous version
+  // exported "the loaded set", a number that depended on how far the reader had
+  // happened to scroll and was therefore impossible to describe in the file.
+  const exportCsv = () => {
+    const shownPage = Math.min(page, Math.max(0, pageCount(total) - 1)) + 1;
+    const scope = t("scopePage", { page: shownPage, pages: Math.max(1, pageCount(total)), rows: rows.length, total });
+    downloadFile(`kp-decision-log-page-${shownPage}.csv`, csvFor(rows, scope), "text/csv");
+  };
+
+  // UAT LUC-ANA-11 — the whole trail in one file. 174 rows at 20 per click was
+  // nine downloads, so "export the audit trail" was in practice not offered. The
+  // loop pages the SAME endpoint with the SAME filters (G4: server-paged, never
+  // windowed) and the file names the scope it actually reached.
+  const exportTrail = async () => {
+    setTrailBusy(true);
+    setTrailError(null);
+    try {
+      const all: Decision[] = [];
+      let offset = 0;
+      let reported = 0;
+      for (let i = 0; i < TRAIL_MAX_PAGES; i++) {
+        const res = await fetch(queryUrl(offset, TRAIL_FETCH_LIMIT));
+        if (!res.ok) throw new Error(String(res.status));
+        const body = (await res.json()) as DecisionPage;
+        if (body.error) throw new Error(body.error);
+        all.push(...body.decisions);
+        reported = body.total;
+        if (!body.hasMore || body.decisions.length === 0) break;
+        offset = body.nextOffset;
+      }
+      downloadFile("kp-decision-log-trail.csv", csvFor(all, t("scopeTrail", { rows: all.length, total: reported })), "text/csv");
+    } catch {
+      // Truthful failure: a partial file silently named "whole trail" is exactly
+      // the artifact an auditor must never be handed.
+      setTrailError(t("exportTrailFailed"));
+    } finally {
+      setTrailBusy(false);
+    }
   };
 
   return (
     <div className={`${PANEL} p-5`}>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h3 className="font-serif text-h2 text-ink">{t("title")}</h3>
-        <div className="flex items-baseline gap-3">
+        <div className="flex flex-wrap items-baseline gap-3">
           <p className="text-meta uppercase text-steel">
             {total > 0 ? t("countAuditable", { shown: rows.length, total }) : t("subtitle")}
           </p>
+          {/* UAT LUC-ANA-7 — the clock this table runs on, named once beside the
+              count rather than repeated in every cell. */}
+          <p className="text-meta uppercase text-steel">{t("timeZoneNote", { zone })}</p>
           <button
             type="button"
             onClick={exportCsv}
@@ -142,8 +248,29 @@ export function DecisionLogTable({
           >
             <Download size={12} aria-hidden /> {t("exportPage")}
           </button>
+          <button
+            type="button"
+            onClick={exportTrail}
+            disabled={total === 0 || trailBusy}
+            className="focus-ring inline-flex items-center gap-1 rounded-md border border-stone-300 bg-white px-2.5 py-1 text-sm font-medium text-steel hover:bg-paper hover:text-ink disabled:opacity-50 print:hidden"
+          >
+            <Download size={12} aria-hidden /> {trailBusy ? t("exportTrailBusy") : t("exportTrail")}
+          </button>
         </div>
       </div>
+      {trailError ? (
+        <p role="alert" className="mt-2 text-sm text-red-700">
+          {trailError}
+        </p>
+      ) : null}
+      {/* UAT LUC-ANA-5 — a search that could not reach the whole trail must say so.
+          The scan is bounded (route: SUBJECT_REFINE_MAX); above the bound it read the
+          most recent N decisions, which is a scope, not a silent truncation. */}
+      {data?.subjectScan?.capped ? (
+        <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {t("scanCapped", { scanned: data.subjectScan.scanned, total: data.subjectScan.trailTotal })}
+        </p>
+      ) : null}
 
       {error ? (
         <p role="alert" className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
@@ -156,7 +283,14 @@ export function DecisionLogTable({
               <thead>
                 <tr className="border-b border-stone-200">
                   <ColumnHead title={t("colWhen")} sortCol="createdAt" sort={sort} onSort={onSort} />
-                  <ColumnHead title={t("colCandidate")} sortCol="candidateLabel" sort={sort} onSort={onSort} />
+                  {/* UAT LUC-ANA-5 — the auditor's first question is "show me everything
+                      we did to THIS person", and the only lookup this column had was
+                      paging. mode="search" is the primitive the by-role table already
+                      uses; the match is diacritic-folded and the ordering is Intl-collated,
+                      both server-side (route), because the trail is server-paged. */}
+                  <ColumnHead title={t("colCandidate")} sortCol="candidateLabel" sort={sort} onSort={onSort}>
+                    <ColumnFilter title={t("colCandidate")} trigger="icon" mode="search" value={subject} onChange={setSubject} />
+                  </ColumnHead>
                   <ColumnHead title={t("colRole")} sortCol="jobTitle" sort={sort} onSort={onSort} />
                   <ColumnHead title={t("colDecision")} sortCol="kind" sort={sort} onSort={onSort}>
                     <ColumnFilter title={t("colDecision")} trigger="icon" value={kind} onChange={onFilterKind} options={kindOptions} />
@@ -181,8 +315,10 @@ export function DecisionLogTable({
                   const detail = detailText(d);
                   return (
                     <tr key={d.id} className="border-b border-stone-100 align-top last:border-0 hover:bg-paper/50">
-                      <td className="whitespace-nowrap py-2 pr-3 text-sm text-steel nums">
-                        {d.createdAt.slice(0, 16).replace("T", " ")}
+                      {/* The ISO instant stays reachable on hover: the rendered value is
+                          zone-bound, the title is the value the CSV's second column carries. */}
+                      <td className="whitespace-nowrap py-2 pr-3 text-sm text-steel nums" title={d.createdAt}>
+                        {formatAuditTime(d.createdAt, locale, zone) || "—"}
                       </td>
                       <td className="py-2 pr-3">
                         {d.candidateLabel && d.entryId ? (
@@ -212,7 +348,15 @@ export function DecisionLogTable({
                         </span>
                       </td>
                       <td className="py-2 text-sm text-steel">
-                        {detail ? <span className="line-clamp-2">{detail}</span> : null}
+                        {/* UAT LUC-ANA-10 (sibling of the records table's expander): a
+                            clamped legal basis with no way to read the rest is a column an
+                            auditor has to leave the screen to use. Here the full text is at
+                            least reachable on hover. */}
+                        {detail ? (
+                          <span className="line-clamp-2" title={detail}>
+                            {detail}
+                          </span>
+                        ) : null}
                         {d.cohort ? <span className="block text-sm text-steel/80">{cohortText(d.cohort)}</span> : null}
                       </td>
                     </tr>
@@ -223,7 +367,7 @@ export function DecisionLogTable({
           </div>
 
           {rows.length === 0 ? (
-            <p className="py-6 text-center text-base text-steel">{kind || attribution ? t("noMatches") : t("empty")}</p>
+            <p className="py-6 text-center text-base text-steel">{kind || attribution || query ? t("noMatches") : t("empty")}</p>
           ) : (
             <div className="mt-3">
               {/* Server-paged: the pager reports position within `total`, not

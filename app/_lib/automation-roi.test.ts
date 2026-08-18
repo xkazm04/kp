@@ -24,7 +24,7 @@ test("only mapped automated kinds contribute — human/failure kinds are ignored
   // The automation's OWN advance (`auto_advanced`) is saved labor; a recruiter's
   // gate click (`advanced`) is NOT — crediting it would count human work as
   // automation ROI (bug-ui-scan §hiring-automation #3).
-  const roi = automationRoi({ applied: 50, rejected: 20, onboarding_failed: 5, advanced: 99, auto_advanced: 3 });
+  const roi = automationRoi({ applied: 50, rejected: 20, rejection_comms_failed: 5, advanced: 99, auto_advanced: 3 });
   // Only `auto_advanced` (3 × 3 min) counts; the human `advanced` and the rest don't.
   assert.equal(roi.totalActions, 3);
   assert.equal(roi.minutesSaved, 9);
@@ -81,10 +81,16 @@ test("per-hire figures are null without hires (no divide-by-zero lie)", () => {
   assert.equal(roi.pctOfManualBaseline, null);
 });
 
-test("pctOfManualBaseline caps at 100 — can't offset more than full", () => {
-  // 1 hire, heavy automation: 1000 scored × 8 = 8000 min = 133 h vs the 42 h baseline.
+// UAT KAT-L1-005 — this assertion used to read "caps at 100 — can't offset more than
+// full" and pinned Math.min(100, …). The cap was removed deliberately, so the guard is
+// inverted rather than deleted: an implausible ratio must reach the screen, because the
+// implausibility IS the finding. The live surface rendered a mixed-basis 437% as a
+// clean, believable 100% and nobody had any reason to look at it twice.
+test("pctOfManualBaseline is NOT capped — an implausible ratio must show itself", () => {
+  // 1 hire, heavy automation: 1000 scored × 8 = 8000 min = 133.3 h vs the 42 h baseline.
   const roi = automationRoi({ scored: 1000 }, 600, 1);
-  assert.equal(roi.pctOfManualBaseline, 100);
+  assert.equal(roi.hoursSavedPerHire, 133.3);
+  assert.equal(roi.pctOfManualBaseline, 317, "133.33 / 42 = 317% — reported, not tidied to 100");
 });
 
 test("a custom baseline overrides the default", () => {
@@ -93,4 +99,13 @@ test("a custom baseline overrides the default", () => {
   assert.equal(roi.manualBaselineHoursPerHire, 20);
   assert.equal(roi.hoursSavedPerHire, 10);
   assert.equal(roi.pctOfManualBaseline, 50);
+});
+
+// UAT KAT-L1-005 — an org that has NOT set its own anchor must still get the stated
+// default, so the caller can hand the goal-table lookup straight through (a Map.get
+// miss is `undefined`) without branching at the call site.
+test("an unset org baseline (undefined) falls back to the stated default", () => {
+  const roi = automationRoi({ interview_prep_generated: 24 }, 600, 1, undefined);
+  assert.equal(roi.manualBaselineHoursPerHire, MANUAL_HOURS_PER_HIRE);
+  assert.equal(roi.pctOfManualBaseline, 24); // 10 / 42 = 23.8% → 24
 });

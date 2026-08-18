@@ -34,47 +34,31 @@ import {
   type AxisDraft,
   type AxisProblem,
   type StrandedStage,
-} from "./pipelineAxisDraft";
+} from "@/app/features/shared/pipelineAxisDraft";
+import { usePipelineAxisProblemText, usePipelineStageRoleLabel } from "@/app/features/shared/usePipelineAxisCopy";
 
 export function PipelineStepsEditor({
   draft,
   onChange,
   problems,
   stranded,
+  mapping,
+  onMap,
 }: {
   draft: AxisDraft;
   onChange: (next: AxisDraft) => void;
   problems: AxisProblem[];
   /** Saved columns this draft drops with candidates still on them. */
   stranded: StrandedStage[];
+  /** removedStageId -> destination stage id. Save is refused until complete. */
+  mapping: Record<string, string>;
+  onMap: (fromStage: string, toStage: string) => void;
 }) {
   const t = useTranslations("hiringPlan.steps");
-  const tRole = useTranslations("hiringPlan.roles");
-
-  const roleLabel = (role: string): string => {
-    const key = role as Parameters<typeof tRole>[0];
-    return tRole.has(key) ? tRole(key) : role;
-  };
-  const problemText = (p: AxisProblem): string => {
-    switch (p.code) {
-      case "tooFew":
-        return t("problemTooFew");
-      case "tooMany":
-        return t("problemTooMany", { max: p.max });
-      case "emptyLabel":
-        return t("problemEmptyLabel");
-      case "duplicateLabel":
-        return t("problemDuplicateLabel", { label: p.label });
-      case "missingRole":
-        return t("problemMissingRole", { role: roleLabel(p.role) });
-      case "duplicateRole":
-        return t("problemDuplicateRole", { role: roleLabel(p.role) });
-      case "entryNotFirst":
-        return t("problemEntryNotFirst");
-      default:
-        return t("problemTerminalNotLast");
-    }
-  };
+  // Role names and problem sentences are shared with the first-run wizard's
+  // Pipeline step (usePipelineAxisCopy.ts) — same rules, same words.
+  const roleLabel = usePipelineStageRoleLabel();
+  const problemText = usePipelineAxisProblemText();
 
   return (
     <section className={`${PANEL} p-5`} aria-label={t("title")}>
@@ -169,17 +153,39 @@ export function PipelineStepsEditor({
         </ul>
       ) : null}
 
-      {/* Who this draft would leave off the board. The one settings change that
-          can strand real people says so before it is saved, with counts. */}
+      {/* Who this draft would leave off the board, and where they go instead.
+          The one settings change that can strand real people does not merely
+          warn: it refuses to save until each removed step has a destination, and
+          the move is applied in the same operation as the removal. */}
       {stranded.length > 0 ? (
         <div className={`${PANEL_SUNKEN} mt-3 border-amber-300 bg-amber-50 p-3`}>
           <p className="text-sm font-semibold text-amber-900">{t("strandedTitle")}</p>
-          <ul className="mt-1 space-y-0.5 text-sm text-amber-900">
+          <p className="mt-0.5 text-sm text-amber-800">{t("strandedHint")}</p>
+          <ul className="mt-2 space-y-2">
             {stranded.map((s) => (
-              <li key={s.stage.id}>{t("strandedRow", { stage: s.stage.label, count: s.count })}</li>
+              <li key={s.stage.id} className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-amber-900">
+                  {t("strandedRow", { stage: s.stage.label, count: s.count })}
+                </span>
+                <span aria-hidden className="text-amber-700">
+                  →
+                </span>
+                <Select
+                  value={mapping[s.stage.id] ?? ""}
+                  onChange={(target) => onMap(s.stage.id, target)}
+                  ariaLabel={t("mapAria", { stage: s.stage.label })}
+                  size="sm"
+                  // Only steps that SURVIVE this edit are offered: mapping onto
+                  // another column the same edit removes would move candidates
+                  // out of one hole into another.
+                  options={[
+                    { value: "", label: t("mapChoose") },
+                    ...draft.stages.map((target) => ({ value: target.id, label: target.label || target.id })),
+                  ]}
+                />
+              </li>
             ))}
           </ul>
-          <p className="mt-1.5 text-sm text-amber-800">{t("strandedHint")}</p>
         </div>
       ) : null}
     </section>

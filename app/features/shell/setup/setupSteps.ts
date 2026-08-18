@@ -1,8 +1,17 @@
 // First-run onboarding — shared step model + state. This is the SimBar "phases"
 // idea (constants.ts SIM_PHASES) retargeted from a demo chronology to a
-// user-completes-it setup journey: Welcome → Company → Team → First role →
+// user-completes-it setup journey: Welcome → Company → Team → Pipeline →
 // Hand-off. Copy lives in the `setup` i18n namespace (messages/*.json), not here
 // — steps carry ids only, so the catalogs stay the single source of wording.
+//
+// Step 4 used to be "First role" — the inputs of a real backgrounded JD build.
+// It is gone: authoring a job description is a Library job with its own ledger,
+// retry and engine caveats, and asking for it inside a modal made the wizard the
+// second-best place to do it. The Getting-started checklist now walks the
+// operator there (setupGettingStartedModel.ts STEPS: `firstRole` → the Library's
+// jd-builder anchor). What replaced it is the one shape decision the whole
+// workspace hangs off and that nothing else asks about at first run: the board's
+// columns.
 
 // bug-ui-scan-2026-07-09 (organizations-members-invites #4): source the role +
 // language vocabularies from the REAL identity model (auth/roles) and the shared
@@ -10,77 +19,56 @@
 // prototype fixture. Onboarding speaks the server enum natively.
 import type { AppLanguage } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
-import { JD_BUILD_NEED_MIN_LENGTH, JD_BUILD_TITLE_MIN_LENGTH } from "@/app/_lib/jd-limits";
+import type { PipelineStagesRule } from "@/app/_lib/decision-config-schema";
+import { axisProblems, type AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
 
-export type SetupStepId = "welcome" | "company" | "team" | "firstRole" | "handoff";
+export type SetupStepId = "welcome" | "company" | "team" | "pipeline" | "handoff";
 
 export const SETUP_STEPS: { id: SetupStepId }[] = [
   { id: "welcome" },
   { id: "company" },
   { id: "team" },
-  { id: "firstRole" },
+  { id: "pipeline" },
   { id: "handoff" },
 ];
 
 export type SetupInvite = { email: string; role: MemberRole };
 
-// The app's real seniority vocabulary (junior · medior · senior · lead). VALUES
-// only: these are canonical slugs the server branches on, and their display label
-// is the app-wide one — `enums.seniority.<slug>` via useEnumLabel, the same source
-// the pipeline, the JD ledger and a published posting read. A label map here would
-// be a second, unlocalized vocabulary for the same four values (and this module is
-// server-imported, so it cannot hold copy).
-export const SENIORITY_VALUES: readonly string[] = ["junior", "medior", "senior", "lead"];
-
-// First role captured during onboarding. Two paths:
-//   "write"  — the inputs of the REAL backgrounded build (POST /api/jds/generate):
-//              finish() starts a description + market-salary + case-design run
-//              that lands in the Library ledger.
-//   "import" — an EXISTING job description (uploaded .pdf/.docx/.txt/.md via
-//              /api/extract-text, or pasted): finish() saves it as-is
-//              (POST /api/jds) and ingests it as a matchable job — no AI build.
-export type RoleMode = "write" | "import";
-export type RoleDraft = {
-  mode: RoleMode;
-  title: string;
-  seniority: string;
-  roleFamily: string;
-  needText: string;
-  /** Import path: the full JD text (extracted from a file or pasted). */
-  importedBody: string;
-  /** Import path: the source file's name (display only). */
-  importedFileName: string | null;
+/**
+ * The board's columns, as the wizard holds them.
+ *
+ * `stored` is the axis the server had when the step loaded — the baseline the
+ * dirty check compares against, so finishing writes NOTHING when the operator
+ * accepted the default. `counts` is per-stage occupancy: zero everywhere on a
+ * genuinely fresh workspace, but the wizard also opens over a populated one
+ * (Settings → "Preview onboarding", `?onboarding=1`), and there a removal the
+ * server would refuse must not be offered.
+ */
+export type SetupPipeline = {
+  stored: PipelineStagesRule;
+  draft: AxisDraft;
+  counts: Record<string, number>;
 };
 
-/** The generate contract is satisfied — same thresholds as the Library builder
- *  (jd-limits.ts), so the wizard can't submit what the API would reject. */
-export function roleDraftReady(role: RoleDraft): boolean {
-  return role.title.trim().length >= JD_BUILD_TITLE_MIN_LENGTH && role.needText.trim().length >= JD_BUILD_NEED_MIN_LENGTH;
-}
-
-/** The import contract is satisfied: a title plus a non-empty JD body. */
-export function roleImportReady(role: RoleDraft): boolean {
-  return role.title.trim().length >= JD_BUILD_TITLE_MIN_LENGTH && role.importedBody.trim().length > 0;
-}
-
-/** The active mode's required inputs are complete (gates Continue on the step). */
-export function roleStepComplete(role: RoleDraft): boolean {
-  return role.mode === "import" ? roleImportReady(role) : roleDraftReady(role);
-}
-
-/** Nothing entered at all — the step was skipped, not half-filled. */
-export function roleDraftEmpty(role: RoleDraft): boolean {
-  return role.title.trim() === "" && role.needText.trim() === "" && role.importedBody.trim() === "";
-}
+/** Whether the axis read has landed. `failed` is a real state, not a spinner
+ *  that never ends: the step says so and lets the operator past — the board keeps
+ *  whatever it already had. */
+export type SetupPipelineLoad = "loading" | "ready" | "failed";
 
 /** Whether a step's REQUIRED inputs are satisfied — the single gate behind the
  *  footer's Continue AND the rail's forward navigation, so the stepper can't
- *  bypass what the button enforces. Steps without required inputs (welcome,
- *  team, hand-off) are always satisfied; team/firstRole stay explicitly
- *  skippable via the footer's "Skip for now" (which advances past the gate). */
+ *  bypass what the button enforces. Only `company` has a required input; `team`
+ *  and `pipeline` are optional — `team` invites nobody by default and
+ *  `pipeline` ships a working five-column board, so accepting either unchanged
+ *  is a legitimate answer. The pipeline gate is therefore a
+ *  VALIDITY check, not a completeness one: an axis the server would reject can't
+ *  be carried to the hand-off, but an untouched one is fine. */
 export function stepSatisfied(id: SetupStepId, state: SetupState): boolean {
   if (id === "company") return state.orgName.trim().length > 0;
-  if (id === "firstRole") return roleStepComplete(state.role);
+  if (id === "pipeline") {
+    if (state.pipelineLoad !== "ready" || !state.pipeline) return true;
+    return axisProblems(state.pipeline.draft).length === 0;
+  }
   return true;
 }
 
@@ -92,7 +80,8 @@ export type SetupState = {
   /** https:// logo URL ("" = none). */
   logoUrl: string;
   invites: SetupInvite[];
-  role: RoleDraft;
+  pipeline: SetupPipeline | null;
+  pipelineLoad: SetupPipelineLoad;
 };
 
 export const INITIAL_SETUP: SetupState = {
@@ -101,15 +90,8 @@ export const INITIAL_SETUP: SetupState = {
   accentColor: null,
   logoUrl: "",
   invites: [],
-  role: {
-    mode: "write",
-    title: "",
-    seniority: "senior",
-    roleFamily: "software_engineering",
-    needText: "",
-    importedBody: "",
-    importedFileName: null,
-  },
+  pipeline: null,
+  pipelineLoad: "loading",
 };
 
 // Shared controller — the onboarding host owns this and hands the SAME object to
@@ -130,10 +112,13 @@ export type OnboardingCtrl = {
   update: (patch: Partial<SetupState>) => void;
   addInvite: (invite: SetupInvite) => void;
   removeInvite: (index: number) => void;
+  /** Replace the board draft (the pipeline step's only writer). No-op before the
+   *  stored axis has landed — there is nothing to diff against yet. */
+  setPipelineDraft: (draft: AxisDraft) => void;
   /** Cancel/skip — closes; in live mode this stamps the principal "skipped". */
   onClose: () => void;
-  /** Complete — PERSISTS the setup (org name, language, brand, invites) and
-   *  starts the first role's REAL backgrounded build, then closes. */
+  /** Complete — PERSISTS the setup (org name, language, brand, invites, and the
+   *  board columns when they were changed), then closes. */
   finish: () => void;
   /** True when the active step's required input is satisfied (gates Next). */
   canAdvance: boolean;

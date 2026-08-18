@@ -15,6 +15,10 @@ export const useSimulation = () => {
   if (!c) throw new Error("useSimulation must be used within SimulationProvider");
   return c;
 };
+/** Same context, but `null` outside the provider — for shell chrome that also
+ *  mounts on the server-rendered deep-link pages (the command palette on the
+ *  link-mode sidebar), where there is no simulation to offer. */
+export const useOptionalSimulation = () => useContext(Ctx);
 
 export function SimulationProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();

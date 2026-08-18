@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { parseFeedbackSubmission } from "@/app/_lib/feedback";
+import { currentSession } from "@/app/_lib/auth/current-user";
+import { currentUserId } from "@/app/_lib/auth/session";
+import { getUserById } from "@/app/_lib/db/users";
+import { parseFeedbackSubmission, replyEmailFrom } from "@/app/_lib/feedback";
 import { listFeedback, recordFeedback } from "@/app/_lib/feedback-store";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
@@ -8,9 +11,13 @@ import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-lim
 // is deliberately NOT in public-routes.ts): in password mode only a signed
 // session reaches it, and every row is stamped with the session's workspace.
 //
-// POST — record one "Send feedback" submission (message + optional reply email
-// + the route the dialog was opened from). The app version is stamped
-// server-side, never trusted from the client. Rate-limited per IP: the write is
+// POST — record one "Send feedback" submission (message + the route the dialog
+// was opened from). The reply address is NOT accepted from the client: it is
+// read from the signed-in user, so nobody can file a report under someone else's
+// address, and the dialog no longer asks for what the session already knows. It
+// resolves to null in open dev mode (no session identity) — an unattributed
+// report, which is the truth rather than a guess. The app version is likewise
+// stamped server-side, never trusted from the client. Rate-limited per IP: the write is
 // cheap but unmetered free-text storage is a spam / disk-pressure vector on an
 // open-mode deploy, and 10 messages in 10 minutes is far beyond a human's rate.
 //
@@ -28,9 +35,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
   }
   try {
+    const userId = currentUserId(await currentSession());
     recordFeedback(
       {
         ...parsed.value,
+        // Who wrote this, from the session — the one authority on identity.
+        email: replyEmailFrom(userId ? getUserById(userId)?.email : null),
         // Stamped from the running server's own package metadata (npm sets it for
         // dev/start scripts); null when the runtime doesn't carry it. Never client-supplied.
         appVersion: process.env.npm_package_version ?? null,

@@ -154,7 +154,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // in the chat) are localized from the request's "apply" catalog.
     const t = await getTranslations("apply");
     // SIM3 — the language the candidate applied in, persisted on the entry so
-    // every downstream comm (ack/rejection/interview/offer/onboarding) renders
+    // every downstream comm (ack/rejection/interview/offer) renders
     // in it rather than defaulting to English.
     const applicantLocale = await getServerLocale();
 

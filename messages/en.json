@@ -215,12 +215,12 @@
       "mid": "Mid",
       "growthPct": "+{pct}%",
       "target": "Target",
-      "confidenceUnknownTitle": "Confidence unrecognized, so it is shown at the lowest emphasis. Treat this salary read as unverified.",
+      "confidenceUnknownTitle": "The evidence grade was not recognized, so the band is shown at the lowest emphasis. Treat this salary read as unverified.",
       "gaugeAria": "Salary range {min} to {max} {currency}, midpoint {midpoint}, {growth} target {target}"
     },
     "archetype": {
       "detected": "Detected archetype",
-      "confidence": "confidence {value}",
+      "confidence": "signals agree {value}",
       "completeness": "completeness {value}",
       "save": "Save as profile",
       "saving": "Saving…",
@@ -291,10 +291,10 @@
       "titleMetered": "Metered from the provider's reported usage."
     },
     "confidence": {
-      "high": "High confidence",
-      "medium": "Medium confidence",
-      "low": "Low confidence",
-      "unknown": "Unknown confidence"
+      "high": "Strong evidence",
+      "medium": "Moderate evidence",
+      "low": "Weak evidence",
+      "unknown": "Evidence unknown"
     },
     "panel": {
       "candidate": "Candidate",
@@ -460,7 +460,7 @@
       "scenarioFallback": "Run a structured interview and keep each topic timeboxed.",
       "icsTitle": "Interview: {candidate} ({role})",
       "calendarHeader": "Calendar hold (.ics). Save the lines below as a .ics file to add it to your calendar:",
-      "body": "Hi {name},\n\nYou're set to interview {candidate} for {role} on {slot}.{length}\n\nPlan: {scenario}\nFocus areas: {focus}\n\nThe full prep pack and live rubric are in kp."
+      "body": "Hi {name},\n\nYou're set to interview {candidate} for {role} on {slot}.{length}\n\nPlan: {scenario}\nFocus areas: {focus}\n\nThe full prep pack and live rubric are in Kandi."
     },
     "interviewReminder": {
       "subject": "Reminder: your interview {slot}",
@@ -1263,7 +1263,10 @@
     "INTAKE_REOPEN_FAILED": "Could not re-open the session. Please try again.",
     "INTAKE_ATTACHMENT_FAILED": "Could not update the attachments. Please try again.",
     "STAGE_IMPACT_FAILED": "Could not check who is on each pipeline step. Try again.",
-    "STAGE_MIGRATION_FAILED": "Could not apply the pipeline change. Try again."
+    "STAGE_MIGRATION_FAILED": "Could not apply the pipeline change. Try again.",
+    "HIRE_RATING_ENTRY_NOT_FOUND": "That candidate is not on this board.",
+    "HIRE_RATING_NOT_HIRED": "Only a hired candidate can carry an on-the-job rating.",
+    "HIRE_RATING_INVALID": "An on-the-job rating must be a whole number from 1 to 5."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1680,7 +1683,210 @@
       "analysis": "CV analyses"
     },
     "tourAction": "Watch the hiring story (guided tour)",
-    "tourSub": "Runs the live demo: JD → sourcing → screening → interview → offer → hired"
+    "tourSub": "Runs the live demo: JD → sourcing → screening → interview → offer → hired",
+    "hintNavigate": "navigate",
+    "hintOpen": "open",
+    "hintClose": "close",
+    "previewPick": "Highlight a result to preview it here.",
+    "previewOpensIn": "Opens in {where}",
+    "whereJd": "the JD detail page",
+    "whereAnalysis": "the analysis report",
+    "whereTab": "the {tab} tab",
+    "resultsCount": "{count, plural, =0 {No results} one {# result} other {# results}}"
+  },
+  "palettePreview": {
+    "loading": "Loading preview…",
+    "unavailable": "Preview unavailable right now.",
+    "restricted": "Details are available to workspace operators.",
+    "missing": "Nothing to preview.",
+    "pipeline": {
+      "active": "Active",
+      "aging": "Past stage SLA",
+      "hired": "Hired",
+      "byStage": "By stage"
+    },
+    "channels": {
+      "receivers": "Receivers",
+      "accepted": "Accepted",
+      "fresh": "New at entry",
+      "lastReceived": "Last received",
+      "relayOn": "Outbound relay configured",
+      "relayOff": "Outbound relay not configured",
+      "never": "Never"
+    },
+    "decisions": {
+      "pending": "Awaiting you",
+      "sealed": "Sealed",
+      "chainOk": "Chain verified ({count})",
+      "chainBroken": "Chain integrity broken"
+    },
+    "schedule": {
+      "confirmed": "Confirmed",
+      "awaiting": "Awaiting slot",
+      "needsMoreSlots": "Need slots",
+      "next": "Next interview",
+      "calendarOn": "Google Calendar connected",
+      "calendarOff": "No calendar connected"
+    },
+    "agents": {
+      "agents": "Agents",
+      "runs": "Runs",
+      "successRate": "Success",
+      "monthCost": "Spend this month"
+    },
+    "jobs": {
+      "total": "Roles",
+      "draft": "Drafts",
+      "entryEligible": "Junior-friendly",
+      "families": "Top role families"
+    },
+    "library": {
+      "total": "JDs",
+      "analyzing": "Building",
+      "failed": "Failed",
+      "templates": "Templates",
+      "newest": "Newest"
+    },
+    "archetypes": {
+      "archetypes": "Archetypes",
+      "candidates": "Candidates",
+      "top": "Most common"
+    },
+    "analyze": {
+      "analyses": "Analyses",
+      "avgScore": "Avg score",
+      "latest": "Latest"
+    },
+    "interview": {
+      "sessions": "Sessions",
+      "completed": "Completed",
+      "live": "Live",
+      "latest": "Latest"
+    },
+    "assignments": {
+      "cases": "Cases",
+      "postings": "Postings",
+      "submissions": "Submissions"
+    },
+    "analytics": {
+      "total": "Candidates",
+      "reachedInterview": "Interviewed",
+      "hired": "Hired",
+      "conversion": "Hire rate"
+    },
+    "matrix": {
+      "candidates": "Candidates",
+      "openPositions": "Open roles",
+      "placements": "Placements"
+    },
+    "activity": {
+      "calls": "Calls, 30 d",
+      "cost": "Spend, 30 d",
+      "providers": "Providers",
+      "running": "Running",
+      "queued": "Queued"
+    },
+    "about": {
+      "blurb": "Six chapters: how a role is written, how a person is scored, who is filtered and by what, how archetypes route, what a work sample proves, and where a human decides."
+    },
+    "organization": {
+      "members": "Members",
+      "pendingInvites": "Invites",
+      "workspaces": "Teams",
+      "noDomain": "No domain set"
+    },
+    "branding": {
+      "displayName": "Display name",
+      "accent": "Accent",
+      "logo": "Logo",
+      "productDefault": "Product default",
+      "custom": "Custom"
+    },
+    "billing": {
+      "plan": "Plan",
+      "status": "Status",
+      "renews": "Renews",
+      "noPeriod": "No billing period",
+      "unbilled": "Local dev, unbilled",
+      "unlimited": "Unlimited",
+      "meters": {
+        "job_posts": "Roles to market",
+        "hires": "Hires",
+        "ai_candidates": "AI candidates",
+        "case_designs": "Case designs",
+        "interview_minutes": "Interview minutes"
+      }
+    },
+    "models": {
+      "routed": "Routed",
+      "providers": "Providers with keys",
+      "noKeys": "No keys: keyless fallbacks",
+      "cost": "Spend, 30 d"
+    },
+    "integrations": {
+      "calendar": "Google Calendar",
+      "relay": "Comms relay",
+      "atsWebhook": "ATS webhook",
+      "atsConnections": "ATS connectors",
+      "connected": "Connected",
+      "configured": "Configured",
+      "missing": "Not set up",
+      "events": "{count, plural, one {# event} other {# events}}",
+      "empty": "No integrations connected yet."
+    },
+    "workspace": {
+      "count": "Teams",
+      "current": "Current team",
+      "members": "Members",
+      "multiOn": "Multi-team enabled",
+      "multiOff": "Single team"
+    },
+    "hiring": {
+      "stages": "Stages",
+      "regime": "Regime",
+      "active": "On the board"
+    },
+    "profile": {
+      "archetype": "Archetype",
+      "roleFamily": "Role family",
+      "completeness": "Completeness",
+      "since": "In pool since",
+      "placements": "On the board",
+      "noPlacements": "Not on the board"
+    },
+    "entry": {
+      "stage": "Stage",
+      "score": "Match",
+      "moved": "Last moved",
+      "source": "Source",
+      "gate": "Approval gate",
+      "invite": "Interview"
+    },
+    "job": {
+      "company": "Company",
+      "location": "Location",
+      "seniority": "Seniority",
+      "status": "Status",
+      "funnel": "Funnel",
+      "total": "In pipeline",
+      "interviewed": "Interviewed",
+      "hired": "Hired"
+    },
+    "jd": {
+      "created": "Created",
+      "analyses": "Analyses",
+      "words": "Words",
+      "status": "Build"
+    },
+    "analysis": {
+      "score": "Score",
+      "roleFamily": "Role family",
+      "seniority": "Seniority",
+      "disposition": "Your decision",
+      "created": "Analyzed",
+      "jd": "Against JD",
+      "undecided": "Undecided"
+    }
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",
@@ -1696,7 +1902,6 @@
     "attentionBadge": "{count, plural, one {# needs attention} other {# need attention}}",
     "attentionBadgeGo": "{count, plural, one {# needs attention} other {# need attention}}. View them.",
     "tabSwitched": "Switched to {tab}",
-    "recent": "Recent",
     "brandMark": "K",
     "brandName": "KandiDate",
     "tagline": "talent matching",
@@ -1730,7 +1935,8 @@
       "insights": "Insights",
       "settings": "Settings"
     },
-    "openWorkspace": "Open workspace"
+    "openWorkspace": "Open workspace",
+    "home": "Home"
   },
   "enums": {
     "stage": {
@@ -1932,7 +2138,16 @@
       "ats_export": "was exported to an ATS",
       "profile_enriched": "completed their own profile gaps",
       "unknownKind": "logged an unrecognized event ({kind})",
-      "stage_migrated": "was moved to {stage} when a pipeline step was removed"
+      "stage_migrated": "was moved to {stage} when a pipeline step was removed",
+      "screen_wave_holdout": "was spared by the screening wave (calibration holdout)",
+      "human_round_queued": "was handed to a human round after the AI round",
+      "offer_reminder_sent": "was sent an offer reminder",
+      "offer_auto_extended": "had an offer extended unattended",
+      "offer_accept_blocked": "accepted an offer that could no longer be honoured",
+      "agent_dispatched": "was sent to Personas as a persona request",
+      "agent_activated": "went live as a Personas persona",
+      "onboarding_started": "started onboarding (retired module)",
+      "onboarding_intake_submitted": "submitted their onboarding questionnaire (retired module)"
     },
     "relTime": {
       "today": "today",
@@ -2097,7 +2312,9 @@
       "emptyBoardWaiting": "Your board, waiting",
       "emptyFirstCandidate": "First candidate",
       "attentionTitle": "Needs your attention",
-      "filterStateLabel": "State"
+      "filterStateLabel": "State",
+      "stageOffBoard": "Stage {stage} is no longer a column on this board. The filter is still applied, so you are seeing only the candidates still standing on it.",
+      "stageOffBoardClear": "Remove this filter"
     },
     "today": {
       "eyebrow": "Today",
@@ -2238,7 +2455,18 @@
       "commsBounceLine": "The relay reported this as undeliverable: {detail}",
       "commsFailureLine": "Delivery failed and wasn't retried: {detail}",
       "commsRecoveredLine": "This send failed first, then a later resend went through.",
-      "commsReasonUnknown": "no reason recorded"
+      "commsReasonUnknown": "no reason recorded",
+      "hireOutcome": {
+        "title": "On-the-job outcome",
+        "unrated": "Not rated yet.",
+        "rated": "Rated {rating}/{max} on {date}.",
+        "rateAria": "Rate {n} out of {max}",
+        "scaleHint": "1 = the hire did not work out, 5 = exceeded expectations.",
+        "saving": "Saving…",
+        "saveFailed": "Couldn't save the rating.",
+        "purpose": "Record how this hire actually worked out. It is the ground truth behind the quality-of-hire measurement in Analytics.",
+        "notAutomated": "Visible in your workspace only. It is never shown to the candidate, and it is not used to make automated decisions."
+      }
     },
     "actions": {
       "screen": "Screen with AI",
@@ -2316,7 +2544,7 @@
       "claudeCli": "Claude CLI",
       "template": "template",
       "feedback": "Feedback: {text}",
-      "confidence": " · {confidence}% confidence",
+      "confidence": " · self-reported by the model: {confidence}%",
       "goodAnswer": "Good answer: {text}",
       "perMonth": "/ mo",
       "band": "band {min}–{max} {currency}",
@@ -2516,7 +2744,11 @@
       "jdEditedTitle": "The JD was edited {date}, after this candidate was scored. The score reflects the earlier text. Re-run the analysis to refresh it.",
       "noBand": "No salary band is configured for this role or market, so no figure was proposed. Set the amount when approving.",
       "unpricedAmount": "Amount to be set",
-      "unpricedTitle": "No salary was proposed for this draft. Set the amount when you approve the offer."
+      "unpricedTitle": "No salary was proposed for this draft. Set the amount when you approve the offer.",
+      "selfReportLabel": "Self-reported by the model",
+      "selfReportValue": "{pct} out of 100",
+      "selfReportNote": "the model's own rating of this verdict. Nothing has measured it against real outcomes.",
+      "selfReportTitle": "The model was asked for a verdict and also stated how sure it feels. That statement is evidence about the model, not about the candidate: no outcome, no holdout and no base rate stands behind it. The measured sibling, how often a score range actually advances, is a statistic about a whole cohort and lives in the quality section of Analytics."
     },
     "rules": {
       "title": "Decision rules · Screening",
@@ -2632,7 +2864,9 @@
         "tieAdjustedNote": "(tie-adjusted from {from} so no equal score is split)",
         "staleSkipped": "Skipped: stage changed mid-wave (was {wasStage}). Left untouched.",
         "unscored": "unscored: no match score yet. Excluded from auto-rejection (needs scoring)",
-        "holdout": "kept as a calibration holdout: {pct}% of would-be auto-rejects are spared so their real outcomes can test whether the score was right (match {score}, threshold {threshold})"
+        "holdout": "kept as a calibration holdout: {pct}% of would-be auto-rejects are spared so their real outcomes can test whether the score was right (match {score}, threshold {threshold})",
+        "approvedByNote": "Approved by {who}.",
+        "approverUnidentified": "Approver not identified."
       }
     },
     "summary": {
@@ -2725,7 +2959,7 @@
       "skillsSection": "Skills",
       "salarySection": "Salary · expectation vs band",
       "overallFit": "Overall fit",
-      "confidenceBand": "Confidence band",
+      "confidenceBand": "Score range",
       "profile": "Profile",
       "mustHaveCoverage": "Must-have coverage",
       "expected": "Expected",
@@ -2769,7 +3003,7 @@
       "recommendedLead": "Recommended lead",
       "differentiators": "Differentiators (lead):",
       "leadTied": "Effectively tied",
-      "leadTiedTitle": "The gap to the runner-up is inside both candidates' confidence bands. Treat the top two as a tie on the evidence available.",
+      "leadTiedTitle": "The gap to the runner-up is inside both candidates' score ranges. Treat the top two as a tie on the evidence available.",
       "risk": {
         "lowFit": "{label}: lower fit ({score}). Confirm must-haves at interview.",
         "earlyCareer": "{label}: early-career. Assess potential and trajectory, not only current skills.",
@@ -2787,7 +3021,7 @@
         "uniqueStrengths": "Unique strengths: {list}.",
         "watchOuts": "{count, plural, one {# watch-out} other {# watch-outs}} flagged below.",
         "noRisks": "No blocking risks flagged.",
-        "separationCaveat": "Confidence caveat: {lead} is not separated from {runnerUp}. Their score bands overlap, so this ordering is within the measurement's own uncertainty. Treat the top two as a tie on the evidence available."
+        "separationCaveat": "Range caveat: {lead} is not separated from {runnerUp}. Their score ranges overlap, so this ordering is within the measurement's own uncertainty. Treat the top two as a tie on the evidence available."
       },
       "governance": {
         "committee": "Committee mode: the AI comparison is ADVISORY input for the search committee. It does not pick or seal a hire. Capture each evaluator's assessment and the committee's decision in your governance process.",
@@ -2796,6 +3030,24 @@
       "topPickWhy": {
         "highestFit": "Highest fit ({score}) in this role.",
         "unscored": "Top of the field, but no fit score has been computed yet."
+      },
+      "rejectConfirm": {
+        "title": "Reject {name}?",
+        "body": "A rejection is sealed into the tamper-evident audit record and the candidate is notified. The reason you record here becomes the basis on that record. Without it, the audit says only that a recruiter rejected.",
+        "presetsLabel": "Common reasons",
+        "presets": {
+          "mustHave": "Missing a must-have requirement for this role",
+          "weakerField": "Weaker than the rest of the compared field",
+          "salaryBand": "Expectation outside the role's salary band",
+          "evidence": "Not enough evidence of the required experience"
+        },
+        "reasonLabel": "Reason for rejection",
+        "reasonRequired": "· required, sealed to the audit record",
+        "placeholder": "Why is this candidate not going forward? e.g. no production Kubernetes in the last three roles, which this position leads on.",
+        "sealNote": "Recorded as written. It is what the audit trail and any later review will read.",
+        "cancel": "Cancel",
+        "confirm": "Reject & record reason",
+        "sealedToast": "{name} rejected. The reason is on the audit record."
       }
     },
     "empty": {
@@ -3571,12 +3823,12 @@
         "route": "Route {step}",
         "eyebrow": "First role",
         "title": "Your catalog is waiting for its opening move",
-        "body": "Every hire in kp hangs off one open role. Post the first one and the rest of the workspace comes alive.",
+        "body": "Every hire in Kandi hangs off one open role. Post the first one and the rest of the workspace comes alive.",
         "route1Title": "Draft it from a JD template",
         "route1Body": "Pick a job description in the library, tune the requirements, and publish it as an open role.",
         "route1Cta": "Open the JD library",
         "route2Title": "Import an ad you already have",
-        "route2Body": "Paste an existing job ad and kp parses it into a structured role: requirements, seniority, work mode.",
+        "route2Body": "Paste an existing job ad and Kandi parses it into a structured role: requirements, seniority, work mode.",
         "route2Cta": "Use the import panel above",
         "unlocksLabel": "One role unlocks",
         "unlockChannels": "Channels open",
@@ -3726,7 +3978,7 @@
       "salaryOk": "Salary is in line with the market band <b>{market}</b> for this role.",
       "salaryUnset": "(no band set)",
       "notAssessed": "{n, plural, one {# candidate couldn't be scored} other {# candidates couldn't be scored}} and {n, plural, one {is} other {are}} not counted above. Check their profile.",
-      "footnote": "Projections re-run kp's live scoring engine against your saved candidates, so they match what publishing would surface.",
+      "footnote": "Projections re-run Kandi's live scoring engine against your saved candidates, so they match what publishing would surface.",
       "stageEdit": "Stage this edit",
       "stageEditAria": "Open the description editor with the {value} change staged"
     },
@@ -3888,21 +4140,23 @@
   "scoreProvenance": {
     "analysis": "from CV analysis · {date}",
     "analysisShort": "from CV analysis",
-    "snapshot": "snapshot at add"
+    "snapshot": "snapshot at add",
+    "freshMatch": "scored by this match run",
+    "freshMatchTitle": "Computed now, by this match run, against the role's current text. It is never stored on the candidate, so the pipeline board can honestly show a different number: the score snapshotted when the candidate was added."
   },
   "match": {
     "band": {
       "tight": {
         "label": "Tight band",
-        "aria": "Confidence band: tight (high certainty)"
+        "aria": "Score range: tight (the score moves little)"
       },
       "moderate": {
         "label": "Moderate band",
-        "aria": "Confidence band: moderate certainty"
+        "aria": "Score range: moderate width"
       },
       "wide": {
         "label": "Wide band",
-        "aria": "Confidence band: wide (low certainty)"
+        "aria": "Score range: wide (the score could move a lot)"
       },
       "titlePrefix": "Why this band:",
       "titleFallback": "Narrow band: strong, verifiable evidence."
@@ -3958,8 +4212,8 @@
       "noLanguages": "No languages listed. The language KO was skipped rather than failed.",
       "earlyCareer": "Early-career: potential replaces years of experience; only entry-eligible roles are considered.",
       "selfDeclared": "Some skills are self-declared, so they're discounted. Validate them in interview.",
-      "observed": "Some skills were directly observed (live case / interview), so they're high-confidence, not self-reported.",
-      "thinProfile": "Thin skill profile. Scores carry a wide confidence band."
+      "observed": "Some skills were directly observed (live case / interview), so they are verified evidence, not the candidate's own claim.",
+      "thinProfile": "Thin skill profile. The score range around each score is wide."
     },
     "koClause": {
       "language": "required a language not in the profile",
@@ -4017,7 +4271,9 @@
       "missingTitle": "Missing must-have",
       "missingTitleEarly": "Missing must-have (often learnable)",
       "showLess": "Show less",
-      "moreCount": "+{count} more"
+      "moreCount": "+{count} more",
+      "rangeLabel": "Range",
+      "rangeAria": "Score range {low} to {high} out of 100"
     },
     "weights": {
       "adjustWeighting": "Adjust weighting",
@@ -4061,8 +4317,8 @@
         "role": "Role",
         "company": "Company",
         "score": "Score",
-        "confLow": "Conf. low",
-        "confHigh": "Conf. high",
+        "confLow": "Score range low",
+        "confHigh": "Score range high",
         "fitTier": "Fit tier",
         "matchedSkills": "Matched skills",
         "missingSkills": "Missing skills"
@@ -4074,7 +4330,7 @@
       "roleHeader": "Role →",
       "roleMeta": "{company} · {family} / {seniority}",
       "overallFit": "Overall fit",
-      "confidence": "Confidence",
+      "confidence": "Score range",
       "matchedSkills": "Matched skills",
       "missingMustHaves": "Missing must-haves",
       "salaryBand": "Salary band",
@@ -4171,7 +4427,7 @@
       "sortBy": "Sort by {column}"
     },
     "result": {
-      "confidence": "confidence {pct}%",
+      "confidence": "signals agree {pct}%",
       "saved": "saved · {id}",
       "preview": "preview (not saved)",
       "routing": "Routing: {reasons}",
@@ -4226,7 +4482,7 @@
       "drafting": "Drafting…",
       "draftWithAi": "Draft with AI",
       "draftSavedHint": "Fills the fields below. Nothing is saved until you click Save.",
-      "draftedAs": "Drafted as {label} ({pct}% confidence). Review and edit below, then Save.",
+      "draftedAs": "Drafted as {label} ({pct}% of the routing signals agree). Review and edit below, then Save.",
       "draftFailedStatus": "Draft failed ({status}).",
       "aiDraftFailed": "AI draft failed.",
       "buildFailedStatus": "Build failed ({status}).",
@@ -4388,7 +4644,7 @@
       "bouncedRecipientPlaceholder": "name@company.com",
       "bouncedResendInvalid": "Enter a valid email address before resending.",
       "orphanBadge": "Unmatched receipt",
-      "orphanHint": "The relay reported a delivery failure for a message kp never sent: its reference or type matches nothing here. Check the ref/kind mapping in the relay integration.",
+      "orphanHint": "The relay reported a delivery failure for a message Kandi never sent: its reference or type matches nothing here. Check the ref/kind mapping in the relay integration.",
       "failureDetail": "Delivery failed: {detail}",
       "failureDetailUnknown": "Delivery failed. No reason was recorded for this send.",
       "resendRejected": "Couldn't resend: {reason}",
@@ -4399,7 +4655,7 @@
       "colType": "Type",
       "colStatus": "Status",
       "colRecorded": "Recorded",
-      "recordedHint": "When kp recorded the message. A resend is its own row, so original and resend are distinguishable.",
+      "recordedHint": "When Kandi recorded the message. A resend is its own row, so original and resend are distinguishable.",
       "via": "via {channel}",
       "statusSent": "Sent",
       "statusQueued": "Queued",
@@ -4527,10 +4783,10 @@
       "notWiredHowTo": "Anything that can POST reaches it today: an automation (Zapier/Make), a form, or a mail-parsing service.",
       "gmail1": "Open Gmail → <b>Settings ⚙ → See all settings → Forwarding and POP/IMAP</b>.",
       "gmail2": "Click <b>Add a forwarding address</b>, paste <endpoint></endpoint>, then <b>Next → Proceed</b>.",
-      "gmail3": "Gmail emails a <b>confirmation code</b> to that address. Retrieve it from your inbound-email provider’s log. kp records outgoing messages, not the provider’s own mail. Then enter it back in Gmail to confirm.",
+      "gmail3": "Gmail emails a <b>confirmation code</b> to that address. Retrieve it from your inbound-email provider’s log. Kandi records outgoing messages, not the provider’s own mail. Then enter it back in Gmail to confirm.",
       "gmail4": "Create a <b>Filter</b> (e.g. <i>Subject contains “application”</i>) → <b>Forward it to</b> <endpoint></endpoint>. Every matching email now flows in automatically.",
       "outlook1": "Open Outlook on the web → <b>Settings ⚙ → Mail → Rules → Add new rule</b>.",
-      "outlook2": "Name it <i>“Applications → KP”</i> and add a condition (e.g. <i>Subject includes “application”</i>).",
+      "outlook2": "Name it <i>“Applications → Kandi”</i> and add a condition (e.g. <i>Subject includes “application”</i>).",
       "outlook3": "Set the action to <b>Redirect to</b> (or <b>Forward to</b>) <endpoint></endpoint>.",
       "outlook4": "Click <b>Save</b>. Matching mail is now redirected automatically, with no code to confirm.",
       "notWiredHowToSetup": "To turn on real forwarding, route an inbound-email provider (Postmark, SendGrid or Mailgun inbound) at this endpoint and set <code>EMAIL_INBOUND_DOMAIN</code> to the domain it accepts mail on. The forwarding address and the Gmail/Outlook steps appear here once it is set."
@@ -4582,7 +4838,7 @@
         "proof": "Once the relay is set, each invite, rejection and reminder is logged here with the delivery result it actually got.",
         "actionHint": "Set the relay endpoint below",
         "step1": "Paste your delivery endpoint URL into the relay card below.",
-        "step2": "Add a signing secret so a receiver can prove the call came from kp.",
+        "step2": "Add a signing secret so a receiver can prove the call came from Kandi.",
         "step3": "Send the test ping and confirm it comes back green.",
         "effort": "About 2 minutes: one endpoint serves the whole workspace",
         "waiting": "The relay is set and nothing has been sent yet. Messages appear here the moment you act on a candidate."
@@ -4601,7 +4857,7 @@
         "promise": "Applications forwarded straight out of your mailbox",
         "proof": "Every email matching your rule becomes a candidate card with its CV attached. Nobody re-types an application again.",
         "actionHint": "Add a role inbox to get its address",
-        "step1": "Add a role inbox. kp mints a parse address bound to that role.",
+        "step1": "Add a role inbox. Kandi mints a parse address bound to that role.",
         "step2": "In Gmail or Outlook, forward matching mail to that address.",
         "step3": "Confirm the rule; the setup guide walks the exact steps per client.",
         "effort": "About 3 minutes: one rule per role",
@@ -4613,7 +4869,7 @@
         "actionHint": "Add a receiver to get its webhook URL",
         "step1": "Add a receiver for the role you are advertising.",
         "step2": "In Zapier or Make, trigger a flow on a new lead from the ad form.",
-        "step3": "POST that lead to the receiver URL kp hands you.",
+        "step3": "POST that lead to the receiver URL Kandi hands you.",
         "effort": "About 5 minutes: one receiver per advertised role",
         "waiting": "The receiver is armed and no leads have arrived yet. The first one files itself into the pipeline."
       }
@@ -4911,14 +5167,14 @@
         "restoreFailedStatus": "Restore failed ({status}).",
         "restoreFailed": "Restore failed.",
         "restored": "Restored {tables} tables · {rows} rows. Reload the page to see your restored organization.",
-      "notCarried": "Not part of a backup, so they stay as they are now: {tables}. Check them under Settings.",
+        "notCarried": "Not part of a backup, so they stay as they are now: {tables}. Check them under Settings.",
         "plan": {
           "title": "Restore plan · {tables} tables, {rows} rows",
           "replaceWarning": "Restoring first DELETES what your organization holds now: {count, plural, one {# row} other {# rows}} across {tables}.",
           "confirmPrompt": "This replaces your organization’s current data. Type <code>{word}</code> to confirm:",
           "confirmAria": "Type {word} to confirm the destructive restore",
           "nonDestructive": "Your organization holds no data yet, so the restore is non-destructive.",
-        "sharedTierNote": "Another organization shares this deployment, so the shared template library and decision baseline are left untouched.",
+          "sharedTierNote": "Another organization shares this deployment, so the shared template library and decision baseline are left untouched.",
           "rows": "{count, plural, one {# row} other {# rows}}",
           "rowsReplacing": "{count, plural, one {# row} other {# rows}} · replaces {live}",
           "apply": "Restore",
@@ -5028,7 +5284,7 @@
     }
   },
   "login": {
-    "eyebrow": "kp",
+    "eyebrow": "Kandi",
     "title": "Sign in",
     "subtitle": "Sign in with your email and password, or the operator password.",
     "emailLabel": "Email",
@@ -5045,7 +5301,7 @@
     "error": "Incorrect credentials. Try again."
   },
   "signup": {
-    "eyebrow": "kp",
+    "eyebrow": "Kandi",
     "title": "Create your workspace",
     "subtitle": "Set up your company's hiring workspace. You'll be the owner.",
     "nameLabel": "Your name",
@@ -5092,7 +5348,7 @@
     "eyebrow": "Verified credential",
     "title": "Durable Skill Profile",
     "subtitle": "A signed, portable measure of durable engineering capability. Earned from a graded work sample, not a résumé.",
-    "verified": "Verified by kp",
+    "verified": "Verified by Kandi",
     "revoked": "This credential has been revoked",
     "tampered": "Signature invalid, do not trust",
     "incomplete": "Issued without a scored summary",
@@ -5194,7 +5450,6 @@
     "briefBandFunnel": "The funnel",
     "briefStallClaim": "Candidates are stalling at {stage}, {days} days on average.",
     "briefStallContext": "{count} people are sitting there right now.",
-    "briefWeakestClaim": "{stage} is the weakest link, converting {pct}%.",
     "briefFunnelHealthyClaim": "Every stage is clearing its goal.",
     "briefNoDataClaim": "Nothing has come through the funnel yet.",
     "briefNoDataContext": "Add a role and start collecting candidates; this brief fills in as they move.",
@@ -5213,19 +5468,36 @@
       "instrumentEyebrow": "Can the score be trusted?",
       "calibrationUnavailable": "Calibration could not be read.",
       "verdictGood": "The screening score is well calibrated.",
-      "verdictGoodBody": "A Brier score of {brier} over {n} decided candidates, comfortably better than guessing. Auto-decisions on this score are defensible.",
-      "verdictWeak": "The screening score is only a little better than guessing.",
-      "verdictWeakBody": "A Brier score of {brier} over {n} decided candidates. Guessing scores 0.25. Keep a human on the rejections until this improves.",
-      "verdictBad": "The screening score is worse than guessing.",
-      "verdictBadBody": "A Brier score of {brier} over {n} decided candidates, above the 0.25 a coin flip scores. Do not let this score auto-reject anyone.",
+      "verdictGoodBody": "A Brier score of {brier} over {n} decided candidates on the holdout arm: {skillPct} % better than always predicting this cohort’s base rate ({basePct} % advanced). These outcomes were not produced by the score, so this reading can be falsified.",
+      "verdictWeak": "The screening score barely beats this cohort’s base rate.",
+      "verdictWeakBody": "A Brier score of {brier} over {n} decided candidates: only {skillPct} % better than always predicting the base rate ({basePct} % advanced). Keep a person on the rejections until that margin grows.",
+      "verdictBad": "The screening score does no better than the base rate.",
+      "verdictBadBody": "A Brier score of {brier} over {n} decided candidates: {skillPct} % against always predicting this cohort’s base rate ({basePct} % advanced), so a constant guess would do at least as well. Do not let this score auto-reject anyone.",
       "verdictUnknown": "There is not enough evidence to judge the score yet.",
       "verdictUnknownBody": "{n} of the {min} decided candidates needed to measure calibration. Until then no curve is drawn, because one fitted to a handful of points would read as certainty this does not have.",
       "statOutcomes": "Decided",
       "statAdvanced": "Advanced",
       "statBrier": "Brier",
-      "statCoin": "Coin flip",
       "evidenceLabel": "Evidence: what it decided",
-      "evidenceBody": "The sealed record and the full trail, for checking the claims above against individual decisions."
+      "evidenceBody": "The sealed record and the full trail, for checking the claims above against individual decisions.",
+      "verdictCircular": "This score has only ever been checked against its own decisions.",
+      "verdictCircularBody": "A Brier score of {brier} over {n} decided candidates, but automatic screening produced those outcomes from this same score, so the number measures internal consistency, not accuracy. Against this cohort’s own base rate ({basePct} % advanced) it scores {skillPct} %. Keep a person on the rejections until the clean arm can be judged.",
+      "verdictDegenerateBody": "All {n} decided candidates went essentially the same way ({basePct} % advanced), so there is nothing for the score to tell apart and no skill to measure yet.",
+      "statArm": "Arm",
+      "armPipeline": "Pipeline",
+      "armHoldout": "Holdout",
+      "statBaseBrier": "Base-rate Brier",
+      "statSkill": "Skill score",
+      "skillValue": "{pct} %",
+      "scopeLabel": "What this judges:",
+      "scopeAdvance": "advancing past screening. A candidate counts as a success once they reach interview, offer or hire, so this verdict does not separate a hire from an interview, and says nothing about how a hire then performed.",
+      "hiredAxisReady": "Whether the score predicts a hire is measured separately: Brier {brier} over {n} candidates who were hired or rejected. Part of those rejections still comes from automatic screening, so read the number together with the disclosure below.",
+      "hiredAxisPending": "Whether the score predicts a hire is measured separately, and cannot be judged yet: {n} of the {min} hired-or-rejected candidates needed.",
+      "hiredAxisWhere": "Set the readout below to the hire outcome to see it.",
+      "hireRatingNone": "Quality of hire is a third question, and this workspace has no hires recorded yet, so there is nothing to rate.",
+      "hireRatingPending": "Whether a hire then worked out is a third question, and it needs a rating a person enters: {rated} of {hires} hires rated so far, {remaining, plural, one {# more rating} other {# more ratings}} needed before that curve could be judged.",
+      "hireRatingReady": "Whether a hire then worked out is a third question: {rated} hires now carry an on-the-job rating, enough for a curve to be judged. The curve itself is not built yet.",
+      "hireRatingWhere": "Ratings are recorded on a hired candidate, in the candidate panel on the hiring board."
     },
     "econ": {
       "colPerHire": "Per hire",
@@ -5243,7 +5515,9 @@
       "colKind": "Type",
       "colShape": "Shape",
       "colLeads": "Leads",
-      "colSpend": "Spend"
+      "colSpend": "Spend",
+      "billingNote": "The compute total here is one figure for the whole workspace. Which AI work it belongs to is broken down per use case in Billing.",
+      "billingLink": "Open Billing"
     },
     "orgBenchmark": {
       "title": "Company benchmark",
@@ -5257,7 +5531,8 @@
       "orgLabel": "Org: {value}",
       "ahead": "ahead",
       "behind": "behind",
-      "footnote": "Anonymized aggregate across {teams} teams. No candidate or team data is shared."
+      "footnote": "Anonymized aggregate across {teams} teams. No candidate or team data is shared.",
+      "scopeAllTime": "All time: the company comparison is not narrowed by the selected window."
     },
     "loadFailed": "Couldn't load analytics.",
     "retry": "Retry",
@@ -5317,10 +5592,10 @@
     "configureChannels": "Configure channels",
     "goals": {
       "title": "Conversion & time-to-hire goals",
-      "intro": "Set per-stage conversion goals and a time-to-hire target. The funnel flags stages below goal; leave blank to use the default 50% threshold.",
       "timeToHire": "Time to hire",
       "daysSuffix": "days",
-      "saveFailed": "Couldn't save. Enter a number (or clear to remove)."
+      "saveFailed": "Couldn't save. Enter a number (or clear to remove).",
+      "introUnset": "Set per-stage conversion goals and a time-to-hire target. A stage with no goal is not judged: its conversion is shown, never flagged."
     },
     "calibration": {
       "title": "How accurate are we?",
@@ -5393,7 +5668,54 @@
       "recAppliedFamily": "{family} floor set to {suggested} (was {previous}). Reversible by re-applying.",
       "familyFloorsTitle": "Per-family floors",
       "familyFloorsBlurb": "Families with their own auto-reject floor (global floor: {global}). Select one to review or adjust it.",
-      "familyFloorValue": "floor {value}"
+      "familyFloorValue": "floor {value}",
+      "sourceHoldout": "Holdout (the clean arm)",
+      "measuresHoldout": "Measures the pipeline match score against candidates the screening wave spared from auto-rejection. Their outcome was not produced by the score, so this is the one arm the calibration can be falsified against.",
+      "exclusionHoldout": "a spared candidate counts once a decision is reached: advanced past screening, or rejected later by a person. Candidates the floor never touched, and those still pending, are excluded.",
+      "leakageTitle": "Where this outcome comes from",
+      "leakageLevelHigh": "Outcome caused by the score",
+      "leakageLevelMedium": "Outcome anchored on the score",
+      "leakageLevelLow": "Clean arm",
+      "leakageCeilingLabel": "What this still cannot show:",
+      "leakageScoreCausedNote": "The rejection is produced by the score itself: automatic screening rejects on the match score, so this curve largely validates the score against its own decisions. The Brier score is biased optimistic by an amount nothing here estimates.",
+      "leakageScoreCausedCeiling": "Only the holdout arm breaks this coupling. Until it has accrued enough outcomes, read this curve as internal consistency, not accuracy.",
+      "leakageReviewerSawNote": "The outcome is a human advance/pass decision, so the score did not mechanically produce it. But the recruiter saw the score while deciding, so the two are correlated by anchoring rather than independent.",
+      "leakageReviewerSawCeiling": "Not a score-blind trial: the decision was informed by the very number being validated.",
+      "leakageCleanArmNote": "These candidates scored below the auto-reject floor and were spared anyway, so the score did not mechanically produce their outcome. This is the arm the calibration can actually be falsified against.",
+      "leakageCleanArmCeiling": "The reviewer still saw the score, so this is not fully score-blind; and the arm covers only the range below the floor, so it can tell you whether your rejections were right, not whether the whole curve is.",
+      "leakageUseHoldout": "Show the clean arm",
+      "accrualTitle": "When this arm can be judged",
+      "accrualBody": "About {remaining} more decided candidates ({n} of {min} so far). Until then this stays a horizon, not a curve.",
+      "accrualHoldout": "The holdout only fills while auto-rejection is running: a sampled share of the candidates it would reject is spared and tracked here.",
+      "skill": "Skill vs. base rate",
+      "skillValue": "{pct} %",
+      "skillHint": "0 % = no better than always predicting this cohort’s base rate ({pct} % advanced, Brier {base}). Below zero is worse than that.",
+      "baseRateLegend": "Base rate ({pct} % advanced)",
+      "thresholdLegend": "Auto-reject floor ({threshold})",
+      "srThreshold": "Auto-reject floor marked at predicted {threshold}.",
+      "srBaseRate": "Base-rate line at {pct} % observed.",
+      "recLeakageCaveat": "This suggestion reads the band advance rates that the floor you are about to move helped produce, so it is partly circular. Check it against the clean arm once that arm can be judged.",
+      "recAbsentTitle": "No threshold change to suggest",
+      "recAbsentBody": "Neither score band next to your auto-reject floor of {current} carries enough decided candidates, at a clearly high or low advance rate, to defend a move. That is an absence of evidence, not an endorsement of the current floor.",
+      "recAbsentNoFloor": "No auto-reject floor is in force, so there is nothing to move. Set one in Decision rules if screening should act on this score.",
+      "recAbsentFamily": "Measured within {family} only. The all-roles view may still hold enough to say something.",
+      "familyFloorsNone": "No role family carries its own floor, so every family is screened at the global {global}.",
+      "outcomeLabel": "Success means",
+      "outcomeAdvance": "Advanced past screening",
+      "outcomeHired": "Reached Hired",
+      "measuresPipelineHired": "Measures the pipeline match score against whether the candidate was actually hired. Reaching the hire takes interviews, an offer and an acceptance, so this is a much harder question than advancing past screening, and a much slower one to answer.",
+      "measuresHoldoutHired": "Measures the pipeline match score against whether candidates the screening wave spared from auto-rejection were actually hired. Nothing automatic produced that outcome, so this is the strictest arm the calibration offers.",
+      "exclusionPipelineHired": "a candidate counts once they are hired or rejected. Everyone still in the process is excluded, because they may yet be hired. Candidates who declined, whose role closed, who withdrew, or who have no score are excluded as well: none of that is a verdict on the candidate.",
+      "exclusionHoldoutHired": "a spared candidate counts once they are hired or rejected. Candidates the floor never touched, and everyone still in the process, are excluded.",
+      "outcomeAnalysisUnavailable": "This arm records a recruiter decision on an analysis, not a pipeline stage, so it cannot say who was hired. Switch to the pipeline match score for that.",
+      "outcomeHiredScopeNote": "The score-band drilldown and the threshold suggestion are both derived from advancing past screening, so they stay on that setting. Switch back to see them.",
+      "axisObservedHired": "Observed hire rate",
+      "baseRateLegendHired": "Base rate ({pct} % hired)",
+      "skillHintHired": "0 % = no better than always predicting this cohort’s base rate ({pct} % hired, Brier {base}). Below zero is worse than that.",
+      "uncalibratedBodyHired": "Calibration needs at least {min} candidates who were hired or rejected. So far: {n}.",
+      "leakageLevelHighRejects": "Rejections caused by the score",
+      "leakageScoreCausedHiredNote": "Reaching the hire takes interviews, an offer and an acceptance, none of which this score decides, so the successes here were not produced by the score. The rejections partly were: automatic screening rejects on the match score, and each of those counts here as not hired. This axis is less circular than the screening one, not clean.",
+      "leakageScoreCausedHiredCeiling": "Everyone still in the process is excluded until they are hired or rejected, so this axis fills slowly and leans on whoever left early. It also says nothing about how a hire then performed."
     },
     "decisionRecords": {
       "title": "Decision records (sealed)",
@@ -5413,7 +5735,46 @@
       "colRationale": "Rationale",
       "colActor": "Actor",
       "colSealed": "Sealed",
-      "noMatches": "No records match the current filters."
+      "noMatches": "No records match the current filters.",
+      "verifiedKeyless": "Integrity-evident, not tamper-resistant: {count} sealed records, chain verified, but sealed without a key.",
+      "keylessExplain": "The seal is a public SHA-256 with no secret, so the chain catches accidental corruption, a deleted row and a careless edit. But anyone who can write to the database can recompute every link and forge it undetected. Set KP_DECISION_HMAC_KEY to seal new records under a key the database writer does not hold.",
+      "keylessCeiling": "Turning the key on later cannot re-seal what is already here: {keyless, plural, one {this # record stays} other {these # records stay}} keyless for good. The key protects every record sealed after it, and from the first keyed record on, an edit to an earlier one breaks the chain at that point.",
+      "partialKeyless": "{keyless} of {count} links were sealed before the key was configured. They carry no key of their own. They are covered only because keyed links follow them: from record #{seq} on, an edit to an earlier link breaks the chain at that point.",
+      "colKey": "Key",
+      "keyNone": "no key",
+      "timeZoneNote": "Times in {zone}",
+      "colFingerprint": "Fingerprint",
+      "policyTitle": "The policy version this decision was sealed under",
+      "rationaleToggle": "Show the full rationale",
+      "detailSealedText": "Sealed text (hashed)",
+      "detailPolicy": "Policy version",
+      "detailSealedAt": "Sealed at",
+      "detailContentHash": "Content hash",
+      "detailPrevHash": "Previous hash",
+      "exportChain": "Export whole chain (JSON)",
+      "dossierExport": "Export this candidate's dossier (JSON)",
+      "dossierBusy": "Preparing…",
+      "dossierFailed": "Couldn't build this candidate's dossier. Nothing was downloaded.",
+      "kinds": {
+        "group_eval_lead": "Group evaluation: lead",
+        "group_eval_advisory": "Group evaluation: advisory",
+        "offer_terms": "Offer terms",
+        "ai_scorecard": "AI scorecard",
+        "human_scorecard": "Human scorecard",
+        "interview_cancelled": "Interview cancelled",
+        "interview_no_show": "Interview no-show",
+        "interview_proposal_declined": "Proposed slot declined",
+        "screening_threshold_adjusted": "Screening threshold adjusted"
+      },
+      "traceTitle": "AI traceability (Art. 12)",
+      "tracePrompt": "Reasoning prompt",
+      "traceLead": "What the model said about the lead",
+      "traceStrengths": "Strengths",
+      "traceGaps": "Gaps",
+      "traceVerbatim": "The model's own words, clipped when the record was sealed and never edited.",
+      "traceAbsent": "Not recorded on this seal. It was sealed before the prompt version and the model's reasoning were kept, or no model produced reasoning for this evaluation.",
+      "traceNotRecorded": "Not recorded",
+      "traceLeadAbsent": "No model reasoning about the lead was recorded on this seal."
     },
     "forecast": {
       "title": "Hire forecast",
@@ -5526,7 +5887,10 @@
       "perHireMultiWorkspace": "Can't attribute compute per workspace. The usage ledger is account-wide, so a per-hire figure would mix every workspace's spend.",
       "manualWindowed": "all-time view only",
       "manualAllTime": "all-time",
-      "perHireNote": "Shown in each source's own currency. The ledger prices in USD, channel spend in CZK, and the two are never converted or summed."
+      "perHireNote": "Shown in each source's own currency. The ledger prices in USD, channel spend in CZK, and the two are never converted or summed.",
+      "basisWindowed": "From the usage ledger · {calls, plural, one {# metered call} other {# metered calls}} in the last {days, plural, one {# day} other {# days}}.",
+      "basisAllTime": "From the usage ledger · {calls, plural, one {# metered call} other {# metered calls}}, all time.",
+      "perHireClosedWindow": "over {hired, plural, one {# hire} other {# hires}} closed in the last {days, plural, one {# day} other {# days}}"
     },
     "exportCsv": "Export CSV",
     "byArchetype": "By archetype",
@@ -5624,7 +5988,24 @@
         "observed_minted": "Observer link minted",
         "role_reopened": "Role reopened",
         "reinstated": "Reinstated for re-review",
-        "group_eval": "Group evaluation"
+        "group_eval": "Group evaluation",
+        "offer_reminder_sent": "Offer reminder sent",
+        "offer_auto_extended": "Offer extended unattended",
+        "offer_accept_blocked": "Acceptance could not be honoured",
+        "screen_wave_holdout": "Spared by the wave (calibration holdout)",
+        "human_round_queued": "Handed to a human round",
+        "rejection_drafted": "Rejection drafted",
+        "stage_migrated": "Moved by a pipeline change",
+        "disposition_set": "Analysis disposition recorded",
+        "sim_attached": "Practice interview attached",
+        "github_evidence_attached": "GitHub evidence attached",
+        "ats_export": "Exported to an ATS",
+        "role_closed": "Role closed",
+        "profile_enriched": "Profile gaps completed by the candidate",
+        "agent_dispatched": "Persona request dispatched",
+        "agent_activated": "Persona went live",
+        "onboarding_started": "Onboarding started (retired module)",
+        "onboarding_intake_submitted": "Onboarding questionnaire submitted (retired module)"
       },
       "kindsQueued": {
         "outreach_sent": "Outreach queued in Outbox (not delivered)",
@@ -5635,7 +6016,8 @@
         "schedule_invite_sent": "Scheduling link queued in Outbox (not delivered)",
         "interview_reminder_sent": "Interview reminder queued in Outbox (not delivered)",
         "interviewer_brief_sent": "Interviewer brief queued in Outbox (not delivered)",
-        "comm_resent": "Message re-queued in Outbox (not delivered)"
+        "comm_resent": "Message re-queued in Outbox (not delivered)",
+        "offer_reminder_sent": "Offer reminder queued in Outbox (not delivered)"
       },
       "colWhen": "When",
       "colCandidate": "Candidate",
@@ -5645,7 +6027,23 @@
       "colDetail": "Detail",
       "boardLevelRow": "Board-level",
       "noMatches": "No decisions match the current filters.",
-      "exportPage": "Export page"
+      "exportPage": "Export page",
+      "timeZoneNote": "Times in {zone}",
+      "filtersNone": "None",
+      "scanCapped": "This search read the most recent {scanned} decisions of {total}. Older decisions were not searched.",
+      "exportTrail": "Export whole trail",
+      "exportTrailBusy": "Exporting…",
+      "exportTrailFailed": "The whole-trail export failed. Nothing was downloaded, so no partial file can be mistaken for the full trail.",
+      "csvTimeLocal": "Time ({zone})",
+      "csvTimeIso": "Time (ISO, UTC)",
+      "provExport": "Export",
+      "provGenerated": "Generated",
+      "provZone": "Time zone",
+      "provLocale": "Language",
+      "provScope": "Scope",
+      "provFilters": "Filters",
+      "scopePage": "Page {page} of {pages} · {rows} of {total} rows",
+      "scopeTrail": "Whole trail · {rows} of {total} rows"
     },
     "automation": {
       "title": "Automation impact",
@@ -5720,14 +6118,37 @@
         "hoursSavedNone": "No automated actions recorded.",
         "capacity": "{roles, plural, one {# open role} other {# open roles}} carried by {recruiters, plural, one {# recruiter} other {# recruiters}}.",
         "capacityNone": "No open roles or no recruiter roster.",
-        "nps": "Net promoter score from {responses, plural, one {# candidate response} other {# candidate responses}} at a terminal outcome, on the standard -100 to 100 scale."
+        "nps": "Net promoter score from {responses, plural, one {# candidate response} other {# candidate responses}} at a terminal outcome, on the standard -100 to 100 scale.",
+        "costPerHireAsOf": "Spend was last entered {date}."
       },
       "caveatNotMeasurable": "{metric}: no data yet. {basis}",
       "caveatThin": "{metric}: only {sample, plural, one {# observation} other {# observations}}. Real, but too thin to publish.",
       "certifiableNote": "Every metric above is measured over a sufficient sample.",
       "notPublishable": "**Not publication-ready.** The following metrics cannot yet be defended:",
-      "disclaimer": "_Figures describe this workspace's own recorded activity. kp does not compute an improvement percentage against a pre-kp baseline. That comparison belongs to whoever holds the prior numbers._"
-    }
+      "disclaimer": "_Figures describe this workspace's own recorded activity. Kandi does not compute an improvement percentage against a pre-Kandi baseline. That comparison belongs to whoever holds the prior numbers._"
+    },
+    "spendAsOf": "Spend entered {date}",
+    "spendAsOfOldest": "Oldest spend entry {date}",
+    "briefWeakestGoalClaim": "{stage} is the weakest link, converting {pct}% against your {goal}% goal.",
+    "briefNoGoalClaim": "Set a conversion goal and this brief will name your weakest stage.",
+    "briefNoGoalNote": "Stages without a goal stay grey: a reading, not a verdict. Nothing is measured against a number you did not set.",
+    "briefSetGoals": "Set conversion goals",
+    "byRoleFilterCount": "{shown} of {total} shown",
+    "byRoleNoMatch": "No role in this table matches “{q}”. It may be one of the roles below the volume cut. <link>Search the whole board</link>.",
+    "byRoleCapNote": "{hidden, plural, one {# role sits} other {# roles sit}} outside this table, which ranks by volume and keeps the top {shown}. <link>Search the board instead.</link>",
+    "windowDeltaHint": "A comparison with the previous period appears once you pick 30 or 90 days.",
+    "windowScopeReach": "The window covers Performance and Economics. Quality & audit and the company benchmark always cover all time.",
+    "windowScopeBlind": "Quality & audit always covers all time. The window does not apply here.",
+    "briefBandDwell": "Where the time goes",
+    "briefDwellClaim": "{count, plural, one {# candidate is waiting in a stage right now.} other {# candidates are waiting in a stage right now.}}",
+    "briefDwellContext": "Average days waited since arriving, for the people sitting in each stage right now.",
+    "briefDwellNoneClaim": "Nobody is waiting in a stage yet.",
+    "copyViewLink": "Copy link to this view",
+    "viewLinkCopied": "Link copied",
+    "copyViewLinkTitle": "A link that opens this section with the period you are looking at",
+    "viewLinkManual": "Your browser blocked the copy. Select the link below and copy it yourself.",
+    "briefMomentumNoDataClaim": "Nothing has moved in these weeks yet.",
+    "briefRolesNoDataClaim": "No role is carrying the pipeline yet."
   },
   "matrix": {
     "loadFailed": "Load failed.",
@@ -5943,11 +6364,11 @@
     "tab": {
       "eyebrow": "Connected services",
       "title": "Integrations",
-      "intro": "Connect the outside systems kp reads from and writes to."
+      "intro": "Connect the outside systems Kandi reads from and writes to."
     },
     "calendar": {
       "title": "Google Calendar",
-      "intro": "Lets kp check whether an interviewer is busy before it offers a slot, and write the confirmed interview into their calendar. kp asks only for free/busy and event access. It can see that you are busy, never why.",
+      "intro": "Lets Kandi check whether an interviewer is busy before it offers a slot, and write the confirmed interview into their calendar. Kandi asks only for free/busy and event access. It can see that you are busy, never why.",
       "loadFailed": "Couldn't load the calendar connection.",
       "retry": "Try again",
       "notConfiguredTitle": "Not configured on this deployment",
@@ -5965,9 +6386,9 @@
       "reconnect": "Reconnect",
       "disconnect": "Disconnect",
       "disconnecting": "Disconnecting…",
-      "disconnectHint": "Withdraws kp's access at Google and deletes the stored token.",
+      "disconnectHint": "Withdraws Kandi's access at Google and deletes the stored token.",
       "disconnected": "Disconnected. Access withdrawn at Google.",
-      "disconnectedNotRevoked": "Disconnected here, but Google did not confirm the withdrawal. Remove kp from your Google account's third-party access list to be sure.",
+      "disconnectedNotRevoked": "Disconnected here, but Google did not confirm the withdrawal. Remove Kandi from your Google account's third-party access list to be sure.",
       "disconnectFailed": "Couldn't disconnect the calendar.",
       "scopes": {
         "freebusy": "Free/busy access",
@@ -5976,7 +6397,7 @@
       "callback": {
         "connected": {
           "title": "Google Calendar connected",
-          "body": "kp can now read free/busy and write interview events."
+          "body": "Kandi can now read free/busy and write interview events."
         },
         "connected_partial": {
           "title": "Connected, but with missing permissions",
@@ -6021,7 +6442,7 @@
       "intro": "Read applications out of your applicant tracking system. One connection per provider, each with its own API token and base URL. The token is stored encrypted and never returned by the API.",
       "loadFailed": "Couldn't load the ATS connections.",
       "retry": "Try again",
-      "empty": "No ATS connected yet. Add one below. kp works fine without it, this only adds an inbound source.",
+      "empty": "No ATS connected yet. Add one below. Kandi works fine without it, this only adds an inbound source.",
       "providers": {
         "recruitee": "Recruitee",
         "recruitis": "Recruitis",
@@ -6037,7 +6458,7 @@
       "cancel": "Cancel",
       "removeConfirm": "Remove the {provider} connection and its stored token?",
       "removeConfirmAction": "Remove connection",
-      "forgetLinksLabel": "Also forget which kp records came from this ATS",
+      "forgetLinksLabel": "Also forget which Kandi records came from this ATS",
       "forgetLinksHelp": "Leave unticked to keep the links: reconnecting then recognizes the same applications. Tick it and the next sync imports every application again as new.",
       "removedForget": "{count, plural, one {Connection removed. # link forgotten.} other {Connection removed. # links forgotten.}}",
       "removedKeep": "Connection removed. The links to already-imported records were kept.",
@@ -6045,13 +6466,13 @@
       "addTitle": "Add or update a connection",
       "providerLabel": "Provider",
       "baseUrlLabel": "API base URL",
-      "baseUrlHelp": "https:// only, and a public host. kp sends an authenticated request here.",
+      "baseUrlHelp": "https:// only, and a public host. Kandi sends an authenticated request here.",
       "tokenLabel": "API token",
       "tokenPlaceholder": "Paste the token from your ATS",
       "tokenPlaceholderKeep": "•••••••• (leave blank to keep)",
       "tokenHelp": "Stored encrypted. It is never shown again. Replace it here if it rotates.",
       "tokenHelpExisting": "A token is already stored. Leave this blank to keep it, or paste a new one to replace it.",
-      "enabledLabel": "Active (kp may sync through this connection)",
+      "enabledLabel": "Active (Kandi may sync through this connection)",
       "save": "Save connection",
       "update": "Update connection",
       "saving": "Saving…",
@@ -6070,7 +6491,7 @@
       "connect": "Connect to Personas",
       "connectHint": "Personas will ask you to approve the pairing.",
       "waitingTitle": "Approve the request in the Personas app",
-      "waitingBody": "kp asked Personas to pair. Switch to the Personas desktop app and approve the request. This card keeps checking and completes on its own.",
+      "waitingBody": "Kandi asked Personas to pair. Switch to the Personas desktop app and approve the request. This card keeps checking and completes on its own.",
       "waitingCancel": "Cancel",
       "timeoutTitle": "Pairing timed out",
       "timeoutBody": "The request expires after 5 minutes (Personas keeps it in memory). Start again and approve it promptly.",
@@ -6508,21 +6929,22 @@
     },
     "previewRibbon": "Preview: nothing you do here will be saved",
     "rail": {
-      "stepOf": "Step {current} of {total}",
-      "brand": "kp"
+      "brand": "Kandi",
+      "language": "App language",
+      "languageAria": "Pick the app language"
     },
     "steps": {
       "welcome": {
         "label": "Welcome",
         "eyebrow": "Welcome",
         "title": "Let's get you hiring",
-        "blurb": "A few quick steps: your company, your team, your first role. Then kp takes it from there."
+        "blurb": "A few quick steps: your company, your team, your hiring board. Then Kandi takes it from there."
       },
       "company": {
         "label": "Company",
         "eyebrow": "Set up · Company",
         "title": "Make it your company",
-        "blurb": "How your company appears across kp: on job posts, offers, and to your teammates."
+        "blurb": "How your company appears across Kandi: on job posts, offers, and to your teammates."
       },
       "team": {
         "label": "Team",
@@ -6530,11 +6952,11 @@
         "title": "Bring your team in",
         "blurb": "Invite the recruiters and hiring managers you'll work with. You can skip and do this later."
       },
-      "firstRole": {
-        "label": "First role",
-        "eyebrow": "Set up · First role",
-        "title": "Describe your first role",
-        "blurb": "Tell kp what you need. It drafts the job description, market salary, and a work-sample case in the background."
+      "pipeline": {
+        "label": "Pipeline",
+        "eyebrow": "Set up · Pipeline",
+        "title": "Shape your hiring board",
+        "blurb": "These are the columns every candidate moves through. The ones that ship fit most teams. Keep them as they are, or rename, reorder and add your own."
       },
       "handoff": {
         "label": "Done",
@@ -6544,8 +6966,6 @@
       }
     },
     "welcome": {
-      "languageLabel": "App language",
-      "languageHint": "Switches the app right away. You can change it later in Settings.",
       "values": {
         "role": {
           "title": "Describe a role",
@@ -6585,73 +7005,78 @@
       "empty": "No invites yet. Add teammates by email, or skip and invite them later.",
       "removeAria": "Remove invite for {email}"
     },
-    "firstRole": {
-      "titleLabel": "Job title",
-      "titlePlaceholder": "e.g. Senior Java Backend Engineer",
-      "seniorityLabel": "Seniority",
-      "familyLabel": "Role family",
-      "needLabel": "What do you need?",
-      "needPlaceholder": "Own core backend services · Java, Spring, SQL · mentor the team…",
-      "needHint": "A few honest sentences are enough. kp expands them into a full, branded job description.",
-      "includedLabel": "Included in this build",
-      "included": {
-        "description": "Job description",
-        "salary": "Market salary",
-        "case": "Work-sample case"
+    "pipeline": {
+      "variantLabel": "How to set up your board",
+      "variant": {
+        "board": "Board",
+        "presets": "Shapes"
       },
-      "background": "The build runs in the background. You can keep exploring while it lands in the Library.",
-      "modeLabel": "How to add your first role",
-      "mode": {
-        "write": "Describe it",
-        "import": "Import existing"
+      "meta": "{count} of {max} steps",
+      "stepsCount": "{count, plural, one {# step} other {# steps}}",
+      "addStep": "Add step",
+      "newStepLabel": "New step",
+      "boardAria": "Your pipeline steps",
+      "labelAria": "Name of step {position}",
+      "roleAria": "What {stage} means in the process",
+      "moveEarlierAria": "Move {stage} earlier",
+      "moveLaterAria": "Move {stage} later",
+      "removeAria": "Remove {stage}",
+      "occupiedHint": "{count, plural, one {# candidate is} other {# candidates are}} on this step. Move them from Settings → Hiring pipeline first.",
+      "presetsLabel": "Start from a shape",
+      "presets": {
+        "recommended": {
+          "title": "Recommended",
+          "body": "The columns this workspace already has."
+        },
+        "lean": {
+          "title": "Lean",
+          "body": "Arrive, talk, hire: for teams that decide in one conversation."
+        },
+        "technical": {
+          "title": "With a work sample",
+          "body": "Adds a case step before the offer."
+        }
       },
-      "import": {
-        "fileLabel": "Import from a file",
-        "browse": "Choose file",
-        "extracting": "Reading the file…",
-        "hint": "PDF · DOCX · TXT · MD up to 8 MB. The text is extracted for you.",
-        "error": "Couldn’t read that file. Try another format, or paste the text below.",
-        "bodyLabel": "Job description",
-        "bodyPlaceholder": "Paste the full posting here, or import it from a file above.",
-        "note": "Imported roles are saved to the Library as-is and become matchable right away, with no AI build."
-      }
+      "workSampleLabel": "Work sample",
+      "fineTuneLabel": "Fine-tune",
+      "loading": "Reading your board…",
+      "loadFailed": "Your board's columns couldn't be read. Setup carries on: the board keeps the columns it has, and you can change them in Settings → Hiring pipeline.",
+      "dirtyNote": "Board changes apply when you finish setup. You can adjust them any time in Settings → Hiring pipeline.",
+      "laterNote": "You can change these any time in Settings → Hiring pipeline."
     },
     "handoff": {
       "readyTitle": "{org} is ready to go",
       "orgFallback": "Your workspace",
       "readyMeta": "Language: {language} · {invites, plural, =0 {no invites yet} one {# teammate invited} other {# teammates invited}}",
-      "roleTitle": "First role: {role}",
-      "roleBody": "kp is drafting the description, market salary, and case. Watch it land in the Library ledger.",
       "checklistTitle": "Your Getting-started checklist",
       "checklistBody": "It sits on the Pipeline board and walks you through publishing the role, opening channels, and meeting your first candidates.",
       "tourTitle": "Start the guided demo",
       "tourBody": "The whole hiring story, played on sample data. About 3 minutes.",
-      "roleImportedBody": "Imported and saved to the Library. It’s matchable right away.",
       "chooseLabel": "How do you want to begin?",
       "soloTitle": "Explore on my own",
-      "soloBody": "Take it at your own pace. The demo stays one click away behind the round Candi button at the bottom of the screen."
+      "soloBody": "Take it at your own pace. The demo stays one click away behind the round Candi button at the bottom of the screen.",
+      "pipelineTitle": "Your board: {count, plural, one {# step} other {# steps}}",
+      "pipelineChangedBody": "Your changes apply when you finish. Adjust them any time in Settings → Hiring pipeline.",
+      "pipelineDefaultBody": "The columns candidates move through. Change them any time in Settings → Hiring pipeline."
     },
     "footer": {
       "back": "Back",
-      "skipSetup": "Skip setup",
-      "skipStep": "Skip for now",
       "start": "Let's go",
       "continue": "Continue",
-      "enter": "Enter kp"
+      "enter": "Enter Kandi"
     },
     "toast": {
       "saved": "Your workspace is set up",
       "partial": "Some setup steps couldn’t be saved. You can finish them in Settings",
-      "roleStarted": "Your first role is being drafted. Watch the Library ledger",
-      "roleFailed": "The role build couldn’t start. Try again from Library → Generate",
-      "roleImported": "Your role was saved to the Library"
+      "pipelineSaved": "Your board's columns were saved",
+      "pipelineFailed": "Your board's columns couldn't be saved. Set them in Settings → Hiring pipeline"
     },
     "checklist": {
       "title": "Getting started",
       "progress": "{done} of {total} done",
       "dismiss": "Don't show again",
       "open": "Open",
-      "showMe": "Show me",
+      "stepDone": "Done",
       "steps": {
         "company": {
           "title": "Set up your company",
@@ -6659,7 +7084,7 @@
         },
         "firstRole": {
           "title": "Create your first role",
-          "body": "Describe the need. kp drafts the description, salary, and case.",
+          "body": "Describe the need. Kandi drafts the description, salary, and case.",
           "analyzing": "Building now. Watch the Library ledger.",
           "failed": "The build failed. Retry it from the Library ledger."
         },
@@ -6671,43 +7096,8 @@
           "title": "Connect your channels",
           "body": "Open an email intake and receive a test application.",
           "listening": "Listening. Receive a test application to verify."
-        },
-        "team": {
-          "title": "Invite your team",
-          "body": "Optional: bring recruiters and hiring managers in."
         }
-      },
-      "coach": {
-        "company": {
-          "title": "Your company settings",
-          "caption": "Set the name and language here. Branding lives one tab over."
-        },
-        "firstRole": {
-          "title": "Generate your first role",
-          "caption": "Open Generate, describe the need, and start the analysis. It builds in the background."
-        },
-        "case": {
-          "title": "Design a case",
-          "caption": "Switch to Define need, pick your saved role, and run the automated lifecycle."
-        },
-        "channels": {
-          "title": "Open your intake",
-          "caption": "Add an inbox here, then use “Receive a test application” to verify the wiring."
-        },
-        "team": {
-          "title": "Invite teammates",
-          "caption": "Members and invites live here. Add colleagues by email and pick their role."
-        }
-      },
-      "completed": {
-        "title": "You're all set!",
-        "body": "Company, role, case, and channels are wired. Happy hiring."
-      },
-      "optional": "Optional"
-    },
-    "engines": {
-      "claudeFallback": "The Claude CLI isn’t available on this server. The AI build will run, but drafts will come from the deterministic fallback rather than the AI writer.",
-      "geminiFallback": "No Gemini API key is configured. Market-salary research will fall back to the internal salary table (no live web evidence)."
+      }
     }
   },
   "devcase": {
@@ -7836,12 +8226,11 @@
   },
   "feedback": {
     "open": "Send feedback",
+    "railLabel": "Feedback",
     "title": "Send feedback",
     "subtitle": "Tell us what to improve. It goes straight to the product team.",
     "messageLabel": "Your message",
     "messagePlaceholder": "What worked, what didn't, what's missing…",
-    "emailLabel": "Email for a reply (optional)",
-    "emailPlaceholder": "you@company.com",
     "send": "Send",
     "sending": "Sending…",
     "sent": "Thank you. Your feedback was sent.",
@@ -8005,7 +8394,7 @@
         "bau": "Experienced",
         "switcher": "Switcher"
       },
-      "confidence": "confidence {value}",
+      "confidence": "signals agree {value}",
       "declaration": "If the candidate declared an archetype themselves, that declaration wins and is trusted at 0.9. A contradicting signal never overrides it. It lowers the confidence to 0.65 and appends a reason, which the soft-signal panel then republishes for a human to look at.",
       "fallback": "When nothing fires at all the result is <k>bau</k> at 0.4. That number sits below the 0.55 review threshold on purpose, so a routing decision made with no evidence always shows up as one that needs checking rather than passing quietly as a result.",
       "status": {
@@ -8013,7 +8402,7 @@
         "s1": "signals extracted from the profile",
         "s3": "each signal votes with a stated weight",
         "s7": "argmax, ties broken by declaration order in the JSON",
-        "s8": "confidence = 4.5 / {total} = {value}",
+        "s8": "signal agreement = 4.5 / {total} = {value}",
         "s9": "a self-declaration is trusted at 0.9 and never overridden",
         "s10": "the unguided fallback is 0.4, below the 0.55 review threshold"
       }

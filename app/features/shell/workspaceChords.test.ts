@@ -9,14 +9,14 @@ const byId = new Map(CHORDS.map((c) => [c.id, c.keys]));
 // Muscle memory: every tab that had a single-letter chord keeps EXACTLY the same
 // one. If a NAV_GROUPS edit ever shifts one of these, this fails loudly — the whole
 // point of the two-pass scheme is that adding the overflow chords changed none of
-// these. (Runs with ABOUT_TAB_IN_NAV on, as NODE_ENV !== "production" under test.)
+// these. (About ships unconditionally now, so its `b` chord is stable in every
+// environment rather than only where a dev-only gate happened to be on.)
 test("existing single-letter chords are unchanged", () => {
   const expected: Record<string, string> = {
     pipeline: "p",
     channels: "c",
     decisions: "d",
     schedule: "s",
-    onboarding: "o",
     jobs: "j",
     library: "l",
     // Renamed tabs keep the letter their OLD id derived (chordPin) — profile→r,
@@ -63,6 +63,15 @@ test("the previously-dropped tabs now have two-key chords", () => {
 // unchanged, which is what the pin test is here to prove.
 test("models takes the single letter Match freed", () => {
   assert.deepEqual(byId.get("models"), ["m"]);
+});
+
+// Same story as Match → Models, one tab later: retiring Onboarding freed `o`, and
+// Integrations is the next id that claims it — a PROMOTION from `g f n` to `g o`.
+// Organization's id would have claimed `o` first and lost the `g` it has always had,
+// which is why it is now chordPinned (tabs.ts). Nothing else moves: the pin test above
+// is what proves that, and this pins the one chord that legitimately got shorter.
+test("integrations takes the single letter Onboarding freed", () => {
+  assert.deepEqual(byId.get("integrations"), ["o"]);
 });
 
 // Agents sits INSIDE the first (hiring) group but is marked chordOverflow, so it

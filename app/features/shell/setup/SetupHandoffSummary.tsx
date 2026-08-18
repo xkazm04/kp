@@ -6,21 +6,28 @@
 // Getting-started checklist that takes over inside the app. Deliberately the
 // QUIETEST step: plain panels, plain voice — the marketing register ended at
 // Welcome.
-import { ArrowRight, Check, ListChecks, Play, Rocket, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Columns3, ListChecks, Play, Rocket } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
 import { languageNative } from "@/app/features/shared/memberUi";
+import { axisEqualsStored } from "@/app/features/shared/pipelineAxisDraft";
+import { useStageDisplayLabel } from "@/app/features/shared/usePipelineAxisCopy";
+import type { StageDef } from "@/app/_lib/pipeline-stages";
 import { EYEBROW } from "@/app/_components/ui/recipes";
-import { SetupEngineStatusNote } from "./SetupEngineStatusNote";
-import { roleStepComplete, type OnboardingCtrl } from "./setupSteps";
+import { SetupPipelineChain } from "./SetupPipelineChain";
+import type { OnboardingCtrl } from "./setupSteps";
 
 export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup.handoff");
   const sim = useSimulation();
-  const { orgName, language, invites, role } = ctrl.state;
+  const displayLabel = useStageDisplayLabel();
+  const { orgName, language, invites, pipeline } = ctrl.state;
   const lang = languageNative(language);
-  const imported = role.mode === "import";
-  const hasRole = roleStepComplete(role);
+  // The board as this wizard is about to leave it, and whether that differs from
+  // what the workspace already had — the summary claims a change only when
+  // finish() will actually write one (setupOnboardingFinish.ts).
+  const storedStages: StageDef[] = pipeline?.stored.stages.map((s) => ({ ...(s as StageDef) })) ?? [];
+  const pipelineChanged = pipeline ? !axisEqualsStored(pipeline.draft, pipeline.stored, storedStages) : false;
 
   return (
     <div className="space-y-2.5">
@@ -36,22 +43,24 @@ export function SetupHandoffSummary({ ctrl }: { ctrl: OnboardingCtrl }) {
         </div>
       </div>
 
-      {hasRole ? (
-        <div className="space-y-2 rounded-lg border border-stone-200 bg-white p-4">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral/10 text-coral">
-              <Sparkles size={18} aria-hidden />
-            </span>
-            <div className="text-sm">
-              <p className="font-semibold text-ink">{t("roleTitle", { role: role.title.trim() })}</p>
-              <p className="text-steel">{imported ? t("roleImportedBody") : t("roleBody")}</p>
-            </div>
+      {/* The board, drawn as the chain it will be. Shown even when untouched: it
+          is the one thing on this summary the operator will meet within seconds
+          of closing the wizard, and recognising it there is the point. */}
+      {pipeline ? (
+        <div className="flex items-start gap-3 rounded-lg border border-stone-200 bg-white p-4">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-coral/10 text-coral">
+            <Columns3 size={18} aria-hidden />
+          </span>
+          <div className="min-w-0 text-sm">
+            <p className="font-semibold text-ink">{t("pipelineTitle", { count: pipeline.draft.stages.length })}</p>
+            <SetupPipelineChain
+              stages={pipeline.draft.stages.map((s) => ({ id: s.id, label: displayLabel(s) }))}
+              className="mt-1.5"
+            />
+            <p className="mt-1.5 max-w-[90%] text-steel">
+              {pipelineChanged ? t("pipelineChangedBody") : t("pipelineDefaultBody")}
+            </p>
           </div>
-          {/* Engine preflight (DATA4): finishing HERE is what actually starts the
-              write-path build — repeat the honest degraded-engine note beside the
-              claim so "AI build" is never promised on a server that will serve
-              the deterministic fallback. Import mode renders nothing. */}
-          <SetupEngineStatusNote mode={role.mode} />
         </div>
       ) : null}
 

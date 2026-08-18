@@ -401,7 +401,16 @@ export function ensureDb(): Database.Database {
       from_stage TEXT,
       to_stage TEXT,
       detail TEXT,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      -- UAT LUC-ANA-4 — WHO did this. The log's "Who" column could only ever render a
+      -- CLASS (AUTO / HUMAN / UNKNOWN) derived from the event kind, because the row had no
+      -- actor at all: five identified users sat in this same DB and not one decision
+      -- named a person. Carries the decision-chain actor vocabulary ("auto:*" /
+      -- "human:*"), with the natural person substituted for the role when the session
+      -- carries identity ("human:Petra Nováková"). NULLABLE on purpose (guardrail G3):
+      -- legacy rows, and any writer that genuinely cannot name an actor, read as "not
+      -- identified" — never as a default person.
+      actor TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_pipeline_events_created ON pipeline_events (created_at DESC);
@@ -1129,6 +1138,13 @@ export function ensureDb(): Database.Database {
     // Tenant scope (P1): the pipeline audit trails — one team's events + GDPR consent
     // trail. Backfilled from each row's linked entry (entry-less events → default) below.
     "ALTER TABLE pipeline_events ADD COLUMN workspace_id TEXT",
+    // UAT LUC-ANA-4 — the actor column for DBs created before it existed. Additive and
+    // nullable with NO backfill, deliberately: there is no record of who took a decision
+    // sealed before the column existed, and inventing one (defaulting to the operator,
+    // to the owner, to "human") would manufacture exactly the accountability this item
+    // exists to make real. A legacy row reads as "not identified" forever, which is the
+    // truth about it (guardrail G3).
+    "ALTER TABLE pipeline_events ADD COLUMN actor TEXT",
     "ALTER TABLE consent_events ADD COLUMN workspace_id TEXT",
     // Tenant scope (P1): the Channels surface — inbound webhook bindings + the comms
     // outbox (a team's outbound candidate messages). Backfilled below (the outbox from
@@ -1913,6 +1929,12 @@ export function recordEvent(
     toStage?: string | null;
     detail?: string | null;
     createdAt?: string;
+    // UAT LUC-ANA-4 — WHO took this action, in the decision-chain actor vocabulary
+    // ("human:Petra Nováková" / "human:recruiter" / "auto:screen-wave"). Omitted by a
+    // writer that cannot name an actor; the column then stays NULL and the surface
+    // reads "not identified" rather than crediting anyone (guardrail G3). Never
+    // client-supplied — every caller derives it server-side.
+    actor?: string | null;
     // Tenant (P1): the team the event belongs to. AUTO-DERIVED from the linked
     // entry when omitted (the common case — an event always mirrors its entry's
     // tenant), so the ~15 recordEvent call sites don't each have to thread it.
@@ -1928,8 +1950,8 @@ export function recordEvent(
       : undefined) ??
     "workspace";
   db.prepare(
-    `INSERT INTO pipeline_events (entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at, workspace_id)
-     VALUES (@entry_id, @candidate_label, @job_title, @archetype, @kind, @from_stage, @to_stage, @detail, @created_at, @workspace_id)`
+    `INSERT INTO pipeline_events (entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at, actor, workspace_id)
+     VALUES (@entry_id, @candidate_label, @job_title, @archetype, @kind, @from_stage, @to_stage, @detail, @created_at, @actor, @workspace_id)`
   ).run({
     entry_id: e.entryId ?? null,
     candidate_label: e.candidateLabel ?? null,
@@ -1940,6 +1962,8 @@ export function recordEvent(
     to_stage: e.toStage ?? null,
     detail: e.detail ?? null,
     created_at: e.createdAt ?? new Date().toISOString(),
+    // Empty string is treated as absent: a blank actor is not an identification.
+    actor: e.actor?.trim() || null,
     workspace_id: workspaceId,
   });
 }

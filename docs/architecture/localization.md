@@ -221,7 +221,7 @@ surfaces let a user pick one, and all three write the same two authorities:
 | --- | --- |
 | Sidebar rail toggle (studio) | `app/features/shell/nav/NavRailPreferences.tsx` |
 | Public candidate pages (`/apply`, `/status`) | `app/_components/LanguageSwitcher.tsx` |
-| Organization settings + first-run wizard | `app/features/settings/organization/OrganizationGeneralPanel.tsx`, `app/features/shell/setup/SetupWelcomeStep.tsx` |
+| Organization settings + first-run wizard | `app/features/settings/organization/OrganizationGeneralPanel.tsx`, `app/features/shell/setup/SetupLanguageSwitch.tsx` |
 
 The public switcher writes only the UI cookie (`setLocale`, `i18n/actions.ts`).
 The two **org-level** surfaces write both authorities through `setOrgLanguage`
@@ -251,11 +251,20 @@ actually ships** — a picker that silently could not reach half the product.
 `memberUi.ts` turns a locale added to `LOCALES` without an endonym row into a
 `tsc` error. The two vocabularies cannot drift again.
 
-**In the first-run wizard, language is step 1** (`SetupWelcomeStep`), above the
-value props, and it switches the app immediately. It previously sat on step 2 as
-a draft value that only reached the server at `finish()`, which meant a reader
-who could not read English picked their language and then watched the wizard stay
-in English for three more steps. The wizard's draft seeds from the live locale
+**In the first-run wizard, language lives in the left rail**
+(`SetupLanguageSwitch.tsx`), visible on every step, and it switches the app
+immediately. Two earlier positions were both wrong: step 2 as a draft value that
+only reached the server at `finish()` (a reader who could not read English picked
+their language and then watched the wizard stay in English for three more steps),
+then step 1 above the value props — better, but gone the moment you pressed
+Continue, so realising on step 3 meant navigating back to find it. In the rail it
+is a four-code strip (`EN CS DE FR`, the `TOGGLE_GROUP` recipe, same shape as the
+studio switcher) under an *App language* label, with each button's endonym as its
+accessible name, so the "labelled in its own language" property survives the
+shrink. Below `md` the rail is hidden and the step header repeats the strip
+compactly, there with the active language spelled out beside it (that layout has
+the width for it) — and that reader is exactly the one who needs it. The wizard's draft
+seeds from the live locale
 (`useLocale()` in `OnboardingExperience`) rather than a hardcoded `"en"`, so
 finishing never silently switches a Czech browser back to English. Preview mode
 is the one exception: it moves the local draft only, because its ribbon promises
@@ -396,37 +405,39 @@ render verbatim, so no migration was needed.
 The same shape applies to any user-visible string a server module composes ahead
 of its reader. Prefer it to threading a locale into a synchronous write path.
 
-#### The onboarding presets are the second instance of it
+#### The second instance of it was the onboarding presets (module since removed)
 
-`ONBOARDING_PRESETS` (`app/_lib/onboarding.ts`) looked like config and is not: its
-~70 labels are **copied into a DB row** when a recruiter saves a template, and that
-row is then read by the recruiter, by any colleague in the same workspace
-(templates are workspace-scoped), and months later by the **new hire** on the public
-`/onboarding/[token]` page in their own browser's language. Materializing them in
-whoever pressed Save's language pins all three to that one language forever, so the
-answer is the same as the task label's: the row keeps the **reference** it already
-had — the task `id` / field `key` — and the render sites resolve it.
+Kept as a worked example, because the shape recurs and the next one will not
+announce itself. The post-hire onboarding module has been removed — kp ends at
+Hired — so none of the paths below exist any more; read this for the reasoning,
+not for the code.
 
-- Recruiter side: `useOnboardingLabels()`
-  (`app/features/hiring/onboarding/onboardingLabels.ts`) resolves
-  `onboarding.task.<id>` / `onboarding.field.<key>` with a `t.has()` fallback to the
-  stored label. It replaced two hand-written six-entry maps that had already drifted.
-- Hire side: the same resolution against `candidateOnboarding.field*`, kept a
-  separate map on purpose — the hire is *asked* "Confirm your start date", the
-  recruiter *reads* "Confirmed start date".
-- Write side: `OnboardingTemplateManager` sends each row's canonical id/key when the
-  recruiter left the text alone, and drops it the moment they edit — otherwise the
-  catalog would silently overwrite their wording on the next read. `coerceTasks` /
-  `coerceQuestionnaire` already preserved an explicit id and slugified only a
-  label-only row, so nothing in the store had to change.
-- Because the id doubles as the catalog key, a preset that says something different
-  gets its own id (`equipment-badge` vs `equipment-tools` vs `equipment`);
-  `onboarding.test.ts` asserts both that no id carries two different sentences and
-  that every id/key resolves in all four locales.
+`ONBOARDING_PRESETS` looked like config and was not: its ~70 labels were **copied
+into a DB row** when a recruiter saved a template, and that row was then read by
+the recruiter, by any colleague in the same workspace (templates were
+workspace-scoped), and months later by the **new hire** on a public page in their
+own browser's language. Materializing them in whoever pressed Save's language pins
+all three to that one language forever, so the answer was the same as the task
+label's: the row keeps the **reference** it already had — the task `id` / field
+`key` — and the render sites resolve it.
 
-Nothing persisted is rewritten. Rows written before this simply resolve when their
-id happens to be canonical and render their stored text otherwise — the same
-no-migration property `task-label.ts` has.
+The three-sided version of the rule, which is what makes it worth keeping:
+
+- **Read side** resolves the id against the catalog with a `t.has()` fallback to
+  the stored label, so an unknown id degrades instead of throwing.
+- **Two readers can want different sentences from one id.** The hire was *asked*
+  "Confirm your start date" and the recruiter *read* "Confirmed start date", so
+  the two sides resolved against deliberately separate catalog maps.
+- **Write side** sends the canonical id only while the user has left the text
+  alone, and drops it the moment they edit — otherwise the catalog silently
+  overwrites their wording on the next read.
+- Because the id doubled as the catalog key, a preset that said something
+  different needed its own id (`equipment-badge` vs `equipment-tools` vs
+  `equipment`), pinned by a test asserting no id carried two different sentences
+  and that every id resolved in all four locales.
+
+Nothing persisted had to be rewritten — the same no-migration property
+`task-label.ts` has.
 
 ## ICU: pass raw numbers into plurals
 
@@ -516,9 +527,9 @@ of attribute literals elsewhere.
 - User-facing strings built in `.ts` files, which no lint covers: enum→label
   maps and parts of the dev-case studio (the latter deliberately outside the
   strict lint). The guided demo used to be the largest of these and is closed;
-  the downloadable artifacts and the onboarding presets are closed too (see "A
-  downloaded file is not automatically a document" and "The onboarding presets
-  are the second instance of it" above) — `provenance-dossier` stays English by
+  the downloadable artifacts are closed too (see "A downloaded file is not
+  automatically a document" above), and the onboarding presets went away with
+  their module — `provenance-dossier` stays English by
   decision rather than by omission, and is documented as such in the file
   itself. Three shapes of the remainder recur, and each has a settled
   fix: a map that is *already* a `t.has()` fallback is fine and should say so in

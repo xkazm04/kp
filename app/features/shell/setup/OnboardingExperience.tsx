@@ -4,23 +4,25 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
+import type { AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
 import { OnboardingWizard } from "./SetupOnboardingWizard";
 import { INITIAL_SETUP, SETUP_STEPS, stepSatisfied, type OnboardingCtrl, type SetupInvite, type SetupState } from "./setupSteps";
 import { persistOnboardingSetup } from "./setupOnboardingFinish";
+import { useSetupPipelineAxis } from "./useSetupPipelineAxis";
 
 // First-run onboarding host. Owns the setup state + step index and hands one
 // controller to the wizard. Rendered as a fixed overlay over the workspace. Two
 // modes:
 //   "live"    — the real first run (mounted by Workspace when the '/' gate says
 //               so). Finish PERSISTS everything — org name, language, brand,
-//               invites — starts the first role's REAL backgrounded AI build
-//               (POST /api/jds/generate: description + market salary + case
-//               design, landing in the Library ledger), and stamps the principal
-//               "completed"; Escape / X / Skip stamp "skipped" — either way the
-//               '/' gate never re-fires (KP_FORCE_ONBOARDING=1 excepted).
+//               invites, and the board's columns when the Pipeline step changed
+//               them (POST /api/pipeline/stage-migration) — and stamps the
+//               principal "completed"; Escape / X / Skip stamp "skipped" — either
+//               way the '/' gate never re-fires (KP_FORCE_ONBOARDING=1 excepted).
 //   "preview" — the Settings → Organization walkthrough. NOTHING persists — no
-//               org writes, no invites, no build, no stamp (fixes the
-//               ambiguity-ui finding that "Preview" wrote for real).
+//               org writes, no invites, no axis write, no stamp (fixes the
+//               ambiguity-ui finding that "Preview" wrote for real). The axis is
+//               still READ, so the walkthrough shows this workspace's real board.
 export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "live" | "preview"; onClose: () => void }) {
   const router = useRouter();
   const t = useTranslations("setup");
@@ -87,6 +89,17 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     (index: number) => setState((s) => ({ ...s, invites: s.invites.filter((_, i) => i !== index) })),
     []
   );
+  // Board-draft writes keep `stored` and `counts` intact — those are the loaded
+  // truth the dirty check and the removal guard are judged against, and a step
+  // must never be able to move the baseline it is compared to.
+  const setPipelineDraft = useCallback(
+    (draft: AxisDraft) => setState((s) => (s.pipeline ? { ...s, pipeline: { ...s.pipeline, draft } } : s)),
+    []
+  );
+
+  // The board's real columns, read once on mount (both modes — a walkthrough that
+  // showed a made-up board would be teaching the wrong thing).
+  useSetupPipelineAxis(update);
 
   // Persist everything the wizard collected, then close. Each step is best-effort
   // (one failing invite must not sink the rest), so a partial network hiccup still
@@ -132,6 +145,7 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     update,
     addInvite,
     removeInvite,
+    setPipelineDraft,
     onClose: dismiss,
     finish,
     canAdvance,

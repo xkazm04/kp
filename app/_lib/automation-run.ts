@@ -22,6 +22,8 @@ import { sealDecisionSafe } from "./decision-record-store";
 import { resolveCommsLocale } from "./comms-locale";
 import { getWorkspaceDefaultLocale } from "./db/workspaces";
 import { isLocale, type Locale } from "@/i18n/locales";
+import { getPipelineAxis } from "./pipeline-axis-server";
+import { screenedLandingStage, stageHasRole } from "./pipeline-stages";
 import { dispatchOutreach } from "./comms-dispatch";
 import {
   coerceInterviewRecommendation,
@@ -145,9 +147,10 @@ export async function runAutomationTask(
   // entry (idea-9ad8a777). A Hired candidate is placed — never redirect them, and
   // short-circuit BEFORE the LLM/corpus hop so a placed person is neither charged a
   // model call nor forked into a second active funnel. (The "Explore alternatives"
-  // action is UI-gated to pre-Hired stages; this also guards the direct API /
-  // background-task path. "Hired" is the terminal PIPELINE_STAGES member.)
-  if (task === "rematch" && entry.stage === "Hired") {
+  // action is UI-gated to pre-terminal stages; this also guards the direct API /
+  // background-task path.) Resolved by ROLE, not the literal "Hired": a workspace
+  // that renamed its final column must not start re-matching its placed hires.
+  if (task === "rematch" && stageHasRole(entry.stage, "terminal", getPipelineAxis(workspaceId).stages)) {
     return { result: { found: false, reason: "candidate is hired; rematch skipped" }, source: "skipped", applied: "skipped_hired" };
   }
 
@@ -391,7 +394,10 @@ export async function runAutomationTask(
         jobId: result.jobId as string,
         jobTitle: (result.jobTitle as string) ?? (result.jobId as string),
         matchScore: (result.score as number) ?? null,
-        stage: "Screened",
+        // A redirected candidate has already been assessed, so they land where an
+        // already-screened person belongs on THIS workspace's axis — not on a
+        // column that happens to be called "Screened".
+        stage: screenedLandingStage(getPipelineAxis(workspaceId).stages),
         // The redirected person is the SAME candidate — their language choice
         // (captured at apply) must follow them onto the target entry, or the
         // rematch would silently flip their comms back to the workspace default.

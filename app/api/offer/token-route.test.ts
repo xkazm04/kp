@@ -2,7 +2,7 @@
 // ISOLATED throwaway DB — testing/unit-db.ts must stay the first project import
 // so KP_DB_PATH points at the temp file before any store loads. The route
 // module is imported directly and driven with constructed NextRequests: happy
-// accept mutates the store (offer accepted, entry Hired, onboarding run), bad
+// accept mutates the store (offer accepted, entry Hired), bad
 // payloads and unknown tokens get the right 4xx envelope, expiry is 410.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -11,7 +11,6 @@ import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { GET, POST } from "./[token]/route.ts";
 import { createPipelineEntry, getPipelineEntry } from "../../_lib/db/pipeline.ts";
 import { createOffer, getOfferByToken } from "../../_lib/offers-store.ts";
-import { runForEntry } from "../../_lib/onboarding-store.ts";
 
 after(() => cleanupUnitDb());
 
@@ -78,7 +77,7 @@ test("POST with a malformed response → 400 and no store mutation", async () =>
   assert.equal(getPipelineEntry(entry.id)!.stage, "Offer");
 });
 
-test("POST accept happy path: offer accepted, entry Hired, onboarding run started", async () => {
+test("POST accept happy path: offer accepted, entry Hired", async () => {
   const { entry, offer } = offerFixture();
   const res = await post(offer.token, { response: "accept" });
   assert.equal(res.status, 200);
@@ -88,7 +87,6 @@ test("POST accept happy path: offer accepted, entry Hired, onboarding run starte
   assert.equal(body.alreadyResponded, false);
   assert.equal(getOfferByToken(offer.token)!.status, "accepted");
   assert.equal(getPipelineEntry(entry.id)!.stage, "Hired");
-  assert.ok(runForEntry(entry.id), "accept must start the onboarding run");
 
   // The retry is idempotent — reported, not re-applied.
   const retry = await post(offer.token, { response: "accept" });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runScreenWave, ScreenWaveApprovalError } from "@/app/_lib/screen-wave";
 import { DecisionConfigError, validateScreeningOverride } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { operatorApprover } from "@/app/_lib/auth/operator-approver";
+import { resolveApprover } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 export const maxDuration = 60;
@@ -51,17 +51,23 @@ export async function POST(request: NextRequest) {
     // Art. 22 approver (finding SD-2): the "who reviewed this automated adverse decision"
     // field is the most legally load-bearing part of the sealed record, so it must be an
     // AUTHENTICATED fact, not a client assertion. This handler is already operator-gated
-    // (requireOperator above), so we bind the approver to the server-derived operator
-    // identity via operatorApprover() and IGNORE any body.approvedBy — a caller can no
-    // longer attribute the human review to an arbitrary name. (Per-user identity doesn't
-    // exist yet — single-operator deploy — so operatorApprover() is the authenticated
-    // actor; when it lands, derive the specific reviewer from the session here.)
+    // (requireOperator above), so we bind the approver to the server-derived identity and
+    // IGNORE any body.approvedBy — a caller can no longer attribute the human review to
+    // an arbitrary name.
+    //
+    // UAT LUC-ANA-4 / gap G5 — this used to be operatorApprover() with a comment saying
+    // per-user identity did not exist yet. It does (E0 shipped: currentUserId + the users
+    // table), and the comment had gone stale while the most legally load-bearing field in
+    // the record still read "operator (single-operator deployment)". resolveApprover()
+    // now names the signed-in person when the session carries identity and falls back to
+    // that posture string only when it genuinely doesn't — an open/keyless deployment has
+    // no named user, and inventing one would be the same overclaim (guardrail G3).
     const approval =
       dryRun || !approvalToken
         ? undefined
         : {
             token: approvalToken,
-            approvedBy: operatorApprover(),
+            approvedBy: await resolveApprover(),
           };
     const result = await runScreenWave(body.jobId, checked.override, { dryRun, approval }, ws);
     return NextResponse.json(result);

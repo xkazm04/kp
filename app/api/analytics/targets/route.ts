@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { RECRUITER_HOURLY_TARGET_KEY, setAnalyticsTarget, TIME_TO_HIRE_TARGET_KEY } from "@/app/_lib/db/analytics";
+import {
+  MANUAL_HOURS_TARGET_KEY,
+  RECRUITER_HOURLY_TARGET_KEY,
+  RESERVED_TARGET_KEYS,
+  setAnalyticsTarget,
+  TIME_TO_HIRE_TARGET_KEY,
+} from "@/app/_lib/db/analytics";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { FUNNEL_STAGES } from "@/app/_lib/pipeline-stages";
 
@@ -8,9 +14,17 @@ import { FUNNEL_STAGES } from "@/app/_lib/pipeline-stages";
 // /api/analytics/spend). A metric is a funnel stage name (conversion % goal,
 // 0–100), the reserved time_to_hire key (goal in days), or the reserved
 // recruiter_hourly_czk key (ROI rate). A null/empty value clears it.
-const VALID_METRICS = new Set<string>([...FUNNEL_STAGES, TIME_TO_HIRE_TARGET_KEY, RECRUITER_HOURLY_TARGET_KEY]);
+// UAT KAT-L1-005 — DERIVED from RESERVED_TARGET_KEYS, not hand-listed. The
+// hand-written list is why `manual_hours_per_hire` was readable but unsettable:
+// db/analytics.ts threaded the key into automationRoi's fourth parameter, and this
+// validator (which never heard of it) rejected every attempt to save one, so the ROI
+// claim stayed pinned to the shipped 42-hour constant that no org could re-ground in
+// its own baseline. Adding a reserved key in one place can no longer leave it
+// unsettable in another.
+const VALID_METRICS = new Set<string>([...FUNNEL_STAGES, ...RESERVED_TARGET_KEYS]);
 const MAX_DAYS = 3650; // sanity ceiling, not a business rule
 const MAX_HOURLY_CZK = 1_000_000; // sanity ceiling, not a business rule
+const MAX_MANUAL_HOURS = 1000; // sanity ceiling, not a business rule
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,9 +39,16 @@ export async function POST(request: NextRequest) {
       if (!Number.isFinite(value) || value < 0) {
         return NextResponse.json({ error: "Invalid value." }, { status: 400 });
       }
-      // Conversion goals are a percentage; time-to-hire is days; the rate is CZK.
+      // Conversion goals are a percentage; time-to-hire is days; the rate is CZK;
+      // the manual baseline is hours per hire.
       const ceiling =
-        metric === TIME_TO_HIRE_TARGET_KEY ? MAX_DAYS : metric === RECRUITER_HOURLY_TARGET_KEY ? MAX_HOURLY_CZK : 100;
+        metric === TIME_TO_HIRE_TARGET_KEY
+          ? MAX_DAYS
+          : metric === RECRUITER_HOURLY_TARGET_KEY
+            ? MAX_HOURLY_CZK
+            : metric === MANUAL_HOURS_TARGET_KEY
+              ? MAX_MANUAL_HOURS
+              : 100;
       if (value > ceiling) {
         return NextResponse.json({ error: "Value out of range." }, { status: 400 });
       }

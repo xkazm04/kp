@@ -109,17 +109,6 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] offer reminder sweep failed:", e);
     }
-    // Pre-boarding intake reminders (candidate-onboarding-hand-off #3) — the single
-    // nudge re-sending the onboarding link when a hire hasn't filled the questionnaire
-    // after the policy delay. Independent, best-effort, at-most-once (the sweep
-    // CAS-claims the run's reminder_sent_at before dispatch).
-    try {
-      const { sendDuePreboardingReminders } = await import("./app/_lib/preboarding-reminders");
-      const nudged = await sendDuePreboardingReminders();
-      if (nudged) console.log("[clock] pre-boarding reminders sent:", nudged);
-    } catch (e) {
-      console.error("[clock] pre-boarding reminder sweep failed:", e);
-    }
     // GDPR consent-expiry sweep (consent.ts) — independent, best-effort, idempotent.
     // Anonymizes candidates whose data-processing consent has lapsed (PII scrubbed,
     // scores/notes/stage retained for re-engagement). The candidate erasure path

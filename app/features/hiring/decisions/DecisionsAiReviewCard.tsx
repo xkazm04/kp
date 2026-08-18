@@ -1,9 +1,10 @@
 "use client";
 
-// The AI-review card shell: header (tag + amount), CandidateHead, staleness +
-// confidence chips, the per-kind body (DecisionsAiReviewCardBody) and the
-// accept/reject actions. Parsing + derived flags live in
-// decisionsAiReviewCardLogic.ts so this file stays under the 200-line cap.
+// The AI-review card shell: header (tag + amount), CandidateHead, the staleness
+// chip and the model's labelled self-report, the per-kind body
+// (DecisionsAiReviewCardBody) and the accept/reject actions. Parsing + derived
+// flags live in decisionsAiReviewCardLogic.ts so this file stays under the
+// 200-line cap.
 import { useState } from "react";
 import { Check, CheckSquare, CircleDollarSign, History, Search, Sparkles, Square, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
@@ -67,7 +68,7 @@ export function AiReviewCard({
   // `unpriced` / `hasBand` — the honest-unpriced-offer state, derived in the logic
   // module (see the UNPRICED DRAFTS note there): an offer draft whose fail-safe
   // proposed no figure must show no figure, and no band meter without a band.
-  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, screeningConfidence, confidenceTone } =
+  const { parsed, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, modelSelfReport } =
     useAiReviewCardLogic(entry);
   const tag = isOffer
     ? t("tagOffer")
@@ -130,7 +131,12 @@ export function AiReviewCard({
             </span>
           )
         ) : (
-          <RecBadge rec={parsed?.recommendation} confidence={isScorecard ? undefined : parsed?.confidence} />
+          // UAT KAT-L1-004 — the badge no longer carries the model's self-reported
+          // number as a bare "· 87%" suffix. That suffix was the same unlabelled
+          // claim as the meter below, printed twice; the number now appears ONCE,
+          // under a label that says whose number it is. The verdict word is what
+          // the badge is for.
+          <RecBadge rec={parsed?.recommendation} />
         )}
       </div>
       <CandidateHead entry={entry} />
@@ -146,16 +152,25 @@ export function AiReviewCard({
         </span>
       ) : null}
 
-      {/* Direction 1 — compact confidence band. A thin meter + the number, colored
-          by how sure the AI is of the verdict this card is about to commit. */}
-      {screeningConfidence != null ? (
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-meta uppercase tracking-wide text-steel">{t("confidenceLabel")}</span>
-          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-200" role="img" aria-label={t("confidenceAria", { pct: screeningConfidence })}>
-            <span className={`block h-full rounded-full ${confidenceTone}`} style={{ width: `${screeningConfidence}%` }} />
-          </span>
-          <span className="nums text-sm font-semibold text-ink">{t("confidencePct", { pct: screeningConfidence })}</span>
-        </div>
+      {/* UAT KAT-L1-004 (rec 2) — the model's self-report, no longer dressed as a
+          measurement. It used to render as a tone-banded meter (moss / amber /
+          coral fill, width = the value) under the word "Confidence", announced to
+          screen readers as "AI confidence in this recommendation: 87%". Every one
+          of those is measurement grammar: a filled meter says "this much of a
+          known whole", a tone band says "graded against a threshold", and the
+          aria wording asserted the figure as a property of the recommendation.
+          Nothing measured it — the model wrote it about itself.
+
+          So: no meter, no tone, no assertive ARIA role. What is left is a quoted
+          number under a label naming its author, and the label leads (G1 — the
+          disclosure is the headline, never a footnote under the number). Plain
+          text needs no aria-label; the sentence IS the accessible name. */}
+      {modelSelfReport != null ? (
+        <p className="mt-2 text-meta leading-4 text-steel" title={t("selfReportTitle")}>
+          <span className="font-semibold uppercase tracking-wide">{t("selfReportLabel")}</span>{" "}
+          <span className="nums font-semibold text-ink">{t("selfReportValue", { pct: modelSelfReport })}</span>
+          <span className="mt-0.5 block text-stone-400">{t("selfReportNote")}</span>
+        </p>
       ) : null}
 
       {/* Offer cards keep the band + deadline body (decision-critical); every

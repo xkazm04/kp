@@ -2,7 +2,7 @@
 // approvalDetail JSON and computes the card's kind flags, the labeled
 // pricing basis (OO-L2-10 / REC-01) and the screening confidence band. Split
 // out of the card component so the JSX shell stays under the 200-line cap.
-import { SCREENING_CONFIDENCE_BAND, type Entry, type Offer, type Scorecard, type Screening } from "@/app/features/shared/decisionsTypes";
+import { type Entry, type Offer, type Scorecard, type Screening } from "@/app/features/shared/decisionsTypes";
 
 export type ParsedApproval = Screening & Scorecard & Offer;
 
@@ -54,23 +54,30 @@ export function useAiReviewCardLogic(entry: Entry) {
   // tag names the source so the reviewer knows whose judgment they're ratifying.
   const isHumanScorecard = isScorecard && parsed?.source === "human";
 
-  // Direction 1 — the compact confidence band on the card itself. This is the
-  // AI's numeric confidence in ITS screening verdict (screening/queued-reject
-  // payloads carry a 0-100 scalar); a scorecard's confidence is a {level,reason}
-  // band shown elsewhere, and an offer has none — so both are excluded, and an
-  // absent value renders no band (no chrome). The fuller match confidence band +
-  // score breakdown live one click away in the analysis modal (onInspect).
-  const screeningConfidence = !isOffer && !isScorecard && typeof parsed?.confidence === "number" ? Math.max(0, Math.min(100, Math.round(parsed.confidence))) : null;
-  // Tone tracks how load-bearing the click is: a low-confidence advance/reject is
-  // the wrong-click risk this band exists to flag. Tokens only (both themes).
-  const confidenceTone =
-    screeningConfidence == null
-      ? ""
-      : screeningConfidence >= SCREENING_CONFIDENCE_BAND.high
-        ? "bg-moss"
-        : screeningConfidence >= SCREENING_CONFIDENCE_BAND.medium
-          ? "bg-amber-400"
-          : "bg-coral";
+  // UAT KAT-L1-004 (rec 2) / RECON-06 (rec 2) — THE MODEL'S SELF-REPORT, and why
+  // it is no longer called "confidence" and no longer carries a tone band.
+  //
+  // The screening/queued-reject payload carries a 0-100 scalar the MODEL WROTE
+  // ABOUT ITSELF: asked for a verdict, it also states how sure it feels. Nothing
+  // measured it. It is evidence about the model, not about the candidate and not
+  // about the world — no outcome, no holdout, no base rate stands behind it.
+  //
+  // This value used to be returned with a `confidenceTone` (moss / amber / coral,
+  // banded at SCREENING_CONFIDENCE_BAND) that the card painted into a meter. Tone
+  // + meter is the grammar this app reserves for MEASURED quantities, so a number
+  // with nothing behind it rendered exactly like the calibration curve that has a
+  // cohort behind it. The tone is gone with the meter; what survives is the number
+  // and a label that says whose number it is (see DecisionsAiReviewCard).
+  //
+  // It is NOT replaced by a measured statistic here: the honest measured sibling
+  // is the per-band advance rate, a COHORT property computed on the calibration
+  // surface. Printing a cohort rate on a single candidate's card would swap one
+  // mis-scoped claim for another, so this card quotes the model and says so, and
+  // the measured number stays where its cohort is.
+  //
+  // Scorecards (a {level,reason} band) and offers (none) carry no such scalar, so
+  // both are excluded; an absent value renders nothing at all.
+  const modelSelfReport = !isOffer && !isScorecard && typeof parsed?.confidence === "number" ? Math.max(0, Math.min(100, Math.round(parsed.confidence))) : null;
 
-  return { parsed, kind, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, screeningConfidence, confidenceTone };
+  return { parsed, kind, isScorecard, isOffer, unpriced, hasBand, pricingBasis, isQueuedReject, isHumanScorecard, modelSelfReport };
 }

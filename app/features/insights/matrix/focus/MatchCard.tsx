@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { ConfidenceBandBadge, confidenceBandTitle } from "@/app/_components/Badge";
+import { CHIP_QUIET } from "@/app/_components/ui/recipes";
 import type { MatchRef, MatchResult } from "@/app/features/shared/matchTypes";
 import { formatBandCompact, isEarlyCareer } from "@/app/features/shared/matchTypes";
 import { Bar, ReasoningPanel, ScoreBreakdown, useConfidenceBandCopy, useFitTierLabels, useMatchLabels } from "@/app/features/shared/MatchPresentation";
@@ -41,6 +42,12 @@ export function MatchCard({
   onToggleSelect?: () => void;
 }) {
   const t = useTranslations("match");
+  // UAT RECON-02 — the shared score-provenance vocabulary (app/_components/
+  // ScoreProvenanceLabel.tsx doctrine: "every surface that shows THE match score
+  // names where the number came from … so the wording can't drift"). Read from the
+  // same `scoreProvenance` catalog as the board and the decisions queue so the
+  // three producers are named in one language.
+  const tProv = useTranslations("scoreProvenance");
   // Compact band digits group in the READER's locale (format.ts number-locale contract).
   const locale = useLocale();
   const enumLabel = useEnumLabel();
@@ -58,10 +65,31 @@ export function MatchCard({
   return (
     <li className="rounded-lg border border-stone-200 p-3">
       <div className="flex items-start gap-4">
+        {/* UAT RECON-02 — the score is no longer bare. `m.total` here is producer
+            (C) in the match-score producer map (app/_lib/match-score.ts): a FRESH
+            recompute run against this role's current text, never persisted back to
+            the pipeline entry. The board shows producer (B), the snapshot stamped
+            at add-to-pipeline time. Both are legitimate, and they diverge — the
+            same candidate can honestly read 57 here and 49 there — so the number
+            names its own producer instead of leaving the reader to assume one
+            of them is broken. The chip sits in the header row beside the band
+            badge; the full sentence is in this number's own title.
+
+            UAT RECON-06 — and the interval under it is labelled `Range`, its own
+            word. It is a MEASUREMENT interval (how far this score could move given
+            how thin the evidence is), which is a different thing from the model's
+            self-report on a decisions card, from the salary read's evidence grade,
+            and from the archetype's signal agreement. One word each. */}
         <div className="w-16 shrink-0 text-center tabular-nums tracking-tight">
-          <div className="font-serif text-2xl text-ink">{m.total}</div>
+          <div className="font-serif text-2xl text-ink" title={tProv("freshMatchTitle")}>
+            {m.total}
+          </div>
+          <div className="mt-0.5 text-meta uppercase tracking-wide text-stone-400">{t("card.rangeLabel")}</div>
           <div className="text-sm text-steel" title={confidenceBandTitle(driverLabels, bandCopy.title)}>
-            {m.confidence.low}–{m.confidence.high}
+            <span className="sr-only">{t("card.rangeAria", { low: m.confidence.low, high: m.confidence.high })}</span>
+            <span aria-hidden>
+              {m.confidence.low}–{m.confidence.high}
+            </span>
           </div>
           <div className="mt-0.5 text-sm uppercase text-steel">#{index + 1}</div>
         </div>
@@ -76,6 +104,14 @@ export function MatchCard({
               </span>
             ) : null}
             <ConfidenceBandBadge level={m.confidence.level} drivers={driverLabels} copy={bandCopy} />
+            {/* UAT RECON-02 — the score's producer, in the repo's established
+                provenance-chip grammar (CHIP_QUIET + a caller-supplied tone; see
+                ProvenanceChip in the JD-intake brief). Deliberately toneless: a
+                fresh recompute is neither a claim someone made nor an assumption
+                the app filled in, so it gets no moss/coral tint — just its name. */}
+            <span className={CHIP_QUIET} title={tProv("freshMatchTitle")}>
+              {tProv("freshMatch")}
+            </span>
             <div className="ml-auto flex items-center gap-1.5">
               {selectable && canAdd && !added ? (
                 <Checkbox

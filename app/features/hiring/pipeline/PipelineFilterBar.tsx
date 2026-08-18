@@ -26,11 +26,12 @@
 // Pure display + callbacks, no state of its own.
 
 import type { PipelineTabTranslator } from "./pipelineTranslator";
-import { BookmarkPlus, CheckSquare, Timer } from "lucide-react";
+import { BookmarkPlus, CheckSquare, Timer, AlertTriangle } from "lucide-react";
 import { TextInput } from "@/app/_components/TextInput";
 import { PipelineFilterMenu, type FilterMenuOption } from "./PipelineFilterMenu";
 import { FadeInline } from "./PipelineMotion";
 import type { QuickFilter, ScoreBandKey, SortKey } from "./pipelineBoardFilters";
+import type { StageFilterResolution } from "./usePipelineFilters";
 
 // The deep-linked funnel-stage filter (ANA1) rides INSIDE the State menu as an
 // already-checked row rather than as a floating chip: it is a state facet, it can
@@ -46,6 +47,7 @@ export function PipelineFilterBar({
   quicks,
   onToggleQuick,
   stageFilter,
+  stageResolved,
   onClearStage,
   filtering,
   shownCount,
@@ -74,6 +76,11 @@ export function PipelineFilterBar({
   quicks: ReadonlySet<QuickFilter>;
   onToggleQuick: (f: QuickFilter) => void;
   stageFilter: string | null;
+  /** UAT TOM-ANA-11 — the deep-linked stage resolved against the WORKSPACE's board
+   *  columns, or null while that axis is still in flight (the board fetch carries it).
+   *  Null means "not known yet", never "not on the board": a notice must not flash
+   *  during the load and then retract itself. */
+  stageResolved: StageFilterResolution | null;
   onClearStage: () => void;
   filtering: boolean;
   shownCount: number;
@@ -100,12 +107,20 @@ export function PipelineFilterBar({
       active ? "border-coral bg-coral/10 text-coral" : "border-stone-200 bg-white text-steel hover:border-coral/40 hover:text-ink"
     }`;
 
+  // UAT TOM-ANA-11 — the workspace's OWN label for the column wins (Settings → Hiring
+  // renames labels, never ids), falling back to the enum catalog while the axis is in
+  // flight and to the raw id for a stage no axis can name.
+  const stageText = stageFilter ? stageResolved?.label || enumLabel("stage", stageFilter) : "";
+  // Definite, not merely unknown: only once the axis has arrived (stageResolved != null)
+  // can the board say a stage is not one of its columns.
+  const stageOffBoard = Boolean(stageFilter) && stageResolved != null && !stageResolved.onBoard;
+
   const stateOptions: FilterMenuOption[] = [
     { value: "interview", label: t("filterInterview") },
     { value: "aging", label: t("filterAging") },
     { value: "awaiting", label: t("filterAwaiting") },
     { value: "intake", label: t("filterIntake") },
-    ...(stageFilter ? [{ value: STAGE_OPTION, label: t("filterStage", { stage: enumLabel("stage", stageFilter) }) }] : []),
+    ...(stageFilter ? [{ value: STAGE_OPTION, label: t("filterStage", { stage: stageText }) }] : []),
   ];
   const stateSelected = [...quicks, ...(stageFilter ? [STAGE_OPTION] : [])];
 
@@ -213,6 +228,32 @@ export function PipelineFilterBar({
           </button>
         </div>
       </div>
+
+      {/* ── UAT TOM-ANA-11: the stage this link points at is not a column here ── */}
+      {/* Sits directly above the lanes, because it exists to explain what they are
+          showing. The alternative the board used to take — drop the filter and render
+          everything — is the silent failure the finding is about: an unfiltered board
+          looks exactly like a board where nothing was filtered out, so a stale drill-down
+          silently answered a different question than the one asked. The stage stays
+          APPLIED (candidates still standing on a dropped column surface in the off-axis
+          strip below, which is precisely what the link was pointing at); this says why
+          there is no column for them, and offers the one-click way out. */}
+      {stageOffBoard ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-amber-300 bg-amber-50 px-4 py-2 text-base text-amber-900"
+        >
+          <AlertTriangle size={14} className="shrink-0 text-amber-700" aria-hidden />
+          <span>{t("stageOffBoard", { stage: stageText })}</span>
+          <button
+            type="button"
+            onClick={onClearStage}
+            className="focus-ring rounded font-semibold text-amber-900 underline underline-offset-2 hover:text-ink"
+          >
+            {t("stageOffBoardClear")}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

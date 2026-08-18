@@ -28,7 +28,7 @@ export default async function AppleIcon() {
           boxSizing: "border-box"
         }}
       >
-        KP
+        KD
       </div>
     ),
     {

@@ -7,33 +7,38 @@ import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { BTN_GHOST, BTN_PRIMARY, EYEBROW, INTRO } from "@/app/_components/ui/recipes";
 import { CompanyStep } from "./SetupCompanyStep";
-import { FirstRoleStep } from "./SetupFirstRoleStep";
 import { InviteEditor } from "./SetupInviteEditor";
+import { SetupLanguageSwitch } from "./SetupLanguageSwitch";
+import { SetupPipelineStep } from "./SetupPipelineStep";
 import { WelcomeStep } from "./SetupWelcomeStep";
 import { SetupHandoffSummary } from "./SetupHandoffSummary";
+import { SETUP_PROSE } from "./setupProse";
 import { SETUP_STEPS, type OnboardingCtrl } from "./setupSteps";
 
 // Spotlight Wizard — the first-run setup as a centered takeover. A branded left
-// rail carries the vertical stepper; the right pane devotes the whole space to
-// ONE step at a time (Welcome → Company → Team → First role → Hand-off), each
-// crossfaded. The visual register runs marketing → functional: Welcome opens
-// with the landing's stamp/pop energy (display face, sticker tiles), the middle
-// steps are calm forms, and the hand-off lands in the app's plain voice — the
-// wizard IS the transition from the Spark landing tone into the product tone.
-// The background mask is per-theme (see below): a dark ink veil in Studio
-// Light, a deep paper veil in Spark Dark — because `ink` flips light in dark
-// mode, a single mask would wash the screen out instead of dimming it.
+// rail carries the vertical stepper AND the language switch (visible for the
+// whole flow, not just step 1 — see SetupLanguageSwitch); the right pane devotes
+// the whole space to ONE step at a time (Welcome → Company → Team → Pipeline →
+// Hand-off), each crossfaded. The visual register runs marketing → functional:
+// Welcome opens with the landing's stamp/pop energy (display face, sticker
+// tiles), the middle steps are calm forms, and the hand-off lands in the app's
+// plain voice — the wizard IS the transition from the Spark landing tone into the
+// product tone. The background mask is per-theme (see below): a dark ink veil in
+// Studio Light, a deep paper veil in Spark Dark — because `ink` flips light in
+// dark mode, a single mask would wash the screen out instead of dimming it.
+//
+// Prose width: body copy runs to 90% of the pane — see setupProse.ts for why.
+
 export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
   const t = useTranslations("setup");
   const reduced = useReducedMotion();
   const step = SETUP_STEPS[ctrl.stepIndex];
   const isWelcome = step.id === "welcome";
   const isHandoff = step.id === "handoff";
-  const canSkipStep = step.id === "team" || step.id === "firstRole";
 
   return (
     <div className="absolute inset-0 grid place-items-center bg-ink/55 p-4 backdrop-blur-sm dark:bg-paper/90">
-      <div className="relative w-full max-w-[58rem] overflow-hidden rounded-xl border-2 border-stone-300 bg-white shadow-pop dark:rounded-2xl">
+      <div className="relative w-full max-w-[69.6rem] overflow-hidden rounded-xl border-2 border-stone-300 bg-white shadow-pop dark:rounded-2xl">
         {ctrl.mode === "preview" ? (
           <p className="border-b border-dashed border-stone-300 bg-limewash/40 px-4 py-1.5 text-center text-sm text-ink">
             {t("previewRibbon")}
@@ -49,8 +54,8 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
           <X size={18} aria-hidden />
         </button>
 
-        <div className="grid md:grid-cols-[13rem_1fr]">
-          {/* Left rail — brand + vertical stepper */}
+        <div className="grid md:grid-cols-[14.5rem_1fr]">
+          {/* Left rail — brand, vertical stepper, language */}
           <div className="hidden flex-col gap-6 border-r border-stone-200 bg-paper p-5 md:flex">
             <div className="flex items-center gap-2">
               <KandidateMark className="h-8 w-8 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)]" />
@@ -88,7 +93,9 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
                       >
                         {done ? <Check size={13} /> : i + 1}
                       </span>
-                      <span className={`text-sm ${active ? "font-semibold text-ink" : done ? "text-moss" : "text-steel"}`}>
+                      <span
+                        className={`min-w-0 block truncate text-sm ${active ? "font-semibold text-ink" : done ? "text-moss" : "text-steel"}`}
+                      >
                         {t(`steps.${p.id}.label`)}
                       </span>
                     </button>
@@ -96,9 +103,9 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
                 );
               })}
             </ol>
-            <p className="nums mt-auto text-meta uppercase tracking-wide text-steel">
-              {t("rail.stepOf", { current: ctrl.stepIndex + 1, total: SETUP_STEPS.length })}
-            </p>
+            <div className="mt-auto">
+              <SetupLanguageSwitch ctrl={ctrl} />
+            </div>
           </div>
 
           {/* Right pane — one step at a time (body scrolls, footer pinned). The
@@ -106,8 +113,21 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
               expand as steps swap; the tallest step scrolls instead. The scroll
               container gets negative-margin + matching padding so the coral
               focus ring of edge-hugging inputs isn't clipped by overflow-y. */}
-          <div className="flex h-[min(90vh,43rem)] flex-col p-6 sm:p-8">
-            <div className="-mx-3 -my-1 flex-1 overflow-y-auto px-3 py-1">
+          {/* min-w-0 is load-bearing, twice over: this is a GRID item (`1fr`) and
+              the scroll box below is a FLEX item, and both take their automatic
+              minimum from their content unless told otherwise. The Pipeline
+              step's board is a `min-w-max` row of columns, so without these the
+              1fr track grows to the board's full width and the pane — footer
+              included — is pushed out past the card's clipped edge instead of
+              scrolling inside it. */}
+          <div className="flex h-[min(93vh,45.2rem)] min-w-0 flex-col p-6 sm:p-8">
+            {/* Below md the rail is hidden, so the language switch would be too —
+                and it is exactly the reader who can't read the current language
+                who needs it. Repeated here, compact, above the step. */}
+            <div className="mb-4 md:hidden">
+              <SetupLanguageSwitch ctrl={ctrl} compact />
+            </div>
+            <div className="-mx-3 -my-1 min-w-0 flex-1 overflow-y-auto px-3 py-1">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={step.id}
@@ -120,17 +140,13 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
                   <h2 className={`mt-1 font-serif text-ink ${isWelcome ? "text-display" : "text-h2"}`}>
                     {t(`steps.${step.id}.title`)}
                   </h2>
-                  <p className={`mt-2 max-w-md ${INTRO}`}>{t(`steps.${step.id}.blurb`)}</p>
+                  <p className={`mt-2 ${SETUP_PROSE} ${INTRO}`}>{t(`steps.${step.id}.blurb`)}</p>
 
                   <div className="mt-6">
-                    {step.id === "welcome" ? <WelcomeStep ctrl={ctrl} /> : null}
+                    {step.id === "welcome" ? <WelcomeStep /> : null}
                     {step.id === "company" ? <CompanyStep ctrl={ctrl} /> : null}
-                    {step.id === "team" ? (
-                      <div className="max-w-md">
-                        <InviteEditor ctrl={ctrl} />
-                      </div>
-                    ) : null}
-                    {step.id === "firstRole" ? <FirstRoleStep ctrl={ctrl} /> : null}
+                    {step.id === "team" ? <InviteEditor ctrl={ctrl} /> : null}
+                    {step.id === "pipeline" ? <SetupPipelineStep ctrl={ctrl} /> : null}
                     {step.id === "handoff" ? <SetupHandoffSummary ctrl={ctrl} /> : null}
                   </div>
                 </motion.div>
@@ -139,7 +155,11 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
 
             {/* Footer controls. Hidden on the hand-off step — its two exit paths
                 (start the tour / explore solo) are explicit choice tiles in the
-                body, so a third competing primary down here would only blur them. */}
+                body, so a third competing primary down here would only blur them.
+                There is no "Skip for now" and no "Skip setup" either: every step
+                ships a working default, so Continue is always a valid answer, and
+                leaving the wizard has ONE affordance — the close control on the
+                card — instead of a ghost button shouting past the primary. */}
             {!isHandoff ? (
               <div className="mt-6 flex items-center gap-2 border-t border-stone-200 pt-4">
                 {ctrl.stepIndex > 0 ? (
@@ -148,16 +168,6 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
                   </button>
                 ) : null}
                 <div className="flex-1" />
-                {isWelcome ? (
-                  <button type="button" onClick={ctrl.onClose} className={`${BTN_GHOST} h-10 px-3`}>
-                    {t("footer.skipSetup")}
-                  </button>
-                ) : null}
-                {canSkipStep ? (
-                  <button type="button" onClick={ctrl.next} className={`${BTN_GHOST} h-10 px-3`}>
-                    {t("footer.skipStep")}
-                  </button>
-                ) : null}
                 <button type="button" onClick={ctrl.next} disabled={!ctrl.canAdvance} className={`${BTN_PRIMARY} h-10 px-5`}>
                   {isWelcome ? t("footer.start") : t("footer.continue")} <ArrowRight size={16} aria-hidden />
                 </button>

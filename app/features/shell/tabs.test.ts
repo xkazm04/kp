@@ -134,9 +134,16 @@ test("a tab switch clears every tab-scoped param but preserves the rest", () => 
   assert.equal(params.get("theme"), "dark");
 });
 
-test("switching to the default tab drops the tab param and the tab-scoped params", () => {
-  // Default tab + every tab-scoped param cleared collapses to the bare root.
-  assert.equal(buildTabSwitchUrl(DEFAULT_TAB, "tab=jobs&job=j1&profile=cand1"), "/");
+test("switching to the default tab names it and clears the tab-scoped params", () => {
+  // CHANGED DELIBERATELY (UAT TOM-ANA-1) — this used to assert the whole href
+  // collapsed to "/". See the buildUrl contract note below for why an explicitly
+  // requested tab now survives; buildTabSwitchUrl is rendered as an href by the
+  // command palette and the empty-state CTAs, so it is a navigation like any other.
+  const params = paramsOf(buildTabSwitchUrl(DEFAULT_TAB, "tab=jobs&job=j1&profile=cand1"));
+  assert.equal(params.get("tab"), DEFAULT_TAB);
+  for (const key of TAB_SCOPED_PARAM_KEYS) {
+    assert.equal(params.get(key), null, `${key} must be cleared on a tab switch`);
+  }
 });
 
 test("selectTab's old literal would have leaked the params added since", () => {
@@ -186,8 +193,59 @@ test("buildUrl clears a key on null or empty string", () => {
   assert.equal(href.get("tab"), "matrix");
 });
 
-test("buildUrl drops the tab param when it equals the default tab", () => {
-  // The default tab lives at "/", never "/?tab=pipeline".
-  assert.equal(buildUrl({ tab: DEFAULT_TAB }, "tab=jobs"), "/");
+// --- The default tab must still be REACHABLE by link (UAT TOM-ANA-1) ----------
+// These two tests replace one that read:
+//
+//   test("buildUrl drops the tab param when it equals the default tab", () => {
+//     assert.equal(buildUrl({ tab: DEFAULT_TAB }, "tab=jobs"), "/");
+//
+// It was a deliberate assertion and it passed for good reasons — the default tab
+// lives at "/", so `/?tab=pipeline` was noise worth deleting. What changed under it
+// is the OTHER half of the contract: since 2d02a388 the active tab is app state and
+// `?tab=` is an inbox that only adopts a value when the param ARRIVES
+// (nav/useUrlInboxState.ts). Deleting the default from an explicit patch therefore
+// stopped being canonicalization and became the deletion of a navigation: all five
+// Analytics `boardHref` call sites emitted `/?stage=Interview` with no tab, so the
+// click rewrote the address bar and left the reader on Analytics (clicked live —
+// `urlAfterClick: "/?stage=Interview"`, `looksLikeBoard: false`). `tab=decisions`,
+// `"jobs"` and `"channels"` were unaffected, which is why it stayed silent.
+//
+// The rule is now scoped by intent rather than dropped: a tab NAMED IN THE PATCH is
+// a navigation and survives; a tab merely carried in `search` is still canonicalized
+// away. The address bar still settles on "/" — the inbox strips `?tab=` on arrival.
+
+test("buildUrl keeps an explicitly requested default tab — the patch is a navigation", () => {
+  const href = paramsOf(buildUrl({ tab: DEFAULT_TAB }, "tab=jobs"));
+  assert.equal(href.get("tab"), DEFAULT_TAB);
+});
+
+test("buildUrl still drops a leftover default tab carried in the search string", () => {
+  // No `tab` in the patch: the value is residue from a consumed arrival, and its
+  // canonical form is absence. This half of the old assertion is unchanged.
+  assert.equal(buildUrl({ q: "" }, `tab=${DEFAULT_TAB}`), "/");
   assert.equal(buildUrl({}, ""), "/");
+  // Clearing it explicitly still clears it.
+  assert.equal(buildUrl({ tab: null }, `tab=${DEFAULT_TAB}&stage=Interview`), "/?stage=Interview");
+});
+
+test("a chart's board deep link carries BOTH the tab and its cohort filter", () => {
+  // The exact shape every analytics `boardHref` builds (AnalyticsTab, DecisionLog,
+  // DecisionRecordsPanel, CalibrationPanel, ScoreBands): clear the other tab-scoped
+  // params, name the board, add the cohort. PipelineTab hydrates ?stage=/?q= from
+  // these at mount (usePipelineFilters.ts:50-65), so both halves must be on the wire.
+  const href = paramsOf(
+    buildUrl({ ...clearedTabScopedParams(), tab: DEFAULT_TAB, stage: "Interview" }, "sec=performance&win=90&profile=STALE")
+  );
+  assert.equal(href.get("tab"), DEFAULT_TAB);
+  assert.equal(href.get("stage"), "Interview");
+  assert.equal(href.get("profile"), null, "the prior tab's selection must not ride along");
+  // Not tab-scoped by design: the analytics cohort window survives the trip so a
+  // return to the tab reads the same period.
+  assert.equal(href.get("win"), "90");
+});
+
+test("every non-default tab link still names its tab (the branches that never broke)", () => {
+  for (const id of ["decisions", "jobs", "channels"] as const) {
+    assert.equal(paramsOf(buildUrl({ tab: id, q: "Nováková" }, "")).get("tab"), id);
+  }
 });

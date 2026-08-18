@@ -10,19 +10,44 @@ import {
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { listDecisionRecordsForRefs } from "@/app/_lib/decision-record-store";
 import {
-  DECISION_META,
   GROUP_EVAL_EVENT_KIND,
   GROUP_EVAL_OUTCOME_KINDS,
   matchCohortProvenance,
   parseRematchCounterpartId,
+  resolveDecisionKindFilter,
   sealedReasonOf,
   type CohortProvenance,
   type SealedReason,
 } from "@/app/_lib/decision-attribution";
+import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
+import {
+  compareDecisions,
+  matchesSubject,
+  type SubjectScan,
+} from "@/app/features/insights/analytics/analyticsDecisionLogTypes";
 
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
+
+// UAT LUC-ANA-5 — the two orderings/lookups SQLite cannot give us, and the bound
+// on doing them here instead.
+//
+// `candidate_label`/`job_title` sort under the BINARY collation, i.e. UTF-8 byte
+// order, which files every Czech diacritic surname AFTER Z (Čermák, Řezníčková,
+// Šimková, Žák all land past Zeman); and there is no name LOOKUP at all, so the
+// only way to find a subject was to page. Both are fixed by refining IN THIS
+// HANDLER with Intl collation and a diacritic-folded substring match — the store
+// stays untouched, so no other reader inherits a new ORDER BY.
+//
+// G4 holds: this is a SCAN bound, not a date window. The unfiltered trail is still
+// paged in full and never truncated; only a subject search or a text ordering
+// reads ahead, and when the trail is longer than the bound the response SAYS so
+// (`subjectScan.capped`) so the surface can refuse to claim a whole-trail search
+// it did not run. The scan reads newest-first, so a capped scan is describable:
+// "the most recent 5,000 decisions", not an arbitrary byte-ordered slice.
+const SUBJECT_REFINE_MAX = 5_000;
+const MAX_SUBJECT_QUERY = 80;
 
 // Parse an offset/limit query param defensively: a missing, non-numeric, or
 // out-of-range value falls back to a safe default rather than letting a bad
@@ -33,19 +58,14 @@ function clampInt(raw: string | null, fallback: number, min: number, max: number
   return Math.min(max, Math.max(min, Math.trunc(n)));
 }
 
-// ANA5 — resolve the optional ?kind=/?attribution= params to a kind set, both
-// allow-listed against the shared decision-attribution map (an invalid value
-// falls back to unfiltered, never an error). A specific kind wins over the
-// broader attribution bucket when both are sent.
-function resolveKindFilter(kindRaw: string | null, attributionRaw: string | null): string[] | undefined {
-  if (kindRaw && kindRaw in DECISION_META) return [kindRaw];
-  if (attributionRaw === "auto" || attributionRaw === "human") {
-    return Object.entries(DECISION_META)
-      .filter(([, meta]) => meta.auto === (attributionRaw === "auto"))
-      .map(([kind]) => kind);
-  }
-  return undefined;
-}
+// ANA5 — ?kind= / ?attribution= are resolved to ONE kind set by
+// resolveDecisionKindFilter (decision-attribution.ts, beside the map it reads and
+// unit-pinned there). UAT LUC-ANA-12: the two filters INTERSECT. This handler used to
+// read `if (kind) … else if (attribution)` inline, so a kind filter silently discarded
+// the attribution filter while ColumnFilter kept that column's active dot lit — on an
+// audit screen a filter that claims to filter and doesn't is worse than no filter.
+// The attribution bucket is derived from DECISION_META (36 auto / 26 human today, both
+// under the store's 64-value IN cap).
 
 // The wire shape of one enriched log row — a PipelineEvent plus the three sealed-record
 // joins (log-tells-the-whole-story). Each join is optional and only present when a
@@ -130,7 +150,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const limit = clampInt(searchParams.get("limit"), DEFAULT_LIMIT, 1, MAX_LIMIT);
     const offset = clampInt(searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER);
-    const kinds = resolveKindFilter(searchParams.get("kind"), searchParams.get("attribution"));
+    const filter = resolveDecisionKindFilter(searchParams.get("kind"), searchParams.get("attribution"));
     // Sorting is SERVER-side because the log is server-paged: a client comparator
     // would reorder only the 20 rows already on screen while looking like it had
     // ranked the whole trail. Unknown/absent column → the default newest-first,
@@ -144,12 +164,42 @@ export async function GET(request: Request) {
     // the page to the caller's workspace (previously unscoped → every team saw
     // the default workspace's trail).
     const ws = await currentWorkspace();
-    const total = countPipelineEvents(kinds, ws);
+    // A contradictory kind × attribution pair selects nothing. Answering it here keeps
+    // the store's "empty list = unfiltered" convention from turning "no rows match" into
+    // "here is the whole trail" (UAT LUC-ANA-12).
+    if (filter.matchesNothing) {
+      return NextResponse.json({ decisions: [], total: 0, hasMore: false, nextOffset: offset });
+    }
+    const trailTotal = countPipelineEvents(filter.kinds, ws);
+
+    // UAT LUC-ANA-5 — the refined path: a subject search, or an ordering by a text
+    // column whose SQL collation is byte order. Everything else stays SQL-paged.
+    const query = (searchParams.get("q") ?? "").trim().slice(0, MAX_SUBJECT_QUERY);
+    const localeParam = searchParams.get("locale");
+    const locale = isLocale(localeParam) ? localeParam : DEFAULT_LOCALE;
+    if (query || sort?.col === "candidateLabel" || sort?.col === "jobTitle") {
+      const scanned = Math.min(trailTotal, SUBJECT_REFINE_MAX);
+      // Read newest-first (NOT in the requested order): a capped scan is then the
+      // most recent N decisions, a scope that can be printed. Scanning in the
+      // requested order would cap on the byte-ordered head, which is the exact
+      // ordering this path exists to distrust.
+      const scan = listPipelineEvents(scanned, 0, filter.kinds, ws);
+      const matched = query ? scan.filter((e) => matchesSubject(e.candidateLabel, query)) : scan;
+      if (sort) matched.sort((a, b) => compareDecisions(a, b, sort.col, sort.dir, locale));
+      const subjectScan: SubjectScan = { capped: trailTotal > SUBJECT_REFINE_MAX, scanned, trailTotal, cap: SUBJECT_REFINE_MAX };
+      const page = enrichPage(matched.slice(offset, offset + limit), ws);
+      const nextOffset = offset + page.length;
+      // `total` is the size of the REFINED result set — what the pager pages and
+      // what the header counts. `subjectScan.trailTotal` keeps the whole trail's
+      // size beside it, so neither number has to stand in for the other.
+      return NextResponse.json({ decisions: page, total: matched.length, hasMore: nextOffset < matched.length, nextOffset, subjectScan });
+    }
+
     // log-tells-the-whole-story: enrich the page with the sealed-record joins (cohort
     // provenance, auto-reject reason, rematch counterpart link) before returning it.
-    const decisions = enrichPage(listPipelineEvents(limit, offset, kinds, ws, sort), ws);
+    const decisions = enrichPage(listPipelineEvents(limit, offset, filter.kinds, ws, sort), ws);
     const nextOffset = offset + decisions.length;
-    return NextResponse.json({ decisions, total, hasMore: nextOffset < total, nextOffset });
+    return NextResponse.json({ decisions, total: trailTotal, hasMore: nextOffset < trailTotal, nextOffset });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load the decision log.";
     return NextResponse.json({ error: message }, { status: 500 });

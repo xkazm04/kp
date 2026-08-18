@@ -103,7 +103,7 @@ export const STAGE_HELP: Record<string, string> = {
   Screened: "Run through the first wave of evaluation — matched and AI-screened; strong matches advance, the rest wait on a human decision.",
   Interview: "Interviewing — slot scheduling, AI voice screen, and scorecard.",
   Offer: "An offer is being drafted, reviewed, or sent.",
-  Hired: "Offer accepted — candidate hired and onboarding.",
+  Hired: "Offer accepted — candidate hired; the role closes here.",
 };
 
 export const STALE_DAYS = 10; // legacy flat default — fallback for unknown stages

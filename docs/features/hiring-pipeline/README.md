@@ -53,6 +53,105 @@ Pinned by `pipelineComposerModel.test.ts`: every preset's preview must equal the
 real axis, no phantom columns, and the composer's fixed rows must point at stages
 that exist.
 
+## Pipeline steps — the board's columns, editable
+
+`PipelineStepsEditor.tsx` is the half of this tab that used to not exist. Until
+it landed, Settings → Hiring could compose *policy* (who approves what) but not
+the funnel: the five board columns were a compile-time literal, identical for
+every workspace forever.
+
+Each row is one board column: **label** (free text), **role**, the stored **id**
+(read-only), reorder, remove. Add appends before the terminal column.
+
+Two rules earn their keep:
+
+- **Role is an explicit control, not a hidden attribute.** Every product rule
+  resolves through it — the fairness gate, the move menu's terminal exclusion,
+  org benchmarks — so leaving it implicit would mean guessing, and guessing wrong
+  silently changes what "advanced past screening" measures.
+- **The id is shown beside a saved step.** It is the value stored on every
+  candidate and every history row; a recruiter renaming a column should be able
+  to see that the underlying key does not move. Ids are minted once, at add time
+  (`mintStageId` — NFKD + ASCII fold, uniquified), and never change.
+
+The draft model is pure and unit-tested
+(`app/features/shared/pipelineAxisDraft.ts` / `.test.ts` — it moved into
+`shared/` when the first-run wizard's **Pipeline** step became a second editor of
+the same axis; the problem sentences and role names moved with it, into
+`shared/usePipelineAxisCopy.ts`, so the two surfaces cannot tell an operator
+different things about the same rule): add / remove / rename / reorder, plus
+`axisProblems`, which mirrors
+the server's `validatePipelineStages` so a recruiter is not told "invalid" after
+rearranging six columns. The test runs both over the same cases to keep them
+honest. It is deliberately *stricter* in one place: duplicate LABELS are refused
+client-side (legal on the wire, since ids are what must be unique, but two
+columns both reading "Interview" cannot be told apart on the board).
+
+**Removal is not deletion.** A saved step that leaves the draft becomes a
+`retired` tombstone, so history and a stranded candidate can still be given its
+name. A step the draft only *added* just disappears — it was never stored.
+
+### Nobody gets stranded silently
+
+Removing a column is the one settings change that can leave real people off the
+board. `GET /api/pipeline/stage-impact` (operator-gated, its own route so the
+board's 30s poll does not pay for a `GROUP BY`) reports per-stage occupancy;
+`strandedByDraft` reports which *saved* columns the draft drops *with candidates
+on them*. An empty column is not warned about — that removal is free, and
+warning about it would train the reader to dismiss the warning that matters.
+
+Save is **blocked** until every stranded step has a destination. The prompt is a
+select per removed step, offering only steps that **survive this edit** — mapping
+onto another column the same edit removes would move candidates out of one hole
+into another. It is also blocked if the occupancy read failed and the draft
+removes anything: a missing count must never make a removal look safe.
+
+### The migration itself
+
+`POST /api/pipeline/stage-migration` applies the axis change **and** the moves it
+forces, as one request — the two are one decision ("remove this column, send its
+people there"), and splitting them across two calls would let a client perform
+half.
+
+The server does **not** take the client's word for who is stranded: it recomputes
+occupancy and returns `409 migration_required` (naming each unmapped step and its
+count) if anything is unaccounted for. The composer's disabled Save button is a
+courtesy; this is the guarantee. A destination that is not on the *new* axis is a
+`400 invalid_mapping`.
+
+**The wizard writes here too.** The first-run **Pipeline** step
+(`app/features/shell/setup/`) posts to this same route at `finish()`, with an empty
+`migrate` map — it refuses to remove an occupied column at all, since a modal has
+nowhere to ask where those candidates should go, and it points at this composer
+instead. It also writes **only when the axis actually changed**: accepting the
+shipped columns is a legitimate answer, and a needless POST would promote the
+default to a team-scoped override and silently detach the workspace from a later
+org-baseline change.
+
+**Ordering, and why.** Candidates move FIRST, the axis is written SECOND. The two
+live behind separate SQLite connections (the decision-config store opens its own),
+so a single transaction cannot span them — and the order decides what a failure
+between them looks like:
+
+| | outcome of a failure between the halves |
+|---|---|
+| moves → axis (**chosen**) | candidates already moved to a column that still exists. Odd-looking, fully recoverable, nobody lost. |
+| axis → moves | candidates on a column the board no longer draws. The exact stranding this phase exists to eliminate. |
+
+The moves themselves *are* atomic with their audit events —
+`migratePipelineStages` runs one IMMEDIATE transaction — so the partial state
+above is the only one reachable, and it is benign.
+
+**Every moved candidate gets an event.** `stage_migrated` (its own kind, not
+`moved`: nobody chose to advance *this* candidate, and a recruiter reading the
+trail three weeks later needs to know that) carrying from/to. Terminal
+(`rejected` / `declined`) rows are never touched — they are not on the board, so
+removing their column strands nobody, and moving them would rewrite closed
+history.
+
+Covered by `app/_lib/db/pipeline-stage-migration.test.ts` (the transaction) and
+`app/api/pipeline/stage-migration/stage-migration-route.test.ts` (the refusals).
+
 ## Persistence — save-gated by design
 
 Edits accumulate as a local **draft**; nothing is stored until **Save plan** —
@@ -60,6 +159,15 @@ a stray preset click can never silently override the live policy. Dirty state
 is structural (`planEqualsStored`), **Discard changes** restores the last
 saved plan, and Save adopts the server's validated/normalized config back into
 the draft.
+
+The tab holds **two coordinated drafts** (`useHiringComposer.ts`): the axis and
+the plan. Both read the same draft axis, so renaming a column updates the policy
+rows and the preview as you type — the two tables are visibly one pipeline, which
+is the point of the whole synchronization pass. Save writes the **axis first**,
+then the plan: the plan's stations resolve against the axis
+(`composerStations`), so persisting a plan that references a column the stored
+axis does not have yet would leave a window where the two disagree. Only the
+phase that actually changed is written.
 
 Storage: the `"interviewPlan"` phase of the tiered decision-config store
 (`decision-config-schema.ts` owns the wire shape `InterviewPlanRule` +

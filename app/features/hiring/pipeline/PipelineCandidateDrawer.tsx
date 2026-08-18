@@ -9,6 +9,8 @@ import type { Entry, PipelineCandidateDrawerProps } from "./PipelineCandidateDra
 import { usePipelineCandidateDrawerState } from "./usePipelineCandidateDrawerState";
 import { PipelineDrawerHeader } from "./PipelineDrawerHeader";
 import { PipelineDegradedIntakeBanner } from "./PipelineDegradedIntakeBanner";
+import { stageHasRole } from "@/app/_lib/pipeline-stages";
+import { PipelineHireOutcomeCard } from "./PipelineHireOutcomeCard";
 import { PipelineInterviewOutcomeCard } from "./PipelineInterviewOutcomeCard";
 import { PipelineHumanScorecardCard } from "./PipelineHumanScorecardCard";
 import { PipelineGithubEvidenceCard } from "./PipelineGithubEvidenceCard";
@@ -28,7 +30,7 @@ import { PipelineDrawerFooterLinks } from "./PipelineDrawerFooterLinks";
 // list, so prev/next walks exactly the cohort the recruiter filtered to. Typed against
 // the full board Entry — the drawer's own `entry` prop is a narrower pick — so a
 // neighbor round-trips back to setDrawerEntry.
-export function CandidateDrawer({ entry, onClose, onChanged, onOpenEntry, cohort, onNavigate }: PipelineCandidateDrawerProps) {
+export function CandidateDrawer({ entry, onClose, onChanged, onOpenEntry, cohort, onNavigate, axis }: PipelineCandidateDrawerProps) {
   const t = useTranslations("pipeline.drawer");
   // Destructured, not held as one `st` object: the hook returns refs alongside
   // plain state, and reading them off a shared object during render trips the
@@ -75,6 +77,13 @@ export function CandidateDrawer({ entry, onClose, onChanged, onOpenEntry, cohort
               onResolve={resolveIntake}
             />
           ) : null}
+
+          {/* UAT KAT-L1-002 — for someone this workspace actually HIRED, the open
+              question is no longer "advance or reject" but how the hire worked out.
+              Mounted only on the terminal-role stage (by role, so a renamed last
+              column still resolves), and it is the one pending action on a hire, so
+              it leads the body rather than sitting under the history. */}
+          {stageHasRole(entry.stage, "terminal", axis) ? <PipelineHireOutcomeCard entryId={entry.id} /> : null}
 
           {ivOutcome ? (
             <PipelineInterviewOutcomeCard ivOutcome={ivOutcome} onShowTranscript={() => setShowTranscript(true)} />

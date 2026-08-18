@@ -6,15 +6,17 @@ import { Check, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import { TextArea } from "@/app/_components/TextArea";
-import { TextInput } from "@/app/_components/TextInput";
 import { BTN_GHOST, BTN_PRIMARY, META_LABEL } from "@/app/_components/ui/recipes";
-import { FEEDBACK_EMAIL_MAX, FEEDBACK_MESSAGE_MAX } from "@/app/_lib/feedback";
+import { FEEDBACK_MESSAGE_MAX } from "@/app/_lib/feedback";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // The "Send feedback" dialog behind the rail affordance (NavFeedbackButton).
-// One message + an optional reply email; the current route rides along so the
-// operator view can see WHERE a report came from. POSTs the workspace-gated
-// /api/feedback; failures resolve from the machine `code` (use-error-message).
+// One message, nothing else to fill in: the reply address is read from the
+// signed-in user by the route (never posted from here — a client-supplied
+// address would let anyone sign a report with someone else's name), and the
+// current route rides along so the operator view can see WHERE a report came
+// from. POSTs the workspace-gated /api/feedback; failures resolve from the
+// machine `code` (use-error-message).
 
 export function FeedbackDialog({ onClose }: { onClose: () => void }) {
   const t = useTranslations("feedback");
@@ -22,7 +24,6 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [message, setMessage] = useState("");
-  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +39,6 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: message.trim(),
-          email: email.trim() || undefined,
           route: `${pathname}${search ? `?${search}` : ""}`,
         }),
       });
@@ -56,7 +56,10 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal title={t("title")} subtitle={t("subtitle")} onClose={onClose} size="md">
+    // One rung up the shared width ladder (md 33.6rem → lg 38.4rem): a roomier
+    // box for the one thing left in it, without giving this dialog a bespoke
+    // width that no other dialog in the app uses.
+    <Modal title={t("title")} subtitle={t("subtitle")} onClose={onClose} size="lg">
       {sent ? (
         <div className="flex items-center gap-3 rounded-lg border border-moss/30 bg-moss/5 p-4">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-moss/15 text-moss">
@@ -80,20 +83,6 @@ export function FeedbackDialog({ onClose }: { onClose: () => void }) {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={t("messagePlaceholder")}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <label htmlFor="feedback-email" className={`${META_LABEL} block`}>
-              {t("emailLabel")}
-            </label>
-            <TextInput
-              id="feedback-email"
-              type="email"
-              maxLength={FEEDBACK_EMAIL_MAX}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t("emailPlaceholder")}
               className="mt-1"
             />
           </div>

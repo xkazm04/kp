@@ -3,11 +3,12 @@ import { MOMENTUM_EVENT_KINDS, MOMENTUM_WEEKS, weeklyMomentum, type MomentumWeek
 import { summarizeAutomationImpact, type AutomationImpact } from "../decision-attribution";
 import { offerConversion, type OfferConversion } from "../analytics-offer";
 import { automationRoi, type AutomationRoi } from "../automation-roi";
-import { FUNNEL_STAGES, hasAdvancedPastScreening, type FunnelStage } from "../pipeline-stages";
+import { hasAdvancedPastScreening, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole } from "../pipeline-stages";
+import { getPipelineAxis } from "../pipeline-axis-server";
 import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
 import { ensureDb } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
-import { listChannelSpend } from "./channels";
+import { listChannelSpendDetail } from "./channels";
 
 // gsim-l2-105 / REC-11 — live aggregates must not count guided-demo residue: the
 // simulation writes REAL pipeline rows and events whose job_title carries the
@@ -52,6 +53,19 @@ export type PipelineAnalytics = {
   // hires), all-time only (windowed = null, mirroring the per-channel rule); the
   // single cost figure for the leadership readout.
   costPerHireCzk: number | null;
+  // UAT KAT-ANA-2 — the age of the figure above: the OLDEST `channel_spend.updated_at`
+  // among the rows summed into it. Oldest, not newest, because a blend is only as
+  // current as its stalest input, and this number's whole failure mode is looking
+  // current. Null whenever costPerHireCzk is null.
+  costPerHireAsOf: string | null;
+  // UAT KAT-ANA-4 — the hire count on the EVENT-TIME basis: entries whose TERMINAL
+  // TRANSITION landed inside the window. `hired` above is a different population — the
+  // creation COHORT (entries CREATED in the window that now stand on a terminal stage)
+  // — and the two diverge by exactly the time-to-hire. Every per-hire figure computed
+  // from event-time or ledger-time numerators (automationRoi, computeCost) divides by
+  // THIS, so numerator and denominator describe the same window. Equal to `hired` in
+  // the all-time view, where the two bases cannot differ.
+  hiresClosedInWindow: number;
   // compute-cost-per-hire — the LLM compute that produced these hires, read from the
   // existing usage ledger (the llm_usage table insertLlmUsage writes). READ-ONLY: no
   // new metering, no writes. HONEST SCOPE LIMITS surfaced by the UI: (1) llm_usage has
@@ -66,12 +80,21 @@ export type PipelineAnalytics = {
   // share the workspace-blind ledger; when >1 the UI suppresses the per-hire figure
   // (it would inflate ~by the number of active workspaces). Null when there's no hire
   // to divide by. Null overall when the window holds no metered calls.
+  //
+  // KAT-ANA-7 — `windowDays` and `hires` make the basis SELF-DESCRIBING on screen: the
+  // same ledger is read all-time here and 30-day in Billing, and neither surface used
+  // to name its own period, so the two disagreed in public with no way to tell why.
   computeCost: {
     costUsd: number;
     calls: number;
     unpricedCalls: number;
     costPerHireUsd: number | null;
     workspaceCount: number;
+    /** The period this cost covers, in days; null = all time. */
+    windowDays: number | null;
+    /** The hire count the per-hire figure divided by — `hiresClosedInWindow`, i.e.
+     *  hires CLOSED in the same period, never the creation cohort. */
+    hires: number;
   } | null;
   avgAgeDays: number | null;
   bottleneck: Bottleneck | null;
@@ -135,6 +158,24 @@ export const TIME_TO_HIRE_TARGET_KEY = "time_to_hire";
 // filtered out of the conversion-goal map.
 export const RECRUITER_HOURLY_TARGET_KEY = "recruiter_hourly_czk";
 
+// UAT KAT-L1-005 — the reserved row holding the org's OWN manual hours-per-hire
+// baseline. `MANUAL_HOURS_PER_HIRE = 42` is a defensible research mid-point, but it
+// shipped as automationRoi's fourth parameter with no call site passing it, so the
+// percentage the ROI panel prints ("x% of the manual effort offset") was measured
+// against a constant no customer could contest. An org whose real anchor is 23 h
+// screening + 13 h sourcing can now re-ground the claim in its own number.
+export const MANUAL_HOURS_TARGET_KEY = "manual_hours_per_hire";
+
+// Every analytics_targets key that is NOT a funnel-stage conversion goal. DERIVED,
+// not hand-listed (drift-guard rule M3): the conversion-map filter below and the save
+// route's validator both read this set, so adding a reserved key in one place cannot
+// leave it leaking into the funnel goals in another.
+export const RESERVED_TARGET_KEYS: ReadonlySet<string> = new Set([
+  TIME_TO_HIRE_TARGET_KEY,
+  RECRUITER_HOURLY_TARGET_KEY,
+  MANUAL_HOURS_TARGET_KEY,
+]);
+
 export type ChannelEconomics = {
   channel: string;
   total: number;
@@ -144,6 +185,10 @@ export type ChannelEconomics = {
   hireRatePct: number;
   medianHoursToDecision: number | null;
   spendCzk: number | null;
+  // UAT KAT-ANA-2 — when a human last entered `spendCzk`. The three money columns on
+  // this row are derived from that ONE stored number, so they carry its date: a
+  // six-week-old entry must read as six weeks old, not as this period's cost.
+  spendUpdatedAt: string | null;
   costPerApplicantCzk: number | null;
   costPerHireCzk: number | null;
 };
@@ -202,10 +247,18 @@ export function pipelineAnalytics(
     source_variant: string | null;
   }[];
 
-  // Index against FUNNEL_STAGES (= the 5 canonical stages, Accepted-first). The
-  // by-job/by-archetype thresholds below compare against idxOf("Interview") /
-  // idxOf("Screened") symbolically, so they stay correct if the axis shifts.
-  const idxOf = (s: string) => FUNNEL_STAGES.indexOf(s as FunnelStage);
+  // Index against THIS WORKSPACE's axis, not the shipped list. A team that
+  // renamed or added a column must get a funnel of ITS columns — indexing the
+  // five canonical names produced a chart with rows nobody recognised, and
+  // silently dropped (idxOf === -1) every candidate standing on a renamed one.
+  const axis = getPipelineAxis(workspaceId).stages;
+  const stageIds = axis.map((s) => s.id);
+  const idxOf = (s: string) => stageIndex(s, axis);
+  // "Reached the real-evaluation gate", by ROLE — the same threshold the
+  // archetype-fairness metric uses, so the two can never report different numbers
+  // for one cohort. And "finished", by role rather than by the name "Hired".
+  const gateIdx = screeningGateIndex(axis);
+  const isTerminal = (stage: string) => stageHasRole(stage, "terminal", axis);
   const now = Date.now();
   const daysSince = (iso?: string | null): number | null => {
     if (!iso) return null;
@@ -216,22 +269,22 @@ export function pipelineAnalytics(
   };
 
   const total = rows.length;
-  const hired = rows.filter((r) => r.stage === "Hired").length;
+  const hired = rows.filter((r) => isTerminal(r.stage)).length;
   // Now that declines carry their own status, `rejected` counts only company-side
   // passes; `declined` is the candidate-side close that used to be folded in.
   const rejected = rows.filter((r) => r.status === "rejected").length;
   const declined = rows.filter((r) => r.status === "declined").length;
-  const active = rows.filter((r) => r.status === "active" && r.stage !== "Hired").length;
+  const active = rows.filter((r) => r.status === "active" && !isTerminal(r.stage)).length;
 
-  const reached = FUNNEL_STAGES.map(() => 0);
-  const current = FUNNEL_STAGES.map(() => 0);
+  const reached = stageIds.map(() => 0);
+  const current = stageIds.map(() => 0);
   for (const r of rows) {
     const i = idxOf(r.stage);
     if (i < 0) continue;
     for (let k = 0; k <= i; k += 1) reached[k] += 1;
     if (r.status === "active") current[i] += 1;
   }
-  const funnel = FUNNEL_STAGES.map((stage, i) => ({
+  const funnel = stageIds.map((stage, i) => ({
     stage,
     reached: reached[i],
     current: current[i],
@@ -239,7 +292,7 @@ export function pipelineAnalytics(
   }));
 
   const tth = rows
-    .filter((r) => r.stage === "Hired" && r.created_at && r.stage_changed_at)
+    .filter((r) => isTerminal(r.stage) && r.created_at && r.stage_changed_at)
     .map((r) => (Date.parse(r.stage_changed_at as string) - Date.parse(r.created_at as string)) / 86_400_000)
     .filter((d) => d >= 0);
   const avgTimeToHireDays = tth.length ? Math.round(tth.reduce((a, b) => a + b, 0) / tth.length) : null;
@@ -253,7 +306,7 @@ export function pipelineAnalytics(
 
   const perStageDays: Record<string, number[]> = {};
   for (const r of rows) {
-    if (r.status !== "active" || r.stage === "Hired") continue;
+    if (r.status !== "active" || isTerminal(r.stage)) continue;
     const d = daysSince(r.stage_changed_at ?? r.created_at);
     if (d != null) (perStageDays[r.stage] ??= []).push(d);
   }
@@ -263,7 +316,7 @@ export function pipelineAnalytics(
   const bottleneck = pickBottleneck(perStageDays);
   // Full per-stage dwell breakdown (the table beside the single-worst bottleneck
   // banner), ordered canonically and skipping stages with no active entries.
-  const stageDwell = FUNNEL_STAGES.flatMap((stage) => {
+  const stageDwell = stageIds.flatMap((stage) => {
     const arr = perStageDays[stage];
     if (!arr || arr.length === 0) return [];
     return [{ stage, avgDays: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length), count: arr.length }];
@@ -274,8 +327,8 @@ export function pipelineAnalytics(
     const key = r.job_title ?? "—";
     const m = jobMap.get(key) ?? { total: 0, reachedInterview: 0, hired: 0 };
     m.total += 1;
-    if (idxOf(r.stage) >= idxOf("Interview")) m.reachedInterview += 1;
-    if (r.stage === "Hired") m.hired += 1;
+    if (idxOf(r.stage) >= gateIdx) m.reachedInterview += 1;
+    if (isTerminal(r.stage)) m.hired += 1;
     jobMap.set(key, m);
   }
   // KO discards are entry-less events (recordKnockoutDecline) — the windowed
@@ -316,7 +369,7 @@ export function pipelineAnalytics(
     const key = r.archetype ?? "bau";
     const m = archMap.get(key) ?? { total: 0, hired: 0, advanced: 0 };
     m.total += 1;
-    if (r.stage === "Hired") m.hired += 1;
+    if (isTerminal(r.stage)) m.hired += 1;
     // "advanced past screening" = reached Interview or beyond (see
     // hasAdvancedPastScreening); a candidate AT Screened has not advanced past it.
     if (hasAdvancedPastScreening(r.stage)) m.advanced += 1;
@@ -433,8 +486,8 @@ export function pipelineAnalytics(
     const key = originOf(r.kind);
     const m = sourceMap.get(key) ?? { total: 0, reachedInterview: 0, hired: 0 };
     m.total += 1;
-    if (idxOf(r.stage) >= idxOf("Interview")) m.reachedInterview += 1;
-    if (r.stage === "Hired") m.hired += 1;
+    if (idxOf(r.stage) >= gateIdx) m.reachedInterview += 1;
+    if (isTerminal(r.stage)) m.hired += 1;
     sourceMap.set(key, m);
   }
   const bySource = [...sourceMap.entries()]
@@ -455,8 +508,8 @@ export function pipelineAnalytics(
     if (!r.source_channel) continue;
     const m = channelMap.get(r.source_channel) ?? { total: 0, reachedInterview: 0, hired: 0, rejected: 0 };
     m.total += 1;
-    if (idxOf(r.stage) >= idxOf("Interview")) m.reachedInterview += 1;
-    if (r.stage === "Hired") m.hired += 1;
+    if (idxOf(r.stage) >= gateIdx) m.reachedInterview += 1;
+    if (isTerminal(r.stage)) m.hired += 1;
     if (r.status === "rejected") m.rejected += 1;
     channelMap.set(r.source_channel, m);
   }
@@ -482,16 +535,31 @@ export function pipelineAnalytics(
     if (list) list.push(delta);
     else decisionMsByChannel.set(r.channel, [delta]);
   }
-  const spendByChannel = listChannelSpend(workspaceId);
+  const spendByChannel = listChannelSpendDetail(workspaceId);
+  // UAT KAT-ANA-2 — a channel someone has RECORDED SPEND for gets a row even with no
+  // attributed candidates, exactly as a role with KO discards and no entries does
+  // above. Two reasons, and the second is the important one. (1) "We put 5,000 CZK
+  // into LinkedIn and it produced nobody" is a finding, not an absence. (2) The spend
+  // editor lives on these rows, so a channel with no row is a stored figure that STILL
+  // divides into the blended cost-per-hire and STILL cannot be corrected — which is the
+  // fossil defect surviving the fix that was supposed to close it. Every stored spend
+  // row must be reachable from the surface that spends it.
+  for (const channel of spendByChannel.keys()) {
+    if (!channelMap.has(channel)) channelMap.set(channel, { total: 0, reachedInterview: 0, hired: 0, rejected: 0 });
+  }
   const byChannel: ChannelEconomics[] = [...channelMap.entries()]
     .map(([channel, m]) => {
-      const spendCzk = spendByChannel.get(channel) ?? null;
+      const spend = spendByChannel.get(channel) ?? null;
+      const spendCzk = spend?.amountCzk ?? null;
       return {
         channel,
         ...m,
         hireRatePct: m.total ? Math.round((m.hired / m.total) * 100) : 0,
         medianHoursToDecision: medianHours(decisionMsByChannel.get(channel) ?? []),
         spendCzk,
+        // The date rides with the amount, always — the two cost columns below are
+        // nothing but this one row divided by a count (UAT KAT-ANA-2).
+        spendUpdatedAt: spend?.updatedAt ?? null,
         // Cost figures only where the division is HONEST: spend entered, a non-zero
         // denominator (0 hires ⇒ no cost-per-hire, not infinity), AND an all-time
         // cohort. spend is a single LIFETIME figure per channel (listChannelSpend has
@@ -525,8 +593,8 @@ export function pipelineAnalytics(
         firstLeadAt: null,
       } satisfies VariantStat);
     v.total += 1;
-    if (idxOf(r.stage) >= idxOf("Interview")) v.reachedInterview += 1;
-    if (r.stage === "Hired") v.hired += 1;
+    if (idxOf(r.stage) >= gateIdx) v.reachedInterview += 1;
+    if (isTerminal(r.stage)) v.hired += 1;
     if (r.created_at && (!v.firstLeadAt || r.created_at < v.firstLeadAt)) v.firstLeadAt = r.created_at;
     variantMap.set(key, v);
   }
@@ -541,23 +609,79 @@ export function pipelineAnalytics(
   // recruiter-entered channel spend ÷ hires. Same honesty as the per-channel
   // figure — all-time only (spend is lifetime, not windowed) and only when there's
   // spend AND a hire to divide by; otherwise null ("—").
-  const totalSpendCzk = [...spendByChannel.values()].reduce((sum, v) => sum + (v ?? 0), 0);
+  const totalSpendCzk = [...spendByChannel.values()].reduce((sum, v) => sum + (v.amountCzk ?? 0), 0);
   const costPerHireCzk = !cutoffIso && totalSpendCzk > 0 && hired > 0 ? Math.round(totalSpendCzk / hired) : null;
+  // UAT KAT-ANA-2 — and how old the oldest of those entries is. A blend is only as
+  // current as its stalest input, so the OLDEST wins: quoting the newest would let one
+  // fresh row launder a set of fossils.
+  const spendDates = [...spendByChannel.values()].map((s) => s.updatedAt).filter(Boolean).sort();
+  const costPerHireAsOf = costPerHireCzk != null && spendDates.length > 0 ? spendDates[0] : null;
+
+  // UAT KAT-ANA-4 — the denominator every EVENT-TIME per-hire figure below divides by.
+  //
+  // `hired` is a CREATION COHORT count: entries CREATED inside the window that stand on
+  // a terminal stage today. The automation-ROI numerator (kindCounts) and the compute
+  // ledger are EVENT-TIME — work that HAPPENED inside the window. Dividing one by the
+  // other compares two different populations, and they diverge by exactly the
+  // time-to-hire: reproduced on a 44-day time-to-hire inside a 30-day window, 6 hires
+  // closed while only 1 was in-cohort, so a full window of automated work was amortised
+  // over a sixth of its hires — the ROI read 100% of the manual baseline against an
+  // honest 31%, and compute read $62.40/hire against an honest $10.40. The comment that
+  // used to sit here asserted the opposite ("both same-window → honest").
+  //
+  // Terminal transitions are matched by ROLE, never by the name "Hired" (G8): a team
+  // that renames its final column still gets its hires counted.
+  //
+  // All-time needs no query at all — with no window every hire is both in cohort and in
+  // the event trail, and `hired` additionally catches entries seeded straight onto a
+  // terminal stage with no transition event to find.
+  const terminalStageIds = stagesWithRole("terminal", axis);
+  const hiresClosedInWindow = !cutoffIso
+    ? hired
+    : terminalStageIds.length === 0
+      ? 0
+      : Number(
+          (
+            db
+              .prepare(
+                `SELECT COUNT(DISTINCT entry_id) AS n FROM pipeline_events
+                  WHERE kind IN ('advanced', 'auto_advanced')
+                    AND to_stage IN (${terminalStageIds.map(() => "?").join(", ")})
+                    AND entry_id IS NOT NULL
+                    AND created_at >= ?${upperIso ? " AND created_at < ?" : ""}
+                    AND ${notSim()} AND workspace_id = ?`
+              )
+              .get(...terminalStageIds, cutoffIso, ...(upperIso ? [upperIso] : []), SIM_TITLE_LIKE, workspaceId) as { n: number }
+          ).n ?? 0
+        );
 
   // compute-cost-per-hire — surface the (read-only) LLM usage ledger alongside the
-  // recruiter-entered channel spend. Windowed to match the cohort; per-hire divides
-  // the windowed cost by the windowed hire count (both same-window → honest, unlike
-  // the lifetime channel spend). Null when the window holds no metered calls.
+  // recruiter-entered channel spend. The ledger is windowed by `ts`, so the per-hire
+  // figure divides it by the hires CLOSED in that same window (hiresClosedInWindow),
+  // not by the creation cohort. `windowDays` travels with the number so the panel can
+  // print the period the cost covers (KAT-ANA-7: the same ledger is read all-time here
+  // and 30-day in Billing). Null when the window holds no metered calls.
   const compute = computeCostWindow(windowDays, opts?.endMs);
   // Tenant-scope honesty: the compute numerator is account-wide (llm_usage is
-  // workspace-blind) while `hired` is scoped to THIS workspace, so a per-hire ratio is
-  // only honest in a single-workspace account. Count the workspaces sharing the ledger
-  // (1 today) so the UI can suppress the figure when it would mix scopes.
+  // workspace-blind) while the hire count is scoped to THIS workspace, so a per-hire
+  // ratio is only honest in a single-workspace account. Count the workspaces sharing the
+  // ledger (1 today) so the UI can suppress the figure when it would mix scopes.
   const workspaceCount = Number((db.prepare(`SELECT COUNT(*) AS n FROM workspaces`).get() as { n: number }).n) || 1;
   const computeCost =
     compute.calls > 0
-      ? { ...compute, costPerHireUsd: hired > 0 ? Math.round((compute.costUsd / hired) * 100) / 100 : null, workspaceCount }
+      ? {
+          ...compute,
+          costPerHireUsd:
+            hiresClosedInWindow > 0 ? Math.round((compute.costUsd / hiresClosedInWindow) * 100) / 100 : null,
+          workspaceCount,
+          windowDays: windowDays ?? null,
+          hires: hiresClosedInWindow,
+        }
       : null;
+
+  // One read of the goal table for both consumers below (the conversion/TTH split and
+  // the two reserved ROI parameters) instead of the two it used to do.
+  const targetValues = listAnalyticsTargets(workspaceId);
 
   return {
     total,
@@ -584,13 +708,25 @@ export function pipelineAnalytics(
     byVariant,
     byVariantTotal: variantStats.length,
     variantRecommendations,
-    targets: analyticsTargets(workspaceId),
+    targets: analyticsTargets(targetValues),
     costPerHireCzk,
+    costPerHireAsOf,
+    hiresClosedInWindow,
     computeCost,
-    // b39992b1 — value of the automation over this window, at the stored (or
-    // default) recruiter hourly rate, from the same kindCounts the rollup uses.
-    // `hired` anchors the per-hire baseline framing (UAT M7).
-    automationRoi: automationRoi(kindCounts, listAnalyticsTargets(workspaceId).get(RECRUITER_HOURLY_TARGET_KEY), hired),
+    // b39992b1 — value of the automation over this window, at the stored (or default)
+    // recruiter hourly rate, from the same kindCounts the rollup uses.
+    //
+    // UAT KAT-ANA-4 — the per-hire anchor is hiresClosedInWindow, NOT `hired`: the
+    // numerator is event-time, so the denominator must be too (see the note above it).
+    // UAT KAT-L1-005 — and the manual baseline is the org's own when it has set one;
+    // this was the parameter no call site passed, which pinned the "% of manual effort
+    // offset" claim to a constant a customer could neither see nor contest.
+    automationRoi: automationRoi(
+      kindCounts,
+      targetValues.get(RECRUITER_HOURLY_TARGET_KEY),
+      hiresClosedInWindow,
+      targetValues.get(MANUAL_HOURS_TARGET_KEY)
+    ),
   };
 }
 
@@ -629,6 +765,13 @@ export type PriorWindowSlice = {
  *  - Per-channel CPA is null: spend is a lifetime total, so a windowed cohort has no
  *    honest per-period CPA (the full battery returns null in windowed views), which
  *    is why no channel_spend read is needed here at all.
+ *  - ONE deliberate divergence (UAT KAT-ANA-2): the full battery now also emits a row
+ *    for a channel that has recorded SPEND but no attributed candidates, so its stored
+ *    figure stays editable. The prior slice does not, and must not — such a row is
+ *    volume 0 with a null rate and a null CPA, i.e. it contributes nothing any delta
+ *    could read, and adding it would reintroduce the channel_spend read this slice
+ *    exists to avoid. periodDeltas already treats an absent prior channel as "no
+ *    baseline", the same as an absent prior funnel stage.
  */
 export function pipelineAnalyticsPrior(
   windowDays: number,
@@ -638,7 +781,13 @@ export function pipelineAnalyticsPrior(
   const db = ensureDb();
   const cutoffIso = new Date(endMs - windowDays * 86_400_000).toISOString();
   const upperIso = new Date(endMs).toISOString();
-  const idxOf = (s: string) => FUNNEL_STAGES.indexOf(s as FunnelStage);
+  // Same axis resolution as pipelineAnalytics: the prior-window slice is diffed
+  // against the live one, so the two MUST index identically or the delta would
+  // compare a row of one funnel to a different row of another.
+  const axis = getPipelineAxis(workspaceId).stages;
+  const stageIds = axis.map((s) => s.id);
+  const idxOf = (s: string) => stageIndex(s, axis);
+  const isTerminal = (stage: string) => stageHasRole(stage, "terminal", axis);
 
   const rows = db
     .prepare(
@@ -655,21 +804,21 @@ export function pipelineAnalyticsPrior(
   }[];
 
   const total = rows.length;
-  const hired = rows.filter((r) => r.stage === "Hired").length;
+  const hired = rows.filter((r) => isTerminal(r.stage)).length;
 
-  const reached = FUNNEL_STAGES.map(() => 0);
+  const reached = stageIds.map(() => 0);
   for (const r of rows) {
     const i = idxOf(r.stage);
     if (i < 0) continue;
     for (let k = 0; k <= i; k += 1) reached[k] += 1;
   }
-  const funnel = FUNNEL_STAGES.map((stage, i) => ({
+  const funnel = stageIds.map((stage, i) => ({
     stage,
     conversionPct: i === 0 ? null : reached[i - 1] > 0 ? Math.round((reached[i] / reached[i - 1]) * 100) : null,
   }));
 
   const tth = rows
-    .filter((r) => r.stage === "Hired" && r.created_at && r.stage_changed_at)
+    .filter((r) => isTerminal(r.stage) && r.created_at && r.stage_changed_at)
     .map((r) => (Date.parse(r.stage_changed_at as string) - Date.parse(r.created_at as string)) / 86_400_000)
     .filter((d) => d >= 0);
   const avgTimeToHireDays = tth.length ? Math.round(tth.reduce((a, b) => a + b, 0) / tth.length) : null;
@@ -694,7 +843,7 @@ export function pipelineAnalyticsPrior(
     const key = originOf(r.kind);
     const m = sourceMap.get(key) ?? { total: 0, hired: 0 };
     m.total += 1;
-    if (r.stage === "Hired") m.hired += 1;
+    if (isTerminal(r.stage)) m.hired += 1;
     sourceMap.set(key, m);
   }
   const bySource = [...sourceMap.entries()]
@@ -708,7 +857,7 @@ export function pipelineAnalyticsPrior(
     if (!r.source_channel) continue;
     const m = channelMap.get(r.source_channel) ?? { total: 0, hired: 0 };
     m.total += 1;
-    if (r.stage === "Hired") m.hired += 1;
+    if (isTerminal(r.stage)) m.hired += 1;
     channelMap.set(r.source_channel, m);
   }
   const byChannel = [...channelMap.entries()]
@@ -798,16 +947,17 @@ export function listAnalyticsTargets(workspaceId: string = DEFAULT_WORKSPACE_ID)
 }
 
 /** Split the flat goal map into the funnel-conversion targets and the lone
- *  time-to-hire target the analytics payload exposes. */
-function analyticsTargets(workspaceId: string = DEFAULT_WORKSPACE_ID): { conversion: Record<string, number>; timeToHireDays: number | null } {
-  const all = listAnalyticsTargets(workspaceId);
+ *  time-to-hire target the analytics payload exposes. Takes the already-read map so
+ *  one request reads analytics_targets once. */
+function analyticsTargets(all: Map<string, number>): { conversion: Record<string, number>; timeToHireDays: number | null } {
   const timeToHireDays = all.get(TIME_TO_HIRE_TARGET_KEY) ?? null;
   const conversion: Record<string, number> = {};
   for (const [metric, value] of all) {
-    // Only funnel-stage rows are conversion goals — exclude the reserved keys.
-    if (metric !== TIME_TO_HIRE_TARGET_KEY && metric !== RECRUITER_HOURLY_TARGET_KEY) {
-      conversion[metric] = value;
-    }
+    // Only funnel-stage rows are conversion goals. The exclusion reads the DERIVED
+    // reserved-key set rather than a hand-written chain of !== comparisons: the
+    // manual-hours key was the third reserved row, and a chain like that is exactly
+    // what leaks the fourth one into the funnel goals as a phantom stage (rule M3).
+    if (!RESERVED_TARGET_KEYS.has(metric)) conversion[metric] = value;
   }
   return { conversion, timeToHireDays };
 }

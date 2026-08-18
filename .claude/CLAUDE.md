@@ -28,6 +28,7 @@ and **next-intl** with 4 locales (`en` default, `cs`, `de`, `fr`; catalogs in
 npm run dev                 # dev server via dev-guard (Next allows ONE dev server
                             # per checkout — the lock is .next/dev/lock)
 npm run dev:empty           # second, isolated empty-DB dev server (.next-empty + kp-empty.sqlite)
+                            # DevInspector is ON here (dev:inspect's env, `-- --no-inspect` opts out)
 npm run typecheck           # GOTCHA: runs schemas:gen (python -m pipeline.jobfit.codegen)
                             # BEFORE tsc — Python + repo deps must be installed
 npm run lint                # eslint

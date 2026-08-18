@@ -20,7 +20,13 @@ import { chunk, SQL_IN_CHUNK } from "./entries-param";
 
 export type DecisionRecordInput = {
   kind: string; // e.g. "auto_rejected"
-  actor: string; // "auto:screen-wave" | "human:recruiter" | "auto:scorecard-v3"
+  // "auto:<engine>" | "human:<who>". UAT LUC-ANA-4 — `<who>` is the NATURAL PERSON when
+  // the request carries identity ("human:Petra Nováková"), and falls back to the role
+  // ("human:recruiter") only where the deployment genuinely cannot name one. Always
+  // server-derived (humanActor() in auth/operator-approver.ts reads the signed session,
+  // never the request body): the actor field is sealed into the hash chain, so a caller
+  // that could set it could attribute their own decision to a colleague, permanently.
+  actor: string;
   policyVersion: string; // a stable hash/label of the policy that produced it
   candidateRef: string; // the subject (pipeline entry id)
   rationale: string; // human-readable explanation
@@ -46,7 +52,29 @@ export type DecisionRecord = {
   keyId: string;
 };
 
-export type ChainVerdict = { ok: boolean; count: number; brokenAtSeq: number | null };
+// UAT LUC-ANA-1 — the verdict carries a KEY CENSUS beside the integrity result, because
+// `ok:true` alone is not a security claim. A link sealed with key_id "" was hashed with a
+// public SHA-256 and no secret, so the same insider who can write decision_records can
+// recompute it (decision-record-store.test.ts pins that: "a keyless chain ACCEPTS an
+// insider re-hash"). Without these fields the route could not tell the badge which of the
+// two very different guarantees it is looking at, so the badge asserted the stronger one
+// over 66 rows that only had the weaker. The census is DERIVED from the stored key_id
+// column — nothing about what gets sealed, or how, changes (guardrail G2).
+export type ChainVerdict = {
+  ok: boolean;
+  count: number;
+  brokenAtSeq: number | null;
+  /** True only when EVERY link is sealed under an HMAC key (and the chain is non-empty):
+   *  the one state in which "tamper-resistant" is a claim this store can back. */
+  keyed: boolean;
+  /** Links sealed with the keyless SHA-256 (key_id ""). `keylessCount === count` is a
+   *  chain that was NEVER keyed — integrity-evident, but forgeable by an insider. */
+  keylessCount: number;
+  /** seq of the first keyed link, or null on a never-keyed chain. On a mixed chain the
+   *  keyless PREFIX is still protected — a forge cascades into this link, which cannot be
+   *  re-MAC'd without the key — so the surface can name where the protection begins. */
+  firstKeyedSeq: number | null;
+};
 
 type DecisionRow = {
   seq: number;
@@ -346,12 +374,34 @@ export function listDecisionRecordsForRefs(
 
 /** Recompute the entire chain in seq order and confirm each link's prev_hash and
  *  content_hash still match a fresh hash of its stored payload. A single edited /
- *  deleted / reordered row trips `ok:false` at the first divergent seq. */
+ *  deleted / reordered row trips `ok:false` at the first divergent seq.
+ *
+ *  Returns the KEY CENSUS too (keyed / keylessCount / firstKeyedSeq): `ok` says the
+ *  chain is internally consistent, the census says how much that is worth against an
+ *  insider. UAT LUC-ANA-1 — the two are different claims and the surface must be able
+ *  to tell them apart. */
 export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID): ChainVerdict {
   const d = db();
   // Per-tenant verify: walk ONLY this workspace's records in seq order — its chain is
   // independent, so another team's rows are neither read nor needed for this proof.
   const rows = d.prepare(`SELECT * FROM decision_records WHERE workspace_id = ? ORDER BY seq ASC`).all(workspaceId) as DecisionRow[];
+  // UAT LUC-ANA-1 — census FIRST, in its own pass, so every exit below (including each
+  // failure) reports the same complete key picture. A verdict that dropped the census on
+  // the failure paths would let the surface fall back to the unconditional claim exactly
+  // when it is least entitled to it.
+  let keylessCount = 0;
+  let firstKeyedSeq: number | null = null;
+  for (const r of rows) {
+    if ((r.key_id ?? LEGACY_KEY_ID) === LEGACY_KEY_ID) keylessCount += 1;
+    else if (firstKeyedSeq === null) firstKeyedSeq = r.seq;
+  }
+  const census = {
+    count: rows.length,
+    keylessCount,
+    keyed: rows.length > 0 && keylessCount === 0,
+    firstKeyedSeq,
+  };
+  const broken = (seq: number): ChainVerdict => ({ ok: false, brokenAtSeq: seq, ...census });
   let prevHash = "";
   let seenKeyed = false;
   for (const r of rows) {
@@ -359,7 +409,7 @@ export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID):
     try {
       payload = JSON.parse(r.payload_json);
     } catch {
-      return { ok: false, count: rows.length, brokenAtSeq: r.seq };
+      return broken(r.seq);
     }
     const keyId = r.key_id ?? LEGACY_KEY_ID;
     let expected: string;
@@ -367,22 +417,22 @@ export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID):
       // A keyless row is legitimate ONLY within the pre-key prefix. Once any keyed row
       // has been seen, a keyless row is a DOWNGRADE forgery (an insider re-hashed a keyed
       // row with the public keyless algorithm to dodge the MAC) — reject it.
-      if (seenKeyed) return { ok: false, count: rows.length, brokenAtSeq: r.seq };
+      if (seenKeyed) return broken(r.seq);
       expected = decisionContentHash(prevHash, payload);
     } else {
       // Keyed row: recompute the MAC under the row's own key. No key material → fail
       // closed (a rotated-away key that wasn't kept available; integrity unprovable).
       const secret = decisionKeyById(keyId);
-      if (!secret) return { ok: false, count: rows.length, brokenAtSeq: r.seq };
+      if (!secret) return broken(r.seq);
       seenKeyed = true;
       expected = decisionContentMac(prevHash, keyId, payload, secret);
     }
     if (r.prev_hash !== prevHash || r.content_hash !== expected) {
-      return { ok: false, count: rows.length, brokenAtSeq: r.seq };
+      return broken(r.seq);
     }
     prevHash = r.content_hash;
   }
-  return { ok: true, count: rows.length, brokenAtSeq: null };
+  return { ok: true, brokenAtSeq: null, ...census };
 }
 
 /** The kind the screening wave seals when it spares a would-be auto-reject to form

@@ -6,12 +6,12 @@ import { useTranslations } from "next-intl";
 import { AMBER, MOSS, STEEL } from "../tokens";
 import { ROW } from "./shared";
 
-/* 09 · Offer to onboarded — the last mile. */
+/* 09 · Offer to hired — the last mile. */
 const STEPS = [
   { key: "figure", done: true },
   { key: "letter", done: true },
   { key: "accepted", done: true },
-  { key: "onboarding", done: false }
+  { key: "handoff", done: false }
 ] as const;
 
 export default function OfferPreview() {

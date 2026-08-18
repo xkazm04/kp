@@ -1,4 +1,4 @@
-import type { Entry as PipelineEntry } from "@/app/features/shared/pipelineTypes";
+import type { Entry as PipelineEntry, StageDef } from "@/app/features/shared/pipelineTypes";
 
 // The drawer needs only a subset of the board's record. Pick it from the canonical
 // PipelineTypes.Entry instead of re-declaring the fields, so a rename or retype on
@@ -67,4 +67,10 @@ export type PipelineCandidateDrawerProps = {
   onOpenEntry?: (entryId: string) => void;
   cohort?: PipelineEntry[];
   onNavigate?: (entry: PipelineEntry) => void;
+  // UAT KAT-L1-002 — the board's RESOLVED axis, so the drawer can ask whether this
+  // candidate is standing on the terminal (hired) stage by ROLE rather than by the
+  // name "Hired": the axis is workspace-editable, and a renamed last column must not
+  // silently hide the on-the-job capture card. Optional so a caller without the axis
+  // (any standalone render) falls back to the shipped board in stageHasRole.
+  axis?: readonly StageDef[];
 };

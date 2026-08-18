@@ -7,6 +7,7 @@ import { TextInput } from "@/app/_components/TextInput";
 import { FIELD, META_LABEL } from "@/app/_components/ui/recipes";
 import { accentIsLegible, normalizeHex6, sanitizeLogoUrl } from "@/app/_lib/brand-config";
 import { CORAL, INK, MOSS, STEEL } from "@/app/_lib/brand";
+import { SETUP_PROSE } from "./setupProse";
 import type { OnboardingCtrl } from "./setupSteps";
 
 // Company step — org name (required) and an OPTIONAL first brand touch (accent +
@@ -34,8 +35,10 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
   const isPreset = ACCENT_PRESETS.some((p) => p.hex === ctrl.state.accentColor);
 
   return (
-    <div className="max-w-md space-y-5">
-      <div>
+    // No cap on the step: the FIELDS stay at a reading-comfortable max-w-md, the
+    // descriptions run to the pane's prose width (setupProse.ts).
+    <div className="space-y-5">
+      <div className="max-w-md">
         <label htmlFor="setup-org-name" className={`${META_LABEL} block`}>
           {t("nameLabel")}
           <span aria-hidden className="text-coral">
@@ -56,7 +59,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
 
       <fieldset>
         <legend className={`${META_LABEL} block`}>{t("brandLabel")}</legend>
-        <p className="mt-0.5 text-sm text-steel">{t("brandHint")}</p>
+        <p className={`mt-0.5 text-sm text-steel ${SETUP_PROSE}`}>{t("brandHint")}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {ACCENT_PRESETS.map(({ key, hex }) => {
             const active = ctrl.state.accentColor === hex;
@@ -110,7 +113,7 @@ export function CompanyStep({ ctrl }: { ctrl: OnboardingCtrl }) {
         </div>
         {customWarn ? <p className="mt-1.5 text-sm text-coral">{t("accent.illegible")}</p> : null}
 
-        <div className="mt-3">
+        <div className="mt-3 max-w-md">
           <label htmlFor="setup-logo-url" className={`${META_LABEL} block`}>
             {t("logoLabel")}
           </label>

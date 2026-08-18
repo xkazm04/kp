@@ -21,7 +21,7 @@ been extended to them.
 
 ```
 app/features/
-  hiring/       channels, decisions (+groupEval), onboarding, pipeline, schedule
+  hiring/       channels, decisions (+groupEval), pipeline, schedule
   library/      jds, jobs
   insights/     about, analytics, matrix (+ matrix/focus — the candidate-focus
                 mode, formerly the standalone Match tab)
@@ -32,7 +32,10 @@ app/features/
                 tab catalog, AI tasks, simulation dock)
   shared/       cross-cutting types/logic with 2+ feature-group consumers
                 (MatchPresentation, decisionsTypes, groupEvalTypes,
-                matchTypes, pipelineTypes, profileTypes, renderTemplate, …)
+                matchTypes, pipelineTypes, profileTypes, renderTemplate,
+                pipelineAxisDraft + usePipelineAxisCopy — the board-column
+                editing model and its copy, shared by Settings → Hiring and
+                the first-run wizard's Pipeline step, …)
 ```
 
 This matches the refactor's target 1:1 (menu group → tab → folder). `shell/`
@@ -74,9 +77,11 @@ so there is no frame of the wrong tab before a correction. The effect does only
 the side effect: emptying the inbox.
 
 `parse` owns the vocabulary, so legacy ids (`?tab=profile`, `?tab=dev`) still
-resolve via `LEGACY_TAB_ALIASES` and a gated tab (`ABOUT_TAB_IN_NAV`,
-`AGENTS_TAB_IN_NAV`) is *rejected* rather than adopted-then-corrected — a link to
-a gated view is inert instead of bouncing the reader to the default.
+resolve via `LEGACY_TAB_ALIASES` and a gated tab (`AGENTS_TAB_IN_NAV`) is
+*rejected* rather than adopted-then-corrected — a link to a gated view is inert
+instead of bouncing the reader to the default. About was gated the same way
+until it was rebuilt as a six-chapter explainer for readers who are not in a dev
+build; `ABOUT_TAB_IN_NAV` is gone and the tab now ships in every environment.
 
 **Trade-off, chosen deliberately:** with no URL write there is no history entry
 per switch, so Back no longer steps through tabs — it leaves the workspace.
@@ -140,6 +145,45 @@ warms every chunk in its group on hover, focus and click (`prefetchSection`), so
 opening a section starts all of its tabs' downloads at once — 2–7 small chunks
 per group, deduped per document by `prefetchTabChunk`.
 
+### The command palette lives on the rail
+
+`shell/WorkspaceCommandPalette.tsx` is the Ctrl/Cmd+K search + navigator. Its
+trigger is a **rail button** (icon + "Search" label, first in the rail's bottom
+group, above feedback / theme / language / sign-out) — mounted on BOTH sidebars:
+`WorkspaceNavDrawer.tsx` (SPA) and the link-mode `WorkspaceNav.tsx` (deep-link
+pages; wrapped in `Suspense` because it reads `useSearchParams`, and it uses
+`useOptionalSimulation()` so the tour command is simply absent where there is no
+`SimulationProvider`). The surface is a **top-centre, chromeless dialog**
+(`Modal placement="top" bare` — the launcher idiom: the eye starts at the input,
+results grow down). The host owns all state (query, debounced `/api/search`,
+keyboard highlight); while typing, entity hits lead and the tab navigator trails.
+
+The body is `WorkspacePaletteLedger.tsx` — the `/prototype` winner ("Ledger",
+master–detail): a dense grouped index on the left (`WorkspacePaletteRow.tsx`:
+glyph tile, match highlight) and a **live preview pane** on the right for the
+highlighted row: kind eyebrow, the name in the display face, the destination's
+quick facts, "Opens in …", and an explicit Open ↵ button. Group glyphs/tints and
+the destination resolver live in `workspacePaletteMeta.ts`.
+
+**Preview facts** — `GET /api/palette/preview?tab=<id>` or `?type=<hit>&id=…`
+returns one `PalettePreview` union member (`app/_lib/palette-preview/types.ts`);
+per-destination resolvers (`resolve-hiring.ts`, `resolve-library-tools.ts`,
+`resolve-insights-settings.ts`, `resolve-entities.ts`, dispatched by `index.ts`)
+compute 2–6 facts from the cheap tenant-scoped primitives (counts, small lists —
+never `pipelineAnalytics` or a Python spawn). Operator-only tabs (billing, models,
+integrations, organization, workspaces) resolve to `{ view: "restricted" }` for a
+demo session (`isOperator()`); the analysis view applies the same PII masking as
+`/api/analyses/[slug]`. Client side, `shell/palette/usePalettePreview.ts`
+(120 ms debounce, aborting, 30 s per-key memo) feeds `PalettePreviewPane.tsx`,
+which dispatches to one small renderer per view (`PreviewHiring.tsx`,
+`PreviewLibraryTools.tsx`, `PreviewInsightsSettings.tsx`, `PreviewEntities.tsx`)
+built from `previewBits.tsx` (Tiles/Tile, Row, Status dot, Chips, RankList,
+`useFmt`). Copy lives under the `palettePreview` catalog namespace. Adding a
+destination = one union member + one resolver case + one renderer.
+
+The old sidebar "Recent" group (`WorkspaceRecentsNav`) was removed; `recents.ts`
+remains, feeding the palette's resting state and recording opens.
+
 ## Why `shared/` exists
 
 Before the refactor, three things made the tree impossible to split cleanly:
@@ -188,6 +232,50 @@ Two shape decisions are load-bearing:
   (`settings/organization/OrganizationBackupPanel.tsx`), and the outbound
   `kp.ats.v1` webhook into **Settings → Integrations**
   (`settings/integrations/IntegrationsWebhookPanel.tsx`).
+
+## `shell/setup/` — the first-run wizard
+
+One overlay, two modes (`OnboardingExperience.tsx`): **live** on a first run
+(mounted by `Workspace` when the `/` gate says so; `?onboarding=1` forces it) and
+**preview** from Settings → Organization, which reads but writes nothing. Four
+steps and a hand-off, crossfaded one at a time inside a centred card whose left
+rail carries the brand, the stepper and the language switch:
+
+| Step | Asks for | Persisted by `finish()` |
+| --- | --- | --- |
+| Welcome | nothing (the pitch) | — |
+| Company | org name (**required**), optional accent + logo | `setOrgName`, `PUT /api/brand` |
+| Team | invites (optional) | `POST /api/org/invites` per row |
+| Pipeline | the board's columns (optional) | `POST /api/pipeline/stage-migration`, **only when changed** |
+| Hand-off | how to begin (tour / solo) | stamps `POST /api/me/onboarding` |
+
+Two rules the steps share. **Language lives in the rail**, not in a step — see
+[`localization.md`](./localization.md#choosing-the-app-language). And **no step
+offers a skip button**: `stepSatisfied()` (`setupSteps.ts`) gates only `company`
+(an org name) and the *validity* of the pipeline axis, so on Team and Pipeline
+pressing Continue IS the skip. Leaving the wizard entirely has exactly one
+affordance — the close control on the card. Everything else (a per-step "Skip for
+now", an *Optional* tag under the rail labels, a "Skip setup" ghost button beside
+Continue on Welcome, a "Step 1 of 5" counter under the language switch) was a
+second way to say something the card already says, and is gone.
+
+**Step 4 replaced a "First role" step** that collected the inputs of a real
+backgrounded JD build. Authoring a job description belongs in the Library, where a
+build has a ledger, a retry and honest engine caveats; the Getting-started
+checklist walks a new operator there (`setupGettingStartedModel.ts` → the
+`jd-builder` anchor). The board's shape took its place because it is the one
+decision every later screen depends on, it is cheap while nothing is on the board,
+and nothing else asks about it at first run. Its editing rules are NOT a second
+copy — `shared/pipelineAxisDraft.ts` is the same model Settings → Hiring uses, and
+`shared/usePipelineAxisCopy.ts` the same words (which is why both files sit in
+`shared/`: two feature groups now edit one axis). The wizard narrows it rather than
+forking it: the entry and terminal columns cannot be removed or re-roled, and an
+occupied column cannot be dropped, so no click in the step can produce a shape the
+server would refuse.
+
+Both variants of the step (`SetupPipelineBoardVariant`, `SetupPipelinePresetsVariant`)
+currently sit behind a switcher — that is a live `/prototype` scaffold, not a
+shipped feature. Consolidating on one direction removes the switcher.
 
 ## Pinned filenames
 

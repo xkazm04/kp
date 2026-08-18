@@ -1,6 +1,29 @@
 // Shared types + the search-hit → href mapping for the command palette, split out
 // of CommandPalette.tsx so the component stays under the 200-line file cap.
-import { buildUrl, clearedTabScopedParams } from "./tabs";
+import type { KeyboardEvent, RefObject } from "react";
+import type { useTranslations } from "next-intl";
+import { buildUrl, clearedTabScopedParams, type WorkspaceTabId } from "./tabs";
+import type { PaletteListView } from "./workspacePaletteResults";
+
+/** Everything the palette BODY needs from the CommandPalette host — the host
+ *  owns state (query, highlight, search); the body only renders. */
+export type PaletteViewProps = {
+  inputRef: RefObject<HTMLInputElement | null>;
+  query: string;
+  onQueryChange: (value: string) => void;
+  onInputKey: (e: KeyboardEvent<HTMLInputElement>) => void;
+  items: PaletteItem[];
+  active: number;
+  listView: PaletteListView;
+  error: string | null;
+  /** "⌘K" / "Ctrl K" — the platform-resolved shortcut label. */
+  kbdHint: string;
+  t: ReturnType<typeof useTranslations>;
+  nav: ReturnType<typeof useTranslations>;
+  go: (item: PaletteItem) => void;
+  setSelected: (i: number) => void;
+  onClose: () => void;
+};
 
 export type SearchHit = { type: "profile" | "entry" | "job" | "jd" | "analysis"; id: string; label: string; sub: string | null };
 export type PaletteItem = {
@@ -21,6 +44,9 @@ export type PaletteItem = {
   // Entity identity for SHELL3 recents — picking the item records it (re-picks
   // re-front via recordRecent's dedup). Absent on tab actions.
   recent?: { type: SearchHit["type"]; id: string };
+  // The destination tab of a "Go to" item — the preview pane's key for tabs
+  // (entities key off `recent`).
+  tabId?: WorkspaceTabId;
 };
 
 export const DEBOUNCE_MS = 200;

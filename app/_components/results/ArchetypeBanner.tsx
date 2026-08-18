@@ -64,7 +64,15 @@ export function ArchetypeBanner({
   // bug-ui-scan-2026-07-09 (analysis-result-panels #2): absent confidence/completeness
   // must read as "unknown" (chip omitted), not a definite "0%". formatOptionalFraction
   // returns null for absent/non-finite and a range-guarded "NN%" otherwise.
-  const confidence = formatOptionalFraction(v2.archetypeConfidence, "archetypeConfidence");
+  // UAT RECON-06 — this number is a VOTE SHARE, not a confidence. registry.detect
+  // sums the weight of every routing signal that fired and returns
+  // `scores[winner] / total` (pipeline/jobfit/registry.py:200-206), so "82%" means
+  // "82% of the routing signal weight pointed here", not "82% sure this is right".
+  // A self-declaration short-circuits the vote to a fixed 0.9 (0.65 when a signal
+  // contradicts it), which is a policy constant and not a measurement either. The
+  // catalog word is now "signals agree" (report.archetype.confidence); the field
+  // name stays `archetypeConfidence` because it is the Python wire contract.
+  const signalAgreement = formatOptionalFraction(v2.archetypeConfidence, "archetypeConfidence");
   const completeness = formatOptionalFraction(v2.completeness, "completeness");
   const reasons = v2.archetypeReasons ?? [];
   // Only gaps the form knows how to collect for (an unknown/new check id has no
@@ -102,12 +110,12 @@ export function ArchetypeBanner({
         <Sparkles size={16} className="text-coral" aria-hidden />
         <span className="text-meta uppercase tracking-wide text-coral">{t("archetype.detected")}</span>
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-sm font-semibold text-white">{label}</span>
-        {confidence != null ? (
-          <span className="text-sm text-steel">{t("archetype.confidence", { value: confidence })}</span>
+        {signalAgreement != null ? (
+          <span className="text-sm text-steel">{t("archetype.confidence", { value: signalAgreement })}</span>
         ) : null}
         {completeness != null ? (
           <span className="text-sm text-steel">
-            {confidence != null ? "· " : ""}
+            {signalAgreement != null ? "· " : ""}
             {t("archetype.completeness", { value: completeness })}
           </span>
         ) : null}

@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ArrowRight, Play } from "lucide-react";
 import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { useSimulation } from "@/app/features/shell/simulation/SimulationProvider";
-import { CHAPTERS } from "./chapters";
+import { CHAPTERS, type ChapterDef } from "./chapters";
 import { ChapterRail } from "./ChapterRail";
 import { Scene } from "./stage/Scene";
 
@@ -43,22 +44,25 @@ const ScoringScene = dynamic(() => import("./scenes/scoring").then((m) => ({ def
 const ScreeningScene = dynamic(() => import("./scenes/screening").then((m) => ({ default: m.ScreeningScene })), {
   loading: Loading,
 });
+const ArchetypesScene = dynamic(() => import("./scenes/archetypes").then((m) => ({ default: m.ArchetypesScene })), {
+  loading: Loading,
+});
+const AssignmentsScene = dynamic(() => import("./scenes/assignments").then((m) => ({ default: m.AssignmentsScene })), {
+  loading: Loading,
+});
+const GatesScene = dynamic(() => import("./scenes/gates").then((m) => ({ default: m.GatesScene })), {
+  loading: Loading,
+});
 
-/** Chapter id → its art. Chapters absent here render the honest placeholder. */
+/** Chapter id to its art. Every chapter in CHAPTERS must have an entry. */
 const SCENES: Record<string, React.ComponentType> = {
   "job-descriptions": JdScene,
   scoring: ScoringScene,
   screening: ScreeningScene,
+  archetypes: ArchetypesScene,
+  assignments: AssignmentsScene,
+  "human-gates": GatesScene,
 };
-
-/** Placeholder for a chapter whose art is not built yet. Honest about it. */
-function Pending({ chapter }: { chapter: (typeof CHAPTERS)[number] }) {
-  return (
-    <div className="grid min-h-[14rem] place-items-center rounded-lg border border-dashed border-stone-300 p-6">
-      <p className="text-base text-stone-400">Scene for “{chapter.title}” not built yet.</p>
-    </div>
-  );
-}
 
 /**
  * One chapter frame.
@@ -71,7 +75,7 @@ function Pending({ chapter }: { chapter: (typeof CHAPTERS)[number] }) {
  * to its `initial` (opacity 0) mid-flight, so labels flickered and most of the
  * diagram never became visible. One clock per scene, owned by the art.
  */
-function Chapter({ chapter, children }: { chapter: (typeof CHAPTERS)[number]; children: React.ReactNode }) {
+function Chapter({ chapter, children }: { chapter: ChapterDef; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   return (
     <Scene chapter={chapter} sceneRef={ref}>
@@ -81,34 +85,30 @@ function Chapter({ chapter, children }: { chapter: (typeof CHAPTERS)[number]; ch
 }
 
 export function AboutTab() {
+  const t = useTranslations("about");
   const sim = useSimulation();
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel sm:p-6">
       <header className="max-w-3xl border-b border-stone-200 pb-6">
-        <p className={EYEBROW}>How it works</p>
-        <h2 className={`mt-1 ${TITLE_DISPLAY}`}>Six mechanisms, shown running</h2>
-        <p className={`mt-3 ${INTRO}`}>
-          Hiring software asks you to trust a number. These are the six places this product produces one — how a role
-          gets written, how a person gets scored, who gets filtered and by what, how different kinds of candidate are
-          kept from being flattened into one rule, what a work sample can still prove, and where a human has to decide.
-          Every threshold named below is a constant in the running code.
-        </p>
+        <p className={EYEBROW}>{t("eyebrow")}</p>
+        <h2 className={`mt-1 ${TITLE_DISPLAY}`}>{t("title")}</h2>
+        <p className={`mt-3 ${INTRO}`}>{t("intro")}</p>
         <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2">
           <Link
             href="/diagrams"
             className="focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
           >
-            Architecture diagrams <ArrowRight size={15} aria-hidden />
+            {t("archLink")} <ArrowRight size={15} aria-hidden />
           </Link>
           {!sim.running ? (
             <button
               type="button"
               onClick={sim.start}
-              title="Walk the pipeline live, across the real tabs"
+              title={t("tourTitle")}
               className="focus-ring inline-flex items-center gap-1.5 text-base font-medium text-coral hover:underline"
             >
-              <Play size={15} aria-hidden /> Watch the guided tour
+              <Play size={15} aria-hidden /> {t("tourLink")}
             </button>
           ) : null}
         </div>
@@ -120,7 +120,7 @@ export function AboutTab() {
             const Art = SCENES[chapter.id];
             return (
               <Chapter key={chapter.id} chapter={chapter}>
-                {Art ? <Art /> : <Pending chapter={chapter} />}
+                <Art />
               </Chapter>
             );
           })}

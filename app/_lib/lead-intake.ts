@@ -16,6 +16,8 @@
 // and the localized human-facing response copy.
 
 import type { JobRecord } from "./db/core";
+import { getPipelineAxis } from "./pipeline-axis-server";
+import { stageWithRole } from "./pipeline-stages";
 import { getJobWorkspace } from "./db/jobs";
 import { createPipelineEntry, ensureLeadEnrichToken, findApplicationByApplicant, mergeReapplication, recordAutomationEvent, recordEntryConsent, recordKnockoutDecline } from "./db/pipeline";
 
@@ -226,7 +228,9 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
     roleFamily: job.roleFamily ?? null,
     jobId: job.id,
     jobTitle: job.title,
-    stage: "Accepted",
+    // A fresh application arrives at the board's ENTRY column, whatever this
+    // workspace calls it — not at a stage that happens to be named "Accepted".
+    stage: stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted",
     dedupeKey: applyDedupeKey(name, email),
     intakeDegraded: true,
     intakeDegradedReason: stubReason,

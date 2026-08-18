@@ -36,7 +36,9 @@ const KEY_PREFIX = "kp.recents:";
 // once the tenant is known rather than adopted into the current team, which
 // would be the very leak this scoping closes.
 const LEGACY_KEY = "kp.recents";
-const CAP = 8;
+// Five: the palette's resting state leads with these, and more than a handful
+// stops being "where was I" and starts being a second list to scan.
+const CAP = 5;
 // Same-document change signal so every mounted consumer (sidebar, palette)
 // re-reads when any of them records — and when the tenant finally resolves.
 const EVENT = "kp:recents-changed";
@@ -121,7 +123,7 @@ function readList(key: string): RecentItem[] {
         typeof (r as RecentItem).id === "string" &&
         typeof (r as RecentItem).label === "string" &&
         typeof (r as RecentItem).href === "string"
-    );
+    ).slice(0, CAP); // a list stored under an older, larger cap is trimmed on read
   } catch {
     return []; // corrupt / unavailable storage — start empty
   }

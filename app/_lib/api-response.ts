@@ -72,6 +72,8 @@ export const STORE_ERRORS = {
   INTERVIEW_PREP_FAILED: "Could not load interview prep. Please try again.",
   // Pipeline board routes (idea-66f52a3a): all sit directly on better-sqlite3.
   PIPELINE_LIST_FAILED: "Could not load the pipeline. Please try again.",
+  STAGE_IMPACT_FAILED: "Could not check who is on each pipeline step. Please try again.",
+  STAGE_MIGRATION_FAILED: "Could not apply the pipeline change. Nothing was saved; please try again.",
   PIPELINE_CREATE_FAILED: "Could not add to the pipeline. Please try again.",
   PIPELINE_ACTION_FAILED: "Could not apply that action. Please try again.",
   PIPELINE_EVENTS_FAILED: "Could not load recent activity. Please try again.",
@@ -122,8 +124,6 @@ export const STORE_ERRORS = {
   DATA_ERASE_FAILED: "Could not complete the erasure right now. Please try again.",
   // Recruiter-facing consent snapshot + audit trail (drawer Data & consent panel).
   CONSENT_LOOKUP_FAILED: "Could not load consent details. Please try again.",
-  // Onboarding hand-off (#6) — runs / templates / checklist / e-sign seam.
-  ONBOARDING_FAILED: "Could not complete the onboarding action. Please try again.",
   // NL pipeline command bar (#7) — parse + preview/execute.
   COMMAND_FAILED: "Could not run that command. Please try again.",
   // Cross-company reference tier (Phase 2) — the org-wide hiring benchmark (org_id-join).
@@ -173,6 +173,14 @@ export const REFUSAL_ERRORS = {
   OFFER_NOT_FOUND: "Offer not found.",
   /** A work-session id presented without, or with the wrong, apply token (403). */
   SESSION_TOKEN_REQUIRED: "This work session belongs to a different apply link.",
+  /** An on-the-job rating was posted for an entry that is not on the board (404). */
+  HIRE_RATING_ENTRY_NOT_FOUND: "That candidate is not on this board.",
+  /** …or for someone who never took the job (409). The stage is re-read server-side,
+   *  so a drawer left open across a stage change refuses instead of rating a
+   *  candidate who was never hired. */
+  HIRE_RATING_NOT_HIRED: "Only a hired candidate can carry an on-the-job rating.",
+  /** …or with a value outside the 1..5 scale (400). */
+  HIRE_RATING_INVALID: "An on-the-job rating must be a whole number from 1 to 5.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

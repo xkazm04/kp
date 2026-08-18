@@ -63,7 +63,7 @@ Verdict legend: **MISSING** (we have nothing) · **PARTIAL** (we have a weaker v
 | B3 | **AI performance reviews** | Manager copilot; goals + KPIs + 360° feedback | Nothing | **MISSING** |
 | B4 | **Project team staffing** | Recommends team compositions from skills/motivations/traits | Nothing | **MISSING** |
 | B5 | **Workforce planning / succession** | Agent interviews employees about motivation & career; reorg + reskilling recommendations | Nothing | **MISSING** |
-| B6 | **Onboarding** | Not emphasized | Onboarding templates, runs, checklists, e-sign, pre-boarding questionnaire | **AHEAD** |
+| B6 | **Onboarding** | Not emphasized | Not offered — kp ends at Hired and hands off to the HRIS (`candidate.hired` ATS webhook). kp shipped onboarding templates/runs/checklists/e-sign and then removed them: post-hire activity is a different product, and carrying it diluted the hiring story | **PARITY (both out of scope)** |
 
 ### 1.3 Integrations, trust, commercial
 

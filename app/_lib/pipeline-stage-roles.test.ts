@@ -17,7 +17,10 @@ import {
   hasAdvancedPastScreening,
   isScreeningStage,
   PIPELINE_STAGES,
+  roleOf,
   SCREENING_STAGES,
+  screenedLandingStage,
+  stageHasRole,
   screeningGateIndex,
   screeningStageIds,
   stageIndex,
@@ -141,6 +144,39 @@ test("a custom stage participates in ordering and claims no semantics", () => {
   assert.equal(screeningGateIndex(withCustom), 3);
   assert.equal(hasAdvancedPastScreening("Reference check", withCustom), false);
   assert.equal(stageIndex("Reference check", withCustom), 2);
+});
+
+// ---- The helpers that replaced the last name comparisons -------------------
+
+test("stageHasRole answers the questions `=== \"Hired\"` used to ask", () => {
+  assert.equal(stageHasRole("Hired", "terminal"), true);
+  assert.equal(stageHasRole("Offer", "offer"), true);
+  assert.equal(stageHasRole("Accepted", "entry"), true);
+  assert.equal(stageHasRole("Interview", "terminal"), false);
+  // An OFF-AXIS id is not the terminal stage just because it used to be called
+  // Hired: a candidate stranded on a retired column has no role to resolve, and
+  // guessing one would fire a rule on somebody nobody has reclassified yet.
+  assert.equal(stageHasRole("Hired", "terminal", axis(["In", "entry"], ["Done", "terminal"])), false);
+  assert.equal(roleOf("Hired", axis(["In", "entry"], ["Done", "terminal"])), null);
+});
+
+test("stageHasRole follows a RENAMED column, which is the whole point", () => {
+  const renamed = axis(["Applied", "entry"], ["Triage", "screening"], ["Meeting", "interview"], ["Signed", "terminal"]);
+  assert.equal(stageHasRole("Signed", "terminal", renamed), true);
+  assert.equal(stageHasRole("Applied", "entry", renamed), true);
+  assert.equal(roleOf("Meeting", renamed), "interview");
+});
+
+test("screenedLandingStage names where an already-assessed candidate belongs", () => {
+  assert.equal(screenedLandingStage(), "Screened", "the shipped axis is unchanged");
+  // Several screening stages: the LAST one, i.e. as far as assessment goes.
+  assert.equal(
+    screenedLandingStage(axis(["In", "entry"], ["Auto", "screening"], ["Human", "screening"], ["Talk", "interview"], ["Out", "terminal"])),
+    "Human"
+  );
+  // No screening stage at all: fall back to the entry column rather than
+  // returning nothing — a rematched candidate still has to land somewhere.
+  assert.equal(screenedLandingStage(axis(["In", "entry"], ["Talk", "interview"], ["Out", "terminal"])), "In");
 });
 
 test("an axis with no interview stage falls back to offer, then terminal, then nobody", () => {

@@ -16,6 +16,7 @@ import { PipelineStatHeader } from "./PipelineStatHeader";
 import { PipelineFilterBar } from "./PipelineFilterBar";
 import { PipelinePopulatedBoard } from "./PipelinePopulatedBoard";
 import { Fade } from "./PipelineMotion";
+import { resolveStageFilter } from "./usePipelineFilters";
 
 // Tier 3 (docs/design/loading-choreography.md): the candidate drawer is a 1300+ line
 // subtree (scorecards, interview transcript, consent panel, GitHub evidence,
@@ -141,6 +142,16 @@ export function PipelineTab() {
             quicks={s.quicks}
             onToggleQuick={s.toggleQuick}
             stageFilter={s.stageFilter}
+            /* UAT TOM-ANA-11 — resolve the deep-linked stage against the columns this
+               WORKSPACE actually renders (Settings → Hiring composes them), not the
+               shipped five. The axis rides in with the board payload, so it is only
+               trustworthy once entries have landed; until then the bar is told
+               "not known yet" (null) and shows no notice it might have to retract. */
+            stageResolved={
+              s.stageFilter && s.entries != null
+                ? resolveStageFilter(s.stageFilter, s.axis, s.retiredStages)
+                : null
+            }
             onClearStage={s.clearStageFilter}
             filtering={s.filtering}
             shownCount={s.filteredEntries.length}
@@ -202,6 +213,10 @@ export function PipelineTab() {
           onOpenEntry={s.openEntryById}
           cohort={s.cohortOrder}
           onNavigate={s.setDrawerEntry}
+          // UAT KAT-L1-002 — the resolved axis the board is already holding, so the
+          // drawer reads "is this candidate hired?" as a stage ROLE and not as the
+          // literal name "Hired".
+          axis={s.axis}
         />
       ) : null}
     </div>

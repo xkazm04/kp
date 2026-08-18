@@ -228,18 +228,18 @@ api --> fn
 fn --> db : accept -> Hired`,
   },
   hire: {
-    title: "Onboarding handoff",
+    title: "Hire handoff to the HRIS",
     status: "live",
     summary:
-      "Direction #4 terminal: reaching Hired fires an onboarding handoff comm, so the automated middle of the funnel finally has an automated end.",
-    files: ["app/_lib/comms-dispatch.ts (dispatchOnboarding)", "app/_lib/db.ts", "app/_lib/comms.ts"],
+      "Direction #4 terminal: Hired is where kp's job ends. The transition mirrors the hire into whatever ATS/HRIS the workspace configured (candidate.hired webhook), so the system of record gets the outcome without re-keying. What happens after — paperwork, equipment, day one — is deliberately the HRIS's job, not this app's.",
+    files: ["app/_lib/offer-finalize.ts", "app/_lib/ats-egress.ts", "app/api/ats/deliveries/route.ts"],
     puml: `[Entry -> Hired] <<auto>> as h
-[dispatchOnboarding\\ncomms-dispatch.ts] as fn
-[sendComm] as send
-database "dev_outbox\\npipeline_events" as db
+[dispatchAtsEvent\\ncandidate.hired] as fn
+[ATS / HRIS webhook] as send
+database "ats_delivery\\npipeline_events" as db
 h --> fn
 fn --> send
-send --> db : onboarding handoff`,
+send --> db : hire handoff`,
   },
   cron: {
     title: "Scheduler / cron",

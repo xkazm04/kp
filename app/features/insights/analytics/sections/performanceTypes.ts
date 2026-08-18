@@ -14,8 +14,11 @@ export type PerformanceProps = {
   convDeltaByStage: Map<string, Delta>;
   /** Board deep link carrying the matching filter (ANA1 — every chart links to its candidates). */
   boardHref: (filter: { q?: string; stage?: string }) => string;
-  /** Review-only: force the funnel's zero state on any workspace (?funnelEmpty=1). */
-  forceFunnelEmpty: boolean;
+  // UAT TOM-ANA-5 — `forceFunnelEmpty` (the `?funnelEmpty=1` review hatch) is gone.
+  // It was threaded through three files and destructured by nobody, and the state it
+  // simulated is now reached the honest way: `hasNoStageTransitions` is back on the
+  // render path, so the zero-transition guide shows when the data says so rather
+  // than when a query param says so.
   /** Re-fetch the analytics payload after an inline write (a goal edit). */
   reload: () => void;
 };

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { calibrationPairs } from "@/app/_lib/db/analyses";
 import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
 import { heldOutEntryIds } from "@/app/_lib/decision-record-store";
-import { computeCalibration, computeCalibrationCohorts, recommendScreeningThreshold, calibrationLeakage, type CalibrationSource } from "@/app/_lib/calibration";
+import { asCalibrationOutcome, computeCalibration, computeCalibrationCohorts, recommendScreeningThreshold, calibrationLeakage, type CalibrationOutcomeAxis, type CalibrationSource } from "@/app/_lib/calibration";
 import { getDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { effectiveFloor } from "@/app/_lib/decision-config-schema";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -34,6 +34,12 @@ const calibrationCache = createTtlCache<Record<string, unknown>>();
 //     gates pipeline decisions, so it is opt-in and labeled).
 // The response echoes `measures` so the panel can state which score the curve
 // is about instead of an undifferentiated "fit score".
+//
+// UAT KAT-L1-003 — and ?outcome=advance|hired picks WHAT COUNTS AS SUCCESS, the
+// second axis of the same instrument. `advance` is the historical label (past the
+// screen gate, i.e. interview/offer/hired collapsed into one); `hired` is "reached
+// the terminal stage", which needs only stage data and no performance rating. The
+// response echoes `outcome` for the same reason it echoes `measures`.
 export async function GET(request: Request) {
   try {
     const params = new URL(request.url).searchParams;
@@ -43,18 +49,30 @@ export async function GET(request: Request) {
     // screening wave SPARED from auto-rejection, whose outcome the score therefore did
     // not mechanically produce. It is the one source whose curve is not circular.
     const source: CalibrationSource = rawSource === "analysis" ? "analysis" : rawSource === "holdout" ? "holdout" : "pipeline";
+    // ?outcome (UAT KAT-L1-003) — WHICH question the curve answers: "advance"
+    // (default, the historical behaviour: 1 = past the screen gate) or "hired"
+    // (1 = reached the terminal stage). The analysis producer pairs a recruiter
+    // DISPOSITION and carries no pipeline stage at all, so it can only ever answer
+    // the advance question; asking it for the hire axis falls back rather than
+    // returning an advance curve under a hire label. The response ECHOES the axis
+    // actually applied, so a fallback can never be mislabelled on screen.
+    const outcome: CalibrationOutcomeAxis =
+      source === "analysis" ? "advance" : asCalibrationOutcome(params.get("outcome"));
     // P1 — both producers are per-team reliability metrics: scope BOTH to the
     // caller's workspace (the pipeline branch previously defaulted, leaking the
     // default workspace's calibration curve to every team).
     const ws = await currentWorkspace();
     const family = roleFamily || null;
-    const payload = calibrationCache.get(calibrationCacheKey(ws, source, family), () => {
+    // The outcome axis rides in the SOURCE slot of the key (a `source:outcome`
+    // composite): both vocabularies are closed and colon-free, so the compound is
+    // collision-free, and no advance payload can ever be served for a hire request.
+    const payload = calibrationCache.get(calibrationCacheKey(ws, `${source}:${outcome}`, family), () => {
       const allPairs =
         source === "analysis"
           ? calibrationPairs(ws)
           : source === "holdout"
-            ? pipelineCalibrationPairs(ws, { onlyEntryIds: heldOutEntryIds(ws) })
-            : pipelineCalibrationPairs(ws);
+            ? pipelineCalibrationPairs(ws, { onlyEntryIds: heldOutEntryIds(ws), outcome })
+            : pipelineCalibrationPairs(ws, { outcome });
       // The distinct families present (from the UNFILTERED set) so the UI can offer a
       // data-driven "how accurate are you for <family> roles?" selector — stable
       // regardless of which family is currently selected.
@@ -78,7 +96,13 @@ export async function GET(request: Request) {
         // floor on the all-families view. So a family-scoped suggestion targets the
         // family's own floor (and is now appliable), not the global knob.
         currentThreshold = effectiveFloor(screening, family);
-        recommendation = recommendScreeningThreshold(pairs, currentThreshold);
+        // KAT-L1-003 — the recommendation is about the SCREENING auto-reject floor,
+        // and it reads "how often did this band advance past screening". On the hire
+        // axis that arithmetic would silently become "how often did this band get
+        // hired", which is a different (and far thinner) basis for moving a screening
+        // gate. So the suggestion is derived on the advance axis only, and the panel
+        // says so instead of showing an absence that looks like "no evidence".
+        recommendation = outcome === "advance" ? recommendScreeningThreshold(pairs, currentThreshold) : null;
         // Surface which families carry an override so the panel can chip them.
         familyFloors = screening.familyFloors ?? {};
       }
@@ -87,7 +111,19 @@ export async function GET(request: Request) {
       // accuracy. `pipeline` is score-caused (high leakage); `holdout` is the clean
       // arm (low). The recommendation above rests on the pipeline curve, so its own
       // leakage rides here too, pointing the reader at the holdout arm to trust.
-      return { ...computeCalibration(pairs), families, measures: source, leakage: calibrationLeakage(source), cohorts, recommendation, currentThreshold, familyFloors };
+      return {
+        ...computeCalibration(pairs),
+        families,
+        measures: source,
+        // The axis actually applied (see the fallback above), so the panel labels the
+        // curve it got rather than the one it asked for.
+        outcome,
+        leakage: calibrationLeakage(source, outcome),
+        cohorts,
+        recommendation,
+        currentThreshold,
+        familyFloors,
+      };
     });
     return NextResponse.json(payload);
   } catch (error) {

@@ -25,9 +25,13 @@ archetype detection are `docs/features/candidates/README.md`.
   `app/features/library/jobs/JobsRecruiterCandidatesCard.tsx`.
 - **Interview compare** (per-cohort rubric) —
   `app/features/library/jobs/JobsCompareInterviews.tsx`.
-- **About → Students** (worked example, public-facing explainer) —
-  `app/features/insights/about/AboutStudents.tsx`,
-  `AboutStudentsExampleScoring.tsx`, `AboutStudentsInterviewScript.tsx`.
+- **About → Archetypes chapter** (how a candidate is routed, and why the three
+  scoring slots change meaning) —
+  `app/features/insights/about/scenes/archetypes/ArchetypeRouter.tsx`.
+  The former "About → Students" worked example
+  (`AboutStudents*.tsx`) was removed when the About tab was rebuilt as a
+  six-chapter explainer; the early-career scoring model it illustrated is
+  unchanged and still lives in `pipeline/jobfit/transform.py`.
 
 ## Flows
 
@@ -253,6 +257,6 @@ currency) but is not exercised by a second seeded market today.
     "app/features/insights/matrix/**",
     "app/features/library/jobs/JobsRecruiterCandidatesCard.tsx",
     "app/features/library/jobs/JobsCompareInterviews*.tsx",
-    "app/features/insights/about/AboutStudents*.tsx"
+    "app/features/insights/about/scenes/archetypes/**"
   ] }
 ```

@@ -86,7 +86,7 @@ const emittedKinds = new Set([...dispatchSrc.matchAll(/\bkind:\s*"([a-z_]+)"/g)]
 test("every kind the dispatchers emit is in the documented vocabulary (and vice versa)", () => {
   // Guard the guard: a rename/restructure that stops matching must fail loudly rather
   // than pass on an empty set.
-  assert.ok(emittedKinds.size >= 13, `expected >=13 dispatched kinds, found ${emittedKinds.size}`);
+  assert.ok(emittedKinds.size >= 11, `expected >=11 dispatched kinds, found ${emittedKinds.size}`);
   const documented = new Set<string>(KNOWN_COMM_KINDS);
   const undocumented = [...emittedKinds].filter((k) => !documented.has(k)).sort();
   const phantom = [...documented].filter((k) => !emittedKinds.has(k)).sort();

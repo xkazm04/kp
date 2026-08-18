@@ -1,10 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   AUTOMATION_ALERT_KINDS,
   COMM_SENT_KINDS,
   DECISION_META,
+  RETIRED_EVENT_KINDS,
   decisionAttribution,
+  resolveDecisionKindFilter,
   summarizeAutomationImpact,
   parseCohortProvenance,
   parseSealTraceability,
@@ -12,13 +17,22 @@ import {
   sealedReasonOf,
   parseRematchCounterpartId,
   waveReasonText,
+  parseEventActor,
+  HUMAN_ROLE_TOKENS,
   GROUP_EVAL_JOIN_WINDOW_MS,
 } from "./decision-attribution.ts";
+import { EVENT_KINDS } from "@/app/features/hiring/pipeline/pipelineEventCatalog";
 
 test("attribution is three-state and never defaults an unknown kind to auto", () => {
   assert.equal(decisionAttribution("auto_rejected"), "auto");
   assert.equal(decisionAttribution("rejected"), "human");
   assert.equal(decisionAttribution("some_future_kind"), "unknown");
+  // UAT LUC-ANA-6 / guardrail G6 — mapping the previously-unknown kinds must not have
+  // credited any of them to the machine by default. The human-oversight hand-off is the
+  // row an Art. 22 reviewer looks for, and it is a person's act, not a policy pass.
+  assert.equal(decisionAttribution("human_round_queued"), "human");
+  assert.equal(decisionAttribution("stage_migrated"), "human");
+  assert.equal(decisionAttribution("offer_reminder_sent"), "auto");
 });
 
 test("every comm-sent kind is a mapped kind (a delivery always has an attribution)", () => {
@@ -27,31 +41,111 @@ test("every comm-sent kind is a mapped kind (a delivery always has an attributio
   }
 });
 
-test("the kinds the writers produce are all mapped (the drift this module exists to stop)", () => {
-  // recordAutomationEvent call sites + db.ts recordEvent writers, as of W9-3.
-  const written = [
-    "matched", "added", "applied", "re_applied", "scored", "advanced", "auto_advanced", "moved",
-    "scheduled", "rejected", "auto_rejected", "intake_degraded", "intake_resolved",
-    "screening_hold", "interview_scorecard", "interview_prep_generated",
-    "interview_scheduled", "interview_invite_sent", "schedule_invite_sent", "interview_reminder_sent",
-    "interviewer_brief_sent", "interviewer_brief_skipped", "onboarding_reminder_sent",
-    "outreach_sent", "outreach_halted", "outreach_suppressed", "rejection_sent", "rejection_comms_failed",
-    "acknowledgement_sent", "comm_resent", "offer_drafted", "offer_sent",
-    "offer_accepted", "offer_declined", "offer_expired", "onboarding_started", "onboarding_failed",
-    "rematched", "rematched_from", "fairness_gate_unknown_archetype", "observed_minted",
-    "ko_declined", "role_reopened", "reinstated",
-    // group-eval-event-anchor — the comparative eval seals a lead/advisory record AND
-    // writes a `group_eval` pipeline event at seal time (group-eval-run.ts). Without a
-    // DECISION_META mapping it rendered UNKNOWN in the log and fell out of the rollup.
-    "group_eval",
-    // Policy-pass alert kinds — derived from the shared source the writer itself
-    // consumes (not a hand-copied literal), so a NEW alert kind forces a
-    // DECISION_META mapping instead of silently rendering UNKNOWN and falling out of
-    // the attribution rollup (bug-ui-scan §hiring-automation #4).
-    ...AUTOMATION_ALERT_KINDS,
-  ];
-  for (const kind of written) {
+// ---- the writer-coverage guard, DERIVED (UAT LUC-ANA-6) ---------------------------
+//
+// What was here before: a literal array of ~40 kinds, commented "as of W9-3". It was
+// hand-copied, so it aged into a snapshot the moment a writer shipped — and it PASSED
+// while four live kinds in the seeded workspace (offer_reminder_sent,
+// human_round_queued and two onboarding orphans) badged NEZNÁMÉ, sat in neither filter
+// and counted in no rollup. A drift guard whose input is typed out by the person adding
+// the drift cannot catch it. The same file already did this right for
+// AUTOMATION_ALERT_KINDS; the two guards below extend that to everything.
+//
+// (1) scans the WRITERS for their event-kind literals; (2) pins DECISION_META set-equal
+// to the feed's EVENT_KINDS, from this side (the catalog's own test pins the converse).
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const APP_ROOT = resolve(HERE, "..");
+
+/** Every .ts/.tsx file under app/, excluding test files (whose literals are fixtures). */
+function sourceFiles(dir: string, out: string[] = []): string[] {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) sourceFiles(p, out);
+    else if (/\.tsx?$/.test(e.name) && !/\.test\.tsx?$/.test(e.name)) out.push(p);
+  }
+  return out;
+}
+
+/** Kind literals at the two pipeline-event writers:
+ *    recordAutomationEvent(<entry>, "<kind>", …)   and   recordEvent(db, { … kind: "<kind>" … }).
+ *  Kinds passed as a variable/constant are invisible here — this guard is deliberately
+ *  ONE-DIRECTIONAL (a literal writer implies a mapping), never "these are all of them". */
+function writtenKindLiterals(): Map<string, string> {
+  const found = new Map<string, string>();
+  for (const file of sourceFiles(APP_ROOT)) {
+    const src = readFileSync(file, "utf8");
+    for (const re of [
+      /recordAutomationEvent\(\s*[^,()]+,\s*"([a-z0-9_]+)"/g,
+      // No `s` flag: `.` is never used here and `[^}]` already spans newlines, so
+      // dotAll would only cost an es2018 target this tsconfig doesn't set (TS1501).
+      /recordEvent\(\s*db\s*,\s*\{[^}]*?kind:\s*"([a-z0-9_]+)"/g,
+    ]) {
+      for (const m of src.matchAll(re)) if (!found.has(m[1])) found.set(m[1], file);
+    }
+  }
+  return found;
+}
+
+test("every event kind a writer names in source is mapped (derived from the writers)", () => {
+  const written = writtenKindLiterals();
+  // Non-vacuity: if the scan ever stops matching (a refactor renames the writer, a
+  // formatting change breaks the regex) it must FAIL rather than pass over an empty set.
+  assert.ok(written.size >= 40, `the writer scan found only ${written.size} kinds — it has stopped matching`);
+  // Both regexes must still bite: a recordAutomationEvent literal and a recordEvent one.
+  // (`auto_rejected` is deliberately NOT the probe — actOnPipelineEntry passes its kind
+  // as a variable, which is exactly the blind spot this guard does not claim to cover.)
+  assert.ok(written.has("outreach_sent"), "sanity: recordAutomationEvent literals are seen");
+  assert.ok(written.has("stage_migrated"), "sanity: recordEvent literals are seen");
+  const unmapped = [...written].filter(([kind]) => !DECISION_META[kind]);
+  assert.deepEqual(
+    unmapped.map(([kind, file]) => `${kind} (${file.slice(APP_ROOT.length + 1)})`),
+    [],
+    "written but unmapped — add it to DECISION_META (an unmapped kind badges UNKNOWN, is in neither filter, and counts in no rollup)"
+  );
+});
+
+test("DECISION_META and the feed's EVENT_KINDS are set-equal", () => {
+  // The kinds a recruiter can see in the activity feed and the kinds an auditor can
+  // attribute/filter/roll up in the decision log are the SAME rows in pipeline_events.
+  // Pinning both directions is what makes either map a guard rather than a list: adding
+  // a kind to one now fails the other's test.
+  const meta = Object.keys(DECISION_META).sort();
+  // Widened to string[]: both sides are compared as plain names, and keeping the
+  // literal union here makes `feed.includes(k)` reject a `string` from `meta`.
+  const feed: string[] = [...EVENT_KINDS].sort();
+  assert.deepEqual(
+    meta.filter((k) => !feed.includes(k)),
+    [],
+    "mapped for attribution but absent from EVENT_KINDS — it would render a raw token in the feed"
+  );
+  assert.deepEqual(
+    feed.filter((k) => !meta.includes(k)),
+    [],
+    "reaches the feed but has no attribution — it would badge UNKNOWN in the decision log"
+  );
+});
+
+test("policy-pass alert kinds stay mapped (their own derived source)", () => {
+  // AUTOMATION_ALERT_KINDS is consumed by the writer itself, so it is the one list that
+  // cannot drift from the alert loop. Kept as its own assertion, independent of the scan.
+  for (const kind of AUTOMATION_ALERT_KINDS) {
     assert.ok(DECISION_META[kind], `${kind} is written but unmapped — add it to DECISION_META`);
+  }
+});
+
+test("retired kinds keep their mapping, and stay retired", () => {
+  // The post-hire onboarding module was removed and its rows stayed in deployed
+  // databases. Dropping the mappings is what made them badge NEZNÁMÉ, so they are kept
+  // deliberately — and pinned as HAVING NO WRITER, so a kind cannot quietly come back to
+  // life inheriting an attribution nobody re-argued.
+  const written = writtenKindLiterals();
+  for (const kind of RETIRED_EVENT_KINDS) {
+    assert.ok(DECISION_META[kind], `${kind} is retired but unmapped — historical rows would badge UNKNOWN`);
+    assert.ok(
+      !written.has(kind),
+      `${kind} is listed as retired but a writer names it again (${written.get(kind)}) — take it off RETIRED_EVENT_KINDS and re-argue its attribution`
+    );
   }
 });
 
@@ -62,6 +156,53 @@ test("every policy-pass alert kind attributes to automation (never UNKNOWN)", ()
   for (const kind of AUTOMATION_ALERT_KINDS) {
     assert.equal(decisionAttribution(kind), "auto", `${kind} must attribute to automation`);
   }
+});
+
+// ---- the two decision-log filters INTERSECT (UAT LUC-ANA-12) ----------------------
+
+test("kind + attribution intersect instead of one silently winning", () => {
+  // `advanced` is a recruiter's click (human). Combined with Kdo = human it narrows to
+  // that kind; combined with Kdo = automation nothing can match — and the caller must be
+  // told so explicitly, because an empty kind list reads as "unfiltered" downstream.
+  assert.deepEqual(resolveDecisionKindFilter("advanced", "human"), { kinds: ["advanced"], matchesNothing: false });
+  assert.deepEqual(resolveDecisionKindFilter("advanced", "auto"), { matchesNothing: true });
+  assert.deepEqual(resolveDecisionKindFilter("auto_advanced", "auto"), { kinds: ["auto_advanced"], matchesNothing: false });
+  assert.deepEqual(resolveDecisionKindFilter("auto_advanced", "human"), { matchesNothing: true });
+});
+
+test("a contradictory pair NEVER degrades to the unfiltered whole trail", () => {
+  // The regression this pins is specifically "narrowed to nothing" collapsing into
+  // "showing everything", which on an audit table is the worst possible failure mode.
+  const r = resolveDecisionKindFilter("rejected", "auto");
+  assert.equal(r.matchesNothing, true);
+  assert.equal(r.kinds, undefined, "no kind list at all — an empty one would read as unfiltered");
+});
+
+test("each filter alone still works, and junk on either axis is ignored, not fatal", () => {
+  assert.deepEqual(resolveDecisionKindFilter("auto_rejected", null), { kinds: ["auto_rejected"], matchesNothing: false });
+  assert.deepEqual(resolveDecisionKindFilter(null, null), { matchesNothing: false });
+  // An unmapped kind is not a filter — but it must not swallow a valid attribution.
+  assert.deepEqual(resolveDecisionKindFilter("not_a_kind", null), { matchesNothing: false });
+  const junkKind = resolveDecisionKindFilter("not_a_kind", "human");
+  assert.equal(junkKind.matchesNothing, false);
+  assert.ok(junkKind.kinds?.includes("rejected"), "the attribution filter survives an unrecognized kind");
+  assert.ok(!junkKind.kinds?.includes("auto_rejected"));
+});
+
+test("the attribution bucket is derived from the map and stays under the store's IN cap", () => {
+  // EVENT_KIND_FILTER_MAX (db/pipeline.ts) truncates the IN list at 64 — silently. A
+  // bucket that outgrew it would drop kinds from the filter without saying so, which is
+  // the same class of lie this item exists to remove.
+  for (const attribution of ["auto", "human"] as const) {
+    const kinds = resolveDecisionKindFilter(null, attribution).kinds ?? [];
+    assert.ok(kinds.length > 0);
+    assert.ok(kinds.length <= 64, `${attribution} bucket is ${kinds.length} kinds — past the store's IN cap`);
+    for (const k of kinds) assert.equal(decisionAttribution(k), attribution);
+  }
+  // Together they account for every mapped kind: no kind is unreachable from Kdo.
+  const auto = resolveDecisionKindFilter(null, "auto").kinds ?? [];
+  const human = resolveDecisionKindFilter(null, "human").kinds ?? [];
+  assert.equal(auto.length + human.length, Object.keys(DECISION_META).length);
 });
 
 test("summarize folds counts through attribution and skips unknown kinds", () => {
@@ -219,4 +360,66 @@ test("waveReasonText localizes through a decisions.wave translator, null for unm
   );
   assert.equal(waveReasonText(t, { reasonCode: "aboveCutoff", reasonParams: {} }), "above the bottom cutoff");
   assert.equal(waveReasonText(t, { reasonCode: "unmapped_code", reasonParams: {} }), null);
+});
+
+// UAT CS-L1-004 (rec 2) — the approver was sealed into payloadJson and rendered nowhere,
+// so the compliance reviewer read raw JSON to find who signed off a rejection.
+test("waveReasonText names the approver on an adverse decision, and says so when it can't", () => {
+  const catalog: Record<string, string> = {
+    "reasons.rejectDid": "Auto-rejected · bottom {pct}% of {n}.",
+    "reasons.tieAdjustedNote": "(tie-adjusted from {from})",
+    "reasons.approvedByNote": "Approved by {who}.",
+    "reasons.approverUnidentified": "Approver not identified.",
+    "reasons.holdout": "kept as a calibration holdout",
+  };
+  const t = ((key: string, params?: Record<string, string | number>) =>
+    (catalog[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => String(params?.[k] ?? ""))) as never;
+  (t as unknown as { has: (k: string) => boolean }).has = (k: string) => k in catalog;
+
+  // The name the session carried, straight from the sealed record's inputs.
+  assert.equal(
+    waveReasonText(t, { reasonCode: "reject", reasonParams: { pct: 20, n: 10, approvedBy: "Petra Nováková" } }),
+    "Auto-rejected · bottom 20% of 10. Approved by Petra Nováková."
+  );
+  // Guardrail G3 — a record with no approver must SAY it has none. Silence and "approved
+  // by nobody in particular" read identically to an auditor, and a defaulted name would
+  // be the overclaim this item exists to remove.
+  assert.equal(
+    waveReasonText(t, { reasonCode: "reject", reasonParams: { pct: 20, n: 10 } }),
+    "Auto-rejected · bottom 20% of 10. Approver not identified."
+  );
+  // A blank/whitespace approver is an absence, not an identification.
+  assert.equal(
+    waveReasonText(t, { reasonCode: "reject", reasonParams: { pct: 20, n: 10, approvedBy: "   " } }),
+    "Auto-rejected · bottom 20% of 10. Approver not identified."
+  );
+  // Order: numbers, then the tie note, then the approver.
+  assert.equal(
+    waveReasonText(t, { reasonCode: "reject", reasonParams: { pct: 20, n: 10, tieAdjusted: 8, approvedBy: "Jan Dvořák" } }),
+    "Auto-rejected · bottom 20% of 10. (tie-adjusted from 8) Approved by Jan Dvořák."
+  );
+  // Only the ADVERSE decision carries the approver line — a keep is not the record a
+  // rejected candidate can demand a human reviewer for.
+  assert.equal(waveReasonText(t, { reasonCode: "holdout", reasonParams: { approvedBy: "Petra Nováková" } }), "kept as a calibration holdout");
+});
+
+// UAT LUC-ANA-4 — pipeline_events had no actor column at all, so the log's "Who" could
+// only ever render a CLASS derived from `kind`.
+test("parseEventActor separates the machine, the named person, and the unidentified", () => {
+  assert.deepEqual(parseEventActor("auto:screen-wave"), { kind: "auto", name: "screen-wave" });
+  assert.deepEqual(parseEventActor("auto:sim"), { kind: "auto", name: "sim" });
+  // A person, named.
+  assert.deepEqual(parseEventActor("human:Petra Nováková"), { kind: "human", name: "Petra Nováková" });
+  // A colon inside the name survives (the FIRST separator wins).
+  assert.deepEqual(parseEventActor("human:Novák: Jan"), { kind: "human", name: "Novák: Jan" });
+  // A ROLE token is a class, not a person: a human acted and we cannot say which one.
+  for (const role of HUMAN_ROLE_TOKENS) {
+    assert.deepEqual(parseEventActor(`human:${role}`), { kind: "human", name: null }, `human:${role} must not read as a person`);
+  }
+  assert.deepEqual(parseEventActor("HUMAN:Recruiter"), { kind: "human", name: null }, "the vocabulary is case-insensitive");
+  // Never guess: a legacy row (NULL), a blank, a bare token or an unknown prefix is
+  // "unknown" — not "auto", and not the operator.
+  for (const missing of [null, undefined, "", "   ", "recruiter", ":x", "human:", "robot:thing"]) {
+    assert.deepEqual(parseEventActor(missing), { kind: "unknown", name: null }, `"${String(missing)}" must not be attributed`);
+  }
 });

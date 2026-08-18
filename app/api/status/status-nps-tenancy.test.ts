@@ -23,7 +23,12 @@ const statusSrc = readFileSync(path.join(HERE, "[token]", "route.ts"), "utf8");
 const npsSrc = readFileSync(path.join(HERE, "[token]", "nps", "route.ts"), "utf8");
 
 test("the status route resolves the entry on ITS OWN workspace, not the default", () => {
-  assert.match(statusSrc, /getPipelineEntry\(entryId, getEntryWorkspace\(entryId\)\)/, "tenant derived from the entry");
+  // Hoisted to a const (matching the NPS route below) because the workspace is
+  // now needed TWICE: once to read the entry, once to resolve the board axis that
+  // projects its stage into a candidate-facing status. The guarantee is unchanged
+  // — the tenant is derived from the entry, never defaulted.
+  assert.match(statusSrc, /const workspaceId = getEntryWorkspace\(entryId\)/, "tenant derived from the entry");
+  assert.match(statusSrc, /getPipelineEntry\(entryId, workspaceId\)/, "the entry read is scoped");
   assert.doesNotMatch(statusSrc, /getPipelineEntry\(entryId\)\s*[;,)]/, "no bare, default-workspace read may remain");
 });
 

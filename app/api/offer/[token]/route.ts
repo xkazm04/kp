@@ -6,7 +6,7 @@ import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-lim
 
 // Candidate-facing offer response (token-gated). GET renders the summary for the
 // public /offer/[token] page; POST captures accept/decline and runs the terminal
-// transitions (accept -> Hired + onboarding; decline -> closed).
+// transitions (accept -> Hired, the terminal state; decline -> closed).
 export async function GET(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   const view = offerView(token);
@@ -17,7 +17,7 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
 export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
   try {
-    // Side-effect-bearing public endpoint (accept fires onboarding dispatch)
+    // Side-effect-bearing public endpoint (accept hires + fires the ATS handoff)
     // — throttle per caller+token (idea-3e49abaf).
     if (!rateLimit(`offer:${clientIpFrom(request.headers)}:${token}`, { limit: 10, windowMs: 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });

@@ -31,6 +31,8 @@ export function Modal({
   children,
   footer,
   size = "2xl",
+  placement = "center",
+  bare = false,
 }: {
   title: string;
   subtitle?: string;
@@ -38,6 +40,13 @@ export function Modal({
   children: React.ReactNode;
   footer?: React.ReactNode;
   size?: "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "full";
+  /** "top" pins the dialog near the top edge (the command-palette / launcher
+   *  idiom — the eye starts at the input, and results grow DOWN without the box
+   *  jumping around its centre as the list changes height). */
+  placement?: "center" | "top";
+  /** No header/padding chrome — the caller owns the whole surface (a search input
+   *  IS the header). `title` still names the dialog for AT via aria-label. */
+  bare?: boolean;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   // The close affordance is the one string this primitive owns. It was hardcoded
@@ -57,7 +66,11 @@ export function Modal({
   const isFull = size === "full";
   if (typeof document === "undefined") return null;
   return createPortal(
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isFull ? "p-2 sm:p-4" : "p-4"}`}>
+    <div
+      className={`fixed inset-0 z-50 flex justify-center ${
+        placement === "top" ? "items-start pt-[8vh] sm:pt-[12vh]" : "items-center"
+      } ${isFull ? "p-2 sm:p-4" : "p-4"}`}
+    >
       {/* The scrim is a click target, not a control. As a <button> it was a
           focusable phantom tab stop inside the trap — a second, invisible "Close"
           that keyboard users had to Tab past and that duplicated the header X.
@@ -69,27 +82,30 @@ export function Modal({
         ref={ref}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={titleId}
+        aria-labelledby={bare ? undefined : titleId}
+        aria-label={bare ? title : undefined}
         // Programmatically focusable (but not in the Tab order) so a content-only
         // modal with no focusable children still has a guaranteed first focus
         // target — keeping focus inside the dialog and the Escape/Tab handler live.
         tabIndex={-1}
         // dvh, not vh: on iOS Safari vh is the LARGE viewport, so with the URL bar
         // visible a vh-sized centered dialog clips its header and footer off-screen.
-        className={`animate-fade-in relative flex w-full ${isFull ? "h-[92dvh] max-h-[92dvh]" : "max-h-[85dvh]"} ${SIZE[size] ?? SIZE["2xl"]} flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-overlay focus:outline-none`}
+        className={`animate-fade-in relative flex w-full ${isFull ? "h-[92dvh] max-h-[92dvh]" : placement === "top" ? "max-h-[76dvh]" : "max-h-[85dvh]"} ${SIZE[size] ?? SIZE["2xl"]} flex-col overflow-hidden rounded-lg border border-stone-200 bg-white shadow-overlay focus:outline-none`}
       >
-        <header className="flex items-start gap-3 border-b border-stone-200 px-5 py-3.5">
-          <div className="min-w-0 flex-1">
-            <h2 id={titleId} className="truncate font-serif text-h3 text-ink">
-              {title}
-            </h2>
-            {subtitle ? <p className="truncate text-sm text-steel">{subtitle}</p> : null}
-          </div>
-          <button type="button" onClick={onClose} aria-label={t("close")} className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100">
-            <X size={18} />
-          </button>
-        </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {bare ? null : (
+          <header className="flex items-start gap-3 border-b border-stone-200 px-5 py-3.5">
+            <div className="min-w-0 flex-1">
+              <h2 id={titleId} className="truncate font-serif text-h3 text-ink">
+                {title}
+              </h2>
+              {subtitle ? <p className="truncate text-sm text-steel">{subtitle}</p> : null}
+            </div>
+            <button type="button" onClick={onClose} aria-label={t("close")} className="focus-ring rounded-md p-1 text-steel hover:bg-stone-100">
+              <X size={18} />
+            </button>
+          </header>
+        )}
+        <div className={`min-h-0 flex-1 overflow-y-auto ${bare ? "flex flex-col" : "px-5 py-4"}`}>{children}</div>
         {footer ? <footer className="flex items-center justify-end gap-2 border-t border-stone-200 px-5 py-3">{footer}</footer> : null}
       </div>
     </div>,

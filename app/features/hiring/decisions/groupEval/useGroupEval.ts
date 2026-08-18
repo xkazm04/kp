@@ -11,6 +11,7 @@ export function useGroupEval({
   createdAt,
   poolDrift,
   onDecide,
+  sealed,
 }: {
   evaluation: GroupEvalPayload | null;
   createdAt?: string | null;
@@ -19,6 +20,14 @@ export function useGroupEval({
   // candidate who already left the pool can't be resolved, and the button must NOT
   // then show a fake success pill.
   onDecide?: (identity: string, action: "accept" | "reject") => boolean;
+  /** Identities whose decision was sealed OUTSIDE this hook's click handler —
+   *  today, a reject confirmed in the rationale dialog (UAT LUC-GEF-L1-08). Such a
+   *  decision genuinely landed, but it landed after `onDecide` had already returned
+   *  false ("nothing decided yet"), so the session map alone would keep showing live
+   *  buttons for a candidate who has been rejected. Merged below rather than written
+   *  into the map so the honesty contract is unchanged: this still only ever reflects
+   *  decisions that really happened. */
+  sealed?: Record<string, "accept" | "reject">;
 }) {
   // The stamp follows the APP locale (the language the rest of this modal is in),
   // not whatever locale the browser happens to run under.
@@ -27,10 +36,13 @@ export function useGroupEval({
   // (the cached `evaluation` snapshot doesn't refetch; the live queue updates
   // underneath via act()).
   const [decided, setDecided] = useState<Record<string, "accept" | "reject">>({});
+  // Externally-sealed decisions win: they are already written to the pipeline and
+  // to the audit record, so a live button over one would invite a second act().
+  const effectiveDecided = sealed ? { ...decided, ...sealed } : decided;
   const decide =
     onDecide &&
     ((label: string, action: "accept" | "reject") => {
-      if (decided[label]) return; // already acted this session
+      if (effectiveDecided[label]) return; // already acted this session
       // Only flip to the recorded-outcome pill if the action actually applied. If the
       // candidate has left the live pool, onDecide no-ops and returns false — leave
       // the buttons live (and un-decided) instead of claiming a success that never
@@ -48,5 +60,5 @@ export function useGroupEval({
   const { rows: skillRows, mustRows } = buildSkillRows(candidates, evaluation?.requirements ?? []);
   const aiBacked = Boolean(evaluation?.comparison) && evaluation?.comparisonSource === "llm";
 
-  return { ranAt, decided, decide, drift, candidates, enriched, skillRows, mustRows, aiBacked };
+  return { ranAt, decided: effectiveDecided, decide, drift, candidates, enriched, skillRows, mustRows, aiBacked };
 }

@@ -20,12 +20,19 @@ export function AnalyticsFamilyFloorChips({
   setFamily: (f: string) => void;
 }) {
   const t = useTranslations("analytics.calibration");
+  const entries = Object.entries(familyFloors);
   return (
     <div className="mt-5 border-t border-stone-200 pt-4">
       <p className="text-meta uppercase tracking-wide text-steel">{t("familyFloorsTitle")}</p>
       <p className="mt-0.5 text-sm text-steel">{t("familyFloorsBlurb", { global: currentThreshold ?? 0 })}</p>
+      {/* UAT KAT-ANA-6 — the seeded workspace has NO per-family override, and the
+          panel answered that with an empty region. An absent override is a fact
+          worth stating: every family is judged by the one global floor. */}
+      {entries.length === 0 ? (
+        <p className="mt-2 max-w-prose text-sm text-steel">{t("familyFloorsNone", { global: currentThreshold ?? 0 })}</p>
+      ) : null}
       <ul className="mt-2 flex flex-wrap gap-2">
-        {Object.entries(familyFloors)
+        {entries
           .sort((a, b) => a[0].localeCompare(b[0]))
           .map(([fam, value]) => (
             <li key={fam}>

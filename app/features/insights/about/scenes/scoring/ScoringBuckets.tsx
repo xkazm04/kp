@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Field, Part, Slot } from "../../stage/parts";
 import { useSceneClock } from "../../stage/useSceneClock";
 import { SKIN } from "../../stage/motion";
@@ -37,15 +38,17 @@ const CYCLE = 14;
 const STILL = 11;
 
 type Bucket = "matched" | "unproven" | "missing";
+/** The `unproven_skill_reason` values, as a closed set for the typed catalog. */
+type Why = "adjacency" | "provenance" | "both";
 
-const REQS = [
-  { skill: "TypeScript", best: 1.0, bucket: "matched" as Bucket, why: null },
-  { skill: "React", best: 0.9, bucket: "matched" as Bucket, why: null },
-  { skill: "Postgres", best: 0.62, bucket: "matched" as Bucket, why: null },
-  { skill: "Kubernetes", best: 0.4, bucket: "unproven" as Bucket, why: "adjacency" },
-  { skill: "Terraform", best: 0.28, bucket: "unproven" as Bucket, why: "provenance" },
-  { skill: "Go", best: 0.18, bucket: "unproven" as Bucket, why: "both" },
-  { skill: "Rust", best: 0.0, bucket: "missing" as Bucket, why: null },
+const REQS: { skill: string; best: number; bucket: Bucket; why: Why | null }[] = [
+  { skill: "TypeScript", best: 1.0, bucket: "matched", why: null },
+  { skill: "React", best: 0.9, bucket: "matched", why: null },
+  { skill: "Postgres", best: 0.62, bucket: "matched", why: null },
+  { skill: "Kubernetes", best: 0.4, bucket: "unproven", why: "adjacency" },
+  { skill: "Terraform", best: 0.28, bucket: "unproven", why: "provenance" },
+  { skill: "Go", best: 0.18, bucket: "unproven", why: "both" },
+  { skill: "Rust", best: 0.0, bucket: "missing", why: null },
 ];
 
 const BUCKET_TONE: Record<Bucket, { chip: string; bar: "moss" | "amber" | "coral" }> = {
@@ -86,17 +89,18 @@ const NOTE: Rect = { x: 0, y: 80, w: 100, h: 20 };
 
 const resolvesAt = (i: number) => 3 + i;
 
-const statusAt = statusPicker({
-  0: "job requirements — seven must-haves",
-  2: "_MATCH_THRESHOLD = 0.5",
-  3: "each requirement scores 0..1 against the profile",
-  9: "unproven carries a reason: adjacency · provenance · both",
-  10: "_SIBLING_MATCH = 0.4 — below the line by design",
-});
 
 export function ScoringBuckets() {
+  const t = useTranslations("about.scoring");
   const { ref, phase, reduced } = useSceneClock(CYCLE, { stillTick: STILL });
   const at = (n: number) => phase >= n;
+  const statusAt = statusPicker({
+    0: t("status.s0"),
+    2: t("status.s2"),
+    3: t("status.s3"),
+    9: t("status.s9"),
+    10: t("status.s10"),
+  });
 
   return (
     <div ref={ref}>
@@ -150,13 +154,13 @@ export function ScoringBuckets() {
 
               <span className="absolute top-1/2 -translate-y-1/2" style={{ left: `${BUCKET_X}%` }}>
                 <Part show={done} i={1} reduced={reduced} className={`inline-block rounded-full px-2 py-0.5 text-meta ${tone.chip}`}>
-                  {r.bucket}
+                  {t(r.bucket)}
                 </Part>
               </span>
 
               <span className="absolute top-1/2 -translate-y-1/2" style={{ left: `${WHY_X}%`, width: `${100 - WHY_X - 2}%` }}>
                 <Part show={Boolean(r.why) && at(9)} i={2} reduced={reduced} className="block truncate font-mono text-meta text-steel">
-                  {r.why ?? ""}
+                  {r.why ? t(r.why) : ""}
                 </Part>
               </span>
             </Slot>
@@ -167,9 +171,7 @@ export function ScoringBuckets() {
         <Slot rect={NOTE} stage={stageOf({ shell: 10, body: 10, detail: 10, chosen: null }, phase)} reduced={reduced} className="p-4">
           <CodeLabel>_SIBLING_MATCH = 0.4</CodeLabel>
           <Part show={at(10)} reduced={reduced} className="mt-1.5 block text-base leading-snug text-ink">
-            An adjacent skill scores below the line on purpose, so it can never be counted as the real one. Without a
-            middle bucket a weak signal has to be called either a match or a gap — one flatters the candidate, the other
-            is unfair to them. This says what was actually seen.
+            {t("note")}
           </Part>
         </Slot>
       </Field>

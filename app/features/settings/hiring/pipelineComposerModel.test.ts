@@ -8,7 +8,7 @@ import {
 } from "@/app/_lib/decision-config-schema";
 import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, type StageDef } from "@/app/_lib/pipeline-stages";
 import {
-  COMPOSER_STATIONS,
+  composerStations,
   deriveImpact,
   fromStoredPlan,
   matchesPreset,
@@ -71,10 +71,11 @@ test("rounds bind to interview stages left-to-right when the axis has several", 
 });
 
 test("the composer's fixed rows point at real board stages", () => {
-  assert.equal(COMPOSER_STATIONS.screening, "Screened");
-  assert.equal(COMPOSER_STATIONS.offer, "Offer");
-  assert.deepEqual(COMPOSER_STATIONS.interview, ["Interview"]);
-  for (const id of [COMPOSER_STATIONS.screening, COMPOSER_STATIONS.offer, ...COMPOSER_STATIONS.interview]) {
+  const stations = composerStations();
+  assert.equal(stations.screening, "Screened");
+  assert.equal(stations.offer, "Offer");
+  assert.deepEqual(stations.interview, ["Interview"]);
+  for (const id of [stations.screening, stations.offer, ...stations.interview]) {
     assert.ok(
       DEFAULT_STAGE_AXIS.some((s) => s.id === id),
       `${id} must be a real board column`

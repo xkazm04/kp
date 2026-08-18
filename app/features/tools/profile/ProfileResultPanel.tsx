@@ -39,6 +39,9 @@ export function ResultPanel({
         <span className="rounded-full bg-ink px-2.5 py-0.5 text-sm font-semibold text-white">
           {enumLabel("archetype", result.archetype)}
         </span>
+        {/* UAT RECON-06 — the archetype router's SIGNAL AGREEMENT (the winner's share
+            of the routing vote, registry.detect), not a confidence. The catalog word
+            changed; the payload field keeps its Python name. */}
         <span className="text-sm text-steel">{t("confidence", { pct: Math.round((result.confidence ?? 0) * 100) })}</span>
         {result.saved?.id ? (
           <span className="text-sm text-green-700">{t("saved", { id: result.saved.id })}</span>

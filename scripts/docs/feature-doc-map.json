@@ -133,7 +133,14 @@
         "app/_lib/analytics-bottleneck.ts",
         "app/_lib/analytics-offer.ts",
         "app/_lib/analytics-cache.ts",
+        "app/_lib/calibration.ts",
+        "app/_lib/metric-pack.ts",
+        "app/_lib/metric-pack-strings.ts",
+        "app/_lib/source-analytics.ts",
         "app/_lib/db/analytics.ts",
+        "app/_lib/db/channels.ts",
+        "app/_lib/db/org-benchmarks.ts",
+        "app/api/benchmarks/route.ts",
         "app/_components/table/**"
       ]
     },
@@ -323,7 +330,9 @@
       "doc": "docs/architecture/app-structure.md",
       "sourceGlobs": [
         "app/features/shell/**",
-        "app/features/shared/**"
+        "app/features/shared/**",
+        "app/_lib/palette-preview/**",
+        "app/api/palette/**"
       ]
     },
     {

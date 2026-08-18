@@ -1,5 +1,7 @@
 import type Database from "better-sqlite3";
 import type { ApprovalKind } from "../approval-kinds";
+// Type-only: calibration.ts is deliberately pure/import-free, so this is erased.
+import type { CalibrationOutcomeAxis } from "../calibration";
 import { isTerminalEntryStatus, TERMINAL_ENTRY_STATUSES } from "../pipeline-status";
 import { normalizeApplicantName, normalizeContact } from "../apply-intake";
 import { chunk, SQL_IN_CHUNK } from "../entries-param";
@@ -10,6 +12,9 @@ import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../gith
 import { recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
 import { ensureDb, recordEvent, type PipelineEntry } from "./core";
+import { getPipelineAxis } from "../pipeline-axis-server";
+import { screenedLandingStage, screeningGateIndex, stageHasRole, stageIndex, stagesWithRole, stageWithRole, type StageDef } from "../pipeline-stages";
+import { knownStageIds } from "../pipeline-axis";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { revokeOpenInterviewSessions } from "./interviews";
 
@@ -52,6 +57,18 @@ export type PipelineEvent = {
   toStage: string | null;
   detail: string | null;
   createdAt: string;
+  // UAT LUC-ANA-4 — WHO took the action, in the decision-chain actor vocabulary
+  // ("human:Petra Nováková" / "human:recruiter" / "auto:screen-wave"). null on legacy
+  // rows and on any writer that cannot name an actor; parse it with parseEventActor
+  // (decision-attribution.ts), which reports that state as "not identified" rather than
+  // defaulting it to a person or to the machine.
+  //
+  // OPTIONAL rather than required only so pre-existing test fixtures that build this
+  // shape by hand keep compiling — every real producer (the three list functions below)
+  // always sets it, and absent reads exactly like null at every consumer. NOT on the
+  // public activity feed: toPublicPipelineEvent's allowlist deliberately omits it, so an
+  // unauthenticated reader never learns which staff member decided what.
+  actor?: string | null;
 };
 
 // ANA5 — optional kind narrowing for the decision log. The IN-list binds every
@@ -112,7 +129,7 @@ export function listPipelineEvents(
   const orderBy = `(${col} IS NULL) ASC, ${col} ${dir}, id DESC`;
   const rows = db
     .prepare(
-      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
+      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at, actor
        FROM pipeline_events WHERE workspace_id = ?${filter.sql} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
     )
     .all(workspaceId, ...filter.params, limit, offset) as Array<{
@@ -126,6 +143,7 @@ export function listPipelineEvents(
     to_stage: string | null;
     detail: string | null;
     created_at: string;
+    actor: string | null;
   }>;
   return rows.map((r) => ({
     id: r.id,
@@ -138,6 +156,7 @@ export function listPipelineEvents(
     toStage: r.to_stage,
     detail: r.detail,
     createdAt: r.created_at,
+    actor: r.actor,
   }));
 }
 
@@ -150,7 +169,7 @@ export function listPipelineEventsForEntry(entryId: string, limit = 50, workspac
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
+      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at, actor
        FROM pipeline_events WHERE entry_id = ? AND workspace_id = ? ORDER BY created_at ASC, id ASC LIMIT ?`
     )
     .all(entryId, workspaceId, limit) as Array<{
@@ -164,6 +183,7 @@ export function listPipelineEventsForEntry(entryId: string, limit = 50, workspac
     to_stage: string | null;
     detail: string | null;
     created_at: string;
+    actor: string | null;
   }>;
   return rows.map((r) => ({
     id: r.id,
@@ -176,6 +196,7 @@ export function listPipelineEventsForEntry(entryId: string, limit = 50, workspac
     toStage: r.to_stage,
     detail: r.detail,
     createdAt: r.created_at,
+    actor: r.actor,
   }));
 }
 
@@ -190,7 +211,7 @@ export function listPipelineEventsSince(sinceId: number, limit = 200, workspaceI
   const db = ensureDb();
   const rows = db
     .prepare(
-      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at
+      `SELECT id, entry_id, candidate_label, job_title, archetype, kind, from_stage, to_stage, detail, created_at, actor
        FROM pipeline_events WHERE id > ? AND workspace_id = ? ORDER BY id ASC LIMIT ?`
     )
     .all(sinceId, workspaceId, limit) as Array<{
@@ -204,6 +225,7 @@ export function listPipelineEventsSince(sinceId: number, limit = 200, workspaceI
     to_stage: string | null;
     detail: string | null;
     created_at: string;
+    actor: string | null;
   }>;
   return rows.map((r) => ({
     id: r.id,
@@ -216,6 +238,7 @@ export function listPipelineEventsSince(sinceId: number, limit = 200, workspaceI
     toStage: r.to_stage,
     detail: r.detail,
     createdAt: r.created_at,
+    actor: r.actor,
   }));
 }
 
@@ -377,7 +400,20 @@ export type CalibrationBandCandidate = {
   live: boolean;
 };
 
-const CALIBRATION_ADVANCED_STAGES = new Set(["Interview", "Offer", "Hired"]);
+/** "Advanced" for calibration = at or past the evaluation gate. Derived per axis
+ *  rather than a frozen name set, so a renamed or split interview column still
+ *  counts the same candidates. */
+const calibrationAdvancedStages = (axis: readonly StageDef[]) =>
+  new Set(axis.slice(screeningGateIndex(axis)).map((s) => s.id));
+
+// UAT KAT-L1-003 (recurrence 2) — the HIRE label. Kateřina's question is „did the
+// 90 %-match candidates actually get HIRED, or just get an interview?", and with
+// only `calibrationAdvancedStages` in existence Interview, Offer and Hired were
+// one indistinguishable success. This is the second positive label, and it needs
+// nothing the pipeline does not already record: a stage carrying the TERMINAL
+// role. Role-derived, never the literal "Hired" (G8) — rename the column and the
+// same people still count.
+const calibrationHiredStages = (axis: readonly StageDef[]) => new Set(stagesWithRole("terminal", axis));
 
 export function pipelineCalibrationPairs(
   workspaceId: string = DEFAULT_WORKSPACE_ID,
@@ -388,7 +424,17 @@ export function pipelineCalibrationPairs(
   // entries breaks the label leakage that makes the default (all-pairs) curve
   // circular. The inclusion rule is IDENTICAL to the contaminated curve's — the only
   // difference is which entries are eligible — so the two are directly comparable.
-  opts?: { onlyEntryIds?: ReadonlySet<string> }
+  //
+  // `outcome` (UAT KAT-L1-003) picks WHICH question the pairs answer:
+  //   "advance" (default, unchanged) — 1 = past the screen gate, 0 = rejected there.
+  //   "hired"   — 1 = reached the terminal stage; 0 = rejected ANYWHERE without
+  //     getting there (a reject at interview is a "not hired" the screen gate axis
+  //     scores as a success). Still in the process = excluded, because the outcome
+  //     genuinely is not known yet: they may still be hired. The non-merit terminal
+  //     statuses stay excluded on BOTH axes for the same reason as before — a
+  //     candidate who declined the offer or whose role closed is not evidence the
+  //     score was wrong about them.
+  opts?: { onlyEntryIds?: ReadonlySet<string>; outcome?: CalibrationOutcomeAxis }
 ): PipelineCalibrationPair[] {
   const db = ensureDb();
   const rows = db
@@ -398,11 +444,15 @@ export function pipelineCalibrationPairs(
     )
     .all(workspaceId) as { id: string; score: number; stage: string; status: string; role_family: string | null; created_at: string }[];
   const only = opts?.onlyEntryIds;
+  const stages = getPipelineAxis(workspaceId).stages;
+  // One positive-label set per axis; everything else about the loop is identical,
+  // so the two axes are computed by the same rule and stay directly comparable.
+  const positive = opts?.outcome === "hired" ? calibrationHiredStages(stages) : calibrationAdvancedStages(stages);
   const pairs: PipelineCalibrationPair[] = [];
   for (const r of rows) {
     if (!Number.isFinite(r.score)) continue; // bad migration/manual edit — never NaN into the math
     if (only && !only.has(r.id)) continue; // clean-arm filter (holdout source only)
-    if (CALIBRATION_ADVANCED_STAGES.has(r.stage)) {
+    if (positive.has(r.stage)) {
       pairs.push({ score: r.score, outcome: 1, roleFamily: r.role_family, at: r.created_at });
     } else if (r.status === "rejected") {
       pairs.push({ score: r.score, outcome: 0, roleFamily: r.role_family, at: r.created_at });
@@ -412,10 +462,14 @@ export function pipelineCalibrationPairs(
 }
 
 // Direction 2 — the candidates behind ONE calibration score band, workspace-scoped.
-// Applies the SAME inclusion rule as pipelineCalibrationPairs (advanced past the
-// screen gate = 1, rejected there = 0; pending/unscored/non-merit-terminal
-// excluded) so a bin's drilldown can never show a candidate the curve didn't
-// count. Score band is [loPct, hiPct); the top bin includes 100 (inclusiveHi).
+// Applies the SAME inclusion rule as pipelineCalibrationPairs ON ITS `advance`
+// AXIS (advanced past the screen gate = 1, rejected there = 0;
+// pending/unscored/non-merit-terminal excluded) so a bin's drilldown can never
+// show a candidate the curve didn't count. Score band is [loPct, hiPct); the top
+// bin includes 100 (inclusiveHi).
+//
+// UAT KAT-L1-003 — the drilldown is advance-axis ONLY, so the panel offers it only
+// on that axis rather than listing advance outcomes under a hire curve.
 export function pipelineCalibrationBandCandidates(
   loPct: number,
   hiPct: number,
@@ -439,12 +493,13 @@ export function pipelineCalibrationBandCandidates(
     status: string;
     role_family: string | null;
   }[];
+  const advanced = calibrationAdvancedStages(getPipelineAxis(workspaceId).stages);
   const out: CalibrationBandCandidate[] = [];
   for (const r of rows) {
     if (!Number.isFinite(r.score)) continue;
     if (roleFamily && r.role_family !== roleFamily) continue;
     let outcome: 0 | 1;
-    if (CALIBRATION_ADVANCED_STAGES.has(r.stage)) outcome = 1;
+    if (advanced.has(r.stage)) outcome = 1;
     else if (r.status === "rejected") outcome = 0;
     else continue; // pending / non-merit terminal — not part of the calibration set
     out.push({
@@ -710,6 +765,84 @@ export function countPipelineByStage(workspaceId: string = DEFAULT_WORKSPACE_ID)
   return out;
 }
 
+/** One leg of a stage migration: everyone on `fromStage` moves to `toStage`. */
+export type StageMigration = { fromStage: string; toStage: string };
+
+/**
+ * Move every ACTIVE candidate off the stages a board edit is removing, in ONE
+ * transaction, writing an audit event per candidate.
+ *
+ * This is the write behind Settings → Hiring's "where do these people go?"
+ * prompt. Three properties matter and are all enforced here rather than by the
+ * caller:
+ *
+ *  - **Atomic.** All legs commit or none do. A half-applied migration would
+ *    leave some candidates moved and others stranded, with no way to tell which
+ *    from the board.
+ *  - **Audited per candidate.** Every move writes a `stage_migrated` event
+ *    carrying from/to, so a recruiter opening a candidate three weeks later finds
+ *    "the board changed" rather than an unexplained jump. A bulk "the axis
+ *    changed" note on nothing in particular would not answer that.
+ *  - **Terminal rows untouched.** `rejected` / `declined` entries are excluded,
+ *    matching `listPipeline` and `countPipelineByStage`: they are not on the
+ *    board, so removing their column strands nobody and moving them would
+ *    rewrite closed history.
+ *
+ * Returns the number of entries actually moved. Legs whose `fromStage` holds
+ * nobody are no-ops, so a caller may pass a mapping it computed optimistically.
+ */
+export function migratePipelineStages(
+  migrations: readonly StageMigration[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  detail = "pipeline step removed"
+): number {
+  const db = ensureDb();
+  const affected = db.prepare(
+    `SELECT id, candidate_label, job_title, archetype FROM pipeline_entries
+      WHERE workspace_id = ? AND stage = ? AND status NOT IN ('rejected', 'declined')`
+  );
+  const move = db.prepare(
+    `UPDATE pipeline_entries SET stage = ?, stage_changed_at = ?
+      WHERE workspace_id = ? AND stage = ? AND status NOT IN ('rejected', 'declined')`
+  );
+  // IMMEDIATE so the read→compute→write below cannot interleave with a concurrent
+  // stage change (the repo's actOnPipelineEntry convention).
+  const run = db.transaction((legs: readonly StageMigration[]) => {
+    const now = new Date().toISOString();
+    let moved = 0;
+    for (const leg of legs) {
+      if (leg.fromStage === leg.toStage) continue;
+      const rows = affected.all(workspaceId, leg.fromStage) as {
+        id: string;
+        candidate_label: string | null;
+        job_title: string | null;
+        archetype: string | null;
+      }[];
+      if (rows.length === 0) continue;
+      move.run(leg.toStage, now, workspaceId, leg.fromStage);
+      for (const row of rows) {
+        recordEvent(db, {
+          entryId: row.id,
+          candidateLabel: row.candidate_label,
+          jobTitle: row.job_title,
+          archetype: row.archetype,
+          kind: "stage_migrated",
+          fromStage: leg.fromStage,
+          toStage: leg.toStage,
+          detail,
+          createdAt: now,
+          workspaceId,
+        });
+      }
+      moved += rows.length;
+    }
+    return moved;
+  });
+  // IMMEDIATE: the read→compute→write above must not interleave with a concurrent
+  // stage change (the repo's actOnPipelineEntry convention).
+  return run.immediate(migrations);
+}
+
 // --- Human re-review of auto-rejections (idea-e43fa801) ----------------------
 //
 // The screening wave auto-rejects the bottom cohort and the rejection is
@@ -750,7 +883,15 @@ export function listReconsiderQueue(limit = 50, workspaceId: string = DEFAULT_WO
  *  no-op. Returns the reinstated entry, or null if it wasn't reinstatable. NB: the
  *  candidate already received a rejection note — re-notifying them is a deliberate
  *  recruiter follow-up, not auto-sent here. */
-export function reinstatePipelineEntry(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): PipelineEntry | null {
+export function reinstatePipelineEntry(
+  id: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // UAT LUC-ANA-4 — a reversal is the single most accountability-bearing act on this
+  // surface (a person overruling the machine), so it takes the caller's server-derived
+  // actor and seals it to THAT person. Omitted ⇒ "not identified"; never inherited from
+  // the auto_rejected row it reverses, which was written by the machine.
+  actorRef?: string | null
+): PipelineEntry | null {
   const db = ensureDb();
   const tx = db.transaction((): PipelineEntry | null => {
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
@@ -774,6 +915,7 @@ export function reinstatePipelineEntry(id: string, workspaceId: string = DEFAULT
       fromStage: row.stage,
       toStage: "Screened",
       detail: "Auto-rejection reversed for re-review.",
+      actor: actorRef ?? null,
     });
     return getPipelineEntry(id, workspaceId);
   });
@@ -889,7 +1031,10 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     return { entry: rowToEntry(row), created: false };
   }
   const now = new Date().toISOString();
-  const stage = input.stage ?? "Screened";
+  // A caller that names no stage is filing an already-assessed candidate (a
+  // match fan-out, a recruiter add): they land where that means on THIS
+  // workspace's axis, not on a column that happens to be called "Screened".
+  const stage = input.stage ?? screenedLandingStage(getPipelineAxis(workspaceId).stages);
   const intakeDegraded = input.intakeDegraded ? 1 : 0;
   const intakeDegradedReason = input.intakeDegraded ? input.intakeDegradedReason ?? "intake normalization failed" : null;
   db.prepare(
@@ -1485,6 +1630,14 @@ function scrubEntryLinkedPii(db: Database.Database, entryId: string, candidateId
   }
   // Onboarding (post-hire): the run label, the pre-boarding questionnaire answers, and
   // the e-signature signer identity. Child rows key off the run id.
+  //
+  // The onboarding MODULE is gone (see TENANCY_RETIRED_TABLES in tenancy.ts) — no code
+  // writes these tables any more. This scrub deliberately stays: the removal shipped
+  // WITHOUT a drop migration, so every database created before it still holds the rows,
+  // and that includes a hire's questionnaire answers and signer identity. An erasure
+  // request against such a database must still reach them. The `tables.has` guards make
+  // it a silent no-op on a database created after the removal. Delete this block only
+  // together with a migration that actually drops the tables.
   if (tables.has("onboarding_runs")) {
     const runs = db.prepare(`SELECT id FROM onboarding_runs WHERE entry_id = ?`).all(entryId) as { id: string }[];
     db.prepare(`UPDATE onboarding_runs SET candidate_label = ? WHERE entry_id = ?`).run(masked, entryId);
@@ -1726,7 +1879,16 @@ export function setApproval(entryId: string, approvalKind: ApprovalKind | null, 
   );
 }
 
-export function recordAutomationEvent(entryId: string, kind: string, detail?: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
+export function recordAutomationEvent(
+  entryId: string,
+  kind: string,
+  detail?: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  // UAT LUC-ANA-4 — the acting engine ("auto:screen-wave") or the person whose click
+  // produced this marker ("human:<Name>"). Optional: most automation markers are written
+  // by the scheduler with no request identity, and NULL says so honestly.
+  actorRef?: string | null
+): void {
   const db = ensureDb();
   const row = db
     .prepare(`SELECT candidate_label, job_title, archetype, stage FROM pipeline_entries WHERE id = ? AND workspace_id = ?`)
@@ -1739,6 +1901,7 @@ export function recordAutomationEvent(entryId: string, kind: string, detail?: st
     kind,
     toStage: row?.stage ?? null,
     detail: detail ?? null,
+    actor: actorRef ?? null,
   });
 }
 
@@ -1840,7 +2003,12 @@ export function actOnPipelineEntry(
   // advance — recruiter click included — landed as one kind the analytics
   // attributed to automation, and policy rejects wrote BOTH rejected (human)
   // and auto_rejected (auto), double-counting in momentum and the rollup.
-  opts?: { expectedStage?: string; expectedApprovalKind?: ApprovalKind | null; actor?: "human" | "system" },
+  // UAT LUC-ANA-4 — `actorRef` is the IDENTITY behind that class, in the decision-chain
+  // vocabulary ("human:Petra Nováková" / "auto:sim"), written to pipeline_events.actor so
+  // the log row and the seal emitted beside it name the same actor. Server-derived by the
+  // caller (humanActor() in operator-approver.ts); omitted ⇒ NULL ⇒ "not identified",
+  // never a defaulted person (guardrail G3).
+  opts?: { expectedStage?: string; expectedApprovalKind?: ApprovalKind | null; actor?: "human" | "system"; actorRef?: string | null },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineEntry | null {
   const db = ensureDb();
@@ -1886,6 +2054,9 @@ export function actOnPipelineEntry(
     jobTitle: row.job_title,
     archetype: row.archetype,
     fromStage: row.stage,
+    // Rides every event this action writes, so a decision and its stage move are
+    // attributed to one actor rather than to two different levels of detail.
+    actor: opts?.actorRef ?? null,
   };
 
   // A human decision may carry a free-text reason (DEC4). The detail/display
@@ -1999,10 +2170,18 @@ export function actOnPipelineEntry(
 export function setPipelineEntryStage(
   id: string,
   toStage: string,
-  opts?: { expectedStage?: string },
+  // `actorRef` (UAT LUC-ANA-4): who performed the manual override, server-derived by the
+  // caller. Omitted ⇒ the event reads "not identified".
+  opts?: { expectedStage?: string; actorRef?: string | null },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineEntry | null {
-  if (!(PIPELINE_STAGES as readonly string[]).includes(toStage)) return null;
+  // Validated against THIS WORKSPACE's board, not the compile-time list. Reading
+  // PIPELINE_STAGES here made the store the last thing that could refuse a stage
+  // the board itself renders: a team that renamed a column got a silent `null`
+  // from every move onto it, which surfaced as a 409 "they were just changed"
+  // rather than anything resembling the truth. Retired stages count as known so a
+  // migration can still move somebody OFF one.
+  if (!knownStageIds(getPipelineAxis(workspaceId)).has(toStage)) return null;
   const db = ensureDb();
   const tx = db.transaction((): PipelineEntry | null => {
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
@@ -2031,6 +2210,7 @@ export function setPipelineEntryStage(
       kind: "moved",
       toStage,
       detail: "manual",
+      actor: opts?.actorRef ?? null,
     });
     const updated = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow;
     return rowToEntry(updated);
@@ -2075,7 +2255,8 @@ export function rematchSourceEntry(
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): RematchSourceResult {
   const db = ensureDb();
-  const hiredStage = PIPELINE_STAGES[PIPELINE_STAGES.length - 1]; // terminal STAGE ("Hired")
+  // The terminal column of THIS workspace's board, resolved by role.
+  const hiredStage = stageWithRole("terminal", getPipelineAxis(workspaceId).stages) ?? PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
   const tx = db.transaction((): RematchSourceResult => {
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(sourceId, workspaceId) as PipelineRow | undefined;
     if (!row) return { closed: false, outcome: "missing" };

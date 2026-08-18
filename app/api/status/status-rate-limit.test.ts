@@ -1,5 +1,5 @@
 // /api/status/[token] was the last PUBLIC token route with no throttle, while
-// its offer / schedule / onboarding siblings all have one. Adding one to a route
+// its offer / schedule siblings all have one. Adding one to a route
 // the candidate's own page POLLS is only safe if the bound cannot be reached by
 // normal use — a candidate who gets "Too many requests" while watching their
 // application would read it as the app breaking.

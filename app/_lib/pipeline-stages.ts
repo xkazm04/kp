@@ -81,6 +81,24 @@ export function stageWithRole(role: StageRole, axis: readonly StageDef[] = DEFAU
   return axis.find((s) => s.role === role)?.id ?? null;
 }
 
+/** The role a stage id plays on `axis`, or null for an id the axis does not
+ *  declare (a retired column, a legacy row). Null is the honest answer: an
+ *  off-axis stage has no meaning to resolve, and guessing one would let a rule
+ *  fire on a candidate nobody has classified yet. */
+export function roleOf(id: string, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): StageRole | null {
+  return axis.find((s) => s.id === id)?.role ?? null;
+}
+
+/** Does `id` play `role` on this axis? The replacement for every `stage ===
+ *  "Hired"` / `=== "Offer"` in the codebase: those read a NAME to ask a question
+ *  about MEANING, which stops being true the moment a workspace renames a column.
+ *
+ *  Reads false for an off-axis id — see roleOf. A candidate standing on a retired
+ *  column is not "at the terminal stage" just because it used to be called Hired. */
+export function stageHasRole(id: string, role: StageRole, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): boolean {
+  return roleOf(id, axis) === role;
+}
+
 /** The index a candidate must REACH to count as past the screening gate: the first
  *  stage where real evaluation happens. Normally the first `interview` stage;
  *  an axis with no interview round falls back to `offer`, then `terminal`, and
@@ -91,6 +109,20 @@ export function stageWithRole(role: StageRole, axis: readonly StageDef[] = DEFAU
  *  stage" on purpose: a workspace may add several screening-ish stages, or none,
  *  and the question the fairness metric asks is always "did they get a real look",
  *  not "how many pre-stages were there". */
+/** Where an ALREADY-SCREENED candidate belongs: the last stage before the
+ *  screening gate — i.e. "evaluated, waiting on the interview decision". Falls
+ *  back to the entry stage, then the first column, so this always names a real
+ *  place to put somebody.
+ *
+ *  Used by the paths that file a candidate who has already been assessed (a
+ *  rematch redirect, an ATS import carrying a screened status) rather than
+ *  hardcoding "Screened", which is only that stage's name on the default axis. */
+export function screenedLandingStage(axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): string {
+  const gate = screeningGateIndex(axis);
+  const before = axis.slice(0, gate);
+  return before[before.length - 1]?.id ?? axis[0]?.id ?? "";
+}
+
 export function screeningGateIndex(axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): number {
   for (const role of ["interview", "offer", "terminal"] as const) {
     const i = axis.findIndex((s) => s.role === role);

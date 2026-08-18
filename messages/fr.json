@@ -215,12 +215,12 @@
       "mid": "Médian",
       "growthPct": "+{pct} %",
       "target": "Cible",
-      "confidenceUnknownTitle": "Confiance non reconnue, elle est donc affichée avec la plus faible emphase. Considérez cette estimation salariale comme non vérifiée.",
+      "confidenceUnknownTitle": "Le niveau de preuves n’a pas été reconnu, la fourchette est donc affichée avec la plus faible emphase. Considérez cette estimation salariale comme non vérifiée.",
       "gaugeAria": "Fourchette salariale {min} à {max} {currency}, médian {midpoint}, objectif {growth} à {target}"
     },
     "archetype": {
       "detected": "Archétype détecté",
-      "confidence": "confiance {value}",
+      "confidence": "concordance des signaux {value}",
       "completeness": "complétude {value}",
       "save": "Enregistrer comme profil",
       "saving": "Enregistrement…",
@@ -291,10 +291,10 @@
       "titleMetered": "Mesuré à partir de l’utilisation rapportée par le fournisseur."
     },
     "confidence": {
-      "high": "Confiance élevée",
-      "medium": "Confiance moyenne",
-      "low": "Confiance faible",
-      "unknown": "Confiance inconnue"
+      "high": "Preuves solides",
+      "medium": "Preuves moyennes",
+      "low": "Preuves faibles",
+      "unknown": "Preuves inconnues"
     },
     "panel": {
       "candidate": "Candidat(e)",
@@ -460,7 +460,7 @@
       "scenarioFallback": "Menez un entretien structuré et limitez le temps de chaque sujet.",
       "icsTitle": "Entretien : {candidate} ({role})",
       "calendarHeader": "Réservation d’agenda (.ics). Enregistrez les lignes ci-dessous dans un fichier .ics pour l’ajouter à votre agenda :",
-      "body": "Bonjour {name},\n\nVous ferez passer l’entretien de {candidate} pour {role} le {slot}.{length}\n\nPlan : {scenario}\nAxes prioritaires : {focus}\n\nLe dossier de préparation complet et la grille d’évaluation en direct se trouvent dans kp."
+      "body": "Bonjour {name},\n\nVous ferez passer l’entretien de {candidate} pour {role} le {slot}.{length}\n\nPlan : {scenario}\nAxes prioritaires : {focus}\n\nLe dossier de préparation complet et la grille d’évaluation en direct se trouvent dans Kandi."
     },
     "interviewReminder": {
       "subject": "Rappel : votre entretien {slot}",
@@ -1263,7 +1263,10 @@
     "INTAKE_REOPEN_FAILED": "Impossible de rouvrir la session. Veuillez réessayer.",
     "INTAKE_ATTACHMENT_FAILED": "Impossible d’enregistrer les documents. Veuillez réessayer.",
     "STAGE_IMPACT_FAILED": "Impossible de vérifier qui se trouve à chaque étape du pipeline. Réessayez.",
-    "STAGE_MIGRATION_FAILED": "Impossible d’appliquer la modification du pipeline. Réessayez."
+    "STAGE_MIGRATION_FAILED": "Impossible d’appliquer la modification du pipeline. Réessayez.",
+    "HIRE_RATING_ENTRY_NOT_FOUND": "Ce candidat ne figure pas sur ce tableau.",
+    "HIRE_RATING_NOT_HIRED": "Seule une personne recrutée peut recevoir une évaluation en poste.",
+    "HIRE_RATING_INVALID": "Une évaluation en poste doit être un nombre entier de 1 à 5."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1680,7 +1683,210 @@
       "analysis": "Analyses de CV"
     },
     "tourAction": "Voir l’histoire d’un recrutement (visite guidée)",
-    "tourSub": "Lance la démo en direct : fiche de poste → sourcing → présélection → entretien → offre → recruté"
+    "tourSub": "Lance la démo en direct : fiche de poste → sourcing → présélection → entretien → offre → recruté",
+    "hintNavigate": "naviguer",
+    "hintOpen": "ouvrir",
+    "hintClose": "fermer",
+    "previewPick": "Sélectionnez un résultat pour l'afficher ici.",
+    "previewOpensIn": "S'ouvre dans {where}",
+    "whereJd": "la page de la fiche de poste",
+    "whereAnalysis": "le rapport d'analyse",
+    "whereTab": "l'onglet {tab}",
+    "resultsCount": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}"
+  },
+  "palettePreview": {
+    "loading": "Chargement de l’aperçu…",
+    "unavailable": "Aperçu indisponible pour le moment.",
+    "restricted": "Détails réservés aux opérateurs de l’espace de travail.",
+    "missing": "Rien à afficher.",
+    "pipeline": {
+      "active": "Actifs",
+      "aging": "Hors SLA",
+      "hired": "Recrutés",
+      "byStage": "Par étape"
+    },
+    "channels": {
+      "receivers": "Récepteurs",
+      "accepted": "Acceptés",
+      "fresh": "Nouveaux",
+      "lastReceived": "Dernière réception",
+      "relayOn": "Relais sortant configuré",
+      "relayOff": "Relais sortant non configuré",
+      "never": "Jamais"
+    },
+    "decisions": {
+      "pending": "À traiter",
+      "sealed": "Scellées",
+      "chainOk": "Chaîne vérifiée ({count})",
+      "chainBroken": "Intégrité de la chaîne rompue"
+    },
+    "schedule": {
+      "confirmed": "Confirmés",
+      "awaiting": "Sans créneau",
+      "needsMoreSlots": "Manque créneaux",
+      "next": "Prochain entretien",
+      "calendarOn": "Google Agenda connecté",
+      "calendarOff": "Aucun agenda connecté"
+    },
+    "agents": {
+      "agents": "Agents",
+      "runs": "Exécutions",
+      "successRate": "Réussite",
+      "monthCost": "Dépense ce mois-ci"
+    },
+    "jobs": {
+      "total": "Postes",
+      "draft": "Brouillons",
+      "entryEligible": "Débutants",
+      "families": "Familles de postes principales"
+    },
+    "library": {
+      "total": "Fiches",
+      "analyzing": "En cours",
+      "failed": "Échouées",
+      "templates": "Modèles",
+      "newest": "La plus récente"
+    },
+    "archetypes": {
+      "archetypes": "Archétypes",
+      "candidates": "Candidats",
+      "top": "Les plus fréquents"
+    },
+    "analyze": {
+      "analyses": "Analyses",
+      "avgScore": "Score moyen",
+      "latest": "Dernière"
+    },
+    "interview": {
+      "sessions": "Sessions",
+      "completed": "Terminées",
+      "live": "En direct",
+      "latest": "Dernière"
+    },
+    "assignments": {
+      "cases": "Cas",
+      "postings": "Sujets",
+      "submissions": "Rendus"
+    },
+    "analytics": {
+      "total": "Candidats",
+      "reachedInterview": "Entretiens",
+      "hired": "Recrutés",
+      "conversion": "Taux de recrutement"
+    },
+    "matrix": {
+      "candidates": "Candidats",
+      "openPositions": "Ouverts",
+      "placements": "Affectations"
+    },
+    "activity": {
+      "calls": "Appels, 30 j",
+      "cost": "Dépense, 30 j",
+      "providers": "Fournisseurs",
+      "running": "En cours",
+      "queued": "En file"
+    },
+    "about": {
+      "blurb": "Six chapitres : comment un poste s’écrit, comment une personne est notée, qui est filtré et selon quoi, comment les archétypes orientent, ce qu’un travail pratique prouve et où un humain décide."
+    },
+    "organization": {
+      "members": "Membres",
+      "pendingInvites": "Invitations",
+      "workspaces": "Équipes",
+      "noDomain": "Aucun domaine défini"
+    },
+    "branding": {
+      "displayName": "Nom affiché",
+      "accent": "Accent",
+      "logo": "Logo",
+      "productDefault": "Valeur par défaut",
+      "custom": "Personnalisé"
+    },
+    "billing": {
+      "plan": "Forfait",
+      "status": "Statut",
+      "renews": "Renouvellement",
+      "noPeriod": "Aucune période de facturation",
+      "unbilled": "Développement local, non facturé",
+      "unlimited": "Illimité",
+      "meters": {
+        "job_posts": "Postes mis sur le marché",
+        "hires": "Recrutements",
+        "ai_candidates": "Candidats IA",
+        "case_designs": "Conceptions de cas",
+        "interview_minutes": "Minutes d’entretien"
+      }
+    },
+    "models": {
+      "routed": "Routés",
+      "providers": "Fournisseurs avec clés",
+      "noKeys": "Aucune clé : replis sans clé",
+      "cost": "Dépense, 30 j"
+    },
+    "integrations": {
+      "calendar": "Google Agenda",
+      "relay": "Relais de communication",
+      "atsWebhook": "Webhook ATS",
+      "atsConnections": "Connecteurs ATS",
+      "connected": "Connecté",
+      "configured": "Configuré",
+      "missing": "Non configuré",
+      "events": "{count, plural, one {# événement} other {# événements}}",
+      "empty": "Aucune intégration connectée pour l’instant."
+    },
+    "workspace": {
+      "count": "Équipes",
+      "current": "Équipe actuelle",
+      "members": "Membres",
+      "multiOn": "Multi-équipes activé",
+      "multiOff": "Une seule équipe"
+    },
+    "hiring": {
+      "stages": "Étapes",
+      "regime": "Régime",
+      "active": "Sur le tableau"
+    },
+    "profile": {
+      "archetype": "Archétype",
+      "roleFamily": "Famille de postes",
+      "completeness": "Complétude",
+      "since": "Dans le vivier depuis",
+      "placements": "Sur le tableau",
+      "noPlacements": "Pas sur le tableau"
+    },
+    "entry": {
+      "stage": "Étape",
+      "score": "Adéquation",
+      "moved": "Dernier déplacement",
+      "source": "Source",
+      "gate": "Porte d’approbation",
+      "invite": "Entretien"
+    },
+    "job": {
+      "company": "Entreprise",
+      "location": "Lieu",
+      "seniority": "Séniorité",
+      "status": "Statut",
+      "funnel": "Entonnoir",
+      "total": "En pipeline",
+      "interviewed": "Entretiens",
+      "hired": "Recrutés"
+    },
+    "jd": {
+      "created": "Créée",
+      "analyses": "Analyses",
+      "words": "Mots",
+      "status": "Construction"
+    },
+    "analysis": {
+      "score": "Score",
+      "roleFamily": "Famille de postes",
+      "seniority": "Séniorité",
+      "disposition": "Votre décision",
+      "created": "Analysé",
+      "jd": "Face à la fiche",
+      "undecided": "Non tranché"
+    }
   },
   "shortcuts": {
     "title": "Raccourcis clavier",
@@ -1696,7 +1902,6 @@
     "attentionBadge": "{count} à traiter",
     "attentionBadgeGo": "{count} à traiter. Les afficher.",
     "tabSwitched": "Basculé vers {tab}",
-    "recent": "Récent",
     "brandMark": "K",
     "brandName": "KandiDate",
     "tagline": "matching de talents",
@@ -1730,7 +1935,8 @@
       "insights": "Aperçus",
       "settings": "Paramètres"
     },
-    "openWorkspace": "Ouvrir l’espace de travail"
+    "openWorkspace": "Ouvrir l’espace de travail",
+    "home": "Accueil"
   },
   "enums": {
     "stage": {
@@ -1932,7 +2138,16 @@
       "ats_export": "a été exporté vers un ATS",
       "profile_enriched": "a comblé lui-même les lacunes de son profil",
       "unknownKind": "a produit un événement non reconnu ({kind})",
-      "stage_migrated": "a été déplacé vers {stage} lors de la suppression d’une étape du pipeline"
+      "stage_migrated": "a été déplacé vers {stage} lors de la suppression d’une étape du pipeline",
+      "screen_wave_holdout": "a été épargné par la vague de présélection (témoin de calibrage)",
+      "human_round_queued": "a été confié à un tour humain après le tour IA",
+      "offer_reminder_sent": "a reçu un rappel d’offre",
+      "offer_auto_extended": "a reçu une offre émise sans intervention humaine",
+      "offer_accept_blocked": "a accepté une offre qui ne pouvait plus être honorée",
+      "agent_dispatched": "a été envoyé à Personas comme demande de persona",
+      "agent_activated": "est entré en service comme persona Personas",
+      "onboarding_started": "a démarré l’intégration (module retiré)",
+      "onboarding_intake_submitted": "a soumis son questionnaire d’intégration (module retiré)"
     },
     "relTime": {
       "today": "aujourd’hui",
@@ -2097,7 +2312,9 @@
       "emptyBoardWaiting": "Votre tableau, en attente",
       "emptyFirstCandidate": "Premier candidat",
       "attentionTitle": "Requiert votre attention",
-      "filterStateLabel": "État"
+      "filterStateLabel": "État",
+      "stageOffBoard": "L'étape {stage} n'est plus une colonne de ce tableau. Le filtre reste appliqué : vous ne voyez donc que les candidats qui s'y trouvent encore.",
+      "stageOffBoardClear": "Supprimer ce filtre"
     },
     "today": {
       "eyebrow": "Aujourd’hui",
@@ -2238,7 +2455,18 @@
       "commsBounceLine": "Le relais a signalé ce message comme non distribuable : {detail}",
       "commsFailureLine": "La distribution a échoué et n’a pas été retentée : {detail}",
       "commsRecoveredLine": "Cet envoi a d’abord échoué, puis un renvoi ultérieur est passé.",
-      "commsReasonUnknown": "aucune raison enregistrée"
+      "commsReasonUnknown": "aucune raison enregistrée",
+      "hireOutcome": {
+        "title": "Résultat sur le poste",
+        "unrated": "Pas encore évalué.",
+        "rated": "Évalué {rating}/{max} le {date}.",
+        "rateAria": "Attribuer la note {n} sur {max}",
+        "scaleHint": "1 = le recrutement n’a pas fonctionné, 5 = a dépassé les attentes.",
+        "saving": "Enregistrement…",
+        "saveFailed": "Impossible d’enregistrer l’évaluation.",
+        "purpose": "Notez comment ce recrutement s’est réellement passé. C’est la donnée de référence derrière la mesure de la qualité des recrutements dans Analytique.",
+        "notAutomated": "Visible uniquement dans votre espace de travail. Elle n’est jamais montrée au candidat et n’est pas utilisée pour prendre des décisions automatisées."
+      }
     },
     "actions": {
       "screen": "Présélection AI",
@@ -2316,7 +2544,7 @@
       "claudeCli": "Claude CLI",
       "template": "modèle",
       "feedback": "Retour : {text}",
-      "confidence": " · {confidence} % de confiance",
+      "confidence": " · auto-évaluation du modèle : {confidence} %",
       "goodAnswer": "Bonne réponse : {text}",
       "perMonth": "/ mois",
       "band": "fourchette {min}–{max} {currency}",
@@ -2516,7 +2744,11 @@
       "jdEditedTitle": "La fiche de poste a été modifiée le {date}, après l’évaluation de ce candidat. Le score reflète le texte antérieur. Relancez l’analyse pour l’actualiser.",
       "noBand": "Aucune fourchette salariale n’est configurée pour ce poste ni pour ce marché, donc aucun montant n’a été proposé. Définissez-le lors de l’approbation.",
       "unpricedAmount": "Montant à définir",
-      "unpricedTitle": "Aucun salaire n’a été proposé pour ce brouillon. Définissez le montant lors de l’approbation de l’offre."
+      "unpricedTitle": "Aucun salaire n’a été proposé pour ce brouillon. Définissez le montant lors de l’approbation de l’offre.",
+      "selfReportLabel": "Auto-évaluation du modèle",
+      "selfReportValue": "{pct} sur 100",
+      "selfReportNote": "la note que le modèle s’attribue pour ce verdict. Rien ne l’a confrontée à des résultats réels.",
+      "selfReportTitle": "Le modèle devait rendre un verdict et il a aussi indiqué à quel point il se sent sûr. Cette indication renseigne sur le modèle, pas sur le candidat : aucun résultat, aucun échantillon de contrôle et aucun taux de base ne la soutient. Son équivalent mesuré, la fréquence réelle de passage d’une plage de score, est une statistique portant sur toute une cohorte et se trouve dans la section qualité d’Analytics."
     },
     "rules": {
       "title": "Règles de décision · Présélection",
@@ -2632,7 +2864,9 @@
         "tieAdjustedNote": "(ajusté pour égalité depuis {from} afin qu’aucun score égal ne soit séparé)",
         "staleSkipped": "Ignoré : l’étape a changé en cours de vague (était {wasStage}). Laissé intact.",
         "unscored": "non évalué : aucun score de correspondance pour l’instant. Exclu du rejet automatique (évaluation requise)",
-        "holdout": "conservé comme échantillon témoin de calibrage : {pct} % des candidats qui auraient été rejetés automatiquement sont épargnés afin que leurs résultats réels vérifient la justesse du score (correspondance {score}, seuil {threshold})"
+        "holdout": "conservé comme échantillon témoin de calibrage : {pct} % des candidats qui auraient été rejetés automatiquement sont épargnés afin que leurs résultats réels vérifient la justesse du score (correspondance {score}, seuil {threshold})",
+        "approvedByNote": "Approuvé par {who}.",
+        "approverUnidentified": "Approbateur non identifié."
       }
     },
     "summary": {
@@ -2725,7 +2959,7 @@
       "skillsSection": "Compétences",
       "salarySection": "Salaire · attente vs fourchette",
       "overallFit": "Correspondance globale",
-      "confidenceBand": "Intervalle de confiance",
+      "confidenceBand": "Plage du score",
       "profile": "Profil",
       "mustHaveCoverage": "Couverture des indispensables",
       "expected": "Attendu",
@@ -2769,7 +3003,7 @@
       "recommendedLead": "Favori recommandé",
       "differentiators": "Différenciateurs (favori) :",
       "leadTied": "À égalité de fait",
-      "leadTiedTitle": "L’écart avec le deuxième se situe à l’intérieur des intervalles de confiance des deux candidats. Considérez les deux premiers comme à égalité au vu des éléments disponibles.",
+      "leadTiedTitle": "L’écart avec le deuxième se situe à l’intérieur des plages de score des deux candidats. Considérez les deux premiers comme à égalité au vu des éléments disponibles.",
       "risk": {
         "lowFit": "{label} : correspondance plus faible ({score}). Vérifiez les indispensables en entretien.",
         "earlyCareer": "{label} : début de carrière. Évaluez le potentiel et la trajectoire, pas seulement les compétences actuelles.",
@@ -2787,7 +3021,7 @@
         "uniqueStrengths": "Points forts uniques : {list}.",
         "watchOuts": "{count, plural, one {# point de vigilance signalé} other {# points de vigilance signalés}} ci-dessous.",
         "noRisks": "Aucun risque bloquant signalé.",
-        "separationCaveat": "Réserve de confiance : {lead} n’est pas départagé de {runnerUp}. Leurs intervalles de confiance se chevauchent, ce classement reste donc dans l’incertitude de la mesure. Considérez les deux premiers comme à égalité au vu des éléments disponibles."
+        "separationCaveat": "Réserve sur la plage : {lead} n’est pas départagé de {runnerUp}. Leurs plages de score se chevauchent, ce classement reste donc dans l’incertitude de la mesure. Considérez les deux premiers comme à égalité au vu des éléments disponibles."
       },
       "governance": {
         "committee": "Mode comité : la comparaison de l’AI est un apport CONSULTATIF pour le comité de sélection. Elle ne choisit ni ne scelle un recrutement. Consignez l’évaluation de chaque évaluateur et la décision du comité dans votre processus de gouvernance.",
@@ -2796,6 +3030,24 @@
       "topPickWhy": {
         "highestFit": "Correspondance la plus élevée ({score}) pour ce poste.",
         "unscored": "En tête du groupe, mais aucune correspondance n’a encore été calculée."
+      },
+      "rejectConfirm": {
+        "title": "Rejeter {name} ?",
+        "body": "Un rejet est scellé dans le registre d’audit inviolable et le candidat en est informé. Le motif que vous saisissez ici devient la justification portée à ce registre. Sans lui, l’audit indique seulement qu’un recruteur a rejeté.",
+        "presetsLabel": "Motifs courants",
+        "presets": {
+          "mustHave": "Ne remplit pas une exigence indispensable du poste",
+          "weakerField": "Plus faible que le reste du panel comparé",
+          "salaryBand": "Prétention hors de la fourchette salariale du poste",
+          "evidence": "Preuves insuffisantes de l’expérience requise"
+        },
+        "reasonLabel": "Motif du rejet",
+        "reasonRequired": "· obligatoire, scellé dans le registre d’audit",
+        "placeholder": "Pourquoi cette personne ne poursuit-elle pas ? Par ex. aucun Kubernetes en production sur les trois derniers postes, cœur de cette fonction.",
+        "sealNote": "Consigné tel quel. C’est ce que liront la piste d’audit et toute relecture ultérieure.",
+        "cancel": "Annuler",
+        "confirm": "Rejeter et consigner le motif",
+        "sealedToast": "{name} rejeté(e). Le motif figure au registre d’audit."
       }
     },
     "empty": {
@@ -3571,12 +3823,12 @@
         "route": "Voie {step}",
         "eyebrow": "Premier poste",
         "title": "Votre catalogue attend son coup d’envoi",
-        "body": "Chaque recrutement dans kp repose sur un poste ouvert. Publiez le premier et le reste de l’espace de travail s’anime.",
+        "body": "Chaque recrutement dans Kandi repose sur un poste ouvert. Publiez le premier et le reste de l’espace de travail s’anime.",
         "route1Title": "Le rédiger à partir d’un modèle de fiche de poste",
         "route1Body": "Choisissez une fiche de poste dans la bibliothèque, ajustez les exigences et publiez-la comme poste ouvert.",
         "route1Cta": "Ouvrir les fiches de poste",
         "route2Title": "Importer une annonce que vous avez déjà",
-        "route2Body": "Collez une annonce existante et kp en fait un poste structuré : exigences, séniorité, mode de travail.",
+        "route2Body": "Collez une annonce existante et Kandi en fait un poste structuré : exigences, séniorité, mode de travail.",
         "route2Cta": "Utilisez le panneau d’import ci-dessus",
         "unlocksLabel": "Un poste débloque",
         "unlockChannels": "Canaux ouverts",
@@ -3726,7 +3978,7 @@
       "salaryOk": "Le salaire est aligné sur la fourchette du marché <b>{market}</b> pour ce poste.",
       "salaryUnset": "(aucune fourchette définie)",
       "notAssessed": "{n, plural, one {# candidat n’a pas pu être évalué} other {# candidats n’ont pas pu être évalués}} et {n, plural, one {n’est pas compté} other {ne sont pas comptés}} ci-dessus. Vérifiez leur profil.",
-      "footnote": "Les projections réexécutent le moteur de scoring en direct de kp sur vos candidats enregistrés, de sorte qu’elles reflètent ce que la publication ferait ressortir.",
+      "footnote": "Les projections réexécutent le moteur de scoring en direct de Kandi sur vos candidats enregistrés, de sorte qu’elles reflètent ce que la publication ferait ressortir.",
       "stageEdit": "Préparer cette modification",
       "stageEditAria": "Ouvrir l’éditeur de description avec la modification préparée pour {value}"
     },
@@ -3888,24 +4140,26 @@
   "scoreProvenance": {
     "analysis": "d’après l’analyse du CV · {date}",
     "analysisShort": "d’après l’analyse du CV",
-    "snapshot": "instantané à l’ajout"
+    "snapshot": "instantané à l’ajout",
+    "freshMatch": "calculé par cette exécution de matching",
+    "freshMatchTitle": "Calculé maintenant, par cette exécution de matching, sur le texte actuel du poste. Il n’est jamais stocké sur le candidat, donc le tableau du pipeline peut honnêtement afficher un autre nombre : le score figé au moment de l’ajout."
   },
   "match": {
     "band": {
       "tight": {
-        "label": "Fourchette étroite",
-        "aria": "Intervalle de confiance : étroit (grande certitude)"
+        "label": "Plage étroite",
+        "aria": "Plage du score : étroite (le score varie peu)"
       },
       "moderate": {
-        "label": "Fourchette modérée",
-        "aria": "Intervalle de confiance : certitude modérée"
+        "label": "Plage modérée",
+        "aria": "Plage du score : largeur modérée"
       },
       "wide": {
-        "label": "Fourchette large",
-        "aria": "Intervalle de confiance : large (faible certitude)"
+        "label": "Plage large",
+        "aria": "Plage du score : large (le score peut beaucoup varier)"
       },
-      "titlePrefix": "Pourquoi cette fourchette :",
-      "titleFallback": "Fourchette étroite : preuves solides et vérifiables."
+      "titlePrefix": "Pourquoi cette plage :",
+      "titleFallback": "Plage étroite : preuves solides et vérifiables."
     },
     "fitTier": {
       "strong": "Forte adéquation",
@@ -3958,8 +4212,8 @@
       "noLanguages": "Aucune langue indiquée. Le KO linguistique a été ignoré plutôt que déclaré en échec.",
       "earlyCareer": "Débutant : le potentiel remplace les années d’expérience. Seuls les postes accessibles aux débutants sont considérés.",
       "selfDeclared": "Certaines compétences sont auto-déclarées et donc décotées. Validez-les en entretien.",
-      "observed": "Certaines compétences ont été observées directement (cas pratique / entretien), elles sont donc fiables et non auto-déclarées.",
-      "thinProfile": "Profil de compétences mince. Les scores portent une large fourchette de confiance."
+      "observed": "Certaines compétences ont été observées directement (cas pratique / entretien) : ce sont des preuves vérifiées, pas une déclaration du candidat.",
+      "thinProfile": "Profil de compétences mince. La plage autour de chaque score est large."
     },
     "koClause": {
       "language": "exigeaient une langue absente du profil",
@@ -4012,12 +4266,14 @@
       "explainFit": "Expliquer la correspondance",
       "entryEligible": "ouvert aux débutants",
       "metaLine": "<b>{company}</b> · {location} · {workMode} · {family} / {seniority} · {salary}",
-      "whyBandLabel": "Pourquoi cette fourchette :",
+      "whyBandLabel": "Pourquoi cette plage :",
       "partialTitle": "Correspondance partielle ({pct}%) : une compétence proche/voisine ou auto-déclarée, pas une correspondance exacte vérifiée",
       "missingTitle": "Prérequis manquant",
       "missingTitleEarly": "Prérequis manquant (souvent acquérable)",
       "showLess": "Voir moins",
-      "moreCount": "+{count} de plus"
+      "moreCount": "+{count} de plus",
+      "rangeLabel": "Plage",
+      "rangeAria": "Plage du score {low} à {high} sur 100"
     },
     "weights": {
       "adjustWeighting": "Ajuster la pondération",
@@ -4061,8 +4317,8 @@
         "role": "Poste",
         "company": "Entreprise",
         "score": "Score",
-        "confLow": "Conf. basse",
-        "confHigh": "Conf. haute",
+        "confLow": "Plage basse",
+        "confHigh": "Plage haute",
         "fitTier": "Niveau de correspondance",
         "matchedSkills": "Compétences correspondantes",
         "missingSkills": "Compétences manquantes"
@@ -4074,7 +4330,7 @@
       "roleHeader": "Poste →",
       "roleMeta": "{company} · {family} / {seniority}",
       "overallFit": "Correspondance globale",
-      "confidence": "Confiance",
+      "confidence": "Plage du score",
       "matchedSkills": "Compétences correspondantes",
       "missingMustHaves": "Prérequis manquants",
       "salaryBand": "Fourchette de salaire",
@@ -4171,7 +4427,7 @@
       "sortBy": "Trier par {column}"
     },
     "result": {
-      "confidence": "confiance {pct} %",
+      "confidence": "concordance des signaux {pct} %",
       "saved": "enregistré · {id}",
       "preview": "aperçu (non enregistré)",
       "routing": "Orientation : {reasons}",
@@ -4226,7 +4482,7 @@
       "drafting": "Rédaction…",
       "draftWithAi": "Rédiger avec l’AI",
       "draftSavedHint": "Remplit les champs ci-dessous. Rien n’est enregistré tant que vous ne cliquez pas sur Enregistrer.",
-      "draftedAs": "Rédigé comme {label} (confiance {pct} %). Vérifiez et modifiez ci-dessous, puis enregistrez.",
+      "draftedAs": "Rédigé comme {label} ({pct} % des signaux d’orientation concordent). Vérifiez et modifiez ci-dessous, puis enregistrez.",
       "draftFailedStatus": "Échec de la rédaction ({status}).",
       "aiDraftFailed": "Échec de la rédaction par l’AI.",
       "buildFailedStatus": "Échec de la création ({status}).",
@@ -4388,7 +4644,7 @@
       "bouncedRecipientPlaceholder": "nom@entreprise.fr",
       "bouncedResendInvalid": "Saisissez une adresse e-mail valide avant de renvoyer.",
       "orphanBadge": "Accusé non rattaché",
-      "orphanHint": "Le relais a signalé un échec de distribution pour un message que kp n’a jamais envoyé : sa référence ou son type ne correspond à rien ici. Vérifiez la correspondance ref/kind dans l’intégration du relais.",
+      "orphanHint": "Le relais a signalé un échec de distribution pour un message que Kandi n’a jamais envoyé : sa référence ou son type ne correspond à rien ici. Vérifiez la correspondance ref/kind dans l’intégration du relais.",
       "failureDetail": "Échec de la distribution : {detail}",
       "failureDetailUnknown": "Échec de la distribution. Aucune raison n’a été enregistrée pour cet envoi.",
       "resendRejected": "Renvoi impossible : {reason}",
@@ -4399,7 +4655,7 @@
       "colType": "Type",
       "colStatus": "Statut",
       "colRecorded": "Enregistré",
-      "recordedHint": "Quand kp a enregistré le message. Un renvoi constitue sa propre ligne : l’original et le renvoi restent distincts.",
+      "recordedHint": "Quand Kandi a enregistré le message. Un renvoi constitue sa propre ligne : l’original et le renvoi restent distincts.",
       "via": "via {channel}",
       "statusSent": "Envoyé",
       "statusQueued": "En file d’attente",
@@ -4527,10 +4783,10 @@
       "notWiredHowTo": "Tout ce qui sait envoyer un POST l’atteint dès aujourd’hui : une automatisation (Zapier/Make), un formulaire ou un service d’analyse d’e-mails.",
       "gmail1": "Ouvrez Gmail → <b>Paramètres ⚙ → Afficher tous les paramètres → Transfert et POP/IMAP</b>.",
       "gmail2": "Cliquez sur <b>Ajouter une adresse de transfert</b>, collez <endpoint></endpoint>, puis <b>Suivant → Continuer</b>.",
-      "gmail3": "Gmail envoie un <b>code de confirmation</b> à cette adresse. Récupérez-le dans le journal de votre fournisseur d’e-mails entrants. kp enregistre les messages sortants, pas le courrier du fournisseur. Saisissez-le ensuite dans Gmail pour confirmer.",
+      "gmail3": "Gmail envoie un <b>code de confirmation</b> à cette adresse. Récupérez-le dans le journal de votre fournisseur d’e-mails entrants. Kandi enregistre les messages sortants, pas le courrier du fournisseur. Saisissez-le ensuite dans Gmail pour confirmer.",
       "gmail4": "Créez un <b>filtre</b> (p. ex. <i>l’objet contient « candidature »</i>) → <b>Le transférer à</b> <endpoint></endpoint>. Chaque e-mail correspondant arrive désormais automatiquement.",
       "outlook1": "Ouvrez Outlook sur le web → <b>Paramètres ⚙ → Courrier → Règles → Ajouter une règle</b>.",
-      "outlook2": "Nommez-la <i>« Candidatures → KP »</i> et ajoutez une condition (p. ex. <i>l’objet contient « candidature »</i>).",
+      "outlook2": "Nommez-la <i>« Candidatures → Kandi »</i> et ajoutez une condition (p. ex. <i>l’objet contient « candidature »</i>).",
       "outlook3": "Définissez l’action sur <b>Rediriger vers</b> (ou <b>Transférer à</b>) <endpoint></endpoint>.",
       "outlook4": "Cliquez sur <b>Enregistrer</b>. Le courrier correspondant est désormais redirigé automatiquement, sans code à confirmer.",
       "notWiredHowToSetup": "Pour activer un vrai transfert, dirigez un fournisseur d’e-mails entrants (Postmark, SendGrid ou Mailgun inbound) vers ce point d’accès et définissez <code>EMAIL_INBOUND_DOMAIN</code> sur le domaine où il accepte le courrier. L’adresse de transfert et les étapes Gmail/Outlook apparaîtront alors ici."
@@ -4582,7 +4838,7 @@
         "proof": "Une fois le relais configuré, chaque invitation, refus et relance est consigné ici avec le résultat de distribution réellement obtenu.",
         "actionHint": "Configurez l’endpoint du relais ci-dessous",
         "step1": "Collez l’URL de votre endpoint de distribution dans la carte du relais ci-dessous.",
-        "step2": "Ajoutez un secret de signature pour qu’un récepteur puisse prouver que l’appel vient de kp.",
+        "step2": "Ajoutez un secret de signature pour qu’un récepteur puisse prouver que l’appel vient de Kandi.",
         "step3": "Envoyez le ping de test et vérifiez qu’il revient au vert.",
         "effort": "Environ 2 minutes : un seul endpoint sert tout l’espace de travail",
         "waiting": "Le relais est configuré et rien n’a encore été envoyé. Les messages apparaîtront ici dès que vous agirez sur un candidat."
@@ -4601,7 +4857,7 @@
         "promise": "Des candidatures transférées directement depuis votre boîte mail",
         "proof": "Chaque e-mail correspondant à votre règle devient une fiche candidat avec son CV joint. Plus personne ne ressaisit une candidature.",
         "actionHint": "Ajoutez une boîte de poste pour obtenir son adresse",
-        "step1": "Ajoutez une boîte de poste. kp génère une adresse de traitement liée à ce poste.",
+        "step1": "Ajoutez une boîte de poste. Kandi génère une adresse de traitement liée à ce poste.",
         "step2": "Dans Gmail ou Outlook, transférez les e-mails correspondants vers cette adresse.",
         "step3": "Confirmez la règle. Le guide d’installation détaille les étapes exactes pour chaque client mail.",
         "effort": "Environ 3 minutes : une règle par poste",
@@ -4613,7 +4869,7 @@
         "actionHint": "Ajoutez un récepteur pour obtenir son URL de webhook",
         "step1": "Ajoutez un récepteur pour le poste que vous mettez en avant.",
         "step2": "Dans Zapier ou Make, déclenchez un flux à chaque nouveau lead du formulaire publicitaire.",
-        "step3": "Envoyez ce lead en POST vers l’URL de récepteur que kp vous fournit.",
+        "step3": "Envoyez ce lead en POST vers l’URL de récepteur que Kandi vous fournit.",
         "effort": "Environ 5 minutes : un récepteur par poste mis en avant",
         "waiting": "Le récepteur est prêt et aucun lead n’est encore arrivé. Le premier se déposera tout seul dans le pipeline."
       }
@@ -4911,14 +5167,14 @@
         "restoreFailedStatus": "Échec de la restauration ({status}).",
         "restoreFailed": "Échec de la restauration.",
         "restored": "{tables} tables · {rows} lignes restaurées. Rechargez la page pour voir votre organisation restaurée.",
-      "notCarried": "Ne font pas partie d’une sauvegarde et restent donc en l’état : {tables}. Vérifiez-les dans les Réglages.",
+        "notCarried": "Ne font pas partie d’une sauvegarde et restent donc en l’état : {tables}. Vérifiez-les dans les Réglages.",
         "plan": {
           "title": "Plan de restauration · {tables} tables, {rows} lignes",
           "replaceWarning": "La restauration SUPPRIME d’abord ce que votre organisation contient aujourd’hui : {count, plural, one {# ligne} other {# lignes}} dans {tables}.",
           "confirmPrompt": "Cette action remplace les données actuelles de votre organisation. Saisissez <code>{word}</code> pour confirmer :",
           "confirmAria": "Saisissez {word} pour confirmer la restauration destructive",
           "nonDestructive": "Votre organisation ne contient encore aucune donnée, la restauration n’est donc pas destructive.",
-        "sharedTierNote": "Une autre organisation partage ce déploiement : la bibliothèque de modèles partagée et la base de décision restent donc intactes.",
+          "sharedTierNote": "Une autre organisation partage ce déploiement : la bibliothèque de modèles partagée et la base de décision restent donc intactes.",
           "rows": "{count, plural, one {# ligne} other {# lignes}}",
           "rowsReplacing": "{count, plural, one {# ligne} other {# lignes}} · remplace {live}",
           "apply": "Restaurer",
@@ -5028,7 +5284,7 @@
     }
   },
   "login": {
-    "eyebrow": "kp",
+    "eyebrow": "Kandi",
     "title": "Connexion",
     "subtitle": "Connectez-vous avec votre e-mail et votre mot de passe, ou le mot de passe opérateur.",
     "emailLabel": "E-mail",
@@ -5045,7 +5301,7 @@
     "error": "Identifiants incorrects. Réessayez."
   },
   "signup": {
-    "eyebrow": "kp",
+    "eyebrow": "Kandi",
     "title": "Créez votre espace de travail",
     "subtitle": "Configurez l’espace de recrutement de votre entreprise. Vous en serez le propriétaire.",
     "nameLabel": "Votre nom",
@@ -5092,7 +5348,7 @@
     "eyebrow": "Attestation vérifiée",
     "title": "Profil de compétences durables",
     "subtitle": "Une mesure signée et portable des capacités durables en ingénierie. Obtenue à partir d’un travail évalué, non d’un CV.",
-    "verified": "Vérifié par kp",
+    "verified": "Vérifié par Kandi",
     "revoked": "Cette attestation a été révoquée",
     "tampered": "Signature invalide, ne pas s’y fier",
     "incomplete": "Émis sans synthèse chiffrée",
@@ -5194,7 +5450,6 @@
     "briefBandFunnel": "L’entonnoir",
     "briefStallClaim": "Les candidats stagnent à l’étape {stage}, {days} jours en moyenne.",
     "briefStallContext": "{count} personnes y attendent en ce moment.",
-    "briefWeakestClaim": "{stage} est le maillon faible, avec {pct} % de conversion.",
     "briefFunnelHealthyClaim": "Chaque étape atteint son objectif.",
     "briefNoDataClaim": "Personne n’a encore traversé l’entonnoir.",
     "briefNoDataContext": "Ajoutez un poste et commencez à recueillir des candidats ; ce point se remplit à mesure qu’ils avancent.",
@@ -5213,19 +5468,36 @@
       "instrumentEyebrow": "Peut-on se fier au score ?",
       "calibrationUnavailable": "Le calibrage n’a pas pu être lu.",
       "verdictGood": "Le score de présélection est bien calibré.",
-      "verdictGoodBody": "Un score de Brier de {brier} sur {n} candidats tranchés, nettement mieux qu’au hasard. Les décisions automatiques sur ce score sont défendables.",
-      "verdictWeak": "Le score de présélection fait à peine mieux que le hasard.",
-      "verdictWeakBody": "Un score de Brier de {brier} sur {n} candidats tranchés. Le hasard donne 0,25. Gardez un humain sur les refus tant que cela ne s’améliore pas.",
-      "verdictBad": "Le score de présélection fait moins bien que le hasard.",
-      "verdictBadBody": "Un score de Brier de {brier} sur {n} candidats tranchés, au-dessus du 0,25 d’un tirage à pile ou face. Ne laissez pas ce score refuser qui que ce soit automatiquement.",
+      "verdictGoodBody": "Un score de Brier de {brier} sur {n} candidats tranchés du bras témoin, soit {skillPct} % de mieux que de toujours prédire le taux de base de cette cohorte ({basePct} % avancés). Ces issues n’ont pas été produites par le score : cette lecture est donc réfutable.",
+      "verdictWeak": "Le score de présélection dépasse à peine le taux de base de cette cohorte.",
+      "verdictWeakBody": "Un score de Brier de {brier} sur {n} candidats tranchés, soit seulement {skillPct} % de mieux que de toujours prédire le taux de base ({basePct} % avancés). Gardez une personne sur les refus tant que cette marge n’augmente pas.",
+      "verdictBad": "Le score de présélection ne fait pas mieux que le taux de base.",
+      "verdictBadBody": "Un score de Brier de {brier} sur {n} candidats tranchés, soit {skillPct} % face à une prédiction constante du taux de base de cette cohorte ({basePct} % avancés) : une supposition constante ferait au moins aussi bien. Ne laissez pas ce score refuser qui que ce soit automatiquement.",
       "verdictUnknown": "Il n’y a pas encore assez d’éléments pour juger le score.",
       "verdictUnknownBody": "{n} des {min} candidats tranchés nécessaires pour mesurer le calibrage. D’ici là aucune courbe n’est tracée : ajustée sur une poignée de points, elle afficherait une certitude que ces données n’ont pas.",
       "statOutcomes": "Tranchés",
       "statAdvanced": "Avancés",
       "statBrier": "Brier",
-      "statCoin": "Pile ou face",
       "evidenceLabel": "Pièces : ce qui a été décidé",
-      "evidenceBody": "Le registre scellé et la trace complète, pour confronter les affirmations ci-dessus à chaque décision."
+      "evidenceBody": "Le registre scellé et la trace complète, pour confronter les affirmations ci-dessus à chaque décision.",
+      "verdictCircular": "Ce score n’a jamais été vérifié qu’au regard de ses propres décisions.",
+      "verdictCircularBody": "Un score de Brier de {brier} sur {n} candidats tranchés, mais la présélection automatique a produit ces issues à partir de ce même score : ce nombre mesure une cohérence interne, pas une précision. Face au taux de base de cette cohorte ({basePct} % avancés), il obtient {skillPct} %. Gardez une personne sur les refus tant que le bras propre ne peut pas être jugé.",
+      "verdictDegenerateBody": "Les {n} candidats tranchés ont tous connu à peu près la même issue ({basePct} % avancés) : le score n’a rien à distinguer et il n’y a encore rien à mesurer.",
+      "statArm": "Bras",
+      "armPipeline": "Pipeline",
+      "armHoldout": "Témoin",
+      "statBaseBrier": "Brier du taux de base",
+      "statSkill": "Apport du score",
+      "skillValue": "{pct} %",
+      "scopeLabel": "Ce qui est jugé ici :",
+      "scopeAdvance": "le passage de la présélection. Un candidat compte comme une réussite dès qu’il atteint l’entretien, l’offre ou le recrutement : ce verdict ne distingue donc pas un recrutement d’un entretien, et ne dit rien de la façon dont un recrutement s’est ensuite comporté.",
+      "hiredAxisReady": "La capacité du score à prédire un recrutement est mesurée séparément : Brier {brier} sur {n} candidats recrutés ou rejetés. Une partie de ces rejets vient toujours de la présélection automatique : lisez ce chiffre avec l’avertissement ci-dessous.",
+      "hiredAxisPending": "La capacité du score à prédire un recrutement est mesurée séparément et ne peut pas encore être jugée : {n} des {min} candidats recrutés ou rejetés nécessaires.",
+      "hiredAxisWhere": "Réglez l’affichage ci-dessous sur l’issue de recrutement pour la voir.",
+      "hireRatingNone": "La qualité des recrutements est une troisième question, et cet espace de travail n’enregistre encore aucun recrutement, il n’y a donc rien à évaluer.",
+      "hireRatingPending": "Savoir si un recrutement a ensuite fonctionné est une troisième question, et elle demande une évaluation saisie par une personne : {rated} recrutements évalués sur {hires} à ce jour, il en manque encore {remaining} avant de pouvoir juger cette courbe.",
+      "hireRatingReady": "Savoir si un recrutement a ensuite fonctionné est une troisième question : {rated} recrutements portent désormais une évaluation sur le poste, assez pour juger une courbe. La courbe elle-même n’est pas encore construite.",
+      "hireRatingWhere": "Les évaluations se saisissent sur un candidat recruté, dans le panneau du candidat du tableau de recrutement."
     },
     "econ": {
       "colPerHire": "Par recrutement",
@@ -5243,7 +5515,9 @@
       "colKind": "Type",
       "colShape": "Profil",
       "colLeads": "Contacts",
-      "colSpend": "Dépense"
+      "colSpend": "Dépense",
+      "billingNote": "Le coût de calcul est ici un seul chiffre pour tout l’espace de travail. La Facturation le ventile par cas d’usage.",
+      "billingLink": "Ouvrir la facturation"
     },
     "orgBenchmark": {
       "title": "Comparatif de l’entreprise",
@@ -5257,7 +5531,8 @@
       "orgLabel": "Entreprise : {value}",
       "ahead": "en avance",
       "behind": "en retard",
-      "footnote": "Agrégat anonymisé sur {teams} équipes. Aucune donnée de candidat ou d’équipe n’est partagée."
+      "footnote": "Agrégat anonymisé sur {teams} équipes. Aucune donnée de candidat ou d’équipe n’est partagée.",
+      "scopeAllTime": "Depuis le début : le comparatif de l’entreprise n’est pas restreint par la période choisie."
     },
     "loadFailed": "Impossible de charger les analyses.",
     "retry": "Réessayer",
@@ -5317,10 +5592,10 @@
     "configureChannels": "Configurer les canaux",
     "goals": {
       "title": "Objectifs de conversion et de délai de recrutement",
-      "intro": "Définissez des objectifs de conversion par étape et un objectif de délai de recrutement. L’entonnoir signale les étapes sous l’objectif. Laissez vide pour utiliser le seuil par défaut de 50 %.",
       "timeToHire": "Délai de recrutement",
       "daysSuffix": "jours",
-      "saveFailed": "Échec de l’enregistrement. Saisissez un nombre (ou effacez le champ pour le supprimer)."
+      "saveFailed": "Échec de l’enregistrement. Saisissez un nombre (ou effacez le champ pour le supprimer).",
+      "introUnset": "Définissez des objectifs de conversion par étape et une durée de recrutement cible. Une étape sans objectif n’est pas jugée : sa conversion s’affiche, mais n’est jamais signalée."
     },
     "calibration": {
       "title": "Quelle est notre précision ?",
@@ -5393,7 +5668,54 @@
       "recAppliedFamily": "Seuil pour {family} fixé à {suggested} (précédemment {previous}). Réversible en réappliquant.",
       "familyFloorsTitle": "Seuils par famille de postes",
       "familyFloorsBlurb": "Familles de postes avec leur propre seuil de rejet automatique (seuil global : {global}). Sélectionnez-en une pour la consulter ou l’ajuster.",
-      "familyFloorValue": "seuil {value}"
+      "familyFloorValue": "seuil {value}",
+      "sourceHoldout": "Échantillon témoin (le bras propre)",
+      "measuresHoldout": "Mesure le score de correspondance du pipeline sur les candidats que la vague de présélection a épargnés du rejet automatique. Leur issue n’a pas été produite par le score : c’est le seul bras sur lequel le calibrage peut être réfuté.",
+      "exclusionHoldout": "un candidat épargné compte dès qu’une décision est prise : avancé au-delà de la présélection, ou rejeté plus tard par une personne. Les candidats que le seuil n’a jamais touchés, et ceux encore en attente, sont exclus.",
+      "leakageTitle": "D’où vient l’issue mesurée",
+      "leakageLevelHigh": "Issue causée par le score",
+      "leakageLevelMedium": "Issue influencée par le score",
+      "leakageLevelLow": "Bras propre",
+      "leakageCeilingLabel": "Ce que cela ne montre malgré tout pas :",
+      "leakageScoreCausedNote": "Le rejet est produit par le score lui-même : la présélection automatique rejette sur le score de correspondance, cette courbe valide donc largement le score au regard de ses propres décisions. Le score de Brier en est optimiste, d’une ampleur que rien ici n’estime.",
+      "leakageScoreCausedCeiling": "Seul le bras témoin rompt ce couplage. Tant qu’il n’a pas accumulé assez d’issues, lisez cette courbe comme une cohérence interne, non comme une précision.",
+      "leakageReviewerSawNote": "L’issue est une décision humaine (avancer ou écarter) : le score ne l’a donc pas produite mécaniquement. Mais le recruteur voyait le score en décidant, les deux sont donc corrélés par ancrage, pas indépendants.",
+      "leakageReviewerSawCeiling": "Ce n’est pas un test à l’aveugle : la décision a été informée par le nombre même que l’on valide.",
+      "leakageCleanArmNote": "Ces candidats se situaient sous le seuil de rejet automatique et ont pourtant été épargnés : le score n’a donc pas produit mécaniquement leur issue. C’est le bras sur lequel le calibrage peut réellement être réfuté.",
+      "leakageCleanArmCeiling": "Le relecteur voyait toujours le score : ce n’est donc pas entièrement à l’aveugle ; et le bras ne couvre que la plage sous le seuil, il vous dit donc si vos rejets étaient justes, mais pas si toute la courbe l’est.",
+      "leakageUseHoldout": "Afficher le bras propre",
+      "accrualTitle": "Quand ce bras pourra être jugé",
+      "accrualBody": "Environ {remaining} candidats tranchés de plus ({n} sur {min}). D’ici là, cela reste un horizon, pas une courbe.",
+      "accrualHoldout": "Le bras témoin ne se remplit que si le rejet automatique tourne : une part échantillonnée des candidats qu’il rejetterait est épargnée et suivie ici.",
+      "skill": "Apport par rapport au taux de base",
+      "skillValue": "{pct} %",
+      "skillHint": "0 % = pas mieux que de toujours prédire le taux de base de cette cohorte ({pct} % avancés, Brier {base}). En dessous de zéro, c’est pire.",
+      "baseRateLegend": "Taux de base ({pct} % avancés)",
+      "thresholdLegend": "Seuil de rejet automatique ({threshold})",
+      "srThreshold": "Seuil de rejet automatique marqué à la prédiction {threshold}.",
+      "srBaseRate": "Ligne du taux de base à {pct} % observés.",
+      "recLeakageCaveat": "Cette suggestion lit les taux d’avancement des tranches que le seuil que vous vous apprêtez à déplacer a contribué à produire : elle est donc en partie circulaire. Vérifiez-la sur le bras propre dès qu’il pourra être jugé.",
+      "recAbsentTitle": "Aucun changement de seuil à suggérer",
+      "recAbsentBody": "Aucune des tranches de score voisines de votre seuil de {current} ne réunit assez de candidats tranchés, à un taux d’avancement nettement haut ou bas, pour justifier un déplacement. C’est une absence de preuve, pas une validation du seuil actuel.",
+      "recAbsentNoFloor": "Aucun seuil de rejet automatique n’est en vigueur : il n’y a donc rien à déplacer. Définissez-en un dans les règles de décision si la présélection doit agir sur ce score.",
+      "recAbsentFamily": "Mesuré uniquement au sein de {family}. La vue toutes familles confondues a peut-être assez de données.",
+      "familyFloorsNone": "Aucune famille de postes n’a son propre seuil : toutes sont présélectionnées au seuil global de {global}.",
+      "outcomeLabel": "Le succès signifie",
+      "outcomeAdvance": "Présélection passée",
+      "outcomeHired": "Recruté",
+      "measuresPipelineHired": "Mesure le score de correspondance du pipeline au regard du fait que le candidat a réellement été recruté. Le recrutement passe par des entretiens, une offre et son acceptation : c’est une question bien plus exigeante que le passage de la présélection, et bien plus lente à trancher.",
+      "measuresHoldoutHired": "Mesure le score de correspondance du pipeline au regard du fait que les candidats épargnés du rejet automatique par la vague de présélection ont réellement été recrutés. Aucun automatisme n’a produit cette issue : c’est le bras le plus strict que propose le calibrage.",
+      "exclusionPipelineHired": "un candidat compte dès qu’il est recruté ou rejeté. Tous ceux encore en cours de processus sont exclus, car ils peuvent encore être recrutés. Sont également exclus les candidats désistés, ceux dont le poste a été fermé, ceux qui se sont retirés et ceux sans score : rien de tout cela n’est un jugement sur le candidat.",
+      "exclusionHoldoutHired": "un candidat épargné compte dès qu’il est recruté ou rejeté. Les candidats que le seuil n’a jamais touchés, et tous ceux encore en cours de processus, sont exclus.",
+      "outcomeAnalysisUnavailable": "Ce bras enregistre une décision de recruteur sur une analyse, pas une étape du pipeline : il ne peut donc pas dire qui a été recruté. Passez au score de correspondance du pipeline pour cela.",
+      "outcomeHiredScopeNote": "Le détail par bandes de score et la suggestion de seuil découlent tous deux du passage de la présélection, ils restent donc sur ce réglage. Revenez-y pour les afficher.",
+      "axisObservedHired": "Taux de recrutement observé",
+      "baseRateLegendHired": "Taux de base ({pct} % recrutés)",
+      "skillHintHired": "0 % = pas mieux que de toujours prédire le taux de base de cette cohorte ({pct} % recrutés, Brier {base}). En dessous de zéro, c’est pire.",
+      "uncalibratedBodyHired": "Le calibrage demande au moins {min} candidats recrutés ou rejetés. Pour l’instant : {n}.",
+      "leakageLevelHighRejects": "Rejets causés par le score",
+      "leakageScoreCausedHiredNote": "Le recrutement passe par des entretiens, une offre et son acceptation, dont ce score ne décide pas : les succès affichés ici n’ont donc pas été produits par le score. Les rejets, en partie, si : la présélection automatique rejette sur le score de correspondance, et chacun de ces rejets compte ici comme un non-recrutement. Cet axe est moins circulaire que celui de la présélection, sans être propre.",
+      "leakageScoreCausedHiredCeiling": "Tous ceux encore en cours de processus sont exclus jusqu’à leur recrutement ou leur rejet : cet axe se remplit donc lentement et s’appuie sur ceux qui sont sortis tôt. Il ne dit rien non plus de la façon dont un recrutement s’est ensuite comporté."
     },
     "decisionRecords": {
       "title": "Registres de décision (scellés)",
@@ -5413,7 +5735,46 @@
       "colRationale": "Motif",
       "colActor": "Acteur",
       "colSealed": "Scellé",
-      "noMatches": "Aucun enregistrement ne correspond aux filtres."
+      "noMatches": "Aucun enregistrement ne correspond aux filtres.",
+      "verifiedKeyless": "Intégrité vérifiable, mais non inviolable : {count} enregistrements scellés, chaîne vérifiée, mais scellée sans clé.",
+      "keylessExplain": "Le sceau est un SHA-256 public sans secret : la chaîne détecte donc une corruption accidentelle, une ligne supprimée ou une modification négligente. Mais quiconque peut écrire dans la base recalcule chaque maillon et la falsifie sans être vu. Définissez KP_DECISION_HMAC_KEY pour sceller les nouveaux enregistrements sous une clé que l’auteur des écritures ne détient pas.",
+      "keylessCeiling": "Activer la clé plus tard ne peut pas resceller ce qui existe déjà : {keyless, plural, one {cet # enregistrement restera} other {ces # enregistrements resteront}} sans clé définitivement. La clé protège tout enregistrement scellé après elle, et à partir du premier enregistrement à clé, modifier un enregistrement antérieur rompt la chaîne à cet endroit.",
+      "partialKeyless": "{keyless} maillons sur {count} ont été scellés avant la configuration de la clé. Ils ne portent pas de clé propre. Ils ne sont couverts que par les maillons à clé qui les suivent : à partir de l’enregistrement #{seq}, modifier un maillon antérieur rompt la chaîne à cet endroit.",
+      "colKey": "Clé",
+      "keyNone": "sans clé",
+      "timeZoneNote": "Heures en {zone}",
+      "colFingerprint": "Empreinte",
+      "policyTitle": "La version de la politique sous laquelle cette décision a été scellée",
+      "rationaleToggle": "Afficher le motif complet",
+      "detailSealedText": "Texte scellé (haché)",
+      "detailPolicy": "Version de la politique",
+      "detailSealedAt": "Scellé le",
+      "detailContentHash": "Empreinte du contenu",
+      "detailPrevHash": "Empreinte précédente",
+      "exportChain": "Exporter toute la chaîne (JSON)",
+      "dossierExport": "Exporter le dossier de ce candidat (JSON)",
+      "dossierBusy": "Préparation…",
+      "dossierFailed": "Le dossier de ce candidat n'a pas pu être constitué. Rien n'a été téléchargé.",
+      "kinds": {
+        "group_eval_lead": "Évaluation de groupe : favori",
+        "group_eval_advisory": "Évaluation de groupe : avis",
+        "offer_terms": "Conditions de l'offre",
+        "ai_scorecard": "Grille d'évaluation IA",
+        "human_scorecard": "Grille d'évaluation humaine",
+        "interview_cancelled": "Entretien annulé",
+        "interview_no_show": "Absence à l'entretien",
+        "interview_proposal_declined": "Créneau proposé refusé",
+        "screening_threshold_adjusted": "Seuil de présélection ajusté"
+      },
+      "traceTitle": "Traçabilité de l'IA (art. 12)",
+      "tracePrompt": "Prompt de justification",
+      "traceLead": "Ce que le modèle a dit du candidat en tête",
+      "traceStrengths": "Points forts",
+      "traceGaps": "Lacunes",
+      "traceVerbatim": "Les mots du modèle, tronqués au moment du scellement de l'enregistrement et jamais modifiés.",
+      "traceAbsent": "Non enregistré pour ce scellement. Il a eu lieu avant la conservation de la version du prompt et du raisonnement du modèle, ou aucun modèle n'a produit de raisonnement pour cette évaluation.",
+      "traceNotRecorded": "Non enregistré",
+      "traceLeadAbsent": "Aucun raisonnement du modèle sur le candidat en tête n'a été enregistré pour ce scellement."
     },
     "forecast": {
       "title": "Prévision de recrutement",
@@ -5526,7 +5887,10 @@
       "perHireMultiWorkspace": "Impossible d’attribuer le calcul par espace de travail. Le registre d’usage couvre tout le compte, donc un coût par recrutement mélangerait les dépenses de tous les espaces de travail.",
       "manualWindowed": "vue depuis le début uniquement",
       "manualAllTime": "depuis le début",
-      "perHireNote": "Affiché dans la devise propre à chaque source. Le registre facture en USD, les dépenses de canaux en CZK, et les deux ne sont jamais converties ni additionnées."
+      "perHireNote": "Affiché dans la devise propre à chaque source. Le registre facture en USD, les dépenses de canaux en CZK, et les deux ne sont jamais converties ni additionnées.",
+      "basisWindowed": "Depuis le registre d’usage · {calls} appels mesurés sur les {days, plural, one {# dernier jour} other {# derniers jours}}.",
+      "basisAllTime": "Depuis le registre d’usage · {calls} appels mesurés, depuis le début.",
+      "perHireClosedWindow": "sur {hired, plural, one {# recrutement} other {# recrutements}} clôturés sur les {days, plural, one {# dernier jour} other {# derniers jours}}"
     },
     "exportCsv": "Exporter en CSV",
     "byArchetype": "Par archétype",
@@ -5624,7 +5988,24 @@
         "observed_minted": "Lien observateur généré",
         "role_reopened": "Poste rouvert",
         "reinstated": "Réintégré pour réexamen",
-        "group_eval": "Évaluation de groupe"
+        "group_eval": "Évaluation de groupe",
+        "offer_reminder_sent": "Rappel d’offre envoyé",
+        "offer_auto_extended": "Offre émise sans intervention humaine",
+        "offer_accept_blocked": "Acceptation impossible à honorer",
+        "screen_wave_holdout": "Épargné par la vague (témoin de calibrage)",
+        "human_round_queued": "Confié à un tour humain",
+        "rejection_drafted": "Refus rédigé",
+        "stage_migrated": "Déplacé par une modification du pipeline",
+        "disposition_set": "Décision d’analyse enregistrée",
+        "sim_attached": "Entretien d’entraînement associé",
+        "github_evidence_attached": "Preuves GitHub associées",
+        "ats_export": "Exporté vers un ATS",
+        "role_closed": "Poste fermé",
+        "profile_enriched": "Lacunes du profil comblées par le candidat",
+        "agent_dispatched": "Demande de persona envoyée",
+        "agent_activated": "Persona mise en service",
+        "onboarding_started": "Intégration démarrée (module retiré)",
+        "onboarding_intake_submitted": "Questionnaire d’intégration soumis (module retiré)"
       },
       "kindsQueued": {
         "outreach_sent": "Prise de contact en file d’attente dans la boîte d’envoi (non remise)",
@@ -5635,7 +6016,8 @@
         "schedule_invite_sent": "Lien de planification en file d’attente dans la boîte d’envoi (non remis)",
         "interview_reminder_sent": "Rappel d’entretien en file d’attente dans la boîte d’envoi (non remis)",
         "interviewer_brief_sent": "Brief de l’intervieweur en file d’attente dans la boîte d’envoi (non remis)",
-        "comm_resent": "Message remis en file d’attente dans la boîte d’envoi (non remis)"
+        "comm_resent": "Message remis en file d’attente dans la boîte d’envoi (non remis)",
+        "offer_reminder_sent": "Rappel d’offre en file d’attente dans la boîte d’envoi (non remis)"
       },
       "colWhen": "Quand",
       "colCandidate": "Candidat",
@@ -5645,7 +6027,23 @@
       "colDetail": "Détail",
       "boardLevelRow": "Niveau tableau",
       "noMatches": "Aucune décision ne correspond aux filtres.",
-      "exportPage": "Exporter la page"
+      "exportPage": "Exporter la page",
+      "timeZoneNote": "Heures en {zone}",
+      "filtersNone": "Aucun",
+      "scanCapped": "Cette recherche a parcouru les {scanned} décisions les plus récentes sur {total}. Les décisions plus anciennes n'ont pas été parcourues.",
+      "exportTrail": "Exporter le journal complet",
+      "exportTrailBusy": "Export en cours…",
+      "exportTrailFailed": "L'export du journal complet a échoué. Rien n'a été téléchargé, afin qu'un fichier partiel ne puisse pas être pris pour le journal complet.",
+      "csvTimeLocal": "Heure ({zone})",
+      "csvTimeIso": "Heure (ISO, UTC)",
+      "provExport": "Export",
+      "provGenerated": "Généré",
+      "provZone": "Fuseau horaire",
+      "provLocale": "Langue",
+      "provScope": "Portée",
+      "provFilters": "Filtres",
+      "scopePage": "Page {page} sur {pages} · {rows} lignes sur {total}",
+      "scopeTrail": "Journal complet · {rows} lignes sur {total}"
     },
     "automation": {
       "title": "Impact de l’automatisation",
@@ -5720,14 +6118,37 @@
         "hoursSavedNone": "Aucune action automatisée enregistrée.",
         "capacity": "{roles, plural, one {# poste ouvert} other {# postes ouverts}} pris en charge par {recruiters, plural, one {# recruteur} other {# recruteurs}}.",
         "capacityNone": "Aucun poste ouvert ou aucun effectif de recruteurs.",
-        "nps": "Net promoter score sur {responses, plural, one {# réponse de candidat} other {# réponses de candidats}} à une issue finale, sur l’échelle standard de -100 à 100."
+        "nps": "Net promoter score sur {responses, plural, one {# réponse de candidat} other {# réponses de candidats}} à une issue finale, sur l’échelle standard de -100 à 100.",
+        "costPerHireAsOf": "La dépense a été saisie pour la dernière fois le {date}."
       },
       "caveatNotMeasurable": "{metric} : pas encore de données. {basis}",
       "caveatThin": "{metric} : seulement {sample, plural, one {# observation} other {# observations}}. Réel, mais trop peu pour être publié.",
       "certifiableNote": "Toutes les métriques ci-dessus sont mesurées sur un échantillon suffisant.",
       "notPublishable": "**Non publiable en l’état.** Les métriques suivantes ne peuvent pas encore être défendues :",
-      "disclaimer": "_Les chiffres décrivent l’activité enregistrée de cet espace de travail. kp ne calcule pas de pourcentage d’amélioration par rapport à une référence antérieure à kp. Cette comparaison revient à qui détient les chiffres précédents._"
-    }
+      "disclaimer": "_Les chiffres décrivent l’activité enregistrée de cet espace de travail. Kandi ne calcule pas de pourcentage d’amélioration par rapport à une référence antérieure à Kandi. Cette comparaison revient à qui détient les chiffres précédents._"
+    },
+    "spendAsOf": "Dépense saisie le {date}",
+    "spendAsOfOldest": "Dépense la plus ancienne saisie le {date}",
+    "briefWeakestGoalClaim": "{stage} est le maillon faible, avec {pct} % de conversion face à votre objectif de {goal} %.",
+    "briefNoGoalClaim": "Définissez un objectif de conversion et ce point nommera votre étape la plus faible.",
+    "briefNoGoalNote": "Les étapes sans objectif restent grises : une mesure, pas un verdict. Rien n’est comparé à un chiffre que vous n’avez pas défini.",
+    "briefSetGoals": "Définir des objectifs de conversion",
+    "byRoleFilterCount": "{shown} sur {total} affichés",
+    "byRoleNoMatch": "Aucun poste de ce tableau ne correspond à « {q} ». Il peut se trouver sous le seuil de volume. <link>Cherchez dans tout le tableau du pipeline</link>.",
+    "byRoleCapNote": "{hidden, plural, one {# poste se situe} other {# postes se situent}} hors de ce tableau, qui classe par volume et garde les {shown} premiers. <link>Cherchez plutôt dans le tableau du pipeline.</link>",
+    "windowDeltaHint": "La comparaison avec la période précédente apparaît dès que vous choisissez 30 ou 90 jours.",
+    "windowScopeReach": "La période s’applique à Performance et Économie. Qualité et audit ainsi que le comparatif de l’entreprise portent toujours sur l’ensemble de l’historique.",
+    "windowScopeBlind": "Qualité et audit porte toujours sur l’ensemble de l’historique. La période ne s’applique pas ici.",
+    "briefBandDwell": "Où passe le temps",
+    "briefDwellClaim": "{count, plural, one {# candidat attend actuellement dans une étape.} other {# candidats attendent actuellement dans les étapes.}}",
+    "briefDwellContext": "Nombre moyen de jours écoulés depuis l’arrivée dans l’étape, pour les personnes qui y attendent en ce moment.",
+    "briefDwellNoneClaim": "Personne n’attend encore dans une étape.",
+    "copyViewLink": "Copier le lien de cette vue",
+    "viewLinkCopied": "Lien copié",
+    "copyViewLinkTitle": "Un lien qui ouvre cette section avec la période affichée",
+    "viewLinkManual": "Votre navigateur a bloqué la copie. Sélectionnez le lien ci-dessous et copiez-le vous-même.",
+    "briefMomentumNoDataClaim": "Rien n’a encore bougé sur ces semaines.",
+    "briefRolesNoDataClaim": "Aucun poste ne porte encore le pipeline."
   },
   "matrix": {
     "loadFailed": "Échec du chargement.",
@@ -5943,11 +6364,11 @@
     "tab": {
       "eyebrow": "Services connectés",
       "title": "Intégrations",
-      "intro": "Connectez les systèmes externes que kp lit et alimente."
+      "intro": "Connectez les systèmes externes que Kandi lit et alimente."
     },
     "calendar": {
       "title": "Google Calendar",
-      "intro": "Permet à kp de vérifier la disponibilité d’un intervieweur avant de proposer un créneau, puis d’inscrire l’entretien confirmé dans son agenda. kp ne demande que l’accès disponibilité et événements. Il voit que vous êtes occupé, jamais pourquoi.",
+      "intro": "Permet à Kandi de vérifier la disponibilité d’un intervieweur avant de proposer un créneau, puis d’inscrire l’entretien confirmé dans son agenda. Kandi ne demande que l’accès disponibilité et événements. Il voit que vous êtes occupé, jamais pourquoi.",
       "loadFailed": "Impossible de charger la connexion à l’agenda.",
       "retry": "Réessayer",
       "notConfiguredTitle": "Non configuré sur ce déploiement",
@@ -5965,9 +6386,9 @@
       "reconnect": "Reconnecter",
       "disconnect": "Déconnecter",
       "disconnecting": "Déconnexion…",
-      "disconnectHint": "Retire l’accès de kp chez Google et supprime le jeton stocké.",
+      "disconnectHint": "Retire l’accès de Kandi chez Google et supprime le jeton stocké.",
       "disconnected": "Déconnecté. L’accès a été retiré chez Google.",
-      "disconnectedNotRevoked": "Déconnecté ici, mais Google n’a pas confirmé le retrait. Par sécurité, retirez kp de la liste des accès tiers de votre compte Google.",
+      "disconnectedNotRevoked": "Déconnecté ici, mais Google n’a pas confirmé le retrait. Par sécurité, retirez Kandi de la liste des accès tiers de votre compte Google.",
       "disconnectFailed": "Impossible de déconnecter l’agenda.",
       "scopes": {
         "freebusy": "Accès à la disponibilité",
@@ -5976,7 +6397,7 @@
       "callback": {
         "connected": {
           "title": "Google Calendar connecté",
-          "body": "kp peut désormais lire les disponibilités et créer les événements d’entretien."
+          "body": "Kandi peut désormais lire les disponibilités et créer les événements d’entretien."
         },
         "connected_partial": {
           "title": "Connecté, mais des autorisations manquent",
@@ -6021,7 +6442,7 @@
       "intro": "Importez les candidatures depuis votre logiciel de recrutement. Une connexion par fournisseur, chacune avec son jeton d’API et son URL de base. Le jeton est chiffré au stockage et n’est jamais renvoyé par l’API.",
       "loadFailed": "Impossible de charger les connexions ATS.",
       "retry": "Réessayer",
-      "empty": "Aucun ATS connecté pour l’instant. Ajoutez-en un ci-dessous. kp fonctionne sans, cela ajoute seulement une source entrante.",
+      "empty": "Aucun ATS connecté pour l’instant. Ajoutez-en un ci-dessous. Kandi fonctionne sans, cela ajoute seulement une source entrante.",
       "providers": {
         "recruitee": "Recruitee",
         "recruitis": "Recruitis",
@@ -6037,21 +6458,21 @@
       "cancel": "Annuler",
       "removeConfirm": "Supprimer la connexion {provider} et son jeton stocké ?",
       "removeConfirmAction": "Supprimer la connexion",
-      "forgetLinksLabel": "Oublier aussi quels enregistrements kp proviennent de cet ATS",
-      "forgetLinksHelp": "Laissez décoché pour conserver les liens : à la reconnexion, kp reconnaît les mêmes candidatures. Coché, la prochaine synchronisation réimporte chaque candidature comme nouvelle.",
+      "forgetLinksLabel": "Oublier aussi quels enregistrements Kandi proviennent de cet ATS",
+      "forgetLinksHelp": "Laissez décoché pour conserver les liens : à la reconnexion, Kandi reconnaît les mêmes candidatures. Coché, la prochaine synchronisation réimporte chaque candidature comme nouvelle.",
       "removedForget": "{count, plural, one {Connexion supprimée. # lien oublié.} other {Connexion supprimée. # liens oubliés.}}",
       "removedKeep": "Connexion supprimée. Les liens vers les enregistrements déjà importés ont été conservés.",
       "removeFailed": "Impossible de supprimer la connexion.",
       "addTitle": "Ajouter ou modifier une connexion",
       "providerLabel": "Fournisseur",
       "baseUrlLabel": "URL de base de l’API",
-      "baseUrlHelp": "https:// uniquement et un hôte public. kp y envoie une requête authentifiée.",
+      "baseUrlHelp": "https:// uniquement et un hôte public. Kandi y envoie une requête authentifiée.",
       "tokenLabel": "Jeton d’API",
       "tokenPlaceholder": "Collez le jeton issu de votre ATS",
       "tokenPlaceholderKeep": "•••••••• (laissez vide pour conserver)",
       "tokenHelp": "Stocké chiffré. Il n’est jamais réaffiché. Remplacez-le ici en cas de rotation.",
       "tokenHelpExisting": "Un jeton est déjà stocké. Laissez vide pour le conserver, ou collez-en un nouveau pour le remplacer.",
-      "enabledLabel": "Actif (kp peut synchroniser via cette connexion)",
+      "enabledLabel": "Actif (Kandi peut synchroniser via cette connexion)",
       "save": "Enregistrer la connexion",
       "update": "Mettre à jour la connexion",
       "saving": "Enregistrement…",
@@ -6070,7 +6491,7 @@
       "connect": "Se connecter à Personas",
       "connectHint": "Personas vous demandera d’approuver l’appairage.",
       "waitingTitle": "Approuvez la demande dans l’application Personas",
-      "waitingBody": "kp a demandé l’appairage à Personas. Passez dans l’application de bureau Personas et approuvez la demande. Cette carte vérifie en continu et se termine d’elle-même.",
+      "waitingBody": "Kandi a demandé l’appairage à Personas. Passez dans l’application de bureau Personas et approuvez la demande. Cette carte vérifie en continu et se termine d’elle-même.",
       "waitingCancel": "Annuler",
       "timeoutTitle": "Appairage expiré",
       "timeoutBody": "La demande expire après 5 minutes (Personas ne la garde qu’en mémoire). Recommencez et approuvez sans tarder.",
@@ -6508,21 +6929,22 @@
     },
     "previewRibbon": "Aperçu : rien de ce que vous faites ici ne sera enregistré",
     "rail": {
-      "stepOf": "Étape {current} sur {total}",
-      "brand": "kp"
+      "brand": "Kandi",
+      "language": "Langue de l’application",
+      "languageAria": "Choisir la langue de l’application"
     },
     "steps": {
       "welcome": {
         "label": "Bienvenue",
         "eyebrow": "Bienvenue",
         "title": "Lancez vos recrutements",
-        "blurb": "Quelques étapes rapides : votre entreprise, votre équipe, votre premier poste. Ensuite, kp s’occupe du reste."
+        "blurb": "Quelques étapes rapides : votre entreprise, votre équipe, votre tableau de recrutement. Ensuite, Kandi s’occupe du reste."
       },
       "company": {
         "label": "Entreprise",
         "eyebrow": "Configuration · Entreprise",
         "title": "Faites-en votre entreprise",
-        "blurb": "La façon dont votre entreprise apparaît dans kp : sur les annonces, les offres et auprès de vos collègues."
+        "blurb": "La façon dont votre entreprise apparaît dans Kandi : sur les annonces, les offres et auprès de vos collègues."
       },
       "team": {
         "label": "Équipe",
@@ -6530,11 +6952,11 @@
         "title": "Invitez votre équipe",
         "blurb": "Invitez les recruteurs et hiring managers avec qui vous travaillez. Vous pouvez le faire plus tard."
       },
-      "firstRole": {
-        "label": "Premier poste",
-        "eyebrow": "Configuration · Premier poste",
-        "title": "Décrivez votre premier poste",
-        "blurb": "Dites à kp ce qu’il vous faut. Il rédige en arrière-plan la fiche de poste, le salaire de marché et un cas pratique."
+      "pipeline": {
+        "label": "Pipeline",
+        "eyebrow": "Configuration · Pipeline",
+        "title": "Composez votre tableau de recrutement",
+        "blurb": "Voici les colonnes que traverse chaque candidat. Celles fournies conviennent à la plupart des équipes. Gardez-les telles quelles, ou renommez, réordonnez et ajoutez les vôtres."
       },
       "handoff": {
         "label": "Terminé",
@@ -6544,8 +6966,6 @@
       }
     },
     "welcome": {
-      "languageLabel": "Langue de l’application",
-      "languageHint": "Change l’application immédiatement. Vous pourrez la modifier plus tard dans Paramètres.",
       "values": {
         "role": {
           "title": "Décrivez un poste",
@@ -6585,73 +7005,78 @@
       "empty": "Aucune invitation pour l’instant. Ajoutez des collègues par e-mail, ou passez cette étape et invitez-les plus tard.",
       "removeAria": "Supprimer l’invitation de {email}"
     },
-    "firstRole": {
-      "titleLabel": "Intitulé du poste",
-      "titlePlaceholder": "p. ex. Senior Java Backend Engineer",
-      "seniorityLabel": "Séniorité",
-      "familyLabel": "Famille de métiers",
-      "needLabel": "De quoi avez-vous besoin ?",
-      "needPlaceholder": "Prendre en charge les services backend · Java, Spring, SQL · mentorer l’équipe…",
-      "needHint": "Quelques phrases honnêtes suffisent. kp les développe en une fiche de poste complète à votre marque.",
-      "includedLabel": "Inclus dans cette génération",
-      "included": {
-        "description": "Fiche de poste",
-        "salary": "Salaire de marché",
-        "case": "Cas pratique"
+    "pipeline": {
+      "variantLabel": "Comment configurer votre tableau",
+      "variant": {
+        "board": "Tableau",
+        "presets": "Modèles"
       },
-      "background": "La génération tourne en arrière-plan. Continuez d’explorer, le résultat arrive dans la Bibliothèque.",
-      "modeLabel": "Comment ajouter votre premier poste",
-      "mode": {
-        "write": "Le décrire",
-        "import": "Importer un existant"
+      "meta": "{count} étapes sur {max}",
+      "stepsCount": "{count, plural, one {# étape} other {# étapes}}",
+      "addStep": "Ajouter une étape",
+      "newStepLabel": "Nouvelle étape",
+      "boardAria": "Les étapes de votre pipeline",
+      "labelAria": "Nom de l’étape {position}",
+      "roleAria": "Ce que {stage} signifie dans le processus",
+      "moveEarlierAria": "Déplacer {stage} plus tôt",
+      "moveLaterAria": "Déplacer {stage} plus tard",
+      "removeAria": "Supprimer {stage}",
+      "occupiedHint": "{count, plural, one {# candidat se trouve} other {# candidats se trouvent}} sur cette étape. Déplacez-les d’abord dans Paramètres → Pipeline de recrutement.",
+      "presetsLabel": "Partir d’un modèle",
+      "presets": {
+        "recommended": {
+          "title": "Recommandé",
+          "body": "Les colonnes que cet espace de travail possède déjà."
+        },
+        "lean": {
+          "title": "Léger",
+          "body": "Arrivée, échange, embauche : pour les équipes qui décident en un entretien."
+        },
+        "technical": {
+          "title": "Avec cas pratique",
+          "body": "Ajoute une étape de cas avant l’offre."
+        }
       },
-      "import": {
-        "fileLabel": "Importer depuis un fichier",
-        "browse": "Choisir un fichier",
-        "extracting": "Lecture du fichier…",
-        "hint": "PDF · DOCX · TXT · MD jusqu’à 8 Mo. Le texte est extrait pour vous.",
-        "error": "Impossible de lire ce fichier. Essayez un autre format, ou collez le texte ci-dessous.",
-        "bodyLabel": "Fiche de poste",
-        "bodyPlaceholder": "Collez l’annonce complète ici, ou importez-la depuis un fichier ci-dessus.",
-        "note": "Les postes importés sont enregistrés tels quels dans la Bibliothèque et sont immédiatement matchables, sans génération AI."
-      }
+      "workSampleLabel": "Cas pratique",
+      "fineTuneLabel": "Ajuster",
+      "loading": "Lecture de votre tableau…",
+      "loadFailed": "Impossible de lire les colonnes de votre tableau. La configuration continue : le tableau garde ses colonnes, et vous pouvez les modifier dans Paramètres → Pipeline de recrutement.",
+      "dirtyNote": "Les modifications du tableau s’appliquent à la fin de la configuration. Vous pouvez les ajuster à tout moment dans Paramètres → Pipeline de recrutement.",
+      "laterNote": "Vous pouvez modifier tout cela à tout moment dans Paramètres → Pipeline de recrutement."
     },
     "handoff": {
       "readyTitle": "{org} peut démarrer",
       "orgFallback": "Votre espace de travail",
       "readyMeta": "Langue : {language} · {invites, plural, =0 {aucune invitation pour l’instant} one {# collègue invité} other {# collègues invités}}",
-      "roleTitle": "Premier poste : {role}",
-      "roleBody": "kp rédige la fiche, le salaire de marché et le cas pratique. Suivez leur arrivée dans le registre de la Bibliothèque.",
       "checklistTitle": "Votre checklist « Premiers pas »",
       "checklistBody": "Elle se trouve sur le tableau Pipeline et vous guide : publication du poste, ouverture des canaux, premiers candidats.",
       "tourTitle": "Lancer la démo guidée",
       "tourBody": "Toute l’histoire du recrutement sur des données d’exemple. Environ 3 minutes.",
-      "roleImportedBody": "Importé et enregistré dans la Bibliothèque. Matchable immédiatement.",
       "chooseLabel": "Comment voulez-vous commencer ?",
       "soloTitle": "Explorer par moi-même",
-      "soloBody": "Allez à votre rythme. La démo reste à un clic, derrière le bouton rond Candi en bas de l’écran."
+      "soloBody": "Allez à votre rythme. La démo reste à un clic, derrière le bouton rond Candi en bas de l’écran.",
+      "pipelineTitle": "Votre tableau : {count, plural, one {# étape} other {# étapes}}",
+      "pipelineChangedBody": "Vos modifications s’appliquent à la fin. Ajustez-les à tout moment dans Paramètres → Pipeline de recrutement.",
+      "pipelineDefaultBody": "Les colonnes que traversent les candidats. Modifiez-les à tout moment dans Paramètres → Pipeline de recrutement."
     },
     "footer": {
       "back": "Retour",
-      "skipSetup": "Ignorer la configuration",
-      "skipStep": "Passer pour l’instant",
       "start": "C’est parti",
       "continue": "Continuer",
-      "enter": "Entrer dans kp"
+      "enter": "Entrer dans Kandi"
     },
     "toast": {
       "saved": "Votre espace de travail est configuré",
       "partial": "Certaines étapes n’ont pas pu être enregistrées. Vous pourrez les terminer dans les Paramètres",
-      "roleStarted": "Votre premier poste est en cours de rédaction. Suivez le registre de la Bibliothèque",
-      "roleFailed": "La génération du poste n’a pas pu démarrer. Réessayez depuis Bibliothèque → Générer",
-      "roleImported": "Votre poste a été enregistré dans la Bibliothèque"
+      "pipelineSaved": "Les colonnes de votre tableau ont été enregistrées",
+      "pipelineFailed": "Les colonnes de votre tableau n’ont pas pu être enregistrées. Définissez-les dans Paramètres → Pipeline de recrutement"
     },
     "checklist": {
       "title": "Premiers pas",
       "progress": "{done} sur {total} terminés",
       "dismiss": "Ne plus afficher",
       "open": "Ouvrir",
-      "showMe": "Montrez-moi",
+      "stepDone": "Terminé",
       "steps": {
         "company": {
           "title": "Configurez votre entreprise",
@@ -6659,7 +7084,7 @@
         },
         "firstRole": {
           "title": "Créez votre premier poste",
-          "body": "Décrivez le besoin. kp rédige la fiche, le salaire et le cas.",
+          "body": "Décrivez le besoin. Kandi rédige la fiche, le salaire et le cas.",
           "analyzing": "Génération en cours. Suivez le registre de la Bibliothèque.",
           "failed": "La génération a échoué. Relancez-la depuis le registre de la Bibliothèque."
         },
@@ -6671,43 +7096,8 @@
           "title": "Connectez vos canaux",
           "body": "Ouvrez une réception d’e-mails et recevez une candidature test.",
           "listening": "En écoute. Vérifiez en recevant une candidature test."
-        },
-        "team": {
-          "title": "Invitez votre équipe",
-          "body": "Facultatif : faites venir recruteurs et hiring managers."
         }
-      },
-      "coach": {
-        "company": {
-          "title": "Paramètres de votre entreprise",
-          "caption": "Définissez ici le nom et la langue. L’image de marque est dans l’onglet voisin."
-        },
-        "firstRole": {
-          "title": "Générez votre premier poste",
-          "caption": "Ouvrez Générer, décrivez le besoin et lancez l’analyse. Elle tourne en arrière-plan."
-        },
-        "case": {
-          "title": "Concevez un cas",
-          "caption": "Passez à Définir le besoin, choisissez votre poste enregistré et lancez le cycle automatisé."
-        },
-        "channels": {
-          "title": "Ouvrez votre réception",
-          "caption": "Ajoutez une boîte ici, puis vérifiez avec « Recevoir une candidature test »."
-        },
-        "team": {
-          "title": "Invitez des collègues",
-          "caption": "Membres et invitations sont ici. Ajoutez des collègues par e-mail et choisissez leur rôle."
-        }
-      },
-      "completed": {
-        "title": "Tout est prêt !",
-        "body": "Entreprise, poste, cas et canaux sont connectés. Bon recrutement."
-      },
-      "optional": "Facultatif"
-    },
-    "engines": {
-      "claudeFallback": "La CLI Claude n’est pas disponible sur ce serveur. La génération se fera, mais les brouillons viendront du repli déterministe plutôt que de l’AI.",
-      "geminiFallback": "Aucune clé API Gemini n’est configurée. La recherche salariale utilisera le barème interne (sans données web en direct)."
+      }
     }
   },
   "devcase": {
@@ -7154,7 +7544,7 @@
     "dispatchCta": "Envoyer à Personas",
     "dispatching": "Envoi…",
     "dispatchFailed": "L’envoi à Personas a échoué.",
-    "dispatchNeedsPairing": "Appairez kp avec Personas dans Paramètres → Intégrations avant d’envoyer.",
+    "dispatchNeedsPairing": "Appairez Kandi avec Personas dans Paramètres → Intégrations avant d’envoyer.",
     "existingAgent": "Un agent pour ce poste est déjà en cours. Son statut est affiché ci-dessus.",
     "refreshFailed": "Impossible d’actualiser le statut.",
     "verdict": {
@@ -7836,12 +8226,11 @@
   },
   "feedback": {
     "open": "Envoyer un retour",
+    "railLabel": "Retour",
     "title": "Envoyer un retour",
     "subtitle": "Dites-nous quoi améliorer. Cela arrive directement à l’équipe produit.",
     "messageLabel": "Votre message",
     "messagePlaceholder": "Ce qui a fonctionné, ce qui n’a pas marché, ce qui manque…",
-    "emailLabel": "E-mail pour une réponse (facultatif)",
-    "emailPlaceholder": "vous@entreprise.fr",
     "send": "Envoyer",
     "sending": "Envoi…",
     "sent": "Merci. Votre retour a été envoyé.",
@@ -8005,7 +8394,7 @@
         "bau": "Expérimenté",
         "switcher": "Reconversion"
       },
-      "confidence": "confiance {value}",
+      "confidence": "concordance des signaux {value}",
       "declaration": "Si la personne a déclaré elle-même son archétype, cette déclaration l'emporte et vaut 0,9. Un signal contradictoire ne la remplace jamais. Il abaisse la confiance à 0,65 et ajoute une raison, que le panneau des signaux faibles réexpose ensuite à un humain.",
       "fallback": "Quand rien ne se déclenche, le résultat est <k>bau</k> à 0,4. Ce chiffre se situe volontairement sous le seuil de revue de 0,55, si bien qu'une orientation décidée sans preuve apparaît toujours comme à vérifier plutôt que de passer discrètement pour un résultat.",
       "status": {
@@ -8013,7 +8402,7 @@
         "s1": "signaux extraits du profil",
         "s3": "chaque signal vote avec un poids déclaré",
         "s7": "argmax, égalités départagées par l'ordre de déclaration dans le JSON",
-        "s8": "confiance = 4.5 / {total} = {value}",
+        "s8": "concordance des signaux = 4.5 / {total} = {value}",
         "s9": "une auto-déclaration vaut 0,9 et n'est jamais remplacée",
         "s10": "le repli non guidé est 0,4, sous le seuil de revue de 0,55"
       }

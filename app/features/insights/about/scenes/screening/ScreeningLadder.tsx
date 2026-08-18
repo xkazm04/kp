@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Field, Part, Slot, Wire, Wires } from "../../stage/parts";
 import { useSceneClock } from "../../stage/useSceneClock";
 import { INK } from "../../stage/motion";
@@ -43,11 +44,11 @@ const TOP_N = 8;
 
 /** Real KoReasonKey values, with the clause the product actually prints. */
 const KO_REASONS = [
-  { key: "language", n: 19, clause: "required a language not in the profile" },
-  { key: "seniority", n: 14, clause: "sat outside the candidate's seniority range" },
-  { key: "education", n: 8, clause: "required a higher education level" },
-  { key: "work_mode", n: 5, clause: "didn't match the work-mode preference" },
-];
+  { key: "language", n: 19 },
+  { key: "seniority", n: 14 },
+  { key: "education", n: 8 },
+  { key: "workMode", n: 5 },
+] as const;
 
 // ── Geometry ────────────────────────────────────────────────────────────────
 // Each layer is narrower than the one above it, so the funnel is drawn by the
@@ -58,18 +59,19 @@ const LAYER_C: Rect = { x: 30, y: 54, w: 40, h: 17 };
 const REASONS: Rect = { x: 0, y: 78, w: 58, h: 22 };
 const COST: Rect = { x: 62, y: 78, w: 38, h: 22 };
 
-const statusAt = statusPicker({
-  0: `${COHORT} candidates against one role`,
-  2: "ko_filter — hard gates, deterministic, no API key",
-  3: `${COHORT - SURVIVORS} ruled out, each with a named reason`,
-  4: "score_job — weighted scorer, still deterministic, still free",
-  7: `match_reasoning — the model, on the top ${TOP_N} only`,
-  9: "the only paid step never sees a candidate already ruled out",
-});
 
 export function ScreeningLadder() {
+  const t = useTranslations("about.screening");
   const { ref, phase, reduced } = useSceneClock(CYCLE, { stillTick: STILL });
   const at = (n: number) => phase >= n;
+  const statusAt = statusPicker({
+    0: t("status.s0", { n: COHORT }),
+    2: t("status.s2"),
+    3: t("status.s3", { n: COHORT - SURVIVORS }),
+    4: t("status.s4"),
+    7: t("status.s7", { n: TOP_N }),
+    9: t("status.s9"),
+  });
 
   return (
     <div ref={ref}>
@@ -86,15 +88,15 @@ export function ScreeningLadder() {
         {/* ── Layer A ───────────────────────────────────────────────────── */}
         <Slot rect={LAYER_A} stage={stageOf({ shell: 1, body: 1, detail: 2, chosen: 2 }, phase)} chosen={at(2)} reduced={reduced} className="flex items-center gap-4 px-4">
           <div className="min-w-0">
-            <CodeLabel>A · ko_filter()</CodeLabel>
+            <CodeLabel code="A · ko_filter()" />
             <Part show={at(1)} reduced={reduced} className="mt-1 block text-base leading-snug text-ink">
-              Hard gates on everyone — language, seniority, education, work mode
+              {t("layerA")}
             </Part>
           </div>
           <div className="ml-auto shrink-0 text-right">
             <p className="nums font-serif text-h2 leading-none text-ink">{COHORT}</p>
             <Part show={at(2)} reduced={reduced} className="mt-1 block rounded-full bg-limewash px-2 py-0.5 text-meta text-moss">
-              free
+              {t("free")}
             </Part>
           </div>
         </Slot>
@@ -102,9 +104,9 @@ export function ScreeningLadder() {
         {/* ── Layer B ───────────────────────────────────────────────────── */}
         <Slot rect={LAYER_B} stage={stageOf({ shell: 4, body: 4, detail: 5, chosen: 6 }, phase)} chosen={at(6)} reduced={reduced} className="flex items-center gap-4 px-4">
           <div className="min-w-0">
-            <CodeLabel>B · score_job()</CodeLabel>
+            <CodeLabel code="B · score_job()" />
             <Part show={at(4)} reduced={reduced} className="mt-1 block text-base leading-snug text-ink">
-              Weighted scorer over whoever survived — ranked, still deterministic
+              {t("layerB")}
             </Part>
           </div>
           <div className="ml-auto shrink-0 text-right">
@@ -112,7 +114,7 @@ export function ScreeningLadder() {
               {SURVIVORS}
             </Part>
             <Part show={at(5)} reduced={reduced} className="mt-1 block rounded-full bg-limewash px-2 py-0.5 text-meta text-moss">
-              free
+              {t("free")}
             </Part>
           </div>
         </Slot>
@@ -120,9 +122,9 @@ export function ScreeningLadder() {
         {/* ── Layer C ───────────────────────────────────────────────────── */}
         <Slot rect={LAYER_C} stage={stageOf({ shell: 7, body: 7, detail: 8, chosen: 8 }, phase)} chosen={at(8)} reduced={reduced} className="flex items-center gap-4 px-4">
           <div className="min-w-0">
-            <CodeLabel>C · match_reasoning()</CodeLabel>
+            <CodeLabel code="C · match_reasoning()" />
             <Part show={at(7)} reduced={reduced} className="mt-1 block text-base leading-snug text-ink">
-              The model, on the shortlist — cached per candidate × job
+              {t("layerC")}
             </Part>
           </div>
           <div className="ml-auto shrink-0 text-right">
@@ -130,14 +132,14 @@ export function ScreeningLadder() {
               {TOP_N}
             </Part>
             <Part show={at(8)} reduced={reduced} className="mt-1 block rounded-full bg-coral/10 px-2 py-0.5 text-meta text-coral">
-              paid
+              {t("paid")}
             </Part>
           </div>
         </Slot>
 
         {/* ── What the gates said ───────────────────────────────────────── */}
         <Slot rect={REASONS} stage={stageOf({ shell: 3, body: 3, detail: 3, chosen: null }, phase)} reduced={reduced} className="p-3">
-          <CodeLabel>KoReason[]</CodeLabel>
+          <CodeLabel code="KoReason[]" />
           <ul className="mt-1.5 space-y-1">
             {KO_REASONS.map((r, i) => (
               <li key={r.key} className="flex items-baseline gap-2">
@@ -145,7 +147,7 @@ export function ScreeningLadder() {
                   {r.n}
                 </Part>
                 <Part show={at(3)} i={i} lead={0.05} reduced={reduced} className="min-w-0 truncate text-base text-steel">
-                  {r.clause}
+                  {t(`ko.${r.key}`)}
                 </Part>
               </li>
             ))}
@@ -154,9 +156,9 @@ export function ScreeningLadder() {
 
         {/* ── The point ─────────────────────────────────────────────────── */}
         <Slot rect={COST} stage={stageOf({ shell: 9, body: 9, detail: 9, chosen: null }, phase)} reduced={reduced} className="p-3">
-          <CodeLabel>cost</CodeLabel>
+          <CodeLabel>{t("costLabel")}</CodeLabel>
           <Part show={at(9)} reduced={reduced} className="mt-1.5 block text-base leading-snug text-ink">
-            Layers A and B need no API key. Keyless, screening still ranks — it just stops short of reasoning.
+            {t("cost")}
           </Part>
         </Slot>
       </Field>

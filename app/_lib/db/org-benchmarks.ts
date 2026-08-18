@@ -1,5 +1,6 @@
 import { ensureDb } from "./core";
-import { PIPELINE_STAGES, screeningGateIndex } from "../pipeline-stages";
+import { screeningGateIndex, stageHasRole, stageIndex } from "../pipeline-stages";
+import { getPipelineAxis } from "../pipeline-axis-server";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
 // Cross-company reference tier (E0 Phase 2, tier-2) — org-wide AGGREGATE benchmarks a
@@ -11,14 +12,17 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 // its own guard is the k-ANONYMITY FLOOR below: a benchmark is withheld until enough
 // teams AND entries contribute that no single team's figures are inferable from it.
 
+// UAT KAT-ANA-5 — every figure below is ALL-TIME, and that is a decision, not an omission.
+// The Analytics tab's 30/90-day cohort switcher is NOT threaded here: a windowed slice would
+// fall under the k-anonymity floor (so the benchmark would vanish rather than narrow) and
+// would bias medianTimeToHireDays low, because a short created-at cohort can only contain the
+// hires that already finished. The reasoning is spelled out at app/api/benchmarks/route.ts;
+// the scope is printed on screen by AnalyticsOrgBenchmarkPanel (orgBenchmark.scopeAllTime),
+// and analyticsWindowScope.test.ts fails if the route grows a window param while the panel
+// still claims all-time. A genuinely windowed benchmark needs its own basis, not a `days` arg.
 export const BENCHMARK_MIN_ENTRIES = 20; // too small a sample is noise, not a benchmark
 export const BENCHMARK_MIN_TEAMS = 2; // k-anonymity: an org benchmark is never a window onto ONE other team
 
-// "Reached interview or beyond" — the same gate the archetype-fairness metric
-// uses, read from stage ROLES rather than the literal "Interview" so a renamed or
-// split interview column can't silently redefine what this benchmark counts.
-// Resolves to index 2 on the default axis, unchanged.
-const INTERVIEW_IDX = screeningGateIndex();
 
 export type HiringStats = {
   totalEntries: number;
@@ -37,12 +41,29 @@ type StatRow = { stage: string; created_at: string | null; stage_changed_at: str
 function statsFrom(rows: StatRow[]): HiringStats {
   const total = rows.length;
   if (total === 0) return { totalEntries: 0, interviewRatePct: 0, hireRatePct: 0, medianTimeToHireDays: null };
+  // This is the ONE aggregate that spans teams, and teams may run DIFFERENT
+  // boards — one team's "Onsite" is another's "Interview", and neither name means
+  // anything to the other. Each row is therefore judged against ITS OWN team's
+  // axis, resolved once per team rather than per row. Reading one shared axis (as
+  // this did) silently counted a renamed column as "never reached interview",
+  // which is exactly the kind of quiet wrong number a benchmark must not produce.
+  const axisFor = new Map<string, ReturnType<typeof getPipelineAxis>["stages"]>();
+  const teamAxis = (workspaceId: string) => {
+    let axis = axisFor.get(workspaceId);
+    if (!axis) {
+      axis = getPipelineAxis(workspaceId).stages;
+      axisFor.set(workspaceId, axis);
+    }
+    return axis;
+  };
   let reachedInterview = 0;
   let hired = 0;
   const tthDays: number[] = [];
   for (const r of rows) {
-    if (PIPELINE_STAGES.indexOf(r.stage as (typeof PIPELINE_STAGES)[number]) >= INTERVIEW_IDX) reachedInterview += 1;
-    if (r.stage === "Hired") {
+    const axis = teamAxis(r.workspace_id);
+    const idx = stageIndex(r.stage, axis);
+    if (idx >= 0 && idx >= screeningGateIndex(axis)) reachedInterview += 1;
+    if (stageHasRole(r.stage, "terminal", axis)) {
       hired += 1;
       if (r.created_at && r.stage_changed_at) {
         const days = (Date.parse(r.stage_changed_at) - Date.parse(r.created_at)) / 86_400_000;

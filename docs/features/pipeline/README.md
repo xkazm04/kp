@@ -69,9 +69,37 @@ which asserts both that the role layer reproduces today's answers byte-for-byte
 on the default axis and that it stays correct on axes the default one cannot
 express.
 
-**Still name-coupled** (owed by a later phase): `automation-run.ts` and
-`pipeline-entry-action.ts` advance to literal `"Offer"` / `"Hired"`, and
-`application-status.ts` keeps its own inlined stage→candidate-status map.
+### What resolves through roles now
+
+Every rule that used to read a stage NAME to ask a question about MEANING:
+
+| Consumer | Was | Now |
+|---|---|---|
+| `pipeline-entry-action.ts` | `to === "Hired"`, `stage === "Offer"`, `indexOf("Offer")` | terminal / offer roles on the workspace's axis; `set_stage` validates against that axis |
+| `db/pipeline.ts` — `setPipelineEntryStage` | rejected anything outside `PIPELINE_STAGES` | accepts any stage the workspace's axis knows (retired included, so a migration can move somebody OFF one) |
+| `db/pipeline.ts` — creation default, reinstate, `approve_event`, rematch guard, calibration cohort, job stats | `"Screened"` / `"Interview"` / `"Hired"` literals | `screenedLandingStage`, first `interview` stage, terminal role, `screeningGateIndex` |
+| `db/analytics.ts` | funnel indexed the five canonical names | funnel IS the workspace's columns; `hired`/`active`/`reachedInterview` by role |
+| `attention.ts` | `!== "Hired"`, `=== "Accepted"` | terminal / entry roles |
+| `automation-run.ts` | rematch guard on `"Hired"`, redirect landed on `"Screened"` | terminal role, `screenedLandingStage` |
+| `db/org-benchmarks.ts` | one shared axis across a cross-TEAM aggregate | each row judged against **its own team's** axis (resolved once per team) |
+| `application-status.ts` | name→status map only | role→status map when the caller can resolve one; the name map remains the shipped-axis fallback |
+| `analytics-momentum.ts`, `pipeline-command.ts`, `ats/field-map.ts` | literals | an injected terminal stage / axis / allowlist, defaulting to the shipped one |
+| `cv-intake.ts`, `lead-intake.ts` | filed at `"Accepted"` | filed at the axis's `entry` column |
+
+`analytics-custom-axis.test.ts` is the proof: it stores a fully renamed six-column
+axis and asserts the funnel reports *those* columns, that candidates on renamed
+columns are counted rather than silently dropped (the old `idxOf === -1` skip),
+and that `hired` / `reachedInterview` follow roles. Writing it is what surfaced
+the `setPipelineEntryStage` guard above — the store was still refusing stages the
+board itself rendered.
+
+**Still name-coupled**, and deliberately left: `devcase-run.ts`,
+`useAddToPipeline.ts`, `apply/[id]/route.ts`, `rediscover.ts`, `screen-wave.ts`,
+`tasks.ts` and `interview-prep/scorecard` still pass or compare stage literals.
+All are *creation defaults* or *cohort filters* that are correct on the shipped
+axis and degrade to "files the candidate in the wrong column" rather than to a
+wrong number — and each needs its own workspace plumbing. `pipeline-status.ts`
+keeps its literal by design (an import-free module, documented in place).
 
 ### The axis is per-workspace data
 
@@ -120,6 +148,24 @@ They now land in no cell and are rendered by `PipelineBoardOffAxisStrip` — nam
 grouped by the column they were stranded on, with one "Move all to…" control per
 group. `boardVisibleOrder` appends them after the grid so the drawer's prev/next
 can still reach them (a card you can see but cannot step to reads as broken).
+
+In normal operation the strip should stay empty: Settings → Hiring refuses to
+remove an occupied column without a destination, and applies the moves in the
+same request as the removal (`POST /api/pipeline/stage-migration` — see
+[../hiring-pipeline/README.md](../hiring-pipeline/README.md)). The strip is the
+backstop for what that gate cannot cover: a legacy row, an ATS sync replaying an
+older mapping, or a config edited outside the UI.
+
+### `stage_migrated`
+
+`migratePipelineStages(migrations, workspaceId)` moves everyone off the removed
+columns in ONE `IMMEDIATE` transaction and writes a `stage_migrated` event per
+moved candidate, carrying from/to. Its own event kind rather than `moved`:
+nobody chose to advance *this* candidate — the board changed shape — and a
+recruiter reading the trail weeks later needs that distinction. Terminal
+(`rejected` / `declined`) rows are excluded, matching `listPipeline` and
+`countPipelineByStage`: they are not on the board, so removing their column
+strands nobody, and moving them would rewrite closed history.
 
 ## Flows
 
@@ -191,6 +237,8 @@ can still reach them (a card you can see but cannot step to reads as broken).
 | `app/_lib/screen-wave.ts`, `screen-wave-holdout.ts`, `screen-wave-approval.ts` | Configurable bulk auto-reject wave + audited holdout + approval token. |
 | `app/_lib/interview-recommendation.ts` | Single-sourced `recommendation`/`route` vocabulary + coercion (TS side). |
 | `app/_lib/automation-roi.ts` | Minutes/CZK-saved ledger over the automation event trail. |
+| `app/api/pipeline/outcomes/route.ts` | The on-the-job outcome of a hire (UAT `KAT-L1-002`). `GET ?entry=<id>` returns that hire's 1..5 rating (`performance: null` = unrated) plus whether the entry stands on the terminal-role stage; `GET` with no params returns the workspace accrual counter `{ rated, hires, minOutcomes }`. `POST {entryId, performance}` records or corrects the rating. Both handlers `requireOperator()` first and scope every store call to `currentWorkspace()`. |
+| `app/features/hiring/pipeline/PipelineHireOutcomeCard.tsx` | The drawer card that writes it — a 1..5 button rail, mounted only for a candidate on the terminal-role stage. |
 | `app/features/hiring/decisions/**` | Decisions queue UI, screen-wave modal, group-eval. |
 | `app/features/hiring/pipeline/**` | Pipeline board UI, activity feed, candidate drawer. |
 | `app/features/hiring/pipeline/usePipelineTabState.ts` | Composes the tab's state from six single-concern hooks and hands `PipelineTab` one flat object. Owns only the cross-concern derivations (stat counts, `filteredEntries`, the drawer cohort). Hook-call order is load-bearing — it reproduces the effect-registration order the concerns had as one body. |
@@ -246,6 +294,28 @@ menu as an already-checked row that unchecking clears. Like `Select`, the menu i
 portalled to `<body>` and `fixed` to the trigger's measured rect — the bar is the
 top layer of an `overflow-hidden` panel, so an absolute menu would be clipped by
 its own header.
+
+#### The stage deep link is validated against the workspace's own axis, not the shipped five
+
+The funnel that mints `?stage=` reads `getPipelineAxis(workspaceId).stages` — the
+columns the workspace composed in Settings → Hiring — so validating the incoming
+value against the hardcoded `PIPELINE_STAGES` dropped every custom or renamed
+stage on the floor and rendered the board **unfiltered**, which is
+indistinguishable from "nothing was filtered out". `usePipelineFilters` now
+carries the parameter verbatim (`readStageParam`; it is only ever an equality key
+against `entry.stage`), and `resolveStageFilter(stage, axis, retired)` answers
+whether the board can honour it — against the axis that arrives with the board
+payload (`GET /api/pipeline`), the only list that can answer.
+
+A stage that resolves to no column renders an explicit notice above the lanes
+(`pipeline.tab.stageOffBoard`, in `PipelineFilterBar`) with a one-click way out,
+and the filter **stays applied**: candidates still standing on a dropped column
+then surface in the off-axis strip, which is exactly what the stale link was
+pointing at. The notice waits for the board fetch (`PipelineTab` passes
+`stageResolved` only once `entries != null`), so it cannot flash during load and
+then retract. Labels follow the off-axis strip's rule — the workspace's own label
+wins when it authored one, otherwise the `enums.stage.*` catalog translates the
+id. Pinned by `pipelineStageFilter.test.ts` (8 checks).
 
 ### Typography and presence motion
 
@@ -395,6 +465,55 @@ does not warn, source guards that neither surface re-derives `deliverable === fa
 locally, and that `ConsentPanel` still holds exactly one fetch) and
 `comms-delivery-truth.test.ts` (server-side projection parity).
 
+### The on-the-job outcome of a hire
+
+For a candidate standing on the **terminal-role** stage, the drawer leads with the
+one question still open about them: how the hire actually worked out
+(`PipelineHireOutcomeCard`, UAT `KAT-L1-002`). The card writes a 1..5 `performance`
+rating into `dev_outcomes` through `POST /api/pipeline/outcomes` — the same field,
+vocabulary and 1..5 bound the dev-case control room has always used
+(`app/_lib/dev-outcomes.ts`), not a second rating concept.
+
+Four properties are deliberate and pinned by
+`app/api/pipeline/outcomes/outcomes-route.test.ts`:
+
+- **Operator-gated, workspace-scoped.** A rating is a judgement about a named
+  person living in the same database as sealed decision records, so both handlers
+  take the shared `requireOperator()` gate before any work and every store call is
+  handed the caller's workspace. Another tenant's entry id is indistinguishable
+  from a deleted one.
+- **It never becomes a pipeline event.** `/api/pipeline/events` is served
+  unauthenticated and its public projection copies `detail` verbatim, so a rating
+  written as an event would be world-readable. The route emits none, and the guard
+  derives the public-surface list from `app/_lib/auth/public-routes.ts` — a new
+  public prefix extends the guard for free — then asserts no publicly-reachable
+  route imports the outcome store.
+- **Unrated reads as unrated, never zero.** There is no default and no
+  pre-selected value. The write is refused with 409 unless the entry is on the
+  terminal role *at the time of the write*, checked against the live stage rather
+  than trusted from the client, so a stale drawer cannot record an on-the-job
+  outcome for someone who never took the job.
+- **Refusals carry a code, not English prose.** `HIRE_RATING_ENTRY_NOT_FOUND`
+  (404), `HIRE_RATING_NOT_HIRED` (409) and `HIRE_RATING_INVALID` (400) are declared
+  in `REFUSAL_ERRORS` (`app/_lib/api-response.ts`) and resolved through
+  `app/_lib/use-error-message.ts`, so a Czech board is told *why* in Czech instead
+  of being handed the canonical English sentence.
+
+The card states, at the point of entry, what the rating is for and that it is
+**not used to make automated decisions**; it is visible in the workspace only and
+never shown to the candidate.
+
+"Hired" is read as the terminal stage **role**, not the literal name `Hired`:
+`PipelineTab` passes the board's resolved axis into the drawer, which mounts the
+card on `stageHasRole(entry.stage, "terminal", axis)`, and the route re-resolves it
+server-side with `getPipelineAxis(ws)` — so a workspace that renames its last
+column keeps the card.
+
+The **capture** half is what shipped. There is deliberately no `?source=performance`
+calibration arm yet; Analytics → Quality prints an accrual counter off
+`GET /api/pipeline/outcomes` instead (see
+[`../analytics/README.md`](../analytics/README.md)).
+
 ## Recommendation / route vocabulary
 
 A closed, single-sourced vocabulary validated at every parse boundary:
@@ -422,6 +541,16 @@ auto-reject). Python side: `RECOMMENDATIONS` / `RECOMMENDATION_FALLBACK` /
 …), `gemini_cache` (generic LLM prompt cache), plus the new
 `decision_config` store and the screen-wave audit records
 (`decision-record-store.ts`).
+
+`dev_outcomes` (isolated store, `app/_lib/dev-outcomes.ts`, created and migrated by
+itself — **no migration in `db/core.ts` was required or written**, since it already
+carried `ref`, `candidate_ref`, `predicted_score`, `outcome`, `performance`, `note`,
+`recorded_at`, `workspace_id`) now also holds the board's own hires. A board hire is
+keyed `pe:<entryId>` (`PIPELINE_OUTCOME_REF_PREFIX`, so the two id spaces are
+provably disjoint), while a devcase-promoted hire (`ds-<submissionId>`) keeps the
+bare submission id — so a recruiter's rating **updates** the row
+`recordPipelineOutcome` already auto-wrote instead of minting a second decided
+outcome, which `calibrate()` would count twice.
 
 ## Decisions peer context (comparison data for the review queue)
 
@@ -485,8 +614,18 @@ Full plan mechanics: `docs/features/hiring-pipeline/README.md`.
 - The route layer diverged from the original one-route-per-task design in
   favor of a consolidated `/api/automation/[task]` handler — functionally
   equivalent, just fewer files.
-- No ground-truth loop yet validates the `confidence ≥ 80` auto-advance band
-  against real interview/hire outcomes.
+- **Ground truth is captured but not yet measured against.** The drawer records a
+  hire's 1..5 on-the-job rating, and Analytics → Quality can now score the
+  advance-vs-hire question off stage data (`?outcome=hired`), but no calibration
+  producer is paired against the rating itself — nothing yet validates the
+  `confidence ≥ 80` auto-advance band against how a hire actually worked out.
+  Deliberate: the corpus accrues first.
+- **No free-text note on the recruiting rating, and no way to clear one.**
+  `dev_outcomes.note` records fixed provenance ("on-the-job rating recorded in the
+  pipeline drawer"); a sentence about a named employee's performance is a different
+  artifact from a screening rationale and needs a retention / lawful-basis decision
+  first. A correction re-rates in place; there is no delete path. Both wait on the
+  same decision.
 
 ## Fairness gates (why a reject can never happen unattended)
 
@@ -500,3 +639,28 @@ Full plan mechanics: `docs/features/hiring-pipeline/README.md`.
   the TS apply boundary independent of the Python gate; a violation is
   downgraded to `hold` and logged as `fairness_gate_blocked_reject` — audit
   that event kind for any refused (bug-caught) or, worse, missed case.
+
+### A reject issued from the group-eval comparison carries its reason
+
+UAT `LUC-GEF-L1-08` (raised twice, built 2026-08-18). A reject taken from inside
+the group-eval modal used to call `act(entry, "reject")` with no `detail`, so the
+sealed record fell back to `pipeline-entry-action.ts`'s
+`"Recruiter reject from <stage>."` — a tautology in the very column an auditor
+reads first, while the *same* action taken from the analysis view had always
+passed the recruiter's reason. The record's quality depended on which button the
+recruiter happened to use.
+
+Now (`DecisionsModals.tsx`, `DecisionsGroupEvalRejectModal.tsx`):
+
+- the click **stages** the reject instead of issuing it, and returns `false`, so
+  no outcome pill appears for a decision that has not happened;
+- a confirm dialog requires a rationale (four one-click presets fill an editable
+  field; ⌘/Ctrl+Enter commits; confirm stays disabled while it is blank);
+- on confirm the reason reaches `act()` as `detail` and is what gets sealed;
+- the seal is handed back to the comparison through `GroupEvalModal`'s `sealed`
+  prop, so the outcome pill is correct on the first confirm rather than on a
+  second click, and `useGroupEval` will not let an already-sealed identity be
+  acted on twice.
+
+Advance is untouched and still one click — this is a bulk-review surface, and
+friction that buys nothing is its own defect.

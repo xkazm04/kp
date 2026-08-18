@@ -59,6 +59,13 @@ import type { PipelineEvent } from "@/app/features/shared/pipelineTypes";
 // recordEvent/recordAutomationEvent literals carry their writer in a comment below.
 // Because EVENT_CATALOG is Record<EventKind, …>, adding a kind here without a glyph is a
 // COMPILE error, and the same test pins the i18n catalog to this set in all four locales.
+//
+// UAT LUC-ANA-6 — this list and DECISION_META are now SET-EQUAL, pinned from both sides
+// (that test asserts DECISION_META ⊆ EVENT_KINDS, decision-attribution.test.ts asserts
+// the converse). Before, the inclusion ran one way only, so a kind could reach the feed
+// with a localized verb and still have no attribution: it rendered NEZNÁMÉ in the
+// decision log, sat in neither filter, and counted in no rollup. Adding a kind to either
+// map now fails the other's test until both know about it.
 export const EVENT_KINDS = [
   "matched",
   "added",
@@ -71,6 +78,11 @@ export const EVENT_KINDS = [
   "rejected",
   "intake_degraded",
   "intake_resolved",
+  // A board-shape change moved this candidate: Settings → Hiring removed the step
+  // they were standing on, and the operator named where everyone there should go.
+  // Its own kind, not "moved": nobody chose to advance THIS candidate, and a
+  // recruiter reading the trail three weeks later needs to know that.
+  "stage_migrated",
   // d95fed6d — a recruiter's analysis disposition (advance/hold/pass on the
   // saved report) echoed onto the candidate's pipeline record.
   "disposition_set",
@@ -95,6 +107,13 @@ export const EVENT_KINDS = [
   "auto_advanced",
   "auto_rejected",
   "screening_hold",
+  // screen-wave.ts — the wave DECLINED to auto-reject this candidate, to keep an
+  // uncontaminated calibration arm. A machine decision about a person, so it is a feed
+  // event like any other (UAT LUC-ANA-6).
+  "screen_wave_holdout",
+  // pipeline-entry-action.ts — the AI round passed and the hiring plan handed the
+  // candidate to a human round. The human-oversight hand-off itself.
+  "human_round_queued",
   // Generated artifacts (automation-run.ts): the scorecard/prep/offer/rejection drafts.
   "interview_scorecard",
   "interview_prep_generated",
@@ -112,16 +131,19 @@ export const EVENT_KINDS = [
   "interview_reminder_sent",
   "interviewer_brief_sent",
   "interviewer_brief_skipped",
-  "onboarding_reminder_sent",
   "offer_sent",
+  // comms-dispatch.ts — the offer-deadline nudge.
+  "offer_reminder_sent",
   "comm_resent",
-  // Scheduling / offer / onboarding lifecycle transitions.
+  // Scheduling / offer lifecycle transitions.
   "interview_scheduled",
   "offer_accepted",
   "offer_declined",
   "offer_expired",
-  "onboarding_started",
-  "onboarding_failed",
+  // automation-run.ts — an offer extended unattended (offer gate: auto); and
+  // offer-finalize.ts — an acceptance that could not be honoured on a closed entry.
+  "offer_auto_extended",
+  "offer_accept_blocked",
   "rejection_comms_failed",
   // The fairness backstop + the policy pass's aging/stale nudges (AUTOMATION_ALERT_KINDS).
   "fairness_gate_unknown_archetype",
@@ -142,6 +164,16 @@ export const EVENT_KINDS = [
   "ats_export",
   // api/apply/[id]/followup — the candidate answered their own profile gaps.
   "profile_enriched",
+  // api/agents/* — the Personas agent bridge: an operator dispatches a persona request,
+  // and Personas reports back on its token route when the persona goes live.
+  "agent_dispatched",
+  "agent_activated",
+  // RETIRED WRITERS (decision-attribution.ts RETIRED_EVENT_KINDS). The post-hire
+  // onboarding module is gone, but its rows are still in deployed databases and the feed
+  // renders whatever the table holds — dropping the kinds would make real history read as
+  // an unrecognized token. Kept so those rows keep a localized verb; nothing writes them.
+  "onboarding_started",
+  "onboarding_intake_submitted",
 ] as const;
 
 export type EventKind = (typeof EVENT_KINDS)[number];
@@ -172,6 +204,7 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   rejected: { Icon: XCircle, tone: "text-coral" },
   intake_degraded: { Icon: AlertTriangle, tone: "text-red-600" },
   intake_resolved: { Icon: Wrench, tone: "text-moss" },
+  stage_migrated: { Icon: Shuffle, tone: "text-amber-600" },
   disposition_set: { Icon: CheckSquare, tone: "text-steel" },
   sim_attached: { Icon: Phone, tone: "text-steel" },
   rematched: { Icon: Shuffle, tone: "text-steel" },
@@ -180,6 +213,8 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   auto_advanced: { Icon: ArrowUpCircle, tone: "text-moss" },
   auto_rejected: { Icon: XCircle, tone: "text-coral" },
   screening_hold: { Icon: PauseCircle, tone: "text-amber-600" },
+  screen_wave_holdout: { Icon: Scale, tone: "text-steel" },
+  human_round_queued: { Icon: UserCheck, tone: "text-moss" },
   interview_scorecard: { Icon: ClipboardList, tone: "text-steel" },
   interview_prep_generated: { Icon: ClipboardList, tone: "text-steel" },
   rejection_drafted: { Icon: FileText, tone: "text-steel" },
@@ -194,15 +229,15 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   interview_reminder_sent: { Icon: Mail, tone: "text-steel" },
   interviewer_brief_sent: { Icon: Mail, tone: "text-steel" },
   interviewer_brief_skipped: { Icon: MailWarning, tone: "text-amber-600" },
-  onboarding_reminder_sent: { Icon: Mail, tone: "text-steel" },
   offer_sent: { Icon: Mail, tone: "text-steel" },
+  offer_reminder_sent: { Icon: Mail, tone: "text-steel" },
   comm_resent: { Icon: Send, tone: "text-steel" },
   interview_scheduled: { Icon: CalendarCheck, tone: "text-moss" },
   offer_accepted: { Icon: Handshake, tone: "text-moss" },
   offer_declined: { Icon: XCircle, tone: "text-coral" },
   offer_expired: { Icon: Hourglass, tone: "text-amber-600" },
-  onboarding_started: { Icon: UserCheck, tone: "text-moss" },
-  onboarding_failed: { Icon: AlertTriangle, tone: "text-coral" },
+  offer_auto_extended: { Icon: Handshake, tone: "text-amber-600" },
+  offer_accept_blocked: { Icon: Ban, tone: "text-amber-600" },
   rejection_comms_failed: { Icon: MailWarning, tone: "text-coral" },
   fairness_gate_unknown_archetype: { Icon: Scale, tone: "text-coral" },
   fairness_gate_blocked_reject: { Icon: Scale, tone: "text-coral" },
@@ -216,6 +251,10 @@ export const EVENT_CATALOG: Record<EventKind, EventMeta> = {
   github_evidence_attached: { Icon: GitBranch, tone: "text-steel" },
   ats_export: { Icon: Download, tone: "text-steel" },
   profile_enriched: { Icon: UserCheck, tone: "text-steel" },
+  agent_dispatched: { Icon: Send, tone: "text-steel" },
+  agent_activated: { Icon: Sparkles, tone: "text-moss" },
+  onboarding_started: { Icon: UserCheck, tone: "text-moss" },
+  onboarding_intake_submitted: { Icon: ClipboardList, tone: "text-steel" },
 };
 
 // One documented fallback, now reserved for what it should always have covered: a

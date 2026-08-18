@@ -3,8 +3,8 @@
 // metadata up with a TENANT-SCOPED query that defaulted to the single workspace.
 // So on any other team the lookup missed and the row was written with NULL
 // candidate_label / job_title / archetype / to_stage: every automation event
-// (outreach sent, interview scheduled, rejection sent, offer sent, onboarding
-// started) rendered in the Activity feed and the drawer history as an anonymous
+// (outreach sent, interview scheduled, rejection sent, offer sent, offer
+// accepted) rendered in the Activity feed and the drawer history as an anonymous
 // row with no name, no role and no stage.
 //
 // The fix was structural rather than per-call-site: PipelineEntry now surfaces
@@ -72,14 +72,14 @@ test("the blank-metadata failure is real, and only an omitted tenant causes it",
 });
 
 // --- source contract on the dispatchers ------------------------------------
-// comms-dispatch owns 16 of the call sites. A new dispatcher that forgets the
+// comms-dispatch owns most of the call sites. A new dispatcher that forgets the
 // argument reintroduces the whole class, and no behavioural test would catch it.
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const dispatchSrc = readFileSync(path.join(HERE, "comms-dispatch.ts"), "utf8");
 
 test("every comms dispatcher threads a tenant into recordAutomationEvent", () => {
   const calls = dispatchSrc.match(/recordAutomationEvent\((?:[^;]*?)\);/g) ?? [];
-  assert.ok(calls.length >= 15, `expected the full dispatcher set, found ${calls.length}`);
+  assert.ok(calls.length >= 13, `expected the full dispatcher set, found ${calls.length}`);
   for (const call of calls) {
     assert.match(
       call,

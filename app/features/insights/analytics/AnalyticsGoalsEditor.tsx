@@ -17,20 +17,36 @@ export function GoalsEditor({
   conversion,
   timeToHireDays,
   onSaved,
+  open: openProp,
+  onOpenChange,
 }: {
   stages: string[];
   conversion: Record<string, number>;
   timeToHireDays: number | null;
   onSaved: () => void;
+  /**
+   * UAT TOM-ANA-9 — optionally CONTROLLED. The funnel now refuses to colour a
+   * stage the org set no goal for, and says so in a line of copy; that line
+   * needs to be able to open this editor in one click, which an internal-only
+   * `useState` cannot offer. Omit both props and it stays self-managed, so no
+   * existing call site changes.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const t = useTranslations("analytics.goals");
   const enumLabel = useEnumLabel();
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = openProp ?? uncontrolledOpen;
+  const setOpen = (next: boolean) => {
+    setUncontrolledOpen(next);
+    onOpenChange?.(next);
+  };
   return (
     <div className="mt-4 border-t border-stone-200 pt-3">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen(!open)}
         aria-expanded={open}
         className="focus-ring flex items-center gap-1.5 rounded text-sm font-semibold text-steel hover:text-ink"
       >
@@ -38,7 +54,11 @@ export function GoalsEditor({
       </button>
       {open ? (
         <div className="mt-2 space-y-1.5">
-          <p className="text-meta text-steel">{t("intro")}</p>
+          {/* UAT TOM-ANA-9 — `goals.intro` promised "leave blank to use the
+              default 50% threshold". That default is gone: a blank goal now
+              means the stage is not judged at all, and the copy has to say so
+              or the editor teaches the very fiction the funnel stopped telling. */}
+          <p className="text-meta text-steel">{t("introUnset")}</p>
           {stages.slice(1).map((stage) => (
             <TargetInput
               key={stage}

@@ -1,7 +1,7 @@
 # Outbound Candidate Comms
 
 Every candidate-facing message the pipeline sends — intake acknowledgements,
-outreach, rejections, offers, interview confirmations/reminders, onboarding —
+outreach, rejections, offers, interview confirmations/reminders —
 goes through one delivery layer with an honest, non-ambiguous status contract.
 In a recruiting product a silently-dropped offer or rejection is a serious,
 candidate-facing failure; this doc pins the three ambiguities the

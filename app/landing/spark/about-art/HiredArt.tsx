@@ -6,14 +6,14 @@ import { Check } from "lucide-react";
 import { DISPLAY, HAND } from "../tokens";
 import { ENTER } from "./shared";
 
-/* 07 · Hired — a stamped seal + confetti, with onboarding already checking off. */
+/* 07 · Hired — a stamped seal + confetti, with the hire's close-out checking off. */
 const CONFETTI = [
   { c: "#caa54c", left: "-8%", top: "8%" },
   { c: "#d65a4a", left: "104%", top: "0%" },
   { c: "#42606f", left: "100%", top: "78%" },
   { c: "#caa54c", left: "-6%", top: "82%" }
 ];
-const TASKS = ["preboarding", "equipment", "buddy"] as const;
+const TASKS = ["record", "ats", "role"] as const;
 
 export default function HiredArt({ color = "#526b4f" }: { color?: string }) {
   const t = useTranslations("aboutPage");
@@ -44,7 +44,7 @@ export default function HiredArt({ color = "#526b4f" }: { color?: string }) {
         </motion.div>
       </div>
       <div className="mt-5 space-y-2 rounded-2xl border-[3px] border-[#17202a] bg-white p-4 shadow-[5px_5px_0_#17202a]">
-        <p className={`${HAND} text-sm text-[#526b4f]`}>{t("art.hired.onboarding")}</p>
+        <p className={`${HAND} text-sm text-[#526b4f]`}>{t("art.hired.handoff")}</p>
         {TASKS.map((task, i) => (
           <motion.div
             key={task}

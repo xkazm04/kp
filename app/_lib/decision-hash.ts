@@ -37,6 +37,11 @@ function sortValue(value: unknown): unknown {
 // forges the chain). It survives only to verify rows sealed before the chain was
 // keyed — every new keyed row uses decisionContentMac below. See the store's key
 // registry and verifyDecisionChain for how the two coexist without a downgrade path.
+//
+// UAT LUC-ANA-1 — this function is exported, deterministic and secret-free BY DESIGN,
+// which is precisely why a chain made only of these links may not be called
+// tamper-RESISTANT on screen: reproducing it needs nothing an insider lacks. The
+// verdict's key census (ChainVerdict.keylessCount) is what conditions that claim.
 export function decisionContentHash(prevHash: string, payload: unknown): string {
   return createHash("sha256")
     .update(prevHash)

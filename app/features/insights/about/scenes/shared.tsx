@@ -67,9 +67,20 @@ export function LaneLabel({ children }: { children: ReactNode }) {
  * Deliberately NOT uppercased: `statedVsRealGaps` shouted as STATEDVSREALGAPS
  * loses the camel case that makes it greppable, which is the only reason to
  * print an identifier at all.
+ *
+ * The identifier arrives as the `code` PROP rather than as children, and that
+ * is a statement about localization rather than a styling choice. These strings
+ * are function and column names in the running code; they are Do-Not-Translate
+ * by the same rule that protects product nouns and ICU placeholders, and
+ * putting them in the message catalog would invite four translators to render
+ * `ko_filter()` four different ways. Passing them as a prop keeps them out of
+ * the catalog and out of the i18n linter's path at the same time.
+ *
+ * `children` stays available for the rare label that IS prose and should come
+ * from `t()`.
  */
-export function CodeLabel({ children }: { children: ReactNode }) {
-  return <p className="truncate font-mono text-meta text-steel">{children}</p>;
+export function CodeLabel({ code, children }: { code?: string; children?: ReactNode }) {
+  return <p className="truncate font-mono text-meta text-steel">{code ?? children}</p>;
 }
 
 /**

@@ -70,13 +70,20 @@ export function readPath(payload: unknown, path: string): unknown {
   return node;
 }
 
-/** Map a vendor stage name onto kp's axis, case- and whitespace-insensitively. */
-export function mapStage(map: AtsFieldMap, externalStage: unknown): PipelineStage | null {
+/** Map a vendor stage name onto the board's axis, case- and whitespace-insensitively.
+ *
+ *  `allowed` is the destination axis to validate against. It defaults to the
+ *  shipped stage list so every existing caller behaves exactly as before; a caller
+ *  that knows the workspace passes its own axis, so a team that renamed a column
+ *  can still receive candidates onto it. (ats_connections is not workspace-keyed
+ *  yet — see docs/features/integrations/README.md, Known gaps — which is why the
+ *  default has to stay.) */
+export function mapStage(map: AtsFieldMap, externalStage: unknown, allowed: readonly string[] = PIPELINE_STAGES): PipelineStage | null {
   if (typeof externalStage !== "string") return null;
   const key = externalStage.trim().toLowerCase();
   if (!key) return null;
   const mapped = map.stages[key];
-  return mapped && (PIPELINE_STAGES as readonly string[]).includes(mapped) ? mapped : null;
+  return mapped && allowed.includes(mapped) ? mapped : null;
 }
 
 /**
@@ -125,8 +132,12 @@ export class AtsFieldMapError extends Error {
   }
 }
 
-/** Validate a map arriving from the API/UI before it is stored. */
-export function parseFieldMap(raw: unknown): AtsFieldMap {
+/** Validate a map arriving from the API/UI before it is stored.
+ *
+ *  `allowed` is the destination axis its `stages` values must name — defaulting
+ *  to the shipped list, so a caller that cannot resolve a workspace behaves as
+ *  before. See mapStage for why the default has to stay. */
+export function parseFieldMap(raw: unknown, allowed: readonly string[] = PIPELINE_STAGES): AtsFieldMap {
   if (!raw || typeof raw !== "object") throw new AtsFieldMapError("fieldMap must be an object.");
   const o = raw as Record<string, unknown>;
   const paths: Partial<Record<MappableField, string>> = {};
@@ -149,8 +160,8 @@ export function parseFieldMap(raw: unknown): AtsFieldMap {
   if (rawStages !== undefined) {
     if (!rawStages || typeof rawStages !== "object") throw new AtsFieldMapError("fieldMap.stages must be an object.");
     for (const [k, v] of Object.entries(rawStages as Record<string, unknown>)) {
-      if (typeof v !== "string" || !(PIPELINE_STAGES as readonly string[]).includes(v)) {
-        throw new AtsFieldMapError(`fieldMap.stages["${k}"] must be one of: ${PIPELINE_STAGES.join(", ")}.`);
+      if (typeof v !== "string" || !allowed.includes(v)) {
+        throw new AtsFieldMapError(`fieldMap.stages["${k}"] must be one of: ${allowed.join(", ")}.`);
       }
       stages[k.trim().toLowerCase()] = v as PipelineStage;
     }

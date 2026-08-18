@@ -95,6 +95,13 @@ export function OrgBenchmarkPanel() {
         <h3 className="text-sm font-semibold uppercase tracking-wide text-steel">{t("title")}</h3>
       </div>
       <p className="mt-1 text-sm text-steel">{t("subtitle")}</p>
+      {/* UAT KAT-ANA-5 — this panel lives in the Performance section, UNDER the
+          30/90-day switcher, and /api/benchmarks takes no window at all: it is
+          all-time by design (see the route + org-benchmarks.ts for why a windowed
+          benchmark would be both withheld and biased). So it names its own scope
+          where the numbers are read, the way the compute panel's manualAllTime /
+          manualWindowed line already does for the CZK leg. */}
+      <p className="mt-1 text-micro text-steel">{t("scopeAllTime")}</p>
 
       {!org.available ? (
         <p className="mt-4 rounded-md bg-paper p-3 text-sm text-steel">{t("locked", { teams: org.contributingTeams })}</p>

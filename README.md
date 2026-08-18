@@ -136,13 +136,16 @@ production builds.
 
 ```bash
 npm run dev:inspect   # dev server with source-location stamping on
+npm run dev:empty     # the empty-tenant server (§ below) — inspector on by default
 ```
 
 In the app, press **`;`** (enters keyboard mode) then **`i`** (Inspect) to arm it. Hover
 highlights the element under the cursor and pins a `File.tsx:line` chip; **right-click** copies
 the call-site path, **Alt+right-click** copies the innermost element, click a HUD row to copy
 any enclosing file, and **Esc** exits. A plain `npm run dev` works too, but the HUD will say
-source mapping is OFF until you relaunch with `npm run dev:inspect`. A gated Turbopack loader
+source mapping is OFF until you relaunch with `npm run dev:inspect` — `npm run dev:empty` carries
+the same stamping (it exists to look at first-run UI; `-- --no-inspect` turns it off for faster
+compiles). A gated Turbopack loader
 (`scripts/dev-inspector/`) stamps host JSX with `data-loc` only when `DEV_INSPECT=1`; the overlay
 (`app/_dev-inspector/`) reads it at runtime. Both are absent from production.
 

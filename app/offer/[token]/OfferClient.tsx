@@ -51,7 +51,7 @@ export function OfferClient() {
   // misclick must not permanently close the offer.
   const [confirmingDecline, setConfirmingDecline] = useState(false);
   const goBackRef = useRef<HTMLButtonElement>(null);
-  const onboardingCtaRef = useRef<HTMLAnchorElement>(null);
+  const acceptedCardRef = useRef<HTMLDivElement>(null);
 
   // When the confirm step appears, move focus to the safe option so a keyboard user
   // lands on 'Go back' rather than the destructive default.
@@ -60,12 +60,15 @@ export function OfferClient() {
   }, [confirmingDecline]);
 
   // bug-ui-scan-2026-07-09 (offers-onboarding #4): on accept, move focus to the
-  // onboarding next-step CTA. Paired with role=status/aria-live on the success card,
-  // a screen-reader user hears the offer was accepted and lands on the concrete next
-  // step rather than silence after their most consequential action. Only when the
-  // accept happens in this session (a page loaded already-accepted keeps natural order).
+  // confirmation itself. Paired with role=status/aria-live on the success card, a
+  // screen-reader user hears the offer was accepted and their cursor lands on that
+  // confirmation rather than silence after their most consequential action. The card
+  // used to hold an onboarding next-step CTA and focus went there; accept is now the
+  // terminal step on this surface, so the card (tabIndex -1) is the focus target.
+  // Only when the accept happens in this session (a page loaded already-accepted
+  // keeps natural order).
   useEffect(() => {
-    if (result === "accepted") onboardingCtaRef.current?.focus();
+    if (result === "accepted") acceptedCardRef.current?.focus();
   }, [result]);
 
   // State is only written in the fetch's async callbacks (never synchronously
@@ -247,22 +250,17 @@ export function OfferClient() {
               // bug-ui-scan-2026-07-09 (offers-onboarding #4): announce the terminal
               // outcome (role=status + aria-live) so the success of this irreversible
               // action isn't silent to assistive tech; focus moves to the CTA below.
-              <div role="status" aria-live="polite" className="mt-6 rounded-lg bg-moss/10 p-4 text-center">
+              <div
+                ref={acceptedCardRef}
+                tabIndex={-1}
+                role="status"
+                aria-live="polite"
+                className="focus-ring mt-6 rounded-lg bg-moss/10 p-4 text-center"
+              >
                 <p className="text-lg font-semibold text-moss">{t("acceptedTitle")}</p>
                 <p className="mt-1 text-sm text-steel">
                   {offer.company ? t("acceptedBodyCompany", { company: offer.company }) : t("acceptedBodyGeneric")}
                 </p>
-                {/* The accepted offer's token doubles as the onboarding link
-                    (offer-finalize.ts) — surface it INLINE so accept lands on a
-                    concrete next step on the page, not only via the welcome email. */}
-                <a
-                  ref={onboardingCtaRef}
-                  href={`/onboarding/${offer.token}`}
-                  data-sim-click="offer-onboarding-cta"
-                  className="focus-ring mt-3 inline-flex h-11 items-center justify-center gap-2 rounded-md bg-moss px-5 text-base font-semibold text-white transition-opacity hover:opacity-90"
-                >
-                  {t("onboardingCta")}
-                </a>
               </div>
             ) : result === "declined" ? (
               // bug-ui-scan-2026-07-09 (offers-onboarding #4): the decline is also a

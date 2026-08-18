@@ -10,7 +10,12 @@
 //   3. relaunches `next dev` through dev-guard with KP_EMPTY=1 (skips all fixture
 //      content seeding — see app/_lib/db/seed-gate.ts) and KP_DB_PATH pointed at
 //      the throwaway file, on port 3002 with its own .next-empty dist dir so it
-//      can run beside the seeded dev server.
+//      can run beside the seeded dev server;
+//   4. turns the DevInspector on (what `npm run dev:inspect` does: DEV_INSPECT=1
+//      for the source-location stamping loader + DEV_GUARD_MAX_NODE=150 for the
+//      worker-storm breaker that recipe always pairs with it). This server exists
+//      to LOOK at first-run UI, so click-to-source is wanted by default; the cost
+//      is a slower `*.tsx` compile. Opt out with `-- --no-inspect`.
 //
 // WHY THE REAPING (the EPERM this fixes): when a previous dev-empty is killed
 // HARD (terminal force-closed, task runner kill, taskkill without /T), Windows
@@ -23,6 +28,7 @@
 //
 // Usage:  npm run dev:empty
 // Keep the DB between restarts (to test "second visit" flows):  npm run dev:empty -- --keep
+// Without the source-location loader (faster compiles):         npm run dev:empty -- --no-inspect
 
 import { rmSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
@@ -111,6 +117,7 @@ async function wipeDb() {
 }
 
 const keep = process.argv.includes("--keep");
+const inspect = !process.argv.includes("--no-inspect");
 reapStaleInstances();
 if (!keep) {
   await wipeDb();
@@ -118,6 +125,12 @@ if (!keep) {
 } else {
   console.log(`[dev-empty] --keep — reusing ${path.relative(root, dbPath)}`);
 }
+
+console.log(
+  inspect
+    ? "[dev-empty] DevInspector ON (press `;` then `i` in the app) — pass --no-inspect for faster compiles"
+    : "[dev-empty] --no-inspect — source-location stamping off"
+);
 
 const child = spawn(
   process.execPath,
@@ -132,6 +145,19 @@ const child = spawn(
       // If THIS wrapper is killed hard (no signal delivered), dev-guard notices
       // its parent vanished and reaps the dev tree itself — see dev-guard.mjs.
       DEV_GUARD_WATCH_PARENT: "1",
+      // The dev:inspect pair, set here instead of via cross-env in package.json:
+      // DEV_INSPECT=1 arms the Turbopack source-loc loader (next.config.ts +
+      // scripts/dev-inspector/), and the storm breaker rides along because that
+      // loader is exactly what leaked ~2,800 node workers on 2026-06-18. An
+      // explicit DEV_GUARD_MAX_NODE from the shell still wins.
+      ...(inspect
+        ? {
+            DEV_INSPECT: "1",
+            DEV_GUARD_MAX_NODE: process.env.DEV_GUARD_MAX_NODE ?? "150",
+          }
+        : // written, not just omitted, so --no-inspect also overrides a
+          // DEV_INSPECT=1 inherited from the shell/.env.
+          { DEV_INSPECT: "0" }),
     },
   }
 );

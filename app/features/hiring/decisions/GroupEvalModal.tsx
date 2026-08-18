@@ -31,6 +31,7 @@ export function GroupEvalModal({
   onClose,
   onRerun,
   onDecide,
+  sealed,
 }: {
   roleTitle: string;
   evaluation: GroupEvalPayload | null;
@@ -52,6 +53,11 @@ export function GroupEvalModal({
    *  pipeline entry by id in DecisionsTab so a duplicate display name can't act on the wrong
    *  person. Omitted (read-only) for the simulation, which has no live decision queue. */
   onDecide?: (identity: string, action: "accept" | "reject") => boolean;
+  /** Decisions sealed outside the click handler — a reject confirmed in the
+   *  rationale dialog (UAT LUC-GEF-L1-08), which lands after `onDecide` has already
+   *  returned false. Without it the comparison keeps live buttons over a candidate
+   *  who is already rejected. */
+  sealed?: Record<string, "accept" | "reject">;
 }) {
   const t = useTranslations("decisions.groupEval");
   // eval-speaks-your-language — the persisted eval carries structured facts, not
@@ -63,6 +69,7 @@ export function GroupEvalModal({
     createdAt,
     poolDrift,
     onDecide,
+    sealed,
   });
 
   return (

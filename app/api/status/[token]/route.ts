@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getJob } from "@/app/_lib/db/jobs";
 import { getEntryWorkspace, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { roleOf } from "@/app/_lib/pipeline-stages";
 import { candidateStatusFor } from "@/app/_lib/application-status";
 import { isRelayConfigured } from "@/app/_lib/comms-relay";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 // Abuse containment for the last PUBLIC token route that had none — the offer,
-// scheduling and onboarding token routes all throttle already. The token is a
+// scheduling token routes all throttle already. The token is a
 // strong CSPRNG capability, so this is not guessing prevention: it caps what a
 // single link-holder can extract from the DB per minute.
 //
@@ -38,11 +40,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     // as the sibling /decisions route does. Without it this read fell through to
     // DEFAULT_WORKSPACE_ID, so a candidate of any other team got a 404 on their
     // own status link.
-    const entry = getPipelineEntry(entryId, getEntryWorkspace(entryId));
+    const workspaceId = getEntryWorkspace(entryId);
+    const entry = getPipelineEntry(entryId, workspaceId);
     if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
     const company = entry.jobId ? getJob(entry.jobId)?.company ?? null : null;
     return jsonOk({
-      status: candidateStatusFor(entry.status, entry.stage),
+      status: candidateStatusFor(entry.status, entry.stage, roleOf(entry.stage, getPipelineAxis(workspaceId).stages)),
       jobTitle: entry.jobTitle ?? null,
       company,
       updatedAt: entry.stageChangedAt ?? entry.createdAt ?? null,

@@ -1,4 +1,6 @@
 import { buildApplicantProfile } from "@/app/_lib/applicant-profile";
+import { getPipelineAxis } from "./pipeline-axis-server";
+import { stageWithRole } from "./pipeline-stages";
 import { applyDedupeKey, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import type { ApplyAnswers } from "@/app/_lib/apply-intake";
 import { getJob, getJobWorkspace } from "@/app/_lib/db/jobs";
@@ -125,7 +127,9 @@ export async function ingestCvApplication(input: {
     roleFamily: input.job.roleFamily ?? null,
     jobId: input.job.id,
     jobTitle: input.jobTitle ?? input.job.title,
-    stage: "Accepted",
+    // A fresh application arrives at the board's ENTRY column, whatever this
+    // workspace calls it — not at a stage that happens to be named "Accepted".
+    stage: stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted",
     // Stable per-applicant key so re-sends of the same person collapse onto one
     // entry even though candidateId is a fresh profile id each build.
     dedupeKey: applyDedupeKey(name, input.email ?? ""),

@@ -48,3 +48,10 @@ data/piper/
 
 # Personas app local state (outbox + registered-context list)
 .personas/
+
+# /uat — the simulated-UAT harness overlay (characters, journeys, drivers) and its
+# per-run artifacts (findings, reports, shots). Kept local by request (2026-08-18):
+# runs are bulky and session-specific, and re-committing every run was spamming the
+# tree. The durable outcomes of a run live in docs/product/uat-insights/ and
+# docs/BACKLOG.md, which stay tracked.
+/uat/

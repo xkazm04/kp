@@ -168,6 +168,21 @@ export function recordChannelWebhookAccepted(token: string): void {
 
 // ---- Channel spend (Erika gap E5) -------------------------------------------
 
+// UAT KAT-ANA-2 — a stored spend figure is a HUMAN ENTRY, not a measurement, and it
+// does not decay on its own. On the seeded host one row (linkedin = 5,000 CZK) written
+// by a UAT run six weeks earlier was still dividing into the current hire count and
+// rendering as `833 CZK / hire` — a current-looking metric nobody could see the age of,
+// because the only surface that carried its own date was the row in SQLite. Every
+// figure DERIVED from these rows now travels with the `updated_at` that produced it,
+// so a stale entry identifies itself instead of passing as this month's number.
+export type ChannelSpendEntry = {
+  channel: string;
+  amountCzk: number;
+  /** When a person last entered this figure (ISO). The derived cost-per-applicant /
+   *  cost-per-hire columns are exactly this current and no more. */
+  updatedAt: string;
+};
+
 /** Recruiter-entered spend per source channel (CZK) — the denominator for
  *  cost-per-applicant / cost-per-hire. amountCzk null/≤0 clears the figure. */
 export function setChannelSpend(channel: string, amountCzk: number | null, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
@@ -182,11 +197,17 @@ export function setChannelSpend(channel: string, amountCzk: number | null, works
   ).run(channel, amountCzk, new Date().toISOString(), workspaceId);
 }
 
-export function listChannelSpend(workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, number> {
+/** Spend per channel WITH the date a human entered it — what any surface needs to
+ *  render a derived money figure honestly. Prefer this over `listChannelSpend`;
+ *  the bare-number form remains for callers that only compare amounts. */
+export function listChannelSpendDetail(workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, ChannelSpendEntry> {
   const db = ensureDb();
-  const rows = db.prepare(`SELECT channel, amount_czk FROM channel_spend WHERE workspace_id = ?`).all(workspaceId) as {
-    channel: string;
-    amount_czk: number;
-  }[];
-  return new Map(rows.map((r) => [r.channel, r.amount_czk]));
+  const rows = db
+    .prepare(`SELECT channel, amount_czk, updated_at FROM channel_spend WHERE workspace_id = ?`)
+    .all(workspaceId) as { channel: string; amount_czk: number; updated_at: string }[];
+  return new Map(rows.map((r) => [r.channel, { channel: r.channel, amountCzk: r.amount_czk, updatedAt: r.updated_at }]));
+}
+
+export function listChannelSpend(workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, number> {
+  return new Map([...listChannelSpendDetail(workspaceId).values()].map((s) => [s.channel, s.amountCzk]));
 }

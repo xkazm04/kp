@@ -1,7 +1,7 @@
 // Behavioral coverage for the offer lifecycle — offers-store.ts +
 // offer-finalize.ts + offer-reminders.ts — against an ISOLATED throwaway DB
 // (testing/unit-db.ts must stay the first project import). Pins the terminal
-// finalization paths (accept → Hired + onboarding; decline → terminal status),
+// finalization paths (accept → Hired; decline → terminal status),
 // the stale-link guards around them, deadline expiry, and the at-most-once
 // reminder claim.
 import { test, after } from "node:test";
@@ -19,7 +19,6 @@ import {
 } from "./offers-store.ts";
 import { offerView, respondToOffer } from "./offer-finalize.ts";
 import { sendDueOfferReminders } from "./offer-reminders.ts";
-import { runForEntry } from "./onboarding-store.ts";
 
 after(() => cleanupUnitDb());
 
@@ -62,7 +61,7 @@ function forceExpiry(token: string): void {
   }
 }
 
-test("accept claims once: offer accepted, entry → Hired, onboarding run started; a retry is a no-op echo", async () => {
+test("accept claims once: offer accepted, entry → Hired; a retry is a no-op echo", async () => {
   const entry = entryAtOffer();
   const offer = mintOffer(entry.id);
 
@@ -76,7 +75,6 @@ test("accept claims once: offer accepted, entry → Hired, onboarding run starte
   assert.equal(hired.stage, "Hired");
   assert.equal(hired.status, "active", "Hired keeps status active by contract");
   assert.ok(hasEvent(entry.id, "offer_accepted"));
-  assert.ok(runForEntry(entry.id), "the accept must start the onboarding run");
 
   // Idempotent second response (refresh / double-click): reports, mutates nothing.
   const retry = await respondToOffer(offer.token, "accept");
@@ -84,7 +82,7 @@ test("accept claims once: offer accepted, entry → Hired, onboarding run starte
   assert.equal(retry.ok ? retry.status : null, "accepted");
 });
 
-test("decline is terminal for the entry and audited — and never starts onboarding", async () => {
+test("decline is terminal for the entry and audited", async () => {
   const entry = entryAtOffer();
   const offer = mintOffer(entry.id);
 
@@ -94,7 +92,6 @@ test("decline is terminal for the entry and audited — and never starts onboard
   const closed = getPipelineEntry(entry.id)!;
   assert.equal(closed.status, "declined", "candidate declines get their own terminal status, not 'rejected'");
   assert.ok(hasEvent(entry.id, "offer_declined"));
-  assert.equal(runForEntry(entry.id), null, "a decline must not fire onboarding");
 });
 
 test("a stale decline on a duplicate link cannot demote a candidate who has since been Hired", async () => {

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { labelize } from "@/app/_lib/format";
-import type { ThresholdRecommendation } from "@/app/_lib/calibration";
+import type { CalibrationLeakage, ThresholdRecommendation } from "@/app/_lib/calibration";
 
 // Direction 3 + family-floors — the recommendation. Deterministic, honesty-gated,
 // display-only until an explicit click routes the write through the existing
@@ -22,10 +22,16 @@ import type { ThresholdRecommendation } from "@/app/_lib/calibration";
 export function ThresholdSuggestion({
   rec,
   roleFamily,
+  leakage,
   onApplied,
 }: {
   rec: ThresholdRecommendation;
   roleFamily: string; // "" = global floor; a family slug = that family's override
+  /** UAT KAT-L1-006 — the recommender reads the band advance rates that the floor
+   *  it is proposing to move HELPED PRODUCE. That circularity is stated in the
+   *  payload the panel already receives; it belongs beside the Apply button, where
+   *  the irreversible-feeling click is, not in a doc. */
+  leakage?: CalibrationLeakage;
   onApplied: () => void;
 }) {
   const t = useTranslations("analytics.calibration");
@@ -76,6 +82,11 @@ export function ThresholdSuggestion({
         })}
       </p>
       <p className="mt-1 text-sm text-steel">{t("recBasis", { total: rec.totalOutcomes })}</p>
+      {/* UAT KAT-L1-006 — a suggestion derived from a score-caused label must say so
+          where it is acted on. The clean arm is the check, once it clears the gate. */}
+      {leakage && leakage.level === "high" ? (
+        <p className="mt-2 rounded-md border border-coral/40 bg-coral/10 p-2 text-sm text-ink">{t("recLeakageCaveat")}</p>
+      ) : null}
       {phase === "done" && applied ? (
         <p className="mt-2 text-sm font-medium text-moss" role="status">
           {roleFamily
@@ -99,6 +110,35 @@ export function ThresholdSuggestion({
           ) : null}
         </div>
       )}
+    </div>
+  );
+}
+
+/** UAT KAT-ANA-6 — `recommendScreeningThreshold` returns null far more often than it
+ *  returns advice (a floor at an extreme, or no band next to it carrying enough
+ *  decided candidates), and the panel rendered NOTHING for it. An absent
+ *  recommendation on a surface whose whole promise is "calibration that recommends"
+ *  reads as a broken feature; say which gate it failed instead. Display-only. */
+export function ThresholdSuggestionAbsent({
+  currentThreshold,
+  roleFamily,
+}: {
+  currentThreshold: number | null;
+  roleFamily: string;
+}) {
+  const t = useTranslations("analytics.calibration");
+  // The two null-returns the recommender can take, distinguished so the reader
+  // knows whether to wait for data or to go set a floor.
+  const noFloor = currentThreshold == null || currentThreshold <= 0 || currentThreshold >= 100;
+  return (
+    <div className="mt-5 rounded-md border border-stone-200 bg-stone-50 p-3">
+      <p className="text-sm font-medium text-ink">{t("recAbsentTitle")}</p>
+      <p className="mt-1 max-w-prose text-sm text-steel">
+        {noFloor ? t("recAbsentNoFloor") : t("recAbsentBody", { current: currentThreshold })}
+      </p>
+      {roleFamily ? (
+        <p className="mt-1 max-w-prose text-sm text-steel">{t("recAbsentFamily", { family: labelize(roleFamily) })}</p>
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SceneChapter } from "./stage/Scene";
+import { useTranslations } from "next-intl";
+import type { ChapterDef } from "./chapters";
 
 /*
  * The deck's table of contents — and its progress indicator.
@@ -17,7 +18,8 @@ import type { SceneChapter } from "./stage/Scene";
  * even though the heavy art below is code-split.
  */
 
-export function ChapterRail({ chapters }: { chapters: readonly SceneChapter[] }) {
+export function ChapterRail({ chapters }: { chapters: readonly ChapterDef[] }) {
+  const t = useTranslations("about");
   const [active, setActive] = useState(chapters[0]?.id ?? "");
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export function ChapterRail({ chapters }: { chapters: readonly SceneChapter[] })
   }, [chapters]);
 
   return (
-    <nav aria-label="Chapters" className="hidden xl:block">
+    <nav aria-label={t("chaptersNav")} className="hidden xl:block">
       <ol className="sticky top-6 space-y-1 border-l border-stone-200 pl-4">
         {chapters.map((c) => {
           const current = c.id === active;
@@ -64,7 +66,7 @@ export function ChapterRail({ chapters }: { chapters: readonly SceneChapter[] })
                 }`}
               >
                 <span className="nums mr-2 text-meta text-stone-400">{String(c.n).padStart(2, "0")}</span>
-                {c.title}
+                {t(`chapters.${c.key}.title`)}
               </a>
             </li>
           );

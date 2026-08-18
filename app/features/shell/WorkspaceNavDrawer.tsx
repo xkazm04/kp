@@ -8,14 +8,13 @@
 import { Menu, X } from "lucide-react";
 import type { RefObject } from "react";
 import type { useTranslations } from "next-intl";
-import KandidateMark from "@/app/landing/_components/KandidateMark";
 import type { AttentionCounts } from "@/app/_lib/attention";
 import { BrandHeader } from "@/app/_components/BrandHeader";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
 import { useDialogA11y } from "@/app/_components/useDialogA11y";
 import { CommandPalette } from "./WorkspaceCommandPalette";
-import { RecentsNav } from "./WorkspaceRecentsNav";
 import { NavFeedbackButton } from "./nav/NavFeedbackButton";
+import { RailBrandMark } from "./nav/NavRailBrandMark";
 import { RailPreferences } from "./nav/NavRailPreferences";
 import { NavSectionRail } from "./nav/NavSectionRail";
 import { isDrawerInert, shouldTrapDrawerFocus } from "./nav/navDrawerA11y";
@@ -49,7 +48,6 @@ export function WorkspaceNavDrawer({
   active,
   attention,
   search,
-  logoUrl,
   selectTab,
   onSliceNav,
   onPrefetchTab,
@@ -64,7 +62,6 @@ export function WorkspaceNavDrawer({
   active: WorkspaceTabId;
   attention: AttentionCounts | null;
   search: string;
-  logoUrl: string | null;
   selectTab: (id: WorkspaceTabId) => void;
   onSliceNav: (href: string) => void;
   /** Warm a tab's code-split chunk on nav hover/focus (shell/tabChunks.ts). */
@@ -121,32 +118,20 @@ export function WorkspaceNavDrawer({
           onSelect={selectTab}
           onSliceNav={onSliceNav}
           onPrefetchTab={onPrefetchTab}
-          railTop={
-            <div className="mb-1 hidden justify-center py-1 md:flex">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- external brand logo URL, not a bundled asset
-                <img src={logoUrl} alt="" className="h-8 w-8 rounded-lg object-contain" />
-              ) : (
-                <KandidateMark className="h-8 w-8 text-ink [--k-accent:var(--color-coral)] [--k-fg:var(--color-paper)] dark:-rotate-3" />
-              )}
-            </div>
-          }
-          panelHeader={
-            <>
-              {/* SHELL1: global search (also opens anywhere via Ctrl/Cmd+K). */}
-              <div className="px-3 pb-1 pt-3">
-                <CommandPalette />
-              </div>
-              {/* SHELL3: pick-up-where-I-left-off deep links. */}
-              <RecentsNav />
-            </>
-          }
-          // Theme, language and sign-out now live on the RAIL as icon-only
-          // controls (each preference a popup of its variants), where Settings
-          // used to be pinned. The level-2 panel footer keeps only the one item
-          // that needs width: the Background-tasks label + load meter.
+          // The same client island the deep-link sidebar uses: white-label logo when
+          // the workspace set one, else the KandiDate mark, and either way a link
+          // home. It reads the brand context itself, so the rail's mark cannot drift
+          // between the SPA shell and the server-rendered pages.
+          railTop={<RailBrandMark />}
+          // Search, theme, language and sign-out live on the RAIL (search as an
+          // icon+label like the sections; each preference a popup of its variants),
+          // where Settings used to be pinned. The level-2 panel footer keeps only
+          // the one item that needs width: the Background-tasks label + load meter.
           railFooter={
             <>
+              {/* SHELL1: global search — opens the top-centre palette (also anywhere
+                  via Ctrl/Cmd+K). */}
+              <CommandPalette />
               {/* The recruiter feedback door — in-product, lands on /control. */}
               <NavFeedbackButton />
               <RailPreferences />

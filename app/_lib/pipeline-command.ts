@@ -7,6 +7,7 @@
 // a model only on `unknown`) — kept out of the core so it stays import-free/tested.
 
 import { compareByMatchScoreDesc } from "./match-score";
+import { DEFAULT_STAGE_AXIS, stageHasRole, type StageDef } from "./pipeline-stages";
 import type { PipelineEntry } from "./db/core";
 
 export type ParsedCommand =
@@ -97,7 +98,13 @@ export function isMutating(cmd: ParsedCommand): boolean {
  *  the NL command bar inside one tenant (it previously read the default workspace).
  *  Empty for run_policy — it has no candidate preview (it runs the whole
  *  deterministic pass with its own fairness backstops). */
-export function affected(cmd: ParsedCommand, entries: PipelineEntry[]): PipelineEntry[] {
+export function affected(
+  cmd: ParsedCommand,
+  entries: PipelineEntry[],
+  // The caller's board. Defaults to the shipped axis so this stays a pure module
+  // its existing callers can use unchanged.
+  axis: readonly StageDef[] = DEFAULT_STAGE_AXIS
+): PipelineEntry[] {
   const active = entries.filter((e) => e.status === "active");
   if (cmd.kind === "reject_below") {
     const q = cmd.jobQuery?.toLowerCase() ?? null;
@@ -113,7 +120,7 @@ export function affected(cmd: ParsedCommand, entries: PipelineEntry[]): Pipeline
     // unscored entries (fail closed — same null-score policy as the screen wave),
     // and the shared comparator ranks without ever fabricating a 0.
     return [...active]
-      .filter((e) => e.matchScore != null && e.stage !== "Hired")
+      .filter((e) => e.matchScore != null && !stageHasRole(e.stage, "terminal", axis))
       .sort(compareByMatchScoreDesc)
       .slice(0, cmd.count);
   }

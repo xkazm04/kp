@@ -30,12 +30,29 @@ export const OrgBenchmarkPanel = dynamic(() => import("../AnalyticsOrgBenchmarkP
 export const AutomationPanel = dynamic(() => import("../AnalyticsAutomationPanel").then((m) => ({ default: m.AutomationPanel })), {
   loading: chunkGap("min-h-[14rem]"),
 });
-export const SourcePanel = dynamic(() => import("../AnalyticsSourcePanel").then((m) => ({ default: m.SourcePanel })), {
-  loading: chunkGap("min-h-[14rem]"),
-});
-export const ChannelEconomicsPanel = dynamic(() => import("../AnalyticsChannelEconomicsPanel").then((m) => ({ default: m.ChannelEconomicsPanel })), {
-  loading: chunkGap("min-h-[24rem]"),
-});
+// UAT KAT-ANA-3 — `SourcePanel` and `ChannelEconomicsPanel` used to be declared here
+// and imported by NO section: the consolidation folded their tables into
+// EconomicsBoard and left the barrel entries behind. That was not cosmetic.
+// ChannelEconomicsPanel hosted the product's only write path to `channel_spend`, so
+// exporting it without rendering it silently bricked cost-per-hire while the figure
+// kept rendering from a six-week-old row (KAT-ANA-2).
+//
+// The verdict (backlog item 11): DELETE both. The board renders each taxonomy as a
+// row group with one shared set of unit-economics columns, the spend editor has been
+// lifted into it, and re-importing either panel would put a second acquisition table
+// on the page — the consolidation §2.25 explicitly declines to revert. A declared
+// chunk nobody imports is exactly the unreachable state that hid the write path, so
+// the entries go now; the two module files are removed in the same drain.
+//
+// What must not be lost with them was pinned in analyticsRenderMap.test.ts until it
+// landed: the pause recommendations (`variantRecommendations`) and the variant cap
+// notice (`byVariantTotal`) BOTH now render in EconomicsBoard.tsx, and that test's
+// staged allowlists are empty as a result. (This comment claimed the opposite for a
+// few hours after the wire went in — a stale comment about unrendered data, inside
+// the very file whose orphaned exports started this item, is precisely the drift the
+// render-map guard exists to catch, so it is worth keeping accurate.)
+// Every export below is imported by a section — the test asserts the ratio,
+// because a file count answers a different question than "is this rendered anywhere".
 export const ComputeCostPanel = dynamic(() => import("../AnalyticsComputeCostPanel").then((m) => ({ default: m.ComputeCostPanel })), {
   loading: chunkGap("min-h-[16rem]"),
 });

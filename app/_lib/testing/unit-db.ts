@@ -13,7 +13,7 @@
 //
 // Cleanup: `cleanupUnitDb()` (call it from `after(...)`) closes the main
 // connection and best-effort deletes the temp dir. The isolated-connection
-// stores (offers, scheduler, onboarding, …) hold private handles with no close
+// stores (offers, scheduler, …) hold private handles with no close
 // API, and Windows refuses to delete a file another handle keeps open — so each
 // run ALSO sweeps stale dirs left by previous runs (mtime-gated so concurrently
 // running test files can't sweep each other).

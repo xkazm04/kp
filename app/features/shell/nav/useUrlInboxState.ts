@@ -19,6 +19,15 @@
 //     a second in-app link to the SAME `?tab=x` is not a change, so nothing
 //     happens and the link looks broken.
 //
+// THE OBLIGATION THIS PUTS ON LINK BUILDERS (UAT TOM-ANA-1): an in-shell link that
+// changes the view must NAME it, including when the destination is the default. An
+// ABSENT param is not an arrival and never can be — this hook empties its own inbox,
+// so `?tab=decisions` becomes no param one render later; treating that absence as
+// "the default arrived" would bounce every deep link straight back to Overview a
+// frame after it landed, and would do the same to `?sec=`. That is why the fix for
+// the dead Analytics→board links lives in `buildUrl` (which used to delete an
+// explicitly requested `tab=pipeline`) and not here.
+//
 // KNOWN TRADE-OFF, chosen deliberately: with no URL write there is no history
 // entry per switch, so Back no longer steps back through tabs — it leaves the
 // workspace, which is what `replace` used to do before the code switched to

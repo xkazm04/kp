@@ -75,6 +75,25 @@ controls](#anti-delegation-controls-shipped) below. All six are shipped.
    flagged `suspect` by the authenticity score, or with a broken integrity
    chain, is held for a live ownership-verifying interview rather than
    advanced on transfer score alone.
+7. **Outcome loop.** `app/_lib/dev-outcomes.ts` is the isolated store that pairs a
+   predicted score with what actually happened (`hired` / `rejected` / `withdrawn` /
+   `pending`, plus an optional 1..5 `performance` rating); `calibrate()` turns those
+   rows into the promote-floor rationale the control room reads
+   (`GET|POST /api/devcase/outcomes`, `app/control/CalibrationPanel.tsx`), and
+   `recordPipelineOutcome` auto-writes a row when a promoted `ds-<submissionId>`
+   entry reaches a terminal stage.
+
+   **The control room is no longer the only writer of the `performance` rating.**
+   The module also exports `recordHirePerformance()` / `hireOutcomeRef()` /
+   `countRatedHires()`, used by `POST /api/pipeline/outcomes` so a recruiter can
+   record how a hire worked out from the recruiting workspace (UAT `KAT-L1-002` —
+   see [`../pipeline/README.md`](../pipeline/README.md)). Same store, same
+   vocabulary, same tenant scoping, and no schema change: `dev_outcomes` already
+   carried every column. The calibration corpus `/control` reads therefore now also
+   accrues ordinary board hires whose rating a human entered. A board hire is keyed
+   `pe:<entryId>`; a devcase-promoted hire keeps its bare submission id, so the
+   recruiter's rating **updates** the auto-written row rather than minting a second
+   decided outcome that `calibrate()` would count twice.
 
 ## Anti-delegation controls (shipped)
 
@@ -237,6 +256,7 @@ authenticity tooltip is not wholly English. Not in phase 1 scope; do it as one u
 | `app/_lib/devcase-session-auth.ts` | Re-checks the owning apply token on every mutating session sub-route |
 | `app/_lib/devcase-orchestrator.ts`, `devcase-run.ts` | Drives need→scenario→solve→evaluate→promote |
 | `app/_lib/devcase-authenticity.ts` | Process-authenticity scoring (paste-from-LLM tells) |
+| `app/_lib/dev-outcomes.ts` | The outcome/calibration store (`dev_outcomes`), opened on its own connection. Two writers: the control room via `/api/devcase/outcomes`, and the hiring board via `/api/pipeline/outcomes` (`recordHirePerformance` / `hireOutcomeRef` / `countRatedHires`). |
 | `app/_lib/devcase-probe-audit.ts`, `devcase-compare.ts`, `devcase-cohort.ts`, `devcase-interview-kit.ts` | Evaluation support: probe-outcome audit, submission comparison, cohort stats, interview-kit generation |
 | `pipeline/jobfit/devcase/*.py` | The Python LLM pipeline: `analyze.py`, `design.py`, `evaluate.py`, `reflect.py`, `baseline.py`, `artifact_checks.py`, `seed_materializer.py`, `process_events.py`, `devcase_cli.py` |
 

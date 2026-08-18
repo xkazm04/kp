@@ -32,7 +32,6 @@ const AboutTab = dynamic(() => TAB_CHUNKS.about().then((m) => ({ default: m.Abou
 const AnalyzeWorkspace = dynamic(() => TAB_CHUNKS.analyze().then((m) => ({ default: m.AnalyzeWorkspace })), { loading });
 const DecisionsTab = dynamic(() => TAB_CHUNKS.decisions().then((m) => ({ default: m.DecisionsTab })), { loading });
 const ScheduleTab = dynamic(() => TAB_CHUNKS.schedule().then((m) => ({ default: m.ScheduleTab })), { loading });
-const OnboardingTab = dynamic(() => TAB_CHUNKS.onboarding().then((m) => ({ default: m.OnboardingTab })), { loading });
 const JobsTab = dynamic(() => TAB_CHUNKS.jobs().then((m) => ({ default: m.JobsTab })), { loading });
 const JdsTab = dynamic(() => TAB_CHUNKS.library().then((m) => ({ default: m.JdsTab })), { loading });
 const MatrixTab = dynamic(() => TAB_CHUNKS.matrix().then((m) => ({ default: m.MatrixTab })), { loading });
@@ -65,7 +64,6 @@ export function WorkspaceTabPanel({ navActive, active }: { navActive: WorkspaceT
         {navActive === "channels" ? <ChannelsTab /> : null}
         {navActive === "decisions" ? <DecisionsTab /> : null}
         {navActive === "schedule" ? <ScheduleTab /> : null}
-        {navActive === "onboarding" ? <OnboardingTab /> : null}
         {navActive === "agents" ? <AgentsWorkforceTab /> : null}
         {navActive === "archetypes" ? <ProfileTab /> : null}
         {navActive === "interview" ? <InterviewSimTab /> : null}

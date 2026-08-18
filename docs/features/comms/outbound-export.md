@@ -54,8 +54,12 @@ equality, so this list cannot silently drift from the dispatchers:
 
 `acknowledgement`, `outreach`, `rejection`, `ko_decline`, `offer`,
 `offer_reminder`, `interview_confirmation`, `interview_reminder`,
-`interview_invite`, `interviewer_brief`, `schedule_invite`, `onboarding`,
-`onboarding_reminder`.
+`interview_invite`, `interviewer_brief`, `schedule_invite`.
+
+(`onboarding` and `onboarding_reminder` were retired with the post-hire
+onboarding module. A relay may still receive them from an outbox replay of
+historical rows — the list is documentation, not enforcement, and unknown kinds
+pass through.)
 
 Treat unknown kinds as pass-through (dev-case comms flow through the same
 channel with their own kinds and `candidate: null`).

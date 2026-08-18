@@ -108,7 +108,7 @@ ext --> cand : ${t("diagram.offer.edgeLink")}
 title ${t("diagram.hired.title")}
 [${t("diagram.hired.accepted")}] <<gate>> as acc
 [${t("diagram.hired.move")}] <<focus>> as hire
-[${t("diagram.hired.onboarding")}] <<focus>> as onb
+[${t("diagram.hired.handoff")}] <<focus>> as onb
 acc --> hire
 hire --> onb
 @enduml`,

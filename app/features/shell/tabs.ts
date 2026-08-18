@@ -12,7 +12,6 @@ export const WORKSPACE_TAB_IDS = [
   "channels",
   "decisions",
   "schedule",
-  "onboarding",
   // Agent-candidate bridge: the hired-agents roster (dev/flag-gated in the nav
   // via AGENTS_TAB_IN_NAV below, same two-place pattern as the About tab).
   "agents",
@@ -95,11 +94,14 @@ export type WorkspaceTabDef = {
   // still-free letters and leaves every existing chord untouched.
   chordOverflow?: boolean;
   // The second chord escape hatch, for the opposite problem to chordOverflow: a tab
-  // that was RENAMED. Chords derive from the tab id, so `profile` → `archetypes`
+  // whose DERIVED letter would move for a reason that has nothing to do with it.
+  // Chords derive from the tab id, so a RENAME shifts them — `profile` → `archetypes`
   // would have claimed `a` (stealing Analyze's pinned letter and cascading through
-  // Analytics), and `dev` → `assignments` would have claimed `g`. Pinning the letter
-  // the tab already had keeps every derived assignment byte-for-byte what it was —
-  // a rename is a label change, not a reason to move anyone's muscle memory.
+  // Analytics), and `dev` → `assignments` would have claimed `g`. So does a RETIREMENT
+  // upstream: removing Onboarding freed `o`, which `organization` would then have
+  // claimed ahead of the `g` it has always had. Pinning the letter the tab already had
+  // keeps every derived assignment byte-for-byte what it was — neither a rename nor a
+  // neighbour's removal is a reason to move anyone's muscle memory.
   // Reserved BEFORE the derivation runs, so no other tab can take it either.
   chordPin?: string;
   badgeKey?: AttentionKey;
@@ -114,21 +116,29 @@ export type WorkspaceTabDef = {
 // The Pipeline dashboard is the default landing surface.
 export const DEFAULT_TAB: WorkspaceTabId = "pipeline";
 
-// The About tab is a dev-only architecture deep-dive (component diagrams,
-// internal file paths). In production it's hidden from the nav — and, because
-// the command palette and keyboard shortcuts both derive from NAV_GROUPS, from
-// those too — and a direct ?tab=about falls back to the default (see Workspace).
-// The user-facing concept introduction lives on the public /about page instead.
-export const ABOUT_TAB_IN_NAV = process.env.NODE_ENV !== "production";
+// The About tab used to be a dev-only architecture deep-dive: 24 capability
+// entries, each a PlantUML component diagram over internal file paths. That was
+// hidden in production for good reason, since it documented the codebase rather
+// than the product.
+//
+// It is now a six-chapter explainer of the mechanisms the product actually runs
+// (how a role is written, how a person is scored, who is filtered and by what,
+// how archetypes are routed, what a work sample proves, where a human decides),
+// written for someone deciding whether to believe any of it. That audience is
+// mostly NOT in a dev build, so the gate is gone and the tab ships everywhere.
+//
+// The flag itself is deleted rather than pinned to `true`: a constant that is
+// always true still makes every reader check whether it might not be.
 
 // The Agents module (agent-candidate bridge) is experimental: visible in dev, and
 // in production only when the deployment opts in with NEXT_PUBLIC_KP_AGENT_HIRING=1.
 // The NEXT_PUBLIC_ prefix is load-bearing: this module evaluates in the browser
 // too, where plain env vars are undefined — a server-only flag would render the
-// tab in SSR'd nav and drop it after hydration. Same two-place gating pattern as
-// ABOUT_TAB_IN_NAV — the conditional spread below hides it from the nav /
-// palette / chords, and Workspace falls a direct ?tab=agents back to the
-// default when the gate is off.
+// tab in SSR'd nav and drop it after hydration. Gating happens in two places:
+// the conditional spread below hides it from the nav, and therefore from the
+// command palette and the g-chords that derive from NAV_GROUPS, while Workspace
+// rejects a direct ?tab=agents when the gate is off. About used the same pattern
+// until it graduated to shipping everywhere.
 export const AGENTS_TAB_IN_NAV =
   process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_KP_AGENT_HIRING === "1";
 
@@ -150,7 +160,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: "channels", label: "Channels", badgeKey: "channels" },
       { id: "decisions", label: "Decisions", badgeKey: "decisions" },
       { id: "schedule", label: "Schedule", badgeKey: "schedule" },
-      { id: "onboarding", label: "Onboarding" },
       // Appended last so the group's existing order (and every derived g-chord —
       // see chordOverflow) is untouched. Dev/flag-gated like About.
       ...(AGENTS_TAB_IN_NAV ? [{ id: "agents", label: "Agents", chordOverflow: true } as WorkspaceTabDef] : []),
@@ -192,7 +201,7 @@ export const NAV_GROUPS: NavGroup[] = [
       // single-letter chords were pinned, so it must not claim one (chordOverflow
       // sends it to the two-key pass) — same rule as "agents".
       { id: "activity", label: "Activity", chordOverflow: true },
-      ...(ABOUT_TAB_IN_NAV ? [{ id: "about", label: "About" } as WorkspaceTabDef] : []),
+      { id: "about", label: "About" },
     ],
   },
   {
@@ -203,7 +212,9 @@ export const NAV_GROUPS: NavGroup[] = [
     label: "Settings",
     key: "settings",
     items: [
-      { id: "organization", label: "Organization" },
+      // chordPin: retiring Onboarding freed `o`, which this id would otherwise claim
+      // ahead of the `g` it has had since the sidebar shipped (see WorkspaceTabDef).
+      { id: "organization", label: "Organization", chordPin: "g" },
       { id: "branding", label: "Branding" },
       { id: "billing", label: "Billing" },
       { id: "models", label: "Models" },
@@ -262,6 +273,12 @@ export const LEGACY_TAB_ALIASES: Readonly<Record<string, WorkspaceTabId>> = {
   // and every ?tab=match link carried a ?profile=/?analysis= that Matrix now reads
   // to open that mode — so a legacy link lands on the same ranking it always did.
   match: "matrix",
+  // NOT here on purpose: `onboarding`. This table is a redirect to a LIVE tab —
+  // it exists so a bookmark to a RENAMED surface still lands on the surface. The
+  // post-hire onboarding module was REMOVED, not renamed, so there is nothing
+  // truthful to point it at; mapping it to a neighbour would open an unrelated
+  // tab and read as a bug. Falling through to Overview is the honest outcome:
+  // here, "the feature is gone" is what actually happened.
 };
 
 /** The live tab a `?tab=` value names — following a legacy alias when it names a
@@ -272,6 +289,13 @@ export function resolveTabParam(value: string | null | undefined): WorkspaceTabI
   return null;
 }
 
+// Deliberately still "/" for the default tab, unlike buildUrl above: this href is
+// only rendered by the nav on the SERVER-rendered deep-link pages (NavPanelItem's
+// link branch), where following it is a full document load — the shell mounts fresh
+// and its fallback IS the default tab, so naming it would be redundant. Inside the
+// shell the same rows are buttons routed through selectTab. A cross-tab link built
+// for the live shell must go through buildUrl/buildTabSwitchUrl, which name the tab
+// (TOM-ANA-1).
 export function tabHref(id: WorkspaceTabId): string {
   return id === DEFAULT_TAB ? "/" : `/?tab=${id}`;
 }
@@ -308,7 +332,25 @@ export function buildUrl(updates: Record<string, string | null>, search: string)
     if (value === null || value === "") params.delete(key);
     else params.set(key, value);
   }
-  if (params.get("tab") === DEFAULT_TAB) params.delete("tab");
+  // UAT TOM-ANA-1 — canonicalize a LEFTOVER `tab=<default>`, never a REQUESTED one.
+  //
+  // This used to delete `tab` whenever its value was the default, on the reasoning
+  // that the default tab lives at "/" and `/?tab=pipeline` is noise. That was true
+  // while `?tab=` WAS the state. Since the tab became app state with the URL demoted
+  // to an inbox (2d02a388, nav/useUrlInboxState.ts), the inbox only adopts a value
+  // when the param ARRIVES — so deleting an explicitly requested `tab=pipeline`
+  // deleted the navigation itself. Every Analytics chart's "show me the people" link
+  // (`boardHref`) emitted `/?stage=Interview` with no tab: clicking it rewrote the
+  // address bar and left the reader sitting on Analytics. `tab=decisions|jobs|
+  // channels` all worked — exactly and only the default-tab branch was silent.
+  //
+  // So the rule is scoped by INTENT, which is what `updates` carries: a tab named in
+  // this patch is someone saying "go there" and must survive; a tab merely carried in
+  // `search` is residue with no destination in it, and its canonical form is absence.
+  // The address bar still settles on "/" either way — the inbox strips `?tab=` the
+  // moment it lands (through this same function, via `{ tab: null }`).
+  const navigatesToTab = typeof updates.tab === "string" && updates.tab !== "";
+  if (!navigatesToTab && params.get("tab") === DEFAULT_TAB) params.delete("tab");
   const qs = params.toString();
   return qs ? `/?${qs}` : "/";
 }
@@ -376,6 +418,9 @@ export function clearedTabScopedParams(): Record<TabScopedParamKey, null> {
 // clear every tab-scoped param so the destination opens on a clean view. `search`
 // is the React-tracked searchParams string (see buildUrl) — threaded through so the
 // switch composes off the committed router state, not a stale window.location read.
+// The result NAMES its destination even when that is the default tab (TOM-ANA-1):
+// the command palette and the empty-state CTAs render this as an href, and an
+// unnamed destination is not a navigation the URL inbox can act on.
 export function buildTabSwitchUrl(id: WorkspaceTabId, search: string): string {
   return buildUrl({ tab: id, ...clearedTabScopedParams() }, search);
 }

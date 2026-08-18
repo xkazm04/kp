@@ -98,7 +98,11 @@ test("the rendered page carries status and basis, not bare numbers", () => {
   assert.match(md, /Not publication-ready/);
   assert.match(md, /Median days from first contact/);
   // The anti-vendor-metric disclaimer must survive into the shareable artifact.
-  assert.match(md, /does not compute an improvement percentage against a pre-kp baseline/);
+  // Brand-agnostic on purpose: the claim under test is that the pack refuses to
+  // manufacture a "% better than before" number, not what the product is called.
+  // Pinning the literal name made a product rename in the catalogue fail a test
+  // about metric honesty, which tells the next reader nothing true.
+  assert.match(md, /does not compute an improvement percentage against a pre-\w+ baseline/);
 });
 
 test("a certifiable pack renders without the warning block", () => {

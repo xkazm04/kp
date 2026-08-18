@@ -19,8 +19,15 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
   // Reader-locale digit grouping for every figure on this tab (format.ts
   // number-locale contract) — the currency code still comes from the analysis.
   const n = useNumberFormat();
-  // Localized confidence-badge vocabulary (report.confidence.*), resolved here
-  // and passed to the locale-dumb Badge primitive.
+  // UAT RECON-06 — this grade is the SALARY READ'S EVIDENCE STRENGTH, and it now
+  // says so in its own words ("Strong evidence" / "Weak evidence", report.confidence.*).
+  // It used to read "High confidence", which is the word this app also used for a
+  // score's measurement interval, for a model's self-report and for an archetype's
+  // signal agreement — four unrelated quantities under one label, on a scale that
+  // is even INVERTED against the match band's (see Badge.tsx confidenceBandToken:
+  // "tight" means high certainty, "high" means high certainty, "wide" means low).
+  // The key names are left alone (they are the wire contract with the analysis
+  // payload's `confidence` field); only the words a recruiter reads changed.
   const confidenceLabels = {
     high: t("confidence.high"),
     medium: t("confidence.medium"),
@@ -120,7 +127,12 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
             </div>
             <p className="mt-3 text-base leading-6 text-ink">{analysis.marketEvidence.summary}</p>
             <p className="mt-3 flex flex-wrap items-center gap-1.5 text-base font-medium text-steel">
-              <ConfidenceBadge value={analysis.marketEvidence.confidence} />
+              {/* UAT RECON-06 — the market read's grade is the same evidence-strength
+                  scale as the salary read's, so it takes the same localized words.
+                  It was rendering WITHOUT `labels`, which dropped it through to the
+                  hardcoded English fallback in Badge.tsx: a Czech report showed
+                  "High confidence" beside "Silné podklady" for the same quantity. */}
+              <ConfidenceBadge value={analysis.marketEvidence.confidence} labels={confidenceLabels} />
               {analysis.marketEvidence.suggestedMinimum && analysis.marketEvidence.suggestedMaximum
                 ? t("panel.groundedRange", {
                     range: n.salaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum, { currency }),

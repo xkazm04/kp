@@ -86,7 +86,7 @@ function db(): Database.Database {
   // column two teams' hire/reject outcomes pooled into one corpus, so the promote-floor
   // recommendation a recruiter acts on was computed from another team's hiring reality.
   // Isolated store (own openStore connection, no core.ts migrator) → migrate here, the
-  // same shape onboarding-store.ts uses. Pre-existing rows backfill to the default
+  // same shape the other isolated stores use. Pre-existing rows backfill to the default
   // workspace via the column DEFAULT — the tenant every row was implicitly written for
   // while the studio was single-tenant, so no historical calibration is lost.
   const cols = d.prepare(`PRAGMA table_info(dev_outcomes)`).all() as { name: string }[];
@@ -188,6 +188,105 @@ export function recordOutcome(input: OutcomeInput, workspaceId: string = DEFAULT
     workspaceId
   );
   return "inserted";
+}
+
+// ── The on-the-job signal, captured from the RECRUITING workspace ────────────
+//
+// UAT KAT-L1-002 (blocker, recurrence 2) — why this exists: the 1..5 performance
+// rating above is the only quality-of-hire field the studio has, and until now the
+// ONLY way to write it was POST /api/devcase/outcomes, i.e. the dev-case lane and
+// the /control room. So the question the analytics Character opens her tab with —
+// "did the 90 %-match candidates get hired AND stay?" — had no data path at all,
+// not because the schema lacked a field but because no recruiter surface could
+// reach it. This is the CAPTURE half, deliberately shipped alone: a calibration
+// producer paired against a rating nobody has entered yet would be a fifth empty
+// arm, which is the exact defect this drain removed seventeen times. Data accrues
+// first; the arm follows when it can say something.
+//
+// It extends the write path rather than minting a second rating concept: the
+// vocabulary, the 1..5 bound, the hired-only cross-field rule, the UPSERT dedup
+// and the tenant scoping are all the ones already documented above.
+
+// The prefix that namespaces a PIPELINE ENTRY's ref from a dev-case submission's.
+// `ref` is the submission id by contract everywhere else in this store, and both id
+// spaces are alphanumeric+dash by construction (createPipelineEntry sanitizes to
+// [A-Za-z0-9_-]; randomId("sub") mints sub_…), so a colon cannot occur in either and
+// the two spaces are provably disjoint. Without it a seeded entry id like `pe-043`
+// would sit in the same namespace as a submission ref.
+export const PIPELINE_OUTCOME_REF_PREFIX = "pe:";
+
+/** THE ref a pipeline entry's outcome row is keyed by.
+ *
+ *  Load-bearing that this mirrors recordPipelineOutcome's derivation: a devcase-
+ *  promoted candidate ("ds-<submissionId>") already has an auto-recorded hire row
+ *  under the bare submission id, and a recruiter rating that same hire must UPDATE
+ *  that row, not mint a second decided "hired" outcome — calibrate() counts decided
+ *  rows individually, so a duplicate biases the promote-floor suggestion. Everyone
+ *  else (the ordinary board hire, which is the common case) gets the namespaced
+ *  entry ref. */
+export function hireOutcomeRef(entry: { id: string; candidateId?: string | null }): string {
+  const cid = entry.candidateId;
+  return cid && cid.startsWith("ds-") ? cid.slice(3) : `${PIPELINE_OUTCOME_REF_PREFIX}${entry.id}`;
+}
+
+// The write contract for the workspace-side capture surface, validated at the
+// /api/pipeline/outcomes boundary. Deliberately NARROWER than outcomeInputSchema:
+// the surface rates a hire, so `outcome` is not the caller's to choose, and there is
+// no free-text note — a sentence about a named employee's performance is a different
+// artifact from a screening rationale (Lucie's constraint, §2.2 of the drain doc),
+// and the rating alone answers the question the analytics surface asks.
+export const hirePerformanceSchema = z.object({
+  entryId: z.string().trim().min(1, { error: "entryId is required" }),
+  performance: z
+    .number()
+    .int({ error: "performance must be a whole number" })
+    .min(PERFORMANCE_MIN, { error: `performance must be between ${PERFORMANCE_MIN} and ${PERFORMANCE_MAX}` })
+    .max(PERFORMANCE_MAX, { error: `performance must be between ${PERFORMANCE_MIN} and ${PERFORMANCE_MAX}` }),
+});
+
+export type HirePerformanceInput = z.infer<typeof hirePerformanceSchema>;
+
+/** Record how a hire has actually worked out, from the recruiting workspace.
+ *
+ *  `predictedScore` is the entry's match score, so the rating lands beside the number
+ *  that predicted it — that pairing is the whole point, and it is what a future
+ *  quality-of-hire curve would read. An out-of-range or absent score is dropped
+ *  rather than clamped (outcomeInputSchema bounds it to 0..100; a row with no score
+ *  simply falls in no calibration band, exactly as before).
+ *
+ *  Returns the store's own verdict so the caller can tell a first rating from a
+ *  correction. */
+export function recordHirePerformance(
+  entry: { id: string; candidateId?: string | null; candidateLabel?: string | null; matchScore?: number | null },
+  performance: number,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): "inserted" | "updated" {
+  const predicted =
+    typeof entry.matchScore === "number" && entry.matchScore >= 0 && entry.matchScore <= 100 ? entry.matchScore : undefined;
+  // Re-validated here rather than trusted: this is a store write, and the boundary
+  // schema above is one caller away. A bad rating throws instead of persisting.
+  const input = outcomeInputSchema.parse({
+    ref: hireOutcomeRef(entry),
+    candidateRef: entry.candidateLabel ?? undefined,
+    predictedScore: predicted,
+    outcome: "hired",
+    performance,
+    note: "on-the-job rating recorded in the pipeline drawer",
+  });
+  return recordOutcome(input, workspaceId);
+}
+
+/** How many hires in this workspace carry an on-the-job rating.
+ *
+ *  The numerator of the accrual counter on Analytics → Quality. Counts rows, not
+ *  people: the UPSERT above keeps one row per ref, so a re-rated hire counts once.
+ *  An unrated hire has performance NULL and is simply absent — it must never read
+ *  as a zero, which would be a fabricated judgement about a real person. */
+export function countRatedHires(workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const row = db()
+    .prepare(`SELECT COUNT(*) AS n FROM dev_outcomes WHERE workspace_id = ? AND outcome = 'hired' AND performance IS NOT NULL`)
+    .get(workspaceId) as { n: number };
+  return row.n;
 }
 
 // W5-2 (DEVO2) — auto-feed the calibration loop from the pipeline's terminal

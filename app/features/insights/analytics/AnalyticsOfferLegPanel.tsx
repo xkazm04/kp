@@ -11,6 +11,14 @@ import type { OfferConversion } from "@/app/_lib/analytics-offer";
 // sitting at the Offer stage — the only offer sub-population with a live board
 // handle (accepted/declined/expired candidates have left the board). Split out of
 // AnalyticsTab.tsx to keep that file under the 200-line cap.
+//
+// UAT KAT-ANA-3 / TOM-ANA-2 — verdict RESTORE. Its only importer was
+// AnalyticsFunnelPanel, so when the section consolidation stopped rendering that
+// panel the whole offer leg went dark with it: `offers.extended/accepted/declined/
+// expired` kept being folded server-side and reached no screen. It is rendered again
+// from AnalyticsStageDwellPanel, which is where the funnel's other missing edges
+// went. This file is unchanged apart from this note — nothing was wrong with it,
+// which is precisely why nothing failed when it was dropped.
 export function OfferLegPanel({ offers, boardHref }: { offers: OfferConversion; boardHref: (filter: { q?: string; stage?: string }) => string }) {
   const t = useTranslations("analytics.offers");
   // No offers ever extended in this window → nothing to measure; stay silent

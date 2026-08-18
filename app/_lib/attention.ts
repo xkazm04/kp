@@ -19,6 +19,8 @@ import { countFutureConfirmedInvites } from "./schedule-store";
 import { listJobStatuses } from "./job-ingest";
 import { needsHumanDecision } from "./approval-kinds";
 import { daysSince, slaForStage } from "@/app/features/shared/pipelineTypes";
+import { getPipelineAxis } from "./pipeline-axis-server";
+import { stageHasRole } from "./pipeline-stages";
 
 export type AttentionCounts = {
   // Entries waiting on a recognized human approval gate → Decisions.
@@ -52,12 +54,21 @@ export type AttentionCounts = {
 export function attentionCounts(workspaceId?: string): AttentionCounts {
   // listPipeline already excludes terminal (rejected/declined) entries.
   const entries = listPipeline(workspaceId);
+  // The two stage questions below are about MEANING — "have they finished?" and
+  // "have they only just arrived?" — so they resolve through this workspace's own
+  // axis roles. Reading the literals "Hired" and "Accepted" made both badges
+  // silently wrong for a team that renamed its columns: a finished candidate
+  // would be counted as aging forever, and the Channels badge would read zero.
+  const axis = getPipelineAxis(workspaceId).stages;
   const decisions = entries.filter((e) => e.status === "active" && needsHumanDecision(e.approvalKind)).length;
   const stale = entries.filter(
-    (e) => e.status === "active" && e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage)
+    (e) =>
+      e.status === "active" &&
+      !stageHasRole(e.stage, "terminal", axis) &&
+      (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage)
   ).length;
   const schedule = countFutureConfirmedInvites(workspaceId);
   const jobs = Object.values(listJobStatuses(workspaceId)).filter((s) => s === "draft").length;
-  const channels = entries.filter((e) => e.status === "active" && e.stage === "Accepted").length;
+  const channels = entries.filter((e) => e.status === "active" && stageHasRole(e.stage, "entry", axis)).length;
   return { decisions, pipeline: stale, schedule, jobs, channels };
 }

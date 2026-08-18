@@ -46,8 +46,12 @@ export function AnalyticsTab() {
   const router = useRouter();
   const reduced = useReducedMotion();
 
-  // Review-only: see the funnel zero state on any workspace (see the branch below).
-  const forceFunnelEmpty = search.get("funnelEmpty") === "1";
+  // UAT TOM-ANA-5 — `?funnelEmpty=1` used to be read here and threaded to the
+  // Performance section, which never destructured it; its only reader was the
+  // orphaned AnalyticsFunnelPanel. A review hatch that changes nothing is worse than
+  // no hatch: it makes the zero state look verified when it was never rendered. The
+  // real zero-transition guard belongs on the render path, keyed off the data
+  // (hasNoStageTransitions), not off a query param — see backlog item 14.
 
   // ANA2 — cohort window. Changing it swaps the fetch URL; useJsonFetch refires
   // on the change (prior data stays visible until the new payload lands).
@@ -83,6 +87,11 @@ export function AnalyticsTab() {
   // carrying the matching filter (?stage= funnel stage, ?q= role title), with
   // the other tab-scoped params cleared so the board opens on exactly this
   // cohort. PipelineTab hydrates its filter bar from these at mount.
+  //
+  // UAT TOM-ANA-1 — this href is unchanged; what was broken sat one layer down.
+  // `buildUrl` deleted `tab` whenever it equalled DEFAULT_TAB, so the link shipped
+  // the cohort filter with no destination and the click moved nothing. The tab is
+  // named here on purpose, and buildUrl now keeps a tab the caller asked for.
   const boardHref = (filter: { q?: string; stage?: string }) =>
     buildUrl({ ...clearedTabScopedParams(), tab: "pipeline", ...filter }, search.toString());
 
@@ -98,7 +107,12 @@ export function AnalyticsTab() {
     // load only — a later refresh (window switch, reload()) never blanks what's
     // already on screen.
     <section className="stagger-children space-y-6" aria-busy={!data && !error}>
-      <AnalyticsHeader data={data} error={error} days={days} setDays={setDays} />
+      {/* `section` is what lets the window switcher tell the truth about its own
+          scope (UAT KAT-ANA-5 / TOM-ANA-7): Quality & audit is deliberately
+          window-blind, so on that section the pills grey out and the note says the
+          period governs nothing below. Without this prop the header assumes the
+          window applies everywhere — which is the claim the finding was about. */}
+      <AnalyticsHeader data={data} error={error} days={days} setDays={setDays} section={section} />
 
       <AnalyticsSectionNav section={section} onSection={setSection} />
 
@@ -139,7 +153,6 @@ export function AnalyticsTab() {
                 maxReached={maxReached}
                 convDeltaByStage={convDeltaByStage}
                 boardHref={boardHref}
-                forceFunnelEmpty={forceFunnelEmpty}
                 reload={reload}
               />
             ) : null}

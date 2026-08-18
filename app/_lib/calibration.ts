@@ -353,13 +353,40 @@ export function computeThresholdEffect(
 
 export type CalibrationSource = "pipeline" | "analysis" | "holdout";
 
+// ─── Outcome axis (UAT KAT-L1-003, recurrence 2) ──────────────────────────────
+// WHAT COUNTS AS SUCCESS is a second, independent axis of this instrument, and
+// for two runs it had exactly one setting. `advance` collapses Interview, Offer
+// and Hired into ONE positive label, so „did the 90 %-match candidates actually
+// get HIRED, or just get an interview?" had no answer anywhere in the product —
+// the disclosure that shipped last round said so honestly, which is a different
+// thing from being able to answer it.
+//
+// `hired` is the second axis. It needs NOTHING but stage data: the positive label
+// is "reached the terminal stage", the negative is "rejected without getting
+// there", and everyone still in the process is excluded until one of the two
+// happens. It is deliberately NOT a hire-QUALITY measure — nobody has entered a
+// performance rating anywhere in kp — so it must never be labelled as one.
+//
+// The two axes are different instruments with different base rates and different
+// sample sizes, which is precisely why the choice has to be VISIBLE: silently
+// re-defining "success" is the defect, not the fix.
+export const CALIBRATION_OUTCOME_AXES = ["advance", "hired"] as const;
+export type CalibrationOutcomeAxis = (typeof CALIBRATION_OUTCOME_AXES)[number];
+
+/** Narrow an untrusted string to the closed outcome vocabulary. The route and the
+ *  panel apply the SAME fallback, so an unknown value can never silently swap
+ *  which question the curve answers. */
+export function asCalibrationOutcome(value: string | null | undefined): CalibrationOutcomeAxis {
+  return value === "hired" ? "hired" : "advance";
+}
+
 export type LeakageLevel = "high" | "medium" | "low";
 
 export type CalibrationLeakage = {
   /** How badly the label is coupled to the score that predicts it. */
   level: LeakageLevel;
   /** Stable code the UI keys its localized copy off. */
-  code: "score-caused-label" | "reviewer-saw-score" | "no-automated-leakage";
+  code: "score-caused-label" | "score-caused-rejects" | "reviewer-saw-score" | "no-automated-leakage";
   /** One-line plain statement of the coupling. */
   note: string;
   /** The honest limit that REMAINS even for the least-leaked source — named so
@@ -367,9 +394,31 @@ export type CalibrationLeakage = {
   ceiling: string;
 };
 
-/** The leakage descriptor for a calibration source. Pure — no data, just the
- *  causal story of how that source's outcome label is produced. */
-export function calibrationLeakage(source: CalibrationSource): CalibrationLeakage {
+/** The leakage descriptor for a calibration arm: (source × outcome axis). Pure —
+ *  no data, just the causal story of how that arm's outcome label is produced.
+ *
+ *  UAT KAT-L1-003 — the hire axis gets its OWN characterisation rather than
+ *  inheriting the screening one, because the causal story genuinely differs: a
+ *  hire is a chain of human decisions the score does not make. That is a point in
+ *  its favour and it is STATED. It is not a licence to downgrade the level: the
+ *  negative half of the hire label still contains every auto-rejection the score
+ *  produced, so the coupling is weakened, not broken, and `level` stays "high".
+ *  (Keeping it high is also what preserves the structural bar in
+ *  calibrationVerdict.ts — a "less circular" arm is still a circular one.) */
+export function calibrationLeakage(
+  source: CalibrationSource,
+  outcome: CalibrationOutcomeAxis = "advance"
+): CalibrationLeakage {
+  if (source === "pipeline" && outcome === "hired") {
+    return {
+      level: "high",
+      code: "score-caused-rejects",
+      note:
+        "Reaching the hire takes interviews, an offer and an acceptance, none of which this score decides, so the POSITIVE label here was not produced by the score. The negative label still partly was: the screening wave auto-rejects on match_score, and every one of those rejections counts here as 'not hired'. This axis is less circular than the screening one, not clean.",
+      ceiling:
+        "Everyone still in the process is excluded until they are hired or rejected, so this axis fills slowly and leans on whoever left early. Only the calibration holdout (source=holdout) breaks the score-caused half of the coupling. It says nothing about how a hire then performed.",
+    };
+  }
   switch (source) {
     case "pipeline":
       return {

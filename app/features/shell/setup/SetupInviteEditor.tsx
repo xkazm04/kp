@@ -13,6 +13,7 @@ import { Select } from "@/app/_components/Select";
 // the wizard emits server-valid slugs with no label→slug translation.
 import { ASSIGNABLE_ROLES, roleLabel, roleTone } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
+import { SETUP_PROSE } from "./setupProse";
 import type { OnboardingCtrl } from "./setupSteps";
 
 // Shared invite step body — used by BOTH onboarding variants (hoisted per the
@@ -36,7 +37,10 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
 
   return (
     <div className={dense ? "flex flex-col gap-2" : "space-y-3"}>
-      <div className="flex flex-wrap items-center gap-2">
+      {/* The FORM keeps a reading-comfortable width even though the pane is wide
+          (the wizard's prose runs to 90% — setupProse.ts — but a 45rem email
+          field is a worse field, not a wider one). */}
+      <div className={`flex flex-wrap items-center gap-2 ${dense ? "" : "max-w-xl"}`}>
         <TextInput
           type="email"
           value={email}
@@ -82,7 +86,8 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-steel">{t("empty")}</p>
+        // Description, not a control: it runs to the pane's prose width.
+        <p className={`text-sm text-steel ${dense ? "" : SETUP_PROSE}`}>{t("empty")}</p>
       )}
     </div>
   );

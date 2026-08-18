@@ -1,12 +1,14 @@
 // The "persist everything the wizard collected" body of OnboardingExperience's
 // finish(), split out so the component stays under the 200-line file cap.
-// Verbatim logic — same best-effort-per-step contract (a failing invite must not
-// sink the rest); throws are left for the caller's try/catch to turn into the
-// generic "partial" toast.
+// Same best-effort-per-step contract (a failing invite must not sink the rest);
+// throws are left for the caller's try/catch to turn into the generic "partial"
+// toast.
 import type { useTranslations } from "next-intl";
 import { setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
 import { toast } from "@/app/_components/toast-store";
-import { roleDraftReady, roleImportReady, type SetupState } from "./setupSteps";
+import { axisEqualsStored, draftToStored } from "@/app/features/shared/pipelineAxisDraft";
+import type { StageDef } from "@/app/_lib/pipeline-stages";
+import type { SetupState } from "./setupSteps";
 
 export async function persistOnboardingSetup(state: SetupState, t: ReturnType<typeof useTranslations>): Promise<void> {
   const name = state.orgName.trim();
@@ -47,54 +49,41 @@ export async function persistOnboardingSetup(state: SetupState, t: ReturnType<ty
     )
   );
 
-  // First role. Import mode saves the EXISTING description as-is (POST
-  // /api/jds) and best-effort ingests it as a matchable job — no AI build.
-  // Write mode starts the REAL backgrounded build (same endpoint as the
-  // Library's Generate): description + market salary + case design in one
-  // run, appearing in the ledger as "Analyzing" immediately.
-  if (state.role.mode === "import" && roleImportReady(state.role)) {
-    try {
-      const res = await fetch("/api/jds", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: state.role.title.trim(), body: state.role.importedBody.trim() }),
-      });
-      if (res.ok) {
-        const saved = (await res.json().catch(() => null)) as { slug?: string } | null;
-        if (saved?.slug) {
-          await fetch(`/api/jds/${saved.slug}/ingest-job`, { method: "POST" }).catch(() => {});
-        }
-        toast.success(t("toast.roleImported"));
-      } else {
-        toast.error(t("toast.roleFailed"));
-      }
-    } catch {
-      toast.error(t("toast.roleFailed"));
-    }
-  } else if (state.role.mode === "write" && roleDraftReady(state.role)) {
-    try {
-      const res = await fetch("/api/jds/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: state.role.title.trim(),
-          company: name || undefined,
-          seniority: state.role.seniority,
-          roleFamily: state.role.roleFamily,
-          needText: state.role.needText.trim(),
-          // The build renders en/cs only — other app languages fall back to en.
-          lang: state.language === "cs" ? "cs" : "en",
-          options: { description: true, marketResearch: true, caseDesign: true },
-        }),
-      });
-      if (res.ok) {
-        toast.success(t("toast.roleStarted"));
-      } else {
-        toast.error(t("toast.roleFailed"));
-      }
-    } catch {
-      toast.error(t("toast.roleFailed"));
-    }
-  }
+  await persistPipelineAxis(state, t);
   toast.success(t("toast.saved"));
+}
+
+/**
+ * The board's columns — written only when the operator actually changed them.
+ *
+ * An untouched axis writes NOTHING: accepting the default is a legitimate answer,
+ * and a needless POST would promote the shipped axis to a team-scoped override
+ * (see /api/pipeline/stage-migration → setDecisionConfig scope "team"), silently
+ * detaching this workspace from a later org baseline change.
+ *
+ * It goes through the stage-migration route, not /api/decisions/config, because
+ * that route is the one that owns "remove a column AND move whoever stood on it"
+ * as a single operation. `migrate` is empty here by construction: the step refuses
+ * to remove an occupied column at all (setupPipelineEdit.ts), since a wizard has
+ * nowhere to ask where those candidates should go. If the server disagrees — the
+ * occupancy read was stale, someone applied elsewhere mid-setup — it answers 409
+ * and the operator is told to finish the change in Settings rather than being
+ * shown a green lie.
+ */
+async function persistPipelineAxis(state: SetupState, t: ReturnType<typeof useTranslations>): Promise<void> {
+  const pipeline = state.pipeline;
+  if (state.pipelineLoad !== "ready" || !pipeline) return;
+  const savedStages: StageDef[] = pipeline.stored.stages.map((s) => ({ ...(s as StageDef) }));
+  if (axisEqualsStored(pipeline.draft, pipeline.stored, savedStages)) return;
+  try {
+    const res = await fetch("/api/pipeline/stage-migration", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ config: draftToStored(pipeline.draft, savedStages), migrate: {} }),
+    });
+    if (res.ok) toast.success(t("toast.pipelineSaved"));
+    else toast.error(t("toast.pipelineFailed"));
+  } catch {
+    toast.error(t("toast.pipelineFailed"));
+  }
 }

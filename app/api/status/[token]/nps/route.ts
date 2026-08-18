@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEntryWorkspace, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { getEntryIdByStatusToken } from "@/app/_lib/application-status-store";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { roleOf } from "@/app/_lib/pipeline-stages";
 import { candidateStatusFor, isTerminalCandidateStatus } from "@/app/_lib/application-status";
 import { parseNpsSubmission } from "@/app/_lib/candidate-nps";
 import { candidateNpsFor, recordCandidateNps } from "@/app/_lib/candidate-nps-store";
@@ -31,7 +33,7 @@ function resolve(token: string) {
   // Only a TERMINAL outcome (hired / not selected) gets the question. Asking someone
   // mid-process how the process went would both be premature and read as pressure while
   // their application is still live.
-  const asked = isTerminalCandidateStatus(candidateStatusFor(entry.status, entry.stage));
+  const asked = isTerminalCandidateStatus(candidateStatusFor(entry.status, entry.stage, roleOf(entry.stage, getPipelineAxis(workspaceId).stages)));
   return { entryId, workspaceId, asked };
 }
 

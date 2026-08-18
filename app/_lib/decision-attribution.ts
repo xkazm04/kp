@@ -44,9 +44,21 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // Lapsed offer (deadline passed with no candidate response) — a SYSTEM transition
   // (auto), terminal-negative. Without this it rendered UNKNOWN + fell out of rollups.
   offer_expired: { auto: true, tone: "text-amber-600" },
-  onboarding_started: { auto: false, tone: "text-moss" },
+  // Unattended offer extension (automation-run.ts:373, "offer gate: auto") — the machine
+  // put an offer in front of a person with no human in the loop. Amber, not steel: an
+  // unattended offer is the automation event a reviewer most wants to notice.
+  offer_auto_extended: { auto: true, tone: "text-amber-600" },
+  // An acceptance that could NOT be honoured (offer-finalize.ts:99 — accepted on a closed
+  // entry, so never advanced to Hired). A machine refusal, and one a recruiter must chase.
+  offer_accept_blocked: { auto: true, tone: "text-amber-600" },
   // Completed coverage (previously UNKNOWN in the log, invisible to any rollup):
   auto_rejected: { auto: true, tone: "text-coral" },
+  // The calibration clean arm's marker (screen-wave.ts:325): the wave DECLINED to
+  // auto-reject someone in order to keep an uncontaminated comparison group. Sparing a
+  // candidate is a machine decision about that candidate, so it belongs in the operator's
+  // audit trail with an attribution. (It stays excluded from the CANDIDATE-facing copy —
+  // status-decisions.ts:44 — which is a separate, deliberate projection decision.)
+  screen_wave_holdout: { auto: true, tone: "text-steel" },
   // Entry-less KO-gate discards (recordKnockoutDecline) — without a mapping each
   // one rendered an UNKNOWN badge, fell out of the kind filter and the rollup.
   ko_declined: { auto: true, tone: "text-coral" },
@@ -60,10 +72,12 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // address, so the brief never went — a gap the recruiter must close.
   interviewer_brief_sent: { auto: true, tone: "text-steel" },
   interviewer_brief_skipped: { auto: true, tone: "text-amber-600" },
-  // Pre-boarding nudge (candidate-onboarding-hand-off #3): the single auto-resend of
-  // the onboarding link when the questionnaire is still unsubmitted after the delay.
-  onboarding_reminder_sent: { auto: true, tone: "text-steel" },
-  onboarding_failed: { auto: true, tone: "text-coral" },
+  // The offer-deadline nudge the sweep dispatches (comms-dispatch.ts:588). A live writer
+  // that reached the log as NEZNÁMÉ and counted in no rollup — including `commsDelivered`,
+  // even though it is a real message to a real candidate (see COMM_SENT_KINDS below).
+  offer_reminder_sent: { auto: true, tone: "text-steel" },
+  // The generated rejection draft, sibling of offer_drafted (automation-run.ts).
+  rejection_drafted: { auto: true, tone: "text-steel" },
   rejection_comms_failed: { auto: true, tone: "text-coral" },
   fairness_gate_unknown_archetype: { auto: true, tone: "text-coral" },
   // Policy-pass ALERT kinds (AUTOMATION_ALERT_KINDS below) — automation-authored
@@ -92,6 +106,44 @@ export const DECISION_META: Record<string, DecisionMeta> = {
   // it is. Without this it rendered UNKNOWN and the reversal vanished from the
   // audit rollups even though its inverse (auto_rejected) was counted.
   reinstated: { auto: false, tone: "text-moss" },
+  // UAT LUC-ANA-6 — the HUMAN-OVERSIGHT HAND-OFF (pipeline-entry-action.ts:267), and the
+  // single row an Art. 22 reviewer looks for first. It was unmapped: NEZNÁMÉ in the log,
+  // absent from both filters, in no rollup — the one event proving a person took the
+  // wheel was the one the audit surface could not show.
+  //
+  // Attributed to the HUMAN on purpose, and it is not a close call in the direction that
+  // matters (G6 — fail AWAY from the machine): it is written inside a recruiter's own
+  // `accept` on an AI scorecard, and the seal emitted beside it on the same line already
+  // credits `human:recruiter`. The plan chose the next GATE; the person chose to accept.
+  human_round_queued: { auto: false, tone: "text-moss" },
+  // A board-shape change (Settings → Hiring dropped a step) relocating everyone standing
+  // on it. The move is executed by the system, but nobody decided anything about THIS
+  // candidate — the accountable act is the operator's board edit, so it credits the human.
+  stage_migrated: { auto: false, tone: "text-amber-600" },
+  // Recruiter-authored record-keeping on a candidate: the disposition on a saved
+  // analysis, a practice interview noted, GitHub evidence attached, an ATS export.
+  disposition_set: { auto: false, tone: "text-steel" },
+  sim_attached: { auto: false, tone: "text-steel" },
+  github_evidence_attached: { auto: false, tone: "text-steel" },
+  ats_export: { auto: false, tone: "text-steel" },
+  // Role lifecycle — the twin of role_reopened, which was mapped while the close was not.
+  role_closed: { auto: false, tone: "text-steel" },
+  // The candidate answering their own profile gaps (api/apply/[id]/followup). `human`
+  // covers a candidate's act as much as a recruiter's — see the semantics note above.
+  profile_enriched: { auto: false, tone: "text-moss" },
+  // Agent bridge: the operator dispatches a persona request to Personas (human), and
+  // Personas calls back on its token route when the persona goes live (machine).
+  agent_dispatched: { auto: false, tone: "text-steel" },
+  agent_activated: { auto: true, tone: "text-moss" },
+  // RETIRED WRITERS (see RETIRED_EVENT_KINDS) — the post-hire onboarding module is gone,
+  // so nothing can write these again. They are MAPPED rather than filtered because the
+  // rows are still in deployed databases (the seeded host has both), and an audit trail
+  // that hides rows it no longer has a writer for is worse than one that labels them: a
+  // dropped feature must not silently un-attribute history. The attributions are the
+  // ones the writers had — the hand-off was recruiter-initiated, the intake was the
+  // candidate's own submission.
+  onboarding_started: { auto: false, tone: "text-moss" },
+  onboarding_intake_submitted: { auto: false, tone: "text-steel" },
   // The comparative group evaluation itself (group-eval-event-anchor): group-eval seals
   // a group_eval_lead/advisory RECORD and now also writes a `group_eval` pipeline event
   // at seal time, keyed on the lead's entry. The eval is SYSTEM-initiated (auto) — a
@@ -112,6 +164,18 @@ export const DECISION_META: Record<string, DecisionMeta> = {
 // DECISION_META mapping (the drift this module exists to stop).
 export const FAIRNESS_GATE_BLOCKED_REJECT = "fairness_gate_blocked_reject";
 export const AUTOMATION_ALERT_KINDS = ["aging_alert", "stale_alert", FAIRNESS_GATE_BLOCKED_REJECT] as const;
+
+// UAT LUC-ANA-6 — kinds that are MAPPED but have no live writer any more: the feature
+// that wrote them was removed while its rows stayed in deployed databases. Declaring them
+// here is the difference between "we decided to keep labelling these" and "nobody
+// noticed": decision-attribution.test.ts asserts every member is still mapped AND that
+// none of them has a writer again (a resurrected kind must be re-argued, not inherited).
+//
+// Removing a feature therefore has an explicit third option beside "map" and "forget":
+// move its kinds here. Deleting a mapping outright is what produced this finding — the
+// onboarding removal took `onboarding_started` out of DECISION_META and left one row of
+// it in the seeded workspace, badging NEZNÁMÉ.
+export const RETIRED_EVENT_KINDS = ["onboarding_started", "onboarding_intake_submitted"] as const;
 
 // Outcome state of one automation-pass decision (persisted in
 // scheduler_runs.decisions_json). Rows persisted before the field existed are
@@ -142,6 +206,41 @@ export function decisionAttribution(kind: string): "auto" | "human" | "unknown" 
   return meta ? (meta.auto ? "auto" : "human") : "unknown";
 }
 
+/** The decision log's two column filters (Rozhodnutí = kind, Kdo = attribution) resolved
+ *  to ONE kind set — the INTERSECTION, never a winner.
+ *
+ *  UAT LUC-ANA-12: the route used to read `if (kind) … else if (attribution)`, so a kind
+ *  filter silently discarded the attribution filter while ColumnFilter kept that column's
+ *  active dot lit. Lives here, beside the map it reads, so the semantics are unit-pinned
+ *  rather than buried in a route handler nothing can call without a DB.
+ *
+ *  `matchesNothing` is the outcome an "empty kind list" cannot express: a contradictory
+ *  pair (kind "advanced" + attribution "auto") selects NO rows, and the store reads an
+ *  empty IN-list as "unfiltered" — so the caller must answer an empty page itself rather
+ *  than pass one down. An unrecognized value on either axis is ignored (that axis is
+ *  simply not applied), never an error and never a silent full-table read of the other. */
+export type DecisionKindFilter = { kinds?: string[]; matchesNothing: boolean };
+
+export function resolveDecisionKindFilter(kindRaw: string | null, attributionRaw: string | null): DecisionKindFilter {
+  const kind = kindRaw && kindRaw in DECISION_META ? kindRaw : null;
+  const attribution = attributionRaw === "auto" || attributionRaw === "human" ? attributionRaw : null;
+  if (kind && attribution) {
+    return DECISION_META[kind].auto === (attribution === "auto")
+      ? { kinds: [kind], matchesNothing: false }
+      : { matchesNothing: true };
+  }
+  if (kind) return { kinds: [kind], matchesNothing: false };
+  if (attribution) {
+    return {
+      kinds: Object.entries(DECISION_META)
+        .filter(([, meta]) => meta.auto === (attribution === "auto"))
+        .map(([k]) => k),
+      matchesNothing: false,
+    };
+  }
+  return { matchesNothing: false };
+}
+
 // Minimal structural shape of a next-intl `analytics.log`-namespace translator
 // (the value from `useTranslations("analytics.log")`). Generic over the next-intl
 // `Translator` (whose call signature only accepts its own message keys, not a
@@ -159,7 +258,10 @@ export const COMM_SENT_KINDS = [
   "schedule_invite_sent",
   "interview_reminder_sent",
   "interviewer_brief_sent",
-  "onboarding_reminder_sent",
+  // UAT LUC-ANA-6 — the offer-deadline nudge is a dispatched candidate message like any
+  // other, so it counts as a delivery in the rollup and takes the honest
+  // `kindsQueued.*` label when no relay is configured. It was in neither list.
+  "offer_reminder_sent",
   "offer_sent",
   "acknowledgement_sent",
   "comm_resent",
@@ -364,21 +466,83 @@ export function sealedReasonOf(records: readonly SealedRecordLike[], forKind: st
 // stays free of a next-intl import — kindLabel uses the same trick).
 type WaveReasonTranslator = { (key: never, params?: never): string; has(key: never): boolean };
 
+/** The Art. 22 approver sentence appended to a sealed ADVERSE reason.
+ *
+ *  UAT CS-L1-004 (rec 2) — the approver was sealed into `payloadJson.inputs.approvedBy`
+ *  and rendered nowhere, so the compliance reviewer had to open raw JSON to learn who
+ *  signed off an automated rejection. This puts the name in the rationale she reads
+ *  first, using the same shape AnalyticsThresholdHistoryStrip already renders for a
+ *  threshold change ("Approved by {who}").
+ *
+ *  Absent approver ⇒ the "not identified" sentence, NOT a silent omission and NOT a
+ *  defaulted person (guardrail G3): a record with no named approver must say so, because
+ *  "no line" and "approved by nobody in particular" read identically to an auditor. */
+function approverNote<T extends WaveReasonTranslator>(t: T, approvedBy: unknown): string {
+  const who = typeof approvedBy === "string" ? approvedBy.trim() : "";
+  if (who) return t.has("reasons.approvedByNote" as never) ? ` ${t("reasons.approvedByNote" as never, { who } as never)}` : "";
+  return t.has("reasons.approverUnidentified" as never) ? ` ${t("reasons.approverUnidentified" as never)}` : "";
+}
+
 /** Localize a sealed screening reason through the decisions.wave.reasons.* catalog —
  *  the ONE resolver shared by the reconsider queue (DecisionsTab), the decision-records
  *  panel, and the decision log, so all three read a sealed reason identically. A sealed
- *  record is always committed, so "reject" uses the "did" phrasing + the tie note; an
- *  unmapped code returns null so the caller falls back (plain text / English rationale). */
+ *  record is always committed, so "reject" uses the "did" phrasing + the tie note, the
+ *  approver sentence, and nothing else; an unmapped code returns null so the caller falls
+ *  back (plain text / English rationale). */
 export function waveReasonText<T extends WaveReasonTranslator>(t: T, reason: SealedReason): string | null {
   const p = reason.reasonParams;
   if (reason.reasonCode === "reject") {
     if (!t.has("reasons.rejectDid" as never)) return null;
     const base = t("reasons.rejectDid" as never, p as never);
     const tie = Number(p.tieAdjusted) > 0 ? ` ${t("reasons.tieAdjustedNote" as never, { from: Number(p.tieAdjusted) } as never)}` : "";
-    return base + tie;
+    // Only the adverse decision carries it: this is the record a rejected candidate (or a
+    // regulator on their behalf) can demand a human reviewer for.
+    return base + tie + approverNote(t, p.approvedBy);
   }
   const key = `reasons.${reason.reasonCode}`;
   return t.has(key as never) ? t(key as never, p as never) : null;
+}
+
+// ---- (d) Who acted (UAT LUC-ANA-4) ------------------------------------------------
+//
+// pipeline_events.actor carries the decision-chain vocabulary: "auto:<engine>" for a
+// machine and "human:<who>" for a person. `<who>` is either a ROLE token — all the
+// deployment could assert when the session carried no identity — or the natural person's
+// name. Keeping both in one column (rather than adding a second nullable name column
+// nobody would remember to write) means every existing writer's string stays valid and
+// the parse below is the only place that has to know the difference.
+
+/** The `human:` suffixes that are ROLES, not people. Derived from the tokens the writers
+ *  actually emit, so a rename here is a compile-time-visible single edit. */
+export const HUMAN_ROLE_TOKENS = ["recruiter", "operator", "system", "candidate"] as const;
+const HUMAN_ROLE_SET: ReadonlySet<string> = new Set(HUMAN_ROLE_TOKENS);
+
+export type EventActor = {
+  /** "auto" (a machine acted), "human" (a person acted), "unknown" (the row predates the
+   *  actor column, or its writer could not name one). */
+  kind: "auto" | "human" | "unknown";
+  /** The engine id for "auto" ("screen-wave"), the person's name for an IDENTIFIED human,
+   *  and null for a human known only by role — the "a person did this, we cannot say
+   *  which one" state a surface must render as "not identified" (guardrail G3). */
+  name: string | null;
+};
+
+/** Parse a stored `pipeline_events.actor` into its class + the person behind it.
+ *
+ *  Never guesses in either direction: an absent/blank/unparseable actor is "unknown"
+ *  (not "auto", and not the operator), and a role token yields a null `name` rather than
+ *  being promoted to a person. The log's "Who" column reads this instead of deriving a
+ *  class from `kind`, which is all it could ever show before the column existed. */
+export function parseEventActor(actor: string | null | undefined): EventActor {
+  const raw = (actor ?? "").trim();
+  const sep = raw.indexOf(":");
+  if (sep <= 0) return { kind: "unknown", name: null };
+  const prefix = raw.slice(0, sep).toLowerCase();
+  const rest = raw.slice(sep + 1).trim();
+  if (!rest) return { kind: "unknown", name: null };
+  if (prefix === "auto") return { kind: "auto", name: rest };
+  if (prefix === "human") return { kind: "human", name: HUMAN_ROLE_SET.has(rest.toLowerCase()) ? null : rest };
+  return { kind: "unknown", name: null };
 }
 
 // (c) Rematch counterpart. rematched/rematched_from rows carry the counterpart pipeline

@@ -7,7 +7,7 @@
 //
 // Pure + import-free so the math is unit-testable and runs under bare node --test.
 // The map intentionally lists ONLY automated kinds that REPLACE recruiter work —
-// failure/sentinel kinds (onboarding_failed, fairness_gate_unknown_archetype,
+// failure/sentinel kinds (rejection_comms_failed, fairness_gate_unknown_archetype,
 // intake_degraded, observed_minted…) are excluded: they aren't saved labor.
 
 // Conservative manual-time estimates, in minutes per automated action.
@@ -38,6 +38,11 @@ export const DEFAULT_RECRUITER_HOURLY_CZK = 600;
 // can size, not a bare figure (UAT M7). Research anchor: ~40–51 h total per hire
 // (≈23 h of it screening, ~13 h sourcing); 42 is the defensible mid-point.
 // Stated + override-able (pass `manualBaselineHoursPerHire`), never a hidden hex.
+//
+// UAT KAT-L1-005 — "override-able" was true of the signature and false of the
+// product: no call site passed the parameter, so the org's own anchor could not
+// reach it. db/analytics.ts now feeds it from the reserved MANUAL_HOURS_TARGET_KEY
+// goal row, and this constant is the fallback for an org that has not set one.
 export const MANUAL_HOURS_PER_HIRE = 42;
 
 export type RoiAction = {
@@ -60,14 +65,22 @@ export type AutomationRoi = {
   hoursSavedPerHire: number | null; // 1 decimal
   czkSavedPerHire: number | null;
   manualBaselineHoursPerHire: number; // the stated manual anchor (echoed for the UI)
-  pctOfManualBaseline: number | null; // 0–100: share of the manual per-hire effort offset
+  // Share of the manual per-hire effort offset, as a percentage. UNBOUNDED ABOVE —
+  // see the note at the computation: a figure over 100 is a real signal, not an
+  // overflow to be tidied away.
+  pctOfManualBaseline: number | null;
 };
 
 /** Aggregate the time/cost an automated event trail saved. `kindCounts` is the
  *  same GROUP-BY-kind map the auto/human rollup consumes; only kinds present in
- *  MINUTES_SAVED_PER_KIND with a positive count contribute. `hires` (the hires in
- *  the same window) anchors the saved labor against the manual per-hire baseline
- *  so the figure reads as a measured reduction, not a bare counterfactual. */
+ *  MINUTES_SAVED_PER_KIND with a positive count contribute. `hires` anchors the saved
+ *  labor against the manual per-hire baseline so the figure reads as a measured
+ *  reduction, not a bare counterfactual.
+ *
+ *  `hires` MUST be counted on the same basis as `kindCounts` — hires that CLOSED in the
+ *  window, since kindCounts is events that HAPPENED in it. Feeding a creation-cohort
+ *  count instead divides a full window of automated work by whatever fraction of its
+ *  hires happened to also start inside the window (UAT KAT-ANA-4). */
 export function automationRoi(
   kindCounts: Record<string, number>,
   hourlyRateCzk?: number | null,
@@ -96,11 +109,15 @@ export function automationRoi(
   const rawHoursPerHire = hireCount > 0 ? minutesSaved / 60 / hireCount : null;
   const hoursSavedPerHire = rawHoursPerHire != null ? Math.round(rawHoursPerHire * 10) / 10 : null;
   const czkSavedPerHire = rawHoursPerHire != null ? Math.round(rawHoursPerHire * rate) : null;
-  // Capped at 100: you can't offset MORE than the full manual effort — extra
-  // saved labor (work on candidates who weren't hired) just means full replacement.
+  // UAT KAT-L1-005 / KAT-ANA-4 — NOT capped. The old Math.min(100, …) was defended as
+  // "you can't offset more than the full manual effort", which is true of the CONCEPT
+  // and false of the ARITHMETIC: this ratio also exceeds 100 when the denominator is
+  // wrong (a mixed-basis hire count) or when the org's baseline is set too low. The cap
+  // rendered 437% as a clean, plausible 100% — it hid the one reading that proves the
+  // number needs looking at. An implausible figure now shows itself; that is the signal.
   const pctOfManualBaseline =
     rawHoursPerHire != null && manualBaselineHoursPerHire > 0
-      ? Math.min(100, Math.round((rawHoursPerHire / manualBaselineHoursPerHire) * 100))
+      ? Math.round((rawHoursPerHire / manualBaselineHoursPerHire) * 100)
       : null;
 
   return {

@@ -63,8 +63,8 @@ function greetName(entry: { candidateLabel?: string | null }, t: CommsTranslator
 }
 
 // The one link-builder for candidate-facing URLs BUILT INSIDE this module (the
-// GDPR data footer, the onboarding link footer). Links a candidate opens from an
-// email must be ABSOLUTE — a relative "/data/er-…" path is dead in every mail
+// GDPR data footer). Links a candidate opens from an email must be ABSOLUTE — a
+// relative "/data/er-…" path is dead in every mail
 // client (capst-l2-102) — so this resolves through the same publicBaseUrl
 // precedence the status/offer/schedule links use. Dispatches almost always run
 // inside a request (apply ack, reject, offer, invite), so the runtime origin is
@@ -555,44 +555,6 @@ export async function dispatchInterviewInvite(
   });
   if (entry.id) recordAutomationEvent(entry.id, "interview_invite_sent", role, opts?.workspaceId ?? undefined);
   return status;
-}
-
-/**
- * Onboarding hook — fires when a candidate accepts and moves to Hired. A warm
- * welcome + the practical next step. Kept deterministic; a real onboarding
- * system would subscribe to the `onboarding_started` event downstream.
- */
-export async function dispatchOnboarding(entry: PipelineEntry, onboardingToken?: string | null): Promise<void> {
-  const t = await commsTranslator(entry.locale);
-  const role = entry.jobTitle ?? t("yourNewRole");
-  const subject = t("onboarding.subject", { role });
-  // The accepted offer's token doubles as the candidate's onboarding link (offers #5):
-  // accept now lands on a concrete next-step page, not just a "People will be in touch"
-  // promise. ABSOLUTE via candidateLinkBase (the ambient request origin when dispatched
-  // from a route handler, the env override otherwise — capst-l2-102 caught this one
-  // relative too); omitted for a manual hire with no offer token, which keeps the
-  // welcome copy as-is.
-  const footer = onboardingToken
-    ? `\n\n${t("onboarding.linkFooter", { link: `${await candidateLinkBase()}/onboarding/${onboardingToken}` })}`
-    : "";
-  const body = t("onboarding.body", { name: greetName(entry, t), role, team: t("team") }) + footer;
-  await sendCandidateComm(entry, t, { subject, body, kind: "onboarding" });
-  recordAutomationEvent(entry.id, "onboarding_started", role, entry.workspaceId);
-}
-
-/** The single pre-boarding nudge (candidate-onboarding-hand-off #3): re-sends the
- *  /onboarding/{token} link when the questionnaire is still unsubmitted after the
- *  policy delay, so a hire who closed the welcome tab isn't lost to silence. Driven
- *  by the heartbeat sweep (preboarding-reminders.ts), at-most-once via the run's
- *  reminder_sent_at claim. `link` must be ABSOLUTE (resolved via publicBaseUrl by
- *  the caller — the candidate opens it outside the app). */
-export async function dispatchPreboardingReminder(entry: PipelineEntry, link: string): Promise<void> {
-  const t = await commsTranslator(entry.locale);
-  const role = entry.jobTitle ?? t("yourNewRole");
-  const subject = t("onboardingReminder.subject", { role });
-  const body = t("onboardingReminder.body", { name: greetName(entry, t), role, link, team: t("team") });
-  await sendCandidateComm(entry, t, { subject, body, kind: "onboarding_reminder", ref: entry.id ?? link });
-  if (entry.id) recordAutomationEvent(entry.id, "onboarding_reminder_sent", role, entry.workspaceId);
 }
 
 /** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid

@@ -20,7 +20,9 @@
 // table as one flat ranking, this direction is wrong and the panels should stay
 // separate.
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
+import { ArrowRight, PauseCircle } from "lucide-react";
 import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { labelOr } from "@/app/_lib/use-enum-label";
 import { PANEL } from "@/app/_components/ui/recipes";
@@ -29,7 +31,8 @@ import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { useTableSort } from "@/app/_components/table/useTableSort";
 import { PipelineShapeBar } from "@/app/_components/ui/PipelineShapeBar";
 import { AutomationPanel, ComputeCostPanel } from "./sectionChunks";
-import { buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
+import { SpendInput } from "../AnalyticsChannelSpendInput";
+import { buildTabSwitchUrl, buildUrl, clearedTabScopedParams } from "@/app/features/shell/tabs";
 import type { EconomicsProps } from "./economicsTypes";
 
 type Kind = "channel" | "source" | "variant";
@@ -37,11 +40,18 @@ type Row = {
   key: string;
   kind: Kind;
   name: string;
+  // The STORED channel id (not the display label) — the write key for the spend
+  // endpoint and the board's `?source=` filter value. Null on the two taxonomies
+  // that have no stored channel of their own.
+  channelId: string | null;
   total: number;
   reachedInterview: number;
   hired: number;
   hireRatePct: number;
   spendCzk: number | null;
+  // UAT KAT-ANA-2 — when a human last typed `spendCzk`. Rendered beside the derived
+  // per-hire figure so a six-week-old entry reads as six weeks old.
+  spendUpdatedAt: string | null;
   costPerHireCzk: number | null;
 };
 type Col = "name" | "kind" | "total" | "hired" | "hireRatePct" | "spendCzk" | "costPerHireCzk";
@@ -57,27 +67,32 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
   const tc = useTranslations("analytics.channels");
   const ta = useTranslations("analytics");
   const { money } = useNumberFormat();
+  const format = useFormatter();
   const [kindFilter, setKindFilter] = useState<Kind | "">("");
 
   const channelName = (c: string) => labelOr(tc, `names.${c}`, c);
   const sourceName = (s: string) => labelOr(ta, `source.${s}`, s);
+  const shortDate = (iso: string) => format.dateTime(new Date(iso), { day: "numeric", month: "short", year: "numeric" });
 
   const rows: Row[] = [
     ...data.byChannel.map((r) => ({
       key: `channel:${r.channel}`,
       kind: "channel" as const,
       name: channelName(r.channel),
+      channelId: r.channel,
       total: r.total,
       reachedInterview: r.reachedInterview,
       hired: r.hired,
       hireRatePct: r.hireRatePct,
       spendCzk: r.spendCzk,
+      spendUpdatedAt: r.spendUpdatedAt,
       costPerHireCzk: r.costPerHireCzk,
     })),
     ...data.bySource.map((r) => ({
       key: `source:${r.source}`,
       kind: "source" as const,
       name: sourceName(r.source),
+      channelId: null,
       total: r.total,
       reachedInterview: r.reachedInterview,
       hired: r.hired,
@@ -85,6 +100,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
       // First-touch origin carries no spend of its own — spend is recorded per
       // CHANNEL. A zero here would read as "free"; null reads as "not measured".
       spendCzk: null,
+      spendUpdatedAt: null,
       costPerHireCzk: null,
     })),
     ...data.byVariant.map((r) => ({
@@ -93,6 +109,7 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
       key: `variant:${r.jobTitle ?? ""}:${r.campaign ?? ""}:${r.variant}`,
       kind: "variant" as const,
       name: [r.variant, r.jobTitle].filter(Boolean).join(" · "),
+      channelId: null,
       total: r.total,
       reachedInterview: r.reachedInterview,
       hired: r.hired,
@@ -101,9 +118,23 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
       // means one thing down its whole length.
       hireRatePct: r.total ? Math.round((r.hired / r.total) * 100) : 0,
       spendCzk: null,
+      spendUpdatedAt: null,
       costPerHireCzk: null,
     })),
   ];
+
+  // UAT KAT-L1-S02 / TOM-ANA-1 — every number on this page has to end in a decision,
+  // and the consolidation left the board with eight columns and no way out of them
+  // („K čemu mi je graf, ze kterého se nedostanu k lidem?"). A CHANNEL row can hand
+  // the reader the exact population it counted: the board's `?source=` filter keys off
+  // the same stored `source_channel` this row groups by, so the link reproduces the
+  // row and nothing else. The other two taxonomies get NO row link on purpose — the
+  // board cannot filter by derived first-touch origin or by creative, and a link that
+  // quietly showed a different set of people would be worse than no link. Their exit
+  // is the Channels tab in the footer, which is where the pre-consolidation
+  // SourcePanel's affordance went.
+  const boardHref = (channel: string) =>
+    buildUrl({ ...clearedTabScopedParams(), tab: "pipeline", source: channel }, tabScopedSearch);
 
   const { sorted, sort, toggle } = useTableSort<Row, Col>(
     rows,
@@ -169,7 +200,22 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
               <tbody>
                 {visible.map((r) => (
                   <tr key={r.key} className="border-b border-stone-100 last:border-0 hover:bg-paper/50">
-                    <td className="py-2 pr-3 font-medium text-ink">{r.name}</td>
+                    <td className="py-2 pr-3 font-medium text-ink">
+                      {/* `viewInBoard` is the existing sibling idiom (the role links in
+                          AnalyticsByRoleTable), not a new string: one page, one way of
+                          saying "these are the people behind this number". */}
+                      {r.channelId ? (
+                        <Link
+                          href={boardHref(r.channelId)}
+                          title={ta("viewInBoard")}
+                          className="focus-ring inline-flex items-center gap-1 rounded-sm hover:text-coral hover:underline"
+                        >
+                          {r.name} <ArrowRight size={12} aria-hidden />
+                        </Link>
+                      ) : (
+                        r.name
+                      )}
+                    </td>
                     <td className="py-2 pr-3">
                       {/* The taxonomy is part of the row's identity, not a
                           decoration: without it the table reads as one flat
@@ -196,12 +242,37 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
                         <span className={r.hired > 0 ? "font-semibold text-moss" : "text-steel"}>{r.hireRatePct}%</span>
                       )}
                     </td>
+                    {/* UAT KAT-ANA-2 — the ONLY write path to channel_spend in the
+                        product. It lived in ChannelEconomicsPanel, which the section
+                        consolidation stopped importing, so the column below kept
+                        dividing by a figure nobody could reach: on the seeded host,
+                        one row entered six weeks earlier still rendered as
+                        `833 CZK / hire`. Lifted INTO the board rather than re-importing
+                        the old panel — the board is the surface that renders the
+                        number, a second channel table beside it would undo the
+                        consolidation (§2.25), and the editor belongs where the figure
+                        it feeds is read. */}
                     <td className="py-2 pr-3 text-right nums">
-                      {r.spendCzk != null ? <span className="text-ink">{money(r.spendCzk)}</span> : <span className="text-steel">—</span>}
+                      {r.channelId ? (
+                        <SpendInput channel={r.channelId} channelLabel={r.name} value={r.spendCzk} onSaved={reload} />
+                      ) : (
+                        <span className="text-steel">—</span>
+                      )}
                     </td>
                     <td className="py-2 text-right nums">
                       {r.costPerHireCzk != null ? (
-                        <span className="font-semibold text-ink">{money(r.costPerHireCzk)}</span>
+                        <>
+                          <span className="font-semibold text-ink">{money(r.costPerHireCzk)}</span>
+                          {/* The figure is this one stored row divided by a hire count,
+                              so it is exactly as current as the row. Without the date a
+                              fossil reads as this period's cost — which is the whole
+                              defect, not a footnote to it. */}
+                          {r.spendUpdatedAt ? (
+                            <span className="block text-xs font-normal text-steel">
+                              {ta("spendAsOf", { date: shortDate(r.spendUpdatedAt) })}
+                            </span>
+                          ) : null}
+                        </>
                       ) : (
                         <span className="text-steel">—</span>
                       )}
@@ -217,9 +288,55 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
           <p className="py-6 text-center text-base text-steel">{t("boardNoMatches")}</p>
         ) : null}
 
+        {/* UAT KAT-ANA-3 — the variant list is capped server-side like byJob is, and
+            unlike byJob it said so nowhere. Same key, same idiom as AnalyticsByRoleTable:
+            a table that silently drops rows reads as a complete list. */}
+        {data.byVariantTotal > data.byVariant.length ? (
+          <p className="mt-3 text-meta uppercase text-steel">
+            {tc("topByVolume", { shown: data.byVariant.length, total: data.byVariantTotal })}
+          </p>
+        ) : null}
+
+        {/* UAT KAT-ANA-3 — `variantRecommendations` is the one "pause this creative on
+            Monday" action the surface computes, and it has been rendered nowhere since
+            the board replaced ChannelEconomicsPanel. A recommendation only: nothing is
+            paused automatically, and the note says so. */}
+        {data.variantRecommendations.length > 0 ? (
+          <div className="mt-4 rounded-md border border-dial-amber/40 bg-dial-amber/10 p-3">
+            <p className="flex items-center gap-1.5 text-meta font-semibold uppercase tracking-wide text-ink">
+              <PauseCircle size={13} aria-hidden /> {tc("pauseTitle")}
+            </p>
+            <ul className="mt-1.5 space-y-1">
+              {data.variantRecommendations.map((r) => (
+                <li key={`${r.campaign ?? ""}:${r.variant}`} className="max-w-prose text-sm text-ink">
+                  {tc.rich("pauseLine", {
+                    b: (c) => <b className="font-semibold">{c}</b>,
+                    variant: r.variant,
+                    campaign: r.campaign ?? "",
+                    job: r.jobTitle ?? "",
+                    sharePct: r.leadSharePct,
+                    groupTotal: r.groupTotal,
+                  })}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 max-w-prose text-sm text-steel">{tc("pauseNote")}</p>
+          </div>
+        ) : null}
+
         {/* Says out loud that a dash in Spend is a measurement boundary, not a
             zero — the single most misreadable cell on this table. */}
-        <p className="mt-3 border-t border-stone-200 pt-3 text-sm text-steel">{t("boardSpendNote")}</p>
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 border-t border-stone-200 pt-3">
+          <p className="max-w-2xl text-sm text-steel">{t("boardSpendNote")}</p>
+          {/* The acquisition story's other exit, carried over from the panel this
+              board replaced: where channels are actually configured. */}
+          <Link
+            href={buildTabSwitchUrl("channels", tabScopedSearch)}
+            className="focus-ring inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-coral hover:underline"
+          >
+            {ta("configureChannels")} <ArrowRight size={13} aria-hidden />
+          </Link>
+        </div>
       </section>
 
       <Defer strategy="idle">
@@ -237,10 +354,36 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
         <ComputeCostPanel
           computeCost={data.computeCost}
           costPerHireCzk={data.costPerHireCzk}
-          hired={data.hired}
+          // UAT KAT-ANA-2 — the blended manual figure carries the date of the OLDEST
+          // spend entry behind it; a blend is only as current as its stalest input.
+          costPerHireAsOf={data.costPerHireAsOf ?? null}
           windowed={data.windowDays != null}
         />
       </Defer>
+
+      {/* UAT KAT-ANA-11 — the analytics criterion is "what / by whom / cost", and the
+          third leg had no path from here. Both audit tables carry what and by whom;
+          this section carries two cost AGGREGATES (CZK channel spend, USD compute) and
+          named nowhere to go for the breakdown. Billing's spend panel attributes the
+          compute figure per use case against the plan allowance, so the two halves of
+          "what did it cost" now meet on one path.
+          Deliberately NOT a per-decision cost column: `llm_usage.request_id` is never
+          joined to a pipeline event, and an unlabelled number on a decision row would
+          be the LLM slice of that decision's cost reading as the whole of it.
+          G7 holds — this adds a navigation exit, not a number. Nothing here converts,
+          sums or compares the USD ledger against the CZK channel spend, and the note
+          says which of the two Billing actually breaks down. Placed under the compute
+          panel (the figure it speaks about) rather than in the acquisition footer, so
+          it can never read as a total of both. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 border-t border-stone-200 pt-3">
+        <p className="max-w-2xl text-sm text-steel">{t("billingNote")}</p>
+        <Link
+          href={buildTabSwitchUrl("billing", tabScopedSearch)}
+          className="focus-ring inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-coral hover:underline"
+        >
+          {t("billingLink")} <ArrowRight size={13} aria-hidden />
+        </Link>
+      </div>
     </div>
   );
 }

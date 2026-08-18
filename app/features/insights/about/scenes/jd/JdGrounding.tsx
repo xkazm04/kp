@@ -1,11 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { Field, Part, Slot, Wire, Wires } from "../../stage/parts";
 import { useSceneClock } from "../../stage/useSceneClock";
 import { INK, SKIN } from "../../stage/motion";
 import { stageOf, type Rect } from "../../stage/stages";
 import { bowFor, leftOf, rightOf, sCurve } from "../../stage/threads";
+import { SceneStatus, statusPicker } from "../shared";
 
 /*
  * Variant B — THE GROUNDING.
@@ -33,10 +35,11 @@ const CYCLE = 15;
 const STILL = 13;
 
 // ── Geometry ────────────────────────────────────────────────────────────────
-const SOURCES: { rect: Rect; label: string; detail: string }[] = [
-  { rect: { x: 0, y: 4, w: 30, h: 22 }, label: "Your need", detail: "What you typed or dictated" },
-  { rect: { x: 0, y: 33, w: 30, h: 22 }, label: "The JD text", detail: "First 4 000 characters" },
-  { rect: { x: 0, y: 62, w: 30, h: 22 }, label: "The codebase", detail: "31k LOC · languages · deps" },
+// Structure only. Labels resolve from `about.jd.sources.*` at render time.
+const SOURCES: { rect: Rect; key: "need" | "jd" | "code" }[] = [
+  { rect: { x: 0, y: 4, w: 30, h: 22 }, key: "need" },
+  { rect: { x: 0, y: 33, w: 30, h: 22 }, key: "jd" },
+  { rect: { x: 0, y: 62, w: 30, h: 22 }, key: "code" },
 ];
 
 // Right-hand rows. `src` is the index of the source each one attaches to;
@@ -64,24 +67,19 @@ function thread(i: number): string {
   return sCurve(rightOf(SOURCES[REQS[i].src as number].rect), leftOf(rowRect(i)), bowFor(i));
 }
 
-const STATUS: Record<number, string> = {
-  0: "role-design-v4 · grounding rules active",
-  2: "candidate requirements: 7",
-  3: "each must trace to something the inputs actually state",
-  9: "Kafka — no supporting statement in any input",
-  10: "dropped before it reached the document",
-  11: "statedVsRealGaps: reported to you instead",
-  12: "6 must-haves kept · hard cap 8",
-};
-
-function statusAt(phase: number): string {
-  for (let p = phase; p >= 0; p--) if (STATUS[p]) return STATUS[p];
-  return STATUS[0];
-}
-
 export function JdGrounding() {
+  const t = useTranslations("about.jd");
   const { ref, phase, reduced } = useSceneClock(CYCLE, { stillTick: STILL });
   const at = (n: number) => phase >= n;
+  const statusAt = statusPicker({
+    0: t("status.s0"),
+    2: t("status.s2"),
+    3: t("status.s3"),
+    9: t("status.s9"),
+    10: t("status.s10"),
+    11: t("status.s11"),
+    12: t("status.s12"),
+  });
 
   return (
     <div ref={ref}>
@@ -103,13 +101,13 @@ export function JdGrounding() {
 
         {/* ── The inputs ────────────────────────────────────────────────── */}
         {SOURCES.map((s, i) => (
-          <Slot key={s.label} rect={s.rect} stage={stageOf({ shell: 1, body: 1, detail: 2, chosen: null }, phase)} reduced={reduced} className="p-3">
-            <p className="text-meta uppercase tracking-wide text-steel">Input</p>
+          <Slot key={s.key} rect={s.rect} stage={stageOf({ shell: 1, body: 1, detail: 2, chosen: null }, phase)} reduced={reduced} className="p-3">
+            <p className="text-meta uppercase tracking-wide text-steel">{t("input")}</p>
             <Part show={at(1)} i={i} reduced={reduced} className="mt-1 block font-medium text-ink">
-              {s.label}
+              {t(`sources.${s.key}Label`)}
             </Part>
             <Part show={at(2)} i={i} lead={0.08} reduced={reduced} className="mt-1 block text-meta text-steel">
-              {s.detail}
+              {t(`sources.${s.key}Detail`)}
             </Part>
           </Slot>
         ))}
@@ -157,7 +155,7 @@ export function JdGrounding() {
                         : "bg-stone-50 text-stone-500"
                   }`}
                 >
-                  {orphan ? "no source" : req.kind === "must" ? "must have" : "nice to have"}
+                  {orphan ? t("noSource") : req.kind === "must" ? t("must") : t("nice")}
                 </Part>
                 <Part show={landed} i={1} reduced={reduced} className="min-w-0 truncate text-base text-ink">
                   {req.skill}
@@ -170,23 +168,15 @@ export function JdGrounding() {
         {/* ── What happened to the orphan ───────────────────────────────── */}
         <div className="absolute left-[46%] top-[92%] w-[54%]">
           <Part show={at(11)} reduced={reduced} className="block text-base text-ink">
-            Stated stack not evident in the codebase: <span className="font-medium text-coral">Kafka</span>
+            {t.rich("gap", { k: (chunks) => <span className="font-medium text-coral">{chunks}</span> })}
           </Part>
           <Part show={at(12)} i={1} reduced={reduced} className="mt-1 block text-meta text-steel">
-            Surfaced to you as a gap to resolve — not quietly written into the role.
+            {t("gapNote")}
           </Part>
         </div>
       </Field>
 
-      <motion.p
-        key={statusAt(phase)}
-        initial={reduced ? false : { opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="mt-4 font-mono text-meta text-steel"
-      >
-        {statusAt(phase)}
-      </motion.p>
+      <SceneStatus phase={phase} reduced={reduced} text={statusAt(phase)} />
     </div>
   );
 }
