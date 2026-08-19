@@ -19,6 +19,14 @@ import { registerAccount } from "../signup-service.ts";
 
 after(() => cleanupUnitDb());
 
+// This file pins CROSS-ORG isolation on the hosted product, so it must run with
+// metering ON. unit-db.ts scrubs POLAR_* for hermeticity and metering is now a
+// property of the deployment (app/_lib/billing/mode.ts) — without a provider
+// credential every meter resolves unlimited, which is right for a self-hosted
+// install and wrong for the isolation assertions below. Declared explicitly, the
+// way unit-db documents. The unmetered side is pinned by billing-selfhost.test.ts.
+process.env.POLAR_ACCESS_TOKEN = "polar_test_token";
+
 // Org scope (org-plan Phase 3) — billing is per-ORG (deliberately EXEMPT from the
 // per-team workspace_id manifest; see tenancy.ts). This file is the org-axis
 // equivalent of a *-tenancy test: a source guard pinning that every SQL statement

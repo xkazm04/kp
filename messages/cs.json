@@ -91,6 +91,14 @@
       "offer": "Nabídka",
       "terminal": "Přijat",
       "custom": "Jiné"
+    },
+    "roleMeaning": {
+      "entry": "Sem přijde každý, kdo se přihlásí.",
+      "screening": "Přečtete si, co poslali, a vyberete, s kým chcete mluvit.",
+      "interview": "Mluvíte s těmi, kdo stojí za váš čas.",
+      "offer": "Pošlete nabídku a čekáte na odpověď.",
+      "terminal": "Kandidát nabídku přijal. Tady nábor končí.",
+      "custom": "Váš vlastní krok. Znamená přesně to, co potřebuje váš tým."
     }
   },
   "diagrams": {
@@ -6546,6 +6554,16 @@
     "loadFailed": "Fakturaci se nepodařilo načíst. Zkontrolujte připojení a zkuste to znovu.",
     "retry": "Zkusit znovu",
     "notConfigured": "Fakturace není nakonfigurovaná, aplikace proto běží v lokálním vývojovém režimu. Nákupy jsou vypnuté.",
+    "selfHost": {
+      "eyebrow": "Vlastní instalace",
+      "title": "Tato instalace nemá žádné limity",
+      "body": "Používáte vlastní kopii KandiDate pod licencí AGPL. Není tu žádné předplatné ani co kupovat. Hostované plány jsou pro ty, kdo si aplikaci nechtějí provozovat sami.",
+      "meters": "Všechny limity jsou neomezené: zveřejněné pozice, nábory, AI kandidáti, návrhy případových studií i minuty pohovorů.",
+      "modelsCta": "Nastavit modely",
+      "modelsNote": "Jediné výdaje za AI na této instalaci jsou vaše vlastní faktury od poskytovatelů.",
+      "cloudTitle": "Nechcete aplikaci provozovat sami?",
+      "cloudBody": "Hostovaná verze je stejný software, jen se o servery, zálohy, aktualizace a podporu postaráme my. Je to pohodlí, ne lepší verze. V této instalaci není nic zamčené."
+    },
     "currentPlan": "Aktuální tarif",
     "periodEnd": "Aktuální období končí {date}",
     "manage": "Spravovat předplatné",
@@ -6832,6 +6850,9 @@
       "scope": "Rozsah",
       "apiKey": "API klíč",
       "apiKeyPlaceholder": "Vložte tajný klíč",
+      "baseUrl": "Adresa serveru (volitelné)",
+      "baseUrlPlaceholder": "http://localhost:11434/v1",
+      "baseUrlHelp": "Nasměrujte tohoto poskytovatele na vlastní server kompatibilní s OpenAI místo cloudu dodavatele: Ollama, LM Studio, llama.cpp, vLLM nebo vlastní bránu. Ponechte prázdné pro výchozí nastavení dodavatele. Lokální server obvykle žádný API klíč nepotřebuje.",
       "endpoint": "Endpoint",
       "endpointPlaceholder": "https://your-resource.openai.azure.com",
       "endpointRequired": "Azure OpenAI vyžaduje endpoint.",
@@ -7006,11 +7027,10 @@
       "removeAria": "Odebrat pozvánku pro {email}"
     },
     "pipeline": {
-      "variantLabel": "Jak nastavit nástěnku",
-      "variant": {
-        "board": "Nástěnka",
-        "presets": "Šablony"
-      },
+      "editCta": "Upravit kroky",
+      "viewCta": "Hotovo",
+      "chainLabel": "Výsledek",
+      "hereNow": "{count, plural, one {Na tomto kroku je # kandidát} few {Na tomto kroku jsou # kandidáti} other {Na tomto kroku je # kandidátů}}",
       "meta": "{count} z {max} kroků",
       "stepsCount": "{count, plural, one {# krok} few {# kroky} other {# kroků}}",
       "addStep": "Přidat krok",

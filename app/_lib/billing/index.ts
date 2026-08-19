@@ -11,6 +11,7 @@ export {
   entitledPlan,
   hasActiveSubscription,
   meterAllowance,
+  meteringActive,
   recordMeterUsage,
   type Allowance,
   type BillingOverview,
@@ -31,6 +32,7 @@ export {
   type PlanDef,
   type PlanId,
 } from "./plans";
+export { billingProviderConfigured } from "./mode";
 export { polarGatewayFromEnv } from "./polar";
 export { reduceBillingEvent, type BillingAction } from "./reduce";
 export { applyBillingAction, ingestBillingWebhook, resolveBillingOrg, type IngestResult } from "./sync";

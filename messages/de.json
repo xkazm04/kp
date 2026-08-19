@@ -91,6 +91,14 @@
       "offer": "Angebot",
       "terminal": "Eingestellt",
       "custom": "Sonstiges"
+    },
+    "roleMeaning": {
+      "entry": "Hier landet jede eingehende Bewerbung.",
+      "screening": "Sie lesen die Unterlagen und wählen aus, mit wem Sie sprechen.",
+      "interview": "Sie sprechen mit denen, die Ihre Zeit wert sind.",
+      "offer": "Sie machen ein Angebot und warten auf die Antwort.",
+      "terminal": "Das Angebot ist angenommen. Hier endet der Prozess.",
+      "custom": "Ihr eigener Schritt. Er bedeutet genau das, was Ihr Team braucht."
     }
   },
   "diagrams": {
@@ -6546,6 +6554,16 @@
     "loadFailed": "Abrechnung konnte nicht geladen werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
     "retry": "Erneut versuchen",
     "notConfigured": "Die Abrechnung ist nicht konfiguriert, die App läuft daher im lokalen Entwicklungsmodus. Käufe sind deaktiviert.",
+    "selfHost": {
+      "eyebrow": "Selbst gehostet",
+      "title": "Diese Installation wird nicht abgerechnet",
+      "body": "Sie betreiben Ihre eigene Kopie von KandiDate unter der AGPL. Es gibt hier kein Abonnement und nichts zu kaufen. Die gehosteten Pläne sind für alle, die die Anwendung nicht selbst betreiben möchten.",
+      "meters": "Alle Kontingente sind unbegrenzt: veröffentlichte Stellen, Einstellungen, KI-Kandidaten, Fallentwürfe und Interviewminuten.",
+      "modelsCta": "Modelle konfigurieren",
+      "modelsNote": "Die einzigen KI-Kosten dieser Installation sind Ihre eigene Anbieterrechnung.",
+      "cloudTitle": "Lieber nicht selbst betreiben?",
+      "cloudBody": "Das gehostete Produkt ist dieselbe Software. Server, Backups, Updates und Support übernehmen wir. Das ist Bequemlichkeit, keine bessere Version: In dieser Installation wird nichts zurückgehalten."
+    },
     "currentPlan": "Aktueller Tarif",
     "periodEnd": "Aktueller Zeitraum endet am {date}",
     "manage": "Abonnement verwalten",
@@ -6832,6 +6850,9 @@
       "scope": "Geltungsbereich",
       "apiKey": "API-Schlüssel",
       "apiKeyPlaceholder": "Geheimschlüssel einfügen",
+      "baseUrl": "Server-URL (optional)",
+      "baseUrlPlaceholder": "http://localhost:11434/v1",
+      "baseUrlHelp": "Richten Sie diesen Anbieter auf Ihren eigenen OpenAI-kompatiblen Server statt auf die Cloud des Anbieters: Ollama, LM Studio, llama.cpp, vLLM oder ein internes Gateway. Leer lassen für die Voreinstellung des Anbieters. Ein lokaler Server benötigt in der Regel keinen API-Schlüssel.",
       "endpoint": "Endpunkt",
       "endpointPlaceholder": "https://your-resource.openai.azure.com",
       "endpointRequired": "Azure OpenAI benötigt einen Endpunkt.",
@@ -7006,11 +7027,10 @@
       "removeAria": "Einladung für {email} entfernen"
     },
     "pipeline": {
-      "variantLabel": "Wie Sie Ihr Board einrichten",
-      "variant": {
-        "board": "Board",
-        "presets": "Vorlagen"
-      },
+      "editCta": "Schritte ändern",
+      "viewCta": "Fertig",
+      "chainLabel": "Das Ergebnis",
+      "hereNow": "{count, plural, one {# Person auf diesem Schritt} other {# Personen auf diesem Schritt}}",
       "meta": "{count} von {max} Schritten",
       "stepsCount": "{count, plural, one {# Schritt} other {# Schritte}}",
       "addStep": "Schritt hinzufügen",

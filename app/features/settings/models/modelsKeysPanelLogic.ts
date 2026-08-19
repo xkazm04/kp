@@ -1,6 +1,7 @@
 // Pure, DOM-free helpers for KeysPanel so the create-vs-replace guard and the
 // Azure-only-endpoint body rule are unit-testable under `node --test` (a `.tsx`
 // can't be loaded by the type-stripping runner). KeysPanel imports these.
+import { providerAcceptsBaseUrl } from "@/app/_lib/llm-model-defaults";
 import type { ProviderKeyMeta } from "@/app/_lib/llm-config";
 
 /**
@@ -24,6 +25,7 @@ export type KeyRequestBody = {
   apiKey: string;
   endpoint?: string;
   apiVersion?: string;
+  baseUrl?: string;
 };
 
 /**
@@ -40,13 +42,35 @@ export function buildKeyRequestBody(input: {
   apiKey: string;
   endpoint: string;
   apiVersion: string;
+  baseUrl?: string;
 }): KeyRequestBody {
   const isAzure = input.provider === "azure_openai";
+  // Same retained-state hazard as the Azure endpoint above, one field over: the
+  // base URL input is hidden but its React state survives a provider flip, so a
+  // `http://localhost:11434/v1` typed for Ollama must not ride along on an
+  // Anthropic key. Included only for the providers whose adapter reads it.
+  const baseUrl = providerAcceptsBaseUrl(input.provider) ? (input.baseUrl ?? "").trim() : "";
   return {
     provider: input.provider,
     scope: input.scope,
     apiKey: input.apiKey.trim(),
     ...(isAzure && input.endpoint.trim() ? { endpoint: input.endpoint.trim() } : {}),
     ...(isAzure && input.apiVersion.trim() ? { apiVersion: input.apiVersion.trim() } : {}),
+    ...(baseUrl ? { baseUrl } : {}),
   };
+}
+
+/** Whether the add form can be submitted. A keyless provider (Ollama and friends —
+ *  a stock local model server authenticates nothing) is satisfied by a base URL
+ *  alone; everything else still needs a key. Mirrors the PUT's own rule so the
+ *  button and the route can't disagree about what a valid row is. */
+export function canSubmitKeyForm(input: {
+  provider: string;
+  apiKey: string;
+  baseUrl?: string;
+  keylessProviders: readonly string[];
+}): boolean {
+  if (!input.provider) return false;
+  if (input.apiKey.trim()) return true;
+  return input.keylessProviders.includes(input.provider) && Boolean((input.baseUrl ?? "").trim());
 }

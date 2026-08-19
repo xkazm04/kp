@@ -55,6 +55,15 @@ registerHooks({
 const { cleanupUnitDb } = await import("./testing/unit-db.ts");
 after(cleanupUnitDb);
 
+// This file pins the COMMERCIAL (hosted) deployment: plans, allowances, gates and
+// webhook ingest. Metering only applies where a billing provider is configured
+// (billing/mode.ts) — unit-db.ts deliberately scrubs POLAR_* so no developer's
+// shell leaks in, so declare it here, the way unit-db documents ("tests that need
+// one set it explicitly"). Without this every meter below reads unlimited, which
+// is the correct answer for a self-hosted install and the wrong one for these
+// assertions. The self-hosted side is pinned by billing-selfhost.test.ts.
+process.env.POLAR_ACCESS_TOKEN = "polar_test_token";
+
 const { getBillingState, upsertBillingState, creditBalance, billingUsageFor, recordBillingAlert, listBillingAlerts } = await import("./db.ts");
 const { billingOverview, entitledPlan, hasActiveSubscription, meterAllowance, recordMeterUsage } = await import(
   "./billing/entitlements.ts"

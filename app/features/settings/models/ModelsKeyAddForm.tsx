@@ -19,6 +19,10 @@ export function ModelsKeyAddForm({
   onEndpointChange,
   apiVersion,
   onApiVersionChange,
+  baseUrl,
+  onBaseUrlChange,
+  acceptsBaseUrl,
+  canSubmit,
   formProviders,
   providerName,
   scopeLabel,
@@ -38,6 +42,14 @@ export function ModelsKeyAddForm({
   onEndpointChange: (v: string) => void;
   apiVersion: string;
   onApiVersionChange: (v: string) => void;
+  baseUrl: string;
+  onBaseUrlChange: (v: string) => void;
+  /** This provider speaks the OpenAI wire format, so it can be pointed at a
+   *  local/self-hosted server (BASE_URL_PROVIDERS in llm-model-defaults.ts). */
+  acceptsBaseUrl: boolean;
+  /** Precomputed by the panel from the SAME rule the PUT enforces, so the button
+   *  and the route never disagree about what a valid row is. */
+  canSubmit: boolean;
   formProviders: string[];
   providerName: (provider: string) => string;
   scopeLabel: (value: string) => string;
@@ -97,6 +109,23 @@ export function ModelsKeyAddForm({
             className="mt-1"
           />
         </div>
+        {acceptsBaseUrl ? (
+          <div className="sm:col-span-2 lg:col-span-4">
+            <label className={`${META_LABEL} block`} htmlFor="key-baseurl">
+              {t("baseUrl")}
+            </label>
+            <TextInput
+              id="key-baseurl"
+              type="url"
+              value={baseUrl}
+              onChange={(e) => onBaseUrlChange(e.target.value)}
+              placeholder={t("baseUrlPlaceholder")}
+              sizeVariant="sm"
+              className="mt-1"
+            />
+            <span className="mt-1 block text-meta text-steel">{t("baseUrlHelp")}</span>
+          </div>
+        ) : null}
         {isAzure ? (
           <>
             <div className="sm:col-span-2">
@@ -139,7 +168,7 @@ export function ModelsKeyAddForm({
         </p>
       ) : null}
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button type="submit" disabled={saving || !provider || !apiKey.trim()} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
+        <button type="submit" disabled={saving || !canSubmit} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
           {saving ? t("saving") : existingKey ? t("replace") : t("save")}
         </button>
         {note ? (

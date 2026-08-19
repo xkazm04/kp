@@ -59,23 +59,43 @@ export function isLlmProvider(value: unknown): value is LlmProvider {
   return typeof value === "string" && (LLM_PROVIDERS as readonly string[]).includes(value);
 }
 
-// Providers that take a stored key. claude_cli runs keyless (local default) and
-// ollama authenticates nothing on a stock server (endpoint set via OLLAMA_BASE_URL),
-// so neither is offered in the keys form and the PUT rejects them. Single source for
-// that "keyable provider" rule — the route and the admin UI both derive from here
-// instead of hand-coding the exclusions.
-const KEYLESS_PROVIDERS: readonly LlmProvider[] = ["claude_cli", "ollama"];
-export const KEYABLE_PROVIDERS = LLM_PROVIDERS.filter((p) => !KEYLESS_PROVIDERS.includes(p));
+/** True when this provider CAN be called without an API key (KEYLESS_PROVIDERS) —
+ *  the route then accepts a row carrying only a base URL. */
+export function isKeylessProvider(value: unknown): value is LlmProvider {
+  return isLlmProvider(value) && providerIsKeyless(value);
+}
+
+// What the keys form offers and the PUT accepts. Everything except `claude_cli`,
+// which has nothing to configure — no key, no endpoint, it just runs the local CLI.
+// Ollama IS offered (it was not before) precisely so its base URL can be set from
+// Settings rather than only from the process environment: pointing the app at a
+// model server on your own machine is the first thing a self-hoster does.
+export const KEYABLE_PROVIDERS = LLM_PROVIDERS.filter((p) => p !== "claude_cli");
 
 export function isKeyableProvider(value: unknown): value is LlmProvider {
-  return isLlmProvider(value) && !KEYLESS_PROVIDERS.includes(value);
+  return isLlmProvider(value) && value !== "claude_cli";
 }
 
 // Which providers must be told a model (Azure deployments, OpenRouter/Qwen/Ollama
 // slugs) lives in its own store-free module so the browser and `node --test` can
 // both load it; re-exported here so llm-config stays the one import for the
 // provider catalogs.
-export { MODEL_REQUIRED_PROVIDERS, providerNeedsExplicitModel } from "./llm-model-defaults";
+export {
+  BASE_URL_PROVIDERS,
+  KEYLESS_PROVIDERS,
+  MODEL_REQUIRED_PROVIDERS,
+  providerAcceptsBaseUrl,
+  providerIsKeyless,
+  providerNeedsExplicitModel,
+} from "./llm-model-defaults";
+
+// The base-URL rule is used as a TYPE GUARD in this module (saveProviderKey narrows
+// on it), which the structural re-export above cannot express — it takes a string,
+// not an LlmProvider. Local narrowing wrapper over the same single source.
+import { providerAcceptsBaseUrl as acceptsBaseUrl, providerIsKeyless } from "./llm-model-defaults";
+function isBaseUrlProvider(value: LlmProvider): boolean {
+  return acceptsBaseUrl(value);
+}
 
 export function isLlmUseCase(value: unknown): value is LlmUseCase {
   return typeof value === "string" && (LLM_USE_CASES as readonly string[]).includes(value);
@@ -86,11 +106,51 @@ const KP_LLM_CONFIG_ENV = "KP_LLM_CONFIG";
 export type ProviderKeyInput = {
   provider: LlmProvider;
   scope?: "byom" | "platform";
+  /** May be empty for a keyless provider (see KEYLESS_PROVIDERS) — a stock Ollama
+   *  or llama.cpp server checks no credential. Stored encrypted either way; an
+   *  empty value is simply not emitted into KP_LLM_CONFIG. */
   apiKey: string;
   /** Azure: resource endpoint + api version travel with the key. */
   endpoint?: string;
   apiVersion?: string;
+  /** OpenAI-compatible server to talk to instead of the vendor's own cloud
+   *  (Ollama, LM Studio, llama.cpp, vLLM, LiteLLM, an in-VPC gateway). Only
+   *  persisted for BASE_URL_PROVIDERS. */
+  baseUrl?: string;
 };
+
+/** Validate an OpenAI-compatible base URL.
+ *
+ *  Deliberately NOT `assertPublicHttpsEndpointResolved` — that guard exists to
+ *  stop a bearer key being exfiltrated to a private address, and it rejects
+ *  loopback, LAN and non-https on purpose. Here the opposite is the whole point:
+ *  `http://localhost:11434/v1` and `http://vllm.internal:8000/v1` are the normal,
+ *  intended values. The threat models genuinely differ:
+ *
+ *    Azure endpoint — a cloud credential is forwarded to a host the user named,
+ *                     so a private-resolving host is an SSRF/exfiltration pivot.
+ *    base URL       — an operator points the app at their own inference server,
+ *                     usually with no credential at all, on the same trust level
+ *                     as the OPENAI_BASE_URL / OLLAMA_BASE_URL env vars this
+ *                     replaces. Writing it requires `requireOperator`.
+ *
+ *  So the check is a shape check: parseable, http/https, and no embedded
+ *  credentials (which would land in the DB and in log lines). */
+function assertValidBaseUrl(raw: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`Base URL must be an absolute URL (got ${raw}).`);
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error(`Base URL must be http or https (got ${url.protocol.replace(":", "")}).`);
+  }
+  if (url.username || url.password) {
+    throw new Error("Base URL must not embed credentials — put the key in the API key field.");
+  }
+  return url.toString().replace(/\/$/, "");
+}
 
 // Azure resource endpoints live under this suffix; an operator can extend the
 // allowlist with exact hosts via KP_LLM_ENDPOINT_ALLOWLIST (comma-separated) for
@@ -134,6 +194,13 @@ export async function saveProviderKey(input: ProviderKeyInput): Promise<void> {
     meta.endpoint = endpoint;
   }
   if (apiVersion) meta.apiVersion = apiVersion;
+  // Same DROP-for-the-wrong-provider discipline as endpoint/apiVersion above: a
+  // baseUrl left standing in the form after the provider Select flips must never
+  // be persisted onto a provider whose adapter would ignore it (or, worse, one
+  // whose adapter would honour it and send the key somewhere unintended).
+  if (isBaseUrlProvider(input.provider) && input.baseUrl) {
+    meta.baseUrl = assertValidBaseUrl(input.baseUrl);
+  }
   upsertProviderKey({
     provider: input.provider,
     scope: input.scope ?? "byom",
@@ -151,6 +218,9 @@ export type ProviderKeyMeta = {
   scope: string;
   endpoint?: string;
   apiVersion?: string;
+  /** The configured OpenAI-compatible server, if any. Not a secret (it is a host
+   *  the operator typed and needs to see to confirm), unlike the key beside it. */
+  baseUrl?: string;
   updatedAt: string;
 };
 
@@ -161,6 +231,7 @@ export function listProviderKeyMeta(): ProviderKeyMeta[] {
     scope: row.scope,
     ...(typeof row.meta.endpoint === "string" ? { endpoint: row.meta.endpoint } : {}),
     ...(typeof row.meta.apiVersion === "string" ? { apiVersion: row.meta.apiVersion } : {}),
+    ...(typeof row.meta.baseUrl === "string" ? { baseUrl: row.meta.baseUrl } : {}),
     updatedAt: row.updatedAt,
   }));
 }
@@ -206,7 +277,10 @@ type UseCaseEntry = {
   params?: { maxTokens?: number; timeoutS?: number };
 };
 
-type KeysEntry = { apiKey?: string; endpoint?: string; apiVersion?: string };
+// `apiKey` is OPTIONAL: a keyless local server (Ollama, llama.cpp, LM Studio)
+// stores a row with only a baseUrl, and the Python adapter supplies the
+// placeholder the OpenAI SDK insists on (adapters/openai_api.py).
+type KeysEntry = { apiKey?: string; endpoint?: string; apiVersion?: string; baseUrl?: string };
 
 function toUseCaseEntry(row: LlmConfigRow): UseCaseEntry {
   const entry: UseCaseEntry = { provider: row.provider };
@@ -242,9 +316,15 @@ export function buildLlmConfigEnv(): Record<string, string> {
   const keys: Record<string, KeysEntry> = {};
   const byPrecedence = [...keyRows].sort((a, b) => (a.scope === b.scope ? 0 : a.scope === "platform" ? -1 : 1));
   for (const row of byPrecedence) {
-    const entry: KeysEntry = { apiKey: decryptProviderSecret(row.keyCiphertext) };
+    const entry: KeysEntry = {};
+    // Omit an empty key rather than emitting "": the Python side treats a present
+    // apiKey as "use this credential", and a blank one would defeat the keyless
+    // local-server path instead of falling through to the adapter's placeholder.
+    const apiKey = decryptProviderSecret(row.keyCiphertext);
+    if (apiKey) entry.apiKey = apiKey;
     if (typeof row.meta.endpoint === "string") entry.endpoint = row.meta.endpoint;
     if (typeof row.meta.apiVersion === "string") entry.apiVersion = row.meta.apiVersion;
+    if (typeof row.meta.baseUrl === "string") entry.baseUrl = row.meta.baseUrl;
     keys[row.provider] = entry;
   }
 
@@ -265,8 +345,13 @@ export function buildLlmConfigEnv(): Record<string, string> {
 export function buildProviderKeyProbeEnv(provider: string, scope: string): Record<string, string> | null {
   const row = listProviderKeys().find((candidate) => candidate.provider === provider && candidate.scope === scope);
   if (!row) return null;
-  const entry: KeysEntry = { apiKey: decryptProviderSecret(row.keyCiphertext) };
+  const entry: KeysEntry = {};
+  const apiKey = decryptProviderSecret(row.keyCiphertext);
+  if (apiKey) entry.apiKey = apiKey;
   if (typeof row.meta.endpoint === "string") entry.endpoint = row.meta.endpoint;
   if (typeof row.meta.apiVersion === "string") entry.apiVersion = row.meta.apiVersion;
+  // The probe must hit the SAME endpoint the real call would, or a green "Test"
+  // proves nothing about the server the operator actually configured.
+  if (typeof row.meta.baseUrl === "string") entry.baseUrl = row.meta.baseUrl;
   return { [KP_LLM_CONFIG_ENV]: JSON.stringify({ useCases: {}, keys: { [provider]: entry } }) };
 }

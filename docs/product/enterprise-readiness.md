@@ -187,14 +187,53 @@ there. The billing provider sits behind a swappable `BillingGateway`; LightTrack
 telemetry is optional; persistence is a single SQLite file (portable). A
 Dockerfile/deploy story is already shipped.
 
-**Gap.** No license model; SQLite→Postgres for a real multi-user deployment; a
-Models-tab base-URL field for self-hosted endpoints.
+**Gap.** SQLite→Postgres for a real multi-user deployment; a
+Models-tab base-URL field for self-hosted endpoints. (The license gap is closed —
+see E-SH-1.)
 
 **Work items.**
-- **E-SH-1 (decision, founder + counsel)** Licensing model. Recommend
-  **source-available** (BSL 1.1 / Elastic / Fair-Core) — gives the customer source
-  access + the right to self-host and audit *without* open-sourcing the commercial
-  core. True OSS (MIT/Apache) gives away the business; pick deliberately. — **decision**
+- **E-SH-1 (decision, founder)** Licensing model. — ✅ **DECIDED: AGPL-3.0-only,
+  open-source first** (`LICENSE`, `CONTRIBUTING.md`, `CLA.md`).
+
+  **This reverses the recommendation that stood here.** The earlier text
+  recommended a source-available licence (BSL 1.1 / Elastic / Fair-Core) on the
+  reasoning that "true OSS gives away the business". That reasoning weighed the
+  wrong risk. It assumed the scarce thing was the source, when for a product in
+  this category the scarce thing is **distribution and trust** — and it read the
+  self-host ask as an enterprise concession to be sold rather than as the
+  product's front door.
+
+  What changed the call:
+
+  - **The buyer's real objection is verifiability, and source-available only
+    half-answers it.** A bank's security review does not distinguish "we can read
+    it" from "we can read it and there is a community reading it too". An
+    auditable AI hiring system under the EU AI Act is a stronger claim when the
+    audit is continuous and public than when it is contractual and private.
+  - **The moat was never the code.** It is the Czech-market salary and taxonomy
+    corpus, the calibrated scoring, the accumulated eval harnesses, and the
+    operational burden of running this well. A competitor with the repo still
+    has none of those.
+  - **AGPL's network clause covers the actual competitive threat.** The risk was
+    never a self-hoster; it was somebody re-hosting KandiDate as a rival SaaS.
+    Under §13 they must publish their modifications. Source-available licences
+    buy that same protection at the cost of not being open source at all — which
+    forfeits the adoption, contribution and credibility that motivated the
+    change.
+  - **The self-host story was already 80% true** (BYOM, swappable gateway,
+    optional telemetry, single-file persistence, air-gap mode). Charging for the
+    last 20% was selling a permission slip, not a capability.
+
+  Contributions are taken under a CLA (`CLA.md`) so that a commercially-hosted
+  version remains possible and a future relicence does not require chasing every
+  past contributor. **Open-core was explicitly rejected**: nothing is held back
+  from the repository, and the hosted product sells operations — servers,
+  backups, upgrades, support, platform model keys — not features.
+
+  Consequence for the rest of this document: capabilities listed below as
+  enterprise *deliverables* (SSO, audit export, branding) are still enterprise
+  *work*, but they ship in the open repository. What Enterprise buys is delivery,
+  support and contractual assurance around them.
 - **E-SH-2** Packaged deploy: Dockerfile, `docker-compose` / **Helm chart**, prod
   env checklist, license-key gating. — ✅ **DONE (first increment):** multi-stage
   `Dockerfile` (Node 24 + Python, native better-sqlite3, non-root, tini),
@@ -318,7 +357,7 @@ serviced account. See `docs/features/billing/README.md` (Known gaps) and
 | **E1** | **Enterprise SSO & RBAC** | SAML/OIDC + SCIM (recommend a provider), enforced SSO, server-side roles (mostly done), session revocation | **L (M w/ provider)** | E0 (done) |
 | **E2** | **Audit + GDPR/DPA** | Per-tenant audit chain (done) + broad event coverage, export; DPA/DPIA/RoPA/residency; AI-Act map (done) | **M–L** | E0, E1 |
 | **E3** | **Brand / white-label** | Per-org brand store + token injection (done); white-label candidate surfaces + comms (mostly done); custom domain (done single-deployment) | **M** | E0 |
-| **E4** | **Self-host / licensed** | License decision (open); Docker/Helm (done); Postgres (scoped); air-gap mode (done); self-hosted model endpoints (done); residency | **L** | E0 |
+| **E4** | **Self-host / open source** | License decided (AGPL-3.0-only, done); Docker/Helm (done); Postgres (scoped); air-gap mode (done); self-hosted model endpoints (done); residency | **L** | E0 |
 | **E5** | **SOC 2 (+ ISO 27001)** | Gap assessment → policies → evidence + pen test → Type I → Type II | **L + 3–6 mo clock + $$** | E1, E2 (consumes their controls) |
 | **E6** | **Org billing + seats** | Org-keyed billing tables, seat quantity + enforcement, per-team metering | **M–L** | E0 (done) |
 
@@ -362,7 +401,7 @@ Numbering continues the ship-loop backlog; `Dim` uses its scheme (2-Func / 6-Sec
 | ☐ | 6-Sec | L | **E2a Audit expansion** — per-tenant decision-chain (done) + broad `audit_events` (auth/role/config/PII/export) + SIEM export → §3 |
 | ☐ | 6-Sec | M | **E2b GDPR/DPA pack** — DPA + sub-processor register, DPIA for AI eval, full data-subject rights (access/portability/rectification), RoPA, EU residency → §7 |
 | 🟡 | 7-UX | M | **E3 Brand / white-label** — mostly done; remaining: branded email/letter copy + sender/reply-to → §4 |
-| ☐ | 8-Ops | L | **E4 Self-host / licensed** — license decision (BSL/source-available) open; Docker/Helm/air-gap/self-hosted endpoints done; Postgres scoped, not built → §5 |
+| 🟡 | 8-Ops | L | **E4 Self-host / open source** — license DECIDED (AGPL-3.0-only, reversing the BSL recommendation); Docker/Helm/air-gap/self-hosted endpoints done; Postgres scoped, not built → §5 |
 | ☐ | 6-Sec | L | **E5 SOC 2 (+ISO 27001)** — gap assessment (Vanta/Drata) → policies/runbooks → evidence + pen test → Type I → Type II. Calendar-bound; start early → §6 |
 | ☐ | 5-Bill | M | **E6 Org billing + seats** — `org_id`-keyed billing tables, seat quantity in checkout+webhook, seat enforcement, per-team metering, `llm_usage` attribution → §8 |
 

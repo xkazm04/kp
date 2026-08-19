@@ -91,6 +91,14 @@
       "offer": "Offer",
       "terminal": "Hired",
       "custom": "Other"
+    },
+    "roleMeaning": {
+      "entry": "Everyone who applies lands here first.",
+      "screening": "You read what they sent and pick who to talk to.",
+      "interview": "You talk to the ones worth your time.",
+      "offer": "You make an offer and wait for the answer.",
+      "terminal": "They accepted. This is where hiring ends.",
+      "custom": "Your own step. It means whatever your team needs it to mean."
     }
   },
   "diagrams": {
@@ -6546,6 +6554,16 @@
     "loadFailed": "Couldn't load billing. Check the connection and try again.",
     "retry": "Try again",
     "notConfigured": "Billing isn't configured, so the app is running in local development mode. Purchases are disabled.",
+    "selfHost": {
+      "eyebrow": "Self-hosted",
+      "title": "This install isn't metered",
+      "body": "You're running your own copy of KandiDate under the AGPL. There is no subscription here and nothing to buy. The hosted plans exist for people who would rather not run it themselves.",
+      "meters": "Every allowance reads unlimited: published roles, hires, AI candidates, case designs and interview minutes.",
+      "modelsCta": "Configure your models",
+      "modelsNote": "The only AI spend on this install is your own provider bill.",
+      "cloudTitle": "Would rather not run it yourself?",
+      "cloudBody": "The hosted product is the same software, with the servers, backups, upgrades and support handled for you. It's a convenience, not a better version. Nothing in this install is held back."
+    },
     "currentPlan": "Current plan",
     "periodEnd": "Current period ends {date}",
     "manage": "Manage subscription",
@@ -6832,6 +6850,9 @@
       "scope": "Scope",
       "apiKey": "API key",
       "apiKeyPlaceholder": "Paste the secret key",
+      "baseUrl": "Server URL (optional)",
+      "baseUrlPlaceholder": "http://localhost:11434/v1",
+      "baseUrlHelp": "Point this provider at your own OpenAI-compatible server instead of the vendor's cloud: Ollama, LM Studio, llama.cpp, vLLM or an in-house gateway. Leave empty to use the vendor's default. A local server usually needs no API key.",
       "endpoint": "Endpoint",
       "endpointPlaceholder": "https://your-resource.openai.azure.com",
       "endpointRequired": "Azure OpenAI requires an endpoint.",
@@ -7006,11 +7027,10 @@
       "removeAria": "Remove invite for {email}"
     },
     "pipeline": {
-      "variantLabel": "How to set up your board",
-      "variant": {
-        "board": "Board",
-        "presets": "Shapes"
-      },
+      "editCta": "Change these steps",
+      "viewCta": "Done",
+      "chainLabel": "The result",
+      "hereNow": "{count, plural, one {# candidate is on this step} other {# candidates are on this step}}",
       "meta": "{count} of {max} steps",
       "stepsCount": "{count, plural, one {# step} other {# steps}}",
       "addStep": "Add step",

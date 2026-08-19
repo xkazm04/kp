@@ -16,6 +16,7 @@ import { ensureDb } from "../db/core";
 import { listProviderKeys } from "../db/llm";
 import { DEFAULT_ORG_ID } from "../db/organizations";
 import { getWorkspaceOrgId, DEFAULT_WORKSPACE_ID } from "../db/workspaces";
+import { billingProviderConfigured } from "./mode";
 import { currentPeriod, PLANS, type Meter, type PlanDef, type PlanId } from "./plans";
 
 /** The billing scope a workspace's spend belongs to: its ORG (org-plan Phase 3 —
@@ -106,6 +107,10 @@ export type BillingOverview = {
   status: string;
   periodEnd: string | null;
   provider: string | null;
+  /** False on a self-hosted install (no billing provider, no billing history):
+   *  every meter below reads `limit: null` and nothing is ever gated. The UI
+   *  renders the self-hosted panel instead of plans and usage bars. */
+  metered: boolean;
   meters: MeterOverview[];
 };
 
@@ -165,8 +170,43 @@ export function effectiveLimit(plan: PlanDef, meter: Meter): number | null {
   return byomKeyConfigured() ? null : PLANS.free.limits[meter];
 }
 
+/** Whether THIS deployment meters THIS org at all — the open-source seam
+ *  (`billing/mode.ts` carries the full reasoning).
+ *
+ *  Metered when a billing provider is configured (the hosted product), or when
+ *  the org already carries billing state (it transacted at some point, so it is
+ *  a customer even if the credential later went missing). Otherwise this is
+ *  somebody's own AGPL install: unlimited everything, no 402s, no upgrade
+ *  prompts. `meterOverview` is the single funnel every read and every gate goes
+ *  through, so this one call unmeters the whole product.
+ *
+ *  Deliberately NOT cached: an operator who pastes a Polar token and restarts
+ *  should see metering engage without a code path remembering the old answer,
+ *  and the reads behind it are synchronous better-sqlite3 point lookups. */
+export function meteringActive(orgId: string = DEFAULT_ORG_ID, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (billingProviderConfigured(env)) return true;
+  return getBillingState(orgId) !== null;
+}
+
+/** THE limit both the read path (meterOverview → the gates) and the write path
+ *  (recordMeterUsage's credit split) resolve through. Two layers, in order:
+ *
+ *    1. Is this deployment metering this org at all? A self-hosted install
+ *       resolves EVERY meter to unlimited before the plan is consulted —
+ *       including `job_posts` and `hires`, the two outcome meters that carry the
+ *       hosted price. There is no customer here to charge for an outcome, and a
+ *       free-plan cap of one role and one hire is just a broken app.
+ *    2. Otherwise the plan's effective limit (which is where BYOM's
+ *       unlimited-on-your-own-key rule lives).
+ *
+ *  Both call sites go through this ONE function so the amount gated and the
+ *  amount debited can never diverge — meter-attribution.test.ts pins that. */
+function resolvedLimit(plan: PlanDef, meter: Meter, orgId: string): number | null {
+  return meteringActive(orgId) ? effectiveLimit(plan, meter) : null;
+}
+
 export function meterOverview(meter: Meter, plan: PlanDef, now: Date = new Date(), orgId: string = DEFAULT_ORG_ID): MeterOverview {
-  const limit = effectiveLimit(plan, meter);
+  const limit = resolvedLimit(plan, meter, orgId);
   const used = billingUsageFor(meter, currentPeriod(now), orgId);
   // Clamp the spendable/displayed balance at >=0: a refund claw-back (a negative
   // ledger row) that exceeds the minutes still on hand drives the raw SUM negative,
@@ -196,6 +236,7 @@ export function billingOverview(now: Date = new Date(), workspace?: string): Bil
     status: state?.status ?? "none",
     periodEnd: state?.currentPeriodEnd ?? null,
     provider: state?.provider ?? null,
+    metered: meteringActive(orgId),
     meters: (Object.keys(plan.limits) as Meter[]).map((meter) => meterOverview(meter, plan, now, orgId)),
   };
 }
@@ -243,10 +284,11 @@ export function recordMeterUsage(meter: Meter, qty: number = 1, now: Date = new 
   // tenant's ORG. Omitted → the default org, the exact rows it always debited.
   const orgId = billingOrgForWorkspace(workspace);
   const plan = entitledPlan(getBillingState(orgId), now);
-  // The DEBIT reads the same effective limit as the gate: an unfunded BYOM tier is
-  // metered, so its credit split behaves like any other limited plan rather than
-  // skipping the ledger entirely.
-  const limit = effectiveLimit(plan, meter);
+  // The DEBIT reads the same limit as the gate: an unfunded BYOM tier is metered,
+  // so its credit split behaves like any other limited plan rather than skipping
+  // the ledger entirely — and an unmetered self-hosted install consumes no prepaid
+  // credits, because there are none to consume.
+  const limit = resolvedLimit(plan, meter, orgId);
   const period = currentPeriod(now);
   const db = ensureDb();
   db.transaction(() => {

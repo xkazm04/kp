@@ -2,6 +2,11 @@
   "name": "kp",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kazimi66/kp.git"
+  },
   "type": "module",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || exit 0",

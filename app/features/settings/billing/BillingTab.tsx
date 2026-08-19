@@ -12,6 +12,7 @@ import { SectionTitle } from "@/app/_components/ui/SectionTitle";
 import { labelize } from "@/app/_lib/format";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { BillingCurrentPlanPanel } from "./BillingCurrentPlanPanel";
+import { BillingSelfHostPanel } from "./BillingSelfHostPanel";
 import { BillingStatusBanners } from "./BillingStatusBanners";
 import { useBillingPortal } from "./useBillingPortal";
 import type { BillingPayload } from "./billingTypes";
@@ -48,6 +49,12 @@ export function BillingTab() {
   // page is about to navigate to the provider-hosted form.
   const [purchase, setPurchase] = useState<{ key: string; error: string | null } | null>(null);
   const { portalBusy, portalNote, openPortal } = useBillingPortal();
+  // Self-hosted (AGPL) install: no billing provider, no billing history, nothing
+  // gated (app/_lib/billing/mode.ts). The plan card, the catalog and the
+  // not-configured note are all replaced by one honest panel — see
+  // BillingSelfHostPanel for why it isn't simply hidden. Defaults to metered
+  // while `data` is null so a hosted deploy never flashes the self-host panel.
+  const selfHosted = data !== null && !data.metered;
   // Post-checkout return: the provider redirected to /?tab=billing&billing=success.
   // The flag is captured ONCE via lazy initial state (render-derived and sticky, so
   // it survives the URL cleanup below) rather than a synchronous setState in the
@@ -142,6 +149,10 @@ export function BillingTab() {
         <p className={`mt-2 max-w-2xl ${INTRO}`}>{t("intro")}</p>
       </header>
 
+      {/* `configured` drives a "billing isn't configured, purchases disabled" note —
+          a HOSTED-deploy misconfiguration warning. On a self-hosted install that same
+          condition is the normal, intended state, so pass `true` to suppress it;
+          BillingSelfHostPanel says the true thing in its place. */}
       <BillingStatusBanners
         checkout={checkout}
         planName={data?.plan.name ?? ""}
@@ -151,10 +162,12 @@ export function BillingTab() {
           load();
         }}
         hasData={data !== null}
-        configured={data?.configured ?? true}
+        configured={selfHosted ? true : (data?.configured ?? true)}
       />
 
-      {data ? (
+      {selfHosted ? <BillingSelfHostPanel /> : null}
+
+      {data && !selfHosted ? (
         <BillingCurrentPlanPanel
           data={data}
           statusLabel={statusLabel}
@@ -175,7 +188,7 @@ export function BillingTab() {
       {/* Tier 3: the plan catalog + minutes pack, one idle beat after the primary
           panels paint. Its own chunk (BillingPlanCatalog.tsx), so this tab's entry
           payload is the current plan + usage meters only. */}
-      {data ? (
+      {data && !selfHosted ? (
         <Defer strategy="idle" placeholder={<div className="reveal-quiet min-h-[20rem]" aria-hidden />}>
           <PlanCatalog
             data={data}

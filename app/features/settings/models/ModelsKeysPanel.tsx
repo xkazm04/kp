@@ -7,7 +7,8 @@ import { BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
 import { labelize } from "@/app/_lib/format";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { ProviderKeyMeta } from "@/app/_lib/llm-config";
-import { buildKeyRequestBody, findExistingKey } from "./modelsKeysPanelLogic";
+import { KEYLESS_PROVIDERS, providerAcceptsBaseUrl } from "@/app/_lib/llm-model-defaults";
+import { buildKeyRequestBody, canSubmitKeyForm, findExistingKey } from "./modelsKeysPanelLogic";
 import { useProviderName } from "./modelsProviderNames";
 import { ModelsKeysList } from "./ModelsKeysList";
 import { ModelsKeyAddForm } from "./ModelsKeyAddForm";
@@ -36,6 +37,10 @@ export function KeysPanel() {
   const [apiKey, setApiKey] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [apiVersion, setApiVersion] = useState("");
+  // OpenAI-compatible server (Ollama, LM Studio, llama.cpp, vLLM, LiteLLM) — the
+  // local-model path. Retained across a provider flip like the Azure fields, and
+  // stripped from the body by buildKeyRequestBody for providers that ignore it.
+  const [baseUrl, setBaseUrl] = useState("");
   const [saving, setSaving] = useState(false);
   // `kpSecret` flags the encryption-secret-missing 400 so the fix hint renders
   // under the verbatim server message.
@@ -69,7 +74,7 @@ export function KeysPanel() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (saving || !provider || !apiKey.trim()) return;
+    if (saving || !canSubmitKeyForm({ provider, apiKey, baseUrl, keylessProviders: KEYLESS_PROVIDERS })) return;
     if (provider === "azure_openai" && !endpoint.trim()) {
       setNote({ text: t("endpointRequired"), ok: false });
       return;
@@ -87,7 +92,7 @@ export function KeysPanel() {
         // bug-ui-scan-2026-07-09 (model-api-key-management #2): buildKeyRequestBody
         // includes endpoint/apiVersion ONLY for azure_openai, so a stale (hidden but
         // retained) Azure endpoint never rides along on a non-Azure key.
-        body: JSON.stringify(buildKeyRequestBody({ provider, scope, apiKey, endpoint, apiVersion })),
+        body: JSON.stringify(buildKeyRequestBody({ provider, scope, apiKey, endpoint, apiVersion, baseUrl })),
       });
       const p = (await r.json().catch(() => ({}))) as { keys?: ProviderKeyMeta[]; error?: string; code?: string };
       if (!r.ok || !p.keys) {
@@ -128,6 +133,7 @@ export function KeysPanel() {
 
   const formProviders = data ? data.providers : [];
   const isAzure = provider === "azure_openai";
+  const acceptsBaseUrl = providerAcceptsBaseUrl(provider);
   // bug-ui-scan-2026-07-09 (model-api-key-management #4): saving an upsert onto an
   // existing (provider, scope) pair silently REPLACES a live, unrecoverable key.
   // Surface it before the destructive overwrite — relabel the button + warn inline.
@@ -174,6 +180,10 @@ export function KeysPanel() {
             onEndpointChange={setEndpoint}
             apiVersion={apiVersion}
             onApiVersionChange={setApiVersion}
+            baseUrl={baseUrl}
+            onBaseUrlChange={setBaseUrl}
+            acceptsBaseUrl={acceptsBaseUrl}
+            canSubmit={canSubmitKeyForm({ provider, apiKey, baseUrl, keylessProviders: KEYLESS_PROVIDERS })}
             formProviders={formProviders}
             providerName={providerName}
             scopeLabel={scopeLabel}

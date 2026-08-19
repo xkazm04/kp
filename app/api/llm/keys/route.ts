@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteProviderKey } from "@/app/_lib/db/llm";
-import { isKeyableProvider, isLlmProvider, KEYABLE_PROVIDERS, listProviderKeyMeta, saveProviderKey } from "@/app/_lib/llm-config";
+import {
+  isKeyableProvider,
+  isKeylessProvider,
+  isLlmProvider,
+  KEYABLE_PROVIDERS,
+  listProviderKeyMeta,
+  providerAcceptsBaseUrl,
+  saveProviderKey,
+} from "@/app/_lib/llm-config";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 
@@ -28,6 +36,7 @@ export async function PUT(request: NextRequest) {
     apiKey?: unknown;
     endpoint?: unknown;
     apiVersion?: unknown;
+    baseUrl?: unknown;
   } | null;
   if (!body) return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   if (!isKeyableProvider(body.provider)) {
@@ -36,8 +45,24 @@ export async function PUT(request: NextRequest) {
       { status: 400 }
     );
   }
-  if (typeof body.apiKey !== "string" || !body.apiKey.trim()) {
-    return NextResponse.json({ error: "apiKey is required." }, { status: 400 });
+  const apiKey = typeof body.apiKey === "string" ? body.apiKey.trim() : "";
+  const baseUrl =
+    providerAcceptsBaseUrl(body.provider) && typeof body.baseUrl === "string" && body.baseUrl.trim()
+      ? body.baseUrl.trim()
+      : undefined;
+  // A KEYLESS provider (a stock Ollama / llama.cpp / LM Studio server checks no
+  // credential) may be saved with a base URL and no key — that row exists to say
+  // WHERE the model server is. Every other provider still requires a key, and even
+  // a keyless one must carry at least one of the two, or the row says nothing.
+  if (!apiKey && !(isKeylessProvider(body.provider) && baseUrl)) {
+    return NextResponse.json(
+      {
+        error: isKeylessProvider(body.provider)
+          ? "Give this provider an API key or a base URL (e.g. http://localhost:11434/v1)."
+          : "apiKey is required.",
+      },
+      { status: 400 }
+    );
   }
   const scope = isScope(body.scope) ? body.scope : "byom";
   const endpoint = typeof body.endpoint === "string" && body.endpoint.trim() ? body.endpoint.trim() : undefined;
@@ -50,9 +75,10 @@ export async function PUT(request: NextRequest) {
     await saveProviderKey({
       provider: body.provider,
       scope,
-      apiKey: body.apiKey.trim(),
+      apiKey,
       endpoint,
       apiVersion: typeof body.apiVersion === "string" && body.apiVersion.trim() ? body.apiVersion.trim() : undefined,
+      baseUrl,
     });
   } catch (error) {
     return NextResponse.json(

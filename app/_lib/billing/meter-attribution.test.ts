@@ -62,14 +62,26 @@ test("every other plan is untouched — effectiveLimit is identity outside BYOM"
 test("the gate and the debit read ONE limit function, never two", () => {
   const ent = src("./entitlements.ts");
   // meterOverview feeds meterGate/meterAllowance; recordMeterUsage is the debit.
-  // Both must resolve through effectiveLimit, or an unfunded BYOM tier would be
-  // refused by the gate and then skip the credit split on the way out.
+  // Both must resolve through `resolvedLimit`, or the two halves diverge: an
+  // unfunded BYOM tier would be refused by the gate and then skip the credit split
+  // on the way out, and (since the open-source seam landed) an UNMETERED
+  // self-hosted install would gate on nothing while still consuming prepaid
+  // credits on the debit side.
   assert.equal(
-    (ent.match(/const limit = effectiveLimit\(plan, meter\)/g) ?? []).length,
+    (ent.match(/const limit = resolvedLimit\(plan, meter, orgId\)/g) ?? []).length,
     2,
-    "meterOverview and recordMeterUsage both resolve the effective limit"
+    "meterOverview and recordMeterUsage both resolve the limit through resolvedLimit"
   );
+  // resolvedLimit is the ONE place the two layers compose: is this deployment
+  // metering this org at all, and then the plan's effective limit.
+  assert.match(
+    ent,
+    /function resolvedLimit[\s\S]*?meteringActive\(orgId\) \? effectiveLimit\(plan, meter\) : null/
+  );
+  // Nobody reads the raw plan limit directly (effectiveLimit's own body excepted)…
   assert.doesNotMatch(ent.replace(/export function effectiveLimit[\s\S]*?\n}/, ""), /const limit = plan\.limits\[meter\]/);
+  // …and nobody bypasses the metering layer by calling effectiveLimit straight.
+  assert.doesNotMatch(ent.replace(/function resolvedLimit[\s\S]*?\n}/, ""), /const limit = effectiveLimit\(/);
 });
 
 test("a simulation gates and debits the SAME tenant", () => {

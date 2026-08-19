@@ -91,6 +91,14 @@
       "offer": "Offre",
       "terminal": "Recruté",
       "custom": "Autre"
+    },
+    "roleMeaning": {
+      "entry": "Toute candidature arrive d’abord ici.",
+      "screening": "Vous lisez les dossiers et choisissez qui rencontrer.",
+      "interview": "Vous parlez à ceux qui méritent votre temps.",
+      "offer": "Vous faites une offre et vous attendez la réponse.",
+      "terminal": "L’offre est acceptée. Le recrutement s’arrête ici.",
+      "custom": "Votre propre étape. Elle signifie ce dont votre équipe a besoin."
     }
   },
   "diagrams": {
@@ -6546,6 +6554,16 @@
     "loadFailed": "Impossible de charger la facturation. Vérifiez la connexion et réessayez.",
     "retry": "Réessayer",
     "notConfigured": "La facturation n’est pas configurée, l’application s’exécute donc en mode développement local. Les achats sont désactivés.",
+    "selfHost": {
+      "eyebrow": "Auto-hébergé",
+      "title": "Cette installation n'est pas facturée",
+      "body": "Vous utilisez votre propre copie de KandiDate sous licence AGPL. Il n'y a ici ni abonnement ni rien à acheter. Les offres hébergées s'adressent à celles et ceux qui préfèrent ne pas l'héberger eux-mêmes.",
+      "meters": "Tous les quotas sont illimités : postes publiés, recrutements, candidats analysés par l'IA, études de cas et minutes d'entretien.",
+      "modelsCta": "Configurer vos modèles",
+      "modelsNote": "Les seules dépenses d'IA sur cette installation sont votre propre facture de fournisseur.",
+      "cloudTitle": "Vous préférez ne pas l'héberger vous-même ?",
+      "cloudBody": "Le produit hébergé, c'est le même logiciel, avec les serveurs, les sauvegardes, les mises à jour et le support pris en charge. C'est un confort, pas une meilleure version : rien n'est bridé dans cette installation."
+    },
     "currentPlan": "Forfait actuel",
     "periodEnd": "La période en cours se termine le {date}",
     "manage": "Gérer l’abonnement",
@@ -6832,6 +6850,9 @@
       "scope": "Portée",
       "apiKey": "Clé API",
       "apiKeyPlaceholder": "Collez la clé secrète",
+      "baseUrl": "URL du serveur (facultatif)",
+      "baseUrlPlaceholder": "http://localhost:11434/v1",
+      "baseUrlHelp": "Dirigez ce fournisseur vers votre propre serveur compatible OpenAI plutôt que vers son cloud : Ollama, LM Studio, llama.cpp, vLLM ou une passerelle interne. Laissez vide pour utiliser la valeur par défaut du fournisseur. Un serveur local ne demande généralement aucune clé d'API.",
       "endpoint": "Point de terminaison",
       "endpointPlaceholder": "https://your-resource.openai.azure.com",
       "endpointRequired": "Azure OpenAI nécessite un point de terminaison.",
@@ -7006,11 +7027,10 @@
       "removeAria": "Supprimer l’invitation de {email}"
     },
     "pipeline": {
-      "variantLabel": "Comment configurer votre tableau",
-      "variant": {
-        "board": "Tableau",
-        "presets": "Modèles"
-      },
+      "editCta": "Modifier ces étapes",
+      "viewCta": "Terminé",
+      "chainLabel": "Le résultat",
+      "hereNow": "{count, plural, one {# candidat sur cette étape} other {# candidats sur cette étape}}",
       "meta": "{count} étapes sur {max}",
       "stepsCount": "{count, plural, one {# étape} other {# étapes}}",
       "addStep": "Ajouter une étape",
