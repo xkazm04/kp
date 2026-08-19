@@ -3,6 +3,45 @@
 Status: backend shipped and enforcement wired, on an **outcome-priced** model.
 Outstanding: a richer pricing/billing UI surface.
 
+## Read this first: billing applies to the HOSTED product only
+
+KP is open source (AGPL-3.0). **A self-hosted install is not metered at all** —
+every meter below resolves unlimited and no gate ever fires.
+
+The seam is `app/_lib/billing/mode.ts` + `meteringActive()` in
+`billing/entitlements.ts`. A deployment is metered when either:
+
+1. a **billing provider is configured** (`POLAR_ACCESS_TOKEN` — the hosted
+   product), or
+2. **this org already carries billing state** (it transacted at some point, so it
+   is a customer even if the credential later went missing from a deploy).
+
+Otherwise `resolvedLimit()` returns `null` for every meter before the plan is
+consulted, including the two outcome meters that carry the headline price. Both the
+read path (`meterOverview` → `meterGate`/`meterAllowance`) and the write path
+(`recordMeterUsage`'s credit split) go through that ONE function, so the amount
+gated and the amount debited can never diverge — `meter-attribution.test.ts` pins
+the shape, `billing-selfhost.test.ts` pins the unmetered behaviour, and
+`billing-gate.test.ts` sets `POLAR_ACCESS_TOKEN` to pin the metered one.
+
+Why clause (2) exists: keying purely on the env var would rest the hosted product's
+entire revenue gate on one variable surviving a deploy. With it, the failure mode of
+a mis-set credential is "too generous to a brand-new org", never "billed a
+self-hoster".
+
+**Usage is still RECORDED while unmetered.** Unmetered means never refused, not
+never counted — a self-hoster's own analytics still wants the numbers.
+
+### The BYOM tier is withdrawn from sale
+
+BYOM sold "your model keys, our machinery" for 120 Kč, which is exactly what
+self-hosting now gives away, unlimited and free. It carries `legacy: true` in
+`plans.ts`: gone from the pricing page, gone from the Billing catalog, refused by
+`isSelfServePlan`, and no longer provisioned by `scripts/polar-setup.mjs` — while
+every existing subscriber keeps their limits, their portal and their webhook
+mapping. Do not delete the row or the Polar product: that would drop paying
+customers to free on the next entitlement read.
+
 **There are no seats and never have been.** An earlier version of this line read
 "org-level (seat-based) billing" as an outstanding item, and that phrasing was
 routinely misread as a description of the present. Pricing has always been a flat

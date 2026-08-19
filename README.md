@@ -1,16 +1,128 @@
-# KP studio — talent matching
+# KandiDate (KP studio) — an open-source hiring workspace
 
-Next.js + TypeScript hiring workspace backed by a Python analysis pipeline. What started as a CV/job-fit/salary analyzer for the Czech market has grown into an end-to-end hiring studio: a pipeline board with stage automation, sourcing channels, AI-assisted screening decisions behind human approval gates, candidate self-scheduling, AI voice screening interviews, a dev-case hiring extension built for the LLM era, and an autonomy control room with a kill switch and audit trail.
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
 
-Three LLM engines power it, each picked for its cost/capability profile:
+A self-hostable recruiting studio: a JD library with AI-assisted job-description
+builds, CV analysis and job-fit scoring, a pipeline board with stage automation,
+sourcing channels, AI-assisted screening decisions behind human approval gates,
+candidate self-scheduling, AI voice screening interviews, work-sample "devcase"
+assessments built for the LLM era, a comms outbox, and analytics.
 
-- **Gemini** (`gemini-3.6-flash`) — the production single-analysis path: multimodal CV extraction, role-fit scoring, salary estimation with optional Google Search grounding.
-- **Claude Code CLI** (headless `claude -p`, billed to your Claude Pro/Max **subscription**, not the metered API) — the batch engine for HR automation tasks, dev-case design/evaluation, match reasoning, and eval sweeps.
-- **ElevenLabs Conversational AI** (or OpenAI Realtime) — voice agents that run first-round screening interviews in Czech or English.
+**It runs on your machine, on your models, on your data.** There is no hosted
+component in the path of a self-hosted install, nothing phones home, and nothing is
+metered — a self-hosted install has no limits at all. That is not a trial edition:
+it is the entire product, under **AGPL-3.0** ([`LICENSE`](./LICENSE)).
 
-Everything degrades gracefully: features that need an engine you haven't configured fall back to deterministic logic or simply hide.
+A [hosted version](#the-hosted-version) exists for teams who would rather not run
+servers. It is the same software with the operations handled; it is not a better
+version, and nothing here is held back from you to sell there.
 
-### Model benchmark — BYOM candidates (measured 2026-08-05)
+> **Note on the AGPL.** Run it internally however you like. If you modify KP and
+> offer it to others over a network, §13 requires you to offer those users your
+> modified source. Set `NEXT_PUBLIC_SOURCE_REPO_URL` to your fork so the app's own
+> footer points at it.
+
+## Run it yourself
+
+```bash
+git clone https://github.com/kazimi66/kp.git && cd kp
+npm install
+pip install -r requirements.txt      # the Python jobfit pipeline
+npm run dev
+```
+
+Open `http://localhost:3000`. **No API key is required to start.** A fresh checkout
+creates and seeds its own SQLite workspace (`data/kp.sqlite`) with a demo corpus —
+an example JD, ~100 jobs, candidate profiles, pipeline entries — so you land on a
+populated Pipeline board rather than an empty shell.
+
+`python` must be on the `PATH` of whatever process runs `next dev` (override with
+`PYTHON_CMD`). Docker and Helm alternatives, plus the production checklist, are in
+[`docs/architecture/self-hosting.md`](docs/architecture/self-hosting.md).
+
+### Bring your own model
+
+Every AI call routes to a provider **you** choose. Configure them in
+**Settings → Models**, or leave it alone and take the defaults.
+
+| You have | What to do | Cost |
+| --- | --- | --- |
+| **A local model server** (Ollama, LM Studio, llama.cpp, vLLM, LiteLLM) | Settings → Models → add a key row for `ollama` (or `openai`) and set **Server URL** to e.g. `http://localhost:11434/v1`. No API key needed. | free |
+| **A Claude Pro/Max subscription** | Install the Claude Code CLI and `claude` → `/login`. This is the default engine when nothing else is configured. | your subscription, not metered API |
+| **A provider API key** | Paste a Gemini / OpenAI / Anthropic / Azure / OpenRouter / Qwen key in Settings → Models. | your provider's bill |
+| **Nothing at all** | Nothing. Every LLM feature has a deterministic fallback and the app runs without complaint. | free |
+
+That last row is a **product property**, not a degraded mode we tolerate: the
+fallbacks are the same paths that run when a provider is down, so the app never
+hard-fails on a missing or rate-limited engine. Features that genuinely cannot
+degrade (voice interviews) hide themselves instead of erroring.
+
+Anything you paste is encrypted at rest with `KP_SECRET` (AES-256-GCM), so set that
+before saving a key. Full provider layer:
+[`docs/architecture/llm-provider-layer.md`](docs/architecture/llm-provider-layer.md).
+
+**Which local model is good enough?** The benchmark below measures real production
+prompts across commercial and open models, so you can pick with numbers instead of
+vibes. Short version: a local 8B is genuinely fine for single-extraction and
+single-decision work and noticeably weaker on multi-deliverable output
+(scorecards, campaign packs).
+
+### Air-gapped / no egress
+
+`KP_OFFLINE=1` installs a global egress guard: no outbound network call leaves the
+process except to loopback and the private endpoints you configured. Point it at a
+local model server and the whole product runs with no internet at all. Both halves
+(TypeScript `fetch` guard + the Python engines' own refusal) are application
+backstops — a network policy at the deployment layer is still the real guarantee.
+
+### Optional keys
+
+Only set what you actually use. Everything below is opt-in:
+
+| Capability | What you need |
+| --- | --- |
+| Workspace UI — pipeline board, jobs, JD library, profiles, matrix, simulation | nothing beyond Node 20+ and Python 3.11+ |
+| Multimodal CV extraction + salary grounding | `GEMINI_API_KEY` (the strongest single-analysis path; other providers work, this one is tuned) |
+| Voice interviews (`/interview/[token]`, Interview-lab) | `ELEVENLABS_API_KEY` + `ELEVENLABS_AGENT_ID`, or `OPENAI_API_KEY` for the OpenAI Realtime provider |
+| GitHub repo-signal deep dive | `GITHUB_TOKEN` (optional; raises rate limits) |
+| Encrypted provider keys in Settings | `KP_SECRET` |
+| A password on the operator routes | `KP_OPERATOR_PASSWORD` — **unset means the app runs fully open**. Fine locally; a production build refuses to start open unless `KP_ALLOW_OPEN=1` says you meant it. |
+| Payment plans | `POLAR_*` — only for running KP *as a paid service*. Unset (the normal case) means nothing is metered. |
+
+Full reference: [`.env.example`](./.env.example).
+
+## The hosted version
+
+If you would rather not run a server, the same software is available hosted, with
+the servers, backups, upgrades and support handled for you. Plans price outcomes —
+a role taken to market, and a person hired — never tokens. Self-hosting is not a
+lesser tier of it: it is the same code with no limits.
+
+## Contributing
+
+Bug reports, translations and patches welcome — see
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) for the setup, the verification gate, and the
+five conventions that actually bite. Security issues go through
+[`SECURITY.md`](./SECURITY.md), never a public issue.
+
+---
+
+## Under the hood
+
+Three LLM engines are wired by default, each picked for its cost/capability profile:
+
+- **Gemini** (`gemini-3.6-flash`) — the tuned single-analysis path: multimodal CV
+  extraction, role-fit scoring, salary estimation with optional Google Search grounding.
+- **Claude Code CLI** (headless `claude -p`, billed to a Claude Pro/Max **subscription**,
+  not the metered API) — the batch engine for HR automation tasks, dev-case
+  design/evaluation, match reasoning, and eval sweeps. The local default.
+- **ElevenLabs Conversational AI** (or OpenAI Realtime) — voice agents that run
+  first-round screening interviews in Czech or English.
+
+Any of them can be swapped for a provider or a local server of your choosing; none
+is load-bearing.
+
+### Model benchmark — which model should you run? (measured 2026-08-05)
 
 8 production use cases × n=3, run through the real production prompts/fallbacks via
 `pipeline/jobfit/llm/bench/`. `claude_cli` Sonnet/Opus; `qwen` = Qwen Cloud API
@@ -60,16 +172,6 @@ economics and caveats (qwen-cloud scorecard/devcase runs hit the 2048 maxTokens
 ceiling): see
 [`docs/architecture/llm-model-matrix.md`](docs/architecture/llm-model-matrix.md).
 
-## 1. Preconditions
-
-| Capability | What you need |
-| --- | --- |
-| Workspace UI — pipeline board, jobs, JD library, profiles, matrix, simulation | Node 20+, Python 3.11+ (`npm install` + `pip install -r requirements.txt`) |
-| CV analysis (Analyze / Match tabs, CLI scripts, eval harness) | `GEMINI_API_KEY` |
-| HR automation (screen/outreach/rejection/prep/scorecard/rematch/offer), dev-case design & evaluation, match reasoning | **Claude Code CLI installed and logged in with a Claude Pro/Max subscription** |
-| Voice interviews (`/interview/[token]`, Interview-lab) | **`ELEVENLABS_API_KEY`** + `ELEVENLABS_AGENT_ID` (or `OPENAI_API_KEY` for the OpenAI Realtime provider) |
-| GitHub repo-signal deep dive | `GITHUB_TOKEN` (optional, raises rate limits) |
-
 ### Claude subscription (via the Claude Code CLI)
 
 `pipeline/jobfit/claude_cli.py` spawns the headless CLI as a subprocess (`claude -p --output-format json`). It deliberately strips `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` from the child environment so calls run on your interactive subscription login instead of metered API billing — that's what makes hundreds of automation/eval calls affordable. Setup:
@@ -88,45 +190,19 @@ node scripts/setup-eleven-agent.mjs
 
 The script creates the Conversational AI agent straight from the API (multilingual `eleven_flash_v2_5` model, Czech-capable voice, Czech-first interviewer prompt, runtime overrides enabled) and writes `ELEVENLABS_AGENT_ID` back into `.env.local` — no dashboard step needed. Re-running creates a new agent; the newest id wins.
 
-### Environment reference (`.env.local` in the project root)
+### Environment reference
 
-```bash
-# Required — CV analysis pipeline (Gemini is the only analysis engine)
-GEMINI_API_KEY=your_key_here
+Every variable, grouped and commented, lives in [`.env.example`](./.env.example) —
+copy it to `.env.local` and fill in only what you use. Two notes worth repeating
+here because they surprise people:
 
-# Voice interviews — ElevenLabs provider
-ELEVENLABS_API_KEY=your_key_here
-ELEVENLABS_AGENT_ID=written_by_setup_script
+- `ANTHROPIC_API_KEY` is deliberately **not** part of the setup. The Claude CLI
+  engine authenticates through your interactive subscription login, and the spawner
+  strips API-key vars from the child environment to keep it that way.
+- `KP_LOG_PROMPTS=1` captures prompts and responses to disk. Those contain
+  **candidate PII**. It is a debugging switch, not a production setting.
 
-# Voice interviews — optional OpenAI Realtime provider (A/B alternative)
-OPENAI_API_KEY=your_key_here
-OPENAI_REALTIME_MODEL=gpt-realtime   # default
-OPENAI_REALTIME_VOICE=marin          # default
-
-# Optional
-GITHUB_TOKEN=your_token_here         # GitHub repo-signal review + rate limits
-PYTHON_CMD=python                    # interpreter used to spawn the pipeline
-KP_DB_PATH=data/kp.sqlite            # SQLite workspace path
-KP_LOG_DIR=tmp                       # JSONL log directory
-KP_LOG_PROMPTS=1                     # capture Gemini prompts/responses (PII!)
-KP_CACHE_TTL_HOURS=24                # Gemini result cache TTL
-COMMS_WEBHOOK_URL=...                # outbound comms relay (dev-case outbox)
-AUTOMATION_SCHEDULER_AUTOSTART=1     # start the automation scheduler on boot
-```
-
-Note: `ANTHROPIC_API_KEY` is intentionally **not** part of the setup — the Claude CLI engine authenticates through your subscription login, and the spawner strips API-key vars to keep it that way.
-
-## 2. Quick start
-
-```bash
-npm install
-pip install -r requirements.txt
-# create .env.local (see above), then optionally:
-node scripts/setup-eleven-agent.mjs   # bootstrap the voice-interview agent
-npm run dev
-```
-
-Open `http://localhost:3000`. The workspace lands on the **Pipeline** board. `python` must be on the `PATH` of whatever process runs `next dev` / `next start` (override with `PYTHON_CMD`). The SQLite workspace at `data/kp.sqlite` is created and seeded (example JD, jobs, candidate profiles, pipeline entries) on first run.
+## Development tooling
 
 ### DevInspector — click a component, copy its source path
 
@@ -183,7 +259,7 @@ npm run db:load -- my-dump.json --db other.sqlite # restore into a different wor
 
 Load semantics are deliberately conservative: missing/empty tables are always recreated from the dump's DDL and filled (so seeding a fresh machine needs no flag), but a table that already has rows is only touched with `--replace` — and that check runs over the whole dump up front, so without it either everything loads or nothing does. The load runs in a single transaction; an older dump is carried forward by the app's own boot migrations on next start. Stop the app before restoring into its live workspace. (For a quick same-machine copy you can also just copy `data/kp.sqlite` while the app is stopped — the dump format is for portability, partial loads, and surviving schema drift.)
 
-## 3. Workspace tour
+## Workspace tour
 
 The studio sidebar groups the tabs:
 
@@ -220,7 +296,7 @@ Standalone pages outside the workspace shell:
 
 A recruiter (or the automation) creates an interview session; the candidate opens `/interview/[token]`, consents, and talks to the agent. Server-side, `app/_lib/voice/elevenlabs.ts` mints a signed URL for the dashboard-free agent (browser connects via `@elevenlabs/react`); the OpenAI provider mints ephemeral Realtime secrets instead. The interviewer asks 3–4 grounded questions (per-candidate prompt overrides), the transcript is stored in `interview_sessions`, and a scorecard is generated on completion. No feedback or decisions are given to the candidate.
 
-## 4. Quick start — CLI
+## Command-line usage
 
 When you only need one slice — a salary check, a job-fit gap list, keyword coverage — `scripts/` ships focused command-line entry points that call the same pipeline (`pipeline.jobfit.service.analyze`) and print well-formatted, color-aware terminal output.
 
@@ -260,7 +336,7 @@ python -m pipeline.jobfit.devcase.lifecycle_eval --count 5 # dev-case eval harne
 python -m pipeline.jobfit.reasoning_cli                    # match reasoning (Claude CLI)
 ```
 
-## 5. Architecture
+## Architecture
 
 The browser talks to Next.js API routes. CV analysis spawns the Python CLI (`python -m pipeline.jobfit.cli`) as a subprocess and runs it as a background task — the client polls `/api/tasks/[id]` and the global Tasks indicator tracks progress, so an analysis survives navigation and page refresh. A deterministic taxonomy pre-pass runs before the LLM and is fed in as structured evidence so Gemini reconciles its judgment with what the rules already detected. Results are validated with a Zod schema generated from the Pydantic models, so the TypeScript UI and Python pipeline cannot drift apart. There is no second long-lived server to manage.
 
@@ -312,7 +388,7 @@ docs/diagrams/                      PlantUML sources rendered on /diagrams
 
 `pipeline/jobfit/models.py` is the single source of truth for the result shape. `npm run schemas:gen` regenerates `app/_lib/schemas.generated.ts`. The `build` and `typecheck` scripts run it automatically; `npm run schemas:check` validates that the committed file is up to date.
 
-## 6. Analysis pipeline stages
+## Analysis pipeline stages
 
 1. `extractors.py` — extracts a pypdf baseline from PDF/DOCX/TXT/MD, repairs Czech encoding artifacts, and detects the dominant language. Used for both the Extraction-tab side-by-side comparison and the bilingual output flag.
 2. **Deterministic pre-pass** (`pipeline.py::_build_deterministic_evidence`) — runs `taxonomy.py` over the raw text and the company text to detect: role family, seniority bucket, anchor salary band (looked up in `data/salary_benchmarks.json`), salary signals (cloud / ai / security / devops / leadership / english / german / regulated_industry), surface-form skills, company type, company modifiers. Output is bundled as a JSON evidence block.
@@ -322,7 +398,7 @@ docs/diagrams/                      PlantUML sources rendered on /diagrams
 6. `interview.py` — interview question pack with STAR scaffolds derived from job-fit gaps.
 7. `taxonomy.py` — single source of truth for skill matching, role-family classification, company adjustments, education levels, seniority signals. Backed by `data/taxonomy.json`.
 
-## 7. Testing & evaluation
+## Testing & evaluation
 
 ```bash
 npm run lint
@@ -358,7 +434,7 @@ Each fixture is hand-verified (`label`, `expected_role_family`, `expected_senior
 
 Beyond the golden set: `eval/matching_eval.py` scores the matching engine, `eval/automation_eval.py` scores the automation tasks, and `devcase/lifecycle_eval.py` hardens the dev-case design loop (scenario generation, reliability/integrity health checks, optional LLM design audits).
 
-## 8. Data approach
+## Data approach
 
 `data/salary_benchmarks.json` carries role × seniority anchor bands per family (`software_engineering`, `data_ai`, `product_project`). The deterministic pre-pass looks up the band that matches the candidate's detected role family + seniority and feeds it into the Gemini prompt as the *primary* salary anchor; Gemini may adjust ±20% with stronger evidence. `data/taxonomy.json` (151 terms, 8 salary signals, 5 company types, 3 modifiers) drives skill matching, role classification, education detection, seniority signals, and the company-type multiplier (capped at 1.20×). Both files are editable without changing the API/UI contract.
 
@@ -410,7 +486,7 @@ Hays CZ 2026 PDF, Grafton 2025 PDF, Reed 2026 PDF, Cpl CEE 2025 PDF — all behi
 
 ---
 
-## 9. Result caching
+## Result caching
 
 To avoid re-paying for identical Gemini calls (a common case while iterating on a JD against the same CV), the analyze route hashes the inputs and reuses a cached payload when one is available.
 
@@ -420,7 +496,7 @@ To avoid re-paying for identical Gemini calls (a common case while iterating on 
 - **Behavior** — on cache hit the background analyze task completes near-instantly with the cached result. Each user-visible run still gets a fresh row in the History view regardless of cache state, so the workspace timeline remains accurate.
 - **Implicit caching** — Gemini's own context caching for repeated content (within short windows, multi-variant runs against the same JD) is opportunistic and free; we don't manage it.
 
-## 10. Logging
+## Logging
 
 Per-request structured JSONL logs help debug pipeline regressions and track token usage without rerunning the full e2e suite.
 

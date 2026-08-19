@@ -1,16 +1,27 @@
 # Self-hosting KP — run it in your own environment
 
-_Enterprise readiness E4 (`docs/product/enterprise-readiness.md` §5). This is the
-deployment half of the "full control of the data + model layer" ask: run KP on your own
-infrastructure (Docker / VPC / on-prem), keep all candidate PII on your host and in
-your region, and route every AI call to models you control._
+_Run KP on your own infrastructure (Docker / VPC / on-prem / your laptop), keep all
+candidate PII on your host and in your region, and route every AI call to models you
+control._
 
-> **Scope of this increment.** Container packaging + configuration + the complete
-> external-egress inventory + the production checklist. Still on the E4 roadmap:
-> a hard offline-enforcement flag is shipped (§7, below); still open: a Postgres
-> backend for large multi-user installs (E-SH-3, `docs/architecture/postgres-backend.md`)
-> and the **license decision** that governs the right to self-host (E-SH-1, founder +
-> counsel). This document tells you *how* to deploy; it does not grant a license.
+> **You already have the right to do this.** KP is **AGPL-3.0**
+> (`LICENSE`) — self-hosting is the default posture of the product, not a licensed
+> concession, and an earlier revision of this page that deferred to an open "license
+> decision" is superseded (see `docs/product/enterprise-readiness.md` §5, E-SH-1).
+> Two consequences worth stating up front:
+>
+> - **A self-hosted install is not metered.** No plan, no quotas, no 402s: with no
+>   billing provider configured and no billing history, every meter resolves
+>   unlimited (`app/_lib/billing/mode.ts`). The Billing tab says so rather than
+>   showing you plans you cannot buy.
+> - **If you modify KP and offer it to others over a network**, AGPL §13 requires
+>   you to offer those users your modified source. Point
+>   `NEXT_PUBLIC_SOURCE_REPO_URL` at your fork and the app's own footer links there.
+>
+> **Still open on the roadmap:** a Postgres backend for large multi-user installs
+> (E-SH-3, `docs/architecture/postgres-backend.md`). Container packaging,
+> configuration, the external-egress inventory, the production checklist and the
+> hard offline flag (§7) are all shipped.
 
 ---
 

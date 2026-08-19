@@ -46,7 +46,7 @@ deliberate bench run to pick metered default models, org-level (per-tenant)
 | Gemini | `gemini_api.py` | Multimodal (PDF/image) + Google Search grounding; the CV-analysis workhorse. |
 | Claude CLI | `pipeline/jobfit/claude_cli.py` | Subprocess provider, **local/dev only** (subscription billing — fine for one dev machine, not for hosted SaaS). |
 | OpenRouter | `openrouter.py` | Bench-only adapter — routes many third-party models through one key for the model-matrix comparison (`docs/architecture/llm-model-matrix.md`); not a production routing target. |
-| Ollama | `ollama.py` | First-class local/on-box models through Ollama's OpenAI-compatible `/v1`. Keyless (not offered in the keys form); models addressed by tag (`lfm2.5:8b`) with no built-in default; endpoint defaults to `http://localhost:11434/v1`, overridable via `keys.ollama.baseUrl` in `KP_LLM_CONFIG` or the `OLLAMA_BASE_URL` env var. |
+| Ollama | `ollama.py` | First-class local/on-box models through Ollama's OpenAI-compatible `/v1`. **Keyless but configurable from Settings → Models** (see "Local model servers" below); models addressed by tag (`lfm2.5:8b`) with no built-in default; endpoint defaults to `http://localhost:11434/v1`, overridable via `keys.ollama.baseUrl` in `KP_LLM_CONFIG` or the `OLLAMA_BASE_URL` env var. |
 | Qwen Cloud | `qwen.py` | qwencloud.com / DashScope-intl **compatible mode** (`https://dashscope-intl.aliyuncs.com/compatible-mode/v1`, override `QWEN_BASE_URL`). One key (`QWEN_API_KEY`/`DASHSCOPE_API_KEY`) serves the Qwen family plus hosted third-party models (`deepseek-v4-flash-0731`) by explicit slug — an OpenRouter-style gateway that IS a production routing target. |
 
 Every call site already has a deterministic fallback and an envelope
@@ -327,3 +327,60 @@ saving one.
 - `npm run test:unit` for the TS wrapper; `python -m unittest pipeline.jobfit.tests.test_llm_*` for adapters/registry.
 - Capability-matrix test: every `llm_config` default must satisfy its use case's required caps.
 - Canary path = the Models-tab **Test** button, runs the same code path as production calls.
+
+
+## Local model servers — the `baseUrl` field
+
+KP is open source and expected to run on somebody's own machine, so pointing it at a
+local inference server is a first-class path rather than an enterprise escape hatch.
+
+**Settings → Models → API keys** offers a **Server URL** field for every provider that
+speaks the OpenAI Chat Completions wire format (`BASE_URL_PROVIDERS` in
+`app/_lib/llm-model-defaults.ts`: `openai`, `ollama`, `qwen`). Point it at Ollama, LM
+Studio, llama.cpp's server, vLLM, LiteLLM, or an in-VPC gateway:
+
+```
+http://localhost:11434/v1      # Ollama
+http://localhost:1234/v1       # LM Studio
+http://vllm.internal:8000/v1   # vLLM behind your own network
+```
+
+**A keyless provider may be saved with a base URL and no API key.** A stock local
+server authenticates nothing; the Python adapter supplies the placeholder the OpenAI
+SDK insists on (`adapters/openai_api.py`). `ollama` is offered in the keys form for
+exactly this reason — it was excluded as "keyless" before, which left its endpoint
+settable only through the process environment.
+
+### How this used to be broken
+
+The Python half has accepted `keys.<provider>.baseUrl` since E-SH-5, but the
+TypeScript half never PERSISTED or EMITTED it: `saveProviderKey` kept only Azure's
+`endpoint`/`apiVersion`, and `buildLlmConfigEnv`'s `KeysEntry` had no `baseUrl` at
+all. The capability existed and was unreachable from the app — you could only get at
+it by setting `OPENAI_BASE_URL` / `OLLAMA_BASE_URL` in the environment. Both builders
+now emit it (including the key-probe builder, so a green "Test" proves the server the
+operator actually configured).
+
+### Validation, and why it differs from Azure's
+
+A base URL is checked for SHAPE only — parseable, `http`/`https`, no embedded
+credentials — and is deliberately NOT run through
+`assertPublicHttpsEndpointResolved`, the SSRF guard applied to Azure endpoints. That
+guard rejects loopback, LAN and non-https on purpose. Here those are the normal,
+intended values. The threat models genuinely differ:
+
+| | Azure `endpoint` | `baseUrl` |
+| --- | --- | --- |
+| What travels there | a cloud credential | usually no credential at all |
+| Who names the host | the user | the operator, in an admin surface behind `requireOperator` |
+| Private host means | an exfiltration pivot | the entire point |
+
+It replaces the `OPENAI_BASE_URL` / `OLLAMA_BASE_URL` env vars and sits at the same
+trust level as them.
+
+### Offline
+
+Under `KP_OFFLINE=1` an on-box base URL stays usable while an off-box one is sealed
+off — the adapter reports its resolved base URL as its egress target, so the check
+runs against the host you configured rather than the vendor's default cloud
+(`_offline_egress_url` in `adapters/openai_api.py`).
