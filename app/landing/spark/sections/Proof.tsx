@@ -11,7 +11,7 @@ import { DISPLAY, HAND, STICKER } from "../tokens";
  * question of 2026, and this band shows the three mechanisms that answer it
  * (verified work samples, an interview about the candidate's own decisions,
  * sealed auditable verdicts). The positioning call comes from
- * docs/product/competitor-talentpilot.md §4: anti-AI-delegation is a whole
+ * Competitive analysis (maintainer's notes, not in this tree): anti-AI-delegation is a whole
  * module here and one unspecified bullet for the competitor, so it leads the
  * page instead of hiding as card three of nine. The FeatureGrid keeps its
  * `cases` card; this band is the story, the grid is the inventory.

@@ -8,7 +8,7 @@ import { TrustContent } from "./TrustContent";
  * disclaimer that refuses to claim certified conformance.
  *
  * PUBLIC (flipped 2026-08-05, reversing the 2026-07-30 internal-for-now call). The
- * positioning work (docs/product/competitor-talentpilot.md §4) made auditable, verified
+ * positioning work (competitive analysis, maintainer's notes) made auditable, verified
  * hiring the headline claim, and a headline claim needs its evidence page indexable: the
  * article-by-article posture, gaps included, is the checkable artifact competitors'
  * "compliant" badges are not. The gap rows stay — trust-posture.ts already carries only

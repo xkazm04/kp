@@ -4,7 +4,7 @@ Annex-III high-risk recruitment invariant: the applicant's NAME must not be able
 to influence any score. The name is the strongest proxy for gender (Czech -ová
 surnames), ethnicity, and migration background, and the product's own blind-mode
 threat model (redact.py) treats it as protected — yet until this test nothing
-asserted the deterministic engine actually ignores it (docs/harness/
+asserted the deterministic engine actually ignores it (fairness scan, 
 ambiguity-biz-2026-06-25/pipeline-test-suite-python.md, finding #2; AI-Act pack
 gaps G3+G10 in docs/features/compliance/ai-act-conformity.md).
 

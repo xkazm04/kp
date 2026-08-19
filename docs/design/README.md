@@ -197,7 +197,7 @@ lowest layer that can hold it**:
    > There is **no `ThemeSplit` component** and **no `.theme-light-only` /
    > `.theme-dark-only` utility pair**. Earlier revisions of this doc described
    > both; the component was never built and the CSS classes were deleted
-   > (`docs/harness/code-refactor-2026-06-23/shared-ui-design-system.md`) while
+   > (a 2026-06-23 shared-UI refactor scan, since untracked) while
    > the instruction to use them survived — markup written against them did
    > nothing in either theme. `hidden dark:contents` / `contents dark:hidden`
    > above is the mechanism that actually works, and it needs no bespoke CSS:
@@ -439,7 +439,7 @@ This is deliberate, not a bug: the landing is **not launch-ready** —
 dev-only localStorage flag so signed-out prod visitors get `SparkLanding` and
 signed-in operators get the dashboard — AND first close the CTA / SEO / social-proof
 items above (see the 2026-06-25 ambiguity+business scan,
-`docs/harness/ambiguity-biz-2026-06-25/landing-marketing.md`).
+a 2026-06-25 landing/marketing ambiguity scan, since untracked).
 
 ## Corrections applied against the live code (2026-07-30 verification)
 

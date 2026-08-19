@@ -131,7 +131,7 @@ When writing or changing components, always assume **both** themes:
 | `docs/development/` | Eval/calibration harnesses and how to run them |
 | `docs/product/` | Market, roadmap, enterprise track |
 | `docs/concepts/` | Proposals not yet implemented |
-| `docs/harness/`, `docs/_archive/` | Dated evidence; superseded material. Do not treat as current |
+| `docs/_archive/` | Superseded material. Do not treat as current |
 
 **The rule: when you change behavior, update the doc that describes it in the same
 change.** A feature doc that names a moved file or a renamed stage is worse than no doc —

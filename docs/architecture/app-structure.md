@@ -273,9 +273,18 @@ forking it: the entry and terminal columns cannot be removed or re-roled, and an
 occupied column cannot be dropped, so no click in the step can produce a shape the
 server would refuse.
 
-Both variants of the step (`SetupPipelineBoardVariant`, `SetupPipelinePresetsVariant`)
-currently sit behind a switcher — that is a live `/prototype` scaffold, not a
-shipped feature. Consolidating on one direction removes the switcher.
+The step is **read-only first**. It opens on `SetupPipelineJourneyView` — a vertical
+walk down the funnel where each stop carries its stage-role glyph, its name, its
+role and one plain sentence saying what happens there
+(`hiringPlan.roleMeaning.*`, served by `usePipelineStageRoleMeaning`) — and
+*Change these steps* swaps in `SetupPipelinePresetsVariant`: three named shapes,
+one chain showing the result, then the row-by-row editor. That editor's row is
+`shared/PipelineStepRow.tsx`, the same row Settings → Hiring draws.
+
+The journey won a `/prototype` round against a columns-preview of the same axis
+(deleted): a first-run reader does not recognise the board yet, so explaining the
+process beat rehearsing a screen. Nothing in the view is uppercase — `text-meta`
+is a form-section marker, and this step is prose.
 
 ## Pinned filenames
 
@@ -337,7 +346,7 @@ shell,tools}/**` paths, so that regeneration has already happened — treat the
 map as trustworthy for this area going forward, not as a hangover from the
 refactor.
 
-Historical artefacts (`docs/harness/**` scan reports, `uat/**`, `casesim/**`,
+Historical artefacts (scan reports, `uat/**`, harness vaults,
 `.claude/commands/backlog/*.md`) may still cite pre-refactor paths
 (`sub_pipeline/`, `sub_jobs/`, etc.) — these are records of what was true at
 the time and are deliberately left alone.

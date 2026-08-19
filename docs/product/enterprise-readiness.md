@@ -389,9 +389,9 @@ band now says.
 
 ---
 
-## 11. Backlog rows (also appended to `.claude/ship-loop/backlog.md`)
+## 11. Backlog rows
 
-Numbering continues the ship-loop backlog; `Dim` uses its scheme (2-Func / 6-Sec /
+Numbering continues the maintainer's ship-loop backlog (not in this tree); `Dim` uses its scheme (2-Func / 6-Sec /
 9-Value). Each row points back here.
 
 | S | Dim | Size | Item |
@@ -412,6 +412,6 @@ Numbering continues the ship-loop backlog; `Dim` uses its scheme (2-Func / 6-Sec
 - `docs/features/organization/README.md` — the tenancy/identity foundation (E0), now shipped.
 - `docs/features/billing/README.md` — the Enterprise contact-sales tier + the plan catalog.
 - `docs/_archive/GDPR_AND_HIRING_EXTENSIONS.md` — existing GDPR groundwork.
-- `.claude/ship-loop/backlog.md` — multi-tenancy, AI-Act conformity, deploy-story backlog rows.
+- `docs/BACKLOG.md` — the tracked backlog; multi-tenancy, AI-Act conformity and deploy-story rows land there.
 - `docs/architecture/llm-provider-layer.md` — BYOM / model-control foundation.
 - `docs/design/README.md` — the dual-theme token system behind brand customization.

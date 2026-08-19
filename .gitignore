@@ -55,3 +55,19 @@ data/piper/
 # tree. The durable outcomes of a run live in docs/product/uat-insights/ and
 # docs/BACKLOG.md, which stay tracked.
 /uat/
+
+# --- Internal working material, untracked when the repo went public (AGPL) -----
+# All of this stays on the maintainer's disk and out of the published tree. It is
+# working material, not product: dated scan evidence, harness vaults, competitive
+# strategy and the ship-loop's business state. Same rule as /uat above — the
+# DURABLE outcome of any of these belongs in docs/features, docs/architecture or
+# docs/BACKLOG.md, which stay tracked.
+#
+# NOTE: these paths remain in the git HISTORY of commits made before this line.
+# A history rewrite is a separate, deliberate decision.
+/docs/harness/
+/casesim/
+/tiger/
+/.claude/ship-loop/
+/docs/product/competitor-talentpilot.md
+/docs/product/coverage-plan.md

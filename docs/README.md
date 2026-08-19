@@ -13,7 +13,6 @@ still proposed.
 | How to build, test, evaluate, calibrate | [development/](development/) |
 | Market position, roadmap, enterprise track | [product/](product/) |
 | Proposals not yet implemented | [concepts/](concepts/) |
-| Dated review/scan evidence | [harness/](harness/) |
 | Superseded material, kept for context | [_archive/](_archive/) |
 | Known doc gaps and follow-ups | [BACKLOG.md](BACKLOG.md) |
 | Component/sequence diagrams | [diagrams/](diagrams/README.md) |
@@ -36,8 +35,10 @@ still proposed.
 - **`docs/concepts`** is only for not-yet-implemented proposals. When a concept ships,
   move or rewrite it under `features/` or `architecture/` and leave only the remaining
   follow-up work behind.
-- **`docs/harness`** keeps dated product-review, scan, and context-map runs. That is
-  evidence with a timestamp, not a source of truth.
+- **`docs/harness`** used to keep dated product-review, scan and context-map runs.
+  It is untracked since the repository went public (see `.gitignore`): timestamped
+  evidence is working material, not product documentation. The durable outcome of a
+  run belongs in `features/`, `architecture/` or `BACKLOG.md`.
 - **`docs/_archive`** keeps superseded docs so old context survives. Each carries a note
   saying what replaced it. Prefer archiving over deleting.
 

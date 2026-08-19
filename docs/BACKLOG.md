@@ -15,7 +15,7 @@ up, and delete it here when it closes.
 | D1 | Three shipped features have **no feature doc**: analytics stage-dwell, pool-fit, and the NL command bar. (The onboarding hand-off was on this list too; the module has since been removed.) They were documented only inside the now-archived GDPR extensions doc, which was never the right home for them. | `docs/features/` — needs `analytics/` and `talent-pool/` areas |
 | D2 | No `docs/development/README.md` — the three harness docs (automation eval, case calibration, voice-interview testing) have no shared index explaining when to reach for which. | `docs/development/` |
 | D3 | `docs/architecture/llm-model-matrix.md` is a dated benchmark snapshot. It now carries a "re-run before trusting" banner, but nothing re-runs it. | `docs/architecture/` |
-| D4 | `docs/product/coverage-plan.md` W0.5 acceptance criteria say `/trust` is public and landing-linked; `app/trust/page.tsx` is deliberately `noindex`, internal-only (2026-07-30 product decision). Criteria and reality disagree — one of them should move. | `docs/product/coverage-plan.md` |
+| D4 | The W0.5 acceptance criteria (competitive coverage plan, maintainer's notes) say `/trust` is public and landing-linked; `app/trust/page.tsx` is deliberately `noindex`, internal-only (2026-07-30 product decision). Criteria and reality disagree — one of them should move. Worth revisiting now that the repo is public: an auditable AI-Act posture is a stronger public claim than an internal one. | `app/trust/page.tsx` |
 | D5 | The visual-uplift plan's remaining phases cite pre-refactor file paths (`JobsTab.tsx:78` style). Anyone picking Phase 2 up must re-locate them first. | `docs/concepts/visual-uplift-plan.md` |
 
 ## Compliance — AI Act gap register (G1–G14)
