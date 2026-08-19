@@ -25,7 +25,7 @@ version, and nothing here is held back from you to sell there.
 ## Run it yourself
 
 ```bash
-git clone https://github.com/kazimi66/kp.git && cd kp
+git clone https://github.com/xkazm04/kp.git && cd kp
 npm install
 pip install -r requirements.txt      # the Python jobfit pipeline
 npm run dev

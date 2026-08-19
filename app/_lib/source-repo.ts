@@ -7,7 +7,7 @@
 // Set NEXT_PUBLIC_SOURCE_REPO_URL to YOUR fork if you modify KP and run it as a
 // service. NEXT_PUBLIC_ is the only prefix Next.js exposes to the client bundle,
 // so the landing page, the footer and the in-app surfaces all read the same value.
-const DEFAULT_REPO_URL = "https://github.com/kazimi66/kp";
+const DEFAULT_REPO_URL = "https://github.com/xkazm04/kp";
 
 export const SOURCE_REPO_URL = process.env.NEXT_PUBLIC_SOURCE_REPO_URL?.trim() || DEFAULT_REPO_URL;
 
