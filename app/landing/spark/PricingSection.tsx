@@ -2,8 +2,9 @@
 
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import { ArrowRight, Check, Gift, KeyRound, Rocket, Stamp, TrendingUp } from "lucide-react";
+import { ArrowRight, Check, Gift, Rocket, Server, Stamp, TrendingUp } from "lucide-react";
 import { salesContactHref } from "@/app/_lib/sales-contact";
+import { sourceRepoHref } from "@/app/_lib/source-repo";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 import { track } from "@/app/_lib/analytics/plausible";
 import { BTN, DISPLAY, HAND, STICKER } from "./tokens";
@@ -14,12 +15,21 @@ import { BTN, DISPLAY, HAND, STICKER } from "./tokens";
  * Meters are candidates / cases / interview minutes — never tokens. All copy
  * lives in the `landing.pricing` i18n namespace; these styles carry only the
  * icon, colour and layout for each tier id.
+ *
+ * SELF-HOSTED LEADS. KP is AGPL-3.0, and the honest ordering for an open-source
+ * product puts "run it yourself, free, unlimited" first and the paid tiers after
+ * it as the convenience they are. It replaced BYOM ("your keys, our machinery"
+ * for 120 Kč), which self-hosting made unsellable — you cannot charge for the
+ * machinery once you have given the machinery away.
+ *
+ * `external` marks the tier whose CTA leaves for the repository instead of
+ * entering the workspace: there is nothing to sign up for.
  */
 const TIER_STYLES = [
-  { id: "free", icon: Gift, color: "#42606f", rotate: -1.5, btnClass: "bg-white" },
-  { id: "starter", icon: Rocket, color: "#d65a4a", rotate: 1, btnClass: "bg-[#d65a4a] text-white" },
-  { id: "growth", icon: TrendingUp, color: "#526b4f", rotate: -1, btnClass: "bg-[#526b4f] text-white" },
-  { id: "byom", icon: KeyRound, color: "#17202a", rotate: 1.5, btnClass: "bg-[#17202a] text-[#fdf8ee]" }
+  { id: "selfhost", icon: Server, color: "#17202a", rotate: -1.5, btnClass: "bg-[#17202a] text-[#fdf8ee]", external: true },
+  { id: "free", icon: Gift, color: "#42606f", rotate: 1, btnClass: "bg-white", external: false },
+  { id: "starter", icon: Rocket, color: "#d65a4a", rotate: -1, btnClass: "bg-[#d65a4a] text-white", external: false },
+  { id: "growth", icon: TrendingUp, color: "#526b4f", rotate: 1.5, btnClass: "bg-[#526b4f] text-white", external: false }
 ] as const;
 
 export default function PricingSection() {
@@ -94,20 +104,35 @@ export default function PricingSection() {
                 </ul>
 
                 {/* Self-serve tiers enter the product (open mode → dashboard;
-                    password mode → the /login form). Enterprise is a sales mailto. */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Placement + plan attribution for the tier click; the
-                    // downstream workspace_entered event carries the plan too.
-                    track("landing_cta_click", { placement: "pricing", plan: tier.id });
-                    void enterWorkspace(tier.id);
-                  }}
-                  className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}
-                >
-                  {t(`pricing.tiers.${tier.id}.cta`)}
-                  <ArrowRight className="h-5 w-5" />
-                </button>
+                    password mode → the /login form). The self-hosted tier leaves for
+                    the repository — there is no account to create. Enterprise is a
+                    sales mailto, further down. */}
+                {tier.external ? (
+                  <a
+                    href={sourceRepoHref()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => track("landing_cta_click", { placement: "pricing", plan: tier.id })}
+                    className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}
+                  >
+                    {t(`pricing.tiers.${tier.id}.cta`)}
+                    <ArrowRight className="h-5 w-5" />
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Placement + plan attribution for the tier click; the
+                      // downstream workspace_entered event carries the plan too.
+                      track("landing_cta_click", { placement: "pricing", plan: tier.id });
+                      void enterWorkspace(tier.id);
+                    }}
+                    className={`${BTN} mt-6 w-full justify-center ${tier.btnClass}`}
+                  >
+                    {t(`pricing.tiers.${tier.id}.cta`)}
+                    <ArrowRight className="h-5 w-5" />
+                  </button>
+                )}
               </motion.article>
             );
           })}

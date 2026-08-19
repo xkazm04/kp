@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { Languages } from "lucide-react";
 import Wordmark from "../Wordmark";
 import { LandingLangSwitch } from "../LandingLangSwitch";
+import { sourceRepoHref } from "@/app/_lib/source-repo";
 
 /*
  * Landing footer. The language switcher lives here and only here — the same
@@ -14,6 +15,10 @@ import { LandingLangSwitch } from "../LandingLangSwitch";
  * that captures candidate PII must expose its policies from its front door,
  * and /trust is the evidence page behind the landing's headline claims, so it
  * earns a footer link rather than a buried route.
+ *
+ * The licence line sits beside them. KP is AGPL-3.0, and the footer is where a
+ * reader looks for that — stating it here (with a link to the source) is both the
+ * conventional courtesy and the practical half of the §13 source-offer.
  */
 const LEGAL_LINKS = [
   { href: "/privacy", key: "privacy" },
@@ -38,6 +43,14 @@ export default function Footer() {
           ))}
         </nav>
         <div className="flex items-center gap-3 text-[#42606f]">
+          <a
+            href={sourceRepoHref()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-bold underline-offset-4 hover:text-[#17202a] hover:underline"
+          >
+            {t("footer.license")}
+          </a>
           <Languages className="h-4 w-4" aria-hidden />
           <LandingLangSwitch />
         </div>

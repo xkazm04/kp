@@ -24,7 +24,7 @@ import fs from "node:fs";
 import path from "node:path";
 // plans-checkout-billing-ui #4: derive prices + the drift preflight from the catalog
 // so the UI-displayed price and the amount charged can never silently diverge.
-import { PLANS, PACKS } from "@/app/_lib/billing/plans.ts";
+import { PLANS, PACKS, isSelfServePlan } from "@/app/_lib/billing/plans.ts";
 import { reconcileCatalogPrice, readProviderPrices, packUsdCents } from "@/app/_lib/billing/price-reconcile.ts";
 
 const ENV_PATH = path.join(process.cwd(), ".env");
@@ -126,11 +126,25 @@ function reportPriceDrift(label, catalog, product) {
   }
 }
 
-const productKeys = [
-  ["POLAR_PRODUCT_STARTER", "Starter (subscription)", "starter"],
-  ["POLAR_PRODUCT_GROWTH", "Growth (subscription)", "growth"],
-  ["POLAR_PRODUCT_BYOM", "BYOM (subscription)", "byom"],
-];
+// Derived from the catalog, not hand-listed: a tier withdrawn from sale (plans.ts
+// `legacy: true`) drops out of this loop automatically. BYOM was withdrawn when KP
+// went open source — self-hosting gives away exactly what that tier sold — so its
+// product is no longer PROVISIONED, while the id stays mapped in the reducer for
+// the subscribers who still hold it. Deleting the product in the Polar dashboard
+// would cancel them; leave it live and un-listed.
+const productKeys = Object.values(PLANS)
+  .filter((plan) => isSelfServePlan(plan.id))
+  .map((plan) => [`POLAR_PRODUCT_${plan.id.toUpperCase()}`, `${plan.name} (subscription)`, plan.id]);
+
+const legacyPlans = Object.values(PLANS).filter((plan) => plan.legacy);
+if (legacyPlans.length > 0) {
+  console.log(
+    `· withdrawn from sale, not provisioned (existing subscribers keep it): ${legacyPlans
+      .map((plan) => plan.name)
+      .join(", ")}`
+  );
+}
+
 for (const [key, label, planId] of productKeys) {
   const id = env.get(key);
   if (!id) {

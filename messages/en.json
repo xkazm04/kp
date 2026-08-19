@@ -627,6 +627,7 @@
       "top": "Back to top",
       "about": "About the app",
       "market": "Market Pulse",
+      "source": "Source",
       "signIn": "Sign in"
     },
     "hero": {
@@ -833,9 +834,24 @@
       }
     },
     "pricing": {
-      "heading": "Tiny prices.<br></br><emph>Zero token math.</emph>",
-      "headingNote": "open to everyone: these are the launch prices you’ll lock in",
+      "heading": "Free to run.<br></br><emph>Paid to not think about it.</emph>",
+      "headingNote": "the whole product is open source. the plans buy you someone else's servers",
       "tiers": {
+        "selfhost": {
+          "name": "Self-hosted",
+          "tagline": "Run the whole thing on your own machine.",
+          "price": "0 Kč",
+          "cadence": "forever",
+          "usd": "open source, AGPL-3.0",
+          "cta": "Get the source",
+          "badge": "open source",
+          "features": [
+            "Every feature, no limits at all",
+            "Your models: Ollama, LM Studio, any OpenAI-compatible server",
+            "Your database, your machine, no data leaves it",
+            "Read the code, change it, fork it"
+          ]
+        },
         "free": {
           "name": "Free",
           "tagline": "Kick the tires on a real opening.",
@@ -877,35 +893,20 @@
             "1,200 AI candidates a month",
             "120 AI interview minutes"
           ]
-        },
-        "byom": {
-          "name": "BYOM",
-          "tagline": "Your model keys, our machinery.",
-          "price": "120 Kč",
-          "cadence": "/ month",
-          "usd": "≈ $5 a month",
-          "cta": "Bring your keys",
-          "badge": "bring your keys",
-          "features": [
-            "Plug in Gemini, OpenAI, Azure or Anthropic keys",
-            "Unlimited AI screening — your providers bill you",
-            "3 published roles and 2 hires a month",
-            "We charge for the machinery only"
-          ]
         }
       },
-      "footnote1": "You pay for outcomes: a role taken to market, and a person hired. AI screening runs behind a generous allowance you will not normally reach.",
-      "footnote2": "out of minutes? 100-minute interview packs · 790 Kč (any tier, even BYOM)",
+      "footnote1": "Self-hosting is the full product, not a trial edition. The hosted plans price outcomes: a role taken to market, and a person hired.",
+      "footnote2": "out of minutes? 100-minute interview packs · 790 Kč (any hosted tier)",
       "enterprise": {
         "eyebrow": "At org scale",
         "heading": "Hiring across the whole org?",
-        "blurb": "Past the metered plans: enterprise SSO & SCIM, a tenant-scoped audit trail, your brand on every candidate touchpoint, and a self-hostable, source-licensed deployment that keeps your data and model layer fully in your control. Delivered with your security and DPO teams, priced to your hiring volume. The ROI compounds with every requisition.",
+        "blurb": "Everything above is in the repository, including SSO, the audit trail and white-label branding. What Enterprise buys is delivery: the deployment run with your security and DPO teams, contractual assurance, and a support line. Priced to your hiring volume.",
         "cta": "Talk to sales",
         "capabilities": [
           "Enterprise SSO & SCIM provisioning",
           "Tenant-scoped, exportable audit trail",
           "Your brand on every candidate touchpoint",
-          "Self-hosted, source-licensed — your data & models",
+          "Deployment run with your security team",
           "GDPR / DPA & EU data residency",
           "SOC 2 & security-review support"
         ],
@@ -915,7 +916,7 @@
         "stat2Label": "manual screening per hire today",
         "stat3Value": "40–51 h",
         "stat3Label": "total recruiter hours per hire, by hand",
-        "roadmapNote": "Compliance and self-hosting are scoped and delivered with your team during onboarding. Ask for our current attestation status and deployment options.",
+        "roadmapNote": "Self-hosting needs no contract: the source is public and the deployment guide ships with it. Enterprise is for teams who want it delivered, assured and supported.",
         "source": "Sources: 2025 industry recruiting-time studies (SHRM time-to-fill; recruiter time-per-hire analyses). Your own measured savings show live in Analytics → ROI."
       }
     },
@@ -930,7 +931,8 @@
       "legalNav": "Legal",
       "privacy": "Privacy",
       "terms": "Terms",
-      "trust": "Trust & compliance"
+      "trust": "Trust & compliance",
+      "license": "AGPL-3.0 · source"
     },
     "previews": {
       "close": "Close preview",

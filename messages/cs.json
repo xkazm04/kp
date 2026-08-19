@@ -627,6 +627,7 @@
       "top": "Nahoru",
       "about": "O aplikaci",
       "market": "Pulz trhu",
+      "source": "Zdrojový kód",
       "signIn": "Přihlásit se"
     },
     "hero": {
@@ -833,9 +834,24 @@
       }
     },
     "pricing": {
-      "heading": "Drobné ceny.<br></br><emph>Žádné počítání tokenů.</emph>",
-      "headingNote": "otevřené všem: tohle jsou startovní ceny, které vám zůstanou",
+      "heading": "Zdarma k provozu.<br></br><emph>Placené za klid.</emph>",
+      "headingNote": "celý produkt má otevřený kód. plány kupují cizí servery",
       "tiers": {
+        "selfhost": {
+          "name": "Vlastní instalace",
+          "tagline": "Provozujte celou aplikaci na vlastním stroji.",
+          "price": "0 Kč",
+          "cadence": "navždy",
+          "usd": "otevřený kód, AGPL-3.0",
+          "cta": "Získat zdrojový kód",
+          "badge": "otevřený kód",
+          "features": [
+            "Všechny funkce, zcela bez limitů",
+            "Vaše modely: Ollama, LM Studio, jakýkoli server kompatibilní s OpenAI",
+            "Vaše databáze, váš stroj, žádná data neodcházejí",
+            "Přečtěte si kód, změňte ho, forkněte ho"
+          ]
+        },
         "free": {
           "name": "Zdarma",
           "tagline": "Vyzkoušejte to na skutečné pozici.",
@@ -877,37 +893,22 @@
             "1 200 AI kandidátů měsíčně",
             "120 minut AI pohovorů"
           ]
-        },
-        "byom": {
-          "name": "BYOM",
-          "tagline": "Vaše klíče k modelům, naše mašinerie.",
-          "price": "120 Kč",
-          "cadence": "/ měsíc",
-          "usd": "≈ 5 $ měsíčně",
-          "cta": "Přinést vlastní klíče",
-          "badge": "přineste si klíče",
-          "features": [
-            "Zapojte klíče Gemini, OpenAI, Azure nebo Anthropic",
-            "Neomezený AI screening — účtují vám vaši poskytovatelé",
-            "3 zveřejněné pozice a 2 nábory měsíčně",
-            "Účtujeme si jen za mechaniku"
-          ]
         }
       },
-      "footnote1": "Platíte za výsledky: za pozici uvedenou na trh a za přijatého člověka. AI screening běží pod velkorysým limitem, na který běžně nenarazíte.",
-      "footnote2": "došly minuty? Balíčky 100 minut pohovorů · 790 Kč (k jakémukoli tarifu, i BYOM)",
+      "footnote1": "Vlastní instalace je plnohodnotný produkt, ne zkušební verze. Hostované plány účtují výsledky: pozici uvedenou na trh a přijatého člověka.",
+      "footnote2": "došly minuty? balíčky 100 minut pohovorů · 790 Kč (kterýkoli hostovaný tarif)",
       "enterprise": {
         "eyebrow": "Pro celou firmu",
         "heading": "Nabíráte napříč celou organizací?",
-        "blurb": "Nad rámec tarifů s měřenou spotřebou: podnikové SSO a SCIM, auditní stopa v rámci tenantu, vaše značka na každém kontaktu s kandidátem a self-hosted nasazení s licencovaným zdrojovým kódem, které ponechává vaše data i vrstvu modelů plně pod vaší kontrolou. Dodáváme společně s vaším bezpečnostním týmem a DPO, cena podle objemu náboru. Návratnost roste s každou pozicí.",
+        "blurb": "Vše výše uvedené je v repozitáři, včetně SSO, auditní stopy i vlastního brandingu. Enterprise kupuje dodávku: nasazení vedené s vaším bezpečnostním týmem a pověřencem, smluvní záruky a linku podpory. Cena podle objemu náboru.",
         "cta": "Spojit se s obchodem",
         "capabilities": [
-          "Podnikové SSO a SCIM provisioning",
-          "Auditní stopa v rámci tenantu, s exportem",
+          "Podnikové SSO a provisioning SCIM",
+          "Auditní stopa pro celého klienta, exportovatelná",
           "Vaše značka na každém kontaktu s kandidátem",
-          "Self-hosted, licencovaný zdroj – vaše data i modely",
-          "GDPR / DPA a data residency v EU",
-          "Podpora SOC 2 a bezpečnostního review"
+          "Nasazení vedené s vaším bezpečnostním týmem",
+          "GDPR / DPA a uložení dat v EU",
+          "Podpora pro SOC 2 a bezpečnostní prověrky"
         ],
         "stat1Value": "60–70 %",
         "stat1Label": "méně času náboráře na screeningu",
@@ -915,7 +916,7 @@
         "stat2Label": "ručního screeningu na jedno přijetí dnes",
         "stat3Value": "40–51 h",
         "stat3Label": "celkem hodin náboráře na jedno přijetí, ručně",
-        "roadmapNote": "Rozsah compliance a self-hostingu vymezíme a dodáme společně s vaším týmem během onboardingu. Vyžádejte si aktuální stav atestací a možnosti nasazení.",
+        "roadmapNote": "Vlastní instalace nevyžaduje žádnou smlouvu: kód je veřejný a průvodce nasazením je jeho součástí. Enterprise je pro týmy, které chtějí dodávku, záruky a podporu.",
         "source": "Zdroje: oborové studie času náboru 2025 (SHRM time-to-fill; analýzy času náboráře na jedno přijetí). Vaše naměřené úspory vidíte živě v sekci Analytika → Návratnost."
       }
     },
@@ -930,7 +931,8 @@
       "legalNav": "Právní informace",
       "privacy": "Ochrana osobních údajů",
       "terms": "Obchodní podmínky",
-      "trust": "Důvěra a compliance"
+      "trust": "Důvěra a compliance",
+      "license": "AGPL-3.0 · zdrojový kód"
     },
     "previews": {
       "close": "Zavřít náhled",

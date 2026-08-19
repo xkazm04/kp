@@ -121,7 +121,13 @@ export function PlanCatalog({
       <h3 className="font-serif text-h3 text-ink">{t("plans.title")}</h3>
       <p className="mt-1 max-w-2xl text-sm text-steel">{t("plans.intro")}</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {Object.values(data.catalog.plans).map((plan) => (
+        {Object.values(data.catalog.plans)
+          // A LEGACY tier (withdrawn from sale — see plans.ts) is hidden from the
+          // catalog, EXCEPT for the customer who is on it: they still need to see
+          // what they hold, what it includes, and the portal link to change it.
+          // Hiding it from them too would make their own plan invisible.
+          .filter((plan) => !plan.legacy || plan.id === data.plan.id)
+          .map((plan) => (
           <PlanCard
             key={plan.id}
             plan={plan}

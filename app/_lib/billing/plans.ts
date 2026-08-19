@@ -1,5 +1,12 @@
-// Plan catalog — the pricing design (memory: pricing-design / docs/features/billing/README.md)
-// as code. Customer-facing meters are candidates / cases / interview minutes,
+// Plan catalog for the HOSTED product — the pricing design
+// (docs/features/billing/README.md) as code.
+//
+// Read this first: since KP went open source (AGPL-3.0), nothing below applies to a
+// self-hosted install. Running your own copy is free and unlimited — `meteringActive`
+// in entitlements.ts short-circuits every limit here before a plan is ever consulted
+// (app/_lib/billing/mode.ts explains the seam). What these tiers price is the HOSTED
+// service: somebody else running the servers, the backups and the upgrades.
+// Customer-facing meters are candidates / cases / interview minutes,
 // never tokens. `null` limit = unlimited (BYOM runs text AI + voice on the
 // customer's own keys, so there is nothing of ours to meter).
 //
@@ -39,6 +46,13 @@ export type PlanDef = {
    *  granted per contract, and the UI shows a "Talk to sales" path instead of a
    *  Buy button. See docs/product/enterprise-readiness.md for the capability roadmap. */
   contactSales?: boolean;
+  /** Withdrawn from sale, still HONORED. A legacy plan keeps entitling everybody who
+   *  already subscribed to it — their meters, their limits, their portal — but it is
+   *  gone from the pricing page and `isSelfServePlan` refuses a fresh checkout for it.
+   *  Retiring a tier by DELETING it would silently drop paying customers to free on
+   *  the next entitlement read, which is the one thing a billing catalog must never
+   *  do. See BYOM below for why this flag exists at all. */
+  legacy?: boolean;
 };
 
 export const PLANS: Record<PlanId, PlanDef> = {
@@ -74,6 +88,16 @@ export const PLANS: Record<PlanId, PlanDef> = {
     name: "BYOM",
     priceCzk: 120,
     priceUsdApprox: 5,
+    // WITHDRAWN FROM SALE when KP went open source (AGPL-3.0). BYOM sold "your model
+    // keys, our machinery" for half of Starter — and self-hosting now gives exactly
+    // that away, unlimited and free. Continuing to charge 120 Kč for a capability the
+    // repository hands out would be selling a permission slip.
+    //
+    // The row STAYS because withdrawing a tier is not deleting it: existing
+    // subscribers keep these limits until they move, the portal keeps working, and
+    // the webhook reducer keeps mapping the product id. `legacy` removes it from the
+    // pricing page and from self-serve checkout, nothing more.
+    legacy: true,
     // BYOM buys unlimited COMPUTE on the customer's own keys — that is what the tier
     // means. It does not buy unlimited outcomes: roles and hires are our product, not
     // their model spend, so they carry the Starter allowance.
@@ -122,11 +146,14 @@ export function isPlanId(value: unknown): value is PlanId {
   return typeof value === "string" && (PLAN_IDS as readonly string[]).includes(value);
 }
 
-/** A plan a customer can buy through self-serve checkout: a real paid tier that
- *  is NOT free and NOT a contact-sales (custom-priced) tier. The checkout route
- *  and the billing UI both gate on this so enterprise can never be self-served. */
+/** A plan a customer can buy through self-serve checkout: a real paid tier that is
+ *  NOT free, NOT a contact-sales (custom-priced) tier, and NOT withdrawn from sale.
+ *  The checkout route and the billing UI both gate on this, so enterprise can never
+ *  be self-served and a legacy tier can never be newly bought — while everyone
+ *  already on one keeps their entitlement. */
 export function isSelfServePlan(id: PlanId): boolean {
-  return id !== "free" && !PLANS[id].contactSales;
+  const plan = PLANS[id];
+  return id !== "free" && !plan.contactSales && !plan.legacy;
 }
 
 export function isPackId(value: unknown): value is PackId {

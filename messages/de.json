@@ -627,6 +627,7 @@
       "top": "Nach oben",
       "about": "Über die App",
       "market": "Marktpuls",
+      "source": "Quellcode",
       "signIn": "Anmelden"
     },
     "hero": {
@@ -833,9 +834,24 @@
       }
     },
     "pricing": {
-      "heading": "Winzige Preise.<br></br><emph>Keine Token-Rechnerei.</emph>",
-      "headingNote": "offen für alle: das sind die Einführungspreise, die Sie sich sichern",
+      "heading": "Kostenlos zu betreiben.<br></br><emph>Bezahlt, um nicht daran zu denken.</emph>",
+      "headingNote": "das ganze Produkt ist Open Source. die Pläne kaufen fremde Server",
       "tiers": {
+        "selfhost": {
+          "name": "Selbst gehostet",
+          "tagline": "Betreiben Sie alles auf Ihrer eigenen Maschine.",
+          "price": "0 Kč",
+          "cadence": "für immer",
+          "usd": "Open Source, AGPL-3.0",
+          "cta": "Quellcode holen",
+          "badge": "Open Source",
+          "features": [
+            "Alle Funktionen, ganz ohne Limits",
+            "Ihre Modelle: Ollama, LM Studio, jeder OpenAI-kompatible Server",
+            "Ihre Datenbank, Ihre Maschine, nichts verlässt sie",
+            "Code lesen, ändern, forken"
+          ]
+        },
         "free": {
           "name": "Free",
           "tagline": "Testen Sie es an einer echten Stelle.",
@@ -877,37 +893,22 @@
             "1.200 KI-Kandidaten pro Monat",
             "120 KI-Interviewminuten"
           ]
-        },
-        "byom": {
-          "name": "BYOM",
-          "tagline": "Ihre Modell-Schlüssel, unsere Maschinerie.",
-          "price": "120 Kč",
-          "cadence": "/ Monat",
-          "usd": "≈ 5 $ pro Monat",
-          "cta": "Schlüssel mitbringen",
-          "badge": "Schlüssel mitbringen",
-          "features": [
-            "Gemini-, OpenAI-, Azure- oder Anthropic-Keys einbinden",
-            "Unbegrenztes KI-Screening — Ihre Anbieter rechnen ab",
-            "3 veröffentlichte Rollen und 2 Einstellungen pro Monat",
-            "Wir berechnen nur die Maschinerie"
-          ]
         }
       },
-      "footnote1": "Sie zahlen für Ergebnisse: eine ausgeschriebene Rolle und eine eingestellte Person. Das KI-Screening läuft unter einem großzügigen Kontingent, das Sie normalerweise nicht erreichen.",
-      "footnote2": "Minuten aufgebraucht? 100-Minuten-Interviewpakete · 790 Kč (für jeden Tarif, sogar BYOM)",
+      "footnote1": "Selbst hosten heißt das volle Produkt, keine Testversion. Die gehosteten Pläne bepreisen Ergebnisse: eine ausgeschriebene Stelle und eine eingestellte Person.",
+      "footnote2": "Minuten aufgebraucht? 100-Minuten-Interviewpakete · 790 Kč (jeder gehostete Tarif)",
       "enterprise": {
         "eyebrow": "Auf Organisationsebene",
         "heading": "Recruiting für die ganze Organisation?",
-        "blurb": "Jenseits der verbrauchsbasierten Tarife: Enterprise-SSO & SCIM, ein mandantenbezogener Audit-Trail, Ihre Marke an jedem Kandidaten-Touchpoint und ein selbst hostbares, quelloffen lizenziertes Deployment, das Ihre Daten- und Modellschicht vollständig in Ihrer Hand behält. Umgesetzt mit Ihren Security- und DPO-Teams, bepreist nach Ihrem Einstellungsvolumen. Der ROI wächst mit jeder Stellenanforderung.",
+        "blurb": "Alles oben Genannte liegt im Repository, samt SSO, Audit-Trail und White-Label-Branding. Enterprise kauft die Lieferung: die Bereitstellung gemeinsam mit Ihrem Security-Team und Datenschutzbeauftragten, vertragliche Zusicherungen und eine Support-Linie. Preis nach Ihrem Einstellungsvolumen.",
         "cta": "Vertrieb kontaktieren",
         "capabilities": [
           "Enterprise-SSO & SCIM-Provisionierung",
-          "Mandantenbezogener, exportierbarer Audit-Trail",
+          "Mandantenweiter, exportierbarer Audit-Trail",
           "Ihre Marke an jedem Kandidaten-Touchpoint",
-          "Selbst gehostet, quelloffen lizenziert – Ihre Daten & Modelle",
-          "DSGVO / AVV & EU-Datenstandort",
-          "SOC 2 & Unterstützung bei Security-Reviews"
+          "Bereitstellung gemeinsam mit Ihrem Security-Team",
+          "DSGVO / AVV & EU-Datenresidenz",
+          "Unterstützung bei SOC 2 & Security-Reviews"
         ],
         "stat1Value": "60–70 %",
         "stat1Label": "weniger Recruiter-Zeit fürs Screening",
@@ -915,7 +916,7 @@
         "stat2Label": "manuelles Screening pro Einstellung heute",
         "stat3Value": "40–51 h",
         "stat3Label": "gesamte Recruiter-Stunden pro Einstellung, manuell",
-        "roadmapNote": "Compliance und Self-Hosting werden gemeinsam mit Ihrem Team im Onboarding festgelegt und umgesetzt. Fragen Sie nach unserem aktuellen Attestierungsstatus und den Deployment-Optionen.",
+        "roadmapNote": "Selbst hosten braucht keinen Vertrag: der Quellcode ist öffentlich und der Deployment-Leitfaden liegt bei. Enterprise ist für Teams, die Lieferung, Zusicherung und Support wollen.",
         "source": "Quellen: Branchenstudien 2025 zu Recruiting-Zeiten (SHRM Time-to-fill; Analysen zur Recruiter-Zeit pro Einstellung). Ihre eigenen gemessenen Einsparungen erscheinen live unter Analytics → ROI."
       }
     },
@@ -930,7 +931,8 @@
       "legalNav": "Rechtliches",
       "privacy": "Datenschutz",
       "terms": "Nutzungsbedingungen",
-      "trust": "Vertrauen & Compliance"
+      "trust": "Vertrauen & Compliance",
+      "license": "AGPL-3.0 · Quellcode"
     },
     "previews": {
       "close": "Vorschau schließen",

@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import Wordmark from "../Wordmark";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
+import { sourceRepoHref } from "@/app/_lib/source-repo";
 
 /*
  * Landing topbar — destinations only.
@@ -22,6 +23,12 @@ export default function Topbar() {
         </a>
         <a href="/market" className="hover:text-[#d65a4a]">
           {t("nav.market")}
+        </a>
+        {/* The source. An AGPL product that hides its repository is answering the
+            visitor's second question ("can I just run this myself?") with silence —
+            and §13 expects a running instance to point at its source anyway. */}
+        <a href={sourceRepoHref()} target="_blank" rel="noopener noreferrer" className="hover:text-[#d65a4a]">
+          {t("nav.source")}
         </a>
         {/* Sign in — the app ships open to all, so this is the single entry
             point. In development it flips the localStorage gate and drops you

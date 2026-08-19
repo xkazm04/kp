@@ -627,6 +627,7 @@
       "top": "Haut de page",
       "about": "À propos de l’app",
       "market": "Pouls du marché",
+      "source": "Code source",
       "signIn": "Se connecter"
     },
     "hero": {
@@ -833,9 +834,24 @@
       }
     },
     "pricing": {
-      "heading": "Des prix minuscules.<br></br><emph>Zéro calcul de tokens.</emph>",
-      "headingNote": "ouvert à tous : ce sont les prix de lancement que vous verrouillez",
+      "heading": "Gratuit à héberger.<br></br><emph>Payant pour ne plus y penser.</emph>",
+      "headingNote": "tout le produit est open source. les offres achètent les serveurs de quelqu'un d'autre",
       "tiers": {
+        "selfhost": {
+          "name": "Auto-hébergé",
+          "tagline": "Faites tourner l'ensemble sur votre propre machine.",
+          "price": "0 Kč",
+          "cadence": "pour toujours",
+          "usd": "open source, AGPL-3.0",
+          "cta": "Obtenir le code source",
+          "badge": "open source",
+          "features": [
+            "Toutes les fonctionnalités, sans aucune limite",
+            "Vos modèles : Ollama, LM Studio, tout serveur compatible OpenAI",
+            "Votre base de données, votre machine, aucune donnée n'en sort",
+            "Lisez le code, modifiez-le, forkez-le"
+          ]
+        },
         "free": {
           "name": "Gratuit",
           "tagline": "Testez sur un vrai poste.",
@@ -877,37 +893,22 @@
             "1 200 candidats IA par mois",
             "120 minutes d’entretien IA"
           ]
-        },
-        "byom": {
-          "name": "BYOM",
-          "tagline": "Vos clés de modèle, notre machinerie.",
-          "price": "120 Kč",
-          "cadence": "/ mois",
-          "usd": "≈ 5 $ par mois",
-          "cta": "Apportez vos clés",
-          "badge": "apportez vos clés",
-          "features": [
-            "Branchez vos clés Gemini, OpenAI, Azure ou Anthropic",
-            "Tri par IA illimité — vos fournisseurs vous facturent",
-            "3 postes publiés et 2 recrutements par mois",
-            "Nous facturons uniquement la mécanique"
-          ]
         }
       },
-      "footnote1": "Vous payez les résultats : un poste mis sur le marché et une personne recrutée. Le tri par IA tourne sous un quota généreux que vous n’atteindrez normalement pas.",
-      "footnote2": "à court de minutes ? packs de 100 minutes d’entretien · 790 Kč (tous les forfaits, même BYOM)",
+      "footnote1": "L'auto-hébergement, c'est le produit complet, pas une version d'essai. Les offres hébergées facturent des résultats : un poste publié et une personne recrutée.",
+      "footnote2": "à court de minutes ? packs de 100 minutes d'entretien · 790 Kč (toute offre hébergée)",
       "enterprise": {
         "eyebrow": "À l’échelle de l’organisation",
         "heading": "Vous recrutez dans toute l’organisation ?",
-        "blurb": "Au-delà des forfaits à l’usage : SSO et SCIM d’entreprise, une piste d’audit cloisonnée par locataire, votre marque sur chaque point de contact candidat, et un déploiement auto-hébergeable sous licence source qui garde vos données et votre couche modèle entièrement sous votre contrôle. Le tout est livré avec vos équipes sécurité et DPO et tarifé selon votre volume de recrutement. Le ROI s’accroît à chaque poste ouvert.",
+        "blurb": "Tout ce qui précède se trouve dans le dépôt, y compris le SSO, la piste d'audit et la marque blanche. Ce que l'offre Enterprise achète, c'est la livraison : le déploiement mené avec vos équipes sécurité et votre DPO, des garanties contractuelles et une ligne de support. Tarif selon votre volume de recrutement.",
         "cta": "Contacter l’équipe commerciale",
         "capabilities": [
-          "SSO d’entreprise et provisioning SCIM",
-          "Piste d’audit exportable, cloisonnée par locataire",
-          "Votre marque sur chaque point de contact candidat",
-          "Auto-hébergé, sous licence source – vos données et modèles",
-          "RGPD / DPA et résidence des données dans l’UE",
-          "SOC 2 et accompagnement pour la revue de sécurité"
+          "SSO d'entreprise et provisionnement SCIM",
+          "Piste d'audit par client, exportable",
+          "Votre marque à chaque point de contact candidat",
+          "Déploiement mené avec votre équipe sécurité",
+          "RGPD / DPA et hébergement des données en UE",
+          "Accompagnement SOC 2 et revues de sécurité"
         ],
         "stat1Value": "60–70 %",
         "stat1Label": "de temps recruteur en moins sur la présélection",
@@ -915,7 +916,7 @@
         "stat2Label": "de présélection manuelle par recrutement aujourd’hui",
         "stat3Value": "40–51 h",
         "stat3Label": "d’heures recruteur au total par recrutement, à la main",
-        "roadmapNote": "La conformité et l’auto-hébergement sont cadrés et livrés avec votre équipe lors de l’intégration. Demandez notre statut d’attestation actuel et nos options de déploiement.",
+        "roadmapNote": "L'auto-hébergement ne demande aucun contrat : le code est public et le guide de déploiement l'accompagne. Enterprise s'adresse aux équipes qui veulent la livraison, les garanties et le support.",
         "source": "Sources : études sectorielles 2025 sur les temps de recrutement (délai de recrutement SHRM, analyses du temps recruteur par embauche). Vos propres économies mesurées s’affichent en direct dans Analytique → ROI."
       }
     },
@@ -930,7 +931,8 @@
       "legalNav": "Mentions légales",
       "privacy": "Confidentialité",
       "terms": "Conditions d’utilisation",
-      "trust": "Confiance et conformité"
+      "trust": "Confiance et conformité",
+      "license": "AGPL-3.0 · code source"
     },
     "previews": {
       "close": "Fermer l’aperçu",
