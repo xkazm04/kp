@@ -121,8 +121,9 @@ other: counted per org, per month, consumed rather than occupied.
 
 **Enterprise** is a fifth, **contact-sales** tier (`plans.ts`, `contactSales: true`):
 custom-priced, unlimited meters, granted per signed contract — never sold through
-self-serve Polar checkout (the checkout route rejects it with a "talk to sales" 400,
-and `isSelfServePlan()` gates it out everywhere). It shows in the Billing tab and the
+self-serve Polar checkout (the checkout route rejects it with a "talk to sales" 400 —
+distinct from the "no longer sold" 400 a `legacy` tier gets — and `isSelfServePlan()`
+gates it out everywhere). It shows in the Billing tab and the
 landing pricing band as a "Custom" price with a "Talk to sales" mailto
 (`app/_lib/sales-contact.ts`, `NEXT_PUBLIC_SALES_EMAIL`). What it takes to actually
 deliver that tier to a corporate buyer is the sequenced backlog in
@@ -159,6 +160,29 @@ manage:     POST /api/billing/portal → provider customer-portal URL
 
 **Money state is only ever written by the webhook path** — never trusted from the
 client, never inferred from a checkout redirect.
+
+### What POST /api/billing/checkout refuses
+
+Three server-side refusals, all before the gateway hop (`app/api/billing/checkout/route.ts`,
+pinned by `app/api/billing/billing-routes.test.ts`):
+
+- **Not self-serve → 400.** `isSelfServePlan()` covers two different situations and the
+  buyer gets the matching message: `contactSales` (Enterprise — custom-priced, talk to
+  sales) and `legacy` (BYOM — withdrawn from sale, self-host instead). One shared
+  "Enterprise is contact-sales" string used to answer both.
+- **Already subscribed → 403, use the portal.** A plan CHANGE must be an in-place swap at
+  the MoR; a second checkout would mint a parallel subscription and double-charge. This is
+  the trust boundary, not just the catalog's `changeVia` hint. Pack top-ups are exempt —
+  one-time, sold on any tier.
+- **…but that guard is bounded like the entitlement is.** `hasActiveSubscription()` reads
+  the raw stored status while `entitledPlan()` bounds `canceled` by `currentPeriodEnd`, so
+  a cancel-at-period-end whose terminal `revoked` never arrived would sit on free
+  entitlement AND a 403 — stranded, with a portal that has nothing left to change. The
+  route therefore lets a **lapsed** `canceled` row through to a fresh checkout (the
+  subscription is dead at the MoR once that date passes, so nothing can double up).
+  `past_due`/`unpaid` are deliberately NOT relaxed: those subscriptions are LIVE and in
+  dunning. Neither is a `canceled` row with an unparseable period end, where
+  `entitledPlan` keeps the plan.
 
 ### The Usage & cost section (`app/features/settings/billing/spend/`)
 

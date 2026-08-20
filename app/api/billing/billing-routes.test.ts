@@ -217,3 +217,103 @@ test("checkout: a pack top-up is still allowed for an existing subscriber (one-t
     globalThis.fetch = originalFetch;
   }
 });
+
+// ---- the "already subscribed" guard must not outlive the subscription ------------
+//
+// The guard reads the RAW stored status (hasActiveSubscription), while entitlement
+// reads the same row through entitledPlan, which BOUNDS `canceled` by currentPeriodEnd.
+// A cancel-at-period-end whose terminal `revoked` never arrived therefore lands on free
+// entitlement AND a 403'd checkout: stranded, with a portal that has nothing left to
+// change. These three pin the seam in both directions.
+
+test("checkout: a canceled subscription past its paid period can re-subscribe (not stranded on free)", async () => {
+  configurePolarEnv();
+  upsertBillingState({
+    plan: "starter",
+    status: "canceled",
+    provider: "polar",
+    providerSubscriptionId: "sub_lapsed",
+    providerCustomerId: "cus_unit_1",
+    currentPeriodEnd: "2020-01-01T00:00:00Z",
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ url: "https://polar.test/checkout/co_back", id: "co_back" }), { status: 200 })) as typeof fetch;
+  try {
+    const res = await checkoutPost(
+      new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ plan: "starter" }) })
+    );
+    assert.equal(res.status, 200, "entitlement already lapsed to free — the portal cannot sell them anything");
+    assert.equal((await res.json()).url, "https://polar.test/checkout/co_back");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("checkout: a canceled subscription still INSIDE its paid period stays portal-only", async () => {
+  configurePolarEnv();
+  upsertBillingState({
+    plan: "starter",
+    status: "canceled",
+    provider: "polar",
+    providerSubscriptionId: "sub_grace",
+    currentPeriodEnd: new Date(Date.now() + 30 * 86400_000).toISOString(),
+  });
+  const originalFetch = globalThis.fetch;
+  let providerHit = false;
+  globalThis.fetch = (async () => {
+    providerHit = true;
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const res = await checkoutPost(
+      new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ plan: "growth" }) })
+    );
+    assert.equal(res.status, 403, "still entitled and still billing — a second checkout would run in parallel");
+    assert.equal(providerHit, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("checkout: a lapsed FAILED-payment subscription is NOT relaxed — the MoR is still dunning it", async () => {
+  configurePolarEnv();
+  // past_due beyond the 7-day dunning grace: entitlement is free, but the subscription
+  // is LIVE at the provider. Relaxing this one would mint a parallel sub and double-charge.
+  upsertBillingState({
+    plan: "growth",
+    status: "past_due",
+    provider: "polar",
+    providerSubscriptionId: "sub_dunning",
+    currentPeriodEnd: "2020-01-01T00:00:00Z",
+  });
+  const originalFetch = globalThis.fetch;
+  let providerHit = false;
+  globalThis.fetch = (async () => {
+    providerHit = true;
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const res = await checkoutPost(
+      new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ plan: "starter" }) })
+    );
+    assert.equal(res.status, 403);
+    assert.equal(providerHit, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("checkout: a WITHDRAWN (legacy) tier is refused with its own reason, not the contact-sales one", async () => {
+  configurePolarEnv();
+  // BYOM is `legacy` (withdrawn 2026-08-19), not `contactSales`. Both fail
+  // isSelfServePlan, so a single shared message told a would-be BYOM buyer that
+  // "Enterprise is a custom, contact-sales plan" — a plan they never asked about.
+  const res = await checkoutPost(
+    new NextRequest("http://localhost/api/billing/checkout", { method: "POST", body: JSON.stringify({ plan: "byom" }) })
+  );
+  assert.equal(res.status, 400);
+  const { error } = (await res.json()) as { error: string };
+  assert.doesNotMatch(error, /enterprise|contact-sales/i, "a withdrawn tier must not be described as contact-sales");
+  assert.match(error, /BYOM/, "name the tier the caller actually asked for");
+});
