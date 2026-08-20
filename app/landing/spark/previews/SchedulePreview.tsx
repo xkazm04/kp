@@ -30,15 +30,19 @@ export default function SchedulePreview() {
             {d}
           </span>
         ))}
-        {days.map((d, col) =>
-          slots.map((time, row) => {
+        {/* Slots iterate row-major (a whole time band across every day) because
+            the grid fills row-major: nesting days outside slots would push
+            Wednesday's second slot into Monday's column, under the wrong
+            heading — and it is exactly that slot the confirmation names. */}
+        {slots.map((time, row) =>
+          days.map((d, col) => {
             const picked = col === 2 && row === 1;
             return (
               <motion.span
                 key={`${d}-${row}`}
                 initial={{ opacity: 0, scale: 0.5, rotate: picked ? -8 : 0 }}
                 animate={{ opacity: 1, scale: picked ? 1.08 : 1, rotate: 0 }}
-                transition={{ delay: 0.2 + (col * 2 + row) * 0.06, type: "spring", bounce: 0.45 }}
+                transition={{ delay: 0.2 + (row * days.length + col) * 0.06, type: "spring", bounce: 0.45 }}
                 className="nums relative rounded-lg border-2 border-[#17202a] px-1 py-2"
                 style={picked ? { background: MOSS, color: "#fff" } : { background: "#fff" }}
               >

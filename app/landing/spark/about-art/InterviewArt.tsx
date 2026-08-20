@@ -25,14 +25,18 @@ export default function InterviewArt({ color = "#d65a4a" }: { color?: string }) 
           <p className="text-sm font-bold">{t("art.interview.screenTitle")}</p>
           <p className="text-xs font-bold text-[#42606f]">{t("art.interview.meta")}</p>
         </div>
+        {/* The same equalizer the landing's VoicePreview draws, and via the same
+            shared `.voice-eq-bar` keyframe — which app/globals.css switches off
+            under prefers-reduced-motion. A framer `repeat: Infinity` is not
+            gated by anything (no MotionConfig here), so this loop is the one
+            animation on the page that would never stop for a visitor who asked
+            it to. Staggered delays inline, one per bar. */}
         <div className="flex h-6 items-end gap-1" aria-hidden>
-          {[0, 1, 2, 3].map((i) => (
-            <motion.span
-              key={i}
-              className="w-1.5 rounded"
-              style={{ background: color }}
-              animate={{ height: [6, 24, 10, 22, 6] }}
-              transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.12, ease: "easeInOut" }}
+          {[0, 120, 240, 360].map((delay) => (
+            <span
+              key={delay}
+              className="voice-eq-bar w-1.5 rounded"
+              style={{ height: "100%", background: color, animationDelay: `${delay}ms` }}
             />
           ))}
         </div>
