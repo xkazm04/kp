@@ -23,12 +23,21 @@ function read(rel: string): string {
 
 // Every interview route with a store/adapter-backed catch path, relative to
 // this file (app/api/interview/).
+// The list started with the five routes that had already been converted, which
+// left the interview-MINTING sibling /simulate outside the guard — and it was
+// still on `jsonError`, forwarding better-sqlite3's `err.message` (db path,
+// constraint names) from createInterviewSession + the billing-state read. The
+// rule is per-ROUTE, not per-conversion-batch, so every interview route with a
+// store-backed catch is listed here; adding a route means adding it here.
 const ROUTES = [
   "./create/route.ts",
   "./connect/route.ts",
   "./complete/route.ts",
   "./by-entry/route.ts",
   "./compare/route.ts",
+  "./revoke/route.ts",
+  "./simulate/route.ts",
+  "./simulate/attach/route.ts",
   "../interview-prep/route.ts",
 ] as const;
 

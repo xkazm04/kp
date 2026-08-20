@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordMeterUsage } from "@/app/_lib/billing";
 import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
-import { attachInterviewScorecard, completeInterviewSession, getInterviewSessionByToken, type VoiceTurn } from "@/app/_lib/db/interviews";
+import { attachInterviewScorecard, completeInterviewSession, getInterviewSessionByToken, type InterviewSession, type VoiceTurn } from "@/app/_lib/db/interviews";
 import { insertLlmUsage } from "@/app/_lib/db/llm";
 import { getEntryWorkspace } from "@/app/_lib/db/pipeline";
 import { voiceUsageRow } from "@/app/_lib/voice/minute-prices";
@@ -12,6 +12,42 @@ import { capTranscriptTurns, clampTurn } from "@/app/_lib/interview-transcript";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { CONSENT_NOT_RECORDED_ERROR, isPersistConsentSatisfied } from "@/app/_lib/interview-consent";
 
+
+// PUBLIC TOKEN ROUTE — the response carries a PROJECTION, not the store row
+// (the `publicInviteView` rule the sibling candidate surfaces follow). Every
+// return below used to serialize the whole InterviewSession under `session`, so
+// the candidate's OWN hang-up POST answered with the recruiter's PRIVATE
+// material: `instructions` is the interviewer brief — prep-chronology goals, the
+// role-intake hiring-intent digest, and on a submission debrief literal
+// “Internal red flag — never say this aloud: …” lines (interview-run.ts) — and
+// `runOfShow` carries the same gap annotations (“(missing must-have)”) that
+// connect-response-contract.test.ts already forbids on the /connect response.
+// /connect was held to that line; /complete was the back door, one Network tab
+// away. The allow-list below is what the wire actually needs: the browser reads
+// only `res.ok`, and the voice eval harness reads `session.transcript` — the
+// candidate's own words, which stay.
+type PublicSessionView = {
+  id: string;
+  status: string;
+  mode: "test" | "candidate";
+  durationMin: number | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  transcript: VoiceTurn[] | null;
+};
+
+function publicSessionView(session: InterviewSession | null): PublicSessionView | null {
+  if (!session) return null;
+  return {
+    id: session.id,
+    status: session.status,
+    mode: session.mode,
+    durationMin: session.durationMin,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt,
+    transcript: session.transcript,
+  };
+}
 
 // POST → end of call: persist the transcript (transcript-only, no audio). When
 // the session is linked to a pipeline entry, also synthesize the scorecard
@@ -53,7 +89,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         ok: true,
         alreadyCompleted: true,
-        session,
+        session: publicSessionView(session),
         scorecard: session.scorecard ?? null,
       });
     }
@@ -115,7 +151,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         ok: true,
         alreadyCompleted: true,
-        session,
+        session: publicSessionView(session),
         scorecard: session.scorecard ?? null,
       });
     }
@@ -133,7 +169,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         ok: true,
         alreadyCompleted: true,
-        session: persisted,
+        session: publicSessionView(persisted),
         scorecard: persisted?.scorecard ?? null,
       });
     }
@@ -147,8 +183,28 @@ export async function POST(request: NextRequest) {
     // booked duration.
     if (status === "completed") {
       const bookedMin = session.durationMin ?? 8;
+      // Bill THIS attempt, not the whole life of the link. markInterviewStarted
+      // COALESCEs started_at, so it keeps the FIRST connect — deliberate, that is
+      // when the consent-gated conversation began — but a 'failed' session stays
+      // reconnectable BY DESIGN (a dropped call should be retryable), and a
+      // candidate who retries the next day was billed from the original start:
+      // elapsed ran to ~1500 minutes and clamped straight to the 2× ceiling, so an
+      // 18-minute call debited 40 minutes (plus the matching inflated cost estimate)
+      // on the one meter with real per-unit cost. updated_at is re-stamped by EVERY
+      // markInterviewStarted (and by nothing else while a call is live), so the
+      // later of the two timestamps is when the current attempt actually started.
+      // On a single-attempt session both are the same write, so the number is
+      // unchanged. The earlier, failed attempt stays unbilled — the existing rule.
+      // Read only while the row is still `in_progress`: that is precisely when the
+      // last write WAS a connect. On a 'failed'/'created' row updated_at is an END
+      // (or absent) timestamp, and trusting it there would under-bill to the
+      // 1-minute floor — so those keep the started_at reading.
       const startedMs = session.startedAt ? Date.parse(session.startedAt) : NaN;
-      const elapsedMin = Number.isFinite(startedMs) ? Math.ceil((Date.now() - startedMs) / 60_000) : bookedMin;
+      const touchedMs =
+        session.status === "in_progress" && session.updatedAt ? Date.parse(session.updatedAt) : NaN;
+      const attemptMs =
+        Number.isFinite(touchedMs) && (!Number.isFinite(startedMs) || touchedMs > startedMs) ? touchedMs : startedMs;
+      const elapsedMin = Number.isFinite(attemptMs) ? Math.ceil((Date.now() - attemptMs) / 60_000) : bookedMin;
       // The 2× ceiling is single-sourced (maxBillableInterviewMin) so /create can
       // RESERVE exactly this amount — gate and debit read one function, never two
       // different numbers (the reserve-vs-debit bug this seam closes).
@@ -209,7 +265,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true, session: updated, scorecard });
+    return NextResponse.json({ ok: true, session: publicSessionView(updated), scorecard });
   } catch (error) {
     return safeJsonError(error, "api:interview:complete", "INTERVIEW_COMPLETE_FAILED");
   }

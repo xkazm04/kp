@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession } from "@/app/_lib/db/interviews";
 import { meterGate } from "@/app/_lib/billing";
 import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
-import { jsonError } from "@/app/_lib/api-response";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { defaultInterviewerInstructions, isSelfHostedProvider, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
@@ -105,6 +105,11 @@ export async function POST(request: NextRequest) {
       durationMin: session.durationMin,
     });
   } catch (error) {
-    return jsonError(error, "simulate failed");
+    // Same class as its siblings (idea-ab117371): this catch sits on better-sqlite3
+    // (createInterviewSession, the billing-state read behind meterGate) whose thrown
+    // messages carry the db path and constraint names, and `jsonError` forwarded
+    // `err.message` verbatim. The route MINTS an interview like /create, so it shares
+    // that route's stable code rather than inventing a parallel one.
+    return safeJsonError(error, "api:interview:simulate", "INTERVIEW_CREATE_FAILED");
   }
 }
