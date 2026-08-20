@@ -17,7 +17,7 @@ import {
 const intended = {
   prompt: "You are a warm interviewer. Ask ONE question per turn.",
   asrKeywords: ["React", "PostgreSQL", "Kubernetes"],
-  overrides: { prompt: true, first_message: true, language: true },
+  overrides: { prompt: true, first_message: true, language: true, asr_keywords: true },
   firstMessage: "Dobrý den! / Hello!",
   language: "cs",
   llm: "gemini-2.5-flash",
@@ -44,6 +44,10 @@ function matchingAgent() {
       overrides: {
         conversation_config_override: {
           agent: { prompt: { prompt: true }, first_message: true, language: true },
+          // The per-JOB keyword override lives on its OWN branch of the override
+          // object, not under `agent` — an unlocked-elsewhere flag is exactly the
+          // kind of half-done unlock --check exists to catch.
+          asr: { keywords: true },
         },
       },
     },
@@ -134,8 +138,23 @@ test("a disabled override flag is caught per-field", () => {
   assert.equal(promptFlag?.live, false);
   assert.equal(promptFlag?.intended, true);
   assert.equal(promptFlag?.match, false);
-  // The other two flags still match.
+  // The other flags still match.
   assert.equal(report.overrides.flags.find((f) => f.flag === "language")?.match, true);
+  assert.equal(report.overrides.flags.find((f) => f.flag === "asr_keywords")?.match, true);
+});
+
+test("an agent that never unlocked asr.keywords is drift, not a silent per-session no-op", () => {
+  // The failure this catches: the platform IGNORES an override the agent has not
+  // enabled, so the call runs on the account-wide keyword list and looks entirely
+  // healthy. --check is the only thing that would say otherwise.
+  const agent = matchingAgent();
+  delete (agent.platform_settings.overrides.conversation_config_override as { asr?: unknown }).asr;
+  const report = diffAgentConfig(intended, agent);
+  assert.equal(report.ok, false);
+  const asrFlag = report.overrides.flags.find((f) => f.flag === "asr_keywords");
+  assert.equal(asrFlag?.live, false);
+  assert.equal(asrFlag?.intended, true);
+  assert.equal(asrFlag?.match, false);
 });
 
 test("a malformed/empty agent body degrades to drift, never a crash", () => {
@@ -145,7 +164,12 @@ test("a malformed/empty agent body degrades to drift, never a crash", () => {
   assert.deepEqual(report.asrKeywords.missing, intended.asrKeywords);
   assert.deepEqual(report.asrKeywords.extra, []);
   // Absent overrides read as disabled.
-  assert.deepEqual(extractLiveOverrides({}), { prompt: false, first_message: false, language: false });
+  assert.deepEqual(extractLiveOverrides({}), {
+    prompt: false,
+    first_message: false,
+    language: false,
+    asr_keywords: false,
+  });
   assert.equal(report.overrides.flags.every((f) => f.live === false), true);
   // Every scalar field reads as absent (undefined) → all drift.
   assert.equal(report.scalars.match, false);

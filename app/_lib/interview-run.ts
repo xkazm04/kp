@@ -33,6 +33,7 @@ import {
   type CaseInterviewScenario,
 } from "./student-interview";
 import { extractTelemetry } from "./interview-telemetry";
+import { buildAsrKeywords } from "./voice/asr-keywords.mjs";
 import {
   composeCandidateBrief,
   sanitizeChronologyBlock,
@@ -449,6 +450,33 @@ export function buildCandidateSafeBrief(entryId: string): string | null {
     composeCandidateBrief({ company, roleLine, candidateLabel, durationMin: prep?.durationMin ?? GROUNDED_DEFAULT_MIN, blocks }),
     preferredLang
   );
+}
+
+/** The ASR keyword bias for ONE ElevenLabs conversation: the job's own stack in
+ *  front of the account-wide floor, capped at the platform's per-conversation
+ *  limit (app/_lib/voice/asr-keywords.mjs).
+ *
+ *  WHY IT IS SAFE ON THE WIRE: this rides back to the CANDIDATE'S BROWSER (the
+ *  ElevenLabs override is client-sent, like the prompt), so it may carry only
+ *  public job facts. It does — `requirements[].skill` and `detectedSkills` are
+ *  the JD's own technology terms, the same ones the public job posting shows.
+ *  Nothing candidate-specific and nothing recruiter-internal is read here: the
+ *  entry is used ONLY to find the job. Keep it that way — the allow-list stance
+ *  of voice/candidate-brief.ts applies to every field on this response.
+ *
+ *  Tenant from the ENTRY, never a session (the caller is a public token route —
+ *  same rule as buildCandidateSafeBrief above). A null/unknown entry, a job we
+ *  cannot read, or a job with no skills all fall back to the floor list rather
+ *  than to nothing: an un-biased recognizer is the defect this exists to fix. */
+export function interviewAsrKeywords(entryId: string | null | undefined): string[] {
+  if (!entryId) return buildAsrKeywords();
+  const entry = getPipelineEntry(entryId, getEntryWorkspace(entryId));
+  const job = entry?.jobId ? getJob(entry.jobId) : null;
+  if (!job) return buildAsrKeywords();
+  // Requirements first: a must-have skill is likelier to be discussed (and so to
+  // be misheard) than a term merely detected somewhere in the ad's prose.
+  const jobTerms = [...(job.requirements ?? []).map((r) => r?.skill), ...(job.detectedSkills ?? [])];
+  return buildAsrKeywords(jobTerms);
 }
 
 /* plannedInterviewMinutes moved to ./interview-planned-minutes (re-exported at the

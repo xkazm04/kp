@@ -5,7 +5,7 @@
 export interface IntendedAgentConfig {
   prompt: string;
   asrKeywords: string[];
-  overrides: { prompt: boolean; first_message: boolean; language: boolean };
+  overrides: { prompt: boolean; first_message: boolean; language: boolean; asr_keywords: boolean };
   firstMessage: string;
   language: string;
   llm: string;
@@ -64,7 +64,7 @@ export interface AgentConfigDiff {
 export function firstDifferenceIndex(a: string, b: string): number;
 export function extractLivePrompt(agent: unknown): string;
 export function extractLiveKeywords(agent: unknown): string[];
-export function extractLiveOverrides(agent: unknown): { prompt: boolean; first_message: boolean; language: boolean };
+export function extractLiveOverrides(agent: unknown): Record<string, boolean>;
 export function extractLiveScalars(agent: unknown): Record<string, unknown>;
 export function diffAgentConfig(intended: IntendedAgentConfig, agent: unknown): AgentConfigDiff;
 export function formatDriftReport(report: AgentConfigDiff): string;

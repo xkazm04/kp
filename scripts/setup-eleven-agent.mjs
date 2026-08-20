@@ -40,6 +40,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { QUICK_SCREEN_MIN, PROVIDER_MAX_DURATION_SECONDS } from "../app/_lib/interview-duration.mjs";
 import { diffAgentConfig, formatDriftReport } from "../app/_lib/voice/eleven-agent-diff.mjs";
+import { BASE_ASR_KEYWORDS } from "../app/_lib/voice/asr-keywords.mjs";
 
 const ENV_PATH = path.join(process.cwd(), ".env.local");
 const API = "https://api.elevenlabs.io";
@@ -80,28 +81,26 @@ const PROMPT = [
 
 // ASR keyword bias — the voice harness found the recognizer corrupting technology names ("React" →
 // "Rust", "PostgreSQL" → "později SQL"), which the scorecard would then rate as a fabricated skill
-// set. Per-session keywords aren't reachable through the browser SDK (its override type has no asr
-// field), so this is a STATIC agent-level bias toward the terms most likely to be spoken. It helps
-// the vocabulary/segmentation cases (PostgreSQL, Kubernetes) more than true homophones; a per-job
-// list would be stronger but needs a non-SDK path.
-const ASR_KEYWORDS = [
-  "React", "Angular", "Vue", "Svelte", "Next.js", "TypeScript", "JavaScript", "Python", "Java",
-  "Kotlin", "Golang", "Rust", "Scala", "Ruby", "PHP", "C#", "Spring Boot", "Django", "FastAPI",
-  "Flask", "Express", "Rails", ".NET", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Cassandra",
-  "Kafka", "RabbitMQ", "Elasticsearch", "ClickHouse", "Snowflake", "Spark", "Docker", "Kubernetes",
-  "Terraform", "Ansible", "Jenkins", "GitLab", "Nginx", "gRPC", "GraphQL", "REST", "OAuth",
-  "AWS", "GCP", "Azure", "Linux", "PyTorch", "TensorFlow", "LangChain",
-];
+// set. This is the ACCOUNT-WIDE FLOOR deployed onto the agent: the terms most likely to be spoken
+// in any screen. It is no longer the whole story — a session for a real job now sends its OWN
+// job-derived list as `overrides.asr.keywords` (see asr-keywords.mjs and the `asr_keywords`
+// override flag below), which is why the two lists live in one module.
+const ASR_KEYWORDS = BASE_ASR_KEYWORDS;
 
 const FIRST_MESSAGE =
   "Dobrý den! / Hello! I'm an AI assistant running a short first-round screen — the call is transcribed for a recruiter. Tell me a little about what you've been working on recently.";
 
 // Which per-field runtime overrides the agent must ENABLE so the per-candidate
-// CANDIDATE-SAFE grounded brief + language pin take effect (VoiceInterview.tsx
-// sends prompt/language overrides; the server builds the prompt). Single source
-// for both the deploy body below and --check's intended config, so the two can't
-// drift.
-const OVERRIDE_INTENT = { prompt: true, first_message: true, language: true };
+// CANDIDATE-SAFE grounded brief + language pin + per-JOB ASR keyword list take
+// effect (VoiceInterview.tsx sends prompt/language/asr overrides; the server
+// builds the prompt and the keyword list). Single source for both the deploy
+// body below and --check's intended config, so the two can't drift.
+//
+// `asr_keywords` is load-bearing in a way that is easy to miss: an override the
+// agent has NOT unlocked is not rejected — it is ignored, and the call runs on
+// the account-wide list while looking entirely healthy. --check is the only
+// thing that would tell us.
+const OVERRIDE_INTENT = { prompt: true, first_message: true, language: true, asr_keywords: true };
 
 // LLM the agent runs its prompt on, and its sampling temperature. Literals in the
 // create body historically — lifted to named constants so the deploy body and
@@ -266,6 +265,7 @@ async function runDeploy() {
             first_message: intended.overrides.first_message,
             language: intended.overrides.language,
           },
+          asr: { keywords: intended.overrides.asr_keywords },
         },
       },
     },
@@ -290,7 +290,7 @@ async function runDeploy() {
   writeFileSync(ENV_PATH, upsertEnv(envText, "ELEVENLABS_AGENT_ID", agentId), "utf8");
   console.log(`✓ Created agent ${agentId}`);
   console.log(`  voice: ${voiceName} (${voiceId}) · model: ${model} · language: ${language}`);
-  console.log(`  prompt/first_message/language overrides: enabled`);
+  console.log(`  prompt/first_message/language/asr.keywords overrides: enabled`);
   console.log(`  → wrote ELEVENLABS_AGENT_ID to .env.local — restart the dev server.`);
 }
 

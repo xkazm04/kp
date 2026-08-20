@@ -16,6 +16,7 @@ import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { POST } from "./route.ts";
 import { createInterviewSession } from "../../../_lib/db/interviews.ts";
+import { ASR_KEYWORD_LIMIT } from "../../../_lib/voice/asr-keywords.mjs";
 
 // Markers that make the fixture brief unmistakably interviewer-internal — the
 // exact annotation styles the UAT probe found leaking (TP-L2-VOICE-01).
@@ -104,6 +105,37 @@ test("connect response for an ElevenLabs candidate session carries no brief/red-
   // And the browser still gets what it actually needs to connect.
   assert.equal((body.connect as { provider: string }).provider, "elevenlabs");
   assert.equal((body.connect as { signedUrl: string }).signedUrl, "wss://unit.test/elevenlabs-signed");
+});
+
+test("the ElevenLabs ASR keyword override carries public job terms only, within the platform cap", async () => {
+  // The keyword list rides the SAME client-sent override channel as the prompt,
+  // so it is on the wrong side of the same trust boundary: it may carry public
+  // job terms and nothing else. The fixture session has no job attached, so this
+  // is the floor list — the shape assertions are what matter here, and
+  // asr-keywords.test.ts pins how job terms enter it.
+  const session = candidateSession("elevenlabs");
+  const res = await POST(connectRequest({ token: session.token, consent: true }));
+  const body = (await res.json()) as Record<string, unknown>;
+
+  const keywords = body.asrKeywords;
+  assert.ok(Array.isArray(keywords), "ElevenLabs sessions carry a keyword bias list");
+  assert.ok(keywords.length > 0 && keywords.length <= ASR_KEYWORD_LIMIT, "within the per-conversation cap");
+  assert.ok(
+    keywords.every((k) => typeof k === "string" && k.trim() === k && k.length > 0),
+    "every entry is a trimmed non-empty term"
+  );
+  // The same leak assertions as the brief: nothing interviewer-internal, and
+  // nothing candidate-specific, may ride this field.
+  const raw = JSON.stringify(keywords);
+  assert.ok(!raw.includes("red flag") && !raw.includes("must-have"), "no annotation leaks through the keyword list");
+  assert.ok(!raw.includes("Unit Candidate"), "the candidate is not a keyword");
+});
+
+test("OpenAI sessions carry no keyword override — their transcription is server-side", async () => {
+  const session = candidateSession("openai");
+  const res = await POST(connectRequest({ token: session.token, consent: true }));
+  const body = (await res.json()) as Record<string, unknown>;
+  assert.equal(body.asrKeywords, null);
 });
 
 test("connect response for an OpenAI candidate session strips the brief; the provider gets it server-side", async () => {

@@ -21,7 +21,7 @@
  * @typedef {Object} IntendedAgentConfig
  * @property {string} prompt            The fallback interviewer prompt the agent should run.
  * @property {string[]} asrKeywords     The ASR keyword-bias list the agent should carry.
- * @property {{ prompt: boolean, first_message: boolean, language: boolean }} overrides
+ * @property {{ prompt: boolean, first_message: boolean, language: boolean, asr_keywords: boolean }} overrides
  *           Which per-field runtime overrides should be ENABLED.
  * @property {string} firstMessage       The opening line the agent should greet with.
  * @property {string} language           The agent's configured default language code.
@@ -33,6 +33,19 @@
  */
 
 const PROMPT_CONTEXT = 48;
+
+// The override-enablement flags checked, in report order. ONE list drives the
+// live read, the comparison loop and the report, so unlocking a new override is
+// a single edit here plus its OVERRIDE_INTENT entry in the setup script — not
+// three places that can disagree about which flags exist. `asr_keywords` sits
+// on a different branch of the override object (conversation_config_override.asr
+// rather than .agent), which is exactly why the read is per-flag.
+const OVERRIDE_FLAGS = [
+  { flag: "prompt",        read: (o) => o?.agent?.prompt?.prompt === true },
+  { flag: "first_message", read: (o) => o?.agent?.first_message === true },
+  { flag: "language",      read: (o) => o?.agent?.language === true },
+  { flag: "asr_keywords",  read: (o) => o?.asr?.keywords === true },
+];
 
 // Every remaining SCALAR field the deploy body sends beyond the prompt / ASR
 // keywords / override flags handled specially above — so `--check` verifies the
@@ -75,12 +88,10 @@ export function extractLiveKeywords(agent) {
 }
 
 export function extractLiveOverrides(agent) {
-  const o = agent?.platform_settings?.overrides?.conversation_config_override?.agent ?? {};
-  return {
-    prompt: o?.prompt?.prompt === true,
-    first_message: o?.first_message === true,
-    language: o?.language === true,
-  };
+  const o = agent?.platform_settings?.overrides?.conversation_config_override ?? {};
+  const out = {};
+  for (const f of OVERRIDE_FLAGS) out[f.flag] = f.read(o);
+  return out;
 }
 
 /** Pull every scalar field's live value out of the GET-agent body, keyed by the
@@ -117,7 +128,7 @@ export function diffAgentConfig(intended, agent) {
   const asrKeywords = { match: missing.length === 0 && extra.length === 0, missing, extra };
 
   const liveOverrides = extractLiveOverrides(agent);
-  const flags = ["prompt", "first_message", "language"].map((flag) => ({
+  const flags = OVERRIDE_FLAGS.map(({ flag }) => ({
     flag,
     intended: intended.overrides[flag] === true,
     live: liveOverrides[flag] === true,

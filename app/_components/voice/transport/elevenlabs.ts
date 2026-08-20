@@ -71,16 +71,23 @@ export function useElevenLabsTransport(ctx: ElevenLabsTransportCtx): ElevenLabsC
  *  falls back to the dashboard prompt). The recruiter's private interviewer brief
  *  never reaches this response — the server sends only a generic role-title prompt
  *  (backlog #29 / TP-L2-VOICE-01); OpenAI receives its full brief server-side in the
- *  session config. phase → live via onConnect. */
+ *  session config. phase → live via onConnect.
+ *
+ *  `asrKeywords` is the per-JOB recognizer bias the server built from public job
+ *  terms (interviewAsrKeywords). It replaces the agent's account-wide list for
+ *  this conversation only — the agent must have the `asr.keywords` override
+ *  ENABLED (setup-eleven-agent.mjs OVERRIDE_INTENT), or the platform silently
+ *  ignores it and the call runs on the account list. */
 export function startElevenLabsSession(args: {
   conversation: ElevenLabsConversation;
   signedUrl: string;
   agentPrompt?: string;
+  asrKeywords?: string[];
   language: "auto" | "cs" | "en";
   /** Some SDK versions return a promise; a rejection is surfaced here instead of hanging. */
   onAsyncError: (err: unknown) => void;
 }) {
-  const { conversation, signedUrl, agentPrompt, language, onAsyncError } = args;
+  const { conversation, signedUrl, agentPrompt, asrKeywords, language, onAsyncError } = args;
   // Pin the agent's LANGUAGE to the candidate's, not just via the prompt. The EL agent's
   // dashboard default is Czech (setup-eleven-agent.mjs), and the prompt's "follow the
   // candidate's language" rule loses to that config over voice (the voice-harness caught the
@@ -90,10 +97,19 @@ export function startElevenLabsSession(args: {
   const agentOverride: { prompt?: { prompt: string }; language?: "cs" | "en" } = {};
   if (agentPrompt) agentOverride.prompt = { prompt: agentPrompt };
   if (language !== "auto") agentOverride.language = language;
+  // Built once so an empty keyword list sends no `asr` branch at all rather than
+  // an empty one — an empty override reads as "bias the recognizer toward
+  // nothing", which is not what a missing list means.
+  const overrides: {
+    agent?: typeof agentOverride;
+    asr?: { keywords: string[] };
+  } = {};
+  if (Object.keys(agentOverride).length) overrides.agent = agentOverride;
+  if (asrKeywords && asrKeywords.length) overrides.asr = { keywords: asrKeywords };
   const maybe = conversation.startSession({
     signedUrl,
     connectionType: "websocket",
-    ...(Object.keys(agentOverride).length ? { overrides: { agent: agentOverride } } : {}),
+    ...(Object.keys(overrides).length ? { overrides } : {}),
   }) as unknown;
   // Some SDK versions return a promise; surface a rejection instead of hanging.
   if (maybe && typeof (maybe as { then?: unknown }).then === "function") {
