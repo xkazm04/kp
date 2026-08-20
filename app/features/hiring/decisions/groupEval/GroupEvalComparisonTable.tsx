@@ -11,7 +11,8 @@ import {
   SkillCell,
   SkillsLegend,
 } from "@/app/features/hiring/decisions/groupEval/GroupEvalComparisonCells";
-import { coverageCount, percentOf, rowLeader } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
+import { buildDimRows, coverageCount, percentOf, rowLeader, type DimRow } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
+import { useMatchLabels } from "@/app/features/shared/matchLabels";
 import { computeSalaryScale } from "@/app/features/hiring/decisions/groupEval/groupEvalSalaryScale";
 import { Avatar, Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
 import { candIdentity, type EvalCandidate } from "@/app/features/shared/groupEvalTypes";
@@ -155,20 +156,18 @@ export function ComparisonTable({
   const t = useTranslations("decisions.groupEval");
   // Reader-locale digit grouping (format.ts number-locale contract).
   const n = useNumberFormat();
+  const { dimLabel } = useMatchLabels();
   const cols = candidates.length + 1;
 
-  // Dimension rows: union of breakdown keys (skills/career/personal), labelled
-  // from the first candidate that carries each (archetype-aware labels).
-  const dims: { key: string; label: string; weight: number }[] = [];
-  const seenDim = new Set<string>();
-  for (const c of candidates) {
-    for (const d of c.scoreBreakdown ?? []) {
-      if (!seenDim.has(d.key)) {
-        seenDim.add(d.key);
-        dims.push({ key: d.key, label: d.label, weight: d.weight });
-      }
-    }
-  }
+  // Dimension rows: union of breakdown keys (skills/career/personal). The label and the
+  // weight are per-CANDIDATE facts (both archetype-aware), so buildDimRows only states
+  // the ones every column agrees on — a mixed field used to head the row with one
+  // candidate's rename and one candidate's weight.
+  const dims = buildDimRows(candidates);
+  // …and the name is localized through the shared match.dims resolver, like every other
+  // match surface: only label/labelCode are read, so the numeric fields below are inert
+  // placeholders (a row header is not a candidate's measurement).
+  const dimName = (d: DimRow) => dimLabel({ ...d, weight: 0, percent: 0, contribution: 0 });
 
   const must = skillRows.filter((r) => r.mustHave);
   const nice = skillRows.filter((r) => !r.mustHave);
@@ -227,7 +226,7 @@ export function ComparisonTable({
               {dims.map((d) => (
                 <Row
                   key={d.key}
-                  head={<RowHead title={d.label} sub={t("weight", { weight: d.weight })} />}
+                  head={<RowHead title={dimName(d)} sub={d.weight != null ? t("weight", { weight: d.weight }) : undefined} />}
                   candidates={candidates}
                   leaderValue={(c) => percentOf(c, d.key)}
                   render={(c, isLeader) => <DimCell c={c} dimKey={d.key} isLeader={isLeader} />}

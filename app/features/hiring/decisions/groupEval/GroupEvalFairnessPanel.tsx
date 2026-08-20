@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
+import { robustOrderVerdict } from "@/app/features/hiring/decisions/groupEval/groupEvalHelpers";
 import { Pill, SectionTitle } from "@/app/features/hiring/decisions/groupEval/GroupEvalPrimitives";
 import { isFairnessAligned } from "@/app/features/shared/groupEvalTypes";
 import type { Fairness, FairnessScheme, RobustnessStatus } from "@/app/features/shared/groupEvalTypes";
@@ -78,7 +79,12 @@ export function FairnessPanel({
     );
   }
 
-  const diverges = ranking.length === headlineOrder.length && ranking.some((l, i) => l !== headlineOrder[i]);
+  // Does the robust order agree with the headline fit order? The matrix can cover FEWER
+  // candidates than the comparison (the ranker's pool drops entries it can't resolve), so
+  // the comparison runs on the matrix's OWN field — a bare length check fell through to
+  // the "agrees" copy and reported agreement with a headline that was never compared.
+  // null = unanswerable: state nothing rather than reassure (see robustOrderVerdict).
+  const orderVerdict = robustOrderVerdict(ranking, headlineOrder);
 
   return (
     <section>
@@ -149,9 +155,11 @@ export function FairnessPanel({
           </span>
         ))}
       </div>
-      <p className={`mt-1.5 text-sm ${diverges ? "text-amber-700" : "text-steel"}`}>
-        {diverges ? t("robustDiverges") : t("robustAgrees")}
-      </p>
+      {orderVerdict ? (
+        <p className={`mt-1.5 text-sm ${orderVerdict === "diverges" ? "text-amber-700" : "text-steel"}`}>
+          {orderVerdict === "diverges" ? t("robustDiverges") : t("robustAgrees")}
+        </p>
+      ) : null}
 
       <ul className="mt-2 space-y-1">
         {candidateIds.map((id, i) =>

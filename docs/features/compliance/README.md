@@ -159,7 +159,12 @@ is a browser-only four-fifths-rule worksheet for externally supplied
 demographic counts — the app itself holds none. The UI for this lives at
 `app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx` (not
 `app/features/sub_decisions/...` — that path in the older conformity doc no
-longer exists; corrected here).
+longer exists; corrected here). That panel's closing claim — whether the
+cross-scheme *robust order* agrees with the headline fit order — is resolved by
+`robustOrderVerdict` (`groupEval/groupEvalHelpers.ts`): the matrix can cover
+fewer candidates than the comparison (the ranker's pool drops entries it cannot
+resolve), so the orders are compared on the matrix's own field, and a comparison
+that cannot be made states **nothing** rather than defaulting to "agrees".
 
 **Name/gender-proxy neutrality.** `pipeline/jobfit/tests/test_name_neutrality.py`
 now pins byte-identity of the deterministic scorer's output across

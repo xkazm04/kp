@@ -55,6 +55,10 @@ export function ProfileCell({ c }: { c: EvalCandidate }) {
 
 export function CoverageCell({ c, mustRows }: { c: EvalCandidate; mustRows: string[] }) {
   const n = coverageCount(c, mustRows);
+  // Never assessed against the must-haves (no ranker row for this column) → the neutral
+  // dash, matching the "not applicable" dashes SkillCell draws for the same skills. A red
+  // "0/N" here would be a fabricated total miss, not a measured one.
+  if (n == null) return <Dash />;
   const tone = n === mustRows.length ? "text-moss" : n === 0 ? "text-red-700" : "text-amber-700";
   return (
     <div>

@@ -46,7 +46,83 @@ export function rowLeader(values: (number | null)[]): number | null {
   if (present.every((v) => v === present[0])) return null;
   return Math.max(...present);
 }
-export const coverageCount = (c: EvalCandidate, mustRows: string[]) => mustRows.filter((s) => (c.matchedSkills ?? []).includes(s)).length;
+/** How many of the role's must-haves this candidate matched — or null when the
+ *  candidate carries NO skill assessment at all.
+ *
+ *  The enriched table renders as soon as ONE column has a recruiter breakdown, and the
+ *  ranker does not always produce a row per compared candidate (group-eval-run feeds it
+ *  only entries it can resolve to a candidate record, and a row the ranker omits leaves
+ *  `matchedSkills`/`missingSkills` undefined). Counting that absence as 0 printed a red
+ *  "0/4" — a fabricated total miss for someone who was never measured — next to a row of
+ *  neutral "not applicable" dashes SkillCell already draws for those very skills. An
+ *  EMPTY assessment (`matchedSkills: []`) is a measured zero and still counts 0: absent
+ *  and zero are different facts (REC-03), and only the absent one withholds the number. */
+export const coverageCount = (c: EvalCandidate, mustRows: string[]): number | null =>
+  c.matchedSkills == null && c.missingSkills == null ? null : mustRows.filter((s) => (c.matchedSkills ?? []).includes(s)).length;
+
+/** Does the cross-scheme robust order agree with the headline fit order — or is the
+ *  question unanswerable?
+ *
+ *  The fairness matrix does NOT always cover the whole compared field: the recruiter
+ *  ranker is fed only the candidates it can resolve (group-eval-run drops an entry with
+ *  no linked candidate record), while `headlineOrder` (payload.recommendedOrder) names
+ *  EVERY compared column. The old inline test short-circuited on a length mismatch and
+ *  fell through to the "agrees" copy — so a robust order computed over a SMALLER field,
+ *  one that may well disagree, was reported to the recruiter as agreeing with a headline
+ *  it had never been compared to. A legacy payload with no recommendedOrder at all
+ *  (headlineOrder = []) hit the same false reassurance.
+ *
+ *  So: project the headline onto the matrix's OWN field and compare there. When the
+ *  projection can't cover the matrix (a ranked label the headline never names), the
+ *  comparison is unanswerable and this returns null — the panel then says nothing rather
+ *  than claiming agreement it cannot establish. */
+export function robustOrderVerdict(ranking: string[], headlineOrder: string[]): "agrees" | "diverges" | null {
+  if (!ranking.length) return null;
+  const inMatrix = new Set(ranking);
+  const projected = headlineOrder.filter((l) => inMatrix.has(l));
+  if (projected.length !== ranking.length) return null;
+  return ranking.some((l, i) => l !== projected[i]) ? "diverges" : "agrees";
+}
+
+/** One score-breakdown row of the comparison table. `weight` is null when the compared
+ *  columns do NOT share it — see buildDimRows. */
+export type DimRow = { key: string; label: string; labelCode?: string; weight: number | null };
+
+/** The score-breakdown rows: the union of the candidates' breakdown keys, in first-seen
+ *  (server rank) order.
+ *
+ *  Both the LABEL and the WEIGHT on a breakdown dimension are PER CANDIDATE, not per row:
+ *  the labels are archetype-aware (student/career_switcher rename skills→Foundation,
+ *  career→Potential, personal→Fit — matching.dimension_labels) and so are the weights
+ *  (matching.WEIGHTS: skills is 50% for bau, 40% for a student, 35% for a switcher). The
+ *  row used to take both from whichever candidate happened to carry the key FIRST, so a
+ *  mixed field — a student beside experienced candidates, exactly the field the fairness
+ *  track exists for — headed the row "Foundation · weight 40%" while two of its three
+ *  columns are Skills at 50%.
+ *
+ *  A fact the columns agree on stays; a disagreement degrades instead of picking a
+ *  winner: the label falls back to the dimension's canonical catalog code (`key` IS
+ *  match.dims.skills|career|personal) and the weight is dropped rather than stated for
+ *  everyone. The per-candidate weight is still readable in full on that candidate's own
+ *  tab (ScoreBreakdown). */
+export function buildDimRows(candidates: EvalCandidate[]): DimRow[] {
+  const rows = new Map<string, DimRow>();
+  for (const c of candidates) {
+    for (const d of c.scoreBreakdown ?? []) {
+      const prev = rows.get(d.key);
+      if (!prev) {
+        rows.set(d.key, { key: d.key, label: d.label, labelCode: d.labelCode, weight: d.weight });
+        continue;
+      }
+      if (prev.weight !== d.weight) prev.weight = null;
+      if (prev.labelCode !== d.labelCode || prev.label !== d.label) {
+        prev.label = d.key;
+        prev.labelCode = d.key;
+      }
+    }
+  }
+  return [...rows.values()];
+}
 
 // Canonical skill rows: the role's requirements (must-have first), else the union
 // of every matched/missing skill (a skill is "missing" only when must-have).
