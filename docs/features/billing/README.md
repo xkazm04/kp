@@ -101,11 +101,13 @@ are our product either way. Self-hosted installs never reach this branch (no bil
 provider ⇒ no subscription row ⇒ the free plan). Pinned by
 `app/_lib/billing/meter-attribution.test.ts` and `app/_lib/billing-reserve.test.ts`.
 
-**The gate and the debit must read the same tenant**, which twice they did not:
+**The gate and the debit must agree — same tenant, same amount** — which three
+times they did not:
 
 | Where | The divergence | Now |
 | --- | --- | --- |
 | Voice **simulation** (`/api/interview/simulate` → `/api/interview/complete`) | gated on the caller's org, debited on the DEFAULT one — an entry-less session was stamped with the default team, and the debit re-derived the tenant from the (absent) entry | the caller's team is resolved once, stamped on the session row, and the debit reads `session.workspaceId` |
+| Voice **simulation**, the AMOUNT (`/api/interview/simulate`) | reserved `durationMin` while `/complete` debits up to `maxBillableInterviewMin(durationMin)` = 2× — the same under-reservation `/create` had already closed, so a demo booked for 8 minutes could bill 16 against a meter with 8 left, landing the overage as unfunded usage on the priciest meter | the gate reserves `maxBillableInterviewMin(durationMin)`, the exact ceiling the debit clamps to; `meter-attribution.test.ts` pins the expression and forbids the bare `minUnits: durationMin` |
 | Match-reasoning **degrade** (`reasoning-run.ts`) | asked the DEFAULT team's meter whether to fall back to templates, whichever team was asking | `meterAllows("ai_candidates", { workspace: workspaceId })`, the argument the caller already had |
 
 `InterviewSession.workspaceId` exists for the same reason `PipelineEntry.workspaceId`

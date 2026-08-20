@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createInterviewSession } from "@/app/_lib/db/interviews";
 import { meterGate } from "@/app/_lib/billing";
+import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
 import { jsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { defaultInterviewerInstructions, isSelfHostedProvider, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
@@ -59,8 +60,13 @@ export async function POST(request: NextRequest) {
 
     // Billing hard gate (same meter as a real candidate screen): a simulation mints
     // a REAL voice session and /complete debits its minutes just like /create, so an
-    // ungated sim let a near-empty meter burn paid voice on kp's dime. Gate on the
-    // booked length for this mode so the whole demo call fits the allowance.
+    // ungated sim let a near-empty meter burn paid voice on kp's dime. Reserve the
+    // WORST CASE /complete can debit for this session — maxBillableInterviewMin =
+    // bookedMin*2, the exact ceiling that debit clamps to — not the booked length.
+    // Gating on the booked length alone is the under-reservation /create already
+    // closed (see enforce.ts::meterGate): a demo booked for 8 minutes can bill 16,
+    // so a meter with 8 minutes left passed the gate and landed the overage as
+    // unfunded usage on the priciest meter.
     // ...unless the voice is served from a machine we run (ELEVENLABS_BASE_URL →
     // a loopback/private service), where the call spends no allowance to gate.
     // Metering a free simulation would make a self-hosted install run out of a
@@ -71,7 +77,7 @@ export async function POST(request: NextRequest) {
     // call, and a self-serve org could burn a demo on somebody else's budget.
     const workspace = await currentWorkspace();
     if (!isSelfHostedProvider(provider)) {
-      const quota = meterGate("interview_minutes", { minUnits: durationMin, workspace });
+      const quota = meterGate("interview_minutes", { minUnits: maxBillableInterviewMin(durationMin), workspace });
       if (quota) return NextResponse.json(quota, { status: 402 });
     }
 
