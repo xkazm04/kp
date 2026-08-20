@@ -16,6 +16,7 @@ import { setDecisionConfig } from "../decision-config-store.ts";
 import { PIPELINE_STAGES_DEFAULT } from "../decision-config-schema.ts";
 import { pipelineAnalytics } from "./analytics.ts";
 import { createPipelineEntry, setPipelineEntryStage } from "./pipeline.ts";
+import { ensureDb } from "./core.ts";
 
 after(() => cleanupUnitDb());
 
@@ -89,6 +90,69 @@ test("'reached interview' follows the first INTERVIEW-role column", () => {
 
   assert.equal(after.reachedInterview - (before?.reachedInterview ?? 0), 1);
   assert.equal(after.total - (before?.total ?? 0), 2, "both candidates are in the cohort");
+});
+
+// ---------------------------------------------------------------------------
+// The two OTHER metrics on the page that carry a stage threshold. The funnel was
+// fixed to read the workspace axis; these two kept resolving stage meaning from
+// the shipped default, which on an invented board means "no stage matches".
+// Pinned on their OWN workspace so the assertions are absolute counts rather
+// than deltas against the unit DB's demo seed.
+// ---------------------------------------------------------------------------
+const METRICS_WS = "axis-metrics-ws";
+
+test("setup — a second workspace running the same invented board", () => {
+  setDecisionConfig("pipelineStages", CUSTOM as unknown as Record<string, unknown>, METRICS_WS, "team");
+  // Two candidates past THIS board's screening gate ("Tech screen" is its first
+  // interview-role column), one still in screening.
+  ["Tech screen", "Onsite", "Triage"].forEach((stage, i) =>
+    createPipelineEntry({
+      candidateId: `am-c${i}`,
+      candidateLabel: `AM ${i}`,
+      jobId: "am-job",
+      jobTitle: "AM Role",
+      stage,
+      workspaceId: METRICS_WS,
+    })
+  );
+});
+
+test("the archetype-fairness metric reads THIS board's screening gate", () => {
+  const a = pipelineAnalytics(null, undefined, METRICS_WS);
+  const bau = a.byArchetype.find((x) => x.archetype === "bau");
+  assert.ok(bau, "the cohort has an archetype row");
+  assert.equal(bau.total, 3);
+  // Resolved against the SHIPPED axis instead, every renamed column indexes to
+  // -1, so the equity headline read a flat 0% for the entire board.
+  assert.equal(bau.advanceRatePct, 67, "2 of 3 cleared the gate");
+  // …and it must agree with byJob's reachedInterview, which analytics.ts states
+  // is the same threshold over the same cohort.
+  const job = a.byJob.find((j) => j.jobTitle === "AM Role");
+  assert.equal(job?.reachedInterview, 2, "the two funnel thresholds must never disagree for one cohort");
+});
+
+test("the momentum chart's hire series follows the TERMINAL role, not the name Hired", () => {
+  const { entry } = createPipelineEntry({
+    candidateId: "am-hire",
+    candidateLabel: "AM Hire",
+    jobId: "am-job",
+    jobTitle: "AM Role",
+    stage: "Signed",
+    workspaceId: METRICS_WS,
+  });
+  // The terminal transition as the real board writes it (kind 'advanced' onto the
+  // final column) — the row weeklyMomentum classifies into `hired` vs `advanced`.
+  ensureDb()
+    .prepare(
+      `INSERT INTO pipeline_events (entry_id, candidate_label, job_title, kind, from_stage, to_stage, created_at, workspace_id)
+       VALUES (?, 'AM Hire', 'AM Role', 'advanced', 'Package', 'Signed', ?, ?)`
+    )
+    .run(entry.id, new Date(Date.now() - 2 * 86_400_000).toISOString(), METRICS_WS);
+
+  const weeks = pipelineAnalytics(null, undefined, METRICS_WS).momentum;
+  const sum = (k: "hired" | "advanced") => weeks.reduce((s, w) => s + w[k], 0);
+  assert.equal(sum("hired"), 1, "a transition onto the renamed terminal column IS a hire");
+  assert.equal(sum("advanced"), 0, "…and must not be miscounted as an ordinary advance");
 });
 
 test("restoring the shipped axis restores the shipped funnel", () => {

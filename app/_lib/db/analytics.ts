@@ -370,9 +370,15 @@ export function pipelineAnalytics(
     const m = archMap.get(key) ?? { total: 0, hired: 0, advanced: 0 };
     m.total += 1;
     if (isTerminal(r.stage)) m.hired += 1;
-    // "advanced past screening" = reached Interview or beyond (see
+    // "advanced past screening" = reached the gate or beyond (see
     // hasAdvancedPastScreening); a candidate AT Screened has not advanced past it.
-    if (hasAdvancedPastScreening(r.stage)) m.advanced += 1;
+    // THIS WORKSPACE's axis, like every other threshold on this page: called
+    // without it the predicate fell back to the shipped five names, so on a board
+    // with renamed columns every stage indexed to -1 and the equity headline
+    // ("{pct}% advanced past screening") read a flat 0% for the whole cohort —
+    // while byJob's reachedInterview, which the note above gateIdx claims is the
+    // SAME threshold over the SAME rows, counted them correctly.
+    if (hasAdvancedPastScreening(r.stage, axis)) m.advanced += 1;
     archMap.set(key, m);
   }
   const byArchetype = [...archMap.entries()]
@@ -397,9 +403,15 @@ export function pipelineAnalytics(
         WHERE created_at >= ? AND kind IN ${momentumKindList} AND ${notSim()} AND workspace_id = ?`
     )
     .all(momentumCutoff, SIM_TITLE_LIKE, workspaceId) as { kind: string; to_stage: string | null; created_at: string }[];
+  // `terminalStage` is what splits the `hired` series out of `advanced`, and
+  // weeklyMomentum defaults it to the literal "Hired" for callers that cannot
+  // resolve an axis. This one can, and must: left unpassed, a workspace whose
+  // final column is named anything else saw every completed hire land in the
+  // `advanced` bars and a hire series flat at zero forever — the same rename
+  // failure the funnel/terminal-role work closed everywhere else on this page.
   const momentum = weeklyMomentum(
     momentumRows.map((r) => ({ kind: r.kind, toStage: r.to_stage, createdAt: r.created_at })),
-    { weeks: momentumWeeks }
+    { weeks: momentumWeeks, terminalStage: stageWithRole("terminal", axis) ?? undefined }
   );
 
   // Automation impact (ANA3): one GROUP BY kind over the window (the fold

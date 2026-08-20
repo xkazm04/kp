@@ -72,6 +72,12 @@ Not on `app/_lib/auth/public-routes.ts`, so a session is required;
   below the k-anonymity floor (`BENCHMARK_MIN_ENTRIES = 20` / `BENCHMARK_MIN_TEAMS = 2`,
   `app/_lib/db/org-benchmarks.ts`) and biases `medianTimeToHireDays` low by structurally
   excluding slow hires. `analyticsWindowScope.test.ts` fails if either half drifts.
+- **Below the floor, `totalEntries` is withheld too when one team is the only contributor.**
+  The aggregate excludes the caller's own workspace, so in a 2-team org exactly one team feeds
+  it — and the whole payload crosses the wire even though the locked panel prints only
+  `contributingTeams`. A volume is a team's figure once one team is behind it, so it is
+  suppressed on the same condition the rates are and returns as a real aggregate at
+  `contributingTeams >= BENCHMARK_MIN_TEAMS` (`org-benchmarks.test.ts`).
 
 ## Performance — a brief that refuses claims it cannot make
 
@@ -530,8 +536,27 @@ not capped · the forecast refuses to project below its signal floor (`forecastH
 the metrics with literal em-dashes and never fabricates sample figures
 (`AnalyticsEmptyPreview.tsx`) · a tamper-evidence claim is conditioned on the key census.
 
+## Every stage threshold reads the workspace's own board
+
+`pipelineAnalytics` resolves the axis once (`getPipelineAxis(workspaceId).stages`) and every
+threshold on the page must be asked against THAT axis, never the shipped five names — a
+predicate called without it indexes a renamed column to `-1` and answers a confident zero.
+Two call sites were still doing that and are pinned by `analytics-custom-axis.test.ts`:
+
+| Metric | Reads | Failure when the axis was omitted |
+| --- | --- | --- |
+| `byArchetype.advanceRatePct` | `hasAdvancedPastScreening(stage, axis)` | the equity headline read a flat **0 %** on any renamed board, while `byJob.reachedInterview` — documented as the same threshold over the same cohort — counted correctly |
+| `momentum[].hired` | `weeklyMomentum(…, { terminalStage })` | terminal transitions landed in the `advanced` bars and the hire series sat at **0** forever |
+
 ## Known gaps
 
+- **A hire recorded by the agent bridge is invisible to every event-time hire metric.**
+  `app/api/agents/report/[token]` and `app/api/agents/[id]/refresh` reach the terminal stage
+  through `setPipelineEntryStage`, which writes `kind = "moved"` (and hardcodes the name
+  `"Hired"`). `hiresClosedInWindow` and `weeklyMomentum` both count only
+  `advanced` / `auto_advanced`, so such a hire raises `hired` (the snapshot cohort) but not the
+  event-time denominator — inflating `computeCost.costPerHireUsd` and
+  `automationRoi.hoursSavedPerHire` by the share of bridge hires in the window.
 - **The score-bands drilldown and the threshold recommendation are advance-axis only.**
   `GET /api/analytics/calibration/band` takes no `?outcome=`, so `ScoreBands` is offered on the
   advance axis and `outcomeHiredScopeNote` explains its absence on the hire axis; the

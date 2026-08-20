@@ -121,11 +121,23 @@ export function orgHiringBenchmark(orgId: string, opts?: { excludeWorkspaceId?: 
   const contributingTeams = new Set(rows.map((r) => r.workspace_id)).size;
   const stats = statsFrom(rows);
   const available = stats.totalEntries >= BENCHMARK_MIN_ENTRIES && contributingTeams >= BENCHMARK_MIN_TEAMS;
-  // Below the floor we still report HOW MANY teams contributed (a count is not
-  // de-anonymizing), but withhold the rates/median so a 1-team org can't read the
-  // other team's figures off its own "org" benchmark.
+  // Below the floor we still report HOW MANY teams contributed (a count of teams is
+  // not de-anonymizing — it's what the locked panel prints), but withhold the
+  // rates/median so a 1-team org can't read the other team's figures off its own
+  // "org" benchmark.
+  //
+  // `totalEntries` used to ride out of here unwithheld, and that reopened the exact
+  // hole the self-exclusion above closed. In a 2-team org the caller is excluded, so
+  // the aggregate has ONE contributor: `{ available: false, contributingTeams: 1,
+  // totalEntries: 137 }` told team A that team B has exactly 137 candidates in its
+  // pipeline. A volume is a team figure like any other once only one team fed it, and
+  // the whole payload crosses the wire (GET /api/benchmarks returns it verbatim) even
+  // though the locked panel renders only the team count. So the size is withheld on
+  // the same condition the rates are — a lone contributor — and survives as a real
+  // aggregate the moment ≥ BENCHMARK_MIN_TEAMS teams stand behind it.
   if (!available) {
-    return { available: false, contributingTeams, totalEntries: stats.totalEntries, interviewRatePct: 0, hireRatePct: 0, medianTimeToHireDays: null };
+    const anonymousTotal = contributingTeams >= BENCHMARK_MIN_TEAMS ? stats.totalEntries : 0;
+    return { available: false, contributingTeams, totalEntries: anonymousTotal, interviewRatePct: 0, hireRatePct: 0, medianTimeToHireDays: null };
   }
   return { ...stats, available: true, contributingTeams };
 }

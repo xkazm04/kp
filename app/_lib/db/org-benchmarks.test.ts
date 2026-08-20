@@ -64,7 +64,28 @@ test("the benchmark a team sees EXCLUDES its own workspace — a 2-team org can'
   assert.equal(org.available, false, "a lone peer's rates must stay withheld");
   assert.equal(org.contributingTeams, 1, "the caller's own team is NOT counted toward the org aggregate");
   assert.equal(org.interviewRatePct, 0, "rates withheld below the floor");
+  // The peer's pipeline SIZE is a team figure too once one team is the only
+  // contributor — and the whole payload crosses the wire, not just what the locked
+  // panel draws. Leaving it in handed the caller "team B has exactly 10 candidates".
+  assert.equal(org.totalEntries, 0, "a lone contributor's volume is withheld with its rates");
   assert.equal(team.totalEntries, 10, "the team's OWN stats are still returned alongside");
+});
+
+test("a below-floor aggregate that ≥2 teams DO stand behind still reports its size", () => {
+  // Both peers are tiny, so the ENTRY floor withholds the rates — but two teams
+  // contributed, so the volume is a real aggregate and stays legible.
+  makeTeam("org-small", "org-small-a"); // the caller
+  makeTeam("org-small", "org-small-b");
+  makeTeam("org-small", "org-small-c");
+  addEntries("org-small-a", TEN);
+  addEntries("org-small-b", ["Accepted", "Screened"]);
+  addEntries("org-small-c", ["Accepted", "Interview"]);
+
+  const { org } = teamBenchmark("org-small-a");
+  assert.equal(org.available, false, "4 peer entries is under BENCHMARK_MIN_ENTRIES");
+  assert.equal(org.contributingTeams, 2);
+  assert.equal(org.totalEntries, 4, "two contributors make the volume an aggregate, not a team's figure");
+  assert.equal(org.interviewRatePct, 0, "the rates stay withheld — the sample is noise");
 });
 
 test("with ≥2 OTHER teams the peer benchmark is available and never counts the caller (bug-ui-scan-2026-07-09 #3)", () => {
