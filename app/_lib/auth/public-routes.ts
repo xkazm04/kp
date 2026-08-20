@@ -30,6 +30,12 @@ export const PUBLIC_PAGES = [
   "/schedule/",
   "/interview/",
   "/status/",
+  // GDPR self-service (Art. 15/17): the "manage your data" footer on every candidate
+  // comm links to an ABSOLUTE `<base>/data/<erasureToken>` (comms-dispatch.ts). The
+  // page is token-gated and carries no session, so without this entry every one of
+  // those links 302'd to /login in password mode — the right-to-erasure path was
+  // unreachable for exactly the people it exists for.
+  "/data/",
   "/skill/",
   "/devcase/apply/",
   "/invite/",
@@ -49,6 +55,12 @@ export const PUBLIC_API_PREFIXES = [
   "/api/apply/",
   "/api/offer/",
   "/api/status/",
+  // The API behind the /data/<token> page above — GET projects "what we hold", POST
+  // performs the candidate-initiated erasure. Authed by the opaque CSPRNG erasure
+  // token alone (the route reads no session), so the proxy gate would 401 it before
+  // its own token lookup ran. Trailing slash = strict descendants: `/api/data` itself
+  // and any future sibling stay gated.
+  "/api/data/",
   "/api/skill-profile/",
   "/api/devcase/session",
   // Inbound ad/email intake (token-authed) only. `/api/channels/webhooks*` is the

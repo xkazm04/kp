@@ -80,6 +80,21 @@ test("CRITICAL: bulk scheduling-invite minting is NOT public", () => {
   assert.equal(isPublicPath("/api/schedule/some-token"), true);
 });
 
+test("CRITICAL: the GDPR erasure self-service surface is reachable", () => {
+  // comms-dispatch.ts appends a "manage your data" footer to every candidate comm
+  // pointing at an absolute `<base>/data/<erasureToken>`; the page then calls
+  // GET/POST /api/data/<token>. Neither was allow-listed, so in password mode the
+  // link 302'd to /login and the API 401'd — the Art. 17 right-to-erasure path was
+  // dead for the only people who can use it (candidates hold no session).
+  assert.equal(isPublicPath("/data/er-abc123"), true);
+  assert.equal(isPublicPath("/api/data/er-abc123"), true);
+  // Trailing-slash entries: strict descendants only, never the bare base or a sibling.
+  assert.equal(isPublicPath("/data"), false);
+  assert.equal(isPublicPath("/api/data"), false);
+  assert.equal(isPublicPath("/database"), false);
+  assert.equal(isPublicPath("/api/data-export"), false);
+});
+
 test("public JD share links reach the page, but the JD API stays gated", () => {
   // `/jds/<slug>` is a server component with an Apply CTA and OG unfurl metadata; it was
   // absent from the allow-list, so every shared JD link 302'd to /login in production.
