@@ -1,5 +1,12 @@
 import { proposeSlots } from "../schedule-slots";
-import { busyQueryWindow, filterFreeSlots, isSlotFree, DEFAULT_SLOT_MINUTES, type CalendarStatus } from "./free-busy";
+import {
+  busyQueryWindow,
+  droppedFromOffer,
+  filterFreeSlots,
+  isSlotFree,
+  DEFAULT_SLOT_MINUTES,
+  type CalendarStatus,
+} from "./free-busy";
 import { fetchBusy, isCalendarConnected } from "./google-calendar";
 
 export { CALENDAR_STATUSES, type CalendarStatus } from "./free-busy";
@@ -28,7 +35,9 @@ export type ProposedSlots = {
    *  calendar is lying twice. */
   calendarStatus: CalendarStatus;
   /** How many otherwise-offerable slots the calendar removed. Surfaced so a short list
-   *  reads as "your calendar is busy" rather than as a broken feature. */
+   *  reads as "your calendar is busy" rather than as a broken feature — so it counts what
+   *  the OFFER lost (`droppedFromOffer`), not what the over-fetched pool lost, and is zero
+   *  whenever `slots` came back full. */
   droppedForConflict: number;
 };
 
@@ -69,11 +78,21 @@ export async function proposeFreeSlots(
     return unchecked(candidates.slice(0, count));
   }
 
-  const { free, droppedForConflict } = filterFreeSlots(candidates, busy, minutes);
+  const { free } = filterFreeSlots(candidates, busy, minutes);
   // A genuinely full horizon yields zero, and that is the TRUE answer — the existing
   // no-slots escalation ("propose your own times") is exactly the right response to it,
   // so this does not backfill with times the recruiter cannot make.
-  return { slots: free.slice(0, count), calendarChecked: true, calendarStatus: "checked", droppedForConflict };
+  const slots = free.slice(0, count);
+  // NOT `filterFreeSlots`' own count: that one is over the OVER-FETCHED pool (count *
+  // OVERFETCH), so six morning conflicts used to report "6 hidden as busy" while still
+  // handing back a full six-slot list — a busy-calendar claim about a list the calendar
+  // never shortened. `droppedFromOffer` counts only what the caller actually lost.
+  return {
+    slots,
+    calendarChecked: true,
+    calendarStatus: "checked",
+    droppedForConflict: droppedFromOffer(count, candidates.length, free.length),
+  };
 }
 
 /**

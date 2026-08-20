@@ -7,7 +7,7 @@ import { exchangeCode, googleOAuthConfig, missingScopes } from "@/app/_lib/calen
 import { saveCalendarConnection } from "@/app/_lib/calendar/token-store";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import type { CalendarCallbackStatus } from "@/app/_lib/calendar/callback-status";
-import { OAUTH_STATE_COOKIE } from "../start/route";
+import { OAUTH_STATE_COOKIE, OAUTH_STATE_COOKIE_PATH } from "../start/route";
 
 // W1.4 — the OAuth callback. Verifies state, exchanges the code, stores the grant.
 //
@@ -43,8 +43,13 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const jar = await cookies();
   const expectedState = jar.get(OAUTH_STATE_COOKIE)?.value ?? "";
-  // One-shot: clear it whatever happens, so a replayed callback cannot reuse it.
-  jar.delete(OAUTH_STATE_COOKIE);
+  // One-shot: clear it whatever happens, so a replayed callback cannot reuse it. The PATH
+  // must be repeated — a cookie is keyed by (name, path), and `delete(name)` defaults the
+  // path to "/" (@edge-runtime/cookies normalizeCookie), which expires a cookie that never
+  // existed and leaves the real `kp_gcal_state` at /api/calendar/google alive for the rest
+  // of its 10-minute TTL. That made the "one-shot" claim above false: a second callback
+  // carrying the same state still passed the check.
+  jar.delete({ name: OAUTH_STATE_COOKIE, path: OAUTH_STATE_COOKIE_PATH });
 
   // The user pressed "Cancel" on Google's consent screen. Not an error worth alarming
   // anyone about — say so plainly.

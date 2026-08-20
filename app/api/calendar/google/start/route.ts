@@ -13,6 +13,11 @@ import { requireOperator } from "@/app/_lib/auth/require-operator";
 /** The CSRF state cookie. Short-lived — a consent round trip is seconds, not hours, and a
  *  long-lived state is a longer window for a forged callback to land. */
 export const OAUTH_STATE_COOKIE = "kp_gcal_state";
+/** The cookie's Path, scoped to this integration's routes. Exported because a cookie is
+ *  identified by (name, path): the callback's one-shot delete MUST repeat this path or the
+ *  browser is told to expire a different, non-existent `kp_gcal_state` at "/" (the default
+ *  Next fills in) and keeps this one until its TTL. */
+export const OAUTH_STATE_COOKIE_PATH = "/api/calendar/google";
 const STATE_TTL_SECONDS = 600;
 
 export async function GET() {
@@ -43,7 +48,7 @@ export async function GET() {
     httpOnly: true,
     sameSite: "lax", // must survive the top-level redirect back from Google
     secure: base.startsWith("https://"),
-    path: "/api/calendar/google",
+    path: OAUTH_STATE_COOKIE_PATH,
     maxAge: STATE_TTL_SECONDS,
   });
   return NextResponse.redirect(googleConsentUrl(config, state));

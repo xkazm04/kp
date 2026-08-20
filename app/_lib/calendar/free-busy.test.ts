@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { busyQueryWindow, filterFreeSlots, isSlotFree, normalizeBusy } from "./free-busy.ts";
+import { busyQueryWindow, droppedFromOffer, filterFreeSlots, isSlotFree, normalizeBusy } from "./free-busy.ts";
 
 // 2026-03-02 is a Monday. All times UTC for readability.
 const at = (h: number, m = 0) => `2026-03-02T${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00.000Z`;
@@ -78,6 +78,23 @@ test("no busy data means every slot survives untouched", () => {
   const res = filterFreeSlots(slots, []);
   assert.equal(res.free.length, 2);
   assert.equal(res.droppedForConflict, 0);
+});
+
+test("a drop the caller never felt is not reported as a drop", () => {
+  // proposeFreeSlots over-fetches 4x (OVERFETCH) so a busy week still yields a full list.
+  // Reporting filterFreeSlots' raw count leaked that: 24 candidates, 6 clashes, 18 free →
+  // "6 times hidden as busy" printed beside a COMPLETE six-slot list. The calendar cost the
+  // recruiter nothing there, and saying otherwise is the busy-week version of a green lie.
+  assert.equal(droppedFromOffer(6, 24, 18), 0, "a full list lost nothing, whatever the pool did");
+  assert.notEqual(droppedFromOffer(6, 24, 18), 24 - 18, "the pool-wide count this replaced is exactly the wrong answer");
+  // Only once the offer itself is short does the number mean anything.
+  assert.equal(droppedFromOffer(6, 24, 2), 4, "2 of the 6 offerable survived");
+  assert.equal(droppedFromOffer(6, 24, 0), 6, "a fully-conflicted horizon");
+  // kp's own horizon can be nearly full before the calendar is even consulted — those
+  // slots were never offerable, so they are not the calendar's doing either.
+  assert.equal(droppedFromOffer(6, 3, 1), 2, "3 candidates existed, 1 survived");
+  assert.equal(droppedFromOffer(6, 0, 0), 0, "nothing to offer, nothing dropped");
+  assert.equal(droppedFromOffer(6, 6, 6), 0);
 });
 
 test("the query window spans the slots and nothing more", () => {

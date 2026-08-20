@@ -127,6 +127,24 @@ export function filterFreeSlots<T extends { value: string }>(
   return { free, droppedForConflict: slots.length - free.length };
 }
 
+/**
+ * How many of the slots a caller would ACTUALLY have offered the calendar removed.
+ *
+ * `filterFreeSlots` counts drops across the whole candidate pool, and callers over-fetch
+ * (available-slots.ts asks for `count * OVERFETCH` so a busy week still yields a full
+ * list). That makes the raw drop count an implementation detail: a clash at candidate #20
+ * costs a caller who only ever shows 6 slots nothing at all, yet it would still print
+ * "6 times hidden as busy" beside a complete six-slot list — telling a recruiter their
+ * calendar cost them slots when it cost them none, which is the same species of lie the
+ * three-state `CalendarStatus` above exists to avoid.
+ *
+ * So: compare what could have been offered (`min(offerCount, candidateCount)`) against what
+ * survived into the offer (`min(offerCount, freeCount)`). Zero whenever the list is full.
+ */
+export function droppedFromOffer(offerCount: number, candidateCount: number, freeCount: number): number {
+  return Math.max(0, Math.min(offerCount, candidateCount) - Math.min(offerCount, freeCount));
+}
+
 /** The [timeMin, timeMax) window to ask a provider about, derived from the slots we care
  *  about — so a free/busy query never pulls more of someone's calendar than the decision
  *  needs. Null when there is nothing to ask about. */

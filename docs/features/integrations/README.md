@@ -36,7 +36,11 @@ as a banner, then strips the param from the URL so a reload cannot replay a stal
    sets an httpOnly CSRF state cookie (32 random bytes, 10-minute TTL) and 302s to Google's
    consent screen, which only a top-level navigation can follow.
 2. Google returns to `GET /api/calendar/google/callback`, which compares the state with
-   `timingSafeEqual`, exchanges the code, and stores the grant.
+   `timingSafeEqual`, exchanges the code, and stores the grant. The state is **one-shot**:
+   the callback expires the cookie whatever the outcome, deleting it at the same
+   `OAUTH_STATE_COOKIE_PATH` it was set at — a cookie is keyed by (name, path), and a
+   pathless delete serializes `Path=/`, which expires nothing and leaves the real state
+   replayable for the rest of its TTL (`callback/route.test.ts` guards both halves).
 3. Whatever happens, the operator lands back on this tab with a `calendar=<code>` param.
 4. **Disconnect** issues `DELETE /api/calendar/google`, which **revokes at Google first**
    and only then drops the row — deleting locally without revoking would leave a live grant
