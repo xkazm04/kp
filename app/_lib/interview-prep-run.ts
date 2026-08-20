@@ -75,7 +75,11 @@ export async function runInterviewPrep(params: Record<string, unknown>, signal?:
   };
   const prev = getInterviewPrep(entryId);
   const payload = mergeRegeneratedPrep(prev?.payload, generated);
-  saveInterviewPrep(entryId, candidateLabel, jobTitle, payload);
+  // `regenerated: true` — this is the ONE write that rebuilt the plan, so it is the
+  // one allowed to move the artifact's created_at (the "generated NN ago" stamp and
+  // the JD-staleness comparison). The import/weave read-merge-writes go through the
+  // same upsert and must leave it alone; see saveInterviewPrep.
+  saveInterviewPrep(entryId, candidateLabel, jobTitle, payload, { regenerated: true });
   return payload;
 }
 

@@ -96,6 +96,16 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
 - Interview sessions (token, provider, mode, status) — `app/_lib/db` (`createInterviewSession`, `getInterviewSessionByToken`, etc.)
 - Transcript + scorecard rows, linked to a pipeline entry when candidate-mode
 - `llm_usage` ledger rows for voice minutes (`interview_realtime` use case)
+- `interview_preps` — one prep artifact per pipeline entry (`app/_lib/interview-prep.ts`).
+  Its `created_at` is the **generation** stamp, not a last-modified stamp: it is what
+  the modal/schedule card render as "generated NN ago" and what `isPrepStale` compares
+  against the linked JD's last content edit (`jdLastEditedAt`) to raise the "JD edited
+  since" chip. Only a real rebuild moves it — `saveInterviewPrep(..., { regenerated: true })`,
+  passed by `runInterviewPrep` alone. The other writers round-trip the same plan through
+  that upsert (the interview-kit import `POST`, the weave/unweave `PATCH`, and the
+  checklist/notes `PUT` via `saveInterviewPrepProgress`) and deliberately leave the stamp
+  where it was; bumping it there would mark a pack fresh while its chronology still
+  described the old role.
 
 ## Rubric coverage — when the scorecard is generic, it says so
 

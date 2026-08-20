@@ -48,7 +48,27 @@ export type InterviewPrep = {
   createdAt: string;
 };
 
-export function saveInterviewPrep(entryId: string, candidateLabel: string | null, jobTitle: string | null, payload: Record<string, unknown>): void {
+/** Full-payload upsert of a prep artifact.
+ *
+ *  `created_at` is the GENERATION stamp — "when this plan was built" — and it is
+ *  what `isPrepStale` compares against the linked JD's last edit and what the
+ *  schedule card / modal render as "generated NN ago". So it moves ONLY on a real
+ *  (re)generation: pass `{ regenerated: true }` (runInterviewPrep does).
+ *
+ *  Every OTHER caller is a read-merge-write of the SAME plan — the interview-kit
+ *  import (POST) and the weave/unweave (PATCH) both round-trip the payload through
+ *  here — and bumping the stamp there silently marked a stale pack fresh: a JD
+ *  edited after generation raised the "JD edited since" chip, and importing a
+ *  question afterwards pushed created_at past the edit, so the chip vanished while
+ *  the chronology still described the OLD role. Same rule
+ *  saveInterviewPrepProgress already holds for the checklist/notes write. */
+export function saveInterviewPrep(
+  entryId: string,
+  candidateLabel: string | null,
+  jobTitle: string | null,
+  payload: Record<string, unknown>,
+  opts: { regenerated?: boolean } = {}
+): void {
   // Tenant (P1): a prep inherits its pipeline entry's workspace (by-id read; guarded so
   // an isolated store whose connection lacks pipeline_entries falls back to the default).
   // Every OTHER interview_preps op is keyed by the globally-unique entry_id, so a by-id
@@ -68,7 +88,7 @@ export function saveInterviewPrep(entryId: string, candidateLabel: string | null
          candidate_label = excluded.candidate_label,
          job_title = excluded.job_title,
          payload_json = excluded.payload_json,
-         created_at = excluded.created_at`
+         created_at = CASE WHEN @regenerated = 1 THEN excluded.created_at ELSE interview_preps.created_at END`
     )
     .run({
       entry_id: entryId,
@@ -77,6 +97,7 @@ export function saveInterviewPrep(entryId: string, candidateLabel: string | null
       payload_json: JSON.stringify(payload),
       created_at: new Date().toISOString(),
       workspace_id: workspaceId,
+      regenerated: opts.regenerated === true ? 1 : 0,
     });
 }
 
