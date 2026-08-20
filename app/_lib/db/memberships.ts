@@ -1,5 +1,6 @@
 import { ensureDb, safeRowParse } from "./core";
 import { randomId } from "../random-id";
+import { getUserById } from "./users";
 import { resolveCapabilities, sanitizeOverride, type Capability, type CapabilityOverride, type MemberRole } from "../auth/roles";
 
 // Memberships (P0) — a user's link to ONE team (workspace) with a role + optional
@@ -91,8 +92,19 @@ export function setMembershipOverrides(userId: string, workspaceId: string, over
 
 /** The member's EFFECTIVE capabilities on a team (role defaults + overrides), or an
  *  empty set when they aren't a member. The live authority the request gate reads —
- *  a permission change takes effect on the next request, no re-login. */
+ *  a permission change takes effect on the next request, no re-login.
+ *
+ *  A DISABLED (or vanished) account resolves empty regardless of its memberships.
+ *  users.status was only ever consulted by verifyCredentials, i.e. at LOGIN — so
+ *  `setMemberStatus(id, "disabled")` stopped new sign-ins while the person's already
+ *  issued cookie kept full read/pipeline:write on the team for the rest of the 7-day
+ *  session TTL: the console said "disabled" and the offboarded member kept reading
+ *  candidate PII. Sessions are stateless, but the account's state is not, so the gate
+ *  reads it here rather than waiting for a per-session revocation store. */
 export function capabilitiesForUserInWorkspace(userId: string, workspaceId: string): ReadonlySet<Capability> {
   const m = getMembership(userId, workspaceId);
-  return m ? resolveCapabilities(m.role, m.overrides) : new Set<Capability>();
+  if (!m) return new Set<Capability>();
+  const user = getUserById(userId);
+  if (!user || user.status === "disabled") return new Set<Capability>();
+  return resolveCapabilities(m.role, m.overrides);
 }

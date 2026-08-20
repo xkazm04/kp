@@ -2,7 +2,7 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { DEFAULT_ORG_ID } from "./organizations.ts";
-import { createUser } from "./users.ts";
+import { createUser, setUserStatus } from "./users.ts";
 import {
   upsertMembership,
   getMembership,
@@ -68,6 +68,23 @@ test("org:manage cannot be granted to a non-owner via an override", () => {
   assert.equal(capabilitiesForUserInWorkspace(u.id, "workspace").has("org:manage"), false);
   // The org:manage-only grant sanitizes to null, so no override row survives.
   assert.equal(getMembership(u.id, "workspace")!.overrides, null);
+});
+
+// Disabling a member has to bite on the LIVE gate, not only at login: sessions are
+// stateless 7-day tokens, so a check confined to verifyCredentials left an
+// offboarded person reading candidate data until their cookie expired.
+test("a disabled account resolves to NO capabilities even with an intact membership", () => {
+  const u = createUser({ orgId: DEFAULT_ORG_ID, email: "offboarded@csas.cz" });
+  upsertMembership(u.id, "workspace", "recruiter");
+  assert.equal(capabilitiesForUserInWorkspace(u.id, "workspace").has("read"), true);
+
+  setUserStatus(u.id, "disabled");
+  assert.equal(capabilitiesForUserInWorkspace(u.id, "workspace").size, 0, "disabled = no capabilities");
+  // The membership itself survives (the console still shows the seat, and
+  // re-enabling restores access without re-inviting).
+  assert.equal(roleForUserInWorkspace(u.id, "workspace"), "recruiter");
+  setUserStatus(u.id, "active");
+  assert.equal(capabilitiesForUserInWorkspace(u.id, "workspace").has("pipeline:write"), true);
 });
 
 test("list a team's members, then remove one", () => {

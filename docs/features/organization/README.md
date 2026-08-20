@@ -45,6 +45,19 @@ inventing a second scoping dimension.
   owner role carries it, closing a prior privilege-escalation path.
 - Open-mode + operator-password sessions fold to `owner` so local dev is
   unchanged.
+- **Disabling a member bites immediately, not at next login.**
+  `capabilitiesForUserInWorkspace` (`app/_lib/db/memberships.ts`) — the live
+  authority `resolveCaller`/`currentUser`/`callerWorkspaceCapabilities` read —
+  resolves an empty set when the account row is missing or `status = 'disabled'`,
+  so `setMemberStatus(id, "disabled")` ends the person's access on their next
+  request instead of at the end of their 7-day session. `users.status` was
+  previously consulted only by `verifyCredentials`, i.e. at sign-in, so an
+  offboarded member's existing cookie kept full `read`/`pipeline:write` on their
+  team while the console showed them disabled. Still open: the ORG-WIDE
+  administrative path (`orgMembershipGrants` in `current-user.ts`, feeding
+  `callerOrgCapabilities`/`callerDelegationCeiling`) does not consult the status,
+  so a disabled admin's live session can still reach member/team administration —
+  see Known gaps.
 - **Every server-side session read calls `await connection()` before verifying.**
   `verifySession` checks expiry against the wall clock (`Date.now()`), which
   Cache Components (Next 16.3) treats as an unstable value a prerender may not
@@ -416,7 +429,14 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
   written from the Python sidecar off the request path, so propagating org/team
   through the spawn is non-trivial (`docs/architecture/llm-provider-layer.md`).
 - Per-session revocation (stateless 7-day tokens can't be killed early) —
-  needed before enterprise SSO / audit tracks can close out.
+  needed before enterprise SSO / audit tracks can close out. Account-level
+  disable no longer waits on it for team data (see Identity & auth), but the
+  **org-wide administrative capabilities still do**: `orgMembershipGrants`
+  (`app/_lib/auth/current-user.ts`) builds `callerOrgCapabilities` and
+  `callerDelegationCeiling` straight from `listMembershipsForUser` without
+  reading `users.status`, so a disabled admin holding a live cookie can still
+  create a team and administer seats. The fix is the same one-line status read
+  that `capabilitiesForUserInWorkspace` now does, applied in that helper.
 - **No workspace deletion.** Rename exists; delete does not, deliberately — a
   team's candidates, decisions and audit chain outlive its label, and there is no
   reassign-or-purge story yet.
