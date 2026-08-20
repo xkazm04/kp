@@ -63,7 +63,7 @@ process.env.KP_OPERATOR_PASSWORD = "invite-gate-tenancy-test-password";
 
 const { POST: invitePost } = await import("./route.ts");
 const { POST: bulkPost } = await import("./bulk/route.ts");
-const { createPipelineEntry } = await import("../../../_lib/db/pipeline.ts");
+const { actOnPipelineEntry, createPipelineEntry } = await import("../../../_lib/db/pipeline.ts");
 const { listScheduleInvitesForEntry } = await import("../../../_lib/schedule-store.ts");
 const { signSession, DEFAULT_WORKSPACE, DEMO_WORKSPACE } = await import("../../../_lib/auth/session.ts");
 
@@ -162,4 +162,22 @@ test("bulk invite WORKS in a non-default workspace (it resolved against the defa
   const single = await invitePost(req({ entryId: solo.id }));
   assert.equal(single.status, 200, "the single invite route works in a non-default workspace as well");
   assert.equal(listScheduleInvitesForEntry(solo.id, WS_B).length, 1);
+});
+
+test("a closed-out candidate is never invited — single and bulk agree", async () => {
+  // The bulk route has always refused a terminal entry; the single route did not, so a
+  // stale drawer (the candidate was rejected in another tab) still minted a link and
+  // dispatched an interview invitation to someone the pipeline had closed out.
+  const entry = entryIn(WS_A);
+  signedInAs(WS_A);
+  actOnPipelineEntry(entry.id, "reject", undefined, undefined, WS_A);
+
+  const single = await invitePost(req({ entryId: entry.id }));
+  assert.equal(single.status, 409, "a rejected candidate must not be sent an interview invite");
+  const bulk = await bulkPost(req({ entryIds: [entry.id] }));
+  const body = (await bulk.json()) as { sent: number; results: { error?: string }[] };
+  assert.equal(body.sent, 0);
+  assert.equal(body.results[0].error, "not active", "the two routes refuse the same input");
+
+  assert.equal(invitesFor(entry.id), 0, "no link may exist for a closed-out candidate");
 });

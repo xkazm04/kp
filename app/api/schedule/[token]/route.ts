@@ -19,7 +19,7 @@ import {
   isTerminalScheduleInviteStatus,
   type ScheduleInvite,
 } from "@/app/_lib/schedule-store";
-import { offeredSlotFor, proposeSlots, isScheduleInviteExpired, validateProposedSlots } from "@/app/_lib/schedule-slots";
+import { offeredSlotFor, isScheduleInviteExpired, validateProposedSlots } from "@/app/_lib/schedule-slots";
 import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-slots";
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { isValidTimeZone } from "@/app/_lib/timezone";
@@ -221,7 +221,25 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
           return NextResponse.json({ error: "This interview is no longer available." }, { status: 409 });
         }
       }
-      const stuckPending = invite.status === "pending" && proposeSlots(bookedSlots(invite.workspaceId)).length === 0;
+      // "Stuck" MUST be decided by the same slot engine the GET renders from. This used
+      // the bare proposeSlots (kp bookings only), while the GET that offers the escalation
+      // uses proposeFreeSlots (kp bookings AND the interviewer's connected calendar, over
+      // the interview's REAL length). A horizon emptied by the calendar rather than by kp
+      // therefore showed the candidate "propose your own times", then answered their
+      // submission with "there are still open times — pick one from the list" over an empty
+      // picker: a closed loop with no way out. Same call shape as the GET, so the two
+      // readings of "no slots left" cannot disagree; on a calendar outage both degrade to
+      // the identical pre-integration list, so the unknown case behaves exactly as before.
+      const stuckPending =
+        invite.status === "pending" &&
+        (
+          await proposeFreeSlots(
+            bookedSlots(invite.workspaceId),
+            invite.workspaceId,
+            undefined,
+            invite.durationMin ?? undefined
+          )
+        ).slots.length === 0;
       const stuckCapped = invite.status === "confirmed" && invite.rescheduleCount >= MAX_RESCHEDULES;
       if (!stuckPending && !stuckCapped) {
         return NextResponse.json({ error: "There are still open times — please pick one from the list." }, { status: 409 });

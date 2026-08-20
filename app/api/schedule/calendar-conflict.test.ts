@@ -227,3 +227,26 @@ test("a fully-conflicted horizon still reaches the existing no-slots escalation"
   assert.equal(body.noSlots, true, "the recruiter is flagged and the candidate gets the propose-your-own-times exit");
   assert.equal(body.calendarChecked, true, "and it is honest about WHY the list is empty");
 });
+
+test("a horizon emptied by the CALENDAR still lets the candidate propose their own times", async () => {
+  // The exit the previous test proves is OFFERED must also be ACCEPTED. The POST's
+  // "are you really stuck?" check used the bare proposeSlots (kp bookings only), so a
+  // horizon emptied by the interviewer's calendar — exactly the state the GET above
+  // renders — answered the candidate's submission with "there are still open times,
+  // pick one from the list" over a picker showing none. A closed loop.
+  const invite = inviteFixture(45);
+  deleteCalendarConnection(DEFAULT_WORKSPACE_ID);
+  // Grab a real offered instant BEFORE the calendar goes fully busy — proposedSlotFor
+  // only accepts a future weekday working hour, and an offered slot is one by construction.
+  const target = (await read(invite.token)).slots[0].value;
+
+  connectCalendar();
+  stubGoogle("all"); // nothing on the horizon survives the free/busy filter
+  assert.equal((await read(invite.token)).slots.length, 0, "the picker is genuinely empty");
+
+  const res = await post(invite.token, { propose: [target] });
+  assert.equal(res.status, 200, `a stranded candidate must be able to escalate — got ${await res.clone().text()}`);
+  const stored = getScheduleInviteByToken(invite.token)!;
+  assert.equal(stored.proposalStatus, "pending", "the recruiter now has something to accept");
+  assert.equal(stored.proposals?.[0].value, target);
+});

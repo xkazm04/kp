@@ -37,6 +37,17 @@ export async function POST(request: NextRequest) {
     if (!body.entryId) return NextResponse.json({ error: "entryId is required" }, { status: 400 });
     const entry = getPipelineEntry(body.entryId, ws);
     if (!entry) return NextResponse.json({ error: "pipeline entry not found" }, { status: 404 });
+    // Never invite a rejected/withdrawn candidate. The bulk sibling has always refused a
+    // terminal entry ("the same stale-token doctrine the single flows enforce") — but this
+    // route did not, and both of its UI gates (the drawer's `showLinks`, the lifecycle
+    // panel's `canReinvite`) read a CLIENT-side snapshot of the entry. A drawer left open
+    // while the candidate was rejected in another tab therefore still minted a link AND
+    // dispatched an interview invitation to someone the pipeline had closed out — an email
+    // whose link answers "This interview is no longer available." the moment they book.
+    // Hired keeps status 'active', so this only refuses genuinely closed-out candidates.
+    if (entry.status !== "active") {
+      return NextResponse.json({ error: "That candidate is no longer active — no invite was sent." }, { status: 409 });
+    }
 
     const invite = createScheduleInvite({
       entryId: entry.id,

@@ -149,10 +149,21 @@ export function useScheduleTab() {
   // the button label). Re-checked when the prep modal closes (a fresh generate).
   useEffect(() => {
     if (!entryIds) return;
+    // `alive` (the same idiom as the interview poll below): this effect re-fires on
+    // every prep-modal open AND close, so opening the modal, generating a pack and
+    // closing it leaves two reads in flight. Without the latch the OPEN read landing
+    // last overwrote the CLOSE read's answer with a snapshot taken before the generate
+    // — the card kept offering "Generate" for a pack that already exists (and the
+    // human-scorecard flag that keeps an interviewed candidate visible stayed unset)
+    // until some other dependency changed.
+    let alive = true;
     fetch(`/api/interview-prep?entries=${encodeURIComponent(entryIds)}`)
       .then((r) => r.json())
-      .then((p) => setPrepared(p.prepared ?? {}))
+      .then((p) => alive && setPrepared(p.prepared ?? {}))
       .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
   }, [entryIds, prepEntry]);
 
   // Poll which candidates have a finished voice interview (transcript ready).

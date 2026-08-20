@@ -28,7 +28,11 @@ cannot pick an hour the interviewer is already busy for.
    `POST /api/schedule/invite/bulk` does the same for a cohort (deduped and
    capped at `BULK_INVITE_CAP` = 100 by `app/_lib/bulk-invite.ts`), with
    per-entry isolation — one bad/terminal/comms-failed entry never aborts the
-   batch and the response reports each outcome.
+   batch and the response reports each outcome. Both routes are
+   `requireOperator`-gated, workspace-scoped, and refuse a **closed-out** entry
+   (`status !== "active"`; Hired keeps `active`) — single with a 409, bulk with
+   a per-entry `"not active"` — so a rejected candidate is never mailed an
+   interview link they could not use.
 2. **Offer.** `GET /api/schedule/[token]` proposes times via
    `proposeFreeSlots` — `proposeSlots` (kp's own booked slots, business days,
    `KP_INTERVIEW_TIMES` in `KP_INTERVIEW_TZ`) filtered by the connected
@@ -45,7 +49,12 @@ cannot pick an hour the interviewer is already busy for.
    picker's offered times.
 5. **Escalate.** A fully-booked horizon or an exhausted reschedule cap lets the
    candidate propose their own times (`validateProposedSlots`), which the
-   recruiter accepts or declines.
+   recruiter accepts or declines. The POST's "are you actually stuck?" guard
+   reads the horizon through the **same** `proposeFreeSlots` call the GET
+   renders from (kp bookings *and* the connected calendar, at the invite's real
+   `durationMin`) — a horizon emptied by the calendar rather than by kp used to
+   be offered the escalation by the GET and then refused by the POST with
+   "there are still open times", over an empty picker.
 
 ## Free/busy — and saying whether it was actually checked
 
@@ -95,13 +104,18 @@ unchanged and covered by `app/api/schedule/calendar-conflict.test.ts` (which als
 pins the 90-minute span, the confirm-time refusal, both unknown paths, and a null
 `durationMin`).
 
-**What each audience sees.** The recruiter's reschedule picker
-(`ScheduleInviteRecruiterControls.tsx`) renders all three states plus
-"N times hidden as busy" from `droppedForConflict` — an unexplained short list
-otherwise reads as a broken feature rather than a busy week. The candidate page
-gets **one bit only** — "free on the interviewer's calendar" vs "not confirmed
-against it, we'll confirm by email". `calendarStatus` and `droppedForConflict`
-are statements about the *interviewer's* calendar and stay off the public token
+**What each audience sees.** The recruiter's `GET /api/schedule?slots=1`
+response carries all three states plus `droppedForConflict` ("N times hidden as
+busy") — an unexplained short list otherwise reads as a broken feature rather
+than a busy week. `droppedForConflict` counts only what the *offer* lost, never
+what the over-fetched pool lost: `proposeFreeSlots` asks `proposeSlots` for
+`count * OVERFETCH` candidates so a busy week still yields a full list, so a
+clash at candidate #20 costs a caller showing six slots nothing at all
+(`droppedFromOffer` in `free-busy.ts`, pinned by `free-busy.test.ts`). It is
+zero whenever the returned list is full. The candidate page gets **one bit
+only** — "free on the interviewer's calendar" vs "not confirmed against it,
+we'll confirm by email". `calendarStatus` and `droppedForConflict` are
+statements about the *interviewer's* calendar and stay off the public token
 wire, alongside `entryId` and `reconcileReason`.
 
 Copy lives under `scheduleTab.lifecycle.calendarStatus.*` (recruiter) and
