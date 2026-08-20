@@ -2,8 +2,9 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { DEFAULT_ORG_ID } from "./db/organizations.ts";
-import { createWorkspace } from "./db/workspaces.ts";
+import { createWorkspace, DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { verifyCredentials, getUserByEmail, createUser } from "./db/users.ts";
+import { createInvite } from "./db/invites.ts";
 import {
   listOrgMembers,
   inviteMember,
@@ -14,9 +15,18 @@ import {
   setMemberStatus,
   addMemberToWorkspace,
   removeMemberFromWorkspace,
+  type InviteMemberInput,
 } from "./org-service.ts";
 
 after(() => cleanupUnitDb());
+
+/** inviteMember returns a result union (it can refuse a cross-org team); every
+ *  test below that just wants the happy path goes through here. */
+function mintInvite(input: InviteMemberInput) {
+  const r = inviteMember(input);
+  assert.ok(r.ok, `expected an invite, got ${r.ok ? "" : r.reason}`);
+  return r.invite;
+}
 
 test("listOrgMembers returns the seeded ČS roster with resolved capabilities", () => {
   const byEmail = new Map(listOrgMembers(DEFAULT_ORG_ID).map((m) => [m.user.email, m]));
@@ -30,7 +40,7 @@ test("listOrgMembers returns the seeded ČS roster with resolved capabilities", 
 });
 
 test("invite → accept creates an active, authenticatable member on the default team", () => {
-  const invite = inviteMember({ email: "new.hire@csas.cz", role: "recruiter", invitedBy: "usr-seed-petra" });
+  const invite = mintInvite({ email: "new.hire@csas.cz", role: "recruiter", invitedBy: "usr-seed-petra" });
   assert.equal(invite.status, "pending");
   assert.deepEqual(acceptInvite({ token: invite.token, password: "short" }), { ok: false, reason: "weak_password" });
   assert.equal(acceptInvite({ token: invite.token, name: "New Hire", password: "a-strong-pw" }).ok, true);
@@ -42,7 +52,7 @@ test("invite → accept creates an active, authenticatable member on the default
 
 test("accepting an invite activates an already-invited seeded user", () => {
   assert.equal(getUserByEmail("lucie.markova@csas.cz")!.status, "invited");
-  const invite = inviteMember({ email: "lucie.markova@csas.cz", role: "recruiter" });
+  const invite = mintInvite({ email: "lucie.markova@csas.cz", role: "recruiter" });
   assert.equal(acceptInvite({ token: invite.token, password: "lucie-pw-123" }).ok, true);
   assert.equal(getUserByEmail("lucie.markova@csas.cz")!.status, "active");
   assert.ok(verifyCredentials("lucie.markova@csas.cz", "lucie-pw-123"));
@@ -70,12 +80,12 @@ test("setMemberPermissions grants a per-user capability (a recruiter becomes a W
 // and redeemable — so whoever held that link could reset the member's password and take the
 // account over. Redeem is provisioning only.
 test("a stale invite cannot reset an ACTIVE member's password", () => {
-  const first = inviteMember({ email: "stale.target@csas.cz", role: "recruiter" });
+  const first = mintInvite({ email: "stale.target@csas.cz", role: "recruiter" });
   assert.equal(acceptInvite({ token: first.token, name: "Stale Target", password: "original-pw-123" }).ok, true);
   assert.ok(verifyCredentials("stale.target@csas.cz", "original-pw-123"));
 
   // A second, still-pending invite for the same address.
-  const stale = inviteMember({ email: "stale.target@csas.cz", role: "viewer" });
+  const stale = mintInvite({ email: "stale.target@csas.cz", role: "viewer" });
   assert.deepEqual(acceptInvite({ token: stale.token, name: "Attacker", password: "attacker-pw-999" }), {
     ok: false,
     reason: "already_active",
@@ -99,7 +109,7 @@ test("accept returns the invite's team/role, not the member's oldest membership"
   // (the OLDEST membership). Re-invite him to a NEW team as admin.
   assert.equal(getUserByEmail("david.benes@csas.cz")!.status, "disabled");
   const teamB = createWorkspace("Team B");
-  const invite = inviteMember({ email: "david.benes@csas.cz", role: "admin", workspaceId: teamB.id });
+  const invite = mintInvite({ email: "david.benes@csas.cz", role: "admin", workspaceId: teamB.id });
 
   const result = acceptInvite({ token: invite.token, password: "david-pw-123" });
   assert.ok(result.ok);
@@ -109,6 +119,63 @@ test("accept returns the invite's team/role, not the member's oldest membership"
   // …even though the older default-team viewer membership still exists (what [0] returned).
   const teams = listOrgMembers().find((m) => m.user.email === "david.benes@csas.cz")!.teams;
   assert.ok(teams.some((t) => t.workspaceId === "workspace" && t.role === "viewer"), "old membership still present");
+});
+
+// ---- Invites are bound by the ORG boundary --------------------------------
+// An invite is a deferred membership write, so it must obey the same rule
+// addMemberToWorkspace() states outright ("never across orgs"). It didn't: the
+// caller-supplied workspaceId went through unchecked and an absent one fell back
+// to the GLOBAL DEFAULT_WORKSPACE_ID ("workspace" — the seeded org's team, a
+// hard-coded id every deployment shares). With self-serve signup minting real
+// second orgs, either path seated the redeemer inside another tenant.
+
+test("inviteMember refuses a team outside the inviting org", () => {
+  const other = createWorkspace("Other Co team", "org-invite-elsewhere");
+  // The concrete attack: an owner of another org names the seeded default team.
+  assert.deepEqual(inviteMember({ orgId: "org-invite-elsewhere", email: "x@evil.test", role: "owner", workspaceId: DEFAULT_WORKSPACE_ID }), {
+    ok: false,
+    reason: "cross_org",
+  });
+  // Its own team is fine, and an unknown id is refused too.
+  assert.ok(inviteMember({ orgId: "org-invite-elsewhere", email: "ok@evil.test", role: "owner", workspaceId: other.id }).ok);
+  assert.deepEqual(inviteMember({ orgId: DEFAULT_ORG_ID, email: "y@csas.cz", role: "viewer", workspaceId: "ws-nope" }), {
+    ok: false,
+    reason: "cross_org",
+  });
+});
+
+test("an invite with no team named lands on the INVITING org's team, never the global default", () => {
+  const solo = createWorkspace("Solo Co team", "org-invite-solo");
+  const invite = mintInvite({ orgId: "org-invite-solo", email: "colleague@solo.test", role: "admin" });
+  assert.equal(invite.workspaceId, solo.id, "the org's own team, not 'workspace'");
+  // The seeded org still resolves to DEFAULT_WORKSPACE_ID exactly as before.
+  assert.equal(mintInvite({ email: "default.org@csas.cz", role: "viewer" }).workspaceId, DEFAULT_WORKSPACE_ID);
+  // An org with no team at all cannot seat anyone.
+  assert.deepEqual(inviteMember({ orgId: "org-invite-empty", email: "z@empty.test", role: "viewer" }), {
+    ok: false,
+    reason: "no_workspace",
+  });
+});
+
+test("acceptInvite refuses a stored invite whose team belongs to another org", () => {
+  // A row written before the mint-time guard (or by any other createInvite caller):
+  // org A's invite pointing at the seeded org's team. Redeeming it must not create
+  // the account, and must not seat anyone on 'workspace'.
+  createWorkspace("Legacy Co team", "org-invite-legacy");
+  const legacy = createInvite({
+    orgId: "org-invite-legacy",
+    email: "legacy@evil.test",
+    role: "owner",
+    workspaceId: DEFAULT_WORKSPACE_ID,
+  });
+  assert.deepEqual(acceptInvite({ token: legacy.token, name: "Legacy", password: "legacy-pw-123" }), { ok: false, reason: "invalid" });
+  const user = getUserByEmail("legacy@evil.test");
+  assert.equal(user, null, "no account provisioned by a refused redeem");
+  assert.equal(
+    listOrgMembers(DEFAULT_ORG_ID).some((m) => m.user.email === "legacy@evil.test"),
+    false,
+    "nobody seated in the default org",
+  );
 });
 
 // ---- Per-workspace membership (the Workspaces console's write path) --------

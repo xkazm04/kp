@@ -47,15 +47,44 @@ export function listOrgMembers(orgId: string = DEFAULT_ORG_ID): OrgMember[] {
 
 export type InviteMemberInput = { orgId?: string; email: string; role: MemberRole; workspaceId?: string | null; invitedBy?: string | null };
 
-/** Create a pending invite (defaults to the org's default team). */
-export function inviteMember(input: InviteMemberInput): Invite {
-  return createInvite({
-    orgId: input.orgId ?? DEFAULT_ORG_ID,
-    email: input.email,
-    role: input.role,
-    workspaceId: input.workspaceId ?? DEFAULT_WORKSPACE_ID,
-    invitedBy: input.invitedBy ?? null,
-  });
+export type InviteResult = { ok: true; invite: Invite } | { ok: false; reason: "cross_org" | "no_workspace" };
+
+/** Create a pending invite, seated on a team of the INVITING org.
+ *
+ *  An invite is a deferred membership write, so it is bound by the same tenant
+ *  boundary addMemberToWorkspace() enforces — but it used to skip it entirely:
+ *  the caller-supplied workspaceId went through unchecked, and an absent one fell
+ *  back to the global DEFAULT_WORKSPACE_ID. That constant ("workspace") is the
+ *  SEEDED org's team, a hard-coded id every deployment shares, so once self-serve
+ *  signup started minting real second orgs (signup-service.ts) either path seated
+ *  the redeemer inside somebody else's tenant — a members:manage holder in org B
+ *  could POST {"workspaceId":"workspace","role":"owner"}, redeem their own link,
+ *  and read the default org's pipeline. Both paths now resolve within the org. */
+export function inviteMember(input: InviteMemberInput): InviteResult {
+  const orgId = input.orgId ?? DEFAULT_ORG_ID;
+  let workspaceId: string;
+  if (input.workspaceId) {
+    if (getWorkspaceOrgId(input.workspaceId) !== orgId) return { ok: false, reason: "cross_org" };
+    workspaceId = input.workspaceId;
+  } else {
+    // The org's OWN default team. DEFAULT_WORKSPACE_ID stays the preferred pick
+    // when it belongs to this org, so the seeded single-tenant deployment keeps
+    // its exact previous behaviour; any other org gets its own first team.
+    const own = listWorkspacesByOrg(orgId);
+    const fallback = own.find((w) => w.id === DEFAULT_WORKSPACE_ID) ?? own[0];
+    if (!fallback) return { ok: false, reason: "no_workspace" };
+    workspaceId = fallback.id;
+  }
+  return {
+    ok: true,
+    invite: createInvite({
+      orgId,
+      email: input.email,
+      role: input.role,
+      workspaceId,
+      invitedBy: input.invitedBy ?? null,
+    }),
+  };
 }
 
 export type AcceptInviteInput = { token: string; name?: string | null; password: string };
@@ -76,6 +105,12 @@ export function acceptInvite(input: AcceptInviteInput, now: number = Date.now())
   const invite = getRedeemableInvite(input.token, now);
   if (!invite) return { ok: false, reason: "invalid" };
   if (!input.password || input.password.length < MIN_PASSWORD_LENGTH) return { ok: false, reason: "weak_password" };
+  // Defense in depth for the tenant boundary inviteMember() now enforces at mint
+  // time: a row written BEFORE that guard (or by any other createInvite caller)
+  // must never seat its redeemer on a team outside the inviting org. Checked here,
+  // before any user/credential write, so a refused redeem leaves nothing behind.
+  const workspaceId = invite.workspaceId ?? DEFAULT_WORKSPACE_ID;
+  if (getWorkspaceOrgId(workspaceId) !== invite.orgId) return { ok: false, reason: "invalid" };
 
   let user = getUserByEmail(invite.email);
   if (user) {
@@ -94,9 +129,8 @@ export function acceptInvite(input: AcceptInviteInput, now: number = Date.now())
   } else {
     user = createUser({ orgId: invite.orgId, email: invite.email, name: input.name ?? null, status: "active", password: input.password });
   }
-  // bug-ui-scan-2026-07-09 (organizations-members-invites #3): resolve the accepted
-  // team once and return it, so the session claims match the invite (not [0]).
-  const workspaceId = invite.workspaceId ?? DEFAULT_WORKSPACE_ID;
+  // bug-ui-scan-2026-07-09 (organizations-members-invites #3): the accepted team is
+  // resolved once above and returned, so the session claims match the invite (not [0]).
   upsertMembership(user.id, workspaceId, invite.role);
   markInviteAccepted(input.token, now);
   return { ok: true, user, workspaceId, role: invite.role };

@@ -38,6 +38,14 @@ export async function POST(request: NextRequest) {
   if (existing && existing.orgId === orgId && existing.status === "active") {
     return NextResponse.json({ error: "That person is already an active member." }, { status: 409 });
   }
-  const invite = inviteMember({ orgId, email, role, workspaceId, invitedBy: actor.userId });
-  return NextResponse.json({ invite });
+  const result = inviteMember({ orgId, email, role, workspaceId, invitedBy: actor.userId });
+  if (!result.ok) {
+    // A team outside the actor's org answers 404, the same way requireWorkspaceCapability
+    // does: a cross-org probe must not learn that the id exists. `no_workspace` means the
+    // actor's own org has no team to seat anyone on — a server-state problem, not a probe.
+    return result.reason === "cross_org"
+      ? NextResponse.json({ error: "Not found" }, { status: 404 })
+      : NextResponse.json({ error: result.reason }, { status: 409 });
+  }
+  return NextResponse.json({ invite: result.invite });
 }
