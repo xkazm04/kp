@@ -18,19 +18,26 @@ export async function POST(request: Request) {
   if (denied) return denied;
   const body = (await request.json().catch(() => ({}))) as { dryRun?: unknown };
   const dryRun = body.dryRun === true;
-  // AUTO2 — a committed run from this route (the board's "Run pass" button /
-  // an external cron) is durably recorded like the clock's, so the run
-  // history is complete. Captured synchronously: when this call JOINS an
-  // in-flight pass, whoever started it records it — never twice.
-  const joined = isPassInFlight();
-  const startedAt = new Date().toISOString();
   // TENANCY (phase 1): the sweep is global by design and the run log keeps the FULL
   // decision list (it is the installation's audit record) — but the RESPONSE only
   // ever hands this caller their own team's rows, so a preview or a committed pass
   // can't ship another tenant's candidate labels and rejection reasons to the
   // browser. `summary` stays the global count of what the pass actually did; it is
   // labeled as such by `decisionsWorkspace` + `workspaceDecisionCount` beside it.
+  // Resolved BEFORE the in-flight check below — see why there.
   const workspace = await currentWorkspace();
+  // AUTO2 — a committed run from this route (the board's "Run pass" button /
+  // an external cron) is durably recorded like the clock's: when this call JOINS an
+  // in-flight pass, whoever started it records it — never twice.
+  // This MUST be the last thing before runAutomationPass, with NO await in between
+  // (the invariant tickScheduler states and honors). runAutomationPass fills the
+  // single-flight slot synchronously, so a suspension here — `await
+  // currentWorkspace()` used to sit in this gap, awaiting cookies() + connection() —
+  // lets two concurrent POSTs both read "nothing in flight", both continue, one start
+  // the pass and the other join it, and BOTH write a scheduler_runs row for the one
+  // executed pass. Pinned by route.test.ts.
+  const joined = isPassInFlight();
+  const startedAt = new Date().toISOString();
   try {
     const { summary, decisions } = await runAutomationPass({ dryRun });
     if (!dryRun && !joined) recordRun({ status: "ok", summary, decisions, startedAt, trigger: "manual" });
