@@ -75,7 +75,21 @@ def apply_company_salary_context(salary: SalaryEstimate, context: CompanyCompens
         return
     salary.minimum = round_salary(salary.minimum * context.adjustment_factor)
     salary.maximum = round_salary(salary.maximum * context.adjustment_factor)
-    salary.midpoint = round_salary((salary.minimum + salary.maximum) / 2)
+    # Scale the midpoint by the SAME factor instead of re-deriving it as the mean of
+    # the shifted bounds. pipeline._salary_from_payload deliberately KEEPS a
+    # model-supplied midpoint whenever it falls inside the band — it is the model's
+    # central estimate and is often off-centre — and re-deriving discarded exactly
+    # that: a 90k-150k band with a 100k midpoint came back at 130k under the 1.11
+    # enterprise factor, a 30% move the factor never asked for. The midpoint is the
+    # HEADLINE figure (salary gauge marker, the Decisions peer-compare expectation,
+    # and the group-eval over/within/under-band verdict), so that skew changes what a
+    # recruiter reads. Clamped into the shifted band so the
+    # `0 < min <= midpoint <= max` invariant (_salary_sanity_checks) still holds for
+    # an already-broken input the way the old re-derivation did.
+    salary.midpoint = min(
+        salary.maximum,
+        max(salary.minimum, round_salary(salary.midpoint * context.adjustment_factor)),
+    )
     salary.rationale.append(
         f"Applied company context factor {context.adjustment_factor:g} for {context.company_type}: {context.salary_effect}"
     )
