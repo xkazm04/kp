@@ -137,6 +137,16 @@ export function PipelineFilterBar({
     { value: "age", label: t("sortAge") },
   ];
 
+  // The channels the Source menu must be able to show: every value present on the
+  // board, UNION every value currently selected. Unlike State/Score/Sort — whose
+  // params are validated against a closed vocabulary — a source is an open-ended
+  // channel id (parseSourcesParam accepts any token, by design), so a selection can
+  // name a channel the board no longer carries: a shared ?source= link, or a saved
+  // view minted while that channel still had candidates. `sourceValues` is derived
+  // from the entries, so it cannot offer that value back, and the facet doing the
+  // filtering would render as if nothing were selected.
+  const sourceOptions = [...new Set([...sourceValues, ...sources])].sort();
+
   return (
     <div className="border-b border-stone-200">
       {/* ── Row 1: what board this is, who I'm looking for, how it's narrowed ── */}
@@ -167,11 +177,14 @@ export function PipelineFilterBar({
             onSelect={(v) => onToggleBand(v as ScoreBandKey)}
           />
           {/* Only when the board actually spans more than one channel — a single-source
-              board would offer a menu that can never narrow anything. */}
-          {sourceValues.length > 1 ? (
+              board would offer a menu that can never narrow anything. An ALREADY-ACTIVE
+              source filter is the exception: it IS narrowing, this menu is the only place
+              it can be seen and unchecked, and hiding it left the board showing "0 of N"
+              with every visible facet reading "off". */}
+          {sourceOptions.length > 1 || sources.size > 0 ? (
             <PipelineFilterMenu
               label={t("filterSourceLabel")}
-              options={sourceValues.map((s) => ({ value: s, label: channelName(s) }))}
+              options={sourceOptions.map((s) => ({ value: s, label: channelName(s) }))}
               selected={[...sources]}
               multiple
               onSelect={onToggleSource}
