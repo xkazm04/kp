@@ -116,6 +116,14 @@ back, keyed by the message's `ref` + `kind`:
   **header** (not a `?secret=` query param — those get logged). Constant-time
   compare; an `x-comms-timestamp` must be within ±5 minutes; an in-process
   nonce guard drops an exact replay.
+- **The nonce is a claim, not a stamp.** It is recorded before the receipt is
+  written and RELEASED (`ReplayGuard.release`) if that write throws, so the
+  relay's retry of a receipt we failed to store is processed instead of being
+  answered `duplicate: true` — the same rule `webhook-idempotency.ts` states
+  for the inbound receiver: idempotency only persists for work that succeeded.
+  Otherwise one locked-DB moment silently swallowed a bounce and left a green
+  `sent` standing on an undeliverable message. Locked by
+  `app/api/comms/callback/callback-auth.test.ts`.
 - **Public allow-list entry.** `/api/comms/callback` is on
   `app/_lib/auth/public-routes.ts` (same rationale as `/api/billing/webhook`)
   so the operator gate doesn't 401 the relay before the shared-secret check
@@ -172,6 +180,8 @@ back, keyed by the message's `ref` + `kind`:
 | `app/_lib/interview-reminder-policy.ts` | Reminder lead/floor/retry constants. |
 | `app/api/comms/callback/route.ts` | Async bounce/delivery receipt intake. |
 | `app/api/comms` | Recruiter read of the outbox / Comms Center. |
+| `app/api/channels/webhooks` | Recruiter console: list / mint / revoke inbound receivers. Minting resolves the target role with the unscoped by-id `getJob` and therefore gates it on `jobVisibleToWorkspace` — the shared seeded corpus plus the caller's own openings, exactly what the picker offers — answering `404` otherwise, so a receiver can't be bound to another team's authored role (whose title the receivers list would then render). Guarded by `channels-receiver-contract.test.ts`. |
+| `app/api/channels/inbound/[token]` | The PUBLIC token-authed lead receiver (JSON lead or multipart CV). |
 | `app/features/hiring/channels/**` (`ChannelsRelayConfigCard.tsx`, `ChannelsCommsTable.tsx`, `ChannelsCommsBouncedResend.tsx`) | Channels tab UI: relay config, Comms Center table, bounce resend. |
 | `app/features/hiring/channels/_components/table/TablePager.tsx` | `TABLE_PAGE_SIZE` (20) + `TablePager`/`clampPage` — the one pager every Channels table uses. |
 
@@ -230,6 +240,13 @@ and left the other's counts stale.
   fetches it on every tab — but it is not workspace-scoped yet (see below), so it
   cannot be the source for this stat until that is fixed.
 
+- **The inbound receiver's multipart branch has no pre-parse byte cap.** The JSON
+  branch treats `content-length` as advisory and enforces the real 64 KB budget on
+  the bytes read off the wire (`readTextWithLimit`); the CV branch only fast-rejects
+  on the header and then calls `request.formData()`, so a chunked upload that
+  declares no length is buffered whole before `validateUploadServer` ever sees a
+  size. Same shape as `/api/analyze` and the public `/api/extract-text`, so the fix
+  is a shared streaming-multipart cap, not a per-route patch.
 - No durable retry queue — retries are inline/bounded within the request;
   `comms.log` is not yet shipped to an external alerting sink.
 - Positive/soft bounce-callback outcomes (delivered/opened/deferred) are

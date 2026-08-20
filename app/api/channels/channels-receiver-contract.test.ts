@@ -69,6 +69,22 @@ test("the documented liveness contract names the authenticated-POST boundary", (
   );
 });
 
+// (3) OWNERSHIP: creation resolves the target job with getJob — an UNSCOPED by-id point
+//     read (exempt in jobs-tenancy.test.ts because a point read can't ENUMERATE another
+//     tenant). That exemption is paid for by the ROUTE checking visibility, exactly as
+//     GET /api/jobs/[id] does: without it a session could bind a receiver to another
+//     team's authored role by id, and the receivers list (WEBHOOK_SELECT LEFT JOINs
+//     `jobs` with no tenant filter) would render that team's confidential role title.
+test("receiver creation gates the unscoped getJob read on job visibility", () => {
+  assert.match(webhooksSrc, /jobVisibleToWorkspace/, "the create path must check the caller can see the job");
+  const gateAt = webhooksSrc.indexOf("jobVisibleToWorkspace(jobId, ws)");
+  const createAt = webhooksSrc.indexOf("createChannelWebhook(");
+  assert.ok(gateAt >= 0, "the gate reads the caller's workspace");
+  assert.ok(createAt >= 0, "guard the guard: creation still happens here");
+  assert.ok(gateAt < createAt, "the gate must precede the write");
+  assert.match(webhooksSrc, /if \(!job \|\| !jobVisibleToWorkspace\(jobId, ws\)\)[\s\S]{0,120}?status: 404/, "404, not 403 — same answer as an unknown id");
+});
+
 test("receiver creation returns the `{ webhook }` envelope and the modal reads its token", () => {
   assert.match(webhooksSrc, /satisfies \{ webhook: ChannelWebhookRecord \}/, "the response shape is tsc-pinned");
   assert.match(modalSrc, /webhook\?: ChannelWebhookRecord/, "the modal types the response it parses");

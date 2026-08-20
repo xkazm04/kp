@@ -40,6 +40,12 @@ const replayGuard: ReplayGuard = (replayStore.__commsCallbackReplayGuard ??= cre
 // be poked. Document the secret + timestamp header alongside COMMS_WEBHOOK_URL in
 // docs/features/comms/README.md.
 export async function POST(request: NextRequest) {
+  // Released in the catch if recording fails, so the relay's retry of the SAME
+  // receipt re-runs instead of being answered `duplicate` (mirrors the inbound
+  // receiver's claimedIdemKey). A nonce that outlived a failed write would silently
+  // swallow the bounce: the relay stops retrying on our 200 and the undeliverable
+  // message keeps its green `sent`.
+  let claimedNonce: string | null = null;
   try {
     const secret = process.env.COMMS_CALLBACK_SECRET;
     if (!secret) {
@@ -91,6 +97,7 @@ export async function POST(request: NextRequest) {
     if (replayGuard.isReplay(nonce, nowMs)) {
       return jsonOk({ recorded: false, duplicate: true });
     }
+    claimedNonce = nonce;
     const recipient =
       typeof body.recipient === "string" && body.recipient.trim() ? body.recipient.trim() : "(relay callback)";
     // ORPHAN RECEIPTS (callback-unblocked): (ref, kind) is the ONLY key a receipt
@@ -117,6 +124,9 @@ export async function POST(request: NextRequest) {
     if (!matched) return jsonOk({ recorded: false, reason: "no_matching_send", stored: true, outcome });
     return jsonOk({ recorded: true, outcome });
   } catch (error) {
+    // The receipt was NOT recorded (a locked/failed DB write, a thrown lookup) —
+    // give the nonce back so the relay's retry is processed rather than dismissed.
+    if (claimedNonce) replayGuard.release(claimedNonce);
     return safeJsonError(error, "api:comms:callback", "OUTREACH_FAILED");
   }
 }

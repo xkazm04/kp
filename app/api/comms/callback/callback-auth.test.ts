@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { timingSafeEqual } from "node:crypto";
+import { readFileSync } from "node:fs";
 import {
   secretsMatch,
   isTimestampFresh,
@@ -79,4 +80,42 @@ test("replay guard forgets a nonce once its ttl elapses", () => {
 
 test("the replay window is a sane, non-zero bound", () => {
   assert.ok(CALLBACK_TIMESTAMP_WINDOW_MS >= 60_000);
+});
+
+// --- release: idempotency must only persist for work that SUCCEEDED -----------
+
+test("a released nonce is admitted again, so a retry of a FAILED receipt re-runs", () => {
+  const guard = createReplayGuard();
+  const now = 1_000_000;
+  assert.equal(guard.isReplay("n", now), false); // claimed while recording
+  guard.release("n"); // recording threw — the receipt was never stored
+  assert.equal(guard.isReplay("n", now + 500), false, "the relay's retry must be processed, not dismissed as a duplicate");
+  assert.equal(guard.isReplay("n", now + 600), true, "and the re-claim still guards a genuine replay");
+});
+
+test("release only drops the nonce it names", () => {
+  const guard = createReplayGuard();
+  guard.isReplay("a", 0);
+  guard.isReplay("b", 0);
+  guard.release("a");
+  assert.equal(guard.isReplay("a", 1), false);
+  assert.equal(guard.isReplay("b", 1), true);
+});
+
+// SOURCE GUARD for the route half of the same contract: route.ts drags in
+// next/server + better-sqlite3, so node --test cannot exercise it. Without the
+// release, a recordOutbox that threw (a locked DB) left the nonce recorded — the
+// relay's retry got a 200 `duplicate: true`, stopped retrying, and the bounce was
+// lost, leaving a green `sent` on an undeliverable candidate message.
+test("the callback route gives the nonce back when recording the receipt failed", () => {
+  const src = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+  assert.match(src, /let claimedNonce: string \| null = null;/, "the claim is tracked outside the try");
+  assert.match(src, /claimedNonce = nonce;/, "the nonce is marked claimed once isReplay admits it");
+  const catchAt = src.indexOf("} catch (error) {");
+  assert.ok(catchAt > 0, "guard the guard: the route still has a catch");
+  assert.match(
+    src.slice(catchAt),
+    /if \(claimedNonce\) replayGuard\.release\(claimedNonce\);/,
+    "a failed write must release the claim (webhook-idempotency doctrine)"
+  );
 });
