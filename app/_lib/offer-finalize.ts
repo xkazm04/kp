@@ -53,9 +53,19 @@ export async function respondToOffer(token: string, response: "accept" | "declin
   // The CAS-loser path is identical for both responses: report the AUTHORITATIVE
   // recorded status, re-reading the offer if markOfferResponded couldn't return it,
   // so a null offer never defaults an accepter to "declined".
+  //
+  // Losing the CAS does NOT imply someone answered: the row can also have gone
+  // 'expired' between the lapse check above and the claim (the heartbeat sweep, or
+  // another tab's GET lazily lapsing it on a deadline that fell in between). Reporting
+  // that as `status: "declined"` told a candidate who pressed Accept that they had
+  // turned the job down. Anything that isn't a recorded accept/decline is the same
+  // refusal the non-racing path returns.
   const reportLoser = (claimedOffer: OfferRow | null): OfferResponseResult => {
     const recorded = claimedOffer ?? getOfferByToken(token);
-    const status = recorded?.status === "accepted" ? "accepted" : "declined";
+    const status = recorded?.status === "accepted" ? "accepted" : recorded?.status === "declined" ? "declined" : null;
+    if (!status) {
+      return recorded ? { ok: false, code: "OFFER_EXPIRED", expired: true } : { ok: false, code: "OFFER_NOT_FOUND" };
+    }
     return { ok: true, status, alreadyResponded: true, jobTitle: offer.jobTitle, candidateLabel: offer.candidateLabel };
   };
 

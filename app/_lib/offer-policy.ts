@@ -24,15 +24,22 @@ export function defaultOfferTtlDays(): number {
 }
 export const OFFER_TTL_MS = defaultOfferTtlDays() * DAY_MS;
 
-/** Resolve a per-offer TTL (whole days) to milliseconds, falling back to the
- *  deployment default for a missing/out-of-range value. This is the recruiter's
- *  primary lever (offers-onboarding #3): a tight, role-specific window is a known
- *  accept-rate accelerant for in-demand roles, while senior offers need weeks — one
- *  fixed 7-day window served neither. Pure (no DB / no clock) so it stays testable. */
-export function resolveOfferTtlMs(ttlDays?: number | null): number {
+/** Resolve a per-offer TTL to the whole-day number actually applied — the validated
+ *  request, or the deployment default when it is missing/out-of-range. This is the
+ *  recruiter's primary lever (offers-onboarding #3): a tight, role-specific window is
+ *  a known accept-rate accelerant for in-demand roles, while senior offers need weeks —
+ *  one fixed 7-day window served neither. Exposed in DAYS (not just ms) because
+ *  offers-store persists the applied figure and compares it across re-extends to tell a
+ *  deliberate deadline change from a double-clicked, verbatim re-send. */
+export function resolveOfferTtlDays(ttlDays?: number | null): number {
   const n = Number(ttlDays);
-  if (Number.isFinite(n) && n >= OFFER_TTL_DAYS_MIN && n <= OFFER_TTL_DAYS_MAX) return Math.floor(n) * DAY_MS;
-  return defaultOfferTtlDays() * DAY_MS;
+  if (Number.isFinite(n) && n >= OFFER_TTL_DAYS_MIN && n <= OFFER_TTL_DAYS_MAX) return Math.floor(n);
+  return defaultOfferTtlDays();
+}
+
+/** The same resolution in milliseconds. Pure (no DB / no clock) so it stays testable. */
+export function resolveOfferTtlMs(ttlDays?: number | null): number {
+  return resolveOfferTtlDays(ttlDays) * DAY_MS;
 }
 
 /** Lead time before the deadline at which a single reminder nudge fires (T-48h by

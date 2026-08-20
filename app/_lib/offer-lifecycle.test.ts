@@ -189,3 +189,59 @@ test("getOrCreateOpenOffer reuses the one open offer per entry instead of mintin
   assert.equal(second.created, false);
   assert.equal(second.offer.token, first.offer.token, "a re-extend re-sends the SAME link");
 });
+
+test("a re-extend that only widens the deadline is honored — the ttlDays lever is not discarded", () => {
+  // The guard used to be salary/currency-only, so re-approving unchanged terms with the
+  // window widened 7 -> 14 days left the offer lapsing on the ORIGINAL deadline while
+  // the recruiter believed they had given the candidate another week.
+  const entry = entryAtOffer();
+  const base = {
+    entryId: entry.id,
+    candidateLabel: entry.candidateLabel,
+    jobId: entry.jobId,
+    jobTitle: entry.jobTitle,
+    currency: "CZK",
+    salary: 95_000,
+    payload: {},
+  };
+  const first = getOrCreateOpenOffer({ ...base, ttlDays: 7 });
+  assert.equal(first.created, true);
+  assert.equal(first.offer.ttlDays, 7, "the applied window is persisted with the offer");
+  const firstDeadline = Date.parse(first.offer.expiresAt!);
+
+  const second = getOrCreateOpenOffer({ ...base, ttlDays: 14 });
+  assert.equal(second.offer.token, first.offer.token, "still the same candidate link");
+  assert.equal(second.updated, true, "the deadline change must be applied, not swallowed");
+  assert.equal(second.offer.ttlDays, 14);
+  assert.ok(
+    Date.parse(second.offer.expiresAt!) - firstDeadline > 6 * 24 * 3600_000,
+    "the deadline actually moved out by ~a week"
+  );
+
+  // A double-clicked approval re-sends the identical window — still verbatim.
+  const third = getOrCreateOpenOffer({ ...base, ttlDays: 14 });
+  assert.equal(third.updated, false, "an identical re-approval stays a verbatim re-send");
+  assert.equal(third.offer.expiresAt, second.offer.expiresAt, "and does not push the deadline out again");
+});
+
+test("re-extending an offer whose deadline lapsed before the sweep ran refreshes it instead of re-sending a dead link", () => {
+  const entry = entryAtOffer();
+  const input = {
+    entryId: entry.id,
+    candidateLabel: entry.candidateLabel,
+    jobId: entry.jobId,
+    jobTitle: entry.jobTitle,
+    currency: "CZK",
+    salary: 88_000,
+    payload: {},
+    ttlDays: 7,
+  };
+  const first = getOrCreateOpenOffer(input);
+  forceExpiry(first.offer.token); // past its deadline, but the heartbeat hasn't swept it yet
+
+  const again = getOrCreateOpenOffer(input); // identical terms AND identical window
+  assert.equal(again.offer.token, first.offer.token, "the re-extend still re-uses the one link");
+  assert.equal(again.updated, true, "a lapsed deadline must be re-based");
+  assert.ok(Date.parse(again.offer.expiresAt!) > Date.now(), "the link the candidate receives is live");
+  assert.equal(getOfferByToken(first.offer.token)!.status, "extended");
+});

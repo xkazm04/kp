@@ -4,7 +4,7 @@ import { randomId, randomToken } from "./random-id";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
 import { PIPELINE_STAGES } from "./pipeline-stages";
-import { isOfferExpired, OFFER_REMINDER_LEAD_MS, offerExpiresAtMs } from "./offer-policy";
+import { isOfferExpired, OFFER_REMINDER_LEAD_MS, offerExpiresAtMs, resolveOfferTtlDays } from "./offer-policy";
 import { recordAutomationEvent } from "./db/pipeline";
 
 // Direction #4 — offer extension + candidate response capture. Isolated-connection
@@ -65,6 +65,18 @@ function db(): Database.Database {
   } catch {
     /* column already exists */
   }
+  // The whole-day deadline window actually APPLIED to this offer (the recruiter's
+  // ttlDays lever, already validated through offer-policy.resolveOfferTtlDays).
+  // Persisted because expires_at alone cannot answer "did the recruiter change the
+  // deadline?" on a re-extend — expires_at is re-based on every refresh, so the
+  // stored span stops equalling the chosen TTL. NULL on legacy rows minted before
+  // this column → read back as the deployment default, which is what they were
+  // minted with.
+  try {
+    d.exec(`ALTER TABLE offers ADD COLUMN ttl_days INTEGER`);
+  } catch {
+    /* column already exists */
+  }
   // At most ONE open offer per entry, enforced by the database itself
   // (idea-00987b3c): the route's read-then-create dedupe is a TOCTOU two
   // near-simultaneous approvals both pass. Partial unique index = the backstop
@@ -95,6 +107,10 @@ export type OfferRow = {
   createdAt: string;
   respondedAt: string | null;
   expiresAt: string | null; // deadline; null = never expires (legacy row)
+  /** The whole-day window applied when the deadline was last (re-)stamped. Legacy
+   *  rows read back as the deployment default. Compared across re-extends so a
+   *  deliberate deadline change is honored and a double-click still isn't. */
+  ttlDays: number;
   // The offer's tenant (stamped from the entry at createOffer). Load-bearing on
   // the terminal transitions: respondToOffer must pass it to the workspace-scoped
   // actOnPipelineEntry/markEntryStatus, or a non-default team's accept/decline
@@ -123,6 +139,9 @@ function rowToOffer(r: Record<string, unknown>): OfferRow {
     createdAt: r.created_at as string,
     respondedAt: (r.responded_at as string) ?? null,
     expiresAt: (r.expires_at as string) ?? null,
+    // resolveOfferTtlDays(null) is the deployment default — exactly what a legacy
+    // (pre-column) row's deadline was minted from.
+    ttlDays: resolveOfferTtlDays((r.ttl_days as number) ?? null),
     workspaceId: (r.workspace_id as string) ?? DEFAULT_WORKSPACE_ID,
   };
 }
@@ -138,15 +157,19 @@ export function createOffer(input: {
   payload: unknown;
   /** Per-offer deadline in whole days — the recruiter's lever (offers-onboarding
    *  #3). Out-of-range/omitted falls back to the deployment default; validated in
-   *  offer-policy.resolveOfferTtlMs. */
+   *  offer-policy.resolveOfferTtlDays, and the resolved figure is persisted on the
+   *  row so a re-extend can tell a deadline change from a verbatim re-send. */
   ttlDays?: number | null;
 }): OfferRow {
   const d = db();
   const nowMs = Date.now();
   const now = new Date(nowMs).toISOString();
   // Stamp the deadline at mint time (idea-29361408) so the offer lapses on its own.
-  // Honors a per-offer ttlDays (validated) or the deployment default.
-  const expiresAt = new Date(offerExpiresAtMs(nowMs, input.ttlDays)).toISOString();
+  // Honors a per-offer ttlDays (validated) or the deployment default. The APPLIED
+  // day-count is stored alongside it so a later re-extend can tell a deliberate
+  // deadline change from a verbatim re-send.
+  const ttlDays = resolveOfferTtlDays(input.ttlDays);
+  const expiresAt = new Date(offerExpiresAtMs(nowMs, ttlDays)).toISOString();
   const id = randomId("off");
   const token = randomToken("tk");
   // Tenant (P1): an offer inherits its pipeline entry's workspace (by-id read; guarded
@@ -165,8 +188,8 @@ export function createOffer(input: {
   // don't issue a second SELECT to read what we just wrote.
   const row = d
     .prepare(
-      `INSERT INTO offers (id, token, entry_id, candidate_label, job_id, job_title, currency, salary, payload_json, status, created_at, expires_at, workspace_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'extended', ?, ?, ?) RETURNING *`
+      `INSERT INTO offers (id, token, entry_id, candidate_label, job_id, job_title, currency, salary, payload_json, status, created_at, expires_at, ttl_days, workspace_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'extended', ?, ?, ?, ?) RETURNING *`
     )
     .get(
       id,
@@ -180,6 +203,7 @@ export function createOffer(input: {
       JSON.stringify(input.payload ?? null),
       now,
       expiresAt,
+      ttlDays,
       workspaceId
     ) as Record<string, unknown>;
   return rowToOffer(row);
@@ -318,20 +342,35 @@ export function getOrCreateOpenOffer(
     const nextCurrency = typeof input.currency === "string" ? input.currency : null;
     const nextSalary = input.salary ?? null;
     const termsChanged = nextSalary !== open.salary || nextCurrency !== open.currency;
-    if (!termsChanged) return { offer: open, created: false, updated: false };
+    // The DEADLINE is the recruiter's other lever, and it is chosen fresh on every
+    // approval (DecisionsAiReviewCard's ttlDays input). Guarding only on salary/currency
+    // silently discarded it: re-approving an unchanged 100k offer with the window
+    // widened 7 -> 14 days left the offer lapsing on the ORIGINAL deadline. Compare the
+    // APPLIED day-counts (open.ttlDays, persisted at mint) rather than expires_at, which
+    // is re-based on every refresh — so a genuine change is honored while a
+    // double-clicked approval, which re-sends the identical TTL, still isn't.
+    const nextTtlDays = resolveOfferTtlDays(input.ttlDays);
+    const deadlineChanged = nextTtlDays !== open.ttlDays;
+    // A row whose deadline has already passed but that the heartbeat hasn't swept to
+    // 'expired' yet is still "open" to the query above. Re-sending it verbatim would
+    // mail the candidate a link that 410s on arrival — and the same recruiter action a
+    // minute later (post-sweep) mints a fresh live offer. Refresh it instead, so the
+    // outcome doesn't depend on sweep timing.
+    const deadlineLapsed = isOfferExpired(open.expiresAt);
+    if (!termsChanged && !deadlineChanged && !deadlineLapsed) return { offer: open, created: false, updated: false };
 
     // A corrected offer is effectively re-extended: restart the deadline window
     // (honoring the draft's ttlDays) and re-arm the single T-48h reminder. The CAS
     // on `status = 'extended'` means an offer that was accepted/declined/expired in
     // the meantime is NEVER silently rewritten into a different amount — the update
     // matches no open row and the current authoritative row is returned instead.
-    const expiresAt = new Date(offerExpiresAtMs(Date.now(), input.ttlDays)).toISOString();
+    const expiresAt = new Date(offerExpiresAtMs(Date.now(), nextTtlDays)).toISOString();
     const updatedRow = d
       .prepare(
-        `UPDATE offers SET salary = ?, currency = ?, expires_at = ?, payload_json = ?, reminded_at = NULL
+        `UPDATE offers SET salary = ?, currency = ?, expires_at = ?, ttl_days = ?, payload_json = ?, reminded_at = NULL
           WHERE id = ? AND status = 'extended' RETURNING *`
       )
-      .get(nextSalary, nextCurrency, expiresAt, JSON.stringify(input.payload ?? null), open.id) as
+      .get(nextSalary, nextCurrency, expiresAt, nextTtlDays, JSON.stringify(input.payload ?? null), open.id) as
       | Record<string, unknown>
       | undefined;
     if (!updatedRow) {

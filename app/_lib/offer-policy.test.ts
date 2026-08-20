@@ -5,6 +5,7 @@ import {
   isOfferReminderDue,
   offerExpiresAtMs,
   offerHoursRemaining,
+  resolveOfferTtlDays,
   resolveOfferTtlMs,
   OFFER_REMINDER_LEAD_MS,
   OFFER_TTL_MS,
@@ -33,6 +34,18 @@ test("resolveOfferTtlMs falls back to the default for missing/out-of-range days"
   assert.equal(resolveOfferTtlMs(OFFER_TTL_DAYS_MAX + 1), OFFER_TTL_MS); // above max
   assert.equal(resolveOfferTtlMs(Number.NaN), OFFER_TTL_MS);
   assert.equal(resolveOfferTtlMs(OFFER_TTL_DAYS_MIN), OFFER_TTL_DAYS_MIN * DAY); // min is allowed
+});
+
+test("resolveOfferTtlDays reports the APPLIED whole-day window (what offers-store persists)", () => {
+  // offers-store stores this figure and compares it across re-extends, so it must be
+  // the value actually applied — a rejected request resolves to the deployment default,
+  // never to the raw input.
+  assert.equal(resolveOfferTtlDays(14), 14);
+  assert.equal(resolveOfferTtlDays(7.9), 7);
+  assert.equal(resolveOfferTtlDays(null), OFFER_TTL_MS / DAY);
+  assert.equal(resolveOfferTtlDays(0), OFFER_TTL_MS / DAY); // below min
+  assert.equal(resolveOfferTtlDays(OFFER_TTL_DAYS_MAX + 1), OFFER_TTL_MS / DAY); // above max
+  assert.equal(resolveOfferTtlDays(14) * DAY, resolveOfferTtlMs(14), "days and ms stay one resolution");
 });
 
 test("isOfferExpired: null/garbage fail-open, future open, past expired", () => {
