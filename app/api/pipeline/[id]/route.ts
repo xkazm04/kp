@@ -4,6 +4,7 @@ import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { humanActor } from "@/app/_lib/auth/operator-approver";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { withCanonicalScores } from "@/app/_lib/match-score-resolve";
 import { runPipelineEntryAction } from "@/app/_lib/pipeline-entry-action";
@@ -99,7 +100,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // back to active at Screened, audited. Guarded server-side to a still-rejected
     // entry, so a double-click / stale "Reconsider" view 409s instead of churning.
     if (body.action === "reinstate") {
-      const restored = reinstatePipelineEntry(id, ws);
+      // UAT LUC-ANA-4 — a reversal is the most accountability-bearing act on this
+      // surface (a person overruling the machine), so it must name that person in
+      // BOTH halves of the record. Resolved ONCE, from the SESSION (never the body),
+      // exactly as runPipelineEntryAction does for accept/reject/set_stage: this
+      // route was the last human write that left `pipeline_events.actor` NULL while
+      // sealing the class token beside it, so on an identified deployment the
+      // decision log's "who" column read "not identified" for the one act that most
+      // needs a name. Identity-less deployments resolve to the same
+      // "human:recruiter" role token as before.
+      const actor = await humanActor();
+      const restored = reinstatePipelineEntry(id, ws, actor);
       if (!restored) {
         return NextResponse.json(
           { error: "Couldn't reinstate — this candidate isn't in a rejected state (already reinstated, or closed differently)." },
@@ -113,7 +124,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       // failure must not fail the reinstate the recruiter already committed.
       sealDecisionSafe({
         kind: "reinstated",
-        actor: "human:recruiter",
+        actor,
         policyVersion: "manual",
         candidateRef: id,
         rationale: "Auto-rejection reversed for re-review.",

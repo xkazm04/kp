@@ -64,7 +64,18 @@ test("the command route threads the caller's workspace into preview AND every mu
   // Resolves the caller's tenant once...
   assert.match(src, /const ws = await currentWorkspace\(\)/, "the route must resolve currentWorkspace()");
   // ...and scopes the preview/execute set to it (listPipeline(ws) feeds affected()).
-  assert.match(src, /affected\(cmd,\s*listPipeline\(ws\)\)/, "affected() must be fed the workspace-scoped board");
+  // UPDATED DELIBERATELY (not relaxed): this used to pin the exact two-argument call
+  // `affected(cmd, listPipeline(ws))`, which was ALSO the shape of a second bug — with
+  // no axis, affected() falls back to the SHIPPED axis and mis-answers "is this entry
+  // terminal?" on a workspace that composed its own columns. The tenancy half is pinned
+  // as before (listPipeline must carry `ws`); the axis argument is now REQUIRED too, so
+  // the old, axis-less call can never come back.
+  const affectedCalls = src.match(/affected\(cmd,[^\n]*\)/g) ?? [];
+  assert.ok(affectedCalls.length >= 2, "both the preview and the execute resolve the affected set");
+  for (const call of affectedCalls) {
+    assert.match(call, /affected\(cmd,\s*listPipeline\(ws\),\s*axis\)/, `affected() must be fed the workspace-scoped board AND its axis: ${call}`);
+  }
+  assert.match(src, /const axis = getPipelineAxis\(ws\)\.stages/, "the axis must be THIS workspace's board, not the shipped literal");
   // ...and passes it to BOTH mutating actOnPipelineEntry calls (a bare call falls to DEFAULT again).
   const actCalls = src.match(/actOnPipelineEntry\([^\n]*\)/g) ?? [];
   assert.ok(actCalls.length >= 2, "both reject + advance mutations are present");

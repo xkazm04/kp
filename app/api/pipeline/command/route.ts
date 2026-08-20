@@ -4,6 +4,8 @@ import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "@/app/_
 import { runAutomationPass } from "@/app/_lib/automation-pass";
 import { dispatchRejection } from "@/app/_lib/comms-dispatch";
 import { affected, describeCommand, isMutating, parseCommand, resolveRejectTargets } from "@/app/_lib/pipeline-command";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { stageHasRole } from "@/app/_lib/pipeline-stages";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -42,6 +44,13 @@ export async function POST(request: NextRequest) {
   try {
     // Tenant scope: preview AND execute operate ONLY on the caller's workspace.
     const ws = await currentWorkspace();
+    // THIS WORKSPACE's board, resolved once. The command bar used to ask its two
+    // stage questions by NAME — affected() fell to the shipped axis and the
+    // advance loop compared `e.stage === "Offer"` — so a team that composed its own
+    // columns got the wrong answer twice: an already-hired candidate on a renamed
+    // terminal column was ranked into "advance top N", and a candidate on a renamed
+    // offer column was bare-advanced instead of held. Both are role questions.
+    const axis = getPipelineAxis(ws).stages;
     const body = (await request.json().catch(() => ({}))) as { text?: string; confirm?: boolean; confirmIds?: unknown };
     const cmd = parseCommand(typeof body.text === "string" ? body.text : "");
 
@@ -55,7 +64,7 @@ export async function POST(request: NextRequest) {
     // affected set ONCE — the row slice and the total both read it (run_policy has
     // no candidate preview, so its total is null and the scan is skipped).
     if (!body.confirm) {
-      const hits = cmd.kind === "run_policy" ? [] : affected(cmd, listPipeline(ws));
+      const hits = cmd.kind === "run_policy" ? [] : affected(cmd, listPipeline(ws), axis);
       const rows = hits.slice(0, PREVIEW_CAP).map(toRow);
       const total = cmd.kind === "run_policy" ? null : hits.length;
       // matchedIds is the FULL previewed id set — only the RENDERED rows are capped
@@ -80,7 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     // The live still-matching set at execute time — same workspace scope as the preview.
-    const matching = affected(cmd, listPipeline(ws));
+    const matching = affected(cmd, listPipeline(ws), axis);
     // bug-ui pipeline #3 — a reject_below confirm binds to the PREVIEWED id set
     // (carried on the confirm POST): execute only on ids that were shown to the
     // recruiter AND still match, so a candidate scored below the line in the gap
@@ -117,26 +126,35 @@ export async function POST(request: NextRequest) {
               await dispatchRejection(updated);
             } catch (commsError) {
               commsFailed += 1;
-              const msg = commsError instanceof Error ? commsError.message : String(commsError);
-              console.warn(`[pipeline:command] rejection comms failed for ${e.id}: ${msg}`);
+              // The raw cause stays SERVER-SIDE. A pipeline event's `detail` is
+              // copied verbatim onto GET /api/pipeline/events, which is the
+              // unauthenticated Activity feed (pipeline-events-public.ts) — so
+              // interpolating err.message here published better-sqlite3 internals
+              // (SQLITE_* codes, constraint text, the absolute kp.sqlite path) and
+              // relay endpoints to anyone who could reach the origin, the exact leak
+              // error-message-hygiene.test.ts exists to prevent on the 500 path.
+              console.warn(`[pipeline:command] rejection comms failed for ${e.id}:`, commsError);
               recordAutomationEvent(
                 e.id,
                 "rejection_comms_failed",
-                `Rejected via command bar, but the notification failed to queue — nudge manually. (${msg})`,
+                "Rejected via command bar, but the notification failed to queue — nudge manually.",
                 ws
               );
             }
           }
         } else if (cmd.kind === "advance_top") {
-          // Hired is OUTCOME-bearing (same rule as the /api/pipeline/[id] 422
-          // guard): it is reached only when the CANDIDATE accepts an extended
-          // offer. A bare accept on an Offer-stage entry used to fall through to
-          // the generic one-stage advance — silently "hiring" the candidate and
-          // DESTROYING any drafted offer (actOnPipelineEntry clears the
-          // offer_review approval). advance-top-N therefore advances UP TO
-          // Offer and STOPS there: Offer-stage targets are held and reported
-          // (`heldAtOffer`) so the recruiter routes them through the offer flow.
-          if (e.stage === "Offer") {
+          // The terminal stage is OUTCOME-bearing (same rule as the
+          // /api/pipeline/[id] 422 guard): it is reached only when the CANDIDATE
+          // accepts an extended offer. A bare accept on an offer-stage entry used
+          // to fall through to the generic one-stage advance — silently "hiring"
+          // the candidate and DESTROYING any drafted offer (actOnPipelineEntry
+          // clears the offer_review approval). advance-top-N therefore advances UP
+          // TO the offer step and STOPS there: targets standing on it are held and
+          // reported (`heldAtOffer`) so the recruiter routes them through the offer
+          // flow. Resolved by ROLE against this workspace's axis, never by the
+          // literal "Offer" — a renamed offer column is still the offer step, and
+          // reading its name let exactly the bare-advance above through again.
+          if (stageHasRole(e.stage, "offer", axis)) {
             heldAtOffer += 1;
           } else if (actOnPipelineEntry(e.id, "accept", "Command bar: advance top", { expectedStage: e.stage, actor: "human" }, ws)) {
             count += 1;

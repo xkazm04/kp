@@ -49,6 +49,19 @@ export async function POST(request: NextRequest) {
       if (typeof toStage !== "string") {
         return NextResponse.json({ error: `migrate["${fromStage}"] must be a stage id.`, code: "invalid_mapping" }, { status: 400 });
       }
+      // A SOURCE must be a column the new axis no longer draws — one this edit
+      // removes, or one already retired and still holding stranded candidates.
+      // Migrating off a step the new axis KEEPS is not a move any shape change
+      // forces: it would silently empty a live column (and answer `removed: []`
+      // while doing it). The composer never asks for that, which is precisely why
+      // the server must not accept it — the same "the client's Save button is a
+      // courtesy, this is the guarantee" posture as the occupancy recount below.
+      if (nextIds.has(fromStage)) {
+        return NextResponse.json(
+          { error: `migrate["${fromStage}"] would move candidates off a step the new pipeline still contains.`, code: "invalid_mapping" },
+          { status: 400 }
+        );
+      }
       // A destination must exist on the NEW axis. Mapping onto another column
       // this same edit removes would move candidates from one hole into another.
       if (!nextIds.has(toStage)) {

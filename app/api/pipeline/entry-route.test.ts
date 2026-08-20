@@ -15,8 +15,9 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { POST } from "./[id]/route.ts";
-import { createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry, setApproval } from "../../_lib/db/pipeline.ts";
+import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry, listPipelineEventsForEntry, setApproval } from "../../_lib/db/pipeline.ts";
 import { listDecisionRecords } from "../../_lib/decision-record-store.ts";
+import { HUMAN_ROLE_ACTOR } from "../../_lib/auth/operator-approver.ts";
 import { respondToOffer } from "../../_lib/offer-finalize.ts";
 
 after(() => cleanupUnitDb());
@@ -107,4 +108,35 @@ test("actor:'sim' is recorded as the engine (auto_advanced + auto:sim seal); a p
   await post(odd.id, { action: "accept", actor: "robot-overlord" });
   assert.deepEqual(advanceKinds(odd.id), ["advanced"]);
   assert.equal(listDecisionRecords({ candidateRef: odd.id })[0].actor, "human:recruiter");
+});
+
+test("a reinstate names its actor in BOTH halves of the record (event row + seal), not just the seal", async () => {
+  // UAT LUC-ANA-4 — reversing the machine is the act that most needs a name, and the
+  // store already writes one (pipeline-event-actor.test.ts pins it). This route was the
+  // last human write that never passed one: the `reinstated` event landed with actor
+  // NULL — "not identified" in the decision log's Kdo column — while the seal beside it
+  // claimed a human, so the two halves of one act disagreed. Here (no session) the
+  // resolved actor is the honest role token; on an identified deployment humanActor()
+  // resolves the person, and the point is that the SAME value reaches both halves.
+  const entry = entryFixture({ stage: "Screened" });
+  actOnPipelineEntry(entry.id, "reject", undefined, { actor: "system", actorRef: "auto:screen-wave" });
+
+  const res = await post(entry.id, { action: "reinstate" });
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).entry.status, "active");
+
+  const trail = listPipelineEventsForEntry(entry.id);
+  assert.equal(
+    trail.find((e) => e.kind === "auto_rejected")?.actor,
+    "auto:screen-wave",
+    "the machine's rejection keeps naming the machine"
+  );
+  assert.equal(
+    trail.find((e) => e.kind === "reinstated")?.actor,
+    HUMAN_ROLE_ACTOR,
+    "the reversal event must carry the acting human, not NULL"
+  );
+  const seal = listDecisionRecords({ candidateRef: entry.id }).find((r) => r.kind === "reinstated");
+  assert.ok(seal, "the reversal is sealed into the chain");
+  assert.equal(seal.actor, HUMAN_ROLE_ACTOR, "the seal and the event row name the SAME actor");
 });

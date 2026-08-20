@@ -86,6 +86,29 @@ test("a destination the same edit removes is refused — no moving out of one ho
   assert.equal((await other.json()).code, "invalid_mapping");
 });
 
+test("a mapping that would empty a step the new axis KEEPS is refused", async () => {
+  // The route's contract is "remove this column, and send the people on it to that
+  // one" — the moves a SHAPE CHANGE forces. A mapping whose source survives the edit
+  // forces nothing: it silently empties a live column while the response reports
+  // `removed: []`. The source was never validated (only the destination was), so this
+  // single call moved every Interview candidate to Screened on an unchanged board.
+  const stranded = entryAt("Interview");
+  const before = at("Interview");
+
+  const res = await post({ config: { stages: SHIPPED, retired: [] }, migrate: { Interview: "Screened" } });
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).code, "invalid_mapping");
+  assert.equal(at("Interview"), before, "refused means refused — nobody moved");
+  assert.ok(stranded);
+
+  // The legitimate shape is unchanged: the same mapping IS accepted when the edit
+  // actually removes the column.
+  const ok = await post({ config: without("Interview"), migrate: { Interview: "Screened" } });
+  assert.equal(ok.status, 200);
+  assert.equal(at("Interview"), 0);
+  assert.equal((await post({ config: restore, migrate: {} })).status, 200);
+});
+
 test("a mapped removal moves everyone, writes the axis, and leaves the board off-axis-free", async () => {
   entryAt("Interview");
   const occupants = at("Interview");
