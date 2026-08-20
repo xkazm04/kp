@@ -1,6 +1,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
+import { ensureDb } from "./core.ts";
 import {
   createHiredAgent,
   getActiveHiredAgentForJob,
@@ -26,12 +27,25 @@ const SPEC = { name: "Test Agent", mission: "m", systemPromptDraft: "s", connect
 const BUDGET = { suggestedMonthlyUsd: 40, rule: "2% of salary-band midpoint", salaryBandRef: "40000–60000 CZK/month" };
 
 test("agent_fit_specs: latest-per-job read is workspace-scoped", () => {
-  saveAgentFitSpec({ jobId: "job-1", fit: FIT, spec: { ...SPEC, name: "old" }, budget: BUDGET, metrics: [], source: "deterministic" }, "ws-a");
-  saveAgentFitSpec({ jobId: "job-1", fit: FIT, spec: { ...SPEC, name: "new" }, budget: BUDGET, metrics: [], source: "llm" }, "ws-a");
+  const first = saveAgentFitSpec({ jobId: "job-1", fit: FIT, spec: { ...SPEC, name: "old" }, budget: BUDGET, metrics: [], source: "deterministic" }, "ws-a");
+  const second = saveAgentFitSpec({ jobId: "job-1", fit: FIT, spec: { ...SPEC, name: "new" }, budget: BUDGET, metrics: [], source: "llm" }, "ws-a");
+  // Pin the SAME-MILLISECOND tie deterministically instead of waiting for the
+  // scheduler to hand it to us. created_at is an ISO ms stamp and the real path
+  // (deterministic draft, then the LLM pass refining it) writes both rows inside
+  // one tick, so the read falls through to its tie-break — which must be
+  // INSERTION ORDER. It used to be `id DESC`, and randomId() is
+  // `<prefix>-<ms>-<Math.random() suffix>`, so inside one millisecond "latest"
+  // was decided by a coin flip; CI lost the toss on 2026-08-20. Rewriting the
+  // ids so the OLDER row sorts higher lexicographically makes the old ordering
+  // fail every run rather than half of them.
+  const sameMs = new Date().toISOString();
+  const db = ensureDb();
+  db.prepare(`UPDATE agent_fit_specs SET created_at = ?, id = ? WHERE id = ?`).run(sameMs, "afs-zzz-older", first.id);
+  db.prepare(`UPDATE agent_fit_specs SET created_at = ?, id = ? WHERE id = ?`).run(sameMs, "afs-aaa-newer", second.id);
   saveAgentFitSpec({ jobId: "job-1", fit: FIT, spec: { ...SPEC, name: "other-team" }, budget: BUDGET, metrics: [], source: "llm" }, "ws-b");
 
   const a = getLatestAgentFitSpec("job-1", "ws-a");
-  assert.equal((a?.spec as { name: string }).name, "new", "the newest row for the team wins");
+  assert.equal((a?.spec as { name: string }).name, "new", "the newest row for the team wins, even on a created_at tie");
   const b = getLatestAgentFitSpec("job-1", "ws-b");
   assert.equal((b?.spec as { name: string }).name, "other-team", "another team reads only its own artifact");
   assert.equal(getLatestAgentFitSpec("job-1", "ws-c"), null, "a team with no artifact reads none");
