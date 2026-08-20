@@ -12,6 +12,7 @@ import {
   Sparkles,
   XCircle,
 } from "lucide-react";
+import { FIT_PROMISING_FLOOR, FIT_STRONG_FLOOR } from "@/app/_lib/fit-thresholds";
 import { labelize } from "@/app/_lib/format";
 import { isInterviewRecommendation, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
 
@@ -240,10 +241,15 @@ export function fitTierToken(tier?: string | null, labels?: FitTierLabels): Badg
 
 // Threshold fallback for surfaces that hold only a numeric match score (e.g. the
 // pipeline's stored matchScore in the simulation) and no server-emitted fitTier.
-// Kept in lockstep with matching.py (FIT_STRONG_THRESHOLD 70 / FIT_PROMISING 55).
+// Derived from fit-thresholds.ts — the SAME constants the rediscovery admission
+// gate, the Candidates "Pool fit" filter and the group-eval low-fit risk read — so
+// tuning the band can never move those gates while leaving this badge behind. That
+// module is import-free by design, so a client component may pull it. Both values
+// mirror matching.py (FIT_STRONG_THRESHOLD / FIT_PROMISING_THRESHOLD), which stays
+// a hand-kept cross-boundary pairing.
 export function scoreToFitTier(score: number): FitTier {
-  if (score >= 70) return "strong";
-  if (score >= 55) return "promising";
+  if (score >= FIT_STRONG_FLOOR) return "strong";
+  if (score >= FIT_PROMISING_FLOOR) return "promising";
   return "partial";
 }
 

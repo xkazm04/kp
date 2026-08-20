@@ -6,3 +6,12 @@
 // number the rediscovery admission gate and the Candidates "Pool fit" filter are
 // documented to share; keep the Python constant in sync by hand across the boundary.
 export const FIT_PROMISING_FLOOR = 55;
+
+/** The "strong fit" floor — the upper band of the same three-tier scale. Mirrors
+ *  pipeline/jobfit/matching.py's FIT_STRONG_THRESHOLD, and lives here for the same
+ *  reason its sibling does: `Badge.tsx::scoreToFitTier` (the fallback that bands a
+ *  bare numeric score for every surface with no server-emitted `fitTier`) used to
+ *  re-hardcode BOTH numbers, so tuning the shared floor would have moved every gate
+ *  while leaving the badge the recruiter reads on the old scale. One scale, one
+ *  source, on both sides of the band. */
+export const FIT_STRONG_FLOOR = 70;

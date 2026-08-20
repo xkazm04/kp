@@ -191,6 +191,20 @@ requirements, company/location/work-mode never guessed.
 | Comparison / distribution / adverse-impact | `app/_lib/comparison.ts`, `app/_lib/distribution.ts`, `app/_lib/adverse-impact.ts`, `app/_lib/fit-thresholds.ts`, `app/_lib/factor-points.ts` |
 | Role taxonomy schemas (TS) | `app/_lib/role-families.ts`, `app/_lib/taxonomy.generated.ts` |
 
+### The fit band is one scale, single-sourced on BOTH sides
+`fit_tier_for` (`matching.py`) bands a total into strong / promising / partial at
+`FIT_STRONG_THRESHOLD` 70 and `FIT_PROMISING_THRESHOLD` 55, and the tier rides on
+`MatchResult` so the UI bands exactly the way the server did. On the TS side
+`app/_lib/fit-thresholds.ts` carries the same two numbers — `FIT_STRONG_FLOOR` and
+`FIT_PROMISING_FLOOR` — and every consumer derives from it: the rediscovery
+admission gate (`rediscover.ts::SCORE_FLOOR`), the Candidates "Pool fit" filter,
+the group-eval `low_fit` risk, and `Badge.tsx::scoreToFitTier`, the fallback that
+bands a bare numeric score on surfaces with no server-emitted `fitTier`. That last
+one used to re-hardcode both literals, so tuning the shared floor would have moved
+every gate and left the badge the recruiter reads on the old scale. Pinned by
+`app/_lib/fit-thresholds.test.ts`. The TS↔Python pairing itself stays hand-kept —
+one number on each side of the boundary, and both sides say so.
+
 ## Data model
 
 - `pipeline_entries.match_score` — a **snapshot** at score time, not
