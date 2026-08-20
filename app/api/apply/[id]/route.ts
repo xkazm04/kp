@@ -7,6 +7,8 @@ import { GAP_FIELDS } from "@/app/_lib/completeness-followup";
 import { applyDedupeKey, applyKoSteps, FALLBACK_ARCHETYPE } from "@/app/_lib/apply";
 import { ANONYMOUS_APPLICANT_LABEL, APPLY_EMAIL_RE, coerceGithubHandle, coerceLeadTokenParam, failedKoStepIds } from "@/app/_lib/apply-intake";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { stageWithRole } from "@/app/_lib/pipeline-stages";
 import { linkApplySession } from "@/app/_lib/apply-session-store";
 import { dispatchApplicationReceived } from "@/app/_lib/comms-dispatch";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
@@ -189,6 +191,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // mean the attempt reached the pipeline, which is what the rate measures.
     const applySessionId = typeof body.applySessionId === "string" ? body.applySessionId : null;
 
+    // The provided name drives the duplicate-application policy; the "Applicant"
+    // fallback is a display label only. We never dedup on the fallback — two
+    // anonymous applicants must not be merged into one entry — so the dedup key
+    // is derived from `providedName` (blank ⇒ no dedup).
+    const providedName = String(answers.name ?? "").trim();
+    const name = providedName || ANONYMOUS_APPLICANT_LABEL;
+    // Capped HERE, above the knockout gate, and not with the other field caps
+    // below: a KO decline PERSISTS this label on its audit event
+    // (recordKnockoutDecline → pipeline_events.candidate_label, which bounds the
+    // detail but NOT the label) and then returns. With the check downstream, a
+    // declined POST could write a body-sized name straight into the recruiter's
+    // activity feed while never reaching the cap. The quick-apply route already
+    // validates before its KO verdict; this keeps the two surfaces aligned.
+    if (name.length > MAX_NAME_LENGTH) {
+      return NextResponse.json({ error: "Your name is too long." }, { status: 400 });
+    }
+
     // Knockout gate. Derive THIS job's KO steps from its own script (ko_mode/ko_lang are
     // conditional on workMode/languages) and require every expected KO answer to be present
     // AND explicitly true (failedKoStepIds — the shared, untrusted-boundary contract: an
@@ -201,7 +220,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     );
     if (failedKo.length > 0) {
       recordKnockoutDecline({
-        candidateLabel: String(answers.name ?? "").trim() || null,
+        candidateLabel: providedName || null,
         jobTitle: job.title,
         channel: "conversational apply",
         failedKoIds: failedKo,
@@ -215,12 +234,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       });
     }
 
-    // The provided name drives the duplicate-application policy; the "Applicant"
-    // fallback is a display label only. We never dedup on the fallback — two
-    // anonymous applicants must not be merged into one entry — so the dedup key
-    // is derived from `providedName` (blank ⇒ no dedup).
-    const providedName = String(answers.name ?? "").trim();
-    const name = providedName || ANONYMOUS_APPLICANT_LABEL;
     const email = String(answers.email ?? "").trim();
     const experience = String(answers.experience ?? "").trim();
     const skills = String(answers.skills ?? "").trim();
@@ -246,9 +259,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // Per-field caps — fail closed BEFORE the dedup query, profile build, intake.json
     // write, or Python spawn. Reject (don't truncate) so the applicant fixes the input.
-    if (name.length > MAX_NAME_LENGTH) {
-      return NextResponse.json({ error: "Your name is too long." }, { status: 400 });
-    }
+    // (The name cap runs earlier, above the knockout gate — see the note there.)
     const freeText = [experience, skills, studentProject, studentEducation, studentAspirations, switchPrior, switchAspirations];
     if (freeText.some((t) => t.length > MAX_TEXT_LENGTH)) {
       return NextResponse.json({ error: "One of your answers is too long — please shorten it." }, { status: 400 });
@@ -333,7 +344,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           changes.push("GitHub handle captured");
         }
         if (cvText || existing.intakeDegraded) {
-          const rebuilt = await buildApplicantProfile(job, intakeAnswers, existing.candidateId);
+          // Same tenant the entry itself is filed into (see the first-apply build
+          // below): the rebuilt profile must land in the team that owns the opening.
+          const rebuilt = await buildApplicantProfile(job, intakeAnswers, existing.candidateId, workspaceId);
           if (rebuilt.ok) {
             updates.candidateId = rebuilt.id;
             updates.archetype = rebuilt.archetype;
@@ -385,7 +398,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Build a real, matchable V2 candidate from the answers; on failure fall back
     // to a label-only id AND flag the entry intake-degraded so the recruiter sees
     // a stub that needs manual profile capture (rather than a silent demotion).
-    const built = await buildApplicantProfile(job, intakeAnswers);
+    //
+    // Tenant (P1): the profile row MUST be filed into the same team the entry below
+    // is stamped with (buildApplicantProfile takes it as a caller argument — it is
+    // not derivable from `job`). Omitting it saved the profile in the DEFAULT
+    // workspace while the entry went to the opening's owner, so for any job owned by
+    // a non-default team the recruiter opened their new applicant and found no
+    // profile behind them, the Match pool never saw the candidate, and the follow-up
+    // POST below 404'd (it reads getProfileRecord(profileId, getJobWorkspace(job.id))).
+    const built = await buildApplicantProfile(job, intakeAnswers, null, workspaceId);
     const candidateId = built.ok ? built.id : randomId("apply");
 
     const { entry, created } = createPipelineEntry({
@@ -397,7 +418,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       roleFamily: job.roleFamily ?? null,
       jobId: job.id,
       jobTitle: job.title,
-      stage: "Accepted",
+      // A fresh application arrives at the board's ENTRY column, whatever THIS
+      // workspace calls it — not at a stage that happens to be named "Accepted".
+      // The axis is editable, so a hardcoded name stranded every conversational
+      // applicant on the off-axis strip (PipelineBoardOffAxisStrip) the moment a
+      // team renamed or removed its first column, while quick-apply leads
+      // (lead-intake.ts) and CV intake (cv-intake.ts) landed correctly.
+      stage: stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted",
       // Stable per-applicant key so the entry dedups on (name, job) even though
       // candidateId is a fresh profile id each submission. Backstops the rare
       // race where two concurrent first-time submissions slip past the check

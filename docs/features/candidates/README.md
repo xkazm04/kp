@@ -75,6 +75,26 @@ flow. This branching is implemented as conditional steps in `apply.ts` /
 per-archetype form. Quick apply (`QuickApplyForm.tsx`) is the short-form
 alternative behind `app/api/apply/[id]/quick/route.ts`.
 
+Three invariants both intake surfaces hold on the way into the pipeline —
+pinned by `app/api/apply/apply-intake-scope.test.ts`:
+
+- **One tenant.** A public applicant has no session, so the entry is filed into
+  the *opening's* team (`getJobWorkspace`), and `buildApplicantProfile` is passed
+  that same workspace. The tenant is a caller argument, not derived from the job
+  (the CV sim deliberately splits them), so an omission is silent: the profile
+  row lands in the default workspace while the entry goes to the job owner, and
+  the recruiter then finds no profile behind their new applicant, the Match pool
+  never sees them, and `POST /api/apply/[id]/followup` 404s.
+- **The landing column comes from the axis.** Every inbound surface files at
+  `stageWithRole("entry", getPipelineAxis(workspaceId).stages) ?? "Accepted"` —
+  conversational apply, quick apply (`lead-intake.ts`) and CV intake
+  (`cv-intake.ts`) alike. A hardcoded stage name strands applicants on
+  `PipelineBoardOffAxisStrip` as soon as a team renames its first column.
+- **Input caps precede the knockout audit.** A KO fail creates no entry but does
+  persist an entry-less `ko_declined` event carrying the applicant's display
+  name, and `pipeline_events` bounds the event *detail*, not the label — so the
+  name cap runs above the gate on both routes.
+
 ### 3. Manual profile editing
 `ProfileEditor.tsx` exposes the full structured profile: archetype-conditional
 required fields (education detail + aspirations for early-career; years/seniority
