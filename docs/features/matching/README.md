@@ -43,6 +43,24 @@ networks" match a JD asking for "machine learning" without text-similarity
 noise. Coverage is tracked per role family in `data/taxonomy.json` (16
 families, 676 terms total) — see below.
 
+#### Language knock-out: alias buckets, matched on word boundaries
+The KO filter's language gate (`matching.py::_has_language`) resolves a required
+language to a curated alias bucket in `data/taxonomy.json::language_aliases` (12
+buckets today) and tests each alias as a substring of the candidate's lowercased
+language list. Some aliases carry a trailing space as a **word boundary** — `"en "`
+exists so the ISO code cannot match inside `german` / `french` / `slovenian`. The
+candidate blob is therefore PADDED on both ends before the test; without the pad
+that boundary is unsatisfiable at the end of the list, so a candidate whose
+languages ended with the code (`["Czech", "EN"]`, or just `["EN"]`) failed an
+English requirement and was hard-KO'd out of the pool before ever being scored —
+while the same two entries in the other order passed. Position must never decide a
+knock-out. Pinned by
+`test_whole_token_classification.DataDrivenLanguageAliasesTest`.
+
+A required language with no bucket falls back to a literal substring match on its
+bare English name — deliberate and documented, not an oversight; modelling a new
+language means adding a bucket (config), not changing the fallback.
+
 ### 2. Provenance weighting (evidence-gated, not presence-gated)
 Every matched skill is discounted by where the claim came from
 (`skill_match_score()` in `taxonomy.py`, multiplies taxonomy match × weight):

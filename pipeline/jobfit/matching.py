@@ -287,7 +287,15 @@ def _has_language(candidate_langs: list[str], required: str) -> bool:
     # test_whole_token_classification.UnmodelledLanguageFallsBackToSubstringTest.
     bucket = next((aliases for key, aliases in _LANG_ALIASES.items() if key in req or req in key), None)
     needles = bucket if bucket else (req,)
-    blob = " ".join(candidate_langs).casefold()
+    # PADDED on both ends. Some aliases carry a trailing space as a word boundary
+    # ("en " — so the ISO code can't match inside "german"/"slovenian"/"french").
+    # Without the pad that boundary is unsatisfiable at the END of the blob, so a
+    # candidate whose list ENDS with the code ("Czech, EN", or just "EN") failed the
+    # English requirement and was hard-KO'd out of the pool before ever being scored
+    # — while the same two entries in the other order passed. Padding makes the
+    # boundary rule reach the string ends; it adds no needle that didn't already
+    # match mid-blob.
+    blob = f" {' '.join(candidate_langs).casefold()} "
     return any(n in blob for n in needles)
 
 

@@ -121,6 +121,20 @@ class DataDrivenLanguageAliasesTest(unittest.TestCase):
         self.assertTrue(_has_language(["Deutsch B2"], "German"))
         self.assertFalse(_has_language(["English"], "Czech"))
 
+    def test_boundary_alias_matches_at_the_end_of_the_blob(self) -> None:
+        # The "en " alias carries a trailing space as a WORD BOUNDARY (so the ISO
+        # code can't match inside "german"/"french"/"slovenian"). The candidate
+        # blob is padded on both ends so that boundary is satisfiable at the END
+        # of the list too — otherwise a candidate whose languages END with the code
+        # was hard-KO'd out of the pool, while the SAME two entries in the other
+        # order passed. Position must never decide a knock-out.
+        self.assertTrue(_has_language(["EN"], "English"))
+        self.assertTrue(_has_language(["Czech", "EN"], "English"))
+        self.assertTrue(_has_language(["EN", "Czech"], "English"))
+        # The boundary still holds: the code must not match inside another language.
+        for other in ("German", "French", "Slovenian"):
+            self.assertFalse(_has_language([other], "English"))
+
     def test_unbucketed_language_falls_back_to_raw_matching(self) -> None:
         # A language with no bucket (e.g. Portuguese) still matches its raw
         # requirement string, so the KO filter degrades gracefully rather than
