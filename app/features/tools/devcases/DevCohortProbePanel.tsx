@@ -65,8 +65,13 @@ export function CohortProbePanel({ probes, submissions }: { probes: CoverProbe[]
                     </span>
                   );
                 })()}
+                {/* weakRate is null when NOTHING in the cell was graded (an observed-only
+                    cohort: handledWell is tri-state and null means "not assessed"). The old
+                    `?? 0` rendered that as "weak 0%" — a fabricated clean, the mirror of the
+                    fabricated "weak 100%" the null-in-the-denominator bug used to produce.
+                    Neither is an assessment; show the same not-scored treatment missRate gets. */}
                 <span className="shrink-0 text-steel" title={t("cohort.weakTitle")}>
-                  {t("cohort.weak", { pct: Math.round((c.weakRate ?? 0) * 100) })}
+                  {c.weakRate == null ? t("cohort.notScored") : t("cohort.weak", { pct: Math.round(c.weakRate * 100) })}
                 </span>
                 <span className="shrink-0 text-steel">{t("cohort.sample", { count: c.evaluated })}</span>
               </>

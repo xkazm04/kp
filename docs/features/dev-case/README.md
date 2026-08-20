@@ -231,6 +231,15 @@ tri-state and `detected` is independent of it. The old three-way collapse read
 because it cannot grade handling — as `missed`, turning an assessment that never ran
 into a finding against the candidate on the product's strongest evidence path.
 `handled` / `unhandled` / `detected` (worked it, handling not graded) / `missed`.
+The cohort heatmap (`app/_lib/devcase-cohort.ts`) now applies the same rule: its
+`weakRate` is "not handled well / **graded**", with a `graded` count beside it and
+`null` when nothing was graded. It used to divide by every evaluated outcome, so a
+cohort of Live Work Surface submissions read as 100 % weak on every probe — the same
+manufactured finding, one surface over. For the same reason it now skips submissions
+whose `perStepSources.tooling === "deterministic"`: the keyless/fallback template
+stamps every probe `detected: false`, so including those rows produced a 100 %-miss
+cohort — and the panel's "this case is miscalibrated" banner — out of the absence of
+an API key.
 
 **Canary kind is rendered.** `CanaryOutcome.kind` rode in the bundle from the start
 and was never displayed, so "propagated · src/rates.ts" did not say whether a wrong

@@ -44,8 +44,11 @@ export type Authenticity = {
   reasons: string[]; // the penalties that fired, candidate-neutral and interviewer-facing
 };
 
-// At/below this an authenticity score is "suspect" — the auto-promote gate holds
-// it for human verification rather than advancing on transfer score alone.
+// BELOW this an authenticity score is "suspect" — the auto-promote gate holds it for
+// human verification rather than advancing on transfer score alone. The bands are
+// half-open ([0,40) suspect, [40,70) mixed, [70,100] authentic), so a score of exactly
+// 40 is MIXED and still auto-advances; the wording used to read "at/below", which
+// contradicted the comparison below at the one score where the two disagree.
 export const SUSPECT_THRESHOLD = 40;
 const MIXED_THRESHOLD = 70;
 
