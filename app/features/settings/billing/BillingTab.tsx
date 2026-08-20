@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { checkoutBannerState } from "./billingCheckoutBanner";
 import { useSearchParams } from "next/navigation";
@@ -73,17 +73,31 @@ export function BillingTab() {
     planReflectsPaid: Boolean(data && data.plan.id !== "free"),
   });
 
+  // Only the NEWEST /api/billing read may land. The checkout return below fires
+  // three overlapping loads; without this latch a slow earlier response settling
+  // after a faster later one would overwrite the fresher plan — the 2 s poll
+  // returning `free` at t=6.5 s on top of the 5 s poll that already returned
+  // `growth` at t=5.2 s, flipping a confirmed plan card back to Free and the
+  // banner back to "your account is updating", with no further fetch to correct it.
+  const loadSeq = useRef(0);
   // State updates only happen in the async callbacks (never synchronously in
   // the effect body); the retry button clears the failure flag in its event
   // handler before re-firing.
   const load = useCallback(() => {
+    const seq = ++loadSeq.current;
     fetch("/api/billing")
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
       })
-      .then((p) => setData(p as BillingPayload))
-      .catch(() => setLoadFailed(true));
+      .then((p) => {
+        if (seq === loadSeq.current) setData(p as BillingPayload);
+      })
+      // A superseded read's failure is not this view's failure either: a newer
+      // load is already in flight (or has landed), so it owns the outcome.
+      .catch(() => {
+        if (seq === loadSeq.current) setLoadFailed(true);
+      });
   }, []);
   useEffect(() => {
     load();

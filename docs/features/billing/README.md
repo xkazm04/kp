@@ -184,6 +184,17 @@ pinned by `app/api/billing/billing-routes.test.ts`):
   dunning. Neither is a `canceled` row with an unparseable period end, where
   `entitledPlan` keeps the plan.
 
+**The catalog's `changeVia` hint mirrors that rule exactly** — `planChangeVia()` in
+`app/features/settings/billing/billingTypes.ts` (unit-tested in `billingTypes.test.ts`),
+reading the payload's **raw `status`**, not the entitled plan. It used to infer "am I
+subscribed?" from `plan.id === "free"`, which diverges from the server for every state
+where entitlement lapses while the subscription stays live: a `past_due`/`unpaid` row past
+the dunning grace, or an `active` row on a plan id the catalog no longer carries, both
+entitle `free` — so the cards offered a Buy button the route 403s. Same set, same single
+relaxation (a lapsed `canceled`). `STATUS_TONE` in the same file enumerates the full
+`SubscriptionStatus` union for the same reason: `unpaid` used to fall through to the
+neutral chip that also means "no subscription".
+
 ### The Usage & cost section (`app/features/settings/billing/spend/`)
 
 The billing tab renders the plan card, then **one** consolidated spend section,

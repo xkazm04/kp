@@ -7,7 +7,7 @@ import { BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
 import { salesContactHref } from "@/app/_lib/sales-contact";
 import type { PlanDef } from "@/app/_lib/billing";
 import { PlanPrice } from "./BillingPlanPrice";
-import type { BillingPayload } from "./billingTypes";
+import { planChangeVia, type BillingPayload } from "./billingTypes";
 
 // Tier 3 (docs/design/loading-choreography.md): the plan catalog + minutes pack is the
 // heaviest, most-below-the-fold part of Billing — a grid of cards nobody needs
@@ -115,6 +115,10 @@ export function PlanCatalog({
 }) {
   const t = useTranslations("billing");
   const format = useFormatter();
+  // The server's checkout guard reads the RAW subscription status, not the entitled
+  // plan — planChangeVia (billingTypes.ts) mirrors that rule so this catalog never
+  // offers a Buy button the route will 403.
+  const changeVia = planChangeVia(data);
 
   return (
     <div>
@@ -135,10 +139,12 @@ export function PlanCatalog({
             configured={data.configured}
             busy={purchase?.key === plan.id && purchase.error === null}
             error={purchase?.key === plan.id ? purchase.error : null}
-            // A customer who already holds a paid plan changes it through the
-            // portal (no parallel-subscription double-charge); from free, the
-            // first subscription is a normal checkout.
-            changeVia={data.plan.id === "free" ? "checkout" : "portal"}
+            // A customer whose provider subscription is still LIVE changes it
+            // through the portal (no parallel-subscription double-charge); with no
+            // subscription, the first one is a normal checkout. Derived from the raw
+            // status, not the entitled plan — a lapsed past_due/unpaid row entitles
+            // free while the MoR is still dunning the live subscription.
+            changeVia={changeVia}
             meterName={meterName}
             onChoose={() => onChoosePlan(plan.id)}
             onManage={onManage}
