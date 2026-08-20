@@ -2,7 +2,7 @@
 // sliders, the debounced dry-run preview, and the (approval-token-gated)
 // commit. Split out of DecisionsScreenWaveModal so that component's JSX stays
 // under the 200-line cap.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { SCREENING_DEFAULT } from "@/app/_lib/decision-config-schema";
 import type { WaveResult } from "./decisionsScreenWaveTypes";
@@ -33,6 +33,13 @@ export function useDecisionsScreenWave(
   // cohort changed since the displayed preview, so the recruiter must review the
   // current set before approving it.
   const [refreshNonce, setRefreshNonce] = useState(0);
+  // The 409 message is a COMMIT-level notice ("the set changed — review and approve
+  // again"), and the re-preview it triggers must not erase it: that preview's own
+  // success path clears `error`, so the one line telling the recruiter their
+  // approval did NOT land used to vanish ~350ms later, leaving a fresh-looking
+  // preview and an unexplained non-event. Set on the 409, consumed by exactly the
+  // next preview settle (below), so a later slider change clears normally.
+  const keepCommitNotice = useRef(false);
 
   const override = () => ({ autoRejectEnabled: enabled, rejectBottomPercent: bottomPercent, maxMatchToReject: maxMatch });
 
@@ -59,13 +66,17 @@ export function useDecisionsScreenWave(
         .then((d) => {
           if (alive) {
             setPreview(d);
-            setError(null);
+            // Never clear a pending commit-level notice here — see keepCommitNotice.
+            if (!keepCommitNotice.current) setError(null);
           }
         })
         .catch((e) => {
           if (alive) setError(e instanceof Error ? e.message : previewFailedFallback);
         })
         .finally(() => {
+          // Consumed on the settle, whichever way it went, so the notice survives
+          // exactly one refresh and can never stick to a later preview.
+          keepCommitNotice.current = false;
           if (alive) setLoading(false);
         });
     }, 350);
@@ -92,6 +103,7 @@ export function useDecisionsScreenWave(
       // recruiter reviews and approves THIS set, rather than rubber-stamping a stale one.
       if (r.status === 409) {
         setError(errMsg(d, setChangedRepreviewFallback));
+        keepCommitNotice.current = true; // must outlive the refresh it is about to trigger
         setRefreshNonce((nonce) => nonce + 1);
         return;
       }

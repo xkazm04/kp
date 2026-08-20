@@ -83,7 +83,13 @@ export function AiReviewCardLadder({
               );
             })}
           </ul>
-          {scored.length > rows.length ? <p className="mt-1 px-1.5 text-sm text-steel">{t("moreInPipeline", { count: scored.length - rows.length })}</p> : null}
+          {/* "+N more in this pipeline" is counted against ALL active peers on the
+              role (peersForEntry's set), not against `scored`: the ladder ranks only
+              candidates that carry a score, so counting the overflow over the scored
+              subset silently dropped every unscored peer from a line whose own label
+              claims the pipeline. A role with 8 active candidates, 6 scored, showing
+              the 4-row cap read "+2 more" when 4 more were in the pipeline. */}
+          {peers.length > rows.length ? <p className="mt-1 px-1.5 text-sm text-steel">{t("moreInPipeline", { count: peers.length - rows.length })}</p> : null}
         </>
       ) : (
         <p className="text-sm text-steel">{t("noScoredPeers")}</p>
