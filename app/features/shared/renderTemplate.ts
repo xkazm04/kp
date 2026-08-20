@@ -175,8 +175,18 @@ export function renderTemplate(body: string, data: TemplateData, localized: Temp
       // Localization tokens resolve per output language (never empty), so after this
       // pass the intermediate string is identical to a literal-heading template — the
       // separator/section-collapse below then behaves exactly as before.
-      if (key in localized) return localized[key as LocalizedToken];
-      if (!(key in map)) return `{{${key}}}`;
+      //
+      // OWN properties only. `key in obj` walks the PROTOTYPE chain, so a token
+      // naming an Object.prototype member ({{constructor}}, {{toString}},
+      // {{__proto__}} — all `\w+`, all matched by PLACEHOLDER_RE) resolved to a
+      // built-in and rendered `function Object() { [native code] }` onto the JD
+      // instead of staying verbatim. That broke the module's stated invariant —
+      // "what findUnknownPlaceholders flags is exactly what renderTemplate leaves
+      // raw" — which is the whole basis of the BLOCKED unknown-token policy: the
+      // linter reported {{constructor}} as unknown while the renderer silently
+      // substituted it. Object.hasOwn restores the invariant for every token.
+      if (Object.hasOwn(localized, key)) return localized[key as LocalizedToken];
+      if (!Object.hasOwn(map, key)) return `{{${key}}}`;
       return map[key] === "" ? EMPTY_MARK : map[key];
     });
 

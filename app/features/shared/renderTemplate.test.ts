@@ -137,6 +137,23 @@ test("linter: what the linter flags is exactly what renderTemplate leaves raw", 
   assert.equal(renderTemplate(body, { title: "Engineer" }), "Engineer — {{location}}");
 });
 
+test("linter: a token naming an Object.prototype member is unknown AND renders raw", () => {
+  // PLACEHOLDER_RE matches any {{\w+}}, so an author can type {{constructor}},
+  // {{toString}} or {{__proto__}}. The renderer used to resolve those through the
+  // PROTOTYPE chain (`key in localized`) and emit "function Object() { [native
+  // code] }" / "[object Object]" onto the JD — while the linter correctly called
+  // them unknown. The two must agree: flagged ⇒ left verbatim.
+  for (const token of ["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"]) {
+    const body = `{{title}} — {{${token}}}`;
+    assert.deepEqual(findUnknownPlaceholders(body), [token], `${token} must be flagged`);
+    assert.equal(
+      renderTemplate(body, { title: "Engineer" }),
+      `Engineer — {{${token}}}`,
+      `${token} must render verbatim, never as a built-in`,
+    );
+  }
+});
+
 test("linter: malformed brace text that renderTemplate ignores is not flagged", () => {
   // renderTemplate only substitutes {{\w+}}, so "{{ title }}" (spaces) and "{{}}"
   // are inert literal text — the linter scopes itself to the same token shape.
