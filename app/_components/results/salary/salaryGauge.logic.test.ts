@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  confidenceGrade,
   confidenceOpacity,
   growthMarkerPercent,
   growthRoundingStep,
@@ -72,4 +73,28 @@ test("unknown/absent confidence renders at the lowest emphasis, flagged not-know
     assert.equal(result.opacity, 0.4);
     assert.ok(result.opacity < 0.6, "unknown must be fainter than 'low'");
   }
+});
+
+// The analysis schema sanctions a FOURTH salary grade — "grounded", the read that
+// was corroborated against retrieved market data (pipeline/jobfit/gemini.py,
+// ANALYSIS_RESPONSE_SCHEMA: "one of: low | medium | high | grounded"). It used to
+// fall through to the unknown branch, so the BEST-evidenced salary read painted
+// the faintest bar under a "treat this read as unverified" title.
+test("a grounded salary read is the strongest grade, never 'unrecognized'", () => {
+  assert.equal(confidenceGrade("grounded"), "high");
+  assert.deepEqual(confidenceOpacity("grounded"), { opacity: 1, known: true });
+  assert.deepEqual(confidenceOpacity(" Grounded "), { opacity: 1, known: true });
+});
+
+// "moderate" is the synonym Badge.tsx's confidenceToken already reads as medium;
+// grading it here keeps the bar and the badge beside it on one vocabulary.
+test("confidenceGrade folds the badge's synonyms and reports the rest as unknown", () => {
+  assert.equal(confidenceGrade("moderate"), "medium");
+  assert.deepEqual(confidenceOpacity("moderate"), { opacity: 0.8, known: true });
+  for (const value of ["", "  ", "bogus", null, undefined]) {
+    assert.equal(confidenceGrade(value), "unknown");
+  }
+  // Lookup must not reach Object.prototype (the old hasOwnProperty guard's job).
+  assert.equal(confidenceGrade("constructor"), "unknown");
+  assert.equal(confidenceOpacity("toString").known, false);
 });

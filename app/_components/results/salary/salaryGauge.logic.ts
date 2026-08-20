@@ -59,7 +59,45 @@ export function roundGrowthTarget(midpoint: number, factor = 1.3): number {
  */
 export type ConfidenceEmphasis = { opacity: number; known: boolean };
 
-const CONFIDENCE_OPACITY: Record<string, number> = {
+export type ConfidenceGrade = "high" | "medium" | "low";
+
+/**
+ * The raw `salary.confidence` / `marketEvidence.confidence` values the engine can
+ * emit (both are unconstrained `str` in pipeline/jobfit/models.py), folded onto the
+ * three grades the report renders.
+ *
+ * "grounded" is the load-bearing entry: the analysis response schema handed to the
+ * model sanctions FOUR salary grades — `"one of: low | medium | high | grounded"`
+ * (pipeline/jobfit/gemini.py, ANALYSIS_RESPONSE_SCHEMA) — and "grounded" (the read
+ * was corroborated against retrieved market data) is the STRONGEST of them. It used
+ * to miss this map entirely, so the best-evidenced salary read painted the faintest
+ * bar on the scale under a "treat this salary read as unverified" title, beside a
+ * badge reading "Evidence unknown". "moderate" is the synonym Badge.tsx's
+ * confidenceToken already accepts, kept here so the bar and the badge beside it can
+ * never grade the same field differently.
+ *
+ * A Map, not an object literal, so a value like "constructor" can't reach
+ * Object.prototype and resolve to a bogus grade.
+ */
+const CONFIDENCE_GRADES = new Map<string, ConfidenceGrade>([
+  ["grounded", "high"],
+  ["high", "high"],
+  ["medium", "medium"],
+  ["moderate", "medium"],
+  ["low", "low"],
+]);
+
+/**
+ * The report's evidence grade for a raw engine confidence value, or "unknown" for
+ * anything outside the vocabulary. SalaryTab passes the result to ConfidenceBadge
+ * (whose own token map knows nothing of "grounded"), so the badge and the gauge
+ * below it always read the same grade.
+ */
+export function confidenceGrade(confidence: string | null | undefined): ConfidenceGrade | "unknown" {
+  return CONFIDENCE_GRADES.get((confidence ?? "").trim().toLowerCase()) ?? "unknown";
+}
+
+const CONFIDENCE_OPACITY: Record<ConfidenceGrade, number> = {
   low: 0.6,
   medium: 0.8,
   high: 1,
@@ -69,9 +107,7 @@ const CONFIDENCE_OPACITY: Record<string, number> = {
 const UNKNOWN_CONFIDENCE_OPACITY = 0.4;
 
 export function confidenceOpacity(confidence: string | null | undefined): ConfidenceEmphasis {
-  const key = (confidence ?? "").trim().toLowerCase();
-  if (Object.prototype.hasOwnProperty.call(CONFIDENCE_OPACITY, key)) {
-    return { opacity: CONFIDENCE_OPACITY[key], known: true };
-  }
-  return { opacity: UNKNOWN_CONFIDENCE_OPACITY, known: false };
+  const grade = confidenceGrade(confidence);
+  if (grade === "unknown") return { opacity: UNKNOWN_CONFIDENCE_OPACITY, known: false };
+  return { opacity: CONFIDENCE_OPACITY[grade], known: true };
 }

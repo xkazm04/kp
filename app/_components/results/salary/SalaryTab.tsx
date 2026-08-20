@@ -11,7 +11,7 @@ import { dedupeBy } from "@/app/_lib/dedupe";
 import { safeHttpLinks } from "@/app/_lib/safe-url";
 import { BulletList, InlineList } from "../shared";
 import { SalaryGauge } from "./SalaryGauge";
-import { growthMarkerPercent, roundGrowthTarget } from "./salaryGauge.logic";
+import { confidenceGrade, growthMarkerPercent, roundGrowthTarget } from "./salaryGauge.logic";
 
 export function SalaryTab({ analysis }: { analysis: Analysis }) {
   const t = useTranslations("report");
@@ -35,6 +35,15 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
     unknown: t("confidence.unknown"),
   };
   const { currency, period } = analysis.salary;
+  // The engine's `confidence` is a free string, and the analysis response schema
+  // sanctions a FOURTH salary grade the badge's own token map never knew:
+  // "grounded" (the read was corroborated against retrieved market data — the
+  // STRONGEST state). It fell through confidenceToken to the catch-all, so the
+  // best-evidenced salary read was labelled "Evidence unknown" beside a gauge
+  // painted at the faintest emphasis. Grade both badges through the same helper
+  // the gauge uses, so the words and the bar can't disagree about the same field.
+  const salaryGrade = confidenceGrade(analysis.salary.confidence);
+  const marketGrade = confidenceGrade(analysis.marketEvidence?.confidence);
   // Currency-aware rounding (Direction 1 #c): step scales with the figure's
   // magnitude, so a EUR/USD salary no longer snaps to an absurd CZK-scaled 5000.
   const targetSalary = roundGrowthTarget(analysis.salary.midpoint);
@@ -72,7 +81,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
           <div className="mt-1 text-base nums text-ink">
             {n.salaryRange(analysis.salary.minimum, analysis.salary.maximum, { currency })}
           </div>
-          <p className="mt-1 flex items-center gap-1.5 text-base text-steel">{enumLabel("period", period)} · <ConfidenceBadge value={analysis.salary.confidence} labels={confidenceLabels} /></p>
+          <p className="mt-1 flex items-center gap-1.5 text-base text-steel">{enumLabel("period", period)} · <ConfidenceBadge value={salaryGrade} labels={confidenceLabels} /></p>
           {analysis.salary.structureNote ? (
             <p className="mt-2 text-sm leading-5 text-steel">+ {analysis.salary.structureNote}</p>
           ) : null}
@@ -132,7 +141,7 @@ export function SalaryTab({ analysis }: { analysis: Analysis }) {
                   It was rendering WITHOUT `labels`, which dropped it through to the
                   hardcoded English fallback in Badge.tsx: a Czech report showed
                   "High confidence" beside "Silné podklady" for the same quantity. */}
-              <ConfidenceBadge value={analysis.marketEvidence.confidence} labels={confidenceLabels} />
+              <ConfidenceBadge value={marketGrade} labels={confidenceLabels} />
               {analysis.marketEvidence.suggestedMinimum && analysis.marketEvidence.suggestedMaximum
                 ? t("panel.groundedRange", {
                     range: n.salaryRange(analysis.marketEvidence.suggestedMinimum, analysis.marketEvidence.suggestedMaximum, { currency }),
