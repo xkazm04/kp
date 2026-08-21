@@ -27,11 +27,27 @@
 // (which stays an implementation detail behind polarGatewayFromEnv). Adding a MoR
 // means adding its credential var here alongside its gateway.
 
+import { isOffline } from "../offline";
+
 /** Credential env vars that mean "a billing provider is wired up". One per gateway. */
 const PROVIDER_CREDENTIAL_VARS = ["POLAR_ACCESS_TOKEN"] as const;
 
 /** True when this deployment has a payment provider configured at all. Pure env
- *  read, exported for tests and for the self-hosting docs' "am I metered?" answer. */
+ *  read, exported for tests and for the self-hosting docs' "am I metered?" answer.
+ *
+ *  KP_OFFLINE first: an air-gapped install (docs/architecture/self-hosting.md §7)
+ *  cannot reach a Merchant of Record, so `polarGatewayFromEnv()` already returns null
+ *  and every billing route answers 503. A leftover POLAR_ACCESS_TOKEN in such an
+ *  install's .env must not make this say "commercial" — that resolved the operator to
+ *  PLANS.free and 402'd their SECOND published role, pointing at a Billing panel that
+ *  reports itself unconfigured. Exactly the regression this module exists to prevent,
+ *  reached through the offline seam instead of the missing-credential one.
+ *
+ *  Only the CREDENTIAL clause is affected: `meteringActive`'s second clause (this org
+ *  already carries billing state) is untouched, so an org that has ever transacted
+ *  stays metered even if someone flips KP_OFFLINE on. The failure direction stays
+ *  "too generous to a stranger", never "billed a self-hoster". */
 export function billingProviderConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  if (isOffline(env)) return false;
   return PROVIDER_CREDENTIAL_VARS.some((key) => Boolean(env[key]?.trim()));
 }

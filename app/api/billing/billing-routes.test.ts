@@ -46,7 +46,12 @@ function signedWebhook(id: string, payload: unknown, opts?: { corruptSignature?:
       "content-type": "application/json",
       "webhook-id": id,
       "webhook-timestamp": timestamp,
-      "webhook-signature": `v1,${opts?.corruptSignature ? mac.replace(/^./, "A") : mac}`,
+      // Corrupt by flipping the first char to a DIFFERENT one: `replace(/^./, "A")` was a
+      // no-op whenever the base64 MAC already began with "A" (~1 in 64 runs), and the
+      // "reject a bad signature" test below then delivered a genuinely VALID signature
+      // and asserted 400 against a real 200. A guard that silently tests nothing at that
+      // rate is worse than no guard.
+      "webhook-signature": `v1,${opts?.corruptSignature ? (mac[0] === "A" ? "B" : "A") + mac.slice(1) : mac}`,
     },
   });
 }

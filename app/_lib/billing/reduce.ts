@@ -20,11 +20,12 @@ export type BillingAction =
     }
   | { kind: "clear_subscription"; customerId: string | null; subscriptionId: string | null }
   | { kind: "grant_credits"; meter: Meter; qty: number; providerRef: string; reason: string }
-  // `unmapped` marks an ignore that is NOT benign: a money event (a paying
-  // subscription) whose product id isn't in the configured map, so the subscriber
-  // is silently never entitled. The apply step logs these loudly (config drift).
-  // `providerRef` (unmapped only) is a stable dedupe key so repeated events for the
-  // SAME dark subscription collapse to one open alert instead of piling up N rows.
+  // `unmapped` marks an ignore that is NOT benign: a SETTLED money event (a paying
+  // subscription, or a paid/refunded order) whose product id isn't in the configured
+  // map, so the customer is charged and silently never credited or entitled. The
+  // apply step logs these loudly (config drift). `providerRef` (unmapped only) is a
+  // stable dedupe key so repeated events for the SAME dark subscription/order
+  // collapse to one open alert instead of piling up N rows.
   // bug-ui-scan-2026-07-09 (billing-engine-webhooks #5)
   | { kind: "ignore"; reason: string; unmapped?: boolean; providerRef?: string };
 
@@ -194,9 +195,29 @@ export function reduceBillingEvent(event: BillingEvent, products: ProductMap): B
       // order.created (not captured) / order.updated / etc. — no settled signal yet.
       return { kind: "ignore", reason: `pack order ${event.orderId ?? "?"} not actionable (${event.type})` };
     }
-    // Plan charges and renewals also emit order events — the subscription
-    // events carry the entitlement, so these are bookkeeping only.
-    return { kind: "ignore", reason: `order for non-pack product ${event.productId ?? "?"}` };
+    if (mapped?.kind === "plan") {
+      // Plan charges and renewals also emit order events — the subscription
+      // events carry the entitlement, so these are bookkeeping only.
+      return { kind: "ignore", reason: `order for plan product ${event.productId ?? "?"}` };
+    }
+    // No mapping AT ALL. A SETTLED money signal (order.paid, or a refund of one) for
+    // a product we cannot identify is the order-side twin of the unmapped
+    // subscription above: the customer was charged and we granted nothing, and until
+    // now it fell into the same benign `ignore` as a plan renewal — no log, no alert,
+    // no queryable row. Flag it `unmapped` so applyBillingAction's existing arm logs
+    // loudly and records a billing_alerts row. The ref is the ORDER (else its
+    // product), stable across redeliveries so the alert dedupes to one open row.
+    // Non-settled chatter (order.created/updated) for an unknown product stays a
+    // silent ignore — nothing has been paid, so there is nothing to be dark about.
+    if (event.type === "order.paid" || REFUND_ORDER_TYPES.has(event.type)) {
+      return {
+        kind: "ignore",
+        reason: `settled order event '${event.type}' for unmapped product ${event.productId ?? "?"}`,
+        unmapped: true,
+        providerRef: `unmapped:${event.orderId ?? event.productId ?? "unknown"}`,
+      };
+    }
+    return { kind: "ignore", reason: `order for unmapped product ${event.productId ?? "?"}` };
   }
 
   return { kind: "ignore", reason: `unhandled event type '${event.type}'` };

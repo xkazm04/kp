@@ -29,6 +29,17 @@ entire revenue gate on one variable surviving a deploy. With it, the failure mod
 a mis-set credential is "too generous to a brand-new org", never "billed a
 self-hoster".
 
+**`KP_OFFLINE=1` answers clause (1) NO, whatever the env holds.** An air-gapped
+install (`docs/architecture/self-hosting.md` §7) cannot reach a Merchant of Record:
+`polarGatewayFromEnv()` already returns null there and every billing route answers
+503. `billingProviderConfigured()` now short-circuits on the same flag, so a leftover
+`POLAR_ACCESS_TOKEN` in an offline `.env` can't say "commercial" while nothing can
+actually be sold — which resolved the operator to `PLANS.free` and 402'd their SECOND
+published role, pointing at a Billing panel that reports itself unconfigured. Only the
+credential clause is short-circuited: clause (2) is untouched, so an org that has ever
+transacted stays metered even if someone flips the flag on. Pinned by
+`app/_lib/billing/mode.test.ts`.
+
 **Usage is still RECORDED while unmetered.** Unmetered means never refused, not
 never counted — a self-hoster's own analytics still wants the numbers.
 
@@ -160,6 +171,25 @@ manage:     POST /api/billing/portal → provider customer-portal URL
 
 **Money state is only ever written by the webhook path** — never trusted from the
 client, never inferred from a checkout redirect.
+
+### Settled money we cannot map is an ALERT, never a silent ignore
+
+A verified event whose `product_id` isn't in `productMap()` (almost always
+`POLAR_PRODUCT_*` drift — a recreated product, sandbox ids in prod) means the customer
+paid and we entitled or credited nothing. The reducer marks those `ignore` actions
+`unmapped: true` with a stable `providerRef`, and `applyBillingAction` turns that into
+a `console.error` **plus** a durable `billing_alerts` row (`kind: "unmapped_product"`),
+deduped on the ref so repeated deliveries collapse to ONE open alert. The response
+stays 2xx — a config error will not fix itself on redelivery, so trapping the provider
+in a retry loop buys nothing, and the reason is persisted on `billing_events` for audit.
+
+It covers **both settled shapes**: a paying subscription, and — since this pass — a
+settled ORDER (`order.paid`, or a refund of one). The order side used to fall into the
+same benign ignore as a plan renewal, so a customer could buy a product we could not
+identify and nothing at all was logged. Unsettled order chatter (`order.created` /
+`order.updated`) for an unknown product stays a silent ignore: nothing has been paid,
+so there is nothing to be dark about. A MAPPED plan order is still bookkeeping-only —
+the subscription events carry that entitlement.
 
 ### What POST /api/billing/checkout refuses
 
@@ -328,7 +358,9 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
 - `app/_lib/billing/webhook-verify.test.ts` — signature scheme (tamper, stale
   timestamp, key rotation, constant-time compare).
 - `app/_lib/billing/reduce.test.ts` — payload normalization + the reducer's
-  decision table.
+  decision table, including the unmapped-product alert on both settled shapes.
+- `app/_lib/billing/mode.test.ts` — the env half of the open-source seam: a
+  credential means commercial, `KP_OFFLINE` never does.
 - `app/_lib/billing-gate.test.ts` — the whole stack against a throwaway SQLite
   file via a fake gateway: free limits, allowance debits, pack grants with
   both idempotency layers, plan upgrade via webhook, revoke-to-free, the

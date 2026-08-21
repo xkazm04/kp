@@ -176,7 +176,55 @@ test("a refund on a NON-pack (plan) order still grants nothing (subscription eve
     type: "order.refunded",
     data: { id: "order_99", product_id: "prod_starter" },
   });
-  assert.equal(reduceBillingEvent(event, PRODUCTS).kind, "ignore");
+  const action = reduceBillingEvent(event, PRODUCTS);
+  assert.equal(action.kind, "ignore");
+  // A MAPPED plan order is bookkeeping — benign, no alert.
+  assert.equal((action as { unmapped?: boolean }).unmapped, undefined);
+});
+
+test("a PAID order for an unmapped product is flagged unmapped, not silently ignored", () => {
+  // The order-side twin of the unmapped-subscription signal: the customer settled
+  // money for a product id that isn't in the map at all, so we granted nothing and —
+  // before this — logged nothing either, because it fell into the same benign
+  // `ignore` as a plan renewal. applyBillingAction's unmapped arm turns this into a
+  // console.error + a durable billing_alerts row.
+  const paid = mapPolarEvent("evt_up", {
+    type: "order.paid",
+    data: { id: "order_dark", product_id: "prod_not_configured", customer_id: "cus_1" },
+  });
+  const action = reduceBillingEvent(paid, PRODUCTS);
+  assert.equal(action.kind, "ignore");
+  assert.equal((action as { unmapped?: boolean }).unmapped, true);
+  // Stable per ORDER so redeliveries / the later refund collapse to ONE open alert.
+  assert.equal((action as { providerRef?: string }).providerRef, "unmapped:order_dark");
+
+  // A refund of that same dark order is settled money too — same flag, same ref.
+  const refunded = mapPolarEvent("evt_ur", {
+    type: "order.refunded",
+    data: { id: "order_dark", product_id: "prod_not_configured" },
+  });
+  const refundAction = reduceBillingEvent(refunded, PRODUCTS);
+  assert.equal((refundAction as { unmapped?: boolean }).unmapped, true);
+  assert.equal((refundAction as { providerRef?: string }).providerRef, "unmapped:order_dark");
+
+  // No order id at all → fall back to the product id (still stable per misconfig).
+  const noOrderId = mapPolarEvent("evt_un", {
+    type: "order.paid",
+    data: { product_id: "prod_not_configured" },
+  });
+  assert.equal((reduceBillingEvent(noOrderId, PRODUCTS) as { providerRef?: string }).providerRef, "unmapped:prod_not_configured");
+});
+
+test("UNSETTLED chatter for an unmapped product stays a silent ignore (nothing was paid)", () => {
+  // order.created fires before capture — an unknown product there is noise, not a
+  // dark charge. Alerting on it would bury the real signal above.
+  const created = mapPolarEvent("evt_uc", {
+    type: "order.created",
+    data: { id: "order_dark2", product_id: "prod_not_configured" },
+  });
+  const action = reduceBillingEvent(created, PRODUCTS);
+  assert.equal(action.kind, "ignore");
+  assert.equal((action as { unmapped?: boolean }).unmapped, undefined);
 });
 
 test("an unpaid subscription downgrades entitlement — not a silent no-op", () => {
