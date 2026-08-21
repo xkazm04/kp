@@ -58,11 +58,60 @@ def _reject_oversized(path: Path) -> None:
         )
 
 
+# Legacy single-byte code pages still reach the CV path as .txt/.md uploads: a
+# "save as ANSI" on a Czech Windows box writes cp1250, a Western one cp1252.
+# Reading those with ``errors="ignore"`` DELETED every byte that isn't valid
+# UTF-8, so a Czech CV arrived with all of its diacritics silently gone
+# ("Jiří Řezáč, Česká spořitelna" -> "Ji ez, esk spoitelna") and the name,
+# company and taxonomy passes — and, in blind mode, the very text sent to the
+# model — all ran on the mangled string.
+#
+# Which ANSI page it is cannot be read off the accented bytes themselves: cp1250's
+# č/ě/ř/ů/ň/ď occupy the same slots as cp1252's è/ì/ø/ù/ò/ï, so either decode looks
+# equally "letter-like". Š/š/Ž/ž DO discriminate — they sit at the SAME four
+# positions in BOTH pages, so seeing one is evidence about the DOCUMENT (a
+# Central-European language) rather than an artifact of the guess, and they are
+# near-ubiquitous in Czech running text ("zkušenosti", "společnost", "služby",
+# "možnost") while absent from French and German.
+_CENTRAL_EUROPEAN_MARKERS = (b"\x8a", b"\x9a", b"\x8e", b"\x9e")  # Š š Ž ž in cp1250 AND cp1252
+
+
+def _decode_text_document(data: bytes) -> str:
+    """Decode a plain-text document, tolerating legacy single-byte code pages.
+
+    UTF-8 first, via ``utf-8-sig`` so a Windows BOM is consumed instead of left as
+    a stray U+FEFF glued to the first line (where it breaks the top-of-document
+    name heuristics). A failure there proves the bytes are not UTF-8, so we pick a
+    Windows ANSI page: cp1250 when the stream carries a Central-European marker
+    byte, else cp1252. Whichever loses is still tried, because cp1252 leaves
+    0x81/0x8D/0x8F/0x90/0x9D undefined — Ť/ť live at two of them, so a Czech
+    document carrying one fails cp1252 outright and lands on cp1250 regardless.
+    ``latin-1`` never fails and is the backstop.
+
+    Known limit: a Czech document with no Š/š/Ž/ž/Ť/ť at all is read as cp1252, so
+    its carons come out as Western grave accents. That is a visible mis-mapping
+    rather than the previous silent deletion of every diacritic, and it is what a
+    dedicated charset detector (an unpinned transitive dependency here) would be
+    needed to settle.
+    """
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+    central_european = any(marker in data for marker in _CENTRAL_EUROPEAN_MARKERS)
+    for encoding in ("cp1250", "cp1252") if central_european else ("cp1252", "cp1250"):
+        try:
+            return data.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("latin-1")
+
+
 def extract_text(path: Path) -> str:
     _reject_oversized(path)
     suffix = path.suffix.lower()
     if suffix in {".txt", ".md"}:
-        return path.read_text(encoding="utf-8", errors="ignore")[:MAX_TEXT_CHARS]
+        return _decode_text_document(path.read_bytes())[:MAX_TEXT_CHARS]
     if suffix == ".docx":
         return _extract_docx(path)
     if suffix == ".pdf":

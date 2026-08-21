@@ -125,6 +125,23 @@ The KO gate also swaps: instead of a seniority-gap check, early-career profiles
 get an **entry-eligibility** check (§4) — a student vs. a senior-only role is a
 clean KO with a reason, not a depressed score.
 
+#### Czech signal lists must cover both grammatical genders
+The switcher bridge is built from surface substrings matched against prior
+job/internship evidence: `transferable._TRANSFERABLE_MAP` credits meta-skills at
+`professional` provenance, and `domain_distance` grades the bridge
+`adjacent | moderate | far`. Czech job titles inflect for gender, so a
+masculine-only token silently credits a man and not the woman who held the same
+job. Most masculine forms are a *prefix* of their feminine counterpart and cover
+both (`učitel` ⊃ `učitelka`, `ředitel` ⊃ `ředitelka`, `koordinátor` ⊃
+`koordinátorka`); where the stem changes they do not, and the feminine stem has to
+be listed alongside — `pedagog`/`pedagož`, `poradce`/`poradkyn`,
+`právník`/`právnič`, `voják`/`vojačk` — or the adjective truncated to its neutral
+stem (`projektov` covers *projektový manažer* **and** *projektová manažerka*).
+Before that fix, *Projektová manažerka* earned no project-management meta-skills
+and graded `far` where *Projektový manažer* graded `moderate` — a different
+`potential_score` off nothing but grammar. `tests/test_transferable_gender.py`
+pins the symmetry; apply the same check to any Czech token added to these lists.
+
 ### 4. Graduate-friendliness gate (the JD side of comparability)
 `compute_entry_profile` in `pipeline/jobfit/jobs.py` computes a deterministic,
 LLM-free `graduate_friendliness ∈ [0,1]` per job and an `is_entry_eligible`
@@ -153,6 +170,62 @@ order diverges from the headline order, the recruiter sees a divergence flag
 per-candidate weight rationale and an "AI-tuned vs rule-based" pill). This is
 opt-in at group evaluation (`app/_lib/group-eval-run.ts`); the plain candidate
 list stays deterministic.
+
+**What the robustness claim is allowed to say.** The persisted eval carries a
+`robustness` status (`assessed` / `not_varied` / `unavailable` / `not_applicable` /
+`insufficient_sample`) that the fairness panel renders and the sealed decision
+record quotes. `assessed` means the matrix both *varied* the weights **and**
+covered the field that was compared: the ranker pool drops any candidate
+`group-eval-run` cannot resolve (no `candidateId`, or a `candidateId` whose
+profile and analysis are both gone) and `recruiter_cli` skips malformed rows,
+while those candidates are still compared and still ranked on their stored
+`matchScore`. `fairnessCoversCohort` (`app/_lib/group-eval-cohort.ts`) gates the
+claim on full coverage, so a partial matrix reports `unavailable`
+("could not assess") instead of sealing a check that never re-scored the
+crowned lead. The panel still renders whatever matrix exists;
+`robustOrderVerdict` already declines the agrees/diverges line on the same
+mismatch.
+
+**The fairness track rides on every compared candidate.** `fairness_track`
+(`recruiter.py`) marks each ranked row `early_career` or `experienced` because
+an early-career candidate's `career` dimension scores *potential* while an
+experienced one's scores work-history fit — two incomparable 0-100 scales.
+Each persisted eval candidate now carries that `track`
+(`group-eval-run.ts::fairnessTrackOf`, falling back to the same archetype rule
+for a job-less role, `null` when no archetype was ever detected), so a consumer
+can group or disclose a mixed field instead of reading one flat total. The
+comparison itself is still ranked and crowned on one order — grouping the
+presentation by track is a UI decision, not a scoring one.
+
+**The lead's confidence hedge is measured against an eligible rival.**
+`leadSeparation` compares the crown's band against the runner-up's; the
+runner-up is chosen by `eligibleRunnerUp` (`group-eval-separation.ts`), which
+skips knockout-failed candidates. They can never be crowned
+(`top.koPassed !== false`) and are excluded from the eligibility list, so
+"treat the top two as a tie on the evidence available" must never be sealed
+about one. No one is reordered; with no eligible rival the separation is
+`unknown` and no caveat is written.
+
+**"Unique strengths" need a measured field.** A differentiator is a requirement
+skill the lead matched that *no rival matched*
+(`app/_lib/group-eval-differentiators.ts`), and the list is printed as the reason
+to pick the lead **and** sealed verbatim into the decision rationale. A rival the
+pool could not resolve carries no `matchedSkills` at all — it did not miss the
+skill, nobody looked — so any unmeasured rival in the compared field now
+suppresses the claim entirely. A *scored* rival that matched nothing carries `[]`
+(`matching.py`'s `matched_skills` defaults to a list) and still counts as a
+genuine miss, so the ordinary edge is unaffected.
+
+**The min-cohort floor gates the AI narrative too.** `group_compare`'s job is
+"who leads and the single clearest reason", and its deterministic twin has an
+explicit `n == 1` branch. Because `GroupEvalModal`'s `AiVerdict` renders the
+narrative *instead of* `summary` whenever one exists, a single-candidate eval
+used to show an AI headline crowning that candidate while the
+"insufficient sample — no lead is crowned" disclosure appeared nowhere — and
+spent an LLM round-trip to compare one candidate against nobody.
+`group-eval-run.ts` now spawns `group_compare_cli` only for a field that clears
+`GROUP_EVAL_MIN_COHORT`, so below the floor the modal falls back to the honest
+summary.
 
 ### 6. Interview & reasoning per cohort
 `interview-rubrics.json` scores experienced candidates on the original 5
@@ -293,6 +366,11 @@ degrading to English for the other app locales rather than failing.
   (`interview-telemetry.ts`) and per-submission process traces are captured
   precisely so this can be validated once outcomes accumulate — it is not
   validated yet, and does not gate anything alone in the meantime.
+- `taxonomy.ADJACENT_DOMAIN_SIGNALS` (`data/taxonomy.json`) still carries
+  masculine-only Czech stems of its own — `analytik`, `pedagog`, `právník`,
+  `technik`, `číšník`, `zámečník` — so *Analytička* grades `moderate` against
+  `data_ai` where *Analytik* grades `adjacent`. The `_TRANSFERABLE_MAP` layer is
+  fixed (§3); the adjacency lists are not.
 - Student/switcher end-to-end mechanics (observed-evidence minting from a
   live case or case-grounded interview, the dev-case module itself) are only
   summarized here; the devcase/interview build is owned by other feature docs

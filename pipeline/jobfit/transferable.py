@@ -15,14 +15,24 @@ from typing import Iterable
 from .taxonomy import ADJACENT_DOMAIN_SIGNALS
 
 # Prior-role surface signals (CZ + EN) -> transferable meta-skills.
+#
+# GENDERED FORMS: Czech job titles inflect for gender, and a substring signal that
+# only covers the masculine silently credits a man and not the woman who did the
+# identical job. Most masculine forms are a prefix of their feminine counterpart so
+# one token covers both ("učitel" ⊃ "učitelka", "ředitel" ⊃ "ředitelka"); where the
+# stem CHANGES it does not, and each such signal needs its feminine stem listed
+# beside it — "pedagog"/"pedagož(ka)", "poradce"/"poradkyn(ě)", "právník"/"právnič(ka)",
+# "voják"/"vojačk(a)" — or the adjective truncated to its gender-neutral stem
+# ("projektov" covers "projektový manažer" AND "projektová manažerka"). Any new
+# Czech signal added here must be checked the same way.
 _TRANSFERABLE_MAP: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
-    (("teacher", "lecturer", "tutor", "educator", "učitel", "lektor", "pedagog", "trenér"),
+    (("teacher", "lecturer", "tutor", "educator", "učitel", "lektor", "pedagog", "pedagož", "trenér"),
      ("mentoring", "communication", "curriculum design", "public speaking")),
     (("analyst", "analytik", "analytička"),
      ("analytical thinking", "data analysis", "requirements gathering")),
     (("manager", "lead", "vedoucí", "head of", "ředitel", "supervisor"),
      ("leadership", "delivery", "stakeholder management", "prioritization")),
-    (("coordinator", "koordinátor", "project", "projektový", "pmo", "scrum"),
+    (("coordinator", "koordinátor", "project", "projektov", "pmo", "scrum"),
      ("project management", "delivery", "stakeholder management")),
     (("sales", "account", "obchod", "prodej", "business development"),
      ("communication", "stakeholder management", "negotiation")),
@@ -32,13 +42,13 @@ _TRANSFERABLE_MAP: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
      ("communication", "content", "stakeholder management")),
     (("finance", "účet", "accountant", "controller", "controlling", "audit"),
      ("analytical thinking", "attention to detail", "reporting")),
-    (("consultant", "konzultant", "poradce"),
+    (("consultant", "konzultant", "poradce", "poradkyn"),
      ("stakeholder management", "communication", "problem solving")),
     (("nurse", "doctor", "zdravot", "lékař", "sestra"),
      ("attention to detail", "stress management", "communication")),
-    (("lawyer", "právník", "advokát", "legal"),
+    (("lawyer", "právník", "právnič", "advokát", "legal"),
      ("analytical thinking", "attention to detail", "negotiation")),
-    (("military", "police", "voják", "policie", "hasič"),
+    (("military", "police", "voják", "vojačk", "policie", "hasič"),
      ("discipline", "stress management", "teamwork", "ownership")),
 )
 

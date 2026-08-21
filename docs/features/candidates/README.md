@@ -54,6 +54,24 @@ per-skill provenance**, and archetype signals (`is_enrolled`,
 and `app/_lib/analyze-phases.ts`; results persist to the `analyses` table and
 render in `HistoryTab.tsx` / `app/history/[slug]/page.tsx`.
 
+**Plain-text uploads carry a code page.** `pipeline/jobfit/extractors.py`
+(`_decode_text_document`) decodes a `.txt`/`.md` upload as `utf-8-sig` first — the
+`-sig` consumes a Windows BOM instead of gluing a U+FEFF to the first line, where
+it defeats the top-of-document name heuristics. A decode failure proves the bytes
+are not UTF-8, so it picks a Windows ANSI page: **cp1250** when the stream carries
+a Central-European marker byte (`Š š Ž ž`, which sit at the same positions in both
+ANSI pages, so their presence is evidence about the document rather than about the
+guess), else **cp1252**; the loser is still tried, because cp1252 leaves five bytes
+undefined and `Ť`/`ť` live at two of them. `latin-1` is the never-fails backstop.
+This replaced a `read_text(encoding="utf-8", errors="ignore")` that **deleted**
+every non-UTF-8 byte, so a Czech CV saved as ANSI reached the deterministic
+pre-pass, the redactor and — in blind mode — the model itself as
+`"Ji ez, Senior vvoj, esk spoitelna"`. PDF/DOCX are unaffected (pypdf decodes,
+and a DOCX body is declared UTF-8). Known limit: a Czech document with none of
+`Š/š/Ž/ž/Ť/ť` is read as cp1252 and its carons come out as Western grave accents —
+visible mis-mapping instead of silent deletion. Pinned by
+`pipeline/jobfit/tests/test_extractors.py::PlainTextDecodingTest`.
+
 When the analysis targets a library JD (`jdSlug`), `analyze-run.ts` also
 resolves the ingested structured Job at `jd-<slug>` server-side and passes it to
 the CLI as `--job-json` (role-intake Phase 0): the honesty cross-check in
@@ -123,6 +141,35 @@ no signals defaults to `bau` at 0.4; confidence **< 0.55 flags the profile for
 manual review**. The conservative default (unclassifiable → experienced, not
 student) is deliberate: early-career archetypes are fairness-protected (see
 below), so misreading an ambiguous profile as `bau` is the safe direction.
+
+**Registry edits (the write boundary).** The Archetype admin UI writes
+`archetypes.json` through `POST/PUT/PATCH /api/archetypes` (operator-gated;
+`app/_lib/archetype-registry.ts` does an atomic temp-file + `rename`, serialized
+so two saves cannot clobber each other). `validateArchetype` is deliberately at
+least as strict as the file's *readers*, because Python re-reads and re-validates
+it on **every** pipeline spawn (`registry._validate_archetype_weights` raises at
+import, which would fail every analyze / match / intake / profile build on the
+deployment):
+
+- `weights` is projected onto exactly `skills`/`career`/`personal` (`slotsOnly`) —
+  a submitted 4th dimension is dropped, never persisted, because Python refuses a
+  weights map with any other key. Same for `dimensionLabels`.
+- weights must sum to 1.0 within `1e-6`, the *same* tolerance Python uses (a
+  looser one here would let through a file Python then refuses to load).
+- each weight must be a share in `[0,1]`: a negative weight sums to 1.0 fine but
+  **inverts** its dimension in the weighted average.
+- `unknown` and `unrouted` are reserved ids and cannot be created — the fairness
+  gate in `app/_lib/archetypes.ts` fails *closed* precisely because they are not
+  registry members (see §6), so registering one would silently unshield every
+  unrouted candidate on the deployment.
+- built-ins (`bau`, `student`, `career_switcher`) additionally refuse edits to
+  `fairnessProtected` / `scoringModel` and refuse archival.
+
+Errors come back as `{ error (English), code, params }`; the client localizes by
+`code` through the `errors.validation.*` catalog. **Known gap:** `weight_out_of_range`
+and `id_reserved` have no catalog entry yet, so the manager UI falls back to its
+generic "save failed" label for those two (the English `message` is still correct
+for direct API callers).
 
 ### 5. Completeness follow-up
 CV analysis emits unmet checklist items as structured gaps
@@ -258,6 +305,9 @@ Two derived add-ons state signals about a named person and share one rule: a
   the eval's substring matcher just can't bridge the language.
 - `master`'s-degree CVs are sometimes read as `university`/`bachelor`
   (education softening) — cosmetic, not gated by any axis.
+- The registry write boundary's two newest refusal codes (`weight_out_of_range`,
+  `id_reserved`) have no `errors.validation.*` catalog entry, so the Archetype
+  manager shows its generic save-failed label for them (see §4).
 - Student/career-switcher scoring mechanics (potential score, observed-evidence
   minting, fairness matrix) are documented in `docs/features/matching/README.md`;
   the harder-to-validate parts of that model (whether `potential_score`'s

@@ -58,5 +58,28 @@ class SalarySanityCheckTest(unittest.TestCase):
         self.assertIn("Salary range seems plausible", checks)
 
 
+class OneSidedBandIsFlaggedTest(unittest.TestCase):
+    """A half-populated band is REPAIRED into a zero-width one; both directions
+    must say so, or the recruiter negotiates against a derived endpoint that reads
+    like an estimate and passes every check clean."""
+
+    def test_missing_maximum_is_recorded(self) -> None:
+        repairs: list[str] = []
+        salary = _salary_from_payload({"minimum": 60000, "maximum": 0}, repairs)
+        self.assertEqual((salary.minimum, salary.maximum), (60000, 60000))
+        self.assertEqual(repairs, ["Salary maximum missing — set to minimum (manual review)"])
+
+    def test_missing_minimum_is_recorded(self) -> None:
+        repairs: list[str] = []
+        salary = _salary_from_payload({"minimum": 0, "maximum": 80000}, repairs)
+        self.assertEqual((salary.minimum, salary.maximum), (80000, 80000))
+        self.assertEqual(repairs, ["Salary minimum missing — set to maximum (manual review)"])
+
+    def test_a_complete_band_records_nothing(self) -> None:
+        repairs: list[str] = []
+        _salary_from_payload({"minimum": 60000, "maximum": 80000}, repairs)
+        self.assertEqual(repairs, [])
+
+
 if __name__ == "__main__":
     unittest.main()

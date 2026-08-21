@@ -872,6 +872,13 @@ def _salary_from_payload(raw: Any, repairs: list[str] | None = None) -> SalaryEs
             repairs.append("Salary minimum missing — set to maximum (manual review)")
     elif maximum <= 0 and minimum > 0:
         maximum = minimum
+        # Symmetric with the missing-minimum note above. Without it a one-sided
+        # payload ({"minimum": 60000}) shipped a 60000-60000 band that reads as a
+        # real, narrow range and passes every sanity check clean — so the top of
+        # the band the recruiter negotiates against was derived, not estimated,
+        # with nothing saying so.
+        if repairs is not None:
+            repairs.append("Salary maximum missing — set to minimum (manual review)")
     elif minimum <= 0 and maximum <= 0 and had_section and repairs is not None:
         repairs.append("Salary range missing — estimate unavailable (manual review)")
     # A model-supplied midpoint can be inconsistent with its own min/max (e.g. an
