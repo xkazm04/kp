@@ -8,14 +8,16 @@
 //      the orchestrator promotes on (passed in), never a second hardcoded bar.
 //   3. Thin evidence never auto-advances: a low propagated evidence-confidence
 //      on the evaluation (models.py confidence scale) forces "hold".
+//   4. A held submission does not enrich the candidate's PROFILE behind the hold's
+//      back — the observed-skill mint honors the same authenticity doubt.
 //
 // testing/unit-db.ts MUST be the first project import — it sets KP_DB_PATH before
 // db-path.ts is evaluated by the transitive `@/app/_lib/db` import.
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { createPosting, createSubmission, getPipelineEntry, saveSubmissionEvaluation } from "./db.ts";
-import { promoteSubmission } from "./devcase-run.ts";
+import { createPosting, createSubmission, getPipelineEntry, saveDevCase, saveProfile, saveSubmissionEvaluation } from "./db.ts";
+import { mintObservedFromSubmission, promoteSubmission } from "./devcase-run.ts";
 
 after(() => cleanupUnitDb());
 
@@ -103,4 +105,50 @@ test("low evaluation evidence-confidence never auto-advances (canary c2)", () =>
   delete (legacy.evaluation as Record<string, unknown>).confidence;
   const legacyResult = promoteSubmission(makeSubmission(legacy, 88), 55);
   assert.equal(legacyResult!.recommendation, "advance");
+});
+
+test("a held submission never mints observed skills onto the candidate's profile", async () => {
+  // The PROFILE-side mirror of the hold. promoteSubmission holds a suspect-
+  // authenticity submission because it may not be the candidate's work; the
+  // observed-skill mint is the write that outlives this posting (observed is the
+  // engine's highest-trust provenance and is read by every FUTURE match), so it has
+  // to honor the same doubt. Python cannot: apply_live_case only sees the transfer
+  // score and its confidence — both deliberately strong here, so the authenticity
+  // band is the ONLY thing standing between this submission and a permanent
+  // profile write.
+  const kase = saveDevCase({
+    need: null,
+    analysis: null,
+    role: { title: "Backend Engineer", mustHaves: ["Python"] },
+    case: { title: "Suspect case" },
+  });
+  const posting = createPosting({
+    caseId: kase.id,
+    channel: "local",
+    token: "tok-suspect",
+    roleTitle: "Backend Engineer",
+    caseTitle: "Suspect case",
+  });
+  // Resolvable, unambiguous candidate -> profile link, so nothing else short-circuits.
+  saveProfile({ label: "Pasted Pat", archetype: "bau", roleFamily: null, completeness: null, payload: {} });
+  const { submission } = createSubmission({
+    postingId: posting.id,
+    candidateRef: "Pasted Pat",
+    repoRef: "session:paste-1",
+  });
+  saveSubmissionEvaluation(
+    submission.id,
+    {
+      evaluation: { summary: "Strong work.", strengths: ["testing"], concerns: [], confidence: 0.8 },
+      transfer: { transferScore: 88, confidence: 0.8, transfers: ["Python"], gaps: [], roleFitRationale: "Fits." },
+      // A bulk paste into the watched editor / a broken event-log hash chain.
+      authenticity: { band: "suspect", score: 12 },
+    },
+    88
+  );
+
+  const result = promoteSubmission(submission.id, 55);
+  assert.equal(result!.recommendation, "hold", "the promote gate holds it");
+  // …and the profile write is held with it — no spawn, no credit.
+  assert.deepEqual(await mintObservedFromSubmission(submission.id, result!.entryId), { credited: [], applied: false });
 });

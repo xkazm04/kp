@@ -75,6 +75,19 @@ controls](#anti-delegation-controls-shipped) below. All six are shipped.
    flagged `suspect` by the authenticity score, or with a broken integrity
    chain, is held for a live ownership-verifying interview rather than
    advanced on transfer score alone.
+
+   **A hold holds the profile write too.** Promotion also bridges the take-home
+   into the candidate's saved profile — `mintObservedFromSubmission`
+   (`app/_lib/devcase-run.ts`) turns the demonstrated must-haves into
+   `observed`-provenance evidence, the engine's highest-trust signal (taxonomy
+   weight 1.0, confidence up to 0.95, plus an early-career routing lift). Python's
+   `apply_live_case` gates that on the transfer score (`>= 65`) and its propagated
+   evidence-confidence (`> LOW_CONFIDENCE`) only — it cannot see the authenticity
+   band, which is computed on the TS side. So the mint carries the **same
+   `suspect` gate as the promote verdict**: a submission held because we can't tell
+   the candidate authored it never writes observed evidence onto a profile that
+   outlives this posting. Re-promoting mints normally once a human has cleared the
+   band. Pinned in `app/_lib/devcase-promote.test.ts`.
 7. **Outcome loop.** `app/_lib/dev-outcomes.ts` is the isolated store that pairs a
    predicted score with what actually happened (`hired` / `rejected` / `withdrawn` /
    `pending`, plus an optional 1..5 `performance` rating); `calibrate()` turns those

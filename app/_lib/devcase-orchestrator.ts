@@ -390,6 +390,10 @@ export async function runLifecycle(id: string, progress?: Progress, signal?: Abo
         // transfer floor, so when its candidateRef resolves to a saved profile the
         // demonstrated skills become observed-provenance evidence. Best-effort
         // enrichment — a minting failure must never block the promotion batch.
+        // Called for every promoted submission, held ones included: the AUTHENTICITY
+        // gate lives inside mintObservedFromSubmission (so the manual promote door
+        // gets it too), and a suspect band no-ops there rather than writing observed
+        // evidence the hold below refuses to act on.
         try {
           await mintObservedFromSubmission(s.id, result.entryId);
         } catch {

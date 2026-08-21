@@ -395,16 +395,37 @@ function profileForSubmission(sub: DevSubmission): NonNullable<ReturnType<typeof
  *  observed provenance (confidence capped 0.95, the deepest read we have).
  *
  *  Quietly returns {applied: false} unless every precondition holds: an evaluated
- *  submission on a posting whose dev case carries its role + case, AND a
- *  candidateRef that resolves unambiguously to a saved profile. The competence
- *  bar itself (transfer_score >= 65) lives in Python with the scoring contract. */
+ *  submission whose process-authenticity is not SUSPECT (the same doubt that makes
+ *  promoteSubmission hold it), on a posting whose dev case carries its role + case,
+ *  AND a candidateRef that resolves unambiguously to a saved profile. The
+ *  competence bar itself (transfer_score >= 65) and the evidence-confidence floor
+ *  live in Python with the rest of the scoring contract. */
 export async function mintObservedFromSubmission(
   submissionId: string,
   entryId?: string | null
 ): Promise<ObservedMintResult> {
   const sub = getSubmission(submissionId);
-  const bundle = (sub?.evaluation ?? null) as { evaluation?: Record<string, unknown>; transfer?: Record<string, unknown> } | null;
+  const bundle = (sub?.evaluation ?? null) as {
+    evaluation?: Record<string, unknown>;
+    transfer?: Record<string, unknown>;
+    authenticity?: { band?: string };
+  } | null;
   if (!sub || !bundle?.evaluation || !bundle?.transfer) return { credited: [], applied: false };
+  // ce28da40 — PROMOTE PARITY. promoteSubmission HOLDS a suspect-authenticity
+  // submission because we cannot tell the candidate authored it (a bulk paste into
+  // the watched editor, or an event log whose hash chain provably broke). The same
+  // doubt has to block this write, and it is the more consequential of the two: a
+  // hold is a decision about THIS posting that a human resolves, while observed
+  // provenance is permanent and global — taxonomy weight 1.0, confidence up to
+  // 0.95, plus an early-career routing lift — so every FUTURE match for this person
+  // would be scored on evidence the promote gate just refused to act on. Both
+  // callers (the orchestrator's ranked stage and /api/devcase/promote) mint
+  // unconditionally after promoting, so the gate belongs here rather than at either
+  // door. Python cannot make this call: authenticity is computed on this side
+  // (devcase-authenticity.ts) and apply_live_case only ever sees the transfer score
+  // and its propagated confidence. Held, not lost — re-promoting mints normally
+  // once a human has verified authorship and cleared the band.
+  if (bundle.authenticity?.band === "suspect") return { credited: [], applied: false };
   const posting = sub.postingId ? getPosting(sub.postingId) : null;
   const devCase = posting?.caseId ? getDevCase(posting.caseId) : null;
   if (!devCase?.case || !devCase.role) return { credited: [], applied: false };
