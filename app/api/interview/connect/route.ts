@@ -8,7 +8,7 @@ import {
   connectWithFailover,
   defaultInterviewerInstructions,
   getVoiceAdapter,
-  isSelfHostedVoice,
+  isSelfHostedProvider,
   missingVoiceEnv,
   voiceAvailability,
   type VoiceProviderId,
@@ -101,32 +101,38 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const requested = coerceProviderId(body.provider);
+    const provider: VoiceProviderId | null = requested ?? session0?.provider ?? null;
+    if (!provider) {
+      return NextResponse.json({ error: "provider must be 'openai' or 'elevenlabs'" }, { status: 400 });
+    }
+
     // Per-token connect throttle (backlog #15): a valid, non-terminal token could
     // otherwise mint provider sessions — the most expensive operation in the
     // system (ElevenLabs / OpenAI Realtime credits) — in a tight loop. Keyed by
     // TOKEN, not IP: the link is the credential, and an abuser rotating IPs must
     // not reset the budget. Sits AFTER the lifecycle guards (bad token /
     // completed / revoked / expired keep their 404/409 semantics) and BEFORE
-    // markInterviewStarted + adapter.connect, so a throttled call does no work.
+    // markInterviewStarted + adapter.connect, so a throttled call does no work
+    // (provider resolution above it is pure).
     // 6/10min = one start + five reconnects: a dropped call ('failed' stays
     // reconnectable by design) is retried manually, one click per attempt, so a
     // flaky-network session still fits; a credential-minting loop does not.
     // Tokenless lab sessions (dev-only, INTERVIEW_LAB_ENABLED-gated) pass through.
-    // Self-hosted voice (ELEVENLABS_BASE_URL → a loopback/private service) mints
-    // nothing billable, so the premise of the 6/10min budget — "the most
-    // expensive operation in the system" — no longer holds. The throttle is
-    // raised rather than removed: a mint loop still costs CPU on the box serving
-    // it, and an automated conversation suite legitimately reconnects far more
-    // often than a human retrying a dropped call.
-    const connectLimit = isSelfHostedVoice() ? 120 : 6;
+    // The raise applies to a session the FREE LOCAL provider will serve, and is
+    // therefore decided AFTER provider resolution (scan-sweep 2026-08-22). It used
+    // to read isSelfHostedVoice() — an ENV fact about whether a local service is
+    // configured at all — evaluated BEFORE we knew who would serve. On an install
+    // with a local ElevenLabs plus an OpenAI key, that let a token holder with an
+    // OpenAI-provider session mint 120 PAID Realtime credentials per 10 min
+    // instead of 6: a 20x denial-of-wallet on the premise's exact inverse.
+    // For a genuinely self-hosted session the premise still holds — nothing
+    // billable is minted — so the budget is raised rather than removed: a mint
+    // loop still costs CPU on the box serving it, and an automated conversation
+    // suite legitimately reconnects far more often than a human retrying a call.
+    const connectLimit = isSelfHostedProvider(provider) ? 120 : 6;
     if (token && !rateLimit(`interview-connect:${token}`, { limit: connectLimit, windowMs: 10 * 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
-    }
-
-    const requested = coerceProviderId(body.provider);
-    const provider: VoiceProviderId | null = requested ?? session0?.provider ?? null;
-    if (!provider) {
-      return NextResponse.json({ error: "provider must be 'openai' or 'elevenlabs'" }, { status: 400 });
     }
 
     const adapter = getVoiceAdapter(provider);
@@ -216,7 +222,12 @@ export async function POST(request: NextRequest) {
       instructions,
       language: language ?? session.language,
       getAdapter: getVoiceAdapter,
-      availability: voiceAvailability(),
+      // A session that skipped /simulate's meterGate because the local provider is
+      // free must never be rescued onto a PAID one — /complete would then price and
+      // debit a call against a reservation that was never taken. connectWithFailover
+      // re-throws the original error when the alternate is unavailable, so this
+      // preserves today's INTERVIEW_CONNECT_FAILED semantics exactly.
+      availability: isSelfHostedProvider(provider) ? { ...voiceAvailability(), openai: false } : voiceAvailability(),
       resolveAgentPrompt,
     });
 

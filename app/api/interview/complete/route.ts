@@ -5,6 +5,7 @@ import { attachInterviewScorecard, completeInterviewSession, getInterviewSession
 import { insertLlmUsage } from "@/app/_lib/db/llm";
 import { getEntryWorkspace } from "@/app/_lib/db/pipeline";
 import { voiceUsageRow } from "@/app/_lib/voice/minute-prices";
+import { isSelfHostedProvider } from "@/app/_lib/voice";
 import { runInterviewScorecard } from "@/app/_lib/interview-run";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
 import { AUTOMATION_VERSION } from "@/app/_lib/automation-run";
@@ -215,7 +216,20 @@ export async function POST(request: NextRequest) {
       // simulation). This used to re-derive it from `session.entryId` and default when
       // there was none, so every simulation debited the DEFAULT team's meter while its
       // gate had checked the caller's — gate and debit on two different tenants.
-      recordMeterUsage("interview_minutes", billedMin, new Date(), session.workspaceId);
+      // ...and only for a session a PAID provider served. /api/interview/simulate
+      // deliberately skips meterGate for a self-hosted (free) provider — "metering a
+      // free simulation would make a self-hosted install run out of a budget it is not
+      // consuming, which is the whole reason to self-host" — but this debit used to run
+      // unconditionally, so an 18-minute free local call drained 18 minutes of prepaid
+      // quota and a later HOSTED call was 402'd on an allowance the free ones spent.
+      // Gate and debit now agree on the same predicate (scan-sweep 2026-08-22).
+      // session.provider is trustworthy here: it is set to whoever actually served, and
+      // /connect no longer lets a free session fail over onto a paid provider.
+      // The llm_usage row below stays UNCONDITIONAL — voiceMinuteCostUsd already prices
+      // these at 0, and a $0 ledger row is the truthful record that a call happened.
+      if (!isSelfHostedProvider(session.provider)) {
+        recordMeterUsage("interview_minutes", billedMin, new Date(), session.workspaceId);
+      }
       // Cost attribution (tiger F1): the meter above is a quantity-only quota
       // counter, but OpenAI Realtime vs ElevenLabs per-minute costs differ
       // materially — so the SAME billed minutes also land in the llm_usage

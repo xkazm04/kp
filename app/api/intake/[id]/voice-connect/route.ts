@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getIntake } from "@/app/_lib/db/intakes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { getVoiceAdapter, isSelfHostedVoice, missingVoiceEnv, voiceAvailability } from "@/app/_lib/voice";
+import { getVoiceAdapter, missingVoiceEnv, voiceAvailability } from "@/app/_lib/voice";
 import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { safeJsonError } from "@/app/_lib/api-response";
 
@@ -53,11 +53,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // THROTTLE (rate-limit-contract.test.ts): credential minting burns provider
     // credits — the same "most expensive operation" premise as
     // /api/interview/connect, so the same budget: 6/10min per intake (one start
-    // + five reconnects after dropped calls), raised on self-hosted voice where
-    // nothing billable is minted. Keyed by intake id, not IP (an operator's
-    // legitimate retries share a NAT with the whole office). Sits AFTER the
-    // 404/409 lifecycle refusals and BEFORE the adapter mint.
-    const voiceConnectLimit = isSelfHostedVoice() ? 120 : 6;
+    // + five reconnects after dropped calls). Keyed by intake id, not IP (an
+    // operator's legitimate retries share a NAT with the whole office). Sits
+    // AFTER the 404/409 lifecycle refusals and BEFORE the adapter mint.
+    //
+    // NOT raised on self-hosted voice, unlike /api/interview/connect (scan-sweep
+    // 2026-08-22). That raise reads ELEVENLABS_BASE_URL — an ENV fact about
+    // whether a free local service is configured — but this route mints
+    // getVoiceAdapter("openai") credentials and ONLY those: it is a transport-only
+    // OpenAI Realtime relay and ElevenLabs is never reachable from it. So the
+    // "nothing billable is minted" premise is false here in principle, not just
+    // in some sessions, and the raise let one open intake id mint 120 PAID
+    // ephemeral credentials per 10 minutes on an install that merely has a local
+    // ElevenLabs configured for a different feature.
+    const voiceConnectLimit = 6;
     if (!rateLimit(`intake-voice-connect:${id}`, { limit: voiceConnectLimit, windowMs: 10 * 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }

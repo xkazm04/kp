@@ -96,7 +96,7 @@ const ROUTES: RouteSpec[] = [
     key: "`interview-connect:${token}`",
     limit: 6,
     limitSrc: "connectLimit",
-    limitDef: "const connectLimit = isSelfHostedVoice() ? 120 : 6;",
+    limitDef: "const connectLimit = isSelfHostedProvider(provider) ? 120 : 6;",
     // The provider connect moved behind the failover helper (round 8) — the
     // helper call IS the expensive work the limiter guards.
     expensive: "connectWithFailover(",
@@ -136,7 +136,7 @@ const ROUTES: RouteSpec[] = [
     key: "`intake-voice-connect:${id}`",
     limit: 6,
     limitSrc: "voiceConnectLimit",
-    limitDef: "const voiceConnectLimit = isSelfHostedVoice() ? 120 : 6;",
+    limitDef: "const voiceConnectLimit = 6;",
     expensive: "adapter.connect(",
     servedBefore: 'intake.status !== "open"',
   },

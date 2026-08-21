@@ -45,6 +45,16 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    `candidateSafeTopic()` also scrubs the label's **content** — bracketed asides
    are removed by shape (not by phrase vocabulary) and the label is
    length-capped. Pinned by `app/_lib/voice/candidate-brief.test.ts`.
+   The **stored** `interview_sessions.run_of_show_json` is composed through the
+   same scrub at the source (`candidateRunOfShow` in
+   `app/_lib/interview-run.ts`, called by `buildGroundedInterview`), so every
+   reader of that field is clean at once — the portal's agenda sidebar
+   (`app/interview/[token]/page.tsx`), `/api/interview/simulate` →
+   `InterviewSimTab`, and `scripts/interview-brief-grounded.ts`. The
+   **interviewer** brief (`composeBrief`) deliberately keeps the raw topic: it
+   is server-side and interviewer-internal, which is why
+   `/api/interview/complete`'s public projection strips it. Pinned by
+   `app/_lib/interview-run.test.ts`.
 3. **Live call.** `app/_components/voice/VoiceInterview.tsx` (+
    `VoiceInterviewClient.tsx`, `InterviewSidebar.tsx`) drives either adapter —
    the two realtime transports live side by side under
@@ -55,7 +65,30 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    agent doesn't default to its Czech dashboard language, shows a live
    speaking/listening indicator for both providers, recovers from a
    transient network drop without freezing the mic, and offers a pre-call mic
-   test.
+   test (its verdict sits in a persistent `aria-live` region, so a
+   screen-reader candidate hears "we can hear you" / "we didn't detect any
+   sound" rather than nothing).
+   Three render-side properties belong to this layer rather than to the
+   session builders:
+   - `InterviewSidebar.tsx` maps every agenda label through
+     `candidateSafeTopic()` before rendering it. This is deliberate
+     belt-and-braces beside the source-side `candidateRunOfShow` scrub above:
+     `run_of_show_json` rows persisted *before* that scrub still hold raw
+     annotated topics, and the sidebar is a shared component the simulator tab
+     feeds from a different source.
+   - A microphone failure reads the same on both transports. The ElevenLabs SDK
+     acquires the mic itself and reports a rejected `startSession` through
+     `onError(message, error)`; the transport forwards that second `cause`
+     argument so `micErrorText.ts` can match the real `DOMException.name` and
+     show the same localized recovery copy the OpenAI path already showed —
+     previously an EL mic denial surfaced the SDK's untranslated
+     `"Permission denied"`.
+   - `useTranscriptPersistence.ts` stashes each transcript POST body in
+     `sessionStorage` under `kp.iv.<sessionId>` *before* sending it, and
+     **replays any stash left over on mount**. A 2xx or a 4xx (already
+     completed / bad token / consent) clears the stash; a network failure keeps
+     it for the next mount, so a reload after the "we couldn't save your
+     interview" banner recovers the record instead of dropping it.
 4. **Completion.** `app/api/interview/complete/route.ts` persists the
    transcript, computes `interviewFinalStatus`
    (`app/_lib/voice/finalize-status.ts`), attributes usage/cost
@@ -124,6 +157,7 @@ by both the portal page and `/api/interview/connect`:
 | `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks (only a **connect** triggers a failover — a failing prompt build surfaces as itself, never as a second mint on the other provider) |
 | `app/_lib/voice/candidate-brief.ts` | The client-sent ElevenLabs brief's security boundary: allow-list sanitizers + `candidateSafeTopic` |
 | `app/_lib/voice/minute-prices.ts` | Per-minute cost estimates for the usage ledger |
+| `app/_lib/interview-run.ts` | `buildGroundedInterview` (interviewer brief + the stored candidate agenda, composed clean via `candidateRunOfShow`), `buildCandidateSafeBrief`, `runInterviewScorecard` |
 | `app/_lib/interview-scorecard.ts`, `interview-telemetry.ts`, `interview-transcript.ts` | Post-call scoring + telemetry |
 | `app/_lib/interview-rubric.ts` | The scorecard rubric resolved from `pipeline/jobfit/interview-rubrics.json` (base axes by scoring model + industry axes by role family), its version hash, and `rubricCoverage` (below) |
 | `app/_lib/interview-prep-run.ts` | Builds the prep pack (run-of-show + checklist) and stamps its provenance |
@@ -249,6 +283,27 @@ conservative: a public override is still treated as paid) and
 browser/client change is required — the signed URL returned by the
 self-hosted service is whatever the SDK is told to connect to.
 
+`self-hosted.ts` answers **two different questions**, and every money decision
+belongs on the second one:
+
+| Export | Question | Use for |
+| --- | --- | --- |
+| `isSelfHostedVoice(env?)` | **ENV**: is a self-hosted endpoint *configured on this install*? | which URL to call; whether the local stack is deployed at all |
+| `isSelfHostedProvider(provider, env?)` | **SESSION**: is *this* call being served by the free provider? | billing gate, meter debit, credential-mint throttle, cost estimate |
+
+An install can serve ElevenLabs locally and still run **OpenAI Realtime**
+sessions, which are billed per minute exactly as before — so
+`isSelfHostedVoice()` is never on its own an answer to "does this call cost
+money". Conflating the two is the root of the first two Known gaps below. Pass
+the provider that will actually **serve**: after failover that is
+`connect.provider`, not the one the session requested.
+
+The private-host test applies its RFC1918 / link-local / carrier-NAT ranges only
+to an **IPv4 literal**. Read off a name they also matched anything whose first
+label happened to be one of those numbers (`https://10.voice-vendor.example.com`),
+and a public per-minute host would then have been declared free — the one
+direction the conservative contract says must never happen.
+
 ## Keyless / degraded behavior
 
 - With no provider keys configured, `voiceAvailability()` reports both
@@ -262,14 +317,6 @@ self-hosted service is whatever the SDK is told to connect to.
 
 ## Known gaps
 
-- **The candidate portal renders the raw run-of-show.**
-  `app/interview/[token]/page.tsx` passes `session.runOfShow` straight into
-  `InterviewSidebar`, and those strings are the unsanitized chronology topics —
-  the same ones `/api/interview/complete`'s projection strips and
-  `candidateSafeTopic()` now scrubs on the ElevenLabs path. A prep pack whose
-  competency reads `"Test automation fundamentals (missing must-have)"` shows
-  that gap verdict to the candidate in the agenda. Fix: route the stored
-  `runOfShow` (or the portal's render of it) through `candidateSafeTopic`.
 - **Failover can cross the free→paid boundary with no reservation behind it.**
   `app/api/interview/simulate/route.ts` deliberately skips the
   `interview_minutes` gate when the ElevenLabs base URL is a self-hosted
@@ -296,6 +343,17 @@ self-hosted service is whatever the SDK is told to connect to.
   self-hosted install burns prepaid minutes on calls that cost nothing.
   `voiceMinuteCostUsd` already returns `0` for those sessions; the meter debit
   needs the symmetric `isSelfHostedProvider(session.provider)` check.
+- **The same env/session conflation, unconditionally wrong, in the intake voice
+  route.** `app/api/intake/[id]/voice-connect/route.ts` sizes its throttle with
+  `isSelfHostedVoice() ? 120 : 6` — but that route mints
+  `getVoiceAdapter("openai")` credentials and nothing else, so
+  `isSelfHostedProvider("openai")` is **always** false and the raise is never
+  earned: on any install with a loopback `ELEVENLABS_BASE_URL`, an authenticated
+  operator holding an open intake id mints 120 paid OpenAI Realtime credentials
+  per 10 minutes instead of 6. Unlike the `/api/interview/connect` case there is
+  no session provider to resolve — the limit is simply `6`. Both fixes must
+  update the pinned literals in `app/api/rate-limit-contract.test.ts`
+  (`limitDef`) in the same change.
 - ASR can corrupt technology terms in transcripts (a "low WER, high semantic
   damage" failure — a spoken skill can be silently substituted for another
   before the scorecard scores it). A static agent-level `asr.keywords` bias

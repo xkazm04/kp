@@ -34,14 +34,29 @@ export function elevenLabsBaseUrl(env: NodeJS.ProcessEnv = process.env): string 
 function isPrivateHost(host: string): boolean {
   if (LOOPBACK_HOSTS.has(host)) return true;
   if (host.endsWith(".local") || host.endsWith(".internal")) return true;
+  // The ranges below describe IP ADDRESSES, so they may only be read off an IPv4
+  // literal. Matched against a NAME they also fired on anything whose first label
+  // happens to be one of those numbers — "https://10.voice-vendor.example.com" is
+  // a public, per-minute host that this function then declared free, which is the
+  // one direction the contract below says must never happen (it skips /simulate's
+  // interview_minutes gate and raises /connect's credential-mint throttle 6 → 120).
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return false;
   if (/^10\./.test(host) || /^192\.168\./.test(host)) return true;
   if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true;
   if (/^169\.254\./.test(host) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host)) return true;
   return false;
 }
 
-/** Whether voice is being served from a machine we run, and therefore costs no
- *  per-minute credits.
+/** ENV-LEVEL: is a self-hosted ElevenLabs endpoint CONFIGURED on this install?
+ *
+ *  This is a question about the deployment, NOT about any particular session,
+ *  and it is never on its own an answer to "does this call cost money". An
+ *  install can serve ElevenLabs locally and still run OpenAI Realtime sessions
+ *  — those are billed per minute exactly as before. Use
+ *  {@link isSelfHostedProvider} with the provider that is actually serving
+ *  whenever the answer decides a gate, a debit or a throttle; this export is
+ *  only for questions that are genuinely about the endpoint (which URL to call,
+ *  whether the local voice stack is deployed at all).
  *
  *  Deliberately CONSERVATIVE: only a private/loopback host counts. An override
  *  pointing at some other public host is still treated as paid, because this
@@ -59,8 +74,14 @@ export function isSelfHostedVoice(env: NodeJS.ProcessEnv = process.env): boolean
   }
 }
 
-/** Whether THIS session's provider is self-hosted. OpenAI Realtime has no
- *  self-hosted path in this app, so only the ElevenLabs adapter can be local. */
+/** SESSION-LEVEL: is THIS session being served by the free provider — and
+ *  therefore spending no per-minute credits? OpenAI Realtime has no self-hosted
+ *  path in this app, so only the ElevenLabs adapter can be local.
+ *
+ *  This is the export every money decision belongs on (billing gate, meter
+ *  debit, credential-mint throttle, cost estimate). Pass the provider that will
+ *  actually SERVE the call — after failover that is `connect.provider`, not the
+ *  one the session requested. */
 export function isSelfHostedProvider(
   provider: string,
   env: NodeJS.ProcessEnv = process.env,

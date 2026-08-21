@@ -79,6 +79,40 @@ test("a public override is still treated as paid", () => {
   }
 });
 
+test("a NAME that merely starts with a private range is still paid", () => {
+  // The numeric ranges describe IP ADDRESSES. Read off a hostname they also
+  // matched a public per-minute vendor whose first label happens to be "10" /
+  // "192.168" / "172.16" / "169.254" / "100.64", and the install would then skip
+  // /simulate's interview_minutes gate and mint 120 credentials per 10 min.
+  for (const url of [
+    "https://10.voice-vendor.example.com",
+    "https://192.168.example.com",
+    "https://172.16.example.net",
+    "https://169.254.example.org",
+    "https://100.64.example.com",
+  ]) {
+    withEnv({ ELEVENLABS_BASE_URL: url }, () => {
+      assert.equal(isSelfHostedVoice(), false, url);
+    });
+  }
+  // …while the addresses themselves keep counting.
+  withEnv({ ELEVENLABS_BASE_URL: "http://10.0.0.5:8080" }, () => {
+    assert.equal(isSelfHostedVoice(), true);
+  });
+});
+
+test("the ENV question and the SESSION question are not the same question", () => {
+  // The distinction this file exists to keep: isSelfHostedVoice() answers "is a
+  // local endpoint configured on this install", isSelfHostedProvider() answers
+  // "is THIS call free". Conflating them is how a paid OpenAI Realtime session on
+  // a self-hosted-ElevenLabs box got a 20x credential-mint budget it never earned.
+  withEnv({ ELEVENLABS_BASE_URL: "http://127.0.0.1:8080" }, () => {
+    assert.equal(isSelfHostedVoice(), true); // the endpoint IS configured…
+    assert.equal(isSelfHostedProvider("openai"), false); // …and this call still costs money.
+    assert.ok(voiceMinuteCostUsd("openai", 10) > 0);
+  });
+});
+
 test("only the ElevenLabs adapter has a self-hosted path", () => {
   withEnv({ ELEVENLABS_BASE_URL: "http://127.0.0.1:8080" }, () => {
     assert.equal(isSelfHostedProvider("elevenlabs"), true);
