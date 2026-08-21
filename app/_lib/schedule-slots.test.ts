@@ -150,6 +150,56 @@ test("isScheduleInviteExpired: only a stale, still-pending link expires", () => 
   assert.equal(isScheduleInviteExpired({ status: "pending", createdAt: boundary }, NOW), false);
 });
 
+test("a cancelled booking re-opens the link — the TTL runs from the cancel, not the mint", () => {
+  // The real sequence: a link is minted, the candidate books three weeks out (the
+  // 21-day horizon), and days later they (or the recruiter) hit "can't make it".
+  // cancelAttendance returns the invite to 'pending' precisely so the SAME link can
+  // pick a new time — anchoring on created_at made that re-opened link instantly
+  // 'expired' (empty picker + 410 on every re-book), which is the bug.
+  const NOW = Date.parse("2026-06-10T12:00:00.000Z");
+  const ttlMs = INVITE_LINK_TTL_DAYS * 86_400_000;
+  const minted = new Date(NOW - 20 * 86_400_000).toISOString(); // link is 20 days old
+  const cancelledJustNow = new Date(NOW - 60_000).toISOString();
+  assert.equal(
+    isScheduleInviteExpired(
+      { status: "pending", createdAt: minted, attendanceStatus: "cancelled", attendanceAt: cancelledJustNow },
+      NOW
+    ),
+    false,
+    "a just-cancelled booking leaves a LIVE link to re-book with"
+  );
+  // …and the re-opened link still ages out, on its own clock.
+  assert.equal(
+    isScheduleInviteExpired(
+      {
+        status: "pending",
+        createdAt: minted,
+        attendanceStatus: "cancelled",
+        attendanceAt: new Date(NOW - ttlMs - 60_000).toISOString(),
+      },
+      NOW
+    ),
+    true,
+    "a cancel-reopened link that then sat unbooked past the TTL is still dead"
+  );
+  // A never-booked link is untouched by the anchor (no cancel marker), and a
+  // "confirmed" RSVP is not a re-open — the invite is still booked, not pending.
+  assert.equal(isScheduleInviteExpired({ status: "pending", createdAt: minted }, NOW), true);
+  assert.equal(
+    isScheduleInviteExpired(
+      { status: "pending", createdAt: minted, attendanceStatus: "confirmed", attendanceAt: cancelledJustNow },
+      NOW
+    ),
+    true,
+    "only a CANCEL re-opens the window"
+  );
+  // A legacy row whose attendance columns are null falls back to created_at.
+  assert.equal(
+    isScheduleInviteExpired({ status: "pending", createdAt: minted, attendanceStatus: null, attendanceAt: null }, NOW),
+    true
+  );
+});
+
 // --- Direction 3: grid ⇄ canonical instant (one scheduling engine) --------------
 test("gridSlotToIso resolves a grid pick to the next future canonical instant", () => {
   // NOW = Monday 2026-06-08 12:00 UTC (see top of file), interview zone pinned to UTC.

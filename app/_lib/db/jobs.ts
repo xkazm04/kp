@@ -318,8 +318,17 @@ export type JobFilter = {
   limit?: number;
 };
 
-export function listJobs(filter: JobFilter = {}, workspaceId: string = DEFAULT_WORKSPACE_ID): JobRecord[] {
-  const db = ensureDb();
+// The browse read's page bounds. A caller that omits `limit` still gets a PAGE, not
+// the corpus — see listJobsPage's `truncated` flag and countJobs.
+export const JOBS_PAGE_DEFAULT_LIMIT = 300;
+export const JOBS_PAGE_MAX_LIMIT = 500;
+
+/** The non-tenant half of the browse predicate + its bound params, shared verbatim by
+ *  listJobsPage and countJobs so a count can never drift from the page it counts. The
+ *  TENANT predicate deliberately stays inlined in each SQL template (not factored in
+ *  here): jobs-tenancy.test.ts is a source guard that greps the literal template for
+ *  `workspace_id`, and hiding it behind an interpolation would blind that guard. */
+function jobFilterSql(filter: JobFilter, workspaceId: string): { extra: string; params: Record<string, unknown> } {
   const where: string[] = [];
   const params: Record<string, unknown> = { workspaceId };
   if (filter.roleFamily) {
@@ -346,31 +355,104 @@ export function listJobs(filter: JobFilter = {}, workspaceId: string = DEFAULT_W
     where.push("(title LIKE @q OR company LIKE @q)");
     params.q = `%${filter.q}%`;
   }
-  // Tenant scope (P1): the shared reference corpus (workspace_id NULL) + this team's
-  // OWN authored openings; a team never sees another team's openings.
-  const extra = where.length ? `AND ${where.join(" AND ")}` : "";
+  return { extra: where.length ? `AND ${where.join(" AND ")}` : "", params };
+}
+
+/** One page of the browse read plus an HONEST truncation flag — same contract as
+ *  buildCandidatePool's `{ entries, truncated }`. `truncated` is true when the corpus
+ *  held at least one more matching row than `limit` returned, so a caller can say
+ *  "first 300 of more" instead of presenting a cut slice as the whole set. */
+export type JobsPage = { jobs: JobRecord[]; truncated: boolean; limit: number };
+
+export function listJobsPage(filter: JobFilter = {}, workspaceId: string = DEFAULT_WORKSPACE_ID): JobsPage {
+  const db = ensureDb();
+  const { extra, params } = jobFilterSql(filter, workspaceId);
   // Defensive clamp: never bind a NaN/negative/huge LIMIT even if a caller
   // skips validation. SQLite treats LIMIT -1 as unbounded, so guard the floor.
-  params.limit =
+  const limit =
     Number.isInteger(filter.limit) && (filter.limit as number) > 0
-      ? Math.min(filter.limit as number, 500)
-      : 300;
+      ? Math.min(filter.limit as number, JOBS_PAGE_MAX_LIMIT)
+      : JOBS_PAGE_DEFAULT_LIMIT;
+  // Read ONE row past the page: cheap, exact, and it needs no second COUNT round-trip
+  // to know whether the slice was cut.
   const rows = db
     .prepare(
       `SELECT payload_json, status FROM jobs
        WHERE (workspace_id IS NULL OR workspace_id = @workspaceId) ${extra}
        ORDER BY is_entry_eligible DESC, graduate_friendliness DESC, id LIMIT @limit`
     )
-    .all(params) as { payload_json: string; status: JobRecord["status"] }[];
+    .all({ ...params, limit: limit + 1 }) as { payload_json: string; status: JobRecord["status"] }[];
+  const truncated = rows.length > limit;
   // Decorate each parsed payload with the status COLUMN — payload_json predates
   // the lifecycle and never carries it, so without this the UI can't tell a
   // draft (dead apply link) or a closed role from a live opening.
-  return rows
+  const jobs = (truncated ? rows.slice(0, limit) : rows)
     .map((r): JobRecord | null => {
       const parsed = safeRowParse<JobRecord>(r.payload_json, "listJobs");
       return parsed ? { ...parsed, status: r.status ?? null } : null;
     })
     .filter((j): j is JobRecord => j !== null);
+  return { jobs, truncated, limit };
+}
+
+/** The browse page as a bare array (unchanged contract for the catalog UI).
+ *
+ *  WARNING for new callers: this is a PAGE, not the corpus — no `limit` still binds
+ *  LIMIT 300 and a supplied one is capped at 500. `.length` on the result is the size
+ *  of the slice, NOT a count; the analytics metric pack once read it that way and
+ *  reported 300 open roles for a workspace carrying 350. Use countJobs / countOpenRoles
+ *  for a count and listJobsPage when you need to know the slice was cut. */
+export function listJobs(filter: JobFilter = {}, workspaceId: string = DEFAULT_WORKSPACE_ID): JobRecord[] {
+  return listJobsPage(filter, workspaceId).jobs;
+}
+
+/** How many jobs match `filter` for this team — the unbounded COUNT twin of
+ *  listJobsPage, over the identical predicate (`limit` is ignored: a count is not a
+ *  page). This is the primitive any "how many roles" caller should reach for. */
+export function countJobs(filter: JobFilter = {}, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const { extra, params } = jobFilterSql(filter, workspaceId);
+  const row = ensureDb()
+    .prepare(
+      `SELECT COUNT(*) AS n FROM jobs
+       WHERE (workspace_id IS NULL OR workspace_id = @workspaceId) ${extra}`
+    )
+    .get(params) as { n: number };
+  return row.n;
+}
+
+/** Open roles split by TIER — the distinction the dual-tier predicate erases.
+ *
+ *  `own`    = roles this team AUTHORED that are live (workspace_id = ws).
+ *  `corpus` = live rows of the shared cross-company reference corpus (workspace_id
+ *             NULL) — the ~100 seeded roles EVERY tenant sees. They are not a team's
+ *             requisitions; a workspace with zero authored jobs still "has" all of them.
+ *  `visible` = own + corpus, i.e. exactly what listJobs/listCorpusJobs enumerate.
+ *
+ *  "Live" is isJobOpenForApplications' definition (NULL = seeded/live, 'published' =
+ *  live; draft and closed are held back), matching `openOnly` and listCorpusJobs.
+ *
+ *  DECISION FOR CALLERS (deliberately NOT taken here): whether a corpus role a team has
+ *  adopted counts as a carried requisition is a product question. Recruiter-capacity
+ *  style metrics almost certainly want `own`; a "roles you can match against" figure
+ *  wants `visible`. Pick explicitly — the whole point of this primitive is that the
+ *  choice is now visible in the call site instead of hidden in a predicate.
+ *
+ *  Related but NOT the same: countPublishedJobs (job-ingest.ts) is the BILLING active-
+ *  jobs cap and counts strictly `status = 'published'`, so it excludes a NULL-status
+ *  authored row; `own` here uses the open-for-applications predicate instead. */
+export type OpenRoleCounts = { own: number; corpus: number; visible: number };
+
+export function countOpenRoles(workspaceId: string = DEFAULT_WORKSPACE_ID): OpenRoleCounts {
+  const row = ensureDb()
+    .prepare(
+      `SELECT COALESCE(SUM(CASE WHEN workspace_id IS NULL THEN 1 ELSE 0 END), 0) AS corpus,
+              COALESCE(SUM(CASE WHEN workspace_id = @workspaceId THEN 1 ELSE 0 END), 0) AS own
+       FROM jobs
+       WHERE (status IS NULL OR status = 'published')
+         AND (workspace_id IS NULL OR workspace_id = @workspaceId)`
+    )
+    .get({ workspaceId }) as { corpus: number; own: number };
+  return { own: row.own, corpus: row.corpus, visible: row.own + row.corpus };
 }
 
 export function getJob(id: string): JobRecord | null {

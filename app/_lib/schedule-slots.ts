@@ -45,14 +45,35 @@ export const INVITE_LINK_TTL_DAYS = 7;
 const INVITE_LINK_TTL_MS = INVITE_LINK_TTL_DAYS * 86_400_000;
 
 /** True when a self-scheduling invite is a dead capability: still 'pending' (never
- *  booked) and minted more than INVITE_LINK_TTL_DAYS ago. Derived — a confirmed
+ *  booked) and un-booked for more than INVITE_LINK_TTL_DAYS. Derived — a confirmed
  *  booking never expires this way, and the explicit terminal states (declined /
- *  no_show) are already closed. `nowMs` is injectable for tests. */
-export function isScheduleInviteExpired(invite: { status: string; createdAt: string }, nowMs: number = Date.now()): boolean {
+ *  no_show) are already closed. `nowMs` is injectable for tests.
+ *
+ *  THE ANCHOR IS "when this link last became an un-booked capability", not always
+ *  created_at. A cancelled attendance (cancelAttendance — the candidate's "I can't
+ *  make it" RSVP, and the recruiter's cancel action, which reuses it) deliberately
+ *  returns a CONFIRMED invite to 'pending' so the same link can pick a new time. On
+ *  the 21-day booking horizon that cancel routinely lands more than 7 days after the
+ *  link was minted, and anchoring on created_at alone made the link expire the instant
+ *  it re-opened: the candidate was told "your booking is released — pick a new time",
+ *  the next GET answered `closed: "expired"` over an empty grid, and every re-book POST
+ *  got 410. It also broke createScheduleInvite's documented re-invite reuse (it stacked
+ *  a second token instead). So a cancel-reopened invite restarts the TTL from the cancel
+ *  stamp — the re-opened link still ages out, on its own clock. attendance_status is
+ *  cleared on every (re-)booking, so the marker lives exactly as long as the re-opened
+ *  window does; an old row with no attendance columns falls back to created_at. */
+export function isScheduleInviteExpired(
+  invite: { status: string; createdAt: string; attendanceStatus?: string | null; attendanceAt?: string | null },
+  nowMs: number = Date.now()
+): boolean {
   if (invite.status !== "pending") return false;
-  const created = Date.parse(invite.createdAt);
-  if (Number.isNaN(created)) return false;
-  return created < nowMs - INVITE_LINK_TTL_MS;
+  let anchor = Date.parse(invite.createdAt);
+  if (Number.isNaN(anchor)) return false;
+  if (invite.attendanceStatus === "cancelled" && invite.attendanceAt) {
+    const reopened = Date.parse(invite.attendanceAt);
+    if (!Number.isNaN(reopened) && reopened > anchor) anchor = reopened;
+  }
+  return anchor < nowMs - INVITE_LINK_TTL_MS;
 }
 
 export function parseInterviewTimes(raw: string | undefined): readonly string[] {

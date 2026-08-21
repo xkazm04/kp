@@ -162,6 +162,21 @@ Every CTA in a pack links the quick-apply form; the pack ships a markdown
 copy-all export. Rendering the video scripts into actual video/avatar assets
 is out of scope (kp generates scripts only).
 
+**One pack per (job, language) is a GLOBAL constraint, not a per-team one.**
+`campaign_packs`' primary key is `(job_id, lang)`; `workspace_id` was added by a
+later migration and is *not* part of it. `saveCampaignPack` upserts with
+`ON CONFLICT(job_id, lang) DO UPDATE … WHERE campaign_packs.workspace_id =
+excluded.workspace_id`, which correctly stops team B overwriting team A's pack —
+but the same foreign row also blocks B's own INSERT, and SQLite reports that as
+*zero changes, no error*. Reachable on any shared corpus job (`workspace_id`
+NULL — the seeded reference roles every tenant can open the Campaign tab on).
+The store therefore **throws** on a zero-change write rather than returning a
+record for a pack that was never stored (`changes === 0` can only mean a foreign
+row holds the slot: a fresh insert and a same-team regenerate both report 1).
+Behavioral coverage: `app/_lib/db/campaign-tenancy.test.ts`. The real fix is a
+`(job_id, lang, workspace_id)` key — a `campaign_packs` rebuild in `core.ts`,
+listed under Known gaps.
+
 Generation is a background task, so the tab hands `jobTitle` to `startTask` purely
 to name the run — `tasks.kind.campaign` is `"Campaign pack · {job}"` and
 `detail(p.jobTitle, p.jobId)` otherwise falls through to the raw `jd-<slug>` id in
@@ -278,15 +293,55 @@ gate in `ko_filter` (`matching.py`, ranked through `_EDU_RANK`), the coach's
 saving the JD body re-ingests the linked job (`app/api/jds/[slug]/route.ts`) so
 the re-parsed floor moves eligibility by that amount.
 
+## Reading the `jobs` corpus: a page is not a count, and "visible" is not "owned"
+
+Two traps live in `app/_lib/db/jobs.ts`, both now named by primitives.
+
+**`listJobs` is a PAGE.** With no `limit` it binds `LIMIT 300`; a caller-supplied
+one is clamped to 500. `.length` on the result is the size of a slice, never a
+count — the analytics metric pack read it that way and published "300 open
+roles" (30 roles/recruiter instead of 35) for a workspace carrying 350, labelled
+`measured`. Use:
+
+| Primitive | Returns |
+|---|---|
+| `listJobsPage(filter, ws)` | `{ jobs, truncated, limit }` — the same `truncated` contract as `buildCandidatePool`, so a cut slice says so (it reads one row past the page to decide). |
+| `listJobs(filter, ws)` | The bare array (unchanged for the catalog UI) — now a thin wrapper over `listJobsPage`. |
+| `countJobs(filter, ws)` | The unbounded `COUNT(*)` over the *identical* predicate; `limit` is ignored. |
+| `listCorpusJobs(ws)` | Every live row as full records (the matcher/rematch corpus). |
+
+**The dual-tier predicate `(workspace_id IS NULL OR workspace_id = ?)` shows a
+team the shared reference corpus as if it were its own openings.** `listJobs`,
+`listCorpusJobs` and `jobStats` all use it, and `JobRecord` carries no
+`workspaceId`, so a caller could not tell the tiers apart. `countOpenRoles(ws)`
+now splits them: `{ own, corpus, visible }` over the open-for-applications
+predicate (`status IS NULL OR 'published'`). On the shipped DB a workspace that
+has authored nothing reports `own: 0`, `corpus: 100`, `visible: 100`.
+
+Whether a corpus role a team has *adopted* counts as a carried requisition is an
+open product decision — the primitive makes the choice explicit at the call site
+instead of hiding it in a predicate; it does not take the decision. Related but
+distinct: `countPublishedJobs` (`job-ingest.ts`) is the billing active-jobs cap
+and counts strictly `status = 'published'`.
+
 ## Data model
 
 `jobs` (structured, matchable — `status`, `salary_min/max`, `payload_json`),
 `jds` (JD markdown/title prose, separate from `jobs` by design), `campaign_packs`
-(one row per job × language).
+(one row per job × language — see the constraint note above; the key does *not*
+include `workspace_id`).
 
 ## Known gaps
 
 - External "Publish to job boards" distribution is not implemented.
+- `campaign_packs` is keyed `(job_id, lang)` without `workspace_id`, so only ONE
+  team can hold a pack for a given shared-corpus role + language. The second
+  team's save is refused with an error instead of being silently lost; making it
+  actually work needs a table rebuild onto `(job_id, lang, workspace_id)` in
+  `app/_lib/db/core.ts`.
+- `GET /api/jobs` does not yet forward `listJobsPage`'s `truncated` flag, so the
+  Jobs catalog still cannot say "first 300 of more". `jobStats.total` is a real
+  `COUNT(*)`, so the header count stays honest.
 - No structurally-tracked, independently-provenanced editable salary band yet
   (would need its own `source: "manual"` marker, not a re-parse of the
   markdown).

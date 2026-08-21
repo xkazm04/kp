@@ -59,7 +59,7 @@ const {
   isTerminalScheduleInviteStatus,
   MAX_RESCHEDULES,
 } = await import("./schedule-store.ts");
-const { INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot } = await import("./schedule-slots.ts");
+const { INVITE_LINK_TTL_DAYS, gridSlotToIso, isoToGridSlot, isScheduleInviteExpired } = await import("./schedule-slots.ts");
 
 // Mint a confirmed invite at a specific slot, returning its token. Each test uses
 // globally-unique slot_at times so confirmed rows from other tests can't collide.
@@ -218,6 +218,33 @@ test("cancelAttendance frees the slot, re-opens the invite, and records the canc
   assert.equal(updated?.attendanceStatus, "cancelled");
   assert.equal(updated?.reminderAttempts, 0, "reminder cycle reset");
   assert.ok(!bookedSlots().includes(slotAt), "the freed slot is no longer booked");
+});
+
+test("cancelling a booking on an AGED link leaves a live capability, not an instantly-expired one", () => {
+  // The lived sequence: link minted, candidate books three weeks out (the 21-day
+  // horizon), then days later cancels. cancelAttendance re-opens the invite to
+  // 'pending' so the SAME link can re-book — but expiry used to be anchored on
+  // created_at alone, so an invite older than the TTL went 'expired' the moment it
+  // re-opened: the token route 410s every re-book and the re-invite reconcile below
+  // stacks a second token instead of reusing this one (contradicting its own comment).
+  const entryId = "e-cancel-aged";
+  const inv = createScheduleInvite({ entryId, candidateLabel: "C", jobTitle: "Role" });
+  assert.ok(confirmScheduleInvite(inv.token, "Old", "2031-09-01T10:00:00.000Z").ok, "setup booking confirms");
+  const raw = new Database(TMP);
+  raw
+    .prepare(`UPDATE schedule_invites SET created_at = ? WHERE token = ?`)
+    .run(new Date(Date.now() - (INVITE_LINK_TTL_DAYS + 5) * 86_400_000).toISOString(), inv.token);
+  raw.close();
+
+  const reopened = cancelAttendance(inv.token);
+  assert.equal(reopened?.status, "pending", "the cancel re-opens the invite for re-booking");
+  assert.equal(
+    isScheduleInviteExpired(getScheduleInviteByToken(inv.token)!),
+    false,
+    "the re-opened link is a LIVE capability — the candidate can actually pick a new time"
+  );
+  const again = createScheduleInvite({ entryId, candidateLabel: "C", jobTitle: "Role" });
+  assert.equal(again.token, inv.token, "a re-invite reuses the re-opened link instead of stacking a new token");
 });
 
 test("re-confirming after a cancel clears the stale cancelled RSVP", () => {

@@ -77,6 +77,32 @@ the repo's unit runner has no component renderer; same idiom as
    be offered the escalation by the GET and then refused by the POST with
    "there are still open times", over an empty picker.
 
+### Link lifecycle — the TTL, and what re-arms it
+
+An invite's stored statuses are `pending` / `confirmed` / `declined` / `no_show`;
+**`expired` is derived, never stored** — `isScheduleInviteExpired`
+(`schedule-slots.ts`) calls a `pending` invite dead once it has sat un-booked
+longer than `INVITE_LINK_TTL_DAYS` (7, the same clock as the voice-interview
+link). It is the one derivation the token route's 410 gate, the recruiter
+lifecycle panel's `closed` bucket and `createScheduleInvite`'s re-invite reuse
+all read, so they cannot drift.
+
+The TTL is anchored on **when the link last became an un-booked capability**,
+which is not always `created_at`. `cancelAttendance` — the candidate's "I can't
+make it" RSVP *and* the recruiter's `cancel` action, which reuses it —
+deliberately returns a **confirmed** invite to `pending` so the same link can
+pick a new time. On the 21-day horizon that cancel routinely lands more than 7
+days after the mint, and anchoring on `created_at` alone killed the link at the
+exact moment it re-opened: the candidate was told "your booking is released —
+pick a new time", the next GET answered `closed: "expired"` over an empty grid,
+and every re-book POST got a 410. A cancel-reopened invite therefore restarts
+the TTL from its `attendance_at` stamp; the re-opened link still ages out, on
+its own clock. Every (re-)booking clears `attendance_status`, so the marker
+lives exactly as long as the re-opened window. Pinned by
+`schedule-slots.test.ts` (pure) and `schedule-store.test.ts` (behavioural: the
+cancel leaves a live capability *and* a re-invite reuses that token instead of
+stacking a second one).
+
 ## Free/busy — and saying whether it was actually checked
 
 `app/_lib/calendar/free-busy.ts` is pure (overlap maths, busy-span merging,
