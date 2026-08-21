@@ -39,22 +39,31 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
   );
   const [tasks, setTasks] = useState<Task[]>([]);
   const [startError, setStartError] = useState<TaskStartError | null>(null);
+  // Did the LAST poll actually reach the queue? A dropped fetch or a 500 leaves
+  // `tasks` at its previous value — which on a first load is `[]`, indistinguishable
+  // from a genuinely empty window. Without this flag the tab flipped `loaded` on a
+  // FAILED refresh and asserted "No recent AI tasks" over runs it had not read.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
       const r = await fetch("/api/tasks");
-      const p = await r.json();
-      if (Array.isArray(p.tasks)) {
-        const next = p.tasks as Task[];
-        // The 2s poll parses a fresh array every tick, so an unconditional
-        // setTasks committed a NEW reference even when nothing changed —
-        // re-rendering every useTasks() consumer for the whole life of a running
-        // task. Commit only when a cheap rendered-state signature actually differs;
-        // an unchanged poll returns the SAME reference and is a no-op.
-        setTasks((prev) => (tasksSignature(prev) === tasksSignature(next) ? prev : next));
+      const p = (await r.json().catch(() => ({}))) as { tasks?: unknown };
+      if (!r.ok || !Array.isArray(p.tasks)) {
+        setLoadFailed(true);
+        return;
       }
+      setLoadFailed(false); // same value ⇒ React bails out; no extra render on a healthy poll
+      const next = p.tasks as Task[];
+      // The 2s poll parses a fresh array every tick, so an unconditional
+      // setTasks committed a NEW reference even when nothing changed —
+      // re-rendering every useTasks() consumer for the whole life of a running
+      // task. Commit only when a cheap rendered-state signature actually differs;
+      // an unchanged poll returns the SAME reference and is a no-op.
+      setTasks((prev) => (tasksSignature(prev) === tasksSignature(next) ? prev : next));
     } catch {
-      /* transient — next tick retries */
+      /* transient — next tick retries, and the flag lets the view say so meanwhile */
+      setLoadFailed(true);
     }
   }, []);
 
@@ -203,8 +212,9 @@ export function TasksProvider({ children }: { children: React.ReactNode }) {
       startError,
       clearStartError,
       markSeen,
+      loadFailed,
     }),
-    [tasks, startTask, retryTask, cancelTask, refresh, fetchTask, startError, clearStartError, markSeen]
+    [tasks, startTask, retryTask, cancelTask, refresh, fetchTask, startError, clearStartError, markSeen, loadFailed]
   );
 
   return <TasksContext.Provider value={value}>{children}</TasksContext.Provider>;

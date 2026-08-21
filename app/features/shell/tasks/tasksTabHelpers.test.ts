@@ -4,7 +4,10 @@
 // contract, not a detail — pinned here.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ALL_STATUSES, sortTasks, taskTime } from "./tasksTabHelpers";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { ALL_STATUSES, sortTasks, taskTime, unseenIdsOf } from "./tasksTabHelpers";
 import type { Task, TaskStatus } from "./tasksProviderTypes";
 
 function task(id: string, status: TaskStatus, stamps: Partial<Pick<Task, "createdAt" | "startedAt" | "finishedAt">> = {}): Task {
@@ -67,4 +70,47 @@ test("taskTime falls back finished -> started -> created, and never returns NaN"
 
 test("the Status filter offers every status, active states first", () => {
   assert.deepEqual(ALL_STATUSES, ["running", "queued", "succeeded", "failed", "canceled", "interrupted"]);
+});
+
+// ---- the read/unread ack set ----------------------------------------------
+// The dwell-ack stamps seen_at, which clears the sidebar's unread AND failed
+// badges. It therefore may only cover rows the recruiter could actually SEE:
+// acking the whole polled window (up to 60 rows) while the table paginates 20 at
+// a time silently swallowed the outcomes on every page the reader never turned to.
+
+test("only terminal, still-unread rows are ackable", () => {
+  const seen = task("acked", "succeeded");
+  seen.seenAt = "2026-08-14T10:00:00.000Z";
+  const ids = unseenIdsOf([
+    task("running", "running"),
+    task("queued", "queued"),
+    task("fresh-fail", "failed"),
+    seen,
+    task("fresh-ok", "succeeded"),
+  ]);
+  // Active rows are never "seen" (their outcome hasn't happened yet) and an
+  // already-acked row is never re-stamped.
+  assert.deepEqual(ids, ["fresh-fail", "fresh-ok"]);
+});
+
+test("the ack covers the rows handed in, not a wider window", () => {
+  const window20 = Array.from({ length: 20 }, (_, i) => task(`p1-${i}`, "succeeded"));
+  const offPage = [task("p2-fail", "failed"), task("p2-ok", "succeeded")];
+  // The page slice is what gets acked; the rows the pager did not draw stay unread.
+  const acked = unseenIdsOf(window20);
+  assert.equal(acked.length, 20);
+  for (const t of offPage) assert.ok(!acked.includes(t.id), `${t.id} was never on screen`);
+  assert.deepEqual(unseenIdsOf([...window20, ...offPage]).length, 22, "the whole window would ack 22");
+});
+
+test("the dwell-ack is wired to the PAGED rows, not to the polled window", () => {
+  // Source-level (a .tsx cannot be loaded by the node runner): the ack has to live
+  // where the page slice does. It used to run in TasksTab over the full `tasks`
+  // array, which is exactly the bug this pins shut.
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const read = (file: string) => readFileSync(path.join(here, file), "utf8");
+  const panel = read("TasksRunsPanel.tsx");
+  assert.match(panel, /unseenIdsOf\(shown\)/, "the panel must derive the ack set from its page slice");
+  assert.match(panel, /onSeen\(ids\)/, "…and hand exactly those ids to the ack");
+  assert.doesNotMatch(read("TasksTab.tsx"), /markSeen\(/, "the tab must not ack the unpaginated window");
 });

@@ -80,7 +80,15 @@ function detail(...candidates: unknown[]): string | null {
 }
 
 async function batchScreen(ctx: TaskCtx): Promise<unknown> {
-  const entries = listActiveEntriesForAutomation().filter((e) => e.stage === "Screened");
+  // Scope to the CALLER's team. listActiveEntriesForAutomation is tagged
+  // `-- tenancy:global` for the clock-driven automation ENGINE, which legitimately
+  // sweeps every tenant — but batch_screen is a per-recruiter click, and until
+  // 2026-08-22 it ignored the ctx.workspaceId the runner threads in. Team A's click
+  // spent A's LLM budget screening team B's board and wrote advance/hold decisions
+  // into B's pipeline, while the summary A read back counted candidates A cannot see.
+  const entries = listActiveEntriesForAutomation().filter(
+    (e) => e.stage === "Screened" && e.workspaceId === ctx.workspaceId
+  );
   const summary = { advanced: 0, held: 0, advisory: 0, errors: 0, total: entries.length };
   ctx.progress(0, entries.length, entries.length ? "Starting…" : "Nothing to screen");
   let done = 0;

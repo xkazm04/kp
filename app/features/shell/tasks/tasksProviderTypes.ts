@@ -56,6 +56,10 @@ export type TasksCtx = {
   /** Acknowledge finished tasks (read/unread) — stamps seen_at server-side and
    *  refreshes so the indicator badge clears on the next paint. */
   markSeen: (ids: string[]) => Promise<void>;
+  /** The last poll did NOT reach the queue (network drop, 500, malformed body).
+   *  `tasks` is then stale — or, on a first load, still `[]`. A view MUST NOT
+   *  render that `[]` as "nothing has run"; say the server is unreachable. */
+  loadFailed: boolean;
 };
 
 export const ACTIVE = (t: Task) => t.status === "running" || t.status === "queued";

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { listRecentTasks } from "@/app/_lib/db/tasks";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { ensureRecovered, isKnownKind, recentTaskCutoffIso, startTask } from "@/app/_lib/tasks";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
 
 // GET: active tasks + those finished within the recent window (the client polls
@@ -31,6 +32,21 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // THROTTLE (rate-limit-contract.test.ts). This route reaches the SAME startTask
+    // that /api/jds/generate gates behind requireOperator and /api/analyze throttles
+    // at 30/10min — with neither. proxy.ts admits any valid session, and /api/demo
+    // mints an anonymous demo-workspace one (which requireOperator rejects and this
+    // route never asked for), so on a password-gated deploy with the demo enabled an
+    // anonymous visitor could spend unbounded LLM credit by varying params to defeat
+    // the dedupe key. requireOperator is NOT the fix here: it would 401 the guided
+    // demo, which legitimately starts batch_screen through this door.
+    //
+    // 120/10min is deliberately generous: useDecisionsQueue fires one POST per
+    // accepted screening review, so a 50-card bulk accept is a legitimate 50-request
+    // burst and a tighter budget would silently drop interview-prep artifacts.
+    if (!rateLimit(`tasks-start:${clientIpFrom(request.headers)}`, { limit: 120, windowMs: 10 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     const body = (await request.json().catch(() => ({}))) as { kind?: string; params?: Record<string, unknown> };
     if (!body.kind || !isKnownKind(body.kind)) {
       return NextResponse.json({ error: `unknown task kind: ${body.kind ?? "(none)"}` }, { status: 400 });

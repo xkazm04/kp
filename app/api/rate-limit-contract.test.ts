@@ -68,6 +68,29 @@ const ROUTES: RouteSpec[] = [
     expensive: "startTask(",
   },
   {
+    // ADDED scan-sweep 2026-08-22. This route reaches the SAME startTask that
+    // ./analyze throttles and ./jds/generate operator-gates — it had neither, so an
+    // anonymous /api/demo session could spend unbounded LLM credit through it.
+    // 120/10min is deliberately generous: a 50-card bulk accept in the Decisions
+    // queue is a legitimate 50-request burst.
+    rel: "./tasks/route.ts",
+    key: "`tasks-start:${clientIpFrom(request.headers)}`",
+    limit: 120,
+    expensive: "startTask(",
+  },
+  {
+    // ADDED scan-sweep 2026-08-22. Every accepted retry re-spends; the limiter sits
+    // after the ownership/status refusals so a rejected click costs no budget.
+    rel: "./tasks/[id]/retry/route.ts",
+    key: "`tasks-retry:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    // The CALL SITE, not the bare `startTask(` this file uses elsewhere: that
+    // substring also appears in this route's header comment, which precedes the
+    // limiter, so the generic marker would fail on prose rather than on ordering.
+    expensive: "startTask(task.kind",
+    servedBefore: "RETRYABLE.has(task.status)",
+  },
+  {
     rel: "./github-analysis/route.ts",
     // Per-IP. 10/10min uncached runs; GitHub's anonymous 60/hr cap binds first.
     key: "`github-analysis:${clientIpFrom(request.headers)}`",

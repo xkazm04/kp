@@ -34,6 +34,22 @@ export const STATUS: Record<TaskStatus, StatusMeta> = {
 
 export const ACTIVE = (t: Task) => t.status === "running" || t.status === "queued";
 
+/** How long a finished row must sit on screen before it counts as seen. Long
+ *  enough that a tab flicked past doesn't silently acknowledge an outcome. */
+export const SEEN_DWELL_MS = 1500;
+
+/** The terminal, still-unacknowledged rows among the ones handed in — the ids a
+ *  dwell-ack may stamp `seen_at` on.
+ *
+ *  Callers MUST pass the rows actually ON SCREEN, never the whole polled window.
+ *  The ack used to run over the entire recent window (up to 60 rows) while the
+ *  table renders one 20-row page of it, so opening the tab acknowledged outcomes
+ *  the pager (and the column filters) had never drawn — clearing the sidebar's
+ *  unread and FAILED badges for runs the recruiter never saw. */
+export function unseenIdsOf(tasks: readonly Task[]): string[] {
+  return tasks.filter((task) => !ACTIVE(task) && task.seenAt === null).map((task) => task.id);
+}
+
 // Tasks show "—" for a never-run/invalid timestamp; otherwise the shared
 // relative-time renderer (formatRelativeTime, which returns "" on invalid).
 // `locale` is the active next-intl locale, threaded from the rendering row.

@@ -73,6 +73,24 @@ test("every task route resolves the session workspace and threads it", () => {
   }
 });
 
+// Not tenancy, but the same class of route-contract fact this file already pins by
+// source (a request scope the unit runner cannot give these handlers): an analyze
+// row's params point at the temp workdir /api/analyze filled BEFORE enqueuing, and
+// runAnalyze rm -rf's it in a `finally` — on failure and cancel too. Replaying such
+// a row could therefore only fail again, so the route must check the inputs still
+// exist BEFORE it spends a queue slot on the replay.
+test("retry refuses a replay whose uploaded inputs were already cleaned up", () => {
+  const src = read("[id]", "retry", "route.ts");
+  assert.match(src, /existsSync/, "the guard must actually stat the paths, not trust the row");
+  const guard = src.indexOf("replayInputsMissing(task.kind, params)");
+  const start = src.indexOf("startTask(task.kind");
+  assert.ok(guard > 0, "expected the missing-input guard");
+  assert.ok(start > 0 && guard < start, "the guard must precede startTask — no phantom run, no spawn");
+  // It must stay a per-run existence check, never a blanket ban: a crash-interrupted
+  // row whose workdir survived is still genuinely replayable.
+  assert.match(src, /paths\.length > 0 && paths\.some/, "unknown/absent paths must not refuse");
+});
+
 test("DELETE proves ownership before aborting, not after", () => {
   // cancelTask works off the id alone (one process-wide abort registry), so the
   // tenant check has to happen in the route or it does not happen at all — and it

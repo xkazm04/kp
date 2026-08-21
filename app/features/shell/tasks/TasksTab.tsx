@@ -8,7 +8,7 @@ import { renderTaskLabel } from "@/app/_lib/task-label";
 import { useTasks, type Task, type TaskStatus } from "./TasksProvider";
 import { Checkbox } from "@/app/_components/Checkbox";
 import { Defer } from "@/app/_components/ui/Defer";
-import { ACTIVE, RECENT_WINDOW_DAYS } from "./tasksTabHelpers";
+import { RECENT_WINDOW_DAYS } from "./tasksTabHelpers";
 import { TaskHistory } from "./TasksHistory";
 import { TasksRunsPanel } from "./TasksRunsPanel";
 
@@ -24,27 +24,22 @@ import { TasksRunsPanel } from "./TasksRunsPanel";
 
 export function TasksTab() {
   const t = useTranslations("tasks");
-  const { tasks, cancelTask, refresh, startError, clearStartError, markSeen } = useTasks();
+  const { tasks, cancelTask, refresh, startError, clearStartError, markSeen, loadFailed } = useTasks();
 
-  // Read/unread ack: after the unread finished rows have actually been on screen
-  // for a short dwell, stamp their seen_at (server-side) so the indicator badge
-  // clears. The dwell (not an instant ack on mount) is what makes "seen" honest —
-  // a tab flicked past for 200ms doesn't count. Keyed by the unread id set so a
-  // finish that lands while the tab is open gets its own dwell.
-  const unseenIds = tasks.filter((task) => !ACTIVE(task) && task.seenAt === null).map((task) => task.id);
-  const unseenKey = unseenIds.join(",");
-  useEffect(() => {
-    if (!unseenKey) return;
-    const ids = unseenKey.split(",");
-    const timer = window.setTimeout(() => void markSeen(ids), 1500);
-    return () => window.clearTimeout(timer);
-  }, [unseenKey, markSeen]);
+  // Read/unread ack: TasksRunsPanel owns it, because the dwell has to be measured
+  // over the rows actually DRAWN. This tab used to ack every unread row in the
+  // polled window (up to 60) while the table paginates 20 at a time, so one visit
+  // acknowledged outcomes — failures included — that were never on screen.
+
   // TasksProvider exposes no loading flag (`tasks` starts `[]` and stays `[]`
   // whether the first poll hasn't landed yet or genuinely found nothing), so
   // the tab tracks its own first-load signal here rather than touching the
   // provider: fire one refresh on mount and flip `loaded` once it settles
   // (success or failure — the poll keeps going regardless). This is what lets
-  // tier 2 tell "not loaded yet" apart from "genuinely no tasks".
+  // tier 2 tell "not loaded yet" apart from "genuinely no tasks". `loaded` alone
+  // could not tell either from "could not load": a failed refresh settles too, so
+  // an empty list was rendered as "No recent AI tasks". The provider's `loadFailed`
+  // carries that third state and the panel renders it honestly.
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -122,6 +117,7 @@ export function TasksTab() {
 
       <TasksRunsPanel
         loaded={loaded}
+        loadFailed={loadFailed}
         tasks={shown}
         kinds={kinds}
         textFilter={textFilter}
@@ -137,6 +133,10 @@ export function TasksTab() {
           setStatusFilter(null);
         }}
         onCancel={(id) => void cancelTask(id)}
+        // `markSeen` is passed as-is (a stable useCallback): the panel's dwell timer
+        // is keyed on this prop, so an inline wrapper would restart it every poll.
+        onSeen={markSeen}
+        onRetryLoad={() => void refresh()}
       />
 
       {/* Older runs are loaded only on demand — checking this reveals a history

@@ -235,17 +235,32 @@ deep-link target — so it is a valid `WorkspaceTabId` but absent from `NAV_GROU
 
 | File | Role |
 | --- | --- |
-| `TasksProvider.tsx` + `tasksProviderTypes.ts` | Mounted above the tabs: the 2s/6s poll, start/cancel/retry, the read/unread ack. Survives tab switches |
+| `TasksProvider.tsx` + `tasksProviderTypes.ts` | Mounted above the tabs: the 2s/6s poll, start/cancel/retry, the read/unread ack, and `loadFailed` (the last poll did not reach the queue). Survives tab switches |
 | `TasksIndicator.tsx` | Sidebar-footer entry: ONGOING count, unread badges, start-failure alert, load meter |
-| `TasksTab.tsx` | Header, start-error banner, the filter state (shared by the live table and the history pager), the dwell-ack |
-| `TasksRunsPanel.tsx` | The recent window as ONE paginated table (`TablePager`, 20 rows) |
+| `TasksTab.tsx` | Header, start-error banner, the filter state (shared by the live table and the history pager) |
+| `TasksRunsPanel.tsx` | The recent window as ONE paginated table (`TablePager`, 20 rows) — and the dwell-ack, because this is where the visible page slice lives |
 | `TasksTable.tsx` | Table shell + `ColumnFilter` headers, shared by the live window and history |
 | `TasksTableRow.tsx` + `TasksRowActions.tsx` + `TasksOutcome.tsx` | One row shape for every status: progress bar + Cancel while active, outcome drawer + Retry once terminal |
 | `TasksHistory.tsx` | Runs older than the recent window, via the shared infinite-scroll engine |
 | `tasksTabHelpers.ts` (+ `.test.ts`) | Status metadata, the terminal/all status vocabularies, `sortTasks`, time/duration formatting |
 
-Two shape decisions are load-bearing:
+Five decisions are load-bearing:
 
+- **Retry replays the persisted params, but only when they still resolve.**
+  `POST /api/tasks/[id]/retry` re-runs a failed/interrupted/canceled row
+  server-side from `params_json`. `analyze` is the one kind whose params name
+  request-scoped uploads (`baseDir`, `variants[].cvPath`) that `runAnalyze` deletes
+  in a `finally` on every exit, so the route stats them first and refuses (409)
+  when they are gone rather than queueing a run that can only fail again.
+- **The ack follows the eye, not the poll.** `seen_at` clears the sidebar's unread
+  AND failed badges, so the 1.5s dwell-ack (`unseenIdsOf`, unit-tested) runs over
+  the rows `TasksRunsPanel` actually drew — its page slice, already narrowed by the
+  column filters. Acking the whole polled window while the table paginates 20 at a
+  time acknowledged outcomes on pages the reader never turned to.
+- **An unread poll is not an empty one.** A dropped fetch or a 500 leaves `tasks`
+  at `[]` on a first load; `loadFailed` carries that third state so the panel says
+  the server is unreachable instead of asserting "No recent AI tasks" over runs it
+  never read.
 - **One table, not two lists.** In-progress and Done used to be separate card
   lists under separate headings, with no shared sort, filters or pager. They are
   one table now; `sortTasks` (unit-tested) carries what the headings did — running
