@@ -10,7 +10,59 @@ what experience to surface.
 
 from __future__ import annotations
 
+import re
+
 from .models import CandidateProfile, InterviewKit, InterviewQuestion, JobFitResult, StarScaffold
+
+
+# --- "there are no risks" is not a risk ---------------------------------------
+# `recruiter_risk_flags` is a free-text LLM list with no "return [] when clean"
+# contract, so a clean CV routinely comes back as a SENTENCE saying there are none
+# ("No major red flags", "No significant concerns identified"). Fed forward
+# verbatim, that absence becomes an accusation: a red-flag-defense question asking
+# the candidate to explain away "no significant concerns", an ANTIPATTERN row in
+# the soft-signal panel (soft_signals._folded_risk_flags), and a phantom entry in
+# the evidence-gap count. The original guard tested only for the literal substring
+# "no major", so every other phrasing of the same non-finding slipped through.
+#
+# Matched CONSERVATIVELY — a leading negative quantifier followed only by
+# intensifier adjectives and then a risk noun. A genuine finding that merely opens
+# with "No" ("No evidence of Kubernetes in the CV", "Candidate lists no
+# certifications, which is a concern for the compliance requirement") names no risk
+# noun in that position and is kept. The original "no major" substring test is kept
+# as an explicit OR so this can only ever filter MORE non-findings, never fewer.
+_NO_RISK_RE = re.compile(
+    r"\b(?:no|none|nil|zero|nothing)\b"
+    r"(?:\s+(?:major|significant|obvious|serious|severe|real|notable|apparent|immediate|"
+    r"critical|glaring|clear|specific|particular|other|further|additional|material))*"
+    r"\s+(?:red[\s-]flags?|risks?|concerns?|concerning|issues?|blockers?|warnings?|"
+    r"problems?|reservations?|gaps?|weaknesses?)\b",
+    re.IGNORECASE,
+)
+
+# A model answering "nothing to report" with a bare token rather than a sentence.
+# Whole-string match only, so it can never swallow a real finding.
+_BARE_NEGATIVE_RE = re.compile(r"^\W*(?:none|nil|n\s*/\s*a|na|nothing|no)\W*$", re.IGNORECASE)
+
+
+def is_no_risk_statement(flag: str) -> bool:
+    """True when a ``recruiter_risk_flags`` entry ASSERTS THE ABSENCE of a risk.
+
+    Such an entry must never be surfaced as a finding — see the note above. Shared
+    with :mod:`soft_signals` so the interview kit, the gap count, and the antipattern
+    panel can't disagree about what counts as a real flag.
+    """
+    text = (flag or "").strip()
+    if not text:
+        return True
+    if "no major" in text.casefold():  # the original marker, preserved verbatim
+        return True
+    return bool(_BARE_NEGATIVE_RE.match(text) or _NO_RISK_RE.search(text))
+
+
+def real_risk_flags(job_fit: JobFitResult | None) -> list[str]:
+    """The ``recruiter_risk_flags`` that actually name a risk. Empty for ``None``."""
+    return [f for f in (getattr(job_fit, "recruiter_risk_flags", None) or []) if not is_no_risk_statement(f)]
 
 
 _BEHAVIORAL_TARGET = 4
@@ -243,11 +295,7 @@ def _technical_questions(candidate: CandidateProfile, job_fit: JobFitResult) -> 
 def _red_flag_questions(candidate: CandidateProfile, job_fit: JobFitResult) -> list[InterviewQuestion]:
     candidate_label = candidate.name or "the candidate"
     questions: list[InterviewQuestion] = []
-    flags = [
-        flag
-        for flag in (job_fit.recruiter_risk_flags or [])
-        if "no major" not in flag.lower()
-    ]
+    flags = real_risk_flags(job_fit)
 
     for flag in flags[:_RED_FLAG_TARGET]:
         humanized = _humanize(flag)
@@ -336,9 +384,7 @@ def _summary(
     behavioral = sum(1 for question in questions if question.bucket == "behavioral")
     technical = sum(1 for question in questions if question.bucket == "technical")
     red_flag = sum(1 for question in questions if question.bucket == "red-flag-defense")
-    gap_count = len(job_fit.missing_skills or []) + len(
-        [flag for flag in (job_fit.recruiter_risk_flags or []) if "no major" not in flag.lower()]
-    )
+    gap_count = len(job_fit.missing_skills or []) + len(real_risk_flags(job_fit))
     return (
         f"{name}: {len(questions)} mock questions ({behavioral} behavioral, {technical} technical, "
         f"{red_flag} red-flag-defense) tied to {gap_count} evidence gap(s) from the job description."

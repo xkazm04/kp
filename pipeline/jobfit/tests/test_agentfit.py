@@ -120,7 +120,48 @@ class AgentFitFallbackTest(unittest.TestCase):
         self.assertEqual(result["fit"]["verdict"], "unassessed")
         self.assertEqual(result["spec"]["connectors"], ["postgres"], "hallucinated connectors never survive")
         self.assertEqual(result["spec"]["maxTurns"], 50)
-        self.assertEqual(result["fit"]["coverageRatio"], 1.0, "ratio is computed in code from the coverage list")
+        # The ratio is code-computed AND denominated in the job's responsibility
+        # items (3 requirements), not in the single row the model chose to return.
+        self.assertEqual(result["fit"]["coverageRatio"], 0.33)
+
+    def test_partial_classification_does_not_read_as_full_coverage(self):
+        """A model that classifies only the automatable slice — or whose remaining
+        rows are dropped as off-taxonomy — must not render as 100% coverage."""
+
+        class PartialProvider:
+            def complete_json(self, prompt, system=None, expected_keys=None):
+                return {
+                    "fit": {
+                        "verdict": "complete",
+                        "coverage": [
+                            {"item": "SQL", "coverage": "automatable", "rationale": "queries"},
+                            # Off-taxonomy class → coerce drops the row entirely.
+                            {"item": "Email communication", "coverage": "partial", "rationale": "x"},
+                            {"item": "Public speaking", "coverage": "not sure", "rationale": "x"},
+                        ],
+                    },
+                    "spec": {"name": "A", "mission": "m", "systemPromptDraft": "s", "connectors": [], "maxTurns": None},
+                    "metrics": [
+                        {"key": "runs_per_week", "label": "Runs", "target": 5, "unit": "runs", "direction": "gte"},
+                        {"key": "success_rate", "label": "Success", "target": 90, "unit": "%", "direction": "gte"},
+                    ],
+                }
+
+        result, _ = agentfit.analyze_agent_fit(_job(), CATALOG, provider=PartialProvider())
+        self.assertEqual(len(result["fit"]["coverage"]), 1, "the two off-taxonomy rows are dropped")
+        self.assertEqual(
+            result["fit"]["coverageRatio"],
+            0.33,
+            "1 automatable of 3 responsibility items — the unclassified two count as NOT covered",
+        )
+
+    def test_coverage_ratio_denominator_floor(self):
+        cov = [{"item": "SQL", "coverage": "automatable", "rationale": ""}]
+        self.assertEqual(agentfit.coverage_ratio(cov), 1.0)  # list IS the universe
+        self.assertEqual(agentfit.coverage_ratio(cov, total_items=4), 0.25)
+        # A model that invents extra rows still divides by what it returned.
+        self.assertEqual(agentfit.coverage_ratio(cov, total_items=0), 1.0)
+        self.assertEqual(agentfit.coverage_ratio([], total_items=5), 0.0)
 
 
 class AgentFitCliTest(unittest.TestCase):

@@ -25,7 +25,13 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    with a deterministic keyword fallback); the result persists as the job's latest
    `agent_fit_specs` row. The tab leads with the fit verdict
    (`complete | temporary | unassessed`, the shared ✓/–/✗ eval-report convention) and the
-   per-responsibility coverage (`automatable ✓ / assisted △ / human_only ✗`).
+   per-responsibility coverage (`automatable ✓ / assisted △ / human_only ✗`) with a
+   headline coverage percentage. That percentage is **always computed in kp**
+   (`agentfit.coverage_ratio`, `automatable` = 1, `assisted` = 0.5), never taken from the
+   model, and it is denominated in the job's full responsibility itemization — a model
+   that classifies only part of the list (or whose remaining rows are dropped for an
+   off-taxonomy coverage class) leaves the rest counted as NOT covered rather than
+   rendering a partial answer as 100%.
 3. **Edit + dispatch**: name, mission, connector chips (catalog via
    `GET /api/agents/catalog`) and the monthly budget are editable; *Dispatch to Personas*
    POSTs the overrides. A `hired_agents` row is minted (idempotent — one live agent per

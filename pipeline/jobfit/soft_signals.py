@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 
 from .archetype import CAREER_SWITCHER, STUDENT
+from .interview import real_risk_flags
 
 # The model classes + source/kind constants live in models.py so AnalysisResult
 # can carry the panel without an import cycle (models -> soft_signals ->
@@ -46,11 +47,20 @@ def _norm(text: str) -> str:
 
 
 # Quantified-outcome markers: a delivery that moved a measurable number.
+#
+# The Czech past-tense verbs carry their gender/number inflection: the bare
+# masculine-singular stems ("snížil") matched a man's CV and missed the identical
+# sentence written by a woman ("snížila jsem náklady") or by a team ("snížili
+# jsme"), because the trailing \b refused to match before the suffix vowel. That
+# asymmetry inverted a signal ABOUT A PERSON — the same achievement earned
+# `concrete_ownership` for him and the `vague_delivery` antipattern ("No quantified
+# outcomes in the work history") for her. `(?:a|i|y|o)?` covers every Czech
+# l-participle ending; no other suffix exists, so this cannot over-match.
 _METRIC_RE = re.compile(
     r"\d+\s?(?:%|percent|x\b|×|ms\b|s\b|k\b|m\b|×|users|req|rps|qps|/day|/s)"
     r"|\bp\d{2}\b"
-    r"|\b(?:reduced|increased|cut|grew|scaled|improved|saved|doubled|tripled|halved|"
-    r"snížil|zvýšil|zrychlil|zlepšil|ušetřil)\b",
+    r"|\b(?:reduced|increased|cut|grew|scaled|improved|saved|doubled|tripled|halved)\b"
+    r"|\b(?:snížil|zvýšil|zrychlil|zlepšil|ušetřil)(?:a|i|y|o)?\b",
     re.IGNORECASE,
 )
 
@@ -243,10 +253,17 @@ def _concrete_ownership(profile: CandidateProfileV2) -> SoftSignal | None:
 
 
 def _folded_risk_flags(job_fit) -> list[SoftSignal]:
-    """LLM recruiter risk flags from a job-fit analysis, as lower-trust hypotheses."""
+    """LLM recruiter risk flags from a job-fit analysis, as lower-trust hypotheses.
+
+    Entries that assert the ABSENCE of a risk ("No significant concerns identified")
+    are dropped by the shared :func:`~pipeline.jobfit.interview.is_no_risk_statement`
+    predicate — folding one in manufactured an ANTIPATTERN out of a clean bill of
+    health. Shared with the interview kit so the two consumers of the same list can't
+    disagree about what counts as a finding.
+    """
     if job_fit is None:
         return []
-    flags = [f for f in (getattr(job_fit, "recruiter_risk_flags", None) or []) if "no major" not in f.lower()]
+    flags = real_risk_flags(job_fit)
     return [
         SoftSignal(
             key="llm_risk_flag",

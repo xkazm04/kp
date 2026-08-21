@@ -8,6 +8,7 @@ import unittest
 
 from pipeline.jobfit.devcase.design import design_case
 from pipeline.jobfit.devcase.models import DevNeed, NeedAnalysis
+from pipeline.jobfit.models import JobFitResult, SoftSignal, SoftSignalPanel
 from pipeline.jobfit.profile import CandidateProfileV2, Evidence, SkillClaim
 from pipeline.jobfit.soft_signals import (
     ANTIPATTERN,
@@ -97,9 +98,121 @@ class TestSoftSignals(unittest.TestCase):
         )
         checklist = build_soft_signal_panel(p).to_interview_checklist()
         self.assertTrue(checklist)
-        self.assertTrue(any("RED FLAG" in line for line in checklist))
+        # Deliberately "TO CONFIRM", not "RED FLAG" (models.SoftSignalPanel): this is
+        # the one artifact that leaves the product attached to a named person, and
+        # every row on it is an UNCONFIRMED hypothesis.
+        self.assertTrue(any("[TO CONFIRM]" in line for line in checklist))
+        self.assertFalse(any("RED FLAG" in line for line in checklist))
         # every checklist line pairs a finding with something to confirm
         self.assertTrue(all(" — " in line for line in checklist))
+
+
+class TestNoRiskStatementsAreNotAntipatterns(unittest.TestCase):
+    """`recruiter_risk_flags` has no "return [] when clean" contract, so a clean CV
+    comes back as a SENTENCE saying there are no risks. Folding one in turned the
+    absence of a finding into an ANTIPATTERN row against a named person."""
+
+    def _panel(self, flags):
+        p = CandidateProfileV2(archetype="bau")
+        return build_soft_signal_panel(p, job_fit=JobFitResult(
+            score=70, summary="", matching_skills=[], missing_skills=[],
+            seniority_alignment="", role_alignment="", salary_assessment="",
+            recommendations=[], recruiter_risk_flags=flags,
+        ))
+
+    def test_no_risk_sentences_never_become_antipatterns(self):
+        for clean in (
+            "No major red flags.",
+            "No significant concerns identified.",
+            "No obvious risks for this role.",
+            "There are no concerns with this candidate.",
+            "Nothing concerning in the CV.",
+            "None",
+            "N/A",
+        ):
+            with self.subTest(clean=clean):
+                keys = _keys(self._panel([clean]).antipatterns)
+                self.assertNotIn("llm_risk_flag", keys, f"{clean!r} asserts the ABSENCE of a risk")
+
+    def test_a_real_flag_that_merely_starts_with_no_survives(self):
+        for real in (
+            "No evidence of Kubernetes anywhere in the CV.",
+            "No formal degree, while the JD requires a completed BSc.",
+            "Candidate lists no certifications, which is a concern for the compliance requirement.",
+            "Two-year employment gap is unexplained.",
+        ):
+            with self.subTest(real=real):
+                self.assertIn("llm_risk_flag", _keys(self._panel([real]).antipatterns), real)
+
+
+class TestCzechAchievementVerbs(unittest.TestCase):
+    """The Czech l-participle carries gender/number: the masculine-only stems matched
+    a man's CV and missed the identical sentence written by a woman, flipping the
+    signal from `concrete_ownership` to the `vague_delivery` antipattern."""
+
+    def _panel_for(self, sentence: str):
+        p = CandidateProfileV2(
+            archetype="bau",
+            evidence=[
+                Evidence(kind="job", title="Analytik", text=sentence),
+                Evidence(kind="job", title="Analytik", text=sentence),
+            ],
+        )
+        return build_soft_signal_panel(p)
+
+    def test_feminine_and_plural_forms_count_as_quantified_outcomes(self):
+        for form in ("Snížil jsem náklady na provoz.", "Snížila jsem náklady na provoz.",
+                     "Snížili jsme náklady na provoz.", "Zvýšila jsem prodej týmu.",
+                     "Zlepšily jsme dodací lhůty."):
+            with self.subTest(form=form):
+                panel = self._panel_for(form)
+                self.assertNotIn("vague_delivery", _keys(panel.antipatterns), form)
+                self.assertIn("concrete_ownership", _keys(panel.strengths), form)
+
+    def test_prose_without_an_achievement_verb_is_still_vague(self):
+        panel = self._panel_for("Pracovala jsem na platformě a pomáhala týmu.")
+        self.assertIn("vague_delivery", _keys(panel.antipatterns))
+
+
+class TestChecklistExport(unittest.TestCase):
+    """models.SoftSignalPanel.to_interview_checklist — the copyable artifact.
+
+    It is the one thing that leaves the product attached to a named person, so it
+    must read as a hypothesis (``[TO CONFIRM]``, never ``RED FLAG``) and must carry
+    ``detail`` — the benign alternative reading the on-screen panel shows and the
+    export used to delete.
+    """
+
+    def _panel(self, **over):
+        base = dict(
+            key="tenure_pattern", kind=ANTIPATTERN, label="~1.4 yr average across 4 roles",
+            detail="Short tenures are common in agency and contract work.",
+            suggested_probe="Ask what drove each move.",
+        )
+        base.update(over)
+        return SoftSignalPanel(antipatterns=[SoftSignal(**base)])
+
+    def test_detail_is_carried_and_the_tag_is_not_a_verdict(self):
+        line = self._panel().to_interview_checklist()[0]
+        self.assertIn("Short tenures are common in agency and contract work.", line)
+        self.assertTrue(line.startswith("[TO CONFIRM] "))
+        self.assertNotIn("RED FLAG", line)
+        self.assertEqual(
+            line,
+            "[TO CONFIRM] ~1.4 yr average across 4 roles — "
+            "Short tenures are common in agency and contract work. — Ask what drove each move.",
+        )
+
+    def test_an_empty_detail_leaves_no_dangling_separator(self):
+        line = self._panel(detail="").to_interview_checklist()[0]
+        self.assertEqual(line, "[TO CONFIRM] ~1.4 yr average across 4 roles — Ask what drove each move.")
+
+    def test_strengths_keep_their_own_tag(self):
+        panel = SoftSignalPanel(strengths=[SoftSignal(
+            key="concrete_ownership", kind=STRENGTH, label="Quantified outcomes",
+            detail="Three roles cite measured results.", suggested_probe="Ask them to walk one through.",
+        )])
+        self.assertTrue(panel.to_interview_checklist()[0].startswith("[STRENGTH] "))
 
 
 class TestProbeBridge(unittest.TestCase):

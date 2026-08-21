@@ -98,8 +98,15 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # ANALYSIS_RESPONSE_SCHEMA, and they are NULLABLE so a prior cached analysis simply
 # lacks them (the analyze report shows no unproven bucket, no wrong result). No
 # cached analysis OUTPUT changed, so PROMPT_VERSION is intentionally NOT bumped.
+# NOTE (craft-scan 2026-08-20 — soft-signal export): re-recorded when
+# SoftSignalPanel.to_interview_checklist stopped tagging every row "RED FLAG" and
+# started carrying `detail`. The whole-module Pydantic hash trips on it, but the
+# method is a RENDERING of an already-computed panel — no model field, no prompt,
+# no ANALYSIS_RESPONSE_SCHEMA entry changed, and the checklist is derived on read
+# rather than stored. No cached analysis OUTPUT changed, so PROMPT_VERSION is
+# intentionally NOT bumped.
 EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "f50c8631bf24338dc2285294a900bb0734fdd9c0dcecdc2842fcc62ee30d76d1"
+EXPECTED_ANALYSIS_FINGERPRINT = "e9512251cb332450c9f0b0d3d1ab0158fd75c3671b8fd5ac6f76b1ad77d746e6"
 
 
 def _strip_ts_comments(text: str) -> str:

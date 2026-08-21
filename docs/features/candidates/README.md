@@ -224,6 +224,31 @@ Re-run the scorer: `python -m pipeline.jobfit.eval --fixtures-dir
 pipeline/jobfit/eval/fixtures_csas --strict`. Full corpus:
 `python -m pipeline.jobfit.eval.seed_cv_fixtures --all`.
 
+### Absence is not a finding (the analysis add-ons)
+
+Two derived add-ons state signals about a named person and share one rule: a
+*missing* input never becomes an accusation.
+
+- **`recruiter_risk_flags` that assert there are no risks.** The Gemini contract has
+  no "return `[]` when clean" rule, so a clean CV comes back as a sentence ("No
+  significant concerns identified"). Both consumers — the mock-interview kit's
+  red-flag-defense bucket (`pipeline/jobfit/interview.py`) and the soft-signal panel's
+  folded hypotheses (`pipeline/jobfit/soft_signals.py`) — filter those through the
+  shared `interview.is_no_risk_statement`, so a clean bill of health can no longer
+  render as an ANTIPATTERN row, as a question asking the candidate to defend a
+  non-finding, or as a phantom entry in the kit's evidence-gap count. The predicate is
+  deliberately conservative: a real finding that merely opens with "No" ("No evidence
+  of Kubernetes in the CV") names no risk noun and is kept.
+  **English-only** — `job_fit` free text is written in the recruiter's locale
+  (`gemini.py`), so a `cs`/`de`/`fr` analysis still folds its "no risks" sentence in;
+  closing that needs a contract change (an explicit empty-list rule or a structured
+  flag), not more phrase matching.
+- **Quantified-outcome detection is gender-neutral in Czech.** The
+  `soft_signals._METRIC_RE` achievement verbs now carry their l-participle inflection
+  (`snížil|snížila|snížili|snížily…`). The masculine-only stems used to award
+  `concrete_ownership` to a man and the `vague_delivery` antipattern to a woman for the
+  same sentence.
+
 ## Known gaps
 
 - Salary anchoring still uses the job's band rather than a candidate-seniority

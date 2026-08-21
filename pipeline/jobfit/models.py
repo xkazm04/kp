@@ -293,8 +293,13 @@ class SoftSignalPanel(_Base):
         out: list[str] = []
         for s in self.antipatterns + self.strengths:
             if s.needs_confirmation and s.suggested_probe:
-                tag = "RED FLAG" if s.kind == ANTIPATTERN else "STRENGTH"
-                out.append(f"[{tag}] {s.label} — {s.suggested_probe}")
+                # Every row here is by construction an UNCONFIRMED hypothesis, and
+                # this list is the one artifact that leaves the product attached to
+                # a named person. "RED FLAG" made it read as a finding, and dropping
+                # `detail` deleted the benign alternative the on-screen panel shows.
+                tag = "TO CONFIRM" if s.kind == ANTIPATTERN else "STRENGTH"
+                parts = [s.label, s.detail, s.suggested_probe]
+                out.append(f"[{tag}] " + " — ".join(p for p in parts if p))
         return out
 
 

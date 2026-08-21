@@ -116,16 +116,29 @@ def _coverage_items(job: Job) -> list[str]:
     return out[:_MAX_COVERAGE_ITEMS]
 
 
-def coverage_ratio(coverage: list[dict]) -> float:
-    """Fraction of items an agent covers — computed in code for BOTH paths so the
-    ratio is never LLM arithmetic. ``automatable`` counts 1, ``assisted`` 0.5."""
-    if not coverage:
+def coverage_ratio(coverage: list[dict], *, total_items: int | None = None) -> float:
+    """Fraction of the job's responsibility items an agent covers — computed in code
+    for BOTH paths so the ratio is never LLM arithmetic. ``automatable`` counts 1,
+    ``assisted`` 0.5.
+
+    ``total_items`` is the canonical count of responsibility items the fit was judged
+    over (:func:`_coverage_items`), and the denominator is
+    ``max(len(coverage), total_items)``. Without it the denominator was whatever the
+    model happened to return, so an answer that classified only the automatable slice
+    — or whose remaining rows were dropped by ``coerce`` for an off-taxonomy coverage
+    class — read as FULL coverage: 1 automatable row out of 12 requirements rendered
+    "100%" beside a one-line list. Unclassified items count as NOT covered, the honest
+    direction (no judgment was returned for them). The deterministic path always
+    classifies every item, so the floor is a no-op there.
+    """
+    denominator = max(len(coverage), total_items or 0)
+    if denominator <= 0:
         return 0.0
     score = sum(
         1.0 if c.get("coverage") == "automatable" else 0.5 if c.get("coverage") == "assisted" else 0.0
         for c in coverage
     )
-    return round(score / len(coverage), 2)
+    return round(score / denominator, 2)
 
 
 def build_budget(job: Job) -> dict[str, Any]:
@@ -341,8 +354,10 @@ def analyze_agent_fit(
     result, source = generate_with_fallback(
         provider, prompt, _SYSTEM, deterministic, coerce, _LOG, expected_keys=_FIT_KEYS
     )
-    # Ratio + budget are code-owned for both paths (never model output).
-    result["fit"]["coverageRatio"] = coverage_ratio(result["fit"]["coverage"])
+    # Ratio + budget are code-owned for both paths (never model output). The
+    # denominator is the canonical responsibility itemization, not the rows the model
+    # chose to return — a partial classification must not read as full coverage.
+    result["fit"]["coverageRatio"] = coverage_ratio(result["fit"]["coverage"], total_items=len(items))
     result["budget"] = budget
     result["promptVersion"] = AGENT_FIT_PROMPT_VERSION
     return result, source
