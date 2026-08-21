@@ -16,11 +16,33 @@ import { BUILT_IN_ARCHETYPE_IDS, type ArchetypeChecklistItem } from "@/app/featu
 // through THESE live endpoints so edits are always visible there at once.
 
 // Module-internal: no external importer (the two archetype routes use only
-// create/list/updateArchetype). validateArchetype stays exported as the tested
-// peer of Python's test_registry.py contract.
+// create/list/updateArchetype). validateArchetype and slotsOnly stay exported as the
+// tested peers of Python's test_registry.py / registry._validate_archetype_weights
+// contract — the invariants they mirror are the reason the write boundary is safe.
 type Slot = "skills" | "career" | "personal";
 const SLOTS: Slot[] = ["skills", "career", "personal"];
 const SCORING_MODELS = ["experienced", "early_career"] as const;
+
+// The tolerance Python's runtime guard uses (registry._validate_archetype_weights →
+// `abs(total - 1.0) > 1e-6`). It USED to be 1e-3 here, which is not a rounding
+// allowance — it is a hole: a weight vector summing to 0.9995 passed this boundary,
+// was persisted into archetypes.json, and then made registry.py raise RuntimeError at
+// IMPORT — on every profile_cli / match / analyze / intake spawn, for the whole
+// deployment, until someone hand-edited the JSON. Mirror the Python number exactly so
+// this validator can only ever reject MORE than the file's own reader does.
+const WEIGHT_SUM_TOLERANCE = 1e-6;
+
+// Ids the app reserves as SENTINELS for "this candidate was never routed to an
+// archetype" — they must never become registry entries. app/_lib/archetypes.ts derives
+// the fairness gate from registry membership: isFairnessProtected() fails CLOSED (true)
+// precisely because "unknown" is NOT a known id, and archetypeDisplayKey() renders it as
+// the honest "Unrouted" for the same reason. Registering an archetype called "unknown"
+// therefore flips every unrouted candidate on the deployment — legacy CV analyses in the
+// candidate pool (candidate-pool.ts stamps archetype "unknown"), the Profile matrix's
+// unrouted column, the matcher's own sentinel — from shielded to auto-rejectable, and
+// relabels them as a concrete class. "unrouted" is the display key that same module
+// returns, reserved for the matching reason.
+const RESERVED_IDS = new Set(["unknown", "unrouted"]);
 
 export type ArchetypeDef = {
   id: string;
@@ -111,7 +133,10 @@ function serializeWrite<T>(fn: () => Promise<T>): Promise<T> {
 // `code` + English `message` fallback) or null. The client localizes by `code`; a
 // direct API caller still gets the readable English `message`.
 export function validateArchetype(a: Partial<ArchetypeDef>): ArchetypeError | null {
-  if (!a.label || !a.label.trim()) return { code: "label_required", message: "Label is required." };
+  // typeof-guarded, not just truthy: the body is an unvalidated cast at the route, so a
+  // `{"label": 123}` PUT used to reach `.trim()` and throw a TypeError the handler turned
+  // into a 500 — a server error for what is plainly bad client input.
+  if (typeof a.label !== "string" || !a.label.trim()) return { code: "label_required", message: "Label is required." };
   if (!a.scoringModel || !(SCORING_MODELS as readonly string[]).includes(a.scoringModel)) {
     return { code: "scoring_model_invalid", message: "Scoring model must be 'experienced' or 'early_career'." };
   }
@@ -120,18 +145,55 @@ export function validateArchetype(a: Partial<ArchetypeDef>): ArchetypeError | nu
     if (typeof a.weights[slot] !== "number" || Number.isNaN(a.weights[slot])) {
       return { code: "weight_not_number", message: `Weight for ${slot} must be a number.`, params: { slot } };
     }
+    // The headline score is `100 * (w.skills*skills + w.career*career + w.personal*
+    // personal)` — a weighted AVERAGE only while every weight is a share in [0,1]. A
+    // NEGATIVE weight still passes the sum check when a sibling compensates
+    // ({-0.1, 0.6, 0.5} sums to 1.0) and passes Python's import guard too, so it lands
+    // in the scorer and INVERTS that dimension: the candidate with the stronger skills
+    // evidence scores lower. Reachable from the manager UI, whose `min={0}` on the
+    // percentage input is advisory (the save is a click handler, not a form submit).
+    // ±Infinity is caught here too.
+    const w = a.weights[slot] as number;
+    if (!(w >= 0 && w <= 1)) {
+      return { code: "weight_out_of_range", message: `Weight for ${slot} must be between 0 and 1.`, params: { slot } };
+    }
   }
   const sum = SLOTS.reduce((n, s) => n + (a.weights as Record<Slot, number>)[s], 0);
-  if (Math.abs(sum - 1) > 0.001) {
-    return { code: "weights_sum", message: `Weights must sum to 1.0 (currently ${sum.toFixed(2)}).`, params: { sum: sum.toFixed(2) } };
+  if (Math.abs(sum - 1) > WEIGHT_SUM_TOLERANCE) {
+    // Two decimals is the readable default, but it renders a 0.9995 sum as "1.00" — a
+    // rejection the caller cannot act on. Widen only when 2dp would hide the error.
+    const shown = Math.abs(sum - 1) >= 0.005 ? sum.toFixed(2) : sum.toFixed(6);
+    return { code: "weights_sum", message: `Weights must sum to 1.0 (currently ${shown}).`, params: { sum: shown } };
   }
   if (!a.dimensionLabels) return { code: "dimension_labels_required", message: "Dimension labels are required." };
   for (const slot of SLOTS) {
-    if (!a.dimensionLabels[slot] || !a.dimensionLabels[slot].trim()) {
+    // typeof-guarded for the same reason as `label` above.
+    const dim = a.dimensionLabels[slot] as unknown;
+    if (typeof dim !== "string" || !dim.trim()) {
       return { code: "dimension_label_required", message: `Dimension label for ${slot} is required.`, params: { slot } };
     }
   }
   return null;
+}
+
+// Project a submitted slot map (`weights` / `dimensionLabels`) onto EXACTLY the three
+// scoring slots. Python's registry FAILS FAST at import when an archetype's weights
+// carry any other key (`keys != {"skills","career","personal"}` →
+// registry._validate_archetype_weights raises), and that import runs on EVERY pipeline
+// spawn — so one extra key persisted here (an integrator adding a 4th dimension) takes
+// analyze / match / intake / profile-build down for the whole deployment. The extra key
+// never meant anything to either scorer, so DROP it rather than fail the save. A MISSING
+// slot is deliberately left missing: validateArchetype then names the offending slot,
+// which is the actionable error. Returns undefined for a non-object, so validateArchetype
+// reports "weights are required" instead of the caller's junk reaching disk.
+export function slotsOnly<T>(map: unknown): Record<Slot, T> | undefined {
+  if (typeof map !== "object" || map === null || Array.isArray(map)) return undefined;
+  const src = map as Record<string, T>;
+  const out: Partial<Record<Slot, T>> = {};
+  for (const slot of SLOTS) {
+    if (slot in src) out[slot] = src[slot];
+  }
+  return out as Record<Slot, T>;
 }
 
 function pickEditable(patch: Record<string, unknown>): Partial<ArchetypeDef> {
@@ -139,6 +201,10 @@ function pickEditable(patch: Record<string, unknown>): Partial<ArchetypeDef> {
   for (const key of EDITABLE_FIELDS) {
     if (key in patch) out[key] = patch[key];
   }
+  // Both slot maps are replaced wholesale by an edit, so normalize them here — the one
+  // seam every PUT passes through — before the merge persists them (see slotsOnly).
+  if ("weights" in out) out.weights = slotsOnly<number>(out.weights);
+  if ("dimensionLabels" in out) out.dimensionLabels = slotsOnly<string>(out.dimensionLabels);
   return out as Partial<ArchetypeDef>;
 }
 
@@ -223,6 +289,16 @@ export async function createArchetype(
   if (!/^[a-z][a-z0-9_]*$/.test(id)) {
     return { error: { code: "id_invalid", message: "Id must be lowercase letters, digits, or underscores and start with a letter." } };
   }
+  // Refused BEFORE the write (like the id-format check above) — see RESERVED_IDS.
+  if (RESERVED_IDS.has(id)) {
+    return {
+      error: {
+        code: "id_reserved",
+        message: `'${id}' is reserved for candidates that could not be routed; choose another id.`,
+        params: { id },
+      },
+    };
+  }
   return serializeWrite(async () => {
     const reg = await readRegistry();
     if (reg.archetypes.some((a) => a.id === id)) return { error: { code: "id_exists", message: `An archetype with id '${id}' already exists.`, params: { id } } };
@@ -235,9 +311,14 @@ export async function createArchetype(
       applyLabel: body.applyLabel ? String(body.applyLabel).trim() : undefined,
       fairnessProtected: Boolean(body.fairnessProtected),
       scoringModel: String(body.scoringModel ?? "experienced"),
-      weights: (body.weights as Record<Slot, number>) ?? { skills: 0.5, career: 0.35, personal: 0.15 },
-      dimensionLabels:
-        (body.dimensionLabels as Record<Slot, string>) ?? { skills: "Skills", career: "Career", personal: "Personal" },
+      // Normalized to exactly the three slots (see slotsOnly) so a submitted 4th
+      // dimension can't reach archetypes.json and break the Python reader's import.
+      weights: body.weights === undefined
+        ? { skills: 0.5, career: 0.35, personal: 0.15 }
+        : (slotsOnly<number>(body.weights) as Record<Slot, number>),
+      dimensionLabels: body.dimensionLabels === undefined
+        ? { skills: "Skills", career: "Career", personal: "Personal" }
+        : (slotsOnly<string>(body.dimensionLabels) as Record<Slot, string>),
       checklist: [],
     };
     const err = validateArchetype(def);

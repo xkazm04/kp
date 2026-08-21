@@ -364,9 +364,25 @@ function candidateConsent(
   };
 }
 
-// The human scorecard saved against this entry's prep artifact (PREP1), if any.
-function candidateHumanScorecard(entryId: string): Scorecard | null {
-  const prep = getInterviewPrep(entryId);
+// The human scorecard saved against this entry's prep artifact (PREP1), if any —
+// consent-gated exactly like the AI outcome above.
+//
+// It lives inside interview_preps.payload_json, "the free-text prep payload that quotes
+// the CV" that erasure scrubs to '{}' (db/pipeline.ts::scrubEntryLinkedPii) — the same
+// PII class as the voice scorecard. But the read-time gate covered only the AI half, so
+// an entry whose consent had EXPIRED (and whose expiry sweep had not run yet — "the
+// sweep is an optimization, THIS is the control", consent.ts) rendered the drawer's
+// interview panel with the AI synthesis withheld and the human interviewer's verbatim
+// summary + ratings, on the same candidate, shown in full right beside it.
+function candidateHumanScorecard(
+  entry: NonNullable<ReturnType<typeof getPipelineEntry>>
+): Scorecard | null {
+  if (
+    consentWithholdsPii({ givenAt: entry.consentGivenAt, expiresAt: entry.consentExpiresAt, anonymizedAt: entry.anonymizedAt })
+  ) {
+    return null;
+  }
+  const prep = getInterviewPrep(entry.id);
   const sc = (prep?.payload as { humanScorecard?: Scorecard } | undefined)?.humanScorecard ?? null;
   return sc;
 }
@@ -384,7 +400,7 @@ export function candidateDrawerBundle(entryId: string, workspaceId: string = DEF
     events,
     comms: candidateComms(entry.id, workspaceId),
     interview: candidateInterviewOutcome(entry),
-    humanScorecard: candidateHumanScorecard(entry.id),
+    humanScorecard: candidateHumanScorecard(entry),
     consent: candidateConsent(entry, workspaceId),
     rematchLinks: resolveRematchLinks(events, workspaceId),
     staleSince: deriveStaleSince(entry, workspaceId),

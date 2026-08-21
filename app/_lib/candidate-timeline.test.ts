@@ -24,6 +24,8 @@ import {
 } from "./schedule-store.ts";
 import { UNIT_DB_PATH } from "./testing/unit-db.ts";
 import Database from "better-sqlite3";
+import { saveHumanScorecard, saveInterviewPrep } from "./interview-prep.ts";
+import type { Scorecard } from "./interview-scorecard.ts";
 import { candidateDrawerBundle } from "./candidate-timeline.ts";
 
 after(() => cleanupUnitDb());
@@ -84,6 +86,41 @@ test("consent-expiry redaction drops the scorecard synthesis AND its telemetry/c
   assert.equal(iv!.telemetry, undefined, "telemetry is withheld with the redacted scorecard");
   assert.equal(iv!.coverage, undefined, "coverage is withheld with the redacted scorecard");
   assert.equal(iv!.hasTranscript, false, "the redacted transcript reads as absent");
+});
+
+// The read-time PII gate must cover BOTH interview scorecards on this panel. The human
+// one lives in interview_preps.payload_json — the free-text prep dossier erasure scrubs
+// to '{}' (scrubEntryLinkedPii) — so it is the same PII class as the voice scorecard the
+// bundle already withholds. Before the fix an expired-consent entry rendered the AI
+// synthesis as withheld and the interviewer's verbatim summary + ratings in full, side
+// by side on the same candidate, for the whole window before the expiry sweep ran.
+test("an expired consent withholds the HUMAN scorecard too, not just the AI one", () => {
+  const HUMAN: Scorecard = {
+    recommendation: "advance",
+    summary: "Walked through her Kafka migration at Moneta in detail; strong ownership.",
+    ratings: [{ competency: "problem_solving", rating: 5 }],
+  };
+
+  const live = createPipelineEntry({ candidateId: "cand-hsc", candidateLabel: "Hana Scorecard", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  saveInterviewPrep(live.entry.id, "Hana Scorecard", "Frontend Engineer", { scenario: "pair" });
+  assert.equal(saveHumanScorecard(live.entry.id, { ...HUMAN }), true, "the scorecard attaches to the prep artifact");
+  recordEntryConsent(live.entry.id, "apply"); // default TTL ⇒ active
+  assert.equal(
+    candidateDrawerBundle(live.entry.id)!.humanScorecard?.summary,
+    HUMAN.summary,
+    "an active consent still serves the human scorecard (the gate must not over-withhold)"
+  );
+
+  const lapsed = createPipelineEntry({ candidateId: "cand-hsc-exp", candidateLabel: "Hana Lapsed", jobId: "jd-frontend", jobTitle: "Frontend Engineer" });
+  saveInterviewPrep(lapsed.entry.id, "Hana Lapsed", "Frontend Engineer", { scenario: "pair" });
+  saveHumanScorecard(lapsed.entry.id, { ...HUMAN });
+  seedCompletedInterview(lapsed.entry.id); // the AI half, for the side-by-side contrast
+  recordEntryConsent(lapsed.entry.id, "apply", -1); // ttlDays -1 ⇒ already expired
+
+  const bundle = candidateDrawerBundle(lapsed.entry.id)!;
+  assert.equal(bundle.consent.consent.status, "expired");
+  assert.equal(bundle.interview!.summary, undefined, "the AI synthesis is withheld (unchanged)");
+  assert.equal(bundle.humanScorecard, null, "and so is the human interviewer's verbatim assessment");
 });
 
 test("the consent snapshot + audit trail ride the bundle (no separate drawer fetch)", () => {
