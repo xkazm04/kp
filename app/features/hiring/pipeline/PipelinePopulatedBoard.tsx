@@ -42,6 +42,7 @@ export function PipelinePopulatedBoard({
           <PipelineBulkActionBar
             t={s.t}
             enumLabel={enumLabel}
+            axis={s.axis}
             relayConfigured={s.relayConfigured}
             selectedIds={s.selectedIds}
             selectedOutsideCount={s.selectedOutsideCount}

@@ -23,6 +23,7 @@ const readFileSync = (rel: string, enc: "utf8") => read(resolve(ROOT, rel), enc)
 
 const CHANNELS_ROWS = "app/features/hiring/channels/ChannelsCommsRows.tsx";
 const DRAWER_LIST = "app/features/hiring/pipeline/PipelineCommsList.tsx";
+const TOKEN_LINK = "app/features/hiring/pipeline/PipelineTokenLink.tsx";
 
 // --- the rule ---------------------------------------------------------------------
 
@@ -99,6 +100,27 @@ test("the drawer reads the rest of the bundle's delivery payload", () => {
   for (const field of ["m.channel", "m.recoveredAt", "m.bouncedAt"]) {
     assert.match(src, new RegExp(field.replace(".", "\\.")), `${field} is projected but unread`);
   }
+});
+
+// --- the manual delivery path must not lie either ----------------------------------
+//
+// When no relay is configured the copy panel IS the delivery path — the drawer's own
+// "queued, not delivered" copy points the recruiter at it. So the ✓ on that button is a
+// claim in the same family as "sent": it says this candidate's link is on your clipboard.
+// `navigator.clipboard` is undefined in a NON-SECURE context (a self-hosted install on
+// plain http://, the deployment shape this product supports), and the panel used to
+// optional-chain the write away and flip to ✓ regardless — so the recruiter pasted
+// whatever was on the clipboard before into the candidate's email. copyText
+// (export-utils) resolves false in exactly that case; the saved-view share link has
+// always used it.
+test("the ✓ on a token-link copy waits for the clipboard write to actually succeed", () => {
+  const src = readFileSync(TOKEN_LINK, "utf8");
+  assert.match(src, /copyText\(/, "the copy must go through the shared guarded helper");
+  assert.doesNotMatch(
+    src,
+    /clipboard\?\.\s*writeText/,
+    "an optional-chained clipboard write swallows an absent clipboard and still claims success"
+  );
 });
 
 // --- the GDPR panel must never imply "still working" after giving up ---------------

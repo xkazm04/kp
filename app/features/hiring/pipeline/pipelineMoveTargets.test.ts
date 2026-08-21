@@ -14,7 +14,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { PIPELINE_STAGES } from "@/app/_lib/pipeline-stages.ts";
+import { PIPELINE_STAGES, type StageDef } from "@/app/_lib/pipeline-stages.ts";
 import { bulkMoveTargetStages, moveStageSelectValues, moveTargetStages } from "./pipelineMoveTargets.ts";
 
 test("never offers Hired as a target — the route 422s a manual move to Hired", () => {
@@ -73,12 +73,48 @@ test("the drawer move options never include Hired unless the candidate is AT Hir
 
 test("the drawer move options always include the current CANONICAL stage (a valid selected value)", () => {
   // Every stage on the axis stays selectable so the <Select value={entry.stage}>
-  // has a matching option. (An off-axis legacy stage like "Sourced" is remapped by
-  // migratePipelineStages() on boot, so the drawer never renders one — the same
-  // assumption the pre-fix `PIPELINE_STAGES.map` made.)
+  // has a matching option.
   for (const stage of PIPELINE_STAGES) {
     assert.ok(moveStageSelectValues(stage).includes(stage), `${stage} must remain selectable as the current value`);
   }
+});
+
+// An OFF-AXIS current stage stopped being hypothetical when the axis became
+// editable: retiring a column strands everyone standing on it, and the drawer DOES
+// open on them (boardVisibleOrder appends the off-axis strip to the prev/next
+// cohort so a card you can see is a card you can step to). The comment this pair
+// replaces asserted the opposite — that migratePipelineStages() made it
+// unreachable — which is why the option list was allowed to drop it.
+test("a candidate stranded on a RETIRED column keeps that stage as a selectable option", () => {
+  // Pre-fix: ["Accepted","Screened","Interview","Offer"] — no "Second interview".
+  // _components/Select resolves its trigger label with
+  // `options.find(o => o.value === value) ?? null` and renders `placeholder` when
+  // that is null, so the drawer's move control read "Select…" (an untranslated
+  // default) instead of the stage the candidate is actually stranded on.
+  const opts = moveStageSelectValues("Second interview");
+  assert.ok(opts.includes("Second interview"), "the current stage must stay selectable even when the board dropped its column");
+  assert.equal(opts[0], "Second interview", "…and leads the list: it has no position on the funnel");
+  assert.deepEqual(opts.slice(1), ["Accepted", "Screened", "Interview", "Offer"], "the funnel order behind it is untouched");
+});
+
+test("off-axis is resolved against the GIVEN axis, not the shipped one", () => {
+  // A workspace that replaced "Interview" with two named rounds. A candidate still
+  // standing on the old column is off THIS board's axis, and must not be told they
+  // are somewhere else.
+  const axis: StageDef[] = [
+    { id: "Accepted", label: "New applicants", role: "entry" },
+    { id: "Tech screen", label: "Tech screen", role: "interview" },
+    { id: "Onsite", label: "Onsite", role: "interview" },
+    { id: "Offer", label: "Offer", role: "offer" },
+    { id: "Hired", label: "Hired", role: "terminal" },
+  ];
+  assert.deepEqual(moveStageSelectValues("Interview", axis), ["Interview", "Accepted", "Tech screen", "Onsite", "Offer"]);
+  // …while a stage that IS on that axis keeps its funnel position (no duplicate).
+  assert.deepEqual(moveStageSelectValues("Onsite", axis), ["Accepted", "Tech screen", "Onsite", "Offer"]);
+});
+
+test("an empty current stage never mints a blank option row", () => {
+  assert.deepEqual(moveStageSelectValues(""), ["Accepted", "Screened", "Interview", "Offer"]);
 });
 
 test("from Screened, the drawer offers Accepted, Screened, Interview, Offer in funnel order (no Hired)", () => {
@@ -148,7 +184,11 @@ test("the bulk bar routes through the helper — it must not rebuild the list fr
   // is the only way to pin that it still goes through the shared helper; the assertions
   // above cannot see a regression that re-hardcodes the axis in the .tsx.
   const bar = readFileSync(new URL("./PipelineBulkActionBar.tsx", import.meta.url), "utf8");
-  assert.match(bar, /bulkMoveTargetStages\(\)/, "the bulk stage <Select> must derive its options from the helper");
+  // The pin is "derives from the helper", NOT "calls it with no arguments" — the literal
+  // empty-parens form was what kept the bulk bar on the compile-time axis, because
+  // passing the workspace's own axis turned this assertion red.
+  assert.match(bar, /bulkMoveTargetStages\(/, "the bulk stage <Select> must derive its options from the helper");
+  assert.match(bar, /bulkMoveTargetStages\(axis\)/, "and must pass the workspace axis, not fall back to the shipped one");
   assert.ok(
     !/\bSTAGES\.map\b/.test(bar),
     "the bulk bar must not map the raw canonical axis into stage options again"

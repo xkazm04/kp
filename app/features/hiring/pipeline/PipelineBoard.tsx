@@ -190,6 +190,9 @@ export function PipelineBoard({
                       key={stage}
                       stage={stage}
                       entries={cellEntries}
+                      // The row's "Move to…" menu is the keyboard twin of the drop,
+                      // so it has to resolve against the SAME axis handleMove does.
+                      axis={axis}
                       isStale={isStale}
                       openProfile={openProfile}
                       openActions={openActions}

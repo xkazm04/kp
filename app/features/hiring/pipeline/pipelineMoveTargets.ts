@@ -59,12 +59,26 @@ export function bulkMoveTargetStages(axis: readonly StageDef[] = DEFAULT_STAGE_A
  *  pipeline #2). The control's `value` is the candidate's CURRENT stage, so that
  *  stage must remain a selectable option (it renders as "… (current)"); every
  *  OTHER option must be a stage a manual set_stage move can actually succeed into
- *  — i.e. `moveTargetStages`, which drops "Hired" (the route unconditionally 422s
- *  a manual move to Hired). Offering "Hired" was a dead control that always
- *  errored, so it is excluded UNLESS the candidate already sits at Hired (then it
- *  is the current stage and stays, so the Select still has a valid selected row).
- *  Kept in canonical funnel order so the menu reads down the funnel. */
+ *  — i.e. `moveTargetStages`, which drops the terminal stage (the route
+ *  unconditionally 422s a manual move to it). Offering it was a dead control that
+ *  always errored, so it is excluded UNLESS the candidate already sits there (then
+ *  it is the current stage and stays, so the Select still has a valid selected row).
+ *  Kept in canonical funnel order so the menu reads down the funnel.
+ *
+ *  An OFF-AXIS current stage is carried too, FIRST, because the axis-order filter
+ *  below cannot keep it: a stage this board does not draw has no position on the
+ *  funnel. That used to be unreachable — a legacy stage was remapped by
+ *  migratePipelineStages() on boot — but an EDITABLE axis re-creates it every time a
+ *  workspace retires a column, and the drawer genuinely opens on those candidates
+ *  (boardVisibleOrder appends the off-axis strip to the prev/next cohort on purpose).
+ *  Dropped, the <Select> has no option matching its own `value` and renders its
+ *  PLACEHOLDER — so the one control that says where the candidate stands showed
+ *  "Select…" instead of the stage they are stranded on. Selecting it back is a no-op
+ *  the drawer's moveStage already short-circuits, so it costs nothing to keep. */
 export function moveStageSelectValues(currentStage: string, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): string[] {
   const targets = new Set(moveTargetStages(currentStage, axis));
-  return axis.map((s) => s.id).filter((s) => s === currentStage || targets.has(s));
+  const values = axis.map((s) => s.id).filter((s) => s === currentStage || targets.has(s));
+  const onAxis = axis.some((s) => s.id === currentStage);
+  // An empty/absent stage is not a place a candidate can stand — never mint a blank row.
+  return onAxis || !currentStage ? values : [currentStage, ...values];
 }

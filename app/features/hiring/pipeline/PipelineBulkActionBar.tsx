@@ -9,6 +9,7 @@ import type { PipelineTabTranslator } from "./pipelineTranslator";
 import { CalendarClock } from "lucide-react";
 import { Select } from "@/app/_components/Select";
 import { type Entry } from "@/app/features/shared/pipelineTypes";
+import { DEFAULT_STAGE_AXIS, type StageDef } from "@/app/_lib/pipeline-stages";
 import { bulkMoveTargetStages } from "./pipelineMoveTargets";
 import { PipelineBulkDecideRow } from "./PipelineBulkDecideRow";
 import { PipelineBulkOutreachButton } from "./PipelineBulkOutreachButton";
@@ -19,6 +20,7 @@ type BulkResult = { ok: number; failed: number; verb: "moved" | "accepted" | "re
 export function PipelineBulkActionBar({
   t,
   enumLabel,
+  axis = DEFAULT_STAGE_AXIS,
   relayConfigured,
   selectedIds,
   selectedOutsideCount,
@@ -43,6 +45,10 @@ export function PipelineBulkActionBar({
 }: {
   t: PipelineTabTranslator;
   enumLabel: (kind: string, value: string) => string;
+  /** The workspace's own resolved axis. Without it the bulk Move <Select> offered the
+   *  compile-time stages, so on a composed board every target 400'd `Unknown stage` for
+   *  the WHOLE cohort while the columns actually on screen could not be reached at all. */
+  axis?: readonly StageDef[];
   relayConfigured: boolean | null;
   selectedIds: ReadonlySet<string>;
   /** How many SELECTED rows the current filter hides (bulk-acts-on-what-you-see).
@@ -113,7 +119,13 @@ export function PipelineBulkActionBar({
           // everything still selected).
           options={[
             { value: "", label: "—" },
-            ...bulkMoveTargetStages().map((s) => ({ value: s, label: enumLabel("stage", s) })),
+            // Same label rule as the board header and the row menu: a workspace's own
+            // label wins, and a shipped stage (label === id) still resolves through the
+            // localized enums catalog.
+            ...bulkMoveTargetStages(axis).map((id) => {
+              const stage = axis.find((st) => st.id === id);
+              return { value: id, label: stage && stage.label !== stage.id ? stage.label : enumLabel("stage", id) };
+            }),
           ]}
         />
       </label>

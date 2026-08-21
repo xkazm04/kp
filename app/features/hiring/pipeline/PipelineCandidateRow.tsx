@@ -40,7 +40,7 @@ import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { moveTargetStages } from "./pipelineMoveTargets";
 import { PipelineCandidateMenu, type CandidateMenuSection } from "./PipelineCandidateMenu";
 import { candidateRowEqual } from "./pipelineRenderDiet";
-import { daysSince, slaForStage, styleFor, type Entry } from "@/app/features/shared/pipelineTypes";
+import { DEFAULT_BOARD_AXIS, daysSince, slaForStage, styleFor, type Entry, type StageDef } from "@/app/features/shared/pipelineTypes";
 
 function CandidateRowImpl({
   entry,
@@ -55,6 +55,7 @@ function CandidateRowImpl({
   onDragStart,
   onDragEnd,
   onMove,
+  axis = DEFAULT_BOARD_AXIS,
 }: {
   entry: Entry;
   pending?: boolean;
@@ -74,6 +75,13 @@ function CandidateRowImpl({
   // handler the drop does. Present exactly when drag is (the board passes it
   // alongside `draggable`), so every drag has a keyboard-reachable equivalent.
   onMove?: (toStage: string) => void;
+  /** The columns THIS WORKSPACE renders (the board's resolved axis). The move menu
+   *  is a list of real destinations, so it has to be built from the real axis: with
+   *  the compile-time default it offered the shipped five to a board that composes
+   *  its own, i.e. stages set_stage answers `400 Unknown stage` while the columns
+   *  that DO exist were missing from the menu. Optional so a standalone render still
+   *  falls back to the shipped board, like every other axis-taking call site. */
+  axis?: readonly StageDef[];
 }) {
   const t = useTranslations("pipeline");
   const enumLabel = useEnumLabel();
@@ -111,8 +119,19 @@ function CandidateRowImpl({
   const dragOn = draggable && !selecting;
   // bug-ui pipeline #1 — a card is keyboard-movable exactly when it's draggable
   // (never in select mode). The menu offers the valid targets a manual move can
-  // succeed into (moveTargetStages) and calls the SAME onMove the drop does.
-  const moveTargets = dragOn && onMove ? moveTargetStages(entry.stage) : [];
+  // succeed into (moveTargetStages, resolved on THIS board's axis — see the prop)
+  // and calls the SAME onMove the drop does.
+  const moveTargets = dragOn && onMove ? moveTargetStages(entry.stage, axis) : [];
+  // A workspace's own column label wins, exactly as the board header and the
+  // off-axis strip resolve it; the shipped stages (label === id) keep resolving
+  // through enums.stage.* so they stay localized in four locales. Without this the
+  // menu named a renamed column by its stored id — two names for one column on one
+  // screen — and a workspace-invented id fell through to labelize().
+  const targetLabel = (id: string): string => {
+    const stage = axis.find((s) => s.id === id);
+    if (!stage) return enumLabel("stage", id);
+    return stage.label === stage.id ? enumLabel("stage", stage.id) : stage.label;
+  };
 
   // Menu anchor in viewport coordinates, or null when closed. Held as the POINT the
   // gesture happened at rather than a boolean, so a right-click opens under the
@@ -136,7 +155,7 @@ function CandidateRowImpl({
             label: t("candidateRow.moveTo"),
             items: moveTargets.map((s) => ({
               id: s,
-              label: enumLabel("stage", s),
+              label: targetLabel(s),
               onSelect: () => onMove?.(s),
             })),
           },
@@ -239,4 +258,13 @@ function CandidateRowImpl({
   );
 }
 
-export const CandidateRow = memo(CandidateRowImpl, candidateRowEqual);
+// candidateRowEqual compares the RENDERED entry content; the axis is compared here,
+// by identity, because it decides the move menu's contents and lives outside the
+// entry. Identity is the right test: usePipelineBoardData replaces the axis object
+// only when a Settings save actually changed it (JSON compare before setAxis), so a
+// 30s poll keeps the same reference and the render diet is untouched — while a real
+// axis edit does re-render the rows whose menu it changes.
+export const CandidateRow = memo(
+  CandidateRowImpl,
+  (prev, next) => prev.axis === next.axis && candidateRowEqual(prev, next)
+);

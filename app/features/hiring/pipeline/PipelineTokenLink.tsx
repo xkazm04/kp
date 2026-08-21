@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
+import { copyText } from "@/app/_lib/export-utils";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 // A tokenized candidate link (voice screen, self-scheduling, …): the server mints a
@@ -52,9 +53,14 @@ export function useTokenLink(endpoint: string) {
   // Origin is read lazily so SSR (no window) renders an empty field.
   const fullUrl = data ? publicBaseUrl(typeof window !== "undefined" ? window.location.origin : "") + data.url : "";
 
-  const copy = () => {
-    void navigator.clipboard?.writeText(fullUrl);
-    setCopied(true);
+  // The check mark is a CLAIM ("this candidate's link is on your clipboard"), so it
+  // only lands when the write actually took. `navigator.clipboard` is undefined in a
+  // non-secure context — a self-hosted install served over plain http:// on a LAN is
+  // exactly that — and the old `?.` swallowed the absence, flipped to ✓ and let the
+  // recruiter paste whatever was on the clipboard before into the candidate's email.
+  // copyText (export-utils) is the shared guard the saved-view share link already uses.
+  const copy = async () => {
+    if (await copyText(fullUrl)) setCopied(true);
   };
 
   return { busy, data, err, copied, create, copy, fullUrl };
@@ -77,7 +83,7 @@ export function TokenLinkPanel({ link }: { link: ReturnType<typeof useTokenLink>
       <button
         type="button"
         title={t("tokenLink.copy")}
-        onClick={link.copy}
+        onClick={() => void link.copy()}
         className="focus-ring rounded-md border border-stone-200 bg-white p-1.5 text-steel hover:text-coral"
       >
         {link.copied ? <Check size={14} /> : <Copy size={14} />}

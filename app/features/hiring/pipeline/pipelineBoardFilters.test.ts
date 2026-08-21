@@ -3,6 +3,9 @@
 // saved-view migration are PURE, so they're pinned here under `node --test`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   QUICK_FILTERS,
   SCORE_BANDS,
@@ -259,4 +262,24 @@ test("entryMatchesFilters threads the axis down to the quick predicates", () => 
   const criteria = { query: "", ...NONE, quicks: set<QuickFilter>("aging"), stage: null };
   assert.equal(entryMatchesFilters(placed, criteria, { now: NOW }), true);
   assert.equal(entryMatchesFilters(placed, criteria, { now: NOW, axis: CUSTOM_AXIS }), false);
+});
+
+// The SAME regression, one surface over. The Today rail's buckets ("N new
+// applications", "N offers out", "N hired this week") and the CTA each one filters
+// the board to are stage questions too, and they read the literal names — so on the
+// axis above, "offers out" stayed dark while offers were outstanding, no inbound
+// application was ever narrated, and the hired row never fired. Its buckets are
+// inline in the component and there is no component runner in-repo, so it is pinned
+// STRUCTURALLY (the idiom drawerCommsTruth.test.ts already uses for sibling .tsx):
+// the rail must ask the role layer, never a name.
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+test("the Today rail resolves its stage buckets by ROLE, not by stage name", () => {
+  const src = readFileSync(resolve(HERE, "PipelineTodayRail.tsx"), "utf8");
+  assert.match(src, /stageHasRole\(/, "the rail's buckets must ask the workspace axis");
+  assert.doesNotMatch(
+    src,
+    /e\.stage === "/,
+    "a literal stage-name test answers a different question on a composed board"
+  );
 });

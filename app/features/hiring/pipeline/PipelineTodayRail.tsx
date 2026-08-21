@@ -7,6 +7,7 @@ import { PANEL } from "@/app/_components/ui/recipes";
 import { Fade } from "./PipelineMotion";
 import { buildUrl, clearedTabScopedParams, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { isSimTitle } from "@/app/features/shell/simulation/constants";
+import { stageHasRole, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
 import { daysSince, type Entry } from "@/app/features/shared/pipelineTypes";
 
 // 8f8f578d — the "Today" rail: candidate-driven work, narrated. The attention
@@ -39,7 +40,17 @@ function nameList(list: Entry[]): string {
   return rest > 0 ? `${names} +${rest}` : names;
 }
 
-export function TodayRail({ entries, onShowStage }: { entries: Entry[]; onShowStage: (stage: string) => void }) {
+export function TodayRail({
+  entries,
+  axis,
+  onShowStage,
+}: {
+  entries: Entry[];
+  /** The workspace's resolved board axis, straight off the /api/pipeline payload
+   *  the tab already holds — the rail asks stage questions by ROLE, never by name. */
+  axis: readonly StageDef[];
+  onShowStage: (stage: string) => void;
+}) {
   const t = useTranslations("pipeline.today");
   const router = useRouter();
   const search = useSearchParams();
@@ -50,25 +61,39 @@ export function TodayRail({ entries, onShowStage }: { entries: Entry[]; onShowSt
   // them — visibly marked — so the running sim keeps seeing its own rows.
   const real = entries.filter((e) => !isSimTitle(e.jobTitle));
   const active = real.filter((e) => e.status === "active");
-  const inbound = active.filter((e) => e.stage === "Accepted");
+  // UAT KAT-L1-002 — "who is waiting where" is a question about what a column
+  // MEANS, so the three stage-keyed buckets resolve the workspace's OWN axis by
+  // ROLE (pipeline-stages.ts) instead of the shipped names. Settings → Hiring
+  // composes those columns: on a board whose offer column carries any other id
+  // the "offers out" row read 0 forever while offers were outstanding, the
+  // inbound row missed every fresh application, and "hired this week" never
+  // fired. The same ids drive the CTA, so the row also stops filtering the board
+  // to a column it doesn't render. Byte-identical on the shipped axis.
+  const entryStage = stageWithRole("entry", axis);
+  const offerStage = stageWithRole("offer", axis);
+  const terminalStage = stageWithRole("terminal", axis);
+  const inbound = active.filter((e) => stageHasRole(e.stage, "entry", axis));
   const awaitingSlot = active.filter((e) => e.approvalKind === "calendar");
   const scorecards = active.filter((e) => e.approvalKind === "scorecard_review");
   const offerReviews = active.filter((e) => e.approvalKind === "offer_review");
   // Offers out with the candidate: sent (no approval pending), response pending.
-  const offersOut = active.filter((e) => e.stage === "Offer" && !e.approvalKind);
+  const offersOut = active.filter((e) => stageHasRole(e.stage, "offer", axis) && !e.approvalKind);
   const hired = real.filter(
-    (e) => e.stage === "Hired" && (daysSince(e.stageChangedAt) ?? Infinity) <= HIRED_WINDOW_DAYS
+    (e) => stageHasRole(e.stage, "terminal", axis) && (daysSince(e.stageChangedAt) ?? Infinity) <= HIRED_WINDOW_DAYS
   );
 
   const candidates: (RailRow | null)[] = [
-    inbound.length > 0
+    // The `&& <stage>` guards only satisfy the type: a non-empty bucket means at
+    // least one entry stands on a column carrying that role, so the id is never
+    // null when there is a row to show.
+    inbound.length > 0 && entryStage
       ? {
           key: "inbound",
           Icon: Inbox,
           iconCls: "text-coral",
           message: `${t("inbound", { count: inbound.length })} — ${nameList(inbound)}`,
           ctaLabel: t("showBoard"),
-          stage: "Accepted",
+          stage: entryStage,
         }
       : null,
     scorecards.length > 0
@@ -101,24 +126,24 @@ export function TodayRail({ entries, onShowStage }: { entries: Entry[]; onShowSt
           tab: "schedule",
         }
       : null,
-    offersOut.length > 0
+    offersOut.length > 0 && offerStage
       ? {
           key: "offersOut",
           Icon: Send,
           iconCls: "text-steel",
           message: `${t("offersOut", { count: offersOut.length })} — ${nameList(offersOut)}`,
           ctaLabel: t("showBoard"),
-          stage: "Offer",
+          stage: offerStage,
         }
       : null,
-    hired.length > 0
+    hired.length > 0 && terminalStage
       ? {
           key: "hired",
           Icon: PartyPopper,
           iconCls: "text-moss",
           message: `${t("hired", { count: hired.length })} — ${nameList(hired)}`,
           ctaLabel: t("showBoard"),
-          stage: "Hired",
+          stage: terminalStage,
         }
       : null,
   ];

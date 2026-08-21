@@ -18,7 +18,7 @@ import { needsHumanDecision } from "@/app/_lib/approval-kinds";
 import { CandidateRow } from "./PipelineShared";
 import { stageCellSignature } from "./pipelineRenderDiet";
 import { CELL_LIMIT } from "./pipelineBoardGrid";
-import type { Entry } from "@/app/features/shared/pipelineTypes";
+import { DEFAULT_BOARD_AXIS, type Entry, type StageDef } from "@/app/features/shared/pipelineTypes";
 
 function StageCellImpl({
   stage,
@@ -35,6 +35,7 @@ function StageCellImpl({
   onDragEndEntry,
   onDropToStage,
   onMoveEntry,
+  axis = DEFAULT_BOARD_AXIS,
 }: {
   stage: string;
   entries: Entry[];
@@ -55,6 +56,10 @@ function StageCellImpl({
   // calls this with (entry, targetStage), funnelling into the SAME move+announce
   // path the drop uses.
   onMoveEntry: (e: Entry, toStage: string) => void;
+  /** The board's resolved axis, handed straight to each row so its "Move to…" menu
+   *  offers THIS workspace's columns (and their labels) rather than the shipped
+   *  default. Pass-through only — the cell itself reads nothing off it. */
+  axis?: readonly StageDef[];
 }) {
   const t = useTranslations("pipeline");
   const [expanded, setExpanded] = useState(false);
@@ -118,6 +123,7 @@ function StageCellImpl({
           onDragStart={() => onDragStartEntry(e)}
           onDragEnd={onDragEndEntry}
           onMove={dragEnabled ? (toStage) => onMoveEntry(e, toStage) : undefined}
+          axis={axis}
         />
       ))}
       {overflow > 0 ? (
@@ -147,6 +153,10 @@ function stageCellEqual(prev: StageCellProps, next: StageCellProps): boolean {
     prev.selectMode === next.selectMode &&
     prev.dragEnabled === next.dragEnabled &&
     prev.isDragging === next.isDragging &&
+    // The axis decides each row's move-menu contents, so a real axis edit must reach
+    // them. Identity is enough: usePipelineBoardData only swaps the object when a
+    // Settings save actually changed it, so the 30s poll still short-circuits here.
+    prev.axis === next.axis &&
     stageCellSignature(prev.entries, prev.isStale, prev.selectedIds) ===
       stageCellSignature(next.entries, next.isStale, next.selectedIds)
   );

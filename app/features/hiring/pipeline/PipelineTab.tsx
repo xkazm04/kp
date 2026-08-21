@@ -80,8 +80,12 @@ export function PipelineTab() {
       <GettingStartedCard />
 
       {/* 8f8f578d — candidate-driven work narrated with names + destinations,
-          on the landing surface (badges only carry counts). */}
-      {s.entries && s.entries.length > 0 ? <TodayRail entries={s.entries} onShowStage={s.showStage} /> : null}
+          on the landing surface (badges only carry counts). The rail's inbound /
+          offers-out / hired buckets are stage ROLE questions, so it gets the same
+          resolved axis the board and the drawer read (UAT KAT-L1-002). */}
+      {s.entries && s.entries.length > 0 ? (
+        <TodayRail entries={s.entries} axis={s.axis} onShowStage={s.showStage} />
+      ) : null}
 
       {/* Fades in and out rather than blinking the whole column up by a row. */}
       <Fade show={Boolean(s.moveError)}>
