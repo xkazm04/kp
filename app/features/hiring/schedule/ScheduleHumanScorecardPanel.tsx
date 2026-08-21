@@ -75,15 +75,30 @@ export function HumanScorecardPanel({
   const setEvidence = (competency: string, text: string) =>
     setForm((f) => ({ ...f, evidence: { ...f.evidence, [competency]: text } }));
 
-  const ratedCount = Object.keys(ratings).length;
+  // Ratings the loaded scorecard carries on a competency that is NOT in TODAY's
+  // rubric (a revised interview-rubrics.json, or a since-changed archetype /
+  // role family) have no row in this form — the seeded map holds keys nothing on
+  // screen can show. Count only what the rubric renders: counting every seeded key
+  // read as "6 of 4 rated" on a form where nothing looked selected, and left Save
+  // enabled on a payload that would have posted an EMPTY ratings list.
+  const rubricKeys = new Set(rubric.map((c) => c.competency.toLowerCase()));
+  const ratedCount = rubric.filter((c) => ratings[c.competency] != null).length;
 
   const save = async () => {
     setSaving(true);
     setError(null);
     try {
+      // Re-send the ratings this form has no row for (competencies outside today's
+      // rubric) unchanged. The write path deliberately KEEPS them and flags them
+      // off-rubric — "a scorecard outlives rubric revisions by design"
+      // (interview-rubric.ts) — but it can only keep what the form posts, so
+      // filtering against the current rubric alone erased them, evidence and all,
+      // the moment the recruiter saved again.
+      const carried = (initial?.ratings ?? []).filter((r) => !rubricKeys.has(r.competency.toLowerCase()));
       const payloadRatings = rubric
         .filter((c) => ratings[c.competency] != null)
-        .map((c) => ({ competency: c.competency, rating: ratings[c.competency], evidence: evidence[c.competency] ?? "" }));
+        .map((c) => ({ competency: c.competency, rating: ratings[c.competency], evidence: evidence[c.competency] ?? "" }))
+        .concat(carried.map((r) => ({ competency: r.competency, rating: r.rating, evidence: r.evidence ?? "" })));
       const res = await fetch(`/api/interview-prep/scorecard?entry=${encodeURIComponent(entryId)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

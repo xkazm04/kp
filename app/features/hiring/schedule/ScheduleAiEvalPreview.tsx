@@ -12,7 +12,9 @@ import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { RATING_MAX } from "@/app/_lib/format";
-import type { Session } from "./scheduleInterviewTranscriptHelpers";
+import { rubricLabel } from "@/app/_lib/interview-rubric";
+import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
+import { cleanRating, type Session } from "./scheduleInterviewTranscriptHelpers";
 import type { EvalTarget } from "./ScheduleAiRound";
 
 const RATING_SCALE = Array.from({ length: RATING_MAX }, (_, i) => i + 1);
@@ -29,6 +31,11 @@ export function ScheduleAiEvalPreview({
   const t = useTranslations("scheduleTab.transcript");
   const tAi = useTranslations("scheduleTab.aiRound");
   const enumLabel = useEnumLabel();
+  // PREP3 — the stored canonical competency rendered in the reader's language,
+  // exactly like the full modal's ScorecardRatingRow. Without it this preview was
+  // the one scorecard surface still showing raw English axis names to a cs/de/fr
+  // recruiter, one click before the same axes appear translated.
+  const rubricStrings = useRubricStrings();
   const { data, error } = useJsonFetch<{ session?: Session }>(
     `/api/interview/by-entry?entry=${encodeURIComponent(target.id)}`,
     t("loadFailed")
@@ -79,16 +86,35 @@ export function ScheduleAiEvalPreview({
           {sc.summary ? <p className="text-body text-ink">{sc.summary}</p> : null}
           {sc.ratings?.length ? (
             <ul className="space-y-1.5 rounded-md border border-stone-200 bg-paper/50 p-3">
-              {sc.ratings.map((r, i) => (
-                <li key={i} className="flex items-center justify-between gap-3">
-                  <span className="truncate text-sm text-steel">{r.competency}</span>
-                  <span className="flex shrink-0 gap-0.5">
-                    {RATING_SCALE.map((n) => (
-                      <span key={n} className={`h-2 w-2 rounded-full ${n <= r.rating ? "bg-moss" : "bg-stone-200"}`} />
-                    ))}
-                  </span>
-                </li>
-              ))}
+              {sc.ratings.map((r, i) => {
+                // Same trust-boundary coercion the full modal applies: the stored
+                // scorecard JSON is returned verbatim, so a legacy row / partial
+                // synthesis can carry a null, string or out-of-range rating. A null
+                // one rendered as five EMPTY dots — "not measured" disguised as a
+                // zero score — so say "not assessed" instead, as the full modal does.
+                const rating = cleanRating(r.rating);
+                const label = rubricLabel(r.competency, rubricStrings);
+                return (
+                  <li key={i} className="flex items-center justify-between gap-3">
+                    <span className="truncate text-sm text-steel">{label}</span>
+                    {rating != null ? (
+                      // role=img + one label: the dots are the only carrier of the
+                      // value, and colour alone says nothing to a screen reader.
+                      <span
+                        className="flex shrink-0 gap-0.5"
+                        role="img"
+                        aria-label={t("ratingAria", { competency: label, rating, max: RATING_MAX })}
+                      >
+                        {RATING_SCALE.map((n) => (
+                          <span key={n} aria-hidden className={`h-2 w-2 rounded-full ${n <= rating ? "bg-moss" : "bg-stone-200"}`} />
+                        ))}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-sm text-steel">{t("notAssessed")}</span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           ) : null}
         </div>

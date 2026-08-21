@@ -45,10 +45,24 @@ export function ScheduleAiRound({
   );
   const sessions = data?.sessions ?? [];
 
+  // A session is a DEAD END when it can no longer produce an interview: `revoked`,
+  // or `failed` — /api/interview/complete downgrades a silent-mic call (muted OS,
+  // hardware fault, VAD never firing) to "failed" so it is never scored, and
+  // revokeOpenInterviewSessions treats a failed row as reissuable exactly like an
+  // open one. Neither may keep a candidate out of the Awaiting station: a failed
+  // call matched none of the three stations (not created/in_progress, not
+  // completed), so the candidate VANISHED from the docket entirely and the
+  // recruiter had no card to reissue a link from.
+  const deadSession = (status: string | undefined) => status === "revoked" || status === "failed";
+  const sessionEntryIds = new Set(sessions.filter((s) => !deadSession(s.status)).map((s) => s.entryId).filter(Boolean));
   // Candidates still awaiting an AI-interview link: pending calendar-gated
-  // entries with no live/completed session yet.
-  const sessionEntryIds = new Set(sessions.filter((s) => s.status !== "revoked").map((s) => s.entryId).filter(Boolean));
-  const awaiting = calendarEntries.filter((e) => !sessionEntryIds.has(e.id) && !interviews[e.id]?.hasTranscript);
+  // entries with no live/completed session yet. A failed call's interviewer-only
+  // transcript is not an interview either, so it must not mask the entry here.
+  const awaiting = calendarEntries.filter((e) => {
+    if (sessionEntryIds.has(e.id)) return false;
+    const iv = interviews[e.id];
+    return !iv?.hasTranscript || deadSession(iv.status);
+  });
 
   // Mint + dispatch the tokenized interview link, and put the URL on the
   // recruiter's clipboard for manual channels. Reuses the create route's

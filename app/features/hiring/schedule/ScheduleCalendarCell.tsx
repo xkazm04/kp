@@ -82,19 +82,23 @@ export function ScheduleCalendarCell({
         <div className="pointer-events-none relative space-y-1 p-1.5">
           {booked.map((m) => {
             const mp = slotParts(m.dateSlot);
+            const label = mp.offHour
+              ? tCal("bookedOffHourTitle", { name: m.candidateLabel, time: mp.time })
+              : tCal("bookedTitle", { name: m.candidateLabel });
             return (
               <span
                 key={m.id}
-                title={
-                  mp.offHour
-                    ? tCal("bookedOffHourTitle", { name: m.candidateLabel, time: mp.time })
-                    : tCal("bookedTitle", { name: m.candidateLabel })
-                }
+                title={label}
                 className="flex w-full items-center gap-1 rounded-md border border-dashed border-moss/50 bg-moss/10 px-1.5 py-1 text-sm font-medium text-moss"
               >
                 <Check size={12} className="shrink-0" aria-hidden />
-                {mp.offHour ? <span className="shrink-0 tabular-nums font-semibold">{mp.time}</span> : null}
-                <span className="truncate">{m.candidateLabel}</span>
+                {/* The dashed moss marker + check says "already booked" only to the
+                    eye, and a `title` is not an accessible name — a screen reader
+                    heard a bare candidate name, indistinguishable from an
+                    assignable chip. One sr-only line carries the same sentence. */}
+                <span className="sr-only">{label}</span>
+                {mp.offHour ? <span aria-hidden className="shrink-0 tabular-nums font-semibold">{mp.time}</span> : null}
+                <span aria-hidden className="truncate">{m.candidateLabel}</span>
               </span>
             );
           })}

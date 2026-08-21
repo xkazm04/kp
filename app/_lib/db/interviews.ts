@@ -199,9 +199,15 @@ export type InterviewSessionSummary = {
 export function listRecentInterviewSessions(workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 100): InterviewSessionSummary[] {
   const rows = ensureDb()
     .prepare(
+      // has_transcript uses the SAME predicate as interviewStatusByEntries — NOT
+      // NULL *and* not the empty array. GDPR erasure scrubs a transcript to '[]'
+      // in place (scrubEntryLinkedPii) and leaves the row `completed`, so the
+      // bare IS NOT NULL kept reporting a transcript for an erased candidate:
+      // their card indicator read "absent" while this ledger's docket card stayed
+      // clickable into an evaluation with nothing behind it. One fact, one answer.
       `SELECT id, entry_id, candidate_label, job_id, job_title, provider, status,
               started_at, ended_at, created_at,
-              (transcript_json IS NOT NULL) AS has_transcript, scorecard_json
+              (transcript_json IS NOT NULL AND transcript_json != '[]') AS has_transcript, scorecard_json
          FROM interview_sessions
         WHERE mode = 'candidate' AND workspace_id = ?
         ORDER BY created_at DESC
@@ -302,18 +308,37 @@ export function createInterviewSession(input: {
 // W6-4 (VOX1) — delivered-link lifecycle. Links are auto-emailed on create, so
 // a live, indefinitely-valid AI-interview credential sat in candidates'
 // inboxes with no expiry, no revoke and no reissue semantics.
-// How long an undelivered/untaken link stays valid. Only `created` sessions
-// expire — an in_progress call is live, and completed/failed have their own
-// terminal semantics (failed stays reconnectable on purpose).
+// How long a delivered link stays a valid credential, measured from creation.
 export const INTERVIEW_LINK_TTL_DAYS = 7;
 
 /** Single expiry authority for an interview link — shared by /connect (the
- *  credential gate) and the portal page so the two can never disagree. */
-export function isInterviewLinkExpired(session: { status: string; createdAt: string }): boolean {
-  return (
-    session.status === "created" &&
-    Date.parse(session.createdAt) < Date.now() - INTERVIEW_LINK_TTL_DAYS * 86_400_000
-  );
+ *  credential gate) and the portal page so the two can never disagree.
+ *
+ *  The TTL used to apply to `created` sessions ONLY ("an in_progress call is
+ *  live, and failed is reconnectable on purpose"). But the status is moved by
+ *  the CANDIDATE: one click on Start flips the row to `in_progress` (a dropped
+ *  call leaves it `failed`), and from then on the link never expired again — an
+ *  abandoned session was still minting real ElevenLabs/OpenAI Realtime minutes
+ *  on the employer's meter months later, which is precisely the indefinitely-
+ *  valid inbox credential this TTL exists to kill. The TTL therefore applies to
+ *  every non-terminal status, with ONE exception: a call that is live RIGHT NOW
+ *  (isInterviewSessionLive — the same recency window /create's reissue guard
+ *  uses) outlives it, so a mid-conversation reconnect on a link that ages past
+ *  the TTL during the call is never cut off.
+ *
+ *  `completed` and `revoked` are terminal and keep their own semantics (both
+ *  call sites check them before asking about expiry). /complete deliberately
+ *  never consults this: a transcript from an expired link is still persisted. */
+export function isInterviewLinkExpired(session: {
+  status: string;
+  createdAt: string;
+  updatedAt?: string | null;
+}): boolean {
+  if (session.status === "completed" || session.status === "revoked") return false;
+  if (isInterviewSessionLive({ status: session.status, createdAt: session.createdAt, updatedAt: session.updatedAt ?? null })) {
+    return false;
+  }
+  return Date.parse(session.createdAt) < Date.now() - INTERVIEW_LINK_TTL_DAYS * 86_400_000;
 }
 
 // How long an in_progress session counts as a LIVE call. updated_at is stamped

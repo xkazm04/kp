@@ -63,6 +63,39 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    outcomes + dealbreakers, interviewer-internal; the candidate-safe brief
    deliberately omits it). See `docs/features/intake/README.md`.
 
+## Link lifecycle
+
+The candidate link is a capability — a 192-bit token, auto-emailed on create —
+so its lifetime is enforced server-side in `app/_lib/db/interviews.ts` and read
+by both the portal page and `/api/interview/connect`:
+
+- **Expiry.** `isInterviewLinkExpired()` is the single authority:
+  `INTERVIEW_LINK_TTL_DAYS = 7` measured **from creation**, applied to every
+  non-terminal status (`created`, `in_progress`, `failed`). The one exception is
+  a call that is live *right now* (`isInterviewSessionLive`, a 30-minute
+  `updated_at` recency window) — a mid-conversation reconnect on a link that
+  ages past the TTL during the call is never cut off. The TTL used to apply to
+  `created` only, which meant one click on Start made the emailed credential
+  permanent: an abandoned session still minted billable provider minutes months
+  later. `/api/interview/complete` deliberately does **not** consult expiry —
+  the transcript of a call that happened is always persisted.
+- **Revoke / reissue.** `revokeInterviewSession` / `revokeOpenInterviewSessions`
+  move `created|in_progress|failed` → `revoked` (never `completed` — the
+  transcript is evidence). `/api/interview/create` revokes an entry's open links
+  before minting a new one, so exactly one link is live per entry, and refuses
+  (409) while a call is live unless `force: true`.
+- **Terminal.** `completed` is single-use: the portal shows the thank-you card
+  (with the durable `/status/<token>` link) and `/connect` refuses with 409, both
+  backed by the `status != 'completed'` compare-and-swap in
+  `markInterviewStarted` / `completeInterviewSession`. `failed` stays
+  reconnectable by design — within the TTL.
+- **Erased transcripts.** GDPR erasure (`scrubEntryLinkedPii`) rewrites
+  `transcript_json` to `'[]'` in place and leaves the row `completed`. Both
+  transcript-presence reads (`interviewStatusByEntries` per entry,
+  `listRecentInterviewSessions` for the Schedule tab's AI-round docket) therefore
+  test `IS NOT NULL AND != '[]'`, so an erased interview reads as **absent**
+  everywhere instead of offering a review card with nothing behind it.
+
 ## Surface
 
 | Path | Role |

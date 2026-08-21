@@ -295,9 +295,39 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   `scheduleTab.rounds` / `scheduleTab.aiRound` catalogs (4-locale parity). The
   wider AI/Human/Hybrid mechanism design lives in
   `docs/concepts/interview-rounds.md`.
+  - **A `failed` session lands back in "Awaiting link".** `/api/interview/complete`
+    downgrades a silent-mic call to `failed` so it is never scored, and
+    `revokeOpenInterviewSessions` treats a failed row as reissuable — so
+    `ScheduleAiRound` counts `revoked` *and* `failed` as dead ends (and ignores a
+    failed call's interviewer-only transcript). Without that, such a candidate
+    matched none of the three stations and vanished from the docket with no card
+    to reissue from.
+  - The preview's rubric dots run through the same guards as the full modal:
+    `cleanRating` (a null/out-of-range stored rating reads "not assessed", never
+    five empty dots) and `rubricLabel` (PREP3 — competency names in the reader's
+    language, not canonical English).
+- **The human interviewer scorecard (PREP1)** is filled in the prep modal
+  (`ScheduleHumanScorecardPanel.tsx` → `POST /api/interview-prep/scorecard`) on
+  the archetype+role-family rubric. The save carries forward any stored rating
+  whose competency is **not** in today's rubric — the write path keeps and flags
+  those off-rubric rather than dropping them, so the form must post them back —
+  and the "N of M rated" counter counts only competencies the current rubric
+  actually renders.
 
 ## Known gaps
 
+- **The prep checklist is keyed positionally.** `RunOfShow` / `SignalsToConfirm`
+  mint `c-<i>` / `k-<i>` and `useScheduleInterviewPrep` counts the same keys, so a
+  Regenerate — which rebuilds the chronology and carries `userProgress` forward —
+  re-points the interviewer's ticks at whatever topic now sits at that index. The
+  fix is a stable per-topic identity (the PUT caps a key at 64 chars), minted and
+  counted in one change across both render files and the hook.
+- **The human scorecard is served with no consent gate.** `GET /api/interview-prep`
+  returns the stored `humanScorecard` (recruiter evidence quoting the candidate)
+  verbatim, while `GET /api/interview/by-entry` redacts the AI half through
+  `consentWithholdsPii`. Neither `HumanScorecardSection` nor the prep modal can
+  tell "withheld" from "absent" — the payload carries no flag — so a lapsed-consent
+  record renders in full, and the AI half's redaction reads as an empty state.
 - The slot pool is **host-blind**: `KP_INTERVIEW_TIMES` (default 10:00 + 14:00)
   is a single global pool, so collisions are workspace-wide rather than
   per-interviewer.
