@@ -10,9 +10,12 @@ export const GEMINI_MODEL = "gemini-3.6-flash";
 // USD per million tokens for GEMINI_MODEL — keep in sync with MTOK_PRICES in
 // pipeline/jobfit/llm/base.py (Python is the price book of record; this pair
 // exists only so the one TS-direct Gemini call stamps the same cost_usd on its
-// llm_usage ledger row as the Python adapters do).
+// llm_usage ledger row as the Python adapters do). The output price had drifted
+// to 7.5 against the record's 7.00, so every github_analysis row overstated its
+// output cost by ~7% and disagreed with every Python-metered Gemini call in the
+// same ledger — usage.test.ts now pins the pair to base.py so it can't drift again.
 const GEMINI_MTOK_PRICE_IN_USD = 1.5;
-const GEMINI_MTOK_PRICE_OUT_USD = 7.5;
+const GEMINI_MTOK_PRICE_OUT_USD = 7.0;
 
 // Stamp the deep-review Gemini call into BOTH telemetry sinks — the durable
 // llm_usage ledger and LightTrack. The LLM-cost audit flagged this site as the

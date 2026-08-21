@@ -19,7 +19,7 @@ import { useAnalyzeJdLibrary } from "./useAnalyzeJdLibrary";
 import { useAnalyzeCvFiles } from "./useAnalyzeCvFiles";
 import { executeAnalysis, executeGithubAnalysis, finalizeStages, resumeAnalysis } from "./analyzeRunAnalysis";
 import type { VariantProgress } from "./AnalyzeApi";
-import { shouldRunGithubDeepDive } from "./analyzeGithubRunPolicy";
+import { githubStatusAfterCancel, shouldRunGithubDeepDive } from "./analyzeGithubRunPolicy";
 
 export type AnalyzeFormState = ReturnType<typeof useAnalyzeForm>;
 
@@ -493,9 +493,15 @@ export function useAnalyzeForm() {
     // stopActiveRun only halts the MAIN poll; without this the orphaned GitHub run keeps
     // going, its guarded callbacks still fire on the cancelled form, and githubStatus stays
     // "loading" — which keeps the Analyze button disabled (githubLoading) until the
-    // abandoned call finally resolves. Mirrors reset()'s GitHub handling.
+    // abandoned call finally resolves.
     githubRunIdRef.current += 1;
-    setGithubStatus("idle");
+    // …but ONLY a still-loading deep-dive needs that unsticking. The deep-dive runs in
+    // parallel and usually finishes first, so at cancel time it may already hold a
+    // delivered result ("done") or a retryable failure ("error"). Blanking those to
+    // "idle" hid the GitHub panel entirely (AnalyzeTab gates it on `!== "idle"`),
+    // erasing a deep-dive the recruiter was reading and had already paid for.
+    // Cancelling the CV scan is not a reset — reset() is what clears everything.
+    setGithubStatus(githubStatusAfterCancel);
     stopActiveRun();
     setStageState(initialStageState());
     setVariantProgress(null);

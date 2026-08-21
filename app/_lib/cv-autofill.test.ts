@@ -27,6 +27,24 @@ test("extractCvEmail attributes to the candidate's contact block, not the first 
   );
 });
 
+// The contact-block window must be anchored on the line that IS the name. A cover
+// header that REPEATS the applicant's name above the real contact block parked the
+// old `includes` anchor on the header, so the preparer's/agency's address came back
+// as the candidate's — reintroducing exactly the mis-attribution #5 fixed.
+test("extractCvEmail anchors on the name LINE, not a header that merely contains the name", () => {
+  assert.equal(
+    extractCvEmail(
+      "Curriculum Vitae — Jane Applicant\nPrepared by: recruiter@agency.com\n\nJane Applicant\njane.applicant@gmail.com\nPrague",
+    ),
+    "jane.applicant@gmail.com",
+  );
+  // Same shape without the CV header word, so it isn't NON_NAME_LINE doing the work.
+  assert.equal(
+    extractCvEmail("Reference for Jan Novak — contact hr@bigco.com\nJan Novak\njan.novak@gmail.com\nBrno"),
+    "jan.novak@gmail.com",
+  );
+});
+
 test("extractCvEmail prefills NOTHING when multiple addresses can't be attributed", () => {
   // Two distinct addresses and no detectable name → ambiguous, so no confident default.
   assert.equal(extractCvEmail("host@portfolio.com\nreferences: john@bigco.com"), undefined);

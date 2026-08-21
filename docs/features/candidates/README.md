@@ -83,6 +83,32 @@ before; a malformed structured payload degrades to prose with a note in the
 trust ledger. The structured job is part of the analyze cache key
 (`app/_lib/cache-key.ts`), so a re-ingest invalidates cached results.
 
+**A multi-CV run delivers what survived, and the saved row follows the winner.**
+`settleVariants` (`analyze-run.ts`, pinned by `analyze-settle.test.ts`) delivers
+whenever at least one variant succeeded — N−1 failures are named on
+`partialFailures` rather than discarding their good siblings — and only a total
+wipeout throws. Because of that, "one delivered analysis" does **not** imply "one
+submitted CV". Both persist paths therefore resolve the row's content-addressed
+identity through `cvHashForLabel(p.variants, label)`, matching the delivered (or
+best-of-N winning) variant by its label; `variants[0]` would stamp a failed file's
+hash on the survivor's report and send History grouping (`listAnalyses` keys on
+`cv_hash`), the cross-job "also analyzed for" list (`listAnalysesByCvHash`) and
+profile CV lineage (`analysisLineageSource`) to the wrong CV. One AI-candidate
+meter unit is debited per delivered, non-cached run — variants of the same person
+count once, and a fully-cached re-run debits nothing.
+
+**Cancelling the CV scan does not discard a GitHub deep-dive that already
+landed.** The deep-dive (`executeGithubAnalysis`) is a parallel client-side run
+that routinely finishes well before the CV pipeline, and `AnalyzeTab.tsx` renders
+its panel only while `githubStatus !== "idle"`. `cancel()`
+(`useAnalyzeForm.ts`) supersedes the in-flight deep-dive by bumping
+`githubRunIdRef` — a superseded run's callbacks never fire, so a status left on
+`"loading"` would stick and keep the Analyze button disabled — but it clears the
+status through `githubStatusAfterCancel` (`analyzeGithubRunPolicy.ts`), which
+maps `"loading" → "idle"` and leaves a landed `"done"`/`"error"` untouched.
+Cancel halts the CV scan; `reset()` is the action that clears everything
+(including `githubAnalysis`). Pinned by `analyzeGithubRunPolicy.test.ts`.
+
 ### 2. Conversational / quick apply
 Conversational apply asks 4 universal questions (name, most relevant recent
 experience, skills, "which best describes you" archetype pick), then branches:
@@ -92,6 +118,16 @@ flow. This branching is implemented as conditional steps in `apply.ts` /
 `apply-intake.ts` (`stepConditionMet` / `nextVisibleStepIndex`), not a
 per-archetype form. Quick apply (`QuickApplyForm.tsx`) is the short-form
 alternative behind `app/api/apply/[id]/quick/route.ts`.
+
+When the candidate uploads a CV first, `app/_lib/cv-autofill.ts` pre-fills name and
+email as *editable* defaults. It is deliberately conservative — a wrong guess costs
+the candidate a deletion, so ambiguity degrades to "they type it". A sole address in
+the document is returned outright; with several, one is returned only if it sits in
+the guessed name's contact block (the name line plus the next two lines), and the
+window anchors on the line that **is** the name (trim-equality), never on a cover
+header that merely repeats it — otherwise a "Curriculum Vitae — Jane Applicant /
+Prepared by: recruiter@agency.com" preamble prefills the agency's address as the
+candidate's. Pinned by `app/_lib/cv-autofill.test.ts`.
 
 Three invariants both intake surfaces hold on the way into the pipeline —
 pinned by `app/api/apply/apply-intake-scope.test.ts`:
@@ -216,7 +252,7 @@ string in the payload had to be assigned to one of the three mechanisms in
 | `codeReview.summary` on a non-`ok` status | **code** (`codeReview.reason`) | `results.github.review.<reason>` — `keyUndecryptable`, `disabled`, `noRepos`, `fetchFailed`, `throttled`, `noSignals`, `malformed`, `requestFailed`; `codeReview.partial` renders the partial-evidence caveat |
 | `summary`, `codeReview.summary` on `ok` | canonical **English string** | the model's own prose, plus the line `buildGithubEvidenceSummary` freezes into a pipeline entry — a sealed record and a server-log line, never the thing the panel renders when a finding/reason is present |
 
-Two consequences worth knowing:
+Three consequences worth knowing:
 
 - The panel (`app/_components/GithubAnalysisPanel.tsx`) is the only place that turns
   a finding into a sentence. Nothing server-side composes prose a user reads.
@@ -224,6 +260,35 @@ Two consequences worth knowing:
   run produced. The schema accepts `string | GithubFinding` everywhere a finding
   travels, so a saved report keeps rendering — in that run's English — instead of
   failing to parse.
+- **Only an `ok` review's prose is ever frozen onto a person's record.** Every other
+  status fills `codeReview.summary` with machine copy ("Set `GEMINI_API_KEY`…",
+  "Couldn't gather public repo signals…"), and the pipeline drawer renders the frozen
+  summary verbatim — so `buildGithubEvidenceSummary` takes the review's line only on
+  `ok` and otherwise falls back to the run's own metrics sentence
+  (`app/_lib/github-summary.ts`; pinned by `github-summary.test.ts`).
+
+### Run bounds: cache, throttle, timeout
+
+- **The 15-minute TTL cache (`app/_lib/github/cache.ts`) stores only COMPLETE runs.**
+  Errors never entered it; neither does a run degraded by a *transient* failure —
+  `evidenceIncomplete` in `limitations`, `codeReview.partial`, or a `throttled` /
+  `fetchFailed` / `requestFailed` / `malformed` review (`isTransientlyDegraded`,
+  `app/_lib/github/analysis.ts`). The panel tells the reader to "retry shortly for a
+  complete read" and offers a Retry button; caching a knowingly-incomplete read would
+  make that retry a no-op for the whole TTL. Deterministic outcomes — `disabled`,
+  `keyUndecryptable`, `noRepos`, `noSignals`, page-cap `truncated` — stay cached, so
+  the keyless default deployment keeps its cost guard.
+- Every `api.github.com` call carries a 20 s `AbortSignal.timeout`
+  (`app/_lib/github/client.ts`). `maxDuration` is serverless-only and undici's default
+  is 300 s, so one stalled connection could otherwise hold a run for minutes across
+  ~31 calls. A timeout is a coverage loss (not a 404), so the language and bundle
+  fan-outs degrade to "could not determine"; a stall on the account or page reads
+  surfaces as the `API_ERROR` code.
+- The deep review's Gemini spend is stamped on `llm_usage` by
+  `app/_lib/github/usage.ts` — the app's only TS-direct Gemini call. Its price pair
+  mirrors `MTOK_PRICES` in `pipeline/jobfit/llm/base.py` (the price book of record)
+  and `app/_lib/github/usage.test.ts` pins the two together so the hand-copied
+  constants cannot drift.
 
 ## Data model
 

@@ -57,11 +57,22 @@ function clampList(values: string[], max = MAX_LIST_ITEMS): string[] {
 
 export function buildGithubEvidenceSummary(a: GithubAnalysis): GithubEvidenceSummary {
   const review = a.codeReview;
+  // ONLY the `ok` branch's summary is the model's own prose. Every other status
+  // fills `summary` with canonical-English MACHINE copy the UI must not render
+  // (schemas.ts, codeReview.summary) — "Set GEMINI_API_KEY (or add a Gemini key in
+  // Models → Keys)…" on the keyless default, "Gemini returned a malformed
+  // repo-signal review payload.", "Couldn't gather public repo signals…". This
+  // summary is frozen onto the pipeline entry and rendered verbatim as a named
+  // candidate's GitHub evidence (PipelineGithubEvidenceCard), so preferring it on a
+  // non-ok review put an ops instruction on a person's record in place of the
+  // metrics sentence that was sitting right there. Fall back to `a.summary`
+  // whenever the review has no prose of its own — which is what the schema's
+  // "when the deep review has none of its own" always meant.
+  const reviewProse = review?.status === "ok" ? review.summary : "";
   return {
     username: clampStr(a.username, MAX_ITEM_CHARS),
     profileUrl: clampStr(safeLinkUrl(a.profileUrl), MAX_ITEM_CHARS),
-    // Prefer the deep review's read; fall back to the metrics summary.
-    summary: clampStr((review?.summary || a.summary || "").trim(), MAX_SUMMARY_CHARS),
+    summary: clampStr((reviewProse || a.summary || "").trim(), MAX_SUMMARY_CHARS),
     confirmedSkills: clampList(review?.confirmedSkills ?? []),
     unverifiedClaims: clampList(review?.unverifiedClaims ?? []),
     hiddenStrengths: clampList(review?.hiddenStrengths ?? []),

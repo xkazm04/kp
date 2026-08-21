@@ -1,6 +1,6 @@
 import { githubAnalysisSchema, type GithubAnalysis } from "@/app/_lib/schemas";
 import { ACTIVE_WINDOW_MONTHS, RECENT_WINDOW_MONTHS, isWithinMonths } from "@/app/_lib/repo-activity";
-import { EVIDENCE_INCOMPLETE, type GithubFinding } from "@/app/_lib/github-evidence";
+import { EVIDENCE_INCOMPLETE, hasEvidenceIncomplete, type GithubFinding } from "@/app/_lib/github-evidence";
 import { fetchOwnedRepoPages, githubFetch, isCoverageLossError, GithubAnalysisError, type GithubUser } from "./client";
 import {
   buildContributionSignals,
@@ -19,6 +19,27 @@ import { DEEP_REVIEW_REPO_LIMIT, runCodeReview } from "./code-review";
 // throttle, logging, the response envelope); everything below is the domain run,
 // and its ORDER is part of the contract — the identity check must precede any
 // repo read, and the deep review is the last thing that spends money.
+
+// The deep-review failures a RETRY can actually clear: a GitHub throttle, a Gemini
+// blip, a garbled model payload. `disabled` / `keyUndecryptable` / `noRepos` /
+// `noSignals` are deterministic given the config and the candidate's footprint —
+// retrying inside the TTL cannot change them, so those stay cacheable.
+const TRANSIENT_REVIEW_REASONS = new Set(["throttled", "fetchFailed", "requestFailed", "malformed"]);
+
+/** Was this run degraded by a TRANSIENT failure rather than by configuration or by
+ *  the candidate's real footprint? Such a payload must NOT enter the TTL cache: the
+ *  panel tells the reader "retry shortly for a complete read" and offers a Retry
+ *  button, and a cached copy makes that retry a silent no-op for the whole TTL —
+ *  freezing a knowingly-incomplete read of a real person's work (gaps suppressed,
+ *  language coverage lost) as if it were the finished answer. Errors already bypass
+ *  the cache; a degraded 200 is the same thing wearing a success envelope. */
+export function isTransientlyDegraded(analysis: GithubAnalysis): boolean {
+  if (hasEvidenceIncomplete(analysis.limitations)) return true;
+  const review = analysis.codeReview;
+  if (!review) return false;
+  if (review.partial) return true;
+  return review.status === "error" && TRANSIENT_REVIEW_REASONS.has(review.reason ?? "");
+}
 
 /** Run the full public-GitHub analysis for one candidate handle. Throws on a
  *  GitHub failure or a non-personal account; the caller turns that into its own

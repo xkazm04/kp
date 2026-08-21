@@ -83,6 +83,18 @@ export function isCoverageLossError(error: unknown): boolean {
   return !(error instanceof GithubHttpError && error.status === 404);
 }
 
+// Every call here is outbound I/O to a third party, and ONE run makes up to ~31 of
+// them (3 sequential repo pages, then two fan-outs). Nothing else bounds them:
+// `maxDuration` is serverless-only — self-hosted `next start` never kills a long
+// handler (see .claude/CLAUDE.md) — and undici's default header/body timeout is 300s,
+// so a single stalled connection could hold a recruiter's analysis for minutes and the
+// three page reads are sequential. Bound each call the way the app's other outbound
+// clients do (agent-hire/bridge-client, ats-egress: `AbortSignal.timeout`). A timeout
+// is NOT a 404, so isCoverageLossError classifies it as a coverage loss and the
+// language / bundle fan-outs degrade to "could not determine" rather than to "no
+// evidence" — the honest reading of a call we never got an answer to.
+const GITHUB_FETCH_TIMEOUT_MS = 20_000;
+
 export async function githubFetch<T>(url: string): Promise<T> {
   const headers: HeadersInit = {
     Accept: "application/vnd.github+json",
@@ -92,21 +104,41 @@ export async function githubFetch<T>(url: string): Promise<T> {
   if (process.env.GITHUB_TOKEN) {
     headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
-  const response = await fetch(url, { headers, next: { revalidate: 0 } });
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new GithubHttpError(404, "PROFILE_NOT_FOUND", "GitHub profile was not found.");
+  try {
+    const response = await fetch(url, {
+      headers,
+      next: { revalidate: 0 },
+      signal: AbortSignal.timeout(GITHUB_FETCH_TIMEOUT_MS)
+    });
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new GithubHttpError(404, "PROFILE_NOT_FOUND", "GitHub profile was not found.");
+      }
+      if (response.status === 403) {
+        throw new GithubHttpError(
+          403,
+          "RATE_LIMITED",
+          "GitHub rate limit or access policy blocked the request. Configure GITHUB_TOKEN for higher limits."
+        );
+      }
+      throw new GithubHttpError(response.status, "API_ERROR", `GitHub API returned ${response.status}.`);
     }
-    if (response.status === 403) {
-      throw new GithubHttpError(
-        403,
-        "RATE_LIMITED",
-        "GitHub rate limit or access policy blocked the request. Configure GITHUB_TOKEN for higher limits."
+    // Awaited inside the try on purpose: the signal aborts a stalled BODY too, so the
+    // abort can surface from json(), not only from fetch().
+    return (await response.json()) as T;
+  } catch (error) {
+    if (error instanceof GithubAnalysisError) throw error; // already classified above
+    // The abort carries no HTTP status, so it would otherwise reach the route as an
+    // unclassified ANALYSIS_FAILED with a raw "operation was aborted" string. Give it
+    // the route's own localizable code instead.
+    if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+      throw new GithubAnalysisError(
+        "API_ERROR",
+        `GitHub did not respond within ${GITHUB_FETCH_TIMEOUT_MS / 1000}s.`
       );
     }
-    throw new GithubHttpError(response.status, "API_ERROR", `GitHub API returned ${response.status}.`);
+    throw error;
   }
-  return response.json() as Promise<T>;
 }
 
 // FINDING #3 (bug-ui-scan-2026-07-09, github-evidence-cv-utilities): fetch a user's

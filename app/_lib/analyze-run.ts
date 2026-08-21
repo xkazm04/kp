@@ -114,6 +114,27 @@ export function settleVariants(results: VariantResult[]): SettleDecision {
   };
 }
 
+/**
+ * The content hash of the variant that was actually DELIVERED, matched back by
+ * LABEL. Labels are unique within a run (collectCvFiles disambiguates a repeated
+ * display name with an "(n)" suffix), so the label is a sound key into `variants`.
+ *
+ * It must NOT be `variants[0]`: settled semantics (Direction 2) retired the old
+ * "one delivered analysis ⇒ one submitted variant" invariant. A 2-CV run whose
+ * FIRST variant fails extraction still delivers the second, and stamping
+ * variants[0]'s hash on that row files the surviving CV's analysis under the
+ * FAILED file's content-addressed identity — which then mis-groups History
+ * (listAnalyses keys on cv_hash), mis-links the cross-job "also analyzed for"
+ * list (listAnalysesByCvHash), and hands a profile built from it the wrong CV
+ * lineage (analysisLineageSource).
+ */
+export function cvHashForLabel(
+  variants: { label: string; cvHash?: string }[],
+  label: string
+): string | undefined {
+  return variants.find((v) => v.label === label)?.cvHash;
+}
+
 function cliArgs(cvPath: string, p: AnalyzeParams, jobStructurePath?: string | null): string[] {
   const args = ["-m", "pipeline.jobfit.cli", cvPath];
   if (p.grounding) args.push("--grounding");
@@ -321,8 +342,16 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     // way `partialFailures` names what didn't make it, surfaced by the client UI.
     if (analyses.length === 1) {
       const single = analyses[0];
-      // Single analysis ⇒ exactly one variant, so its cvHash is the identity.
-      const persisted = persistAnalysis(single.label, p.jdSlug ?? null, single.analysis, p.workspace, p.variants[0]?.cvHash);
+      // Key the row to the DELIVERED variant's CV content hash, matched by label —
+      // NOT variants[0]. One delivered analysis no longer implies one submitted
+      // variant (a multi-CV run can lose N−1 to failures), see cvHashForLabel.
+      const persisted = persistAnalysis(
+        single.label,
+        p.jdSlug ?? null,
+        single.analysis,
+        p.workspace,
+        cvHashForLabel(p.variants, single.label)
+      );
       void logAnalyze({
         ...baseAnalyzeLog(p, startedAt),
         candidate_label: single.label,
@@ -345,8 +374,9 @@ export async function runAnalyze(p: AnalyzeParams, onProgress?: ProgressFn, sign
     const winner = analyses.find((a) => a.label === comparison.bestLabel) ?? analyses[0];
     const merged = { ...winner.analysis, comparison };
     // Best-of-N ⇒ the saved row represents the WINNING variant, so key it to the
-    // winner's CV content hash (matched back by label).
-    const winnerHash = p.variants.find((v) => v.label === winner.label)?.cvHash;
+    // winner's CV content hash (matched back by label — same rule as the single
+    // delivery above, so both persist paths derive identity one way).
+    const winnerHash = cvHashForLabel(p.variants, winner.label);
     const persisted = persistAnalysis(`${winner.label} (best of ${analyses.length})`, p.jdSlug ?? null, merged, p.workspace, winnerHash);
     void logAnalyze({
       ...baseAnalyzeLog(p, startedAt),

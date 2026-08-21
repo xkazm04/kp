@@ -47,7 +47,14 @@ export function extractCvEmail(text: string): string | undefined {
   const name = guessCvName(text);
   if (!name) return undefined; // no anchor to attribute an address → candidate types it
   const lines = text.split(/\r?\n/);
-  const nameLine = lines.findIndex((line) => line.includes(name));
+  // Anchor on the line that IS the name, not merely one CONTAINING it. A cover
+  // header repeats the applicant's name ABOVE the real contact block
+  // ("Curriculum Vitae — Jane Applicant" / "Prepared for Jane Applicant by …"),
+  // and an `includes` match parked the 3-line window on that header — handing back
+  // the agency's or referee's address as the candidate's, the exact
+  // mis-attribution FINDING #5 exists to prevent. guessCvName returns a TRIMMED
+  // whole line, so trim-equality always locates the real name line.
+  const nameLine = lines.findIndex((line) => line.trim() === name);
   if (nameLine < 0) return undefined;
   const block = lines.slice(nameLine, nameLine + EMAIL_BLOCK_LINES).join("\n");
   const inBlock = distinctEmails(block);

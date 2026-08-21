@@ -33,6 +33,9 @@ const realFetch = globalThis.fetch;
 // Every GitHub path the mock hits this test file — reset per test so an assertion can
 // prove which sub-requests actually ran (finding #1: /repos must NOT run for an org).
 let fetchedPaths: string[] = [];
+// The abort signal each call carried, so a test can prove EVERY outbound GitHub call is
+// time-bounded (self-hosted `next start` ignores maxDuration).
+let fetchedSignals: Array<AbortSignal | null | undefined> = [];
 
 // One dispatcher keyed on the REST pathname, covering all three scenarios. An
 // unmapped path throws so an unexpected sub-fetch (e.g. a deep-review call that should
@@ -95,6 +98,11 @@ function githubResponse(pathname: string): Response {
     case "/repos/emptyuser/repo/contents":
       return Response.json([]);
 
+    // --- bounded fetching: a stalled GitHub connection ---------------------------
+    case "/users/slowuser":
+      // What `AbortSignal.timeout` throws when GitHub never answers.
+      throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+
     // --- #4: overlapping-bucket dedupe (pyuser: python-only evidence) -----------
     case "/users/pyuser":
       return Response.json({
@@ -143,9 +151,10 @@ before(() => {
   // case sets one explicitly to reach the bundle path.
   delete process.env.GEMINI_API_KEY;
   delete process.env.GOOGLE_API_KEY;
-  globalThis.fetch = (async (url: RequestInfo | URL) => {
+  globalThis.fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
     const pathname = new URL(String(url)).pathname;
     fetchedPaths.push(pathname);
+    fetchedSignals.push(init?.signal);
     return githubResponse(pathname);
   }) as typeof fetch;
 });
@@ -158,6 +167,7 @@ after(() => {
 
 beforeEach(() => {
   fetchedPaths = [];
+  fetchedSignals = [];
 });
 
 function post(body: unknown): Request {
@@ -251,6 +261,65 @@ test("#2 a genuinely empty account yields 'no evidence' (codeReview 'empty'), no
   } finally {
     delete process.env.GEMINI_API_KEY;
   }
+});
+
+test("#2 a degraded run is NOT cached, so the panel's 'retry for a complete read' is a real retry", async () => {
+  // octocat's /languages 403s, so this run is knowingly incomplete: gaps suppressed and
+  // the could-not-determine limitation attached. The panel tells the reader to retry —
+  // caching that payload made the retry a silent no-op for the whole 15-minute TTL,
+  // freezing an incomplete read of a real engineer's work as if it were the answer.
+  const jd = "We need a strong rust and typescript developer (degraded-cache case).";
+  const first = (await (await POST(post({ profile: "octocat", jobDescriptionText: jd }) as never)).json()) as {
+    limitations: GithubNote[];
+  };
+  assert.ok(hasEvidenceIncomplete(first.limitations), "precondition: this run is degraded");
+
+  fetchedPaths = [];
+  const second = (await (await POST(post({ profile: "octocat", jobDescriptionText: jd }) as never)).json()) as {
+    limitations: GithubNote[];
+  };
+  assert.ok(
+    fetchedPaths.includes("/users/octocat"),
+    `the retry must re-run against GitHub, not replay the cache; saw ${JSON.stringify(fetchedPaths)}`,
+  );
+  assert.ok(hasEvidenceIncomplete(second.limitations), "still degraded here — the mock still 403s");
+  // NON-VACUITY: pre-fix the route cached every 200, so the second POST returned the
+  // stored degraded payload with zero GitHub calls and fetchedPaths stayed empty.
+});
+
+test("a COMPLETE run is still cached — the cost guard is intact", async () => {
+  // No Gemini key here, so codeReview is "disabled" — a deterministic, non-transient
+  // state a retry cannot change. It must keep serving from the cache.
+  const jd = "We need a python developer (cacheable case).";
+  await POST(post({ profile: "emptyuser", jobDescriptionText: jd }) as never);
+  fetchedPaths = [];
+  const res = await POST(post({ profile: "emptyuser", jobDescriptionText: jd }) as never);
+  assert.equal(((await res.json()) as { error?: string }).error, undefined);
+  assert.deepEqual(fetchedPaths, [], "a complete run must still be served from the cache");
+});
+
+// --- Bounded fetching -----------------------------------------------------------------
+
+test("every GitHub call is time-bounded, and a stall answers with a classified code", async () => {
+  // A stalled GitHub connection is otherwise bounded only by undici's 300s default,
+  // and `maxDuration` does nothing on a self-hosted `next start` — so each call must
+  // carry its own abort signal.
+  const ok = await POST(post({ profile: "octocat", jobDescriptionText: "typescript" }) as never);
+  assert.equal(((await ok.json()) as { error?: string }).error, undefined);
+  assert.ok(fetchedSignals.length > 0, "precondition: calls were made");
+  assert.ok(
+    fetchedSignals.every((s) => s instanceof AbortSignal),
+    "every outbound GitHub call must carry a timeout signal",
+  );
+
+  // And when the abort fires, it must reach the panel as a localizable code, not as a
+  // raw "operation was aborted" string under the catch-all.
+  const res = await POST(post({ profile: "slowuser", jobDescriptionText: "" }) as never);
+  const body = (await res.json()) as { error?: string; code?: string };
+  assert.equal(body.code, "API_ERROR", `a stall must classify; saw ${JSON.stringify(body)}`);
+  assert.match(body.error ?? "", /did not respond within/);
+  // NON-VACUITY: pre-fix no `signal` was passed (every entry was undefined) and the
+  // TimeoutError fell through to the route's catch-all as code ANALYSIS_FAILED.
 });
 
 // --- Finding #4 ---------------------------------------------------------------------

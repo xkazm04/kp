@@ -6,7 +6,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { settleVariants, type VariantResult } from "./analyze-run.ts";
+import { cvHashForLabel, settleVariants, type VariantResult } from "./analyze-run.ts";
 import type { Analysis } from "./schemas.ts";
 
 const ok = (label: string, cached = false): VariantResult => ({
@@ -81,6 +81,38 @@ test("allCached reflects the delivered successes, not the failures", () => {
   assert.equal(bothCached.kind === "deliver" && bothCached.allCached, true, "all surviving successes cached → no debit");
   const oneFresh = settleVariants([ok("a", true), ok("c", false)]);
   assert.equal(oneFresh.kind === "deliver" && oneFresh.allCached, false, "a non-cached success → debit one");
+});
+
+// ── Identity follows the DELIVERED variant, never variants[0] ────────────────
+// Settled semantics retired the invariant "one delivered analysis ⇒ one submitted
+// variant". A 2-CV run whose FIRST variant fails extraction still delivers the
+// second, and the persisted row must carry the SURVIVOR's content hash: cv_hash is
+// the content-addressed candidate identity History groups on (listAnalyses), the
+// cross-job "also analyzed for" list joins on (listAnalysesByCvHash), and a profile
+// built from the report stamps as CV lineage (analysisLineageSource). Stamping the
+// FAILED file's hash sends all three to the wrong CV.
+test("the persisted cv hash follows the delivered variant, not the first submitted one", () => {
+  const variants = [
+    { label: "jana_cv_2024.pdf", cvHash: "HASH_2024" },
+    { label: "jana_cv_2026.pdf", cvHash: "HASH_2026" },
+  ];
+  // The 2024 scan is an image-only PDF: extraction fails. The 2026 CV delivers.
+  const d = settleVariants([fail("jana_cv_2024.pdf", "extraction failed", 400), ok("jana_cv_2026.pdf")]);
+  assert.equal(d.kind, "deliver");
+  if (d.kind !== "deliver") return;
+  assert.equal(d.successes.length, 1, "one survivor — this takes analyze-run's single-analysis persist path");
+  const delivered = d.successes[0].label;
+  assert.equal(cvHashForLabel(variants, delivered), "HASH_2026", "the surviving CV's own hash");
+  assert.notEqual(
+    cvHashForLabel(variants, delivered),
+    variants[0].cvHash,
+    "never the FAILED first variant's hash (the pre-fix `p.variants[0]?.cvHash`)",
+  );
+});
+
+test("cvHashForLabel is undefined when no variant carries the label (never a stray hash)", () => {
+  assert.equal(cvHashForLabel([{ label: "a.pdf", cvHash: "H" }], "b.pdf"), undefined);
+  assert.equal(cvHashForLabel([{ label: "a.pdf" }], "a.pdf"), undefined, "a hash-less variant stays hash-less");
 });
 
 // ── A clean run reports no partial failures ──────────────────────────────────

@@ -3,7 +3,7 @@ import { logGithub, newRequestId } from "@/app/_lib/logger";
 import { parseGithubUsername } from "@/app/_lib/github-handle";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { githubCacheKey, readGithubCache, writeGithubCache } from "@/app/_lib/github/cache";
-import { buildGithubAnalysis } from "@/app/_lib/github/analysis";
+import { buildGithubAnalysis, isTransientlyDegraded } from "@/app/_lib/github/analysis";
 import { GithubAnalysisError } from "@/app/_lib/github/client";
 
 // HTTP shell for the public-GitHub candidate analysis. Everything it needs —
@@ -52,7 +52,13 @@ export async function POST(request: Request) {
 
   try {
     const validated = await buildGithubAnalysis(username, jobDescription, requestId);
-    writeGithubCache(cacheKey, validated);
+    // Only a COMPLETE run is cacheable. A run degraded by a transient GitHub/Gemini
+    // failure still answers 200, and caching it made the panel's "retry shortly for a
+    // complete read" (and its Retry button) a no-op for the full TTL — serving the
+    // same knowingly-incomplete read of a candidate's work, with its original
+    // analyzedAt, as though it were final. Same rule the cache already applies to
+    // errors: a failure that a retry can clear must stay retryable.
+    if (!isTransientlyDegraded(validated)) writeGithubCache(cacheKey, validated);
     void logGithub({
       request_id: requestId,
       github_user: username,
