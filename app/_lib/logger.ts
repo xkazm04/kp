@@ -24,6 +24,26 @@ export function newRequestId(): string {
   return crypto.randomBytes(8).toString("hex");
 }
 
+/**
+ * A stable, NON-REPLAYABLE handle for a candidate capability token.
+ *
+ * `/schedule/<token>` is a capability link: the token IS the credential, it stays live
+ * after booking (it is the candidate's durable reschedule link — see the confirmation
+ * dispatch in app/api/schedule/[token]/route.ts), and the two schedule logs below are
+ * explicitly meant to be shipped to an alerting sink. Writing the raw token into a log
+ * line therefore hands anyone who can read logs — a hosted log vendor, an on-call
+ * console, stdout scraped by the platform, a log excerpt pasted into an issue — the
+ * ability to open that candidate's invite and rebook or cancel their interview.
+ *
+ * A truncated SHA-256 keeps everything the log is FOR (recognising repeat lines about
+ * the same invite, joining the console line to the file record) while being useless as
+ * a credential. The operator's ACTIONABLE handle is `entry_id`, logged right beside it,
+ * plus the invite's own `needs_reconcile` / `needs_more_slots` flag in the store.
+ */
+function inviteRef(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex").slice(0, 12);
+}
+
 async function appendLine(filename: string, payload: Record<string, unknown>): Promise<void> {
   ensureLogDir();
   try {
@@ -94,6 +114,8 @@ export async function logComms(entry: CommsLog): Promise<void> {
 // and reconcile invite/pipeline drift. A real deployment would ship
 // schedule-reconcile.log to an alerting sink.
 export type ScheduleReconcileLog = {
+  /** The invite's capability token. NEVER written out verbatim — it is fingerprinted
+   *  through {@link inviteRef} and recorded as `invite`. */
   token: string;
   entry_id: string;
   slot: string;
@@ -109,10 +131,12 @@ export function getScheduleReconcileCount(): number {
 
 export async function logScheduleReconcile(entry: ScheduleReconcileLog): Promise<void> {
   scheduleReconcileCount += 1;
+  const { token, ...rest } = entry;
+  const invite = inviteRef(token);
   console.error(
-    `[schedule:reconcile] confirmed invite but pipeline advance failed — token=${entry.token} entry=${entry.entry_id}: ${entry.error}`
+    `[schedule:reconcile] confirmed invite but pipeline advance failed — invite=${invite} entry=${entry.entry_id}: ${entry.error}`
   );
-  await appendLine("schedule-reconcile.log", entry);
+  await appendLine("schedule-reconcile.log", { invite, ...rest });
 }
 
 // Zero offerable slots. A candidate opened a scheduling link but every slot in
@@ -124,6 +148,8 @@ export async function logScheduleReconcile(entry: ScheduleReconcileLog): Promise
 // flagged (needs_more_slots) by the store. A real deployment would ship
 // schedule-no-slots.log to an alerting sink.
 export type ScheduleNoSlotsLog = {
+  /** The invite's capability token — fingerprinted, never logged verbatim (see
+   *  {@link inviteRef}). */
   token: string;
   entry_id: string | null; // pipeline entry the stalled invite belongs to (for the recruiter)
 };
@@ -138,8 +164,10 @@ export function getScheduleNoSlotsCount(): number {
 
 export async function logScheduleNoSlots(entry: ScheduleNoSlotsLog): Promise<void> {
   scheduleNoSlotsCount += 1;
+  const { token, ...rest } = entry;
+  const invite = inviteRef(token);
   console.error(
-    `[schedule:no-slots] candidate hit a fully-booked horizon — token=${entry.token} entry=${entry.entry_id ?? "?"}; recruiter must open more times`
+    `[schedule:no-slots] candidate hit a fully-booked horizon — invite=${invite} entry=${entry.entry_id ?? "?"}; recruiter must open more times`
   );
-  await appendLine("schedule-no-slots.log", entry);
+  await appendLine("schedule-no-slots.log", { invite, ...rest });
 }

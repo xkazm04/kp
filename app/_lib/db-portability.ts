@@ -425,6 +425,29 @@ function resolveRestoreScope(db: Database.Database, payload: OrgDumpPayload, org
   };
 }
 
+/** The rows of one dumped table a restore will actually INSERT.
+ *
+ *  Normally all of them. The one exception is an `org_shared` table (jd_templates,
+ *  decision_config) on a deployment that holds ANOTHER org: there `includeSharedTier`
+ *  is false, so orgPredicate drops the `workspace_id IS NULL` arm and the delete leaves
+ *  the deployment-global tier alone — re-inserting those rows would duplicate them.
+ *
+ *  Only THAT tier is skipped. Skipping the table wholesale (the shape this used to
+ *  have) also dropped the org's OWN team-private rows in the same table, which the
+ *  delete had just removed because the predicate's `workspace_id IN (…)` arm matched
+ *  them — a restore that reported `inserted: 0` while permanently deleting the org's
+ *  team-private template library and decision config.
+ *
+ *  A file whose columns predate `workspace_id` can't be split into tiers at all (every
+ *  row would insert with a NULL workspace_id, i.e. INTO the shared tier), so it is left
+ *  alone entirely rather than guessed at. */
+function restorableRows(t: DumpTable, scope: OrgScope): unknown[][] {
+  if (scope.includeSharedTier || orgExportClass(t.name) !== "org_shared") return t.rows;
+  const ws = t.columns.indexOf("workspace_id");
+  if (ws < 0) return [];
+  return t.rows.filter((row) => row[ws] != null);
+}
+
 export type OrgRestoreSummary = {
   tables: { name: string; deleted: number; inserted: number }[];
   /** False when another org shares this deployment, so the shared template/decision
@@ -465,15 +488,16 @@ export function restoreOrg(payload: OrgDumpPayload, orgId: string): OrgRestoreSu
         if (!pred) continue;
         const deleted = Number(db.prepare(`DELETE FROM "${t.name}" WHERE ${pred.sql}`).run(...pred.params).changes ?? 0);
         let inserted = 0;
-        if (t.rows.length > 0) {
+        // PER-ROW, never per-table: the out-of-scope shared tier is the NULL-workspace
+        // rows alone, and the delete above already cleared everything else this file
+        // carries for the table (see restorableRows).
+        const rows = restorableRows(t, scope);
+        if (rows.length > 0) {
           const cols = t.columns.map((c) => `"${c}"`).join(", ");
           const insert = db.prepare(
             `INSERT INTO "${t.name}" (${cols}) VALUES (${t.columns.map(() => "?").join(", ")})`
           );
-          for (const row of t.rows) {
-            // The shared tier is skipped as a WHOLE when another org is present — the
-            // delete left those rows alone, so re-inserting them would duplicate.
-            if (!scope.includeSharedTier && orgExportClass(t.name) === "org_shared") break;
+          for (const row of rows) {
             insert.run(...row.map(decodeCell));
             inserted += 1;
           }
@@ -521,7 +545,10 @@ export function planOrgRestore(payload: OrgDumpPayload, orgId: string): OrgResto
           pred && tableExists.get(t.name)
             ? Number((db.prepare(`SELECT COUNT(*) AS n FROM "${t.name}" WHERE ${pred.sql}`).get(...pred.params) as { n: number }).n ?? 0)
             : 0;
-        return { name: t.name, rows: t.rows.length, existing };
+        // `rows` is what the restore will actually INSERT, not what the file holds —
+        // on a multi-org deployment an org_shared table's NULL tier stays out of scope
+        // (restorableRows), and a preview that counted it would over-promise.
+        return { name: t.name, rows: restorableRows(t, scope).length, existing };
       });
     return {
       tables,

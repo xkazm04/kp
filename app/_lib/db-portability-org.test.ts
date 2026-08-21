@@ -23,6 +23,7 @@ import { createWorkspace, getWorkspace, listWorkspacesByOrg } from "./db/workspa
 import { createUser, listUsersByOrg } from "./db/users.ts";
 import { upsertMembership, listMembershipsForWorkspace } from "./db/memberships.ts";
 import { createPipelineEntry, listPipeline } from "./db/pipeline.ts";
+import { createTemplate, deleteTemplate, listTemplates } from "./templates-store.ts";
 
 after(() => cleanupUnitDb());
 
@@ -58,6 +59,12 @@ upsertMembership(userB.id, teamB.id, "owner");
 seedEntry(teamA1.id, "alice");
 seedEntry(teamA2.id, "amir");
 seedEntry(teamB.id, "bruno");
+
+// `jd_templates` is DUAL-TIER (see db-portability-shared-tier.test.ts): a team's own
+// drafts carry its workspace id, the deployment-global library lives in
+// `workspace_id IS NULL`. On THIS deployment a second org is present, so the NULL tier
+// is out of restore scope — the org's TEAM-PRIVATE half is very much in it.
+const draftA1 = createTemplate({ name: "Team A1 draft", body: "## Draft", scope: "team" }, teamA1.id);
 
 const backup: OrgDumpPayload = dumpOrg(DEFAULT_ORG_ID);
 
@@ -100,6 +107,33 @@ test("the dry run reports what would be replaced, and writes nothing", () => {
   assert.ok(plan.totalExisting > 0, "the headline count is what makes the confirm honest");
   assert.equal(plan.sharedTierRestored, false, "a second org shares this deployment");
   assert.deepEqual(names(teamA1.id), ["alice"], "planning is read-only");
+});
+
+test("a multi-org restore brings the org's TEAM-PRIVATE dual-tier rows back", () => {
+  // The out-of-scope shared tier used to be skipped as a WHOLE TABLE, one row into the
+  // insert loop — but the DELETE's `workspace_id IN (…)` arm had already removed the
+  // org's own team-private rows in the same table. The restore then reported
+  // `inserted: 0` and the operator saw a success summary while the team's template
+  // library was permanently gone. Prove the two tiers are told apart per row.
+  assert.ok(listTemplates(teamA1.id).some((t) => t.id === draftA1.id), "the draft is there before");
+  deleteTemplate(draftA1.id, teamA1.id);
+  assert.ok(!listTemplates(teamA1.id).some((t) => t.id === draftA1.id), "and gone before the restore");
+  const sharedBefore = listTemplates(teamA1.id).filter((t) => t.scope === "org").map((t) => t.id).sort();
+
+  const summary = restoreOrg(backup, DEFAULT_ORG_ID);
+  assert.equal(summary.sharedTierRestored, false, "the deployment-global NULL tier stays out of scope");
+
+  const visible = listTemplates(teamA1.id);
+  assert.ok(visible.some((t) => t.id === draftA1.id), "the team's private draft comes back");
+  const templates = summary.tables.find((t) => t.name === "jd_templates");
+  assert.ok(templates, "jd_templates was in scope");
+  assert.ok(templates.inserted > 0, "a table whose rows were deleted must not report inserted: 0");
+  // The NULL tier the delete never touched is neither cleared nor duplicated.
+  assert.deepEqual(
+    visible.filter((t) => t.scope === "org").map((t) => t.id).sort(),
+    sharedBefore,
+    "the shared library is untouched — no gap, no duplicate"
+  );
 });
 
 test("restoring rolls the org back, and leaves the other org alone", () => {
