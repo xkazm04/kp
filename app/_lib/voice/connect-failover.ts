@@ -51,20 +51,35 @@ export async function connectWithFailover(opts: {
    *  provider). Closes over the session + candidate-safe builder in the route. */
   resolveAgentPrompt: (served: VoiceProviderId, connect: VoiceConnect) => string | null;
 }): Promise<FailoverResult> {
-  const attempt = async (id: VoiceProviderId, failedOver: boolean): Promise<FailoverResult> => {
-    const connect = await opts.getAdapter(id).connect({ instructions: opts.instructions, language: opts.language });
-    return { provider: connect.provider, connect, agentPrompt: opts.resolveAgentPrompt(connect.provider, connect), failedOver };
-  };
+  const dial = (id: VoiceProviderId): Promise<VoiceConnect> =>
+    opts.getAdapter(id).connect({ instructions: opts.instructions, language: opts.language });
 
+  let connect: VoiceConnect;
+  let failedOver = false;
   try {
-    return await attempt(opts.preferred, false);
+    connect = await dial(opts.preferred);
   } catch (primaryErr) {
     const alternate = otherProvider(opts.preferred);
     if (!opts.availability[alternate]) throw primaryErr;
     try {
-      return await attempt(alternate, true);
+      connect = await dial(alternate);
     } catch {
       throw primaryErr;
     }
+    failedOver = true;
   }
+
+  // The prompt build sits OUTSIDE the failover trigger deliberately: ONLY a
+  // connect may cause a failover. Built inside it, a resolveAgentPrompt that
+  // threw was indistinguishable from a dead provider — the preferred provider
+  // had ALREADY minted a real credential, and the "rescue" minted a SECOND one
+  // on the other provider (the PAID one whenever the preferred is a self-hosted
+  // service), flipped the session onto it and logged a failover that never
+  // happened. A failing brief build must surface as itself.
+  return {
+    provider: connect.provider,
+    connect,
+    agentPrompt: opts.resolveAgentPrompt(connect.provider, connect),
+    failedOver,
+  };
 }

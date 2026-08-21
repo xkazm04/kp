@@ -10,15 +10,28 @@
 //
 // THE SECURITY BOUNDARY IS THE SANITIZER IN THIS FILE. It is an explicit
 // ALLOW-LIST transform: a candidate-safe block is CONSTRUCTED from scratch out
-// of the few fields that are candidate-facing by existing product stance —
-// topics (the portal already renders session.runOfShow to the candidate),
-// the questions the agent asks aloud anyway, and the time-boxes. Everything
-// else — `goal` (routinely embeds "Listen for:" / whatsGoodLooksLike
-// assessment guidance), `listenFor`, `redFlag`, coachability stage directions,
-// any field added to the source shapes in the future — does not survive,
-// because nothing survives that is not explicitly picked. Never turn this into
-// a deny-list ("copy the object, delete the private fields"): a new private
-// field upstream would silently leak.
+// of the few fields that are candidate-facing — the topic LABEL, the questions
+// the agent asks aloud anyway, and the time-boxes. Everything else — `goal`
+// (routinely embeds "Listen for:" / whatsGoodLooksLike assessment guidance),
+// `listenFor`, `redFlag`, coachability stage directions, any field added to the
+// source shapes in the future — does not survive, because nothing survives that
+// is not explicitly picked. Never turn this into a deny-list ("copy the object,
+// delete the private fields"): a new private field upstream would silently leak.
+//
+// PICKING THE FIELD IS NOT ENOUGH FOR THE TOPIC. An earlier revision of this
+// comment justified topics with "the portal already renders session.runOfShow to
+// the candidate". The portal does render it (app/interview/[token]/page.tsx →
+// InterviewSidebar), but that is a PRECEDENT, not a safety proof — and it is the
+// same leak: `session.runOfShow` IS `chronology[].topic`
+// (interview-run.ts::buildGroundedInterview), the topic is the LLM's free-text
+// `competency` from an interviewer prompt that says "Cover the missing
+// must-haves", and both /api/interview/connect and /api/interview/complete
+// fixture those topics as "Test automation fundamentals (missing must-have)" /
+// "Motivation (aspiration mismatch)" — the annotation shapes TP-L2-VOICE-01
+// found in the wild — precisely because they carry them. /complete's projection
+// strips `runOfShow` for that reason. So the topic's CONTENT is scrubbed here
+// (candidateSafeTopic) rather than trusted; the portal's own rendering of the
+// raw run-of-show is a separate leak, outside this module.
 //
 // Pure and dependency-free below the persona constants so the boundary is
 // unit-testable without a DB (candidate-brief.test.ts pins that internal
@@ -47,15 +60,42 @@ const asCleanString = (v: unknown): string | null =>
 const asQuestionList = (v: unknown): string[] =>
   Array.isArray(v) ? v.map(asCleanString).filter((q): q is string => q !== null) : [];
 
+/** A candidate-facing agenda entry is a LABEL, not prose: the interviewer-facing
+ *  fields are where guidance belongs, so anything past this is truncated rather
+ *  than narrated to the candidate. */
+const MAX_TOPIC_CHARS = 80;
+
+/** Scrub a topic LABEL down to what a candidate may hear (see the header note).
+ *  Assessment annotations ride INSIDE the label as a bracketed aside —
+ *  "Test automation fundamentals (missing must-have)", "Motivation (aspiration
+ *  mismatch)" — so asides are removed (an unterminated bracket cuts to the end)
+ *  and the remainder is length-capped. A label that is nothing BUT an aside
+ *  scrubs to empty and returns null, which drops the whole block. Deliberately a
+ *  shape rule, not a vocabulary: a new annotation phrase still lands in the same
+ *  bracket, and a deny-list of phrases would silently miss the next one. */
+export function candidateSafeTopic(raw: unknown): string | null {
+  const s = asCleanString(raw);
+  if (!s) return null;
+  const stripped = s
+    .replace(/[([][^)\]]*[)\]]/g, " ") // a complete "(…)" / "[…]" aside
+    .replace(/[([][\s\S]*$/, " ") // an unterminated aside takes the rest of the label
+    .replace(/\s+/g, " ")
+    .replace(/^[\s,;:.–—-]+|[\s,;:.–—-]+$/g, "")
+    .trim();
+  if (!stripped) return null;
+  return stripped.length > MAX_TOPIC_CHARS ? stripped.slice(0, MAX_TOPIC_CHARS).trimEnd() : stripped;
+}
+
 /** Allow-list pick from an interview-prep chronology block ({ topic, goal,
  *  questions, followUp, fromMin, toMin }). `goal` is deliberately NOT picked —
  *  prep goals embed whatsGoodLooksLike / "Listen for:" assessment guidance.
  *  `followUp` IS picked (into questions): it is interrogative material the
- *  agent asks aloud, same class as questions. */
+ *  agent asks aloud, same class as questions. The topic is picked through
+ *  candidateSafeTopic — the label itself carries gap annotations. */
 export function sanitizeChronologyBlock(block: unknown): CandidateSafeBlock | null {
   if (!block || typeof block !== "object") return null;
   const b = block as Record<string, unknown>;
-  const topic = asCleanString(b.topic);
+  const topic = candidateSafeTopic(b.topic);
   if (!topic) return null;
   const questions = asQuestionList(b.questions);
   const followUp = asCleanString(b.followUp);
@@ -67,7 +107,9 @@ export function sanitizeChronologyBlock(block: unknown): CandidateSafeBlock | nu
 }
 
 /** Allow-list pick from a student-script / case-scenario phase. `listenFor`,
- *  `goal`, `feeds` and `caseRef` never survive. The probe survives ONLY when it
+ *  `goal`, `feeds` and `caseRef` never survive; the phase name rides the same
+ *  candidateSafeTopic scrub as a chronology topic (a designed case's phase names
+ *  are generated too). The probe survives ONLY when it
  *  is a plain aloud question: coachability phases (feeds includes
  *  "Coachability") carry scripted stage directions — the deliberate hint the
  *  agent injects and observes — which must never reach the browser, so those
@@ -75,7 +117,7 @@ export function sanitizeChronologyBlock(block: unknown): CandidateSafeBlock | nu
 export function sanitizeScenarioPhase(phase: unknown): CandidateSafeBlock | null {
   if (!phase || typeof phase !== "object") return null;
   const p = phase as Record<string, unknown>;
-  const topic = asCleanString(p.phase);
+  const topic = candidateSafeTopic(p.phase);
   if (!topic) return null;
   const feeds = Array.isArray(p.feeds) ? p.feeds : [];
   const isCoachability = feeds.some((f) => typeof f === "string" && f.toLowerCase() === "coachability");

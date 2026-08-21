@@ -120,6 +120,36 @@ test("preferred throws but the OTHER provider is not available → re-throws the
   assert.deepEqual(calls, ["elevenlabs"]);
 });
 
+// ONLY a connect may trigger a failover. Pre-fix the prompt build ran inside the
+// same try, so a throwing resolveAgentPrompt looked exactly like a dead provider:
+// the preferred provider had ALREADY minted a real credential, and the "rescue"
+// minted a SECOND one on the other provider — the PAID one when the preferred is a
+// self-hosted (free) service — then flipped the session onto it and logged a
+// failover that never happened.
+test("a throwing resolveAgentPrompt is NOT a connect failure — no second (paid) mint", async () => {
+  const { getAdapter, calls } = adapters({
+    elevenlabs: stubAdapter(EL_CONNECT),
+    openai: stubAdapter(OAI_CONNECT),
+  });
+  await assert.rejects(
+    connectWithFailover({
+      preferred: "elevenlabs",
+      instructions: "brief",
+      language: "en",
+      getAdapter,
+      availability: bothAvailable,
+      // Only the EL brief path fails; OpenAI needs no client prompt — so pre-fix
+      // this RESOLVED on OpenAI instead of surfacing the real failure.
+      resolveAgentPrompt: (served) => {
+        if (served === "elevenlabs") throw new Error("candidate-safe brief build failed");
+        return null;
+      },
+    }),
+    /candidate-safe brief build failed/
+  );
+  assert.deepEqual(calls, ["elevenlabs"], "the preferred provider connected — the alternate must not be dialled");
+});
+
 test("both providers throw → surfaces the PREFERRED provider's error", async () => {
   const { getAdapter } = adapters({
     elevenlabs: stubAdapter(new Error("EL primary boom")),

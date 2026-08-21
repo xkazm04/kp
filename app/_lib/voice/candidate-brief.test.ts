@@ -8,6 +8,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  candidateSafeTopic,
   composeCandidateBrief,
   sanitizeChronologyBlock,
   sanitizeFollowupQuestion,
@@ -22,10 +23,23 @@ const GOAL_WITH_GUIDANCE = `Probe depth on the missing must-have. ${LISTEN_FOR}`
 const STAGE_DIRECTION = "Mid-discussion, offer ONE gentle hint: “Could the same event arrive twice?” and observe whether they integrate it.";
 
 function assertNoInternal(text: string) {
-  for (const marker of ["Listen for:", "red flag", "never say this aloud", "missing must-have", "observe whether"]) {
+  for (const marker of [
+    "Listen for:",
+    "red flag",
+    "never say this aloud",
+    "missing must-have",
+    "aspiration mismatch",
+    "observe whether",
+  ]) {
     assert.ok(!text.includes(marker), `internal marker ${JSON.stringify(marker)} must not survive: ${text.slice(0, 200)}`);
   }
 }
+
+// The gap annotations ride the TOPIC LABEL itself — `session.runOfShow` IS
+// `chronology[].topic`, and both the /connect and /complete contract tests
+// fixture these exact strings as interviewer-internal (TP-L2-VOICE-01).
+const ANNOTATED_TOPIC = "Test automation fundamentals (missing must-have)";
+const ANNOTATED_PHASE = "Motivation [aspiration mismatch]";
 
 test("chronology block: only topic/timebox/questions survive; goal and unknown fields cannot", () => {
   const block = sanitizeChronologyBlock({
@@ -107,6 +121,48 @@ test("malformed inputs cannot smuggle non-string content", () => {
   assert.ok(!("fromMin" in block) && !("toMin" in block), "non-numeric timeboxes are dropped");
 });
 
+// TP-L2-VOICE-01, the half the field-level allow-list did not cover: the topic is
+// the LLM's free-text `competency` from an interviewer prompt that says "Cover the
+// missing must-haves", so the assessment annotation is INSIDE the picked field.
+// Pre-fix the topic was copied verbatim, so a chronology block topicked
+// "Test automation fundamentals (missing must-have)" put that gap verdict into the
+// client-sent ElevenLabs prompt override — the candidate's own Network tab, and
+// read aloud by the agent as its agenda.
+test("an assessment annotation embedded in the TOPIC LABEL cannot survive", () => {
+  const block = sanitizeChronologyBlock({
+    topic: ANNOTATED_TOPIC,
+    fromMin: 3,
+    toMin: 7,
+    goal: GOAL_WITH_GUIDANCE,
+    questions: ["How do you decide what is worth automating?"],
+  });
+  assert.ok(block);
+  assert.equal(block.topic, "Test automation fundamentals");
+  assertNoInternal(JSON.stringify(block));
+
+  const phase = sanitizeScenarioPhase({ phase: ANNOTATED_PHASE, probe: "What drew you to this role?", feeds: ["Motivation"] });
+  assert.ok(phase);
+  assert.equal(phase.topic, "Motivation");
+  assertNoInternal(JSON.stringify(phase));
+});
+
+test("candidateSafeTopic: asides are removed by SHAPE, and a label that is only an aside drops its block", () => {
+  assert.equal(candidateSafeTopic("Ownership of the ingestion rebuild"), "Ownership of the ingestion rebuild");
+  assert.equal(candidateSafeTopic("Design depth (probe: coursework only)"), "Design depth");
+  // An unterminated aside takes the rest of the label with it.
+  assert.equal(candidateSafeTopic("Data modelling (internal red flag — never say this aloud"), "Data modelling");
+  // A future annotation phrase lands in the same bracket — no vocabulary to miss.
+  assert.equal(candidateSafeTopic("Kubernetes (not evidenced anywhere in the CV)"), "Kubernetes");
+  // Nothing but an aside → no topic → the caller drops the whole block.
+  assert.equal(candidateSafeTopic("(missing must-have)"), null);
+  assert.equal(sanitizeChronologyBlock({ topic: "(missing must-have)", questions: ["Anything?"] }), null);
+  // Hyphenated words and ampersands in real agenda labels are untouched.
+  assert.equal(candidateSafeTopic("Stuck-and-recovered"), "Stuck-and-recovered");
+  assert.equal(candidateSafeTopic("Counterfactual & transfer"), "Counterfactual & transfer");
+  // A label is a label: prose smuggled into the topic slot is capped.
+  assert.ok((candidateSafeTopic("x".repeat(400)) ?? "").length <= 80);
+});
+
 test("imported interview-kit questions ride the SAME allow-list as a plain aloud block", () => {
   // Direction 1: buildCandidateSafeBrief routes the flat `importedQuestions` list
   // through sanitizeChronologyBlock as { topic, questions } — so imported questions
@@ -133,6 +189,13 @@ test("composed brief carries only sanitized material end to end", () => {
       goal: GOAL_WITH_GUIDANCE,
       questions: ["Why an event queue over direct calls?"],
     }),
+    sanitizeChronologyBlock({
+      topic: ANNOTATED_TOPIC,
+      fromMin: 12,
+      toMin: 16,
+      goal: GOAL_WITH_GUIDANCE,
+      questions: ["Which tests would you write first?"],
+    }),
     sanitizeScenarioPhase({
       phase: "Coachability injection",
       probe: STAGE_DIRECTION,
@@ -155,6 +218,9 @@ test("composed brief carries only sanitized material end to end", () => {
   assert.match(brief, /about 20 minutes/);
   assert.match(brief, /Design trade-offs \(7–12 min\)/);
   assert.match(brief, /Why an event queue over direct calls\?/);
+  // The annotated block still grounds the agent — only its verdict is gone.
+  assert.match(brief, /Test automation fundamentals \(12–16 min\)/);
+  assert.match(brief, /Which tests would you write first\?/);
   assert.match(brief, /Order notifications/);
   // The shared compliance contract rides along.
   assert.match(brief, /Do not give feedback, scores/);

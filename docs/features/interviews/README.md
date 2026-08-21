@@ -33,6 +33,18 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    (`buildCandidateSafeBrief` in `app/_lib/interview-run.ts`) as an
    ElevenLabs prompt override. A tokenless/lab connect gets no brief and the
    ElevenLabs dashboard-configured agent prompt runs instead.
+   The ElevenLabs override is **client-sent** (it transits the candidate's
+   browser), so everything in it passes the allow-list sanitizers in
+   `app/_lib/voice/candidate-brief.ts`: a candidate-safe block is constructed
+   from scratch out of the topic label, the questions asked aloud and the
+   time-boxes — `goal`, `listenFor`, `redFlag`, coachability stage directions
+   and any future private field cannot survive. Picking the *field* is not
+   enough for the topic: `session.runOfShow` **is** `chronology[].topic`, whose
+   text is the LLM's free-form `competency` and routinely carries gap verdicts
+   (`"Test automation fundamentals (missing must-have)"`), so
+   `candidateSafeTopic()` also scrubs the label's **content** — bracketed asides
+   are removed by shape (not by phrase vocabulary) and the label is
+   length-capped. Pinned by `app/_lib/voice/candidate-brief.test.ts`.
 3. **Live call.** `app/_components/voice/VoiceInterview.tsx` (+
    `VoiceInterviewClient.tsx`, `InterviewSidebar.tsx`) drives either adapter —
    the two realtime transports live side by side under
@@ -109,7 +121,8 @@ by both the portal page and `/api/interview/connect`:
 | `app/_lib/voice/index.ts` | Adapter registry, default-provider policy, candidate-safe default brief |
 | `app/_lib/voice/elevenlabs.ts`, `openai.ts` | The two provider adapters |
 | `app/_lib/voice/self-hosted.ts` | Self-hosted ElevenLabs-compatible endpoint detection (see below) |
-| `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks |
+| `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks (only a **connect** triggers a failover — a failing prompt build surfaces as itself, never as a second mint on the other provider) |
+| `app/_lib/voice/candidate-brief.ts` | The client-sent ElevenLabs brief's security boundary: allow-list sanitizers + `candidateSafeTopic` |
 | `app/_lib/voice/minute-prices.ts` | Per-minute cost estimates for the usage ledger |
 | `app/_lib/interview-scorecard.ts`, `interview-telemetry.ts`, `interview-transcript.ts` | Post-call scoring + telemetry |
 | `app/_lib/interview-rubric.ts` | The scorecard rubric resolved from `pipeline/jobfit/interview-rubrics.json` (base axes by scoring model + industry axes by role family), its version hash, and `rubricCoverage` (below) |
@@ -249,6 +262,40 @@ self-hosted service is whatever the SDK is told to connect to.
 
 ## Known gaps
 
+- **The candidate portal renders the raw run-of-show.**
+  `app/interview/[token]/page.tsx` passes `session.runOfShow` straight into
+  `InterviewSidebar`, and those strings are the unsanitized chronology topics —
+  the same ones `/api/interview/complete`'s projection strips and
+  `candidateSafeTopic()` now scrubs on the ElevenLabs path. A prep pack whose
+  competency reads `"Test automation fundamentals (missing must-have)"` shows
+  that gap verdict to the candidate in the agenda. Fix: route the stored
+  `runOfShow` (or the portal's render of it) through `candidateSafeTopic`.
+- **Failover can cross the free→paid boundary with no reservation behind it.**
+  `app/api/interview/simulate/route.ts` deliberately skips the
+  `interview_minutes` gate when the ElevenLabs base URL is a self-hosted
+  (loopback/private) service, and `/api/interview/connect` raises the per-token
+  connect throttle to 120/10 min on the same premise — but it reads
+  `isSelfHostedVoice()` (an env fact) *before* the session's provider is
+  resolved, so an **OpenAI** session on an install that also runs a local voice
+  service gets the 120/10 min budget on a fully paid credential mint. The check
+  it wants is `isSelfHostedProvider(provider)`, which requires moving the
+  throttle below provider resolution. If the local service is
+  down, `connectWithFailover` retries on **OpenAI Realtime** — real money — and
+  `setInterviewSessionProvider` flips the session, so `/complete` debits the
+  meter and stamps the paid per-minute cost for a call no gate ever checked.
+  The seam already reports the crossing (`FailoverResult.provider` is the
+  provider that actually served, plus `failedOver`); the decision belongs in
+  the route — e.g. pass `availability: { ...voiceAvailability(), openai: false }`
+  when the preferred provider is the self-hosted one, or run the skipped
+  `meterGate` before accepting the paid alternate.
+- **Self-hosted minutes are gate-skipped but still debited.** `/simulate` skips
+  `meterGate` for a self-hosted provider ("metering a free simulation would make
+  a self-hosted install run out of a budget it is not consuming"), but
+  `/api/interview/complete` calls `recordMeterUsage("interview_minutes", …)`
+  unconditionally — so the quota is consumed without ever being reserved, and a
+  self-hosted install burns prepaid minutes on calls that cost nothing.
+  `voiceMinuteCostUsd` already returns `0` for those sessions; the meter debit
+  needs the symmetric `isSelfHostedProvider(session.provider)` check.
 - ASR can corrupt technology terms in transcripts (a "low WER, high semantic
   damage" failure — a spoken skill can be silently substituted for another
   before the scorecard scores it). A static agent-level `asr.keywords` bias
