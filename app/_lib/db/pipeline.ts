@@ -552,13 +552,19 @@ export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): Pipeli
 export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): number {
   const db = ensureDb();
   const now = new Date().toISOString();
+  // The placed candidate's column resolved by ROLE on THIS workspace's board (the
+  // rematchSourceEntry idiom), never the literal 'Hired': on a board whose terminal
+  // column carries another id, a name comparison spares nobody and the close
+  // withdraws the very candidate the role was FILLED with — flipping a real hire to
+  // `role_closed`. Bound as a parameter, resolved before the transaction opens.
+  const hiredStage = stageWithRole("terminal", getPipelineAxis(workspaceId).stages) ?? PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
   const tx = db.transaction((): number => {
     const rows = db
       .prepare(
         `SELECT id, candidate_label, job_title, archetype, stage
-           FROM pipeline_entries WHERE job_id = ? AND status = 'active' AND stage != 'Hired' AND workspace_id = ?`
+           FROM pipeline_entries WHERE job_id = ? AND status = 'active' AND stage != ? AND workspace_id = ?`
       )
-      .all(jobId, workspaceId) as { id: string; candidate_label: string; job_title: string | null; archetype: string; stage: string }[];
+      .all(jobId, hiredStage, workspaceId) as { id: string; candidate_label: string; job_title: string | null; archetype: string; stage: string }[];
     for (const r of rows) {
       db.prepare(`UPDATE pipeline_entries SET status='role_closed', approval_kind=NULL, updated_at=? WHERE id=? AND workspace_id=?`).run(now, r.id, workspaceId);
       recordEvent(db, {
@@ -731,11 +737,19 @@ export function listJobPipelineStats(
     )
     .all(workspaceId) as { job_id: string; stage: string; n: number }[];
   const out: Record<string, { total: number; reachedInterview: number; hired: number }> = {};
+  // THIS WORKSPACE's axis, exactly like analytics' byJob (which resolves it and
+  // passes it to the same predicate). Called without the axis, hasAdvancedPastScreening
+  // falls back to the shipped five names, so on a board with an added or replaced
+  // column every occupant indexes to -1 and the JD library reports "0 reached
+  // interview" for candidates analytics counts correctly — the drift this rollup's
+  // "the two surfaces cannot disagree" contract exists to prevent. `hired` reads the
+  // terminal ROLE for the same reason (G8), never the literal stage name.
+  const axis = getPipelineAxis(workspaceId).stages;
   for (const r of rows) {
     const m = (out[r.job_id] ??= { total: 0, reachedInterview: 0, hired: 0 });
     m.total += r.n;
-    if (hasAdvancedPastScreening(r.stage)) m.reachedInterview += r.n;
-    if (r.stage === "Hired") m.hired += r.n;
+    if (hasAdvancedPastScreening(r.stage, axis)) m.reachedInterview += r.n;
+    if (stageHasRole(r.stage, "terminal", axis)) m.hired += r.n;
   }
   return out;
 }
@@ -748,15 +762,20 @@ export function listJobPipelineStats(
  *  declares — those are exactly the people a migration has to account for, and a
  *  count that quietly omitted them would make an unsafe edit look safe.
  *
- *  Terminal rows (`rejected` / `declined`) are excluded to match `listPipeline`:
- *  the board does not show them, so removing their column strands nobody. */
+ *  Terminal rows are excluded to match `listPipeline`: the board does not show
+ *  them, so removing their column strands nobody. Derived from the status taxonomy
+ *  (TERMINAL_STATUS_SQL_LIST — all FOUR terminal states), not a hand-written
+ *  ('rejected','declined') pair: that literal counted `role_closed` and `rematched`
+ *  candidates as occupants of a column nobody is standing on, so removing a step a
+ *  closed role left behind was refused with a "these steps still hold candidates"
+ *  409 naming people the board does not draw. */
 export function countPipelineByStage(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, number> {
   const db = ensureDb();
   const rows = db
     .prepare(
       `SELECT stage, COUNT(*) AS n
          FROM pipeline_entries
-        WHERE workspace_id = ? AND status NOT IN ('rejected', 'declined')
+        WHERE workspace_id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST}
         GROUP BY stage`
     )
     .all(workspaceId) as { stage: string; n: number }[];
@@ -783,10 +802,14 @@ export type StageMigration = { fromStage: string; toStage: string };
  *    carrying from/to, so a recruiter opening a candidate three weeks later finds
  *    "the board changed" rather than an unexplained jump. A bulk "the axis
  *    changed" note on nothing in particular would not answer that.
- *  - **Terminal rows untouched.** `rejected` / `declined` entries are excluded,
- *    matching `listPipeline` and `countPipelineByStage`: they are not on the
- *    board, so removing their column strands nobody and moving them would
- *    rewrite closed history.
+ *  - **Terminal rows untouched.** Closed-out entries are excluded, matching
+ *    `listPipeline` and `countPipelineByStage`: they are not on the board, so
+ *    removing their column strands nobody and moving them would rewrite closed
+ *    history. All FOUR terminal statuses, off the taxonomy — the old
+ *    ('rejected','declined') literal let a `role_closed` candidate be re-staged
+ *    by a board edit, which both wrote a `stage_migrated` event onto a closed
+ *    record and broke `reopenEntriesByJobId`'s guarantee that a reopen returns
+ *    each candidate to their exact PRE-CLOSE stage (they came back demoted).
  *
  * Returns the number of entries actually moved. Legs whose `fromStage` holds
  * nobody are no-ops, so a caller may pass a mapping it computed optimistically.
@@ -799,11 +822,11 @@ export function migratePipelineStages(
   const db = ensureDb();
   const affected = db.prepare(
     `SELECT id, candidate_label, job_title, archetype FROM pipeline_entries
-      WHERE workspace_id = ? AND stage = ? AND status NOT IN ('rejected', 'declined')`
+      WHERE workspace_id = ? AND stage = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST}`
   );
   const move = db.prepare(
     `UPDATE pipeline_entries SET stage = ?, stage_changed_at = ?
-      WHERE workspace_id = ? AND stage = ? AND status NOT IN ('rejected', 'declined')`
+      WHERE workspace_id = ? AND stage = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST}`
   );
   // IMMEDIATE so the read→compute→write below cannot interleave with a concurrent
   // stage change (the repo's actOnPipelineEntry convention).
@@ -876,8 +899,9 @@ export function listReconsiderQueue(limit = 50, workspaceId: string = DEFAULT_WO
   return rows.map((r) => ({ entry: rowToEntry(r), rejectedAt: r.rejected_at ?? null }));
 }
 
-/** Reverse an auto-rejection: put the entry back to active at Screened for a
- *  fresh look, clearing any approval and recording a `reinstated` reversal event
+/** Reverse an auto-rejection: put the entry back to active at the board's
+ *  already-screened landing column for a fresh look ("Screened" on the default
+ *  axis), clearing any approval and recording a `reinstated` reversal event
  *  for the audit trail. Guarded to entries that are actually `rejected` (never a
  *  candidate-side `declined`/`rematched`), so a double-click or stale view is a
  *  no-op. Returns the reinstated entry, or null if it wasn't reinstatable. NB: the
@@ -893,6 +917,12 @@ export function reinstatePipelineEntry(
   actorRef?: string | null
 ): PipelineEntry | null {
   const db = ensureDb();
+  // Where an already-assessed candidate belongs on THIS workspace's board — the
+  // same screenedLandingStage createPipelineEntry files a match fan-out onto, not
+  // the literal 'Screened'. A workspace that removed that column got its reinstated
+  // candidates parked on a RETIRED stage the board no longer draws: reversed on the
+  // record, invisible in the queue that was supposed to re-review them.
+  const landingStage = screenedLandingStage(getPipelineAxis(workspaceId).stages) || "Screened";
   const tx = db.transaction((): PipelineEntry | null => {
     const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
     if (!row || row.status !== "rejected") return null;
@@ -900,11 +930,11 @@ export function reinstatePipelineEntry(
     const res = db
       .prepare(
         `UPDATE pipeline_entries
-            SET status='active', stage='Screened', approval_kind=NULL, approval_detail=NULL,
+            SET status='active', stage=?, approval_kind=NULL, approval_detail=NULL,
                 stage_changed_at=?, updated_at=?
           WHERE id=? AND status='rejected' AND workspace_id=?`
       )
-      .run(now, now, id, workspaceId);
+      .run(landingStage, now, now, id, workspaceId);
     if (res.changes === 0) return null; // lost a race to another writer
     recordEvent(db, {
       entryId: id,
@@ -913,7 +943,7 @@ export function reinstatePipelineEntry(
       archetype: row.archetype,
       kind: "reinstated",
       fromStage: row.stage,
-      toStage: "Screened",
+      toStage: landingStage,
       detail: "Auto-rejection reversed for re-review.",
       actor: actorRef ?? null,
     });
@@ -1750,7 +1780,7 @@ export function anonymizeExpiredConsents(nowIso: string = new Date().toISOString
   const due = db
     .prepare(
       `SELECT id, workspace_id FROM pipeline_entries
-        WHERE consent_expires_at IS NOT NULL AND consent_expires_at <= ? AND anonymized_at IS NULL`
+        WHERE consent_expires_at IS NOT NULL AND consent_expires_at <= ? AND anonymized_at IS NULL -- tenancy:global`
     )
     .all(nowIso) as { id: string; workspace_id: string }[];
   let count = 0;
@@ -1981,6 +2011,24 @@ export function hasEventToday(entryId: string, kind: string, workspaceId: string
 
 export type PipelineAction = "accept" | "reject" | "approve_event";
 
+/** The column an advance lands on: the NEXT one along THIS workspace's board.
+ *
+ *  Every advance used to walk the compile-time PIPELINE_STAGES, which answers a
+ *  different question the moment a workspace composes its own axis (Settings →
+ *  Hiring): a candidate standing on a column that list does not contain indexed to
+ *  -1, and `PIPELINE_STAGES[min(-1 + 1, 4)]` is the FIRST canonical stage — so
+ *  "advance" walked them BACKWARD to the front of the funnel and wrote an
+ *  `advanced` event naming a column their board may not even draw.
+ *
+ *  An off-axis stage (a retired column, a legacy row) has no "next" to resolve, so
+ *  the entry stays put and the caller's no-move branch handles it: we never guess a
+ *  destination for somebody nobody has re-classified yet (the roleOf doctrine). */
+function nextStageOnAxis(stage: string, axis: readonly StageDef[]): string {
+  const i = stageIndex(stage, axis);
+  if (i < 0) return stage;
+  return axis[Math.min(i + 1, axis.length - 1)]?.id ?? stage;
+}
+
 /** Apply a pipeline action. The read→compute→write runs inside an IMMEDIATE
  *  transaction (idea-b6310b92): the write lock is taken at BEGIN, so a write
  *  from another connection (offers-store, schedule-store, a second process)
@@ -2012,6 +2060,10 @@ export function actOnPipelineEntry(
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): PipelineEntry | null {
   const db = ensureDb();
+  // THIS workspace's board, resolved once BEFORE the transaction opens (the
+  // decision-config store is a separate connection — rematchSourceEntry does the
+  // same). Every stage move below walks it instead of the compile-time list.
+  const axis = getPipelineAxis(workspaceId).stages;
   const tx = db.transaction((): PipelineEntry | null => {
   const row = db.prepare(`SELECT * FROM pipeline_entries WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as PipelineRow | undefined;
   if (!row) return null;
@@ -2077,12 +2129,16 @@ export function actOnPipelineEntry(
     // Honor a slot override (the shared calendar lets you move a candidate's
     // proposed time); fall back to the originally-proposed slot.
     const slot = detail && detail.trim() ? detail.trim() : row.approval_detail;
-    // Scheduling advances Screening → Interview, but must never move backward: a
-    // stale or reused schedule link confirmed after the candidate already reached
-    // Offer/Hired records the slot without regressing their stage.
-    const interviewIdx = PIPELINE_STAGES.indexOf("Interview");
-    const curIdx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
-    const toStage = curIdx > interviewIdx ? row.stage : "Interview";
+    // Scheduling advances the candidate onto the evaluation column, but must never
+    // move backward: a stale or reused schedule link confirmed after the candidate
+    // already reached Offer/Hired records the slot without regressing their stage.
+    // The destination is THIS board's screening gate (the first stage where a real
+    // look happens, by ROLE) — on the default axis that IS "Interview", but a
+    // workspace that replaced that column would otherwise have every confirmed slot
+    // park its candidate on a stage the board does not draw.
+    const gateIdx = screeningGateIndex(axis);
+    const curIdx = stageIndex(row.stage, axis);
+    const toStage = curIdx > gateIdx ? row.stage : axis[gateIdx]?.id ?? row.stage;
     if (toStage !== row.stage) {
       db.prepare(
         `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
@@ -2099,16 +2155,14 @@ export function actOnPipelineEntry(
     // Accepting an AI screening flows the candidate into interview scheduling:
     // advance a stage AND queue them on the calendar (Schedule tab) with a
     // default proposed slot, so the interviewer can pick a time + open the prep.
-    const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
-    const next = PIPELINE_STAGES[Math.min(idx + 1, PIPELINE_STAGES.length - 1)];
+    const next = nextStageOnAxis(row.stage, axis);
     db.prepare(
       `UPDATE pipeline_entries SET stage=?, approval_kind='calendar', approval_detail=?, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`
     ).run(next, "Tue 14:00", now, now, id, workspaceId);
     recordEvent(db, { ...meta, kind: auto ? "auto_advanced" : "advanced", toStage: next, detail: decisionNote });
   } else {
     // accept: advance one stage, clear any pending approval
-    const idx = PIPELINE_STAGES.indexOf(row.stage as PipelineStage);
-    const next = PIPELINE_STAGES[Math.min(idx + 1, PIPELINE_STAGES.length - 1)];
+    const next = nextStageOnAxis(row.stage, axis);
     if (next !== row.stage) {
       db.prepare(
         `UPDATE pipeline_entries SET stage=?, approval_kind=NULL, approval_detail=NULL, stage_changed_at=?, updated_at=? WHERE id=? AND workspace_id=?`

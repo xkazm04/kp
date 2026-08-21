@@ -10,10 +10,12 @@ import {
   actOnPipelineEntry,
   anonymizeEntry,
   anonymizeExpiredConsents,
+  closeEntriesByJobId,
   createPipelineEntry,
   getPipelineEntry,
   hasEvent,
   listConsentEvents,
+  listJobPipelineStats,
   listPipeline,
   listPipelineEventsForEntry,
   PIPELINE_STAGES,
@@ -23,6 +25,7 @@ import {
   setApproval,
   setPipelineEntryStage,
 } from "./pipeline.ts";
+import { setDecisionConfig } from "../decision-config-store.ts";
 
 after(() => cleanupUnitDb());
 
@@ -249,6 +252,103 @@ test("listPipeline hides terminal entries from the active board", () => {
   const ids = new Set(board.map((e) => e.id));
   assert.ok(ids.has(live.id), "active entry is on the board");
   assert.ok(!ids.has(closed.id), "rejected entry must not leak back onto the board");
+});
+
+// ─── The board axis is per-workspace DATA (Settings → Hiring) ────────────────
+// Every test above runs on the shipped five columns, where reading the
+// compile-time PIPELINE_STAGES and reading the workspace's own axis give the same
+// answer — so none of them can see a stage move that walks the wrong list. These
+// do: one workspace composes a board that shares NO ids with the default, and the
+// store's moves have to land on ITS columns.
+const AXIS_WS = "ws-custom-axis";
+const CUSTOM_AXIS = [
+  { id: "Inbox", label: "Inbox", role: "entry" },
+  { id: "Reviewed", label: "Reviewed", role: "screening" },
+  { id: "Onsite", label: "Onsite", role: "interview" },
+  { id: "Deciding", label: "Deciding", role: "offer" },
+  { id: "Placed", label: "Placed", role: "terminal" },
+];
+setDecisionConfig("pipelineStages", { stages: CUSTOM_AXIS, retired: [] }, AXIS_WS, "team");
+
+let axisSeq = 0;
+function axisEntry(stage: string, jobId = "axis-job") {
+  axisSeq += 1;
+  const { entry } = createPipelineEntry({
+    candidateId: `axis-c${axisSeq}`,
+    candidateLabel: `Axis Tester ${axisSeq}`,
+    jobId,
+    jobTitle: "Axis Role",
+    stage,
+    workspaceId: AXIS_WS,
+  });
+  assert.equal(entry.stage, stage);
+  return entry;
+}
+
+test("an advance walks THIS workspace's board, never the compile-time axis", () => {
+  // Standing on a column the shipped list does not contain: indexOf === -1, and
+  // `PIPELINE_STAGES[min(-1 + 1, 4)]` is "Accepted" — so an advance used to march
+  // the candidate BACKWARD to the front of a funnel their board does not draw.
+  const onsite = axisEntry("Onsite");
+  const advanced = actOnPipelineEntry(onsite.id, "accept", undefined, undefined, AXIS_WS);
+  assert.equal(advanced!.stage, "Deciding", "accept advances one column along the workspace axis");
+  const events = listPipelineEventsForEntry(onsite.id, 50, AXIS_WS).filter((e) => e.kind === "advanced");
+  assert.deepEqual(events.map((e) => e.toStage), ["Deciding"], "the audit event names the column they actually landed on");
+
+  // The terminal column is the ceiling on this axis too — nothing overruns it.
+  const placed = axisEntry("Placed");
+  assert.equal(actOnPipelineEntry(placed.id, "accept", undefined, undefined, AXIS_WS)!.stage, "Placed");
+
+  // A screening accept opens the calendar gate one column on, still on this axis.
+  const reviewed = axisEntry("Reviewed");
+  setApproval(reviewed.id, "screening_review", JSON.stringify({ recommendation: "advance" }), AXIS_WS);
+  const screened = actOnPipelineEntry(reviewed.id, "accept", undefined, { actor: "system" }, AXIS_WS);
+  assert.equal(screened!.stage, "Onsite");
+  assert.equal(screened!.approvalKind, "calendar");
+});
+
+test("a confirmed slot lands on the workspace's evaluation column, and a reinstate on its screened column", () => {
+  const waiting = axisEntry("Reviewed");
+  setApproval(waiting.id, "calendar", "Tue 14:00", AXIS_WS);
+  const scheduled = actOnPipelineEntry(waiting.id, "approve_event", "Wed 10:00", undefined, AXIS_WS);
+  assert.equal(scheduled!.stage, "Onsite", "scheduling advances to the screening GATE of this board, not the name 'Interview'");
+
+  // …and never backward: past the gate, the slot is recorded in place.
+  const late = axisEntry("Deciding");
+  setApproval(late.id, "calendar", "Tue 14:00", AXIS_WS);
+  assert.equal(actOnPipelineEntry(late.id, "approve_event", "Thu 09:00", undefined, AXIS_WS)!.stage, "Deciding");
+
+  // A reversal puts the candidate back where an already-assessed candidate belongs
+  // ON THIS BOARD — parking them on "Screened" would be a column it does not draw.
+  const rejected = axisEntry("Reviewed");
+  actOnPipelineEntry(rejected.id, "reject", undefined, { actor: "system" }, AXIS_WS);
+  const restored = reinstatePipelineEntry(rejected.id, AXIS_WS);
+  assert.equal(restored!.stage, "Reviewed");
+  assert.equal(
+    listPipelineEventsForEntry(rejected.id, 50, AXIS_WS).find((e) => e.kind === "reinstated")?.toStage,
+    "Reviewed"
+  );
+});
+
+test("closing a role spares the candidate it was FILLED with, by role and not by the name 'Hired'", () => {
+  const jobId = "axis-close-job";
+  const placed = axisEntry("Placed", jobId);
+  const inFlight = axisEntry("Reviewed", jobId);
+
+  assert.equal(closeEntriesByJobId(jobId, AXIS_WS), 1, "only the in-flight candidate is withdrawn");
+  assert.equal(getPipelineEntry(placed.id, AXIS_WS)!.status, "active", "the hire must never be flipped to role_closed");
+  assert.equal(getPipelineEntry(inFlight.id, AXIS_WS)!.status, "role_closed");
+});
+
+test("the per-job rollup counts reached-interview and hired on the workspace's own axis", () => {
+  const jobId = "axis-stats-job";
+  axisEntry("Reviewed", jobId);
+  axisEntry("Onsite", jobId);
+  axisEntry("Placed", jobId);
+  // Read off the shipped five names these all index to -1, so the JD library
+  // reported 0 reached-interview / 0 hired while Analytics (which resolves the
+  // workspace axis) counted the same rows correctly.
+  assert.deepEqual(listJobPipelineStats(AXIS_WS)[jobId], { total: 3, reachedInterview: 2, hired: 1 });
 });
 
 test("a requested 'decision' gate (shortlist-to-group-eval) resolves through the normal decide actions — never a stuck pending row", () => {

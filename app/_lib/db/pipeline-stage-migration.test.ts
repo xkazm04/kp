@@ -14,8 +14,11 @@ import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import {
   actOnPipelineEntry,
+  closeEntriesByJobId,
   countPipelineByStage,
   createPipelineEntry,
+  getPipelineEntry,
+  listPipeline,
   listPipelineEventsForEntry,
   migratePipelineStages,
   setPipelineEntryStage,
@@ -100,6 +103,35 @@ test("a same-stage leg moves nobody and writes nothing", () => {
   const before = listPipelineEventsForEntry(id).length;
   assert.equal(migratePipelineStages([{ fromStage: "Screened", toStage: "Screened" }]), 0);
   assert.equal(listPipelineEventsForEntry(id).length, before, "no event for a move that did not happen");
+});
+
+test("a role-closed candidate is neither counted nor re-staged — 'terminal' means all four statuses", () => {
+  // `rejected` is only one of FOUR terminal statuses (pipeline-status.ts). A
+  // candidate withdrawn because the ROLE closed is equally off the board, so a
+  // column that holds only them strands nobody — yet the pair-literal these two
+  // queries used counted them as occupants, which made the composer refuse the
+  // removal ("these steps still hold candidates") and then rewrite the closed
+  // record, breaking reopen's promise to restore each candidate to the exact
+  // stage they were on before the close.
+  const jobId = "closed-role-job";
+  const { entry } = createPipelineEntry({
+    candidateId: "closed-c1",
+    candidateLabel: "Closed Role Candidate",
+    jobId,
+    jobTitle: "Role that got filled elsewhere",
+  });
+  setPipelineEntryStage(entry.id, "Offer");
+  const whileActive = at("Offer"); // counted, correctly: they are on the board
+  assert.equal(closeEntriesByJobId(jobId), 1);
+  assert.equal(getPipelineEntry(entry.id)!.status, "role_closed");
+  assert.ok(!listPipeline().some((e) => e.id === entry.id), "precondition: they are NOT on the board");
+
+  const remaining = whileActive - 1;
+  assert.equal(at("Offer"), remaining, "a withdrawn candidate stops counting as standing on the column");
+
+  assert.equal(migratePipelineStages([{ fromStage: "Offer", toStage: "Screened" }]), remaining, "only board occupants move");
+  assert.equal(getPipelineEntry(entry.id)!.stage, "Offer", "the closed record keeps its pre-close stage");
+  assert.equal(migrationEvents(entry.id).length, 0, "closed history is not rewritten");
 });
 
 test("countPipelineByStage counts only ACTIVE entries — the ones a removal would strand", () => {
