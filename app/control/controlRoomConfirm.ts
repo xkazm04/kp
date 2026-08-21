@@ -20,3 +20,24 @@ export function armOrExecute(armed: string | null, clicked: string): { execute: 
   if (armed === clicked) return { execute: true, nextArmed: null };
   return { execute: false, nextArmed: clicked };
 }
+
+/**
+ * The armed key for "apply the calibrated promote floor". The VALUE is part of the
+ * control's identity, not incidental to it.
+ *
+ * The key used to be the bare literal "floor". Because the room re-polls
+ * /api/devcase/outcomes every 3s and `calibrate()` recomputes `suggestedFloor` from
+ * the live outcome corpus, the suggestion can move BETWEEN the arm click and the
+ * confirm click (one newly-decided outcome is enough to flip which band first crosses
+ * the majority-hire threshold — including one the operator records in this very
+ * panel, which reloads on success). With a constant key the second click still
+ * matched, so the confirm of "→ 70" fired `setFloor: 55`: a different promote
+ * threshold than the one the operator deliberated over, applied without a second
+ * confirm, and sealed into the audit trail as a human decision for 55.
+ *
+ * Keying by value makes a changed suggestion a DIFFERENT control, so `armOrExecute`
+ * re-arms it (never executes) and the operator confirms the number they can see.
+ */
+export function floorKey(floor: number): string {
+  return `floor:${floor}`;
+}

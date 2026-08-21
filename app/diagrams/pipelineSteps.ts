@@ -172,8 +172,17 @@ send ..> rcpt`,
     title: "Interview — AI voice screen → scorecard",
     status: "live",
     summary:
-      "The recruiter creates a grounded voice screen (questions from Task 4 prep); the candidate takes it in-browser (OpenAI Realtime or ElevenLabs). On hang-up the transcript synthesizes a scorecard (Task 5) and sets scorecard_review for the Interview→Offer gate. Slot scheduling is still hardcoded.",
-    files: ["app/features/hiring/pipeline/PipelineCandidateDrawer.tsx", "app/api/interview/*", "app/_lib/interview-run.ts", "app/_lib/voice/*", "app/_components/voice/VoiceInterview.tsx"],
+      "The recruiter creates a grounded voice screen (questions from Task 4 prep); the candidate takes it in-browser (OpenAI Realtime or ElevenLabs). On hang-up the transcript synthesizes a scorecard (Task 5) and sets scorecard_review for the Interview→Offer gate. Slot scheduling is live too: accepting a screening queues the entry on the Schedule tab, the recruiter mints a tokenized self-scheduling link the comms channel delivers, and the candidate confirms a real dated slot (with reschedule + calendar invite). The weekday-relative \"Tue 14:00\" is only the seed proposal a legacy entry carries until an invite exists.",
+    files: [
+      "app/features/hiring/pipeline/PipelineCandidateDrawer.tsx",
+      "app/api/interview/*",
+      "app/_lib/interview-run.ts",
+      "app/_lib/voice/*",
+      "app/_components/voice/VoiceInterview.tsx",
+      "app/features/hiring/schedule/*",
+      "app/api/schedule/*",
+      "app/_lib/schedule-store.ts",
+    ],
     puml: `[CandidateDrawer\\n"Voice screen"] <<auto>> as ui
 [POST /api/interview/create\\nbuildGroundedInterview · Task 4] <<auto>> as create
 database "interview_sessions" as iv
@@ -182,7 +191,9 @@ database "interview_sessions" as iv
 cloud "OpenAI / ElevenLabs" as prov
 [/api/interview/complete\\nrunInterviewScorecard · Task 5] <<auto>> as done
 database "pipeline_entries\\n(scorecard_review)" as pe
-[interview slot\\nhardcoded Tue 14:00] <<gap>> as slot
+[POST /api/schedule/invite\\ncreateScheduleInvite + dispatch] <<auto>> as inv
+[Candidate picks a slot\\n/schedule/[token] · confirm] <<auto>> as slot
+database "schedule_invites" as si
 ui --> create
 create --> iv : INSERT
 create --> portal : token link
@@ -191,7 +202,10 @@ conn --> prov : WebRTC
 portal --> done : transcript
 done --> iv
 done --> pe : setApproval
-create ..> slot`,
+ui --> inv : propose times
+inv --> si : INSERT
+inv --> slot : token link
+slot --> si : confirmed slot`,
   },
   offer: {
     title: "Offer decision",

@@ -6,6 +6,7 @@ import { Select } from "@/app/_components/Select";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { CalibrationRationale } from "@/app/_lib/dev-outcomes";
+import { floorKey } from "./controlRoomConfirm";
 import type { Guard, Outcome, OutcomeData } from "./types";
 
 // The outcome vocabulary the API accepts. The VALUES are the wire codes and stay
@@ -200,15 +201,18 @@ export function CalibrationPanel({
               // bug-ui-scan-2026-07-09 (guided-pipeline-simulation #3): applying the
               // suggested floor changes the promote threshold for every future
               // auto-decision — gate it behind a confirm (two-step, lit while armed).
+              // The armed key carries the VALUE (floorKey): the 3s poll can move
+              // `suggestedFloor` between the arm and the confirm, and a constant key
+              // let that second click apply a number the operator never confirmed.
               <button
                 type="button"
-                onClick={() => guard("floor", () => applyFloor(data.calibration.suggestedFloor!))}
+                onClick={() => guard(floorKey(data.calibration.suggestedFloor!), () => applyFloor(data.calibration.suggestedFloor!))}
                 disabled={busy}
                 className={`focus-ring ml-auto h-7 rounded-md px-2.5 text-[11px] font-semibold text-white hover:opacity-90 disabled:opacity-50 ${
-                  armed === "floor" ? "bg-ink ring-2 ring-coral/40" : "bg-coral"
+                  armed === floorKey(data.calibration.suggestedFloor!) ? "bg-ink ring-2 ring-coral/40" : "bg-coral"
                 }`}
               >
-                {armed === "floor"
+                {armed === floorKey(data.calibration.suggestedFloor!)
                   ? t("calibration.applyConfirm", { floor: data.calibration.suggestedFloor })
                   : t("calibration.applySuggested", { floor: data.calibration.suggestedFloor })}
               </button>

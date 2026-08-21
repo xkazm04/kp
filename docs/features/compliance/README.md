@@ -171,6 +171,18 @@ reject itself — "AUTO1 RETIRED" (`automation-pass.ts:302-308`): every
 fairness-cleared reject is queued as `rejection_review` for a human.
 Advance-top-N stops before Offer (`app/api/pipeline/command/route.ts`).
 
+**Two-step confirm in the control room.** The consequential controls on
+`/control` — approving an Art. 22 human gate, reconciling, and applying the
+calibrated promote floor — arm on the first click and only run on a second
+click of the *same* control (`app/control/controlRoomConfirm.ts`
+`armOrExecute`; pause/resume stay one-click, a kill switch must). The room
+re-polls every 3s, so a control's identity has to include anything that can
+change under the arm: the promote-floor key carries the VALUE (`floorKey`,
+e.g. `floor:70`). With the earlier constant `"floor"` key a suggestion that
+moved between the two clicks — one newly-decided outcome is enough to shift
+which band `calibrate()` picks — was applied without its own confirm and
+sealed into `dev_audit` as a human decision for a number nobody confirmed.
+
 **AI disclosure (Art. 50).** `app/_components/AiDisclosure.tsx` is rendered
 on every public candidate-facing surface, including the most recently added
 `/status/[token]` (`StatusClient.tsx:324`), plus quick/conversational apply,

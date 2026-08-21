@@ -64,6 +64,11 @@ function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => vo
   const ref = useRef<HTMLElement | null>(null);
   useDialogA11y(ref, onClose, { trap: false, lockScroll: false });
   const t = useTranslations("diagrams");
+  // The drawer's close control is page CHROME, not diagram body — it is the one
+  // string in here a screen reader announces to the operator rather than a code
+  // identifier, so it takes the shared `common.close` label every other dismiss
+  // affordance uses instead of a hardcoded English one.
+  const tCommon = useTranslations("common");
 
   const cls = STATUS_CLS[detail.status];
   return (
@@ -86,7 +91,7 @@ function StepDrawer({ detail, onClose }: { detail: StepDetail; onClose: () => vo
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={tCommon("close")}
             className="focus-ring rounded-md p-1.5 text-steel hover:bg-stone-100"
           >
             <X size={20} />
