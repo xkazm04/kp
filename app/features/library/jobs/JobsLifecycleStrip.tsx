@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { buildUrl, clearedTabScopedParams, type TabScopedParamKey, type WorkspaceTabId } from "@/app/features/shell/tabs";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
+import { DEFAULT_STAGE_AXIS, stageHasRole, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
 
 // c91ec8b1 — the job modal's mission-control strip: this role's lifecycle as
 // live counts, each segment deep-linking to the tab that owns it. The chain it
@@ -38,22 +39,31 @@ export function JobLifecycleStrip({ jobId, jobTitle }: { jobId: string; jobTitle
   const search = useSearchParams();
   const [entries, setEntries] = useState<PipelineEntryLite[] | null>(null);
   const [hooks, setHooks] = useState<number | null>(null);
+  // The board's columns ride out WITH the entries (GET /api/pipeline answers
+  // `{ entries, stages, retiredStages }`), so the strip resolves offer/terminal
+  // through this workspace's OWN axis instead of the shipped names. Null until it
+  // lands — the shipped axis is the fallback, never an empty one.
+  const [axisStages, setAxisStages] = useState<StageDef[] | null>(null);
 
   useEffect(() => {
     let alive = true;
     fetch("/api/pipeline")
-      .then((r) => r.json())
-      .then((p) => {
-        if (alive) setEntries(((p.entries ?? []) as PipelineEntryLite[]).filter((e) => e.jobId === jobId));
+      .then(async (r) => {
+        // A non-2xx body still parses (safeJsonError answers JSON), and `?? []`
+        // would turn it into a confident "0 in funnel". Leave the counts unknown
+        // so the strip stays absent, as the header promises.
+        if (!r.ok) return;
+        const p = (await r.json()) as { entries?: PipelineEntryLite[]; stages?: StageDef[] };
+        if (!alive) return;
+        setEntries((p.entries ?? []).filter((e) => e.jobId === jobId));
+        if (p.stages?.length) setAxisStages(p.stages);
       })
       .catch(() => undefined);
     fetch("/api/channels/webhooks")
-      .then((r) => r.json())
-      .then((p) => {
-        if (alive) {
-          const list = (p.webhooks ?? []) as { jobId?: string | null }[];
-          setHooks(list.filter((h) => h.jobId === jobId).length);
-        }
+      .then(async (r) => {
+        if (!r.ok) return;
+        const p = (await r.json()) as { webhooks?: { jobId?: string | null }[] };
+        if (alive) setHooks((p.webhooks ?? []).filter((h) => h.jobId === jobId).length);
       })
       .catch(() => undefined);
     return () => {
@@ -66,8 +76,15 @@ export function JobLifecycleStrip({ jobId, jobTitle }: { jobId: string; jobTitle
   const active = (entries ?? []).filter((e) => e.status === "active");
   const decisions = active.filter((e) => e.approvalKind && e.approvalKind !== "calendar").length;
   const toSchedule = active.filter((e) => e.approvalKind === "calendar").length;
-  const offersOut = active.filter((e) => e.stage === "Offer").length;
-  const hired = (entries ?? []).filter((e) => e.stage === "Hired").length;
+  // Offers/hires are stage ROLES, not stage names: a workspace that renamed its
+  // Offer column (Settings → Hiring composes the axis) counted zero of both, so
+  // the two segments vanished from a role that had live offers and hires — and
+  // the deep link carried an id its own board would reject.
+  const axis = axisStages ?? DEFAULT_STAGE_AXIS;
+  const offerStage = stageWithRole("offer", axis);
+  const terminalStage = stageWithRole("terminal", axis);
+  const offersOut = active.filter((e) => stageHasRole(e.stage, "offer", axis)).length;
+  const hired = (entries ?? []).filter((e) => stageHasRole(e.stage, "terminal", axis)).length;
   const jdSlug = jdSlugOfJobId(jobId);
 
   const segs: (Seg | null)[] = [
@@ -80,11 +97,11 @@ export function JobLifecycleStrip({ jobId, jobTitle }: { jobId: string; jobTitle
       ? { key: "decisions", label: t("decisions", { count: decisions }), tab: "decisions", params: { job: jobId } }
       : null,
     toSchedule > 0 ? { key: "schedule", label: t("schedule", { count: toSchedule }), tab: "schedule" } : null,
-    offersOut > 0
-      ? { key: "offers", label: t("offers", { count: offersOut }), tab: "pipeline", params: { q: jobTitle, stage: "Offer" } }
+    offersOut > 0 && offerStage
+      ? { key: "offers", label: t("offers", { count: offersOut }), tab: "pipeline", params: { q: jobTitle, stage: offerStage } }
       : null,
-    hired > 0
-      ? { key: "hired", label: t("hired", { count: hired }), tab: "pipeline", params: { q: jobTitle, stage: "Hired" } }
+    hired > 0 && terminalStage
+      ? { key: "hired", label: t("hired", { count: hired }), tab: "pipeline", params: { q: jobTitle, stage: terminalStage } }
       : null,
   ];
   const visible = segs.filter((s): s is Seg => s !== null);

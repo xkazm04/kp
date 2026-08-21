@@ -15,12 +15,16 @@ import { TaskFlightNote } from "@/app/features/shell/tasks/TaskFlightNote";
 // at the role's quick-apply lead form. Generation is honest about provenance
 // (AI vs rule-based fallback) and about the facts it had to do without
 // (warning CODES from the wire, localized here).
-export function CampaignTab({ jobId }: { jobId: string }) {
+// jobTitle is only ever spent on the background task's label (tasks.kind.campaign
+// = "Campaign pack · {job}") — the runner re-reads the job from the DB. Without
+// it `detail(p.jobTitle, p.jobId)` fell through to the raw id, so the tasks dock
+// named the run "Campaign pack · jd-senior-backend-engineer".
+export function CampaignTab({ jobId, jobTitle }: { jobId: string; jobTitle?: string }) {
   const appLocale = useLocale();
   const router = useRouter();
   const search = useSearchParams();
   const { t, lang, setLang, record, loading, generating, error, copied, generate, copyText, pack, variants, warnings, packMarkdown, watch } =
-    useCampaignTabLogic(jobId, appLocale);
+    useCampaignTabLogic(jobId, appLocale, jobTitle);
 
   return (
     <div>
@@ -85,7 +89,11 @@ export function CampaignTab({ jobId }: { jobId: string }) {
       ) : (
         <>
           <p className="mt-3 text-sm text-steel">
-            {t("generatedAt", { when: new Date(record!.createdAt).toLocaleString() })} ·{" "}
+            {/* Stamped in the APP's locale, not the browser's — a bare
+                toLocaleString() follows the OS, so a Czech workspace opened in an
+                en-US browser printed a US date inside its Czech pack (the same
+                fix groupEvalHelpers' `ranWhen` carries). */}
+            {t("generatedAt", { when: new Date(record!.createdAt).toLocaleString(appLocale) })} ·{" "}
             <span className={record!.source === "llm" ? "text-moss" : "text-amber-600"}>
               {record!.source === "llm" ? t("sourceLlm") : t("sourceDeterministic")}
             </span>

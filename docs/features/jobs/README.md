@@ -162,6 +162,13 @@ Every CTA in a pack links the quick-apply form; the pack ships a markdown
 copy-all export. Rendering the video scripts into actual video/avatar assets
 is out of scope (kp generates scripts only).
 
+Generation is a background task, so the tab hands `jobTitle` to `startTask` purely
+to name the run — `tasks.kind.campaign` is `"Campaign pack · {job}"` and
+`detail(p.jobTitle, p.jobId)` otherwise falls through to the raw `jd-<slug>` id in
+the tasks dock. The runner itself never reads it (`campaign-run.ts` re-reads the
+job from the DB). The stored pack's "generated at" stamp is formatted in the APP
+locale, not the browser's, for the reason `groupEvalHelpers.ranWhen` documents.
+
 ## Surface
 
 | Module / route | Purpose |
@@ -231,6 +238,45 @@ actually looks at their roles.
 > Note: a seeded/demo database can show `—` on every row. Seeded corpus jobs
 > (`job-000…`) are ingested directly and are not JD-backed, so nothing joins.
 > The column populates for JDs ingested through the library's own "Ingest as job".
+
+## The job modal's lifecycle strip reads stage ROLES, not stage names
+
+`JobsLifecycleStrip.tsx` renders this role's chain — JD → channels listening →
+funnel → decisions → slots → **offers out** → **hired** — each segment
+deep-linking the tab that owns it. The last two are stage questions, and the
+board's axis is workspace data (Settings → Hiring composes it; see
+`app/_lib/pipeline-stages.ts`), so both the counts and the `?stage=` link value
+resolve through `stageHasRole` / `stageWithRole` against the axis that arrives
+with the entries (`GET /api/pipeline` answers `{ entries, stages, retiredStages }`).
+Reading the literals `"Offer"` / `"Hired"` counted zero on a renamed axis: the two
+segments vanished from a role that had live offers and hires, and the one link
+that did render carried an id the workspace's own board resolves as off-board.
+An axis with no offer (or no terminal) column renders no such segment rather
+than a dead link. Pinned as a source guard by `jobsLifecycleStrip.test.ts`, the
+same shape as `pipelineStageFilter.test.ts`.
+
+The strip is best-effort — a failed load renders nothing — which now includes a
+**non-2xx** response, not only a thrown fetch: `safeJsonError` answers valid
+JSON, so `p.entries ?? []` used to turn a 500 into a confident "0 in funnel".
+
+## The winnability coach stages the number it actually computed
+
+The Coach tab's loosen list (`JobsCoachPanelLoosenList.tsx`) can hand a
+recommendation into the JD editor with the change staged
+(`jobsCoachApply.ts` → `?coachEdit=<kind~slug~delta~value>`), where
+`JdsModalEditorStagedBanner` spends `delta` as "could shortlist up to +N more
+candidates". That N is the coach's `qualifiedDelta` — the result of
+`winnability.py` re-running `score_job` with the must-have demoted — and nothing
+else. A must-have whose demotion frees nobody comes back `qualifiedDelta: 0`, and
+the banner's `=0` plural branch drops the claim instead of substituting
+`missingAmongEligible` (how many *eligible* candidates lack the skill, a different
+question) as a gain the scorer had already ruled out.
+
+The education row is a real lever, not JD-text theatre: `min_education` is a hard
+gate in `ko_filter` (`matching.py`, ranked through `_EDU_RANK`), the coach's
+`+N` comes from an actual counterfactual re-run with `min_education="none"`, and
+saving the JD body re-ingests the linked job (`app/api/jds/[slug]/route.ts`) so
+the re-parsed floor moves eligibility by that amount.
 
 ## Data model
 

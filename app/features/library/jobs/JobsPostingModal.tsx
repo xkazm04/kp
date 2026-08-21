@@ -115,7 +115,7 @@ export function JobPostingModal({
         ) : tab === "coach" ? (
           <CoachPanel jobId={job.id} jobTitle={job.title} />
         ) : tab === "campaign" ? (
-          <CampaignTab jobId={job.id} />
+          <CampaignTab jobId={job.id} jobTitle={job.title} />
         ) : tab === "candidates" ? (
           <RecruiterCandidates jobId={job.id} jobTitle={job.title} roleFamily={job.roleFamily ?? null} autoLoad />
         ) : tab === "rediscover" ? (

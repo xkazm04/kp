@@ -1,6 +1,6 @@
 "use client";
 
-import { Languages, SlidersHorizontal } from "lucide-react";
+import { GraduationCap, Languages, SlidersHorizontal } from "lucide-react";
 import type { useTranslations } from "next-intl";
 import type { CoachEditKind } from "./jobsCoachApply";
 import { StageEditButton } from "./JobsCoachPanelStageEditButton";
@@ -31,7 +31,14 @@ export function JobsCoachPanelLoosenList({
       <ul className="space-y-1.5">
         {gates.map((g) => (
           <li key={`g-${g.value}`} className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-md border border-stone-200 bg-white px-3 py-2 text-base">
-            <Languages size={15} className="shrink-0 text-coral" />
+            {/* The row's glyph follows the gate KIND, like its copy does: an
+                education floor rendered under the translate icon read as a
+                language requirement. */}
+            {g.kind === "language" ? (
+              <Languages size={15} className="shrink-0 text-coral" />
+            ) : (
+              <GraduationCap size={15} className="shrink-0 text-coral" />
+            )}
             <span className="flex-1 basis-40 text-ink">
               {t.rich(g.kind === "language" ? "gateLanguage" : "gateEducation", {
                 value: g.value,
@@ -69,7 +76,15 @@ export function JobsCoachPanelLoosenList({
               show={Boolean(jdSlug)}
               label={t("stageEdit")}
               ariaLabel={t("stageEditAria", { value: m.skill })}
-              onClick={() => stageEdit("mustHave", m.skill, m.qualifiedDelta > 0 ? m.qualifiedDelta : m.missingAmongEligible)}
+              // The staged delta is the coach's "+N" and nothing else: the editor
+              // banner spends it as "could shortlist up to +N more candidates",
+              // which is exactly what qualifiedDelta measures. missingAmongEligible
+              // answers a DIFFERENT question ("how many eligible lack this skill")
+              // — substituting it when the counterfactual came back 0 promised a
+              // gain the scorer had already ruled out. 0 is honest here: the
+              // banner's `=0` plural branch drops the claim and just says where
+              // to edit.
+              onClick={() => stageEdit("mustHave", m.skill, m.qualifiedDelta)}
             />
           </li>
         ))}
