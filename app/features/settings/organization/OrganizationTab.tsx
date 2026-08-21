@@ -48,6 +48,15 @@ export function OrganizationTab() {
   // the console render a Saving…/Saved/error ticker beside the field. The ref
   // skips the mount run (the initial value is already persisted).
   const [nameSave, setNameSave] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Every keystroke retires the previous verdict (editName below). The ticker used
+  // to keep reading "Saved" for the whole 500ms debounce window — over text that was
+  // NOT saved — so appending to an already-saved name and leaving the tab inside
+  // that window discarded the edit under a standing green claim. No claim is the
+  // honest state while a write is still pending.
+  const editName = (v: string) => {
+    setName(v);
+    setNameSave("idle");
+  };
   const nameHydrated = useRef(false);
   useEffect(() => {
     if (!nameHydrated.current) {
@@ -109,7 +118,7 @@ export function OrganizationTab() {
           nameSave={nameSave}
           domain="csas.cz"
           language={language}
-          onNameChange={setName}
+          onNameChange={editName}
           onLanguageChange={onLanguageChange}
         />
       </div>

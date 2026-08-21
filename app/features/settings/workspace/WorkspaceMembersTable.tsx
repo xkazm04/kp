@@ -7,7 +7,7 @@ import { Badge } from "@/app/_components/Badge";
 import { Select } from "@/app/_components/Select";
 import { BTN_GHOST } from "@/app/_components/ui/recipes";
 import { ASSIGNABLE_ROLES, roleLabel, roleTone, statusBadge } from "@/app/features/shared/memberUi";
-import { hasCustomPermissions, memberName, teamFor } from "./workspaceAdminHelpers";
+import { hasCustomPermissions, holdsOwnerSeat, memberName, teamFor } from "./workspaceAdminHelpers";
 import type { MemberTeam, OrgMemberDto } from "./useWorkspaceAdmin";
 
 // The roster of ONE team: role select, account status, permissions, and "remove
@@ -67,6 +67,13 @@ export function WorkspaceMembersTable({
               {members.map((m) => {
                 const team = teamFor(m, workspaceId);
                 const isOwner = team?.role === "owner";
+                // Enable/Disable writes the ACCOUNT's status org-wide, so it asks
+                // the org-wide question. `isOwner` (this team's seat) is the right
+                // gate for the membership-scoped controls beside it — role, seat
+                // permissions, remove-from-team — and the wrong one here: a
+                // co-owner sitting on this team as a recruiter would have been
+                // offered a Disable that locks them out of every team they own.
+                const ownerSomewhere = holdsOwnerSeat(m);
                 const disabled = m.user.status === "disabled";
                 const custom = team ? hasCustomPermissions(team) : false;
                 const displayName = memberName(m);
@@ -104,7 +111,7 @@ export function WorkspaceMembersTable({
                     <td className="px-2 py-3">
                       <div className="flex items-center gap-2">
                         <Badge {...statusBadge(m.user.status, t)} />
-                        {canManage && !isOwner && m.user.status !== "invited" ? (
+                        {canManage && !ownerSomewhere && m.user.status !== "invited" ? (
                           <button
                             type="button"
                             onClick={() => onPatchMember(m.user.id, { status: disabled ? "active" : "disabled" })}

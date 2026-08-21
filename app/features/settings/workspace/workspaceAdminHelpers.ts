@@ -46,6 +46,20 @@ export function memberName(m: OrgMemberDto): string {
   return m.user.name ?? m.user.email;
 }
 
+/** Does this person own ANY team in the org?
+ *
+ *  The gate for ACCOUNT-level actions (enable/disable, delete the account), which
+ *  are org-wide writes and must therefore ask an org-wide question. `teamFor(m,
+ *  ws)?.role === "owner"` answers a different one — "do they own THIS team" — and
+ *  the two disagree for a co-owner who also holds a plain seat elsewhere. The
+ *  By-workspace roster used the team-scoped test to gate the account-wide
+ *  Disable control, so an owner of Sales who sat on Engineering as a recruiter
+ *  could be disabled out of the whole product from Engineering's roster, while
+ *  the By-person view (which asks this question) offered no such control. */
+export function holdsOwnerSeat(m: OrgMemberDto): boolean {
+  return m.teams.some((t) => t.role === "owner");
+}
+
 // True when the member's effective capabilities differ from their role's defaults
 // (i.e. a per-user override is in play) — surfaced as a "Custom" chip.
 export function hasCustomPermissions(team: MemberTeam): boolean {

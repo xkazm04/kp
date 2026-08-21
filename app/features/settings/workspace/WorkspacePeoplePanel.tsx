@@ -9,7 +9,7 @@ import { Select } from "@/app/_components/Select";
 import { BTN_GHOST, BTN_PRIMARY, PANEL } from "@/app/_components/ui/recipes";
 import { ASSIGNABLE_ROLES, roleLabel, roleTone, statusBadge } from "@/app/features/shared/memberUi";
 import { type MemberRole } from "@/app/_lib/auth/roles";
-import { memberName } from "./workspaceAdminHelpers";
+import { holdsOwnerSeat, memberName } from "./workspaceAdminHelpers";
 import type { OrgMemberDto, WorkspaceDto } from "./useWorkspaceAdmin";
 
 // The Workspaces console — the By-person view. Same data as the By-workspace
@@ -75,7 +75,9 @@ export function WorkspacePeoplePanel({
         {members.map((m) => {
           const disabled = m.user.status === "disabled";
           const displayName = memberName(m);
-          const isOwnerSomewhere = m.teams.some((team) => team.role === "owner");
+          // Shared with the By-workspace roster (workspaceAdminHelpers) so the two
+          // lenses can never disagree about who is shielded from account-level writes.
+          const isOwnerSomewhere = holdsOwnerSeat(m);
           // Teams they could still join — the chip row already shows the rest.
           const joinable = workspaces.filter((w) => w.canManage && !m.teams.some((team) => team.workspaceId === w.id));
           return (

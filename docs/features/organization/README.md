@@ -260,6 +260,17 @@ Removing somebody **from a workspace** and removing them **from the organization
 are now distinct actions with distinct confirms: the first is reversible in two
 clicks, the second deletes the account. They used to be the same red X.
 
+**Membership-scoped vs account-scoped controls ask different ownership
+questions.** Role, seat permissions and remove-from-team write one membership, so
+they gate on `teamFor(m, workspaceId)?.role === "owner"` — this team's seat.
+Enable/Disable and account deletion write `users.status` / the user row, which is
+org-wide, so they gate on `workspaceAdminHelpers.holdsOwnerSeat(m)` — does the
+person own **any** team. Both lenses now call that one helper. Before, the
+By-workspace roster used the team-scoped test for the account-wide Disable
+control, so an owner of one team who also sat on another as a recruiter could be
+disabled out of the whole product from that second team's roster, while the
+By-person view offered no such control for the same person.
+
 The deployment lock (`KP_MULTI_WORKSPACE`) gates create / rename / switch only.
 Member administration is org-scoped and stays fully usable while it is off.
 
