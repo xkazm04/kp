@@ -1,6 +1,6 @@
 # ElevenLabs Agents — upgrade survey and plan (concept)
 
-Status: **T1 + T2 shipped 2026-08-20; T3–T5 remain concept** — researched 2026-08-20 against the live vendor surface
+Status: **T1 + T2 shipped and deployed (2026-08-20/21); T3–T5 remain concept** — researched 2026-08-20 against the live vendor surface
 (npm registry, `elevenlabs/packages` GitHub releases, the ElevenLabs docs
 changelog for 2026-06-15 / 08-03 / 08-17). T1 and T2 have since been built; T3–T5
 are still proposals. The feature doc they change is
@@ -69,7 +69,7 @@ that ordering, so this is a correctness win for the ledger, not just hygiene.
 - Touch: `package.json` / `package-lock.json`.
 - Verify: `npm run typecheck`, `npm run test:unit`, then the keyless e2e subset.
 
-### T2 — Per-session ASR keywords — **DONE in code (2026-08-20), needs an agent deploy**
+### T2 — Per-session ASR keywords — **DONE (code 2026-08-20, deployed 2026-08-21)**
 
 `docs/features/interviews/README.md` records the gap verbatim: the recognizer
 corrupts technology names ("React" → "Rust", "PostgreSQL" → "později SQL"), the
@@ -104,10 +104,15 @@ per-conversation builder, shared with the deploy script),
 `interviewAsrKeywords` in `app/_lib/interview-run.ts`, `asrKeywords` on the
 `/api/interview/connect` response, `overrides.asr.keywords` in the browser
 transport, and `asr_keywords` in `OVERRIDE_INTENT` + the drift diff.
-**What is left:** `node scripts/setup-eleven-agent.mjs --deploy` — until it runs,
-`--check` reports the `asr_keywords` flag as drift and the per-session list is
-silently ignored by the platform. Candidate CV-extracted technologies are still
-not read; job terms only.
+**Deployed 2026-08-21.** `--check` reports zero drift against the new agent. The
+deploy was blocked until then by something worth recording: `runDeploy` read
+`.env.local` exclusively, and this checkout keeps its keys in `.env` — the script
+exited "not found" while the app around it ran fine on credentials it refused to
+read. It now resolves `.env.local` → `.env` and writes the rotated id back to
+whichever file supplied the key. The drift report also caught two live defects
+that had nothing to do with keywords: `max_duration_seconds` 600 against an
+intended 2400, and a 717-char prompt against the intended 2336. Candidate
+CV-extracted technologies are still not read; job terms only.
 
 Why it matters beyond accuracy: a corrupted transcript feeds the scorecard,
 which feeds an Interview→Offer gate. This is the fairness-relevant defect of the
@@ -178,8 +183,8 @@ for networks that drop direct UDP.
 
 1. ~~**T1** lockfile bump + gate.~~ Done — `@elevenlabs/react` 1.13.0 / client 1.21.0.
 2. ~~**T2** per-session ASR keywords (server derivation → SDK override → agent
-   override flag).~~ Code done; `--deploy` + a harness run on the corruption
-   fixtures still owed.
+   override flag → `--deploy`).~~ Done and live; a harness run on the corruption
+   fixtures is still owed.
 3. **T3** expressive A/B behind a second agent id; ship on harness evidence only.
 4. **T4** WebRTC behind an env flag, WebSocket default, self-hosted excluded.
 5. **T5** fold in with whichever of T2/T4 touches the transport file.

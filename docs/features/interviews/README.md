@@ -215,11 +215,16 @@ self-hosted service is whatever the SDK is told to connect to.
   list the server builds from `requirements[].skill` + `detectedSkills`
   (`interviewAsrKeywords` → `/api/interview/connect` → the SDK override, capped
   at 50 terms with the floor list filling the remainder).
-  **Both need a deploy to take effect**: the agent must have been created with
-  the `asr.keywords` override unlocked, or the platform silently ignores the
-  per-session list and the call runs on the account-wide one. Run
-  `node scripts/setup-eleven-agent.mjs --check` — it reports the flag as drift —
-  and `--deploy` to fix it (this rotates `ELEVENLABS_AGENT_ID`).
+  Both need the agent to have been created with the `asr.keywords` override
+  unlocked, or the platform silently ignores the per-session list and the call
+  runs on the account-wide one. **Deployed 2026-08-21** — `--check` reports zero
+  drift. That deploy also corrected two live defects the drift report surfaced:
+  the agent was running a `max_duration_seconds` of 600 (grounded screens book
+  15–30 min, so long calls were being cut off mid-answer) and a 717-char prompt
+  predating the one-question-per-turn and language-lock rules. Re-run
+  `node scripts/setup-eleven-agent.mjs --check` after any dashboard edit; a
+  `--deploy` rotates `ELEVENLABS_AGENT_ID` and needs the id updated anywhere
+  else that pins it.
 - The per-job list is built from the JOB only. The candidate's own CV-extracted
   technologies would sharpen it further and are not read yet.
 - Sub-specialty language drift and a handful of interviewer-persona

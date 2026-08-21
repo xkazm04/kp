@@ -12,7 +12,7 @@
 // so the per-candidate CANDIDATE-SAFE grounded brief takes effect at runtime
 // (/connect builds it via app/_lib/voice/candidate-brief.ts; VoiceInterview.tsx
 // sends it as overrides.agent.prompt). On success it writes ELEVENLABS_AGENT_ID
-// back into .env.local.
+// back into whichever of .env.local / .env supplied the API key.
 //
 // ── --check — verify the live agent without touching it ─────────────────────
 // The deploy path only ever POSTs /v1/convai/agents/create, so once an agent is
@@ -42,7 +42,14 @@ import { QUICK_SCREEN_MIN, PROVIDER_MAX_DURATION_SECONDS } from "../app/_lib/int
 import { diffAgentConfig, formatDriftReport } from "../app/_lib/voice/eleven-agent-diff.mjs";
 import { BASE_ASR_KEYWORDS } from "../app/_lib/voice/asr-keywords.mjs";
 
-const ENV_PATH = path.join(process.cwd(), ".env.local");
+// Where the credentials live, in the precedence Next.js itself uses: .env.local
+// overrides .env. This used to be `.env.local` alone, which quietly blocked every
+// deploy in a checkout that keeps its keys in .env — the script exited "not found"
+// while the app around it ran perfectly well on credentials it refused to read.
+// The file the key is READ from is also the file the rotated agent id is WRITTEN
+// back to, so a checkout never ends up with two files disagreeing about which
+// agent is live.
+const ENV_FILES = [".env.local", ".env"];
 const API = "https://api.elevenlabs.io";
 
 function parseEnv(text) {
@@ -148,7 +155,33 @@ function usage() {
   );
 }
 
-// Resolve a var from the real environment first, then .env.local — so --check
+/** The env file this run reads and writes: the first of ENV_FILES that exists AND
+ *  actually carries ELEVENLABS_API_KEY. A .env.local that exists for unrelated vars
+ *  must not shadow the .env that holds the key — "exists" is not the test, "carries
+ *  the credential" is. Returns null when no file has it. */
+function resolveEnvFile() {
+  for (const name of ENV_FILES) {
+    const file = path.join(process.cwd(), name);
+    if (!existsSync(file)) continue;
+    const text = readFileSync(file, "utf8");
+    const env = parseEnv(text);
+    if (env.ELEVENLABS_API_KEY) return { name, file, text, env };
+  }
+  return null;
+}
+
+/** Every ENV_FILES entry merged for READING, earlier files winning (Next.js
+ *  precedence), so --check sees a key in .env and an agent id in .env.local. */
+function mergedFileEnv() {
+  const merged = {};
+  for (const name of [...ENV_FILES].reverse()) {
+    const file = path.join(process.cwd(), name);
+    if (existsSync(file)) Object.assign(merged, parseEnv(readFileSync(file, "utf8")));
+  }
+  return merged;
+}
+
+// Resolve a var from the real environment first, then the env files — so --check
 // works in a shell that exports the keys and in a local dev checkout alike.
 function resolveEnv(name, fileEnv) {
   return process.env[name] || fileEnv[name] || "";
@@ -158,11 +191,11 @@ function resolveEnv(name, fileEnv) {
 // Exit 0 on match, 1 on drift, 2 when it cannot verify (missing key/id, or the
 // API would not return the agent config).
 async function runCheck() {
-  const fileEnv = existsSync(ENV_PATH) ? parseEnv(readFileSync(ENV_PATH, "utf8")) : {};
+  const fileEnv = mergedFileEnv();
   const key = resolveEnv("ELEVENLABS_API_KEY", fileEnv);
   const agentId = resolveEnv("ELEVENLABS_AGENT_ID", fileEnv);
   if (!key) {
-    console.error("Cannot verify: ELEVENLABS_API_KEY is not set (env or .env.local).");
+    console.error(`Cannot verify: ELEVENLABS_API_KEY is not set (env, ${ENV_FILES.join(" or ")}).`);
     process.exit(2);
   }
   if (!agentId) {
@@ -201,17 +234,17 @@ async function runCheck() {
 }
 
 async function runDeploy() {
-  if (!existsSync(ENV_PATH)) {
-    console.error(".env.local not found in the project root.");
+  const envFile = resolveEnvFile();
+  if (!envFile) {
+    console.error(
+      `No ELEVENLABS_API_KEY found — looked in ${ENV_FILES.join(", ")} in the project root.
+` +
+        "A deploy writes the rotated ELEVENLABS_AGENT_ID back into that same file, so it must be one of them."
+    );
     process.exit(1);
   }
-  const envText = readFileSync(ENV_PATH, "utf8");
-  const env = parseEnv(envText);
+  const { name: envName, file: envPath, text: envText, env } = envFile;
   const key = env.ELEVENLABS_API_KEY;
-  if (!key) {
-    console.error("ELEVENLABS_API_KEY is not set in .env.local.");
-    process.exit(1);
-  }
 
   // Single source: the exact config --check verifies, resolved from the file env.
   const intended = intendedConfig((n) => env[n]);
@@ -287,11 +320,11 @@ async function runDeploy() {
     process.exit(1);
   }
 
-  writeFileSync(ENV_PATH, upsertEnv(envText, "ELEVENLABS_AGENT_ID", agentId), "utf8");
+  writeFileSync(envPath, upsertEnv(envText, "ELEVENLABS_AGENT_ID", agentId), "utf8");
   console.log(`✓ Created agent ${agentId}`);
   console.log(`  voice: ${voiceName} (${voiceId}) · model: ${model} · language: ${language}`);
   console.log(`  prompt/first_message/language/asr.keywords overrides: enabled`);
-  console.log(`  → wrote ELEVENLABS_AGENT_ID to .env.local — restart the dev server.`);
+  console.log(`  → wrote ELEVENLABS_AGENT_ID to ${envName} — restart the dev server.`);
 }
 
 async function main() {
