@@ -34,10 +34,18 @@ export function rateLimit(key: string, opts: { limit: number; windowMs: number }
   return true;
 }
 
-// The single shared bucket every request collapses to when no TRUSTWORTHY client
-// IP is available — i.e. kp isn't behind a declared proxy, so the forwarding
-// headers are attacker-supplied and must not mint a fresh bucket each.
-const SHARED_CLIENT_KEY = "local";
+/**
+ * The single shared bucket every request collapses to when no TRUSTWORTHY client
+ * IP is available — i.e. kp isn't behind a declared proxy, so the forwarding
+ * headers are attacker-supplied and must not mint a fresh bucket each.
+ *
+ * EXPORTED so a caller can DETECT that state: `clientIpFrom(h) === SHARED_CLIENT_KEY`
+ * means "this is not a per-client identity, it is the whole deployment". A route whose
+ * limiter is abuse containment (offer/schedule/apply — over-throttling one shared bucket
+ * only slows abuse down) can ignore that. A route where a tripped bucket DENIES SERVICE
+ * to everyone else must not: see the trap documented on {@link clientIpFrom}.
+ */
+export const SHARED_CLIENT_KEY = "local";
 
 /**
  * Pure client-key resolution given how many reverse-proxy hops kp sits behind —
@@ -91,9 +99,25 @@ function trustedProxyHops(): number {
   return /^(true|yes|on)$/i.test(raw) ? 1 : 0;
 }
 
-/** Client key for per-IP limiting, read from the forwarding headers under the
- *  `KP_TRUSTED_PROXY` trust model (see {@link resolveClientIp}). Untrusted by
- *  default, so a spoofed `X-Forwarded-For` can no longer buy a fresh bucket. */
+/**
+ * Client key for per-IP limiting, read from the forwarding headers under the
+ * `KP_TRUSTED_PROXY` trust model (see {@link resolveClientIp}). Untrusted by
+ * default, so a spoofed `X-Forwarded-For` can no longer buy a fresh bucket.
+ *
+ * THE TRAP — read this before keying a limiter on the result. With `KP_TRUSTED_PROXY`
+ * unset (the default for a directly-exposed self-host) a Next App Router handler exposes
+ * no socket peer address, so this returns {@link SHARED_CLIENT_KEY} for EVERY request:
+ * `foo:ip:local` is ONE bucket shared by the entire internet, not a per-client one.
+ *
+ * That is the right failure for ABUSE CONTAINMENT (a coarse global cap on a route that
+ * spends money or spawns a subprocess: over-throttle, never under-throttle). It is the
+ * WRONG failure for a DENIAL-OF-SERVICE-sensitive gate — an unauthenticated caller can
+ * fill the one bucket and lock every legitimate user out of the route for a whole
+ * window, re-triggering it indefinitely. Before using this as a limiter key, ask what a
+ * full bucket denies; when the answer is "everyone", either skip the IP bucket unless
+ * `clientIpFrom(h) !== SHARED_CLIENT_KEY` (a real per-client identity is available) or
+ * rely on the per-subject bucket instead.
+ */
 export function clientIpFrom(headers: Headers): string {
   return resolveClientIp(headers.get("x-forwarded-for"), headers.get("x-real-ip"), trustedProxyHops());
 }

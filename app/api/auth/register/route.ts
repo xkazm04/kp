@@ -30,6 +30,12 @@ export async function POST(request: Request) {
   }
 
   const ip = clientIpFrom(request.headers);
+  // Kept unconditional even though `ip` collapses to a shared key without
+  // KP_TRUSTED_PROXY (see rate-limit.ts / the login route's header). Signup has no
+  // per-account bucket behind it, so dropping the degenerate one would leave open
+  // signup with no cap at all. A coarse global cap IS the right failure for abuse
+  // containment; the login route's shared bucket was wrong only because it denied
+  // service to existing users, which a full signup bucket does not do.
   const key = `register:ip:${ip}`;
   if (isThrottled(key, REGISTER_THROTTLE)) {
     return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });

@@ -7,7 +7,7 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clientIpFrom, rateLimit, resolveClientIp } from "./rate-limit.ts";
+import { clientIpFrom, rateLimit, resolveClientIp, SHARED_CLIENT_KEY } from "./rate-limit.ts";
 
 const MIN = 60_000;
 
@@ -77,6 +77,29 @@ test("clientIpFrom honours KP_TRUSTED_PROXY (untrusted by default)", () => {
 
     process.env.KP_TRUSTED_PROXY = "true";
     assert.equal(clientIpFrom(new Headers({ "x-forwarded-for": "203.0.113.7, 10.0.0.1" })), "10.0.0.1");
+  } finally {
+    if (prev === undefined) delete process.env.KP_TRUSTED_PROXY;
+    else process.env.KP_TRUSTED_PROXY = prev;
+  }
+});
+
+// The shared-bucket state must be DETECTABLE, not just documented: a caller whose
+// limiter would deny service to everyone (the login IP throttle) has to be able to ask
+// "is this a real per-client identity?" before keying on it. Exporting the sentinel is
+// what makes that question answerable — string-matching "local" at each call site is
+// exactly the drift this prevents.
+test("SHARED_CLIENT_KEY marks the no-per-client-identity state a caller must detect", () => {
+  const prev = process.env.KP_TRUSTED_PROXY;
+  try {
+    delete process.env.KP_TRUSTED_PROXY;
+    // Untrusted: EVERY caller — spoofed header or none — collapses to the sentinel.
+    assert.equal(clientIpFrom(new Headers({ "x-forwarded-for": "203.0.113.7" })), SHARED_CLIENT_KEY);
+    assert.equal(clientIpFrom(new Headers()), SHARED_CLIENT_KEY);
+    assert.equal(resolveClientIp(null, null, 0), SHARED_CLIENT_KEY);
+
+    process.env.KP_TRUSTED_PROXY = "1";
+    // Behind a declared proxy there IS a per-client identity, so the check clears.
+    assert.notEqual(clientIpFrom(new Headers({ "x-forwarded-for": "203.0.113.7, 10.0.0.1" })), SHARED_CLIENT_KEY);
   } finally {
     if (prev === undefined) delete process.env.KP_TRUSTED_PROXY;
     else process.env.KP_TRUSTED_PROXY = prev;
