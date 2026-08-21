@@ -164,8 +164,13 @@ const SHADE_ALLOW = new Map([
   ["stone-600", "Same as stone-500 — muted text, deliberately stock in both themes."],
 ]);
 
+// `border`/`divide` also take a SIDE before the color (`border-t-red-500`,
+// `divide-y-stone-200`, logical `border-s-`/`border-e-`). Without the optional
+// side the regex could not match a whole family of real call sites, so a shade
+// introduced that way rendered stock in Spark Dark with the gate reporting OK.
 const UTIL =
-  "(?:bg|text|border|ring|ring-offset|from|to|via|fill|stroke|divide|accent|decoration|outline|placeholder|caret|shadow)";
+  "(?:bg|text|border(?:-[trblxyse])?|ring|ring-offset|from|to|via|fill|stroke|divide(?:-[xy])?|accent|decoration|" +
+  "outline|placeholder|caret|shadow)";
 const FAMILY =
   "(?:red|amber|green|blue|emerald|teal|lime|orange|yellow|rose|pink|fuchsia|purple|violet|indigo|sky|cyan|" +
   "stone|slate|gray|zinc|neutral)";

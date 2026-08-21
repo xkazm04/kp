@@ -35,7 +35,11 @@
  * never PRODUCE a flat file again.
  *
  * Usage: npm run market:apply [-- --market cz]   (after npm run market:build)
- *        env: MARKET_BLEND=0..1 (default 0.5) tunes how hard to pull toward ISPV.
+ *        env: MARKET_BLEND=0..1 (default 0.7) tunes how hard to pull toward ISPV.
+ *             (0.7 is what the committed cz bands were generated with — every
+ *              `factor` in data/salary_benchmarks.json solves to it. The header
+ *              used to say 0.5, so anyone regenerating from the doc rather than
+ *              the code silently re-levelled every shipped band.)
  */
 
 const BLEND = Math.min(1, Math.max(0, Number(process.env.MARKET_BLEND ?? 0.7)));
@@ -211,6 +215,17 @@ for (const row of diffRows) {
     console.log(`     ${s.padEnd(7)} ${before.padStart(11)}  ${mark}  ${after}`);
   }
 }
+// Revert guidance must preserve the KEYED shape. data/salary_benchmarks.manual.json
+// is the pristine FLAT block for ONE market, so copying it over the benchmarks file
+// (what this line used to advise) silently deletes every sibling market — the exact
+// data loss the write-safety invariant above refuses to commit. Restore into the
+// market's block instead.
 console.log(
-  `\n[apply-salaries] done. Revert with: copy data\\salary_benchmarks.manual.json data\\salary_benchmarks.json`
+  `\n[apply-salaries] done. Revert markets.${MARKET_ID} to the pristine manual bands with:\n` +
+    `  node -e "const f=require('fs'),b=JSON.parse(f.readFileSync('data/salary_benchmarks.json','utf8'));` +
+    `b.markets['${MARKET_ID}']=JSON.parse(f.readFileSync('data/salary_benchmarks.manual.json','utf8'));` +
+    `f.writeFileSync('data/salary_benchmarks.json',JSON.stringify(b,null,2)+'\\n')"\n` +
+    `  (a plain copy of salary_benchmarks.manual.json over salary_benchmarks.json would drop` +
+    (siblingsPreserved.length ? ` ${siblingsPreserved.join(", ")}` : " every sibling market") +
+    `.)`
 );

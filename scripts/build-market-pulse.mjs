@@ -28,6 +28,14 @@
  *
  * Usage:  node scripts/build-market-pulse.mjs   (Pumper must be running on :8088)
  *         PUMPER_URL=http://host:port  overrides the endpoint.
+ *         --force  write the snapshot even if validateSnapshot() rejects it.
+ *
+ * A snapshot that fails validateSnapshot() is NOT written and the process exits
+ * 1. The documented workflow is `npm run market:build && npm run market:apply`,
+ * and market:apply re-levels every shipped salary band from this file — so a
+ * broken feed (an ISPV schema change, a Pumper export shape change, salary
+ * fields reading adverts again) has to break the chain instead of printing a
+ * warning nobody's `&&` can see.
  */
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -38,6 +46,7 @@ import { fetchIspv, regionalEarnings, sphereEarnings, nationalEarnings } from ".
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = path.join(ROOT, "data");
 const PUMPER = process.env.PUMPER_URL || "http://127.0.0.1:8088";
+const FORCE = process.argv.includes("--force");
 const CISELNIKY = "https://data.mpsv.cz/od/soubory/ciselniky";
 const ATTRIBUTION_URL = "https://data.mpsv.cz/web/data/volna-mista-za-celou-cr";
 
@@ -83,6 +92,35 @@ function codelistMap(cl) {
 }
 const r100 = (v) => (v == null || Number.isNaN(v) ? null : Math.round(v / 100) * 100);
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+/**
+ * Snapshot sanity gate — a pure function of the finished snapshot so it can be
+ * exercised without a Pumper instance or a live MPSV fetch.
+ *
+ * Returns [] when the snapshot is publishable, else one string per problem.
+ * These are corruption signals, not style notes: an empty `wages` export or a
+ * changed `records()` shape silently produces zero salary families, and a salary
+ * field that starts reading ADVERTS again lands the national median in the
+ * twenties (that regression is why scripts/lib/market-earnings.mjs exists).
+ */
+export function validateSnapshot(snapshot) {
+  const problems = [];
+  const reference_salaries = snapshot?.reference_salaries ?? [];
+  const regions = snapshot?.regions ?? [];
+  const top_occupations = snapshot?.demand?.top_occupations ?? [];
+  const meta = snapshot?.meta ?? {};
+  if (reference_salaries.length < 8) problems.push(`only ${reference_salaries.length} salary families`);
+  if (regions.length !== 14) problems.push(`expected 14 regions, got ${regions.length}`);
+  if (!regions.every((r) => r.code)) problems.push("some regions missing NUTS3 code");
+  if (!meta.national_median) problems.push("no national median");
+  // A sanity floor, not a style rule: a national median in the twenties means
+  // a salary field is reading adverts again.
+  if (meta.national_median && meta.national_median < 35000)
+    problems.push(`national median ${meta.national_median} looks like advertised pay, not earnings`);
+  if (regions.some((r) => r.medianSalary == null)) problems.push("some regions have no ISPV earnings median");
+  if (top_occupations.length < 10) problems.push("few top occupations");
+  return problems;
+}
 
 const roleMap = JSON.parse(readFileSync(path.join(DATA, "czisco-role-map.json"), "utf8"));
 function codeDigits(cz) {
@@ -300,7 +338,6 @@ async function main() {
     for (const tf of top_families) tf.momentum = null;
   }
   history.push({ generated_at: now, total: nationalTotal, families: Object.fromEntries(top_families.map((t) => [t.family, t.vacancies])) });
-  writeFileSync(histPath, JSON.stringify(history.slice(-40), null, 2) + "\n");
 
   const snapshot = {
     meta: {
@@ -338,23 +375,26 @@ async function main() {
   };
 
   const outPath = path.join(DATA, "market_pulse.json");
+
+  // Validate BEFORE writing. This used to warn on stderr and still exit 0 with
+  // the bad snapshot already on disk, so `npm run market:build && npm run
+  // market:apply` happily re-levelled every shipped salary band from it.
+  const problems = validateSnapshot(snapshot);
+  if (problems.length && !FORCE) {
+    console.error(`[market-pulse] VALIDATION FAILED: ${problems.join("; ")}`);
+    console.error(
+      `[market-pulse] refusing to overwrite ${path.relative(ROOT, outPath)} — the committed snapshot is untouched. ` +
+        `Fix the feed (Pumper export shape? ISPV schema?) and re-run, or pass --force to write it anyway.`
+    );
+    process.exit(1);
+  }
+  if (problems.length) {
+    console.error(`[market-pulse] VALIDATION FAILED (--force, writing anyway): ${problems.join("; ")}`);
+  }
+
+  writeFileSync(histPath, JSON.stringify(history.slice(-40), null, 2) + "\n");
   writeFileSync(outPath, JSON.stringify(snapshot, null, 2) + "\n");
 
-  // validation
-  const problems = [];
-  if (reference_salaries.length < 8) problems.push(`only ${reference_salaries.length} salary families`);
-  if (regions.length !== 14) problems.push(`expected 14 regions, got ${regions.length}`);
-  if (!regions.every((r) => r.code)) problems.push("some regions missing NUTS3 code");
-  if (!snapshot.meta.national_median) problems.push("no national median");
-  // A sanity floor, not a style rule: a national median in the twenties means
-  // a salary field is reading adverts again.
-  if (snapshot.meta.national_median && snapshot.meta.national_median < 35000)
-    problems.push(`national median ${snapshot.meta.national_median} looks like advertised pay, not earnings`);
-  if (regions.some((r) => r.medianSalary == null)) problems.push("some regions have no ISPV earnings median");
-  if (top_occupations.length < 10) problems.push("few top occupations");
-  if (problems.length) {
-    console.error(`[market-pulse] VALIDATION WARNINGS: ${problems.join("; ")}`);
-  }
   console.log(
     `[market-pulse] wrote ${path.relative(ROOT, outPath)} — ${reference_salaries.length} families, ` +
       `${regions.length} regions, ${top_occupations.length} occupations, ` +
@@ -362,7 +402,11 @@ async function main() {
   );
 }
 
-main().catch((e) => {
-  console.error(`[market-pulse] FAILED: ${e.message}`);
-  process.exit(1);
-});
+// Only fetch/build when invoked as a script — importing this module (e.g. to
+// exercise validateSnapshot) must not hit Pumper or write data/.
+if (process.argv[1]?.endsWith("build-market-pulse.mjs")) {
+  main().catch((e) => {
+    console.error(`[market-pulse] FAILED: ${e.message}`);
+    process.exit(1);
+  });
+}

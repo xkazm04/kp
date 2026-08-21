@@ -3,9 +3,15 @@
 //   node scripts/docs/__tests__/check-doc-sync.test.mjs
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { evaluate, compileGlob } from '../check-doc-sync.mjs';
+import {
+  evaluate,
+  compileGlob,
+  isTurnBoundary,
+  collectEditedFilesFromTranscript,
+} from '../check-doc-sync.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, '../../..');
@@ -118,6 +124,87 @@ check('multiple docs can be hit in one turn', () => {
 
 check('empty turn => silent', () => {
   assert.equal(evaluate([], MAP).missing, false);
+});
+
+// --- transcript walk --------------------------------------------------------
+// Regression fixtures for the bug that made this hook a no-op: a tool RESULT is
+// written as `{type:'user', message:{role:'user', content:[{type:'tool_result'}]}}`,
+// so treating every `type:'user'` line as the turn boundary stopped the backward
+// walk at the last tool result — before any Edit could be seen.
+const userPrompt = (text) => ({ type: 'user', message: { role: 'user', content: text }, uuid: 't' });
+const toolResult = (id) => ({
+  type: 'user',
+  message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: 'ok' }] },
+  toolUseResult: {},
+});
+const editCall = (id, file) => ({
+  type: 'assistant',
+  message: {
+    role: 'assistant',
+    content: [{ type: 'tool_use', name: 'Edit', id, input: { file_path: path.join(REPO_ROOT, file) } }],
+  },
+});
+const assistantText = (text) => ({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } });
+
+function writeTranscript(events) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kp-docsync-'));
+  const file = path.join(dir, 'transcript.jsonl');
+  fs.writeFileSync(file, events.map((e) => JSON.stringify(e)).join('\n') + '\n');
+  return file;
+}
+
+check('a tool_result line is NOT a turn boundary', () => {
+  assert.equal(isTurnBoundary(toolResult('t1')), false);
+});
+
+check('a human prompt IS a turn boundary (string and text-block forms)', () => {
+  assert.equal(isTurnBoundary(userPrompt('do the thing')), true);
+  assert.equal(
+    isTurnBoundary({ type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'hi' }] } }),
+    true,
+  );
+});
+
+check('an assistant line is never a turn boundary', () => {
+  assert.equal(isTurnBoundary(assistantText('done')), false);
+});
+
+check('an Edit followed by its tool_result is still collected', () => {
+  const file = writeTranscript([
+    userPrompt('Fix the comms dispatch bug.'),
+    editCall('t1', 'app/_lib/comms-dispatch.ts'),
+    toolResult('t1'),
+    assistantText('Done.'),
+  ]);
+  const edited = [...collectEditedFilesFromTranscript(file)];
+  assert.deepEqual(edited, ['app/_lib/comms-dispatch.ts']);
+  assert.equal(evaluate(edited, realMap).missing, true);
+});
+
+check('the walk stops at the previous HUMAN turn', () => {
+  const file = writeTranscript([
+    userPrompt('turn one'),
+    editCall('t1', 'app/_lib/billing.ts'),
+    toolResult('t1'),
+    assistantText('done one'),
+    userPrompt('turn two'),
+    editCall('t2', 'app/_lib/comms-dispatch.ts'),
+    toolResult('t2'),
+    assistantText('done two'),
+  ]);
+  assert.deepEqual([...collectEditedFilesFromTranscript(file)], ['app/_lib/comms-dispatch.ts']);
+});
+
+check('a turn that also edits the mapped doc is satisfied', () => {
+  const file = writeTranscript([
+    userPrompt('Fix the comms dispatch bug.'),
+    editCall('t1', 'app/_lib/comms-dispatch.ts'),
+    toolResult('t1'),
+    editCall('t2', 'docs/features/comms/README.md'),
+    toolResult('t2'),
+    assistantText('Done.'),
+  ]);
+  assert.equal(evaluate([...collectEditedFilesFromTranscript(file)], realMap).missing, false);
 });
 
 // --- the real map is well-formed and resolves -------------------------------

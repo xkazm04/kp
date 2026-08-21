@@ -295,9 +295,19 @@ function sourceFiles(dir) {
   return out;
 }
 
+// A scoped scan whose scope silently evaporates is worse than no scan: renaming
+// or removing one of these directories used to drop it from the sweep with the
+// gate still printing OK. A path in the list that is not on disk is a problem to
+// resolve deliberately (fix the path, or delete the entry), never a skip.
 let sealedFileCount = 0;
 for (const dir of SEALED_ATTR_DIRS) {
-  if (!existsSync(dir)) continue;
+  if (!existsSync(dir)) {
+    problems.push(
+      `scripts/i18n-check.mjs — SEALED_ATTR_DIRS names ${relative(REPO_ROOT, dir).split("\\").join("/")}, which is not on disk; ` +
+        `that directory is no longer being checked. Update the list in the same change that moved it.`
+    );
+    continue;
+  }
   for (const file of tsxFiles(dir)) {
     sealedFileCount++;
     const lines = readFileSync(file, "utf8").split(LINE_BREAK);
@@ -344,7 +354,13 @@ for (const registry of ["STORE_ERRORS", "REFUSAL_ERRORS"]) {
 let uiFileCount = 0;
 for (const dir of UI_DIRS) {
   const abs = join(REPO_ROOT, ...dir.split("/"));
-  if (!existsSync(abs)) continue;
+  if (!existsSync(abs)) {
+    problems.push(
+      `scripts/i18n-check.mjs — UI_DIRS names ${dir}, which is not on disk; that directory is no longer ` +
+        `being scanned for English API-error leaks. Update the list in the same change that moved it.`
+    );
+    continue;
+  }
   for (const file of sourceFiles(abs)) {
     const rel = relative(REPO_ROOT, file).split("\\").join("/");
     if (ERROR_LEAK_ALLOW.has(rel)) continue;

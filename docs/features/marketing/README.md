@@ -286,9 +286,13 @@ page figures.
 can be refreshed from anywhere. Both scripts share the same aggregation module,
 so a full rebuild cannot regress to advertised pay.
 
-Both validate, and both warn loudly on the failure that matters: a national
-median below 35 000 Kč means a salary field is reading adverts again. `market:earnings`
-additionally asserts Prague is the highest-paid region.
+Both validate on the failure that matters: a national median below 35 000 Kč
+means a salary field is reading adverts again. `market:earnings` additionally
+asserts Prague is the highest-paid region. `market:build` validates the snapshot
+**before** writing it (`validateSnapshot()` in `scripts/build-market-pulse.mjs`)
+and, on any problem, refuses to overwrite `data/market_pulse.json` and exits 1 —
+so the documented `market:build && market:apply` chain cannot re-level every
+shipped salary band from a broken feed. `--force` writes anyway, deliberately.
 
 ### Gaps are hidden, never stated
 

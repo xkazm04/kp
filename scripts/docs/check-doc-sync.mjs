@@ -78,7 +78,21 @@ export function compileGlob(pattern) {
   return new RegExp(`^${re}$`);
 }
 
-function collectEditedFilesFromTranscript(transcriptPath) {
+// A transcript line with `type:'user'` is EITHER a real human turn boundary OR
+// the tool_result carrier the CLI writes after every tool call — both have
+// `message.role === 'user'`. Breaking on the type alone therefore stopped the
+// backward walk at the LAST tool result, and since an Edit/Write is always
+// followed by its own result, the walk never reached a single tool_use: the hook
+// collected zero files and exited 0 on every real turn. Only a message that
+// carries no tool_result block is a turn boundary.
+export function isTurnBoundary(evt) {
+  if (evt.type !== 'user' || evt.message?.role !== 'user') return false;
+  const content = evt.message?.content;
+  if (!Array.isArray(content)) return true; // plain string prompt
+  return !content.some((block) => block?.type === 'tool_result');
+}
+
+export function collectEditedFilesFromTranscript(transcriptPath) {
   if (!transcriptPath || !fs.existsSync(transcriptPath)) return new Set();
   const lines = fs.readFileSync(transcriptPath, 'utf8').split('\n').filter(Boolean);
   const edited = new Set();
@@ -87,7 +101,7 @@ function collectEditedFilesFromTranscript(transcriptPath) {
   for (let i = lines.length - 1; i >= 0; i--) {
     const evt = safeJson(lines[i]);
     if (!evt) continue;
-    if (evt.type === 'user' && evt.message?.role === 'user') break;
+    if (isTurnBoundary(evt)) break;
     if (evt.type !== 'assistant') continue;
     const content = evt.message?.content;
     if (!Array.isArray(content)) continue;
