@@ -48,8 +48,10 @@ uat/
   rubric.md            # evaluation lens (7 dimensions) + impact scoring + finding types
   env.md               # how to reach a known, reproducible start state + required FIXTURES (THE per-app file)
   accepted-gaps.md     # baseline of known-and-accepted issues (won't re-surface)
-  driver/drive.mjs     # portable browser driver — navigate + capture + one click (L2)
-  driver/drive-ai.mjs  # AI-surface driver — fill inputs, generate, wait for the model result (L2)
+  driver/lib.mjs           # shared L2 core — bootstrap, target resolver, predicate waits, api
+  driver/drive-script.mjs  # THE driver — inline step script, whole journey in ONE process (L2)
+  driver/drive.mjs         # one-shot capture — navigate + screenshot + ARIA + one click (L2)
+  driver/drive-ai.mjs      # AI surface — fill, generate, settle, grounding assertion (L2)
   runs/<date-slug>/    # journals, findings.json, report.md (+ gitignored shots/)
   .gitignore           # ignores runs/*/shots/
 ```
@@ -84,7 +86,7 @@ Goal: scaffold the `uat/` overlay grounded in **both** the codebase **and real-w
 4. **Offer a Character count.** Ask the user how many Characters to create — **1** (smoke: one core user), **5** (standard: the main internal roles + at least one external prospect/buyer), **10** (thorough: a wide variety of perspectives/user types). Default 5. Every app warrants a *different* mix — pick Characters spanning the real user types it serves; always include at least one **external prospect/buyer** (they surface credibility/conversion gaps internal users can't).
 5. **Draft Characters** (`uat/characters/*.md`, template in `uat/README.md`): each a real role *from this app's target group*, with JTBD, `What good looks like`, pet peeves, **Motivation (time-saved)**, **Senior-quality bar**, **Scored acceptance criteria**, a **Surface binding** (the app variant / project-type + module set this Character actually uses — so findings are tested only on surfaces this Character can reach, never mis-attributed to them by topic), and a **Background / lived experience** + **Voice** (their history, the tools they've been burned by, who they answer to, what's at stake for them, how they actually talk) — the texture that makes their feedback authentic, not generic. All grounded in the research.
 6. **Draft Journeys** (`uat/journeys/*.md`): goals with a user-POV definition-of-done, NOT step scripts. Mark each `promotion: discovery`.
-7. **Scaffold** `rubric.md`, `accepted-gaps.md`, `driver/drive.mjs`, `.gitignore` if missing.
+7. **Scaffold** `rubric.md`, `accepted-gaps.md`, `driver/lib.mjs` + `driver/drive-script.mjs` (plus the `drive.mjs` / `drive-ai.mjs` wrappers), `.gitignore` if missing.
 
 Output: a short summary + open env questions. Do not run journeys in `init`.
 
@@ -172,7 +174,34 @@ Turn a clean journey into a low-variance **acceptance** gate. Take a journey tha
 
 Per-app values (base URL, port, auth, seed) come from `uat/env.md`; the mechanics are universal.
 
-- Prefer an interactive browser MCP if connected; else the bundled **`uat/driver/drive.mjs`** (navigate → screenshot + ARIA + text + optional one click). Run from repo root: `MSYS_NO_PATHCONV=1 BASE_URL=http://localhost:<port> SHOT_DIR=uat/runs/<id>/shots node uat/driver/drive.mjs /route shotName [clickRoleName]`. For **AI surfaces** use **`uat/driver/drive-ai.mjs`** — fills inputs, clicks generate, and **polls until the model result settles** (15–130s), optionally asserting the output echoes a supplied real entity (the grounding check). Other multi-step flows: a short bespoke driver reusing these patterns.
+- **Drive with `uat/driver/drive-script.mjs` — one entry point, the journey is the argument.** You write the steps inline and the whole journey runs in ONE process: one browser boot, one journal, one round trip. Never write a bespoke per-run `.mjs` again (`driver/_archive/README.md` maps every old pattern — chat, build-over-API-then-verify, theme sweep, custom `<Select>` — to its `drive-script` recipe).
+
+  ```bash
+  MSYS_NO_PATHCONV=1 BASE_URL=http://localhost:<port> LOCALE=cs \
+    SHOT_DIR=uat/runs/<id>/shots \
+    node uat/driver/drive-script.mjs <runName> <<'EOF'
+  await goto("/?tab=library");
+  await click("Zadání role");
+  await waitEnabled({ css: "textarea" });
+  const r = await waitReply(async () => {
+    await fill({ css: "textarea" }, "Java vývojář do platebního týmu");
+    await click({ role: "button", name: /Odeslat/i });
+  });
+  const { text } = await snap("brief");
+  expect("the brief captured the role", /NEZBYTNÉ/.test(text), { ms: r.ms });
+  EOF
+  ```
+
+  Two thin wrappers keep their old contract for the common one-shot cases:
+  `drive.mjs /route shotName [clickLabel]` (navigate → screenshot + ARIA + text)
+  and `drive-ai.mjs` (`FILL` / `GENERATE` / `EXPECT` — fills, triggers, **polls until
+  the model result settles**, and asserts the output echoes a supplied real entity:
+  the grounding check).
+
+- **Exit codes are the verdict.** `0` = ran, every `expect()` passed · `1` = the driver threw (env problem) · `2` = ran, an `expect()` FAILED — **that is a finding, not a bug**. Never loosen an assertion or shorten a timeout to turn a 2 into a 0. stdout is a single JSON journal (`checks[]` carries the verdicts); progress goes to stderr.
+- **Wait on a predicate, never on a sleep.** `waitFor` · `waitEnabled` · `waitForText` · `waitUntil(fn,{label})` · `poll`. `sleep()` is for animation frames (a 1.6 s flash, a 300 ms fold), not for "the model is probably done by now" — a timeout then names what never happened instead of surfacing as a mystery selector error three steps later. **Two settles, and picking the wrong one is a silent false pass:** a CHAT surface settles when the composer re-enables (`waitReply`) — the optimistic bubble and the thinking indicator fool a text delta; a one-shot GENERATE surface settles when the text grows and holds (`waitSettled`).
+- **`probe()` before `snap()`.** `probe()` returns just the interactive elements with stable handles you can pass straight back to `click`/`fill`. Measured on kp: `/?tab=library` full ARIA ≈ 5,733 tok vs `probe()` ≈ 1,805; `/?tab=hiring` 1,054 → 433. Use `probe()` to decide what to touch, `snap()` when a human will read the evidence.
+- **`api.*` shares the page's cookies** — build a fixture over HTTP in seconds, then open it in the real UI and read every verdict off the rendered surface. Never assert off the API alone; UI reachability is the whole point of L2.
 - **Fixture readiness (preflight before driving) — demand DISTINCT, realistic data:** `env.md` must enumerate the fixtures the Characters need + how to create them — one project of **every** project-type the Characters bind to, seeded data, and a **share token / public link for client-facing surfaces**. Crucially, assert the seed is **non-empty and non-identical across tenants/clients** before L2 starts: "every client shows the same demo numbers" and "the list is empty so it silently falls back to a sample" are exactly the bugs that *only* surface with multiple distinct fixtures — an empty or clone-stamped store hides them. A Character whose surface has no fixture (or only a clone of another's) is untestable, not passing.
 - **Your own runs are a data source, and residue outlives them.** L2 types into real inputs against a shared dev database, so a later run — or a user — reads what an earlier run wrote as if it were product data. Two rules: **(a)** an L2 that writes anything records what it wrote in the run directory, and **(b)** preflight treats an unexplained singleton, round-number or lone-tenant row as **suspect provenance** and traces its `updated_at` before any finding cites it as a product fact. (v1.6 lesson: a cost-per-hire of 833 CZK rendered as a live metric on the seeded host, and the whole figure came from ONE `channel_spend` row — `linkedin = 5,000 CZK` — typed in by a UAT session six weeks earlier. The input that wrote it had since been orphaned by a refactor, so the number was un-updatable *and* looked current. Checking it flipped the finding: the walker's "cost per hire can never exist" was falsified, and the truth — a stale number no user can correct, invisible because it looks plausible — was worse.)
 - **Server lifecycle:** reuse an already-running server (don't start a 2nd instance); else start in the background and poll for 200 before driving. **Recover a wedged server** (hangs / `ECONNREFUSED` / bundler cache errors like Turbopack "corrupted database", often after a `git checkout` swapped files under it): kill the port, delete the build cache (`.next`/`.vite`), restart, re-poll.
