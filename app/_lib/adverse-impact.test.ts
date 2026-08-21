@@ -161,6 +161,25 @@ test("a group exactly at the floor is reliable; one below it is not", () => {
   assert.equal(r.reliable, false, "only one group clears the floor, so nothing can be measured");
 });
 
+// bug-scan 2026-08-21 (lib-compliance): the reference group was matched back by NAME, so a
+// pasted DUPLICATE group name marked every row sharing that name `isReference` — and
+// `adverseImpact` exempts the reference. A second "Women" row at a 0.25 ratio rendered as
+// "reference" under a green verdict instead of being flagged.
+
+test("a duplicate group name cannot exempt a second row from the flag", () => {
+  const r = computeAdverseImpact([
+    { group: "Women", selected: 80, total: 100 }, // 0.80 — the reference
+    { group: "Women", selected: 20, total: 100 }, // 0.20 → ratio 0.25, must flag
+    { group: "Men", selected: 80, total: 100 },
+  ]);
+  const [ref, dup] = r.groups;
+  assert.equal(ref.isReference, true);
+  assert.equal(dup.isReference, false, "only the row that IS the reference may be the reference");
+  assert.equal(dup.impactRatio, 0.25);
+  assert.equal(dup.adverseImpact, true);
+  assert.equal(r.anyAdverseImpact, true, "a 0.25 ratio must not hide behind a shared group name");
+});
+
 // bug-ui-scan 2026-07-09 (screening-decisions-records #4): parseGroupCounts must make a
 // malformed pasted row VISIBLE rather than silently dropping it. The reference group is
 // "highest rate among whatever parsed", so quietly discarding a mistyped line can change the
@@ -205,6 +224,34 @@ test("blank/whitespace lines are ignored — neither parsed nor counted malforme
   assert.equal(p.groups.length, 2);
   assert.deepEqual(p.malformedRows, []);
   assert.equal(p.nonBlankRows, 2, "empty lines do not inflate the row count");
+});
+
+// bug-scan 2026-08-21 (lib-compliance): a row with MORE than three comma fields was
+// accepted — the first three fields were kept and the rest silently discarded. A
+// spreadsheet paste with thousands separators ("Women, 1,200, 5,000") therefore read as
+// 1/200, produced no warning at all, and turned a real 0.50 four-fifths violation into a
+// green "no group falls below the threshold" verdict.
+
+test("a row with extra comma fields is malformed, not silently truncated", () => {
+  const p = parseGroupCounts("Women, 1,200, 5,000\nMen, 2,400, 5,000");
+  assert.deepEqual(p.groups, [], "a thousands-separated row must not parse as 1/200");
+  assert.deepEqual(p.malformedRows, [1, 2]);
+  assert.equal(p.nonBlankRows, 2);
+  // The truth the old parse hid: 1200/5000 vs 2400/5000 is a 0.50 ratio.
+  const truth = computeAdverseImpact([
+    { group: "Women", selected: 1200, total: 5000 },
+    { group: "Men", selected: 2400, total: 5000 },
+  ]);
+  assert.equal(truth.anyAdverseImpact, true);
+});
+
+test("a trailing comma is punctuation, not a fourth field", () => {
+  const p = parseGroupCounts("Women, 40, 100,\nMen, 80, 100");
+  assert.deepEqual(p.groups, [
+    { group: "Women", selected: 40, total: 100 },
+    { group: "Men", selected: 80, total: 100 },
+  ]);
+  assert.deepEqual(p.malformedRows, []);
 });
 
 test("dropping a malformed row can change the reference — so it must be visible", () => {

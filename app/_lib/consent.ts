@@ -155,6 +155,11 @@ const PII_KEYS = new Set([
   "name",
   "fullname",
   "rawtext",
+  // The 3-5 sentence verdict prose. The deterministic keyless builder writes it as
+  // "{candidate.name} was assessed as …" (pipeline.py `_explanation_fallback`, and the
+  // seed corpus does the same), so on a keyless deploy EVERY analysis carries the full
+  // name here — it is name-bearing free text, not a retained score.
+  "explanation",
   "email",
   "phone",
   "contact",
@@ -178,7 +183,14 @@ const PII_ARRAY_KEYS = new Set(["evidence"]);
 // them, not just a single named array. `evidenceTrace` ({experience,skills,seniority,
 // education,salary}: string[] of CV quotes) was walked straight through before — its
 // quotes survived Art. 17 erasure and were re-exported by the provenance dossier.
-const PII_CONTAINER_KEYS = new Set(["evidencetrace"]);
+//
+// `extractionComparison` ({pypdfText, geminiText}) is the WHOLE uploaded CV text a
+// second and third time — pipeline.py populates it on every run, so scrubbing only the
+// `rawText` key left an identical copy (name, email, phone, address) readable in
+// History and /api/analyses/[slug] after an Art. 17 erasure. `interviewKit` is the
+// per-candidate prep dossier the deterministic builder stamps the name into
+// ("{name}: 9 mock questions …") and whose questions quote the CV back.
+const PII_CONTAINER_KEYS = new Set(["evidencetrace", "extractioncomparison", "interviewkit"]);
 
 /** Recursively blank every leaf under a free-text PII container: strings → "",
  *  arrays → [] (drop the verbatim quotes), objects recurse; non-identifying

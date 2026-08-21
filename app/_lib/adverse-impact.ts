@@ -50,7 +50,7 @@ export type GroupCount = { group: string; selected: number; total: number };
 export type ParsedGroupCounts = {
   /** The rows that parsed into a usable group count. */
   groups: GroupCount[];
-  /** 1-based line numbers of NON-BLANK rows that failed to parse (fewer than three
+  /** 1-based line numbers of NON-BLANK rows that failed to parse (not exactly three
    *  comma fields, an empty group name, or a non-numeric selected/total). */
   malformedRows: number[];
   /** Count of non-blank rows seen — `groups.length + malformedRows.length`. */
@@ -59,7 +59,7 @@ export type ParsedGroupCounts = {
 
 /**
  * Parse recruiter-pasted counts into groups, SURFACING malformed rows instead of
- * silently skipping them (finding SD-4). Each non-blank line must be `group,
+ * silently skipping them (finding SD-4). Each non-blank line must be EXACTLY `group,
  * selected, total` with a non-empty group name and a finite numeric selected and
  * total; any line that isn't is recorded in `malformedRows` (1-based, by original
  * line position) so the UI can warn that the verdict was computed over a subset —
@@ -72,12 +72,18 @@ export function parseGroupCounts(text: string): ParsedGroupCounts {
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].trim() === "") continue; // a blank line is not input, not an error
     const parts = lines[i].split(",").map((p) => p.trim());
+    // A trailing comma ("Women, 40, 100,") is punctuation, not a fourth field.
+    while (parts.length > 3 && parts[parts.length - 1] === "") parts.pop();
     const [group, selRaw, totRaw] = parts;
     const selected = Number(selRaw);
     const total = Number(totRaw);
+    // EXACTLY three fields. A row with extra ones used to keep the first three and
+    // discard the rest, so a spreadsheet paste carrying thousands separators
+    // ("Women, 1,200, 5,000") parsed as 1/200 — silently, with no malformed warning —
+    // and a genuine 0.50 ratio rendered as a green "no adverse impact" verdict.
     // An empty numeric field (`Number("")` === 0) is a typo, not a real 0 — flag it
     // rather than fabricating a count, so the row is visible instead of assumed.
-    if (parts.length < 3 || !group || selRaw === "" || totRaw === "" || !Number.isFinite(selected) || !Number.isFinite(total)) {
+    if (parts.length !== 3 || !group || selRaw === "" || totRaw === "" || !Number.isFinite(selected) || !Number.isFinite(total)) {
       malformedRows.push(i + 1);
       continue;
     }
@@ -102,7 +108,8 @@ export type GroupImpact = {
    *  never flagged (its ratio is 1); sub-cohort groups are never flagged either. */
   adverseImpact: boolean;
   /** The highest-selection-rate group the others are measured against. Only groups
-   *  meeting {@link ADVERSE_IMPACT_MIN_COHORT} can be the reference. */
+   *  meeting {@link ADVERSE_IMPACT_MIN_COHORT} can be the reference, and EXACTLY one
+   *  row carries it — even when two pasted rows share a group name. */
   isReference: boolean;
   /** True when this group's own sample (total) meets {@link ADVERSE_IMPACT_MIN_COHORT}.
    *  When false the UI must render an "insufficient sample" state — NOT a verdict. */
@@ -155,11 +162,16 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
 
   // Reference = highest selection rate among groups that clear the min-cohort floor.
   // Sub-floor groups (e.g. n=1 at 100%) are excluded so they can't anchor the verdict.
-  let reference: (typeof withRate)[number] | null = null;
-  for (const g of withRate) {
-    if (!g.reliable) continue;
-    if (reference === null || g.selectionRate > reference.selectionRate) reference = g;
+  // Tracked by INDEX, not by name: two pasted rows can carry the SAME group name, and
+  // matching the reference back by `g.group === reference.group` marked BOTH of them
+  // `isReference` — which exempts a row from ever being flagged. A duplicate "Women"
+  // row at a 0.25 ratio rendered as "reference" under a green verdict.
+  let referenceIndex = -1;
+  for (let i = 0; i < withRate.length; i++) {
+    if (!withRate[i].reliable) continue;
+    if (referenceIndex < 0 || withRate[i].selectionRate > withRate[referenceIndex].selectionRate) referenceIndex = i;
   }
+  const reference = referenceIndex >= 0 ? withRate[referenceIndex] : null;
   const referenceRate = reference?.selectionRate ?? 0;
 
   // The analysis is only trustworthy with a reference PLUS at least one other group
@@ -167,8 +179,8 @@ export function computeAdverseImpact(rawGroups: readonly GroupCount[]): AdverseI
   const reliableCount = withRate.filter((g) => g.reliable).length;
   const reliable = reliableCount >= 2;
 
-  const groups: GroupImpact[] = withRate.map((g) => {
-    const isReference = reference !== null && g.group === reference.group && g.reliable;
+  const groups: GroupImpact[] = withRate.map((g, i) => {
+    const isReference = i === referenceIndex; // only ever a reliable row (see the loop above)
     // A ratio needs a reference WITH a positive rate, and the group itself must clear
     // the floor — otherwise it's undefined / unreliable, not "no adverse impact".
     const ratioMeasurable = reference !== null && referenceRate > 0 && g.reliable;

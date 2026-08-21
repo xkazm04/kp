@@ -85,6 +85,20 @@ test("erasure scrubs PII from the candidate's saved analyses (matched by label)"
         skills: ["Jane shipped the Python settlement service"],
         salary: ["currently on 1,200,000 CZK at Acme"],
       },
+      // bug-scan 2026-08-21 (lib-compliance): the SAME uploaded CV text is stored a
+      // second and third time under extractionComparison (pipeline.py populates it on
+      // EVERY run), and the deterministic explanation/interview-kit builders interpolate
+      // the candidate's name. Only `rawText` was scrubbed, so an erased candidate's whole
+      // CV — name, email, phone — stayed readable in History / /api/analyses/[slug].
+      extractionComparison: {
+        pypdfText: "Jane Doe\njane@example.com\n+420123456789\nExtracted CV text, pypdf pass.",
+        geminiText: "Jane Doe\njane@example.com\n+420123456789\nExtracted CV text, gemini pass.",
+      },
+      explanation: "Jane Doe was assessed as senior in backend. Score 82/100.",
+      interviewKit: {
+        summary: "Jane Doe: 9 mock questions tied to 6 evidence gaps.",
+        questions: [{ bucket: "technical", question: "Walk Jane through the Acme billing rewrite.", evidenceGap: "" }],
+      },
       score: 82, // non-PII recruitment signal must survive
     },
   });
@@ -114,6 +128,15 @@ test("erasure scrubs PII from the candidate's saved analyses (matched by label)"
     [],
     "evidenceTrace.experience emptied",
   );
+  // The re-extracted copies of the same CV must go too — scrubbing only `rawText`
+  // left the identical text (name + email + phone) under extractionComparison.
+  assert.doesNotMatch(flat, /Extracted CV text/i, "extractionComparison.{pypdf,gemini}Text scrubbed");
+  // Prose the deterministic builders stamp the candidate's NAME into.
+  assert.doesNotMatch(flat, /assessed as senior/i, "explanation scrubbed");
+  assert.doesNotMatch(flat, /mock questions/i, "interviewKit.summary scrubbed");
+  assert.doesNotMatch(flat, /billing rewrite/i, "interviewKit question text scrubbed");
+  assert.doesNotMatch(flat, /Jane Doe/i, "no copy of the name survives anywhere in the payload");
+
   // Non-identifying recruitment signal is retained for rediscovery.
   assert.equal((after!.payload as { score: number }).score, 82, "score retained");
   // The stored label is masked, not the full name.

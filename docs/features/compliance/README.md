@@ -48,11 +48,37 @@ and `anonymizeExpiredConsents` (the sweep, registered in `instrumentation.ts`).
 comment at `pipeline.ts:1332-1335` states the GDPR Art. 17(3)(b)/(e)
 legal-claims/compliance basis for retaining the sealed chain post-erasure.
 
+Inside an analysis/profile payload the scrub is `scrubPiiFromPayload`
+(`consent.ts`), which walks the blob generically: keys in `PII_KEYS` are blanked
+(`name`, `rawText`, `email`, `phone`, `explanation`, …), `evidence` arrays are
+emptied, and the free-text CONTAINERS in `PII_CONTAINER_KEYS` — `evidenceTrace`,
+`extractionComparison`, `interviewKit` — are deep-redacted subtree-wide. The
+last two matter because the pipeline stores the uploaded CV text **three** times:
+`candidate.rawText` plus `extractionComparison.{pypdfText,geminiText}`
+(`pipeline/jobfit/pipeline.py` populates that on every run), so blanking
+`rawText` alone left an identical copy of the CV — name, email, phone — readable
+in History and `/api/analyses/[slug]` after an Art. 17 erasure. `explanation` and
+`interviewKit.summary` are name-bearing for the same reason: the deterministic
+(keyless) builders interpolate `candidate.name` straight into them. Retained, as
+before: scores, skills, seniority, role family, salary band, traits.
+
 **Self-service erasure.** `ensureErasureToken` mints a per-entry token;
 `app/data/[token]/page.tsx` + `DataClient.tsx` render the candidate's held
 data and an erase button; `app/api/data/[token]/route.ts` handles GET
 (projection) and POST (→ `anonymizeEntry`). The token is carried in comms
 email footers.
+
+The page distinguishes a **dead link** from a **transient fault**, because the
+two need opposite reactions from the candidate: only a `404` renders the
+terminal "this link has expired or is no longer valid" copy, while a `5xx` or a
+dropped connection resolves the retryable `errors.DATA_LOOKUP_FAILED` message
+(no page-local copy — `safeJsonError` already returns that code and all four
+catalogs carry it). `anonymizeEntry` NULLs `erasure_token`, so a POST that
+already landed — a second tab, or a response lost in flight — makes every
+retry `404`; a failed erase therefore re-reads the entry before showing an
+error, and treats a consumed token or an `anonymized` entry as **erased**.
+Telling a candidate their erasure failed on data that is already gone would be
+the one lie this surface must never tell.
 
 **Decision sealing + candidate explanation.** Every automated or human
 adverse action is sealed into a per-tenant, hash-chained record
@@ -156,7 +182,14 @@ no longer exists, so the obligation no longer attaches to it.)
 `isEarlyCareer`) + `app/_lib/automation-fairness.ts` re-derive the sole
 legitimate auto-reject path defense-in-depth; `app/_lib/adverse-impact.ts`
 is a browser-only four-fifths-rule worksheet for externally supplied
-demographic counts — the app itself holds none. The UI for this lives at
+demographic counts — the app itself holds none. Two rules keep that worksheet
+from rendering a false clean bill: a pasted row must carry **exactly** three
+comma fields (`group, selected, total`; a trailing comma is tolerated) or it is
+reported in `malformedRows` rather than truncated — a spreadsheet paste with
+thousands separators, `Women, 1,200, 5,000`, used to parse silently as 1/200 —
+and the reference group is tracked by row **index**, not by name, so a duplicate
+group label can no longer mark two rows `isReference` and exempt the second from
+the flag. The UI for this lives at
 `app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx` (not
 `app/features/sub_decisions/...` — that path in the older conformity doc no
 longer exists; corrected here). That panel's closing claim — whether the
