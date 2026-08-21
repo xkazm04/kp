@@ -66,7 +66,11 @@ Not on `app/_lib/auth/public-routes.ts`, so a session is required;
   carried in `search` is still canonicalized away — previously these links shipped a filter
   with no destination (`app/features/shell/tabs.ts`, `tabs.test.ts`).
 - The window switcher carries a scope line as its `aria-describedby` in three branches
-  (all-time, so no deltas · a window selected · the section is window-blind).
+  (all-time, so no deltas · a window selected · the section is window-blind). The brief's
+  lede chips gate on `Delta.delta != null`, not on the `Delta` record: the record always
+  exists in a windowed view, but a prior window with no candidates yields a null hire-rate
+  delta (`analytics-deltas.ts` returns null, never `0 %`), and `DeltaChip` renders nothing
+  for it — so keying the label off the record left a bare "Hired" with no figure beside it.
   `WINDOW_BLIND_SECTIONS` names `quality`, where the pills grey to `opacity-50` but stay
   enabled. `/api/benchmarks` **takes no window, deliberately**: a short slice drops most orgs
   below the k-anonymity floor (`BENCHMARK_MIN_ENTRIES = 20` / `BENCHMARK_MIN_TEAMS = 2`,
@@ -78,6 +82,13 @@ Not on `app/_lib/auth/public-routes.ts`, so a session is required;
   `contributingTeams`. A volume is a team's figure once one team is behind it, so it is
   suppressed on the same condition the rates are and returns as a real aggregate at
   `contributingTeams >= BENCHMARK_MIN_TEAMS` (`org-benchmarks.test.ts`).
+- **The caller's own side of the comparison needs a denominator too.** `statsFrom()`
+  short-circuits an empty team to `interviewRatePct: 0` / `hireRatePct: 0` while only the
+  median is honestly `null`, so a team with zero pipeline entries used to render `0 %` against
+  the org average and wear a coral **behind** chip on both rates — a verdict computed over
+  nothing, read by a new team on its first visit to an established org.
+  `AnalyticsOrgBenchmarkPanel` now gates both team rates on `team.totalEntries > 0` and renders
+  the same em-dash the median already used, with no verdict chip.
 
 ## Performance — a brief that refuses claims it cannot make
 
@@ -133,7 +144,12 @@ call a stage weak.
   the Role header, filters client-side, makes the CSV follow the filter, reports
   `{shown} of {total}` while searching and the server cap otherwise, and prints a cap note
   saying how many roles `BY_JOB_CAP = 12` dropped plus a board link. A search matching nothing
-  says so **without claiming the role does not exist**.
+  says so **without claiming the role does not exist**. Its hire-rate cell carries the same
+  two-part guard the economics board uses: `total === 0` renders `—` (a role that exists in the
+  table only because it has KO-gate discards — `db/analytics.ts` seeds `jobMap` from `koByJob`
+  — has no cohort, and the server's `hireRatePct: 0` for it is an undefined ratio, not a
+  measured one), and the `text-moss` "this converts" colour is reserved for `hired > 0`. The
+  CSV carries the same dash, so the file cannot disagree with the screen.
 
 ## Economics — one comparison board
 
@@ -148,6 +164,18 @@ this kind of surface", not "free", and the rule says so.
   spend but **no attributed candidates still gets a row** (volume 0, per-unit figures `—`) —
   otherwise a stored figure divides into the blended cost-per-hire while being unreachable by
   any editor. `spend-write-path.test.ts` pins the chain.
+- **A typed `0` is a clear, and the field now says so immediately.** `setChannelSpend` and
+  `setAnalyticsTarget` both DELETE the row when `!(v > 0)` and the routes still answer 200, so
+  zero is never a stored value. `AnalyticsInlineNumberSave` mirrors that rule before it posts:
+  it normalizes a non-positive draft to `null` and re-renders the field from what will actually
+  be stored. Previously, typing `0` over an empty field left `0` sitting in the input for the
+  rest of the session — the server value stayed `null`, so the prop-resync never fired — while
+  the column it feeds went on showing `—`. On these surfaces a dash means "not measured", and
+  the editor has to agree with it. It also strips **every** space before parsing, not just the
+  outer ones: the figure beside the input is rendered by `formatGrouped`, which groups with
+  U+00A0 in `cs` and U+202F in `fr`, so typing back the number on screen used to hand `Number()`
+  a `NaN`. A space is a group separator in all four catalogs and a decimal separator in none;
+  the `en` comma and the `de` period are deliberately **not** normalized (see Known gaps).
 - **Every money figure derived from a single stored row is dated.** Per-channel cost-per-hire
   carries `ChannelEconomics.spendUpdatedAt`; the blended figure in
   `AnalyticsComputeCostPanel.tsx` carries `costPerHireAsOf` and is labelled by its *oldest*
@@ -280,7 +308,12 @@ it: should this score be allowed to decide at all.
   ship only on the pipeline payload, so the chips would otherwise print a global floor of `0`
   that nobody set, and the analysis arm measures a score the floor never acts on — but they show
   on **both outcome axes**, because the floor is a fact about the policy, not about which
-  outcome the curve counts.
+  outcome the curve counts. The override chips are a real **toggle** (they carry `aria-pressed`):
+  selecting one narrows the curve, the recommendation and the sealed history strip to that
+  family, and re-clicking clears back to all roles — the header's family `Select` is the only
+  other way out and it renders only when `families.length > 1`, so a one-family workspace that
+  also carries an override could otherwise drill in and never get out
+  (`analyticsCalibrationFamilyApplyGate.test.ts`).
 - `AnalyticsReliabilityDiagram.tsx` can draw the live auto-reject `threshold` and the
   `baseRate` as reference lines, with screen-reader equivalents — so a curve stepping from
   0.00 to 1.00 exactly at the floor reads as the score-caused signature it is.
@@ -532,7 +565,12 @@ calibration payload types.
 Load-bearing, not stylistic: an unknown cost renders as `—`, never `$0` ("free" and "unpriced"
 are different facts) · no verdict colour without a goal the org set · a ratio over 100 % is shown,
 not capped · the forecast refuses to project below its signal floor (`forecastHires().hasSignal`)
-· capped tables say what they dropped and where to reach it · the first-run empty state previews
+and **names the acceptance basis it substituted**: when an observed offer-accept rate applies,
+`forecastHires` rebuilds the offer→hire leg as `(offerReached / firstReached) × acceptRate`, so
+the horizons are NOT `overallConversionPct` — the figure the band's context sentence names — and
+the brief prints `forecast.acceptBasis` ("assuming the observed NN % acceptance, n=…") beside
+them · a rate with no cohort behind it renders `—`, never a confident `0 %` ·
+capped tables say what they dropped and where to reach it · the first-run empty state previews
 the metrics with literal em-dashes and never fabricates sample figures
 (`AnalyticsEmptyPreview.tsx`) · a tamper-evidence claim is conditioned on the key census.
 
@@ -550,6 +588,29 @@ Two call sites were still doing that and are pinned by `analytics-custom-axis.te
 
 ## Known gaps
 
+- **Quality presents the auto-reject floor as *in force* without ever reading
+  `autoRejectEnabled`.** `/api/analytics/calibration` ships `currentThreshold =
+  effectiveFloor(screening, family)`, which is a plain number and falls back to
+  `SCREENING_DEFAULT.maxMatchToReject = 45`; the flag that decides whether the wave acts on it
+  (`screen-wave.ts` returns `autoRejectOff` when false) is **not in the payload**, and
+  `autoRejectEnabled: false` is the shipped default. So a workspace that never opened Decision
+  rules sees a coral "Auto-reject floor (45)" marker + legend on the reliability diagram
+  (`AnalyticsReliabilityDiagram`), "every family is screened at the global 45"
+  (`AnalyticsFamilyFloorChips` → `familyFloorsNone`), and either an **Apply (set floor to N)**
+  button or "your auto-reject floor of 45" (`AnalyticsThresholdSuggestion`) — all describing a
+  gate that rejects nobody. Only the `recAbsentNoFloor` branch tells the truth, and it triggers
+  on the *value* (`<= 0 || >= 100`), not on the rule being off. Closing it means adding
+  `autoRejectEnabled` to the calibration payload and branching those three surfaces on it;
+  `leakageScoreCausedNote` ("automatic screening rejects on the match score") over-discloses
+  from the same gap, which at least fails safe.
+- **`de` group separators still parse as decimals in the inline number editor.**
+  `AnalyticsInlineNumberSave` normalizes whitespace but leaves `,` and `.` alone, because each
+  is a group separator in one shipped locale and a decimal separator in another. `Number()`
+  therefore reads a German operator's `12.000` as **12**, saves it, and answers 200 — a silent
+  wrong write, not a refusal (the `en` `12,000` fails visibly instead). Closing it needs a
+  locale-aware parse (`useLocale()` → strip the locale's group separator, map its decimal
+  separator to `.`), which is a parsing change on a money write path with no component-test
+  layer to pin it.
 - **A hire recorded by the agent bridge is invisible to every event-time hire metric.**
   `app/api/agents/report/[token]` and `app/api/agents/[id]/refresh` reach the terminal stage
   through `setPipelineEntryStage`, which writes `kind = "moved"` (and hardcodes the name

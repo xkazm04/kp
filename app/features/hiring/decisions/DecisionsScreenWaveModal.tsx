@@ -52,8 +52,14 @@ export function ScreenWaveModal({
   // button (finding SD-5), not just a `title` invisible to screen readers / touch.
   const commitDisabledReason = !enabled ? t("enableToCommit") : rejects.length === 0 ? t("nothingToReject") : null;
 
+  // The global floor the DISPLAYED rows were computed against. While `loading` the
+  // sliders have already moved but `preview` is still the previous run's, so the live
+  // `maxMatch` is not that run's floor — every reject row then differed from it and
+  // wore a fabricated "family floor N" badge (plus a "N rows used a family override"
+  // summary) for the whole debounce+fetch window of every drag. Null = withhold.
+  const displayedFloor = loading && !committed ? null : maxMatch;
   const lists = view ? (
-    <DecisionsScreenWaveLists rejects={rejects} keeps={keeps} committed={Boolean(committed)} dryRun={view.dryRun} maxMatch={maxMatch} t={t} />
+    <DecisionsScreenWaveLists rejects={rejects} keeps={keeps} committed={Boolean(committed)} dryRun={view.dryRun} globalFloor={displayedFloor} t={t} />
   ) : null;
 
   return (

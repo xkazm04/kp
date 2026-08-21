@@ -19,7 +19,7 @@ import { isScoreStale, type Entry } from "@/app/features/shared/decisionsTypes";
 import { selectionCacheKey } from "./groupEval/cache-key";
 import { pruneSelection, selectionDriftIds } from "./decisionsSelectionHygiene";
 import { peersForEntry, type JobPeerContext, type PeerContextMap, type PeerScore } from "./decisionsPeerCompare";
-import { roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
+import { isDecisionsQueueEntry, roleKeyOf, type Group, type ReconsiderReason, type ReconsiderRow } from "./decisionsQueueTypes";
 
 export function useDecisionsQueue() {
   const search = useSearchParams();
@@ -130,7 +130,13 @@ export function useDecisionsQueue() {
   // arrive AFTER (a live poll, an automation wave) aren't in it, so a non-empty
   // selectionDrift means select-all is silently stale — surfaced as a re-select cue.
   // Null when select-all wasn't used (or was reset), which reads as no drift.
-  const [selectAllSnapshot, setSelectAllSnapshot] = useState<string[] | null>(null);
+  // The snapshot carries the ROLE FILTER it was taken under: the selectable cohort is
+  // filter-scoped, so a snapshot taken on one role compared against another role's
+  // cohort reported every newly-visible card as "arrived" — select all under a role
+  // filter, then clear the filter, and the amber cue claimed "3 new cards arrived"
+  // about cards that had been there all along. A snapshot from a different filter is
+  // no longer a snapshot of this cohort, so it reads as no drift.
+  const [selectAllSnapshot, setSelectAllSnapshot] = useState<{ filter: string | null; ids: string[] } | null>(null);
   // Direction 2b — candidates whose rejection notification failed to queue during a
   // committed screening wave. Session-local (like queuedLabels): a "what just
   // happened" trail naming WHO needs a manual nudge, kept discoverable after the
@@ -144,15 +150,31 @@ export function useDecisionsQueue() {
   const [bulkResult, setBulkResult] = useState<{ ok: number; failed: number; verb: "accepted" | "rejected"; reason: string | null } | null>(null);
   const [confirmingBulkReject, setConfirmingBulkReject] = useState(false);
 
+  // One-writer-wins for the queue read. `load` runs from mount, from the live-refresh
+  // bus (which fires from OTHER windows too), from reinstate and from act()'s
+  // rollback, so two reads can be in flight at once — and a read that STARTED before
+  // a decision landed carries a pre-decision snapshot. Letting such a response settle
+  // put the just-decided card back on screen after act() had removed it: the exact
+  // vanish-then-reappear the no-optimistic-removal rewrite in act() exists to
+  // prevent, with a live Advance/Reject button over an entry the server already
+  // moved. Every read takes a ticket, a confirmed decision invalidates outstanding
+  // tickets, and a superseded response is dropped instead of clobbering fresher state.
+  const loadTicket = useRef(0);
   // Sharing is OPT-IN (see usePipelineBoardData): `load` is also the post-action
   // reconcile, which must always hit the network.
-  const load = (opts?: { shared?: boolean }) =>
-    sharedGetJson<{ entries?: Entry[]; error?: string }>("/api/pipeline", { refresh: !opts?.shared })
+  const load = (opts?: { shared?: boolean }) => {
+    const ticket = ++loadTicket.current;
+    return sharedGetJson<{ entries?: Entry[]; error?: string }>("/api/pipeline", { refresh: !opts?.shared })
       .then((p) => {
+        if (ticket !== loadTicket.current) return; // superseded by a newer read or a landed decision
         if (p.error) throw new Error(p.error);
         setEntries((p.entries as Entry[]) ?? []);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : t("loadFailed")));
+      .catch((e) => {
+        if (ticket !== loadTicket.current) return;
+        setError(e instanceof Error ? e.message : t("loadFailed"));
+      });
+  };
   const loadReconsider = () =>
     fetch("/api/decisions/reconsider")
       .then((r) => r.json())
@@ -195,7 +217,9 @@ export function useDecisionsQueue() {
   // audit reads in the recruiter's language and the surfaces can never drift.
   const reconsiderReasonText = (r: ReconsiderReason): string | null => waveReasonText(tWave, r);
 
-  const pending = (entries ?? []).filter((e) => e.approvalKind && e.status === "active");
+  // Only the kinds THIS tab renders (isDecisionsQueueEntry) — an active entry sitting
+  // on the Schedule tab's `calendar` gate is not a decision waiting here.
+  const pending = (entries ?? []).filter(isDecisionsQueueEntry);
   const keyDecisions = pending.filter((e) => e.approvalKind === "decision");
   const aiReviews = pending.filter(
     (e) =>
@@ -276,7 +300,11 @@ export function useDecisionsQueue() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectableIdKey]);
   // How many selectable cards arrived since "select all" — drives the drift cue.
-  const selectionDrift = selectionDriftIds(selectAllSnapshot, selectableReviews.map((e) => e.id)).length;
+  // Only a snapshot of THIS filter's cohort can be compared against it (see above).
+  const selectionDrift = selectionDriftIds(
+    selectAllSnapshot && selectAllSnapshot.filter === activeFilter ? selectAllSnapshot.ids : null,
+    selectableReviews.map((e) => e.id)
+  ).length;
 
   const toggleReviewSelect = (e: Entry) => {
     setBulkResult(null);
@@ -300,8 +328,9 @@ export function useDecisionsQueue() {
     setConfirmingBulkReject(false);
     const ids = selectableReviews.map((e) => e.id);
     setSelectedReviewIds(new Set(ids));
-    // Snapshot the cohort we just selected across — drift is measured against this.
-    setSelectAllSnapshot(ids);
+    // Snapshot the cohort we just selected across, with the filter that scoped it —
+    // drift is measured against this, and only under the same filter.
+    setSelectAllSnapshot({ filter: activeFilter, ids });
   };
   const clearSelectedReviews = () => {
     setSelectedReviewIds(new Set());
@@ -327,6 +356,7 @@ export function useDecisionsQueue() {
     const items: PipelineBatchItem[] = targets.map((e) => ({ id: e.id, action, expectedStage: e.stage }));
     const res = await postPipelineBatch(items);
     if (res.ok) {
+      const okIds = new Set(res.results.filter((r) => r.ok).map((r) => r.id));
       for (const r of res.results) {
         if (r.ok) ok += 1;
         else {
@@ -338,12 +368,19 @@ export function useDecisionsQueue() {
       // review flows to Schedule, so backfill its interview-prep artifact and name
       // it in the queued banner — parity with act()'s screening_review branch.
       if (action === "accept") {
-        const okIds = new Set(res.results.filter((r) => r.ok).map((r) => r.id));
         const acceptedScreenings = targets.filter((e) => okIds.has(e.id) && e.approvalKind === "screening_review");
         for (const e of acceptedScreenings) {
           void startTask("interview_prep", { entryId: e.id, candidateLabel: e.candidateLabel, jobTitle: e.jobTitle, lang: locale });
         }
         if (acceptedScreenings.length > 0) setQueuedLabels((prev) => [...prev, ...acceptedScreenings.map((e) => e.candidateLabel)]);
+      }
+      // Same contract as act(): a row leaves only once the server confirmed it — and
+      // then it leaves right away. The reconcile load() below is no longer what
+      // REMOVES these cards, so an unrelated read finishing between the batch and
+      // that load can't leave the decided cards on screen with live buttons.
+      if (okIds.size > 0) {
+        loadTicket.current += 1;
+        setEntries((prev) => (prev ? prev.filter((x) => !okIds.has(x.id)) : prev));
       }
     } else {
       // Transport-level failure — every attempted decision stays selected for retry.
@@ -403,7 +440,14 @@ export function useDecisionsQueue() {
     setEvalTaskId(null);
   }
 
-  const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number) => {
+  // Resolves TRUE only when the server confirmed the decision, FALSE on any failure
+  // (a stale-stage 409, a transport error, a 500). Callers that claim an outcome —
+  // DecisionsModals seals the group-eval reject identity and toasts "the reason is on
+  // the audit record" — must await this instead of firing and forgetting: a 409 means
+  // the candidate was NOT rejected, no rationale was sealed and no notice was queued,
+  // so a green toast over a permanently-sealed button is a success the server never
+  // gave. The boolean is the half this hook owns; the awaiting is the caller's.
+  const act = async (e: Entry, action: "accept" | "reject" | "approve_event", detail?: string, ttlDays?: number): Promise<boolean> => {
     // Direction 2a — the row leaves ONLY when the server confirms. The old path
     // scheduled a 260ms timer that dropped the row BEFORE the fetch resolved, so a
     // slow network showed a vanish-then-reappear on an irreversible reject. Now the
@@ -455,7 +499,11 @@ export function useDecisionsQueue() {
       }
       // Server confirmed — NOW the row leaves. Before this point it was only
       // dimmed (pending), never removed, so nothing can vanish-then-reappear.
+      // Invalidate any read that started before this decision: its snapshot still
+      // holds this row and would put the card straight back (see loadTicket).
+      loadTicket.current += 1;
       setEntries((prev) => (prev ? prev.filter((x) => x.id !== e.id) : prev));
+      return true;
     } catch {
       // Roll back cleanly: clear the pending state so the card returns to normal.
       // A stale-stage 409 carried the fresh entry, so reload to reconcile the queue
@@ -466,6 +514,7 @@ export function useDecisionsQueue() {
         return n;
       });
       load();
+      return false;
     }
   };
 

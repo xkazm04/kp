@@ -147,14 +147,21 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
               }`
             : ""}
         </p>
-        {data.deltas?.total || data.deltas?.hireRatePct ? (
+        {/* Gate on the DELTA, not on the Delta object. `data.deltas.hireRatePct` is a
+            record that always exists in a windowed view, but its `delta` is null
+            whenever a baseline cannot be formed (a prior window with no candidates has
+            no hire rate — `analytics-deltas.ts` returns null rather than 0 %), and
+            DeltaChip correctly renders nothing for it. Keyed off the object, the label
+            rendered anyway: a young workspace on a 30-day window got a bare "Hired"
+            with empty space where its number belongs. */}
+        {data.deltas?.total.delta != null || data.deltas?.hireRatePct.delta != null ? (
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-steel">
-            {data.deltas?.total ? (
+            {data.deltas?.total.delta != null ? (
               <span className="inline-flex items-center gap-1.5">
                 {t("statCandidates")} <DeltaChip delta={data.deltas.total} />
               </span>
             ) : null}
-            {data.deltas?.hireRatePct ? (
+            {data.deltas?.hireRatePct.delta != null ? (
               <span className="inline-flex items-center gap-1.5">
                 {t("statHired")} <DeltaChip delta={data.deltas.hireRatePct} unit="pts" />
               </span>
@@ -310,20 +317,38 @@ export function PerformanceBriefing({ data, enumLabel, maxReached, convDeltaBySt
         noDataContext={t("briefForecastNoSignalContext")}
       >
         {forecast.hasSignal ? (
-          <dl className="flex max-w-3xl flex-wrap gap-x-10 gap-y-3">
-            {forecast.projected.map((p) => (
-              <div key={p.weeks} className="flex flex-col gap-0.5">
-                <dt className="text-meta uppercase text-steel">{t("forecast.horizon", { weeks: p.weeks })}</dt>
-                <dd className="font-serif text-h2 leading-none text-ink nums">{t("forecast.plusHires", { hires: p.hires })}</dd>
-              </div>
-            ))}
-            {forecast.etaDays != null ? (
-              <div className="flex flex-col gap-0.5">
-                <dt className="text-meta uppercase text-steel">{t("briefEtaLabel")}</dt>
-                <dd className="font-serif text-h2 leading-none text-steel nums">{t("briefEtaValue", { days: forecast.etaDays })}</dd>
-              </div>
+          <>
+            <dl className="flex max-w-3xl flex-wrap gap-x-10 gap-y-3">
+              {forecast.projected.map((p) => (
+                <div key={p.weeks} className="flex flex-col gap-0.5">
+                  <dt className="text-meta uppercase text-steel">{t("forecast.horizon", { weeks: p.weeks })}</dt>
+                  <dd className="font-serif text-h2 leading-none text-ink nums">{t("forecast.plusHires", { hires: p.hires })}</dd>
+                </div>
+              ))}
+              {forecast.etaDays != null ? (
+                <div className="flex flex-col gap-0.5">
+                  <dt className="text-meta uppercase text-steel">{t("briefEtaLabel")}</dt>
+                  <dd className="font-serif text-h2 leading-none text-steel nums">{t("briefEtaValue", { days: forecast.etaDays })}</dd>
+                </div>
+              ) : null}
+            </dl>
+            {/* The projection's OTHER assumption, stated where the figures are read.
+                When an observed offer-accept rate applies, `forecastHires` rebuilds the
+                offer→hire leg as (reach → offer) × that rate — so the numbers above are
+                NOT `overallConversionPct`, which is the only basis the context sentence
+                above names. On a 100 → 20 offers → 10 hires funnel with an observed 83 %
+                acceptance the horizons render from 16.6 %, while the sentence says
+                "10 % overall conversion": the stated basis could not produce the stated
+                projection, and the substituted leg was invisible. `offerAcceptRate` is
+                exported by the forecast for exactly this ("lets the UI state its
+                acceptance basis honestly") and `forecast.acceptBasis` was already
+                written in all four locales with no caller. */}
+            {forecast.offerAcceptRate != null ? (
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-steel">
+                {t("forecast.acceptBasis", { pct: Math.round(forecast.offerAcceptRate * 100), n: data.offers.n })}
+              </p>
             ) : null}
-          </dl>
+          </>
         ) : null}
       </Band>
 

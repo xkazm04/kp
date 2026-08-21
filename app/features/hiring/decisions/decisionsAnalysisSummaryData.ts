@@ -25,11 +25,29 @@ export type AnalysisPayload = {
 // decision carries the same evidence the comparison matrix does. The shared
 // recruiter result view (MatchResultView), single-sourced from MatchTypes.
 export type MatchView = MatchResultView;
-type CandRow = { candidateId: string; label?: string; result: MatchView };
+// `inPipeline` is the candidate's stage on THIS role, decorated onto every ranked
+// row by GET /api/jobs/[id]/candidates from the live pipeline (null = never filed on
+// this role). It matters because that route ranks the whole workspace CANDIDATE POOL
+// against the job, not this role's applicants — see rolePeerRows.
+export type CandRow = { candidateId: string; label?: string; result: MatchView; inPipeline?: string | null };
 // A ranked peer on the same role — the rest of the rows the candidates fetch
 // already returns (the modal used to discard them). Same producer as `match`,
 // so a peer's total and this candidate's total are always comparable.
 export type PeerRow = { candidateId: string; label: string; result: MatchView };
+
+/** The role's ACTUAL field: the other candidates filed on this role's pipeline.
+ *
+ *  The ranking route scores the whole workspace pool, and this hook used to drop the
+ *  `inPipeline` flag the route already sends — so the Bench headed the list "The
+ *  field · 87" and RankChips read "#12 of 84" on a role four people had applied to,
+ *  ranking the candidate against a corpus that was never in contention. Candidates
+ *  with no live entry on this role are not the field; a row without a comparable
+ *  result or a display label carries no signal either. */
+export function rolePeerRows(rows: CandRow[], selfCandidateId: string | null): PeerRow[] {
+  return rows
+    .filter((c) => c.candidateId !== selfCandidateId && c.inPipeline != null && c.result && typeof c.label === "string")
+    .map((c) => ({ candidateId: c.candidateId, label: c.label as string, result: c.result }));
+}
 
 export function useAnalysisSummaryData(entry: Entry) {
   const [payload, setPayload] = useState<AnalysisPayload | null>(null);
@@ -64,13 +82,9 @@ export function useAnalysisSummaryData(entry: Entry) {
         const rows = (p.candidates as CandRow[] | undefined) ?? [];
         const row = rows.find((c) => c.candidateId === entry.candidateId);
         setMatch(row?.result ?? null);
-        // Every OTHER ranked candidate on this role, for the peer-comparison
-        // variants. Rows without a result/label carry no comparable signal.
-        setPeers(
-          rows
-            .filter((c) => c.candidateId !== entry.candidateId && c.result && typeof c.label === "string")
-            .map((c) => ({ candidateId: c.candidateId, label: c.label as string, result: c.result }))
-        );
+        // Every other candidate IN THIS ROLE'S PIPELINE, for the peer-comparison
+        // variants — not the whole ranked workspace pool (see rolePeerRows).
+        setPeers(rolePeerRows(rows, entry.candidateId));
       })
       .catch(() => alive && setMatch(null))
       .finally(() => alive && setMatchLoading(false));

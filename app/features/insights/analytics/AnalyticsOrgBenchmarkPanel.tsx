@@ -13,7 +13,9 @@ import { PANEL } from "@/app/_components/ui/recipes";
 type Stats = { totalEntries: number; interviewRatePct: number; hireRatePct: number; medianTimeToHireDays: number | null };
 type OrgBench = Stats & { available: boolean; contributingTeams: number };
 
-const pct = (n: number) => `${n}%`;
+// Null is "not measured" for BOTH of these, and it renders as the same em-dash the
+// median already used — never as a zero (see the denominator note in the panel body).
+const pct = (n: number | null) => (n == null ? "—" : `${n}%`);
 const days = (n: number | null) => (n == null ? "—" : `${n}d`);
 
 function Metric({
@@ -83,6 +85,17 @@ export function OrgBenchmarkPanel() {
   // never flashes it — instead of the skeleton the primary funnel doesn't use either.
   if (!data) return <div className={`${PANEL} reveal-quiet min-h-[10rem] p-5`} aria-hidden />;
   const { team, org } = data;
+  // A DENOMINATOR, not a zero. `statsFrom()` (db/org-benchmarks.ts) short-circuits an
+  // empty team to `{ totalEntries: 0, interviewRatePct: 0, hireRatePct: 0,
+  // medianTimeToHireDays: null }` — only the median is honestly null. So a team that
+  // has never run a single candidate arrived here indistinguishable from a team that
+  // ran many and converted none, and the Metric chip below turned that into a coral
+  // „behind" verdict against the company on both rates. A new team joining an
+  // established org (the exact case this panel unlocks for) read it on its first visit.
+  // Rates are read only once there is something behind them; the median already was.
+  const measured = team.totalEntries > 0;
+  const teamInterviewPct = measured ? team.interviewRatePct : null;
+  const teamHirePct = measured ? team.hireRatePct : null;
   const tth =
     team.medianTimeToHireDays == null || org.medianTimeToHireDays == null
       ? null
@@ -110,9 +123,9 @@ export function OrgBenchmarkPanel() {
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <Metric
               label={t("interviewRate")}
-              teamVal={pct(team.interviewRatePct)}
+              teamVal={pct(teamInterviewPct)}
               orgVal={pct(org.interviewRatePct)}
-              diff={team.interviewRatePct - org.interviewRatePct}
+              diff={teamInterviewPct == null ? null : teamInterviewPct - org.interviewRatePct}
               higherBetter
               orgLabel={t("orgLabel", { value: pct(org.interviewRatePct) })}
               aheadLabel={t("ahead")}
@@ -120,9 +133,9 @@ export function OrgBenchmarkPanel() {
             />
             <Metric
               label={t("hireRate")}
-              teamVal={pct(team.hireRatePct)}
+              teamVal={pct(teamHirePct)}
               orgVal={pct(org.hireRatePct)}
-              diff={team.hireRatePct - org.hireRatePct}
+              diff={teamHirePct == null ? null : teamHirePct - org.hireRatePct}
               higherBetter
               orgLabel={t("orgLabel", { value: pct(org.hireRatePct) })}
               aheadLabel={t("ahead")}

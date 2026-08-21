@@ -55,7 +55,9 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
                 "kp-roles.csv",
                 toCsv([
                   [t("colJob"), t("colKoDeclined"), t("colInPipeline"), t("colReachedInterview"), t("colHired"), t("colHireRate")],
-                  ...rows.map((j) => [j.jobTitle, j.koDeclined, j.total, j.reachedInterview, j.hired, `${j.hireRatePct}%`]),
+                  // The dash travels with the row: a file that printed "0%" where the
+                  // screen shows "—" would re-introduce the fabricated zero one layer down.
+                  ...rows.map((j) => [j.jobTitle, j.koDeclined, j.total, j.reachedInterview, j.hired, j.total === 0 ? "—" : `${j.hireRatePct}%`]),
                 ]),
                 "text/csv"
               )
@@ -100,7 +102,21 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
               <td className="py-2 text-right text-steel">{j.total}</td>
               <td className="py-2 text-right text-steel">{j.reachedInterview}</td>
               <td className="py-2 text-right text-ink">{j.hired}</td>
-              <td className="py-2 text-right font-medium text-moss">{j.hireRatePct}%</td>
+              {/* A role with KO discards but NO pipeline entry still gets a row
+                  (db/analytics.ts seeds jobMap from koByJob), and the server sends
+                  `hireRatePct: 0` for it — an undefined ratio, not a measured one.
+                  Rendered flat it read as a confident green "0%" for a role nobody
+                  ever entered. Same two-part guard the sibling table already uses
+                  (EconomicsBoard: "a surface with nobody in it has no rate"): no
+                  cohort → a dash; a real cohort with no hire yet → the number, but
+                  not in the colour that means "this converts". */}
+              <td className="py-2 text-right">
+                {j.total === 0 ? (
+                  <span className="text-steel">—</span>
+                ) : (
+                  <span className={j.hired > 0 ? "font-medium text-moss" : "text-steel"}>{j.hireRatePct}%</span>
+                )}
+              </td>
             </tr>
           ))}
           {/* UAT TOM-ANA-12 — the same predicate the Briefing's "which roles carry

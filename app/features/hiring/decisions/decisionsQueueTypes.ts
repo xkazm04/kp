@@ -28,3 +28,29 @@ export type ReconsiderRow = {
 };
 
 export const roleKeyOf = (e: Entry) => e.jobId ?? e.jobTitle ?? "unassigned";
+
+// The approval kinds THIS tab decides — the key-decision gate plus the four AI
+// review gates it renders as cards. `calendar` (the sixth kind in
+// app/_lib/approval-kinds.ts) is deliberately NOT one of them: it is the
+// interview-scheduling gate the Schedule tab owns, and it is what THIS tab's own
+// accept path produces (accepting a screening flips approvalKind to "calendar"
+// server-side — the handoff the queued-for-Schedule banner narrates). Counting it
+// as pending here left the header reading "3 pending" over 2 rendered cards and the
+// role dropdown reading "Backend Dev (3)", and — once only calendar entries were
+// left — stopped the queue from ever reaching its "all caught up" empty state.
+export const DECISIONS_QUEUE_KINDS = [
+  "decision",
+  "screening_review",
+  "scorecard_review",
+  "rejection_review",
+  "offer_review",
+] as const;
+
+const QUEUE_KINDS: ReadonlySet<string> = new Set<string>(DECISIONS_QUEUE_KINDS);
+
+/** Is this entry waiting on a decision this tab actually renders? The ONE population
+ *  behind the header count, the role-filter counts and the "all caught up" empty
+ *  state, so none of them can be computed on a different denominator than the cards. */
+export function isDecisionsQueueEntry(e: Pick<Entry, "status" | "approvalKind">): boolean {
+  return e.status === "active" && e.approvalKind != null && QUEUE_KINDS.has(e.approvalKind);
+}

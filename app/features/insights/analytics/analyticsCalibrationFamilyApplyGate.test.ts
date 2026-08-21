@@ -72,5 +72,17 @@ test("families carrying an override are surfaced as drill-in chips", () => {
   // value and drilling into that family (setFamily) to review/adjust it.
   assert.match(src, /data\.familyFloors/, "the panel must read the familyFloors map from the payload");
   assert.match(src, /t\("familyFloorValue"/, "each override chip must show its floor value");
-  assert.match(src, /onClick=\{\(\)\s*=>\s*setFamily\(fam\)\}/, "an override chip must drill into its family");
+  // The chip carries aria-pressed, so it has to be a real toggle: selecting one
+  // narrows the curve, the recommendation AND the sealed history strip to that
+  // family, and the only other way back to all roles is the header's family Select —
+  // which the header renders only when `families.length > 1`. A one-family workspace
+  // that also carries a per-family override could therefore drill in and never get
+  // out. Pinned as "clears when already pressed", not as a handler literal, so the
+  // guarantee survives a rewrite of the expression.
+  assert.match(src, /setFamily\([^)]*\bfam\b[^)]*\)/, "an override chip must drill into its family");
+  assert.match(
+    src,
+    /onClick=\{\(\)\s*=>\s*setFamily\(family === fam \? "" : fam\)\}/,
+    "…and re-clicking the pressed chip must clear the filter back to all roles",
+  );
 });

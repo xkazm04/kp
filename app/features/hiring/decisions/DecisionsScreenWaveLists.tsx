@@ -14,14 +14,18 @@ export function DecisionsScreenWaveLists({
   keeps,
   committed,
   dryRun,
-  maxMatch,
+  globalFloor,
   t,
 }: {
   rejects: WaveDecision[];
   keeps: WaveDecision[];
   committed: boolean;
   dryRun: boolean;
-  maxMatch: number;
+  // The global `maxMatchToReject` THIS displayed run was computed with — a row whose
+  // effective floor differs from it was moved by a per-family override. NULL while a
+  // re-preview is in flight: the slider has already moved but these rows are still
+  // the previous run's, so the two are not comparable and no override is claimed.
+  globalFloor: number | null;
   t: ReturnType<typeof useTranslations<"decisions.wave">>;
 }) {
   const locale = useLocale();
@@ -41,8 +45,9 @@ export function DecisionsScreenWaveLists({
   // per-family override. Surface that floor so the recruiter sees why a row above the
   // slider value still moved (or below it didn't). Informs; never blocks.
   const floorChip = (d: WaveDecision) => {
+    if (globalFloor == null) return null; // the displayed run's floor is unknown — claim nothing
     const floor = rowEffectiveFloor(d.reasonParams);
-    if (floor == null || floor === maxMatch) return null;
+    if (floor == null || floor === globalFloor) return null;
     return (
       <span
         className="ml-1.5 inline-flex items-center gap-1 rounded-full border border-stone-200 bg-white px-1.5 py-0.5 text-meta font-semibold text-steel"
@@ -68,8 +73,9 @@ export function DecisionsScreenWaveLists({
     return t.has(key) ? t(key, p as Record<string, string | number>) : d.rationale;
   };
   // floors-tell-the-truth — how many rejects were decided against a family floor
-  // that differs from the global slider (drives the summary line below the count).
-  const overrideRejects = familyOverrideRejectCount(rejects, maxMatch);
+  // that differs from the run's global floor (drives the summary line below the
+  // count). Zero while that floor is unknown, so the summary can't outlive its rows.
+  const overrideRejects = globalFloor == null ? 0 : familyOverrideRejectCount(rejects, globalFloor);
 
   return (
     <>

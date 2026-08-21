@@ -41,12 +41,34 @@ export function InlineNumberSave({
   }
 
   const save = async () => {
-    const trimmed = draft.trim();
-    const v = trimmed === "" ? null : Number(trimmed);
-    if (v !== null && (!Number.isFinite(v) || v < 0)) {
+    // Strip EVERY space, not just the outer ones. The figure this input corrects is
+    // rendered beside it by `formatGrouped`, which groups with U+00A0 in `cs` and
+    // U+202F in `fr` — so an operator who types back the number they can see handed
+    // `Number()` a NaN and got a coral "Enter a number" for a number they had entered
+    // correctly. A space is a group separator in all four catalogs and a decimal
+    // separator in none, so removing it cannot change a value's meaning. The `en`
+    // comma and the `de` period are NOT normalized on purpose: those two are each a
+    // group separator in one locale and a decimal separator in another, and guessing
+    // between 1.2 and 1200 would turn a visible refusal into a silent wrong write.
+    const trimmed = draft.replace(/\s+/g, "");
+    const parsed = trimmed === "" ? null : Number(trimmed);
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
       setFailed(true);
       return;
     }
+    // BOTH stores behind this input CLEAR on a non-positive amount — setChannelSpend
+    // and setAnalyticsTarget each DELETE the row when `!(v > 0)` — and the routes
+    // still answer 200. So a typed `0` is "no value", never a stored zero, and the
+    // field has to say the same thing the column it feeds says. It didn't: typing 0
+    // over an EMPTY field posted, the row was deleted, `value` came back null
+    // (unchanged), so the prop-resync above never fired and `0` sat in the input for
+    // the rest of the session while cost-per-applicant went on rendering "—". A dash
+    // is a measurement boundary on these surfaces; an editor showing 0 beside it is
+    // the one claim it must not make. Normalizing here also collapses "007"/" 5000 "
+    // onto the value that will actually be stored.
+    const v = parsed != null && parsed > 0 ? parsed : null;
+    const canonical = v != null ? String(v) : "";
+    if (canonical !== draft) setDraft(canonical);
     if (v === value) return; // unchanged — no request
     setSaving(true);
     setFailed(false);

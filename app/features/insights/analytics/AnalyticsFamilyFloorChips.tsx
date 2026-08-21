@@ -38,7 +38,14 @@ export function AnalyticsFamilyFloorChips({
             <li key={fam}>
               <button
                 type="button"
-                onClick={() => setFamily(fam)}
+                // A TOGGLE, because `aria-pressed` says it is one. Selecting a chip
+                // narrows the whole panel (curve, recommendation, sealed history) to
+                // that family, and re-clicking the pressed chip used to do nothing —
+                // the only way back to all roles was the header's family Select, which
+                // is rendered only when the payload carries MORE THAN ONE family. A
+                // workspace with one family and a per-family override could therefore
+                // enter the family-scoped view and never leave it.
+                onClick={() => setFamily(family === fam ? "" : fam)}
                 aria-pressed={family === fam}
                 className={`focus-ring inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-meta hover:border-coral/40 ${
                   family === fam ? "border-coral/50 bg-coral/10" : "border-stone-200 bg-paper/60"
