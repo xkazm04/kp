@@ -13,6 +13,8 @@ import { test, afterEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
+import { ensureDb } from "../../_lib/db/core.ts";
+import { createPipelineEntry } from "../../_lib/db/pipeline.ts";
 import { GET as configGet, POST as configPost } from "./config/route.ts";
 import { POST as testPost } from "./test/route.ts";
 import { GET as candidateGet } from "./candidate/[id]/route.ts";
@@ -76,4 +78,48 @@ test("open mode (no operator password): the ATS handlers serve the local operato
     jsonPost("http://localhost/api/ats/config", { webhookUrl: "https://hooks.example.com/x", events: ["candidate.hired"] })
   );
   assert.equal(save.status, 200);
+});
+
+// The export door is the ONE place a candidate's identity leaves for a third-party
+// system, so it must honour the same read-time GDPR consent gate every other PII read
+// boundary does (/api/analyses/[slug], /api/interview/by-entry, candidate-timeline).
+//
+// NON-VACUITY: `anonymizeExpiredConsents` has no production caller, so an expired entry
+// keeps its RAW candidate_label/contact columns forever and the pre-fix route serialized
+// them straight out — against pre-fix code the two assertions below read back
+// "Jana Nováková" / "jana@example.com" instead of the masked label and a null contact.
+test("an expired consent redacts the ATS export — the identity never reaches the vendor", async () => {
+  const { entry } = createPipelineEntry({
+    candidateId: "cand-consent-1",
+    candidateLabel: "Jana Nováková",
+    jobId: "job-consent-1",
+    jobTitle: "Backend Engineer",
+    contact: "jana@example.com",
+    matchScore: 88,
+  });
+  const db = ensureDb();
+
+  // A live consent exports the full record — the gate must not over-scrub.
+  db.prepare(`UPDATE pipeline_entries SET consent_given_at = ?, consent_expires_at = ? WHERE id = ?`).run(
+    "2026-01-01T00:00:00.000Z",
+    "2099-01-01T00:00:00.000Z",
+    entry.id
+  );
+  const live = (await (await candidateReq(entry.id)).json()) as {
+    candidate: { displayName: string; contact: string | null };
+  };
+  assert.equal(live.candidate.displayName, "Jana Nováková");
+  assert.equal(live.candidate.contact, "jana@example.com");
+
+  // Retention window lapsed: the lawful basis is gone, the sweep has not (and will not) run.
+  db.prepare(`UPDATE pipeline_entries SET consent_expires_at = ? WHERE id = ?`).run("2020-01-01T00:00:00.000Z", entry.id);
+  const res = await candidateReq(entry.id);
+  assert.equal(res.status, 200, "redaction, not refusal — the pseudonymous record still syncs");
+  const gated = (await res.json()) as {
+    candidate: { displayName: string; contact: string | null };
+    pipeline: { matchScore: number | null };
+  };
+  assert.equal(gated.candidate.contact, null, "an expired consent must never export a deliverable address");
+  assert.equal(gated.candidate.displayName, "Jana N.", "the label is masked exactly as the sweep would have masked it");
+  assert.equal(gated.pipeline.matchScore, 88, "the retained, non-identifying record still egresses");
 });

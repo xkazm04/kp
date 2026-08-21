@@ -84,11 +84,28 @@ test("a field map without an externalId path is refused at the write boundary", 
 });
 
 test("a connection can be parked without losing its credentials", () => {
-  setAtsConnection({ provider: "recruitee", apiToken: TOKEN, fieldMap: MAP });
+  setAtsConnection({ provider: "recruitee", baseUrl: "https://api.recruitee.com", apiToken: TOKEN, fieldMap: MAP });
   const parked = setAtsConnection({ provider: "recruitee", enabled: false });
   assert.equal(parked.enabled, false);
   assert.equal(parked.hasToken, true, "parking is not revoking");
-  assert.equal(setAtsConnection({ provider: "recruitee", enabled: true }).enabled, true);
+  // …and not de-configuring. baseUrl was the one field written unconditionally, so the
+  // documented park NULLed the endpoint: re-enabling gave a connection with a live token
+  // and a field map but nothing to call.
+  assert.equal(parked.baseUrl, "https://api.recruitee.com/", "parking is not de-configuring");
+  const resumed = setAtsConnection({ provider: "recruitee", enabled: true });
+  assert.equal(resumed.enabled, true);
+  assert.equal(resumed.baseUrl, "https://api.recruitee.com/");
+});
+
+test("every field is a PARTIAL update — omit keeps, explicit empty clears", () => {
+  setAtsConnection({ provider: "recruitee", baseUrl: "https://api.recruitee.com", apiToken: TOKEN, fieldMap: MAP });
+  // A field-map-only edit must not de-configure the endpoint, the same way it must not
+  // wipe the token.
+  const mapped = setAtsConnection({ provider: "recruitee", fieldMap: { paths: { externalId: "uuid" } } });
+  assert.equal(mapped.baseUrl, "https://api.recruitee.com/");
+  assert.equal(mapped.hasToken, true);
+  // Blanking is still possible — the panel sends an explicit null for an emptied field.
+  assert.equal(setAtsConnection({ provider: "recruitee", baseUrl: null }).baseUrl, null);
 });
 
 test("a refused token store never silently downgrades to plaintext", () => {

@@ -135,7 +135,18 @@ ping (`POST /api/ats/test`).
   Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it. Only
   `candidate.hired` fires live today (on offer-accept); the other three are reserved for
   their lifecycle hooks, and the UI says so.
-- **Pull works too**: `GET /api/ats/candidate/<entryId>` returns the same record on demand.
+- **Pull works too**: `GET /api/ats/candidate/<entryId>` returns the same record on demand —
+  operator-gated, scoped to the caller's workspace, and every successful export is audited
+  onto that candidate's own pipeline-event timeline (`ats_export`).
+- **The pull door honours the consent gate.** It is the one place identity leaves for a
+  third-party system, so it applies `consentWithholdsPii` at read time: an entry whose
+  retention window has lapsed (or that is already anonymized) exports with its label masked
+  to `First L.` and `contact: null` — exactly what `anonymizeEntry` would have written —
+  while keeping the non-identifying retained record (stage, status, match score, archetype,
+  sealed decision) so a connector's stage sync still works. The audit detail records that
+  the identity was withheld (`consent-redacted`). Redaction, not refusal, matches every
+  other PII read boundary; `anonymizeExpiredConsents` is a deferred sweep with no
+  production caller, so this read-time gate is the enforcement, not an optimization.
 
 The envelope, signing and delivery/retry semantics live in
 [../comms/outbound-export.md](../comms/outbound-export.md).
@@ -161,6 +172,8 @@ The envelope, signing and delivery/retry semantics live in
 | `app/_lib/ats/connections-store.ts` | Per-provider credentials + `ATS_PROVIDERS` |
 | `app/api/calendar/google/{start,callback}/route.ts`, `app/api/calendar/google/route.ts` | OAuth start, callback, status + revoke-first DELETE |
 | `app/api/ats/connections/route.ts` | GET / POST / DELETE inbound connections |
+| `app/api/ats/candidate/[id]/route.ts` | The per-candidate pull door: operator gate → workspace scope → consent gate → audit |
+| `app/api/ats/candidate/ats-candidate-audit.ts` | Its pure helpers: the `ats_export` audit descriptor + the consent redaction |
 
 ## Data model
 

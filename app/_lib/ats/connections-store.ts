@@ -139,10 +139,22 @@ function validateBaseUrl(raw: unknown): string | null {
 }
 
 /**
- * Upsert one connection. Token handling mirrors setAtsConfig exactly:
+ * Upsert one connection. Every field is a PARTIAL update — an omitted key keeps what is
+ * stored, and only an explicit value changes it:
  *   • `apiToken` omitted    → keep the stored (already-encrypted) value.
  *   • `apiToken` === ""     → CLEAR it (the connection is parked, not deleted).
  *   • any other string      → replace it.
+ *   • `baseUrl` omitted     → keep the stored URL. `null` / `""` CLEARS it (the panel
+ *                             sends an explicit null for a blanked field, so blanking
+ *                             still works); any other string is re-validated and replaces.
+ *   • `fieldMap` / `enabled` omitted → keep, same as above.
+ *
+ * baseUrl used to be the one field written unconditionally, so the documented park
+ * (`{ provider, enabled: false }`) and any other partial write silently NULLed the
+ * endpoint — leaving a connection with a live token and a field map but nothing to call.
+ * A preserved URL is not re-validated: like the stored token it was vetted when written,
+ * and a connector re-vets before it fetches (the same stance ats-config-store takes for a
+ * URL stored before a rule tightened).
  */
 export function setAtsConnection(input: {
   provider: unknown;
@@ -155,8 +167,9 @@ export function setAtsConnection(input: {
     throw new AtsConnectionError(`unknown provider. Allowed: ${ATS_PROVIDERS.join(", ")}.`);
   }
   const provider = input.provider;
-  const baseUrl = validateBaseUrl(input.baseUrl);
   const existing = db().prepare(`SELECT * FROM ats_connections WHERE provider = ?`).get(provider) as Row | undefined;
+
+  const baseUrl = input.baseUrl === undefined ? (existing?.base_url ?? null) : validateBaseUrl(input.baseUrl);
 
   let fieldMapJson = existing?.field_map_json ?? "{}";
   if (input.fieldMap !== undefined) {
