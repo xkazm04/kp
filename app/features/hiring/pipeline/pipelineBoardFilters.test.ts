@@ -216,3 +216,47 @@ test("the canonical value lists are what the params validate against", () => {
   assert.deepEqual([...QUICK_FILTERS], ["interview", "aging", "awaiting", "intake"]);
   assert.deepEqual([...SCORE_BANDS], ["strong", "mid", "weak", "unscored"]);
 });
+
+// --- the workspace axis, not the shipped names -------------------------------------
+// Regression: the board's stat chips were moved onto stage ROLES, but these two
+// predicates still read the literal names — so on a composed board the amber Aging
+// chip counted one number while clicking it filtered to a different one, and the
+// "interview" chip (which feeds bulk select-all) silently omitted a whole column.
+const CUSTOM_AXIS = [
+  { id: "New", label: "New applicants", role: "entry" },
+  { id: "Phone screen", label: "Phone screen", role: "screening" },
+  { id: "Tech screen", label: "Tech screen", role: "interview" },
+  { id: "Onsite", label: "Onsite", role: "interview" },
+  { id: "Placed", label: "Placed", role: "terminal" },
+] as const;
+
+test("aging: the terminal column is resolved by ROLE, so a renamed one never ages", () => {
+  const longAgo = { stageChangedAt: new Date(NOW - 90 * DAY).toISOString() };
+  const placed = makeEntry({ stage: "Placed", ...longAgo });
+  // Against the shipped axis "Placed" is off-axis and carries no terminal role, so it
+  // ages — the honest answer for a stage the board does not declare.
+  assert.equal(quickPredicate(placed, "aging", null, NOW), true);
+  // Against the workspace's OWN axis it is the end of the road and never ages.
+  assert.equal(quickPredicate(placed, "aging", null, NOW, CUSTOM_AXIS), false);
+  // And a genuinely stalled candidate on that same axis still ages.
+  assert.equal(quickPredicate(makeEntry({ stage: "Onsite", ...longAgo }), "aging", null, NOW, CUSTOM_AXIS), true);
+});
+
+test("interview: EVERY column carrying the interview role matches, not just one name", () => {
+  const tech = makeEntry({ stage: "Tech screen" });
+  const onsite = makeEntry({ stage: "Onsite" });
+  assert.equal(quickPredicate(tech, "interview", null, NOW, CUSTOM_AXIS), true);
+  assert.equal(quickPredicate(onsite, "interview", null, NOW, CUSTOM_AXIS), true);
+  // Non-interview roles on the same axis stay out.
+  assert.equal(quickPredicate(makeEntry({ stage: "Phone screen" }), "interview", null, NOW, CUSTOM_AXIS), false);
+  // Non-vacuity: the old name test would have matched neither of the two above.
+  assert.notEqual(tech.stage, "Interview");
+  assert.notEqual(onsite.stage, "Interview");
+});
+
+test("entryMatchesFilters threads the axis down to the quick predicates", () => {
+  const placed = makeEntry({ stage: "Placed", stageChangedAt: new Date(NOW - 90 * DAY).toISOString() });
+  const criteria = { query: "", ...NONE, quicks: set<QuickFilter>("aging"), stage: null };
+  assert.equal(entryMatchesFilters(placed, criteria, { now: NOW }), true);
+  assert.equal(entryMatchesFilters(placed, criteria, { now: NOW, axis: CUSTOM_AXIS }), false);
+});

@@ -18,6 +18,7 @@
 
 import type { Entry, PipelineEvent } from "@/app/features/shared/pipelineTypes";
 import { slaForStage } from "@/app/features/shared/pipelineTypes";
+import { DEFAULT_STAGE_AXIS, stageHasRole, type StageDef } from "@/app/_lib/pipeline-stages";
 import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 
 const DAY_MS = 86_400_000;
@@ -28,9 +29,19 @@ const DAY_MS = 86_400_000;
  *  overrides, now) — and deliberately time-injectable: folding THIS into the board
  *  signature is what makes a candidate crossing its SLA purely by the passage of
  *  time flip the signature (→ re-render) on the very next poll, with NO data change.
- *  Kept in lock-step with PipelineTab's `isStale` (same threshold, same fields). */
-export function agingBucket(e: Entry, overrides: Record<string, number> | null | undefined, now: number): 0 | 1 {
-  if (e.stage === "Hired") return 0;
+ *  Kept in lock-step with PipelineTab's `isStale` (same threshold, same fields) —
+ *  which means resolving "is this the end of the road" by stage ROLE on the
+ *  workspace's own axis, not by the name "Hired". A board whose terminal column is
+ *  called anything else used to age every hired candidate here (and the aging quick
+ *  filter, which routes through this function, then listed them) while the stat
+ *  chip beside it counted correctly: one number, two answers. */
+export function agingBucket(
+  e: Entry,
+  overrides: Record<string, number> | null | undefined,
+  now: number,
+  axis: readonly StageDef[] = DEFAULT_STAGE_AXIS
+): 0 | 1 {
+  if (stageHasRole(e.stage, "terminal", axis)) return 0;
   const changed = e.stageChangedAt ? Date.parse(e.stageChangedAt) : NaN;
   if (!Number.isFinite(changed)) return 0;
   const days = Math.floor((now - changed) / DAY_MS);
@@ -129,12 +140,13 @@ const REC_SEP = "\n";
  *  per-board SLA overrides so the gate agrees with `isStale`. */
 export function boardSignature(
   entries: readonly Entry[],
-  opts?: { overrides?: Record<string, number> | null; now?: number }
+  opts?: { overrides?: Record<string, number> | null; now?: number; axis?: readonly StageDef[] }
 ): string {
   const now = opts?.now ?? Date.now();
   const overrides = opts?.overrides ?? null;
+  const axis = opts?.axis ?? DEFAULT_STAGE_AXIS;
   let s = "";
-  for (const e of entries) s += entrySignature(e) + FIELD_SEP + agingBucket(e, overrides, now) + REC_SEP;
+  for (const e of entries) s += entrySignature(e) + FIELD_SEP + agingBucket(e, overrides, now, axis) + REC_SEP;
   return s;
 }
 

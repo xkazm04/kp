@@ -47,17 +47,28 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
   // `busy` disables the controls, but two near-simultaneous clicks can launch before
   // it renders — this ref blocks a concurrent update() synchronously.
   const inFlightRef = useRef(false);
+  // The 30s poll and update() are the TWO writers of sched/runs/reminders, and the poll
+  // has no way to notice that a write landed while its GET was in flight. A GET issued
+  // just before the operator flips the toggle carries PRE-write data, so committing it
+  // AFTER the POST snapped the switch back to the value they just changed — reading as
+  // "the click didn't take" — and the honest state was 30s away. So each load() stamps
+  // the write generation it started under and commits nothing once that generation is
+  // stale. update() bumps it as it fires AND when it settles, so exactly the responses
+  // that were in flight ACROSS a write are dropped; every later poll commits normally.
+  const writeGenRef = useRef(0);
   // True while the interval field is focused, so the 30s poll's render-phase mirror
   // doesn't overwrite what the operator is mid-typing.
   const [intervalFocused, setIntervalFocused] = useState(false);
 
-  const load = () =>
-    fetch("/api/automation/schedule")
+  const load = () => {
+    const gen = writeGenRef.current;
+    return fetch("/api/automation/schedule")
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
       .then((p) => {
+        if (gen !== writeGenRef.current) return; // a write landed meanwhile — this payload predates it
         setSched(p.schedule as Schedule);
         if (Array.isArray(p.runs)) setRuns(p.runs as SchedulerRun[]);
         if (p.reminders) setReminders(p.reminders as Schedule);
@@ -65,7 +76,11 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
         if (typeof p.scheduleScope === "string") setScheduleScope(p.scheduleScope);
         setError(null);
       })
-      .catch(() => setError(t("engineUnreachable")));
+      .catch(() => {
+        if (gen !== writeGenRef.current) return; // a superseded poll's failure isn't the current truth
+        setError(t("engineUnreachable"));
+      });
+  };
 
   useEffect(() => {
     load();
@@ -94,6 +109,7 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
   const update = async (body: { enabled?: boolean; intervalMinutes?: number; tick?: boolean; remindersEnabled?: boolean }) => {
     if (inFlightRef.current) return; // a concurrent schedule op is already running
     inFlightRef.current = true;
+    writeGenRef.current += 1; // any poll already in flight now carries pre-write data
     setBusy(true);
     if (body.tick) setResult(null); // clear any stale chip before a fresh run
     try {
@@ -122,6 +138,9 @@ export function useSchedulerControlState(t: SchedulerTranslator, onRan?: () => v
       if (body.tick) setResult({ tone: "error", text: t("runFailedMsg", { msg }) });
       else setError(t("updateFailed", { msg }));
     } finally {
+      // A poll that STARTED mid-write also predates the committed result, so bump
+      // again on settle rather than only on fire.
+      writeGenRef.current += 1;
       inFlightRef.current = false;
       setBusy(false);
     }

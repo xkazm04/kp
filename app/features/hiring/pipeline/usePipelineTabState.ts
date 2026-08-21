@@ -31,6 +31,7 @@ import {
   type QuickFilter,
 } from "./pipelineBoardFilters";
 import { boardVisibleOrder, groupPositions } from "./pipelineBoardLayout";
+import { stageHasRole, stagesWithRole } from "@/app/_lib/pipeline-stages";
 import { daysSince, slaForStage, type Entry } from "@/app/features/shared/pipelineTypes";
 import { usePipelineSla } from "./usePipelineSla";
 import { usePipelineBoardData } from "./usePipelineBoardData";
@@ -79,9 +80,20 @@ export function usePipelineTabState() {
   const positions = useMemo(() => groupPositions(entries ?? []), [entries]);
 
   const approvals = (entries ?? []).filter((e) => needsHumanDecision(e.approvalKind) && e.status === "active");
-  const activeCount = (entries ?? []).filter((e) => e.stage !== "Hired").length;
-  const interviewCount = (entries ?? []).filter((e) => e.stage === "Interview").length;
-  const isStale = (e: Entry) => e.stage !== "Hired" && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides);
+  // The stat chips and the aging verdict ask what a stage MEANS, so they read its
+  // ROLE off the workspace's resolved axis rather than its name (pipeline-stages.ts).
+  // The axis is workspace-editable: a board that adds a second interview column
+  // ("Onsite") under-counted "in interview" by exactly the candidates standing in it,
+  // and a board whose terminal column is not literally called "Hired" counted its
+  // hired candidates as active AND aged them (slaForStage falls back to STALE_DAYS for
+  // an unknown stage, so every hired card older than 10 days went amber). An off-axis
+  // id resolves to no role — so a stranded candidate reads as neither terminal nor
+  // interview, which is the honest answer. Byte-identical on the shipped axis.
+  const interviewStages = stagesWithRole("interview", board.axis);
+  const isTerminal = (e: Entry) => stageHasRole(e.stage, "terminal", board.axis);
+  const activeCount = (entries ?? []).filter((e) => !isTerminal(e)).length;
+  const interviewCount = (entries ?? []).filter((e) => interviewStages.includes(e.stage)).length;
+  const isStale = (e: Entry) => !isTerminal(e) && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides);
   const staleCount = (entries ?? []).filter(isStale).length;
   // Stubs from a failed intake normalization: visible, recoverable, and not yet
   // matchable until a recruiter captures the profile. Active-only — a rejected
@@ -97,10 +109,10 @@ export function usePipelineTabState() {
   // empty columns.
   const filteredEntries = useMemo(() => {
     const matched = (entries ?? []).filter((e) =>
-      entryMatchesFilters(e, { query, quicks, scoreBands, sources, stage: stageFilter }, { overrides: slaOverrides })
+      entryMatchesFilters(e, { query, quicks, scoreBands, sources, stage: stageFilter }, { overrides: slaOverrides, axis: board.axis })
     );
     return sortFilteredEntries(matched, sort);
-  }, [entries, query, quicks, scoreBands, sources, stageFilter, slaOverrides, sort]);
+  }, [entries, query, quicks, scoreBands, sources, stageFilter, slaOverrides, sort, board.axis]);
 
   // The distinct source/channel facet values present on the board (all entries, not
   // the filtered set), so the source chips only offer values that actually exist —
@@ -145,7 +157,7 @@ export function usePipelineTabState() {
       entryMatchesFilters(
         e,
         { query: "", quicks: quicksSet, scoreBands: empty.scoreBands, sources: empty.sources, stage: null },
-        { overrides: slaOverrides }
+        { overrides: slaOverrides, axis: board.axis }
       )
     );
     const sorted = sortFilteredEntries(cohort, sort);

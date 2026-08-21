@@ -17,6 +17,7 @@
 //   • the free-text query and the funnel-stage filter are single-valued, unchanged.
 
 import { needsHumanDecision } from "@/app/_lib/approval-kinds";
+import { DEFAULT_STAGE_AXIS, stagesWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
 import { canonicalScoreOf } from "@/app/_lib/match-score";
 import { scoreTone } from "@/app/_lib/format";
 import { agingBucket } from "./pipelineRenderDiet";
@@ -68,17 +69,22 @@ export function quickPredicate(
   e: Entry,
   f: QuickFilter,
   overrides: Record<string, number> | null | undefined,
-  now: number
+  now: number,
+  axis: readonly StageDef[] = DEFAULT_STAGE_AXIS
 ): boolean {
   switch (f) {
     case "aging":
-      return agingBucket(e, overrides, now) === 1;
+      return agingBucket(e, overrides, now, axis) === 1;
     case "awaiting":
       return needsHumanDecision(e.approvalKind) && e.status === "active";
     case "intake":
       return Boolean(e.intakeDegraded) && e.status !== "rejected";
     case "interview":
-      return e.stage === "Interview";
+      // By ROLE, not by the name: an axis may declare several interview columns (the
+      // composer tells operators to add them), and this filtered set feeds bulk
+      // select-all — so a name test made "invite everyone in interview" reach a
+      // strict subset of them.
+      return stagesWithRole("interview", axis).includes(e.stage);
     default:
       return true;
   }
@@ -99,10 +105,11 @@ export type FilterCriteria = {
 export function entryMatchesFilters(
   e: Entry,
   c: FilterCriteria,
-  ctx?: { overrides?: Record<string, number> | null; now?: number }
+  ctx?: { overrides?: Record<string, number> | null; now?: number; axis?: readonly StageDef[] }
 ): boolean {
   const now = ctx?.now ?? Date.now();
   const overrides = ctx?.overrides ?? null;
+  const axis = ctx?.axis ?? DEFAULT_STAGE_AXIS;
   const q = c.query.trim().toLowerCase();
   if (q) {
     const hit = (e.candidateLabel ?? "").toLowerCase().includes(q) || (e.jobTitle ?? "").toLowerCase().includes(q);
@@ -110,7 +117,7 @@ export function entryMatchesFilters(
   }
   if (c.stage && e.stage !== c.stage) return false;
   // quicks — AND: every selected quick must hold.
-  for (const f of c.quicks) if (!quickPredicate(e, f, overrides, now)) return false;
+  for (const f of c.quicks) if (!quickPredicate(e, f, overrides, now, axis)) return false;
   // score bands — OR within the dimension; empty = unconstrained.
   if (c.scoreBands.size > 0 && !c.scoreBands.has(entryScoreBand(e))) return false;
   // sources — OR within the dimension; empty = unconstrained.

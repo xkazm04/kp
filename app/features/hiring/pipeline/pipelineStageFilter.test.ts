@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { readStageParam, resolveStageFilter } from "./usePipelineFilters.ts";
 import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, type StageDef } from "@/app/_lib/pipeline-stages";
 
@@ -84,4 +87,32 @@ test("resolution never consults the hardcoded axis — the workspace's own list 
   const withoutOffer = CUSTOM_AXIS.filter((s) => s.id !== "Offer");
   assert.ok(PIPELINE_STAGES.includes("Offer" as never), "fixture guard: Offer is a shipped stage");
   assert.equal(resolveStageFilter("Offer", withoutOffer).onBoard, false);
+});
+
+// ---- The same authority question, one level up: the board's STAT CHIPS ------------
+//
+// usePipelineTabState derived three recruiter-facing numbers from stage NAMES —
+// `e.stage !== "Hired"` (Active), `e.stage === "Interview"` (In interview) and the
+// same `!== "Hired"` inside `isStale` (the amber aging dot + its chip). On a
+// workspace axis with a second interview column those miss every candidate standing
+// in it, and on an axis whose terminal column is not literally called "Hired" they
+// count hired candidates as active AND age them (slaForStage falls back to
+// STALE_DAYS for a stage it doesn't know). A hook has no runner here, so this is a
+// SOURCE guard — the same shape as result-view-unpriced.test.ts — pinning that the
+// counts ask pipeline-stages.ts for the role instead.
+const TAB_STATE = readFileSync(
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "usePipelineTabState.ts"),
+  "utf8"
+);
+
+test("the board's stat counts read stage ROLES, never stage names", () => {
+  for (const literal of ['stage !== "Hired"', 'stage === "Interview"', 'stage === "Hired"']) {
+    assert.equal(
+      TAB_STATE.includes(literal),
+      false,
+      `usePipelineTabState must not derive a count from the literal \`${literal}\` — the axis is workspace-editable`
+    );
+  }
+  assert.match(TAB_STATE, /stageHasRole\([^)]*"terminal"[^)]*board\.axis\)/, "the terminal test must resolve against the board's own axis");
+  assert.match(TAB_STATE, /stagesWithRole\("interview", board\.axis\)/, "the interview count must cover EVERY interview column");
 });
