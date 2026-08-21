@@ -26,6 +26,16 @@ class TestNormalize(unittest.TestCase):
     def test_empty(self):
         self.assertEqual(normalize("   "), [])
 
+    def test_edge_punctuation_is_not_a_word(self):
+        # ' and - are kept for INTRA-word use only. At a word edge they used to survive as
+        # tokens, so a persona line written with a dash charged the ASR a deletion for a
+        # sound no TTS ever makes, and a quoted word scored a substitution against a
+        # correctly heard one.
+        self.assertEqual(normalize("sure - I led the migration"), ["sure", "i", "led", "the", "migration"])
+        self.assertEqual(normalize("'yes' -- really"), ["yes", "really"])
+        self.assertEqual(normalize("e-mail don't"), ["e-mail", "don't"])  # intra-word survives
+        self.assertEqual(wer("sure - I led it", "sure I led it").wer, 0.0)
+
 
 class TestWer(unittest.TestCase):
     def test_perfect_match_is_zero(self):
@@ -428,6 +438,142 @@ class TestBriefIsMintedPerScenario(unittest.TestCase):
             asyncio.set_event_loop_policy(None)
 
         self.assertEqual(seen, {"d": "student-case", "s": "student-case"})
+
+
+class TestAgentAudioFormatClock(unittest.TestCase):
+    """The agent's declared output format IS the driver's bytes -> seconds clock.
+
+    Reading a rate off a format that isn't raw PCM produced a confidently wrong clock, and
+    the wrong clock is indistinguishable from a broken agent in the report.
+    """
+
+    def _sess(self):
+        from pipeline.jobfit.eval.voice.el_ws import ElVoiceSession
+
+        return ElVoiceSession("wss://unused")
+
+    def test_pcm_rate_is_read(self):
+        s = self._sess()
+        s._apply_agent_format("pcm_24000")
+        self.assertEqual(s._agent_rate, 24_000)
+        self.assertIsNone(s.result.errored)
+
+    def test_undeclared_format_keeps_the_protocol_default(self):
+        s = self._sess()
+        s._apply_agent_format("")
+        self.assertEqual(s._agent_rate, 16_000)
+        self.assertIsNone(s.result.errored)
+
+    def test_mp3_bitrate_is_not_a_sample_rate(self):
+        # "mp3_22050_32" used to parse 32 as the sample rate: every chunk read ~500x too
+        # long, so wait_for_agent_turn burned the whole timeout against a healthy agent.
+        s = self._sess()
+        s._apply_agent_format("mp3_22050_32")
+        self.assertEqual(s._agent_rate, 16_000)
+        self.assertIn("not raw PCM", s.result.errored or "")
+
+    def test_ulaw_is_refused_rather_than_halved(self):
+        # 1 byte/sample read as 2 halves every duration -> the harness talks over the agent.
+        s = self._sess()
+        s._apply_agent_format("ulaw_8000")
+        self.assertIn("not raw PCM", s.result.errored or "")
+
+    def test_a_failed_driver_does_not_wait_out_the_timeout(self):
+        import asyncio
+        import time
+
+        s = self._sess()
+        s.result.errored = "boom"
+
+        async def go():
+            t0 = time.monotonic()
+            got = await s.wait_for_agent_turn(timeout=5.0)
+            return got, time.monotonic() - t0
+
+        got, elapsed = asyncio.run(go())
+        self.assertFalse(got)
+        self.assertLess(elapsed, 1.0)  # not the 5 s deadline
+
+
+class TestSpeechEndReference(unittest.TestCase):
+    """first-audio latency is measured from the last SPOKEN sample, not from the mic pad."""
+
+    def test_speech_end_excludes_the_trailing_silence(self):
+        import asyncio
+        import time
+
+        from pipeline.jobfit.eval.voice import el_ws, tts
+
+        class FakeWs:
+            def __init__(self):
+                self.sent = 0
+
+            async def send(self, _payload):
+                self.sent += 1
+
+        async def scenario():
+            call = el_ws.ElVoiceSession("wss://unused")
+            call._ws = FakeWs()
+            mic = asyncio.create_task(call._mic_loop())
+            try:
+                await call.speak("hello", "en")
+                return time.monotonic() - call._speech_end
+            finally:
+                call._closing = True
+                mic.cancel()
+                try:
+                    await mic
+                except asyncio.CancelledError:
+                    pass
+
+        orig_synth, orig_pad = tts.synthesize, el_ws.TRAILING_SILENCE_MS
+        tts.synthesize = lambda text, lang="en", **kw: tts.silence(200)
+        el_ws.TRAILING_SILENCE_MS = 300
+        try:
+            gap = asyncio.run(scenario())
+        finally:
+            tts.synthesize, el_ws.TRAILING_SILENCE_MS = orig_synth, orig_pad
+
+        # speak() returns once the pad has finished streaming, so "now" is one pad past the
+        # last spoken sample. Stamping the drain instant instead reported every latency short
+        # by exactly the pad — 0.9 s off an 8 s budget in the real config.
+        self.assertAlmostEqual(gap, 0.3, delta=0.15)
+
+
+class TestSmokePreflight(unittest.TestCase):
+    def test_preflight_checks_the_voice_the_scenario_will_speak(self):
+        # Checking a fixed "en" let a Czech scenario mint a REAL (paid) session and only then
+        # blow up inside speak() with no cs_CZ model on disk.
+        import argparse
+        import asyncio
+
+        from pipeline.jobfit.eval import interview_eval as ie
+        from pipeline.jobfit.eval.interview_eval import _scenario_from_dict
+        from pipeline.jobfit.eval.voice import tts, v0_smoke
+
+        asked: list[str] = []
+        scn = _scenario_from_dict(
+            {"name": "cz", "candidate_prompt": "p", "first_message": "ahoj", "language": "cs"}
+        )
+
+        def fake_available(lang="en"):
+            asked.append(lang)
+            return False, "voice model missing"
+
+        orig_sel, orig_av = ie.select_scenarios, tts.available
+        ie.select_scenarios = lambda **kw: [scn]
+        tts.available = fake_available
+        try:
+            args = argparse.Namespace(
+                base_url="http://unused.invalid", scenario="cz", lang=None, kind="sim",
+                sim_mode="regular", entry=None, turns=1, timeout=5.0,
+                wer_budget=0.35, latency_budget=8.0, no_color=True,
+            )
+            self.assertEqual(asyncio.run(v0_smoke._run(args)), 2)
+        finally:
+            ie.select_scenarios, tts.available = orig_sel, orig_av
+
+        self.assertEqual(asked, ["cs"])
 
 
 if __name__ == "__main__":

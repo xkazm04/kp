@@ -34,6 +34,7 @@ import {
 } from "./student-interview";
 import { extractTelemetry } from "./interview-telemetry";
 import {
+  candidateSafeTopic,
   composeCandidateBrief,
   sanitizeChronologyBlock,
   sanitizeFollowupQuestion,
@@ -220,6 +221,33 @@ function composeDebriefBrief(
   ].join(" ");
 }
 
+/** The CANDIDATE-FACING agenda derived from a prep chronology — what gets stored
+ *  as `interview_sessions.run_of_show_json` and rendered to the candidate.
+ *
+ *  Scrubbed at the SOURCE, not at each render site. A chronology `topic` is the
+ *  LLM's free-text `competency` (run-of-show.ts: `topic = q.competency`) written
+ *  under an interviewer prompt that asks it to cover the missing must-haves, so it
+ *  comes back carrying the assessment annotation as a bracketed aside — "Test
+ *  automation fundamentals (missing must-have)", "Motivation (aspiration
+ *  mismatch)" — the shapes TP-L2-VOICE-01 found in the wild. The stored field is
+ *  read by the candidate portal's agenda sidebar (app/interview/[token]/page.tsx),
+ *  by /api/interview/simulate → InterviewSimTab, and by
+ *  scripts/interview-brief-grounded.ts; /api/interview/complete's public
+ *  projection strips it for exactly this reason, and /api/interview/connect's
+ *  contract test forbids the annotations outright. Composing it clean here closes
+ *  every one of those readers at once instead of one render site at a time.
+ *
+ *  The scrub is the SAME shape rule the client-sent EL brief uses
+ *  (voice/candidate-brief.ts::candidateSafeTopic), so the next annotation phrasing
+ *  is caught too, and the two candidate-facing agendas can't disagree. The
+ *  INTERVIEWER brief (composeBrief's run-of-show) deliberately keeps the raw topic:
+ *  it is server-side, interviewer-internal, and the annotation is the point there. */
+export function candidateRunOfShow(chronology: ChronologyBlock[] | undefined | null): string[] {
+  return (chronology ?? [])
+    .map((b) => candidateSafeTopic(b?.topic))
+    .filter((t): t is string => t !== null);
+}
+
 /** Build the interviewer brief + candidate-facing run-of-show titles for an
  *  entry, grounded in the rich interview-prep artifact (generated if missing).
  *
@@ -341,7 +369,7 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
   // portal shows the truthful ~5 min rather than a 20-minute promise it won't keep.
   const grounded = (prep?.chronology?.length ?? 0) > 0;
   const durationMin = grounded ? prep?.durationMin ?? GROUNDED_DEFAULT_MIN : QUICK_SCREEN_MIN;
-  const runOfShow = (prep?.chronology ?? []).map((b) => b.topic).filter(Boolean);
+  const runOfShow = candidateRunOfShow(prep?.chronology);
   // Phase 3 (role-intake): a job promoted from an intake carries the requestor's
   // stated intent (90-day outcomes, dealbreakers) — ground the interviewer on it.
   // Interviewer-internal only; the candidate-safe brief deliberately omits it.

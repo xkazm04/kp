@@ -281,7 +281,11 @@ async def run_voice_scenario(
         run.interruptions = r.interruptions
         run.agent_audio_s = r.agent_audio_s
         run.conversation_id = r.conversation_id
-        run.errored = run.errored or r.errored
+        # The DRIVER's error wins over the turn-taking one. A dead socket or an unmeasurable
+        # agent audio format makes every wait time out, so the run's own "agent did not reply
+        # within timeout" is the SYMPTOM; reporting it over the protocol fault sent whoever
+        # read the report looking at the agent instead of at the one line that explains it.
+        run.errored = r.errored or run.errored
 
     run.wall_s = time.monotonic() - t0
 

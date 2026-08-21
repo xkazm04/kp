@@ -145,6 +145,36 @@ class ElVoiceSession:
         except Exception as exc:  # noqa: BLE001
             self.result.errored = f"{type(exc).__name__}: {exc}"
 
+    def _apply_agent_format(self, fmt: str) -> None:
+        """Turn the agent's declared output format into the bytes -> seconds clock.
+
+        ONLY raw PCM is measurable here ("pcm_16000" -> 16000). The old rule — any trailing
+        digits — also fired on the other formats the EL dashboard offers, and produced a
+        confidently wrong clock instead of an error:
+
+        * ``mp3_22050_32`` parsed its BITRATE as the sample rate (32), so every chunk read
+          ~500x too long, ``_playback_end`` ran minutes into the future and every turn burned
+          the full 90 s timeout — a healthy agent reported as "agent did not reply".
+        * ``ulaw_8000`` is 1 byte per sample, so a 16-bit reading HALVED every duration and
+          the harness took its turn while the agent was still talking; its speech was cut and
+          the utterances came back dropped or garbled, scored as ASR failure.
+
+        Neither is a number this driver can honestly compute, so the run fails with the
+        reason rather than reporting mis-paced audio as a measurement.
+        """
+        fmt = fmt.strip().lower()
+        if not fmt:
+            return  # not declared — keep the protocol default (pcm_16000)
+        tail = fmt.rsplit("_", 1)[-1]
+        if fmt.startswith("pcm_") and tail.isdigit() and int(tail) > 0:
+            self._agent_rate = int(tail)
+            return
+        self.result.errored = (
+            f"agent_output_audio_format={fmt!r} is not raw PCM — this driver paces turns by "
+            "converting agent audio bytes to seconds and can only do that for pcm_<rate>; "
+            "set the agent's output format to PCM"
+        )
+
     async def _handle(self, msg: dict) -> None:
         kind = msg.get("type")
         if kind == "ping":
@@ -153,10 +183,7 @@ class ElVoiceSession:
         elif kind == "conversation_initiation_metadata":
             ev = msg.get("conversation_initiation_metadata_event") or {}
             self.result.conversation_id = ev.get("conversation_id")
-            # e.g. "pcm_16000" -> 16000; needed to convert agent audio bytes into playback seconds.
-            fmt = str(ev.get("agent_output_audio_format") or "")
-            if "_" in fmt and fmt.rsplit("_", 1)[-1].isdigit():
-                self._agent_rate = int(fmt.rsplit("_", 1)[-1])
+            self._apply_agent_format(str(ev.get("agent_output_audio_format") or ""))
         elif kind == "user_transcript":
             text = ((msg.get("user_transcription_event") or {}).get("user_transcript") or "").strip()
             if text:
@@ -209,7 +236,13 @@ class ElVoiceSession:
                 if not self._buf:
                     break
             await asyncio.sleep(0.02)
-        self._speech_end = time.monotonic()
+        # End of SPEECH, not end of the mic buffer. The drain above also streamed
+        # TRAILING_SILENCE_MS of digital silence, at real-time pace, so it took exactly that
+        # long — stamping the drain instant charged the pad to nobody and reported every
+        # first-audio latency ~0.9 s SHORT (a call whose real p95 was 8.5 s read as 7.6 s and
+        # passed the 8 s budget). The provider's end-of-turn detection runs during that pad
+        # and a candidate sits through it, so it belongs INSIDE the measured latency.
+        self._speech_end = time.monotonic() - TRAILING_SILENCE_MS / 1000.0
         return tts.duration_s(pcm)
 
     async def wait_for_agent_start(self, timeout: float = 30.0) -> bool:
@@ -217,6 +250,8 @@ class ElVoiceSession:
         barge-in probe to cut in mid-utterance. False on timeout."""
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            if self.result.errored:
+                return False  # the driver has already failed; waiting cannot fix it
             if self._saw_agent_activity:
                 return True
             await asyncio.sleep(0.05)
@@ -230,6 +265,11 @@ class ElVoiceSession:
         utterance in a couple of seconds even though it is 20 seconds of speech."""
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:  # 1) any sign of life (text usually lands before audio)
+            # A driver-level failure (a dead socket, an unmeasurable audio format) cannot be
+            # waited out: without this the harness burned the WHOLE timeout per turn on a
+            # session it already knew was broken, and reported the timeout as the reason.
+            if self.result.errored:
+                return False
             if self._saw_agent_activity:
                 break
             await asyncio.sleep(0.05)
@@ -237,6 +277,8 @@ class ElVoiceSession:
             return False
         activity_at = time.monotonic()
         while time.monotonic() < deadline:  # 2) its speech has finished playing
+            if self.result.errored:
+                return False
             now = time.monotonic()
             if self._playback_end is not None:
                 # Playback drained AND no chunk has arrived recently (a slow network can let the

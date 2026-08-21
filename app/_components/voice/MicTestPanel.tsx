@@ -26,26 +26,37 @@ export function MicTestPanel({
         <Mic size={16} />
         {micTest === "testing" ? t("micTestListening") : t("micTestBtn")}
       </button>
-      {micTest === "testing" ? (
-        <div
-          className="h-2 w-32 overflow-hidden rounded-full bg-stone-200"
-          role="progressbar"
-          aria-label={t("micTestListening")}
-          aria-valuenow={Math.round(micLevel * 100)}
-        >
+      {/* The verdict is the whole point of the test, and it was rendered as a
+          plain span that simply appeared 4s after the click — a screen-reader
+          candidate got NO feedback that the test had finished, let alone whether
+          we heard them, and would walk into the call with a dead mic. This
+          wrapper is a PERSISTENT live region (mounted for every state, so the
+          announcement doesn't depend on a freshly-inserted node being picked up)
+          and it deliberately excludes the button, whose own label change the AT
+          already reports for the focused element. Empty it collapses to zero
+          width; the parent's trailing gap is invisible in a full-width row. */}
+      <div aria-live="polite" className="flex flex-wrap items-center gap-3">
+        {micTest === "testing" ? (
           <div
-            className="h-full rounded-full bg-moss transition-[width] duration-100"
-            style={{ width: `${Math.round(micLevel * 100)}%` }}
-          />
-        </div>
-      ) : null}
-      {micTest === "heard" ? (
-        <span className="inline-flex items-center gap-1.5 text-base text-moss">
-          <CheckCircle2 size={16} aria-hidden /> {t("micTestHeard")}
-        </span>
-      ) : null}
-      {micTest === "silent" ? <span className="text-base text-coral">{t("micTestSilent")}</span> : null}
-      {micTest === "denied" ? <span className="text-base text-coral">{t("errMicDenied")}</span> : null}
+            className="h-2 w-32 overflow-hidden rounded-full bg-stone-200"
+            role="progressbar"
+            aria-label={t("micTestListening")}
+            aria-valuenow={Math.round(micLevel * 100)}
+          >
+            <div
+              className="h-full rounded-full bg-moss transition-[width] duration-100"
+              style={{ width: `${Math.round(micLevel * 100)}%` }}
+            />
+          </div>
+        ) : null}
+        {micTest === "heard" ? (
+          <span className="inline-flex items-center gap-1.5 text-base text-moss">
+            <CheckCircle2 size={16} aria-hidden /> {t("micTestHeard")}
+          </span>
+        ) : null}
+        {micTest === "silent" ? <span className="text-base text-coral">{t("micTestSilent")}</span> : null}
+        {micTest === "denied" ? <span className="text-base text-coral">{t("errMicDenied")}</span> : null}
+      </div>
     </div>
   );
 }

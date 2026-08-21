@@ -412,10 +412,21 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
       setPhase("live");
     },
     onClosed: () => void finalize(currentFinalStatus()),
-    onError: (message: string) => {
+    onError: (message: string, cause?: unknown) => {
       clearConnectTimer();
       erroredRef.current = true;
-      setError(message || t("errVoiceSession"));
+      // Parity with the OpenAI path, which runs every start failure through
+      // micErrorText in start()'s catch. The ElevenLabs SDK acquires the mic
+      // ITSELF and rethrows the raw getUserMedia rejection, and its provider
+      // surfaces a rejected startSession as onError(error.message, error) — so
+      // this callback is the ONLY place an EL mic denial lands (the SDK's
+      // startSession returns void, which makes the promise branch in
+      // startElevenLabsSession unreachable on this version). Without the mapping
+      // a candidate who denied the mic — the most common real failure of a voice
+      // screen — was shown the SDK's untranslated "Permission denied" with no
+      // recovery step, in every locale, while the same denial on OpenAI got the
+      // full "click the microphone icon in your address bar" copy.
+      setError(micErrorText(cause ?? message, micCopy) ?? (message || t("errVoiceSession")));
       setPhase("error");
     },
     pushTurn,

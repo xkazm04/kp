@@ -26,8 +26,20 @@ from .session_runner import format_wer_table, percentile, run_voice_scenario, vo
 async def _run(args) -> int:
     st = _make_styler(should_color(args))
 
-    # Preflight: fail loudly BEFORE spending ElevenLabs minutes.
-    ok, why = tts.available(args.lang or "en")
+    from ..interview_eval import select_scenarios
+
+    # The scenario is resolved FIRST because it decides which Piper voice will be spoken.
+    scenarios = select_scenarios(bank="core", scenario=args.scenario)
+    if not scenarios:
+        sys.stderr.write(f"v0_smoke: no scenario named {args.scenario!r}\n")
+        return 2
+    scenario = scenarios[0]
+
+    # Preflight: fail loudly BEFORE spending ElevenLabs minutes — which means checking the
+    # voice this run will ACTUALLY synthesize. Checking a fixed "en" let a Czech scenario
+    # pass the gate on a box with no cs_CZ model, mint a real session, and only then raise
+    # inside speak() on the first utterance: minutes spent, traceback, no report.
+    ok, why = tts.available(args.lang or scenario.language or "en")
     if not ok:
         sys.stderr.write(f"v0_smoke: TTS unavailable — {why}\n")
         return 2
@@ -39,14 +51,6 @@ async def _run(args) -> int:
     if not avail.get("elevenlabs"):
         sys.stderr.write("v0_smoke: the app reports ElevenLabs unavailable (check ELEVENLABS_* in .env.local)\n")
         return 2
-
-    from ..interview_eval import select_scenarios
-
-    scenarios = select_scenarios(bank="core", scenario=args.scenario)
-    if not scenarios:
-        sys.stderr.write(f"v0_smoke: no scenario named {args.scenario!r}\n")
-        return 2
-    scenario = scenarios[0]
 
     provider = ClaudeCliProvider(timeout=90)
     if not provider.available():
@@ -100,7 +104,8 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Prove the voice loop on one scenario (spends real EL minutes).")
     p.add_argument("--base-url", default=app_client.DEFAULT_BASE_URL)
     p.add_argument("--scenario", default="swe_senior_strong")
-    p.add_argument("--lang", default=None, choices=[None, "en", "cs"])
+    p.add_argument("--lang", default=None, choices=[None, "en", "cs"],
+                   help="Override which Piper voice the preflight checks (default: the scenario's language).")
     p.add_argument("--kind", choices=["sim", "entry"], default="sim",
                    help="sim = candidate-mode demo session (our brief, no scorecard); entry = entry-backed (+ scorecard).")
     p.add_argument("--sim-mode", choices=["regular", "student", "student-case"], default="regular")

@@ -25,8 +25,12 @@ def normalize(text: str) -> list[str]:
     diacritics compare equal."""
     t = unicodedata.normalize("NFC", (text or "").strip().lower())
     t = _PUNCT.sub(" ", t)
-    t = _WS.sub(" ", t).strip()
-    return t.split() if t else []
+    # ``_PUNCT`` keeps ' and - because they are INTRA-word ("e-mail", "don't"). At a word
+    # EDGE they are punctuation, and leaving them standing made them words: a persona line
+    # like "sure - I led the migration" carried a token no TTS ever voices, so the ASR was
+    # charged a guaranteed deletion (+1 error and +1 ref word) on every such utterance, and
+    # a quoted 'yes' scored a substitution against a correctly heard "yes".
+    return [w for w in (tok.strip("'-") for tok in _WS.sub(" ", t).split()) if w]
 
 
 @dataclass(frozen=True)

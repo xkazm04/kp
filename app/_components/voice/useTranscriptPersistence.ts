@@ -10,6 +10,10 @@
 import { useCallback, useEffect, useState } from "react";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
 
+/** sessionStorage key prefix for a transcript body the server has not accepted
+ *  yet. Shared by the writer (persistTranscript) and the replay pass below. */
+const STASH_PREFIX = "kp.iv.";
+
 export type TranscriptPersistenceArgs = {
   /** The link token from props — the fallback when /connect hasn't returned one. */
   token?: string;
@@ -39,7 +43,7 @@ export function useTranscriptPersistence({
   const persistTranscript = useCallback(
     async (tok: string, sid: string, transcript: VoiceTurn[], status: "completed" | "failed"): Promise<boolean> => {
       const body = JSON.stringify({ token: tok, sessionId: sid, transcript, status });
-      const stashKey = `kp.iv.${sid}`;
+      const stashKey = `${STASH_PREFIX}${sid}`;
       try {
         sessionStorage.setItem(stashKey, body);
       } catch {
@@ -81,6 +85,65 @@ export function useTranscriptPersistence({
     const saved = await persistTranscript(tok, sid, turnsRef.current, endedAs ?? "failed");
     if (saved) setSaveFailed(false);
   }, [persistTranscript, token, endedAs, sessionIdRef, sessionTokenRef, turnsRef]);
+
+  // The stash was WRITE-ONLY: nothing in the app ever read `kp.iv.*` back, so the
+  // saveFailed banner's "please keep this tab open" was the whole recovery — a
+  // reload (the natural reaction to that banner) dropped the only record of a
+  // one-shot, billed interview even though its exact POST body was sitting in
+  // sessionStorage. Replay every stashed body once on mount, silently: this runs
+  // before any session of this component's own exists, so it can't race an
+  // in-flight save, and the server stays the authority — a 2xx clears the stash,
+  // and so does a 4xx (already completed / bad token / consent), because those can
+  // never succeed on a later try and would otherwise be re-POSTed on every mount.
+  // A network failure leaves the stash for the next mount.
+  useEffect(() => {
+    let cancelled = false;
+    const keys: string[] = [];
+    try {
+      for (let i = 0; i < sessionStorage.length; i += 1) {
+        const k = sessionStorage.key(i);
+        if (k?.startsWith(STASH_PREFIX)) keys.push(k);
+      }
+    } catch {
+      return; // storage blocked (private mode) — nothing to replay
+    }
+    if (keys.length === 0) return;
+    void (async () => {
+      for (const k of keys) {
+        if (cancelled) return;
+        let body: string | null = null;
+        try {
+          body = sessionStorage.getItem(k);
+        } catch {
+          return;
+        }
+        if (!body) continue;
+        try {
+          // No `keepalive` here (unlike persistTranscript, which needs it to
+          // survive a closing tab): this is an ordinary in-page request, and
+          // keepalive caps the body at 64KB — the exact size a long transcript
+          // might have failed on in the first place.
+          const res = await fetch("/api/interview/complete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+          });
+          if (res.ok || (res.status >= 400 && res.status < 500)) {
+            try {
+              sessionStorage.removeItem(k);
+            } catch {
+              /* ignore */
+            }
+          }
+        } catch {
+          /* offline — keep the stash and try again on the next mount */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!saveFailed) return;

@@ -658,6 +658,25 @@ that forces one brief on every scenario. Pinned by `TestBriefIsMintedPerScenario
 
 ---
 
+## 9.11 Measurement honesty pass (2026-08-21)
+
+Four places where the harness produced a number it had not earned — every one of them in the
+direction that flatters or misattributes a run.
+
+| Where | Was | Now |
+|---|---|---|
+| `el_ws.speak()` | `_speech_end` stamped when the mic buffer drained — which is **after** the `TRAILING_SILENCE_MS` (900 ms) VAD pad — so every first-audio latency was reported ~0.9 s short (a real p95 of 8.5 s read as 7.6 s and passed the 8 s budget). | Stamped at the last **spoken** sample (`drain − pad`). The provider's end-of-turn detection runs during the pad and a candidate sits through it, so it is inside the measured latency. Existing p50/p95 numbers in §9.8/§9.9 predate this and read ~0.9 s low. |
+| `el_ws._apply_agent_format()` | Any trailing digits in `agent_output_audio_format` were read as the sample rate. `mp3_22050_32` parsed **32**, inflating chunk playback ~500× so every turn burned the 90 s timeout and a healthy agent was reported as "agent did not reply"; `ulaw_8000` (1 byte/sample) halved every duration so the harness talked over the agent. | Only `pcm_<rate>` sets the clock. Any other declared format fails the run with that reason — the driver cannot honestly convert those bytes to seconds, and a mis-paced call is not a measurement. |
+| `el_ws.wait_for_agent_*()` / `session_runner` | A driver-level failure (dead socket, unusable audio format) was waited out for the full per-turn timeout, and the run reported the **timeout** as its reason. | The wait loops short-circuit on `result.errored`, and the driver's error now outranks the turn-taking one in `run.errored` — the report names the protocol fault, not its symptom. |
+| `wer.normalize()` | `'` and `-` are kept for intra-word use (`e-mail`, `don't`) but also survived at a word **edge**, so a persona line like `sure - I led the migration` charged the ASR a deletion for a sound no TTS voices. | Edge `'`/`-` are stripped; intra-word ones are untouched. |
+| `v0_smoke` preflight | `tts.available(args.lang or "en")` — a Czech scenario on a box with no `cs_CZ` model passed the "fail before spending ElevenLabs minutes" gate, minted a **real** session, then raised inside `speak()` on the first utterance. | Resolves the scenario first and preflights the voice it will actually synthesize. `--lang` remains an explicit override. |
+
+Pinned offline by `TestAgentAudioFormatClock`, `TestSpeechEndReference`, `TestSmokePreflight` and
+`TestNormalize.test_edge_punctuation_is_not_a_word` in `tests/test_voice_harness.py` (51 tests, no
+network, no minutes).
+
+---
+
 ## 10. Findings folded from live sweeps (interview-improvement inputs)
 
 The harness above produced real, applied prompt/product/UI fixes across several sweeps

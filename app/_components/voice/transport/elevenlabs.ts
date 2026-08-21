@@ -25,8 +25,14 @@ export type ElevenLabsTransportCtx = {
    *  completed-vs-failed verdict (interviewFinalStatus) and finalize. */
   onClosed: () => void;
   /** Provider error: clear the connect timer, latch errored, show the message
-   *  (falling back to t("errVoiceSession")), phase → error. */
-  onError: (message: string) => void;
+   *  (falling back to t("errVoiceSession")), phase → error. `cause` is the SDK's
+   *  ORIGINAL throwable, forwarded because it is the only thing that identifies a
+   *  microphone failure: the SDK acquires the mic itself (MediaDeviceInput.create
+   *  rethrows the raw getUserMedia rejection) and ConversationProvider reports a
+   *  rejected startSession through this callback as `(error.message, error)`. The
+   *  component maps the DOMException to actionable recovery copy — matching on the
+   *  message alone would be guesswork against provider/transport errors. */
+  onError: (message: string, cause?: unknown) => void;
   pushTurn: (role: VoiceTurn["role"], text: string) => void;
 };
 
@@ -57,8 +63,8 @@ export function useElevenLabsTransport(ctx: ElevenLabsTransportCtx): ElevenLabsC
       if (!ctx.isActiveProvider()) return;
       ctx.onClosed();
     },
-    onError: (message: string) => {
-      ctx.onError(message);
+    onError: (message: string, cause?: unknown) => {
+      ctx.onError(message, cause);
     },
     onMessage: ({ message, source }: { message: string; source: "user" | "ai" }) =>
       ctx.pushTurn(source === "user" ? "candidate" : "interviewer", message),

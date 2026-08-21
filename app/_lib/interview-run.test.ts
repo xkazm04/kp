@@ -5,7 +5,7 @@
 // same allow-list sanitizer these tests pin in candidate-brief.test.ts.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { composeBrief, importedQuestionsForBrief, MAX_BRIEF_IMPORTED_QUESTIONS } from "./interview-run.ts";
+import { candidateRunOfShow, composeBrief, importedQuestionsForBrief, MAX_BRIEF_IMPORTED_QUESTIONS } from "./interview-run.ts";
 
 const CHRON = [
   { fromMin: 0, toMin: 8, topic: "Recent backend ownership", goal: "Depth on the service they own.", questions: ["Walk me through the service you own end to end."] },
@@ -64,4 +64,61 @@ test("composeBrief: over-cap imports are capped and the cap is stated in prose",
 test("composeBrief: no chronology falls back to the default brief (imports need a grounded plan)", () => {
   const brief = composeBrief("Acme", "Engineer", "Engineer (senior)", { importedQuestions: ["orphan"] }, 20);
   assert.doesNotMatch(brief, /orphan/);
+});
+
+// ---------------------------------------------------------------------------
+// candidateRunOfShow — the STORED, candidate-facing agenda
+// (interview_sessions.run_of_show_json). The chronology `topic` is the LLM's
+// free-text competency written under an interviewer prompt that asks it to cover
+// the missing must-haves, so it comes back with the assessment annotation riding
+// INSIDE the label as a bracketed aside. That stored field is rendered straight
+// to the candidate by the interview portal's agenda sidebar (and returned by
+// /api/interview/simulate), which is why it is composed clean at the SOURCE here
+// rather than scrubbed at each render site. Same shape rule as the client-sent EL
+// brief (voice/candidate-brief.ts::candidateSafeTopic).
+// ---------------------------------------------------------------------------
+
+const ANNOTATED = [
+  { fromMin: 0, toMin: 8, topic: "Test automation fundamentals (missing must-have)", goal: "g", questions: [] },
+  { fromMin: 8, toMin: 14, topic: "Motivation (aspiration mismatch)", goal: "g", questions: [] },
+  { fromMin: 14, toMin: 20, topic: "Design trade-offs", goal: "g", questions: [] },
+];
+
+test("candidateRunOfShow: the interviewer's gap annotations never reach the stored candidate agenda", () => {
+  const agenda = candidateRunOfShow(ANNOTATED);
+  assert.deepEqual(agenda, ["Test automation fundamentals", "Motivation", "Design trade-offs"]);
+  // Nothing bracketed survives at all — the shape rule, not a phrase deny-list.
+  for (const item of agenda) assert.doesNotMatch(item, /[([]/, `"${item}" still carries an aside`);
+});
+
+test("candidateRunOfShow: an UNTERMINATED aside takes the rest of the label with it", () => {
+  // The annotation shape the model actually emits is not always well-formed.
+  assert.deepEqual(
+    candidateRunOfShow([{ fromMin: 0, toMin: 8, topic: "Ownership of the payments service (missing must-have", goal: "g", questions: [] }]),
+    ["Ownership of the payments service"]
+  );
+});
+
+test("candidateRunOfShow: a label that is NOTHING but an annotation drops out entirely", () => {
+  assert.deepEqual(
+    candidateRunOfShow([
+      { fromMin: 0, toMin: 8, topic: "(missing must-have)", goal: "g", questions: [] },
+      { fromMin: 8, toMin: 16, topic: "Recent backend ownership", goal: "g", questions: [] },
+    ]),
+    ["Recent backend ownership"]
+  );
+});
+
+test("candidateRunOfShow: a clean plan is byte-identical to the raw topic projection", () => {
+  // Regression guard: the scrub must not re-word an ordinary agenda.
+  assert.deepEqual(candidateRunOfShow(CHRON), CHRON.map((b) => b.topic));
+  assert.deepEqual(candidateRunOfShow(undefined), []);
+  assert.deepEqual(candidateRunOfShow([]), []);
+});
+
+test("candidateRunOfShow does NOT scrub the interviewer brief — the annotation is the point there", () => {
+  // The brief is server-side, interviewer-internal material (/api/interview/complete's
+  // public projection strips it); only the candidate-facing agenda is scrubbed.
+  const brief = composeBrief("Acme", "Engineer", "Engineer (senior)", { chronology: ANNOTATED, durationMin: 20 }, 20);
+  assert.match(brief, /missing must-have/, "the interviewer still sees which must-have the topic covers");
 });
