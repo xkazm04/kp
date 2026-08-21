@@ -1,4 +1,4 @@
-import { actOnPipelineEntry, entryIdsWithEvent, listPipeline, recordAutomationEvent } from "./db/pipeline";
+import { actOnPipelineEntry, entryIdsWithEvent, getPipelineEntry, listPipeline, recordAutomationEvent } from "./db/pipeline";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
 import { sealDecisionSafe, SCREEN_WAVE_HOLDOUT_KIND, AUTO_REJECTED_KIND } from "./decision-record-store";
@@ -431,6 +431,42 @@ export async function runScreenWave(
         rejected += 1;
         continue;
       }
+      // DRIFT PRE-CHECK — the seal must not run for a rejection that ALREADY cannot
+      // apply. `e` is a snapshot taken before the loop, and the loop AWAITS a comms
+      // dispatch per rejection (with a relay configured that is a real network
+      // round-trip, so the event loop yields and other handlers run) — by the time the
+      // loop reaches THIS candidate a recruiter may have advanced or closed them
+      // seconds ago. The CAS below does catch that, but only AFTER the record is
+      // sealed, and the chain is append-only: the residue is an `auto_rejected` record
+      // for someone still in the funnel, and it is not inert — status-decisions.ts
+      // renders auto_rejected to the CANDIDATE on their own status page (with the score
+      // and threshold), ats-egress.ts ships the latest record to the customer's ATS as
+      // their decision, and heldOutEntryIds drops them from the calibration clean arm.
+      // So re-read the row first and skip WITHOUT sealing. What is left is the
+      // single-synchronous-statement gap between this read and the CAS — the narrow
+      // window the seal-first ordering deliberately accepts (see below).
+      //
+      // STATUS drift counts as much as STAGE drift: `reject` is idempotent inside
+      // actOnPipelineEntry (it carries no terminal guard), so a candidate a recruiter
+      // rejected BY HAND mid-wave would pass the stage CAS and be sent a SECOND
+      // rejection email. The cohort predicate at the top of this wave already required
+      // status 'active'; this re-asserts it against the live row.
+      const live = getPipelineEntry(e.id, workspaceId);
+      if (!live || live.status !== "active" || live.stage !== e.stage) {
+        const drifted = `Skipped — the candidate changed mid-wave (decided at stage ${e.stage}, active); left untouched and nothing sealed.`;
+        decisions.push({
+          entryId: e.id,
+          label: e.candidateLabel,
+          archetype: e.archetype,
+          matchScore: score,
+          action: "keep",
+          rationale: drifted,
+          reasonCode: "staleSkipped",
+          reasonParams: { wasStage: e.stage },
+          ...stale,
+        });
+        continue;
+      }
       // Decision System of Record (moonshot D) — sealed BEFORE anything irreversible
       // happens. The seal used to run after the status flip and the rejection email,
       // through sealDecisionSafe, whose every failure (missing signing key, locked DB,
@@ -482,10 +518,12 @@ export async function runScreenWave(
         const skipped = `Skipped — stage changed mid-wave (was ${e.stage}); left untouched.`;
         // Seal-first leaves ONE residue: the record was written microseconds ago and
         // this flip then no-op'd, so the append-only chain holds an auto-rejection that
-        // did not apply. That window is now a single synchronous statement wide — it
-        // used to span the whole awaited comms dispatch — and it is the right trade
-        // against the alternative it replaces: an APPLIED, emailed rejection with no
-        // record at all. The staleSkipped keep below is the wave's own report of it.
+        // did not apply. Reaching HERE now means the row drifted inside the gap between
+        // the pre-check above and this statement — no await, no yield — rather than
+        // anywhere in the awaited comms dispatch that precedes it, which is what used
+        // to make the residue reachable in production. That remaining window is the
+        // right trade against the alternative it replaces: an APPLIED, emailed
+        // rejection with no record at all. The staleSkipped keep is the wave's report.
         console.warn(`[screen-wave] ${e.candidateLabel} (${e.id}) changed stage between seal and commit — the sealed record does not reflect an applied rejection`);
         decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: skipped, reasonCode: "staleSkipped", reasonParams: { wasStage: e.stage } });
         continue;

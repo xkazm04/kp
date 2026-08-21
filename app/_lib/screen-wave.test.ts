@@ -17,8 +17,9 @@
 // as-is — these tests ride through it, they do not bypass it.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import http from "node:http";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
-import { createPipelineEntry, getPipelineEntry } from "./db/pipeline.ts";
+import { actOnPipelineEntry, createPipelineEntry, getPipelineEntry } from "./db/pipeline.ts";
 import { runScreenWave, UNSCORED_KEEP_RATIONALE } from "./screen-wave.ts";
 import { listDecisionRecords } from "./decision-record-store.ts";
 
@@ -152,4 +153,84 @@ test("the bottom-% math runs over the scored cohort only — an unscored entry n
   // The reject rationale names the scored basis (of 4), not a padded 5.
   assert.match(rejects[0].rationale, /of 4/);
   assert.equal(wave.cohort, 5, "the reported cohort still counts everyone listed");
+});
+
+// --- MID-WAVE DRIFT: nothing is sealed for a rejection that cannot apply ------------
+//
+// The commit loop AWAITS a comms dispatch per rejection. With a relay configured (the
+// production setup) that is a real network round-trip, so the event loop yields and a
+// recruiter's board click lands INSIDE the wave — seconds before the loop reaches a
+// later candidate. The wave's CAS correctly refuses the stale rejection, but the Art. 22
+// record used to be sealed BEFORE that check ran, and the chain is append-only: the
+// residue was an `auto_rejected` record for someone still in the funnel. It is not
+// inert — status-decisions.ts renders auto_rejected to the CANDIDATE on their own status
+// page (with score + threshold), ats-egress.ts ships the latest record to the customer's
+// ATS as their decision, and heldOutEntryIds drops them from the calibration clean arm.
+//
+// This test drives that exact interleaving deterministically: a loopback relay server
+// stands in for the comms webhook and, on the FIRST rejection's dispatch, advances a
+// LATER candidate out of Screened — the concurrent recruiter.
+test("a candidate a recruiter moves mid-wave is skipped with NO sealed record (the chain never claims a rejection that did not apply)", async () => {
+  const jobId = "sw-job-middrift";
+  const first = seed(jobId, "Drift First", 10);
+  const moved = seed(jobId, "Drift Moved", 12);
+
+  let relayHits = 0;
+  const server = http.createServer((req, res) => {
+    req.resume();
+    req.on("end", () => {
+      relayHits += 1;
+      // The concurrent recruiter: while the wave is blocked dispatching the FIRST
+      // rejection, advance the second candidate off the wave's snapshot stage.
+      const live = getPipelineEntry(moved.id);
+      if (live?.stage === "Screened" && live.status === "active") {
+        actOnPipelineEntry(moved.id, "accept", "recruiter advanced mid-wave", { actor: "human" });
+      }
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end("{}");
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
+  const { port } = server.address() as { port: number };
+  const prevRelay = process.env.COMMS_WEBHOOK_URL;
+  process.env.COMMS_WEBHOOK_URL = `http://127.0.0.1:${port}/relay`;
+
+  const rule = { autoRejectEnabled: true, rejectBottomPercent: 100, maxMatchToReject: 50, holdoutPercent: 0 };
+  try {
+    const preview = await runScreenWave(jobId, rule, { dryRun: true });
+    assert.deepEqual(
+      preview.decisions.filter((d) => d.action === "reject").map((d) => d.entryId),
+      [first.id, moved.id],
+      "precondition: both are in the previewed and approved reject set"
+    );
+    const committed = await runScreenWave(jobId, rule, {
+      dryRun: false,
+      approval: { approvedBy: "Unit Test Approver", token: preview.approvalToken },
+    });
+
+    assert.ok(relayHits > 0, "precondition: the relay actually yielded the event loop mid-wave");
+    // The drifted candidate is neither rejected nor emailed — that part always held.
+    const movedNow = getPipelineEntry(moved.id)!;
+    assert.equal(movedNow.status, "active");
+    assert.notEqual(movedNow.stage, "Screened", "precondition: the recruiter's move landed inside the wave");
+    assert.equal(committed.rejected, 1, "only the candidate who was still there is rejected");
+    const row = committed.decisions.find((d) => d.entryId === moved.id)!;
+    assert.equal(row.action, "keep");
+    assert.equal(row.reasonCode, "staleSkipped");
+
+    // THE FIX: the immutable Art. 22 chain holds NOTHING for them. Pre-fix this was
+    // ["auto_rejected"] — a sealed, candidate-visible, ATS-exported rejection of a
+    // person who is sitting in the next stage.
+    assert.deepEqual(
+      listDecisionRecords({ candidateRef: moved.id }).map((r) => r.kind),
+      [],
+      "no record may be sealed for a rejection the wave then refused to apply"
+    );
+    // …while the candidate who really was rejected keeps their record.
+    assert.deepEqual(listDecisionRecords({ candidateRef: first.id }).map((r) => r.kind), ["auto_rejected"]);
+  } finally {
+    if (prevRelay === undefined) delete process.env.COMMS_WEBHOOK_URL;
+    else process.env.COMMS_WEBHOOK_URL = prevRelay;
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });

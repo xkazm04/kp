@@ -91,14 +91,39 @@ the code does, and the default deployment is the other case. With no key
 configured, `sealDecisionRecord` falls back to the keyless
 `decisionContentHash` (a plain SHA-256 over `prevHash + payload`) and stores
 `key_id = ''`. Such a chain is **integrity-evident** — it detects accidental
-corruption, a deleted or reordered row, and an edit by anyone who does not
-re-hash — but it is **not tamper-resistant against an insider**: the algorithm
+corruption, an *interior* deleted or reordered row, and an edit by anyone who
+does not re-hash — but it is **not tamper-resistant against an insider**: the algorithm
 is public and secret-free, so whoever can write `decision_records` can
 recompute every link. `decision-record-store.test.ts` asserts exactly that
 ("a keyless chain ACCEPTS an insider re-hash") as the non-vacuity proof for
 the keyed path. `verifyDecisionChain` therefore returns a **key census**
 (`keyed`, `keylessCount`, `firstKeyedSeq`) beside `ok`, the records panel
 conditions its badge on it, and each row shows its own `key_id`.
+
+**TRUNCATION IS NOT DETECTED, at any key setting.** `verifyDecisionChain` walks a
+workspace's rows in `seq` order and checks each link against its predecessor; it
+holds no commitment to the chain's HEAD or LENGTH, so deleting the *newest* k rows
+leaves a shorter chain that still returns `ok: true` (and `keyed: true` on a keyed
+chain). Interior deletes and reorders still break the next link and are caught.
+Closing this needs an anchor outside the row set — a per-tenant head pointer MAC'd
+under the same key, which a deleter cannot re-sign — and is not built yet.
+
+**No record is sealed for a decision that did not happen.** The screening wave seals
+the Art. 22 record *before* it flips the status (`app/_lib/screen-wave.ts`), so a
+rejection is never applied unrecorded. That ordering used to leave a residue: the
+commit loop awaits a comms dispatch per rejection — a real relay round-trip, so the
+event loop yields — and a recruiter moving a *later* candidate mid-wave made that
+candidate's optimistic CAS refuse *after* their record was already sealed. The chain
+is append-only, and an `auto_rejected` record is not inert: `status-decisions.ts`
+renders it to the candidate on `/status/[token]` with the score and threshold,
+`ats-egress.ts` ships the latest record to the customer's ATS as their decision, and
+`heldOutEntryIds` drops them from the calibration clean arm. The wave now re-reads the
+live row and skips (`reasonCode: "staleSkipped"`) **without sealing** when the stage or
+status has drifted; what remains is the single synchronous statement between that read
+and the CAS. The status half also stops a second rejection email to a candidate a
+recruiter rejected by hand mid-wave (`reject` is idempotent in `actOnPipelineEntry`, so
+the stage CAS alone would have waved it through). Pinned by the mid-wave-drift test in
+`app/_lib/screen-wave.test.ts`, which drives the interleaving through a loopback relay.
 
 Two consequences worth stating to an auditor:
 
@@ -265,6 +290,7 @@ as of this doc:
 - **G5** — **closed** (`docs/BACKLOG.md` carries the row). `resolveApprover()` / `humanActor()` (`app/_lib/auth/operator-approver.ts`) seal the signed-in person's name, `pipeline_events.actor` records who acted, and the sealed adverse rationale renders „Approved by {who}" — or „Approver not identified" where a deployment genuinely has no named user. `operatorApprover()` survives as the honest fallback for open/keyless single-operator deploys, and legacy rows are deliberately not backfilled. Residual: two seal call sites are still role-only (`app/api/analytics/calibration/apply-threshold/route.ts` and the reinstate/scorecard/schedule seals under `app/api/pipeline/[id]` and `app/api/schedule`).
 - **G6** — log-retention window is undocumented (never pruned, but no stated policy).
 - **The decision chain ships keyless by default** (UAT `LUC-ANA-1`). `KP_DECISION_HMAC_KEY` is unset in the reference deploy, so every sealed record carries `key_id = ''`: integrity-evident, not tamper-resistant against someone with write access to the database. The surface and this doc now say so (the badge is conditioned on the census, each row shows its `key_id`, and `.env.example` documents the var and its ceiling), which makes the CLAIM honest — it does not make the deployment keyed. Turning the key on is an operator action, and it cannot retro-seal existing records.
+- **Chain truncation is undetectable** (see the decision-sealing section above). `verifyDecisionChain` has no head/length commitment, so deleting the newest rows of a workspace's chain still verifies `ok: true` / `keyed: true`. Needs a MAC'd per-tenant head anchor stored outside the row set.
 - **G7** — no signed/SIEM audit export; only the org backup exists.
 - **G8** — no training/seed-data governance artifact.
 - **G10** — no post-market monitoring or incident-reporting runbook (Art. 72/73).
