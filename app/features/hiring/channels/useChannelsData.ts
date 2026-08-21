@@ -3,48 +3,122 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLiveRefresh } from "@/app/features/shell/live-refresh";
 import { sharedGetJson } from "@/app/features/shared/sharedGet";
+import { DEFAULT_STAGE_AXIS, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
 import type { ChannelWebhookRecord } from "@/app/_lib/db/channels";
 import type { PipelineEntryView } from "@/app/_lib/db/pipeline";
 
 export type ChannelJob = { id: string; title: string };
 
+/** The list a SETTLED, successful response carries — or `"failed"`.
+ *
+ *  Never an empty array conjured out of an error. An empty list is a CLAIM on this
+ *  surface ("this channel has no receivers", "nothing is published"), and only a 2xx
+ *  body that actually carries the array is allowed to make it: every one of these
+ *  routes answers `{ webhooks }` / `{ jobs, stats }` / `{ entries, stages }` on success
+ *  and `{ error }` on failure, so a missing/non-array key IS the failure — and
+ *  `p.jobs ?? []` used to turn it into a confident zero the recruiter could not tell
+ *  apart from a genuinely empty workspace. */
+export function listFromPayload<T>(payload: unknown, key: string): T[] | "failed" {
+  const list = (payload as Record<string, unknown> | null | undefined)?.[key];
+  return Array.isArray(list) ? (list as T[]) : "failed";
+}
+
+/** How many candidates are WAITING at the board's entry column.
+ *
+ *  Resolved by stage ROLE, never by the name "Accepted": the axis is per-workspace
+ *  data (pipeline-axis.ts) and a team that composes its own board in Settings → Hiring
+ *  gets an entry column with its own minted id. Real intake already files arrivals
+ *  through `stageWithRole("entry", …)` (cv-intake.ts, "not at a stage that happens to
+ *  be named Accepted"), so matching the literal string here answered "0 waiting" on
+ *  exactly the boards that renamed their first column — while the applications piled
+ *  up in it. Falls back to the shipped axis when the payload carries no stages. */
+export function countWaitingAtEntry(
+  entries: readonly PipelineEntryView[],
+  stages: readonly StageDef[] | undefined
+): number {
+  const axis = stages && stages.length > 0 ? stages : DEFAULT_STAGE_AXIS;
+  const entryStage = stageWithRole("entry", axis) ?? "Accepted";
+  return entries.filter((e) => e.stage === entryStage && e.status === "active").length;
+}
+
+type ChannelSource = "webhooks" | "jobs" | "pipeline";
+
 // Shared inbound-integration data for the Channels variants: the active webhooks
-// (per-channel status), the published jobs (careers links + webhook binding), and
-// the count of candidates waiting at Accepted. Follows the shared data-changed
-// channel so sim/automation arrivals refresh without a remount.
+// (per-channel status), the OPEN jobs (careers links + webhook binding), and the
+// count of candidates waiting at the board's entry column. Follows the shared
+// data-changed channel so sim/automation arrivals refresh without a remount.
 //
 // The three fields start `null` (not `[]`/`0`) so the tab can tell "haven't fetched
 // yet" apart from "genuinely empty" (docs/design/loading-choreography.md, tier 2) — a
 // re-fetch from useLiveRefresh only ever REPLACES a settled value, never resets it
 // back to null, so populated regions never blank on refresh.
+//
+// A FAILED load is the fourth state that contract needs and used to lose: every branch
+// below ended in `?? []` / `?? 0`, so a 500 (or a 401 after the session lapsed, which
+// still parses as JSON and never reached the `.catch`) settled the tab on a confident
+// empty — "Off", "Nothing published", "Receivers 0", and a first-run brief telling a
+// recruiter with live receivers how to set one up. Failure now keeps the last known
+// value (or `null`) and raises `loadFailed`, which the tab renders as a retryable
+// error affordance — the fourth branch loading-choreography.md asks for.
 export function useChannelData() {
   const [webhooks, setWebhooks] = useState<ChannelWebhookRecord[] | null>(null);
   const [jobs, setJobs] = useState<ChannelJob[] | null>(null);
   const [accepted, setAccepted] = useState<number | null>(null);
+  // Per SOURCE, so a recovered fetch clears only its own failure — and so nothing has
+  // to reset a flag synchronously in the mount effect (react-hooks/set-state-in-effect).
+  const [failed, setFailed] = useState<Record<ChannelSource, boolean>>({
+    webhooks: false,
+    jobs: false,
+    pipeline: false,
+  });
 
   // Sharing is OPT-IN (see usePipelineBoardData): `load` doubles as the post-mutation
   // reload (a new receiver, a revoke), which must always hit the network.
   const load = useCallback((opts?: { shared?: boolean }) => {
     const shared = { refresh: !opts?.shared };
+    const mark = (src: ChannelSource, isFailed: boolean) =>
+      setFailed((f) => (f[src] === isFailed ? f : { ...f, [src]: isFailed }));
     fetch("/api/channels/webhooks")
-      .then((r) => r.json())
-      .then((p) => setWebhooks((p.webhooks as ChannelWebhookRecord[]) ?? []))
-      .catch(() => setWebhooks((w) => w ?? []));
-    fetch("/api/jobs?limit=200")
-      .then((r) => r.json())
-      .then((p) => setJobs(((p.jobs ?? []) as ChannelJob[]).map((j) => ({ id: j.id, title: j.title }))))
-      .catch(() => setJobs((j) => j ?? []));
-    sharedGetJson<{ entries?: PipelineEntryView[] }>("/api/pipeline", shared)
+      .then((r) => (r.ok ? r.json() : null))
       .then((p) => {
-        const entries = (p.entries as PipelineEntryView[]) ?? [];
-        setAccepted(entries.filter((e) => e.stage === "Accepted" && e.status === "active").length);
+        const list = listFromPayload<ChannelWebhookRecord>(p, "webhooks");
+        mark("webhooks", list === "failed");
+        if (list !== "failed") setWebhooks(list);
       })
-      .catch(() => setAccepted((a) => a ?? 0));
+      .catch(() => mark("webhooks", true));
+    // openOnly — the roles a candidate can actually apply to right now (NULL/'published';
+    // job-ingest.ts isJobOpenForApplications). The unfiltered read also returned drafts
+    // and CLOSED roles, and this list is rendered as "Published roles" + a copyable
+    // "apply link": /apply/[id] 404s a draft and answers "this role is closed" for a
+    // retired one, so the careers pane was handing recruiters dead links to paste into
+    // job posts (and the Add-receiver modal offered binding an inbox to them).
+    fetch("/api/jobs?limit=200&openOnly=1")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => {
+        const list = listFromPayload<ChannelJob>(p, "jobs");
+        mark("jobs", list === "failed");
+        if (list !== "failed") setJobs(list.map((j) => ({ id: j.id, title: j.title })));
+      })
+      .catch(() => mark("jobs", true));
+    // sharedGetJson already rejects a non-2xx, so only the body shape is checked here.
+    sharedGetJson<{ entries?: PipelineEntryView[]; stages?: StageDef[] }>("/api/pipeline", shared)
+      .then((p) => {
+        const entries = listFromPayload<PipelineEntryView>(p, "entries");
+        mark("pipeline", entries === "failed");
+        if (entries !== "failed") setAccepted(countWaitingAtEntry(entries, p.stages));
+      })
+      .catch(() => mark("pipeline", true));
   }, []);
   useEffect(() => load({ shared: true }), [load]); // mount read may ride a sibling's request
   useLiveRefresh(load);
 
-  return { webhooks, jobs, accepted, reload: load };
+  return {
+    webhooks,
+    jobs,
+    accepted,
+    loadFailed: failed.webhooks || failed.jobs || failed.pipeline,
+    reload: load,
+  };
 }
 
 /** Outcome of the inbound simulator. channels-i18n-honesty: this used to return a

@@ -75,6 +75,26 @@ test("a late bounce marks ONLY one send, not every prior same-(ref,kind) send", 
   assert.equal(byId["A"].bounced, false);
 });
 
+test("TWO bounces on TWO sends mark BOTH — an older bounced send never reads as delivered", () => {
+  // The offer goes to a wrong address (A) and the relay bounces it; the recruiter
+  // corrects the address and resends (B), which bounces too. BOTH sends are
+  // undeliverable. The pre-fix fold kept only the NEWEST receipt per (ref,kind), so
+  // A's own receipt was folded away (it matched a send) WITHOUT marking A — the first
+  // offer read as a green "sent" in the Comms Center and the drawer.
+  const view = deriveCommsView([
+    row({ id: "A", status: "sent", createdAt: "2026-06-25T10:00:00Z" }),
+    row({ id: "bncA", status: "bounced", createdAt: "2026-06-25T10:30:00Z", body: "550 no such user" }),
+    row({ id: "B", status: "sent", createdAt: "2026-06-25T11:00:00Z" }),
+    row({ id: "bncB", status: "bounced", createdAt: "2026-06-25T11:30:00Z", body: "550 mailbox full" }),
+  ]);
+  const byId = Object.fromEntries(view.map((m) => [m.id, m]));
+  assert.equal(view.length, 2, "each receipt folds onto its own send");
+  assert.equal(byId["A"].bounced, true, "the first send bounced — it must never read as delivered");
+  assert.equal(byId["A"].bounceDetail, "550 no such user", "and carries ITS bounce, not the other send's");
+  assert.equal(byId["B"].bounced, true);
+  assert.equal(byId["B"].bounceDetail, "550 mailbox full");
+});
+
 test("the single-send + bounce case is unchanged (regression guard)", () => {
   const view = deriveCommsView([
     row({ id: "a", status: "sent", createdAt: "2026-06-25T10:00:00Z" }),

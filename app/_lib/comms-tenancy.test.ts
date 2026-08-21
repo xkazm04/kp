@@ -50,6 +50,50 @@ test("an entry-less dispatch with no tenant still falls back to the default work
   assert.equal(defaults.length, 1, "no ref, no explicit tenant → the default workspace, as before");
 });
 
+// (3) the WIRE side of the same contract: the envelope a configured relay receives is
+// enriched from the referenced entry, and that lookup must derive the tenant from `ref`
+// exactly like recordOutbox does. Scoping it to `msg.workspaceId` instead — which almost
+// no dispatcher threads (see the TENANT CONTRACT in comms.ts) — resolved against the
+// DEFAULT team, so on any other workspace the lookup missed and every relayed message
+// shipped an envelope with no candidate, role or stage.
+test("a relayed comm on a NON-default team ships the entry's context in the envelope", async () => {
+  const { entry } = createPipelineEntry({
+    candidateId: "cand-tenancy-2",
+    candidateLabel: "Marek Dvořák",
+    jobId: "job-tenancy-2",
+    jobTitle: "Data Engineer",
+    stage: "Accepted",
+    workspaceId: TEAM,
+  });
+
+  // Stubbed relay — nothing leaves the process.
+  const posted: Record<string, unknown>[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    posted.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+    return new Response("{}", { status: 200 });
+  }) as typeof fetch;
+  process.env.COMMS_WEBHOOK_URL = "https://relay.invalid/hook";
+  try {
+    // No explicit workspaceId — exactly what sendCandidateComm passes for a
+    // pipeline-entry comm.
+    await sendComm({ to: "marek@example.cz", subject: "Offer", body: "…", kind: "offer", ref: entry.id });
+  } finally {
+    delete process.env.COMMS_WEBHOOK_URL;
+    globalThis.fetch = realFetch;
+  }
+
+  assert.equal(posted.length, 1, "the stubbed relay took the message");
+  const envelope = posted[0] as {
+    candidate: { label?: string } | null;
+    job: { title?: string } | null;
+    stage: string | null;
+  };
+  assert.equal(envelope.candidate?.label, "Marek Dvořák", "the ATS must be able to map the message to a person");
+  assert.equal(envelope.job?.title, "Data Engineer");
+  assert.equal(envelope.stage, "Accepted");
+});
+
 test("a ref'd comm keeps its ENTRY-derived tenant — an explicit workspaceId cannot re-file it", async () => {
   const { entry } = createPipelineEntry({
     candidateId: "cand-tenancy-1",

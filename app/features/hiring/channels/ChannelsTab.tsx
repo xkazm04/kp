@@ -29,10 +29,14 @@ import { CHANNEL_ACCENT } from "./channelsAccent";
 
 export function ChannelsTab() {
   const t = useTranslations("channels");
+  // The shared error affordance (RouteError's namespace) — this tab's fourth loading
+  // branch. Reused rather than re-worded so a failed intake load reads the same as
+  // every other failure in the product, in all four locales.
+  const tError = useTranslations("resilience");
   const router = useRouter();
   const search = useSearchParams();
   const reduced = useReducedMotion();
-  const { webhooks, jobs, accepted, reload } = useChannelData();
+  const { webhooks, jobs, accepted, loadFailed, reload } = useChannelData();
   const [section, setSection] = useState<ChannelSectionId>("comms");
   // Round-2 prototype switcher: which directional initial-state system every pane
   // on this page uses. Baseline default — nothing changes on load.
@@ -44,8 +48,8 @@ export function ChannelsTab() {
   const accent = CHANNEL_ACCENT[section];
   // webhooks/jobs are null until their first fetch settles (docs/design/loading-choreography.md,
   // tier 2) — `?? []` here is only for the arithmetic below; the actual "not fetched
-  // yet vs. genuinely empty" branch happens where these render (statusFor + the
-  // careers list).
+  // yet vs. genuinely empty" branch happens where these render (statusFor, the careers
+  // list, and the `hooksKnown` stat cluster below).
   const hooksFor = (ch?: string) => (ch ? (webhooks ?? []).filter((w) => w.channel === ch) : []);
 
   // ONE "Listening" definition on this page (channels-i18n-honesty). The section badge
@@ -88,13 +92,23 @@ export function ChannelsTab() {
     setSimBusy(false);
   };
 
+  // The stat cluster is the THIRD render site of these lists, and the one the `?? []`
+  // note above forgot: summing an unfetched (or failed) list gave "Receivers 0 /
+  // Received 0 / Leads filed 0" — a hard zero, next to a status badge that was
+  // honestly holding a pending placeholder for the same unknown. `null` here renders
+  // as "—", the same unknown marker the careers stats already use.
   const activeHooks = hooksFor(active.channel);
-  const received = activeHooks.reduce((n, h) => n + (h.receivedCount ?? 0), 0);
-  const leads = activeHooks.reduce((n, h) => n + (h.acceptedCount ?? 0), 0);
+  const hooksKnown = webhooks !== null;
+  const activeHooksCount = hooksKnown ? activeHooks.length : null;
+  const received = hooksKnown ? activeHooks.reduce((n, h) => n + (h.receivedCount ?? 0), 0) : null;
+  const leads = hooksKnown ? activeHooks.reduce((n, h) => n + (h.acceptedCount ?? 0), 0) : null;
   const activeStatus = statusFor(active.id, active.channel);
   // First-load signal for the whole tab (tier 1's aria-busy): true only until every
   // source has settled once; a later useLiveRefresh re-fetch never flips this back.
-  const firstLoad = webhooks === null || jobs === null || accepted === null;
+  // A failed source leaves its value null on purpose, so `loadFailed` releases the
+  // busy state — the page is not loading any more, it is broken, and the alert below
+  // is what a screen reader should be hearing instead.
+  const firstLoad = (webhooks === null || jobs === null || accepted === null) && !loadFailed;
 
   return (
     // Tier 1 (docs/design/loading-choreography.md): the header, switcher and stage frame
@@ -117,6 +131,21 @@ export function ChannelsTab() {
         </button>
       </header>
 
+      {/* A source didn't load. Say so and offer the retry, rather than letting the
+          panes below narrate an empty workspace nobody has verified. */}
+      {loadFailed ? (
+        <p role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {tError("errorTitle")}
+          <button
+            type="button"
+            onClick={() => reload()}
+            className="focus-ring rounded-md border border-red-300 px-2 py-0.5 font-semibold text-red-700 hover:bg-red-100"
+          >
+            {tError("retry")}
+          </button>
+        </p>
+      ) : null}
+
       {/* Icon-pill section switcher — each channel carries its own accent */}
       <ChannelsTabSwitcher section={section} setSection={setSection} statusFor={statusFor} />
 
@@ -128,7 +157,7 @@ export function ChannelsTab() {
         jobs={jobs}
         webhooks={webhooks}
         accepted={accepted}
-        activeHooksCount={activeHooks.length}
+        activeHooksCount={activeHooksCount}
         received={received}
         leads={leads}
         simulate={simulate}

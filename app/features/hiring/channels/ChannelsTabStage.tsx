@@ -52,9 +52,11 @@ export function ChannelsTabStage({
    *  re-fetch a list the tab already holds (useChannelsReceivers). */
   webhooks: ChannelWebhookRecord[] | null;
   accepted: number | null;
-  activeHooksCount: number;
-  received: number;
-  leads: number;
+  /** null = the receivers list hasn't settled (or failed): the stats render "—", never
+   *  a fabricated 0 for a channel whose traffic we have not read yet. */
+  activeHooksCount: number | null;
+  received: number | null;
+  leads: number | null;
   simulate: () => void;
   simBusy: boolean;
   simNote: { text: string; ok: boolean } | null;
@@ -109,9 +111,9 @@ export function ChannelsTabStage({
               <Stat label={t("stats.waiting")} value={accepted ?? "—"} />
             ) : (
               <>
-                <Stat label={t("stats.receivers")} value={activeHooksCount} />
-                <Stat label={t("stats.received")} value={received} />
-                <Stat label={t("stats.leads")} value={leads} />
+                <Stat label={t("stats.receivers")} value={activeHooksCount ?? "—"} />
+                <Stat label={t("stats.received")} value={received ?? "—"} />
+                <Stat label={t("stats.leads")} value={leads ?? "—"} />
               </>
             )}
           </div>
@@ -120,7 +122,16 @@ export function ChannelsTabStage({
         {/* CTA for the apply page */}
         {active.id === "careers" ? (
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <button type="button" data-sim-click="simulate-inbound" onClick={simulate} disabled={simBusy} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
+            {/* Held until the jobs list has actually settled: the simulator picks
+                jobs[0], so firing it against an unread (or failed) list answered
+                "Create a job first" to a workspace full of published roles. */}
+            <button
+              type="button"
+              data-sim-click="simulate-inbound"
+              onClick={simulate}
+              disabled={simBusy || jobs === null}
+              className={`${BTN_PRIMARY} h-9 px-4 text-sm`}
+            >
               <Link2 size={15} aria-hidden /> {simBusy ? t("sim.running") : t("sim.run")}
             </button>
             {simNote ? (

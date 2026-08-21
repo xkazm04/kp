@@ -35,6 +35,17 @@ unconfigured rather than taking the whole capability check down.
 Every message is recorded in `dev_outbox` either way, so the table doubles as
 the permanent audit log.
 
+**Tenancy: `ref` is the tenant source, on the row AND on the wire.** A
+message's owning team is derived from the referenced pipeline entry —
+`recordOutbox` does it via `outboxWorkspaceForRef`, and `WebhookChannel`'s
+envelope enrichment now does it the same way
+(`getPipelineEntry(ref, getEntryWorkspace(ref))`). `OutboundMessage.workspaceId`
+is only the fallback for an *entry-less* comm (the KO decline) and almost no
+dispatcher threads it, so scoping the envelope lookup to it fell back to the
+default team: on any other workspace the lookup missed and every relayed
+message shipped with `candidate`/`job`/`stage` null, leaving the receiving ATS
+unable to map it back to a person. Locked by `comms-tenancy.test.ts`.
+
 ## 2. The status contract (single source of truth)
 
 Defined once in `comms-status.ts` as `OUTBOX_STATUSES` / `OutboxStatus`.
@@ -140,6 +151,15 @@ back, keyed by the message's `ref` + `kind`:
   row, flipping it to a red **bounced** badge and joining the dead-letter
   "needs attention" set; a later recovery mirrors this the other way. Locked
   by `comms-view.test.ts`.
+- **Attribution is per-receipt, indexed by the target SEND.** A receipt
+  carries only `(ref, kind)`, so `pickBounceTarget` binds each one to the
+  newest send at or before it — never fanned out over every earlier send.
+  The index is keyed by that target send's id, not by `(ref, kind)`: keying
+  on the pair kept only the newest receipt per pair, so when an offer bounced
+  and its corrected resend bounced too, the first receipt was folded away
+  without ever marking its send and the undeliverable first offer kept a
+  green `sent` on every surface. Two receipts landing on the *same* send keep
+  the newest detail. Locked by `comms-view.bounce.test.ts`.
 
 ## 8. One delivery truth, on every surface
 
@@ -224,6 +244,39 @@ re-downloaded on every switch into those panes (the jobs list alone measures
 201 KB), and it made the same two lists exist twice, so a revoke refreshed one copy
 and left the other's counts stale.
 
+**A failed load is not an empty channel.** `useChannelData` has four states per
+source, not three: in flight (`null`), settled, empty, and **failed**. Every branch
+used to end in `?? []` / `?? 0`, and neither list fetch checked `r.ok` — so a 500
+from `/api/jobs` (its own corrupt-seed guard answers one) or a `401` after the
+session lapsed parsed as JSON, never reached the `.catch`, and settled the tab on a
+confident empty: `Off`, `Nothing published`, `Receivers 0 / Received 0 / Leads 0`,
+and the first-run intake brief telling a recruiter with live receivers how to set
+one up. Now `listFromPayload` accepts a list only from a 2xx body that actually
+carries one, a failure keeps the last known value (or `null`) and raises
+`loadFailed`, and the tab renders the shared `resilience` error strip with a retry
+instead of narrating a workspace nobody has read. The stat cluster renders `—` for
+an unread receiver list — it was the third render site of `webhooks ?? []` and the
+one that still printed a hard `0` next to a status badge honestly holding its
+pending pill — and "Receive a test application" stays disabled until the jobs list
+settles, because it fires at `jobs[0]` and answered "Create a job first" over a list
+it had not read.
+
+**Careers links list only roles that can actually be applied to.** The jobs read
+passes `openOnly=1` (`isJobOpenForApplications`: `NULL`/`published`). Unfiltered, it
+also returned drafts and closed roles, which the pane rendered under the
+`Published roles` stat with a copyable *apply link* — `/apply/[id]` 404s a draft and
+answers "this role is closed" for a retired one, so the pane was minting dead links
+for job posts, and the Add-receiver picker offered binding an inbox to them.
+
+**"Waiting" follows the board's entry ROLE, not the name `Accepted`.** The stage
+axis is per-workspace data (`pipeline-axis.ts`) and intake files arrivals through
+`stageWithRole("entry", …)` (`cv-intake.ts`), so a team that composed its own board
+in Settings → Hiring parked every inbound application in a column the tab's
+`stage === "Accepted"` filter could not see — reporting `0 waiting` while they piled
+up. `countWaitingAtEntry` resolves the entry column from the axis `/api/pipeline`
+already returns alongside the entries. Both rules are pinned by
+`app/features/hiring/channels/useChannelsData.test.ts`.
+
 ## Known gaps
 
 - Column-filter option lists sort with `Intl.Collator` on the active locale, but
@@ -235,7 +288,8 @@ and left the other's counts stale.
   count/summary) projection on that route would cut ~195 KB per Channels visit;
   the endpoint is shared with other tabs, so the projection has to be additive.
 - **`useChannelData` downloads the whole board (`/api/pipeline`, 45.7 KB) to compute
-  one number** — active entries at `Accepted`, for the "waiting" stat. `/api/attention`
+  one number** — active entries at the axis's entry column, for the "waiting" stat
+  (the payload's `stages` is what resolves that column). `/api/attention`
   already computes exactly that cohort as its `channels` count in 0.1 KB and the shell
   fetches it on every tab — but it is not workspace-scoped yet (see below), so it
   cannot be the source for this stat until that is fixed.
