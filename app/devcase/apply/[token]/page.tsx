@@ -53,7 +53,7 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
   // byte-identical seed (and therefore the same submit channel below), never a fresh
   // non-deterministic render swapped in by a resume mid-flight.
   // Defensive narrow of the persisted seed ({files: [{path, contents}], note}).
-  const seedRaw = devCase?.seed as { files?: unknown; note?: unknown } | null;
+  const seedRaw = devCase?.seed as { files?: unknown; note?: unknown; source?: unknown } | null;
   const seedFiles: SeedFile[] = Array.isArray(seedRaw?.files)
     ? seedRaw.files.filter(
         (f): f is SeedFile =>
@@ -62,7 +62,17 @@ export default async function DevCaseApplyPage({ params }: { params: Promise<{ t
           typeof (f as SeedFile).contents === "string"
       )
     : [];
-  const seedNote = typeof seedRaw?.note === "string" ? seedRaw.note : null;
+  // The seed's `note` is dual-purpose and only ONE half is candidate-facing. On the
+  // LLM path it is the materializer's one-line description of the starting files. On
+  // the DETERMINISTIC path — the keyless/degraded default, so this is the common
+  // self-hosted case, not an edge — it is a fixed English provenance marker
+  // ("deterministic skeleton — starting materials remain prose; the LLM path
+  // materializes concrete files", seed_materializer.py). That is build jargon aimed
+  // at us, it names an internal fallback, and it is untranslated on a page a
+  // candidate reads in cs/de/fr with nobody to ask what it means. Same discriminator
+  // the orchestrator already uses to audit "seed skeleton only": suppress it here.
+  const seedNote =
+    typeof seedRaw?.note === "string" && seedRaw.source !== "deterministic" ? seedRaw.note : null;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">

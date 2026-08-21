@@ -38,7 +38,14 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   const canSubmit = name.trim().length > 0 && contactValid && status !== "submitting";
 
   const sessionIdRef = useRef<string | null>(null);
-  const startingRef = useRef(false);
+  // The IN-FLIGHT mint, not a boolean. A bare "already starting" flag made
+  // ensureSession answer `null` to everyone who asked while the first POST was
+  // still on the wire — and `null` is indistinguishable from "minting failed",
+  // so a submit (or a chat) issued in that ~200ms window failed with a generic
+  // error even though the session was about to exist. Sharing the promise keeps
+  // the one-mint-per-session guarantee (the per-token/day quota is untouched)
+  // while letting concurrent callers await the same result.
+  const startingRef = useRef<Promise<string | null> | null>(null);
   const submittingRef = useRef(false);
   const pendingRef = useRef<ProcessEvent[]>([]);
   const filesRef = useRef(files);
@@ -110,38 +117,46 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
   // visitor who only reads the brief.
   const ensureSession = useCallback(async (): Promise<string | null> => {
     if (sessionIdRef.current) return sessionIdRef.current;
-    if (startingRef.current) return null;
-    startingRef.current = true;
-    try {
-      const r = await fetch("/api/devcase/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
-      });
-      if (!r.ok) return null;
-      const data = (await r.json()) as { sessionId?: string; watermark?: string };
-      sessionIdRef.current = data.sessionId ?? null;
-      // Session watermark (LLM-era controls #4): stamp the session reference into
-      // the DECISIONS log. Innocuous per-session marker — evaluation scans
-      // submissions for FOREIGN marks (a shared/relayed solution). REPLACE any
-      // prior mark rather than appending: a restored draft that self-healed onto a
-      // fresh session would otherwise carry the dead session's mark and read as
-      // circulated work.
-      if (data.watermark) {
-        filesDirtyRef.current = true; // the stamped tree must reach the server
-        setFiles((prev) =>
-          prev.map((f) => {
-            if (!f.path.endsWith(DECISIONS_FILE) || f.contents.includes(data.watermark!)) return f;
-            const stripped = f.contents.replace(/\n?Session ref: wm-[0-9a-f]{10}\n?/g, "\n");
-            return { ...f, contents: `${stripped.trimEnd()}\n\nSession ref: ${data.watermark}\n` };
-          })
-        );
+    // A mint is already on the wire — join it instead of reporting failure.
+    if (startingRef.current) return startingRef.current;
+    const minting = (async (): Promise<string | null> => {
+      try {
+        const r = await fetch("/api/devcase/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        if (!r.ok) return null;
+        const data = (await r.json()) as { sessionId?: string; watermark?: string };
+        sessionIdRef.current = data.sessionId ?? null;
+        // Session watermark (LLM-era controls #4): stamp the session reference into
+        // the DECISIONS log. Innocuous per-session marker — evaluation scans
+        // submissions for FOREIGN marks (a shared/relayed solution). REPLACE any
+        // prior mark rather than appending: a restored draft that self-healed onto a
+        // fresh session would otherwise carry the dead session's mark and read as
+        // circulated work.
+        if (data.watermark) {
+          filesDirtyRef.current = true; // the stamped tree must reach the server
+          setFiles((prev) =>
+            prev.map((f) => {
+              if (!f.path.endsWith(DECISIONS_FILE) || f.contents.includes(data.watermark!)) return f;
+              const stripped = f.contents.replace(/\n?Session ref: wm-[0-9a-f]{10}\n?/g, "\n");
+              return { ...f, contents: `${stripped.trimEnd()}\n\nSession ref: ${data.watermark}\n` };
+            })
+          );
+        }
+        return sessionIdRef.current;
+      } catch {
+        return null;
       }
-      return sessionIdRef.current;
-    } catch {
-      return null;
+    })();
+    startingRef.current = minting;
+    try {
+      return await minting;
     } finally {
-      startingRef.current = false;
+      // Cleared for the first awaiter only; anyone who already grabbed the promise
+      // still resolves off it. A failed mint therefore stays retryable next tick.
+      startingRef.current = null;
     }
   }, [token]);
 
@@ -154,15 +169,19 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
     [ensureSession, persistDraft]
   );
 
+  // Returns whether this flush actually LANDED (the server acknowledged the batch,
+  // and the file tree with it when one rode along). The periodic tick ignores the
+  // answer — it just retries in 8s — but `submit()` must not seal a session whose
+  // final tree never arrived, so the outcome can no longer be swallowed here.
   const flush = useCallback(
-    async (opts?: { submit?: boolean }) => {
+    async (opts?: { submit?: boolean }): Promise<boolean> => {
       // Idle-visitor guard (case-sim round 3, verifier's find): the interval used
       // to call ensureSession unconditionally, silently minting a session every
       // 8s for someone who only READ the brief — contradicting the lazy-mint
       // contract above. No session and nothing to send ⇒ nothing to do.
-      if (!sessionIdRef.current && pendingRef.current.length === 0) return;
+      if (!sessionIdRef.current && pendingRef.current.length === 0) return false;
       const sid = await ensureSession();
-      if (!sid) return;
+      if (!sid) return false;
       const batch = pendingRef.current;
       pendingRef.current = [];
       // Files ride only when dirty (or on submit, which must capture the final
@@ -177,7 +196,14 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
           // authority to append events or overwrite the tree (the server re-checks it
           // against the session's owning token and answers 403 otherwise).
           body: JSON.stringify({ token, events: batch, ...(sendFiles ? { files: filesRef.current } : {}) }),
-          keepalive: opts?.submit,
+          // NO `keepalive` — the same rule useTranscriptPersistence.ts already
+          // documents: keepalive caps the request body at 64KB, and THIS is the
+          // one request that must carry the complete final file tree (the server
+          // accepts 50 files x 256KB). The submit flush is an ordinary in-page
+          // request — `submit()` awaits it and then POSTs again from the same live
+          // page — so it never needed to survive an unload, while the cap silently
+          // network-errored the submissions of exactly the candidates who wrote the
+          // most.
         });
         if (r.status === 403) {
           // The server refused this session id for this link. Say so instead of
@@ -186,7 +212,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
           pendingRef.current = batch.concat(pendingRef.current);
           persistDraft();
           setSyncBlocked(true);
-          return;
+          return false;
         }
         if (r.status === 404 || r.status === 409) {
           // This session id is dead — the row is gone or already submitted
@@ -197,7 +223,7 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
           sessionIdRef.current = null;
           pendingRef.current = batch.concat(pendingRef.current);
           persistDraft();
-          return;
+          return false;
         }
         if (!r.ok) throw new Error("flush failed");
         if (sendFiles) filesDirtyRef.current = false; // the tree the server holds is current again
@@ -206,12 +232,14 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
         // carries it (and keeps carrying it so a reload re-renders the banner).
         const data = (await r.json().catch(() => null)) as { perturbation?: string | null } | null;
         if (data?.perturbation) setPerturbation(data.perturbation);
+        return true;
       } catch {
         // Network failure (offline, flaky wifi) — re-buffer so an unsent batch
         // isn't lost, and persist locally: the next tick retries once the
         // connection returns; if the tab dies first the draft survives anyway.
         pendingRef.current = batch.concat(pendingRef.current);
         persistDraft();
+        return false;
       }
     },
     [ensureSession, persistDraft, token]
@@ -250,9 +278,17 @@ export function LiveWorkSurface({ token, seedFiles, note }: { token: string; see
     setStatus("submitting");
     record("submit", activePath);
     try {
-      await flush({ submit: true });
+      // The final flush is the ONLY thing that puts the candidate's last edits and
+      // process events on the server — `saveDevSessionFiles` is a no-op once a
+      // session is submitted, so sealing after a failed flush grades them on a
+      // stale tree AND deletes their local draft on the way out. Its outcome is
+      // now load-bearing: an unlanded flush is a retryable error that leaves the
+      // session active, the tree dirty and the draft on disk, so a second click
+      // re-sends everything.
+      const landed = await flush({ submit: true });
       const sid = sessionIdRef.current;
-      if (!sid) {
+      if (!landed || !sid) {
+        setErrorKind("generic");
         setStatus("error");
         return;
       }
