@@ -22,7 +22,13 @@ type Signal = Panel["antipatterns"][number];
 function checklistLines(panel: Panel): string[] {
   return [...panel.antipatterns, ...panel.strengths]
     .filter((s) => s.needsConfirmation && s.suggestedProbe)
-    .map((s) => `[${s.kind === "antipattern" ? "RED FLAG" : "STRENGTH"}] ${s.label} — ${s.suggestedProbe}`);
+    .map((s) => {
+      // Mirrors models.py: every row is an unconfirmed hypothesis, so the export
+      // is tagged TO CONFIRM (not "RED FLAG") and carries `detail` — the benign
+      // alternative the panel below renders — rather than dropping it.
+      const tag = s.kind === "antipattern" ? "TO CONFIRM" : "STRENGTH";
+      return `[${tag}] ` + [s.label, s.detail, s.suggestedProbe].filter(Boolean).join(" — ");
+    });
 }
 
 export function SoftSignalsSection({ panel }: { panel: Analysis["softSignals"] }) {
