@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPosting, getSubmission, recordOutbox } from "@/app/_lib/db/devcase";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { buildFeedbackBrief } from "@/app/_lib/devcase-feedback";
 
 
@@ -13,7 +14,14 @@ export async function POST(request: NextRequest) {
     const body = (await request.json().catch(() => ({}))) as { submissionId?: string };
     if (!body.submissionId) return NextResponse.json({ error: "submissionId is required." }, { status: 400 });
     const sub = getSubmission(body.submissionId);
-    if (!sub) return NextResponse.json({ error: "submission not found" }, { status: 404 });
+    // getSubmission is a by-id point read (globally-unique id), so ownership is checked
+    // here — the same guard /api/devcase/promote makes. recordOutbox files the drafted
+    // letter under `sub.workspaceId` (below), so an unguarded id from another team planted
+    // a candidate-facing letter — their candidate by name, with their strengths and growth
+    // areas — in THAT team's outbox, ready for their recruiter to dispatch.
+    if (!sub || sub.workspaceId !== (await currentWorkspace())) {
+      return NextResponse.json({ error: "submission not found" }, { status: 404 });
+    }
     if (!sub.evaluation) return NextResponse.json({ error: "evaluate the submission first." }, { status: 400 });
 
     const bundle = sub.evaluation as {

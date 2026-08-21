@@ -42,6 +42,31 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     // DEVP5 — a redesign keeps the lifecycle's candidate-facing language.
     const designed = await runDesignArtifacts(lc.need as DevNeed, lc.analysis, undefined, feedback, lc.lang);
+    // RE-CHECK THE GATE. The design call above is a ~60s await (maxDuration), so the
+    // pre-check that guarded it is stale — a check-then-act window, the same defect class
+    // the close route's claimLifecycleClose closed. If a second tab or a second reviewer
+    // on the shared gate queue approved during the run, `lc.case` is already frozen into
+    // dev_cases and published; writing this newer design over the lifecycle would leave
+    // the studio rendering a case NO candidate was given, under a detail claiming it still
+    // awaits approval. Refuse instead, with the same 409-plus-current-stage shape the
+    // approve route uses for off-gate edits. Nothing awaits between this read and the
+    // write below, so the re-check cannot itself go stale.
+    const current = getLifecycle(id);
+    if (!current || !isAtReviewGate(current.stage)) {
+      recordAudit({
+        lifecycleId: id,
+        actor: "human",
+        action: "redesign_discarded",
+        reason: `approved/advanced elsewhere during the redesign (stage '${current?.stage ?? "missing"}')`,
+      });
+      return NextResponse.json(
+        {
+          error: `lifecycle is at '${current?.stage ?? "gone"}', not awaiting review — the regenerated design was not saved.`,
+          stage: current?.stage ?? null,
+        },
+        { status: 409 }
+      );
+    }
     updateLifecycle(id, {
       role: designed.role,
       case: designed.case,

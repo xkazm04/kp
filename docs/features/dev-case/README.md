@@ -282,11 +282,12 @@ authenticity tooltip is not wholly English. Not in phase 1 scope; do it as one u
 | `app/_lib/devcase-probe-audit.ts`, `devcase-compare.ts`, `devcase-cohort.ts`, `devcase-interview-kit.ts` | Evaluation support: probe-outcome audit, submission comparison, cohort stats, interview-kit generation |
 | `pipeline/jobfit/devcase/*.py` | The Python LLM pipeline: `analyze.py`, `design.py`, `evaluate.py`, `reflect.py`, `baseline.py`, `artifact_checks.py`, `seed_materializer.py`, `process_events.py`, `devcase_cli.py` |
 
-## Public-surface limits (Live Work Surface)
+## Public-surface limits
 
-`/api/devcase/session*` is public by design (`app/_lib/auth/public-routes.ts`) — the
-candidate has no account, the apply link **is** the credential. Two rules keep that
-honest, both sized so a real candidate never meets them:
+Two dev-case surfaces are public by design (`app/_lib/auth/public-routes.ts`): the Live
+Work Surface (`/api/devcase/session*`) and the application webhook
+(`/api/devcase/inbound`). The candidate has no account — the apply link **is** the
+credential. These rules keep that honest, all sized so a real candidate never meets them:
 
 - **Authorization.** A session id is not a bearer capability. Every mutating sub-route
   (`[id]` flush = event append + file overwrite, `[id]/chat`, `[id]/submit`) re-checks the
@@ -306,9 +307,37 @@ honest, both sized so a real candidate never meets them:
   timed assessment legitimately share a NAT. Both refusals are the shared 429 envelope and
   the surface renders `devApply.workSurface.chatRateLimited` — a stated limit, never a
   silent failure that reads as lost work; the unsent message is handed back to the input.
+- **Intake throttling.** `/api/devcase/inbound` accepts an application against the apply
+  token, and each accepted call writes a submission row, sends the candidate
+  acknowledgement over the relay to a **caller-supplied address**, and resumes a collecting
+  lifecycle (a real Python/LLM evaluation pass). It is limited on two windows keyed by the
+  apply token — **30 per 10 min** (burst) and **300 per 24 h** (`BURST_LIMIT` /
+  `DAILY_LIMIT` in `app/api/devcase/inbound/route.ts`) — placed after the 401/410/400
+  refusals so those keep answering without consuming a real applicant's slot. Never keyed
+  by IP, for the same NAT reason as the chat aggregate.
 
-Pinned by `app/api/rate-limit-contract.test.ts` (source-level + behavioral) and
-`app/api/devcase/session/session-intake-guards.test.ts`.
+Pinned by `app/api/rate-limit-contract.test.ts` (source-level + behavioral),
+`app/api/devcase/session/session-intake-guards.test.ts` and
+`app/api/devcase/inbound/route.test.ts`.
+
+## Recruiter-door ownership (multi-team deployments)
+
+The recruiter routes that act on an entity **by id** take that id from the request body,
+and `getDevCase` / `getSubmission` are unscoped point reads on globally-unique ids — so
+each such door compares the row's own `workspaceId` against `currentWorkspace()` and 404s
+a foreign entity. `/api/devcase/source` and `/api/devcase/promote` have always done this;
+`/api/devcase/publish` and `/api/devcase/feedback` now do too. Unguarded, publish inherited
+the *case's* workspace and handed back that team's live apply token (or minted one inside
+their studio), and feedback filed a drafted candidate letter into that team's outbox.
+Pinned by `app/_lib/devcase-source-promote-tenancy.test.ts`,
+`app/api/devcase/publish/route.test.ts` and `app/api/devcase/feedback/route.test.ts`.
+
+The lifecycle transitions derive their tenant from the **lifecycle row**, not the session
+(`[id]/close`, `[id]/approve`), and both write-after-await paths re-check their gate before
+writing: close claims the terminal stage with a compare-and-swap (`claimLifecycleClose`)
+before the first `sendComm`, and `[id]/redesign` re-reads the lifecycle after its ~60 s
+design call and **409**s rather than overwriting a case another reviewer already approved
+and published.
 
 ## Data model
 

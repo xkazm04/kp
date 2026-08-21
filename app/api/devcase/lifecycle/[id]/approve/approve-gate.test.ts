@@ -22,3 +22,17 @@ test("off-gate reviewer edits are rejected with 409, not silently dropped", () =
   // The message must reference the stage so the client can surface "already approved elsewhere".
   assert.match(src, /stage:\s*lc\.stage/, "the 409 body must carry the current stage");
 });
+
+// The timebox is the cap on the candidate's UNPAID work (2h, UAT M8), enforced in the
+// Python designer but NOT here: this validator accepted anything up to 80 hours, so a
+// reviewer typo at the gate minted an over-policy exercise that renders verbatim to the
+// candidate. The route can't be imported (Next only allows handler exports), so pin the
+// contract on the source: the shared clamp, no re-typed literal, and the clamp surfaced
+// in the audit reason the reviewer reads.
+test("the approve gate clamps a reviewer-edited timebox to the shared cap", () => {
+  assert.doesNotMatch(src, /timeboxHours\s*<=\s*80/, "the 80h ceiling must be gone");
+  assert.match(src, /clampTimeboxHours/, "the timebox must go through the shared clamp");
+  assert.match(src, /from "@\/app\/_lib\/devcase-timebox"/, "the bound must be imported, not re-typed");
+  assert.match(src, /timeboxClamped/, "a clamped edit must be distinguishable from an accepted one");
+  assert.match(src, /timebox clamped to the/, "the clamp must reach the reviewer's audit trail");
+});

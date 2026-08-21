@@ -2,8 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPostingByToken } from "@/app/_lib/db/devcase";
 import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
 import { jsonRefusal } from "@/app/_lib/api-response";
+import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 
+
+// THROTTLE (route.test.ts). Every accepted call here writes a submission row, sends the
+// candidate acknowledgement over the comms relay to a CALLER-SUPPLIED address, and can
+// resume a collecting lifecycle — a real Python/LLM evaluation pass. This route is PUBLIC
+// (public-routes.ts lists `/api/devcase/inbound` exactly) and had no bound at all, so an
+// unauthenticated holder of the shareable apply link could drive all three unboundedly by
+// varying `candidate`/`repoRef` (the intake dedup key): an open mailer on the deployment's
+// relay plus unmetered model spend. The sibling public paths already self-limit —
+// session-start at 50 sessions/token/day, `[id]/chat` at 30/10min + 3000/24h.
+//
+// Two windows, both keyed by the apply TOKEN and never by the caller's IP (an abuser
+// rotates IPs; genuine applicants behind one office/campus NAT share one — the
+// devcase-chat rationale), and both far above real use: a per-POSTING apply link takes a
+// handful of applications per 10 minutes, and the burst window recovers on its own so a
+// throttled channel is never stuck for the day.
+const BURST_LIMIT = 30; // per 10 min — one posting's arrival rate, generously
+const DAILY_LIMIT = 300; // per 24h — the aggregate for the link (cf. 50 live sessions/day)
 
 // Direction B — the public application webhook. An external channel (job board / ATS / an
 // apply form) POSTs a candidate's application here using the posting's apply token; we
@@ -25,7 +43,7 @@ export async function POST(request: NextRequest) {
     // bypassing the bearer token entirely. The token is a 128-bit CSPRNG value
     // (distribution.ts) that resolves to exactly one existing posting. The authenticated
     // internal path that takes a postingId directly is /api/devcase/submit.
-    const token = request.nextUrl.searchParams.get("token") || body.token;
+    const token = request.nextUrl.searchParams.get("token") || body.token || "";
     const posting = token ? getPostingByToken(token) : undefined;
     if (!posting) return NextResponse.json({ error: "a valid apply token is required." }, { status: 401 });
     // W5-3 — a closed posting answers honestly instead of acknowledging a
@@ -40,6 +58,16 @@ export async function POST(request: NextRequest) {
     const postingId = posting.id;
     if (!body.candidate || !body.repoRef) {
       return NextResponse.json({ error: "candidate and repoRef are required." }, { status: 400 });
+    }
+
+    // Throttle AFTER the credential (401), lifecycle (410) and validation (400) refusals —
+    // those must keep answering honestly without consuming a real applicant's slot — and
+    // BEFORE the intake, so a refused call sends no mail, writes no row and starts no run.
+    if (!rateLimit(`devcase-inbound:${token}`, { limit: BURST_LIMIT, windowMs: 10 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
+    if (!rateLimit(`devcase-inbound-day:${token}`, { limit: DAILY_LIMIT, windowMs: 24 * 60 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
 
     const { submission, isNew } = await intakeSubmission({
