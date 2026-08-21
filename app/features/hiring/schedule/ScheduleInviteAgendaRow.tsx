@@ -25,7 +25,7 @@ export function AgendaRow({
   setArmed,
   busy,
   runAction,
-  onSavedMeetingUrl,
+  onSavedInvite,
 }: {
   invite: ScheduleInvite;
   inProgress?: boolean;
@@ -37,7 +37,9 @@ export function AgendaRow({
   setArmed: (a: ArmedAction | null) => void;
   busy: string | null;
   runAction: (token: string, action: string, slotAt?: string) => Promise<boolean>;
-  onSavedMeetingUrl: (token: string, url: string | null) => void;
+  // The whole re-read invite, not just the URL: saving a meeting link also refreshes
+  // the calendar event, so the response can change calendarEventState/-Link too.
+  onSavedInvite: (token: string, patch: Partial<ScheduleInvite>) => void;
 }) {
   return (
     <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-md border border-stone-100 bg-paper/40 px-3 py-1.5 text-sm">
@@ -67,7 +69,7 @@ export function AgendaRow({
         <span className="text-xs text-steel">
           {i.reminderSentAt ? t(relayConfigured === false ? "reminderQueued" : "reminderSent") : t("reminderPending")}
         </span>
-        <MeetingLinkCell token={i.token} url={i.meetingUrl} onSaved={(url) => onSavedMeetingUrl(i.token, url)} />
+        <MeetingLinkCell token={i.token} url={i.meetingUrl} onSaved={(patch) => onSavedInvite(i.token, patch)} />
         {(() => {
           const ev = interviewCalendarEvent(i, { baseUrl: base, meetingUrl: i.meetingUrl });
           return ev ? <AddToCalendar event={ev} uid={`interview-${i.token}`} /> : null;

@@ -21,6 +21,27 @@ cannot pick an hour the interviewer is already busy for.
 - Calendar connection (operator): `app/api/calendar/google/**` +
   `app/_lib/calendar/token-store.ts`.
 
+**The candidate surface never removes the thing it just told you to use.** Two
+rules make that hold, and both were once broken:
+
+- `useScheduleInvite`'s `error` carries a *load* failure and an *action* failure
+  alike, so `SchedulePicker` may only give it the whole surface in the first case
+  — where `invite` is null and there is nothing behind it anyway. Every other
+  error renders as a banner **above** the live state, because the message is
+  always an instruction (*"that time was just taken — please pick another"*,
+  *"please add at least one time"*) whose target is the view it would otherwise
+  have replaced. Nothing clears `error` except the next action, and every action
+  lives in that view, so replacing it made the page reload-only.
+- After a self-reschedule the client re-reads **both** allowance flags from the
+  GET. Spending the last reschedule flips `canReschedule` off and
+  `rescheduleCapReached` on in the same response; refreshing only the first left
+  the booked card with neither the "change time" button nor the propose
+  escalation the POST's `stuckCapped` branch would have accepted.
+
+Pinned by `app/schedule/[token]/schedule-picker-recovery.test.ts` (source-level —
+the repo's unit runner has no component renderer; same idiom as
+`app/api/status/status-rate-limit.test.ts`).
+
 ## Flows
 
 1. **Mint.** `POST /api/schedule/invite` creates a `schedule_invites` row with
@@ -173,6 +194,13 @@ locales, set-equality guarded against `CALENDAR_EVENT_STATES` by
 `calendar-status-i18n.test.ts`. Tenancy: the event is written to
 `invite.workspaceId`'s connection only.
 
+The chip is kept honest across an in-place edit too: `MeetingLinkCell` hands the
+**whole re-read invite** from the meeting-link PATCH up to the panel's
+`updateInvite`, not just the saved URL. That PATCH refreshes the calendar event
+(the link is its location) *before* re-reading, so the response can carry a
+changed `calendarEventState` — adopting only `meetingUrl` left the row asserting
+`written` for a refresh that had just failed, until the next full load.
+
 End-to-end coverage (real routes, stubbed Google edge):
 `app/api/schedule/calendar-writeback.test.ts`.
 
@@ -294,3 +322,19 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
 - The recruiter-side reschedule / accept-proposal **writes** do not re-check
   free/busy at confirm time the way the candidate confirm does — the recruiter is
   assumed to be looking at their own calendar. (Their offered list *is* filtered.)
+- **A first booking hides the "change time" button until the page is reloaded.**
+  The GET on a *pending* invite necessarily answers `canReschedule: false`, and
+  the first-confirm POST response carries no allowance flags, so the booked card
+  that swaps in has no reschedule affordance even though the server would accept
+  one (`rescheduleCount` 0 < `MAX_RESCHEDULES`). Only the reschedule path
+  refreshes. The clean fix is to put `canReschedule` / `rescheduleCapReached` on
+  the POST response next to `confirmationDelivery`; doing it client-side costs an
+  extra free/busy-hitting GET on every booking.
+- **The propose form does not say which zone its working-hours window is in.**
+  The `datetime-local` inputs are the candidate's *browser* wall clock, but
+  `PROPOSAL_HOURS` (08:00–18:00) is fenced in `KP_INTERVIEW_TZ`, so a New York
+  candidate proposing 14:00 is refused with "future weekday times during working
+  hours" for a time that is squarely in their working day. `SlotPicker` names the
+  zone for the offered grid (`schedule.timezoneNote`); the escalation form has no
+  equivalent, and adding one needs a new 4-locale key — plus a product call on
+  whether to fence the window in the interview zone at all.

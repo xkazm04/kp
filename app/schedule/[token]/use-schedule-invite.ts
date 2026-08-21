@@ -143,6 +143,13 @@ export function useScheduleInvite(token: string) {
             .then((nd) => {
               if (!nd.error) {
                 setCanReschedule(Boolean(nd.canReschedule));
+                // …and the flag that REPLACES that affordance. Spending the last
+                // reschedule clears canReschedule and raises rescheduleCapReached in the
+                // SAME response; refreshing only the first left the booked card with
+                // neither the "different time" button nor the propose escalation the
+                // server would still have accepted — the exact dead-end the escalation
+                // exists to remove, until the candidate reloaded the page.
+                setCapReached(Boolean(nd.rescheduleCapReached));
                 setSlots(nd.slots ?? []);
                 setCalendarChecked(nd.calendarChecked === true);
               }

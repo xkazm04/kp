@@ -48,7 +48,13 @@ export function findEvidenceTurn(evidence: string, turns: VoiceTurn[]): number {
   let best = -1;
   let bestScore = 0;
   for (let i = 0; i < turns.length; i++) {
-    const tWords = normText(turns[i].text ?? "").split(" ").filter((w) => w.length >= 4);
+    // DISTINCT words on both sides. Counting occurrences (a plain array) let one
+    // repeated word stand in for several: a turn saying "platform" three times
+    // scored 3/4 against a four-word quote — beating the turn that actually shared
+    // two of them, and pushing the score above the 1.0 the ratio is supposed to cap
+    // at. The gate below says "a majority of DISTINCT words", so the numerator has
+    // to be counted the same way as the denominator (eWords is already a Set).
+    const tWords = new Set(normText(turns[i].text ?? "").split(" ").filter((w) => w.length >= 4));
     let shared = 0;
     for (const w of tWords) if (eWords.has(w)) shared += 1;
     const score = shared / eWords.size;

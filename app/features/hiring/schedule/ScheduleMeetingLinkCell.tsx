@@ -9,11 +9,14 @@ import { TextInput } from "@/app/_components/TextInput";
 // the first outside click and gave no focus-return.
 import { usePopoverDismiss } from "./useSchedulePopoverDismiss";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+// Type-only: erased at runtime, so schedule-store's better-sqlite3 is NOT pulled
+// into this client-bundled component.
+import type { ScheduleInvite } from "@/app/_lib/schedule-store";
 
 // The recruiter's per-interview meeting-link control on the agenda row: a "Join"
 // link when set, plus an add/edit popover that PATCHes /api/schedule. On save it
-// hands the normalized URL up so the row (and its calendar event) refresh in place.
-export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: string | null; onSaved: (url: string | null) => void }) {
+// hands the whole re-read invite up so the row (and its calendar event) refresh in place.
+export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: string | null; onSaved: (patch: Partial<ScheduleInvite>) => void }) {
   const t = useTranslations("scheduleTab.lifecycle");
   // PATCH refusals resolve from the machine `code`, never the server's English
   // `error` — see app/_lib/use-error-message.ts.
@@ -48,7 +51,14 @@ export function MeetingLinkCell({ token, url, onSaved }: { token: string; url: s
         setError(errMsg(p, t("linkError")));
         return;
       }
-      onSaved((p.invite?.meetingUrl as string | null) ?? null);
+      // Take the WHOLE re-read row, not just the URL. The meeting link is the calendar
+      // event's LOCATION, so the route refreshes that event before re-reading — the
+      // response can therefore carry a NEW calendarEventState/-Link ('failed' when the
+      // refresh didn't land against a revoked grant, 'written' when it repaired an
+      // earlier failure). Adopting only meetingUrl left the agenda's CalendarEventChip
+      // asserting the pre-save state until a full reload: still "On your calendar" for
+      // an event that never got the join link.
+      onSaved((p.invite as Partial<ScheduleInvite> | undefined) ?? { meetingUrl: null });
       setEditing(false);
     } catch {
       setError(t("linkError"));

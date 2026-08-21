@@ -70,7 +70,11 @@ export function InviteLifecyclePanel() {
     setArmed,
     busy,
     runAction,
-    onSavedMeetingUrl: (token: string, url: string | null) => updateInvite(token, { meetingUrl: url }),
+    // Adopt the whole invite the meeting-link PATCH returns: it is re-read AFTER the
+    // calendar event is refreshed, so it can also carry a changed calendarEventState —
+    // patching only meetingUrl left the row's calendar chip stale (claiming "On your
+    // calendar" for a refresh that had just failed) until the next full load.
+    onSavedInvite: updateInvite,
   };
 
   return (

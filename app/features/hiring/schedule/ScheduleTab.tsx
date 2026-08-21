@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Defer } from "@/app/_components/ui/Defer";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
-import { planHasRound, type InterviewPlanRule } from "@/app/_lib/decision-config-schema";
+import { planHasRound, planRounds, type InterviewPlanRule } from "@/app/_lib/decision-config-schema";
 import { ScheduleEmptyRelay } from "./ScheduleEmptyRelay";
 import { useScheduleTab } from "./useScheduleTab";
 import { ScheduleTabPendingList } from "./ScheduleTabPendingList";
@@ -89,7 +89,7 @@ export function ScheduleTab() {
     if (!plan || userSwitched.current) return;
     // Reconciling the default view to the loaded plan — the legitimate effect
     // use; a plan whose first round matches the current view is a no-op.
-    const first = plan.rounds[0]?.kind;
+    const first = planRounds(plan)[0]?.kind;
     const target: "human" | "ai" = first === "ai" && hasAiRound ? "ai" : hasHumanRound ? "human" : "ai";
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setRound((cur) => (cur === target ? cur : target));
