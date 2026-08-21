@@ -60,6 +60,33 @@ test("empty/whitespace utterances never dispatch", () => {
   assert.equal(r.state.busy, false);
 });
 
+test("a FAILED turn's utterance is kept, not dropped — and rides out with the next one", () => {
+  // The requestor states a dealbreaker; its /voice-turn POST fails (429, blip).
+  // Only DELIVERED utterances are persisted server-side, so if the orchestrator
+  // forgets it here the sentence exists in no transcript and no brief.
+  const spoken = enqueueUtterance(initialOrchestratorState, "the dealbreaker is a security clearance");
+  assert.equal(spoken.dispatch, "the dealbreaker is a security clearance");
+  const failed = completeTurn(spoken.state, false, "the dealbreaker is a security clearance");
+  assert.equal(failed.next, null); // never an automatic retry against a paid endpoint
+  assert.deepEqual(failed.state.queue, ["the dealbreaker is a security clearance"]);
+  assert.equal(failed.state.busy, false);
+  // They keep talking: the lost words go out WITH the next utterance, in order.
+  const resumed = enqueueUtterance(failed.state, "and they must speak Czech");
+  assert.equal(resumed.dispatch, "the dealbreaker is a security clearance and they must speak Czech");
+  assert.deepEqual(resumed.state.queue, []);
+});
+
+test("a close keeps unsent speech for the hang-up recovery instead of erasing it", () => {
+  // Utterances still queued when the engine closes can no longer be dispatched,
+  // but finish() posts the queue to /voice-complete — clearing it here made the
+  // component's documented recovery path read an empty queue every time.
+  let s = enqueueUtterance(initialOrchestratorState, "a").state;
+  s = enqueueUtterance(s, "one last thing — it must be someone with clearance").state;
+  const closed = completeTurn(s, true);
+  assert.equal(closed.next, null);
+  assert.deepEqual(closed.state.queue, ["one last thing — it must be someone with clearance"]);
+});
+
 test("spokenOpener continues the pending question from the text thread", () => {
   const transcript = [
     { role: "interviewer", text: "Where did the team feel it most?" },

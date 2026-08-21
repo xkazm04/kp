@@ -26,7 +26,10 @@ export function JdsIntakeAttachmentsPane({
   attachments: IntakeAttachment[];
   frozen: boolean;
   saving: boolean;
-  onAdd: (input: { kind: "note"; title: string; text: string } | { kind: "jd"; jdSlug: string }) => void;
+  /** Resolves false when the server refused the attachment (the route caps a
+   *  session at 5, refuses a frozen session, and 404s an unknown JD) — the form
+   *  then KEEPS the pasted note instead of clearing it under a one-line error. */
+  onAdd: (input: { kind: "note"; title: string; text: string } | { kind: "jd"; jdSlug: string }) => void | Promise<boolean>;
   onRemove: (index: number) => void;
   showTitle?: boolean;
 }) {
@@ -37,6 +40,19 @@ export function JdsIntakeAttachmentsPane({
   const [text, setText] = useState("");
   const [jds, setJds] = useState<JdOption[] | null>(null);
   const [jdSlug, setJdSlug] = useState("");
+
+  // Clear the form only once the server has CONFIRMED the attachment.
+  const commit = async (input: { kind: "note"; title: string; text: string } | { kind: "jd"; jdSlug: string }) => {
+    const ok = await onAdd(input);
+    if (ok === false) return;
+    if (input.kind === "note") {
+      setTitle("");
+      setText("");
+    } else {
+      setJdSlug("");
+    }
+    setMode("none");
+  };
 
   useEffect(() => {
     if (mode !== "jd" || jds !== null) return;
@@ -117,12 +133,7 @@ export function JdsIntakeAttachmentsPane({
                   type="button"
                   className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
                   disabled={saving || !text.trim()}
-                  onClick={() => {
-                    onAdd({ kind: "note", title: title.trim(), text: text.trim() });
-                    setTitle("");
-                    setText("");
-                    setMode("none");
-                  }}
+                  onClick={() => void commit({ kind: "note", title: title.trim(), text: text.trim() })}
                 >
                   {t("add")}
                 </button>
@@ -146,11 +157,7 @@ export function JdsIntakeAttachmentsPane({
                   type="button"
                   className={`${BTN_SECONDARY} h-9 px-3 text-sm`}
                   disabled={saving || !jdSlug}
-                  onClick={() => {
-                    onAdd({ kind: "jd", jdSlug });
-                    setJdSlug("");
-                    setMode("none");
-                  }}
+                  onClick={() => void commit({ kind: "jd", jdSlug })}
                 >
                   {t("add")}
                 </button>

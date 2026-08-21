@@ -24,7 +24,7 @@ export function JdsIntakeBriefEdit({
 }: {
   brief: RoleBrief;
   saving: boolean;
-  onSave: (edited: RoleBrief) => void;
+  onSave: (edited: RoleBrief) => void | Promise<void>;
   onCancel: () => void;
 }) {
   const t = useTranslations("library.tab.intake.edit");
@@ -46,7 +46,7 @@ export function JdsIntakeBriefEdit({
       requirements: requirements.filter((r) => r.skill.trim()),
       facets: facets.filter((f) => f.value.trim()),
     };
-    onSave(withEditProvenance(brief, edited));
+    void onSave(withEditProvenance(brief, edited));
   };
 
   const setReq = (i: number, patch: Partial<Req>) =>

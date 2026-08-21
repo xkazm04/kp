@@ -50,10 +50,13 @@ export function JdsIntakeVoice({
   disabled: boolean;
   /** The session transcript (for continuing the pending question aloud). */
   transcript: { role: string; text: string }[];
-  /** One completed voice exchange — append the pair to the open session. */
-  onExchange: (payload: { userText: string; reply: string; done: boolean; brief?: RoleBrief }) => void;
+  /** One completed voice exchange — append the pair to the open session. Both
+   *  callbacks carry the intake id they belong to: a sweep or a turn can resolve
+   *  seconds after the requestor moved to another session, and the receiver
+   *  drops what no longer matches (jdsIntakeLogic foldVoice*). */
+  onExchange: (intakeId: string, payload: { userText: string; reply: string; done: boolean; brief?: RoleBrief }) => void;
   /** A periodic/final extraction sweep landed — fold the authoritative result in. */
-  onSweep: (payload: VoiceSweepPayload) => void;
+  onSweep: (intakeId: string, payload: VoiceSweepPayload) => void;
 }) {
   const t = useTranslations("library.tab.intake.voice");
   const [phase, setPhase] = useState<Phase>("idle");
@@ -62,6 +65,14 @@ export function JdsIntakeVoice({
   const [error, setError] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // The transport keeps the pushTurn closure it was handed at connect time, so
+  // `speaking` READ from that render is frozen at false for the whole call and
+  // barge-in never fired. Mirror it into a ref the live callback can read.
+  const speakingRef = useRef(false);
+  const markSpeaking = (v: boolean) => {
+    speakingRef.current = v;
+    setSpeaking(v);
+  };
   const finalizedRef = useRef(false);
   const reachedLiveRef = useRef(false);
   const orchestratorRef = useRef<OrchestratorState>(initialOrchestratorState);
@@ -113,7 +124,7 @@ export function JdsIntakeVoice({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      if (res.ok) onSweep((await res.json()) as VoiceSweepPayload);
+      if (res.ok) onSweep(intakeId, (await res.json()) as VoiceSweepPayload);
     } catch {
       /* the next sweep (or hang-up) catches up — extraction lag is by design */
     }
@@ -123,6 +134,9 @@ export function JdsIntakeVoice({
   const dispatch = async (message: string) => {
     inFlightRef.current = message;
     let done = false;
+    // What the requestor said but the server never received — handed back to the
+    // orchestrator so it survives in the queue instead of vanishing.
+    let failed: string | null = null;
     try {
       const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/voice-turn`, {
         method: "POST",
@@ -133,12 +147,13 @@ export function JdsIntakeVoice({
       const data = (await res.json()) as { reply: string; done: boolean; brief?: RoleBrief };
       done = data.done;
       speakText(refs(), data.reply);
-      onExchange({ userText: message, reply: data.reply, done: data.done, brief: data.brief });
+      onExchange(intakeId, { userText: message, reply: data.reply, done: data.done, brief: data.brief });
     } catch {
       setError(true);
+      failed = message;
     } finally {
       inFlightRef.current = null;
-      const { state, next, extract } = completeTurn(orchestratorRef.current, done);
+      const { state, next, extract } = completeTurn(orchestratorRef.current, done, failed);
       orchestratorRef.current = state;
       if (extract) void sweep();
       if (next) void dispatch(next);
@@ -151,7 +166,7 @@ export function JdsIntakeVoice({
 
   const onUtterance = (text: string) => {
     // Barge-in: the requestor talking over the agent cancels the spoken reply.
-    if (speaking) cancelSpeech(refs());
+    if (speakingRef.current) cancelSpeech(refs());
     const { state, dispatch: message } = enqueueUtterance(orchestratorRef.current, text);
     orchestratorRef.current = state;
     if (message) void dispatch(message);
@@ -168,7 +183,7 @@ export function JdsIntakeVoice({
       if (text.trim()) stray.push({ role: "candidate", text: text.trim(), at: new Date().toISOString() });
     }
     candBufRef.current = "";
-    teardownOpenAi(refs(), { setSpeaking, setUnstable: () => {}, setAudioBlocked: () => {} });
+    teardownOpenAi(refs(), { setSpeaking: markSpeaking, setUnstable: () => {}, setAudioBlocked: () => {} });
     setPhase("processing");
     try {
       const res = await fetch(`/api/intake/${encodeURIComponent(intakeId)}/voice-complete`, {
@@ -176,7 +191,7 @@ export function JdsIntakeVoice({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(stray.length > 0 ? { turns: stray } : {}),
       });
-      if (res.ok) onSweep((await res.json()) as VoiceSweepPayload);
+      if (res.ok) onSweep(intakeId, (await res.json()) as VoiceSweepPayload);
       else if (res.status !== 400) throw new Error(`HTTP ${res.status}`);
     } catch {
       setError(true);
@@ -206,7 +221,7 @@ export function JdsIntakeVoice({
           // requestor's utterances drive anything here.
           if (role === "candidate") onUtterance(text);
         },
-        setSpeaking,
+        setSpeaking: markSpeaking,
         setUnstable: () => {},
         setAudioBlocked: () => {},
         setAwaitingMic: () => {},
@@ -223,7 +238,7 @@ export function JdsIntakeVoice({
         onDrop: () => void finish(),
       });
     } catch {
-      teardownOpenAi(refs(), { setSpeaking, setUnstable: () => {}, setAudioBlocked: () => {} });
+      teardownOpenAi(refs(), { setSpeaking: markSpeaking, setUnstable: () => {}, setAudioBlocked: () => {} });
       setError(true);
       setPhase("idle");
     }

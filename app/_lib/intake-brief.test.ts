@@ -126,3 +126,30 @@ test("briefIntentSummary digests outcomes + dealbreakers, never fires on empty b
   assert.equal(briefIntentSummary(null), null);
   assert.equal(briefIntentSummary({ title: "X" }), null);
 });
+
+// UAT L2-NEW-2, second half: the promote gate learned to read both homes, the
+// interviewer digest had not. All five live recertify sessions stored their hard
+// conditions as facet prose with requirements[] empty — so the brief richest in
+// stated intent grounded the interviewer with NOTHING.
+test("briefIntentSummary grounds a facet-only brief (both homes, like the promote gate)", () => {
+  const intent = briefIntentSummary(facetOnlyBrief);
+  assert.ok(intent, "a facet-carried dealbreaker must still ground the interviewer");
+  assert.ok(intent.includes("the stated dealbreakers are: A valid NMC registration and an enhanced DBS."), intent);
+  // A facet-carried 90-day outcome grounds the same way.
+  const outcomeOnly = briefIntentSummary({
+    title: "X",
+    facets: [{ key: "success_90d", label: "90 days", value: "Runs her own clinic list", importance: "core", provenance: "stated", confidence: 1 }],
+  });
+  assert.ok(outcomeOnly?.includes("success in the first 90 days means: Runs her own clinic list"), String(outcomeOnly));
+  // Still silent when the brief genuinely holds nothing to ground on.
+  assert.equal(
+    briefIntentSummary({ title: "X", facets: [{ key: "why_now", label: "", value: "backfill", importance: "context", provenance: "stated", confidence: 1 }] }),
+    null
+  );
+  // Facet prose is capped so the digest can't swamp the agent brief.
+  const long = briefIntentSummary({
+    title: "X",
+    facets: [{ key: "dealbreaker_context", label: "", value: "z".repeat(600), importance: "core", provenance: "stated", confidence: 1 }],
+  });
+  assert.ok(long && !long.includes("z".repeat(201)), "long facet prose must be trimmed");
+});

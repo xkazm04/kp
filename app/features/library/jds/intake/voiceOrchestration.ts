@@ -33,20 +33,42 @@ export function enqueueUtterance(state: OrchestratorState, text: string): { stat
   if (state.busy) {
     return { state: { ...state, queue: [...state.queue, trimmed] }, dispatch: null };
   }
-  return { state: { ...state, busy: true }, dispatch: trimmed };
+  // Idle WITH a queue means a previous turn failed and its words were put back
+  // (see completeTurn) — they go out WITH this utterance, in the order spoken,
+  // so a refused turn can never leave speech stranded in the queue.
+  const dispatch = [...state.queue, trimmed].join(" ");
+  return { state: { ...state, queue: [], busy: true }, dispatch };
 }
 
 /** The in-flight fast turn finished (or failed — pass done:false then). Returns
  *  the next coalesced message to dispatch (utterances that queued meanwhile)
- *  and whether the periodic extraction thread should fire now. */
-export function completeTurn(state: OrchestratorState, done: boolean): { state: OrchestratorState; next: string | null; extract: boolean } {
+ *  and whether the periodic extraction thread should fire now.
+ *
+ *  `failed` = the utterance whose POST did NOT land (a refused/blipped
+ *  /voice-turn). Only a DELIVERED utterance is persisted server-side, so a
+ *  dropped one exists nowhere: the requestor stated a dealbreaker, saw a small
+ *  "failed" note, kept talking, and the sentence was in no transcript and no
+ *  brief. Put it back at the FRONT of the queue instead — the next utterance
+ *  carries it along (enqueueUtterance coalesces), and a hang-up recovers it
+ *  with the rest of the queue. Deliberately NOT re-dispatched on its own: a
+ *  rate-limited turn must not become a retry loop against a paid endpoint. */
+export function completeTurn(
+  state: OrchestratorState,
+  done: boolean,
+  failed?: string | null
+): { state: OrchestratorState; next: string | null; extract: boolean } {
   const exchanges = state.exchanges + 1;
   const ended = state.ended || done;
   const extract = ended || exchanges % EXTRACT_EVERY === 0;
-  if (ended || state.queue.length === 0) {
-    return { state: { busy: false, queue: [], exchanges, ended }, next: null, extract };
+  const lost = failed?.trim() ?? "";
+  const pending = lost ? [lost, ...state.queue] : state.queue;
+  // A close keeps `pending` rather than clearing it: nothing more may be
+  // dispatched, but the hang-up recovery (finish → /voice-complete `turns`) is
+  // the last chance for words that never reached the server.
+  if (ended || lost || pending.length === 0) {
+    return { state: { busy: false, queue: pending, exchanges, ended }, next: null, extract };
   }
-  const next = state.queue.join(" ");
+  const next = pending.join(" ");
   return { state: { busy: true, queue: [], exchanges, ended }, next, extract };
 }
 

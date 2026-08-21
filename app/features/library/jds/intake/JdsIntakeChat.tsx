@@ -29,7 +29,10 @@ export function JdsIntakeChat({
   transcript: IntakeTurn[];
   sending: boolean;
   closed: boolean;
-  onSend: (message: string) => void;
+  /** Resolves false when the exchange did NOT land (429/409/offline) — the
+   *  composer then hands the typed message back instead of losing it with the
+   *  rolled-back optimistic bubble. */
+  onSend: (message: string) => void | Promise<boolean>;
   /** Optional extra control rendered beside Send (the voice input mode). */
   voiceSlot?: React.ReactNode;
   /** Transcript index to scroll to + flash (a brief citation was clicked). */
@@ -82,13 +85,6 @@ export function JdsIntakeChat({
       window.clearTimeout(end);
     };
   }, [highlightTurn, onHighlightDone]);
-
-  const submit = () => {
-    const message = draft.trim();
-    if (!message || sending || closed) return;
-    setDraft("");
-    onSend(message);
-  };
 
   return (
     <div className="flex h-[32rem] flex-col">
@@ -178,14 +174,14 @@ export function JdsIntakeChat({
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              submitDraft();
+              void submitDraft();
             }
           }}
         />
         <button
           type="button"
           className={`${BTN_PRIMARY} h-10 px-4 text-sm`}
-          onClick={() => submitDraft()}
+          onClick={() => void submitDraft()}
           disabled={closed || sending || !draft.trim()}
         >
           {t("composer.send")}
@@ -195,10 +191,14 @@ export function JdsIntakeChat({
     </div>
   );
 
-  function submitDraft() {
+  async function submitDraft() {
     const message = draft.trim();
     if (!message || sending || closed) return;
     setDraft("");
-    onSend(message);
+    const ok = await onSend(message);
+    // The exchange was refused (rate limit, closed session, offline): the hook
+    // rolls its optimistic bubble back, so without this the requestor's typed
+    // paragraph existed nowhere. Never clobber whatever they typed meanwhile.
+    if (ok === false) setDraft((d) => (d.trim() ? d : message));
   }
 }

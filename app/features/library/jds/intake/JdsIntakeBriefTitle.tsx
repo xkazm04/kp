@@ -35,17 +35,19 @@ export function JdsIntakeBriefTitle({
   brief: RoleBrief | null;
   frozen?: boolean;
   saving?: boolean;
-  onSaveBrief?: (edited: RoleBrief) => void;
+  /** Resolves false when the server refused — the field stays open with the
+   *  typed title still in it (see JdsIntakeBriefPanel). */
+  onSaveBrief?: (edited: RoleBrief) => void | Promise<boolean>;
 }) {
   const t = useTranslations("library.tab.intake.edit");
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(brief?.title ?? "");
   const canEdit = !frozen && !!onSaveBrief && !!brief;
 
-  const save = () => {
+  const save = async () => {
     if (!brief || !onSaveBrief) return;
-    onSaveBrief(withEditProvenance(brief, { ...brief, title: value.trim() }));
-    setEditing(false);
+    const ok = await onSaveBrief(withEditProvenance(brief, { ...brief, title: value.trim() }));
+    if (ok !== false) setEditing(false);
   };
 
   if (editing && brief) {
@@ -58,11 +60,11 @@ export function JdsIntakeBriefTitle({
           disabled={saving}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") save();
+            if (e.key === "Enter") void save();
             if (e.key === "Escape") setEditing(false);
           }}
         />
-        <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} disabled={saving} onClick={save}>
+        <button type="button" className={`${BTN_SECONDARY} h-9 px-3 text-sm`} disabled={saving} onClick={() => void save()}>
           {t("save")}
         </button>
         <button type="button" className={`${BTN_GHOST} h-9 px-2 text-sm`} disabled={saving} onClick={() => setEditing(false)}>

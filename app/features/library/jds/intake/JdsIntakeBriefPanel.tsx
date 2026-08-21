@@ -84,7 +84,10 @@ export function JdsIntakeBriefPanel({
   // Promoted session: the JD exists, the brief is frozen (edit hidden + note).
   frozen?: boolean;
   saving?: boolean;
-  onSaveBrief?: (edited: RoleBrief) => void;
+  /** Resolves false when the server REFUSED the edit (409 on a promoted
+   *  session, 400, offline) — edit mode then stays open holding the typed work
+   *  instead of unmounting it under a one-line error. */
+  onSaveBrief?: (edited: RoleBrief) => void | Promise<boolean>;
   onJumpToTurn?: (turn: number) => void;
   showTitle?: boolean;
 }) {
@@ -114,9 +117,12 @@ export function JdsIntakeBriefPanel({
         <JdsIntakeBriefEdit
           brief={brief}
           saving={saving ?? false}
-          onSave={(edited) => {
-            onSaveBrief(edited);
-            setEditing(false);
+          onSave={async (edited) => {
+            // Close only on a CONFIRMED save. The form is the only copy of the
+            // requestor's typed corrections; unmounting it on a refusal threw
+            // the whole edit away and left just a red line.
+            const ok = await onSaveBrief(edited);
+            if (ok !== false) setEditing(false);
           }}
           onCancel={() => setEditing(false)}
         />

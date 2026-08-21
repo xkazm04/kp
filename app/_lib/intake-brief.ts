@@ -46,10 +46,21 @@ export function needTextFromBrief(brief: RoleBrief): string {
 // downstream conversations (Phase 3 — brief-as-reference). Deliberately short:
 // it rides inside an already-long agent brief. Returns null when the brief
 // carries nothing worth grounding on.
+//
+// Reads BOTH homes via the evidence helpers below (same UAT L2-NEW-2 shape the
+// promote gate had to learn): live sessions file their hard conditions and
+// 90-day outcomes as FACET prose with `requirements[]` / `successCriteria[]`
+// empty, so a digest reading only the graded arrays returned null for exactly
+// the briefs richest in stated intent — the interviewer then ran with no role
+// grounding at all and never probed the dealbreakers. Facet values are prose
+// (capped at 600 chars by the sanitizer), so each line is trimmed before it
+// rides inside the already-long agent brief.
+const INTENT_ITEM_MAX = 200;
+
 export function briefIntentSummary(brief: RoleBrief | null): string | null {
   if (!brief) return null;
-  const musts = briefMustSkills(brief);
-  const success = (brief.successCriteria ?? []).filter(Boolean);
+  const musts = briefDealbreakerEvidence(brief).map((s) => s.trim().slice(0, INTENT_ITEM_MAX));
+  const success = briefOutcomeEvidence(brief).map((s) => s.trim().slice(0, INTENT_ITEM_MAX));
   const urgency = (brief.facets ?? []).find((f) => f.key === "urgency")?.value;
   if (musts.length === 0 && success.length === 0) return null;
   const parts: string[] = [];

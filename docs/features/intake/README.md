@@ -128,7 +128,13 @@ A job promoted from an intake grounds downstream conversations:
 `promotedBriefForJob` (`app/_lib/db/intakes.ts`) resolves the brief via the
 `job_id` back-link, and `briefIntentSummary` (`app/_lib/intake-brief.ts`)
 rides the experienced-path interviewer brief (`composeBrief`'s `roleIntent`)
-as interviewer-internal context — never the candidate-safe brief.
+as interviewer-internal context — never the candidate-safe brief. Like the
+promote gate, it reads dealbreakers and 90-day outcomes from **both homes**
+(`briefDealbreakerEvidence` / `briefOutcomeEvidence` — the graded arrays *and*
+the `dealbreaker_context` / `success_90d` facets the extraction usually picks,
+UAT L2-NEW-2); reading only `requirements[]` left the interviewer ungrounded on
+exactly the facet-carried briefs live sessions produce. Facet prose is trimmed
+to 200 chars per line so the digest stays short inside the agent brief.
 
 **Dev-case seam** (closes UAT L1-EVA-3): the brief survives as a structured
 object into work-sample design. (a) Promote offers "also design the
@@ -177,6 +183,24 @@ transport (`app/_components/voice/transport/openai.ts` — `speakText` /
 pending question from the text thread (`spokenOpener`) — voice continues the
 same conversation.
 
+Two rules the client half enforces, both unit-pinned:
+
+- **Nothing spoken is thrown away.** Only a DELIVERED utterance is persisted
+  server-side, so when a `/voice-turn` POST is refused (429) or blips, the
+  orchestrator puts that utterance back at the FRONT of the queue
+  (`completeTurn(state, done, failed)`): the next utterance carries it along
+  (`enqueueUtterance` coalesces a non-empty queue when idle) and a hang-up
+  recovers it with the rest of the queue. It is never re-dispatched on its own
+  — a rate-limited turn must not become a retry loop against a paid endpoint.
+  A close keeps the queue for the same reason (recovery), it just stops
+  dispatching.
+- **A voice result belongs to ONE session.** Both threads resolve long after
+  they were fired (an extraction sweep is a model call), by which time the
+  requestor may have gone Back and opened another intake — so `onExchange` /
+  `onSweep` carry their intake id and `foldVoiceExchange` / `foldVoiceSweep`
+  (`jdsIntakeLogic.ts`, `jdsIntakeLogic.test.ts`) drop what no longer matches,
+  the same guard the text plane's `activeIdRef` applies.
+
 Providers: **OpenAI Realtime implemented; ElevenLabs designed-not-wired** —
 with the brain out of the provider its client-sent-prompt seam is no longer a
 blocker (it would receive the same persona-free relay line); residual
@@ -205,6 +229,11 @@ The requestor can FIX what was captured without a new session:
   /api/intake/[id]/brief` clamps SHAPE at the trust boundary
   (`sanitizeEditedBrief` — vocab/range/caps mirroring the Python coerce);
   the transcript is never touched by an edit.
+- **The form closes only on a CONFIRMED save.** `saveBrief` reports whether
+  the PATCH landed; edit mode (and the inline title field) stays open holding
+  the typed work when it did not, since the form is the only copy of the
+  requestor's corrections — a 409/400/offline used to unmount it and leave a
+  one-line error where a page of retyping should be.
 - **Re-open** (`POST /api/intake/[id]/reopen`): a `complete` session flips
   back to `open` with a system turn appended so the transcript honestly
   records the gap; the message route accepts again.
@@ -235,7 +264,12 @@ brief, a legacy JD text) or a **saved JD** picked from the library, resolved
 SERVER-side from the workspace's `jds` row (the client sends only the slug;
 `app/api/intake/[id]/attachments/route.ts`, caps: text ≤20k chars, title
 ≤120; promoted sessions frozen). Stored in `role_intakes.attachment_json`
-(`IntakeAttachment` in `app/_lib/db/intakes.ts`).
+(`IntakeAttachment` in `app/_lib/db/intakes.ts`). The pane clears its fields
+only once the server has accepted the attachment — hitting the 5-attachment
+cap (or a frozen session) keeps the pasted note in the textarea instead of
+destroying it. Same contract in the composer: a refused exchange
+(`send` → false) hands the typed message back rather than losing it with the
+rolled-back optimistic bubble.
 
 Grounding: the dialog prompt gains a fenced `ATTACHED_MATERIAL` block
 (`intake.py::_attachments_block`, budget-truncated to ~8k chars total) framed
@@ -250,17 +284,22 @@ acknowledgement invites pasting key points as answers instead.
 
 ## Session layout — chat · brief · JD draft · materials
 
-The session view is chat-primary with a switchable right region
-(`JdsIntakeSidePanel.tsx`: shared-layout segmented pill → Brief / JD draft /
-Materials). The **JD draft** (`JdsIntakeDraftPane.tsx` +
+The session view is the **Triptych** (`JdsIntakeLayoutTriptych.tsx` over the
+shared contract in `intakeLayoutShared.ts`): three foldable leaves — JD draft ·
+conversation · live brief — each folding to a clickable spine that still badges
+what THAT leaf holds; materials live in a disclosure at the foot of the draft
+leaf, reachable from the spine and from beside the conversation. Column
+visibility persists per browser in `localStorage`, never server-side. The
+**JD draft** (`JdsIntakeDraftPane.tsx` +
 `app/_lib/intake-draft.ts`) is a DETERMINISTIC client-side render of the
 current RoleBrief in the posting shape of the real build's `composeMarkdown`
 — it updates after every exchange at zero LLM cost, is labeled a working
 draft (the final JD, with market-salary research, is still generated at
 Promote), never prints a `default`-provenance seniority as a decided level,
 and notes when a JD attachment will be superseded at promote. Motion follows
-the repo standard (AnalyzeWorkspace.tsx): pill spring + pane crossfade, chat
-bubbles and status notes fade in/out, the draft crossfades on brief change —
+the repo standard (AnalyzeWorkspace.tsx): a leaf's width tweens between leaf
+and spine while its content crossfades, chat bubbles and status notes fade in
+and out, the draft crossfades on brief change —
 all flattened under `prefers-reduced-motion`. Both themes are covered at the
 token/recipe level (dark rounded-2xl / sticker shadows on the new surfaces).
 
@@ -268,6 +307,14 @@ token/recipe level (dark rounded-2xl / sticker shadows on the new surfaces).
 
 - Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back
   to the language directive only.
+- **A spoken close refuses its own final sweep.** `/voice-turn` flips the
+  session to `complete` on a confirmed read-back, and `/voice-complete`
+  answers `409` for any session that is not `open` — so the closing extraction
+  (`extract` is always true at the close) and the hang-up recovery POST are
+  both rejected, the last exchanges never reach the brief, and `finish()`
+  renders the red "failed" note at the end of a call that in fact succeeded.
+  The client cannot fix this alone: the route must accept a body-less sweep
+  (and stray `turns`) on a session it just closed.
 - The voice plane is **not live-verified**: built and unit/contract-tested,
   but no OpenAI Realtime key was available in the build sessions, so no real
   call has been placed. The audio-in-the-loop harness hook is designed in the
