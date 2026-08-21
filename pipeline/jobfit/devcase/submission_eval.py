@@ -11,7 +11,7 @@ over a landscape of synthetic candidate behaviours (submission_scenarios.py) and
                 deterministic fallback hardcodes none), (2) candidates who VERIFY lead non-verifiers
                 on judgment by a meaningful margin (>= MIN_VERIFY_MARGIN, not just a tie),
                 (3) using AI is not penalised — an AI-heavy verifier scores within a small noise
-                band of (or above) a non-verifier on judgment.
+                band of (or above) a BEHAVIOUR-MATCHED peer who verified without AI.
   DISCRIMINATION — strong submissions out-score weak ones (and the AI-no-verify gamer) by a
                 meaningful margin (>= MIN_DISCRIMINATION_MARGIN), not merely any positive gap.
   QUALITY     — with --judge, an LLM rates the evaluation AND answers whether it unfairly
@@ -88,7 +88,7 @@ def _not_below_verdict(test: float | None, base: float | None, test_n: int, base
     """Tri-state NON-INFERIORITY: ``test`` must not fall more than ``tol`` below
     ``base``. A tie passes (that is the whole point of 'AI use is not penalised'),
     a real dip fails, too-few-samples is None. Unlike a lead check this does NOT
-    require AI-verifiers to BEAT non-verifiers — only to not be punished for AI use."""
+    require AI-verifiers to BEAT their non-AI peers — only to not be punished for AI use."""
     if test is None or base is None or test_n < MIN_GROUP_N or base_n < MIN_GROUP_N:
         return None
     return (test - base) >= -tol
@@ -270,6 +270,15 @@ def fairness(rows: list[Row]) -> dict[str, Any]:
     verifiers = [r for r in done if r.planted.get("verifies")]
     non_verifiers = [r for r in done if not r.planted.get("verifies")]
     ai_verifiers = [r for r in done if r.planted.get("verifies") and r.planted.get("usesAI")]
+    # The AI check's control group is the BEHAVIOUR-MATCHED peer: a verifier who did
+    # not use AI. Measuring AI-verifiers against non-verifiers instead (as this did
+    # until 2026-08-21) folds in the verification lead the gate above deliberately
+    # rewards, so an evaluator that really does dock AI users passes: with
+    # non-AI-verifiers 90, ai-verifiers 70, non-verifiers 70, the AI gap reads 0
+    # while the true penalty is 20. This is the same peer-matching rule
+    # _overreliance_from_tool_use already applies ("the only thing that differs is
+    # that AI was used").
+    non_ai_verifiers = [r for r in done if r.planted.get("verifies") and not r.planted.get("usesAI")]
 
     def mean_j(rs):
         return round(sum(r.judgment for r in rs) / len(rs), 1) if rs else None
@@ -277,29 +286,40 @@ def fairness(rows: list[Row]) -> dict[str, Any]:
     overreliance_violations = _overreliance_from_tool_use(done)
     no_invented_overreliance = not overreliance_violations
     v_mean, nv_mean, aiv_mean = mean_j(verifiers), mean_j(non_verifiers), mean_j(ai_verifiers)
+    naiv_mean = mean_j(non_ai_verifiers)
 
     # verify_rewarded: a STRICT lead (rejects the meaningless tie). ai_not_penalised:
     # non-inferiority within a small noise band (a tie is the desired outcome, not a fail).
     verify_rewarded = _lead_verdict(v_mean, nv_mean, len(verifiers), len(non_verifiers), MIN_VERIFY_MARGIN)
-    ai_not_penalised = _not_below_verdict(aiv_mean, nv_mean, len(ai_verifiers), len(non_verifiers), AI_PENALTY_TOLERANCE)
+    ai_not_penalised = _not_below_verdict(aiv_mean, naiv_mean, len(ai_verifiers), len(non_ai_verifiers), AI_PENALTY_TOLERANCE)
     status = _gate_status(
         [
             (verify_rewarded, _evaluable(len(verifiers), len(non_verifiers))),
-            (ai_not_penalised, _evaluable(len(ai_verifiers), len(non_verifiers))),
+            (ai_not_penalised, _evaluable(len(ai_verifiers), len(non_ai_verifiers))),
         ],
         hard_ok=no_invented_overreliance,
     )
-    sample = {"verifiers": len(verifiers), "non_verifiers": len(non_verifiers), "ai_verifiers": len(ai_verifiers)}
+    sample = {
+        "verifiers": len(verifiers),
+        "non_verifiers": len(non_verifiers),
+        "ai_verifiers": len(ai_verifiers),
+        "non_ai_verifiers": len(non_ai_verifiers),
+    }
 
     return {
         "no_invented_overreliance": no_invented_overreliance,
         "overreliance_violations": [r.id for r in overreliance_violations],
         "verify_rewarded": verify_rewarded,
         "ai_not_penalised": ai_not_penalised,
-        "judgment_mean": {"verifiers": v_mean, "non_verifiers": nv_mean, "ai_verifiers": aiv_mean},
+        "judgment_mean": {
+            "verifiers": v_mean,
+            "non_verifiers": nv_mean,
+            "ai_verifiers": aiv_mean,
+            "non_ai_verifiers": naiv_mean,
+        },
         "margins": {
             "verify_lead": round(v_mean - nv_mean, 1) if (v_mean is not None and nv_mean is not None) else None,
-            "ai_gap": round(aiv_mean - nv_mean, 1) if (aiv_mean is not None and nv_mean is not None) else None,
+            "ai_gap": round(aiv_mean - naiv_mean, 1) if (aiv_mean is not None and naiv_mean is not None) else None,
         },
         "sample": sample,
         "thresholds": {"min_group_n": MIN_GROUP_N, "verify_margin": MIN_VERIFY_MARGIN, "ai_penalty_tolerance": AI_PENALTY_TOLERANCE},
@@ -419,7 +439,7 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None, independence: dict
         + (f" — VIOLATED by {f['overreliance_violations']}" if f["overreliance_violations"] else ""),
         f"- verification rewarded (verifiers lead non by >= {MIN_VERIFY_MARGIN:g} judgment pts): "
         f"{_verdict_str(f['verify_rewarded'])} · lead {f['margins']['verify_lead']}",
-        f"- AI use not penalised (ai-verifiers within {AI_PENALTY_TOLERANCE:g} pts of non-verifiers): "
+        f"- AI use not penalised (ai-verifiers within {AI_PENALTY_TOLERANCE:g} pts of NON-AI verifiers): "
         f"{_verdict_str(f['ai_not_penalised'])} · gap {f['margins']['ai_gap']}",
         f"- judgment means: {f['judgment_mean']} · samples {f['sample']}",
     ]

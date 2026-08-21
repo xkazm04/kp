@@ -116,7 +116,10 @@ class TestSubmissionEval(unittest.TestCase):
         rows += [_row(f"n{i}", verifies=False, judgment=49) for i in range(MIN_GROUP_N)]
         f = fairness(rows)
         self.assertFalse(f["verify_rewarded"])  # 1-pt lead < 5-pt bar -> fails
-        self.assertTrue(f["ai_not_penalised"])  # +1 is within the non-inferiority band -> holds
+        # ai_not_penalised compares AI-verifiers against NON-AI VERIFIERS (behaviour-matched
+        # peers), not against non-verifiers. Every verifier in this fixture uses AI, so that
+        # control cohort is EMPTY and the sub-check correctly withholds a verdict.
+        self.assertIsNone(f["ai_not_penalised"])
         self.assertEqual(f["status"], "fail")
         self.assertFalse(f["passed"])
 
@@ -208,15 +211,64 @@ class TestOverRelianceInvariant(unittest.TestCase):
         self.assertEqual(f["overreliance_violations"], [])
 
 
+class TestAiPenaltyControlGroup(unittest.TestCase):
+    """The AI check must compare AI-verifiers against BEHAVIOUR-MATCHED peers.
+
+    Until 2026-08-21 it measured them against non-VERIFIERS, which folds in the
+    verification lead the gate above deliberately rewards — so an evaluator that
+    genuinely docked AI users sailed through, and the reported ai_gap was really
+    the verification lead re-measured."""
+
+    def test_a_real_ai_penalty_fails_the_gate(self):
+        # Otherwise-identical verifiers, docked 20 judgment pts for using AI.
+        rows = [_row(f"p{i}", verifies=True, usesAI=False, judgment=90) for i in range(MIN_GROUP_N)]
+        rows += [_row(f"a{i}", verifies=True, usesAI=True, judgment=70) for i in range(MIN_GROUP_N)]
+        rows += [_row(f"n{i}", verifies=False, judgment=70) for i in range(MIN_GROUP_N)]
+        f = fairness(rows)
+        # The old cohort made this pass: ai_verifiers 70 vs non_verifiers 70 -> gap 0.
+        self.assertFalse(f["ai_not_penalised"], f)
+        self.assertEqual(f["margins"]["ai_gap"], -20.0)
+        self.assertEqual(f["status"], "fail")
+        # ...while the verification gate still legitimately passes on the same rows,
+        # which is exactly why the two comparisons must not share a control group.
+        self.assertTrue(f["verify_rewarded"])
+
+    def test_ai_gap_is_the_peer_gap_not_the_verification_lead(self):
+        # AI-verifiers sit at their non-AI peers' level; non-verifiers sit far below.
+        # A gap measured against non-verifiers would read +30; the true AI effect is 0.
+        rows = [_row(f"p{i}", verifies=True, usesAI=False, judgment=80) for i in range(MIN_GROUP_N)]
+        rows += [_row(f"a{i}", verifies=True, usesAI=True, judgment=80) for i in range(MIN_GROUP_N)]
+        rows += [_row(f"n{i}", verifies=False, judgment=50) for i in range(MIN_GROUP_N)]
+        f = fairness(rows)
+        self.assertEqual(f["margins"]["ai_gap"], 0.0)
+        self.assertTrue(f["ai_not_penalised"])
+        self.assertEqual(f["sample"]["non_ai_verifiers"], MIN_GROUP_N)
+
+
+class TestTinyCohortAiComparison(unittest.TestCase):
+    def test_tiny_count_with_both_ai_cohorts_is_inconclusive(self):
+        # --count 3 gives 1 ai-verifier vs 2 non-AI verifiers: data on BOTH sides but
+        # below MIN_GROUP_N, which is "inconclusive" (thin), not "not_evaluable" (empty).
+        sig = signals(run(generate_submissions(3), provider=None))
+        f = sig["fairness"]
+        self.assertEqual(f["status"], "inconclusive", f)
+        self.assertEqual(f["sample"]["ai_verifiers"], 1)
+        self.assertEqual(f["sample"]["non_ai_verifiers"], 2)
+
+
 class TestNotEvaluableState(unittest.TestCase):
     """idea-e8517e0e — an EMPTY cohort (no data) must read as 'not_evaluable', distinct from
     a true 'fail' (a measured violation) and from 'inconclusive' (a thin-but-present sample).
     Conflating no-data with a violation produced spurious red CI for tiny/all-errored runs."""
 
     def test_tiny_count_yields_empty_cohorts_and_is_not_evaluable(self):
-        # --count 3 picks only the first 3 behaviours (all verifiers/strong), so non_verifiers,
-        # weak and gamer cohorts are EMPTY (0 rows) — no data to compare against.
-        sig = signals(run(generate_submissions(3), provider=None))
+        # --count 1 picks one behaviour (a non-AI verifier), so non_verifiers, ai_verifiers,
+        # weak and gamer cohorts are all EMPTY (0 rows) — no data to compare against.
+        # NOTE: --count 3 no longer lands here. Since the AI check's control group became the
+        # behaviour-matched NON-AI verifier, 3 rows give 1 ai-verifier vs 2 non-AI verifiers —
+        # thin but PRESENT, which is "inconclusive" by this module's own definitions. Pinned
+        # by test_tiny_count_with_both_ai_cohorts_is_inconclusive below.
+        sig = signals(run(generate_submissions(1), provider=None))
         f, d = sig["fairness"], sig["discrimination"]
         self.assertEqual(f["status"], "not_evaluable", f)
         self.assertEqual(d["status"], "not_evaluable", d)
@@ -262,9 +314,11 @@ class TestStrictExitCodes(unittest.TestCase):
         return code, buf.getvalue()
 
     def test_not_evaluable_does_not_fail_strict(self):
-        # --count 3 -> empty cohorts -> not_evaluable; reliability is still 100% (3 clean
-        # deterministic rows), so --strict must return 0.
-        code, out = self._run_main(["--count", "3", "--no-llm", "--strict"])
+        # --count 1 -> every compared cohort empty -> not_evaluable; reliability is still 100%
+        # (1 clean deterministic row), so --strict must return 0. (Was --count 3 before the AI
+        # control group became the non-AI verifier; 3 rows now yield a thin-but-present 1-vs-2
+        # AI comparison, i.e. inconclusive, which --strict correctly DOES fail.)
+        code, out = self._run_main(["--count", "1", "--no-llm", "--strict"])
         self.assertEqual(code, 0, out)
 
     def test_inconclusive_still_fails_strict(self):

@@ -326,11 +326,30 @@ The recruiter routes that act on an entity **by id** take that id from the reque
 and `getDevCase` / `getSubmission` are unscoped point reads on globally-unique ids — so
 each such door compares the row's own `workspaceId` against `currentWorkspace()` and 404s
 a foreign entity. `/api/devcase/source` and `/api/devcase/promote` have always done this;
-`/api/devcase/publish` and `/api/devcase/feedback` now do too. Unguarded, publish inherited
-the *case's* workspace and handed back that team's live apply token (or minted one inside
-their studio), and feedback filed a drafted candidate letter into that team's outbox.
-Pinned by `app/_lib/devcase-source-promote-tenancy.test.ts`,
-`app/api/devcase/publish/route.test.ts` and `app/api/devcase/feedback/route.test.ts`.
+`/api/devcase/publish`, `/api/devcase/feedback`, `/api/devcase/submit` and
+`/api/devcase/skill-profile` now do too. Unguarded, publish inherited the *case's*
+workspace and handed back that team's live apply token (or minted one inside their studio),
+and feedback filed a drafted candidate letter into that team's outbox. Two more doors
+carried the same hole:
+
+- **`/api/devcase/submit`** (the authenticated internal intake — the door
+  `/api/devcase/inbound` points at when it explains why *it* refuses a raw `postingId`)
+  took `postingId`/`token` off the body and let `intakeSubmission` inherit the *posting's*
+  workspace: an invented candidate on another team's submissions board, an acknowledgement
+  mailed from their outbox to a caller-supplied address, and a collecting lifecycle resumed
+  in their studio. Both branches are now ownership-checked; the token-only public door
+  stays `/api/devcase/inbound`.
+- **`/api/devcase/skill-profile`** (the Durable Skill Profile mint) returned the
+  credential's CSPRNG `access_token` — the sole auth on the public `/skill/[token]` card
+  and on `GET /api/skill-profile/[token]/verify` — for *any* submission id. It also writes:
+  the mint stamps a row into the owning team's workspace and, when the evaluation has moved
+  since the last mint, revokes their live credential and reissues under a new token,
+  breaking `/skill` links the candidate had already shared.
+
+Both refuse with the same 404 body a genuinely-unknown id gets, so neither is an existence
+oracle. Pinned by `app/_lib/devcase-source-promote-tenancy.test.ts`,
+`app/api/devcase/publish/route.test.ts`, `app/api/devcase/feedback/route.test.ts`,
+`app/api/devcase/submit/route.test.ts` and `app/api/devcase/skill-profile/route.test.ts`.
 
 The lifecycle transitions derive their tenant from the **lifecycle row**, not the session
 (`[id]/close`, `[id]/approve`), and both write-after-await paths re-check their gate before
