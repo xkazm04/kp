@@ -282,6 +282,22 @@ behaviour-balanced top-up to `--n`, default 100 — the stable regression set); 
 **heatmap** (per-behaviour and per-seniority pass-rate — the "which personas break it" view)
 and a regression-vs-baseline section.
 
+**The quality gate fails closed.** `--judge` asks for the quality axis, so a run where the
+judge produced ZERO usable scores (Claude CLI unavailable, every call errored, every payload
+unparseable) is a FAILED quality gate, not an absent one: `_passes(agg, judge_requested=True)`
+returns False, the banner counts the missing gate as one extra failed check, and the report
+says "judge requested but produced NO usable scores" instead of a bland `quality –`. Without
+`--judge` an unscored run still certifies on reliability alone. `--judge` combined with
+`--no-llm` never judges anything (the offline path only validates golden transcripts), so that
+combination now warns and refuses to certify — pick one. Same contract as
+`automation_eval.py` (see `docs/development/automation-eval.md`).
+
+**`closed` is not vacuous.** The `closed` invariant (opt-in per scenario via `expect.must_hold`)
+reports a miss when the interviewer never emitted the close token. `completed` deliberately
+ignores `ended` — it only catches provider errors and too-short transcripts — so `closed` has to
+carry incompleteness itself, otherwise an interview that ran out of `MAX_CANDIDATE_TURNS` would
+satisfy both.
+
 ---
 
 ## 7. Build plan

@@ -32,7 +32,9 @@ from pipeline.jobfit.eval.interview_eval import (
     select_scenarios,
     student_brief,
 )
+from pipeline.jobfit.eval._style import _make_styler
 from pipeline.jobfit.eval.interview_scenarios_gen import BEHAVIORS, brief_for, rotating_sample
+from pipeline.jobfit.eval.thresholds import QUALITY_THRESHOLD
 
 
 def _turns(*pairs):
@@ -600,6 +602,70 @@ class TestBriefDriftGuard(unittest.TestCase):
         for brief in (default_brief("a role"), student_brief("a role")):
             self.assertIn("Do not give feedback, scores", brief)
             self.assertIn(PERSONA_LANGUAGE_DETECT, brief)
+
+
+class TestJudgeGate(unittest.TestCase):
+    """A `--judge` run whose judge produced ZERO usable scores (CLI down, every call errored,
+    every payload unparseable) leaves quality_mean=None. The documented gate is
+    "reliability 100% AND quality mean >= 3.5", so an unmeasured quality axis must FAIL
+    closed — not certify on reliability alone with a bland "quality –" chip. Mirrors
+    test_automation_eval.TestJudgeGate."""
+
+    RELIABLE = {
+        "reliability": 1.0, "quality_mean": None, "unscored": 13, "total": 13, "reliable": 13,
+        "selected": 13, "coverage": 1.0, "uncovered_scenarios": [], "style": {}, "closed": 13,
+    }
+
+    def test_judge_requested_but_unscored_fails(self):
+        self.assertFalse(ie._passes(self.RELIABLE, judge_requested=True))
+
+    def test_judge_not_requested_still_passes_on_reliability(self):
+        # A --no-llm / unjudged run never asked for a quality number; None is a legitimate skip.
+        self.assertTrue(ie._passes(self.RELIABLE, judge_requested=False))
+        self.assertTrue(ie._passes(self.RELIABLE))  # default arg keeps the historical behaviour
+
+    def test_scored_run_still_gated_on_quality_threshold(self):
+        good = {**self.RELIABLE, "quality_mean": QUALITY_THRESHOLD}
+        bad = {**self.RELIABLE, "quality_mean": QUALITY_THRESHOLD - 0.1}
+        self.assertTrue(ie._passes(good, judge_requested=True))
+        self.assertFalse(ie._passes(bad, judge_requested=True))
+
+    def test_banner_counts_the_unavailable_judge_as_a_failed_check(self):
+        banner = ie._banner(self.RELIABLE, _make_styler(False), True)
+        self.assertIn("FAIL", banner)
+        # 13 reliable rows + 1 (failed) quality check = 13/14 — the count can't read "N/N PASS".
+        self.assertIn("13/14", banner)
+
+    def test_report_names_the_missing_judge(self):
+        md = ie._format_md([], self.RELIABLE, color=False, judge_requested=True)
+        self.assertIn("judge requested but produced NO usable scores", md)
+
+
+class TestClosedInvariant(unittest.TestCase):
+    """`closed` must not pass vacuously on a run that never closed. `_check_completed`
+    ignores `ended` (it only looks at errors + turn count), so returning None here for
+    `not ended` made the invariant green in exactly the case it exists to catch."""
+
+    COMPLIANT = _turns(
+        ("interviewer", "Hi, I'm an AI assistant, this call is transcribed."),
+        ("candidate", "Hi."),
+        ("interviewer", "Tell me about a recent project."),
+        ("candidate", "A payments service."),
+        ("interviewer", "Thank you — a human recruiter will review this conversation."),
+    )
+
+    def test_unclosed_interview_fails_the_closed_check(self):
+        self.assertIsNotNone(ie._check_closed(self.COMPLIANT, False, False))
+
+    def test_proper_close_still_passes(self):
+        self.assertIsNone(ie._check_closed(self.COMPLIANT, True, False))
+
+    def test_completed_does_not_cover_it(self):
+        # The delegation the old comment claimed does not exist: `completed` is green on an
+        # interview that never reached a close, so `closed` has to carry that itself.
+        self.assertIsNone(ie._check_completed(self.COMPLIANT, False, False))
+        issues = check_transcript(self.COMPLIANT, _scn(must_hold=["completed", "closed"]), False, False)
+        self.assertTrue(any("never reached a close" in i for i in issues), issues)
 
 
 class TestLanguageLockParity(unittest.TestCase):

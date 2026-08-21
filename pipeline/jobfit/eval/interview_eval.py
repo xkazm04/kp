@@ -544,8 +544,13 @@ def _check_opened_disclosure(turns, ended, errored) -> str | None:
 
 
 def _check_closed(turns, ended, errored) -> str | None:
+    # A run that never emitted the close token has no closing turn to grade. Returning None
+    # here used to PASS the `closed` invariant in exactly the case it exists to catch (the
+    # comment claimed "incompleteness is caught by _check_completed" — it is not:
+    # _check_completed ignores `ended` and only looks at errors + turn count, so an interview
+    # that ran out of turns satisfied both). Report it as the miss it is.
     if not ended:
-        return None  # incompleteness is caught by _check_completed, not here
+        return "never reached a close (no closing turn to validate)"
     texts = _interviewer_texts(turns)
     if not texts:
         return "ended with no interviewer turns"
@@ -1112,7 +1117,7 @@ def diff_baseline(rows: list[Row], baseline: dict[str, Any]) -> dict[str, Any]:
     return {"regressions": regressions, "fixes": fixes, "quality_drops": quality_drops}
 
 
-def _passes(agg: dict[str, Any]) -> bool:
+def _passes(agg: dict[str, Any], judge_requested: bool = False) -> bool:
     if agg["total"] == 0:
         return False
     # Fail closed on coverage collapse: any selected scenario without a golden means the gate
@@ -1122,20 +1127,36 @@ def _passes(agg: dict[str, Any]) -> bool:
         return False
     if agg["reliability"] < RELIABILITY_THRESHOLD:
         return False
+    # A `--judge` run that produced ZERO usable scores leaves quality_mean=None. That is NOT
+    # the same as "judge not requested": it means the judge was down, every call errored, or
+    # every score was unparseable. The documented gate is "reliability 100% AND quality mean
+    # >= 3.5" (docs/development/voice-interview-testing.md §6), so an unmeasured quality axis
+    # must fail closed rather than certify on reliability alone — the same fix automation_eval
+    # already carries (bug-ui-scan-2026-07-09).
+    if judge_requested and agg["quality_mean"] is None:
+        return False
     if agg["quality_mean"] is not None and agg["quality_mean"] < QUALITY_THRESHOLD:
         return False
     return True
 
 
-def _banner(agg: dict[str, Any], st) -> str:
+def _banner(agg: dict[str, Any], st, judge_requested: bool = False) -> str:
     q = agg.get("quality_mean")
     judged = q is not None
     quality_ok = judged and q >= QUALITY_THRESHOLD
-    total = agg.get("total", 0) + (1 if judged else 0)
+    # A judge that was requested but scored nothing is a FAILED quality gate, not an absent
+    # one — count it as a check so the count can't read "N/N PASS" beside a FAIL verdict.
+    judge_missing = judge_requested and not judged
+    total = agg.get("total", 0) + (1 if (judged or judge_missing) else 0)
     n_pass = agg.get("reliable", 0) + (1 if quality_ok else 0)
     n_fail = total - n_pass
-    passed = _passes(agg)
-    quality_chip = f"quality {q} {glyph(quality_ok)}" if judged else f"quality {GLYPH_NA}"
+    passed = _passes(agg, judge_requested)
+    if judged:
+        quality_chip = f"quality {q} {glyph(quality_ok)}"
+    elif judge_missing:
+        quality_chip = f"quality {GLYPH_NA} {glyph(False)}"  # requested but unavailable → failed check
+    else:
+        quality_chip = f"quality {GLYPH_NA}"
     parts = [
         f"{n_pass}/{total} checks {'PASS' if passed else 'FAIL'}",
         f"reliability {agg.get('reliability', 0.0):.0%}",
@@ -1157,18 +1178,23 @@ def _heatmap_md(rows: list[Row], attr: str, title: str) -> list[str]:
 
 
 def _format_md(
-    rows: list[Row], agg: dict[str, Any], *, color: bool = False, diff: dict[str, Any] | None = None
+    rows: list[Row], agg: dict[str, Any], *, color: bool = False, diff: dict[str, Any] | None = None,
+    judge_requested: bool = False,
 ) -> str:
     st = _make_styler(color)
     uncovered = agg.get("uncovered_scenarios") or []
     selected = agg.get("selected", agg["total"])
+    # A requested judge that scored nothing is surfaced as a hard failure line rather than a
+    # bland "quality –", so the report can't read like a clean skip.
+    judge_missing = judge_requested and agg.get("quality_mean") is None
     lines = [
         st("# Voice-interviewer eval", "bold") + "\n",
-        _banner(agg, st) + "\n",
+        _banner(agg, st, judge_requested) + "\n",
         f"Scenarios: {agg['total']}\n",
         f"**Reliability: {agg['reliability']:.0%}** (threshold {RELIABILITY_THRESHOLD:.0%}) · "
         f"**Quality: {agg['quality_mean'] if agg['quality_mean'] is not None else GLYPH_NA}** "
         f"(threshold {QUALITY_THRESHOLD})"
+        + (" · ⚠ judge requested but produced NO usable scores — quality gate FAILED" if judge_missing else "")
         + (f" · ⚠ {agg['unscored']} un-scored" if agg.get("quality_mean") is not None and agg.get("unscored") else "")
         + "\n",
     ]
@@ -1475,7 +1501,15 @@ def main(argv: list[str] | None = None) -> int:
         if jp.available():
             judge_rows(rows, jp)
         else:
-            sys.stderr.write("interview_eval: --judge needs the Claude CLI; skipping quality scoring\n")
+            sys.stderr.write(
+                "interview_eval: --judge needs the Claude CLI; NO quality scoring was produced — "
+                "the quality gate fails closed (--strict will not certify)\n"
+            )
+    elif args.judge:
+        sys.stderr.write(
+            "interview_eval: --judge has no effect with --no-llm (the offline path validates golden "
+            "transcripts only); the quality gate fails closed, so drop one of the two flags\n"
+        )
 
     if args.scorecard:
         # provider=None (offline/CLI-missing) → the scorer's deterministic fallback runs.
@@ -1490,7 +1524,8 @@ def main(argv: list[str] | None = None) -> int:
         write_baseline(args.baseline, rows)
 
     regressed = bool(diff and diff["regressions"])
-    ok = _passes(agg) and not regressed
+    # `--judge` asked for the quality axis: if nothing scored, the gate cannot certify.
+    ok = _passes(agg, args.judge) and not regressed
 
     if args.dump:
         dump_run(rows, agg, args.dump, diff)
@@ -1524,7 +1559,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
     else:
-        print(_format_md(rows, agg, color=use_color, diff=diff))
+        print(_format_md(rows, agg, color=use_color, diff=diff, judge_requested=args.judge))
 
     return 1 if (args.strict and not ok) else 0
 
