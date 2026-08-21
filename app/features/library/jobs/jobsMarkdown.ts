@@ -55,13 +55,16 @@ export type JobMarkdownStrings = {
   earlyWelcome: string;
   earlyDefault: string;
   trainable: string;
-  /** Display label for a role-family / seniority / work-mode slug, falling back to
-   *  the raw slug. Backed by the shared `enums.*` catalog rather than a private
-   *  3-entry map — the old table named only software/data/product, so a posting for
-   *  any of the other THIRTEEN families printed the raw slug ("healthcare_clinical")
-   *  onto a job board, and the work mode was hardcoded English ("Hybrid") even in
-   *  the Czech posting. */
-  enumLabel: (group: "family" | "seniority" | "workMode", slug: string) => string;
+  /** Display label for a role-family / seniority / work-mode / education slug,
+   *  falling back to the raw slug. Backed by the shared `enums.*` catalog rather
+   *  than a private 3-entry map — the old table named only software/data/product,
+   *  so a posting for any of the other THIRTEEN families printed the raw slug
+   *  ("healthcare_clinical") onto a job board, and the work mode was hardcoded
+   *  English ("Hybrid") even in the Czech posting. The education floor was the
+   *  last slug still printed verbatim (a Czech board was handed "bachelor" beside
+   *  a Czech "Vzdělání" label) even though `enums.education` already ships in all
+   *  four locales — it now resolves through the same lookup. */
+  enumLabel: (group: "family" | "seniority" | "workMode" | "education", slug: string) => string;
 };
 
 /** Postings can be copied in any language the app ships. */
@@ -174,7 +177,20 @@ export function jobToMarkdown(job: Job, s: JobMarkdownStrings): string {
 
   const details: string[] = [];
   if (job.minYearsExperience != null) details.push(`- **${s.experienceLabel}** ${s.experienceValue(job.minYearsExperience)}`);
-  if (job.minEducation) details.push(`- **${s.education}** ${job.minEducation}`);
+  // `minEducation` is a closed EDU_LEVELS slug (jobs.py), not recruiter prose, so it
+  // localizes like every other taxonomy value here. Two things it must NOT do:
+  //   • print "none" — that is the taxonomy's "no education requirement" value, which
+  //     BOTH scorers special-case (`job.min_education != "none"` in matching.ko_filter
+  //     and winnability.loose_gates). Printed verbatim it published a phantom
+  //     requirement — "Education: none" — that nothing actually enforces, and jobs.py
+  //     also falls back to "none" for an off-taxonomy value, so a garbled parse got the
+  //     same line;
+  //   • print the raw English slug onto a Czech/German/French board ("Vzdělání:
+  //     bachelor"), when `enums.education` already carries the label in all four.
+  // An unmapped level (high_school, absent from the catalog) still degrades to the
+  // slug via enumLabel's has-fallback, exactly as an unmapped family does.
+  const education = job.minEducation && job.minEducation !== "none" ? s.enumLabel("education", job.minEducation) : "";
+  if (education) details.push(`- **${s.education}** ${education}`);
   if (job.languages?.length) details.push(`- **${s.languages}** ${job.languages.join(", ")}`);
   if (job.roleFamily) details.push(`- **${s.field}** ${s.enumLabel("family", job.roleFamily)}`);
   if (details.length) {

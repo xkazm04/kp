@@ -31,7 +31,14 @@ REGION_DEFAULT = ACTIVE_MARKET.region_label
 # SCOR6 — the deterministic fallback summary lands in the candidate-facing JD
 # ("About the role" interpolates it), so localize it: an English fallback inside
 # a Czech JD is the exact mixed-language seam the bilingual i18n closed. Keyed by
-# normalized lang; falls back to English for any unknown code.
+# normalized lang; falls back to English for any unknown code — this table holds
+# only the two languages the JD chain is honest end-to-end in (en/cs), while
+# ``normalize_lang`` accepts all FOUR app locales (en/cs/de/fr), so a ``--lang de``
+# request MUST resolve through ``.get`` rather than subscripting a missing key.
+# (It used to subscript: ``--lang de|fr`` raised KeyError('de') inside _fallback —
+# which _coerce calls unconditionally — so main()'s blanket handler turned every
+# de/fr invocation into ``{"error": "'de'", "status": 500}``, AFTER paying for the
+# grounded call, instead of the band this module promises to always return.)
 _FALLBACK_SUMMARY = {
     "en": "Estimated from the internal role-family salary table (no live web evidence).",
     "cs": "Odhadnuto z interní tabulky mezd podle oborů (bez živých webových podkladů).",
@@ -43,13 +50,19 @@ def _fallback(
 ) -> dict:
     from .i18n import normalize_lang
 
-    band = role_band(role_family, seniority) or (0, 0)
+    # The band MUST be looked up in the SAME market the figure is labelled with.
+    # Without ``market=market`` this read the ACTIVE (Czech) benchmark block while
+    # stamping the caller's currency on it, so `_fallback(..., market=BERLIN_MARKET)`
+    # returned 65,500–103,000 "EUR"/month — the CZK magnitudes wearing a EUR label,
+    # ~25x the de-berlin block's own 2,600–4,100 band. Exactly the stranded-literal
+    # defect MarketConfig.seniority_default_bands was introduced to kill.
+    band = role_band(role_family, seniority, market=market) or (0, 0)
     return {
         "suggestedMinimum": int(band[0]),
         "suggestedMaximum": int(band[1]),
         "currency": market.currency,
         "confidence": "low",
-        "summary": _FALLBACK_SUMMARY[normalize_lang(lang)],
+        "summary": _FALLBACK_SUMMARY.get(normalize_lang(lang), _FALLBACK_SUMMARY["en"]),
     }
 
 

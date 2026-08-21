@@ -260,6 +260,59 @@ class MarketSeamStragglersTest(unittest.TestCase):
         )
         self.assertEqual(repaired["currency"], "EUR")
 
+    def test_cli_fallback_band_comes_from_the_SAME_market_as_its_currency(self) -> None:
+        """The currency and the NUMBERS must come from one market.
+
+        ``_fallback`` looked the band up with ``role_band(family, seniority)`` — no
+        market kwarg, i.e. always the ACTIVE (Czech) benchmark block — while stamping
+        the caller's ``market.currency`` on it. Under the Berlin sample that returned
+        65,500–103,000 **EUR**/month: the CZK magnitudes wearing a EUR label, ~25x
+        the de-berlin block's own band. Same defect class as the offer drafter's
+        seniority fallback bands, one module over.
+        """
+        from pipeline.jobfit import market_salary_cli
+        from pipeline.jobfit.taxonomy import role_band
+
+        cz = market_salary_cli._fallback("software_engineering", "medior")
+        self.assertEqual(
+            (cz["suggestedMinimum"], cz["suggestedMaximum"]),
+            role_band("software_engineering", "medior", market=CZECH_MARKET),
+        )
+        de = market_salary_cli._fallback(
+            "software_engineering", "medior", market=BERLIN_MARKET
+        )
+        self.assertEqual(
+            (de["suggestedMinimum"], de["suggestedMaximum"]),
+            role_band("software_engineering", "medior", market=BERLIN_MARKET),
+        )
+        # …and the two markets really do disagree, so the assertion above has teeth.
+        self.assertNotEqual(
+            (cz["suggestedMinimum"], cz["suggestedMaximum"]),
+            (de["suggestedMinimum"], de["suggestedMaximum"]),
+        )
+
+    def test_cli_fallback_summary_degrades_to_english_for_every_app_locale(self) -> None:
+        """``normalize_lang`` accepts all four app locales but ``_FALLBACK_SUMMARY``
+        only carries en/cs, so ``--lang de|fr`` used to raise KeyError('de') inside
+        ``_fallback`` — which ``_coerce`` calls unconditionally — and main()'s blanket
+        handler turned it into ``{"error": "'de'", "status": 500}`` instead of the band
+        this CLI promises to always return."""
+        from pipeline.jobfit import market_salary_cli
+        from pipeline.jobfit.i18n import LANG_NAMES
+
+        english = market_salary_cli._fallback("software_engineering", "medior", "en")["summary"]
+        czech = market_salary_cli._fallback("software_engineering", "medior", "cs")["summary"]
+        self.assertNotEqual(english, czech)
+        for lang in LANG_NAMES:  # en, cs, de, fr — every locale the pipeline accepts
+            summary = market_salary_cli._fallback("software_engineering", "medior", lang)["summary"]
+            self.assertTrue(summary, f"--lang {lang} produced no fallback summary")
+        # An unmapped locale (and a bogus code) resolve to English, never a KeyError.
+        for lang in ("de", "fr", "zz", "de-DE"):
+            self.assertEqual(
+                market_salary_cli._fallback("software_engineering", "medior", lang)["summary"],
+                english,
+            )
+
 
 class CrossBoundarySyncTest(unittest.TestCase):
     """The Python default currency must equal the two values it mirrors, so the

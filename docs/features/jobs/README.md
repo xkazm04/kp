@@ -117,10 +117,20 @@ carries its own language toggle, defaulting to the app locale. That toggle now
 offers **all four** app locales: the heading/label table used to be a two-column
 `en | cs` object literal in `jobsMarkdown.ts`, so a German or French recruiter was
 silently pinned back to English. The scaffolding comes from `jobs.posting.doc.*`,
-and the role family / seniority / work mode read the shared `enums.*` labels, so
-a posting and the pipeline board never name the same slug differently (the old
-private map covered 3 of the 16 role families and printed the raw slug for the
-rest, with the work mode hardcoded English in every language).
+and the role family / seniority / work mode / education floor read the shared
+`enums.*` labels, so a posting and the pipeline board never name the same slug
+differently (the old private map covered 3 of the 16 role families and printed
+the raw slug for the rest, with the work mode hardcoded English in every
+language, and the education floor printing a bare `bachelor` beside a Czech
+`Vzdělání:` label). A slug with no catalog entry (`high_school`) still degrades
+to the slug itself, never to a `enums.*` key path.
+
+`min_education` also carries the taxonomy's "no requirement" value, `"none"` —
+which both scorers special-case (`job.min_education != "none"` in
+`matching.ko_filter` and `winnability.loose_gates`, and it is also the fallback
+`jobs.py` stamps on an off-taxonomy parse). The posting **omits the education
+line entirely** for it rather than publishing a phantom `Education: none`
+requirement that nothing enforces.
 
 Strings for a language *other* than the app's are loaded lazily through the
 locale-pinned translator (`app/_lib/catalog-translator.ts`) — the document-reader
@@ -169,6 +179,26 @@ is out of scope (kp generates scripts only).
 | `app/_lib/jd-lint.ts` | Live specificity linter (E7). |
 | `pipeline/jobfit/campaign.py`, `campaign_cli.py` | Campaign pack generation engine (E1). |
 | `app/features/library/jobs/**` (`JobsDraftsPanel.tsx`, `JobsPostingModal.tsx` / `jobsPostingModalLogic.ts`) | Jobs tab UI: drafts list, publish/close actions, campaign tab. |
+
+## Fair Rank reads the cross-scheme matrix in lockstep or not at all
+
+The posting modal's **Candidates** tab can re-rank the pool by the robust
+cross-scheme mean instead of each candidate's own-weight score, and exposes the
+per-candidate own / robust / delta audit table + CSV
+(`jobsRecruiterCandidatesLogic.ts` → `JobsRecruiterCandidatesFairness.tsx`). The
+matrix comes from `recruiter.fairness_check` as four index-aligned arrays
+(`labels` / `candidateIds` / `own` / `mean`) that cross an unvalidated
+Python→JSON boundary.
+
+The indexing gate therefore covers **every** array it reads, `own` included. It
+previously compared `candidateIds` against `mean` only while the body still read
+`own[i] ?? 0`, so a short `own` would have fabricated an own-score of 0 and a
+delta of the full mean — an invented "under-rated by their own weights"
+advantage on the one surface that exists to be bias-defensible. A matrix that
+cannot be read in lockstep now leaves the map empty, which hides the Fair Rank
+toggle and the audit panel (the same honest "not assessed" stance
+`assessRobustness` takes for the group eval), and the CSV writes an empty delta
+cell rather than a number derived from a missing side.
 
 ## The JD ledger shows each role's live pipeline
 

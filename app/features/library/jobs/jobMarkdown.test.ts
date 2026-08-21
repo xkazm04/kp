@@ -80,3 +80,33 @@ test("the compact table cell stays unitless thousands — the column header carr
   assert.equal(formatBand([80000, 110000]), "80–110k");
   assert.equal(formatBand(undefined), "—");
 });
+
+// --- The education floor (JOB3 scaffolding, same rule as family/seniority/workMode) --
+//
+// `min_education` is a closed EDU_LEVELS slug (jobs.py), not recruiter prose, and
+// "none" is its canonical "no requirement" value — every scorer says so explicitly
+// (`if job.min_education and job.min_education != "none"` in matching.ko_filter AND
+// winnability.loose_gates). The posting used to print the slug verbatim, so a role
+// with no education requirement published a phantom "Education none" line, and a
+// role with one published the raw English slug onto a Czech/German/French board.
+const tCs = await namespaceTranslator("cs");
+
+test("a 'none' education floor prints NO education line — it is the taxonomy's 'no requirement' value", () => {
+  const md = jobToMarkdown({ ...JOB, minEducation: "none" }, STRINGS.en);
+  assert.ok(!md.includes(STRINGS.en.education), md);
+  assert.ok(!md.includes("none"), md);
+});
+
+test("a real education floor is localized through enums.education — never the raw English slug", () => {
+  const md = jobToMarkdown({ ...JOB, minEducation: "bachelor" }, STRINGS.cs);
+  assert.ok(md.includes(STRINGS.cs.education), md);
+  assert.ok(md.includes(tCs("enums.education.bachelor")), md);
+  // The regression: a Czech job board was handed the English taxonomy slug.
+  assert.ok(!md.includes("bachelor"), md);
+});
+
+test("an education level outside the catalog still degrades to the slug, never a key path", () => {
+  const md = jobToMarkdown({ ...JOB, minEducation: "high_school" }, STRINGS.en);
+  assert.ok(md.includes(`${STRINGS.en.education}** high_school`), md);
+  assert.ok(!md.includes("enums."), md);
+});

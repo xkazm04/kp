@@ -257,6 +257,29 @@ figures elsewhere in the pipeline are CZK-denominated by default
 market-config layer (`automation.py` stamps offers in the *active* market's
 currency) but is not exercised by a second seeded market today.
 
+### Anchor bands: what `role_band` actually serves
+
+`taxonomy.role_band(family, seniority, market=…)` reads
+`data/salary_benchmarks.json::markets[<market_id>].roles`, **not** a live feed.
+The `cz` block is hand-authored, re-levelled toward the MPSV/ISPV *rok 2025*
+earnings survey by `npm run market:build && npm run market:apply`, and carries
+its provenance per role (`source`, `factor`, `ispv_median`, `sample_k`) plus a
+block-level `generated_at` copied from the pulse snapshot it was calibrated
+against. It is a periodically-regenerated snapshot: treat it as a calibrated
+anchor, never as today's live market. The `de-berlin` block is an explicitly
+labelled non-production sample (each band = the CZ band ÷ 25) that exists to
+prove the market seam.
+
+Consumers must ask the SAME market for the numbers and for the label. The band
+is a bare `(low, high)` with no currency of its own, so a lookup against one
+market's block stamped with another market's currency is a ~25× error, not a
+rounding one — `market_salary_cli._fallback` threads its `market` through to
+`role_band` for exactly this reason (pinned by
+`tests/test_market_config.py::MarketSeamStragglersTest`). The CLI's deterministic
+fallback is labelled honestly (`confidence: "low"`, `source: "deterministic"`,
+and a summary naming the internal table) and localizes its summary for `en`/`cs`,
+degrading to English for the other app locales rather than failing.
+
 ## Known gaps
 
 - Salary anchoring for CV analysis still uses the matched job's band rather

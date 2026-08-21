@@ -137,12 +137,30 @@ export function useRecruiterCandidatesLogic({
   // e1e4e0ea — index the cross-scheme fairness matrix by candidateId so each card
   // can show its robust mean + own-vs-robust delta, and the columns can re-rank by
   // robustness. Guarded: needs aligned candidateIds and ≥2 candidates to matter.
+  //
+  // The gate spans EVERY parallel array indexed below, `own` included. It used to
+  // check candidateIds against `mean` only, while the body still read `own[i] ?? 0` —
+  // so a payload whose `own` was short (a truncated/altered blob; the type asserts
+  // the alignment, nothing enforces it across the Python→JSON boundary) fabricated an
+  // own-score of 0 and a delta of `mean − 0`: a full-mean "robustly under-rated by
+  // their own weights" advantage, invented, on the one surface whose entire purpose is
+  // to be bias-defensible. A matrix we cannot read in lockstep is not a check: leaving
+  // the map empty degrades to hasFairness=false (no Fair Rank toggle, no audit panel),
+  // the same honest "not assessed" stance assessRobustness takes for the group eval.
   const fairness = data?.fairness ?? null;
   const fairById = new Map<string, { own: number; mean: number; delta: number }>();
-  if (fairness?.candidateIds && fairness.candidateIds.length === fairness.mean.length) {
-    fairness.candidateIds.forEach((cid, i) => {
-      const own = fairness.own[i] ?? 0;
-      const mean = fairness.mean[i] ?? 0;
+  const fairIds = fairness?.candidateIds;
+  if (
+    fairness &&
+    fairIds &&
+    Array.isArray(fairness.own) &&
+    Array.isArray(fairness.mean) &&
+    fairIds.length === fairness.own.length &&
+    fairIds.length === fairness.mean.length
+  ) {
+    fairIds.forEach((cid, i) => {
+      const own = fairness.own[i];
+      const mean = fairness.mean[i];
       fairById.set(cid, { own, mean, delta: mean - own });
     });
   }
@@ -175,13 +193,17 @@ export function useRecruiterCandidatesLogic({
       t("auditDelta"),
       ...fairness.labels.map((l) => t("auditUnder", { label: l })),
     ];
-    const rows = fairness.labels.map((label, i) => [
-      label,
-      fairness.own[i] ?? "",
-      fairness.mean[i] ?? "",
-      (fairness.mean[i] ?? 0) - (fairness.own[i] ?? 0),
-      ...(fairness.matrix[i] ?? []),
-    ]);
+    // Same rule as fairById above, applied to the exported record: a delta is only
+    // written when BOTH sides of it exist. `(mean[i] ?? 0) - (own[i] ?? 0)` used to
+    // print a full-mean advantage for a row missing its own-score (and a flat 0 —
+    // "perfectly robust" — for a row missing both), which is exactly the fabricated
+    // number a compliance reviewer would be reading the CSV to rule out.
+    const rows = fairness.labels.map((label, i) => {
+      const own = fairness.own[i];
+      const mean = fairness.mean[i];
+      const bothKnown = typeof own === "number" && typeof mean === "number";
+      return [label, own ?? "", mean ?? "", bothKnown ? mean - own : "", ...(fairness.matrix[i] ?? [])];
+    });
     const name = `fair-rank-${(jobTitle || "role").replace(/\s+/g, "-")}.csv`;
     downloadFile(name, toCsv([header, ...rows]), "text/csv");
   };
