@@ -127,6 +127,25 @@ penalized; over-reliance is inferred only from observed process artifacts
 is not penalized (deleting a line isn't proof of anything) — only a
 **foreign** watermark or a broken chain is decisive.
 
+**How "using an LLM is never penalized" is actually measured**
+(`pipeline/jobfit/devcase/submission_eval.py::fairness`). The gate compares
+AI-using verifiers against **non-AI verifiers** — the behaviour-matched peer,
+where the only thing that differs is that AI was used. That control group is
+load-bearing: until 2026-08-21 the check measured them against **non-verifiers**
+instead, which folds in the verification lead the neighbouring gate deliberately
+rewards, so an evaluator that really did dock AI users passed. With non-AI
+verifiers at 90, AI verifiers at 70 and non-verifiers at 70, `ai_gap` read 0 and
+the gate certified a 20-point AI penalty as fair; the reported gap on the real
+deterministic landscape (25.0) was not an AI effect at all but the verification
+lead re-measured. It is the same peer-matching rule
+`_overreliance_from_tool_use` already applies for control #6.
+
+Consequence for tiny runs: a cohort of 3 now yields 1 AI verifier vs 2 non-AI
+verifiers — thin but **present**, so the gate reports `inconclusive` (which
+`--strict` fails, as the gate may only certify what it measured) rather than
+`not_evaluable`. Only a run with a genuinely empty cohort is `not_evaluable`,
+and only that passes `--strict`.
+
 ### The marketed list is the implemented list
 
 The Cases-tab empty state (`app/features/tools/devcases/DevCasesEmptyLedger.tsx`) is
