@@ -8,7 +8,7 @@ import { setOrgLanguage, setOrgName } from "@/app/_lib/org-actions";
 import { toast } from "@/app/_components/toast-store";
 import { axisEqualsStored, draftToStored } from "@/app/features/shared/pipelineAxisDraft";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
-import type { SetupState } from "./setupSteps";
+import type { SetupInvite, SetupState } from "./setupSteps";
 
 export async function persistOnboardingSetup(state: SetupState, t: ReturnType<typeof useTranslations>): Promise<void> {
   const name = state.orgName.trim();
@@ -39,8 +39,33 @@ export async function persistOnboardingSetup(state: SetupState, t: ReturnType<ty
     }
   }
 
-  await Promise.allSettled(
-    state.invites.map((inv) =>
+  const invitesLanded = await sendSetupInvites(state.invites);
+
+  await persistPipelineAxis(state, t);
+  // The closing claim is the one the operator carries into the app, so it reports
+  // what actually landed rather than what was attempted.
+  if (invitesLanded) toast.success(t("toast.saved"));
+  else toast.error(t("toast.partial"));
+}
+
+/**
+ * Fire every staged invite; report whether they ALL landed.
+ *
+ * Best-effort PER INVITE (one refusal must not sink the rest — hence allSettled),
+ * but never SILENT. `POST /api/org/invites` refuses a malformed address (400), a
+ * role above the caller's own (403) and an already-active member (409), and
+ * `fetch` RESOLVES on every one of those — so "did it land" is `res.ok`, not "it
+ * didn't throw". Firing these and discarding the results closed the wizard on a
+ * green "Your workspace is set up" when nobody had been invited, one step after
+ * the hand-off summary said "1 teammate invited". The Organization console
+ * already reports the same three refusals (settings/workspace/WorkspaceTab.tsx).
+ *
+ * Nobody invited is not a failure: an empty list lands vacuously, because
+ * skipping the Team step is the documented default answer.
+ */
+export async function sendSetupInvites(invites: readonly SetupInvite[]): Promise<boolean> {
+  const results = await Promise.allSettled(
+    invites.map((inv) =>
       fetch("/api/org/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,9 +73,7 @@ export async function persistOnboardingSetup(state: SetupState, t: ReturnType<ty
       })
     )
   );
-
-  await persistPipelineAxis(state, t);
-  toast.success(t("toast.saved"));
+  return results.every((r) => r.status === "fulfilled" && r.value.ok);
 }
 
 /**

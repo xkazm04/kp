@@ -21,12 +21,14 @@ import { registerHooks } from "node:module";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-// constants.ts imports "./simCompanyTemplate" without a file extension — exactly
-// how Next/tsc resolve, but the bare `node --test` runner won't auto-append .ts.
-// Install a minimal resolve hook so we can load the REAL constants module rather
-// than reimplementing its numbers here. Scoped to this file's process (node
-// --test isolates files); resolves "@/" and relative specifiers to an absolute
-// URL, then appends .ts when the extensionless target file exists.
+// This file loads the REAL modules (constants.ts, and the pure decision-config
+// schema the screening wave resolves its floor through) rather than
+// reimplementing their numbers — a copy could never catch the module drifting.
+// Those specifiers are extensionless / "@/"-aliased, exactly how Next/tsc
+// resolve, but the bare `node --test` runner won't auto-append .ts. Install a
+// minimal resolve hook. Scoped to this file's process (node --test isolates
+// files); resolves "@/" and relative specifiers to an absolute URL, then appends
+// .ts when the extensionless target file exists.
 const ROOT = new URL("../../../../", import.meta.url).href; // repo root (app/features/shell/simulation/ -> ../../../../)
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -42,7 +44,10 @@ registerHooks({
   },
 });
 
-const { SIM_SCREEN_POLICY } = await import("./constants.ts");
+const { SIM_ROLE, SIM_SCREEN_POLICY } = await import("./constants.ts");
+// The REAL floor resolver the screening wave calls per candidate. Pure and
+// DB-free by design (see its header), so it loads under `node --test`.
+const { effectiveFloor } = await import("@/app/_lib/decision-config-schema");
 
 test("inbound score floor strictly exceeds the screen reject ceiling", () => {
   // The scripted applicant scores in [floor, floor + 9]; its WORST case is the
@@ -69,4 +74,36 @@ test("the whole inbound score band sits at or above the reject ceiling", () => {
     assert.ok(score >= ceiling, `inbound score ${score} (floor+${r}) drops below the reject ceiling ${ceiling}`);
     assert.ok(score >= 0 && score <= 100, `inbound score ${score} (floor+${r}) is not a valid 0-100 match`);
   }
+});
+
+test("the override pins the EFFECTIVE floor, so a workspace's per-family floor can't hijack the demo", () => {
+  // The two assertions above pin maxMatchToReject — but maxMatchToReject is only
+  // the floor actually applied when no per-family override exists. runScreenWave
+  // merges per TOP-LEVEL field (`{ ...savedConfig, ...override }`) and then
+  // resolves the floor per candidate via effectiveFloor(cfg, entry.roleFamily),
+  // which prefers cfg.familyFloors[family]. The demo's job (and the inbound
+  // entry it mints) carry SIM_ROLE.roleFamily, so a workspace that applied a
+  // calibrated threshold to that family kept it through the override and the
+  // invariant above was silently bypassed. Exercised against the REAL resolver
+  // and the REAL merge, with a hostile saved config.
+  const hostileSaved = {
+    autoRejectEnabled: true,
+    rejectBottomPercent: 20,
+    maxMatchToReject: 45,
+    familyFloors: { [SIM_ROLE.roleFamily]: 90 },
+  };
+  const cfg = { ...hostileSaved, ...SIM_SCREEN_POLICY.screenWaveOverride };
+  const applied = effectiveFloor(cfg, SIM_ROLE.roleFamily);
+  assert.equal(
+    applied,
+    SIM_SCREEN_POLICY.screenWaveOverride.maxMatchToReject,
+    `the demo's screen-wave override must neutralise a saved familyFloors entry for ` +
+      `"${SIM_ROLE.roleFamily}" (effective floor was ${applied}, expected the demo ceiling ` +
+      `${SIM_SCREEN_POLICY.screenWaveOverride.maxMatchToReject})`
+  );
+  assert.ok(
+    SIM_SCREEN_POLICY.inboundScoreFloor > applied,
+    `the scripted applicant (score floor ${SIM_SCREEN_POLICY.inboundScoreFloor}) is auto-rejected ` +
+      `mid-demo against an effective floor of ${applied}`
+  );
 });

@@ -14,12 +14,21 @@ import type { SimPhaseId } from "./constants";
 // layouts. The moment a third structure needs one of these it imports, not copies.
 
 /** The control center wears two faces. It is the guided-simulation console while a
- *  demo is live (running or just finished) or the page arrived through the public
- *  `?sim=auto` entry; otherwise it is the operations deck the recruiter drives. */
+ *  demo is live (running, just finished, or FAILED) or the page arrived through the
+ *  public `?sim=auto` entry; otherwise it is the operations deck the recruiter drives.
+ *
+ *  `sim.error` is in the predicate because the failure path patches
+ *  `{ running: false, error, status: "Failed: …" }` in ONE setState: without it the
+ *  dock flipped to the ops face in the very commit that wrote the failure, so the
+ *  localized reason (and the red styling SimControlDockSimFace carries for exactly
+ *  this state) never painted — the in-app tour just vanished with no explanation,
+ *  and the Reset that purges its (SIM) residue went with it. Only `?sim=auto` ever
+ *  showed the message. Cleared by start() and reset(), both of which restore
+ *  IDLE_STATE's null error, so the console still hands the deck back. */
 export function useControlMode(): "sim" | "ops" {
   const sim = useSimulation();
   const params = useSearchParams();
-  return sim.running || sim.done || params.get("sim") === "auto" ? "sim" : "ops";
+  return sim.running || sim.done || sim.error !== null || params.get("sim") === "auto" ? "sim" : "ops";
 }
 
 /** Per-phase glyph for the chronology stepper — SIM_PHASES only carries id/label/tab,

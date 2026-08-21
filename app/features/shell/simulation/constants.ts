@@ -80,6 +80,21 @@ export const SIM_SCREEN_POLICY = {
     autoRejectEnabled: true,
     rejectBottomPercent: 25,
     maxMatchToReject: 60, // reject ceiling — must stay below inboundScoreFloor
+    // …and maxMatchToReject must actually BE the floor in force. runScreenWave
+    // merges per top-level field (`{ ...savedConfig, ...override }`), and the
+    // floor is resolved PER CANDIDATE by effectiveFloor(cfg, roleFamily): a
+    // workspace's saved `familyFloors` entry wins over maxMatchToReject. The
+    // demo job is SIM_ROLE.roleFamily ("software_engineering") and the inbound
+    // entry carries that family, so a workspace that applied a calibrated
+    // per-family threshold (Analytics → calibration → apply to this family)
+    // silently voided the invariant above and auto-rejected the scripted
+    // applicant mid-demo. A PRESENT familyFloors override REPLACES the saved map
+    // wholesale (validateScreeningOverride), so an empty map pins the demo's
+    // ceiling as the only floor for every family. Empty ⇒ familyFloorSuffix()
+    // is "" ⇒ the approval-token policyVersion is byte-identical to before.
+    // (`holdoutPercent` leaks the same way and is deliberately left alone: a
+    // holdout only SPARES would-be rejects, so it can never break the walk.)
+    familyFloors: {},
   },
   inboundScoreFloor: 62, // must stay > screenWaveOverride.maxMatchToReject
 } as const;

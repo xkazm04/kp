@@ -16,6 +16,15 @@ import type { MemberRole } from "@/app/_lib/auth/roles";
 import { SETUP_PROSE } from "./setupProse";
 import type { OnboardingCtrl } from "./setupSteps";
 
+// Address shape, checked HERE because nothing downstream can in time: staged
+// invites are only POSTed at finish(), three steps later. An address the route
+// refuses (400 "A valid email is required.") used to be accepted as a chip,
+// counted on the hand-off summary ("1 teammate invited") and then quietly
+// dropped. Same shape the rest of the app calls an address — a local copy of the
+// regex in signup-service.ts / comms-recipient.ts, by the convention those
+// modules state.
+const INVITE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // Shared invite step body — used by BOTH onboarding variants (hoisted per the
 // /prototype "extract the moment two variants render the same structure" rule).
 // `dense` tightens it for the footer bar; the default is the roomy wizard layout.
@@ -26,12 +35,21 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
   const tRole = useTranslations("workspaceAdmin.members");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<MemberRole>("recruiter");
+  // Half-typed is not wrong: the error tone waits for the operator to leave the
+  // field (or to try Add), so "jana@comp" isn't scolded mid-word.
+  const [blurred, setBlurred] = useState(false);
+
+  const trimmed = email.trim();
+  const emailValid = INVITE_EMAIL_RE.test(trimmed);
 
   function add() {
-    const trimmed = email.trim();
-    if (!trimmed) return;
+    if (!emailValid) {
+      setBlurred(true);
+      return;
+    }
     ctrl.addInvite({ email: trimmed, role });
     setEmail("");
+    setBlurred(false);
     setRole("recruiter");
   }
 
@@ -44,10 +62,18 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
         <TextInput
           type="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setBlurred(false);
+          }}
+          onBlur={() => setBlurred(true)}
           onKeyDown={(e) => e.key === "Enter" && add()}
           placeholder={t("emailPlaceholder")}
           sizeVariant="sm"
+          // The error tone (and aria-invalid) only once there is something to be
+          // wrong about. No new copy: the placeholder already spells the shape
+          // out, and `invalid` is the canonical dual-theme signal (TextInput.tsx).
+          invalid={blurred && trimmed !== "" && !emailValid}
           className="min-w-0 flex-1"
         />
         <Select
@@ -57,7 +83,7 @@ export function InviteEditor({ ctrl, dense = false }: { ctrl: OnboardingCtrl; de
           ariaLabel={t("roleAria")}
           options={ASSIGNABLE_ROLES.map((r) => ({ value: r, label: roleLabel(r, tRole) }))}
         />
-        <button type="button" onClick={add} disabled={!email.trim()} className={`${BTN_SECONDARY} h-9 px-3`}>
+        <button type="button" onClick={add} disabled={!emailValid} className={`${BTN_SECONDARY} h-9 px-3`}>
           <Plus size={15} aria-hidden /> {t("add")}
         </button>
       </div>

@@ -184,6 +184,32 @@ destination = one union member + one resolver case + one renderer.
 The old sidebar "Recent" group (`WorkspaceRecentsNav`) was removed; `recents.ts`
 remains, feeding the palette's resting state and recording opens.
 
+### The bottom control dock wears two faces
+
+`shell/simulation/SimBar.tsx` → `SimControlDock.tsx` is the always-mounted bottom
+deck. Which face it renders is decided in ONE place — `useControlMode()` in
+`shell/simulation/simControlCenterKit.ts`:
+
+| Mode | When | Face |
+| --- | --- | --- |
+| `sim` | a guided run is `running`, `done`, or **failed** (`error !== null`), or the page arrived at the public `/?sim=auto` entry | `SimControlDockSimFace` — phase stepper + run controls (Start/Pause/Next, Stop, Reset, Step, Explain) |
+| `ops` | otherwise | `SimControlDockOpsFace` — command bar, AI screen / automation pass / scheduler tiles, guided-tour invitation |
+
+`error` is part of the predicate on purpose: the walk's failure path patches
+`{ running: false, error, status: "Failed: …" }` in one `setState`, so without it
+the deck flipped back to `ops` in the same commit that wrote the failure and the
+reason never painted — only `?sim=auto` ever showed it. `start()` and `reset()`
+both restore `IDLE_STATE`'s null `error`, so the console still hands the deck
+back (and `reset()` is what purges the run's `(SIM)` residue).
+
+The guided run's screening step sends its own `SIM_SCREEN_POLICY.screenWaveOverride`
+(`shell/simulation/constants.ts`) to `/api/decisions/screen-wave`. That override
+carries an explicit empty `familyFloors` map: `runScreenWave` merges per top-level
+field over the workspace's saved rule, and `effectiveFloor()` prefers a per-family
+entry over `maxMatchToReject` — so without it a workspace that applied a calibrated
+threshold to the demo role's family (`software_engineering`) silently governed the
+demo's reject floor. `constants.test.ts` pins that against the real resolver.
+
 ## Why `shared/` exists
 
 Before the refactor, three things made the tree impossible to split cleanly:
@@ -257,7 +283,22 @@ pressing Continue IS the skip. Leaving the wizard entirely has exactly one
 affordance — the close control on the card. Everything else (a per-step "Skip for
 now", an *Optional* tag under the rail labels, a "Skip setup" ghost button beside
 Continue on Welcome, a "Step 1 of 5" counter under the language switch) was a
-second way to say something the card already says, and is gone.
+second way to say something the card already says, and is gone. The rail obeys
+that same gate through ONE number: `OnboardingExperience` hands the wizard a
+high-water mark **capped at the current step whenever its required input is
+unsatisfied**, so clearing the org name after advancing greys the rail back out
+instead of leaving an open door past the field the footer is blocking on.
+Backward navigation is never capped.
+
+**`finish()` is best-effort per step, never silently so**
+(`setupOnboardingFinish.ts`). Each write is allowed to fail without sinking the
+rest, but the closing toast reports what actually landed: the invite POSTs are
+`allSettled` *and* their `ok` is read, so a row the route refuses (400 malformed
+address, 403 above the caller's role, 409 already a member) downgrades
+`setup.toast.saved` to `setup.toast.partial` instead of closing on a green claim
+nobody verified. The Team step keeps the first half of that bargain by refusing
+to stage an address the route would reject at all (`SetupInviteEditor.tsx`), so
+the common mistake is caught where it is made rather than four steps later.
 
 **Step 4 replaced a "First role" step** that collected the inputs of a real
 backgrounded JD build. Authoring a job description belongs in the Library, where a

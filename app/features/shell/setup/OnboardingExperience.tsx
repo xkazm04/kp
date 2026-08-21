@@ -60,6 +60,21 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // movers below, so the high-water mark is exactly "reached through the gates").
   const [maxVisited, setMaxVisited] = useState(0);
 
+  const canAdvance = stepSatisfied(SETUP_STEPS[stepIndex].id, state);
+
+  // …and the ceiling that mark buys, which the current step can REVOKE. Having
+  // reached step N proves the steps before it were satisfied AT THE TIME; it does
+  // not prove they still are. An operator who typed the org name, pressed
+  // Continue, came back and cleared the field sat on a disabled Continue button
+  // while the rail — reading the raw high-water mark — still offered Team,
+  // Pipeline and Done: finishing that way writes NO org name (setOrgName is
+  // skipped for an empty one) and the workspace silently keeps the seed default
+  // as its identity on every generated JD, offer and candidate mail. Capping the
+  // ceiling at the current step while its required input is unsatisfied closes
+  // goTo and the rail together — they both read this one number — and retyping
+  // the name restores it. Going BACK is never capped, so nobody is stranded.
+  const reachedCeiling = canAdvance ? maxVisited : Math.min(maxVisited, stepIndex);
+
   // Rail navigation is GATED like the Continue button: freely back to anything
   // already reached, forward only one step and only when the current step's
   // required inputs are satisfied — so the stepper can't bypass a key input the
@@ -69,13 +84,13 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     (i: number) => {
       const target = Math.max(0, Math.min(SETUP_STEPS.length - 1, i));
       const allowed =
-        target <= Math.max(maxVisited, stepIndex) ||
+        target <= Math.max(reachedCeiling, stepIndex) ||
         (target === stepIndex + 1 && stepSatisfied(SETUP_STEPS[stepIndex].id, state));
       if (!allowed) return;
       setStepIndex(target);
       setMaxVisited((m) => Math.max(m, target));
     },
-    [stepIndex, maxVisited, state]
+    [stepIndex, reachedCeiling, state]
   );
   const next = useCallback(() => {
     const target = Math.min(SETUP_STEPS.length - 1, stepIndex + 1);
@@ -131,13 +146,13 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
     return () => window.removeEventListener("keydown", onKey);
   }, [dismiss]);
 
-  const stepId = SETUP_STEPS[stepIndex].id;
-  const canAdvance = stepSatisfied(stepId, state);
-
   const ctrl: OnboardingCtrl = {
     mode,
     stepIndex,
-    maxVisited,
+    // The REACHABLE ceiling, not the raw high-water mark — see above. The rail
+    // draws its disabled state from the same number goTo enforces, so a step the
+    // stepper offers is always a step a click can actually open.
+    maxVisited: reachedCeiling,
     goTo,
     next,
     back,
