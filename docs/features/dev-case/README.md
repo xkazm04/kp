@@ -326,6 +326,15 @@ credential. These rules keep that honest, all sized so a real candidate never me
   timed assessment legitimately share a NAT. Both refusals are the shared 429 envelope and
   the surface renders `devApply.workSurface.chatRateLimited` — a stated limit, never a
   silent failure that reads as lost work; the unsent message is handed back to the input.
+- **Durable submit.** The final flush is the only thing that puts the candidate's last
+  edits and process events on the server — `saveDevSessionFiles` is a no-op once a session
+  is `submitted`, so sealing after a failed flush would grade them on a stale tree *and*
+  delete their local draft on the way out. `flush()` therefore reports whether it landed,
+  and `submit()` refuses to finalize when it did not: the session stays active, the tree
+  stays dirty, the `kp:devcase:livework:<token>` draft stays on disk, and a second click
+  re-sends everything. That flush also carries **no `keepalive`** — the flag caps a request
+  body at 64KB (the same rule `useTranscriptPersistence.ts` documents) and this is the one
+  request that must carry the complete tree, which the server accepts at 50 files × 256KB.
 - **Intake throttling.** `/api/devcase/inbound` accepts an application against the apply
   token, and each accepted call writes a submission row, sends the candidate
   acknowledgement over the relay to a **caller-supplied address**, and resumes a collecting
@@ -338,6 +347,40 @@ credential. These rules keep that honest, all sized so a real candidate never me
 Pinned by `app/api/rate-limit-contract.test.ts` (source-level + behavioral),
 `app/api/devcase/session/session-intake-guards.test.ts` and
 `app/api/devcase/inbound/route.test.ts`.
+
+## Durable Skill Profile — the credential contract
+
+`app/_lib/db/skill-profiles.ts` is where a candidate-owned credential is minted, keyed,
+superseded and revoked. Three rules hold it together; each one exists because breaking it
+either exposes a credential or kills a link a candidate already gave an employer.
+
+- **One public address.** The shareable value is the CSPRNG `access_token`
+  (`randomToken`, ~192 bits) — the sole auth on `/skill/[token]` and
+  `GET /api/skill-profile/[token]/verify`. The row's PK is an *internal* `randomId`
+  (`Math.random`-derived, time-ordered) and resolves a credential **only on legacy rows**
+  (`access_token IS NULL`, minted before the token was hardened), so an already-shared old
+  link keeps working while a hardened credential answers to its CSPRNG token alone. The
+  lookup and the revoke share that qualifier — guessing a PK neither reads nor revokes a
+  hardened credential (`skill-profiles-token.test.ts`).
+- **Rotation never orphans a live link.** Each row stores the `key_id` it was signed
+  under, bound into the MAC. To rotate: pick a NEW id, set `KP_SKILL_PROFILE_KEY` +
+  `KP_SKILL_PROFILE_KEY_ID` to the new pair, and keep the retired secret readable as
+  `KP_SKILL_PROFILE_KEY_<oldId>`. A row's id resolves to **either** its pinned
+  `KP_SKILL_PROFILE_KEY_<id>` **or** the active key — both are tried — so the common
+  half-step (rotating the secret while leaving the id at its `k1` default) no longer
+  recomputes every outstanding credential to a mismatch and brands genuine attestations red
+  "TAMPERED" to employers. Missing key material stays a *neutral* "cannot verify"
+  (`verifiable:false`), never a fraud accusation; a forgery still matches no configured
+  secret (`skill-profiles-key-rotation.test.ts`). Legacy (`key_id ''`) rows verify under
+  `KP_SKILL_PROFILE_LEGACY_KEY` ?? `KP_SECRET`.
+- **Supersede is atomic, and never speculative.** A re-evaluation that moves the attested
+  content revokes the stale credential and mints a fresh one (a re-eval that wipes the
+  scores does not — there would be nothing to reissue). The revoke is applied in ONE
+  IMMEDIATE transaction with the replacement INSERT, *after* signing: an unsignable mint
+  (no `KP_SKILL_PROFILE_KEY` and no `KP_SECRET`) now leaves the live credential intact
+  instead of revoking it with no replacement — a state the retry could not recover, which
+  left every `/skill` link the candidate had shared reading red "revoked"
+  (`skill-profiles-reissue.test.ts`).
 
 ## Recruiter-door ownership (multi-team deployments)
 
@@ -402,6 +445,24 @@ and published.
   invalidates a link.
 - `case.timeboxHours` is advisory — nothing on the server enforces it, so a session can
   stay open indefinitely.
+- **The hash chain protects the log, not the timeline it records.** Links are computed
+  server-side at INSERT over the server receive time, so a candidate cannot edit, reorder
+  or re-time a *persisted* event (`verifyDevSessionChain`). But each event's `t` is
+  client-authored, and `getDevSessionIntegrity` only window-checks it against
+  `[session start − skew, receive + skew]`. A scripted client can mint a session, wait out
+  the timebox, then POST one flush carrying a fully synthetic hour of `open → edit →
+  decision_log` events (plus a ghostwritten tree, watermarked with the marker the mint
+  response hands back) and the verdict reads `chain: valid, backdatedEvents: 0` — a clean
+  bill of health on a fabricated process trace, which is exactly the evidence the
+  `suspect` gate at `devcase-run.ts:639` trusts. The tell is stored but unread: every
+  event in such a session shares ONE `created_at`, whereas a real 8s-flush session spreads
+  across hundreds of arrival batches. Closing it means surfacing arrival-batch cardinality
+  (or claimed-span vs. arrival-span) in `SessionIntegrity` and rendering it in
+  `DevEvalPanelIntegrity.tsx` with the honest-darkness framing the other verdicts use.
+- The seed's `note` is only rendered to candidates on the **LLM** path. The deterministic
+  (keyless) seed's note is a fixed English provenance marker aimed at us, so the apply page
+  suppresses it on `seed.source === "deterministic"` rather than showing build jargon,
+  untranslated, to a candidate reading the page in cs/de/fr.
 - 3rd-party distribution (publish/pull to email/ATS/job-board) is a local-stub
   adapter interface only, per the original plan (`docs/concepts/dev-extension-future-phases.md`).
 

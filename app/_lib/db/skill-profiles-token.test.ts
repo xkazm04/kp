@@ -5,7 +5,7 @@ import Database from "better-sqlite3";
 // module-eval time, and it must run BEFORE any module that transitively touches
 // db-path (skill-profiles → core → db-path). Keep it above the app-module imports.
 import { cleanupUnitDb, UNIT_DB_PATH } from "../testing/unit-db.ts";
-import { issueSkillProfile, getSkillProfileByToken, verifySkillProfileToken } from "./skill-profiles.ts";
+import { issueSkillProfile, getSkillProfileByToken, verifySkillProfileToken, revokeSkillProfile } from "./skill-profiles.ts";
 import { getSubmission } from "./devcase.ts";
 import { buildDurableSkillProfile, signProfile, DSP_VERSION } from "../skill-profile.ts";
 import { randomId } from "../random-id.ts";
@@ -107,6 +107,30 @@ test("two mints yield unrelated CSPRNG tokens (no shared time-ordered prefix)", 
   // randomId would share the Date.now() base36 prefix for near-simultaneous mints;
   // CSPRNG tokens share nothing past the "dsp-" namespace.
   assert.notEqual(a.token.slice(4, 10), b.token.slice(4, 10));
+});
+
+test("the internal randomId PK is NOT a public address for a hardened credential", () => {
+  seedEvaluatedSubmission("sub_pk_addr", "cand-pk");
+  const res = issueSkillProfile("sub_pk_addr");
+  assert.ok(res.ok);
+  if (!res.ok) return;
+  const row = readProfileRow("sub_pk_addr");
+  assert.ok(row);
+  assert.match(row!.token, RANDOM_ID, "the PK is the guessable, time-ordered randomId");
+  assert.notEqual(row!.token, res.token);
+
+  // PRE-FIX the lookup matched `access_token = ? OR token = ?` on EVERY row, so the
+  // Math.random()-derived PK stayed a SECOND public address for a hardened credential:
+  // a predicted PK (randomId leaks 6 base36 chars of Math.random per id, and this process
+  // mints many) resolved the card — candidate ref, case, axes, scores — and could revoke
+  // it, defeating the 192-bit access token the fix introduced. The PK now addresses only
+  // legacy rows, which are the ones with NO access_token.
+  assert.equal(getSkillProfileByToken(row!.token), null, "the PK must not resolve a hardened credential");
+  assert.equal(verifySkillProfileToken(row!.token).found, false, "…so it is not an existence oracle either");
+  assert.equal(revokeSkillProfile(row!.token), false, "…nor a revoke handle");
+
+  // The genuine CSPRNG token is unaffected (and was not revoked by the attempt above).
+  assert.equal(verifySkillProfileToken(res.token).valid, true);
 });
 
 test("a legacy randomId-format token (access_token NULL) still verifies — backward compat", () => {

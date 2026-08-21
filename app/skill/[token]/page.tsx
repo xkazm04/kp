@@ -89,7 +89,8 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
           `substantive` alone. A tampered/revoked/unverifiable credential can still be
           "substantive" (has numbers), so the old gate rendered attacker-/stale-controlled
           scores as the visual focus directly under a red "do not trust" badge. Untrusted or
-          unattested states now fall through to the muted "summary unavailable" block. */}
+          unattested states now withhold the numbers entirely; `incomplete` explains the
+          absence in the muted block below, the rest are already fully named by the badge. */}
       {skillProfileShowsScoreCard(state) ? (
       <section className="mt-6 rounded-lg border border-stone-200 bg-white p-6 shadow-panel">
         <div className="flex items-end justify-between gap-4">
@@ -146,11 +147,23 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
           </div>
         ) : null}
       </section>
-      ) : (
+      ) : state === "incomplete" ? (
+        // `summaryUnavailable` says the credential "was issued without a scored skill
+        // summary" — TRUE only of `incomplete`. When the score gate widened from
+        // `substantive` alone to the full trust state (the note above), the other three
+        // withheld states started falling into this block too, so a REVOKED or TAMPERED
+        // credential — which does carry numbers, we are simply refusing to vouch for them —
+        // told the reader it had been issued empty, and an UNVERIFIABLE one (our own key
+        // misconfigured) blamed the issuance for a server-side problem. A false statement
+        // about what kp issued is worse than no statement, and the badge above already
+        // names each of those three states in full ("This credential has been revoked",
+        // "Signature invalid, do not trust", "Verification temporarily unavailable"), so
+        // they now render the badge alone. Per-state body copy is a follow-up: it needs
+        // new keys in all four locale catalogs.
         <section className="mt-6 rounded-lg border border-stone-200 bg-paper p-6 text-sm text-steel">
           {t("summaryUnavailable")}
         </section>
-      )}
+      ) : null}
 
       <p className="mt-4 text-xs text-stone-400">
         {t("methodology")}{" "}

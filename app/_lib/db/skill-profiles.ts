@@ -61,14 +61,29 @@ function activeSkillProfileKey(): { id: string; secret: string } | null {
   return { id, secret };
 }
 
-/** Resolve the dedicated secret for a row's stored key id. The active id resolves to
- *  KP_SKILL_PROFILE_KEY; a retired id to KP_SKILL_PROFILE_KEY_<id> (kept across a rotation).
- *  null when no key material is available for that id — verify then reports "unconfigured"
- *  (cannot verify), NOT "mismatch" (tampered). */
-function skillProfileKeyById(keyId: string): string | null {
+/** Every secret that may key a row's stored key id, most-specific first: an explicitly
+ *  PINNED KP_SKILL_PROFILE_KEY_<id> (a retired key the operator kept readable), plus the
+ *  ACTIVE KP_SKILL_PROFILE_KEY when the row's id IS the active id.
+ *
+ *  BOTH are tried, because the two can legitimately disagree for one id. The active id
+ *  DEFAULTS to "k1", so "rotate KP_SKILL_PROFILE_KEY" without also bumping
+ *  KP_SKILL_PROFILE_KEY_ID is the easiest half-step of the rotation runbook to take —
+ *  and resolving that id to the active secret ALONE recomputes every outstanding k1
+ *  credential to a mismatch and brands genuine attestations red "TAMPERED" to employers,
+ *  the exact fraud accusation this module exists to prevent, even when the operator DID
+ *  pin the retired secret as KP_SKILL_PROFILE_KEY_k1. Accepting either candidate keeps
+ *  both the pre- and post-rotation credentials verifiable while a forgery still matches
+ *  NEITHER (both values are operator-supplied key material for that id, so trying both
+ *  weakens nothing). An EMPTY list = no key material at all -> verify reports
+ *  "unconfigured" (cannot verify), NOT "mismatch" (tampered). */
+function skillProfileKeysById(keyId: string): string[] {
+  const secrets: string[] = [];
+  const pinned = process.env[`KP_SKILL_PROFILE_KEY_${keyId}`]?.trim();
+  if (pinned) secrets.push(pinned);
   const activeId = process.env.KP_SKILL_PROFILE_KEY_ID?.trim() || "k1";
-  if (keyId === activeId) return process.env.KP_SKILL_PROFILE_KEY?.trim() || null;
-  return process.env[`KP_SKILL_PROFILE_KEY_${keyId}`]?.trim() || null;
+  const active = keyId === activeId ? process.env.KP_SKILL_PROFILE_KEY?.trim() : "";
+  if (active && !secrets.includes(active)) secrets.push(active);
+  return secrets;
 }
 
 /** The secret legacy (key_id "") rows are verified under: the pinned KP_SKILL_PROFILE_LEGACY_KEY
@@ -107,9 +122,11 @@ function checkSkillProfileSignature(dsp: DurableSkillProfile, signature: string,
     if (!secret) return "unconfigured";
     return timingSafeHexEqual(legacySkillProfileSignature(dsp, secret), signature) ? "ok" : "mismatch";
   }
-  const secret = skillProfileKeyById(keyId);
-  if (!secret) return "unconfigured";
-  return timingSafeHexEqual(skillProfileMac(dsp, keyId, secret), signature) ? "ok" : "mismatch";
+  const secrets = skillProfileKeysById(keyId);
+  if (secrets.length === 0) return "unconfigured";
+  // Constant-time per candidate; "mismatch" only when NO configured secret for this id
+  // reproduces the signature (a genuine forgery), never merely a half-done rotation.
+  return secrets.some((secret) => timingSafeHexEqual(skillProfileMac(dsp, keyId, secret), signature)) ? "ok" : "mismatch";
 }
 
 /** Sign a freshly-built profile: the dedicated active key when configured, else the legacy
@@ -231,9 +248,19 @@ export function issueSkillProfile(submissionId: string): IssueResult {
   // ⇒ nothing changed, hand back the same credential (true idempotency). Different ⇒ the
   // evaluation moved, so REVOKE the now-stale credential and fall through to mint a fresh
   // signed artifact that attests the current scores.
+  //
+  // The supersede is DEFERRED (not applied here) and later runs in ONE transaction with
+  // the replacement INSERT. Revoking up front meant any failure between the two — most
+  // concretely signNewSkillProfile() throwing when neither KP_SKILL_PROFILE_KEY nor
+  // KP_SECRET is readable (a keyless/open deploy, or an env that lost the key after the
+  // credential was minted) — left the candidate's live credential REVOKED with no
+  // replacement, and unrecoverable: the retry re-reads `revoked_at IS NULL`, finds
+  // nothing to reuse, and throws again. Every /skill link they had shared then reads red
+  // "revoked" forever. Mint first, supersede atomically, or leave the credential alone.
   const existingRow = db
     .prepare(`SELECT * FROM skill_profiles WHERE submission_id = ? AND revoked_at IS NULL ORDER BY issued_at DESC LIMIT 1`)
     .get(submissionId) as Row | undefined;
+  let supersedeToken: string | null = null;
   if (existingRow) {
     const issued = rowToIssued(existingRow);
     if (issued) {
@@ -250,10 +277,7 @@ export function issueSkillProfile(submissionId: string): IssueResult {
       if (!isSubstantiveSkillProfile(current) || canonicalize(current) === canonicalize(issued.profile)) {
         return { ok: true, token: issued.token, profile: issued.profile, created: false };
       }
-      db.prepare(`UPDATE skill_profiles SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL`).run(
-        new Date().toISOString(),
-        existingRow.token
-      );
+      supersedeToken = existingRow.token;
     }
   }
 
@@ -278,7 +302,9 @@ export function issueSkillProfile(submissionId: string): IssueResult {
   // /skill/[token] link is a SEPARATE cryptographically-strong value (randomToken, ~192
   // bits from a CSPRNG). It is the sole auth on the credential surface, so it MUST be
   // unguessable/unenumerable — the earlier code minted it with randomId, making the
-  // whole population brute-forceable (bug-ui-scan-2026-07-09 #1).
+  // whole population brute-forceable (bug-ui-scan-2026-07-09 #1). "Never gates access" is
+  // ENFORCED by getSkillProfileByToken/revokeSkillProfile, which accept the PK only for
+  // legacy rows (access_token IS NULL); see the qualifier's comment there.
   const id = randomId("dsp");
   const accessToken = randomToken("dsp");
   // Tenant (P1): a durable skill profile inherits its submission's workspace (by-id
@@ -292,10 +318,20 @@ export function issueSkillProfile(submissionId: string): IssueResult {
   } catch {
     /* dev_submissions absent on this connection — keep the default workspace */
   }
-  db.prepare(
-    `INSERT INTO skill_profiles (token, access_token, submission_id, candidate_ref, case_id, profile_json, signature, version, issued_at, revoked_at, workspace_id, key_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`
-  ).run(id, accessToken, submissionId, profile.candidateRef, profile.caseId, JSON.stringify(profile), signature, DSP_VERSION, issuedAt, workspaceId, keyId);
+  // Supersede + mint as ONE unit (IMMEDIATE, the repo's read→compute→write idiom): the
+  // superseded credential is revoked only alongside the replacement that takes its place,
+  // so no failure path can leave a candidate with a revoked credential and nothing to
+  // present. Everything that can refuse (not evaluated / not substantive / unsignable)
+  // has already run above.
+  db.transaction(() => {
+    if (supersedeToken) {
+      db.prepare(`UPDATE skill_profiles SET revoked_at = ? WHERE token = ? AND revoked_at IS NULL`).run(issuedAt, supersedeToken);
+    }
+    db.prepare(
+      `INSERT INTO skill_profiles (token, access_token, submission_id, candidate_ref, case_id, profile_json, signature, version, issued_at, revoked_at, workspace_id, key_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`
+    ).run(id, accessToken, submissionId, profile.candidateRef, profile.caseId, JSON.stringify(profile), signature, DSP_VERSION, issuedAt, workspaceId, keyId);
+  }).immediate();
   // Hand back the CSPRNG access token — that is the value that goes into the public link.
   return { ok: true, token: accessToken, profile, created: true };
 }
@@ -303,9 +339,21 @@ export function issueSkillProfile(submissionId: string): IssueResult {
 export function getSkillProfileByToken(token: string): IssuedSkillProfile | null {
   const db = store();
   // Resolve by the CSPRNG access_token (hardened credentials) OR the legacy randomId
-  // PK (already-issued links minted before the token was hardened), so every shared
-  // /skill/[token] link keeps verifying (bug-ui-scan-2026-07-09 #1 backward-compat).
-  const r = db.prepare(`SELECT * FROM skill_profiles WHERE access_token = ? OR token = ?`).get(token, token) as Row | undefined;
+  // PK — but the PK fallback is restricted to rows that HAVE no access_token, i.e. genuine
+  // pre-hardening credentials whose already-shared links must keep verifying
+  // (bug-ui-scan-2026-07-09 #1 backward-compat).
+  //
+  // The `access_token IS NULL` qualifier is load-bearing. Without it the PK addressed
+  // EVERY row, including hardened ones — so the public credential surface still had a
+  // second, Math.random()-derived, time-ordered address (`dsp-<base36 ms>-<6 base36>`),
+  // and the header comment's "the PK never gates access" was not true of the code. A PK
+  // guessed or predicted from other randomId values minted by the same process resolved a
+  // hardened candidate's credential (name, case, axes, scores) and revoked it via
+  // revokeSkillProfile, defeating the 192-bit access token entirely. Hardened rows always
+  // carry an access_token, so no live link changes address.
+  const r = db
+    .prepare(`SELECT * FROM skill_profiles WHERE access_token = ? OR (access_token IS NULL AND token = ?)`)
+    .get(token, token) as Row | undefined;
   return r ? rowToIssued(r) : null;
 }
 
@@ -331,7 +379,14 @@ export function verifySkillProfileToken(token: string): SkillProfileVerdict {
 
 export function revokeSkillProfile(token: string): boolean {
   const db = store();
-  // Accept either the CSPRNG access_token or the legacy PK (same dual-address contract
-  // as the public lookup) so a credential can be revoked by whatever token is presented.
-  return db.prepare(`UPDATE skill_profiles SET revoked_at = ? WHERE (access_token = ? OR token = ?) AND revoked_at IS NULL`).run(new Date().toISOString(), token, token).changes > 0;
+  // Accept either the CSPRNG access_token or a LEGACY row's PK — same dual-address
+  // contract as the public lookup, including its `access_token IS NULL` qualifier, so a
+  // hardened credential can never be revoked by guessing its internal randomId PK.
+  return (
+    db
+      .prepare(
+        `UPDATE skill_profiles SET revoked_at = ? WHERE (access_token = ? OR (access_token IS NULL AND token = ?)) AND revoked_at IS NULL`
+      )
+      .run(new Date().toISOString(), token, token).changes > 0
+  );
 }

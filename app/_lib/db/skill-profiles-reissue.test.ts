@@ -99,3 +99,48 @@ test("re-evaluation supersedes the stale credential — fresh token, old one rev
   assert.equal(verifySkillProfileToken(second.token).valid, true);
   assert.equal(liveProfileCount("sub_reissue_changed"), 1);
 });
+
+test("a reissue that cannot be signed leaves the live credential intact (no orphaned revoke)", () => {
+  seedEvaluatedSubmission("sub_reissue_unsignable", 60);
+  const first = issueSkillProfile("sub_reissue_unsignable");
+  assert.ok(first.ok);
+  if (!first.ok) return;
+  const token = first.token;
+  assert.equal(verifySkillProfileToken(token).valid, true);
+
+  // The evaluation moves, so the next mint must supersede the live credential…
+  saveSubmissionEvaluation(
+    "sub_reissue_unsignable",
+    { evaluation: { dimensionScores: { coding: 97, communication: 71 }, confidence: 0.9 }, transfer: { transferScore: 78 } },
+    78
+  );
+
+  // …but no key material is readable, so signing the replacement is impossible (an env
+  // that lost the credential key after the mint; a keyless/open deploy).
+  const savedSecret = process.env.KP_SECRET;
+  delete process.env.KP_SECRET;
+  delete process.env.KP_SKILL_PROFILE_KEY;
+  try {
+    assert.throws(() => issueSkillProfile("sub_reissue_unsignable"), /cannot sign/i);
+  } finally {
+    process.env.KP_SECRET = savedSecret;
+  }
+
+  // PRE-FIX the revoke ran BEFORE the signing, so this path left the candidate's live
+  // credential REVOKED with no replacement — and unrecoverable: the retry reads
+  // `revoked_at IS NULL`, finds nothing to reuse, and throws again, so every /skill link
+  // they had already shared read red "revoked" forever. Mint-then-supersede fixes it.
+  const v = verifySkillProfileToken(token);
+  assert.equal(v.revoked, false, "an unsignable reissue must not revoke the live credential");
+  assert.equal(v.valid, true, "the already-shared link still verifies");
+  assert.equal(liveProfileCount("sub_reissue_unsignable"), 1);
+
+  // With the key back, the supersede completes normally — fresh token, old one revoked.
+  const second = issueSkillProfile("sub_reissue_unsignable");
+  assert.ok(second.ok);
+  if (!second.ok) return;
+  assert.equal(second.created, true);
+  assert.notEqual(second.token, token);
+  assert.equal(verifySkillProfileToken(token).revoked, true);
+  assert.equal(liveProfileCount("sub_reissue_unsignable"), 1);
+});

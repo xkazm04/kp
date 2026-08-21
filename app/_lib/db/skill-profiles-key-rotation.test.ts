@@ -136,6 +136,50 @@ test("a dedicated-key credential survives a KP_SECRET rotation AND a KP_SKILL_PR
   assert.equal(pageState(v), "unverifiable");
 });
 
+test("a HALF-done rotation (new secret, key id left at the default) still verifies genuine credentials", () => {
+  resetKeyEnv();
+  process.env.KP_SKILL_PROFILE_KEY = "dsp-key-original";
+  process.env.KP_SKILL_PROFILE_KEY_ID = "k1"; // the DEFAULT id — the step easiest to skip
+
+  seedEvaluatedSubmission("sub_half_rot", "cand-half");
+  const res = issueSkillProfile("sub_half_rot");
+  assert.ok(res.ok);
+  if (!res.ok) return;
+  assert.equal(readRow("sub_half_rot")?.key_id, "k1");
+  assert.equal(pageState(verifySkillProfileToken(res.token)), "verified");
+
+  // The operator rotates the SECRET and keeps the retired value readable under its key id
+  // (exactly as the module header instructs) — but leaves KP_SKILL_PROFILE_KEY_ID alone,
+  // because it defaults to "k1" and nothing forces the bump.
+  process.env.KP_SKILL_PROFILE_KEY = "dsp-key-rotated";
+  process.env.KP_SKILL_PROFILE_KEY_k1 = "dsp-key-original";
+
+  // PRE-FIX the row's key id resolved to the ACTIVE secret ALONE, so every outstanding k1
+  // credential recomputed to a mismatch and the public card branded it red "TAMPERED" — a
+  // fraud accusation to employers over a config half-step, with the correct key material
+  // sitting right there in the environment. Both candidates for the id are now tried.
+  const v = verifySkillProfileToken(res.token);
+  assert.equal(v.verifiable, true);
+  assert.equal(v.valid, true, "the pinned retired secret must still verify a genuine credential");
+  assert.equal(pageState(v), "verified");
+
+  // A credential minted AFTER the half-rotation (new secret, same id) verifies as well.
+  seedEvaluatedSubmission("sub_half_rot2", "cand-half2");
+  const res2 = issueSkillProfile("sub_half_rot2");
+  assert.ok(res2.ok);
+  if (!res2.ok) return;
+  assert.equal(pageState(verifySkillProfileToken(res2.token)), "verified");
+
+  // Accepting either secret must NOT soften a real forgery: it matches neither.
+  const d = raw();
+  const stored = d.prepare(`SELECT profile_json FROM skill_profiles WHERE submission_id = ?`).get("sub_half_rot") as { profile_json: string };
+  const forged = JSON.parse(stored.profile_json);
+  forged.transferScore = 100;
+  d.prepare(`UPDATE skill_profiles SET profile_json = ? WHERE submission_id = ?`).run(JSON.stringify(forged), "sub_half_rot");
+  d.close();
+  assert.equal(pageState(verifySkillProfileToken(res.token)), "tampered", "a forged profile still matches NO configured secret");
+});
+
 test("a genuinely tampered credential fails as TAMPERED (a real mismatch, not a config error)", () => {
   resetKeyEnv();
   process.env.KP_SKILL_PROFILE_KEY = "dsp-key-tamper";

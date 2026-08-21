@@ -39,7 +39,18 @@ career-switcher) that other features key off. Downstream ranking is
     `CandidateDetailModal.tsx` (per-candidate detail) rather than on every card.
 - **Saved analysis report** — `app/history/[slug]/page.tsx`; history list —
   `app/features/tools/analyze/history/HistoryTab.tsx`.
-- **Public skill credential** — `app/skill/[token]/page.tsx`.
+- **Public skill credential** — `app/skill/[token]/page.tsx`. Token-gated, no
+  session; `verifySkillProfileToken` re-checks signature + revocation on every
+  render, and `skillProfileFreshnessNow` re-checks age, so a revoked or aged-out
+  credential can never render stale. `resolveSkillProfileCardState`
+  (`app/_lib/skill-profile.ts`) picks one of six states — revoked ▸ unverifiable ▸
+  tampered ▸ incomplete ▸ stale ▸ verified — and `skillProfileShowsScoreCard`
+  releases the numbers only for `verified`/`stale`. The muted body block under the
+  badge belongs to `incomplete` alone (it states the credential was issued without a
+  scored summary, which is true only there); `revoked`/`tampered`/`unverifiable`
+  render the badge with no body, because that sentence would be a false claim about
+  what kp issued. Per-state body copy is a follow-up — it needs new keys in all four
+  locale catalogs.
 
 ## Flows
 
@@ -207,6 +218,24 @@ and `id_reserved` have no catalog entry yet, so the manager UI falls back to its
 generic "save failed" label for those two (the English `message` is still correct
 for direct API callers).
 
+**The client half of the weight contract** lives in
+`app/features/tools/profile/ArchetypeManagerTypes.ts` (pure, pinned by
+`ArchetypeManagerTypes.test.ts`) so the manager never composes a vector the boundary
+must refuse with an unactionable message:
+
+- `clampWeightPct` bounds each typed percentage to `[0,100]` on the way into the
+  draft. `min`/`max` on the number input are advisory — Save is a click handler, not
+  a form submit — so a negative percentage otherwise reached the API whenever a
+  sibling made the total 100.
+- `weightPctSumOk` compares the total with a `1e-9` tolerance instead of `=== 100`,
+  because the inputs accept decimals and `5.1 + 64.1 + 30.8` is `99.99999999999999`
+  in doubles. `1e-9` here is `1e-11` after the `/100` the manager applies before
+  posting — orders inside the registry's `1e-6` — so it absorbs float noise only.
+  `displayWeightPct` prints an accepted total as exactly `100`.
+- With **no active archetype** (an `/api/archetypes` failure degrades to an empty
+  list), the panel opens in *create* mode rather than an "Edit archetype" form over a
+  blank draft whose Save issued `PUT /api/archetypes/undefined`.
+
 ### 5. Completeness follow-up
 CV analysis emits unmet checklist items as structured gaps
 (`profile.completeness_gaps`); `ArchetypeBanner.tsx` renders one targeted field
@@ -372,7 +401,19 @@ Two derived add-ons state signals about a named person and share one rule: a
   (education softening) — cosmetic, not gated by any axis.
 - The registry write boundary's two newest refusal codes (`weight_out_of_range`,
   `id_reserved`) have no `errors.validation.*` catalog entry, so the Archetype
-  manager shows its generic save-failed label for them (see §4).
+  manager shows its generic save-failed label for them (see §4). `edit_builtin_shield`
+  has the same gap, and it is the reachable one: the edit panel renders the
+  fairness checkbox and the scoring-model select as editable for built-ins, so
+  unticking either yields a bare "Save failed (400)."
+- **The candidate matrix ranks a silently capped field.**
+  `GET /api/profile/candidates` reads `listAnalysisRecords(200, ws)` (newest first)
+  and returns no `truncated` flag, so past 200 saved analyses the board's lane
+  counts, distribution bars and "N candidates" label describe the newest 200 —
+  presented as the whole population.
+- **Clearing an archetype's apply self-declaration is a no-op.** The manager posts
+  `applyLabel: draft.applyLabel.trim() || undefined`; `JSON.stringify` drops the key,
+  so `pickEditable`'s merge keeps the previous value and the save reports success
+  without removing it.
 - Student/career-switcher scoring mechanics (potential score, observed-evidence
   minting, fairness matrix) are documented in `docs/features/matching/README.md`;
   the harder-to-validate parts of that model (whether `potential_score`'s
