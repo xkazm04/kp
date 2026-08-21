@@ -46,10 +46,10 @@ export function IntegrationsAtsPanel() {
 
   // Prefill the editable fields from the selected connection, adjusted DURING render when
   // the selection changes rather than in an effect — React's documented pattern for
-  // derived-from-props state, and the one the `set-state-in-effect` rule points at. Editing
-  // an existing connection has to start from its stored base URL: setAtsConnection
-  // overwrites base_url unconditionally, so submitting a blank field would silently erase
-  // it. The token deliberately starts blank every time (blank = keep).
+  // derived-from-props state, and the one the `set-state-in-effect` rule points at. The
+  // base URL starts from the stored value so the operator can EDIT it in place, and so
+  // `save` below can tell an edit from an untouched field. The token deliberately starts
+  // blank every time (blank = keep).
   const [prefilledFor, setPrefilledFor] = useState<string | null>(null);
   if (data && active && prefilledFor !== active) {
     setPrefilledFor(active);
@@ -66,22 +66,43 @@ export function IntegrationsAtsPanel() {
     setSaving(true);
     setNote(null);
     try {
-      // apiToken is OMITTED when blank — the store reads "omitted" as keep and "" as
-      // clear, so sending "" here would silently wipe a working credential on an edit.
-      const body: Record<string, unknown> = { provider: active, baseUrl: baseUrl.trim() || null, enabled };
+      // EVERY field is a PARTIAL update (setAtsConnection: omitted = keep), so send only
+      // what the operator actually touched.
+      //   • apiToken blank    → omitted. The store reads "" as CLEAR, so submitting the
+      //                         untouched field would wipe a working credential on an edit.
+      //   • baseUrl unchanged → omitted. This panel used to resend the prefilled value
+      //                         because the store wrote base_url unconditionally; it no
+      //                         longer does, and resending made every save a blind write of
+      //                         a snapshot taken when the tab loaded — a base URL another
+      //                         operator had changed since was silently reverted by a save
+      //                         that only meant to park the connection, and a park re-ran
+      //                         the SSRF check on a URL the store had already vetted.
+      //   • baseUrl blanked   → an explicit null, so clearing it still works.
+      const trimmedUrl = baseUrl.trim();
+      const body: Record<string, unknown> = { provider: active, enabled };
+      if (trimmedUrl !== (existing?.baseUrl ?? "")) body.baseUrl = trimmedUrl || null;
       if (apiToken.trim()) body.apiToken = apiToken.trim();
       const r = await fetch("/api/ats/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const p = (await r.json().catch(() => ({}))) as { ok?: boolean; error?: string; code?: string };
+      const p = (await r.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        code?: string;
+        connection?: AtsConnectionPublic;
+      };
       // The route's 400s (bad provider, non-public base URL, missing KP_SECRET) used to be
       // surfaced verbatim — but `error` is canonical English, so every non-en operator got
       // an English string. The detail stays in the server log; the operator gets a message
       // in their language, from the code when the route ships one.
       if (!r.ok || !p.ok) throw new Error(errMsg(p, t("saveFailed")));
       setApiToken("");
+      // Adopt the store's parse-normalized URL — "https://x.example.com" comes back as
+      // "https://x.example.com/" — so the next save compares the field against what is
+      // really stored instead of seeing a spurious edit and resending it.
+      if (p.connection) setBaseUrl(p.connection.baseUrl ?? "");
       setNote({ text: t("saved"), ok: true });
       reload();
     } catch (err) {

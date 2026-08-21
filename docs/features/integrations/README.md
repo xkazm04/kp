@@ -108,6 +108,14 @@ base URL, an API token and a field map.
 - **Token** is write-only end to end: encrypted at rest (AES-256-GCM, `ats-secret.ts`),
   never returned by `GET` (`hasToken` only). Leaving the field blank on an edit keeps the
   stored token; the form never sends `apiToken: ""`, which the store reads as *clear*.
+- **Every field is a partial update** (`setAtsConnection`: an omitted key keeps what is
+  stored), and the panel sends only what the operator touched. That covers `baseUrl` too:
+  it is prefilled so it can be edited in place, but resent **only when it differs** from
+  the loaded value, so a save that just parks a connection (`enabled: false`) cannot revert
+  an endpoint another session changed since this tab loaded, and cannot re-run the SSRF
+  check on a URL the store already vetted. Blanking the field still sends an explicit
+  `null`, which clears it. After a successful save the form adopts the store's
+  parse-normalized URL, so the next save compares against what is really stored.
 - **Removal** asks the links question out loud. Forgetting the external-id links makes the
   next sync re-import every application as new (duplicating the pipeline); keeping them
   re-adopts bindings to records that may since have been erased. Neither is a safe default,
@@ -131,6 +139,15 @@ ping (`POST /api/ats/test`).
   `hasSecret` only, and an untouched field leaves the stored secret in place. When set,
   deliveries carry an HMAC-SHA256 `X-Kp-Signature`.
 - **An empty URL disables delivery** rather than queuing undeliverable events.
+- **The test ping tests what is *stored*, not what is typed.** `POST /api/ats/test` has no
+  body — it pings the saved endpoint with the saved secret — so the button is disabled
+  until the field matches the URL the server last confirmed, and editing the field retires
+  the previous result. Otherwise a ping against the *previous* endpoint would report
+  "Delivered: endpoint responded 200" under the new address the operator had just typed.
+- **A failed config load says so.** The panel reads the HTTP status, not just the body: a
+  401 (expired or non-operator session) carries a parseable JSON body, so treating "no
+  `config` in the answer" as a failure is what keeps a blank endpoint field and a
+  "· not set" secret badge from being rendered over a configured deployment.
 - **The panel states its own ceiling**: this is vendor-neutral egress, not a certified
   Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it. Only
   `candidate.hired` fires live today (on offer-accept); the other three are reserved for

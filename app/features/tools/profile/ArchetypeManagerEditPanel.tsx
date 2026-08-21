@@ -3,7 +3,7 @@
 // Create/edit form for an archetype, split out of ArchetypeManager.tsx.
 import { useTranslations } from "next-intl";
 import { Input, Select, Check, Field } from "./ProfileFields";
-import { SLOTS, type Draft, type Slot } from "./ArchetypeManagerTypes";
+import { SLOTS, clampWeightPct, type Draft, type Slot } from "./ArchetypeManagerTypes";
 
 export function ArchetypeManagerEditPanel({
   mode,
@@ -74,7 +74,9 @@ export function ArchetypeManagerEditPanel({
       <div className="mt-4">
         <div className="flex items-center justify-between">
           <p className="text-meta uppercase tracking-wide text-steel">{t("scoringWeightsTotal")}</p>
-          <span className={`text-sm font-semibold ${pctSum === 100 ? "text-moss" : "text-coral"}`}>{pctSum}%</span>
+          {/* Coloured by the SAME verdict that gates Save (sumError), never by a second
+              `=== 100` test — a float-noise total that Save accepts must not read red. */}
+          <span className={`text-sm font-semibold ${sumError ? "text-coral" : "text-moss"}`}>{pctSum}%</span>
         </div>
         <div className="mt-2 grid gap-2 sm:grid-cols-3">
           {SLOTS.map((slot) => (
@@ -84,7 +86,13 @@ export function ArchetypeManagerEditPanel({
                 min={0}
                 max={100}
                 value={draft.pct[slot]}
-                onChange={(e) => setPct(slot, Number(e.target.value))}
+                // `min`/`max` are ADVISORY here — Save is a click handler, not a form
+                // submit, so nothing in the browser enforces them and a NEGATIVE weight
+                // (which inverts its dimension in the scorer) used to reach the API
+                // whenever a sibling made the total 100. clampWeightPct makes the bound
+                // binding where it is legible: the field shows the value that will be
+                // saved. See ArchetypeManagerTypes.clampWeightPct.
+                onChange={(e) => setPct(slot, clampWeightPct(Number(e.target.value)))}
                 className="w-full text-ink"
               />
             </Field>

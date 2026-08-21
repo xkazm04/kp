@@ -43,6 +43,9 @@ export function IntegrationsWebhookPanel() {
   // screen (app/_lib/use-error-message.ts).
   const errMsg = useErrorMessage();
   const [url, setUrl] = useState("");
+  // What the server last CONFIRMED is stored. `url` is the edit buffer; the test ping
+  // pings whatever is stored, so it is only meaningful while the two agree.
+  const [savedUrl, setSavedUrl] = useState("");
   const [secret, setSecret] = useState("");
   const [hasSecret, setHasSecret] = useState(false);
   const [events, setEvents] = useState<string[]>([]);
@@ -52,13 +55,17 @@ export function IntegrationsWebhookPanel() {
 
   useEffect(() => {
     fetch("/api/ats/config")
-      .then((r) => r.json())
-      .then((d: { config?: Config }) => {
-        if (d.config) {
-          setUrl(d.config.webhookUrl ?? "");
-          setEvents(d.config.events ?? []);
-          setHasSecret(!!d.config.hasSecret);
-        }
+      .then(async (r) => {
+        const d = (await r.json().catch(() => null)) as { config?: Config } | null;
+        // The status has to be read: a non-2xx here (an expired or non-operator session
+        // answers 401 with a perfectly parseable JSON body) never reaches `.catch`, so the
+        // old `if (d.config)` shape swallowed it — leaving a blank endpoint field and a
+        // "· not set" signing-secret badge over a deployment that has both configured.
+        if (!r.ok || !d?.config) throw new Error("ats config load failed");
+        setUrl(d.config.webhookUrl ?? "");
+        setSavedUrl(d.config.webhookUrl ?? "");
+        setEvents(d.config.events ?? []);
+        setHasSecret(!!d.config.hasSecret);
       })
       // A silently-empty form here is dangerous: saving it would overwrite the
       // stored config with blanks. Say the load failed.
@@ -68,6 +75,14 @@ export function IntegrationsWebhookPanel() {
   }, [tToast]);
 
   const toggle = (id: string) => setEvents((cur) => (cur.includes(id) ? cur.filter((e) => e !== id) : [...cur, id]));
+
+  // Editing the endpoint retires the last ping result with it — a "Delivered: endpoint
+  // responded 200" line left sitting under a URL the ping never touched reads as proof
+  // about the new address.
+  const editUrl = (value: string) => {
+    setUrl(value);
+    setTest(null);
+  };
 
   const save = async () => {
     setBusy(true);
@@ -85,6 +100,7 @@ export function IntegrationsWebhookPanel() {
       const d = (await r.json().catch(() => null)) as { config?: Config; error?: string; code?: string } | null;
       if (!r.ok || !d?.config) throw new Error(errMsg(d, t("saveFailedStatus", { status: r.status })));
       setUrl(d.config.webhookUrl ?? "");
+      setSavedUrl(d.config.webhookUrl ?? "");
       setEvents(d.config.events ?? []);
       setHasSecret(!!d.config.hasSecret);
       setSecret("");
@@ -95,6 +111,13 @@ export function IntegrationsWebhookPanel() {
       setBusy(false);
     }
   };
+
+  // `/api/ats/test` pings the STORED endpoint with the STORED secret — it has no idea what
+  // is in this form. So the button stays disabled until the field matches what the server
+  // confirmed: on a typed-but-unsaved URL it would ping the previous endpoint and report
+  // "Delivered: endpoint responded 200", which the operator reads as proof of the address
+  // on screen. Save first, then test what was saved.
+  const testable = !!savedUrl && url === savedUrl;
 
   const sendTest = async () => {
     setBusy(true);
@@ -133,7 +156,7 @@ export function IntegrationsWebhookPanel() {
 
       <IntegrationsWebhookFields
         url={url}
-        onUrlChange={setUrl}
+        onUrlChange={editUrl}
         secret={secret}
         onSecretChange={setSecret}
         hasSecret={hasSecret}
@@ -148,7 +171,7 @@ export function IntegrationsWebhookPanel() {
         <button
           type="button"
           onClick={() => void sendTest()}
-          disabled={busy || !url}
+          disabled={busy || !testable}
           className={`${BTN_SECONDARY} h-8 gap-1.5 px-3 text-sm font-semibold`}
         >
           <Send size={13} aria-hidden /> {t("sendTest")}

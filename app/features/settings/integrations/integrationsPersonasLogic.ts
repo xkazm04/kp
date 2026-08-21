@@ -32,9 +32,16 @@ export function usePersonasPairing(onPaired: () => void) {
   const [state, setState] = useState<PairState>({ phase: "idle" });
   const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
+  // Attempt counter. Cancel is offered DURING the "starting" phase (the panel's waiting
+  // card covers starting + waiting), so a cancel can land while the start POST is still in
+  // flight — and its continuation would then re-enter the waiting state the operator had
+  // just dismissed, or raise an error banner for a request they abandoned. Every start and
+  // every cancel bumps this; a continuation from a superseded attempt drops its result.
+  const attemptRef = useRef(0);
 
   const start = async (baseUrl: string) => {
     if (state.phase === "starting" || state.phase === "waiting") return;
+    const attempt = ++attemptRef.current;
     setState({ phase: "starting" });
     setNote(null);
     try {
@@ -48,13 +55,18 @@ export function usePersonasPairing(onPaired: () => void) {
       const p = (await r.json().catch(() => null)) as { nonce?: string; expiresInS?: number; error?: string; code?: string } | null;
       if (!r.ok || !p?.nonce) throw new Error(errMsg(p, t("pairFailed")));
       const ttlS = typeof p.expiresInS === "number" && p.expiresInS > 0 ? p.expiresInS : 300;
+      if (attemptRef.current !== attempt) return;
       setState({ phase: "waiting", nonce: p.nonce, deadline: Date.now() + ttlS * 1000 });
     } catch (e) {
+      if (attemptRef.current !== attempt) return;
       setState({ phase: "error", message: e instanceof Error && e.message ? e.message : t("pairFailed") });
     }
   };
 
-  const cancel = () => setState({ phase: "idle" });
+  const cancel = () => {
+    attemptRef.current++;
+    setState({ phase: "idle" });
+  };
 
   // Claim poll — one attempt every 2s while waiting. A transient network failure
   // just retries on the next tick; a server error or the TTL deadline ends the

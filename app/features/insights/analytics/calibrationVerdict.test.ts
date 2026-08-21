@@ -10,10 +10,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   calibrationSkill,
+  thresholdEffectClaim,
   verdictFor,
   GOOD_SKILL,
   type CalibrationVerdictInput,
 } from "./calibrationVerdict";
+import type { ThresholdEffect } from "@/app/_lib/calibration";
 
 const arm = (over: Partial<CalibrationVerdictInput> = {}): CalibrationVerdictInput => ({
   n: 21,
@@ -132,6 +134,58 @@ test("the honesty gate is per arm: the hire arm's own count decides", () => {
   // arm has cleared it. The gate reads THIS arm's n, never the workspace's.
   assert.equal(verdictFor({ n: 9, positives: 6, brier: 0.2, calibrated: false, minOutcomes: 20, leakage: HIRE }), "unknown");
   assert.equal(verdictFor({ n: 20, positives: 6, brier: 0.2, calibrated: true, minOutcomes: 20, leakage: HIRE }), "circular");
+});
+
+// ─── the "since the last change" claim ────────────────────────────────────────
+//
+// `computeThresholdEffect` floors only the AFTER side (`measurable`). The BEFORE
+// side is whatever `effectSide()` found, down to a single pair, and the strip's
+// `effectDelta` copy prints exactly one n — the after one. These pin that a
+// before side thinner than the effect floor cannot be dressed up as the first half
+// of a before → after comparison.
+
+const effect = (over: Partial<ThresholdEffect> = {}): ThresholdEffect => ({
+  band: { lo: 40, hi: 48 },
+  appliedAt: "2026-08-11T08:42:49.956Z",
+  before: { n: 9, advanced: 6, advanceRatePct: 67 },
+  after: { n: 12, advanced: 6, advanceRatePct: 50 },
+  measurable: true,
+  minOutcomes: 8,
+  ...over,
+});
+
+test("a single decision before the apply is not the 'before' half of a policy effect", () => {
+  // The exact shape: one in-band candidate decided before the floor moved, who
+  // advanced. Left ungated it renders „100 % before → 50 % after the change (n=12
+  // since)" — a policy-effect story whose first figure is one person, with no n on
+  // screen to say so.
+  const thin = effect({ before: { n: 1, advanced: 1, advanceRatePct: 100 } });
+  const claim = thresholdEffectClaim(thin);
+  assert.equal(claim?.kind, "after-only", "a 1-sample before side cannot license a comparison");
+  assert.deepEqual(claim?.kind === "after-only" ? claim.after : null, { n: 12, advanceRatePct: 50 });
+
+  // The boundary is the module's own floor, and it is inclusive on both sides —
+  // exactly the bar `measurable` applies to the after side.
+  assert.equal(thresholdEffectClaim(effect({ before: { n: 7, advanced: 4, advanceRatePct: 57 } }))?.kind, "after-only");
+  assert.equal(thresholdEffectClaim(effect({ before: { n: 8, advanced: 4, advanceRatePct: 50 } }))?.kind, "delta");
+});
+
+test("both sides over the floor still get their comparison", () => {
+  const claim = thresholdEffectClaim(effect());
+  assert.equal(claim?.kind, "delta");
+  assert.deepEqual(claim?.kind === "delta" ? claim.before : null, { n: 9, advanceRatePct: 67 });
+  assert.deepEqual(claim?.kind === "delta" ? claim.after : null, { n: 12, advanceRatePct: 50 });
+});
+
+test("an unmeasurable or absent effect claims nothing at all", () => {
+  assert.equal(thresholdEffectClaim(null), null, "no apply to measure against");
+  assert.equal(thresholdEffectClaim(undefined), null);
+  assert.equal(thresholdEffectClaim(effect({ measurable: false }))?.kind, "too-few");
+  // `measurable` already implies an after side; a payload that disagrees with itself
+  // must fall to the refusal, never to an assertion built on a missing side.
+  assert.equal(thresholdEffectClaim(effect({ after: null, measurable: true }))?.kind, "too-few");
+  // No earlier in-band decision at all is the after-only case it always was.
+  assert.equal(thresholdEffectClaim(effect({ before: null }))?.kind, "after-only");
 });
 
 test("an unjudgeable arm says so instead of guessing", () => {

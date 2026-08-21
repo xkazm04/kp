@@ -35,11 +35,33 @@ export function ThresholdSuggestion({
   onApplied: () => void;
 }) {
   const t = useTranslations("analytics.calibration");
-  const [phase, setPhase] = useState<"idle" | "applying" | "done" | "error">("idle");
-  const [applied, setApplied] = useState<{ previous: number; next: number } | null>(null);
+  // The outcome of an apply is REMEMBERED WITH THE SCOPE IT MOVED.
+  //
+  // The panel keeps this component mounted across a role-family switch on purpose:
+  // useJsonFetch holds the last-good payload rather than blanking the section
+  // (loading choreography law 2), so `roleFamily` changes underneath a live
+  // instance. A scope-blind `done` state therefore SURVIVED the switch and
+  // re-rendered itself under the new scope's copy: apply the global floor 45 → 40,
+  // select "Software engineering", and the card printed `recAppliedFamily` —
+  // „Software engineering floor set to 40 (was 45)." — for a family that carries no
+  // override at all, while hiding that family's own Apply button behind a done
+  // state it never earned. Carrying the scope in the state makes the confirmation
+  // (and a failure) speak only for the view it happened in.
+  type Phase =
+    | { kind: "idle" }
+    | { kind: "applying" }
+    | { kind: "done"; scope: string; previous: number; next: number }
+    | { kind: "error"; scope: string };
+  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  // A settled phase from another scope reads as `idle` here — never reset in place,
+  // so an apply still in flight keeps the button disabled until its response lands.
+  const shown: Phase = (phase.kind === "done" || phase.kind === "error") && phase.scope !== roleFamily ? { kind: "idle" } : phase;
 
   const apply = async () => {
-    setPhase("applying");
+    // Captured at the click: the response must be filed against the scope the
+    // operator was actually looking at, not whatever is selected when it returns.
+    const scope = roleFamily;
+    setPhase({ kind: "applying" });
     try {
       const r = await fetch("/api/analytics/calibration/apply-threshold", {
         method: "POST",
@@ -48,11 +70,10 @@ export function ThresholdSuggestion({
       });
       if (!r.ok) throw new Error();
       const body = (await r.json()) as { previousThreshold: number; newThreshold: number };
-      setApplied({ previous: body.previousThreshold, next: body.newThreshold });
-      setPhase("done");
+      setPhase({ kind: "done", scope, previous: body.previousThreshold, next: body.newThreshold });
       onApplied();
     } catch {
-      setPhase("error");
+      setPhase({ kind: "error", scope });
     }
   };
 
@@ -87,23 +108,23 @@ export function ThresholdSuggestion({
       {leakage && leakage.level === "high" ? (
         <p className="mt-2 rounded-md border border-coral/40 bg-coral/10 p-2 text-sm text-ink">{t("recLeakageCaveat")}</p>
       ) : null}
-      {phase === "done" && applied ? (
+      {shown.kind === "done" ? (
         <p className="mt-2 text-sm font-medium text-moss" role="status">
           {roleFamily
-            ? t("recAppliedFamily", { family: labelize(roleFamily), suggested: applied.next, previous: applied.previous })
-            : t("recApplied", { suggested: applied.next, previous: applied.previous })}
+            ? t("recAppliedFamily", { family: labelize(roleFamily), suggested: shown.next, previous: shown.previous })
+            : t("recApplied", { suggested: shown.next, previous: shown.previous })}
         </p>
       ) : (
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={apply}
-            disabled={phase === "applying"}
+            disabled={phase.kind === "applying"}
             className="focus-ring inline-flex h-8 items-center rounded-md border border-stone-300 bg-white px-3 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
           >
-            {phase === "applying" ? t("recApplying") : t("recApply", { suggested: rec.suggestedThreshold })}
+            {phase.kind === "applying" ? t("recApplying") : t("recApply", { suggested: rec.suggestedThreshold })}
           </button>
-          {phase === "error" ? (
+          {shown.kind === "error" ? (
             <span className="text-sm text-coral" role="alert">
               {t("recError")}
             </span>

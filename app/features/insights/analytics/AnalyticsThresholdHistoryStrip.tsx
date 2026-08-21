@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ThresholdEffect } from "@/app/_lib/calibration";
+import { thresholdEffectClaim } from "./calibrationVerdict";
 
 // threshold-story — the floor-over-time strip. Turns recommend→apply→HOPE into a
 // visible loop: every sealed apply of the auto-reject floor is plotted over time
@@ -82,6 +83,9 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
   const plottable = asc.filter((p) => p.next != null);
   const linePts = plottable.map((p) => `${pointX(asc.indexOf(p))},${floorY(p.next as number)}`).join(" ");
   const effect = data.effect;
+  // Which of the three effect sentences this data can defend — resolved by the pure
+  // module (calibrationVerdict.thresholdEffectClaim), pinned by calibrationVerdict.test.ts.
+  const claim = thresholdEffectClaim(effect);
 
   return (
     <div className="mt-5 border-t border-stone-200 pt-4">
@@ -164,25 +168,25 @@ export function ThresholdHistoryStrip({ nonce, family }: { nonce: number; family
       </ul>
 
       {/* "Since the last change" — the measured effect, gated on decisions-since. */}
-      {effect ? (
+      {effect && claim ? (
         <div className="mt-3 rounded-md border border-stone-200 bg-paper/60 p-3">
           <p className="text-meta uppercase tracking-wide text-steel">{t("effectTitle")}</p>
-          {!effect.measurable ? (
+          {claim.kind === "too-few" ? (
             <p className="mt-1 text-sm text-steel">
               {t("effectTooFew", { lo: effect.band.lo, hi: effect.band.hi, min: effect.minOutcomes })}
             </p>
-          ) : effect.before == null ? (
+          ) : claim.kind === "after-only" ? (
             <p className="mt-1 text-sm text-ink">
-              {t("effectAfterOnly", { lo: effect.band.lo, hi: effect.band.hi, pct: effect.after!.advanceRatePct, n: effect.after!.n })}
+              {t("effectAfterOnly", { lo: effect.band.lo, hi: effect.band.hi, pct: claim.after.advanceRatePct, n: claim.after.n })}
             </p>
           ) : (
             <p className="mt-1 text-sm text-ink">
               {t("effectDelta", {
                 lo: effect.band.lo,
                 hi: effect.band.hi,
-                beforePct: effect.before.advanceRatePct,
-                afterPct: effect.after!.advanceRatePct,
-                n: effect.after!.n,
+                beforePct: claim.before.advanceRatePct,
+                afterPct: claim.after.advanceRatePct,
+                n: claim.after.n,
               })}
             </p>
           )}

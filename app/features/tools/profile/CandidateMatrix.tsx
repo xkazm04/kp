@@ -71,11 +71,17 @@ export function CandidateMatrix({
   useEffect(() => {
     let alive = true;
     fetch("/api/profile/candidates")
-      .then((r) => r.json())
-      .then((p) => {
+      .then(async (r) => ({ ok: r.ok, body: (await r.json()) as { error?: string; candidates?: unknown } }))
+      .then(({ ok, body: p }) => {
         if (!alive) return;
-        if (p.error) {
-          setError(p.error);
+        if (!ok || p.error) {
+          // NEVER the server's `error` string (app/_lib/use-error-message.ts): this route
+          // returns the raw exception message with no machine `code`, so a failed load
+          // printed English into every locale — and printed the internals with it
+          // ("SQLITE_ERROR: no such table: profiles") to a recruiter. There is nothing to
+          // localize FROM here, so show the localized load failure. The `ok` check is what
+          // makes a body-less non-200 an error instead of a silently empty population.
+          setError(t("loadFailed"));
         } else {
           // Clear any prior error in the continuation (not synchronously in the
           // effect body) so a successful refetch after a transient failure recovers.

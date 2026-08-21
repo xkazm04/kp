@@ -42,6 +42,15 @@ export function SignupClient() {
         signal: controller.signal,
       });
       if (r.ok) {
+        // Deliberately NOT re-enabled — the tenant is created and the session
+        // cookie is set, so the form stays disabled through the client-side
+        // navigation (LoginClient's success path does exactly this). Resetting
+        // `submitting` in a `finally` re-armed the button while router.replace()
+        // was still in flight: a second click POSTed the same address again,
+        // which registerAccount answers `email_taken`, so the form told someone
+        // whose workspace had just been provisioned that their email was already
+        // taken — and burned a second slot of the 10-per-15-min per-IP
+        // registration throttle on the way.
         toast.success(t("success"));
         router.replace("/");
         router.refresh();
@@ -58,12 +67,13 @@ export function SignupClient() {
       } else {
         toast.error(t("serverError"));
       }
+      setSubmitting(false);
     } catch (err) {
       const timedOut = err instanceof DOMException && err.name === "AbortError";
       toast.error(timedOut ? t("timeoutError") : t("networkError"));
+      setSubmitting(false);
     } finally {
       clearTimeout(timer);
-      setSubmitting(false);
     }
   }
 

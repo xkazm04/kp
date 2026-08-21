@@ -43,8 +43,12 @@ export function AnalyticsStatCluster({ data }: { data: Analytics }) {
           data.targets.timeToHireDays != null
             ? {
                 text: t("goalDays", { n: data.targets.timeToHireDays }),
-                // Missed when we have an average and it exceeds the day goal.
-                missed: data.avgTimeToHireDays != null && data.avgTimeToHireDays > data.targets.timeToHireDays,
+                // Missed when the average exceeds the day goal; NULL when there is no
+                // average at all. `!= null && >` collapsed "no hires in this window"
+                // onto `false`, i.e. onto the met colour — a green goal pill beside a
+                // "—" and „no hires yet". A goal is not met by a cohort that produced
+                // no measurement; that state is grey (a reading, not a verdict).
+                missed: data.avgTimeToHireDays == null ? null : data.avgTimeToHireDays > data.targets.timeToHireDays,
               }
             : undefined
         }

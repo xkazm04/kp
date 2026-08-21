@@ -8,7 +8,7 @@ import { ArchetypeManagerList } from "./ArchetypeManagerList";
 import { ArchetypeManagerViewPanel } from "./ArchetypeManagerViewPanel";
 import { ArchetypeManagerEditPanel } from "./ArchetypeManagerEditPanel";
 import { useArchetypeManagerActions } from "./useArchetypeManagerActions";
-import { SLOTS, type Draft } from "./ArchetypeManagerTypes";
+import { displayWeightPct, weightPctSum, weightPctSumOk, type Draft } from "./ArchetypeManagerTypes";
 
 const BUILT_IN = new Set<string>(BUILT_IN_ARCHETYPE_IDS);
 
@@ -78,8 +78,14 @@ export function ArchetypeManager({
     onChanged,
   });
 
-  const pctSum = SLOTS.reduce((n, s) => n + (Number(draft.pct[s]) || 0), 0);
-  const sumError = pctSum !== 100 ? t("weightsSumError", { pct: pctSum }) : null;
+  // The total is compared through weightPctSumOk, not `=== 100`: the percentage inputs
+  // accept decimals and 5.1 + 64.1 + 30.8 is 99.99999999999999 in doubles, so an exact
+  // test refused legitimate splits with "must total 100% (currently 100%)" — ICU rounds
+  // the number away — over a disabled Save. `shownPct` is the same total de-noised for
+  // display, so neither the header nor the message ever prints the float tail.
+  const pctSum = weightPctSum(draft.pct);
+  const shownPct = displayWeightPct(pctSum);
+  const sumError = weightPctSumOk(pctSum) ? null : t("weightsSumError", { pct: shownPct });
 
   const startEdit = () => {
     if (!selected) return;
@@ -97,7 +103,15 @@ export function ArchetypeManager({
     setError(null);
   };
 
-  const save = () => void saveDraft(mode === "create" ? "create" : "edit", draft, sumError, selected?.id);
+  // With no ACTIVE archetype to inspect — /api/archetypes 500s on an unreadable
+  // archetypes.json and useProfileTabDeepLinks swallows that into an empty list, or every
+  // entry was retired — "view" has nothing to render. It used to fall through to the EDIT
+  // panel over BLANK_DRAFT: a form headed "Edit archetype" that was editing nothing, whose
+  // Save issued PUT /api/archetypes/undefined and came back 404 "Archetype not found".
+  // Creating is the only action that can succeed against an empty registry, so the panel
+  // offers that instead of a phantom edit (and the save takes the matching POST route).
+  const panelMode: "create" | "edit" = mode === "create" || !selected ? "create" : "edit";
+  const save = () => void saveDraft(panelMode, draft, sumError, selected?.id);
 
   return (
     <section className="rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
@@ -151,10 +165,10 @@ export function ArchetypeManager({
               />
             ) : (
               <ArchetypeManagerEditPanel
-                mode={mode === "create" ? "create" : "edit"}
+                mode={panelMode}
                 draft={draft}
                 setDraft={setDraft}
-                pctSum={pctSum}
+                pctSum={shownPct}
                 sumError={sumError}
                 saving={saving}
                 error={error}

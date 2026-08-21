@@ -36,14 +36,6 @@ import { Bar, CodeLabel, SceneStatus, statusPicker } from "../shared";
 const CYCLE = 14;
 const STILL = 10;
 
-/** Real `signals[]` entries with their real weights. */
-const SIGNALS = [
-  { id: "enrolled", to: 0, w: 2.0 },
-  { id: "yreLow", to: 0, w: 1.5 },
-  { id: "educationDominant", to: 0, w: 1.0 },
-  { id: "substantial", to: 1, w: 1.0 },
-] as const;
-
 /** `id` is the archetype's real slug; `key` names its catalog entry. */
 const TARGETS = [
   { id: "student", key: "student" },
@@ -51,14 +43,49 @@ const TARGETS = [
   { id: "career_switcher", key: "switcher" },
 ] as const;
 
-const SCORES = [4.5, 1.0, 0.0];
+/**
+ * Real `detection.signals[]` entries, each with its real `scores` MAP.
+ *
+ * `votes` is [index into TARGETS, weight] — a rule may score more than one
+ * archetype, and `substantial` does: `{"bau": 1, "career_switcher": 0.5}`. This
+ * used to be a single `to`/`w` pair, which dropped that second half: the tally
+ * board showed Switcher at a flat 0.0 and the status line divided 4.5 by 5.5.
+ * `detect()` cannot produce either number for this signal set — with the same
+ * four rules firing it totals 6.0 and returns 0.75 — so a reader who reproduced
+ * the example against a real `Routing: …` banner found an agreement they could
+ * not reconstruct, and a rule that appears to vote for exactly one archetype.
+ * Pinned against archetypes.json by chapters.test.ts.
+ */
+/** One rule's vote: which TARGETS row it scores, and by how much. */
+type Vote = readonly [target: number, weight: number];
+/** Closed, so `t(`signals.${id}`)` stays a compile-time-checked catalog key —
+ *  the same reason ChapterKey is a union rather than `string`. */
+type SignalId = "enrolled" | "yreLow" | "educationDominant" | "substantial";
+
+const SIGNALS: readonly { id: SignalId; votes: readonly Vote[] }[] = [
+  { id: "enrolled", votes: [[0, 2.0]] },
+  { id: "yreLow", votes: [[0, 1.5]] },
+  { id: "educationDominant", votes: [[0, 1.0]] },
+  { id: "substantial", votes: [[1, 1.0], [2, 0.5]] },
+];
+
+/** What each archetype ends the tally on — derived, never hand-kept, so the
+ *  board and the division below can't drift from the votes drawn above. */
+const SCORES = TARGETS.map((_, target) =>
+  SIGNALS.reduce((n, s) => n + (s.votes.find(([to]) => to === target)?.[1] ?? 0), 0)
+);
 const TOTAL = SCORES.reduce((a, b) => a + b, 0);
+const LEADER = Math.max(...SCORES);
 // UAT RECON-06 — the winner's SHARE OF THE VOTE, which is why the scene shows the
 // division rather than a bare percentage. Named `signalAgreement` everywhere it
 // renders now: it is not a confidence, and it is not the measurement interval the
 // Matrix calls a score range, nor a model's self-report, nor a salary read's
 // evidence grade. Four quantities, four words.
-const SIGNAL_AGREEMENT = 0.82; // round(4.5 / 5.5, 2)
+//
+// Computed with registry.detect's own formula — `round(scores[best] / total, 2)`
+// — rather than typed as a literal, so the number on screen is the number the
+// mechanism would return for the votes this scene actually draws.
+const SIGNAL_AGREEMENT = Math.round((LEADER / TOTAL) * 100) / 100;
 
 // ── Geometry ────────────────────────────────────────────────────────────────
 // The signal column is wider than the tally column because it carries real
@@ -95,22 +122,27 @@ export function ArchetypeRouter() {
 
   // `target` rather than `t`: the translation function owns that name here.
   const tally = (target: number) =>
-    SIGNALS.reduce((n, s, i) => (s.to === target && at(votesAt(i)) ? n + s.w : n), 0);
+    SIGNALS.reduce((n, s, i) => (at(votesAt(i)) ? n + (s.votes.find(([to]) => to === target)?.[1] ?? 0) : n), 0);
 
   return (
     <div ref={ref}>
       <Field min="min-h-[34rem] sm:min-h-[38rem]">
         <Wires>
-          {SIGNALS.map((s, i) => (
-            <Wire
-              key={s.id}
-              d={sCurve(rightOf(sigRect(i)), leftOf(tgtRect(s.to)), bowFor(i))}
-              drawn={at(votesAt(i))}
-              stroke={s.to === 0 ? INK.good : INK.line}
-              width={0.4}
-              reduced={reduced}
-            />
-          ))}
+          {/* One wire per VOTE, not per signal — a rule that scores two
+              archetypes has to be seen reaching both, or the board's totals
+              stop adding up to the division the status line prints. */}
+          {SIGNALS.flatMap((s, i) =>
+            s.votes.map(([to]) => (
+              <Wire
+                key={`${s.id}-${to}`}
+                d={sCurve(rightOf(sigRect(i)), leftOf(tgtRect(to)), bowFor(i))}
+                drawn={at(votesAt(i))}
+                stroke={to === 0 ? INK.good : INK.line}
+                width={0.4}
+                reduced={reduced}
+              />
+            ))
+          )}
         </Wires>
 
         {/* ── What was found ────────────────────────────────────────────── */}
@@ -125,8 +157,10 @@ export function ArchetypeRouter() {
             <Part show={at(1)} i={i} reduced={reduced} className="min-w-0 flex-1 text-base leading-snug text-ink">
               {t(`signals.${s.id}`)}
             </Part>
+            {/* Every weight the rule casts, in TARGETS order. Numerals and a
+                separator only — nothing here is prose to translate. */}
             <Part show={at(votesAt(i))} reduced={reduced} className="shrink-0 nums font-mono text-meta text-steel">
-              +{s.w.toFixed(1)}
+              {s.votes.map(([, w]) => `+${w.toFixed(1)}`).join(" · ")}
             </Part>
           </Slot>
         ))}
@@ -152,7 +186,9 @@ export function ArchetypeRouter() {
                   {score.toFixed(1)}
                 </Part>
               </div>
-              <Bar value={SCORES[i] > 0 ? score / 4.5 : 0} shown={at(3)} reduced={reduced} tone={i === 0 ? "moss" : "steel"} className="mt-2" />
+              {/* Normalised against the LEADER, so the bars read as shares of
+                  the winning tally rather than of an arbitrary ceiling. */}
+              <Bar value={score / LEADER} shown={at(3)} reduced={reduced} tone={i === 0 ? "moss" : "steel"} className="mt-2" />
               <Part show={winner && at(8)} reduced={reduced} className="mt-2 block text-meta text-steel">
                 {t("confidence", { value: SIGNAL_AGREEMENT })}
               </Part>

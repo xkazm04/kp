@@ -12,7 +12,7 @@
 // Keep this module free of React and of `next-intl`: the moment it imports
 // either, it stops being testable and the bar goes back to being a comment.
 
-import type { CalibrationLeakage } from "@/app/_lib/calibration";
+import type { CalibrationLeakage, ThresholdEffect } from "@/app/_lib/calibration";
 
 /** The slice of the calibration payload a verdict is derived from. */
 export type CalibrationVerdictInput = {
@@ -79,4 +79,48 @@ export function verdictFor(p: CalibrationVerdictInput | null | undefined): Verdi
   if (skill >= GOOD_SKILL) return "trustworthy";
   if (skill > 0) return "weak";
   return "untrustworthy";
+}
+
+// ---------------------------------------------------------------------------
+// What the "Since the last change" line is allowed to claim.
+//
+// `computeThresholdEffect` gates only the AFTER side: `measurable` is
+// `after != null && after.n >= minOutcomes`. The BEFORE side has no floor at all —
+// `effectSide()` returns a side for a single pair — and `ThresholdEffectSide`
+// says so in its own type: "advanceRatePct: 0..100 … always read ALONGSIDE n,
+// never alone".
+//
+// The strip's `effectDelta` copy reads „Band {lo}–{hi} advance rate: {beforePct}%
+// before → {afterPct}% after the change (n={n} since)", and the only n it prints is
+// the AFTER one. So one in-band candidate decided before the apply, who advanced,
+// renders as „100 % before → 50 % after": a policy-effect story about the live
+// auto-reject floor whose first half is one person, with nothing on screen to say so.
+//
+// The bar is the module's own: `MIN_THRESHOLD_EFFECT_OUTCOMES` is already the
+// "measure it" floor (and, per its comment, the same floor the recommendation
+// itself is gated on). Applying it SYMMETRICALLY is not a new threshold — it is the
+// existing one, applied to the side that was missing it. Below it the strip states
+// the after-side figure alone, which it can defend, instead of a comparison it cannot.
+//
+// Resolved as a value (the `funnelBandState` idiom) so a node:test can pin which
+// branch the strip takes; the component maps the branch to copy and nothing else.
+// ---------------------------------------------------------------------------
+
+/** Which sentence the effect block may print. `null` = no apply to measure against. */
+export type ThresholdEffectClaim =
+  /** Not enough in-band decisions SINCE the change — no rate is defensible yet. */
+  | { kind: "too-few" }
+  /** The after-side rate stands alone; the before side is absent or below the floor. */
+  | { kind: "after-only"; after: { n: number; advanceRatePct: number } }
+  /** Both sides clear the floor, so a before → after comparison is defensible. */
+  | { kind: "delta"; before: { n: number; advanceRatePct: number }; after: { n: number; advanceRatePct: number } };
+
+export function thresholdEffectClaim(effect: ThresholdEffect | null | undefined): ThresholdEffectClaim | null {
+  if (effect == null) return null;
+  // `measurable` already implies a non-null after side; the explicit check keeps the
+  // narrowing local instead of resting on a non-null assertion at the render site.
+  if (!effect.measurable || effect.after == null) return { kind: "too-few" };
+  const after = { n: effect.after.n, advanceRatePct: effect.after.advanceRatePct };
+  if (effect.before == null || effect.before.n < effect.minOutcomes) return { kind: "after-only", after };
+  return { kind: "delta", before: { n: effect.before.n, advanceRatePct: effect.before.advanceRatePct }, after };
 }
