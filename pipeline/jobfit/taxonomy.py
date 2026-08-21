@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import unicodedata
 from enum import Enum
@@ -8,6 +9,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+
+_LOG = logging.getLogger(__name__)
 
 _DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 _BENCHMARKS_PATH = _DATA_DIR / "salary_benchmarks.json"
@@ -485,6 +488,42 @@ PROVENANCE_WEIGHTS: dict[str, float] = {
 # the old inflated numbers need re-tuning; see docs/features/matching/README.md.
 DEFAULT_PROVENANCE = "self_declared"
 
+# Strength ORDER, distinct from the scoring multiplier above. Several rungs share
+# a weight ("observed"/"professional" at 1.0, "open_source"/"internship" at 0.85,
+# "academic_project"/"personal_project" at 0.7, "extracurricular"/"certification"
+# at 0.6) because the weight caps match credit — but they are NOT equally strong
+# evidence, and consolidating on the weight let arrival order decide the tie,
+# silently shadowing a directly observed skill with an ordinary résumé line.
+# Consolidation (transform.build_match_candidate) must use this rank; scoring
+# must keep using PROVENANCE_WEIGHTS.
+PROVENANCE_RANK: dict[str, int] = {
+    "self_declared": 0,
+    "unknown": 1,
+    "coursework": 2,
+    "extracurricular": 3,
+    "certification": 4,
+    "academic_project": 5,
+    "personal_project": 6,
+    "thesis": 7,
+    "open_source": 8,
+    "internship": 9,
+    "professional": 10,
+    "observed": 11,
+}
+_unranked_provenance = sorted(set(PROVENANCE_WEIGHTS) - set(PROVENANCE_RANK))
+if _unranked_provenance:
+    raise RuntimeError(
+        f"PROVENANCE_WEIGHTS values missing from PROVENANCE_RANK: {_unranked_provenance}"
+    )
+
+
+def provenance_rank(provenance: str | None) -> int:
+    """Ordinal strength of a provenance — for CONSOLIDATION, never for scoring."""
+    if not provenance:
+        return PROVENANCE_RANK[DEFAULT_PROVENANCE]
+    key = provenance.strip().lower().replace(" ", "_").replace("-", "_")
+    return PROVENANCE_RANK.get(key, PROVENANCE_RANK[DEFAULT_PROVENANCE])
+
 # The user-selectable provenance values, in dropdown display order (weakest →
 # strongest evidence). A curated SUBSET of PROVENANCE_WEIGHTS: it omits
 # "observed" (set only by the live-case / interview-scorecard producers, never
@@ -814,10 +853,23 @@ def term_match_score(candidate_term: str | None, required_term: str | None) -> f
 
 def provenance_weight(provenance: str | None) -> float:
     """Confidence discount in ``[0, 1]`` for where a skill claim comes from."""
+    # Absent or unrecognised provenance falls to the DEFAULT_PROVENANCE floor, not
+    # to the "unknown" rung (0.6). "unknown" is a real, deliberately-written value
+    # (Evidence.provenance defaults to it, and resolved_provenance emits it for an
+    # unmapped evidence kind) and it sits ABOVE _MATCH_THRESHOLD — so using it as
+    # the fallback let a typo'd provenance string promote an unevidenced claim into
+    # matched_skills, outranking a candidate who declared theirs honestly. Missing
+    # signal fails SAFE here, the same way DEFAULT_PROVENANCE does.
     if not provenance:
-        return PROVENANCE_WEIGHTS["unknown"]
+        return PROVENANCE_WEIGHTS[DEFAULT_PROVENANCE]
     key = provenance.strip().lower().replace(" ", "_").replace("-", "_")
-    return PROVENANCE_WEIGHTS.get(key, PROVENANCE_WEIGHTS["unknown"])
+    if key not in PROVENANCE_WEIGHTS:
+        _LOG.warning(
+            "Unrecognised provenance %r — scoring at the %s floor (%.2f).",
+            provenance, DEFAULT_PROVENANCE, PROVENANCE_WEIGHTS[DEFAULT_PROVENANCE],
+        )
+        return PROVENANCE_WEIGHTS[DEFAULT_PROVENANCE]
+    return PROVENANCE_WEIGHTS[key]
 
 
 # --- Graded fallback for UNRESOLVED skill pairs ----------------------------

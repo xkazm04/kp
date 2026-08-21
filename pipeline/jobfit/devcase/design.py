@@ -15,7 +15,14 @@ import math
 import threading
 from typing import Any
 
-from .models import RUBRIC_DIMENSIONS, DevNeed, NeedAnalysis
+from .models import (
+    DEFAULT_TIMEBOX_HOURS,
+    MAX_TIMEBOX_HOURS,
+    RUBRIC_DIMENSIONS,
+    DevNeed,
+    NeedAnalysis,
+    clamp_timebox_hours,
+)
 from .provenance import generate_with_fallback, str_list as _str_list
 
 _LOG = logging.getLogger(__name__)
@@ -23,19 +30,21 @@ _LOG = logging.getLogger(__name__)
 ROLE_DESIGN_PROMPT_VERSION = "role-design-v4"  # v4: grounding rules — must-haves trace to stated input, seniority read off JD signals (2026-08-11 bench)
 CASE_DESIGN_PROMPT_VERSION = "case-design-v6"  # v6: midFlightUpdate — a requirement change revealed mid-session, so one-shot generation is structurally impossible (LLM-era controls #5)
 
-# Hard cap on case length (UAT M8). The case's instrument is AMBIGUITY + a visible
-# decision log, NOT volume — the candidate's code is assumed 100% LLM-generated — so
-# a focused "real work, ≤2h" exercise is the goal at every level. A half-day
-# take-home drives a 40–60% drop-off among strong seniors, the exact pool this case
-# is for. Seniority scales DEPTH / ambiguity (see the prompt), not hours.
-_MAX_TIMEBOX_HOURS = 2.0
+# The cap on case length (UAT M8) is a POLICY number and now lives on the model
+# (models.MAX_TIMEBOX_HOURS), where every writer meets it — this designer was only the
+# first enforcer, and the approve route and the model default both drifted past it.
+# The reasoning stays here because this is where the pressure is: the case's instrument
+# is AMBIGUITY + a visible decision log, NOT volume — the candidate's code is assumed
+# 100% LLM-generated — so a focused "real work, ≤2h" exercise is the goal at every
+# level. A half-day take-home drives a 40–60% drop-off among strong seniors, the exact
+# pool this case is for. Seniority scales DEPTH / ambiguity (see the prompt), not hours.
 
-# Seniority-scaled timebox, every value bounded by _MAX_TIMEBOX_HOURS.
-_TIMEBOX = {"junior": 1.0, "medior": 1.5, "senior": 2.0, "lead": 2.0}
+# Seniority-scaled timebox, every value bounded by MAX_TIMEBOX_HOURS.
+_TIMEBOX = {"junior": 1.0, "medior": DEFAULT_TIMEBOX_HOURS, "senior": MAX_TIMEBOX_HOURS, "lead": MAX_TIMEBOX_HOURS}
 
 
 def _timebox(seniority: str) -> float:
-    return _TIMEBOX.get((seniority or "medior").lower(), 1.5)
+    return _TIMEBOX.get((seniority or "medior").lower(), DEFAULT_TIMEBOX_HOURS)
 
 
 _CORPUS_CACHE: list | None = None
@@ -443,8 +452,9 @@ def design_case(
             tb = timebox
         # Clamp the model's own estimate to the cap (UAT M8): left alone the LLM
         # routinely echoes a longer take-home back, and this number is shown to the
-        # candidate. Floor at 0.5h so a degenerate 0 can't render "~0h".
-        tb = min(max(tb, 0.5), _MAX_TIMEBOX_HOURS)
+        # candidate. The bound itself is models.clamp_timebox_hours — one rule, shared
+        # with the CaseScenario validator and (via codegen) with the TS approve route.
+        tb = clamp_timebox_hours(tb)
         # Mid-flight update (v6): keep only a well-formed one — a non-empty candidate-facing
         # `update` with a sane fire time (clamped inside the timebox so it can actually land).
         mfu_raw = payload.get("midFlightUpdate")

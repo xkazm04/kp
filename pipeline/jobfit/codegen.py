@@ -9,7 +9,9 @@ It also generates ``app/_lib/taxonomy.generated.ts`` — the evidence/skill/
 provenance dropdown lists — from the Python taxonomy (``profile.EVIDENCE_KINDS``,
 ``profile.SKILL_LEVELS`` and ``taxonomy.UI_PROVENANCE``) so those enums have ONE
 source of truth instead of a hand-maintained TS copy that silently drifts
-(idea-ba28f11b).
+(idea-ba28f11b). The devcase timebox bounds ride along for the same reason: the
+cap on a candidate's unpaid work was enforced in the Python designer and
+re-typed as a different literal in the TS approve route, so the two drifted.
 
 Run via ``python -m pipeline.jobfit.codegen`` (also wired into ``npm run build``);
 ``--check`` (``npm run schemas:check``) fails CI if either file is out of date.
@@ -22,7 +24,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from .devcase.models import RoleSpec
+from .devcase.models import MAX_TIMEBOX_HOURS, MIN_TIMEBOX_HOURS, RoleSpec
 from .models import AnalysisResult
 from .profile import EVIDENCE_KINDS, SKILL_LEVELS
 from .rolebrief import RoleBrief
@@ -41,8 +43,9 @@ import { z } from "zod";
 """
 
 TAXONOMY_HEADER = """// AUTO-GENERATED — DO NOT EDIT.
-// Source of truth: pipeline/jobfit/profile.py (EVIDENCE_KINDS, SKILL_LEVELS)
-// and pipeline/jobfit/taxonomy.py (UI_PROVENANCE).
+// Source of truth: pipeline/jobfit/profile.py (EVIDENCE_KINDS, SKILL_LEVELS),
+// pipeline/jobfit/taxonomy.py (UI_PROVENANCE) and
+// pipeline/jobfit/devcase/models.py (the devcase timebox bounds).
 // Regenerate with: python -m pipeline.jobfit.codegen
 """
 
@@ -155,6 +158,13 @@ def render_taxonomy() -> str:
         _emit_string_list("EVIDENCE_KINDS", tuple(EVIDENCE_KINDS)),
         _emit_string_list("SKILL_LEVELS", tuple(SKILL_LEVELS)),
         _emit_string_list("PROVENANCE", tuple(UI_PROVENANCE)),
+        # Policy numbers, not a taxonomy — but the same drift problem, so they take the
+        # same door: the TS side must clamp a reviewer-edited timebox to the number the
+        # Python designer enforces, not to a hand-copied one.
+        "// The cap on a candidate's unpaid work, in hours, and the floor that keeps a\n"
+        '// degenerate 0 from rendering as "~0h". Every writer clamps to these.\n'
+        f"export const DEVCASE_MAX_TIMEBOX_HOURS = {MAX_TIMEBOX_HOURS};\n"
+        f"export const DEVCASE_MIN_TIMEBOX_HOURS = {MIN_TIMEBOX_HOURS};",
     ]
     return f"{TAXONOMY_HEADER}\n" + "\n\n".join(lists) + "\n"
 

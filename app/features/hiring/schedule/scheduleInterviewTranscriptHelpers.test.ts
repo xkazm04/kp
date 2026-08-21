@@ -7,6 +7,9 @@
 //        --test-isolation=process --test app/features/hiring/schedule/scheduleInterviewTranscriptHelpers.test.ts
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { cleanRating, findEvidenceTurn } from "./scheduleInterviewTranscriptHelpers.ts";
 import type { VoiceTurn } from "@/app/_lib/voice/types";
 
@@ -57,4 +60,21 @@ test("cleanRating coerces stored junk to a clamped int, or null for 'not assesse
   assert.equal(cleanRating(-2), 1, "clamped to the 1 floor");
   assert.equal(cleanRating(null), null);
   assert.equal(cleanRating("n/a"), null);
+});
+
+// The row keyed "not assessed" off `rating == null` alone, but the synthesis encodes a
+// competency the interview never touched as rating 3 + placeholder evidence — so an
+// untouched axis rendered a filled 3/5 meter and the candidate was compared on it. The
+// row is a .tsx component and this suite has no renderer, so pin the contract on its
+// source: the sentinel must be collapsed BEFORE the meter/label decision, and it must
+// reuse the existing notAssessed key rather than adding copy (the catalogs are locked).
+test("the scorecard row treats the rating-3 + placeholder sentinel as not assessed", () => {
+  const rowSrc = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "ScheduleInterviewScorecardRow.tsx"),
+    "utf8"
+  );
+  assert.match(rowSrc, /isNotAssessedRating\(/, "the row must apply the not-assessed sentinel guard");
+  assert.match(rowSrc, /const rating = isNotAssessedRating\(clean, r\.evidence\) \? null : clean;/);
+  assert.match(rowSrc, /t\("notAssessed"\)/, "it must reuse the existing key, not add copy");
+  assert.match(rowSrc, /!isPlaceholderEvidence\(r\.evidence\)/, "placeholder evidence must not render as a quote");
 });

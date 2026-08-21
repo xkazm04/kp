@@ -16,7 +16,7 @@ from __future__ import annotations
 from . import registry
 from .matching import MatchCandidate
 from .profile import CandidateProfileV2
-from .taxonomy import FAMILY_DEGREE_TERMS, PROVENANCE_WEIGHTS
+from .taxonomy import FAMILY_DEGREE_TERMS, provenance_rank
 from .transferable import DISTANCE_ADJACENT, DISTANCE_FAR, domain_distance, map_transferable
 
 # Sourced from the shared registry (archetypes.json) so "which archetypes get the
@@ -115,7 +115,12 @@ def build_match_candidate(profile: CandidateProfileV2) -> MatchCandidate:
             return
         display_by_norm.setdefault(key, skill.strip())
         current = prov_by_norm.get(key)
-        if current is None or PROVENANCE_WEIGHTS.get(provenance, 0.0) > PROVENANCE_WEIGHTS.get(current, 0.0):
+        # Consolidate on the ORDINAL rank, not the scoring weight: several rungs
+        # share a weight (observed/professional both cap at 1.0), so a `>` on
+        # weights made arrival order the tiebreak — and evidence is iterated after
+        # claims, so a résumé line silently shadowed a directly observed skill and
+        # cost the candidate the narrowed confidence band and the stronger badge.
+        if current is None or provenance_rank(provenance) > provenance_rank(current):
             prov_by_norm[key] = provenance
 
     for claim in profile.skill_claims:

@@ -55,7 +55,14 @@ export function consentStatus(snap: ConsentSnapshot, nowMs: number): ConsentStat
   if (!snap.givenAt) return "none";
   if (!snap.expiresAt) return "active"; // granted but open-ended (legacy / no expiry)
   const exp = Date.parse(snap.expiresAt);
-  if (!Number.isFinite(exp)) return "active";
+  // A CORRUPT expiry is not the same state as an ABSENT one, and the two resolve
+  // opposite ways. Absent (above) = a pre-consent-feature row that never had a
+  // retention window — genuinely open-ended, stays active. Unparseable (here) =
+  // a row that DOES claim a window we cannot read: we cannot show it has NOT
+  // lapsed, and `exp <= nowMs` never matches a NaN so the sweep skips it forever.
+  // Fail closed — the PII gate withholds and outreach is suppressed until the
+  // value is repaired (matches skill-profile.ts's unparseable-date discipline).
+  if (!Number.isFinite(exp)) return "expired";
   if (exp <= nowMs) return "expired";
   if (exp <= nowMs + CONSENT_EXPIRING_DAYS * DAY_MS) return "expiring";
   return "active";

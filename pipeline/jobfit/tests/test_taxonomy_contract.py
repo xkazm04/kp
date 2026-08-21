@@ -10,6 +10,13 @@ import unittest
 from pathlib import Path
 
 from pipeline.jobfit import taxonomy
+from pipeline.jobfit.taxonomy import (
+    DEFAULT_PROVENANCE,
+    PROVENANCE_RANK,
+    PROVENANCE_WEIGHTS,
+    provenance_rank,
+    provenance_weight,
+)
 
 DATA_DIR = Path(taxonomy.__file__).resolve().parents[2] / "data"
 TAXONOMY_PATH = DATA_DIR / "taxonomy.json"
@@ -133,3 +140,65 @@ class TaxonomyContractTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ProvenanceFallbackTest(unittest.TestCase):
+    """An unrecognised provenance must land on the floor, not mid-ladder.
+
+    ``provenance_weight`` used to return the "unknown" rung (0.6) for a missing or
+    unrecognised key. That sits ABOVE _MATCH_THRESHOLD, so a typo'd provenance
+    string promoted an unevidenced claim into matched_skills while the same claim
+    tagged honestly as self_declared (0.4) landed in unproven_skills.
+    """
+
+    def test_unrecognised_and_missing_provenance_get_the_floor(self) -> None:
+        floor = PROVENANCE_WEIGHTS[DEFAULT_PROVENANCE]
+        for value in (None, "", "  ", "profesional", "observed!!", "made_up_tier"):
+            with self.subTest(provenance=value):
+                self.assertEqual(provenance_weight(value), floor)
+
+    def test_the_unknown_rung_itself_is_unchanged(self) -> None:
+        # "unknown" is a real, deliberately-written value (Evidence.provenance
+        # defaults to it; resolved_provenance emits it for an unmapped kind), so
+        # only the FALLBACK moved — the rung keeps its weight.
+        self.assertEqual(provenance_weight("unknown"), PROVENANCE_WEIGHTS["unknown"])
+        self.assertGreater(PROVENANCE_WEIGHTS["unknown"], PROVENANCE_WEIGHTS[DEFAULT_PROVENANCE])
+
+    def test_unrecognised_provenance_is_logged(self) -> None:
+        with self.assertLogs("pipeline.jobfit.taxonomy", level="WARNING") as cm:
+            provenance_weight("kubernetees_pro")
+        self.assertTrue(any("kubernetees_pro" in line for line in cm.output))
+
+    def test_known_provenance_still_normalises(self) -> None:
+        self.assertEqual(provenance_weight("Open-Source"), PROVENANCE_WEIGHTS["open_source"])
+        self.assertEqual(provenance_weight(" academic project "), PROVENANCE_WEIGHTS["academic_project"])
+
+
+class ProvenanceRankTest(unittest.TestCase):
+    def test_rank_is_a_total_order_over_every_weighted_provenance(self) -> None:
+        self.assertEqual(set(PROVENANCE_RANK), set(PROVENANCE_WEIGHTS))
+        self.assertEqual(len(set(PROVENANCE_RANK.values())), len(PROVENANCE_RANK))
+
+    def test_rank_breaks_the_ties_the_weights_cannot(self) -> None:
+        for weaker, stronger in (
+            ("professional", "observed"),
+            ("open_source", "internship"),
+            ("academic_project", "personal_project"),
+            ("extracurricular", "certification"),
+        ):
+            with self.subTest(pair=(weaker, stronger)):
+                self.assertEqual(PROVENANCE_WEIGHTS[weaker], PROVENANCE_WEIGHTS[stronger])
+                self.assertLess(PROVENANCE_RANK[weaker], PROVENANCE_RANK[stronger])
+
+    def test_rank_is_monotone_in_weight_apart_from_the_unknown_rung(self) -> None:
+        # Rank orders EVIDENTIAL STRENGTH; weight is a scoring multiplier. They agree
+        # everywhere except "unknown", which weighs 0.6 for legacy scoring reasons but
+        # means "nothing recorded" — so it consolidates near the bottom, deliberately.
+        items = [kv for kv in sorted(PROVENANCE_RANK.items(), key=lambda kv: kv[1]) if kv[0] != "unknown"]
+        for (a, _), (b, _) in zip(items, items[1:]):
+            self.assertLessEqual(PROVENANCE_WEIGHTS[a], PROVENANCE_WEIGHTS[b], f"{a} -> {b}")
+        self.assertLess(PROVENANCE_RANK["unknown"], PROVENANCE_RANK["coursework"])
+
+    def test_unrecognised_rank_falls_to_the_floor(self) -> None:
+        self.assertEqual(provenance_rank("nope"), PROVENANCE_RANK[DEFAULT_PROVENANCE])
+        self.assertEqual(provenance_rank(None), PROVENANCE_RANK[DEFAULT_PROVENANCE])

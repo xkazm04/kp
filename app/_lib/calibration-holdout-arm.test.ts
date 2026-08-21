@@ -16,6 +16,8 @@
 import "./testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import {
   sealDecisionRecord,
@@ -118,4 +120,44 @@ test("no holdout records → an empty clean arm, never a crash", () => {
   const ids = heldOutEntryIds("workspace-with-no-holdout");
   assert.equal(ids.size, 0);
   assert.deepEqual(pipelineCalibrationPairs("workspace-with-no-holdout", { onlyEntryIds: ids }), []);
+});
+
+// ─── The clean arm reaches the RECOMMENDER, on both paths ─────────────────────
+// craft-scan 2026-08-20 — the arm existed and was wired into the display curve, but
+// `recommendScreeningThreshold` was still fed the contaminated pairs for its
+// below-floor band, where every entry is a reject the score itself produced. The
+// unit behaviour is pinned in calibration.test.ts; what a source guard adds is that
+// BOTH call sites — the display route and the one-click apply — pass the clean arm,
+// and pass it identically, so the applied value can never differ from the shown one.
+function routeSource(rel: string): string {
+  return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+}
+
+test("both recommender call sites feed it the clean arm, derived the same way", () => {
+  for (const [name, rel] of [
+    ["display", "../api/analytics/calibration/route.ts"],
+    ["apply", "../api/analytics/calibration/apply-threshold/route.ts"],
+  ] as const) {
+    const src = routeSource(rel);
+    assert.match(
+      src,
+      /recommendScreeningThreshold\(pairs, holdoutPairs, currentThreshold\)/,
+      `the ${name} route must pass the holdout arm as the below-floor band`
+    );
+    assert.match(
+      src,
+      /pipelineCalibrationPairs\(ws, \{ onlyEntryIds: heldOutEntryIds\(ws\), outcome: "advance" \}\)/,
+      `the ${name} route must build that arm from the spared entries on the advance axis`
+    );
+  }
+});
+
+test("the threshold-apply seal names the real approver, not a role or an env constant", () => {
+  // A change to the live auto-reject floor is the policy deciding who the machine may
+  // reject. The sibling screen-wave route was fixed for exactly this reason.
+  const src = routeSource("../api/analytics/calibration/apply-threshold/route.ts");
+  assert.match(src, /const approvedBy = await resolveApprover\(\)/, "the approver must be resolved from the session");
+  assert.match(src, /const actor = await humanActor\(\)/, "the chain actor must name the person when there is one");
+  assert.doesNotMatch(src, /operatorApprover\(\)/, "operatorApprover is the fallback INSIDE resolveApprover, not the call site");
+  assert.doesNotMatch(src, /"human:operator"/, "the seal must not hardcode a role token");
 });

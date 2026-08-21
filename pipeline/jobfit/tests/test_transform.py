@@ -5,6 +5,7 @@ import unittest
 from pipeline.jobfit.jobs import normalize_job
 from pipeline.jobfit.matching import match, score_job
 from pipeline.jobfit.profile import CandidateProfileV2, Evidence, SkillClaim
+from pipeline.jobfit.taxonomy import PROVENANCE_WEIGHTS
 from pipeline.jobfit.transferable import domain_distance
 from pipeline.jobfit.transform import build_match_candidate, compute_potential
 
@@ -54,6 +55,51 @@ class BuildCandidateTest(unittest.TestCase):
         # React appears in a self_declared claim AND a thesis evidence -> strongest (thesis) wins.
         react_key = next(s for s in c.skills if s.casefold() == "react")
         self.assertEqual(c.skill_provenance[react_key], "thesis")
+
+    def test_observed_outranks_professional_despite_equal_weight(self) -> None:
+        # observed and professional BOTH weigh 1.0, and evidence is iterated after
+        # claims, so a weight comparison let an ordinary résumé line shadow a
+        # directly demonstrated skill. Consolidation ranks ordinally instead.
+        p = CandidateProfileV2(
+            archetype="bau",
+            role_family="software_engineering",
+            skill_claims=[SkillClaim(skill="Rust", provenance="professional")],
+            evidence=[Evidence(kind="other", provenance="observed", skills=["Rust"])],
+        )
+        c = build_match_candidate(p)
+        rust = next(s for s in c.skills if s.casefold() == "rust")
+        self.assertEqual(c.skill_provenance[rust], "observed")
+
+        # ...and the reverse arrival order agrees (observed is not merely "last wins").
+        p2 = CandidateProfileV2(
+            archetype="bau",
+            role_family="software_engineering",
+            skill_claims=[SkillClaim(skill="Rust", provenance="observed")],
+            evidence=[Evidence(kind="job", skills=["Rust"])],
+        )
+        c2 = build_match_candidate(p2)
+        rust2 = next(s for s in c2.skills if s.casefold() == "rust")
+        self.assertEqual(c2.skill_provenance[rust2], "observed")
+
+    def test_equal_weight_ties_resolve_by_rank_not_arrival(self) -> None:
+        # The same silent tie exists at 0.85 (open_source/internship), 0.7
+        # (academic_project/personal_project) and 0.6 (extracurricular/certification).
+        for weaker, stronger in (
+            ("open_source", "internship"),
+            ("academic_project", "personal_project"),
+            ("extracurricular", "certification"),
+        ):
+            with self.subTest(pair=(weaker, stronger)):
+                self.assertEqual(PROVENANCE_WEIGHTS[weaker], PROVENANCE_WEIGHTS[stronger])
+                p = CandidateProfileV2(
+                    archetype="bau",
+                    role_family="software_engineering",
+                    skill_claims=[SkillClaim(skill="Go", provenance=weaker)],
+                    evidence=[Evidence(kind="other", provenance=stronger, skills=["Go"])],
+                )
+                c = build_match_candidate(p)
+                go = next(s for s in c.skills if s.casefold() == "go")
+                self.assertEqual(c.skill_provenance[go], stronger)
 
     def test_early_career_defaults(self) -> None:
         c = build_match_candidate(_student())

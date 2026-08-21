@@ -124,3 +124,22 @@ test("score never leaves 0..100", () => {
   const a = scoreAuthenticity({ commitCount: 1, bursty: true, spanHours: 1, decisionsLogPresent: false, readBeforeWrite: 0, iterationPattern: "big-bang" });
   assert.ok(a.score >= 0 && a.score <= 100);
 });
+
+test("an unreadable iteration trace costs nothing but is still surfaced", () => {
+  // A penalty for the ABSENCE of evidence, on a signal class the red-team round proved
+  // fabricable: the candidate whose tooling left no legible trace paid 5 points toward
+  // SUSPECT_THRESHOLD while the gamer who manufactures a tidy process paid nothing.
+  const a = scoreAuthenticity({ ...base, iterationPattern: "unclear" });
+  assert.equal(a.score, 100, "an unreadable iteration pattern must not cost points");
+  assert.equal(a.band, "authentic");
+  // Still visible to the reviewer — an unreadable signal is a question, not a score.
+  assert.ok(
+    a.reasons.some((r) => /Iteration pattern couldn't be read/.test(r)),
+    "the note must stay in reasons"
+  );
+});
+
+test("a readable big-bang pattern is still penalized — only ABSENCE is free", () => {
+  const a = scoreAuthenticity({ ...base, iterationPattern: "big-bang" });
+  assert.equal(a.score, 85);
+});

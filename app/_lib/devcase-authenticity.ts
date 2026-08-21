@@ -116,7 +116,14 @@ export function scoreAuthenticity(input: AuthenticityInput): Authenticity {
     score -= 15;
     reasons.push("Big-bang iteration pattern — no visible build-up.");
   } else if (input.iterationPattern === "unclear") {
-    score -= 5;
+    // ZERO-COST, deliberately. This branch used to subtract 5 — a penalty for the
+    // ABSENCE of evidence, on a signal class this repo's own red-team round proved
+    // fabricable. It charged the candidate whose tooling simply left no legible trace
+    // (an unusual editor, a squashed history, work done outside the watched surface)
+    // while the gamer who manufactures a tidy virtuous process pays nothing. With
+    // SUSPECT_THRESHOLD gating auto-promotion, those points were real. The note stays
+    // in `reasons` so the reviewer still sees that the axis was unreadable — an
+    // unreadable signal is something for a human to ask about, not something to score.
     reasons.push("Iteration pattern couldn't be read from the trace.");
   }
 

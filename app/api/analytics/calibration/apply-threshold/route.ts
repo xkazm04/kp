@@ -4,10 +4,10 @@ import { recommendScreeningThreshold } from "@/app/_lib/calibration";
 import { getDecisionConfig, setDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { effectiveFloor } from "@/app/_lib/decision-config-schema";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
-import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
+import { sealDecisionSafe, heldOutEntryIds } from "@/app/_lib/decision-record-store";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
-import { operatorApprover } from "@/app/_lib/auth/operator-approver";
+import { humanActor, resolveApprover } from "@/app/_lib/auth/operator-approver";
 
 
 // Direction 3 — "calibration that recommends, not just reports". Apply the
@@ -49,7 +49,14 @@ export async function POST(request: Request) {
     // only ever apply a number that family's own pairs defend. No rec → nothing to apply.
     const allPairs = pipelineCalibrationPairs(ws);
     const pairs = roleFamily ? allPairs.filter((p) => p.roleFamily === roleFamily) : allPairs;
-    const rec = recommendScreeningThreshold(pairs, currentThreshold);
+    // RATCHET GUARD — derived EXACTLY as the display route derives it (same clean-arm
+    // below-floor band, same family scope), so the applied value can never differ from
+    // the one the panel showed. Without the holdout arm the below-floor band is all
+    // score-caused rejects and "raise" is the only reachable answer; no clean arm here
+    // therefore means no recommendation, not a contaminated one.
+    const allHoldout = pipelineCalibrationPairs(ws, { onlyEntryIds: heldOutEntryIds(ws), outcome: "advance" });
+    const holdoutPairs = roleFamily ? allHoldout.filter((p) => p.roleFamily === roleFamily) : allHoldout;
+    const rec = recommendScreeningThreshold(pairs, holdoutPairs, currentThreshold);
     if (!rec) {
       return NextResponse.json({ error: "No calibration recommendation is available to apply." }, { status: 409 });
     }
@@ -75,12 +82,16 @@ export async function POST(request: Request) {
     // failure must never fail the write). No candidate subject: the ref names the
     // policy (and, when scoped, the family) so the sealed-records panel shows it as a
     // policy decision, and the rationale + inputs carry the auditable basis + family.
-    const approvedBy = operatorApprover();
+    // Name the natural person behind THIS request when the session carries identity
+    // (the sibling screen-wave route already does): a change to the live auto-reject
+    // floor must not be sealed to a role or an env constant.
+    const approvedBy = await resolveApprover();
+    const actor = await humanActor();
     const scopeLabel = roleFamily ? ` for role family "${roleFamily}"` : "";
     sealDecisionSafe(
       {
         kind: "screening_threshold_adjusted",
-        actor: "human:operator",
+        actor,
         policyVersion: `calibration-reco/maxMatch${roleFamily ? `:${roleFamily}` : ""}:${currentThreshold}->${rec.suggestedThreshold}`,
         candidateRef: roleFamily ? `policy:screening:${ws}:${roleFamily}` : `policy:screening:${ws}`,
         rationale: `Screening auto-reject floor${scopeLabel} ${rec.direction === "lower" ? "lowered" : "raised"} ${currentThreshold} → ${rec.suggestedThreshold} on calibration evidence: candidates scoring ${rec.band.lo}–${rec.band.hi} advanced past screening ${rec.advanceRatePct}% of the time (n=${rec.n}, overall n=${rec.totalOutcomes}). Approved by ${approvedBy}.`,

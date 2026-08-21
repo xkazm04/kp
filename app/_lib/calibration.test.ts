@@ -166,24 +166,29 @@ function bandPairs(score: number, positives: number, negatives: number): ScoreOu
   ];
 }
 
+// The below-floor band is read from the CLEAN ARM (the entries the screening wave
+// spared), never from the contaminated pairs — see the RATCHET GUARD note on
+// recommendScreeningThreshold. Most cases therefore need a holdout arm to say
+// anything at all; `cleanBelow` is the stock one.
+function cleanBelow(positives: number, negatives: number): ScoreOutcome[] {
+  return bandPairs(40, positives, negatives);
+}
+
 test("recommendation is null below the overall outcome gate", () => {
   const pairs = bandPairs(40, 5, 5); // n=10 < 20
-  assert.equal(recommendScreeningThreshold(pairs, 45), null);
+  assert.equal(recommendScreeningThreshold(pairs, cleanBelow(8, 0), 45), null);
 });
 
 test("recommendation is null when a threshold sits at the edges", () => {
   const pairs = bandPairs(40, 12, 12);
-  assert.equal(recommendScreeningThreshold(pairs, 0), null);
-  assert.equal(recommendScreeningThreshold(pairs, 100), null);
+  assert.equal(recommendScreeningThreshold(pairs, cleanBelow(8, 0), 0), null);
+  assert.equal(recommendScreeningThreshold(pairs, cleanBelow(8, 0), 100), null);
 });
 
-test("suggests LOWERING when candidates just below the floor mostly advanced", () => {
-  // Floor 45; the [35,45) band advanced 9/10 (0.9 ≥ 0.6) with enough padding above.
-  const pairs: ScoreOutcome[] = [
-    ...bandPairs(40, 9, 1), // just below the floor — mostly advanced
-    ...bandPairs(80, 10, 0), // padding so overall n ≥ 20
-  ];
-  const rec = recommendScreeningThreshold(pairs, 45);
+test("suggests LOWERING when SPARED candidates just below the floor mostly advanced", () => {
+  // Floor 45; the clean arm's [35,45) band advanced 9/10 (0.9 ≥ 0.6).
+  const pairs: ScoreOutcome[] = bandPairs(80, 10, 10); // padding so overall n ≥ 20
+  const rec = recommendScreeningThreshold(pairs, cleanBelow(9, 1), 45);
   assert.ok(rec);
   assert.equal(rec!.direction, "lower");
   assert.equal(rec!.suggestedThreshold, 35);
@@ -193,33 +198,61 @@ test("suggests LOWERING when candidates just below the floor mostly advanced", (
 });
 
 test("suggests RAISING when candidates just above the floor mostly did not advance", () => {
-  // Floor 45; the [45,55) band advanced 1/10 (0.1 ≤ 0.4).
+  // Floor 45; the [45,55) band advanced 1/10 (0.1 ≤ 0.4). The clean arm below the
+  // floor is present and unremarkable (5/10), so "lower" genuinely lost — it was not
+  // structurally excluded.
   const pairs: ScoreOutcome[] = [
     ...bandPairs(50, 1, 9), // just above the floor — mostly rejected
     ...bandPairs(90, 10, 0), // padding for the overall gate
   ];
-  const rec = recommendScreeningThreshold(pairs, 45);
+  const rec = recommendScreeningThreshold(pairs, cleanBelow(5, 5), 45);
   assert.ok(rec);
   assert.equal(rec!.direction, "raise");
   assert.equal(rec!.suggestedThreshold, 55);
 });
 
-test("recommendation is null when the near-floor bands are too sparse to defend", () => {
-  // Overall n ≥ 20, but only 3 candidates sit in the below-floor band (< MIN_BAND).
+// THE RATCHET (craft-scan 2026-08-20). Below-floor entries are exactly the ones the
+// screening wave closed as `rejected`, i.e. outcome 0 BY CONSTRUCTION. If the
+// below-floor band were read from those pairs, "lower" could never fire and the only
+// advice the panel could ever show — one click from the live auto-reject floor —
+// would be "raise". A workspace whose sole below-floor evidence is wave-made must
+// therefore produce NOTHING.
+test("a workspace whose below-floor outcomes are all wave-made cannot produce a raise", () => {
   const pairs: ScoreOutcome[] = [
-    ...bandPairs(40, 3, 0), // below floor, but only 3 < 8
-    ...bandPairs(80, 20, 0), // far from the floor — no adjacent signal
+    ...bandPairs(40, 0, 12), // below the floor: 12 auto-rejects the score itself caused
+    ...bandPairs(50, 1, 9), // above the floor: a textbook "raise" signal (10%)
+    ...bandPairs(90, 10, 0), // padding for the overall gate
+  ];
+  // No clean arm at all — the holdout is off, or nobody spared has decided yet.
+  assert.equal(recommendScreeningThreshold(pairs, [], 45), null);
+  // And the contaminated below-floor band must not be able to stand in for it:
+  // passing those same pairs as the "clean" arm is the ONLY way a raise appears,
+  // which is precisely the wiring this guard forbids at the call sites.
+  assert.equal(recommendScreeningThreshold(pairs, bandPairs(40, 0, 12), 45)!.direction, "raise");
+});
+
+test("a raise is refused when the clean below-floor band is too thin to argue back", () => {
+  const pairs: ScoreOutcome[] = [
+    ...bandPairs(50, 1, 9), // above the floor — a clear raise signal
+    ...bandPairs(90, 10, 0),
   ];
   assert.ok(MIN_CALIBRATION_BAND_OUTCOMES > 3);
-  assert.equal(recommendScreeningThreshold(pairs, 45), null);
+  assert.equal(recommendScreeningThreshold(pairs, cleanBelow(3, 0), 45), null);
+});
+
+test("recommendation is null when the near-floor bands are too sparse to defend", () => {
+  // Overall n ≥ 20, but only 3 spared candidates sit in the below-floor band.
+  const pairs: ScoreOutcome[] = bandPairs(80, 20, 0); // far from the floor — no adjacent signal
+  assert.ok(MIN_CALIBRATION_BAND_OUTCOMES > 3);
+  assert.equal(recommendScreeningThreshold(pairs, cleanBelow(3, 0), 45), null);
 });
 
 test("recommendation is null when adjacent bands are unremarkable (~50/50)", () => {
   const pairs: ScoreOutcome[] = [
-    ...bandPairs(40, 5, 5), // below floor — 0.5, neither high nor low
+    ...bandPairs(40, 5, 5), // below floor in the contaminated arm — ignored by design
     ...bandPairs(50, 5, 5), // above floor — 0.5
   ];
-  assert.equal(recommendScreeningThreshold(pairs, 45), null);
+  assert.equal(recommendScreeningThreshold(pairs, cleanBelow(5, 5), 45), null);
 });
 
 // ─── Threshold-change effect (threshold-story) ────────────────────────────────

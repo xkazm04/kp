@@ -42,8 +42,10 @@ export async function POST(request: NextRequest) {
     // behaves exactly as before; only an explicit `true` previews.
     const dryRun = body.dryRun === true;
     // Human-approval gate (Art. 22): a commit must carry the approval token the
-    // recruiter reviewed in the preview. Missing/stale → runScreenWave throws
-    // ScreenWaveApprovalError (→ 409 below). A dry run needs no approval.
+    // recruiter reviewed in the preview. Missing / no longer matching the live set /
+    // older than SCREEN_WAVE_APPROVAL_MAX_AGE_MS (the token carries its own issue
+    // time) → runScreenWave throws ScreenWaveApprovalError (→ 409 below), and the
+    // client re-previews. A dry run needs no approval.
     // Only build an approval when a token is actually supplied — so a commit with no
     // token at all gets the "approval required" message, while a present-but-stale
     // token gets the "set changed, re-preview" message. Both are refused (409).

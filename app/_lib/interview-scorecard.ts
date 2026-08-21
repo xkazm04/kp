@@ -55,6 +55,28 @@ export function isPlaceholderEvidence(evidence: string | null | undefined): bool
   return !evidence || evidence.startsWith(PLACEHOLDER_EVIDENCE_PREFIX);
 }
 
+/** The rating the AI synthesis emits for an axis the interview never touched. The
+ *  prompt instructs "if the transcript does not cover a competency, set its evidence
+ *  to an empty string and rate it 3 (not assessed)", and the coercion below it
+ *  backfills that empty evidence to a "Not assessed…" placeholder. So NOT-ASSESSED IS
+ *  ON THE SCALE — 3 of 5, mid-band, indistinguishable from an observed middling
+ *  score to anything that reads `rating` alone. */
+export const NOT_ASSESSED_RATING = 3;
+
+/** True when a rating is the synthesis's not-assessed sentinel rather than a real
+ *  observation: the mid-scale rating carrying placeholder evidence. Read-side guard
+ *  for every surface that renders or ranks a rating, so an untouched competency stops
+ *  showing as a filled 3/5 meter.
+ *
+ *  Requires the placeholder evidence to be PRESENT, not merely empty: a human
+ *  scorecard rating (interview-prep/scorecard) omits `evidence` when the recruiter
+ *  left the note blank, and that 3 is a deliberate, observed rating — an unrated
+ *  competency is simply not submitted there. Only the AI path's explicit
+ *  "Not assessed…" string means absence. */
+export function isNotAssessedRating(rating: number | null | undefined, evidence: string | null | undefined): boolean {
+  return rating === NOT_ASSESSED_RATING && !!evidence && isPlaceholderEvidence(evidence);
+}
+
 /** The structured outcome of the closing READ-BACK exchange (scorecard-v5): the
  *  voice agent reads back the technologies it heard and the candidate confirms or
  *  corrects them, so a recruiter sees that "Rust" in the raw transcript actually

@@ -4,13 +4,14 @@ import { isAtReviewGate } from "@/app/_lib/devcase-orchestrator";
 import { recordAudit } from "@/app/_lib/dev-control";
 import { startTask } from "@/app/_lib/tasks";
 import { enforceProbeGate } from "@/app/_lib/devcase-probe-audit";
+import { clampTimeboxHours, DEVCASE_MAX_TIMEBOX_HOURS } from "@/app/_lib/devcase-timebox";
 
 
 // W5-4 — the editable subset of the designed case a reviewer may correct at
 // the gate without a regenerate: bounded scalars + the task list. Probes and
 // rubric stay engine-owned (change those via "Regenerate with note" so the
 // decision-space contract isn't hand-broken).
-function coerceCaseEdits(raw: unknown): Record<string, unknown> | null {
+function coerceCaseEdits(raw: unknown): { edits: Record<string, unknown>; timeboxClamped: boolean } | null {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return null;
   const o = raw as Record<string, unknown>;
   const edits: Record<string, unknown> = {};
@@ -23,10 +24,22 @@ function coerceCaseEdits(raw: unknown): Record<string, unknown> | null {
       .slice(0, 20);
     if (tasks.length > 0) edits.tasks = tasks;
   }
-  if (typeof o.timeboxHours === "number" && Number.isFinite(o.timeboxHours) && o.timeboxHours > 0 && o.timeboxHours <= 80) {
-    edits.timeboxHours = o.timeboxHours;
+  // The timebox is POLICY, not a free scalar: this number renders verbatim to the
+  // candidate and caps their unpaid work. The old bound here was `<= 80` — forty times
+  // the 2h cap the Python designer enforces — so a reviewer typo at the gate could mint
+  // a two-week "take-home" that the generator would never have produced. CLAMP rather
+  // than reject (a 10 means "give them longer", and dropping the edit silently is the
+  // very failure the 409 branch below was written to fix), against the SHARED bound
+  // generated from pipeline/jobfit/devcase/models.py.
+  let timeboxClamped = false;
+  if (typeof o.timeboxHours === "number") {
+    const tb = clampTimeboxHours(o.timeboxHours);
+    if (tb != null) {
+      edits.timeboxHours = tb;
+      timeboxClamped = tb !== o.timeboxHours;
+    }
   }
-  return Object.keys(edits).length > 0 ? edits : null;
+  return Object.keys(edits).length > 0 ? { edits, timeboxClamped } : null;
 }
 
 // Human gate: approve a lifecycle stuck at awaiting_approval, then resume the
@@ -37,7 +50,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params;
   try {
     const body = (await request.json().catch(() => ({}))) as { case?: unknown; overrideProbeAudit?: unknown };
-    const edits = coerceCaseEdits(body.case);
+    const coerced = coerceCaseEdits(body.case);
+    const edits = coerced?.edits ?? null;
     const lc = getLifecycle(id);
     if (!lc) return NextResponse.json({ error: "lifecycle not found" }, { status: 404 });
     if (isAtReviewGate(lc.stage)) {
@@ -64,8 +78,22 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         { need: lc.need, analysis: lc.analysis, role: lc.role, case: approvedCase },
         edits ? "approved by a human (with reviewer edits)" : "approved by a human"
       );
+      // Surface the clamp to the REVIEWER, in the audit trail they already read for
+      // this decision — a silently rewritten number is how the reviewer ends up
+      // believing they approved a longer exercise than the candidate receives. The
+      // audit reason is free-form server prose (not a message catalog key), so this
+      // adds no new user-facing copy; the review panel itself still shows no inline
+      // notice, which needs a catalog string.
       const reason =
-        [edits ? `with edits: ${Object.keys(edits).join(", ")}` : null, gate.auditReason].filter(Boolean).join("; ") || undefined;
+        [
+          edits ? `with edits: ${Object.keys(edits).join(", ")}` : null,
+          coerced?.timeboxClamped
+            ? `timebox clamped to the ${DEVCASE_MAX_TIMEBOX_HOURS}h cap (requested ${(body.case as { timeboxHours?: unknown }).timeboxHours})`
+            : null,
+          gate.auditReason,
+        ]
+          .filter(Boolean)
+          .join("; ") || undefined;
       recordAudit({ lifecycleId: id, actor: "human", action: "approved", ref: caseId, reason });
     } else if (edits) {
       // Not at the review gate (a second tab/reviewer already approved, or a retry

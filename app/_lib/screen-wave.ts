@@ -1,11 +1,11 @@
-import { actOnPipelineEntry, listPipeline, recordAutomationEvent } from "./db/pipeline";
+import { actOnPipelineEntry, entryIdsWithEvent, listPipeline, recordAutomationEvent } from "./db/pipeline";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { getDecisionConfig, type ScreeningRule } from "./decision-config-store";
 import { sealDecisionSafe, SCREEN_WAVE_HOLDOUT_KIND, AUTO_REJECTED_KIND } from "./decision-record-store";
 import { DecisionConfigError, effectiveFloor, effectiveHoldoutPercent, screenBottomCount, tieSafeBottomCount, validateScreeningOverride } from "./decision-config-schema";
 import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
-import { screenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
+import { screenWaveApprovalToken, verifyScreenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
 import { selectHoldout } from "./screen-wave-holdout";
 import { operatorApprover } from "./auth/operator-approver";
 import { isScored } from "./match-score";
@@ -71,6 +71,13 @@ export type ScreenReasonCode =
   | "reject"
   | "staleSkipped"
   | "unscored"
+  // A recruiter reversed an earlier auto-rejection on this entry, which returned it
+  // to active/Screened — the wave's own cohort predicate. Spared so the machine
+  // can't immediately re-reject (and re-email) someone a human deliberately rescued.
+  | "reinstated"
+  // The tamper-evident Art. 22 record could not be written, so the rejection was
+  // NOT applied. See the seal-first ordering on the adverse path below.
+  | "sealFailed"
   // Spared from a would-be auto-reject to form the calibration clean arm.
   | "holdout";
 
@@ -90,12 +97,14 @@ export function keepReasonStructured(
   protectedFromAutoReject: boolean,
   knownArchetype: boolean,
   inBottom: boolean,
-  tieSpared: boolean
+  tieSpared: boolean,
+  reinstatedSpared = false
 ): { reasonCode: ScreenReasonCode; reasonParams: Record<string, string | number> } {
   if (!cfg.autoRejectEnabled) return { reasonCode: "autoRejectOff", reasonParams: {} };
   if (protectedFromAutoReject) {
     return { reasonCode: knownArchetype ? "earlyCareer" : "unknownArchetype", reasonParams: {} };
   }
+  if (reinstatedSpared) return { reasonCode: "reinstated", reasonParams: {} };
   if (tieSpared) return { reasonCode: "tieAtCutoff", reasonParams: {} };
   if (!inBottom) return { reasonCode: "aboveCutoff", reasonParams: {} };
   return { reasonCode: "atThreshold", reasonParams: {} };
@@ -114,12 +123,21 @@ export function keepReason(
   protectedFromAutoReject: boolean,
   knownArchetype: boolean,
   inBottom: boolean,
-  tieSpared: boolean
+  tieSpared: boolean,
+  // Defaulted so every existing caller (and every pinned string) is unchanged.
+  reinstatedSpared = false
 ): string {
   if (!cfg.autoRejectEnabled) return "auto-reject off";
   if (protectedFromAutoReject) {
     return knownArchetype ? "early-career — never auto-rejected" : "unknown archetype — shielded (fail-closed)";
   }
+  // A person a human pulled back out of the machine's rejection. `reinstatePipelineEntry`
+  // returns them to active/Screened — byte-for-byte the cohort this wave selects — so
+  // without this branch the very next run re-rejects them on the same unchanged score
+  // and sends a SECOND rejection email. Kept (never silently made unrejectable): the
+  // reviewer sees this reason on the row and must move them out of Screened, change the
+  // policy, or reject them by hand to act on it.
+  if (reinstatedSpared) return "reinstated — a recruiter reversed an earlier auto-rejection; not re-rejected automatically";
   // Spared because rejecting them would split a tied match score across the cutoff
   // (idea-50062f77): kept so an indistinguishable peer above the cutoff isn't
   // treated differently. Checked before the plain "above the cutoff" reason — a
@@ -169,6 +187,13 @@ export async function runScreenWave(
    *  (idea-961de357) — the wave completed; these candidates need a manual nudge.
    *  Always 0 on a dry run (nothing is dispatched). */
   commsFailures: number;
+  /** Candidates the wave would have rejected but did NOT, because their Art. 22
+   *  decision record could not be sealed (see the seal-first ordering below). They
+   *  are reported as keeps with reasonCode "sealFailed"; a non-zero count means the
+   *  chain is unwritable (missing signing key, locked DB) and the wave under-rejected
+   *  on purpose. Counted so the gap is visible instead of living in a console.warn.
+   *  Always 0 on a dry run (nothing is sealed). */
+  sealFailures: number;
   /** True when this was a PREVIEW (DEC2): the full ranking / fairness / tie-break
    *  math ran and `decisions` is populated with rationales, but NO status was
    *  flipped, NO rejection email queued, and NO audit event written. The recruiter
@@ -273,8 +298,24 @@ export async function runScreenWave(
   // the recruiter actually sees and a commit re-derives byte-identically. Membership
   // is a pure function of (jobId, entryId) — see screen-wave-holdout.ts for why it
   // must not depend on the threshold or on Math.random.
+  // REINSTATEMENT SHIELD — a reversed auto-rejection comes back to
+  // status='active', stage='Screened' (reinstatePipelineEntry), which is EXACTLY the
+  // cohort predicate above. Unshielded, the next run of the same unchanged rule
+  // re-rejects the person a recruiter deliberately rescued and queues them a second
+  // rejection email. Removed from the reject set BEFORE the holdout draw and before
+  // the token is signed, so the recruiter approves the set they can actually see,
+  // and each spared row carries the `reinstated` keep-reason (below) — the human is
+  // still in the loop: nobody becomes permanently unrejectable, they just can't be
+  // re-rejected by the machine on the same evidence.
+  const reinstatedSpared = entryIdsWithEvent([...wouldReject], "reinstated", workspaceId);
+  for (const id of reinstatedSpared) wouldReject.delete(id);
   const heldOut = new Set(selectHoldout(jobId, [...wouldReject], holdoutPct).spared);
   for (const id of heldOut) wouldReject.delete(id);
+  // Art. 22 staleness (approval-token issued-at): a preview mints a token stamped
+  // NOW; a commit re-derives the signature using the token's OWN stamp, so it can
+  // neither cover a different set nor be back-dated, and is refused once it is older
+  // than SCREEN_WAVE_APPROVAL_MAX_AGE_MS. "A human reviewed this set" has to mean a
+  // human reviewed it recently — otherwise a token signed weeks ago still commits.
   const approvalToken = screenWaveApprovalToken(jobId, policyVersion, [...wouldReject]);
   if (!dryRun) {
     if (!opts?.approval) {
@@ -282,9 +323,12 @@ export async function runScreenWave(
         "Human review and approval are required before committing an automated rejection wave. Preview it, then approve the reviewed set."
       );
     }
-    if (opts.approval.token !== approvalToken) {
+    const check = verifyScreenWaveApprovalToken(opts.approval.token, jobId, policyVersion, [...wouldReject]);
+    if (!check.ok) {
       throw new ScreenWaveApprovalError(
-        "The candidate set changed since it was previewed — re-preview and approve the current set before committing."
+        check.reason === "expired"
+          ? "This approval has expired — a review has to be recent to stand. Re-preview and approve the current set before committing."
+          : "The candidate set changed since it was previewed — re-preview and approve the current set before committing."
       );
     }
   }
@@ -293,6 +337,7 @@ export async function runScreenWave(
   const decisions: ScreenDecision[] = [];
   let rejected = 0;
   let commsFailures = 0;
+  let sealFailures = 0;
   for (let rank = 0; rank < sorted.length; rank++) {
     const e = sorted[rank];
     // Genuine by construction (the unscored never enter `sorted`): the rationale
@@ -380,9 +425,46 @@ export async function runScreenWave(
       // DEC2 preview: compute the verdict + rationale but commit NOTHING — no CAS
       // write, no audit event, no rejection email. The recruiter reviews this set,
       // then re-runs with dryRun:false to apply it.
+      const stale = staleFields(e.id);
       if (dryRun) {
-        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale, reasonCode: "reject", reasonParams, ...staleFields(e.id) });
+        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale, reasonCode: "reject", reasonParams, ...stale });
         rejected += 1;
+        continue;
+      }
+      // Decision System of Record (moonshot D) — sealed BEFORE anything irreversible
+      // happens. The seal used to run after the status flip and the rejection email,
+      // through sealDecisionSafe, whose every failure (missing signing key, locked DB,
+      // schema drift) is a console.warn: that left committed, emailed, irreversible
+      // rejections with NO tamper-evident record — and status-decisions.ts derives the
+      // candidate's own "why" from that record, so the person couldn't be told either.
+      // Now the record is the PRECONDITION: no seal, no rejection. A candidate whose
+      // record can't be written is kept (reasonCode "sealFailed") and counted, so the
+      // wave under-rejects loudly instead of rejecting people unrecorded.
+      const sealed = sealDecisionSafe({
+        kind: AUTO_REJECTED_KIND,
+        actor: "auto:screen-wave",
+        // Per-record policyVersion carries the EFFECTIVE floor this candidate was
+        // judged against (family override or global) — byte-identical when none.
+        policyVersion: `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${floor}`,
+        candidateRef: e.id,
+        rationale: committedRationale,
+        reasonCode: "reject",
+        // The decisive numbers + WHO approved this reviewed set (the Art. 22 record),
+        // plus the SCORE-STALENESS caveat the preview already showed the approver.
+        // The wave computed `stale` and dropped it at the seal, so a record could
+        // present a clean score-vs-threshold comparison while omitting the one fact
+        // that undermines it: the score predates the JD's last edit. Always present —
+        // an explicit `stale: false` affirms the score was fresh, which "absent"
+        // cannot do when reconstructing the decision later.
+        inputs: { ...reasonParams, approvedBy, stale: stale.stale === true, ...(stale.staleSince ? { staleSince: stale.staleSince } : {}) },
+      });
+      if (!sealed) {
+        sealFailures += 1;
+        const sealFailedRationale = "Kept — the Art. 22 decision record could not be sealed, so the auto-rejection was not applied. Retry once the decision chain is writable.";
+        // Logged like the comms failure below (sealDecisionSafe logs the cause); the
+        // row + the counted `sealFailures` are what actually surface it to the caller.
+        console.warn(`[screen-wave] decision seal failed for ${e.candidateLabel} (${e.id}) — rejection NOT applied`);
+        decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: sealFailedRationale, reasonCode: "sealFailed", reasonParams: {}, ...stale });
         continue;
       }
       // Optimistic CAS (idea-b24a6d3c): the cohort was snapshotted up-front and
@@ -398,26 +480,16 @@ export async function runScreenWave(
       const updated = actOnPipelineEntry(e.id, "reject", committedRationale, { expectedStage: e.stage, actor: "system" }, workspaceId);
       if (!updated) {
         const skipped = `Skipped — stage changed mid-wave (was ${e.stage}); left untouched.`;
+        // Seal-first leaves ONE residue: the record was written microseconds ago and
+        // this flip then no-op'd, so the append-only chain holds an auto-rejection that
+        // did not apply. That window is now a single synchronous statement wide — it
+        // used to span the whole awaited comms dispatch — and it is the right trade
+        // against the alternative it replaces: an APPLIED, emailed rejection with no
+        // record at all. The staleSkipped keep below is the wave's own report of it.
+        console.warn(`[screen-wave] ${e.candidateLabel} (${e.id}) changed stage between seal and commit — the sealed record does not reflect an applied rejection`);
         decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: skipped, reasonCode: "staleSkipped", reasonParams: { wasStage: e.stage } });
         continue;
       }
-      // Decision System of Record (moonshot D): seal a tamper-evident, replayable
-      // record of this auto-rejection — the inputs it saw, the policy version, the
-      // actor, the rationale — alongside the auto_rejected audit event the act above
-      // already wrote (actor:"system"). Best-effort (sealDecisionSafe never throws):
-      // a seal failure must NEVER abort the wave.
-      sealDecisionSafe({
-        kind: AUTO_REJECTED_KIND,
-        actor: "auto:screen-wave",
-        // Per-record policyVersion carries the EFFECTIVE floor this candidate was
-        // judged against (family override or global) — byte-identical when none.
-        policyVersion: `screen-wave/bottom${cfg.rejectBottomPercent}/maxMatch${floor}`,
-        candidateRef: e.id,
-        rationale: committedRationale,
-        reasonCode: "reject",
-        // The decisive numbers + WHO approved this reviewed set (the Art. 22 record).
-        inputs: { ...reasonParams, approvedBy },
-      });
       // A comms failure must not abort the wave (idea-961de357): the rejection
       // is already applied + audited, and the loop holds the REST of the cohort
       // — one transient SMTP error used to escape here, leaving the batch
@@ -436,11 +508,15 @@ export async function runScreenWave(
       }
       // commsFailed rides the decision row so the committed view can badge WHO
       // needs a manual nudge — the bare commsFailures count names nobody.
-      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale: committedRationale, reasonCode: "reject", reasonParams, ...(commsFailed ? { commsFailed } : {}), ...staleFields(e.id) });
+      decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "reject", rationale: committedRationale, reasonCode: "reject", reasonParams, ...(commsFailed ? { commsFailed } : {}), ...stale });
       rejected += 1;
     } else {
-      const reason = keepReason(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared);
-      const structured = keepReasonStructured(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared);
+      // reinstatedSpared: this candidate met every auto-reject test and was removed
+      // from the set ONLY because a human had already reversed a rejection on them —
+      // say that, rather than reporting a threshold reason that isn't why they're here.
+      const wasReinstated = reinstatedSpared.has(e.id);
+      const reason = keepReason(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared, wasReinstated);
+      const structured = keepReasonStructured(cfg, protectedFromAutoReject, knownArchetype, inBottom, tieSpared, wasReinstated);
       decisions.push({ entryId: e.id, label: e.candidateLabel, archetype: e.archetype, matchScore: score, action: "keep", rationale: reason, ...structured, ...staleFields(e.id) });
     }
   }
@@ -464,5 +540,5 @@ export async function runScreenWave(
   // `cohort` reports the FULL stage cohort (scored + unscored) so the modal's
   // "would reject X of N" matches the number of rows it lists; the bottom-% math
   // above used the scored count `n`.
-  return { decisions, rejected, kept: decisions.length - rejected, cohort: cohort.length, config: cfg, commsFailures, dryRun, approvalToken };
+  return { decisions, rejected, kept: decisions.length - rejected, cohort: cohort.length, config: cfg, commsFailures, sealFailures, dryRun, approvalToken };
 }

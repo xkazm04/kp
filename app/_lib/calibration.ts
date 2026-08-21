@@ -207,9 +207,25 @@ export type ThresholdRecommendation = {
  *   • above advanced at a LOW rate → the floor is too low → suggest raising.
  * When both qualify, the better-supported band wins; a tie goes to the
  * candidate-protective "lower".
+ *
+ * RATCHET GUARD (craft-scan 2026-08-20). The two bands are NOT symmetric sources.
+ * Below the floor, the screening wave itself closed the entries as `rejected`, so
+ * in the contaminated arm every below-floor pair carries outcome 0 BY CONSTRUCTION
+ * — the "lower" branch is structurally unreachable there while "raise" (whose band
+ * sits above the floor, where the wave never acted and the label is human) stays
+ * reachable. Measured over the contaminated arm, the only advice this function can
+ * ever produce is "raise the floor", applied live by one click. So:
+ *   • the below-floor band is read from `holdoutPairs` — the CLEAN ARM, candidates
+ *     the wave SPARED, whose outcome the score did not mechanically produce;
+ *   • a "raise" is refused unless that clean-arm band has enough support to have
+ *     argued the other way. No clean arm (holdout disabled / too few outcomes) →
+ *     no recommendation at all, rather than a one-way one.
+ * `holdoutPairs` is a required argument precisely so a new call site cannot
+ * silently fall back to the contaminated arm.
  */
 export function recommendScreeningThreshold(
   pairs: ScoreOutcome[],
+  holdoutPairs: ScoreOutcome[],
   currentThreshold: number,
   opts?: { minOutcomes?: number; minBandOutcomes?: number; bandWidth?: number; highRate?: number; lowRate?: number }
 ): ThresholdRecommendation | null {
@@ -229,12 +245,16 @@ export function recommendScreeningThreshold(
     arr.reduce((s, p) => s + (p.outcome >= 0.5 ? 1 : 0), 0) / arr.length;
 
   const lowerLo = Math.max(0, T - bandWidth);
-  const below = pairs.filter((p) => p.score >= lowerLo && p.score < T);
+  // Below the floor: clean arm only (see RATCHET GUARD above).
+  const below = holdoutPairs.filter((p) => p.score >= lowerLo && p.score < T);
   const upperHi = Math.min(100, T + bandWidth);
   const above = pairs.filter((p) => p.score >= T && p.score < upperHi);
+  // Both branches hang off the clean-arm band having enough support to argue for
+  // "lower". Without that gate, "raise" is the only answer this function can reach.
+  if (below.length < minBand) return null;
 
   const found: ThresholdRecommendation[] = [];
-  if (below.length >= minBand) {
+  {
     const r = positiveRate(below);
     if (r >= highRate) {
       found.push({

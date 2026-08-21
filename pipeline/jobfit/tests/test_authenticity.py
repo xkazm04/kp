@@ -27,6 +27,31 @@ class AuthenticityTest(unittest.TestCase):
         self.assertTrue(any("buzzword" in c for c in checks))
         self.assertIn(authenticity_band(checks), ("medium", "low"))
 
+    def test_long_senior_cv_with_a_few_buzzwords_does_not_flag(self) -> None:
+        # Four generic phrases across a ten-page senior CV is unremarkable prose.
+        # The check has a length denominator now, so it must not fire — the old
+        # absolute `>= 4` did, systematically, against the longest careers.
+        concrete = (
+            "Led the 2019-2024 payments rebuild: 12 engineers, p99 down 40%, "
+            "2.1M EUR saved. Shipped 8 services. "
+        )
+        cv = concrete * 60 + (
+            "A passionate and proactive engineer with a proven track record "
+            "in a fast-paced environment."
+        )
+        self.assertGreater(len(cv), 5000)
+        checks = authenticity_checks(cv, skills_count=12, years_experience=18)
+        self.assertFalse(any("buzzword" in c for c in checks), checks)
+
+    def test_buzzword_density_still_flags_a_long_padded_cv(self) -> None:
+        # Length is not a free pass: proportional padding still warns.
+        padded = (
+            "A passionate, results-driven team player and self-starter, a proactive "
+            "thought leader with a proven track record in a fast-paced environment. "
+        )
+        checks = authenticity_checks(padded * 20, skills_count=12, years_experience=18)
+        self.assertTrue(any("buzzword" in c for c in checks), checks)
+
     def test_implausible_years_flags(self) -> None:
         checks = authenticity_checks("Seasoned professional.", skills_count=3, years_experience=60)
         self.assertTrue(any("career span" in c for c in checks))

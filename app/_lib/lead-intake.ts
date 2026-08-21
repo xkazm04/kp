@@ -222,8 +222,9 @@ export async function intakeLead(input: LeadIntakeInput): Promise<LeadIntakeOutc
   const { entry, created } = createPipelineEntry({
     candidateId: randomId("lead"),
     candidateLabel: name || ANONYMOUS_APPLICANT_LABEL,
-    // Never guess a fairness-shielded archetype for a thin lead — the
-    // enrichment re-apply recovers the real one alongside the profile.
+    // A thin lead is stamped UNCLASSIFIED, never a guessed archetype and never a
+    // concrete class — the enrichment re-apply recovers the real one alongside the
+    // profile. See FALLBACK_ARCHETYPE.
     archetype: FALLBACK_ARCHETYPE,
     roleFamily: job.roleFamily ?? null,
     jobId: job.id,

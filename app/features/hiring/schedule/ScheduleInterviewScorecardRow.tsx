@@ -12,7 +12,7 @@ import { rubricLabel } from "@/app/_lib/interview-rubric";
 import { useRubricStrings } from "@/app/_lib/use-rubric-strings";
 import { Meter } from "@/app/_components/Meter";
 import { RATING_MAX, ratingToPercent, ratingTone } from "@/app/_lib/format";
-import type { ScorecardRating } from "@/app/_lib/interview-scorecard";
+import { isNotAssessedRating, isPlaceholderEvidence, type ScorecardRating } from "@/app/_lib/interview-scorecard";
 import { cleanRating } from "./scheduleInterviewTranscriptHelpers";
 
 // The evidence rendering is the only divergence, so it's an optional slot: the
@@ -31,7 +31,15 @@ export function ScorecardRatingRow({
   renderEvidence?: (evidence: string) => ReactNode;
 }) {
   const rubricStrings = useRubricStrings();
-  const rating = cleanRating(r.rating);
+  // NOT-ASSESSED IS ON THE SCALE, so `rating == null` was never the whole test: the
+  // synthesis encodes an untouched competency as rating 3 + placeholder evidence
+  // (automation.py), which rendered here as a filled 3/5 meter indistinguishable from
+  // a genuine middling score — and the candidate was compared on it against peers
+  // whose same axis was actually observed. Collapse the sentinel to null so it takes
+  // the existing "not assessed" path (label + no meter), no new copy required. The
+  // read-side guard is the stopgap; the durable fix is the prompt emitting rating null.
+  const clean = cleanRating(r.rating);
+  const rating = isNotAssessedRating(clean, r.evidence) ? null : clean;
   const label = rubricLabel(r.competency, rubricStrings);
   return (
     <li className="text-sm text-ink">
@@ -42,7 +50,10 @@ export function ScorecardRatingRow({
       {rating != null ? (
         <Meter value={ratingToPercent(rating)} tone={ratingTone(rating)} className="mt-1" aria-label={t("ratingAria", { competency: label, rating, max: RATING_MAX })} />
       ) : null}
-      {r.evidence
+      {/* The "Not assessed…" placeholder is boilerplate, not a candidate quote — the
+          compare grid already filters it out; do the same here rather than rendering
+          it under a row that just said "not assessed". */}
+      {r.evidence && !isPlaceholderEvidence(r.evidence)
         ? renderEvidence
           ? renderEvidence(r.evidence)
           : <p className="mt-1 text-meta text-steel">{r.evidence}</p>

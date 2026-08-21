@@ -57,15 +57,20 @@ const ARCHETYPE_IDS = new Set(ALL_ARCHETYPES.map((a) => a.id));
  *  applyLabel, every applicant intentionally falls to heuristic auto routing. */
 const MIN_ARCHETYPE_OPTIONS_TO_OFFER = 2;
 
-/** The pipeline-wide neutral baseline archetype ("business as usual" = an
- *  experienced professional on the standard, non-fairness-shielded path). It is the
- *  SAFE fallback when intake fails or yields no archetype: we must not GUESS a
- *  fairness-shielded archetype (student / career_switcher) from a broken intake —
- *  that could wrongly grant or deny shielding — so a degraded entry takes the
- *  neutral default and is flagged intake-degraded for manual capture, at which point
- *  the real archetype is recovered. Mirrors the Python `BAU` and the codebase-wide
- *  `?? "bau"` default. */
-export const FALLBACK_ARCHETYPE = "bau";
+/** The UNCLASSIFIED sentinel persisted when intake fails or yields no archetype.
+ *  We must not GUESS a fairness-shielded archetype (student / career_switcher)
+ *  from a broken intake — but "bau" was never the neutral choice it looked like:
+ *  it is a CONCRETE class ("business as usual" = an experienced professional), so
+ *  persisting it on a record that asserts nothing was read strips the early-career
+ *  fairness shield (`isFairnessProtected("bau")` is false) and applies the
+ *  seniority KO floor. "unknown" is the fail-closed sentinel the rest of the
+ *  codebase standardised on — `match-candidate.ts` and `candidate-pool.ts` pass it
+ *  for exactly this reason, `archetypes.ts` shields anything it cannot classify,
+ *  and the Python side agrees (`matching.py` shields `_EARLY_CAREER` and treats an
+ *  archetype absent from `WEIGHTS` as unclassified; "bau" took neither branch).
+ *  The entry is still flagged intake-degraded for manual capture, at which point
+ *  the real archetype is recovered and replaces this sentinel. */
+export const FALLBACK_ARCHETYPE = "unknown";
 
 // The archetype ids that get their own intake lane below. Any OTHER archetype —
 // bau, a skipped question, or a future registry addition without a lane — falls

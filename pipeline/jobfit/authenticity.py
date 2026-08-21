@@ -36,6 +36,13 @@ _BUZZWORD_FLAG = "Authenticity: heavy generic/buzzword phrasing — verify concr
 _SKILL_STUFF_FLAG = "Authenticity: skill list is large relative to the CV's detail — confirm real depth (manual review)."
 _IMPLAUSIBLE_YEARS_FLAG = "Authenticity: stated experience exceeds a plausible career span — re-check the dates (manual review)."
 _FEW_SPECIFICS_FLAG = "Authenticity: very few concrete dates or metrics — claims are hard to verify (manual review)."
+# Buzzword flag thresholds. The floor keeps the old absolute behaviour for short
+# CVs (four generic phrases in a page is genuinely dense padding); the rate keeps
+# a ten-page senior CV from tripping on that same absolute count — it must carry
+# proportionally as much padding to warn.
+_BUZZWORD_MIN_HITS = 4
+_BUZZWORD_PER_1K = 1.5
+
 _CLEAN = "Authenticity checks passed — language reads specific and concrete."
 
 
@@ -46,8 +53,15 @@ def authenticity_checks(raw_text: str, *, skills_count: int = 0, years_experienc
     lower = text.lower()
     flags: list[str] = []
 
+    # DENSITY, not an absolute count. The list includes ordinary CV words
+    # ("passionate", "track record", "proactive"), so a bare `>= 4` fired on any
+    # long senior CV where four occurrences are unremarkable prose — and because
+    # CV length tracks career length, the miss was systematic against the most
+    # experienced candidates. Same sample-floor discipline as the neighbours
+    # below: a minimum count so a two-line CV can't trip it on density alone,
+    # then a per-1000-character rate over the document.
     buzz_hits = sum(lower.count(b) for b in _BUZZWORDS)
-    if buzz_hits >= 4:
+    if buzz_hits >= _BUZZWORD_MIN_HITS and buzz_hits >= _BUZZWORD_PER_1K * max(len(text), 1000) / 1000:
         flags.append(_BUZZWORD_FLAG)
 
     # A long CV with almost no digits (dates, team sizes, %s, $) reads as vague —

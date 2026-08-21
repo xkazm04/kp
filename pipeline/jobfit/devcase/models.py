@@ -8,7 +8,7 @@ lifecycle: DevNeed -> NeedAnalysis -> (CaseScenario + RoleSpec) -> Submission ->
 
 from __future__ import annotations
 
-from pydantic import AliasChoices, Field, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 
 from ..models import _Base
 
@@ -180,6 +180,36 @@ RUBRIC_DIMENSIONS: list[dict] = [
 ]
 
 
+# The cap on the candidate's UNPAID work, in hours (UAT M8). This is a policy number,
+# not a design detail: a half-day take-home drives a 40–60% drop-off among strong
+# seniors, and whatever value survives here is rendered verbatim to the candidate
+# (seed_materializer). It therefore lives on the MODEL, where every writer meets it,
+# rather than in the designer that happened to enforce it first:
+#   - design.py imports it to clamp the LLM's own estimate,
+#   - the field validator below clamps every other Python construction path,
+#   - codegen exports it to TS as DEVCASE_MAX_TIMEBOX_HOURS so the reviewer-edit path
+#     in the approve route clamps to the SAME number instead of a duplicate literal.
+# Seniority scales DEPTH / ambiguity, never hours.
+MAX_TIMEBOX_HOURS = 2.0
+# Floor, so a degenerate 0 can't render "~0h" to the candidate.
+MIN_TIMEBOX_HOURS = 0.5
+# Mid-band default: the value a case gets when nothing sets one. Was 4.0 — DOUBLE the
+# cap — so any path that omitted the field minted an over-policy exercise.
+DEFAULT_TIMEBOX_HOURS = 1.5
+
+
+def clamp_timebox_hours(hours: float) -> float:
+    """The one timebox rule: bound to [MIN, MAX]. Non-finite / unparseable input falls
+    back to the mid-band default rather than propagating a NaN into candidate-facing copy."""
+    try:
+        h = float(hours)
+    except (TypeError, ValueError):
+        return DEFAULT_TIMEBOX_HOURS
+    if h != h or h in (float("inf"), float("-inf")):  # NaN/inf would survive min/max
+        return DEFAULT_TIMEBOX_HOURS
+    return min(max(h, MIN_TIMEBOX_HOURS), MAX_TIMEBOX_HOURS)
+
+
 class CaseScenario(_Base):
     """The designed assignment, grounded in the supplied reality (a codebase for software
     roles; the role's own materials — documents, models, designs, … — for other domains)."""
@@ -210,11 +240,20 @@ class CaseScenario(_Base):
     tasks: list[str] = Field(default_factory=list)
     cover_probes: list[CoverProbe] = Field(default_factory=list)
     rubric_dimensions: list[RubricDimension] = Field(default_factory=list)
-    timebox_hours: float = 4.0
+    timebox_hours: float = DEFAULT_TIMEBOX_HOURS
     # LLM-era controls #5 — the requirement change revealed mid-session (None on
     # cases designed before case-design v6 or when the designer judged it unfit).
     mid_flight_update: MidFlightUpdate | None = None
     prompt_version: str = ""
+
+    @field_validator("timebox_hours", mode="after")
+    @classmethod
+    def _bound_timebox(cls, v: float) -> float:
+        """Make the cap EXECUTABLE, not a rule that lives in one generator. Any writer
+        that builds a CaseScenario — the designer, a stored-case rehydration, a test
+        fixture, a future intake path — gets a policy-legal timebox; there is no
+        construction route left that can hand a candidate a two-week 'take-home'."""
+        return clamp_timebox_hours(v)
 
 
 class RoleSpec(_Base):

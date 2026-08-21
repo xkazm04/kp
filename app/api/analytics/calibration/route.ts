@@ -102,7 +102,16 @@ export async function GET(request: Request) {
         // hired", which is a different (and far thinner) basis for moving a screening
         // gate. So the suggestion is derived on the advance axis only, and the panel
         // says so instead of showing an absence that looks like "no evidence".
-        recommendation = outcome === "advance" ? recommendScreeningThreshold(pairs, currentThreshold) : null;
+        // RATCHET GUARD — the below-floor half of the comparison must come from the
+        // CLEAN ARM (the entries the wave spared), because in the contaminated arm
+        // every below-floor pair is a reject the score itself produced, so only
+        // "raise" is reachable. Same family scope as the displayed curve; no holdout
+        // (disabled, or too few spared outcomes) → no recommendation at all.
+        const allHoldout =
+          outcome === "advance" ? pipelineCalibrationPairs(ws, { onlyEntryIds: heldOutEntryIds(ws), outcome: "advance" }) : [];
+        const holdoutPairs = family ? allHoldout.filter((p) => p.roleFamily === family) : allHoldout;
+        recommendation =
+          outcome === "advance" ? recommendScreeningThreshold(pairs, holdoutPairs, currentThreshold) : null;
         // Surface which families carry an override so the panel can chip them.
         familyFloors = screening.familyFloors ?? {};
       }

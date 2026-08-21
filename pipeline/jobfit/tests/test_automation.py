@@ -364,6 +364,43 @@ class DraftsTest(unittest.TestCase):
         r, _ = automation.draft_rejection(BAU, self.job, self.m, "Screened", provider=None)
         self.assertTrue(r["body"])
 
+    def test_rejection_fallback_invents_no_gap_for_a_strong_candidate(self):
+        # The empty-missing branch is the STRONG candidate. The deterministic
+        # letter must not manufacture development advice the prompt forbids.
+        self.assertEqual(self.m.missing_skills, [])
+        r, _ = automation.draft_rejection(BAU, self.job, self.m, "Screened", provider=None)
+        self.assertEqual(r["feedback"], "")
+        self.assertNotIn("hands-on project depth", r["body"])
+        self.assertNotIn("One suggestion for the future", r["body"])
+        self.assertTrue(r["body"].strip())
+
+    def test_rejection_fallback_still_names_a_recorded_gap(self):
+        job = mkjob(requirements=[
+            {"skill": "Python", "kind": "must_have", "hardness": "prerequisite"},
+            {"skill": "Kubernetes", "kind": "must_have", "hardness": "prerequisite"},
+        ])
+        m = score_job(BAU, job)
+        self.assertTrue(m.missing_skills)
+        r, _ = automation.draft_rejection(BAU, job, m, "Screened", provider=None)
+        self.assertIn("Kubernetes", r["feedback"])
+        self.assertIn("One suggestion for the future", r["body"])
+
+    def test_rejection_coerce_keeps_the_models_empty_feedback(self):
+        # "" is the COMPLIANT answer, not a missing value: it must survive coercion
+        # rather than being replaced by the deterministic string.
+        job = mkjob(requirements=[
+            {"skill": "Python", "kind": "must_have", "hardness": "prerequisite"},
+            {"skill": "Kubernetes", "kind": "must_have", "hardness": "prerequisite"},
+        ])
+        m = score_job(BAU, job)
+        cap = _CaptureProvider({"subject": "s", "body": "b", "feedback": "", "language": "English"})
+        r, _ = automation.draft_rejection(BAU, job, m, "Screened", provider=cap)
+        self.assertEqual(r["feedback"], "")
+        # An absent key still falls back to the deterministic (real) gap.
+        cap2 = _CaptureProvider({"subject": "s", "body": "b", "language": "English"})
+        r2, _ = automation.draft_rejection(BAU, job, m, "Screened", provider=cap2)
+        self.assertIn("Kubernetes", r2["feedback"])
+
     def test_prep_deterministic(self):
         r, _ = automation.interview_prep(BAU, self.job, self.m, provider=None)
         self.assertTrue(len(r["questions"]) >= 1)

@@ -11,7 +11,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeScorecardEntities, isPlaceholderEvidence } from "./interview-scorecard.ts";
+import { normalizeScorecardEntities, isPlaceholderEvidence, isNotAssessedRating } from "./interview-scorecard.ts";
 
 test("a read-back with a correction survives coercion, trimming and dropping junk", () => {
   const out = normalizeScorecardEntities({
@@ -79,4 +79,27 @@ test("isPlaceholderEvidence matches every 'Not assessed…' spelling (prefix con
 test("isPlaceholderEvidence keeps genuine evidence quotes", () => {
   assert.equal(isPlaceholderEvidence("Walked through a real migration they led."), false);
   assert.equal(isPlaceholderEvidence("Assessed the candidate's system-design tradeoffs."), false, "'Assessed…' is not the 'Not assessed' prefix");
+});
+
+// The synthesis encodes "not assessed" as rating 3 + placeholder evidence
+// (automation.py: "set its evidence to an empty string and rate it 3", then backfilled
+// to "Not assessed."), so NOT-ASSESSED IS ON THE SCALE. Read-side surfaces need a
+// predicate for it or an untouched competency renders as a genuine mid score.
+test("isNotAssessedRating catches the synthesis's rating-3 + placeholder sentinel", () => {
+  assert.equal(isNotAssessedRating(3, "Not assessed."), true);
+  assert.equal(isNotAssessedRating(3, "Not assessed (auto-synthesis unavailable)."), true);
+});
+
+test("isNotAssessedRating leaves a genuine middling rating alone", () => {
+  assert.equal(isNotAssessedRating(3, "Walked through a real migration they led."), false);
+  assert.equal(isNotAssessedRating(4, "Not assessed."), false, "only the mid-scale sentinel value");
+  assert.equal(isNotAssessedRating(2, "Not assessed."), false);
+});
+
+test("isNotAssessedRating does not swallow an unevidenced HUMAN rating of 3", () => {
+  // The human scorecard route omits `evidence` when the recruiter left the note blank
+  // and simply omits an unrated competency — so a bare 3 there is a real observation.
+  assert.equal(isNotAssessedRating(3, undefined), false);
+  assert.equal(isNotAssessedRating(3, ""), false);
+  assert.equal(isNotAssessedRating(null, "Not assessed."), false);
 });

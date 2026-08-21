@@ -10,7 +10,14 @@ from pipeline.jobfit.devcase.design import (
     design_role,
 )
 from pipeline.jobfit.devcase.lifecycle_eval import _check_case
-from pipeline.jobfit.devcase.models import DevNeed, NeedAnalysis
+from pipeline.jobfit.devcase.models import (
+    DEFAULT_TIMEBOX_HOURS,
+    MAX_TIMEBOX_HOURS,
+    MIN_TIMEBOX_HOURS,
+    CaseScenario,
+    DevNeed,
+    NeedAnalysis,
+)
 
 
 class _StubProvider:
@@ -131,6 +138,51 @@ class TestAmbiguityAsInstrument(unittest.TestCase):
         by_id = {p["id"]: p for p in case["coverProbes"]}
         self.assertEqual(by_id["x1"]["decisionSpace"], ["Option A", "Option B"])  # cleaned
         self.assertEqual(by_id["x2"]["decisionSpace"], [])  # pre-v4 probes degrade gracefully
+
+
+class TestTimeboxCapAtEveryWriter(unittest.TestCase):
+    """The cap on a candidate's unpaid work (2h, UAT M8) was enforced ONLY in the
+    designer's clamp of the LLM estimate; the model default was 4.0 (double the cap) and
+    the TS approve route accepted 80. Whatever survives renders verbatim to the candidate
+    (seed_materializer), so the bound has to hold at every writer, not one."""
+
+    def setUp(self):
+        self.need = DevNeed(title="Backend Engineer", stack=["Python"], seniority_target="medior")
+        self.analysis = NeedAnalysis(real_stack=["Python"], true_complexity="medium")
+        self.role = {"title": "Backend Engineer", "seniority": "medior", "roleFamily": "software_engineering", "responsibilities": []}
+
+    def test_model_default_is_mid_band_not_double_the_cap(self):
+        self.assertEqual(CaseScenario().timebox_hours, DEFAULT_TIMEBOX_HOURS)
+        self.assertLessEqual(CaseScenario().timebox_hours, MAX_TIMEBOX_HOURS)
+
+    def test_model_clamps_every_construction_path(self):
+        # A stored case, a fixture, or a future intake path can carry any number; the
+        # field validator is the writer-agnostic enforcement point.
+        self.assertEqual(CaseScenario(timebox_hours=40).timebox_hours, MAX_TIMEBOX_HOURS)
+        self.assertEqual(CaseScenario(timeboxHours=80).timebox_hours, MAX_TIMEBOX_HOURS)
+        self.assertEqual(CaseScenario(timebox_hours=0).timebox_hours, MIN_TIMEBOX_HOURS)
+        self.assertEqual(CaseScenario(timebox_hours=float("nan")).timebox_hours, DEFAULT_TIMEBOX_HOURS)
+        self.assertEqual(CaseScenario(timebox_hours=1.5).timebox_hours, 1.5)  # in-band is untouched
+
+    def test_designer_clamps_the_llm_estimate_to_the_shared_cap(self):
+        payload = {
+            "title": "Case",
+            "brief": "b",
+            "repoSeed": "r",
+            "tasks": ["t"],
+            "coverProbes": [{"id": "x1", "kind": "ambiguity", "where": "brief", "reveals": "r"}],
+            "timeboxHours": 16,  # the LLM routinely echoes a longer take-home back
+        }
+        case, _ = design_case(self.need, self.analysis, self.role, provider=_StubProvider(payload))
+        self.assertEqual(case["timeboxHours"], MAX_TIMEBOX_HOURS)
+
+    def test_every_seniority_band_is_within_the_cap(self):
+        for seniority in ("junior", "medior", "senior", "lead", "unknown"):
+            need = DevNeed(title="Engineer", stack=["Python"], seniority_target=seniority)
+            role = {**self.role, "seniority": seniority}
+            case, _ = design_case(need, self.analysis, role, provider=None)
+            self.assertGreaterEqual(case["timeboxHours"], MIN_TIMEBOX_HOURS, seniority)
+            self.assertLessEqual(case["timeboxHours"], MAX_TIMEBOX_HOURS, seniority)
 
 
 if __name__ == "__main__":

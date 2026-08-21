@@ -121,8 +121,9 @@ export async function ingestCvApplication(input: {
   const { entry, created } = createPipelineEntry({
     candidateId,
     candidateLabel: name,
-    // A degraded intake (or a build with no archetype) takes the neutral baseline —
-    // never a guessed fairness-shielded archetype. See FALLBACK_ARCHETYPE.
+    // A degraded intake (or a build with no archetype) is stamped UNCLASSIFIED —
+    // never a guessed archetype, and never a concrete class that would strip the
+    // fail-closed fairness shield. See FALLBACK_ARCHETYPE.
     archetype: (built.ok ? built.archetype : null) ?? FALLBACK_ARCHETYPE,
     roleFamily: input.job.roleFamily ?? null,
     jobId: input.job.id,

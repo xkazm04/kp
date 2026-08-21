@@ -562,18 +562,25 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang:
     )
 
     def deterministic() -> dict:
-        fb = f"Strengthening {', '.join(missing[:2])}" if missing else "Adding more hands-on project depth"
+        # No recorded missing must-have means there is no gap to name. Inventing
+        # development advice here would land on the STRONG candidate — the one
+        # closest to the bar — and is exactly what the prompt above forbids, so
+        # the fallback stays silent rather than fabricating a criticism. An empty
+        # feedback also drops the suggestion sentence from the body entirely.
+        fb = f"Strengthening {', '.join(missing[:2])}" if missing else ""
         if lang == "Czech":
+            tip = f"Jako tip do budoucna: {fb}. " if fb else ""
             body = (
                 f"Dobrý den {candidate.label},\n\nděkujeme za Váš zájem o pozici {job.title}. "
                 "Po pečlivém zvážení jsme se tentokrát rozhodli pokračovat s jinými kandidáty. "
-                f"Jako tip do budoucna: {fb}. Přejeme hodně úspěchů.\n\nS pozdravem,\nNáborový tým"
+                f"{tip}Přejeme hodně úspěchů.\n\nS pozdravem,\nNáborový tým"
             )
             subject = f"Vaše přihláška — {job.title}"
         else:
+            tip = f"One suggestion for the future: {fb}. " if fb else ""
             body = (
                 f"Hi {candidate.label},\n\nthank you for your interest in the {job.title} role. After careful review "
-                f"we've decided to move forward with other candidates this time. One suggestion for the future: {fb}. "
+                f"we've decided to move forward with other candidates this time. {tip}"
                 "We wish you the best.\n\nBest,\nThe hiring team"
             )
             subject = f"Your application — {job.title}"
@@ -583,10 +590,14 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang:
         det = deterministic()
         if not isinstance(payload, dict):
             return det
+        # feedback is the one field where "" is a COMPLIANT answer (the prompt asks
+        # for an empty string rather than generic advice), so only a genuinely
+        # absent value falls back — `or` would overwrite the model's refusal.
+        feedback = payload.get("feedback")
         return {
             "subject": str(payload.get("subject") or det["subject"]),
             "body": str(payload.get("body") or det["body"]),
-            "feedback": str(payload.get("feedback") or det["feedback"]),
+            "feedback": det["feedback"] if feedback is None else str(feedback),
             "language": str(payload.get("language") or lang),
         }
 

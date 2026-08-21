@@ -162,3 +162,28 @@ test("scrubPiiFromPayload tolerates non-object input", () => {
   assert.equal(scrubPiiFromPayload("plain"), "plain");
   assert.equal(scrubPiiFromPayload(42), 42);
 });
+
+test("an UNPARSEABLE expiry fails closed as expired — a MISSING one stays active", () => {
+  // craft-scan-2026-08-20 P1: `!Number.isFinite(exp)` used to return "active", so a
+  // corrupt retention date served the CV/transcript/scorecard forever AND the sweep
+  // skipped it (`exp <= now` never matches NaN). The two ambiguous inputs are
+  // deliberately NOT the same state and must not collapse into one another.
+  for (const bad of ["not-a-date", "2026-13-45", "yesterday", "NaN", "  "]) {
+    const snap: ConsentSnapshot = { givenAt: "x", expiresAt: bad, anonymizedAt: null };
+    assert.equal(consentStatus(snap, NOW), "expired", `${JSON.stringify(bad)} must fail closed`);
+    assert.equal(consentWithholdsPii(snap, NOW), true);
+    assert.equal(outreachSuppressionReason(snap, NOW), "consent_expired");
+  }
+  // Legacy open-ended grant (never HAD an expiry) is a different state: still active,
+  // still contactable — collapsing it would retroactively expire every pre-feature row.
+  const openEnded: ConsentSnapshot = { givenAt: "x", expiresAt: null, anonymizedAt: null };
+  assert.equal(consentStatus(openEnded, NOW), "active");
+  assert.equal(consentWithholdsPii(openEnded, NOW), false);
+  assert.equal(outreachSuppressionReason(openEnded, NOW), null);
+  // anonymized still wins over a corrupt expiry (terminal state, its own reason).
+  const anon: ConsentSnapshot = { givenAt: "x", expiresAt: "not-a-date", anonymizedAt: "y" };
+  assert.equal(consentStatus(anon, NOW), "anonymized");
+  assert.equal(outreachSuppressionReason(anon, NOW), "anonymized");
+  // and a never-granted row is "none", not "expired".
+  assert.equal(consentStatus({ givenAt: null, expiresAt: "not-a-date", anonymizedAt: null }, NOW), "none");
+});
