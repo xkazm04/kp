@@ -293,6 +293,12 @@ exemption is a path in the eslint `ignores` list or an entry in the script's
 - `app/_lib/brand.ts` — the mirror itself; its literals are pinned by the lockstep gate.
 - `app/_components/glyph/glyphs/**` — traced glyph *source* data, never painted:
   `MotionizedGlyph` runs every fill through `snapToToken()` and emits `var(--color-*)`.
+  That promise is now **verified**, not assumed:
+  [`glyphData.test.ts`](../../app/_components/glyph/glyphs/glyphData.test.ts) asserts every
+  emitted fill is a 6-digit hex the snap can parse (or a `var(--color-*)` it already
+  resolved) and that the token it lands on is declared in **both** theme blocks. Without
+  it, a regeneration emitting `#abc`, `#rrggbbaa` or `rgb(…)` would fall through the snap
+  untouched and paint a literal colour past both gates.
 - `app/_components/puml/**` — diagram-only primitive tints (cylinder, cloud, sticky
   note) with no CSS-variable equivalent. Its brand-mirroring half imports `brand.ts`;
   the diagram has no dark register yet.

@@ -21,6 +21,7 @@
 // governance mode + candidate-set fingerprint) lives in its own pure module so its
 // logic is unit-testable in isolation (bug-ui-scan-2026-07-09 #3).
 import { groupEvalDedupeKey } from "./group-eval-dedupe.ts";
+import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 
 /**
  * Join a dedupe key from a prefix and its REQUIRED identifying parts. Returns
@@ -45,17 +46,50 @@ function identityJson(value: unknown): string | undefined {
   return value == null ? undefined : JSON.stringify(value);
 }
 
+/**
+ * The reader's locale as a dedupe DISCRIMINATOR, for the kinds whose OUTPUT is
+ * localized.
+ *
+ * A background task carries the requesting locale in its params (a detached task
+ * can't read the cookie), and for `reasoning` / `interview_prep` that locale picks
+ * the language of the whole artifact — the LLM prompt directive, the deterministic
+ * scaffolding, and the persisted `lang`/`narrativeLang` stamp. Leaving it out of
+ * the key made "same entity" mean "same language", so a second reader (or the same
+ * operator after flipping the app language) was handed the in-flight run's pack in
+ * SOMEONE ELSE'S language — the identical omitted-input class the module header
+ * describes, and the reason `campaign` already folds it.
+ *
+ * Normalized exactly as the handlers narrow it (isLocale → DEFAULT_LOCALE, see
+ * runInterviewPrep / runReasoning), so an absent or unsupported `lang` keys onto the
+ * run it will actually produce instead of forking a second identical one.
+ */
+function localePart(value: unknown): string {
+  return isLocale(value) ? value : DEFAULT_LOCALE;
+}
+
 // One builder per task kind. Each returns a stable key, or null when its
-// identifying params are missing/empty. Keys for valid inputs are byte-identical
-// to the historical format so an in-flight run started just before this change
-// still dedupes. Keys MUST stay in sync with the HANDLERS kinds in tasks.ts; an
-// unlisted kind falls back to a unique key (safe: it just won't dedupe).
+// identifying params are missing/empty. A key's shape only has to survive the
+// tasks that are IN FLIGHT when it changes (it is compared against active rows
+// only), and the worst case of a shape change is one un-merged duplicate run —
+// never a wrong merge. Keys MUST stay in sync with the HANDLERS kinds in tasks.ts;
+// an unlisted kind falls back to a unique key (safe: it just won't dedupe).
+//
+// The rule for what belongs in a key: EVERY param the handler reads that changes
+// the RESULT. A localized artifact therefore folds the requesting locale
+// (localePart) — see `reasoning`, `interview_prep`, `campaign`.
 export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => string | null> = {
   automation: (p) => {
     const k = stableKey("automation", p.entryId, p.task);
     return k && `${k}:${p.notes ? "n" : ""}`;
   },
-  reasoning: (p) => stableKey("reasoning", p.profileId ?? p.analysisSlug ?? identityJson(p.candidate), p.jobId),
+  // Candidate identity + job + the READER'S LOCALE: runReasoning keys its own
+  // narrative cache by the requested locale precisely so a de/fr request never
+  // shares the en verdict, and the task key has to fold the same axis or the
+  // dedupe hands over the wrong-language slot before the cache is ever consulted.
+  reasoning: (p) => {
+    const k = stableKey("reasoning", p.profileId ?? p.analysisSlug ?? identityJson(p.candidate), p.jobId);
+    return k && `${k}:${localePart(p.lang)}`;
+  },
   batch_screen: () => "batch_screen", // singleton: one batch-screen at a time, by design
   // Keyed by the SORTED cohort fingerprint: a double-click (or retried fetch) on the
   // same selection dedupes onto the in-flight run, while a different cohort starts its
@@ -89,7 +123,13 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
     const k = stableKey("jd_build", p.title);
     return k && `${k}:${p.needText ? String(p.needText).length : 0}:${p.repoUrl ?? ""}`;
   },
-  interview_prep: (p) => stableKey("interview_prep", p.entryId), // one plan per entry; re-trigger reuses an in-flight run
+  // One plan per (entry, language): a re-trigger reuses the in-flight run, while a
+  // reader in another locale starts their own — the prep pack's questions AND its
+  // run-of-show scaffolding are generated in `lang` and the pack is stamped with it.
+  interview_prep: (p) => {
+    const k = stableKey("interview_prep", p.entryId);
+    return k && `${k}:${localePart(p.lang)}`;
+  },
   agent_fit: (p) => stableKey("agent_fit", p.jobId), // one transform per job; a re-trigger reuses the in-flight run
   // One pack per (job, language): a double-click on Generate reuses the in-flight
   // run, while switching the language toggle starts its own.

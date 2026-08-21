@@ -11,7 +11,7 @@
 //
 // Ids are minted once at add time and never move (mintStageId) — the same
 // contract the Settings composer works under.
-import { mintStageId, type AxisDraft, type DraftStage } from "@/app/features/shared/pipelineAxisDraft";
+import { AXIS_MAX_STAGES, mintStageId, type AxisDraft, type DraftStage } from "@/app/features/shared/pipelineAxisDraft";
 
 export type SetupPipelinePresetKey = "recommended" | "lean" | "technical";
 
@@ -32,8 +32,9 @@ const WORK_SAMPLE_ID_SEED = "Work sample";
  *   funnel needs so a case sits between talking and offering.
  *
  * Both edits are safe by construction — entry stays first, terminal stays last,
- * and neither role is duplicated — so a preset can never hand the operator an
- * axis the server would refuse.
+ * neither role is duplicated, and the added column is skipped when the axis has no
+ * room for it or already carries it — so a preset can never hand the operator an
+ * axis the editor (or the server) would refuse.
  */
 export function applyPipelinePreset(key: SetupPipelinePresetKey, base: AxisDraft, workSampleLabel: string): AxisDraft {
   if (key === "recommended") return base;
@@ -44,6 +45,20 @@ export function applyPipelinePreset(key: SetupPipelinePresetKey, base: AxisDraft
     if (firstInterview) keep.add(firstInterview.id);
     return { ...base, stages: base.stages.filter((s) => keep.has(s.id)) };
   }
+  // The wizard also opens over an EXISTING workspace (Settings → "Preview
+  // onboarding", `?onboarding=1`), so `base` is not always the shipped five. Two
+  // such boards have no room for the added column, and adding it anyway produces a
+  // draft `axisProblems` refuses — which is what `stepSatisfied("pipeline")` reads,
+  // so the one-click preset would leave Continue dead:
+  //   • a board already at the cap → `tooMany`;
+  //   • a board that already has a step by this name → `duplicateLabel` (two
+  //     columns a recruiter cannot tell apart; the editor is stricter than the wire
+  //     here on purpose — see pipelineAxisDraft.axisProblems).
+  // In both cases the board already IS the shape this preset describes, so hand it
+  // back untouched rather than an edit that can only be refused.
+  const wanted = workSampleLabel.trim().toLowerCase();
+  if (base.stages.length >= AXIS_MAX_STAGES) return base;
+  if (base.stages.some((s) => s.label.trim().toLowerCase() === wanted)) return base;
   const taken = [...base.stages.map((s) => s.id), ...base.retired.map((s) => s.id)];
   // The id is minted from a FIXED ASCII seed, not from the localized label: it is
   // a storage key (pipeline_entries.stage, the ATS field map), it must not differ

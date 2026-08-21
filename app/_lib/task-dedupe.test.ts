@@ -42,25 +42,62 @@ test("group_eval / lifecycle / interview_prep / evaluate_submission reject missi
   assert.equal(buildDedupeKey("group_eval", {}), null);
   assert.equal(buildDedupeKey("lifecycle", { lifecycleId: "lc1" }), "lifecycle:lc1");
   assert.equal(buildDedupeKey("lifecycle", {}), null);
-  assert.equal(buildDedupeKey("interview_prep", { entryId: "pe1" }), "interview_prep:pe1");
+  assert.equal(buildDedupeKey("interview_prep", { entryId: "pe1" }), "interview_prep:pe1:en");
   assert.equal(buildDedupeKey("interview_prep", {}), null);
   assert.equal(buildDedupeKey("evaluate_submission", { submissionId: "s1" }), "evaluate_submission:s1");
   assert.equal(buildDedupeKey("evaluate_submission", {}), null);
 });
 
 test("reasoning: any identity source works, all-absent yields null (was 'reasoning::undefined')", () => {
-  assert.equal(buildDedupeKey("reasoning", { profileId: "p1", jobId: "j1" }), "reasoning:p1:j1");
-  assert.equal(buildDedupeKey("reasoning", { analysisSlug: "a1", jobId: "j1" }), "reasoning:a1:j1");
+  assert.equal(buildDedupeKey("reasoning", { profileId: "p1", jobId: "j1" }), "reasoning:p1:j1:en");
+  assert.equal(buildDedupeKey("reasoning", { analysisSlug: "a1", jobId: "j1" }), "reasoning:a1:j1:en");
   assert.equal(
     buildDedupeKey("reasoning", { candidate: { name: "X" }, jobId: "j1" }),
-    `reasoning:${JSON.stringify({ name: "X" })}:j1`
+    `reasoning:${JSON.stringify({ name: "X" })}:j1:en`
   );
   // profileId wins the fallback chain when several are present.
-  assert.equal(buildDedupeKey("reasoning", { profileId: "p1", analysisSlug: "a1", jobId: "j1" }), "reasoning:p1:j1");
+  assert.equal(buildDedupeKey("reasoning", { profileId: "p1", analysisSlug: "a1", jobId: "j1" }), "reasoning:p1:j1:en");
   // No candidate identity at all, or no jobId → null, not a shared constant.
   assert.equal(buildDedupeKey("reasoning", { jobId: "j1" }), null);
   assert.equal(buildDedupeKey("reasoning", { profileId: "p1" }), null);
   assert.equal(buildDedupeKey("reasoning", {}), null);
+});
+
+// A LOCALIZED result is a different result. Both of these kinds generate their whole
+// artifact in the requesting locale (the LLM directive + the deterministic
+// scaffolding) and stamp it with that language, so "same entity" is NOT the same run
+// — omitting the locale handed a second reader the in-flight run's foreign-language
+// pack, exactly what `campaign` already folds the language to prevent.
+test("reasoning / interview_prep fold the reader's locale into the key", () => {
+  const cs = buildDedupeKey("interview_prep", { entryId: "pe1", lang: "cs" });
+  const de = buildDedupeKey("interview_prep", { entryId: "pe1", lang: "de" });
+  assert.notEqual(cs, de, "a de reader must not be handed the in-flight cs prep pack");
+  // A true retry in the SAME language still dedupes onto the in-flight run.
+  assert.equal(cs, buildDedupeKey("interview_prep", { entryId: "pe1", lang: "cs" }));
+
+  assert.notEqual(
+    buildDedupeKey("reasoning", { profileId: "p1", jobId: "j1", lang: "cs" }),
+    buildDedupeKey("reasoning", { profileId: "p1", jobId: "j1", lang: "de" })
+  );
+  assert.equal(
+    buildDedupeKey("reasoning", { profileId: "p1", jobId: "j1", lang: "cs" }),
+    buildDedupeKey("reasoning", { profileId: "p1", jobId: "j1", lang: "cs" })
+  );
+
+  // Normalized the way the HANDLER narrows it: an absent or unsupported lang means
+  // the run will produce DEFAULT_LOCALE output, so it keys onto the explicit-"en"
+  // run rather than forking a second, identical one.
+  assert.equal(
+    buildDedupeKey("interview_prep", { entryId: "pe1" }),
+    buildDedupeKey("interview_prep", { entryId: "pe1", lang: "en" })
+  );
+  assert.equal(
+    buildDedupeKey("reasoning", { profileId: "p1", jobId: "j1", lang: "xx" }),
+    buildDedupeKey("reasoning", { profileId: "p1", jobId: "j1", lang: "en" })
+  );
+  // The identity parts still gate the key: no locale can rescue a missing entity.
+  assert.equal(buildDedupeKey("interview_prep", { lang: "cs" }), null);
+  assert.equal(buildDedupeKey("reasoning", { jobId: "j1", lang: "cs" }), null);
 });
 
 test("automation: required entryId+task, optional notes flag appended only after a real key", () => {

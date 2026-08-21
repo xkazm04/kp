@@ -271,7 +271,12 @@ copy — `shared/pipelineAxisDraft.ts` is the same model Settings → Hiring use
 `shared/`: two feature groups now edit one axis). The wizard narrows it rather than
 forking it: the entry and terminal columns cannot be removed or re-roled, and an
 occupied column cannot be dropped, so no click in the step can produce a shape the
-server would refuse.
+server would refuse. That covers the presets too
+(`setupPipelinePresets.ts`): *With a work sample* adds its column only when the
+loaded axis has room for one (`AXIS_MAX_STAGES`) and does not already carry a step
+by that name — in preview mode `base` is a real workspace's board, and either case
+would otherwise hand back a draft `axisProblems` refuses (`tooMany`,
+`duplicateLabel`) and leave Continue dead on a one-click path.
 
 The step is **read-only first**. It opens on `SetupPipelineJourneyView` — a vertical
 walk down the funnel where each stop carries its stage-role glyph, its name, its

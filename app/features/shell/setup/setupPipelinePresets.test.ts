@@ -13,7 +13,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { validateDecisionConfig, type PipelineStagesRule } from "@/app/_lib/decision-config-schema";
 import { DEFAULT_STAGE_AXIS } from "@/app/_lib/pipeline-stages";
-import { axisProblems, draftFromStored, draftToStored, removeStage, renameStage } from "@/app/features/shared/pipelineAxisDraft";
+import { addStage, AXIS_MAX_STAGES, axisProblems, draftFromStored, draftToStored, removeStage, renameStage } from "@/app/features/shared/pipelineAxisDraft";
 import { activePipelinePreset, applyPipelinePreset, SETUP_PIPELINE_PRESETS } from "./setupPipelinePresets.ts";
 import { INITIAL_SETUP, stepSatisfied, type SetupState } from "./setupSteps.ts";
 
@@ -59,6 +59,34 @@ test("the work-sample step lands BEFORE the offer, with a locale-independent id"
   const added = technical.stages.find((s) => s.id === "Work sample");
   assert.equal(added?.label, "Praktická úloha");
   assert.equal(added?.saved, false);
+});
+
+// The wizard also runs over an EXISTING board (Settings → "Preview onboarding"),
+// where the axis is whatever that workspace composed. A preset is the one-click
+// path, so it must never leave the step's Continue dead — which is exactly what an
+// axis with a problem does (stepSatisfied reads axisProblems).
+test("the work-sample preset never produces a board the step would refuse", () => {
+  const gate = (draft: SetupState["pipeline"]): boolean =>
+    stepSatisfied("pipeline", { ...INITIAL_SETUP, pipeline: draft, pipelineLoad: "ready" });
+
+  // A workspace that already has a step by this name: a second one would be two
+  // columns nobody can tell apart on the board.
+  const withCase = addStage(BASE, WORK_SAMPLE);
+  const overCase = applyPipelinePreset("technical", withCase, WORK_SAMPLE);
+  assert.deepEqual(axisProblems(overCase), []);
+  assert.equal(gate({ stored: SHIPPED, draft: overCase, counts: {} }), true);
+  assert.equal(overCase.stages.length, withCase.stages.length, "the column it adds is already there");
+
+  // A workspace already at the cap: there is no room for another column.
+  let full = BASE;
+  while (full.stages.length < AXIS_MAX_STAGES) full = addStage(full, `Round ${full.stages.length}`);
+  const overFull = applyPipelinePreset("technical", full, WORK_SAMPLE);
+  assert.deepEqual(axisProblems(overFull), []);
+  assert.equal(gate({ stored: SHIPPED, draft: overFull, counts: {} }), true);
+  assert.equal(overFull.stages.length, AXIS_MAX_STAGES);
+
+  // …and the normal case still adds it (the guards are narrow, not a disabling).
+  assert.equal(applyPipelinePreset("technical", BASE, WORK_SAMPLE).stages.length, BASE.stages.length + 1);
 });
 
 test("a rename keeps the picked shape selected; a structural edit deselects it", () => {
