@@ -47,7 +47,11 @@ test("openStore refuses a test run whose DB_PATH disagrees with KP_DB_PATH (#3)"
       "-e",
       CHILD,
     ],
-    { cwd: process.cwd(), encoding: "utf8" }
+    // NO_COLOR/FORCE_COLOR=0: the child's console.log colourises a boolean when the
+    // parent forces colour (FORCE_COLOR is inherited), which turns "true" into
+    // "[33mtrue[39m" and silently breaks the match below. Pin the child's
+    // output to plain text so this guard asserts the same thing in every terminal.
+    { cwd: process.cwd(), encoding: "utf8", env: { ...process.env, NO_COLOR: "1", FORCE_COLOR: "0" } }
   );
   assert.match(res.stdout, /RESULT true GUARD/, `stdout=${res.stdout}\nstderr=${res.stderr}`);
 });
