@@ -7,7 +7,7 @@
 // Runner: Node's built-in test runner with type stripping.  npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { classifyLoginResult, isInlineCredentialError, type LoginOutcome } from "./login-result.ts";
+import { classifyLoginResult, isInlineCredentialError, safeNextPath, type LoginOutcome } from "./login-result.ts";
 
 test("2xx statuses classify as success", () => {
   for (const status of [200, 201, 204]) {
@@ -48,4 +48,46 @@ test("only the credential outcome renders the inline field error", () => {
   const outcomes: LoginOutcome[] = ["success", "credential", "rateLimited", "serverError", "network", "timeout"];
   const inline = outcomes.filter(isInlineCredentialError);
   assert.deepEqual(inline, ["credential"]);
+});
+
+// --- safeNextPath: the post-login redirect target ---------------------------
+// These pin the open-redirect guard. The pre-fix rule was the prefix test
+// `n.startsWith("/") && !n.startsWith("//")`; the BACKSLASH and TAB cases below
+// fail against it (it returns them verbatim and the router hard-navigates to
+// evil.com), proving non-vacuity.
+const ORIGIN = "https://kp.example.com";
+
+test("an in-app path is preserved, query and hash included", () => {
+  assert.equal(safeNextPath("?next=%2F", ORIGIN), "/");
+  assert.equal(safeNextPath("?next=%2F%3Ftab%3Djobs", ORIGIN), "/?tab=jobs");
+  assert.equal(safeNextPath("?next=%2Fbilling%23plans", ORIGIN), "/billing#plans");
+});
+
+test("a missing, empty or non-path next falls back to the workspace root", () => {
+  assert.equal(safeNextPath("", ORIGIN), "/");
+  assert.equal(safeNextPath("?next=", ORIGIN), "/");
+  assert.equal(safeNextPath("?next=jobs", ORIGIN), "/");
+});
+
+test("a backslash authority can NOT redirect off-origin", () => {
+  // WHATWG parses "/\evil.com" to the authority evil.com for a special scheme,
+  // but it passes the old startsWith("/") && !startsWith("//") prefix test.
+  assert.equal(safeNextPath("?next=%2F%5Cevil.com", ORIGIN), "/");
+  assert.equal(safeNextPath("?next=%2F%5C%5Cevil.com", ORIGIN), "/");
+});
+
+test("a stripped tab/newline inside the prefix can NOT redirect off-origin", () => {
+  // The URL parser removes tab/CR/LF, so "/\t/evil.com" becomes "//evil.com".
+  assert.equal(safeNextPath("?next=%2F%09%2Fevil.com", ORIGIN), "/");
+  assert.equal(safeNextPath("?next=%2F%0A%2Fevil.com", ORIGIN), "/");
+});
+
+test("protocol-relative and scheme-bearing targets fall back to the root", () => {
+  assert.equal(safeNextPath("?next=%2F%2Fevil.com", ORIGIN), "/");
+  assert.equal(safeNextPath("?next=https%3A%2F%2Fevil.com%2Fx", ORIGIN), "/");
+  assert.equal(safeNextPath("?next=javascript%3Aalert(1)", ORIGIN), "/");
+});
+
+test("even a same-origin ABSOLUTE url is refused — only in-app paths are legitimate", () => {
+  assert.equal(safeNextPath(`?next=${encodeURIComponent(`${ORIGIN}/jobs?x=1`)}`, ORIGIN), "/");
 });

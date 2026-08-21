@@ -5,15 +5,16 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "@/app/_components/toast-store";
 import { TextInput } from "@/app/_components/TextInput";
-import { classifyLoginResult, type LoginFetchResult } from "./login-result";
+import { classifyLoginResult, safeNextPath, type LoginFetchResult } from "./login-result";
 
 // Auth foundation (P2) — the operator sign-in. Posts the password to
 // /api/auth/login; on success the signed cookie is set and we return to `next`
-// (open-redirect-guarded: same-origin absolute paths only).
+// (open-redirect-guarded: same-origin absolute paths only — the rule is
+// `safeNextPath` in login-result.ts, resolved with the same URL parser the
+// router uses, because a prefix test misses `/\evil.com`).
 function safeNext(): string {
   if (typeof window === "undefined") return "/";
-  const n = new URLSearchParams(window.location.search).get("next") ?? "/";
-  return n.startsWith("/") && !n.startsWith("//") ? n : "/";
+  return safeNextPath(window.location.search, window.location.origin);
 }
 
 // Upper bound on a login round-trip before we abort and re-enable the form
