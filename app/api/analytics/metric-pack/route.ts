@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { pipelineAnalytics } from "@/app/_lib/db/analytics";
-import { listJobs } from "@/app/_lib/db/jobs";
+import { listCorpusJobs } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { listMembershipsForWorkspace } from "@/app/_lib/db/memberships";
 import { candidateNpsSummary } from "@/app/_lib/candidate-nps-store";
@@ -68,10 +68,20 @@ export async function GET(request: Request) {
 
     const analytics = pipelineAnalytics(windowDays, undefined, ws);
 
-    // Capacity's two terms. A job with a NULL status is a seeded/live corpus row, which
-    // is a real open req; only 'draft' (not live) and 'closed' (no longer accepting) are
-    // excluded — mirroring the lifecycle contract on JobRecord.status.
-    const openRoles = listJobs({}, ws).filter((j) => j.status !== "draft" && j.status !== "closed").length;
+    // Capacity's two terms. The open-role definition is unchanged — a NULL status is a
+    // seeded/live corpus row and counts, only 'draft' (not live) and 'closed' (no longer
+    // accepting) are excluded — but it is now asked of `listCorpusJobs`, which encodes
+    // exactly that rule (`status IS NULL OR status = 'published'`, the same predicate as
+    // `openOnly` / `isJobOpenForApplications`) and returns EVERY matching row.
+    //
+    // It used to be a `.filter()` over `listJobs({}, ws)`, which is the paginated BROWSE
+    // read: no `limit` means `LIMIT 300`, and a caller-supplied one is capped at 500. So a
+    // workspace carrying more visible openings than that had its open-role count silently
+    // truncated to the cap — 350 live roles across 10 recruiters reported "300 open roles"
+    // and 30.0 roles/recruiter instead of 35.0, labelled `measured` (sample 300 ≥
+    // MIN_OPEN_ROLES) in the one artifact that is meant to survive procurement. A count is
+    // not a page.
+    const openRoles = listCorpusJobs(ws).length;
     const recruiters = listMembershipsForWorkspace(ws).filter((m) => CARRYING_ROLES.has(m.role)).length;
 
     const input: MetricPackInput = {

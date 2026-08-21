@@ -13,7 +13,16 @@ import { FUNNEL_STAGES } from "@/app/_lib/pipeline-stages";
 // 82c2b8e8 / b39992b1 — recruiter-set analytics settings (mirrors
 // /api/analytics/spend). A metric is a funnel stage name (conversion % goal,
 // 0–100), the reserved time_to_hire key (goal in days), or the reserved
-// recruiter_hourly_czk key (ROI rate). A null/empty value clears it.
+// recruiter_hourly_czk key (ROI rate).
+//
+// CLEARING: a null/empty value clears the goal — AND SO DOES `0`. This route accepts 0
+// (it only refuses negatives) and hands it to setAnalyticsTarget, which DELETEs the row
+// on any non-positive value and answers 200 either way, exactly like setChannelSpend
+// behind /api/analytics/spend. The comment here used to name only null/empty, so a
+// posted `0` looked like "goal = 0 %" to a reader of this file while the store read it
+// as "no goal": a 40 % conversion target overwritten with 0 comes back as an absent goal
+// line, not a zero one. The inline editor normalizes 0 → null before posting for the same
+// reason (AnalyticsInlineNumberSave) — this states the rule the store actually enforces.
 // UAT KAT-L1-005 — DERIVED from RESERVED_TARGET_KEYS, not hand-listed. The
 // hand-written list is why `manual_hours_per_hire` was readable but unsettable:
 // db/analytics.ts threaded the key into automationRoi's fourth parameter, and this

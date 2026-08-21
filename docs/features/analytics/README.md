@@ -210,6 +210,14 @@ sentence stating what was counted, and a renderer must show the status beside th
 figure keeps its own `unit`, so CZK spend and USD compute cost are never summed. The
 spend-dating fix rides **inside** the existing `basis` string — nothing was added to the shape.
 
+**A count is not a page.** `recruiter_capacity`'s `openRoles` term is `listCorpusJobs(ws).length`
+— the unbounded read whose predicate (`status IS NULL OR status = 'published'`) already *is* the
+open-role definition the route wants, and the same one `openOnly` / `isJobOpenForApplications`
+use. It was a `.filter()` over `listJobs({}, ws)`, the paginated **browse** read: no `limit`
+means `LIMIT 300` (a supplied one caps at 500), so a workspace carrying more visible openings
+than that had its capacity numerator silently truncated to the cap and shipped as `measured` in
+the pack. Identical on the seeded corpus (100 either way); it only diverges above the cap.
+
 ## Quality — calibration honesty
 
 `sections/QualityInstrument.tsx` answers the question that comes before every decision below
@@ -297,6 +305,17 @@ it: should this score be allowed to decide at all.
   on a fresh install is `n:0`, and a fifth empty arm would be the same "correct mechanism that
   reaches no surface" defect this round removed elsewhere. The capture path exists first; the
   arm follows when the corpus can say something.
+- **The history strip reads the policy REF, not the tail of the chain.**
+  `GET /api/analytics/calibration/threshold-history` asks `listDecisionRecords` for
+  `candidateRef = policy:screening:<ws>` (`…:<family>` under a family filter) — the deterministic
+  ref `/apply-threshold` seals every change under. It used to read the workspace-wide form,
+  whose `limit` defaults to the newest **200 records of any kind**, and the chain fills with one
+  seal per candidate decision: after a couple of screening waves the threshold seals fell off the
+  end, so the strip rendered empty and `effect` went `null` — a floor change still in force
+  reading as "never happened" on the surface built to audit it. A workspace-wide read is kept
+  beside it purely as a compatibility net for a record sealed under some other ref shape; the two
+  merge and de-duplicate on `seq`, newest first, so `history[0]` is still the apply `effect`
+  measures against.
 - **Configuration is evidence about the policy; the curve is evidence about the sample.** Only
   the second needs a sample, so `ThresholdHistoryStrip` — the only surface rendering the sealed
   floor-over-time record with its approver and seal fingerprint — and `AnalyticsFamilyFloorChips`
@@ -526,11 +545,11 @@ collided stem in any locale and that the self-report label names the model in al
 | --- | --- |
 | `GET /api/analytics` | The main payload (`AnalyticsTypes.ts` → `Analytics`); `?days=30\|90` scopes the cohort window, absent = all time; `deltas` is `null` all-time |
 | `GET /api/analytics/decisions` | The paged decision log. `?kind=` + `?attribution=` **intersect**; `?q=` subject search (diacritic-folded, ≤80 chars); `?locale=` picks the collator; `?sort=`/`?dir=`/`offset`/`limit`; returns `subjectScan` |
-| `GET /api/analytics/calibration` | Band calibration + reliability; `?source=pipeline\|analysis\|holdout`, `?outcome=advance\|hired` (echoed back; `analysis` always falls back to `advance`), `?family=` |
+| `GET /api/analytics/calibration` | Band calibration + reliability; `?source=pipeline\|analysis\|holdout`, `?outcome=advance\|hired` (echoed back; `analysis` always falls back to `advance`), `?family=`. Pipeline source also ships `currentThreshold` **and `autoRejectEnabled`** — the floor never travels without the switch |
 | `POST /api/analytics/calibration/apply-threshold` | Commit a suggested threshold (`requireOperator()`) |
-| `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only); the sealed floor-over-time strip |
+| `GET /api/analytics/calibration/band` · `/threshold-history` | Band detail (`?bin=`/`?source=`/`?roleFamily=` — **no `?outcome=`**, so the drilldown is advance-axis only); the sealed floor-over-time strip, read by the `policy:screening:<ws>[:<family>]` seal ref rather than the tail of the chain |
 | `GET\|POST /api/analytics/spend` | Per-channel spend; written back by the board's inline input |
-| `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated from `RESERVED_TARGET_KEYS` |
+| `GET\|POST /api/analytics/targets` | Conversion goals + reserved keys (`time_to_hire`, `recruiter_hourly_czk`, `manual_hours_per_hire`), validated from `RESERVED_TARGET_KEYS`. **`0` clears, like null/empty** — both stores behind these two routes `DELETE` on a non-positive value and answer 200, and the editor normalizes `0 → null` before posting |
 | `GET /api/analytics/metric-pack?format=md` | The buyer metrics as JSON or a one-page Markdown pack; `?days=` optional |
 | `GET /api/decisions/records` | The whole sealed chain + verdict; `?candidate=<entryId>` scopes to one subject (`requireOperator()`) |
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |
@@ -588,21 +607,43 @@ Two call sites were still doing that and are pinned by `analytics-custom-axis.te
 
 ## Known gaps
 
-- **Quality presents the auto-reject floor as *in force* without ever reading
-  `autoRejectEnabled`.** `/api/analytics/calibration` ships `currentThreshold =
-  effectiveFloor(screening, family)`, which is a plain number and falls back to
-  `SCREENING_DEFAULT.maxMatchToReject = 45`; the flag that decides whether the wave acts on it
-  (`screen-wave.ts` returns `autoRejectOff` when false) is **not in the payload**, and
-  `autoRejectEnabled: false` is the shipped default. So a workspace that never opened Decision
-  rules sees a coral "Auto-reject floor (45)" marker + legend on the reliability diagram
+- **Quality presents the auto-reject floor as *in force* — the payload now says otherwise, the
+  panels still do not read it.** `/api/analytics/calibration` ships `currentThreshold =
+  effectiveFloor(screening, family)`, a plain number falling back to
+  `SCREENING_DEFAULT.maxMatchToReject = 45`, while `autoRejectEnabled: false` is the shipped
+  default and the wave returns `autoRejectOff` (`screen-wave.ts`). **The route half is closed**:
+  the payload now carries `autoRejectEnabled: boolean | null` beside `currentThreshold` (`null`
+  on the non-pipeline sources, exactly like the threshold — those arms carry no screening rule),
+  read from the same `getDecisionConfig<ScreeningRule>("screening", ws)` the floor comes from.
+  **The render half is open**: a workspace that never opened Decision rules still sees a coral
+  "Auto-reject floor (45)" marker + legend on the reliability diagram
   (`AnalyticsReliabilityDiagram`), "every family is screened at the global 45"
   (`AnalyticsFamilyFloorChips` → `familyFloorsNone`), and either an **Apply (set floor to N)**
   button or "your auto-reject floor of 45" (`AnalyticsThresholdSuggestion`) — all describing a
   gate that rejects nobody. Only the `recAbsentNoFloor` branch tells the truth, and it triggers
-  on the *value* (`<= 0 || >= 100`), not on the rule being off. Closing it means adding
-  `autoRejectEnabled` to the calibration payload and branching those three surfaces on it;
+  on the *value* (`<= 0 || >= 100`), not on the rule being off. Closing it now means branching
+  those three surfaces on the flag the payload already carries;
   `leakageScoreCausedNote` ("automatic screening rejects on the match score") over-discloses
   from the same gap, which at least fails safe.
+- **`/apply-threshold` is a read-modify-write with no transaction around it.** It reads the
+  screening rule, spends two full-table calibration scans re-deriving the recommendation, then
+  writes `{…screening, familyFloors: {…}}` through `setDecisionConfig`. Two applies for two
+  different families that interleave inside that window both merge onto the same stale map, so
+  the first family's freshly-applied floor is silently dropped — a lost update on the live
+  auto-reject gate, sealed as applied. (`setDecisionConfig`'s familyFloors-preservation backstop
+  does not cover it: that only fires when the written config omits the key, and a family apply
+  always includes it.) Closing it needs a transactional read-modify-write in
+  `decision-config-store.ts` — re-reading later in the route narrows the window without closing
+  it.
+- **The metric pack's `recruiter_capacity` counts the shared reference corpus as the team's open
+  reqs.** `openRoles` is `listCorpusJobs(ws).length`, whose tenant predicate is `workspace_id IS
+  NULL OR workspace_id = ?` — the same dual-tier read every jobs surface uses, so the ~100
+  seeded `workspace_id NULL` corpus rows count for **every** workspace. A tenant with no
+  authored openings and one recruiter still reports "100 open roles across 1 recruiter",
+  `measured` (sample 100 ≥ `MIN_OPEN_ROLES = 3`), and every tenant in the account reports the
+  same numerator. Whether a shared corpus row is a requisition a team is *carrying* is a product
+  definition, not a bug in the route — closing it needs an owned-only count in `db/jobs.ts`
+  (`JobRecord` carries no `workspaceId`, so the route cannot tell the two apart today).
 - **`de` group separators still parse as decimals in the inline number editor.**
   `AnalyticsInlineNumberSave` normalizes whitespace but leaves `,` and `.` alone, because each
   is a group separator in one shipped locale and a decimal separator in another. `Number()`

@@ -88,9 +88,20 @@ export async function GET(request: Request) {
       // (Display-only — the actual write lives in /apply-threshold, which is uncached.)
       let recommendation = null;
       let currentThreshold: number | null = null;
+      // Is the floor above actually ACTING? `currentThreshold` is a plain number that falls
+      // back to SCREENING_DEFAULT.maxMatchToReject = 45, but the shipped default for
+      // `autoRejectEnabled` is FALSE — the wave returns `autoRejectOff` and rejects nobody
+      // (screen-wave.ts). Shipping the floor without the flag let every surface that reads
+      // it narrate a gate that does not exist: a coral floor marker on the reliability
+      // diagram, "every family is screened at the global 45", and an Apply button. The rule
+      // is already read here for the floor; the flag rides beside it so a reader can never
+      // be handed the number without the switch. `null` (not `false`) on the non-pipeline
+      // sources, exactly like `currentThreshold` — those arms carry no screening rule at all.
+      let autoRejectEnabled: boolean | null = null;
       let familyFloors: Record<string, number> = {};
       if (source === "pipeline") {
         const screening = getDecisionConfig<ScreeningRule>("screening", ws);
+        autoRejectEnabled = screening.autoRejectEnabled === true;
         // family-floors: the recommendation is measured against the EFFECTIVE floor
         // for THIS view — the selected family's override (else global), or the global
         // floor on the all-families view. So a family-scoped suggestion targets the
@@ -131,6 +142,9 @@ export async function GET(request: Request) {
         cohorts,
         recommendation,
         currentThreshold,
+        // Whether the floor beside it is enforced (see the note above): a reader that
+        // renders `currentThreshold` must be able to say "…and it is currently off".
+        autoRejectEnabled,
         familyFloors,
       };
     });

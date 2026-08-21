@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
-import { listDecisionRecords } from "@/app/_lib/decision-record-store";
+import { listDecisionRecords, type DecisionRecord } from "@/app/_lib/decision-record-store";
 import { computeThresholdEffect } from "@/app/_lib/calibration";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";
@@ -56,7 +56,26 @@ export async function GET(request: Request) {
     const family = new URL(request.url).searchParams.get("roleFamily") || null;
 
     // The sealed threshold-adjust records for THIS workspace's chain, newest first.
-    const records = listDecisionRecords({ workspaceId: ws }).filter((r) => r.kind === "screening_threshold_adjusted");
+    //
+    // READ THE POLICY REF, not the tail of the whole chain. `listDecisionRecords({
+    // workspaceId })` returns the newest 200 records of ANY kind (its `limit` default), and
+    // the chain fills with one seal per consequential CANDIDATE decision — so on any
+    // workspace that has run a few screening waves the threshold seals fall off the end and
+    // this strip renders empty, `effect` goes null, and a floor change that is still in
+    // force reads as "never happened" on the surface built to audit it. /apply-threshold
+    // seals every change under a deterministic policy ref (`policy:screening:<ws>` globally,
+    // `…:<family>` when scoped), so asking for that ref is dilution-proof: the 200 are 200
+    // threshold changes, not 200 anything-elses.
+    //
+    // The workspace-wide read is kept as a compatibility net for a record sealed under some
+    // other ref shape; the two are merged and de-duplicated on `seq`, then re-sorted newest
+    // first (so `history[0]` is still the latest apply, which `effect` measures against).
+    const policyRef = family ? `policy:screening:${ws}:${family}` : `policy:screening:${ws}`;
+    const bySeq = new Map<number, DecisionRecord>();
+    for (const r of [...listDecisionRecords({ candidateRef: policyRef, workspaceId: ws }), ...listDecisionRecords({ workspaceId: ws })]) {
+      if (r.kind === "screening_threshold_adjusted") bySeq.set(r.seq, r);
+    }
+    const records = [...bySeq.values()].sort((a, b) => b.seq - a.seq);
     const history: HistoryPoint[] = [];
     for (const r of records) {
       let inputs: SealInputs = {};
