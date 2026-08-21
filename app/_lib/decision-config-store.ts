@@ -80,18 +80,45 @@ export function getDecisionConfig<T = Record<string, unknown>>(phase: string, wo
   const fallback = (DEFAULTS[phase] ?? {}) as T;
   if (!row) return fallback;
   try {
-    return { ...(fallback as object), ...(JSON.parse(row.config_json) as object) } as T;
+    const parsed = JSON.parse(row.config_json) as object;
+    // PRE-MIGRATION interviewPlan blobs. The stored plan used to be three loose fields
+    // (screeningGate / rounds / offerGate) with NO `steps`, and the schema module
+    // promises such a blob "can still be read" — but the shallow merge below would hand
+    // it the DEFAULT's `steps` and every reader (getInterviewPlan → prunePlanToAxis)
+    // consults `steps` only. The workspace's saved plan would silently become the
+    // shipped default: its human round dropped, its gates reset. Run a step-less blob
+    // through the validator instead, which detects the legacy shape and migrates it (an
+    // unreadable one falls back to the default exactly as before). Read-time only —
+    // nothing is rewritten on disk until the composer next saves.
+    if (phase === "interviewPlan" && (parsed as { steps?: unknown }).steps === undefined) {
+      const migrated = validateDecisionConfig(phase, parsed);
+      return (migrated.ok ? migrated.config : fallback) as T;
+    }
+    return { ...(fallback as object), ...parsed } as T;
   } catch {
     return fallback;
   }
 }
 
-export function setDecisionConfig(
+/** This tier's OWN stored row (no cascade), or undefined. `scope: "org"` is the
+ *  workspace_id IS NULL baseline; `"team"` is that team's override. */
+function tierRow(d: Database.Database, phase: string, workspaceId: string, scope: "org" | "team"): { config_json: string } | undefined {
+  return (
+    scope === "org"
+      ? d.prepare(`SELECT config_json FROM decision_config WHERE phase = ? AND workspace_id IS NULL`).get(phase)
+      : d.prepare(`SELECT config_json FROM decision_config WHERE phase = ? AND workspace_id = ?`).get(phase, workspaceId)
+  ) as { config_json: string } | undefined;
+}
+
+/** Validate + persist one tier's config. MUST run inside a transaction (both callers
+ *  wrap it) — the familyFloors read below and the delete-then-insert are one unit. */
+function writeConfigRow(
+  d: Database.Database,
   phase: string,
   config: Record<string, unknown>,
-  workspaceId: string = DEFAULT_WORKSPACE_ID,
-  scope: "org" | "team" = "team"
-): void {
+  workspaceId: string,
+  scope: "org" | "team"
+): Record<string, unknown> {
   // Backstop: never persist an unvalidated config, no matter the caller. The
   // route validates first (and returns a 400), but enforcing the schema HERE —
   // at the actual write boundary — guarantees a bad write (out-of-range,
@@ -99,7 +126,6 @@ export function setDecisionConfig(
   // through any other path. The clamped, fully-typed result is what we store.
   const result = validateDecisionConfig(phase, config);
   if (!result.ok) throw new DecisionConfigError(result.error);
-  const d = db();
   // familyFloors preservation (family-floors follow-up): the screening row is
   // written WHOLESALE, but most writers (the rules modal) predate familyFloors and
   // simply omit the key — omission means "no opinion", not "clear the overrides".
@@ -107,11 +133,7 @@ export function setDecisionConfig(
   // does, carry them forward. An EXPLICIT `familyFloors: {}` still clears (the
   // validator keeps an empty present map), so clearing stays expressible.
   if (result.phase === "screening" && !("familyFloors" in result.config)) {
-    const existing = (
-      scope === "org"
-        ? d.prepare(`SELECT config_json FROM decision_config WHERE phase = ? AND workspace_id IS NULL`).get(result.phase)
-        : d.prepare(`SELECT config_json FROM decision_config WHERE phase = ? AND workspace_id = ?`).get(result.phase, workspaceId)
-    ) as { config_json: string } | undefined;
+    const existing = tierRow(d, result.phase, workspaceId, scope);
     if (existing) {
       try {
         const stored = JSON.parse(existing.config_json) as { familyFloors?: Record<string, number> };
@@ -126,17 +148,77 @@ export function setDecisionConfig(
   const json = JSON.stringify(result.config);
   const now = new Date().toISOString();
   // Delete-then-insert into EXACTLY one tier (org NULL vs team id) — a clean tiered upsert
-  // without an ON CONFLICT partial-index target. In a transaction so a concurrent reader
-  // never observes the row missing between the delete and the insert.
+  // without an ON CONFLICT partial-index target. The caller's transaction is what keeps a
+  // concurrent reader from observing the row missing between the delete and the insert.
+  if (scope === "org") {
+    d.prepare(`DELETE FROM decision_config WHERE phase = ? AND workspace_id IS NULL`).run(result.phase);
+    d.prepare(`INSERT INTO decision_config (phase, config_json, updated_at, workspace_id) VALUES (?, ?, ?, NULL)`).run(result.phase, json, now);
+  } else {
+    d.prepare(`DELETE FROM decision_config WHERE phase = ? AND workspace_id = ?`).run(result.phase, workspaceId);
+    d.prepare(`INSERT INTO decision_config (phase, config_json, updated_at, workspace_id) VALUES (?, ?, ?, ?)`).run(result.phase, json, now, workspaceId);
+  }
+  return result.config as unknown as Record<string, unknown>;
+}
+
+export function setDecisionConfig(
+  phase: string,
+  config: Record<string, unknown>,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  scope: "org" | "team" = "team"
+): void {
+  const d = db();
   d.transaction(() => {
-    if (scope === "org") {
-      d.prepare(`DELETE FROM decision_config WHERE phase = ? AND workspace_id IS NULL`).run(result.phase);
-      d.prepare(`INSERT INTO decision_config (phase, config_json, updated_at, workspace_id) VALUES (?, ?, ?, NULL)`).run(result.phase, json, now);
-    } else {
-      d.prepare(`DELETE FROM decision_config WHERE phase = ? AND workspace_id = ?`).run(result.phase, workspaceId);
-      d.prepare(`INSERT INTO decision_config (phase, config_json, updated_at, workspace_id) VALUES (?, ?, ?, ?)`).run(result.phase, json, now, workspaceId);
-    }
+    writeConfigRow(d, phase, config, workspaceId, scope);
   })();
+}
+
+/**
+ * TRANSACTIONAL read-modify-write of one tier's config — the `actOnPipelineEntry`
+ * discipline (IMMEDIATE tx, re-read, compute, write) for the rules that decide who the
+ * screening wave auto-rejects.
+ *
+ * Why it exists: `getDecisionConfig(...)` → think → `setDecisionConfig({...current, x})`
+ * is a LOST UPDATE whenever the "think" step is slow. `/api/analytics/calibration/
+ * apply-threshold` spends two full-table calibration scans plus a holdout read between
+ * its read and its write; two applies for two different role families that interleave
+ * inside that window each merge onto the same STALE `familyFloors` map, so the first
+ * family's freshly-applied floor is silently dropped — on the live auto-reject gate,
+ * with both applies sealing a record saying they succeeded. (setDecisionConfig's
+ * familyFloors backstop does not cover it: that only fires when the written config
+ * OMITS the key, and a family apply always includes it.)
+ *
+ * `mutate` is handed the config in force RIGHT NOW — re-read inside the transaction, so
+ * it can never see the caller's stale snapshot — and returns the config to persist.
+ * Keep it pure and fast: it runs with the write lock held. Returns the validated,
+ * clamped config actually stored.
+ */
+export function updateDecisionConfig<T = Record<string, unknown>>(
+  phase: string,
+  mutate: (current: T) => Record<string, unknown>,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  scope: "org" | "team" = "team"
+): T {
+  const d = db();
+  const tx = d.transaction((): T => {
+    // The value the mutation must build on: for a TEAM write that is the effective
+    // config this workspace actually runs under (its override, else the org baseline,
+    // else the code default) — the same thing every reader sees. For an ORG write it is
+    // the org baseline's own row, since a team override is not the thing being edited.
+    let current: T;
+    if (scope === "team") {
+      current = getDecisionConfig<T>(phase, workspaceId);
+    } else {
+      const row = tierRow(d, phase, workspaceId, "org");
+      const fallback = (DEFAULTS[phase] ?? {}) as T;
+      try {
+        current = row ? ({ ...(fallback as object), ...(JSON.parse(row.config_json) as object) } as T) : fallback;
+      } catch {
+        current = fallback;
+      }
+    }
+    return writeConfigRow(d, phase, mutate(current), workspaceId, scope) as T;
+  });
+  return tx.immediate();
 }
 
 export function getAllDecisionConfigs(workspaceId: string = DEFAULT_WORKSPACE_ID): Record<string, unknown> {

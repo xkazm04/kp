@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { pipelineCalibrationPairs } from "@/app/_lib/db/pipeline";
 import { recommendScreeningThreshold } from "@/app/_lib/calibration";
-import { getDecisionConfig, setDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
+import { getDecisionConfig, updateDecisionConfig, type ScreeningRule } from "@/app/_lib/decision-config-store";
 import { effectiveFloor } from "@/app/_lib/decision-config-schema";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import { sealDecisionSafe, heldOutEntryIds } from "@/app/_lib/decision-record-store";
@@ -14,9 +14,11 @@ import { humanActor, resolveApprover } from "@/app/_lib/auth/operator-approver";
 // display-only threshold suggestion with ONE explicit human click. It does NOT
 // fork a write path: it re-derives the SAME recommendation the panel showed,
 // refuses to apply anything that isn't the live recommendation (a stale/forged
-// value → 409), then writes through the EXISTING setDecisionConfig mechanism —
-// the identical path DecisionRulesModal uses, so the change is trivially
-// reversible the same way. Every apply seals a tamper-evident decision record.
+// value → 409), then writes through updateDecisionConfig — the same validated,
+// clamped, dual-tier store DecisionRulesModal writes through, so the change is
+// trivially reversible the same way, but transactional so two concurrent applies
+// cannot clobber each other's family floors. Every apply seals a tamper-evident
+// decision record.
 //
 // Operator-gated like /api/decisions/config (these rules drive the auto-reject
 // wave), and re-derived server-side so the applied value can only ever be one the
@@ -69,14 +71,31 @@ export async function POST(request: Request) {
       );
     }
 
-    // Write through the existing mechanism (team override), leaving every other
-    // screening field untouched. A family-scoped apply sets ONLY that family's entry
-    // in familyFloors (merged over any existing map); a global apply moves the global
-    // maxMatchToReject exactly as before. Reversible either way from this endpoint.
-    const next: ScreeningRule = roleFamily
-      ? { ...screening, familyFloors: { ...(screening.familyFloors ?? {}), [roleFamily]: rec.suggestedThreshold } }
-      : { ...screening, maxMatchToReject: rec.suggestedThreshold };
-    setDecisionConfig("screening", next, ws, "team");
+    // Write through a TRANSACTIONAL read-modify-write (team override), leaving every
+    // other screening field untouched. A family-scoped apply sets ONLY that family's
+    // entry in familyFloors (merged over any existing map); a global apply moves the
+    // global maxMatchToReject. Reversible either way from this endpoint.
+    //
+    // The mutation runs against a re-read inside an IMMEDIATE transaction, NOT against
+    // the `screening` snapshot taken at the top of this handler (scan-sweep 2026-08-22).
+    // Between that read and this write sit two full-table calibration scans plus a
+    // holdout read, and two applies for two DIFFERENT role families that interleave
+    // across that window each merged onto the same stale map — so the first family's
+    // freshly-applied auto-reject floor was silently dropped while BOTH applies sealed
+    // a record saying they succeeded. setDecisionConfig's familyFloors backstop cannot
+    // catch it: that only fires when the written config OMITS the key, and a family
+    // apply always includes it. `currentThreshold` above stays the value the
+    // recommendation was derived against and the value the operator approved, which is
+    // what previousThreshold must report.
+    updateDecisionConfig<ScreeningRule>(
+      "screening",
+      (current) =>
+        roleFamily
+          ? { ...current, familyFloors: { ...(current.familyFloors ?? {}), [roleFamily]: rec.suggestedThreshold } }
+          : { ...current, maxMatchToReject: rec.suggestedThreshold },
+      ws,
+      "team"
+    );
 
     // Seal a tamper-evident record of the policy change (best-effort — a seal
     // failure must never fail the write). No candidate subject: the ref names the

@@ -130,6 +130,13 @@ call a stage weak.
   `none` renders in neutral `text-ink` with a `bg-stone-400` bar and no coral, plus a
   one-click path into `AnalyticsGoalsEditor` (optionally controlled via `open` /
   `onOpenChange`). The seeded tenant has `targets.conversion = {}`.
+  The same rule now covers the **time-to-hire goal pill** in the header stat cluster
+  (`AnalyticsStat` → `goalChip`): its copy is only `goalDays` („goal 30 d") — no verdict word —
+  so the colour *is* the verdict, and `missed` is therefore `boolean | null`. `null` = **not
+  measured** and renders neutral (`bg-stone-100 text-steel`). It used to be
+  `avgTimeToHireDays != null && avg > goal`, which collapsed "no hires in this window" onto
+  `false`, i.e. onto the **met** colour: a green "goal 30 d" beside a `—` and „no hires yet".
+  A goal is not met by a cohort that produced no measurement.
 - **The zero-transition guard is on the render path** — `hasNoStageTransitions()` and
   `AnalyticsFunnelEmptyGuide` were correct, translated and reachable from nowhere. The review
   hatch `?funnelEmpty=1`, threaded through three files and destructured by no one, is
@@ -316,6 +323,28 @@ it: should this score be allowed to decide at all.
   beside it purely as a compatibility net for a record sealed under some other ref shape; the two
   merge and de-duplicate on `seq`, newest first, so `history[0]` is still the apply `effect`
   measures against.
+- **"Since the last change" applies its evidence floor to BOTH sides.** `computeThresholdEffect`
+  gates only the *after* side (`measurable = after != null && after.n >= minOutcomes`); the
+  *before* side comes straight from `effectSide()`, which returns a side for a single pair, and
+  `ThresholdEffectSide` says so in its own type ("always read ALONGSIDE n, never alone"). The
+  `effectDelta` copy prints exactly one `n` — the after one — so one in-band candidate decided
+  before the apply, who advanced, rendered as „100 % before → 50 % after the change (n=12
+  since)": a policy-effect story about the live auto-reject floor whose first figure is one
+  person. `thresholdEffectClaim()` (`calibrationVerdict.ts`, pinned by
+  `calibrationVerdict.test.ts`) resolves the sentence as a value — `too-few` / `after-only` /
+  `delta` — and demands the **same** `minOutcomes` of the before side. Not a new threshold: the
+  module's own "measure it" floor, applied to the side that was missing it. Below it the strip
+  states the after-side figure alone (`effectAfterOnly`), which it can defend.
+- **An apply confirmation speaks only for the scope it moved.** `useJsonFetch` deliberately
+  keeps the last-good payload across a URL change, so `AnalyticsThresholdSuggestion` stays
+  mounted while `roleFamily` changes underneath it. A scope-blind `done` state therefore
+  survived a family switch and re-rendered under the new scope's copy: apply the **global**
+  floor 45 → 40, select "Software engineering", and the card printed `recAppliedFamily` —
+  „Software engineering floor set to 40 (was 45)." — for a family carrying no override at all,
+  while hiding that family's own **Apply** button behind a done state it never earned. The
+  settled phase now carries the scope it happened in (`{ kind: "done" | "error"; scope }`,
+  captured at the click), and reads as `idle` under any other scope. It is never reset in
+  place, so an apply still in flight keeps the button disabled until its response lands.
 - **Configuration is evidence about the policy; the curve is evidence about the sample.** Only
   the second needs a sample, so `ThresholdHistoryStrip` — the only surface rendering the sealed
   floor-over-time record with its approver and seal fingerprint — and `AnalyticsFamilyFloorChips`
@@ -625,16 +654,31 @@ Two call sites were still doing that and are pinned by `analytics-custom-axis.te
   those three surfaces on the flag the payload already carries;
   `leakageScoreCausedNote` ("automatic screening rejects on the match score") over-discloses
   from the same gap, which at least fails safe.
-- **`/apply-threshold` is a read-modify-write with no transaction around it.** It reads the
-  screening rule, spends two full-table calibration scans re-deriving the recommendation, then
-  writes `{…screening, familyFloors: {…}}` through `setDecisionConfig`. Two applies for two
-  different families that interleave inside that window both merge onto the same stale map, so
-  the first family's freshly-applied floor is silently dropped — a lost update on the live
-  auto-reject gate, sealed as applied. (`setDecisionConfig`'s familyFloors-preservation backstop
-  does not cover it: that only fires when the written config omits the key, and a family apply
-  always includes it.) Closing it needs a transactional read-modify-write in
-  `decision-config-store.ts` — re-reading later in the route narrows the window without closing
-  it.
+- **`effectAfterOnly` over-states an empty before side.** With the evidence floor now applied
+  symmetrically (above), a before side of 1–7 in-band decisions falls to
+  `effectAfterOnly` — „…No earlier in-band decisions to compare against." — which asserts
+  *zero* where there were a few too thin to compare. Strictly better than the „100 % before"
+  it replaces, but it needs a fourth string ("too few earlier in-band decisions") in all four
+  catalogs; `thresholdEffectClaim` already returns the branch that would carry it.
+- **`/apply-threshold` is a read-modify-write with no transaction around it — the store-side
+  primitive now exists, the route has not adopted it.** It reads the screening rule, spends two
+  full-table calibration scans re-deriving the recommendation, then writes
+  `{…screening, familyFloors: {…}}` through `setDecisionConfig`. Two applies for two different
+  families that interleave inside that window both merge onto the same stale map, so the first
+  family's freshly-applied floor is silently dropped — a lost update on the live auto-reject
+  gate, sealed as applied. (`setDecisionConfig`'s familyFloors-preservation backstop does not
+  cover it: that only fires when the written config omits the key, and a family apply always
+  includes it.) **Half closed**: `updateDecisionConfig(phase, mutate, ws, scope)`
+  (`app/_lib/decision-config-store.ts`) is the transactional read-modify-write — an IMMEDIATE
+  transaction that RE-READS the tier, applies the caller's mutation to that fresh value and
+  writes, the `actOnPipelineEntry` discipline. `decision-config-isolation.test.ts` pins the
+  freshness property (better-sqlite3 is synchronous, so the interleaving itself is not
+  reproducible in-process; what is pinned is that the mutation lands on a re-read, and that the
+  stale-snapshot shape the route still uses loses the other family's floor). **Open**: the route
+  must pass only the mutation —
+  `updateDecisionConfig<ScreeningRule>("screening", (cur) => roleFamily ? { …cur, familyFloors: { …(cur.familyFloors ?? {}), [roleFamily]: rec.suggestedThreshold } } : { …cur, maxMatchToReject: rec.suggestedThreshold }, ws, "team")`
+  in place of the `const next = …; setDecisionConfig(…)` pair. Re-reading later in the route
+  narrows the window without closing it.
 - **The metric pack's `recruiter_capacity` counts the shared reference corpus as the team's open
   reqs.** `openRoles` is `listCorpusJobs(ws).length`, whose tenant predicate is `workspace_id IS
   NULL OR workspace_id = ?` — the same dual-tier read every jobs surface uses, so the ~100
