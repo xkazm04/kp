@@ -17,13 +17,13 @@ import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawn
 import { buildLlmConfigEnv } from "./llm-config";
 import { rankPoolForJob } from "./recruiter-run";
 import { computeDifferentiators } from "./group-eval-differentiators";
-import { leadSeparation, separationNote } from "./group-eval-separation";
-import { hasComparableCohort, GROUP_EVAL_CAP, GROUP_EVAL_MIN_COHORT } from "./group-eval-cohort";
+import { eligibleRunnerUp, leadSeparation, separationNote } from "./group-eval-separation";
+import { fairnessCoversCohort, hasComparableCohort, GROUP_EVAL_CAP, GROUP_EVAL_MIN_COHORT } from "./group-eval-cohort";
 import { compareByMatchScoreDesc, compareScoreDesc } from "./match-score";
 import { sealDecisionSafe } from "./decision-record-store";
 import { buildEligibilityList, governanceNote, normalizeGovernanceMode, resolveGovernanceMode, sealsLead } from "./group-eval-governance";
 import type { MatchResultView, ScoreDimension, Confidence, Reasoning as CanonicalReasoning } from "@/app/features/shared/matchTypes";
-import type { Comparison, Fairness, FairnessScheme, RiskFact, SummaryFacts } from "@/app/features/shared/groupEvalTypes";
+import type { Comparison, Fairness, FairnessScheme, RiskFact, RobustnessStatus, SummaryFacts } from "@/app/features/shared/groupEvalTypes";
 import { selectionCacheKey } from "@/app/features/hiring/decisions/groupEval/cache-key";
 import { assessRobustness } from "@/app/features/shared/groupEvalTypes";
 
@@ -67,6 +67,8 @@ type RecruiterRow = {
   candidateId: string;
   label: string;
   archetype: string;
+  // recruiter.fairness_track — "early_career" | "experienced".
+  track?: string | null;
   seniority: string;
   potentialScore?: number | null;
   // SCOR3 — the why behind potentialScore (recruiter.py rows).
@@ -91,6 +93,16 @@ type PerCandidate = {
   score: number | null;
   seniority: string | null;
   archetype: string | null;
+  // FAIRNESS TRACK (recruiter.fairness_track). An early-career candidate's `career`
+  // dimension scores POTENTIAL (readiness); an experienced candidate's scores
+  // work-history fit — "two incomparable 0-100 scales … they must never be ranked
+  // against each other on one total" (pipeline/jobfit/recruiter.py). The ranker
+  // computes the track on every row precisely so a consumer can GROUP by it; it used
+  // to be dropped here, leaving the persisted eval with no way to express the contract
+  // at all. Carried per candidate so the modal (and any CSV/API reader) can split the
+  // field or disclose that it is mixed. null = no archetype was ever detected, so the
+  // track is unknown — never silently asserted as "experienced".
+  track: "early_career" | "experienced" | null;
   verdict: string;
   strengths: string[];
   gaps: string[];
@@ -167,6 +179,21 @@ function salaryExpectationFrom(loaded: ReturnType<typeof loadAnalysis>): SalaryE
 
 const dimPercent = (c: PerCandidate, key: string): number | null =>
   c.scoreBreakdown?.find((d) => d.key === key)?.percent ?? null;
+
+/** The candidate's fairness track for the persisted eval (see PerCandidate.track).
+ *  Prefers the value the ranker stamped on the row; falls back to the SAME rule
+ *  recruiter.fairness_track applies (archetype ∈ early-career set) when no ranker row
+ *  exists — a job-less role, or a candidate the pool could not resolve — so the field
+ *  is populated for the whole compared field, not only the ranked part. An unroutable
+ *  candidate (no archetype at all) stays null rather than defaulting into a track. */
+export function fairnessTrackOf(
+  rowTrack: string | null | undefined,
+  archetype: string | null | undefined
+): "early_career" | "experienced" | null {
+  if (rowTrack === "early_career" || rowTrack === "experienced") return rowTrack;
+  if (!archetype) return null;
+  return isEarlyCareer(archetype) ? "early_career" : "experienced";
+}
 
 // Rank the role's candidates against the role's job via the recruiter ranker
 // (ONE Python process for the whole field) to get the full MatchResult breakdown
@@ -403,7 +430,24 @@ export async function runGroupEval(
   // that did not run (a no-op, a ranker failure, or a job-less role). Below the
   // min-cohort floor there is no field to re-rank, so robustness is "insufficient_sample"
   // — never a trivial length-1 "pass" (bug-ui-scan-2026-07-09 #4).
-  const robustness = comparable ? assessRobustness(!!job, fairness) : "insufficient_sample";
+  //
+  // COVERAGE (this sweep): "assessed" also has to mean the check saw THIS comparison's
+  // field. The pool handed to the ranker drops every candidate it cannot resolve — no
+  // candidateId, or a candidateId whose profile AND analysis are both gone — and
+  // recruiter_cli skips malformed rows, so the matrix can be perfectly ALIGNED
+  // (isFairnessAligned) and still cover a strict subset of the compared field. Those
+  // candidates are still compared and still ranked (on their stored matchScore), so an
+  // unranked candidate with the highest stored score is crowned LEAD without ever
+  // appearing in the matrix — and the sealed record then asserted "assessed" about an
+  // order the check never re-scored. Partial coverage is "could not assess", the same
+  // honest value a ranker failure gets (the panel still renders the matrix it does have;
+  // its order verdict already declines on this mismatch — robustOrderVerdict).
+  const fairnessCoversField = fairnessCoversCohort(input.map((c) => c.candidateId), fairness);
+  const robustness: RobustnessStatus = !comparable
+    ? "insufficient_sample"
+    : job && !fairnessCoversField
+      ? "unavailable"
+      : assessRobustness(!!job, fairness);
 
   // Per-candidate AI reasoning, CONCURRENTLY (idea-bce9547b): this used to be a
   // sequential `await runReasoning(...)` per candidate — on cache misses, up to
@@ -446,6 +490,7 @@ export async function runGroupEval(
     const result = row?.result;
     const { reasoning, source } = reasonings[idx];
     if (source !== null) sources.push(source);
+    const archetype = row?.archetype ?? payload?.archetype ?? null;
     candidates.push({
       entryId: c.entryId,
       label: c.label,
@@ -455,7 +500,8 @@ export async function runGroupEval(
       // a genuine-looking 0 that ranked, displayed, and sealed (REC-03).
       score: result?.total ?? c.matchScore ?? null,
       seniority: row?.seniority ?? payload?.seniority ?? null,
-      archetype: row?.archetype ?? payload?.archetype ?? null,
+      archetype,
+      track: fairnessTrackOf(row?.track, archetype),
       verdict: reasoning.verdict ?? "",
       strengths: reasoning.strengths ?? [],
       gaps: reasoning.gaps ?? [],
@@ -532,7 +578,18 @@ export async function runGroupEval(
   const source = uniqueSources.size === 0 ? "deterministic" : uniqueSources.size === 1 && uniqueSources.has("llm") ? "llm" : uniqueSources.has("llm") ? "partial" : "deterministic";
 
   // AI head-to-head narrative (best-effort; deterministic one-liner is the fallback).
-  const compare = candidates.length ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], signal) : null;
+  //
+  // Gated on the MIN-COHORT FLOOR, not merely on a non-empty field. group_compare's
+  // contract is "who leads and the single clearest reason" and its deterministic twin
+  // has an explicit n==1 branch ("**Ada** leads 1 candidate … on overall fit (**90**)",
+  // "Advance **Ada** — the only candidate in this role"). The modal's AiVerdict renders
+  // the narrative INSTEAD of `summary` whenever one exists, so on a single-candidate
+  // field the crown the floor refused to award reappeared as the headline and the
+  // "insufficient sample — no lead is crowned" disclosure was never shown anywhere.
+  // It also spent a paid LLM round-trip (plus a Python spawn) to compare one candidate
+  // against nobody. Below the floor there is nothing to compare: emit no narrative, and
+  // AiVerdict falls back to the honest insufficient-sample summary.
+  const compare = comparable ? await runGroupCompare(roleTitle, candidates, job?.salaryBand ?? [], signal) : null;
 
   // Summary is governance-aware: in committee/eligibility modes it must NOT read as
   // an AI verdict ("Recommended lead") — that's the very thing those modes reject.
@@ -544,7 +601,12 @@ export async function runGroupEval(
   // gap to the runner-up actually survives that uncertainty, so the summary and the
   // sealed record can say "not separated" instead of implying a decisive win. The
   // runner-up is the next candidate in the SAME honest order — nothing is reordered.
-  const runnerUp = lead ? (candidates.find((c) => c !== lead) ?? null) : null;
+  // …and against a rival that could actually TAKE the crown: a knockout-failed candidate
+  // is refused the lead above and dropped from the eligibility list, so hedging the crown
+  // against one sealed "treat the top two as a tie on the evidence available" about a
+  // candidate who failed the role's must-haves — precisely when the lead is the SOLE
+  // eligible candidate. eligibleRunnerUp skips them; no one is reordered.
+  const runnerUp = eligibleRunnerUp(candidates, lead);
   const separation = leadSeparation(lead, runnerUp);
   const separationCaveat = lead && runnerUp ? separationNote(separation, lead.label, runnerUp.label) : "";
   // The summary is produced TWICE, on purpose:

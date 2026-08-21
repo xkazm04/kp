@@ -64,6 +64,29 @@ export function leadSeparation(
   return a.low > b.high ? "separated" : "overlapping";
 }
 
+/** The rival the crown is hedged against: the next candidate in the SAME honest order
+ *  that could actually TAKE the crown.
+ *
+ *  A knockout-failed candidate fails the role's must-haves — group-eval-run refuses to
+ *  crown one (`top.koPassed !== false`) and buildEligibilityList drops them as "not
+ *  eligible" — so measuring the lead's separation against one produces a caveat that
+ *  states, in the modal AND in the sealed decision record, "treat the top two as a tie
+ *  on the evidence available" about somebody who is not in the running at all. With the
+ *  ko-aware sort this is exactly the case where the lead is the SOLE eligible candidate,
+ *  i.e. where the crown is least ambiguous.
+ *
+ *  `koPassed` is undefined when the role has no job/ranker (ungated) — that is
+ *  not-failed, so such a candidate IS a valid runner-up (same reading as the sort).
+ *  Nothing is reordered: this only chooses WHICH rival the hedge is measured against,
+ *  and returns null when no eligible rival exists (→ `unknown`, never a claim). */
+export function eligibleRunnerUp<T extends { koPassed?: boolean }>(
+  candidates: readonly T[],
+  lead: T | null | undefined
+): T | null {
+  if (!lead) return null;
+  return candidates.find((c) => c !== lead && c.koPassed !== false) ?? null;
+}
+
 /** The audit/summary sentence for a verdict, in the same English register as the
  *  rest of the sealed group-eval rationale (the persisted audit string is English
  *  by design; the UI localizes its own chrome).

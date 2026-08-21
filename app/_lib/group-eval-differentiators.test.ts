@@ -86,6 +86,34 @@ test("tolerates missing/null matchedSkills on lead and rivals", () => {
   );
 });
 
+// ---- The unmeasured-rival floor (scan-sweep) -------------------------------
+//
+// group-eval-run leaves `matchedSkills` undefined for every candidate the recruiter
+// pool could not resolve — an entry with no candidateId, one whose profile AND analysis
+// are gone, or a row recruiter_cli skipped as malformed. Those candidates are still
+// COMPARED (and still ranked on their stored matchScore). Treating their absent skills
+// as "matched nothing" made every requirement skill the lead matched and the one SCORED
+// rival missed read as an exclusive edge — printed as the reason to pick the lead and
+// sealed verbatim into the decision rationale ("Unique strengths: …").
+//
+// NON-VACUITY: pre-fix the first assertion below returned ["GraphQL"] (the unscored
+// rival's absent list contributed nothing to `rivalMatched`), not []. The second pins
+// that a SCORED rival who genuinely matched nothing still counts as a miss, so the
+// ordinary edge survives.
+test("an UNMEASURED rival blocks the exclusivity claim — unknown is not a miss", () => {
+  const lead = { matchedSkills: ["GraphQL"] };
+  // `{}` = never scored (no recruiter row), NOT "scored and matched nothing".
+  assert.deepEqual(computeDifferentiators(lead, [{}], reqs), []);
+  assert.deepEqual(computeDifferentiators(lead, [{ matchedSkills: null }], reqs), []);
+  // One unmeasured rival taints the whole field: the claim is "no rival matched it".
+  assert.deepEqual(computeDifferentiators(lead, [{ matchedSkills: ["React"] }, {}], reqs), []);
+});
+
+test("a SCORED rival that matched nothing is a genuine miss — the edge stands", () => {
+  const lead = { matchedSkills: ["GraphQL"] };
+  assert.deepEqual(computeDifferentiators(lead, [{ matchedSkills: [] }], reqs), ["GraphQL"]);
+});
+
 test("de-duplicates a skill the lead lists twice", () => {
   // One present-but-non-matching rival satisfies the min-cohort floor (#4) while
   // leaving GraphQL exclusive to the lead, so dedup is what's under test.

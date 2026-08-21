@@ -39,6 +39,21 @@ export function computeDifferentiators(
   // least one rival to be exclusive AGAINST — so with no rivals there is nothing to
   // differentiate.
   if (rivals.length === 0) return [];
+  // Unmeasured-rival floor (scan-sweep). A rival with NO `matchedSkills` key at all was
+  // never scored — group-eval-run leaves the field undefined for any candidate the
+  // recruiter pool could not resolve (no candidateId, profile+analysis both gone, or a
+  // row recruiter_cli skipped). Such a rival did not MISS the lead's skills; nobody
+  // looked. Folding "unknown" into the empty set turns absence of evidence into
+  // evidence of absence and mints an exclusive edge the lead may not have: three
+  // candidates, one unscored, and every requirement skill the lead matched and the ONE
+  // scored rival missed is crowned "unique", printed as the reason to pick the lead,
+  // AND sealed verbatim into the decision rationale ("Unique strengths: …"). A scored
+  // rival that matched nothing carries `[]` (matching.py's matched_skills defaults to a
+  // list, so a ranked row always has the key) and still counts as a genuine miss — this
+  // gate fires only on the never-measured case, where exclusivity is unprovable for the
+  // field, so we claim none. Same stance as the null-score policy and the robustness
+  // status: report the seam, never a flattering guess.
+  if (rivals.some((c) => c.matchedSkills == null)) return [];
   // Requirement skill -> kind, so the edge can be both constrained to role needs
   // and ordered must-have first.
   const reqKind = new Map(requirements.map((r) => [r.skill, r.kind] as const));

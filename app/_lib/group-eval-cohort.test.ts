@@ -10,7 +10,7 @@
 // ["ts","react"], not []. The no-rival assertion below fails against that. Run: npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { GROUP_EVAL_MIN_COHORT, hasComparableCohort } from "./group-eval-cohort.ts";
+import { GROUP_EVAL_MIN_COHORT, fairnessCoversCohort, hasComparableCohort } from "./group-eval-cohort.ts";
 import { computeDifferentiators } from "./group-eval-differentiators.ts";
 
 test("the min-cohort floor is 2 (a head-to-head comparison needs >1 to compare)", () => {
@@ -35,4 +35,41 @@ test("computeDifferentiators returns [] with no rivals (was: ALL of the lead's s
   assert.deepEqual(computeDifferentiators(lead, [], reqs), []);
   // Sanity: with a real rival the genuine exclusive edge is still computed.
   assert.deepEqual(computeDifferentiators(lead, [{ matchedSkills: ["react"] }], reqs), ["ts"]);
+});
+
+// ---- The robustness COVERAGE gate (scan-sweep) -----------------------------
+//
+// `robustness: "assessed"` claims "the cross-scheme re-scoring genuinely tested the
+// order" and is persisted, rendered AND sealed into the decision record. It was derived
+// from assessRobustness(hasJob, fairness) alone, which only proves the matrix is
+// internally ALIGNED — never that it covers the field that was compared. The recruiter
+// pool drops every candidate group-eval-run cannot resolve (no candidateId, or a
+// candidateId whose profile and analysis are both gone), yet those candidates are still
+// compared and still ranked on their stored matchScore — so a 2x2 matrix could seal
+// "assessed" over a three-way comparison whose LEAD it never scored.
+//
+// NON-VACUITY: the pre-fix run had no coverage test at all, so the third assertion
+// below (a compared candidate missing from the matrix ⇒ not covered) is exactly the
+// case that used to seal "assessed"; the first two pin that a fully-covered field and
+// order-independence are unaffected.
+test("fairnessCoversCohort: covered only when EVERY compared candidate is in the matrix", () => {
+  const matrix = { candidateIds: ["c1", "c2", "c3"] };
+  assert.equal(fairnessCoversCohort(["c1", "c2", "c3"], matrix), true);
+  assert.equal(fairnessCoversCohort(["c3", "c1", "c2"], matrix), true, "coverage is a set question, not an order one");
+  // The reported defect: the ranker never scored c9, but c9 was compared (and could be
+  // crowned on its stored matchScore).
+  assert.equal(fairnessCoversCohort(["c1", "c9"], matrix), false);
+  // A candidate with NO candidateId can never be in the matrix — pool entries are keyed
+  // on it — so a field containing one is never fully covered.
+  assert.equal(fairnessCoversCohort(["c1", null], matrix), false);
+  assert.equal(fairnessCoversCohort(["c1", undefined], matrix), false);
+});
+
+test("fairnessCoversCohort: a missing/empty/malformed matrix covers nothing", () => {
+  assert.equal(fairnessCoversCohort(["c1"], null), false, "a ranker failure is not coverage");
+  assert.equal(fairnessCoversCohort(["c1"], undefined), false);
+  assert.equal(fairnessCoversCohort(["c1"], {}), false, "a legacy blob with no candidateIds is not coverage");
+  assert.equal(fairnessCoversCohort(["c1"], { candidateIds: [] }), false);
+  assert.equal(fairnessCoversCohort(["c1"], { candidateIds: "c1" }), false, "candidateIds must be an array");
+  assert.equal(fairnessCoversCohort([], { candidateIds: ["c1"] }), false, "an empty compared field is not a covered one");
 });

@@ -39,3 +39,34 @@ export const GROUP_EVAL_CAP = 6;
 export function hasComparableCohort(candidateCount: number): boolean {
   return candidateCount >= GROUP_EVAL_MIN_COHORT;
 }
+
+/**
+ * Does the cross-scheme weighting matrix actually cover the field this evaluation
+ * COMPARED?
+ *
+ * The matrix is built from the recruiter POOL, which is a strict subset of the compared
+ * field whenever a candidate can't be resolved into a pool entry — an entry with no
+ * `candidateId` (a manually added pipeline row), a `candidateId` whose profile AND
+ * analysis are both gone, or an entry recruiter_cli skipped as malformed. Those
+ * candidates are still compared, still ranked (on their stored matchScore) and can
+ * still be crowned lead, but they were never re-scored under anyone's weights.
+ *
+ * `isFairnessAligned` only proves the matrix is internally consistent — a perfectly
+ * aligned 2x2 matrix is "aligned" while the comparison ranked three people. Claiming
+ * `assessed` from it then seals "the cross-scheme re-scoring genuinely tested the
+ * order" about an order the check never saw (and, when the unranked candidate carries
+ * the highest stored score, about a LEAD that is not in the matrix at all). So
+ * robustness is only assessable when every compared candidate is in the matrix.
+ *
+ * Structurally typed (no `Fairness` import) so this module stays dependency-free.
+ */
+export function fairnessCoversCohort(
+  comparedCandidateIds: readonly (string | null | undefined)[],
+  fairness: { candidateIds?: unknown } | null | undefined
+): boolean {
+  const covered = fairness?.candidateIds;
+  if (!Array.isArray(covered) || covered.length === 0) return false;
+  const set = new Set(covered.filter((id): id is string => typeof id === "string" && id.length > 0));
+  if (comparedCandidateIds.length === 0) return false;
+  return comparedCandidateIds.every((id) => !!id && set.has(id));
+}
