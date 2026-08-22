@@ -120,7 +120,14 @@ block remaps to dark equivalents.
 | `stone-500` / `stone-600` | stock | **stock (deliberate)** | Muted body text — the text greys stay stock in both themes |
 | `stone-800` / `stone-900` | stock near-black | `#d8d2c6` / `#efe9dd` | **Inverted** controls (`bg-stone-900 text-white`) — see below |
 | `shadow-panel` | two-layer soft (`0 1px 2px` contact + `0 10px 28px -10px` ambient) | `5px 5px 0` near-black | Panel elevation |
+| `shadow-pop` | `4px 4px 0 rgba(23,32,42,.13)` (a hard offset already in light) | `5px 5px 0` near-black | Anchored pop layer — dropdowns, filter/row menus, `Select`, explainer popovers |
 | `shadow-overlay` | `0 25px 50px -12px rgb(0 0 0 / .25)` (was stock `shadow-2xl`) | `7px 7px 0` near-black | Floating chrome — Modal, drawers |
+
+Anything that floats gets one of these three — never a stock `shadow-lg` /
+`shadow-xl` / `shadow-2xl`. Those inline a literal black `rgba()` blur into the
+utility, so they cannot follow `data-theme`: on the dark ink canvas a 10 %-black
+diffusion reads as no lift at all, which is exactly the bug the `shadow-overlay`
+note below describes. An anchored menu or popover is `shadow-pop`.
 
 `stone-800/900` are the one **inverted** pair: `bg-stone-900 text-white` means
 "the opposite of the canvas", so the flip has to invert the *surface* too. Left
@@ -236,6 +243,18 @@ element:
   by role: `SURFACE`/`FILL`/`GRID`). Any new chart follows that pattern; both
   mirrors are pinned to `globals.css` by `design:check`, so neither half can
   drift the way the light half had.
+- **Inline SVG paints `var()`, not the `brand.ts` literals.** A presentation
+  attribute (`fill`, `stroke`) is parsed as CSS, so `fill="var(--color-paper)"`
+  resolves per theme with no `useTheme()` fork — that is how `MotionizedGlyph`
+  gives one traced geometry both registers. The bare constants (`PAPER`, `INK`,
+  …) are the **Studio Light half** of each token and belong only to the
+  stylesheet-less renderers (`opengraph-image`, `apple-icon`) and to the
+  chart chrome that needs a literal string. Importing them into a themed
+  component ships a light-mode drawing into Spark Dark: the results empty-state
+  vignettes (`app/_components/results/shared.tsx`) pinned `PAPER`/`INK` that way
+  and rendered a cream sheet on a `#141b24` card, with the magnifier handle —
+  the one stroke drawn on the card ground rather than on a filled shape —
+  at 1.04:1 against it.
 - **Leader emphasis scales with the canvas.** Subtle washes that work on
   cream (`bg-moss/5`) vanish on dark — the comparison table's leader column
   upgrades to `/15` plus a moss edge stroke in dark. When a highlight relies

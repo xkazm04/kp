@@ -57,8 +57,13 @@ export function PotentialBadge({ potential, className = "" }: { potential: Poten
         {label}
         <ChevronDown size={12} className={open ? "rotate-180" : ""} aria-hidden />
       </button>
+      {/* shadow-pop, not stock shadow-lg: Tailwind inlines shadow-lg as a literal
+          black rgba blur, so it cannot follow the theme — on Spark Dark's ink canvas
+          a 10%-black diffusion is invisible and the popover lost its lift. shadow-pop
+          is the token every other floating menu in the app rides (Select, FilterMenu,
+          PipelineCandidateMenu…), and the dark block swaps it for the hard offset. */}
       {open ? (
-        <div className="absolute right-0 top-full z-20 mt-1.5 w-72 rounded-lg border border-stone-200 bg-white p-3 text-left shadow-lg">
+        <div className="absolute right-0 top-full z-20 mt-1.5 w-72 rounded-lg border border-stone-200 bg-white p-3 text-left shadow-pop">
           <p className="text-meta uppercase tracking-wide text-steel">{t("explainTitle")}</p>
           {signals.length > 0 ? (
             <ul className="mt-1.5 space-y-0.5 text-sm text-ink">

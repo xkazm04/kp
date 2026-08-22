@@ -234,8 +234,19 @@ export type FitTierLabels = Partial<Record<FitTier | "unknown", string>>;
 
 export function fitTierToken(tier?: string | null, labels?: FitTierLabels): BadgeContent {
   const key = (tier ?? "").trim().toLowerCase();
-  const base = FIT_TIER[key as FitTier];
-  if (base) return labels?.[key as FitTier] ? { ...base, label: labels[key as FitTier] as string } : base;
+  // Object.hasOwn, not a bare truthy index: FIT_TIER (and the caller-supplied
+  // `labels`) are object literals, so they INHERIT Object.prototype and
+  // FIT_TIER["constructor"] is the Object constructor — truthy, and spread onto
+  // <Badge> as a BadgeContent with no tone and no label, i.e. an empty badge on
+  // an unstyled span. Same prototype-lookup class app/_lib/format.ts's ACRONYMS
+  // table was hardened against; the tier is a stored/model-supplied string, so
+  // an off-taxonomy value must land on the neutral "Fit" fallback like every
+  // other unknown. Real tiers read exactly as before.
+  const base = Object.hasOwn(FIT_TIER, key) ? FIT_TIER[key as FitTier] : undefined;
+  if (base) {
+    const label = labels && Object.hasOwn(labels, key) ? labels[key as FitTier] : undefined;
+    return label ? { ...base, label } : base;
+  }
   return { tone: "neutral", icon: CircleDot, label: labels?.unknown ?? "Fit" };
 }
 

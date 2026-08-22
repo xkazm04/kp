@@ -2,6 +2,7 @@
 
 import { Component, type ReactNode } from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
+import { reportBoundaryError } from "@/app/_lib/sentry-client";
 
 type Props = {
   children: ReactNode;
@@ -40,8 +41,15 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error): void {
-    // No remote error sink is wired up; the console keeps the stack for diagnosis.
+    // The console keeps the stack for local diagnosis. The Sentry report is
+    // DSN-gated and no-ops entirely on the default local-first deploy
+    // (app/_lib/sentry-client.ts) — the SAME call the route-level fallback makes
+    // (app/_components/RouteError.tsx). Without it a crash inside a workspace
+    // panel reached only the operator's own browser console, so a deploy that HAS
+    // a sink configured saw route crashes but never subtree ones — the boundary
+    // was the quietest place in the app to fail.
     console.error("Panel render failed:", error);
+    reportBoundaryError(error);
   }
 
   private reset = (): void => this.setState({ error: null });

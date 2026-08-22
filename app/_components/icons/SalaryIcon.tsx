@@ -1,5 +1,7 @@
 import type { SVGProps } from "react";
-import { MOSS } from "@/app/_lib/brand";
+
+// Accent fill through a CSS var, not the brand.ts JS mirror — see CompareIcon:
+// the JS constants are the LIGHT values and do not follow [data-theme].
 
 export function SalaryIcon(props: SVGProps<SVGSVGElement>) {
   return (
@@ -19,7 +21,7 @@ export function SalaryIcon(props: SVGProps<SVGSVGElement>) {
       <path d="m8 12.5 2.6-2.5" />
       <path d="m8 12.5 2.6 2.5" />
       <path d="M15.5 10.5a2 2 0 1 0 0 4" />
-      <circle cx="14.25" cy="8.6" r="0.85" fill={MOSS} stroke="none" />
+      <circle cx="14.25" cy="8.6" r="0.85" fill="var(--color-moss)" stroke="none" />
     </svg>
   );
 }

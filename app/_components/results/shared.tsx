@@ -6,7 +6,24 @@ import { useTranslations } from "next-intl";
 import type { Analysis } from "@/app/_lib/schemas";
 import { dedupe } from "@/app/_lib/dedupe";
 import { copyText } from "@/app/_lib/export-utils";
-import { PAPER, INK, MOSS, STEEL, LIMEWASH } from "@/app/_lib/brand";
+
+/**
+ * The empty-state vignettes below paint through `var(--color-…)`, NOT the JS
+ * literals in `app/_lib/brand.ts`. Those literals are the STUDIO LIGHT half of
+ * each token and exist for the stylesheet-less surfaces (the OG card, the edge
+ * icons) — a component inside the themed DOM that pins them into an SVG
+ * fill/stroke ships a light-mode drawing into Spark Dark: the sheet rect stayed
+ * cream (#fdf8ee) on a #141b24 card, and the magnifier handle — the one stroke
+ * drawn straight onto the card ground rather than on a filled shape — was
+ * `INK` (#17202a) on that same #141b24, i.e. 1.04:1 and simply not there.
+ * Presentation attributes are parsed as CSS, so `var()` resolves per theme with
+ * no `useTheme()` fork — the same trick MotionizedGlyph uses for traced glyphs.
+ */
+const PAPER = "var(--color-paper)";
+const INK = "var(--color-ink)";
+const MOSS = "var(--color-moss)";
+const STEEL = "var(--color-steel)";
+const LIMEWASH = "var(--color-limewash)";
 
 /**
  * A `<details>` whose children mount only AFTER the first expand, then stay

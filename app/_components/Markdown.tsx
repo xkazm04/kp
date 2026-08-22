@@ -57,6 +57,27 @@ function inline(text: string, keyBase: string): ReactNode[] {
   return out;
 }
 
+// Every line shape the block loop below owns, in one predicate. The paragraph
+// accumulator stops at each of them, so it can never absorb a structural line as
+// prose — it used to list only blank / heading / bullet / ordered / `---`, missing
+// the `***` rule and the ``` fence the SAME loop handles two branches above. A
+// `***` on the line right after a text line was therefore joined into the
+// paragraph, where the inline pass read the run as emphasis: "Perks\n***\nBenefits"
+// rendered as one line "Perks * Benefits" (the middle `*` italicised) instead of a
+// rule; and a fence opened straight after a text line printed its own backticks as
+// prose instead of a <pre> / PlantUML diagram.
+function isBlockBoundary(trimmed: string): boolean {
+  return (
+    trimmed === "" ||
+    trimmed === "---" ||
+    trimmed === "***" ||
+    trimmed.startsWith("```") ||
+    /^#{1,3}\s+/.test(trimmed) ||
+    /^[-*]\s+/.test(trimmed) ||
+    /^\d+\.\s+/.test(trimmed)
+  );
+}
+
 export function Markdown({ content, className = "" }: { content: string; className?: string }) {
   const lines = (content ?? "").replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
@@ -145,16 +166,15 @@ export function Markdown({ content, className = "" }: { content: string; classNa
     }
     // Paragraph (join consecutive non-blank, non-structural lines)
     const para: string[] = [];
-    while (
-      i < lines.length &&
-      lines[i].trim() !== "" &&
-      !/^(#{1,3})\s+/.test(lines[i].trim()) &&
-      !/^[-*]\s+/.test(lines[i].trim()) &&
-      !/^\d+\.\s+/.test(lines[i].trim()) &&
-      lines[i].trim() !== "---"
-    ) {
+    while (i < lines.length && !isBlockBoundary(lines[i].trim())) {
       para.push(lines[i].trim());
       i += 1;
+    }
+    // Unreachable today (every boundary shape is consumed by a branch above), but
+    // never leave `i` unadvanced: an empty paragraph would spin this loop forever.
+    if (para.length === 0) {
+      i += 1;
+      continue;
     }
     blocks.push(
       <p key={key++} className="mt-2 text-base leading-7 text-ink first:mt-0">

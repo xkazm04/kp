@@ -31,6 +31,8 @@ const MAX_DEPTH = 3;
 const MAX_ITEMS = 24;
 /** Strings at or above this length (or containing a newline) render as prose. */
 const PROSE_CHARS = 120;
+/** How much of the past-the-depth-cap JSON tail to print before saying so. */
+const MAX_TAIL_CHARS = 600;
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
@@ -49,6 +51,37 @@ export function humanizeKey(key: string): string {
 /** True when the value should be shown as a paragraph rather than a table cell. */
 const isProse = (v: unknown): v is string =>
   typeof v === "string" && (v.length >= PROSE_CHARS || v.includes("\n"));
+
+/**
+ * Read one column out of a row WITHOUT walking the prototype chain. `columns` is
+ * the union of every shown row's own keys, so a row that simply lacks a column
+ * must render as absent — but a bare `row[key]` inherits Object.prototype, and a
+ * payload key named `constructor` / `toString` / `valueOf` made the missing cell
+ * render the native function source ("function Object() { [native code] }") in a
+ * neighbouring row. Same prototype-lookup class the ACRONYMS table in
+ * app/_lib/format.ts was hardened against; these keys are model-authored, so the
+ * component must not trust them. Legitimate keys are unaffected — own properties
+ * read exactly as before.
+ */
+const cellOf = (row: Record<string, unknown>, key: string): unknown =>
+  Object.hasOwn(row, key) ? row[key] : undefined;
+
+/**
+ * Chip text for one array item. Objects and arrays get compact JSON rather than
+ * `String(v)`: a mixed array (`[{code:"x"}, "note"]` — ordinary in an
+ * LLM-authored payload) fell to the chip row and rendered the literal
+ * "[object Object]", and a nested array rendered "1,2", which is
+ * indistinguishable from the string "1,2".
+ */
+function chipText(item: unknown): string {
+  if (item === null || item === undefined) return "—";
+  if (typeof item !== "object") return String(item);
+  try {
+    return JSON.stringify(item) ?? String(item);
+  } catch {
+    return String(item);
+  }
+}
 
 function Scalar({ value }: { value: unknown }) {
   const t = useTranslations("common");
@@ -69,7 +102,7 @@ function ChipList({ items }: { items: unknown[] }) {
     <div className="flex flex-wrap gap-1.5">
       {shown.map((item, i) => (
         <span key={i} className="rounded-full bg-stone-100 px-2 py-0.5 text-sm text-steel dark:rotate-1 dark:inline-block">
-          {item === null || item === undefined ? "—" : String(item)}
+          {chipText(item)}
         </span>
       ))}
       {items.length > shown.length ? <MoreCount hidden={items.length - shown.length} /> : null}
@@ -84,7 +117,12 @@ function ObjectTable({ rows, depth }: { rows: Record<string, unknown>[]; depth: 
   for (const row of shown) for (const key of Object.keys(row)) if (!columns.includes(key)) columns.push(key);
   // A wide row set with nested cells is not a table any more — fall back to the
   // per-item sections, which can render the nesting properly.
-  const nested = shown.some((row) => columns.some((c) => isPlainObject(row[c]) || Array.isArray(row[c]) || isProse(row[c])));
+  const nested = shown.some((row) =>
+    columns.some((c) => {
+      const v = cellOf(row, c);
+      return isPlainObject(v) || Array.isArray(v) || isProse(v);
+    })
+  );
   if (nested || columns.length === 0) {
     return (
       <div className="space-y-3">
@@ -111,7 +149,7 @@ function ObjectTable({ rows, depth }: { rows: Record<string, unknown>[]; depth: 
           {shown.map((row, i) => (
             <tr key={i} className="border-b border-stone-100 last:border-0">
               {columns.map((c) => (
-                <td key={c} className="py-1.5 pr-3 align-top"><Scalar value={row[c]} /></td>
+                <td key={c} className="py-1.5 pr-3 align-top"><Scalar value={cellOf(row, c)} /></td>
               ))}
             </tr>
           ))}
@@ -191,9 +229,16 @@ function ReadoutBody({ value, depth }: { value: unknown; depth: number }) {
   const t = useTranslations("readout");
   if (depth >= MAX_DEPTH && (isPlainObject(value) || Array.isArray(value))) {
     // Past the depth cap, show the shape compactly rather than nesting forever.
+    // The character cap has to ANNOUNCE itself: every other cap in this file
+    // prints "+N more", but this one used to cut the JSON mid-token with no mark,
+    // so a deep payload read as "that's the whole tail" — exactly the silent
+    // truncation the module header forbids. A trailing ellipsis is the honest
+    // marker and needs no catalog key (the count here would be characters, which
+    // is not a fact worth stating).
+    const json = JSON.stringify(value, null, 1) ?? "";
     return (
       <pre className="overflow-x-auto rounded-md bg-stone-50 p-2 font-mono text-sm text-steel">
-        {JSON.stringify(value, null, 1).slice(0, 600)}
+        {json.length > MAX_TAIL_CHARS ? `${json.slice(0, MAX_TAIL_CHARS)}\n…` : json}
       </pre>
     );
   }

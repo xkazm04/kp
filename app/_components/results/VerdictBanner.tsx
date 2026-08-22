@@ -46,11 +46,28 @@ export function VerdictBanner({ analysis }: { analysis: Analysis }) {
   const skin = TONE[tone];
   const band = scored ? t(SCORE_BANDS[scoreBandIndex(overall)].key) : null;
 
+  // `role="img"` makes every descendant PRESENTATIONAL (img is one of ARIA's
+  // presentational-children roles), so the aria-label is the whole banner for a
+  // screen reader — the band word, the framing sentence, the job-fit chip and the
+  // crowned winner are all dropped from the accessibility tree. The label used to
+  // carry the score + band only, so on a multi-variant run the one fact the banner
+  // exists to deliver — WHICH CV won — was announced nowhere. Compose the label
+  // from the same already-localized strings the chips render (no new catalog keys)
+  // so the spoken banner says exactly what the painted one does.
+  const ariaLabel = [
+    scored ? t("verdict.aria", { score: overall, band: band as string }) : t("verdict.ariaUnscored"),
+    jobFit != null ? t("verdict.jobFit", { score: jobFit }) : null,
+    winnerLabel ? t("verdict.winner", { label: winnerLabel }) : null,
+    t(FRAMING_KEY[tone]),
+  ]
+    .filter((part): part is string => !!part)
+    .join(". ");
+
   return (
     <div
       className={`rounded-lg border border-stone-200 border-l-4 ${skin.bar} bg-white p-4 shadow-panel`}
       role="img"
-      aria-label={scored ? t("verdict.aria", { score: overall, band: band as string }) : t("verdict.ariaUnscored")}
+      aria-label={ariaLabel}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <span aria-hidden className={`text-2xl font-bold leading-none ${skin.text}`}>

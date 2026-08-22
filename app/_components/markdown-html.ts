@@ -233,6 +233,15 @@ function serializeInline(nodes: HNode[]): string {
       case "br":
         out += "\n";
         break;
+      case "td":
+      case "th":
+        // A pasted table (Word, Sheets, a careers page). This renderer has no table
+        // syntax, so the cells necessarily degrade to prose — but they must stay
+        // separate words: the unknown-tag fallback below concatenated them, turning
+        // a salary row into "Salary60k". A trailing space is enough (the surrounding
+        // block trims), and it also keeps consecutive ROWS apart.
+        out += serializeInline(n.children) + " ";
+        break;
       default:
         // span / font / unknown inline wrapper — keep the text, drop the tag.
         out += serializeInline(n.children);
@@ -270,6 +279,43 @@ function wrapU(children: HNode[]): string {
 
 const isBlockEl = (n: HNode): boolean => n.type === "el" && BLOCK_TAGS.has(n.tag);
 
+// Returns the node as a list element, or null — a plain narrowing helper rather than
+// a `n is …` predicate, whose NEGATIVE branch would wrongly narrow an already-known
+// element node to `never`.
+const asList = (n: HNode): Extract<HNode, { type: "el" }> | null =>
+  n.type === "el" && (n.tag === "ul" || n.tag === "ol") ? n : null;
+
+// A list's items, FLATTENED to one level. A pasted list (Word, Google Docs, a
+// careers page) and Chromium's own indent both nest — `<li>Backend<ul><li>Go</li></ul></li>`
+// — but the renderer (Markdown.tsx) parses flat lists only. Serializing the <li>
+// inline would send the nested <ul> through serializeInline's unknown-tag fallback,
+// which concatenates its text straight onto the parent item ("- BackendGo": two
+// bullets silently glued into one word). Lifting each nested item to its own item
+// keeps every bullet's text separate — the most the flat renderer can carry.
+// Empty items (`<li><br></li>` — the bullet Chromium creates on Enter) are dropped:
+// they used to serialize as a bare "- ", which the renderer reads as a literal "-"
+// paragraph that SPLITS the list in two on the published page.
+function flattenListItems(list: Extract<HNode, { type: "el" }>): string[] {
+  const items: string[] = [];
+  for (const child of list.children) {
+    if (child.type !== "el") continue;
+    const bare = asList(child);
+    if (bare) {
+      // A list nested directly under a list, with no <li> wrapper.
+      items.push(...flattenListItems(bare));
+      continue;
+    }
+    if (child.tag !== "li") continue;
+    const own = serializeInline(child.children.filter((c) => !asList(c))).trim();
+    if (own) items.push(own);
+    for (const c of child.children) {
+      const nested = asList(c);
+      if (nested) items.push(...flattenListItems(nested));
+    }
+  }
+  return items;
+}
+
 function serializeBlocks(nodes: HNode[]): string {
   const blocks: string[] = [];
   // A run of consecutive inline siblings (text, <b>, <i>, <u>, <br>…) with no block
@@ -302,19 +348,21 @@ function serializeBlocks(nodes: HNode[]): string {
         blocks.push("### " + serializeInline(n.children).trim());
         break;
       case "ul": {
-        const items = n.children.filter((c): c is Extract<HNode, { type: "el" }> => c.type === "el" && c.tag === "li");
-        if (items.length) blocks.push(items.map((li) => "- " + serializeInline(li.children).trim()).join("\n"));
+        const items = flattenListItems(n);
+        if (items.length) blocks.push(items.map((item) => "- " + item).join("\n"));
         break;
       }
       case "ol": {
-        const items = n.children.filter((c): c is Extract<HNode, { type: "el" }> => c.type === "el" && c.tag === "li");
-        if (items.length) blocks.push(items.map((li, idx) => `${idx + 1}. ` + serializeInline(li.children).trim()).join("\n"));
+        const items = flattenListItems(n);
+        if (items.length) blocks.push(items.map((item, idx) => `${idx + 1}. ` + item).join("\n"));
         break;
       }
-      case "p":
-      case "div": {
-        // contentEditable can nest blocks (a div of divs) — recurse in that case,
-        // otherwise the block is one paragraph line.
+      // p / div, plus a stray <li> or a pasted <blockquote> outside its normal
+      // parent. contentEditable nests blocks (a div of divs) and a pasted quote
+      // carries its own <p> run — recurse in that case, otherwise the block is one
+      // paragraph line. Without the recursion a <blockquote><p>one</p><p>two</p>
+      // collapsed to "onetwo": two paragraphs glued into one word.
+      default: {
         if (n.children.some(isBlockEl)) {
           const inner = serializeBlocks(n.children);
           if (inner) blocks.push(inner);
@@ -322,12 +370,6 @@ function serializeBlocks(nodes: HNode[]): string {
           const inline = serializeInline(n.children).trim();
           if (inline) blocks.push(escapeLeadingMarker(inline));
         }
-        break;
-      }
-      default: {
-        // stray <li> / <blockquote> outside its normal parent → a paragraph.
-        const inline = serializeInline(n.children).trim();
-        if (inline) blocks.push(inline);
       }
     }
   }

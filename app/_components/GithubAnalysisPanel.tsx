@@ -121,9 +121,18 @@ function GithubAnalysisBody({ analysis }: { analysis: GithubAnalysis }) {
     <div className="mt-5 grid gap-5 xl:grid-cols-[380px_1fr]">
       <div className="space-y-5">
         <div className="rounded-lg border border-stone-200 bg-paper p-4">
-          <a href={analysis.profileUrl} target="_blank" rel="noreferrer" className="text-base font-semibold text-ink underline">
-            @{analysis.username}
-          </a>
+          {/* profileUrl is `httpUrlOrBlank` (app/_lib/schemas.ts): a non-http(s)
+              scheme arriving through PATCH /api/analyses/[slug] is BLANKED, not
+              rejected. A blank href is inert as an href but still a live link —
+              it resolves to the current URL, so clicking "@user" reloaded the
+              report and lost the open tab. Blank ⇒ render the handle as text. */}
+          {analysis.profileUrl ? (
+            <a href={analysis.profileUrl} target="_blank" rel="noreferrer" className="text-base font-semibold text-ink underline">
+              @{analysis.username}
+            </a>
+          ) : (
+            <p className="text-base font-semibold text-ink">@{analysis.username}</p>
+          )}
           <p className="mt-3 text-base leading-6 text-ink">{summary}</p>
           <div className="mt-4 grid grid-cols-2 gap-3 text-base">
             <Metric label={t("metricRepos")} value={analysis.metrics.ownedReposAnalyzed} />
@@ -194,37 +203,48 @@ function TopRepositoriesBlock({
     <div className="rounded-lg border border-stone-200 bg-white p-4">
       <h3 className="font-serif text-h3 text-ink">{t("topRepositories")}</h3>
       <div className="mt-3 grid gap-3">
-        {repositories.map((repo) => (
-          <a
-            key={repo.url}
-            href={repo.url}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-md bg-paper p-3 hover:bg-limewash"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <p className="truncate font-semibold text-ink" title={repo.name}>
-                {repo.name}
-              </p>
-              <div className="flex shrink-0 gap-2 text-sm text-steel">
-                <span className="inline-flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5" aria-hidden />
-                  {repo.stars}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <GitPullRequest className="h-3.5 w-3.5" aria-hidden />
-                  {repo.forks}
-                </span>
+        {/* Same `httpUrlOrBlank` contract as profileUrl: a rejected scheme lands here
+            as "". Keying by url then collapsed EVERY blanked repo onto key="" (React
+            duplicate-key warning + sibling cards swapping content on re-render), and
+            the card stayed an <a href=""> that reloaded the page on click. Key by
+            name+index and drop the anchor when there is no destination. */}
+        {repositories.map((repo, i) => {
+          const body = (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <p className="truncate font-semibold text-ink" title={repo.name}>
+                  {repo.name}
+                </p>
+                <div className="flex shrink-0 gap-2 text-sm text-steel">
+                  <span className="inline-flex items-center gap-1">
+                    <Star className="h-3.5 w-3.5" aria-hidden />
+                    {repo.stars}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <GitPullRequest className="h-3.5 w-3.5" aria-hidden />
+                    {repo.forks}
+                  </span>
+                </div>
               </div>
+              {repo.description ? (
+                <p className="mt-2 line-clamp-2 text-sm leading-5 text-ink">{repo.description}</p>
+              ) : null}
+              <p className="mt-2 text-sm text-steel">
+                {repo.primaryLanguage ?? t("mixedLanguage")} · {safeDate(repo.updatedAt)}
+              </p>
+            </>
+          );
+          const key = `${repo.name}-${i}`;
+          return repo.url ? (
+            <a key={key} href={repo.url} target="_blank" rel="noreferrer" className="rounded-md bg-paper p-3 hover:bg-limewash">
+              {body}
+            </a>
+          ) : (
+            <div key={key} className="rounded-md bg-paper p-3">
+              {body}
             </div>
-            {repo.description ? (
-              <p className="mt-2 line-clamp-2 text-sm leading-5 text-ink">{repo.description}</p>
-            ) : null}
-            <p className="mt-2 text-sm text-steel">
-              {repo.primaryLanguage ?? t("mixedLanguage")} · {safeDate(repo.updatedAt)}
-            </p>
-          </a>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -224,6 +224,16 @@ export function Select({
   const sizeCls = (sizeVariant ?? size) === "sm" ? "h-9 px-2.5 text-sm" : "h-10 px-3 text-base";
   const TriggerIcon = selected?.icon;
 
+  // Focus never leaves the trigger (or the filter box) — the "active" row is moved
+  // by state, not by focus — so aria-activedescendant is the ONLY channel that tells
+  // a screen reader which option Arrow/Home/End/typeahead just landed on, and which
+  // one Enter will commit. Without it the module comment's APG claim was hollow: the
+  // row highlighted visually and nothing was announced. Each row therefore needs a
+  // stable id, and the id must resolve — point at nothing when the list is empty
+  // (the "No matches" state) or the index is out of range after a filter narrowed it.
+  const optionId = (idx: number) => `${listId}-opt-${idx}`;
+  const activeDescendant = open && active >= 0 && active < rows.length ? optionId(active) : undefined;
+
   return (
     <>
       <button
@@ -234,6 +244,7 @@ export function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
+        aria-activedescendant={activeDescendant}
         aria-label={ariaLabel}
         aria-invalid={invalid || undefined}
         disabled={disabled}
@@ -278,6 +289,11 @@ export function Select({
                       }}
                       onKeyDown={onKeyDown}
                       placeholder={searchPlaceholder}
+                      // The filter box holds focus while the arrows move the active
+                      // row, so it carries the same pointer (and names the list it
+                      // drives) — otherwise a searchable Select announces nothing.
+                      aria-controls={listId}
+                      aria-activedescendant={activeDescendant}
                       aria-label={ariaLabel ? `${ariaLabel} — filter` : "Filter options"}
                       className="focus-ring w-full rounded-md border border-stone-200 bg-white py-1.5 pl-8 pr-2 text-sm text-ink placeholder:text-steel caret-coral"
                     />
@@ -292,7 +308,12 @@ export function Select({
                       const isActive = idx === active;
                       const RowIcon = row.icon;
                       return (
-                        <li key={`${row.value}-${idx}`} role="option" aria-selected={isSelected} data-idx={idx}>
+                        // aria-disabled on the OPTION, not just `disabled` on the inner
+                        // button: aria-activedescendant points at the <li>, and Home/End
+                        // (and the open-menu preselect) can land on a disabled row, where
+                        // Enter is a deliberate no-op (see commit). Without this the row
+                        // is announced as choosable and the silent no-op reads as a hang.
+                        <li key={`${row.value}-${idx}`} id={optionId(idx)} role="option" aria-selected={isSelected} aria-disabled={row.disabled || undefined} data-idx={idx}>
                           <button
                             type="button"
                             disabled={row.disabled}

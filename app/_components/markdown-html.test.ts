@@ -142,3 +142,45 @@ test("an unsafe-scheme link is rendered as inert text, never an href (#5)", () =
   // A javascript: href stored via an <a> is dropped on serialize (link → plain text).
   assert.equal(htmlToMarkdown(`<p><a href="javascript:alert(1)">x</a></p>`), "x");
 });
+
+// ── Structured blocks the contentEditable can hold but the FLAT renderer can't ──
+// The editor has no indent button, but a PASTE (Word, Google Docs, a careers page)
+// drops arbitrary HTML straight into the surface, and Chromium creates an empty
+// <li> the moment you press Enter in a list. Both used to destroy the text.
+
+test("a nested list flattens — its items are never glued onto their parent's", () => {
+  // Pre-fix: "- BackendGoKubernetes\n- Frontend" — serializeInline's unknown-tag
+  // fallback concatenated the nested <ul>'s text onto the parent item, so three
+  // bullets became one unreadable word on the published JD.
+  assert.equal(
+    htmlToMarkdown("<ul><li>Backend<ul><li>Go</li><li>Kubernetes</li></ul></li><li>Frontend</li></ul>"),
+    "- Backend\n- Go\n- Kubernetes\n- Frontend"
+  );
+  // Ordered lists renumber across the flattening (pre-fix: "1. FirstSub").
+  assert.equal(htmlToMarkdown("<ol><li>First<ol><li>Sub</li></ol></li></ol>"), "1. First\n2. Sub");
+  // A list nested directly under a list, with no <li> wrapper (seen from Word).
+  assert.equal(htmlToMarkdown("<ul><li>a</li><ul><li>b</li></ul></ul>"), "- a\n- b");
+});
+
+test("an empty <li> is dropped, not serialized as a bare marker that splits the list", () => {
+  // Chromium emits <li><br></li> for the bullet created by Enter. Pre-fix that
+  // serialized as "- ", which the renderer reads as a literal "-" PARAGRAPH —
+  // splitting one list into two lists with a stray dash between them.
+  assert.equal(htmlToMarkdown("<ul><li>a</li><li><br></li><li>b</li></ul>"), "- a\n- b");
+  assert.equal(markdownToHtml("- a\n- b"), "<ul><li>a</li><li>b</li></ul>");
+});
+
+test("a pasted table degrades to prose with its cells still separate", () => {
+  // Pre-fix: "Salary60kBonus10k" — every cell ran into the next through the
+  // unknown-tag fallback, so a pasted salary table became one unreadable word.
+  assert.equal(
+    htmlToMarkdown("<table><tbody><tr><td>Salary</td><td>60k</td></tr><tr><td>Bonus</td><td>10k</td></tr></tbody></table>"),
+    "Salary 60k Bonus 10k"
+  );
+});
+
+test("a pasted blockquote keeps its paragraphs apart", () => {
+  // Pre-fix: "onetwo" — the stray-block fallback ran serializeInline over the whole
+  // subtree, gluing two paragraphs into one word.
+  assert.equal(htmlToMarkdown("<blockquote><p>one</p><p>two</p></blockquote>"), "one\n\ntwo");
+});
