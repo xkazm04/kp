@@ -19,6 +19,8 @@ import {
 } from "./offers-store.ts";
 import { offerView, respondToOffer } from "./offer-finalize.ts";
 import { sendDueOfferReminders } from "./offer-reminders.ts";
+import { setDecisionConfig } from "./decision-config-store.ts";
+import { billingOverview } from "./billing/entitlements.ts";
 
 after(() => cleanupUnitDb());
 
@@ -222,6 +224,112 @@ test("a re-extend that only widens the deadline is honored — the ttlDays lever
   const third = getOrCreateOpenOffer({ ...base, ttlDays: 14 });
   assert.equal(third.updated, false, "an identical re-approval stays a verbatim re-send");
   assert.equal(third.offer.expiresAt, second.offer.expiresAt, "and does not push the deadline out again");
+});
+
+// ---- "advanced a stage" is NOT "hired" -------------------------------------
+//
+// A workspace composes its own board (decision-config `pipelineStages`, written
+// through /api/pipeline/stage-migration); the validator only requires entry-first
+// and exactly-one-terminal-last. Both axes below are legal, and both used to be
+// misread — the offer paths asked a stage's NAME (or the shipped axis's last
+// element) a question only its ROLE can answer.
+
+/** A board with a column AFTER the offer step. An accept advances ONE stage, so it
+ *  lands on "Background check" — the candidate is NOT hired. */
+const POST_OFFER_AXIS = {
+  stages: [
+    { id: "Accepted", label: "Accepted", role: "entry" },
+    { id: "Screened", label: "Screened", role: "screening" },
+    { id: "Interview", label: "Interview", role: "interview" },
+    { id: "Offer", label: "Offer", role: "offer" },
+    { id: "Background check", label: "Background check", role: "custom" },
+    { id: "Hired", label: "Hired", role: "terminal" },
+  ],
+  retired: [],
+};
+
+/** A board whose terminal column is called something else (the shipped "Hired" is
+ *  retired). Hires stand on "Onboarded". */
+const RENAMED_TERMINAL_AXIS = {
+  stages: [
+    { id: "Accepted", label: "Accepted", role: "entry" },
+    { id: "Screened", label: "Screened", role: "screening" },
+    { id: "Interview", label: "Interview", role: "interview" },
+    { id: "Offer", label: "Offer", role: "offer" },
+    { id: "Onboarded", label: "Onboarded", role: "terminal" },
+  ],
+  retired: [{ id: "Hired", label: "Hired", role: "terminal" }],
+};
+
+/** Hires debited this period — the headline unit of the outcome-priced product. */
+const hiresUsed = (ws: string): number => billingOverview(new Date(), ws).meters.find((m) => m.meter === "hires")?.used ?? -1;
+
+function entryIn(ws: string, stage: string) {
+  seq += 1;
+  const { entry } = createPipelineEntry({
+    candidateId: `axis-c${seq}`,
+    candidateLabel: `Axis Candidate ${seq}`,
+    jobId: `axis-job-${seq}`,
+    jobTitle: "Axis Test Role",
+    stage,
+    workspaceId: ws,
+    contact: `axis-c${seq}@example.com`,
+  });
+  return entry;
+}
+
+const offerFor = (entryId: string, label: string) =>
+  createOffer({
+    entryId,
+    candidateLabel: label,
+    jobId: null,
+    jobTitle: "Axis Test Role",
+    currency: "CZK",
+    salary: 80_000,
+    payload: { recommended: 80_000 },
+    ttlDays: 7,
+  });
+
+test("an accept that only advances onto a post-offer column is not a hire — nothing is metered", async () => {
+  const WS = "team-post-offer";
+  setDecisionConfig("pipelineStages", POST_OFFER_AXIS, WS, "team");
+  const entry = entryIn(WS, "Offer");
+  const offer = offerFor(entry.id, entry.candidateLabel);
+  const before = hiresUsed(WS);
+
+  const res = await respondToOffer(offer.token, "accept");
+  assert.ok(res.ok, "the candidate's acceptance is still recorded");
+  assert.equal(
+    getPipelineEntry(entry.id, WS)!.stage,
+    "Background check",
+    "accept advances ONE stage on this board — the hire is a column further on"
+  );
+  assert.ok(hasEvent(entry.id, "offer_accepted", WS), "the acceptance is still on the timeline");
+  // Pre-fix: actOnPipelineEntry returning a non-null entry was read as "hired", so
+  // the hire meter was debited (and candidate.hired mirrored to the customer's HRIS)
+  // for someone sitting on a background check.
+  assert.equal(hiresUsed(WS), before, "no hire is debited for a candidate who has not reached the terminal column");
+});
+
+test("a stale decline cannot demote a hire whose board calls the terminal column something else", async () => {
+  const WS = "team-renamed-terminal";
+  setDecisionConfig("pipelineStages", RENAMED_TERMINAL_AXIS, WS, "team");
+  const entry = entryIn(WS, "Offer");
+
+  const accepted = offerFor(entry.id, entry.candidateLabel);
+  await respondToOffer(accepted.token, "accept");
+  assert.equal(getPipelineEntry(entry.id, WS)!.stage, "Onboarded", "the hire lands on THIS board's terminal column");
+
+  // A duplicate / re-extended link on the same entry; declining it must not undo the hire.
+  const stale = offerFor(entry.id, entry.candidateLabel);
+  const res = await respondToOffer(stale.token, "decline");
+  assert.ok(res.ok, "the offer row itself records the decline");
+  const still = getPipelineEntry(entry.id, WS)!;
+  // Pre-fix: markEntryStatus guarded `stage != 'Hired'` (the shipped axis's last
+  // element), so "Onboarded" sailed through and the hire was flipped to declined.
+  assert.equal(still.status, "active", "a terminal column is terminal whatever the team called it");
+  assert.equal(still.stage, "Onboarded");
+  assert.equal(hasEvent(entry.id, "offer_declined", WS), false, "no phantom decline on the hire's timeline");
 });
 
 test("re-extending an offer whose deadline lapsed before the sweep ran refreshes it instead of re-sending a dead link", () => {

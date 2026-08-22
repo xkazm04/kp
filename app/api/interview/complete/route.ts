@@ -143,7 +143,27 @@ export async function POST(request: NextRequest) {
     // scoring is skipped, minutes stay unbilled, and the candidate keeps access to
     // their link instead of being locked out of an empty interview.
     const candidateTurns = transcript.filter((t) => t.role === "candidate").length;
-    const status = body.status === "failed" || candidateTurns === 0 ? "failed" : "completed";
+    const dropped = body.status === "failed" || candidateTurns === 0;
+    // A REVOKED session stays revoked (scan-sweep 2026-08-22). Revoke is the
+    // recruiter pulling the link — "wrong candidate, changed mind, link shared too
+    // widely" (the drawer's Revoke-links action) or /create's `force` reissue — and
+    // it CANNOT hang up a call already in flight: the browser holds a direct
+    // provider connection, so the candidate's own hang-up POST still lands here.
+    // Unguarded, that finalize flipped the row to 'completed', which (a) debited the
+    // workspace's interview minutes, (b) synthesized a scorecard and (c) SEALED an
+    // `ai_scorecard` decision on the pipeline entry — an AI verdict about a named
+    // person, feeding the Interview→Offer gate, out of the interview the recruiter
+    // had just killed. Worse, 'completed' silently UNDID the revoke as a lifecycle
+    // fact, and the same row then surfaced in the compare grid (interviewedForJob
+    // selects status='completed').
+    // Keeping the status 'revoked' rather than downgrading to 'failed' is
+    // load-bearing: 'failed' is reconnectable BY DESIGN, so it would hand the link
+    // back to the candidate and let them mint fresh provider credentials on a
+    // credential the recruiter had revoked. The transcript is still persisted below
+    // — what was said is evidence, and destroying it is not ours to do — while the
+    // three "this interview counts" side effects (all gated on status ===
+    // "completed") are skipped, exactly as they are for a silent-mic call.
+    const status = session.status === "revoked" ? "revoked" : dropped ? "failed" : "completed";
 
     // Never replace a persisted non-empty transcript with an empty one
     // (idea-beb71894): a stray empty/failed finalize after a real one (e.g. a

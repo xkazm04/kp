@@ -77,7 +77,7 @@ any tier. CZK is the primary display currency at the app's implied ~24 Kč/$ rat
 | Meter | Debited when | Gated? |
 | --- | --- | --- |
 | `job_posts` | a role is published — `published_at` is `COALESCE`-stamped, so **once per job ever**; closing and reopening never re-charges | **Yes**, 402 in the publish transaction |
-| `hires` | a candidate accepts an offer, on the compare-and-swap winner in `offer-finalize.ts` | **Never** |
+| `hires` | a candidate's accept CROSSES the entry onto its workspace's terminal-role stage — the compare-and-swap winner in `offer-finalize.ts`, gated on the stage ROLE (a board with a post-offer column, or a second link accepted on an already-hired entry, debits nothing) | **Never** |
 
 The asymmetry is deliberate and load-bearing. Publishing is a RECRUITER action, so
 refusing it is reasonable. A hire fires on the CANDIDATE's accept — a person taking a
@@ -171,6 +171,19 @@ manage:     POST /api/billing/portal → provider customer-portal URL
 
 **Money state is only ever written by the webhook path** — never trusted from the
 client, never inferred from a checkout redirect.
+
+### The webhook reads its raw body under a hard cap
+
+`/api/billing/webhook` is on the public allow-list (`app/_lib/auth/public-routes.ts` —
+a MACHINE posts here, so the operator gate would 401 Polar), and the standard-webhooks
+MAC covers the body, so the body has to be in hand **before** anything can be
+authenticated. That read is therefore the first thing an anonymous caller can reach, and
+it is bounded: `content-length` is an advisory fast-reject and the real 256 KB budget is
+enforced on bytes actually read off the wire (`readTextWithLimit`, the same contract
+`/api/agents/report/[token]` and `/api/channels/inbound/[token]` use). Over-budget →
+**413**; non-2xx, so a genuine oversized delivery (there is no such Polar payload — an
+event is one subscription or order object) is retried and stays visible in the dashboard
+rather than being silently swallowed. Pinned by `app/api/billing/billing-routes.test.ts`.
 
 ### Settled money we cannot map is an ALERT, never a silent ignore
 
@@ -367,6 +380,16 @@ leave billing off entirely (`docs/architecture/self-hosting.md` §6).
   canceled-until-period-end rule.
 - `app/_lib/billing/price-reconcile.test.ts` — the price-drift check used by
   `polar-setup.mjs`.
+- `app/api/billing/billing-routes.test.ts` — the handlers themselves against real
+  standard-webhooks signatures: the signature/idempotency/grant path, the bounded
+  body read (413 on both the declared and the chunked oversize), and every checkout
+  refusal.
+- `app/_lib/db/billing-tenancy.test.ts` — the org axis. The source guard requires
+  every statement on `billing_state` / `billing_credits` / `billing_usage` to **bind**
+  `org_id` (an `org_id = ?` predicate, or an INSERT naming it in the column list) —
+  not merely to mention it, which a cross-org `SELECT org_id, … WHERE plan = ?` would
+  satisfy. `billingOrgForProviderRefs` is the one exemption and is named, because it
+  is the resolver that looks ACROSS orgs to decide which org to scope to.
 
 ## Known gaps
 

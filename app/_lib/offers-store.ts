@@ -3,7 +3,8 @@ import { openStore } from "./db-path";
 import { randomId, randomToken } from "./random-id";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { TERMINAL_ENTRY_STATUSES, type PipelineEntryStatus } from "./pipeline-status";
-import { PIPELINE_STAGES } from "./pipeline-stages";
+import { stageWithRole } from "./pipeline-stages";
+import { getPipelineAxis } from "./pipeline-axis-server";
 import { isOfferExpired, OFFER_REMINDER_LEAD_MS, offerExpiresAtMs, resolveOfferTtlDays } from "./offer-policy";
 import { recordAutomationEvent } from "./db/pipeline";
 
@@ -410,7 +411,30 @@ export function markOfferResponded(
 const TERMINAL_STATUS_SQL_LIST = `(${TERMINAL_ENTRY_STATUSES.map((s) => `'${s}'`).join(", ")})`;
 // The terminal STAGE: a Hired candidate keeps status='active' (see pipeline-status
 // header), so the status list alone wouldn't protect them — gate on stage too.
-const HIRED_STAGE = PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
+//
+// Resolved by ROLE, never by name or by position on the shipped axis. A workspace
+// composes its own columns (decision-config `pipelineStages`, written through
+// /api/pipeline/stage-migration), and the only invariants the validator enforces are
+// "entry first, exactly one terminal, and it is last" — the terminal column's ID is
+// whatever the team called it ("Onboarded", "Placed"). `PIPELINE_STAGES[length - 1]`
+// answered "Hired" for every tenant, so on a renamed board this guard protected a
+// column nobody stands on and let a stale decline demote an actual hire.
+const SHIPPED_TERMINAL_STAGE = stageWithRole("terminal") ?? "Hired";
+
+/** Every stage id that plays the TERMINAL role on `workspaceId`'s board — live AND
+ *  retired (a candidate hired before the team re-composed its axis is still standing
+ *  on the retired column) — plus the shipped id as a floor. A failed axis read falls
+ *  back to that floor rather than dropping the guard entirely. */
+function terminalStageIds(workspaceId: string): string[] {
+  const ids = new Set<string>([SHIPPED_TERMINAL_STAGE]);
+  try {
+    const axis = getPipelineAxis(workspaceId);
+    for (const s of [...axis.stages, ...axis.retired]) if (s.role === "terminal") ids.add(s.id);
+  } catch (e) {
+    console.warn("[offers-store] could not resolve the board axis; guarding the shipped terminal stage only", e);
+  }
+  return [...ids];
+}
 
 /** Terminal status write for a declined offer (candidate said no). Typed against
  *  the canonical taxonomy so a stray free-form string can't be persisted.
@@ -426,16 +450,18 @@ const HIRED_STAGE = PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
  *  Returns true only when the row actually transitioned; logs when the guard blocks
  *  the write so the dropped decline is never silent. */
 export function markEntryStatus(entryId: string, status: PipelineEntryStatus, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const terminalStages = terminalStageIds(workspaceId);
   const res = db()
     .prepare(
       `UPDATE pipeline_entries SET status = ?, updated_at = ?
-        WHERE id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND stage != ? AND workspace_id = ?`
+        WHERE id = ? AND status NOT IN ${TERMINAL_STATUS_SQL_LIST}
+          AND stage NOT IN (${terminalStages.map(() => "?").join(", ")}) AND workspace_id = ?`
     )
-    .run(status, new Date().toISOString(), entryId, HIRED_STAGE, workspaceId);
+    .run(status, new Date().toISOString(), entryId, ...terminalStages, workspaceId);
   if (res.changes === 0) {
     console.warn(
       `[offers-store] markEntryStatus('${status}') blocked for entry ${entryId}: ` +
-        `entry is already terminal or Hired (or missing) — refusing to overwrite (stale/duplicate offer decline).`
+        `entry is already terminal or on a terminal-role stage (or missing) — refusing to overwrite (stale/duplicate offer decline).`
     );
     return false;
   }

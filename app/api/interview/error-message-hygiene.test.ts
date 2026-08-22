@@ -56,13 +56,32 @@ test("no interview route forwards a raw error message to the client", () => {
       /\bjsonError\(/,
       `${rel} must not use jsonError (it forwards err.message) — use safeJsonError`,
     );
+    // The OTHER way the same detail escapes: String(error) / `${error}` stringifies
+    // an Error to "Error: <message>", so the db path and the provider HTTP body ride
+    // out just as they would via .message. Only the caught-error identifiers are
+    // matched, so a route logging its own named variable (create's `commErr` in a
+    // console.error) is untouched — this is about the RESPONSE.
+    assert.doesNotMatch(
+      src,
+      /\bString\(\s*(?:error|err)\s*\)/,
+      `${rel} must not stringify the caught error into a response — use safeJsonError`,
+    );
   }
 });
 
 test("every interview route routes its catch path through safeJsonError", () => {
   for (const rel of ROUTES) {
     const src = read(rel);
-    assert.match(src, /safeJsonError/, `${rel} must use the shared safe-error responder`);
+    // A CALL in RETURN position, not the bare identifier: `assert.match(src, /safeJsonError/)`
+    // was satisfied by the IMPORT LINE alone, so a catch body rewritten to
+    // `return NextResponse.json({ error: String(error) }, { status: 500 })` — the exact
+    // leak this file exists to stop — kept the guard green (proven by mutation,
+    // scan-sweep 2026-08-22; the same hollow shape the JD sibling carried).
+    assert.match(
+      src,
+      /return safeJsonError\(/,
+      `${rel} must RETURN safeJsonError(...) from its catch — importing it is not using it`,
+    );
     assert.match(
       src,
       /from "@\/app\/_lib\/api-response"/,

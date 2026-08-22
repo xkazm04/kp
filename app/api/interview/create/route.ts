@@ -109,13 +109,33 @@ export async function POST(request: NextRequest) {
     let delivery: DeliveryClaim = "failed";
     if (avail[provider]) {
       try {
-        const link = `${publicBaseUrl(new URL(request.url).origin)}/interview/${session.token}`;
         // SIM3 — invite in the applicant's language; the session carries no
         // locale, so read it off the entry (one lookup, only on a delivered invite).
         // Scoped: an unscoped read resolved against the default team, so on any
         // other workspace this returned null and every invite fell back to the
         // workspace default language instead of the candidate's own.
         const inviteLocale = getPipelineEntry(entryId, workspace)?.locale ?? null;
+        // …and the LINK carries that locale too (`?lang=`, handled by proxy.ts's
+        // locale override) — the convention the apply ack's /status link, the
+        // erasure /data link and the enrichment link all already follow, and the
+        // one candidate link that had been missing it. This is an ABSOLUTE link
+        // opened from an email, where no NEXT_LOCALE cookie exists yet, so without
+        // it a Czech applicant received a Czech invite and landed on an ENGLISH
+        // interview portal. That was not merely cosmetic: the portal hides the
+        // language picker for candidates and seeds the spoken-agent hint from that
+        // UI locale (VoiceInterview.tsx: `locale === "cs" ? "cs" : "en"`), the hint
+        // rides POST /connect into the provider session config, and
+        // buildOpenAiSessionPayload PINS input-audio transcription to it — while
+        // the voice harness showed transport config BEATS the brief's prompt-level
+        // language lock (voice/openai.ts). So a Czech-speaking candidate whose
+        // brief had been told to open in Czech (withOpeningLanguage, same
+        // entry.locale) was transcribed against an English ASR, and that transcript
+        // is what the scorecard and the Interview→Offer gate then rest on.
+        // Only the EMAILED link is pinned: the `url` in the response is opened by
+        // the RECRUITER (Schedule tab's window.open, drawer copy), and ?lang= there
+        // would rewrite their own NEXT_LOCALE cookie and flip the console's language.
+        const langQuery = inviteLocale ? `?lang=${encodeURIComponent(inviteLocale)}` : "";
+        const link = `${publicBaseUrl(new URL(request.url).origin)}/interview/${session.token}${langQuery}`;
         const status = await dispatchInterviewInvite(
           { id: entryId, candidateLabel: session.candidateLabel, jobTitle: session.jobTitle, locale: inviteLocale },
           link,

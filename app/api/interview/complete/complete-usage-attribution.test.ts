@@ -14,7 +14,12 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../../_lib/testing/unit-db.ts";
 import { POST } from "./route.ts";
-import { createInterviewSession, markInterviewStarted } from "../../../_lib/db/interviews.ts";
+import {
+  createInterviewSession,
+  getInterviewSessionByToken,
+  markInterviewStarted,
+  revokeOpenInterviewSessions,
+} from "../../../_lib/db/interviews.ts";
 import { aggregateLlmUsage } from "../../../_lib/db/llm.ts";
 import { voiceMinuteCostUsd } from "../../../_lib/voice/minute-prices.ts";
 
@@ -95,4 +100,44 @@ test("a failed (dropped) call is not billed and writes no ledger row", async () 
   const res = await POST(completeRequest({ token: session.token, transcript: TRANSCRIPT, status: "failed" }));
   assert.equal(res.status, 200);
   assert.equal(voiceRows().reduce((n, r) => n + r.calls, 0), countBefore, "failed calls never reach the ledger");
+});
+
+// scan-sweep 2026-08-22 — an interview the recruiter REVOKED mid-call. Revoke
+// cannot hang up a call already in flight (the browser holds a direct provider
+// connection), so the candidate's hang-up POST still lands on /complete. It used
+// to finalize as "completed": minutes debited, the row surfaced in the compare
+// grid, and — for an entry-linked session — a scorecard synthesized and an
+// ai_scorecard decision sealed on the candidate, out of the interview the
+// recruiter had just killed. The transcript must still be kept; the "this
+// interview counts" side effects must not run; and the link must stay revoked
+// (a 'failed' downgrade is reconnectable BY DESIGN and would hand the credential
+// back).
+test("a session revoked mid-call keeps its transcript but is not billed and stays revoked", async () => {
+  const countBefore = voiceRows().reduce((n, r) => n + r.calls, 0);
+  // Entry-linked so the revoke-by-entry path (the drawer's Revoke links action)
+  // is the one exercised; the entry does not need to exist for this route.
+  const session = createInterviewSession({
+    provider: "openai",
+    mode: "candidate",
+    entryId: "pe-revoked-midcall",
+    jobTitle: "QA Engineer",
+    durationMin: 8,
+  });
+  markInterviewStarted(session.id, true);
+  assert.equal(revokeOpenInterviewSessions("pe-revoked-midcall"), 1, "the live session is revoked by the recruiter");
+
+  const res = await POST(completeRequest({ token: session.token, transcript: TRANSCRIPT }));
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { ok: boolean; session: { status: string; transcript: unknown[] | null }; scorecard: unknown };
+  assert.equal(body.ok, true);
+  assert.equal(body.session.status, "revoked", "the revoke is a lifecycle fact a hang-up must not undo");
+  assert.equal(body.session.transcript?.length, TRANSCRIPT.length, "what was said is still persisted");
+  assert.equal(body.scorecard, null, "a revoked interview is never scored");
+  assert.equal(
+    voiceRows().reduce((n, r) => n + r.calls, 0),
+    countBefore,
+    "a revoked interview never reaches the cost ledger or the minutes meter",
+  );
+  // And the link is still dead for /connect (which refuses status 'revoked').
+  assert.equal(getInterviewSessionByToken(session.token)?.status, "revoked");
 });

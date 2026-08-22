@@ -1,6 +1,8 @@
 import type { RefusalErrorCode } from "./api-response";
 import { getJob } from "./db/jobs";
-import { actOnPipelineEntry, recordAutomationEvent } from "./db/pipeline";
+import { actOnPipelineEntry, getPipelineEntry, recordAutomationEvent } from "./db/pipeline";
+import { getPipelineAxis } from "./pipeline-axis-server";
+import { stageHasRole } from "./pipeline-stages";
 import { dispatchAtsEvent } from "./ats-egress";
 import { recordAudit } from "./dev-control";
 import { recordMeterUsage } from "./billing";
@@ -73,23 +75,51 @@ export async function respondToOffer(token: string, response: "accept" | "declin
     const { offer: claimedOffer, claimed } = markOfferResponded(token, "accepted");
     if (!claimed) return reportLoser(claimedOffer);
     if (offer.entryId) {
+      // The stage the entry stood on BEFORE the response — read first because
+      // `accept` advances ONE stage along THIS WORKSPACE's axis and never reports
+      // whether that landed on the hire. See `hired` below.
+      const before = getPipelineEntry(offer.entryId, offer.workspaceId);
       // Offer -> Hired (clears approval). actor "system": the transition fires on
       // the candidate's response, not a recruiter click — logs `auto_advanced`.
       // actOnPipelineEntry now refuses to advance a TERMINAL entry, so a stale
       // offer link accepted after the candidate was rejected/closed elsewhere
       // returns null instead of resurrecting them to Hired.
-      const hired = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" }, offer.workspaceId);
+      const advanced = actOnPipelineEntry(offer.entryId, "accept", undefined, { actor: "system" }, offer.workspaceId);
+      // A non-null return means "the entry moved a stage", NOT "this candidate is
+      // hired" — two different questions, and the hire-bearing side effects below
+      // (the hire meter, the outcome ground truth, the candidate.hired webhook into
+      // the customer's HRIS) may only answer the second one:
+      //   - a workspace may compose a column AFTER its offer step (a background
+      //     check, a contract signature); accept lands there, not on the hire, and
+      //     these effects would fire for someone who is not hired;
+      //   - a recruiter may move a candidate BACK off Offer while the link is live
+      //     (setPipelineEntryStage) — the same wrong answer;
+      //   - a candidate already on the terminal stage who accepts a SECOND link
+      //     (a re-extend mints a fresh token once the first is answered) hits
+      //     actOnPipelineEntry's "already terminal, no-op" branch, which still
+      //     returns the entry — the CAS in markOfferResponded is per-TOKEN, so it
+      //     cannot dedupe that; the hire would be metered and mirrored twice.
+      // Resolved by ROLE off the workspace's own board, never by the stage's name.
+      const axis = getPipelineAxis(offer.workspaceId).stages;
+      const wasTerminal = !!before && stageHasRole(before.stage, "terminal", axis);
+      const hired = advanced && !wasTerminal && stageHasRole(advanced.stage, "terminal", axis) ? advanced : null;
       // Only stamp the accept on the timeline when it actually advanced (mirrors the
       // decline path's conditional event), so a closed entry can't grow a phantom
       // offer_accepted; record the conflict instead so a recruiter can see it.
-      if (hired) {
+      if (advanced) {
         recordAutomationEvent(offer.entryId, "offer_accepted", offer.jobTitle ?? "", offer.workspaceId);
+      } else {
+        recordAutomationEvent(offer.entryId, "offer_accept_blocked", "accepted on a closed entry — not advanced to Hired", offer.workspaceId);
+      }
+      if (hired) {
         // THE HIRE METER — the headline unit of an outcome-priced product, debited
         // here because this is the only place a candidate can reach the terminal
-        // stage (a manual move to it is refused in pipeline-entry-action.ts) and
-        // because markOfferResponded above is a DB compare-and-swap: only the first
-        // responder gets `claimed`, so this fires exactly once per hire even if the
-        // candidate double-clicks or the link is opened twice.
+        // stage (a manual move to it is refused in pipeline-entry-action.ts).
+        // Fires exactly once per hire: markOfferResponded is a DB compare-and-swap
+        // so only the first responder on a token gets `claimed` (double-click, link
+        // opened twice), and `hired` above requires the entry to have CROSSED onto
+        // the terminal stage, so a second token accepted on an already-hired entry
+        // debits nothing.
         //
         // DEBITED, NEVER GATED. There is no meterGate before it and there must not
         // be: this runs on the CANDIDATE's accept, and a person accepting a job must
@@ -105,8 +135,6 @@ export async function respondToOffer(token: string, response: "accept" | "declin
             meterErr instanceof Error ? meterErr.message : meterErr
           );
         }
-      } else {
-        recordAutomationEvent(offer.entryId, "offer_accept_blocked", "accepted on a closed entry — not advanced to Hired", offer.workspaceId);
       }
       // W5-2 (DEVO2) — a hired "ds-" (promoted-submission) entry auto-feeds the
       // dev-case calibration loop. Best-effort: calibration must never affect

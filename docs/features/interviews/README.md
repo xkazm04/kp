@@ -26,6 +26,19 @@ voice service — see [Self-hosted voice](#self-hosted-voice)).
    through `app/api/interview/simulate/route.ts` (`mode: "student" |
    "student-case" | "regular"` picks the brief and run-of-show); both are
    billing-metered the same way (`interview_minutes`).
+   The invite `/create` emails is rendered in the applicant's own language
+   (`pipeline_entries.locale`, SIM3) **and carries that locale on the link** as
+   `?lang=<locale>` — the `proxy.ts` locale override every other candidate link
+   already uses (`/status`, `/data`, the enrichment link). It is load-bearing,
+   not cosmetic: an emailed absolute link arrives with no `NEXT_LOCALE` cookie,
+   the candidate portal hides the language picker and seeds the spoken-agent
+   language hint from its rendered UI locale, and that hint pins OpenAI Realtime
+   input-audio transcription (`buildOpenAiSessionPayload`) — where transport
+   config beats the brief's prompt-level language lock. Without `?lang=`, a
+   Czech applicant read a Czech invite, landed on an English portal, and was
+   transcribed against an English ASR while the brief had been told to open in
+   Czech. The `url` in the JSON response stays unpinned on purpose — the
+   recruiter opens that one, and `?lang=` would rewrite their console's locale.
 2. **Connect.** The browser calls `app/api/interview/connect/route.ts`, which
    validates the token, mints short-lived provider credentials
    (`getVoiceAdapter`, `connectWithFailover`), and — for candidate-mode
@@ -129,6 +142,15 @@ by both the portal page and `/api/interview/connect`:
   transcript is evidence). `/api/interview/create` revokes an entry's open links
   before minting a new one, so exactly one link is live per entry, and refuses
   (409) while a call is live unless `force: true`.
+  A revoke cannot hang up a call that is already **in flight** — the browser
+  holds a direct provider connection — so the candidate's hang-up still POSTs to
+  `/api/interview/complete`. That finalize keeps the row `revoked`: the
+  transcript is persisted (what was said is evidence), while the three
+  `status === "completed"` side effects — the `interview_minutes` debit + cost
+  ledger row, the synthesized scorecard, and the sealed `ai_scorecard` decision
+  — are all skipped, and the link stays dead for `/connect`. Downgrading to
+  `failed` instead would be wrong: `failed` is reconnectable by design and would
+  hand a revoked credential back to the candidate.
 - **Terminal.** `completed` is single-use: the portal shows the thank-you card
   (with the durable `/status/<token>` link) and `/connect` refuses with 409, both
   backed by the `status != 'completed'` compare-and-swap in

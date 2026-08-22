@@ -45,11 +45,73 @@ process.env.POLAR_ACCESS_TOKEN = "polar_test_token";
 const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "billing.ts"), "utf8");
 const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
 
-test("every SQL on billing_state / billing_credits / billing_usage carries org_id", () => {
-  const touching = sqlBlocks.filter((s) => /\b(from|into|update|delete\s+from)\s+billing_(state|credits|usage)\b/i.test(s));
-  assert.ok(touching.length >= 6, `expected >=6 org-scoped billing queries, found ${touching.length}`);
-  for (const sql of touching) {
-    assert.ok(/org_id/.test(sql), `a billing query is NOT org-scoped:\n${sql.trim().slice(0, 220)}`);
+/** Attribute each backticked SQL block to the exported function it sits in, so the
+ *  guard below can exempt the ONE documented cross-org resolver BY NAME instead of
+ *  letting any statement hide behind an `org_id` substring appearing somewhere. */
+function sqlByOwner(source: string): Array<{ owner: string; sql: string }> {
+  const owners = [...source.matchAll(/export function (\w+)/g)].map((m) => ({ name: m[1], at: m.index }));
+  return [...source.matchAll(/`([^`]*)`/g)].map((m) => {
+    let owner = "<module>";
+    for (const o of owners) {
+      if (o.at < m.index) owner = o.name;
+      else break;
+    }
+    return { owner, sql: m[1] };
+  });
+}
+
+/** org_id must be BOUND, not merely MENTIONED: an `org_id = ?` predicate (reads and
+ *  updates) or an INSERT that names org_id in its column list (writes).
+ *
+ *  This is the whole point of the guard. The previous version asserted `/org_id/` over
+ *  the raw statement text, which a `SELECT org_id, plan FROM billing_state WHERE plan = ?`
+ *  satisfies while reading EVERY org's rows — the column happens to be in the projection.
+ *  A cross-context sweep found six tenancy guards that were weak in exactly this way, so
+ *  what is pinned here is the predicate, not the presence of a string. */
+function orgBound(sql: string): boolean {
+  if (/\borg_id\s*=\s*\?/i.test(sql)) return true;
+  const insert = sql.match(/insert\s+into\s+billing_\w+\s*\(([^)]*)\)/i);
+  return Boolean(insert && /\borg_id\b/i.test(insert[1]));
+}
+
+/** The documented cross-org exception, named so it can never widen silently: the
+ *  webhook's org RESOLVER looks a subscription/customer up ACROSS orgs precisely to
+ *  find the org to scope everything else to (sync.ts → resolveBillingOrg). */
+const ORG_RESOLVERS = new Set(["billingOrgForProviderRefs"]);
+
+test("every SQL on billing_state / billing_credits / billing_usage BINDS org_id", () => {
+  const owned = sqlByOwner(src).filter(({ sql }) =>
+    /\b(from|into|update|delete\s+from)\s+billing_(state|credits|usage)\b/i.test(sql)
+  );
+  // A drop below the known statement count means the backtick scan mis-paired (an odd
+  // backtick in a comment) and the loop is silently checking nothing.
+  assert.ok(owned.length >= 8, `expected >=8 org-scoped billing statements, found ${owned.length}`);
+  assert.equal(
+    owned.filter(({ owner }) => ORG_RESOLVERS.has(owner)).length,
+    2,
+    "the org resolver is exactly its two lookups (by subscription, by customer) — a third is a new exemption"
+  );
+  for (const { owner, sql } of owned) {
+    if (ORG_RESOLVERS.has(owner)) continue;
+    assert.ok(orgBound(sql), `${owner}: org_id is mentioned but NOT bound:\n${sql.trim().slice(0, 220)}`);
+  }
+});
+
+test("the guard itself rejects a statement that only MENTIONS org_id", () => {
+  // Pin the detector, not just today's source: these are the shapes the old substring
+  // test waved through — cross-org reads with org_id in the projection or a comment.
+  assert.equal(orgBound("SELECT org_id, plan FROM billing_state WHERE plan = ?"), false);
+  assert.equal(orgBound("UPDATE billing_usage SET qty = qty + 1 WHERE meter = ? /* org_id */"), false);
+  assert.equal(orgBound("SELECT SUM(delta) FROM billing_credits WHERE meter = ? ORDER BY org_id"), false);
+  // …and still accepts the two genuinely-scoped shapes.
+  assert.equal(orgBound("SELECT * FROM billing_state WHERE org_id = ?"), true);
+  assert.equal(orgBound("INSERT INTO billing_usage (org_id, meter, period, qty) VALUES (?, ?, ?, ?)"), true);
+});
+
+test("the exempt cross-org resolver is named and still exists", () => {
+  assert.equal(ORG_RESOLVERS.size, 1, "a second exemption needs its own documented rationale above");
+  for (const name of ORG_RESOLVERS) {
+    assert.match(src, new RegExp(`export function ${name}\\b`), `${name} is gone — the exemption is now dead weight`);
   }
 });
 

@@ -73,6 +73,73 @@ test("webhook without billing configured → 503 (provider will retry once env i
   assert.equal(res.status, 503);
 });
 
+// ---- the raw body read is BOUNDED -------------------------------------------------
+//
+// /api/billing/webhook is on the PUBLIC allow-list (a machine posts here, so the
+// operator gate would 401 Polar), and the standard-webhooks MAC covers the body — so
+// the body must be in hand BEFORE anything can be verified. `await request.text()` had
+// no budget, which made an unauthenticated `curl` the first thing to allocate: any
+// caller could stream hundreds of MB into the Node heap and be answered 400 only after
+// it had all been buffered. Repeat that in parallel and the process dies — taking every
+// real customer's webhook delivery (i.e. their plan and their credits) with it. Same
+// bounded-read contract the other public machine endpoints already use
+// (agents/report/[token], channels/inbound/[token] → readTextWithLimit + 413).
+
+/** A POST whose body is STREAMED in chunks with no content-length — the shape that
+ *  slips past an advisory header check and that `request.text()` would buffer whole. */
+function chunkedWebhook(totalBytes: number): NextRequest {
+  const chunk = new TextEncoder().encode("x".repeat(64 * 1024));
+  let sent = 0;
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (sent >= totalBytes) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(chunk);
+      sent += chunk.byteLength;
+    },
+  });
+  const base = new Request("http://localhost/api/billing/webhook", {
+    method: "POST",
+    body: stream,
+    headers: {
+      "content-type": "application/json",
+      "webhook-id": "evt_oversized",
+      "webhook-timestamp": Math.floor(Date.now() / 1000).toString(),
+      "webhook-signature": "v1,AAAA",
+    },
+    // Required by undici for a streaming request body; not yet in the DOM RequestInit type.
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
+  return new NextRequest(base);
+}
+
+test("webhook: an oversized body is refused 413 — never buffered whole before the signature check", async () => {
+  configurePolarEnv();
+  // (a) an honest oversized upload: the advisory content-length fast-reject.
+  const declared = new NextRequest("http://localhost/api/billing/webhook", {
+    method: "POST",
+    body: "x".repeat(400 * 1024),
+    headers: {
+      "content-type": "application/json",
+      "webhook-id": "evt_oversized_declared",
+      "webhook-timestamp": Math.floor(Date.now() / 1000).toString(),
+      "webhook-signature": "v1,AAAA",
+    },
+  });
+  assert.equal((await webhookPost(declared)).status, 413);
+
+  // (b) the real cap, measured on bytes read off the wire: a chunked body with NO
+  // content-length must be ABORTED past the budget, not buffered and then rejected.
+  // NON-VACUITY: with the unbounded `await request.text()` both of these read the whole
+  // body and fall through to the signature gate, answering 400 — this asserts 413.
+  assert.equal((await webhookPost(chunkedWebhook(2 * 1024 * 1024))).status, 413);
+
+  // A normal-sized delivery is untouched by the cap (it still fails on its signature).
+  assert.equal((await webhookPost(signedWebhook("evt_sized_ok", subscriptionActive, { corruptSignature: true }))).status, 400);
+});
+
 test("webhook with a bad signature → 400 and NO money state written", async () => {
   configurePolarEnv();
   const res = await webhookPost(signedWebhook("evt_bad_sig", subscriptionActive, { corruptSignature: true }));

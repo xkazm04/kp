@@ -4,7 +4,7 @@ import { meterGate } from "@/app/_lib/billing";
 import { maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
-import { defaultInterviewerInstructions, isSelfHostedProvider, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
+import { coerceLanguage, defaultInterviewerInstructions, isSelfHostedProvider, pickDefaultProvider, voiceAvailability, type VoiceProviderId } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
 import {
   caseGroundedInterviewerInstructions,
@@ -90,7 +90,14 @@ export async function POST(request: NextRequest) {
       instructions,
       runOfShow,
       durationMin,
-      language: body.language ?? null,
+      // Validate at the trust boundary rather than trusting the cast above
+      // (idea-c7df6b55): `body.language` is JSON, not the `string | undefined`
+      // the local type asserts. /create and /connect both narrow it through
+      // coerceLanguage; this route — the third session MINTER — still stored it
+      // verbatim, which is the exact "unbounded attacker-controlled string
+      // persisted to the session row and echoed into provider connect calls"
+      // that helper was written for.
+      language: coerceLanguage(body.language),
     });
 
     return NextResponse.json({
