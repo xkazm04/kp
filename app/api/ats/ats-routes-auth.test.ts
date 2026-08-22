@@ -84,7 +84,8 @@ test("open mode (no operator password): the ATS handlers serve the local operato
 // system, so it must honour the same read-time GDPR consent gate every other PII read
 // boundary does (/api/analyses/[slug], /api/interview/by-entry, candidate-timeline).
 //
-// NON-VACUITY: `anonymizeExpiredConsents` has no production caller, so an expired entry
+// NON-VACUITY: the `anonymizeExpiredConsents` sweep is periodic and best-effort, so
+// between a consent lapsing and the next successful sweep an expired entry
 // keeps its RAW candidate_label/contact columns forever and the pre-fix route serialized
 // them straight out — against pre-fix code the two assertions below read back
 // "Jana Nováková" / "jana@example.com" instead of the masked label and a null contact.

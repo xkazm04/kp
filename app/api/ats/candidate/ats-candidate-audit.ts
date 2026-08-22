@@ -57,10 +57,12 @@ export function buildAtsExportAudit(
  * counterpart at the one boundary where identity leaves for a THIRD-PARTY system.
  *
  * Every other PII read boundary already consults the gate (/api/analyses/[slug],
- * /api/interview/by-entry, candidate-timeline, the palette entity labels), because
- * `anonymizeExpiredConsents` is a deferred sweep with no production caller — so an
- * entry whose retention window lapsed keeps its raw `candidate_label` / `contact`
- * columns indefinitely and a raw record read serves them. This export was the outlier:
+ * /api/interview/by-entry, candidate-timeline, the palette entity labels). The
+ * `anonymizeExpiredConsents` sweep DOES run on the clock, but it is periodic and
+ * best-effort, so between a lapse and the next successful sweep an entry still holds
+ * its raw `candidate_label` / `contact` columns and a raw record read serves them —
+ * consent.ts states plainly that the read-time gate is the control and the sweep is
+ * only the optimization. This export was the outlier:
  * it shipped the full name and deliverable address of a candidate whose lawful basis
  * had expired, into the customer's ATS, where kp can no longer erase it.
  *

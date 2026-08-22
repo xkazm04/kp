@@ -29,11 +29,15 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   if (!record) {
     return NextResponse.json({ error: "Candidate not found." }, { status: 404 });
   }
-  // GDPR read-time consent gate. `anonymizeExpiredConsents` is a deferred sweep with no
-  // production caller, so an entry past its retention window keeps its raw label/contact
-  // columns and this door shipped them to a third-party ATS forever. Every other PII read
-  // boundary already consults consentWithholdsPii — this one is the export, so it matters
-  // most. Fail closed: if the entry can't be re-read (a race with erasure), redact.
+  // GDPR read-time consent gate. The `anonymizeExpiredConsents` sweep DOES run (the
+  // clock calls it every tick — instrumentation-node.ts), but it is best-effort and
+  // periodic: between a consent lapsing and the next successful sweep an entry still
+  // holds its raw label/contact columns, and a sweep that throws is logged and skipped.
+  // The read-time gate is the control; the sweep is the optimization behind it — which is
+  // exactly what consent.ts says. Every other PII read boundary already consults
+  // consentWithholdsPii; this one is the EXPORT, so it matters most: what leaves here
+  // lands in a third-party ATS kp can no longer erase. Fail closed: if the entry can't be
+  // re-read (a race with erasure), redact.
   const entry = getPipelineEntry(id, workspaceId);
   const consentRedacted =
     !entry ||

@@ -56,7 +56,8 @@ test("the detail is PII-light — it does not copy the candidate's contact into 
 });
 
 // ---- the read-time consent gate on the export door ---------------------------------
-// The sweep (anonymizeExpiredConsents) has no production caller, so an entry whose
+// The sweep (anonymizeExpiredConsents) runs on the clock but is periodic and
+// best-effort, so between a lapse and the next successful sweep an entry whose
 // retention window lapsed keeps its raw label/contact columns indefinitely. This door
 // hands identity to a THIRD-PARTY system, where kp can no longer erase it, so it must
 // produce exactly what the sweep would have produced.
