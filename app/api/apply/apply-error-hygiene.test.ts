@@ -45,6 +45,55 @@ test("safeJsonError's body is the generic message + code — the raw error only 
   assert.match(src, /export function jsonError[\s\S]*?err instanceof Error \? err\.message/, "jsonError is still the message-forwarding variant");
 });
 
+// ---------------------------------------------------------------------------
+// The OTHER thing these public responses must not leak: another applicant's
+// CAPABILITY TOKENS. Both routes detect a repeat application from the submitted
+// name/email alone — neither is a secret — so a duplicate response is answering a
+// caller we cannot authenticate. It used to hand that caller the matched entry's
+// `statusToken` (which opens /status/<token>: live stage + the AI-Act decision
+// history, an auto-reject's score-vs-threshold included) and its `leadToken` /
+// `followupToken` (which open /apply/<job>?lead=<token> with the person's name and
+// email prefilled, and authorize the profile follow-up POST). Guarded here because
+// this is the same class as the error-message leak above: a public response
+// carrying something the caller did not prove they own.
+// ---------------------------------------------------------------------------
+
+test("the quick-apply DUPLICATE response carries no capability token", () => {
+  const quick = read("[id]/quick/route.ts");
+  const dup = /if \(outcome\.duplicate\) \{([\s\S]*?)\n    \}/.exec(quick);
+  assert.ok(dup, "expected the duplicate branch of the quick-apply response");
+  assert.doesNotMatch(
+    dup[1],
+    /Token/,
+    "an email address is not proof of identity — a duplicate response must not return the matched entry's tokens"
+  );
+  // …and the fresh branch still does (the request that actually filed the entry).
+  assert.match(quick, /statusToken,/, "a FRESH quick-apply accept still carries its own status token");
+});
+
+test("the conversational re-apply response gates its tokens on proven ownership", () => {
+  const conversational = read("[id]/route.ts");
+  const fn = /function acknowledgeReapply\([\s\S]*?\n\}/.exec(conversational);
+  assert.ok(fn, "expected the acknowledgeReapply helper");
+  assert.doesNotMatch(
+    fn[0],
+    /^\s+statusToken:/m,
+    "the status token must not be emitted unconditionally — a name-only match is not proof of ownership"
+  );
+  assert.match(
+    fn[0],
+    /proven \? \{ statusToken: safeStatusLink\(entryId\), \.\.\.followup \} : \{\}/,
+    "tokens (status + the follow-up capability) ride only for a proven caller"
+  );
+  // Proof is the ?lead= capability token resolving to THIS entry — the emailed
+  // enrichment walk, which must keep working — never the submitted name/email.
+  assert.match(
+    conversational,
+    /followup,\s*\n\s*\/\/[\s\S]{0,220}?\n\s*leadEntry !== null\s*\n\s*\);/,
+    "the name/email-matched duplicate passes `leadEntry !== null` as its proof"
+  );
+});
+
 test("the deliberate human-written 4xx validation copy is untouched", () => {
   // These are client-safe by construction and tell the applicant what to fix —
   // adopting safeJsonError must not have swept them up.

@@ -63,8 +63,11 @@ process.env.KP_OPERATOR_PASSWORD = "invite-gate-tenancy-test-password";
 
 const { POST: invitePost } = await import("./route.ts");
 const { POST: bulkPost } = await import("./bulk/route.ts");
+const { POST: managePost } = await import("../route.ts");
 const { actOnPipelineEntry, createPipelineEntry } = await import("../../../_lib/db/pipeline.ts");
 const { listScheduleInvitesForEntry } = await import("../../../_lib/schedule-store.ts");
+const { BULK_INVITE_CAP } = await import("../../../_lib/bulk-invite.ts");
+const { proposeSlots, isoToDateSlot } = await import("../../../_lib/schedule-slots.ts");
 const { signSession, DEFAULT_WORKSPACE, DEMO_WORKSPACE } = await import("../../../_lib/auth/session.ts");
 
 after(() => cleanupUnitDb());
@@ -147,9 +150,26 @@ test("bulk invite WORKS in a non-default workspace (it resolved against the defa
 
   const res = await bulkPost(req({ entryIds: own.map((e) => e.id) }));
   assert.equal(res.status, 200);
-  const body = (await res.json()) as { sent: number; total: number; results: { ok: boolean; error?: string }[] };
+  const body = (await res.json()) as {
+    sent: number;
+    delivered: number;
+    total: number;
+    results: { ok: boolean; dispatched?: boolean; delivery?: string; error?: string }[];
+  };
   assert.equal(body.total, 2);
   assert.equal(body.sent, 2, `team B's own cohort must be invitable — got ${JSON.stringify(body.results)}`);
+
+  // REC-10 — the fan-out must report the outbox row's REAL status, not "it didn't
+  // throw". Nothing is relayed in this environment (no COMMS_WEBHOOK_URL), so every
+  // message is a terminal local-outbox row: the per-entry claim is `queued` and the
+  // delivered count is ZERO. Before the fix each entry carried a bare `dispatched:true`
+  // and no claim at all, so a relay answering 500 for a whole cohort read as success.
+  assert.deepEqual(
+    body.results.map((r) => r.delivery),
+    ["queued", "queued"],
+    "with no relay configured, nothing is 'sent' — the fan-out must say queued per entry"
+  );
+  assert.equal(body.delivered, 0, "delivered counts relay-confirmed messages, never minted links");
 
   for (const e of own) {
     const mine = listScheduleInvitesForEntry(e.id, WS_B);
@@ -180,4 +200,59 @@ test("a closed-out candidate is never invited — single and bulk agree", async 
   assert.equal(body.results[0].error, "not active", "the two routes refuse the same input");
 
   assert.equal(invitesFor(entry.id), 0, "no link may exist for a closed-out candidate");
+});
+
+// A SILENT CAP REPORTED AS A TOTAL. coerceBulkEntryIds truncates the submission at
+// BULK_INVITE_CAP; the route then reported the truncated list as the whole batch, so a
+// cohort larger than the cap ("Select all visible" on a board of 150 actives — exactly the
+// high-volume case the endpoint exists for) came back with NO result row for the overflow.
+// The bulk bar's failures-stay-selected grammar reads those rows, so the overflow was
+// neither counted as a failure nor kept selected: silently deselected under a green
+// "100 invited to schedule". The real entries are placed PAST the cap here, so pre-fix they
+// are absent from `results` entirely and this test fails on the very first assertion.
+test("a cohort larger than the bulk cap reports the overflow instead of dropping it", async () => {
+  signedInAs(WS_A);
+  const beyond = [entryIn(WS_A), entryIn(WS_A), entryIn(WS_A)];
+  // Fill the cap with ids that resolve to nothing (cheap: no mint, no dispatch), then
+  // append the real ones so they land in the overflow.
+  const filler = Array.from({ length: BULK_INVITE_CAP }, (_, i) => `cap-filler-${i}`);
+  const res = await bulkPost(req({ entryIds: [...filler, ...beyond.map((e) => e.id)] }));
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as {
+    sent: number;
+    capped: number;
+    total: number;
+    results: { entryId: string; ok: boolean; error?: string }[];
+  };
+
+  assert.equal(body.capped, beyond.length, "the request says how many entries it could not take");
+  assert.equal(body.total, BULK_INVITE_CAP + beyond.length, "every submitted entry is accounted for");
+  for (const e of beyond) {
+    const row = body.results.find((r) => r.entryId === e.id);
+    assert.ok(row, `entry ${e.id} was dropped silently — it must come back as an explicit refusal`);
+    assert.equal(row.ok, false, "an entry past the cap was NOT invited and must not read as one");
+    assert.match(String(row.error), /cap/i, "and it must say why, so the caller can retry the remainder");
+    assert.equal(invitesFor(e.id), 0, "no link is minted past the cap");
+  }
+});
+
+// The recruiter week grid books through POST /api/schedule (action:"book"), which mints +
+// confirms an invite, consumes the slot in the shared pool and writes a calendar event.
+// Both invite routes refuse a closed-out candidate; this one did not, and its entry list is
+// a client-side snapshot — so a tab left open while a colleague rejected the candidate
+// booked them anyway, with approve_event silently no-op'ing (it returns null on a terminal
+// entry rather than throwing, so nothing raised needs_reconcile).
+test("the recruiter week-grid book refuses a closed-out candidate too", async () => {
+  const entry = entryIn(WS_A);
+  signedInAs(WS_A);
+  actOnPipelineEntry(entry.id, "reject", undefined, undefined, WS_A);
+
+  // A real offerable instant, placed back on the dated grid the recruiter clicks.
+  const dateSlot = isoToDateSlot(proposeSlots([], 1)[0].value);
+  assert.ok(dateSlot, "expected a bookable grid cell for the fixture");
+
+  const res = await managePost(req({ action: "book", entryId: entry.id, dateSlot }));
+  assert.equal(res.status, 409, "a rejected candidate must not be bookable from the grid");
+  assert.match((await res.json()).error, /no longer active/);
+  assert.equal(invitesFor(entry.id), 0, "no slot may be consumed for a closed-out candidate");
 });

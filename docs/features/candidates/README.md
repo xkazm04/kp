@@ -255,6 +255,42 @@ pinned by `app/api/apply/apply-intake-scope.test.ts`:
   name, and `pipeline_events` bounds the event *detail*, not the label — so the
   name cap runs above the gate on both routes.
 
+**A duplicate response carries no capability token** (pinned by
+`app/api/apply/apply-error-hygiene.test.ts`). Both surfaces detect a repeat from
+the submitted name/email alone (`findApplicationByApplicant` — the email is
+optional on the conversational route, so a bare name matches), and neither is a
+secret. The duplicate branch used to answer 200 with the *matched* entry's
+`statusToken` (which opens `/status/<token>`: live stage plus the AI-Act decision
+history, an auto-reject's score-vs-threshold included) and its
+`leadToken`/`followupToken` (which open `/apply/<job>?lead=<token>` with that
+person's name and email prefilled, and authorize `POST
+/api/apply/[id]/followup`) — so anyone who knew a real applicant's name could
+harvest their capability links. The tokens now ride only when the caller
+*proved* ownership: a valid `?lead=` token resolving to this entry (the emailed
+enrichment walk — unchanged), or the `dedupeKey` race where this very request
+created the row. The `duplicate` flag itself stays; a returning candidate is
+still told honestly that they already applied, and their links reach them
+through the address on file. `leadToken` on the quick-apply duplicate branch was
+already unread — `QuickApplyForm` renders the enrichment CTA only when `fresh`.
+
+Consequently the **"newly reachable" re-acknowledgement carries the status
+link** too (`app/api/apply/[id]/route.ts`, pinned by
+`apply-ack-after-response.test.ts`). That ack is the only one a candidate whose
+entry had no address until now ever receives, and the email is now their whole
+delivery path for the tracking link; it is minted synchronously before the
+`afterResponse` deferral and pinned to the locale the email itself renders in
+(the entry's own), not the requester's.
+
+The link's destination projects `(entryStatus, stage, stageRole)` through
+`app/_lib/application-status.ts`. That map is keyed by stage **role** so a
+renamed column stays honest; it must stay exhaustive over `StageRole`, because a
+role it does not know falls through to the stage-*name* map, which only knows the
+shipped column ids — `scoring` (offered by the setup wizard and the Settings →
+Hiring composer, with a workspace-chosen id) was missing, so a candidate who had
+already finished an AI interview was told "Application received".
+`application-status.test.ts` derives the vocabulary from `pipeline-stages.ts` and
+fails on any unmapped role.
+
 ### 3. Manual profile editing
 `ProfileEditor.tsx` exposes the full structured profile: archetype-conditional
 required fields (education detail + aspirations for early-career; years/seniority

@@ -129,6 +129,19 @@ export async function POST(request: Request) {
       }
       const entry = getPipelineEntry(body.entryId, ws);
       if (!entry) return NextResponse.json({ error: "pipeline entry not found" }, { status: 404 });
+      // Never book an interview for a candidate the pipeline has closed out. Both invite
+      // routes already refuse a terminal entry ("a drawer left open while the candidate
+      // was rejected in another tab" — /api/schedule/invite), but the week grid did not,
+      // and the grid's entry list is a CLIENT-side snapshot taken on mount. So a stale tab
+      // confirmed a slot for a rejected candidate: the invite went 'confirmed', the slot
+      // was consumed in the shared pool (bookedSlots, so a live candidate could no longer
+      // take that hour) and a calendar event was written naming them as an attendee —
+      // while approve_event no-op'd on the terminal entry, which returns null rather than
+      // throwing, so nothing raised needs_reconcile and the board showed no failure at all.
+      // Hired keeps status 'active', so only genuinely closed-out entries are refused.
+      if (entry.status !== "active") {
+        return NextResponse.json({ error: "That candidate is no longer active — nothing was booked." }, { status: 409 });
+      }
       // Prefer the DATED pick ("YYYY-MM-DD HH:MM", the concrete cell the recruiter clicked)
       // so a booking lands on the true calendar day, not the next matching weekday. The
       // weekday-relative gridSlot stays a back-compat fallback (older clients / the sim).
@@ -295,6 +308,17 @@ export async function POST(request: Request) {
         // is re-validated (proposedSlotFor) in case the proposal has since aged into the
         // past. A confirmed invite (past the reschedule cap) moves with recruiter
         // authority; a pending invite books its first slot. Both clear the proposal state.
+        // The same closed-out guard the grid book and the candidate token route apply:
+        // accepting a proposed time CONFIRMS the booking and writes the calendar event, so
+        // a candidate rejected since they proposed (the attention panel is a snapshot, and
+        // its own re-invite control already gates on the linked entry via canReinvite) must
+        // not be bookable through it. Hired keeps status 'active'.
+        if (invite.entryId) {
+          const linkedEntry = getPipelineEntry(invite.entryId, ws);
+          if (linkedEntry && linkedEntry.status !== "active") {
+            return NextResponse.json({ error: "That candidate is no longer active — nothing was booked." }, { status: 409 });
+          }
+        }
         const chosen = (invite.proposals ?? []).find((p) => p.value === body.slotAt);
         if (!chosen) {
           return NextResponse.json({ error: "That proposed time is no longer on the invite." }, { status: 409 });

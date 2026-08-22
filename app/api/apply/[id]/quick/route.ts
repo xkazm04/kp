@@ -162,19 +162,36 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
     // The lead was filed (new or duplicate) — link the attempt that produced it.
     linkApplySession(typeof body.applySessionId === "string" ? body.applySessionId : null, outcome.entryId);
-    // `leadToken` lets the success screen's "complete your profile" CTA carry
-    // the same identity as the emailed link (see QuickApplyForm); `statusToken`
-    // gives the done screen the status link the flow used to omit.
-    const statusToken = safeStatusToken(outcome.entryId);
+    // CAPABILITY GATE — a DUPLICATE response carries no tokens.
+    //
+    // A duplicate here is detected from the submitted email alone
+    // (findApplicationByApplicant inside intakeLead), and an email address is not
+    // a secret: anyone could POST this 3-field form with someone else's address
+    // and be handed that person's `leadToken` (which opens
+    // /apply/<job>?lead=<token> with their name and email prefilled, and
+    // authorizes the profile follow-up POST) and their `statusToken` (which opens
+    // /status/<token> — live stage plus the EU AI-Act decision history, an
+    // auto-reject's score-vs-threshold included). The status-link store's premise
+    // is that its token is the only public handle, "so a candidate can check their
+    // own status without anyone being able to enumerate others'".
+    //
+    // The real returning candidate loses nothing they own: their first submission's
+    // done screen carried both links and the acknowledgement email carries them
+    // durably, delivered to the address we can actually authenticate. `leadToken`
+    // in particular was already dead on this branch — QuickApplyForm renders the
+    // enrichment CTA only when `fresh` (accepted AND not duplicate).
     if (outcome.duplicate) {
       return NextResponse.json({
         result: "accepted",
         duplicate: true,
         message: t("alreadyMessage"),
-        leadToken: outcome.leadToken,
-        statusToken,
       });
     }
+    // `leadToken` lets the success screen's "complete your profile" CTA carry
+    // the same identity as the emailed link (see QuickApplyForm); `statusToken`
+    // gives the done screen the status link the flow used to omit. Minted only on
+    // the fresh path — this request is the one that filed the entry.
+    const statusToken = safeStatusToken(outcome.entryId);
     // REC-10 honesty: "We've emailed you a confirmation" is only claimed when a
     // delivery relay actually exists; offline, the ack is a local outbox row, so
     // the candidate is pointed at the status link instead of a phantom email.

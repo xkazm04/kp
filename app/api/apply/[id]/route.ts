@@ -111,21 +111,46 @@ function acknowledgeReapply(
   workspaceId?: string,
   // The gap follow-up, when the repeat REBUILT the profile (an enrichment walk):
   // the freshly computed gaps are the honest ones to ask about.
-  followup: FollowupOffer = {}
+  followup: FollowupOffer = {},
+  // Did this caller PROVE they own the entry this response is about? See the
+  // capability block below — the answer decides whether the entry's tokens are
+  // allowed onto the wire at all.
+  proven = false
 ): NextResponse {
   const detail = changes.length
     ? `repeat application via conversational apply — ${changes.join("; ")}`
     : "repeat application via conversational apply";
   recordAutomationEvent(entryId, "re_applied", detail, workspaceId);
-  // The repeat reuses the ORIGINAL entry, so it returns the SAME status link
-  // (getOrCreateStatusLink is keyed on entry_id) — a returning candidate can track.
+  // CAPABILITY GATE — the reason this response is thinner than the first-apply one.
+  //
+  // A duplicate is detected from the submitted NAME/EMAIL alone
+  // (findApplicationByApplicant), and neither is a secret: anyone may POST
+  // `{name: "<a real applicant>", ko_*: true}` — the email is optional, a bare
+  // name matches — and the route would answer 200 with THAT person's status token
+  // and (on a rebuild) their lead-enrichment token. Those are capabilities, not
+  // identifiers: the status token opens /status/<token>, which carries their live
+  // stage and their EU AI-Act decision history (including an auto-reject's
+  // score-vs-threshold), and the lead token opens /apply/<job>?lead=<token>, which
+  // prefills their name and email and authorizes the follow-up POST. The
+  // status-link store's whole premise is that the token is "the only public handle,
+  // so a candidate can check their own status without anyone being able to
+  // enumerate others'" — handing it to whoever guessed a name broke exactly that.
+  //
+  // So the tokens ride ONLY when the caller demonstrated possession of this entry:
+  // a valid ?lead= capability token (the emailed enrichment walk — the designed
+  // path, unaffected), or the dedupeKey race below where this very request created
+  // the row. An ordinary re-application still gets its acknowledgement; the link
+  // reaches its owner through the address on file, which is the one channel we can
+  // authenticate. The `duplicate` flag itself stays: the candidate must be told
+  // honestly that they already applied.
   return NextResponse.json({
     result: "accepted",
     duplicate: true,
     enriched,
     message,
-    statusToken: safeStatusLink(entryId),
-    ...followup,
+    // The repeat reuses the ORIGINAL entry, so a proven caller gets the SAME status
+    // link (getOrCreateStatusLink is keyed on entry_id) — the returning lead can track.
+    ...(proven ? { statusToken: safeStatusLink(entryId), ...followup } : {}),
   });
 }
 
@@ -364,9 +389,24 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           // Best-effort, same contract as the first-apply ack below — and, like
           // it, dispatched AFTER this response rather than in front of it.
           if (updates.contact && merged) {
+            // …carrying the status link, exactly like the first-apply ack and the
+            // quick-apply ack (capst-l1-002). This is the ONE ack that reaches a
+            // candidate whose entry had no address until now, so without the link
+            // they are the only applicant we never hand a durable way to check
+            // where they stand — and since a name/email-matched repeat no longer
+            // gets the token in its JSON response (see acknowledgeReapply's
+            // capability gate), this email is the whole delivery path. Minted
+            // synchronously, before the deferral, so the token is the entry's real
+            // one; pinned to the language the EMAIL renders in (the entry's own
+            // locale, which is what dispatchApplicationReceived resolves), not the
+            // language of whoever POSTed.
+            const reackToken = safeStatusLink(merged.id);
+            const reackLink = reackToken
+              ? `${publicBaseUrl(new URL(request.url).origin)}/status/${reackToken}?lang=${merged.locale || applicantLocale}`
+              : undefined;
             afterResponse("apply-reack", async () => {
               try {
-                await dispatchApplicationReceived(merged);
+                await dispatchApplicationReceived(merged, reackLink ? { statusLink: reackLink } : undefined);
               } catch (ackErr) {
                 console.error(
                   `[apply] re-apply merged but acknowledgement failed for entry ${merged.id}:`,
@@ -390,7 +430,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
           changes,
           profileRebuilt,
           workspaceId,
-          followup
+          followup,
+          // Proof of ownership is the ?lead= capability token resolving to THIS
+          // entry — the emailed enrichment walk. A name/email match is not proof
+          // (see the capability gate in acknowledgeReapply).
+          leadEntry !== null
         );
       }
     }
@@ -460,8 +504,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // created:false here means the dedupeKey backstop caught a concurrent repeat
     // submission — surface it as a re-apply rather than logging a second
     // "applied" against the same entry.
+    //
+    // `proven`: this branch is unreachable by identity-guessing. Getting here needs
+    // the dedupeKey to COLLIDE while findApplicationByApplicant above MISSED, and
+    // the two read the same (email, else name) identity — an impostor who supplies
+    // a real applicant's address or name is matched by the check above and never
+    // arrives here. What does arrive is the genuine double-submit (a retry whose
+    // first response was lost), which must keep its status link: with no relay
+    // configured the on-screen link is the candidate's only touchpoint.
     if (!created) {
-      return acknowledgeReapply(entry.id, t("alreadyMessage"), [], false, workspaceId);
+      return acknowledgeReapply(entry.id, t("alreadyMessage"), [], false, workspaceId, {}, true);
     }
 
     // createPipelineEntry already logs an `intake_degraded` event for the stub; for

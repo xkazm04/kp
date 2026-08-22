@@ -39,13 +39,25 @@ const STAGE_TO_STATUS: Record<string, CandidateStatus> = {
 // middle of a process whose internal name is none of their business, and
 // "received" would understate where they actually stand.
 //
+// EXHAUSTIVE over StageRole on purpose (application-status.test.ts pins that, and
+// that both maps agree on the shipped axis). A role with no entry here falls
+// through to the NAME map, which only knows the shipped column names — so a
+// workspace-composed column would read "received" to a candidate who is deep in
+// the process. That is exactly what `scoring` did: it is not on the default axis
+// but IS offered by the setup wizard and the Settings → Hiring composer
+// (SETUP_STAGE_ROLES / pipelineAxisDraft), and its id is whatever the workspace
+// typed, so it missed both maps. It reads "under review" for the same reason
+// `custom` does — the candidate is mid-process, and neither "received" (which
+// understates a finished AI interview) nor "interview" (which would overstate a
+// scoring column placed BEFORE any interview round) is honest for every axis.
+//
 // The role strings are inlined for the same import-free reason as the map above;
-// pipeline-stages.ts owns the vocabulary and application-status.test.ts pins that
-// these two maps agree on the shipped axis.
+// pipeline-stages.ts owns the vocabulary.
 const STAGE_ROLE_TO_STATUS: Record<string, CandidateStatus> = {
   entry: "received",
   screening: "under_review",
   interview: "interview",
+  scoring: "under_review",
   offer: "offer",
   terminal: "hired",
   custom: "under_review",

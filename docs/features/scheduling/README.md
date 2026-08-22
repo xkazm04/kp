@@ -46,14 +46,21 @@ the repo's unit runner has no component renderer; same idiom as
 
 1. **Mint.** `POST /api/schedule/invite` creates a `schedule_invites` row with
    `durationMin = plannedInterviewMinutes(entry)` and mails the link.
-   `POST /api/schedule/invite/bulk` does the same for a cohort (deduped and
-   capped at `BULK_INVITE_CAP` = 100 by `app/_lib/bulk-invite.ts`), with
-   per-entry isolation — one bad/terminal/comms-failed entry never aborts the
-   batch and the response reports each outcome. Both routes are
-   `requireOperator`-gated, workspace-scoped, and refuse a **closed-out** entry
-   (`status !== "active"`; Hired keeps `active`) — single with a 409, bulk with
-   a per-entry `"not active"` — so a rejected candidate is never mailed an
-   interview link they could not use.
+   `POST /api/schedule/invite/bulk` does the same for a cohort (deduped by
+   `app/_lib/bulk-invite.ts`), with per-entry isolation — one bad/terminal/
+   comms-failed entry never aborts the batch and the response reports each
+   outcome. Only the first `BULK_INVITE_CAP` = 100 entries are processed; the
+   **overflow is returned as explicit per-entry refusals** (`ok:false`, an
+   error naming the cap) plus a `capped` count, so a cohort larger than the cap
+   is never silently truncated into a green "N invited". Each processed entry
+   carries the REC-10 three-state `delivery` (`sent` only on a relayed 2xx,
+   `queued` when the local Outbox is terminal, `failed` on a dead-letter), and
+   `delivered` aggregates only the relay-confirmed ones — `sent` remains the
+   count of links MINTED. Both routes are `requireOperator`-gated,
+   workspace-scoped, and refuse a **closed-out** entry (`status !== "active"`;
+   Hired keeps `active`) — single with a 409, bulk with a per-entry
+   `"not active"` — so a rejected candidate is never mailed an interview link
+   they could not use.
 2. **Offer.** `GET /api/schedule/[token]` proposes times via
    `proposeFreeSlots` — `proposeSlots` (kp's own booked slots, business days,
    `KP_INTERVIEW_TIMES` in `KP_INTERVIEW_TZ`) filtered by the connected
@@ -66,8 +73,13 @@ the repo's unit runner has no component renderer; same idiom as
    (`syncInterviewEvent`).
 4. **Steer.** `POST /api/schedule` gives the recruiter cancel / no-show /
    reschedule / accept-proposal / resolve-reconcile / week-grid book, all on the
-   same store primitives. `GET /api/schedule?slots=1` serves the reschedule
-   picker's offered times.
+   same store primitives. The two actions that CONFIRM a booking — `book` and
+   `accept_proposal` — apply the same closed-out guard as the invite routes and
+   the candidate token route (409 on a linked entry whose `status !== "active"`),
+   because both consume the slot in the shared pool and write a calendar event;
+   their recruiter-side entry lists are client snapshots, so a stale tab could
+   otherwise book a candidate rejected in another tab.
+   `GET /api/schedule?slots=1` serves the reschedule picker's offered times.
 5. **Escalate.** A fully-booked horizon or an exhausted reschedule cap lets the
    candidate propose their own times (`validateProposedSlots`), which the
    recruiter accepts or declines. The POST's "are you actually stuck?" guard
@@ -124,7 +136,7 @@ account.
 | --- | --- | --- |
 | `checked` | A connected calendar answered; the offered times are conflict-free | `fetchBusy` returned an array |
 | `not_connected` | No calendar integration for this workspace — the recruiter can fix this | `isCalendarConnected` false (no OAuth client configured, or no connection row) |
-| `unavailable` | A calendar **is** connected but the lookup produced no answer (outage, revoked grant, per-calendar error) | `fetchBusy` returned `null` while connected |
+| `unavailable` | A calendar **is** connected but the lookup produced no answer (outage, revoked grant, per-calendar error, a stored token that no longer decrypts) | `fetchBusy` returned `null` while connected |
 
 Only `checked` ever claims a calendar was consulted. `calendarChecked` (the
 boolean) is exactly `status === "checked"`.
@@ -237,7 +249,7 @@ End-to-end coverage (real routes, stubbed Google edge):
 | Candidate read/book | `app/api/schedule/[token]/route.ts` | Public token route; `publicInviteView` is the leak boundary |
 | Recruiter lifecycle + actions | `app/api/schedule/route.ts` | Workspace-authenticated; `?slots=1` serves reschedule times |
 | Invite minting | `app/api/schedule/invite/route.ts` | Operator-gated + workspace-scoped |
-| Bulk invite minting | `app/api/schedule/invite/bulk/route.ts` | Same gate; per-entry isolation, `BULK_INVITE_CAP` = 100 |
+| Bulk invite minting | `app/api/schedule/invite/bulk/route.ts` | Same gate; per-entry isolation, `BULK_INVITE_CAP` = 100 (overflow reported, not dropped), per-entry `delivery` |
 | Slot maths (pure) | `app/_lib/schedule-slots.ts` | `proposeSlots`, `offeredSlotFor`, `validateProposedSlots`, TTL |
 | Store + collision authority | `app/_lib/schedule-store.ts` | Confirm/reschedule transactions, operator flags |
 | Free/busy (pure) | `app/_lib/calendar/free-busy.ts` | `isSlotFree`, `filterFreeSlots`, `busyQueryWindow`, `CALENDAR_STATUSES` |
@@ -354,6 +366,24 @@ integration. Scopes are deliberately narrow (`calendar.freebusy`,
   `consentWithholdsPii`. Neither `HumanScorecardSection` nor the prep modal can
   tell "withheld" from "absent" — the payload carries no flag — so a lapsed-consent
   record renders in full, and the AI half's redaction reads as an empty state.
+- **The bulk bar still counts minted links, not deliveries.** The route now
+  returns a per-entry `delivery` and a `delivered` aggregate, but
+  `usePipelineBulk.bulkInvite` counts `results[].ok` (minted) and
+  `PipelineBulkActionBar` picks its copy from the relay CAPABILITY
+  (`bulkInvited` vs `bulkInvitedQueued`). With a relay configured and the
+  webhook dead-lettering, the bar therefore still reads "N invited to
+  schedule". The remaining edit is client-side: count `delivery === "sent"`
+  and fall back to the queued copy otherwise.
+- **`/api/interview-prep` is keyed by entry id with no workspace check.** `GET
+  ?entry=`, `POST`, `PATCH` and `POST /api/interview-prep/scorecard` all reach
+  `getInterviewPrep` / `saveHumanScorecard`, which are by-`entry_id` point ops.
+  `interview_preps` is a deliberate by-id exemption in `app/_lib/tenancy.ts`
+  (pinned by `app/_lib/interview-prep-tenancy.test.ts`), so a foreign id
+  resolves to the right row rather than the wrong one — but nothing refuses it,
+  so an operator holding another team's entry id can read that team's prep
+  notes + human scorecard and overwrite the scorecard. Closing it means a
+  `getPipelineEntry(entry, ws)` gate on all four handlers, which reverses the
+  manifest exemption for this table.
 - The slot pool is **host-blind**: `KP_INTERVIEW_TIMES` (default 10:00 + 14:00)
   is a single global pool, so collisions are workspace-wide rather than
   per-interviewer.

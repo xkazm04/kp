@@ -56,6 +56,29 @@ test("the status token is still minted BEFORE the deferred dispatch", () => {
   assert.ok(mintAt > 0 && deferAt > mintAt, "safeStatusLink runs synchronously, before the ack is scheduled");
 });
 
+test("the newly-reachable re-ack carries the status link, minted before the deferral", () => {
+  // This ack is the ONLY one a candidate whose entry had no address until now ever
+  // receives, and since a name/email-matched repeat no longer gets the token in its
+  // JSON response (the capability gate in acknowledgeReapply), the email is the
+  // whole delivery path for their status link. Shipping it bare left exactly one
+  // class of applicant with no durable way to check where they stand.
+  assert.match(
+    conversational,
+    /dispatchApplicationReceived\(merged, reackLink \? \{ statusLink: reackLink \} : undefined\)/,
+    "the re-ack must carry the status link, like the first-apply and quick-apply acks"
+  );
+  const mintAt = conversational.indexOf("const reackToken = safeStatusLink(merged.id)");
+  const deferAt = conversational.indexOf('afterResponse("apply-reack"');
+  assert.ok(mintAt > 0 && deferAt > mintAt, "the token is minted synchronously, before the ack is scheduled");
+  // The link is read OUTSIDE the app, in the language the EMAIL renders in — the
+  // entry's own locale — not the language of whoever POSTed the repeat.
+  assert.match(
+    conversational,
+    /\/status\/\$\{reackToken\}\?lang=\$\{merged\.locale \|\| applicantLocale\}/,
+    "the re-ack status link is pinned to the locale the email itself renders in"
+  );
+});
+
 test("the lead intake defers through the caller's scheduler, and keeps its inline default", () => {
   assert.match(quick, /defer: \(task\) => afterResponse\("quick-apply-ack", task\)/, "the quick-apply route opts in");
   assert.match(leadIntake, /defer\?: \(task: \(\) => Promise<void>\) => void/, "the scheduler is injected, so the lib stays request-context-free");
