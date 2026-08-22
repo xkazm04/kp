@@ -50,12 +50,26 @@ the existing JD build. Conversation design is normed by
    the deterministic close classifies `role_family` from everything captured
    (`taxonomy.classify_role_family`) so a clinical intake never promotes as
    software; the LLM path is given the 16-family vocabulary + a skips-are-
-   never-data rule.
+   never-data rule. `merge_brief` resolves the spine scalars on that
+   **provenance**, not on the value: an update whose `spineProvenance` says
+   `stated`/`inferred` really captured the scalar, so a correction *down to* a
+   schema-default value (senior → `medior`, data_ai → `software_engineering`)
+   lands. The older value sentinel dropped exactly those corrections while
+   still merging their `stated` provenance, leaving the panel chipping the OLD
+   level as stated. A stated base still never regresses to a merely inferred
+   update — the same rule the requirement/facet merges apply.
    Grades outside the junior/medior/senior/lead enum ("Band 5", "AfC 6",
    "tarifní třída 10") are never force-mapped: both paths capture the verbatim
    answer as a stated `grade_label` facet, the enum stays `default` (assumed
    chip), and the read-back carries the requestor's own grading (UAT drain
-   2.3). While a reply is generating, the thinking bubble gains a quiet
+   2.3). The same rule covers a level the requestor *rules out*: the scripted
+   scan skips an enum token that carries a negator (or a `than`/`než` contrast)
+   in front of it, so "Not junior — we need a senior" and "lead, not senior"
+   capture senior and lead instead of the rejected token, and an answer that
+   only negates ("ne junior") stays a verbatim `grade_label` with the enum
+   unmarked. Czech `ne, senior` (a correction) is deliberately not read as
+   `ne senior` (a negation) — the separator after the negator must be
+   whitespace. While a reply is generating, the thinking bubble gains a quiet
    second line after ~8 s naming the real wait (~30–40 s live) — latency
    honesty for the evaluation-anxious requestor (UAT drain 2.4); the persona
    carries an explicit LLM-era rule: role-existence doubt is a story opener
@@ -280,7 +294,12 @@ where the material contradicts the live requestor, the requestor wins. The
 voice fast thread sees attachment TITLES only (latency budget). **Keyless the
 attachments are stored and acknowledged once but never mined** — the scripted
 path cannot read prose without a model, so nothing is silently invented; the
-acknowledgement invites pasting key points as answers instead.
+acknowledgement invites pasting key points as answers instead. That
+acknowledgement is *prepended* to the turn's reply, so read-back detection
+matches the read-back's first line anywhere in the agent turn rather than as a
+prefix — a prefix-only test missed an ack-decorated read-back and folded the
+requestor's "ok" into the last scripted slot, inventing a stated
+`budget_band: "ok"` facet and repeating the read-back instead of closing.
 
 ## Session layout — chat · brief · JD draft · materials
 

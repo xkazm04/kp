@@ -158,6 +158,16 @@ regardless of sub-scores, so it can never read as graduate-friendly even if a
 few signals fire. This directly orders which jobs an early-career candidate is
 shown — students are only matched against roles they can realistically land.
 
+`entry_signal` matches `_ENTRY_SIGNALS` as **substrings** of the description, so
+every Czech entry has to be a stem that survives gender and inflection — the §3
+check applies here too. The masculine-only surface forms `"začátečník"` /
+`"nováček"` withheld the signal from the same ad written in the feminine
+(`"začátečnice"` → `is_entry_eligible` False, friendliness 0.15; `"začátečníky"`
+→ True, 0.40), and `is_entry_eligible` is a *hard* knockout for early-career
+candidates in `ko_filter`, so the feminine ad rejected every student it was
+welcoming. Now stemmed to `"začáteč"` / `"nováč"`, pinned by
+`test_jobs.EntryProfileTest.test_entry_signal_is_gender_symmetric_in_czech`.
+
 ### 5. Bounded dynamic weights + fairness matrix
 `pipeline/jobfit/weight_proposal.py` lets an LLM propose per-candidate weight
 adjustments (calibrated pool-wide in one call, with rationale), but each weight
@@ -299,6 +309,29 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   or the account genuinely has none ("No saved profiles (build one in Profile)"). A
   failed profile read also no longer flips the source segment to "Saved analysis" the
   way a truly empty list legitimately does.
+
+### The grid's controls describe the grid they actually produce
+
+- **Sort label.** A column sort only applies while that column is visible —
+  `orderMatrixRows` falls back to best-fit/A–Z when a family filter (or a `?job=`
+  scope) hides it. `useMatrixTab` therefore exposes the **effective** column
+  (`sortColActive`, `null` when the sorted role is off-screen) rather than the raw
+  state, so `MatrixToolbar` can't read "Sort: by column" over rows the grid has
+  already re-ranked by best fit.
+- **A–Z collation is the reader's, not the browser's.** `orderMatrixRows` takes a
+  `locale` (from `useLocale()`) and passes it to `localeCompare`. Czech and English
+  disagree — `cs` ranks Č as its own letter after C ("Cejka" < "Čech"), `en` folds it
+  into C and compares the next letter — so a cs recruiter on an en-US browser used to
+  read an English order under an "A–Z" label. Pinned in `matrixRows.test.ts`.
+- **One cell click = at most one LLM call.** The `/api/match/reasoning` de-dupe lives
+  in a ref (`requestedReasoning`) and the request fires outside the `setReasoning`
+  updater: React invokes an updater more than once per dispatch (StrictMode's purity
+  double-invoke, a rebased queue), and a fetch inside it spent two reasoning runs — both
+  missing the prompt cache — on one cell. A failed key is released so re-opening retries.
+- **A bulk add that fully fails says so on screen.** The `CompletionCta` band is gated
+  on `ok > 0`; when every row fails, `MatrixTab` renders the same `matrix.addedPartial`
+  sentence in the failure register (no board link — nothing landed) instead of leaving
+  the outcome to the `sr-only` live region alone.
 
 ## Data model
 

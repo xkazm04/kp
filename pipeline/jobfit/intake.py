@@ -337,6 +337,30 @@ _SKIP_WORDS = re.compile(r"^\s*(skip|no|none|ne|nevím|nemám|later|-|—)\s*\.?
 
 _SENIORITY_TOKENS = ("junior", "medior", "senior", "lead")
 
+# A level word the requestor EXCLUDED is not the level they want. The scan below
+# reads the first token it finds, so without this "Not junior — we need a senior",
+# "spíš senior než junior" and "lead, not senior" all landed on the token the
+# requestor had just ruled out — and marked it provenance "stated". Matched
+# against the text immediately BEFORE an occurrence: a negator (or the "than /
+# než" of a rather-X-than-Y contrast), then at most one filler word ("not a
+# junior", "ne úplně junior"). The separator after the negator is deliberately
+# whitespace only — Czech "ne, senior" is "no, senior" (a correction), not
+# "ne senior" ("not senior").
+_LEVEL_NEGATOR = re.compile(
+    r"(?:^|[\s,;.:!?()/–—-])(?:not|ne|nen[íi]|nikoli|nikoliv|than|ne[žz])[ \t]+(?:\w+[ \t]+)?$",
+    re.IGNORECASE,
+)
+
+
+def _level_stated(lowered: str, token: str) -> bool:
+    """True when `token` occurs at least once WITHOUT a negator in front of it."""
+    at = lowered.find(token)
+    while at >= 0:
+        if not _LEVEL_NEGATOR.search(lowered[:at]):
+            return True
+        at = lowered.find(token, at + len(token))
+    return False
+
 
 def _split_items(text: str) -> list[str]:
     parts = re.split(r"[\n;,•]+|(?:^|\s)-\s+", text)
@@ -393,13 +417,14 @@ def _apply_answer(
     elif slot == "seniority":
         lowered = text.lower()
         for token in _SENIORITY_TOKENS:
-            if token in lowered:
+            if _level_stated(lowered, token):
                 brief.seniority = token
                 brief.spine_provenance["seniority"] = "stated"
                 break
         else:
             # UAT drain 2.3 ("I told it Band 5 and it wrote 'medior'"): an
-            # out-of-vocabulary grade answer is still the requestor's grading —
+            # out-of-vocabulary grade answer — or one that only says which level
+            # it is NOT ("not junior") — is still the requestor's grading —
             # capture it verbatim as a stated facet. The enum stays default
             # (assumed chip in the panel), never force-mapped.
             brief.facets.append(
@@ -506,8 +531,13 @@ def _readback(brief: RoleBrief, lang: str) -> str:
     return "\n".join(lines)
 
 
-# Read-back detection (the stable opening line of _readback per language) — the
+# Read-back detection (the stable first line of _readback per language) — the
 # stateless way to know the NEXT requestor message is a confirmation/correction.
+# Matched ANYWHERE in the agent turn, not as a prefix: the keyless attachment
+# acknowledgement is prepended to the reply, so a read-back produced on the turn
+# material was first attached no longer STARTS with this line. A prefix-only
+# test then missed it and folded the requestor's "ok" into the last scripted
+# slot — inventing a stated `budget_band: "ok"` facet they never gave.
 _READBACK_PREFIXES = ("Here's what I took away", "Tady je, co jsem si odnesl")
 
 _CONFIRM_WORDS = re.compile(
@@ -540,7 +570,7 @@ def deterministic_turn(turns: list[dict], brief: RoleBrief, message: str, lang: 
     agent_said = _agent_turns(turns)
 
     # The read-back was the last agent turn → `message` answers it.
-    if agent_said and any(agent_said[-1].startswith(p) for p in _READBACK_PREFIXES):
+    if agent_said and any(p in agent_said[-1] for p in _READBACK_PREFIXES):
         correction = None
         if message and not _CONFIRM_WORDS.match(message) and not _SKIP_WORDS.match(message):
             correction = message.strip()[:600]
@@ -603,6 +633,37 @@ def deterministic_turn(turns: list[dict], brief: RoleBrief, message: str, lang: 
 # ---------------------------------------------------------------------------
 
 
+def _merge_spine_scalar(
+    base: RoleBrief, update: RoleBrief, key: str, update_value: str, schema_default: str
+) -> str:
+    """Resolve one spine scalar (seniority / role_family) across a re-emit.
+
+    ``spine_provenance`` — not the VALUE — decides whether the update really
+    captured the scalar. The older rule compared the value against its schema
+    default ("medior" / "software_engineering") as a stand-in for "the model
+    said nothing"; that sentinel cannot tell a schema default from a captured
+    one, so a requestor CORRECTING the level down to medior (or the family back
+    to software_engineering) was dropped while the update's ``stated``
+    provenance still merged in below — leaving the brief panel chipping the OLD
+    value as stated, exactly the failure spine_provenance exists to prevent
+    (UAT L1-CONV-3). A stated base still never regresses to a merely inferred
+    update, the same rule the requirements/facets merges apply.
+    """
+    base_value = getattr(base, key)
+    if not update_value:
+        return base_value
+    base_prov = base.spine_provenance.get(key, "default")
+    update_prov = update.spine_provenance.get(key, "default")
+    if update_prov != "default":
+        if base_prov == "stated" and update_prov != "stated":
+            return base_value
+        return update_value
+    # No provenance on the update (a model that omitted the map, or a legacy
+    # payload): fall back to the value sentinel — a bare schema default says
+    # nothing, so it must not overwrite what the base already holds.
+    return update_value if update_value != schema_default else base_value
+
+
 def merge_brief(base: RoleBrief, update: RoleBrief) -> RoleBrief:
     """Fold an LLM-re-emitted brief onto the accumulated one. Union semantics:
     an update can revise or add, but silently DROPPING something the requestor
@@ -613,12 +674,12 @@ def merge_brief(base: RoleBrief, update: RoleBrief) -> RoleBrief:
         merged.title = update.title
     if update.summary:
         merged.summary = update.summary
-    if update.seniority and update.seniority != "medior":
-        merged.seniority = update.seniority
-    elif update.seniority == "medior" and not merged.seniority:
-        merged.seniority = "medior"
-    if update.role_family and update.role_family != "software_engineering":
-        merged.role_family = update.role_family
+    # Read the spine scalars BEFORE spine_provenance is merged below — the
+    # decision needs the base's own provenance, not the merged one.
+    merged.seniority = _merge_spine_scalar(merged, update, "seniority", update.seniority, "medior")
+    merged.role_family = _merge_spine_scalar(
+        merged, update, "role_family", update.role_family, "software_engineering"
+    )
 
     def union(base_list: list[str], new_list: list[str], cap: int) -> list[str]:
         seen = {v.strip().lower() for v in base_list}

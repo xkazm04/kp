@@ -45,6 +45,24 @@ test("the filter covers Czech, the primary market's language", () => {
   assert.equal(fb.filtered, true);
 });
 
+test("the Czech filter holds in EVERY inflection, including the diacritic-final stems", () => {
+  // JS's \b is ASCII-only. `\bpohlaví\b` could never match the word at all (no boundary
+  // between "í" and a space — both are non-word characters), and `\bvěk\b` matched only
+  // the bare nominative, so "věku"/"věkové" shipped. Age and gender are the plainest
+  // discrimination claim an adverse comm can make; every inflection must drop the line.
+  for (const line of [
+    "Nevhodné pohlaví pro tuto pozici",
+    "Pohlaví neodpovídá složení týmu",
+    "Mimo cílovou věkovou skupinu",
+    "Kandidát je v důchodovém věku",
+    "Zdravotní omezení",
+  ]) {
+    const fb = buildRejectionFeedback({ profileGaps: gaps(line, "Chybí zkušenost s Kafkou") });
+    assert.deepEqual(fb.lines, ["Chybí zkušenost s Kafkou"], `NOT filtered: ${line}`);
+    assert.equal(fb.filtered, true, `filter flag not raised for: ${line}`);
+  }
+});
+
 test("if EVERY line is filtered, the result is no-feedback and not an empty section", () => {
   const fb = buildRejectionFeedback({ profileGaps: gaps("Maternity gap in the CV") });
   assert.equal(fb.source, "none");

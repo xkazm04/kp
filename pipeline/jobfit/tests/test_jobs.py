@@ -209,6 +209,32 @@ class EntryProfileTest(unittest.TestCase):
         )
         self.assertTrue(ep.is_entry_eligible)
 
+    def test_entry_signal_is_gender_symmetric_in_czech(self) -> None:
+        # Czech marks gender in the noun itself, and _ENTRY_SIGNALS is matched as
+        # substrings: the masculine-only surface form "začátečník" withheld the
+        # early-career signal from the SAME ad written in the feminine
+        # ("začátečnice"). is_entry_eligible is a hard knockout for early-career
+        # candidates in matching.ko_filter, so the feminine ad rejected every
+        # student it was welcoming. Stems must survive gender AND inflection.
+        def profile(description: str):
+            return compute_entry_profile(
+                seniority="medior",
+                employment_type="full-time",
+                min_years=None,
+                requirements=_requirements_from(["Excel"]),
+                description=description,
+            )
+
+        masculine = profile("Hledáme začátečníky do týmu.")
+        feminine = profile("Hledáme začátečnice do týmu.")
+        self.assertTrue(masculine.is_entry_eligible)
+        self.assertTrue(feminine.is_entry_eligible, "feminine Czech ad lost the entry signal")
+        self.assertEqual(masculine.graduate_friendliness, feminine.graduate_friendliness)
+        # Oblique cases too ("nováčka", not just the nominative "nováček").
+        self.assertTrue(profile("Přijmeme nováčka do týmu.").is_entry_eligible)
+        # …without over-matching: an ad welcoming nobody early-career stays out.
+        self.assertFalse(profile("Vhodné pro účetní se zkušeností v oboru.").is_entry_eligible)
+
     def test_reinterpret_strips_years_and_seniority(self) -> None:
         out = _reinterpret_must("3+ years of React")
         self.assertNotRegex(out, r"\d")

@@ -37,12 +37,27 @@ test("a lead applying in Czech files with locale 'cs' and is acknowledged in Cze
   assert.ok(entry, "the lead filed a pipeline entry");
   assert.equal(entry.locale, "cs", "the applicant's explicit language choice is persisted on the entry");
 
-  const messages = JSON.parse(readFileSync(path.join(process.cwd(), "messages", "cs.json"), "utf-8"));
-  const t = createTranslator({ locale: "cs", messages, namespace: "comms" }) as unknown as (
-    key: string,
-    values?: Record<string, string | number>
-  ) => string;
+  const catalog = (locale: string) =>
+    createTranslator({
+      locale,
+      messages: JSON.parse(readFileSync(path.join(process.cwd(), "messages", `${locale}.json`), "utf-8")),
+      namespace: "comms",
+    }) as unknown as (key: string, values?: Record<string, string | number>) => string;
+
   const ack = listOutboxFiltered({ ref: entry.id, kind: "acknowledgement" });
   assert.equal(ack.length, 1, "the instant acknowledgement went out");
-  assert.equal(ack[0].subject, t("ack.subject", { role: "Lead Locale Role" }), "the ack renders from the cs catalog");
+  // `ack.subjectRole` — NOT `ack.subject`: the role-bearing subject is its own key
+  // (`ack.subject` never carried a {role}, and rendering it with one produced the bare
+  // sentence). Asserting the roleless key made this test claim the ack was localized
+  // while comparing it against a string the dispatcher does not send.
+  assert.equal(
+    ack[0].subject,
+    catalog("cs")("ack.subjectRole", { role: "Lead Locale Role" }),
+    "the ack renders from the cs catalog"
+  );
+  assert.notEqual(
+    ack[0].subject,
+    catalog("en")("ack.subjectRole", { role: "Lead Locale Role" }),
+    "…and is not the English fallback"
+  );
 });

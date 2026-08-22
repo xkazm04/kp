@@ -70,6 +70,13 @@ DEFAULT_POLICY: dict[str, str] = {
 # read — or advertised — as pay the ad actually stated.
 
 # Surface signals (CZ + EN) that an ad welcomes early-career candidates.
+# Matched as SUBSTRINGS, so every Czech entry must be a STEM that survives
+# inflection AND gender: Czech marks gender in the noun itself, and a
+# masculine-only surface form silently withholds the signal from an ad written
+# in the feminine ("začátečnice", "nováčka"). is_entry_eligible is a HARD
+# knockout for early-career candidates in matching.ko_filter, so a missed signal
+# rejects every student from a role that welcomes them. Keep stems short enough
+# to cover both genders and the oblique cases ("začáteč", not "začátečník").
 _ENTRY_SIGNALS = (
     "junior",
     "graduate",
@@ -94,8 +101,8 @@ _ENTRY_SIGNALS = (
     "mentor",
     "training provided",
     "zaškol",
-    "nováček",
-    "začátečník",
+    "nováč",     # nováček / nováčka / nováčkem
+    "začáteč",   # začátečník / začátečnice / začátečníky / začáteční
 )
 
 

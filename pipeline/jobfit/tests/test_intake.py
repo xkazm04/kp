@@ -15,6 +15,7 @@ import unittest
 
 from pipeline.jobfit.intake import (
     INTAKE_PROMPT_VERSION,
+    _apply_answer,
     deterministic_turn,
     detect_shape,
     extract_transcript,
@@ -176,6 +177,39 @@ class DeterministicScriptTest(unittest.TestCase):
         self.assertFalse(result["done"])
         self.assertIn("Band 5", result["reply"])
 
+    def test_a_ruled_out_level_is_never_the_captured_level(self) -> None:
+        # The scan takes the first level word it finds, so an answer that RULES
+        # a level OUT used to land on exactly that level — marked "stated" — and
+        # the panel then chipped the requestor's rejected grade as their answer.
+        for answer, expected in (
+            ("Not junior - we need a senior", "senior"),
+            ("Rather senior than junior", "senior"),
+            ("lead, not senior", "lead"),
+            ("spíš senior než junior", "senior"),
+            ("senior, I think", "senior"),  # unchanged: no negator, no re-reading
+        ):
+            with self.subTest(answer=answer):
+                brief = _apply_answer(RoleBrief(), "seniority", answer, "en", 3)
+                self.assertEqual(brief.seniority, expected)
+                self.assertEqual(brief.spine_provenance.get("seniority"), "stated")
+
+    def test_answer_that_only_negates_stays_unmapped_and_verbatim(self) -> None:
+        # "ne junior" says which level it ISN'T. Force-mapping it onto the enum
+        # is the UAT-2.3 failure — capture it verbatim, leave the enum default
+        # and UNMARKED so the panel shows it as assumed.
+        brief = _apply_answer(RoleBrief(), "seniority", "ne junior", "cs", 3)
+        self.assertNotIn("seniority", brief.spine_provenance)
+        grades = [f for f in brief.facets if f.key == "grade_label"]
+        self.assertEqual(len(grades), 1)
+        self.assertIn("junior", grades[0].value)
+        self.assertEqual(grades[0].provenance, "stated")
+
+    def test_czech_comma_after_ne_is_a_correction_not_a_negation(self) -> None:
+        # Czech "ne, senior" = "no, senior" (a correction); only "ne senior"
+        # negates. The separator rule keeps the two apart.
+        brief = _apply_answer(RoleBrief(), "seniority", "ne, senior", "cs", 3)
+        self.assertEqual(brief.seniority, "senior")
+
     def test_czech_grade_label_is_localized(self) -> None:
         answers = [
             "Je to náhrada — odešla nám sestra, potřebujeme stejnou pozici",
@@ -257,6 +291,34 @@ class MergeBriefTest(unittest.TestCase):
         update = RoleBrief(requirements=[BriefRequirement(skill="SQL", kind="nice_to_have", provenance="stated")])
         merged = merge_brief(base, update)
         self.assertEqual(merged.requirements[0].kind, "nice_to_have")  # the requestor demoted it
+
+    def test_correction_onto_a_schema_default_value_lands(self) -> None:
+        # The requestor said senior / data_ai, then corrected both — the update
+        # re-emits them as 'stated'. The old value sentinels (`!= "medior"`,
+        # `!= "software_engineering"`) could not tell a captured default from a
+        # schema one, so the correction was dropped WHILE its stated provenance
+        # merged in: the panel chipped the OLD value as stated (UAT L1-CONV-3).
+        base = RoleBrief(
+            seniority="senior",
+            role_family="data_ai",
+            spine_provenance={"seniority": "stated", "role_family": "stated"},
+        )
+        update = RoleBrief(
+            seniority="medior",
+            role_family="software_engineering",
+            spine_provenance={"seniority": "stated", "role_family": "stated"},
+        )
+        merged = merge_brief(base, update)
+        self.assertEqual(merged.seniority, "medior")
+        self.assertEqual(merged.role_family, "software_engineering")
+        self.assertEqual(merged.spine_provenance["seniority"], "stated")
+
+    def test_inferred_update_never_regresses_a_stated_spine_scalar(self) -> None:
+        # Same rule the requirements merge applies: a stated grading is not
+        # overwritten by the model's own inference.
+        base = RoleBrief(seniority="senior", spine_provenance={"seniority": "stated"})
+        update = RoleBrief(seniority="junior", spine_provenance={"seniority": "inferred"})
+        self.assertEqual(merge_brief(base, update).seniority, "senior")
 
     def test_merge_stamps_prompt_version(self) -> None:
         merged = merge_brief(RoleBrief(), RoleBrief())
@@ -473,6 +535,39 @@ class AttachmentsTest(unittest.TestCase):
         ]
         second = run_intake_turn(None, turns2, first["brief"], "Java Developer", lang="en", attachments=self._ATTACH)
         self.assertNotIn("attached material", second["reply"].lower())
+
+    def test_ack_prepended_to_a_readback_still_closes_cleanly(self) -> None:
+        # The keyless ack is PREPENDED to the reply, so a read-back produced on
+        # the turn material was first attached no longer STARTS with the
+        # read-back line. Prefix-only detection then missed it: the requestor's
+        # "ok" fell through to the last scripted question and was recorded as a
+        # stated `budget_band: "ok"` facet they never gave, and the session read
+        # back a second time instead of closing.
+        answers = [
+            "Backfill - same as our old Java developer",
+            "Java Developer",
+            "Services run without gaps",
+            "Java, Kafka",
+            "senior",
+        ]
+        opener = opening_turn("en")
+        turns = [{"role": "interviewer", "text": opener["reply"]}]
+        brief = opener["brief"]
+        for answer in answers:
+            result = run_intake_turn(None, turns, brief, answer, lang="en")
+            turns += [{"role": "candidate", "text": answer}, {"role": "interviewer", "text": result["reply"]}]
+            brief = result["brief"]
+        # The last scripted answer arrives together with freshly attached material.
+        result = run_intake_turn(None, turns, brief, "skip", lang="en", attachments=self._ATTACH)
+        self.assertIn("attached material", result["reply"].lower())
+        self.assertIn("Here's what I took away", result["reply"])  # ack + read-back in one turn
+        turns += [{"role": "candidate", "text": "skip"}, {"role": "interviewer", "text": result["reply"]}]
+
+        confirm = run_intake_turn(None, turns, result["brief"], "ok", lang="en", attachments=self._ATTACH)
+        self.assertTrue(confirm["done"], "the confirmed read-back must close the session")
+        self.assertIn("<<END>>", confirm["reply"])
+        facet_keys = {f.key for f in coerce_role_brief(confirm["brief"]).facets}
+        self.assertNotIn("budget_band", facet_keys)  # "ok" is a confirmation, not pay
 
     def test_voice_fast_thread_sees_titles_only(self) -> None:
         captured: dict = {}

@@ -9,26 +9,69 @@ import path from "node:path";
 // recordOutbox auto-derives the tenant from the referenced entry (like recordEvent);
 // the recruiter list/create/revoke/spend paths filter workspace_id.
 //
-// EXEMPTION: the two RECEIVER-side liveness counters (recordChannelWebhookReceipt /
-// recordChannelWebhookAccepted) stamp by the CSPRNG webhook token on the PUBLIC
-// inbound endpoint — the token is the capability, same doctrine as offer/lead tokens.
+// The guard demands a BOUND PREDICATE, not the mere presence of the string
+// "workspace_id" somewhere in the statement — a column named in a SELECT list or an
+// ORDER BY scopes nothing. It used to demand only the latter, and channel_webhooks is
+// read through a composed fragment (WEBHOOK_SELECT + a per-call WHERE), so the only
+// channel_webhooks SELECT it ever inspected was the bare fragment, which passed purely
+// on `w.workspace_id` appearing in its select list. The three statements that actually
+// run were invisible to it: deleting `AND w.workspace_id = ?` from listChannelWebhooks
+// — which renders every team's receivers, tokens and confidential role titles in every
+// other team's Channels tab — left this test green. The fragment is now resolved into
+// its call sites before anything is checked.
+//
+// EXEMPTIONS, each named so it is visible rather than accidental:
+//   - the two RECEIVER-side liveness counters (recordChannelWebhookReceipt /
+//     recordChannelWebhookAccepted), stamped by the CSPRNG webhook token on the PUBLIC
+//     inbound endpoint — the token is the capability, same doctrine as offer/lead tokens;
+//   - the by-token reads on that same doctrine: getActiveChannelWebhook (the receiver's
+//     lookup) and createChannelWebhook's re-read of a token it just generated.
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const files = [path.join(dir, "channels.ts"), path.join(dir, "devcase.ts")];
 const src = files.map((f) => readFileSync(f, "utf8")).join("\n");
-const sqlBlocks = [...src.matchAll(/`([^`]*)`/g)].map((m) => m[1]);
+
+// channel_webhooks is read through ONE shared fragment. Inline it into its call sites and
+// drop the fragment itself — it is a projection, never an executable statement.
+const fragment = (/const WEBHOOK_SELECT = `([^`]*)`/.exec(src)?.[1] ?? "").trim();
+assert.ok(fragment.includes("FROM channel_webhooks"), "WEBHOOK_SELECT no longer resolves — the guard would go blind");
+
+const statements = [...src.matchAll(/`([^`]*)`/g)]
+  .map((m) => m[1])
+  .filter((s) => s.trim() !== fragment)
+  .map((s) => s.replaceAll("${WEBHOOK_SELECT}", fragment));
 
 // A receiver-side liveness counter, stamped by webhook token on the public endpoint.
 function isTokenCounter(sql: string): boolean {
   return /update\s+channel_webhooks\s+set\s+(received_count|accepted_count)/i.test(sql);
 }
 
-test("every channels/outbox query is workspace-scoped (receiver token counters exempt)", () => {
-  const touching = sqlBlocks.filter((s) =>
+// A by-token read of channel_webhooks: the CSPRNG token IS the capability.
+function isTokenLookup(sql: string): boolean {
+  return /\bfrom\s+channel_webhooks\b/i.test(sql) && /\bwhere\s+w\.token\s*=\s*\?/i.test(sql);
+}
+
+/** The part of the statement that can actually SCOPE it: an INSERT is scoped by the
+ *  column it writes, everything else by its WHERE predicate. A statement with no WHERE
+ *  yields "" and fails, which is the whole point. */
+function scopingClause(sql: string): string {
+  if (/\binsert\s+(or\s+\w+\s+)?into\b/i.test(sql)) {
+    const values = sql.search(/\bvalues\b/i);
+    return values >= 0 ? sql.slice(0, values) : sql;
+  }
+  return /\bwhere\b([\s\S]*)$/i.exec(sql)?.[1] ?? "";
+}
+
+test("every channels/outbox statement is workspace-scoped BY PREDICATE (by-token receiver paths exempt)", () => {
+  const touching = statements.filter((s) =>
     /\b(from|into|update|delete\s+from)\s+(channel_webhooks|channel_spend|dev_outbox)\b/i.test(s)
   );
-  assert.ok(touching.length >= 9, `expected >=9 channels/outbox queries, found ${touching.length}`);
+  assert.ok(touching.length >= 12, `expected >=12 channels/outbox statements, found ${touching.length}`);
   assert.ok(touching.some(isTokenCounter), "expected the receiver-counter exemptions to match something");
-  for (const sql of touching.filter((s) => !isTokenCounter(s))) {
-    assert.ok(/workspace_id/.test(sql), `a channels/outbox query is NOT workspace-scoped:\n${sql.trim().slice(0, 220)}`);
+  assert.ok(touching.some(isTokenLookup), "expected the by-token receiver reads to resolve (fragment inlining works)");
+  for (const sql of touching.filter((s) => !isTokenCounter(s) && !isTokenLookup(s))) {
+    assert.ok(
+      /workspace_id/i.test(scopingClause(sql)),
+      `a channels/outbox statement is NOT workspace-scoped by predicate:\n${sql.replace(/\s+/g, " ").trim().slice(0, 220)}`
+    );
   }
 });

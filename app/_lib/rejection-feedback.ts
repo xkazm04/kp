@@ -38,7 +38,17 @@ const PROTECTED_PATTERNS: readonly RegExp[] = [
   /\b(disab\w*|handicap\w*|illness|medical|health condition|sick leave)\b/i,
   /\b(union|political|party membership|sexual orientation|gay|lesbian)\b/i,
   // Czech equivalents — the primary market, and the locale most adverse comms ship in.
-  /\b(věk|pohlaví|těhoten\w*|mateřsk\w*|rodinn\w*|národnost\w*|občanstv\w*|nábožen\w*|zdravotn\w*|invalid\w*)\b/i,
+  //
+  // Written as STEM + OPEN SUFFIX under /u, deliberately NOT as `\b…\b`: JavaScript's
+  // \b is ASCII-only, so a diacritic is not a word character. `\bpohlaví\b` therefore
+  // never matched the word AT ALL — the closing \b sits between "í" and a space, two
+  // non-word characters, so there is no boundary there — and `\bvěk\b` matched only the
+  // bare nominative while "věku"/"věkové" sailed straight through. The other stems were
+  // saved by their `\w*` tail; age and gender, the two plainest discrimination claims an
+  // adverse comm can make, were the two that had none. The leading guard is a
+  // Unicode-aware non-letter (or the start of the line) and the tail is left open, so
+  // every Czech inflection of the stem is caught.
+  /(?:^|[^\p{L}\p{N}_])(?:věk|pohlav|těhoten|mateřsk|rodinn|národnost|občanstv|nábožen|zdravotn|invalid)/iu,
 ];
 
 export type FeedbackSource = "recorded_gaps" | "unmet_requirements" | "none";
