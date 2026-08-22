@@ -12,6 +12,8 @@ import { buildIcs } from "./export-utils";
 import { publicBaseUrl, publicOriginIsFallback } from "./public-base-url.ts";
 import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator, type CommsTranslator } from "./comms-translator";
+import { namespaceTranslator } from "./catalog-translator";
+import type { Locale } from "@/i18n/locales";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
 // automation through the shared sendComm channel (durable local outbox by
@@ -21,10 +23,10 @@ import { commsTranslator, type CommsTranslator } from "./comms-translator";
 // used by distribution.ts (intake ack) and devcase-orchestrator.ts (invite).
 //
 // SIM3 — every template renders in the CANDIDATE'S language. The deterministic
-// bodies moved into the `comms.*` namespace of messages/{en,cs}.json and render
+// bodies moved into the `comms.*` namespace of every messages/<locale>.json and render
 // through a locale-pinned translator built from the entry's stored `locale`
-// (captured at apply; NULL ⇒ the WORKSPACE default — 'cs' for the ČS seed — via
-// comms-locale.resolveCommsLocale, so the 60/65 legacy NULL-locale entries stop
+// (captured at apply; NULL ⇒ the entry's OWN team default — 'cs' for the ČS seed — via
+// candidateLocale/comms-locale.resolveCommsLocale, so the 60/65 legacy NULL-locale entries stop
 // receiving English letters under the bank's brand; pa-l2-null-locale). The
 // LLM-authored bodies (outreach, the offer letter) are generated in the SAME
 // resolved locale (automation-run passes it to the Python letter tasks), and
@@ -60,6 +62,21 @@ export function candidateRecipient(entry: {
 // localized "there" fallback so an anonymous applicant isn't greeted in English.
 function greetName(entry: { candidateLabel?: string | null }, t: CommsTranslator): string {
   return (entry.candidateLabel ?? "").trim() || t("there");
+}
+
+// The language a candidate hears from us in, resolved against THEIR team.
+//
+// `commsTranslator` re-resolves whatever locale it is handed, but it cannot know the
+// tenant: with no workspace, a NULL-locale entry falls back to the DEFAULT team's
+// `default_locale`. That was documented in comms-locale.ts as latent-only "because
+// PipelineEntry does not carry workspaceId" — it does now (db/core.ts surfaces it), so
+// every dispatcher passes the entry's own team here and the entry-less ones pass the
+// tenant their caller holds. Without it, a NULL-locale candidate filed into a second
+// team whose Settings → Organization language is `de` was written to in the DEFAULT
+// team's language (`cs` on the ČS seed). Resolving here is idempotent: the returned
+// Locale passes `isLocale`, so the translator's own resolution returns it verbatim.
+function candidateLocale(locale: string | null | undefined, workspaceId?: string | null): Locale {
+  return resolveCommsLocale(locale, workspaceId ?? undefined);
 }
 
 // The one link-builder for candidate-facing URLs BUILT INSIDE this module (the
@@ -126,11 +143,18 @@ type CandidateCommTarget = {
   workspaceId?: string | null;
 };
 
-async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator): Promise<string> {
+async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator, locale: Locale): Promise<string> {
   if (entry.anonymizedAt || !entry.id) return ""; // already scrubbed, or no entry to manage
   const token = ensureErasureToken(entry.id, entry.workspaceId ?? undefined);
   if (!token) return "";
-  return "\n\n" + t("dataFooter", { link: `${await candidateLinkBase()}/data/${encodeURIComponent(token)}` });
+  // ?lang= pins the page to the language the LETTER is written in, exactly as the status
+  // link that rides beside it does (proxy.ts turns the param into the NEXT_LOCALE cookie).
+  // Unpinned, the page resolved from a cookie the candidate does not have and then from
+  // Accept-Language — so a cs-locale candidate reading on an English-configured browser
+  // opened the erasure explainer (a legal affordance) in a language they never chose,
+  // while the other link in the same letter opened in Czech.
+  const link = `${await candidateLinkBase()}/data/${encodeURIComponent(token)}?lang=${locale}`;
+  return "\n\n" + t("dataFooter", { link });
 }
 
 // Candidate-facing send: identical to sendComm but auto-appends the GDPR data
@@ -143,12 +167,15 @@ async function dataFooter(entry: CandidateCommTarget, t: CommsTranslator): Promi
 async function sendCandidateComm(
   entry: CandidateCommTarget,
   t: CommsTranslator,
-  msg: { subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null }
+  msg: { subject: string; body: string; kind: string; ref?: string; workspaceId?: string | null },
+  // The language the letter is written in — carried so the footer's own link is pinned to
+  // it. Passed rather than re-derived: `t` cannot report the locale it was built for.
+  locale: Locale
 ): Promise<OutboxStatus> {
   const recorded = await sendComm({
     to: candidateRecipient(entry),
     subject: msg.subject,
-    body: msg.body + (await dataFooter(entry, t)),
+    body: msg.body + (await dataFooter(entry, t, locale)),
     kind: msg.kind,
     ref: msg.ref ?? entry.id ?? undefined,
     // Fallback tenant for the case where `ref` names no pipeline entry (a slot/link
@@ -172,22 +199,34 @@ async function sendCandidateComm(
  *  opens it outside the app). Re-applying with the same address is the enrichment
  *  path: the merge machinery rebuilds the profile onto the original entry. The
  *  speed-to-lead point is that this invitation goes out the moment the lead lands,
- *  not when a recruiter gets around to the stub. */
+ *  not when a recruiter gets around to the stub.
+ *
+ *  CATALOG: composed from the SAME `comms.ack.*` keys distribution.ts's intake ack
+ *  uses (greeting ▸ body ▸ signoff, with the -Role variants when the opening is
+ *  known). It used to render `ack.subject` with a `{role}` that key never had, and
+ *  `ack.bodyEnrich` / `ack.statusLine`, which exist in NO locale — next-intl returns
+ *  the key PATH for a missing message, so a quick-apply lead's acknowledgement email
+ *  literally read "comms.ack.bodyEnrich". The two link lines are labelled from the
+ *  `apply` namespace: those are the very calls-to-action the quick-apply page shows
+ *  beside the same two links, so the mail and the page say the same thing in all
+ *  four locales, and an unlabelled bare URL never ships. */
 export async function dispatchApplicationReceived(
   entry: PipelineEntry,
   opts?: { enrichLink?: string; statusLink?: string }
 ): Promise<void> {
-  const t = await commsTranslator(entry.locale);
-  const role = entry.jobTitle ?? t("theRole");
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
+  const ta = await namespaceTranslator(locale, "apply");
+  const role = (entry.jobTitle ?? "").trim();
   const name = greetName(entry, t);
-  const subject = t("ack.subject", { role });
-  let body = opts?.enrichLink
-    ? t("ack.bodyEnrich", { name, role, link: opts.enrichLink, team: t("team") })
-    : t("ack.body", { name, role, team: t("team") });
-  // Append the durable status-tracking link to whichever body variant — this is the
+  const subject = role ? t("ack.subjectRole", { role }) : t("ack.subject");
+  const lines = [t("ack.greeting", { name }), "", role ? t("ack.bodyRole", { role }) : t("ack.body")];
+  // The enrichment invitation (a quick-apply stub) and the durable status link — the
   // touchpoint that lets the candidate check where they stand after the tab is gone.
-  if (opts?.statusLink) body += `\n\n${t("ack.statusLine", { link: opts.statusLink })}`;
-  await sendCandidateComm(entry, t, { subject, body, kind: "acknowledgement" });
+  if (opts?.enrichLink) lines.push("", `${ta("quick.enrichCta")} — ${ta("quick.enrichNote")}`, opts.enrichLink);
+  if (opts?.statusLink) lines.push("", `${ta("trackStatus")}:`, opts.statusLink);
+  lines.push("", t("ack.signoff"));
+  await sendCandidateComm(entry, t, { subject, body: lines.join("\n"), kind: "acknowledgement" }, locale);
   recordAutomationEvent(entry.id, "acknowledgement_sent", role, entry.workspaceId);
 }
 
@@ -238,11 +277,12 @@ export async function dispatchOutreach(
     recordAutomationEvent(entry.id, "outreach_suppressed", halt, entry.workspaceId);
     return { sent: false, reason: halt };
   }
-  const t = await commsTranslator(entry.locale);
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
   const role = entry.jobTitle ?? t("aRole");
   const subject = String(draft.subject ?? t("outreach.subjectFallback", { role })).trim();
   const body = String(draft.body ?? "").trim();
-  await sendCandidateComm(entry, t, { subject, body, kind: "outreach" });
+  await sendCandidateComm(entry, t, { subject, body, kind: "outreach" }, locale);
   // Recorded only after the send actually happened — counting an attempt would make a
   // failed send look like a contact, and `sends > 0` is what later distinguishes a reply
   // from a fresh application.
@@ -264,7 +304,8 @@ export async function dispatchOutreach(
  * nothing recorded the template ships exactly as before (rejection-feedback.ts).
  */
 export async function dispatchRejection(entry: PipelineEntry, opts?: { automated?: boolean }): Promise<void> {
-  const t = await commsTranslator(entry.locale);
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
   const middle = isEarlyCareer(entry.archetype) ? t("rejection.early") : t("rejection.standard");
@@ -278,7 +319,7 @@ export async function dispatchRejection(entry: PipelineEntry, opts?: { automated
   const subject = t("rejection.subject", { role });
   const body = t("rejection.opening", { name, role }) + middle + feedbackBlock + t("rejection.closing", { team: t("team") });
 
-  await sendCandidateComm(entry, t, { subject, body, kind: "rejection" });
+  await sendCandidateComm(entry, t, { subject, body, kind: "rejection" }, locale);
   recordAutomationEvent(
     entry.id,
     "rejection_sent",
@@ -318,7 +359,8 @@ export async function dispatchKnockoutDecline(input: {
   /** The team that owns the declined lead. Omitted ⇒ the default workspace. */
   workspaceId?: string | null;
 }): Promise<void> {
-  const t = await commsTranslator(input.locale);
+  const locale = candidateLocale(input.locale, input.workspaceId);
+  const t = await commsTranslator(locale);
   const name = (input.name ?? "").trim() || t("there");
   const role = input.jobTitle ?? t("theRole");
   const subject = t("koDecline.subject", { role });
@@ -346,17 +388,18 @@ export async function dispatchOffer(
   responseLink: string,
   opts?: { expiresAt?: string | null; startDate?: string | null }
 ): Promise<void> {
-  const t = await commsTranslator(entry.locale);
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
   const subject = String(draft.subject ?? t("offer.subjectFallback", { role: entry.jobTitle ?? t("aRole") })).trim();
   const letter = String(draft.body ?? "").trim();
   const terms: string[] = [];
-  const deadline = formatOfferDeadline(opts?.expiresAt ?? null, entry.locale);
+  const deadline = formatOfferDeadline(opts?.expiresAt ?? null, entry.locale, entry.workspaceId);
   if (deadline) terms.push(t("offer.deadlineLine", { deadline }));
   const startDate = (opts?.startDate ?? "").trim();
   if (startDate) terms.push(t("offer.startLine", { date: startDate }));
   const termsBlock = terms.length > 0 ? `${terms.join("\n")}\n\n` : "";
   const body = `${letter}\n\n` + termsBlock + t("offer.responseFooter", { link: responseLink });
-  await sendCandidateComm(entry, t, { subject, body, kind: "offer" });
+  await sendCandidateComm(entry, t, { subject, body, kind: "offer" }, locale);
   recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "", entry.workspaceId);
 }
 
@@ -372,7 +415,8 @@ export async function dispatchInterviewConfirmation(
   slot: string,
   opts?: { shortNotice?: boolean; durationMin?: number | null; rescheduleLink?: string | null }
 ): Promise<OutboxStatus> {
-  const t = await commsTranslator(entry.locale);
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
   // Tell the candidate how long to block: a student's scripted screen runs ~22
@@ -386,7 +430,7 @@ export async function dispatchInterviewConfirmation(
   // closes, this footer link is the one way back to reschedule (SCH2) or grab
   // the .ics. ABSOLUTE, resolved via publicBaseUrl by the caller.
   const footer = opts?.rescheduleLink ? `\n\n${t("interviewConfirmation.linkFooter", { link: opts.rescheduleLink })}` : "";
-  const status = await sendCandidateComm(entry, t, { subject, body: body + footer, kind: "interview_confirmation" });
+  const status = await sendCandidateComm(entry, t, { subject, body: body + footer, kind: "interview_confirmation" }, locale);
   recordAutomationEvent(entry.id, "interview_scheduled", slot, entry.workspaceId);
   return status;
 }
@@ -422,7 +466,8 @@ export async function dispatchInterviewerBrief(
     if (entry.id && assigned) recordAutomationEvent(entry.id, "interviewer_brief_skipped", assigned, entry.workspaceId);
     return false;
   }
-  const t = await commsTranslator(opts.lang);
+  const locale = candidateLocale(opts.lang, entry.workspaceId);
+  const t = await commsTranslator(locale);
   const name = extractRecipientName(assigned) ?? t("there");
   const role = entry.jobTitle ?? t("theRole");
   const candidate = (entry.candidateLabel ?? "").trim() || t("there");
@@ -468,13 +513,14 @@ export async function dispatchScheduleInvite(
   link: string,
   opts?: { durationMin?: number | null }
 ): Promise<OutboxStatus> {
-  const t = await commsTranslator(entry.locale);
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
   const length = opts?.durationMin ? t("scheduleInvite.length", { minutes: opts.durationMin }) : "";
   const subject = t("scheduleInvite.subject", { role });
   const body = t("scheduleInvite.body", { name, role, link, length, team: t("team") });
-  const status = await sendCandidateComm(entry, t, { subject, body, kind: "schedule_invite" });
+  const status = await sendCandidateComm(entry, t, { subject, body, kind: "schedule_invite" }, locale);
   recordAutomationEvent(entry.id, "schedule_invite_sent", role, entry.workspaceId);
   return status;
 }
@@ -499,7 +545,8 @@ export async function dispatchInterviewReminder(
   slot: string,
   opts?: { durationMin?: number | null; workspaceId?: string | null }
 ): Promise<void> {
-  const t = await commsTranslator(entry.locale);
+  const locale = candidateLocale(entry.locale, opts?.workspaceId);
+  const t = await commsTranslator(locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
   const length = opts?.durationMin ? t("interviewReminder.length", { minutes: opts.durationMin }) : "";
@@ -511,7 +558,7 @@ export async function dispatchInterviewReminder(
     kind: "interview_reminder",
     ref: entry.id ?? slot,
     workspaceId: opts?.workspaceId,
-  });
+  }, locale);
   // Post-send: the reminder is delivered. Do not let an audit-log failure re-throw —
   // that would look like a delivery failure and trigger a duplicate send.
   try {
@@ -540,7 +587,8 @@ export async function dispatchInterviewInvite(
   // event. Without it both landed on the default team.
   opts?: { durationMin?: number | null; workspaceId?: string | null }
 ): Promise<OutboxStatus> {
-  const t = await commsTranslator(entry.locale);
+  const locale = candidateLocale(entry.locale, opts?.workspaceId);
+  const t = await commsTranslator(locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
   const length = opts?.durationMin ? t("interviewInvite.length", { minutes: opts.durationMin }) : "";
@@ -552,18 +600,18 @@ export async function dispatchInterviewInvite(
     kind: "interview_invite",
     ref: entry.id ?? link,
     workspaceId: opts?.workspaceId,
-  });
+  }, locale);
   if (entry.id) recordAutomationEvent(entry.id, "interview_invite_sent", role, opts?.workspaceId ?? undefined);
   return status;
 }
 
 /** Format an offer's ISO deadline for the candidate's locale, or "" if absent/invalid
  *  (offers in the reminder window always carry one; the guard keeps the body clean). */
-function formatOfferDeadline(iso: string | null, locale: string | null | undefined): string {
+function formatOfferDeadline(iso: string | null, locale: string | null | undefined, workspaceId?: string | null): string {
   if (!iso) return "";
   const ms = Date.parse(iso);
   if (Number.isNaN(ms)) return "";
-  const loc = resolveCommsLocale(locale);
+  const loc = candidateLocale(locale, workspaceId);
   return new Intl.DateTimeFormat(loc, { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
 }
 
@@ -577,13 +625,14 @@ function formatOfferDeadline(iso: string | null, locale: string | null | undefin
  *  not retried — at-most-once.) The post-send audit write is swallowed so a transient
  *  DB blip after the message left can't masquerade as a delivery failure. */
 export async function dispatchOfferReminder(entry: PipelineEntry, link: string, deadlineIso: string | null): Promise<void> {
-  const t = await commsTranslator(entry.locale);
+  const locale = candidateLocale(entry.locale, entry.workspaceId);
+  const t = await commsTranslator(locale);
   const name = greetName(entry, t);
   const role = entry.jobTitle ?? t("theRole");
-  const deadline = formatOfferDeadline(deadlineIso, entry.locale);
+  const deadline = formatOfferDeadline(deadlineIso, entry.locale, entry.workspaceId);
   const subject = t("offerReminder.subject", { role });
   const body = t("offerReminder.body", { name, role, deadline, link, team: t("team") });
-  await sendCandidateComm(entry, t, { subject, body, kind: "offer_reminder", ref: entry.id ?? link });
+  await sendCandidateComm(entry, t, { subject, body, kind: "offer_reminder", ref: entry.id ?? link }, locale);
   try {
     recordAutomationEvent(entry.id, "offer_reminder_sent", role, entry.workspaceId);
   } catch (e) {

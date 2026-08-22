@@ -16,13 +16,15 @@ import path from "node:path";
 import { createTranslator } from "next-intl";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
-import { dispatchOffer, dispatchRejection } from "./comms-dispatch.ts";
+import { dispatchApplicationReceived, dispatchOffer, dispatchRejection } from "./comms-dispatch.ts";
 import { listOutboxFiltered } from "./db/devcase.ts";
+import { ensureDb } from "./db/core.ts";
+import { createWorkspace } from "./db/workspaces.ts";
 
 after(() => cleanupUnitDb());
 
 const ROOT = path.join(process.cwd(), "messages");
-function catalog(locale: "en" | "cs") {
+function catalog(locale: "en" | "cs" | "de") {
   const messages = JSON.parse(readFileSync(path.join(ROOT, `${locale}.json`), "utf-8"));
   return createTranslator({ locale, messages, namespace: "comms" }) as unknown as (
     key: string,
@@ -31,7 +33,7 @@ function catalog(locale: "en" | "cs") {
 }
 
 let seq = 0;
-function entryFixture(locale: string | null) {
+function entryFixture(locale: string | null, workspaceId?: string) {
   seq += 1;
   return createPipelineEntry({
     candidateId: `cdlo-c${seq}`,
@@ -39,6 +41,7 @@ function entryFixture(locale: string | null) {
     jobId: `cdlo-job-${seq}`,
     jobTitle: "Locale Test Role",
     locale,
+    workspaceId,
   }).entry;
 }
 
@@ -101,4 +104,66 @@ test("no deadline/start date known: no terms lines are fabricated", async () => 
   assert.ok(!body.includes(deadlinePrefix), "no deadline line without a real deadline");
   const startPrefix = catalog("en")("offer.startLine", { date: "X" }).split("X")[0];
   assert.ok(!body.includes(startPrefix), "no start-date line without a real date");
+});
+
+// --- the applicant acknowledgement -------------------------------------------
+//
+// The ack rendered `comms.ack.bodyEnrich` / `comms.ack.statusLine`, which exist in NO
+// locale, plus `ack.subject` with a `{role}` that key never had. next-intl returns the
+// KEY PATH for a missing message, so a quick-apply lead's confirmation email arrived
+// with the body "comms.ack.bodyEnrich" — a non-empty, placeholder-free string the
+// catalog test happily rendered. These pin the composed letter instead.
+
+test("the acknowledgement letter is real localized copy — never a raw catalog key path", async () => {
+  const entry = entryFixture("en");
+  await dispatchApplicationReceived(entry, {
+    enrichLink: "https://kp.example.com/apply/job-1/quick?e=1",
+    statusLink: "https://kp.example.com/status/tk-ack",
+  });
+
+  const rows = listOutboxFiltered({ ref: entry.id, kind: "acknowledgement" });
+  assert.equal(rows.length, 1);
+  const { subject, body } = rows[0];
+  const t = catalog("en");
+  // The tell: an unresolved next-intl key path is literally "comms.<key>".
+  assert.ok(!/comms\.[a-z]/i.test(subject ?? ""), `the subject shipped a raw key path: ${subject}`);
+  assert.ok(!/comms\.[a-z]/i.test(body ?? ""), `the body shipped a raw key path:\n${body}`);
+  assert.equal(subject, t("ack.subjectRole", { role: "Locale Test Role" }), "the subject names the role");
+  assert.ok((body ?? "").includes(t("ack.greeting", { name: entry.candidateLabel })), "the candidate is greeted by name");
+  assert.ok((body ?? "").includes(t("ack.bodyRole", { role: "Locale Test Role" })), "the body is the role-aware ack copy");
+  assert.ok((body ?? "").includes(t("ack.signoff")), "the letter is signed off");
+  // Both links ride the letter, each under a label (a bare URL reads as spam).
+  assert.ok((body ?? "").includes("https://kp.example.com/apply/job-1/quick?e=1"), "the enrichment link ships");
+  assert.ok((body ?? "").includes("https://kp.example.com/status/tk-ack"), "the status link ships");
+});
+
+test("a NULL-locale ack still renders in the candidate's resolved language (cs), not English", async () => {
+  const entry = entryFixture(null);
+  await dispatchApplicationReceived(entry);
+  const body = listOutboxFiltered({ ref: entry.id, kind: "acknowledgement" })[0].body ?? "";
+  assert.ok(body.includes(catalog("cs")("ack.signoff")), `expected the cs sign-off, got:\n${body}`);
+});
+
+// --- the tenant the language fallback is read from ---------------------------
+
+test("a NULL-locale entry falls back to ITS OWN team's default language, not the default team's", async () => {
+  const team = createWorkspace("Deutsches Team");
+  ensureDb().prepare(`UPDATE workspaces SET default_locale = 'de' WHERE id = ?`).run(team.id);
+
+  const entry = entryFixture(null, team.id);
+  assert.equal(entry.workspaceId, team.id, "the fixture must be filed into the second team");
+  await dispatchRejection(entry);
+
+  const rows = listOutboxFiltered({ ref: entry.id, kind: "rejection" }, team.id);
+  assert.equal(rows.length, 1, "the rejection landed in the second team's outbox");
+  assert.equal(
+    rows[0].subject,
+    catalog("de")("rejection.subject", { role: "Locale Test Role" }),
+    "the letter must come from the entry's OWN workspace default (de)"
+  );
+  assert.notEqual(
+    rows[0].subject,
+    catalog("cs")("rejection.subject", { role: "Locale Test Role" }),
+    "the DEFAULT workspace's language must not decide another team's candidate letter"
+  );
 });

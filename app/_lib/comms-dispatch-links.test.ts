@@ -70,3 +70,37 @@ test("no origin resolvable (detached send, env unset): the footer still renders 
     "a dead-relative-link send must warn about the missing public origin"
   );
 });
+
+test("the erasure link is ?lang=-pinned to the letter's language, like the status link beside it", async () => {
+  process.env.APP_BASE_URL = "https://kp.example.com";
+  const cs = createPipelineEntry({
+    candidateId: "cdl-lang-cs",
+    candidateLabel: "Lang Candidate CS",
+    jobId: "cdl-lang-job",
+    jobTitle: "Comms Link Role",
+    locale: "cs",
+  }).entry;
+  const en = createPipelineEntry({
+    candidateId: "cdl-lang-en",
+    candidateLabel: "Lang Candidate EN",
+    jobId: "cdl-lang-job",
+    jobTitle: "Comms Link Role",
+    locale: "en",
+  }).entry;
+
+  await dispatchRejection(cs);
+  await dispatchRejection(en);
+
+  // Unpinned, the page resolves from a cookie the candidate does not have and then from
+  // Accept-Language — so a Czech letter could open its own erasure page in English.
+  assert.match(
+    listOutboxFiltered({ ref: cs.id, kind: "rejection" })[0].body ?? "",
+    /\/data\/[A-Za-z0-9_~.-]+\?lang=cs/,
+    "the Czech letter's erasure link must pin ?lang=cs"
+  );
+  assert.match(
+    listOutboxFiltered({ ref: en.id, kind: "rejection" })[0].body ?? "",
+    /\/data\/[A-Za-z0-9_~.-]+\?lang=en/,
+    "and the English letter's must pin ?lang=en"
+  );
+});

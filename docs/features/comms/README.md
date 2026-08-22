@@ -178,6 +178,65 @@ back, keyed by the message's `ref` + `kind`:
   `ResendButton`, Comms Center `BouncedResend`) surface the server's refusal
   reason and only report success when the fresh row itself isn't `failed`.
 
+## 9. The adverse comm: recorded reasons only, protected attributes dropped
+
+`dispatchRejection` (`comms-dispatch.ts`) appends a short feedback block built by
+`app/_lib/rejection-feedback.ts` from the entry's **recorded** still-unmet checklist
+items (`entryProfileGaps`) — never from a fresh LLM call, and never at all when nothing
+was recorded (silence beats an invented rationale; the plain template ships instead).
+
+- **Max 3 bullets**, each trimmed to 140 chars and de-duplicated case-insensitively.
+- **Deny-by-default protected-attribute filter.** A line matching any pattern is dropped
+  **whole** (a partially-scrubbed sentence about someone's age is still a sentence about
+  their age) and `filtered` is raised so a recruiter can see the filter fired. A fully
+  filtered gap list does **not** fall through to the derived unmet-requirement list —
+  that would route around the filter.
+- **The Czech patterns are stems with an open suffix under `/u`, not `\b…\b`.** JS's
+  `\b` is ASCII-only, so a diacritic is not a word character: `\bpohlaví\b` could never
+  match the word at all, and `\bvěk\b` matched only the bare nominative while "věku" /
+  "věkové" shipped. Age and gender — the plainest discrimination claim an adverse comm
+  can make — were the two Czech stems with no inflection tail. Locked by
+  `rejection-feedback.test.ts` ("the Czech filter holds in EVERY inflection").
+
+## 10. The candidate's language, and the links inside the letter
+
+A candidate is written to in **their** language, never the recruiter's request
+locale. `resolveCommsLocale` (`comms-locale.ts`) is the one authority:
+
+1. the entry's stored `locale` — the explicit choice captured at apply;
+2. else **the entry's OWN team** `workspaces.default_locale` (`cs` on the ČS seed);
+3. else `DEFAULT_LOCALE`, only when even the workspace row is unreadable.
+
+Step 2 is per-tenant, so every dispatcher resolves through
+`comms-dispatch.candidateLocale`, which threads `entry.workspaceId` (entry-less
+dispatchers thread their caller's `opts.workspaceId`). Omitting it read the
+*default* team's `default_locale`, so once a second team sets its own language a
+NULL-locale candidate filed into it was written to in the default team's language.
+Locked by `comms-dispatch-locale.test.ts` ("falls back to ITS OWN team's default").
+
+**Catalog composition.** The deterministic bodies live in the `comms.*` namespace
+and render through a locale-pinned translator (`comms-translator.ts` →
+`catalog-translator.ts`), so next-intl's compile-time key checking cannot see them.
+next-intl returns the **key path** for a message it cannot find — a non-empty string
+with no `{placeholder}` left in it — so a rendering-only test stays green on a
+missing key: `dispatchApplicationReceived` rendered `ack.bodyEnrich` /
+`ack.statusLine`, which exist in no locale, and a quick-apply lead's acknowledgement
+arrived with the body `comms.ack.bodyEnrich`. The ack now composes the same
+`comms.ack.*` key set `distribution.ts` uses (`subjectRole`/`subject` ▸ `greeting` ▸
+`bodyRole`/`body` ▸ `signoff`), labelling its two links with the candidate-facing
+`apply.trackStatus` / `apply.quick.enrich*` copy the apply page shows beside the same
+links. `comms-dispatch.test.ts` now derives the key list **from the dispatcher source**
+and asserts `t.has(key)` in **all four** locales, so neither a phantom key nor an
+unpinned de/fr catalog can come back.
+
+**Links.** The GDPR erasure footer is the only candidate link built inside
+`comms-dispatch.ts`. It is absolute (`candidateLinkBase` → `publicBaseUrl`, warning
+loudly when nothing is configured) **and `?lang=`-pinned to the language the letter is
+written in**, exactly like the status link that rides beside it — `proxy.ts` turns the
+param into the `NEXT_LOCALE` cookie, and without it the page resolved from a cookie the
+candidate does not have and then from `Accept-Language`, opening the erasure explainer
+in a language they never chose. Locked by `comms-dispatch-links.test.ts`.
+
 ## Configuration summary
 
 | Variable | Direction | Unset (honest default) | Set |
@@ -194,6 +253,7 @@ back, keyed by the message's `ref` + `kind`:
 | `app/_lib/comms.ts` | Channel selection (`getCommsChannel`), `OutboxChannel`, `WebhookChannel` (retry + dead-letter + HMAC). |
 | `app/_lib/comms-relay.ts` / `comms-relay-store.ts` | Relay resolution (env → stored config) and the encrypted stored-config persistence. |
 | `app/_lib/comms-dispatch.ts` | Per-kind message builders, `candidateRecipient()`. |
+| `app/_lib/rejection-feedback.ts` | `buildRejectionFeedback` / `renderRejectionFeedback` — recorded-only rejection reasons behind the protected-attribute filter (§9). |
 | `app/_lib/comms-status.ts` | `OUTBOX_STATUSES`, `coerceOutboxStatus`, retry classification. |
 | `app/_lib/comms-view.ts` | `deriveCommsView`, `commsVerdict` — the single delivery-truth vocabulary. |
 | `app/_lib/comms-truth.ts` | `isRelayConfigured` legacy helper / capability surfacing. |
@@ -301,6 +361,17 @@ already returns alongside the entries. Both rules are pinned by
   declares no length is buffered whole before `validateUploadServer` ever sees a
   size. Same shape as `/api/analyze` and the public `/api/extract-text`, so the fix
   is a shared streaming-multipart cap, not a per-route patch.
+- **`dispatchOutreach` reports `{ sent: true }` off "the call resolved", not off the
+  outbox row's real status.** `sendCandidateComm` returns the status precisely so a
+  caller can key its claim on it (REC-10), and the interview/schedule dispatchers do;
+  outreach ignores it, so a relay dead-letter still records `outreach_sent` — the
+  durable marker `automation-run` uses to refuse a retry ("already_sent") — for a
+  message nobody received. Its refusal vocabulary is already unambiguous at the source
+  (`anonymized | consent_expired | replied | manual`, so `suppressed_${reason}` is
+  derivable); the collapse into "consent expired" happens in `automation-run.ts`'s
+  ternary, which handles only `anonymized` and treats everything else as a consent
+  lapse. Both halves want the same change: carry the delivery status in
+  `OutreachResult` and map every reason 1:1 at the consumer.
 - No durable retry queue — retries are inline/bounded within the request;
   `comms.log` is not yet shipped to an external alerting sink.
 - Positive/soft bounce-callback outcomes (delivered/opened/deferred) are

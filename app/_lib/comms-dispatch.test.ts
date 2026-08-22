@@ -1,23 +1,62 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createTranslator } from "next-intl";
 
 // SIM3 — pins the `comms.*` catalog: comms-dispatch loads messages dynamically
 // (so its keys type as `never` and the compiler can't check them), so render
-// every key with representative values in BOTH locales here. A missing key, a
+// every key with representative values in EVERY locale here. A missing key, a
 // renamed key, or a broken ICU placeholder (e.g. an apostrophe that swallows a
 // `{slot}`) fails this test instead of shipping a blank/garbled email.
+//
+// TWO defects this file used to pass through, both now guarded below:
+//   • a MISSING key. next-intl returns the key PATH ("comms.ack.bodyEnrich") for a
+//     message it cannot find, which is a non-empty string with no `{placeholder}`
+//     left in it — so rendering alone was green while `ack.bodyEnrich` and
+//     `ack.statusLine` existed in NO locale and the quick-apply acknowledgement
+//     email literally read "comms.ack.bodyEnrich". `t.has()` is the real check.
+//   • only en+cs were rendered, while the dispatcher serves all four catalogs
+//     (a de/fr candidate's letters were unpinned).
+// And the key list is now DERIVED FROM THE SOURCE (the comms-envelope.test.ts
+// pattern) rather than hand-maintained, so it cannot drift again.
 
 const ROOT = path.join(process.cwd(), "messages");
-function translator(locale: "en" | "cs") {
+type Catalog = {
+  (key: string, values?: Record<string, string | number>): string;
+  has: (key: string) => boolean;
+};
+function translator(locale: string, namespace: string): Catalog {
   const messages = JSON.parse(readFileSync(path.join(ROOT, `${locale}.json`), "utf-8"));
-  return createTranslator({ locale, messages, namespace: "comms" }) as unknown as (
-    key: string,
-    values?: Record<string, string | number>
-  ) => string;
+  return createTranslator({ locale, messages, namespace }) as unknown as Catalog;
 }
+
+const LOCALES = ["en", "cs", "de", "fr"] as const;
+
+// SOURCE GUARD: every key comms-dispatch.ts renders through its `comms` translator
+// (`t("…")`) and its `apply` translator (`ta("…")`) must EXIST in all four catalogs.
+const dispatchSrc = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "comms-dispatch.ts"), "utf8");
+const keysFor = (fn: string) =>
+  new Set([...dispatchSrc.matchAll(new RegExp(`(?<![A-Za-z0-9_])${fn}\\("([A-Za-z0-9_.]+)"`, "g"))].map((m) => m[1]));
+const COMMS_KEYS = keysFor("t");
+const APPLY_KEYS = keysFor("ta");
+
+test("every catalog key the dispatchers render EXISTS in all four locales", () => {
+  // Guard the guard: a rename that stops matching must fail loudly, not pass empty.
+  assert.ok(COMMS_KEYS.size >= 30, `expected >=30 rendered comms keys, found ${COMMS_KEYS.size}`);
+  assert.ok(APPLY_KEYS.size >= 3, `expected >=3 rendered apply keys, found ${APPLY_KEYS.size}`);
+  for (const locale of LOCALES) {
+    for (const [namespace, keys] of [
+      ["comms", COMMS_KEYS],
+      ["apply", APPLY_KEYS],
+    ] as const) {
+      const t = translator(locale, namespace);
+      const missing = [...keys].filter((k) => !t.has(k)).sort();
+      assert.deepEqual(missing, [], `${locale}: ${namespace}.* keys rendered by comms-dispatch but absent: ${missing.join(", ")}`);
+    }
+  }
+});
 
 // (key, values) the dispatchers actually pass — kept in lockstep with
 // comms-dispatch.ts so the test exercises real call shapes.
@@ -27,14 +66,21 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["theRole", {}],
   ["aRole", {}],
   ["yourNewRole", {}],
-  ["ack.subject", { role: "Backend Engineer" }],
-  ["ack.body", { name: "Jane", role: "Backend Engineer", team: "The hiring team" }],
-  ["ack.bodyEnrich", { name: "Jane", role: "Backend Engineer", link: "https://x/apply/job-1?lang=en", team: "The hiring team" }],
+  ["dataFooter", { link: "https://x/data/er-1" }],
+  // The intake-ack key set distribution.ts owns; comms-dispatch composes the same one.
+  ["ack.subject", {}],
+  ["ack.subjectRole", { role: "Backend Engineer" }],
+  ["ack.greeting", { name: "Jane" }],
+  ["ack.body", {}],
+  ["ack.bodyRole", { role: "Backend Engineer" }],
+  ["ack.signoff", {}],
   ["outreach.subjectFallback", { role: "Backend Engineer" }],
   ["rejection.subject", { role: "Backend Engineer" }],
   ["rejection.opening", { name: "Jane", role: "Backend Engineer" }],
   ["rejection.early", {}],
   ["rejection.standard", {}],
+  ["rejection.feedbackIntro", {}],
+  ["rejection.feedbackOutro", {}],
   ["rejection.closing", { team: "The hiring team" }],
   ["koDecline.subject", { role: "Backend Engineer" }],
   ["koDecline.body", { name: "Jane", role: "Backend Engineer", team: "The hiring team" }],
@@ -67,9 +113,16 @@ const RENDERS: [string, Record<string, string | number>][] = [
   ["interviewInvite.body", { name: "Jane", role: "Backend Engineer", link: "https://x/i/abc", length: " (22m)", team: "The hiring team" }],
 ];
 
-for (const locale of ["en", "cs"] as const) {
+// The link labels the acknowledgement borrows from the candidate-facing apply page.
+const APPLY_RENDERS: [string, Record<string, string | number>][] = [
+  ["trackStatus", {}],
+  ["quick.enrichCta", {}],
+  ["quick.enrichNote", {}],
+];
+
+for (const locale of LOCALES) {
   test(`comms catalog renders every key in ${locale}`, () => {
-    const t = translator(locale);
+    const t = translator(locale, "comms");
     for (const [key, values] of RENDERS) {
       const out = t(key, values);
       assert.equal(typeof out, "string", `${locale} ${key} should render a string`);
@@ -80,8 +133,18 @@ for (const locale of ["en", "cs"] as const) {
   });
 }
 
+for (const locale of LOCALES) {
+  test(`apply catalog renders the acknowledgement link labels in ${locale}`, () => {
+    const ta = translator(locale, "apply");
+    for (const [key, values] of APPLY_RENDERS) {
+      const out = ta(key, values);
+      assert.ok(out.length > 0 && !/\{[a-zA-Z]+\}/.test(out), `${locale} apply.${key} rendered "${out}"`);
+    }
+  });
+}
+
 test("interpolated slot survives the apostrophe-heavy confirmation body", () => {
-  const t = translator("en");
+  const t = translator("en", "comms");
   const out = t("interviewConfirmation.short", { name: "Jane", role: "BE", slot: "Mon 10:00", length: "", team: "Team" });
   assert.match(out, /Mon 10:00/);
 });
