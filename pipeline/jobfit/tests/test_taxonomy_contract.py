@@ -128,6 +128,50 @@ class TaxonomyContractTest(unittest.TestCase):
             de_se = next(r for r in de_block["roles"] if r["family"] == "software_engineering")
             self.assertEqual(list(de_band), de_se["medior"])
 
+    def test_role_band_returns_each_familys_OWN_row(self) -> None:
+        # The test above pins ONE family — software_engineering, which happens to be
+        # roles[0]. A lookup that ignored `family` entirely and returned the first
+        # matching row would satisfy it while handing a finance role the SOFTWARE
+        # band: a comp anchor the candidate then negotiates against, wrong by a whole
+        # profession. Enumerate EVERY family x seniority from the shipped file so the
+        # binding is data-driven, not one hand-picked row.
+        for mid, block in self.market_blocks.items():
+            market = next(
+                (m for m in (taxonomy.ACTIVE_MARKET,) if m.market_id == mid), None
+            )
+            if market is None:
+                continue  # non-active markets are covered by the de-berlin case above
+            for role in block["roles"]:
+                fam = role["family"]
+                for sen in SENIORITIES:
+                    expected = role.get(sen)
+                    actual = taxonomy.role_band(fam, sen, market=market)
+                    if expected is None:
+                        self.assertIsNone(actual, f"{fam}/{sen}: band invented from nothing")
+                    else:
+                        self.assertEqual(
+                            list(actual), list(expected),
+                            f"{fam}/{sen} resolved to another family's band",
+                        )
+
+    def test_the_family_bands_are_actually_distinct(self) -> None:
+        # Non-vacuity for the loop above: if every family shipped the same numbers a
+        # family-blind lookup would pass it. At least two families must genuinely
+        # differ at the same seniority.
+        medior = {
+            r["family"]: tuple(r["medior"]) for r in self.benchmarks["roles"] if r.get("medior")
+        }
+        self.assertGreater(len(set(medior.values())), 1, "all families share one band")
+        # And the specific pair the finding names: finance must not read as software.
+        if "finance_accounting" in medior and "software_engineering" in medior:
+            self.assertNotEqual(medior["finance_accounting"], medior["software_engineering"])
+
+    def test_an_unknown_family_has_no_band_rather_than_a_borrowed_one(self) -> None:
+        # A family the benchmark file does not model must yield None, never the
+        # first row's numbers dressed up as its own.
+        self.assertIsNone(taxonomy.role_band("no_such_family_xyz", "medior"))
+        self.assertIsNone(taxonomy.role_band("software_engineering", "no_such_seniority"))
+
     def test_taxonomy_covers_non_tech_industries(self) -> None:
         # P0-1: the role-family vocabulary must reach beyond the original 3 IT families
         # so non-tech workforces are representable, not collapsed to software_engineering.

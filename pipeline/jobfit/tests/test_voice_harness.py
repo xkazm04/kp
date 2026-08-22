@@ -540,6 +540,66 @@ class TestSpeechEndReference(unittest.TestCase):
         self.assertAlmostEqual(gap, 0.3, delta=0.15)
 
 
+class TestSpokenLanguageRouting(unittest.TestCase):
+    """The utterance's own language decides the voice — and the session carries it.
+
+    Piper voices are monolingual, and the EL agent's dashboard default is Czech, so
+    "which language is this turn in" is decided in two places the harness owns:
+    ``session_runner._voice_for`` (which TTS voice speaks the line) and
+    ``mint_session`` (which language the created/simulated session is minted with).
+    Neither had a single test — the preflight below only ever probed
+    ``tts.available``. A hard-coded "en" there is silent and total: the Czech
+    scenario is spoken by an English voice, the ASR is charged for a sound no
+    speaker made, and every WER/entity number downstream is measured against a
+    session that was never in the right language.
+    """
+
+    CZECH = "Dobrý den, jmenuji se Jana a pracuji jako vývojářka."
+    ENGLISH = "Hello, my name is Jane and I work as a developer."
+
+    def test_the_utterance_language_wins_over_the_scenario_default(self) -> None:
+        from pipeline.jobfit.eval.voice.session_runner import _voice_for
+
+        # A Czech line is spoken by the Czech voice even on an English-defaulted run…
+        self.assertEqual(_voice_for(self.CZECH, "en"), "cs")
+        # …and an English line by the English voice on a Czech-defaulted one.
+        self.assertEqual(_voice_for(self.ENGLISH, "cs"), "en")
+
+    def test_an_unmarked_line_falls_back_to_the_scenario_default(self) -> None:
+        from pipeline.jobfit.eval.voice.session_runner import _voice_for
+
+        # No clear marker either way -> the scenario's own language, never a constant.
+        for neutral in ("", "42", "..."):
+            with self.subTest(text=neutral):
+                self.assertEqual(_voice_for(neutral, "cs"), "cs")
+                self.assertEqual(_voice_for(neutral, "en"), "en")
+
+    def test_mint_session_carries_the_language_on_both_paths(self) -> None:
+        from pipeline.jobfit.eval.voice import app_client, session_runner
+
+        seen: list[tuple] = []
+        orig = (app_client.simulate, app_client.create)
+        app_client.simulate = lambda base_url, **kw: (seen.append(("simulate", kw)), {"token": "t"})[1]
+        app_client.create = lambda base_url, **kw: (seen.append(("create", kw)), {"token": "t"})[1]
+        try:
+            session_runner.mint_session("http://unused.invalid", kind="sim", mode="student", language="cs")
+            session_runner.mint_session("http://unused.invalid", kind="entry", entry_id="e1", language="cs")
+        finally:
+            app_client.simulate, app_client.create = orig
+
+        self.assertEqual([k for k, _ in seen], ["simulate", "create"])
+        for kind, kwargs in seen:
+            self.assertEqual(kwargs.get("language"), "cs", kind)
+        self.assertEqual(seen[0][1].get("mode"), "student")
+        self.assertEqual(seen[1][1].get("entry_id"), "e1")
+
+    def test_mint_session_refuses_an_entry_run_with_no_entry_id(self) -> None:
+        from pipeline.jobfit.eval.voice import session_runner
+
+        with self.assertRaises(ValueError):
+            session_runner.mint_session("http://unused.invalid", kind="entry")
+
+
 class TestSmokePreflight(unittest.TestCase):
     def test_preflight_checks_the_voice_the_scenario_will_speak(self):
         # Checking a fixed "en" let a Czech scenario mint a REAL (paid) session and only then

@@ -6,7 +6,7 @@ from __future__ import annotations
 import unittest
 
 from pipeline.jobfit import weight_proposal
-from pipeline.jobfit.matching import MatchCandidate
+from pipeline.jobfit.matching import MatchCandidate, weight_bounds
 from pipeline.jobfit.tests._helpers import mkjob
 
 
@@ -97,6 +97,42 @@ class WeightProposalTest(unittest.TestCase):
         proposals, _ = weight_proposal.generate(_candidates(), _job(), provider=provider)
         det, _ = weight_proposal.generate(_candidates(), _job(), provider=None)
         self.assertEqual(proposals["a"], det["a"])  # invalid numbers -> deterministic
+
+    def test_out_of_bounds_llm_weights_are_clamped_at_the_trust_boundary(self):
+        # Every fixture above hands back weights that already sit INSIDE the
+        # archetype bounds, so the ``resolve_weights`` call in ``_coerce`` — the
+        # documented trust boundary ("the artifact must honor its own contract even
+        # when the model overshoots") — is never exercised: deleting it left the
+        # whole file green. A model asked for bounded weights routinely returns
+        # unbounded ones, and these ship straight into the emitted proposal a
+        # recruiter reads and an audit trail records.
+        provider = _FakeProvider(
+            {
+                "proposals": [
+                    {"candidateId": "a", "weights": {"skills": 0.95, "career": 0.03, "personal": 0.02},
+                     "rationale": "All-in on demonstrated skill."},
+                    {"candidateId": "b", "weights": {"skills": 0.0, "career": 0.0, "personal": 1.0},
+                     "rationale": "All-in on personality."},
+                ]
+            }
+        )
+        proposals, source = weight_proposal.generate(_candidates(), _job(), provider=provider)
+        self.assertEqual(source, "llm")
+        bounds = weight_bounds("student")
+        for cid in ("a", "b"):
+            weights = proposals[cid]["weights"]
+            self.assertAlmostEqual(sum(weights.values()), 1.0, places=3, msg=cid)
+            for slot, value in weights.items():
+                lo, hi = bounds[slot]
+                self.assertGreaterEqual(value, lo - 1e-6, f"{cid}.{slot}")
+                self.assertLessEqual(value, hi + 1e-6, f"{cid}.{slot}")
+        # Non-vacuity: the raw proposals really were outside the bounds, so the
+        # assertions above could not have passed by accident.
+        self.assertGreater(0.95, bounds["skills"][1])
+        self.assertLess(0.0, bounds["skills"][0])
+        # …and the clamp is a projection, not a reset: "a" still leans further toward
+        # skills than the all-in-on-personality "b" does.
+        self.assertGreater(proposals["a"]["weights"]["skills"], proposals["b"]["weights"]["skills"])
 
     def test_provider_error_falls_back(self):
         proposals, source = weight_proposal.generate(_candidates(), _job(), provider=_BoomProvider())

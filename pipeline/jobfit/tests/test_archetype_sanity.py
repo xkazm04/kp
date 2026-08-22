@@ -58,6 +58,30 @@ class ArchetypeSanityCheckTest(unittest.TestCase):
         checks = _archetype_sanity_checks("bau", 0.5, ["some non-default reason"])
         self.assertIn("low-confidence", checks[0])
 
+    def test_signals_absent_flags_even_above_the_confidence_threshold(self) -> None:
+        # The rule `_archetype_sanity_checks` states in its own docstring: "The
+        # signals-absent guard is INDEPENDENT of the numeric threshold so an unguided
+        # default stays flagged even if its confidence were ever tuned upward."
+        # Nothing pinned that. Every other fixture here sits BELOW the threshold as
+        # well as having no signals, so `if absent or low:` -> `if low:` passed the
+        # whole 156-test scope green — and a registry default whose confidence was
+        # nudged up would then read "Archetype routing OK", handing the recruiter a
+        # BAU score for a student with no warning at all.
+        _a, _c, default_reasons = detect_archetype(years_relevant_experience=2.0)
+        self.assertTrue(registry.signals_absent(default_reasons))
+        high = min(1.0, registry.low_confidence_threshold() + 0.4)
+        self.assertGreater(high, registry.low_confidence_threshold())  # the branch is real
+
+        checks = _archetype_sanity_checks("bau", high, default_reasons)
+        self.assertEqual(len(checks), 1)
+        self.assertIn("low-confidence", checks[0])
+        self.assertIn("no detection signals fired", checks[0])  # absent, not "weak signals"
+
+        # Control at the SAME confidence: with a signal that did fire, the routing reads
+        # OK — so the flag above is caused by the absent signals, never by the number.
+        ok = _archetype_sanity_checks("student", high, ["<1 year of relevant experience"])
+        self.assertNotIn("low-confidence", ok[0])
+
     def test_signals_absent_marker_matches_default_fallback_only(self) -> None:
         # Precise marker: present only on the no-signal fallback branch.
         _a, _c, default_reasons = detect_archetype(years_relevant_experience=2.0)

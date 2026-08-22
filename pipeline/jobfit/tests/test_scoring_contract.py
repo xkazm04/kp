@@ -18,6 +18,7 @@ from pipeline.jobfit.matching import (
     propose_weights,
     resolve_weights,
     score_job,
+    score_skills,
     weight_bounds,
     weights_for,
 )
@@ -124,6 +125,61 @@ class DynamicWeightTest(unittest.TestCase):
         self.assertEqual(set(fm["ranking"]), {"Strong", "Weak"})
         # The observed-skill, higher-potential candidate is robustly first.
         self.assertEqual(fm["ranking"][0], "Strong")
+
+
+class UnmeasuredIsNotAPerfectFitTest(unittest.TestCase):
+    """A job with NO parsed requirements measures nothing — and nothing is not 100%.
+
+    ``score_skills`` divides by the summed requirement weight; with an empty
+    requirement list that denominator is 0 and the branch is taken purely on the
+    guard. Reading the absent denominator as a perfect fit (``else 1.0``) crowns
+    every candidate at full skill credit on a job that was never scored against
+    them — an unmeasured candidate ranked above a measured one — while ``missing``
+    is simultaneously empty, so the artifact reads "no gaps" as well. Both halves of
+    the absent-vs-empty conflation, on the same input.
+
+    This pins the SHIPPED decision (unmeasured scores 0.0 and claims nothing) so the
+    branch cannot flip silently. It is not a threshold: it is which of two meanings
+    an empty list carries.
+    """
+
+    def _cand(self, **over):
+        base = dict(
+            skills=["Python", "SQL"], seniority="senior",
+            role_family="software_engineering", languages=["English"],
+            years_experience=6, provenance_default="professional",
+        )
+        base.update(over)
+        return MatchCandidate(**base)
+
+    def test_a_requirement_less_job_scores_nothing_not_everything(self) -> None:
+        score, matched, missing, strength, unproven = score_skills(
+            self._cand(), mkjob(requirements=[])
+        )
+        self.assertEqual(score, 0.0, "an unscored job must not read as a perfect skills fit")
+        self.assertEqual((matched, missing, strength, unproven), ([], [], {}, {}))
+
+    def test_a_requirement_less_job_never_out_ranks_a_measured_match(self) -> None:
+        # The ranking consequence, stated directly: the candidate measured against a
+        # real must-have she HAS must not be beaten on skills by the same candidate
+        # against a job that asked for nothing.
+        measured, *_ = score_skills(
+            self._cand(),
+            mkjob(requirements=[{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}]),
+        )
+        unmeasured, *_ = score_skills(self._cand(), mkjob(requirements=[]))
+        self.assertGreater(measured, unmeasured)
+
+    def test_an_empty_candidate_skill_list_is_a_gap_not_a_clean_sheet(self) -> None:
+        # The mirror case: the candidate, not the job, is the empty side. A required
+        # skill nobody claimed is a true MISS and must be reported as one.
+        score, matched, missing, _strength, unproven = score_skills(
+            self._cand(skills=[]),
+            mkjob(requirements=[{"skill": "Python", "kind": "must_have", "hardness": "prerequisite"}]),
+        )
+        self.assertEqual(score, 0.0)
+        self.assertEqual(missing, ["Python"])
+        self.assertEqual((matched, unproven), ([], {}))
 
 
 def _nurse_job(**over):
