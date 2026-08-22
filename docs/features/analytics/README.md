@@ -665,6 +665,30 @@ Two call sites were still doing that and are pinned by `analytics-custom-axis.te
 | `byArchetype.advanceRatePct` | `hasAdvancedPastScreening(stage, axis)` | the equity headline read a flat **0 %** on any renamed board, while `byJob.reachedInterview` — documented as the same threshold over the same cohort — counted correctly |
 | `momentum[].hired` | `weeklyMomentum(…, { terminalStage })` | terminal transitions landed in the `advanced` bars and the hire series sat at **0** forever |
 
+## Product analytics (Plausible) never sees a capability token
+
+Separate from everything above — that is the operator's own board, computed from the local
+DB. `app/_lib/analytics/` is the third-party half: `plausible.tsx` renders the script tag and
+`track.ts` fires custom events (`workspace_entered`, `demo_started`, `checkout_started`).
+
+Both are env-gated on `NEXT_PUBLIC_PLAUSIBLE_DOMAIN`. Unset — dev, and every self-hosted
+deploy that does not opt in — renders nothing and ships zero analytics bytes.
+
+The rule when it IS set: **Plausible attaches `u: location.href` to every event it sends,
+pageviews included**, and `<PlausibleScript />` is mounted in the ROOT layout, so it renders
+on the public candidate surfaces too. Those URLs are not addresses, they are credentials —
+whoever holds `/schedule/<token>` can act as that candidate, and `/apply/<jobId>` carries
+`?lead=<token>` in the query. So:
+
+- `TOKENIZED_PATH_PREFIXES` (`track.ts`) is the single list of those prefixes.
+- The script tag ships them as `data-exclude` and loads `script.exclusions.js` — the build
+  that reads that attribute. A matching page sends **no pageview at all**; plain `script.js`
+  would ignore the attribute silently, so the two move together.
+- `track()` refuses to fire from a matching path whatever the caller asks for.
+
+`track.test.ts` pins the list against the `app/*/[token]` route directories and fails if
+either half is dropped. Adding a candidate surface means adding its prefix there.
+
 ## Known gaps
 
 - **The metric pack's `time_to_hire` sample counts a bigger population than the median was

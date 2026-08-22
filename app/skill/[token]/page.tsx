@@ -167,7 +167,13 @@ export default async function SkillProfilePage({ params }: { params: Promise<{ t
 
       <p className="mt-4 text-xs text-stone-400">
         {t("methodology")}{" "}
-        <Link href="/about" className="underline">
+        {/* rel=noreferrer: this page's own URL IS the capability token (no session is
+            involved on /skill/[token]), and /about is a TRACKED route — so without
+            this, clicking through sends `r: https://<host>/skill/<token>` to
+            Plausible as the referrer, the same leak the data-exclude list closes at
+            the front door. Any future outbound same-origin link from a token page
+            needs it too. */}
+        <Link href="/about" className="underline" rel="noreferrer">
           {t("methodologyLink")}
         </Link>
         . {t("version", { version: p.version })}

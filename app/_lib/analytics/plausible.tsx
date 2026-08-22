@@ -7,8 +7,11 @@
  *     NEXT_PUBLIC_PLAUSIBLE_DOMAIN is set (the site's registered domain, e.g.
  *     "kandidate.example"). Unset ⇒ renders nothing: dev, self-hosted and
  *     privacy-first deploys ship ZERO analytics bytes. Mounted once in
- *     app/layout.tsx. Server-component-safe (no hooks, no state). `defer`
- *     satisfies @next/next/no-sync-scripts and keeps it off the critical path.
+ *     app/layout.tsx — the ROOT layout, so it renders on the public candidate
+ *     surfaces too; the `data-exclude` list below is what keeps a capability
+ *     token out of Plausible's `u: location.href`. Server-component-safe (no
+ *     hooks, no state). `defer` satisfies @next/next/no-sync-scripts and keeps
+ *     it off the critical path.
  *
  *   track(event, props?) — typed custom-event helper for client code.
  *     Guarded on window.plausible: when the script isn't mounted (no domain
@@ -28,12 +31,30 @@
 // track() lives in ./track.ts (a plain .ts module) so non-JSX callers — and the
 // Node test runner's type stripping, which loads .ts but not .tsx — can import
 // it without pulling a JSX file. Re-exported here so components use one path.
-export { track, type TrackProps } from "./track";
+export { track, isTokenizedPath, TOKENIZED_PATH_PREFIXES, type TrackProps } from "./track";
+import { TOKENIZED_PATH_PREFIXES } from "./track";
 
 const PLAUSIBLE_DOMAIN = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+
+// The script is mounted in the ROOT layout, so it renders on the tokenized candidate
+// surfaces too (`/schedule/<token>`, `/data/<erasureToken>`, …) — and Plausible's
+// automatic pageview posts `u: location.href`, which on those pages IS the capability
+// credential. `script.exclusions.js` is the same script plus a `data-exclude` glob
+// list: a page whose path matches sends NO pageview at all, so the token never leaves
+// the browser. The globs are derived from the ONE prefix list in ./track.ts (which
+// also stops track() firing there), so adding a candidate surface cannot arm the leak
+// in only one of the two places.
+const EXCLUDED_PAGES = TOKENIZED_PATH_PREFIXES.map((prefix) => `${prefix}*`).join(", ");
 
 /** The Plausible script include — nothing rendered unless the domain env is set. */
 export function PlausibleScript() {
   if (!PLAUSIBLE_DOMAIN) return null;
-  return <script defer data-domain={PLAUSIBLE_DOMAIN} src="https://plausible.io/js/script.js" />;
+  return (
+    <script
+      defer
+      data-domain={PLAUSIBLE_DOMAIN}
+      data-exclude={EXCLUDED_PAGES}
+      src="https://plausible.io/js/script.exclusions.js"
+    />
+  );
 }
