@@ -107,3 +107,29 @@ test("assertPublicHttpsEndpoint rejects internal/loopback hostnames", () => {
   assert.throws(() => assertPublicHttpsEndpoint("https://db.internal"), /internal\/loopback/);
   assert.throws(() => assertPublicHttpsEndpoint("https://printer.local"), /internal\/loopback/);
 });
+
+// The FQDN spelling of the same name. A trailing dot is a no-op to every resolver
+// (`localhost.` answers 127.0.0.1 exactly like `localhost`) but the URL parser
+// KEEPS it on a DNS host — it only normalizes it away for an IPv4 literal. So the
+// internal/loopback suffix rules must run on the dot-stripped host, or one extra
+// character walks an operator-stored endpoint straight past them and the server
+// fetches it with the bearer key attached (pull-pass.ts, comms/relay/test).
+test("assertPublicHttpsEndpoint rejects the FQDN (trailing-dot) spelling of an internal host", () => {
+  assert.throws(() => assertPublicHttpsEndpoint("https://localhost./"), /internal\/loopback/);
+  assert.throws(() => assertPublicHttpsEndpoint("https://localhost.:8443/"), /internal\/loopback/);
+  assert.throws(() => assertPublicHttpsEndpoint("https://metadata.google.internal./computeMetadata/v1/"), /internal\/loopback/);
+  assert.throws(() => assertPublicHttpsEndpoint("https://printer.local./"), /internal\/loopback/);
+  // Percent-encoded and fullwidth dots are folded to "." by URL/IDNA parsing, so
+  // they land on the same normalized host.
+  assert.throws(() => assertPublicHttpsEndpoint("https://localhost%2e/"), /internal\/loopback/);
+  // A dot-only host normalizes to nothing — reject rather than treat as public.
+  assert.throws(() => assertPublicHttpsEndpoint("https://./"), /missing host/);
+});
+
+test("assertPublicHttpsEndpoint still accepts a public host written as an FQDN", () => {
+  // The tightening must not reject a legitimate absolute-form endpoint.
+  assert.equal(
+    assertPublicHttpsEndpoint("https://my-resource.openai.azure.com./v1"),
+    "https://my-resource.openai.azure.com./v1",
+  );
+});

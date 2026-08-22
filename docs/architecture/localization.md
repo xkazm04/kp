@@ -372,6 +372,18 @@ the pack (it is on the JSON response too), so it is resolved at **build** time, 
 render time, and `metric-pack.test.ts` asserts a Czech pack contains no English
 basis sentence.
 
+Picking the right catalog is only half of localizing a downloaded artifact; the
+**encoding it lands in** is the other half. `downloadFile`
+(`app/_lib/export-utils.ts`) prefixes a UTF-8 BOM to every `text/csv` download,
+because Excel on Windows ignores the Blob's `charset=utf-8` — that is a Blob type,
+not part of the file — and decodes a double-clicked `.csv` with the machine's ANSI
+codepage. Without the BOM the Fair-Rank fairness CSV above, and the ranked-matches
+and decision-log exports beside it, opened as `Å árka NovÃ¡kovÃ¡` on exactly the
+Czech and German desktops this ships to, and could not be pasted back into an ATS
+or a mail merge. The BOM is scoped to CSV on purpose: the `.ics`, `.md` and `.json`
+downloads through the same helper stay byte-exact. `export-utils.test.ts` pins both
+halves.
+
 The old `TasksSystemCard` used to be listed here as a sanctioned "untranslated
 admin readout". It is not one any more, and the reasoning it rested on is worth
 recording because it recurs: the card's own comment justified English "like the

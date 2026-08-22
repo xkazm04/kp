@@ -36,12 +36,22 @@ export function toCsv(rows: (string | number | null | undefined)[][]): string {
 
 // ICS text escaping (RFC 5545 §3.3.11): backslash, semicolon, comma escaped; a
 // newline becomes a literal \n. Applied to SUMMARY / DESCRIPTION / LOCATION.
+//
+// The line-break alternation is `\r\n|\r|\n` (not `\r?\n`): a LONE carriage return
+// used to survive un-escaped into the value. Every text field here is
+// candidate-controlled -- SUMMARY interpolates entry.candidateLabel (the name from
+// the public apply POST), DESCRIPTION the interview scenario -- so a submitted
+// "Ada\rDTSTART:19700101T000000Z" emitted a raw CR INSIDE a content line. RFC 5545
+// delimits with CRLF, but real parsers split on any of CR / LF / CRLF, and those
+// then read the tail as a second property: the interviewer's calendar hold silently
+// takes an attacker-chosen time/title. Collapsing all three forms to the literal
+// `\n` keeps a content line free of any raw break, which is what the spec requires.
 function icsText(value: string): string {
   return value
     .replace(/\\/g, "\\\\")
     .replace(/;/g, "\\;")
     .replace(/,/g, "\\,")
-    .replace(/\r?\n/g, "\\n");
+    .replace(/\r\n|\r|\n/g, "\\n");
 }
 
 // A UTC timestamp in iCalendar basic format: YYYYMMDDTHHMMSSZ. Takes an ISO
@@ -91,11 +101,25 @@ export function buildIcs(event: IcsEvent): string {
   return lines.join("\r\n");
 }
 
+// Excel on Windows ignores the Blob's `;charset=utf-8` (that is a Blob/HTTP type, not
+// part of the FILE) and decodes a double-clicked .csv with the machine's ANSI
+// codepage — Windows-1250 on the Czech/German desktops this ships to. Every export
+// here carries diacritics (candidate names like "Šárka Nováková", Czech job titles,
+// the en-dash in a salary range), so the ranked-matches / decision-log / roles CSVs
+// opened as mojibake ("Å árka NovÃ¡kovÃ¡") and could not be pasted back into an ATS
+// or a mail merge. A leading UTF-8 BOM is the one signal Excel, Sheets and
+// LibreOffice all honour. Scoped to text/csv on purpose: the .ics, .md and .json
+// downloads through this same helper must stay byte-exact.
+const UTF8_BOM = "\ufeff";
+
 /** Trigger a client-side file download of `content`. Browser-only (uses Blob +
- *  object URL + a transient anchor); a no-op outside the browser. */
+ *  object URL + a transient anchor); a no-op outside the browser. CSV downloads are
+ *  BOM-prefixed so a spreadsheet reads them as UTF-8 (see UTF8_BOM). */
 export function downloadFile(filename: string, content: string, mime = "text/plain"): void {
   if (typeof document === "undefined" || typeof URL.createObjectURL !== "function") return;
-  const blob = new Blob([content], { type: `${mime};charset=utf-8` });
+  const body =
+    mime.startsWith("text/csv") && !content.startsWith(UTF8_BOM) ? `${UTF8_BOM}${content}` : content;
+  const blob = new Blob([body], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

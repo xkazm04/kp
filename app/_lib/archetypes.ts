@@ -56,7 +56,16 @@ export function normalizeArchetype(archetype: string | null | undefined): string
  *  fairness gate: an unknown / renamed archetype must NOT be treated as fair
  *  game for auto-rejection. */
 export function isKnownArchetype(archetype: string | null | undefined): boolean {
-  return normalizeArchetype(archetype) in ARCHETYPE_LABEL;
+  // Object.hasOwn, not `in`: ARCHETYPE_LABEL comes from Object.fromEntries and so
+  // inherits Object.prototype, and `in` walks that chain. `"constructor" in
+  // ARCHETYPE_LABEL` was therefore TRUE for an id the registry has never heard of,
+  // which inverted the fail-closed promise below — isFairnessProtected("constructor")
+  // returned false, handing the auto-reject sweep (screen-wave.ts) a candidate it was
+  // supposed to shield, and archetypeDisplayKey returned it as a concrete class whose
+  // ARCHETYPE_LABEL lookup is a function, not a label. Own-key membership is the
+  // check this gate always meant; normalizeArchetype's lower-casing kills the other
+  // prototype names (toString/valueOf/…), leaving `constructor` as the live hole.
+  return Object.hasOwn(ARCHETYPE_LABEL, normalizeArchetype(archetype));
 }
 
 /** The archetype key to DISPLAY for a candidate. Any value the registry doesn't

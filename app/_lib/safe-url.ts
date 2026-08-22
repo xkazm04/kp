@@ -97,7 +97,15 @@ export function assertPublicHttpsEndpoint(raw: string, label = "endpoint"): stri
   if (url.protocol !== "https:") {
     throw new Error(`Invalid ${label}: must use https://.`);
   }
-  const host = url.hostname.toLowerCase();
+  // Strip the trailing dot(s) of the fully-qualified form BEFORE the name checks.
+  // `localhost.` is the same name as `localhost` to every resolver (it answers
+  // 127.0.0.1/::1 identically), but the URL parser keeps the dot on a DNS host —
+  // it only normalizes it away for an IPv4 literal. Without this,
+  // `https://localhost./` and `https://metadata.google.internal./` sailed past the
+  // internal/loopback rule below on one extra character. Percent-encoded (`%2e`)
+  // and fullwidth (`．`) dots are already folded to `.` by URL/IDNA parsing, so
+  // normalizing here covers those spellings too.
+  const host = url.hostname.toLowerCase().replace(/\.+$/, "");
   if (!host) throw new Error(`Invalid ${label}: missing host.`);
   if (isIpLiteralHost(host)) {
     throw new Error(`Invalid ${label}: a bare IP address is not allowed — use the provider hostname.`);

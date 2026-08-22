@@ -128,7 +128,13 @@ base URL, an API token and a field map.
 
 - **Base URL** is validated through `assertPublicHttpsEndpoint` (https only, no IP
   literals or internal hosts) — kp sends an authenticated request there, so an SSRF-able
-  base URL would hand the credential to a metadata service.
+  base URL would hand the credential to a metadata service. The host is compared in its
+  **dot-stripped** form: `https://localhost./` and `https://metadata.google.internal./`
+  are the fully-qualified spelling of the same names (every resolver answers them
+  identically), but `new URL()` keeps the trailing dot on a DNS host — it normalizes it
+  away only for an IPv4 literal — so without that normalization one extra character
+  walked straight past the internal/loopback rule. Locked by
+  `app/_lib/safe-url.test.ts`.
 - **Token** is write-only end to end: encrypted at rest (AES-256-GCM, `ats-secret.ts`),
   never returned by `GET` (`hasToken` only). Leaving the field blank on an edit keeps the
   stored token; the form never sends `apiToken: ""`, which the store reads as *clear*.

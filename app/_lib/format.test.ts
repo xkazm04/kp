@@ -23,6 +23,7 @@ import {
   formatMoney,
   formatRelativeTime,
   formatSalaryRange,
+  labelize,
   RATING_MAX,
   ratingToPercent,
   ratingTone,
@@ -500,6 +501,33 @@ test("formatMoney and formatSalaryRange localize the digits but never the curren
   // Period and the degenerate-band collapse are unchanged by the locale threading.
   assert.equal(formatSalaryRange(60000, 45000, { locale: "en", period: "month" }), `45,000–60,000 ${APP_CURRENCY} / month`);
   assert.equal(formatSalaryRange(50000, 50000, { locale: "en" }), `50,000 ${APP_CURRENCY}`);
+});
+
+// --- labelize: the unknown-enum fallback must always return a STRING ------------
+//
+// labelize is what every `t.has(key) ? t(key) : labelize(value)` falls back to
+// (useEnumLabel, Badge, BillingTab, ModelsRoutingPanel) and what StructuredReadout
+// runs over an LLM-authored payload's own keys. Its acronym table is an object
+// literal, so a bare `ACRONYMS[word]` index walked Object.prototype: the word
+// "constructor" resolved to the Object constructor and was returned from a function
+// typed `: string`, rendering "function Object() { [native code] }" on screen.
+
+test("labelize expands the acronym table and title-cases everything else", () => {
+  assert.equal(labelize("software_engineering"), "Software Engineering");
+  assert.equal(labelize("ats_score"), "ATS Score");
+  assert.equal(labelize("cv-jd"), "CV JD");
+});
+
+test("labelize never returns a prototype member for a word that names one", () => {
+  assert.equal(labelize("constructor"), "Constructor");
+  assert.equal(labelize("constructor_injection"), "Constructor Injection");
+  assert.equal(typeof labelize("constructor"), "string");
+  // The lower-casing already neutralized the camelCase prototype names; pin that too
+  // so a future "preserve case" change can't quietly re-open them.
+  for (const word of ["toString", "valueOf", "hasOwnProperty", "isPrototypeOf", "toLocaleString"]) {
+    assert.equal(typeof labelize(word), "string", `${word} must labelize to a string`);
+    assert.doesNotMatch(labelize(word), /native code/, `${word} leaked a prototype member`);
+  }
 });
 
 test("formatCount groups its digits in the given locale", () => {

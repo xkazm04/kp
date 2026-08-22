@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { toCsv, buildIcs } from "./export-utils.ts";
+import { toCsv, buildIcs, downloadFile } from "./export-utils.ts";
 
 // The export toolkit's pure serializers (Theme C). The browser helpers
 // (downloadFile/copyText) touch DOM globals and aren't exercised here; these two
@@ -76,6 +76,77 @@ test("toCsv leaves ordinary text and numbers untouched", () => {
   // A negative number is data, not a formula: it must still import as a number.
   assert.equal(toCsv([[-1]]), "-1");
   assert.equal(toCsv([[0]]), "0");
+});
+
+// bug-hunt lib-shared-utils-1: icsText escaped `\r\n` and `\n` but not a LONE `\r`,
+// so a candidate-controlled SUMMARY/DESCRIPTION could carry a raw carriage return
+// into the middle of a content line. RFC 5545 delimits with CRLF, but real-world
+// parsers split on any of CR / LF / CRLF and then read the tail as a NEW property —
+// the interviewer's calendar hold takes an attacker-chosen time.
+test("buildIcs escapes a lone CR so a value cannot inject a second property", () => {
+  const ics = buildIcs({
+    uid: "iv-4",
+    start: "2030-01-02T09:00:00.000Z",
+    durationMin: 30,
+    title: "Ada\rDTSTART:19700101T000000Z",
+    description: "one\rtwo\r\nthree\nfour",
+  });
+  assert.ok(ics.includes("SUMMARY:Ada\\nDTSTART:19700101T000000Z"), `un-escaped CR in SUMMARY: ${JSON.stringify(ics)}`);
+  assert.ok(ics.includes("DESCRIPTION:one\\ntwo\\nthree\\nfour"));
+  // The general invariant: the only CR in the document is the one that pairs with
+  // the LF of a line separator.
+  assert.equal(/\r(?!\n)/.test(ics), false, "a raw CR survived into a content line");
+});
+
+// bug-hunt lib-shared-utils-1: a CSV downloaded WITHOUT a UTF-8 BOM is decoded by
+// Excel-on-Windows with the machine's ANSI codepage, so every Czech/German name in a
+// candidate export opened as mojibake. Browser-only helper, so the browser surface it
+// actually touches (document / Blob / URL object URLs) is stubbed; stubbing Blob also
+// captures the exact bytes the saved file would carry.
+function captureDownload(run: () => void): { body: string; type: string; filename: string } {
+  const realBlob = globalThis.Blob;
+  const realCreate = URL.createObjectURL;
+  const realRevoke = URL.revokeObjectURL;
+  const captured = { body: "", type: "", filename: "" };
+  const anchor = { href: "", download: "", click() {}, remove() {} };
+  const g = globalThis as unknown as Record<string, unknown>;
+  g.Blob = class {
+    constructor(parts: string[], options: { type: string }) {
+      captured.body = parts.join("");
+      captured.type = options.type;
+    }
+  };
+  URL.createObjectURL = (() => "blob:stub") as unknown as typeof URL.createObjectURL;
+  URL.revokeObjectURL = (() => {}) as unknown as typeof URL.revokeObjectURL;
+  g.document = { createElement: () => anchor, body: { appendChild() {} } };
+  try {
+    run();
+  } finally {
+    g.Blob = realBlob;
+    URL.createObjectURL = realCreate;
+    URL.revokeObjectURL = realRevoke;
+    delete g.document;
+  }
+  captured.filename = anchor.download;
+  return captured;
+}
+
+test("downloadFile prefixes a UTF-8 BOM on CSV so a spreadsheet reads diacritics", () => {
+  const csv = toCsv([["Candidate"], ["Šárka Nováková"]]);
+  const out = captureDownload(() => downloadFile("matches.csv", csv, "text/csv"));
+  assert.equal(out.body.charCodeAt(0), 0xfeff, "the CSV must open with a UTF-8 BOM");
+  assert.equal(out.body.slice(1), csv, "the BOM is the only change — the rows are untouched");
+  assert.equal(out.filename, "matches.csv");
+});
+
+test("downloadFile leaves non-CSV downloads byte-exact and never double-BOMs", () => {
+  const ics = buildIcs({ uid: "iv-5", start: "2030-01-02T09:00:00.000Z", durationMin: 15, title: "X" });
+  assert.equal(captureDownload(() => downloadFile("hold.ics", ics, "text/calendar")).body, ics);
+  assert.equal(captureDownload(() => downloadFile("a.md", "# Report", "text/markdown")).body, "# Report");
+  assert.equal(captureDownload(() => downloadFile("a.json", "{}", "application/json")).body, "{}");
+  // Idempotent: content that already carries the marker is not given a second one.
+  const withBom = `${String.fromCharCode(0xfeff)}a,b`;
+  assert.equal(captureDownload(() => downloadFile("x.csv", withBom, "text/csv")).body, withBom);
 });
 
 test("toCsv still quotes and round-trips delimiters after neutralizing", () => {

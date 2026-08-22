@@ -655,7 +655,16 @@ export function labelize(value: string): string {
     .split(/\s+/)
     .map((word) => {
       const lower = word.toLowerCase();
-      if (ACRONYMS[lower]) return ACRONYMS[lower];
+      // Object.hasOwn, not a bare truthy index: ACRONYMS is an object literal, so it
+      // INHERITS Object.prototype and `ACRONYMS["constructor"]` is the Object
+      // constructor — truthy, and returned from a function typed `: string`. Every
+      // caller here is the "unknown enum value" fallback (useEnumLabel, Badge,
+      // StructuredReadout over an LLM-authored payload's own keys), so a token that
+      // happens to name a prototype member rendered "function Object() { [native
+      // code] }" on a recruiter's screen instead of "Constructor". Lower-casing
+      // already neutralizes toString/valueOf/hasOwnProperty; `constructor` is the one
+      // that survives it — and it is an ordinary word in a developer's skill list.
+      if (Object.hasOwn(ACRONYMS, lower)) return ACRONYMS[lower];
       return lower.charAt(0).toUpperCase() + lower.slice(1);
     })
     .join(" ");
