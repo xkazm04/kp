@@ -1,14 +1,21 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { Sparkles } from "lucide-react";
 import { DISPLAY } from "../tokens";
+import { useStillMotion } from "../useStillMotion";
 
-/* The scrolling claim band between the hero and the three steps. */
+/* The scrolling claim band between the hero and the three steps.
+ *
+ * Reduced motion goes through useStillMotion, not framer's useReducedMotion:
+ * framer reads the query ONCE into `useState` and never re-reads it (its own
+ * source says so), so a visitor who turns the preference on mid-session kept a
+ * 26-second infinite scroll running until a full reload. useStillMotion
+ * subscribes to the media query and stops the band on the next commit. */
 export default function Marquee() {
   const t = useTranslations("landing");
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useStillMotion();
   // Arrays come back raw from the catalog (next-intl returns them verbatim).
   const items = t.raw("marquee") as string[];
   return (

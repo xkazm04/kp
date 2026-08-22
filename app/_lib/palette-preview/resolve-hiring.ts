@@ -40,8 +40,10 @@ export function resolveChannels(ws: string, attention: AttentionCounts): Palette
   };
 }
 
+/** Widest page the degraded fallback below may read (listDecisionRecords' own clamp). */
+const DECISION_PAGE_MAX = 1000;
+
 export function resolveDecisions(ws: string, attention: AttentionCounts): PalettePreview {
-  const sealed = listDecisionRecords({ limit: 500, workspaceId: ws }).length;
   let chain: { ok: boolean; count: number } | null = null;
   try {
     const v = verifyDecisionChain(ws);
@@ -49,6 +51,15 @@ export function resolveDecisions(ws: string, attention: AttentionCounts): Palett
   } catch {
     chain = null; // integrity check unavailable ≠ broken — the pane says nothing
   }
+  // `sealed` is the workspace's TOTAL sealed decisions, so it comes from the chain
+  // CENSUS — verifyDecisionChain walks every row of this tenant's chain in seq order
+  // and reports `count` on every verdict, ok or broken. It used to be
+  // `listDecisionRecords({ limit: 500 }).length`, i.e. the size of a capped PAGE: past
+  // 500 records the "Sealed" tile froze at 500 while the chain line directly beneath it
+  // (same pane, same read) went on reporting the true 612 — one surface contradicting
+  // itself, with the tile the provably wrong half. Reusing the census also drops a
+  // second full-table read of the same rows.
+  const sealed = chain ? chain.count : listDecisionRecords({ limit: DECISION_PAGE_MAX, workspaceId: ws }).length;
   return { view: "decisions", pending: attention.decisions, sealed, chain };
 }
 

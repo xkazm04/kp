@@ -62,7 +62,11 @@ export function TrustContent() {
           by article, which of them the product enforces today — including the ones it does not.
         </p>
         {/* Lead with the shape. A reader who scrolls no further should still leave knowing
-            three obligations are not fully met, rather than with a green impression. */}
+            how many obligations are NOT fully met — the partial + not-yet chips below,
+            counted from OBLIGATIONS — rather than with a green impression. Never restate
+            that count in prose here: it was written as "three" while the register had
+            grown to six, and a stale figure on this page is the failure it exists to
+            prevent. */}
         <div className="mt-5 flex flex-wrap gap-2">
           <span className={`rounded-full border px-3 py-1 text-sm font-semibold ${POSTURE_CHIP.enforced}`}>
             {summary.enforced} enforced

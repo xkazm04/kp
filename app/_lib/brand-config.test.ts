@@ -6,6 +6,7 @@ import {
   EXTERNAL_LOGO_IMG_ATTRS,
   isBrandFormDirty,
   MAX_BRAND_NAME,
+  MAX_LOGO_URL,
   MIN_ACCENT_CONTRAST,
   normalizeHex6,
   sanitizeAccentColor,
@@ -49,6 +50,22 @@ test("sanitizeLogoUrl allows https only", () => {
   for (const bad of ["http://x/logo.png", "javascript:alert(1)", "data:image/png;base64,AAA", "ftp://x/l", "not a url", ""]) {
     assert.equal(sanitizeLogoUrl(bad), null, `${bad} must be rejected`);
   }
+});
+
+test("sanitizeLogoUrl REJECTS an over-length URL instead of truncating it", () => {
+  // A signed CDN logo URL (S3/Cloudinary style) easily clears 500 chars.
+  const signed = `https://cdn.acme.com/logo.png?X-Amz-Signature=${"a".repeat(MAX_LOGO_URL)}`;
+  assert.ok(signed.length > MAX_LOGO_URL);
+  // Pre-fix this returned `signed.slice(0, 500)` — a syntactically valid https URL
+  // whose signature is cut in half, so it stores, round-trips, reports "Saved", and
+  // 403s forever. A refusal (null) is what the editor can actually show.
+  assert.equal(sanitizeLogoUrl(signed), null);
+  assert.equal(sanitizeBrand({ logoUrl: signed }).logoUrl, null);
+
+  // The boundary itself is still storable — the rule rejects LONGER, not "long".
+  const exact = "https://a.co/" + "b".repeat(MAX_LOGO_URL - "https://a.co/".length);
+  assert.equal(exact.length, MAX_LOGO_URL);
+  assert.equal(sanitizeLogoUrl(exact), exact);
 });
 
 test("sanitizeBrand validates every field together", () => {

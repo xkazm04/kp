@@ -218,6 +218,19 @@ candidates:
    the candidate-facing offer/apply/scheduling pages** (they share the app layout);
    the name + logo replace the KandiDate mark in the sidebars. Stored server-side
    (`brand_settings`), no rebuild needed.
+
+   What is storable is decided in one place, `app/_lib/brand-config.ts`, and is
+   enforced on **write and read** — `getBrand()` re-validates the row it loads, so a
+   value written by an older build can't keep being served past a rule it predates:
+   - *Accent* — `#rgb`/`#rrggbb` only (it is injected into a `<style>`, so anything
+     else would be CSS injection), and it must clear **3:1 WCAG contrast** against
+     both white button labels and the paper canvas. An illegible accent is refused,
+     with the reason shown in the editor, rather than shipped app-wide.
+   - *Logo* — an `https://` URL of at most 500 characters, **rejected** (not
+     truncated) when longer, so a signed CDN URL can't be stored as a half-signature
+     that renders as a broken image. It is browser-loaded from that host with
+     `referrerPolicy="no-referrer"`; air-gapped installs should self-host the file.
+   - *Display name* — whitespace-collapsed and clamped to 60 characters.
 2. **Custom domain.** Point your domain at the reverse proxy in front of KP
    (§8: Caddy / nginx / Traefik terminates TLS and proxies to `:3000`):
    - DNS: a `CNAME` (or `A`/`AAAA`) for `hiring.yourcompany.com` → your proxy host.

@@ -32,13 +32,24 @@ function db(): Database {
 
 type BrandRow = { display_name: string | null; accent_color: string | null; logo_url: string | null };
 
-/** The workspace's stored brand, or product defaults when unset. */
+/** The workspace's stored brand, or product defaults when unset.
+ *
+ *  RE-VALIDATED ON READ, not only on write. `sanitizeBrand` is the invariant the
+ *  rest of the app leans on — BrandStyle.tsx injects `accentColor` straight into a
+ *  <style> and calls that safe because "the color is strictly hex-validated at the
+ *  store boundary" — but saveBrand only enforces it on the way IN. A row already at
+ *  rest was handed back verbatim, so any value that predates a rule kept being served
+ *  forever: an accent saved before the WCAG legibility gate landed (e.g. "#ffff88",
+ *  the exact case brand-config.test.ts pins as refused) still re-skinned every button
+ *  and focus ring, app-wide AND on the candidate-facing offer/apply/schedule pages,
+ *  because nothing re-checks a stored value. Sanitizing here makes the guarantee hold
+ *  for every reader; it is idempotent for anything saveBrand itself wrote. */
 export function getBrand(): BrandConfig {
   const row = db()
     .prepare("SELECT display_name, accent_color, logo_url FROM brand_settings WHERE id = ?")
     .get(ROW_ID) as BrandRow | undefined;
   if (!row) return DEFAULT_BRAND;
-  return { displayName: row.display_name, accentColor: row.accent_color, logoUrl: row.logo_url };
+  return sanitizeBrand({ displayName: row.display_name, accentColor: row.accent_color, logoUrl: row.logo_url });
 }
 
 /** Validate (app/_lib/brand-config.ts) then upsert; returns the stored (cleaned) value. */

@@ -11,6 +11,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
+import { sealDecisionRecord, verifyDecisionChain } from "../decision-record-store.ts";
 import { ENTITY_KINDS, OPERATOR_ONLY_TABS, PREVIEWABLE_TABS, resolveEntityPreview, resolveTabPreview } from "./index.ts";
 
 const WS = "workspace";
@@ -53,4 +54,35 @@ test("pipeline preview carries the axis stages in board order with counts", asyn
     p.stages.reduce((a, s) => a + s.count, 0),
     "active equals the stage counts summed"
   );
+});
+
+// Kept LAST: it seals ~500 records into this file's throwaway chain.
+test("decisions preview reports the TRUE sealed total, not a capped page", async () => {
+  // The pane renders "Sealed N" directly above "chain ok · M". Both describe the SAME
+  // rows, so they must never disagree — and `sealed` used to be the length of a page
+  // capped at 500 while the chain census is the whole chain.
+  const start = verifyDecisionChain(WS).count;
+  for (let i = start; i < 510; i += 1) {
+    sealDecisionRecord(
+      {
+        kind: "auto_rejected",
+        actor: "auto:test",
+        policyVersion: "palette-preview-test",
+        candidateRef: `palette-preview-seal-${i}`,
+        rationale: "capped-page regression fixture",
+        reasonCode: "reject",
+        inputs: { i },
+      },
+      WS
+    );
+  }
+  const total = verifyDecisionChain(WS).count;
+  assert.ok(total > 500, `fixture must exceed the old 500 page cap, got ${total}`);
+
+  const p = await resolveTabPreview("decisions", WS, true);
+  assert.equal(p.view, "decisions");
+  if (p.view !== "decisions") return;
+  // Pre-fix: sealed === 500 (listDecisionRecords' limit) while chain.count === 510.
+  assert.equal(p.sealed, total, "sealed must be the chain census, not a capped page");
+  assert.equal(p.chain?.count, total);
 });

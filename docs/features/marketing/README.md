@@ -130,7 +130,14 @@ Conventions worth keeping:
   the module comment: framer's answer is wrong during SSR, so branching markup
   or initial styles on it fails hydration and re-renders the whole page on the
   client — for the visitors who asked for less work. The hero's confetti did
-  exactly that.
+  exactly that. Framer's hook also reads the query exactly once into `useState`
+  and never re-reads it, so a component on it ignores the preference being
+  turned on mid-session.
+  `spark/AboutCurve.test.ts` now enforces both halves over the whole
+  `app/landing/` tree: no file may import framer's `useReducedMotion`, and any
+  file containing a `repeat: Infinity` loop must gate it. Four pre-existing
+  holdouts are listed in that test's `KNOWN_FRAMER_HOOK_HOLDOUTS` — see
+  Known gaps.
 
 ## Navigation conventions
 
@@ -325,6 +332,33 @@ and `momentum` is `0` across the board until consecutive snapshots differ —
 
 ## Known gaps
 
+- **`landing.trust.human.body` overstates the human gate.** It reads "No
+  candidate is advanced, offered or rejected by the machine alone… That is by
+  design, not a setting." Rejection holds — `runScreenWave` refuses to commit
+  without a fresh, set-matching approval token (`screen-wave-approval.ts`).
+  The other two do not. `screenStageOutcome` (`_lib/pipeline-stages.ts`) moves
+  a fresh applicant `Accepted → Screened` unconditionally and `Screened →
+  Interview` on a clean AI verdict, applied with `actor: "system"`; and the
+  Settings → Hiring composer exposes per-stage `Auto`/`Human` gates, so
+  `screeningGate: "auto"` auto-ratifies a held review (`auto_advanced`) and
+  `offerGate: "auto"` extends the offer to the candidate unattended
+  (`offer_auto_extended`, `automation-run.ts`) — the composer even labels that
+  plan "No human gates, fully unattended". `HumanLoopArt`'s "What may run
+  unattended" panel compounds it by listing only screening / scheduling /
+  rejection. Fixing this is a copy change across four catalogs.
+- **`landing.hero.subtitle` and `landing.features.offer.body` promise candidate
+  onboarding that no longer exists.** They claim "onboarding started" and
+  "accepting fires the onboarding checklist automatically". The onboarding
+  module is retired — its tables are in `TENANCY_RETIRED_TABLES`
+  (`_lib/tenancy.ts`), nothing creates them, there is no `app/api/onboarding`,
+  and `POST /api/offer/[token]` on accept does exactly `→ Hired` plus the ATS
+  handoff. Also a four-catalog copy change.
+- Four landing components still read reduced motion through framer's hook
+  against the rule above: `spark/SectionRail.tsx`, `spark/FeatureSpotlight.tsx`,
+  `spark/market/parts.tsx` and `spark/market/CzMap.tsx`. The first three branch
+  only `initial`/`layoutId` inside a client-only subtree; `CzMap` branches
+  `initial={reduce ? false : { opacity: 0 }}` on a server-rendered node, which is
+  the inline-style hydration mismatch the rule exists to prevent.
 - `data/market_pulse.json` region vacancy counts sum to ~35 200 against a
   national total of ~38 600: postings with no `kraj` are unattributed. The hero
   states the true national figure; the map cannot be reconciled to it.

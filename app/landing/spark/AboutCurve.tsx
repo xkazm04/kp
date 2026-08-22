@@ -8,6 +8,7 @@ import Wordmark from "./Wordmark";
 import { LandingLangSwitch } from "./LandingLangSwitch";
 import { StepArt, type AboutStepKey } from "./about-art";
 import { ART_TYPE_SCALE } from "./tokens";
+import { useStillMotion } from "./useStillMotion";
 import { useTranslations } from "next-intl";
 import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 
@@ -94,6 +95,7 @@ function StepRow({ stepKey, color, n, index }: { stepKey: AboutStepKey; color: s
 export default function AboutCurve() {
   const t = useTranslations("aboutPage");
   const trackRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useStillMotion();
   const { scrollYProgress } = useScroll({ target: trackRef, offset: ["start center", "end end"] });
   const pathLength = useSpring(scrollYProgress, { stiffness: 120, damping: 30 });
   const onSignIn = () => void enterWorkspace();
@@ -127,9 +129,13 @@ export default function AboutCurve() {
           {t.rich("hero.title", { br: () => <br />, emph: coralEmph })}
         </h1>
         <p className="mx-auto mt-5 max-w-xl text-lg text-[#42606f]">{t("hero.subtitle")}</p>
+        {/* The scroll hint. `repeat: Infinity`, so it goes through useStillMotion
+            like every other loop on these pages — gating the `animate` prop, never
+            the markup, so the still version is a stopped mouse rather than a
+            missing one (see spark/useStillMotion.ts). */}
         <motion.div
           aria-hidden
-          animate={{ y: [0, 8, 0] }}
+          animate={reduceMotion ? undefined : { y: [0, 8, 0] }}
           transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
           className="mx-auto mt-10 h-10 w-6 rounded-full border-[3px] border-[#17202a]"
         >

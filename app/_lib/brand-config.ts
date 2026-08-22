@@ -152,16 +152,28 @@ export function sanitizeBrandName(value: unknown): string | null {
   return v || null;
 }
 
-/** An `https://` URL (clamped), else null — blocks `javascript:` / `data:` / other
+/** Longest storable logo URL. Comfortably past any sane CDN path, and a hard
+ *  REJECT threshold — never a truncation point (see below). */
+export const MAX_LOGO_URL = 500;
+
+/** An `https://` URL, else null — blocks `javascript:` / `data:` / other
  *  schemes from reaching an <img src>. The logo is browser-loaded, so self-host /
- *  air-gapped installs should host it on their own origin. */
+ *  air-gapped installs should host it on their own origin.
+ *
+ *  Over-length is REJECTED, not clamped. This used to `slice(0, 500)`, which turns a
+ *  600-char signed CDN URL (`…?X-Amz-Signature=…`) into a 500-char PREFIX: still a
+ *  syntactically valid https URL, so it stored and round-tripped happily while the
+ *  image 403s forever — and the editor reported a green "Saved" over a logo that can
+ *  never load, with no signal anywhere about why. A rejection returns null, which the
+ *  editor DOES render (the field comes back empty), so the refusal is visible. */
 export function sanitizeLogoUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const v = value.trim();
   if (!v) return null;
   try {
     const u = new URL(v);
-    return u.protocol === "https:" ? u.href.slice(0, 500) : null;
+    if (u.protocol !== "https:") return null;
+    return u.href.length > MAX_LOGO_URL ? null : u.href;
   } catch {
     return null;
   }
