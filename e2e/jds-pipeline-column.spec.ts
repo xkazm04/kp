@@ -64,11 +64,19 @@ test.describe("JD library — pipeline column", () => {
     // turned into a job at all.
     await page.goto("/?tab=library");
     await expect(page.locator("tbody tr").first()).toBeVisible();
-    const dashes = page.locator('tbody td[title]').filter({ hasText: "—" });
-    // Not asserting a count — the seeded library may legitimately have none —
-    // only that if any exist they carry the explanatory title, never a bare 0.
-    for (const cell of await dashes.all()) {
-      await expect(cell).toHaveAttribute("title", /no linked job/i);
+    // Bind on the TOOLTIP, not on the dash. The old selector was `tbody td[title]`
+    // filtered to "—", but no <td> in JdsLedgerRow carries a title — the tooltip
+    // lives on the span INSIDE the pipeline cell — so it matched nothing, the loop
+    // body never ran, and this test asserted nothing at all about the column.
+    // Locating by the tooltip first means a cell that regressed to rendering "0"
+    // is still found, and then fails on its text.
+    const unlinked = page.locator('tbody td span[title^="No linked job"]');
+    const count = await unlinked.count();
+    // Still not asserting a count — the seeded library may legitimately have no
+    // analysis-only JD — but every cell that IS one must read as a dash. A "0"
+    // here would rank a never-ingested JD alongside a live-but-empty role.
+    for (let i = 0; i < count; i += 1) {
+      await expect(unlinked.nth(i)).toHaveText("—");
     }
   });
 });

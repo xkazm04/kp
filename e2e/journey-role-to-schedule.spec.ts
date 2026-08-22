@@ -311,6 +311,27 @@ test("candidate withdraws — terminal card renders and passes axe, slot is free
     const closedCard = candidatePage.getByRole("status").filter({ hasText: "This interview is no longer open" });
     await expect(closedCard).toBeVisible({ timeout: 30_000 });
 
+    // The card is the CLAIM; this is the fact behind it. "…slot is freed" was in
+    // this test's name but nowhere in its assertions, so a withdrawal that
+    // rendered the terminal card while leaving the invite confirmed (or leaving
+    // slot_at set) shipped green — and the header's "so repeated runs don't drain
+    // the 21-day horizon" quietly stopped being true. declineScheduleInvite
+    // (app/_lib/schedule-store.ts) takes the status terminal AND clears slot_at;
+    // the public token read projects both, so the candidate's own context can
+    // check it with no recruiter session.
+    const after = await candidatePage.request.get(`/api/schedule/${inviteToken}`);
+    expect(after.ok(), `GET /api/schedule/[token] responded ${after.status()}`).toBe(true);
+    const terminal = (await after.json()) as {
+      closed?: boolean;
+      closedReason?: string;
+      invite?: { status?: string; slotAt?: string | null };
+    };
+    expect(terminal.closed, "a withdrawn invite must read as a closed capability").toBe(true);
+    // 'declined', not 'expired' — the link was minted seconds ago in this run.
+    expect(terminal.closedReason, "withdrawal is the terminal 'declined' fate").toBe("declined");
+    expect(terminal.invite?.status).toBe("declined");
+    expect(terminal.invite?.slotAt, "withdrawing must release the booked time").toBeNull();
+
     // a11y sweep #3 — the dead-link/terminal state.
     await expectNoSeriousA11yViolations(candidatePage);
   } finally {

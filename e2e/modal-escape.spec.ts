@@ -50,17 +50,39 @@ test.describe("Modal — Escape closes regardless of focus", () => {
     await expect(dialog).toBeHidden();
   });
 
-  test("Escape closes the modal from its initial auto-focused control", async ({ page }) => {
+  test("Escape closes from the auto-focused control, and focus returns to the trigger", async ({ page }) => {
+    const trigger = page.getByRole("button", { name: "Rules", exact: true });
     const dialog = await openRulesModal(page);
+
+    // Opening must move focus INTO the dialog (useDialogA11y focuses the first
+    // focusable, else the container). Without this the "from its auto-focused
+    // control" half of the name is unproven — the document-level key handler
+    // would answer the keypress from anywhere.
+    await expect
+      .poll(() => page.evaluate(() => !!document.querySelector('[role="dialog"]')?.contains(document.activeElement)))
+      .toBe(true);
+
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
+
+    // …and closing RESTORES focus to the control that opened it (the unmount
+    // cleanup in useDialogA11y). Asserting only that the dialog went away lets a
+    // dropped restore ship green: the keyboard user is silently returned to
+    // <body> and their next Tab starts over at the top of the page.
+    await expect(trigger).toBeFocused();
   });
 
   test("backdrop click still closes the modal (existing dismissal preserved)", async ({ page }) => {
     const dialog = await openRulesModal(page);
-    // The full-bleed backdrop is the first "Close"-labelled control behind the
-    // dialog; click its top-left corner, clear of the centered panel.
-    await page.getByRole("button", { name: "Close" }).first().click({ position: { x: 5, y: 5 } });
+    // The scrim is the dialog's immediately preceding sibling: a full-bleed
+    // aria-hidden <div> carrying onClick={onClose} (Modal.tsx). It USED to be a
+    // <button aria-label="Close">, and this test still looked it up that way —
+    // which now resolves to the header X instead, so backdrop dismissal could be
+    // deleted outright and this test would keep passing by clicking the X.
+    const scrim = dialog.locator("xpath=preceding-sibling::div[1]");
+    await expect(scrim).toHaveAttribute("aria-hidden", "true");
+    // Top-left corner: full-bleed, so clear of the centered panel.
+    await scrim.click({ position: { x: 5, y: 5 } });
     await expect(dialog).toBeHidden();
   });
 });

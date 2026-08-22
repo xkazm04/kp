@@ -34,11 +34,21 @@ test.describe("Activity — row detail", () => {
     await expect(dialog.getByText(/tokens in\/out/i).first()).toBeVisible();
     await expect(dialog.getByText(/answered by/i).first()).toBeVisible();
 
-    // And the output half states one of its three honest outcomes rather than
-    // rendering an empty region.
-    await expect(
-      dialog.getByText(/no output was stored|aged out of the task history|without storing any output|what it produced/i).first()
-    ).toBeVisible();
+    // And the output half SAYS something rather than rendering an empty region.
+    //
+    // This used to accept /…|what it produced/ — which is the section's own
+    // always-rendered <h3> (activity.detailOutput). Matching it made the
+    // assertion unfailable: an output half that rendered nothing under its
+    // heading, or a spinner that never resolved (the two failures this file's
+    // header calls out by name), passed on the heading alone. So strip the
+    // heading and require the BODY to be non-empty — one of the three honest
+    // degradations, a failed run's error, or a real resolved result.
+    const outputSection = dialog.locator("section").filter({ hasText: /what it produced/i }).first();
+    await expect(outputSection).toBeVisible();
+    await expect(async () => {
+      const body = (await outputSection.innerText()).replace(/what it produced/i, "").trim();
+      expect(body, "the output half rendered its heading and nothing else").not.toBe("");
+    }).toPass({ timeout: 20_000 });
   });
 
   test("Escape closes the detail", async ({ page }) => {
