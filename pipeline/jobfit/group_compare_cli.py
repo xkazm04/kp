@@ -36,7 +36,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Comparative summary across a role's candidates.")
     parser.add_argument("--input-json", type=Path, help="Comparison context JSON. Reads stdin if omitted.")
     parser.add_argument("--no-llm", action="store_true", help="Force the deterministic synthesis.")
-    parser.add_argument("--lang", default="en", help="Output locale for the narrative (en, cs).")
+    parser.add_argument(
+        "--lang",
+        default="en",
+        help="Output locale for the narrative — any locale in i18n.LANG_NAMES (en, cs, de, fr). "
+        "The deterministic synthesis is English-only whatever is requested.",
+    )
     args = parser.parse_args(argv)
 
     try:

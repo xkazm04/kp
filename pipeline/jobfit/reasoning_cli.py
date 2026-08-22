@@ -35,10 +35,13 @@ def main(argv: list[str] | None = None) -> int:
         help="JSON array of Job records used in addition to the corpus — lets a newly-ingested DB --job-id resolve instead of raising 'job not found'.",
     )
     parser.add_argument("--no-llm", action="store_true", help="Force the deterministic template.")
-    # MAT1 — output locale for the verdict/strengths/gaps narrative (en|cs); the
-    # verdict's canonical code value stays English (coerced downstream). The
-    # deterministic fallback is English-only.
-    parser.add_argument("--lang", type=str, default="en", help="Narrative output locale (en, cs).")
+    # MAT1 — output locale for the verdict/strengths/gaps narrative; the verdict's
+    # canonical code value stays English (coerced downstream). Every locale in
+    # i18n.LANG_NAMES (en, cs, de, fr) reaches the prompt as its OWN language — the
+    # help used to say "(en, cs)", which is what still has app/_lib/reasoning-run.ts
+    # collapsing a de/fr request to en before it ever gets here.
+    # The deterministic fallback remains English-only whatever is requested.
+    parser.add_argument("--lang", type=str, default="en", help="Narrative output locale (en, cs, de, fr).")
     args = parser.parse_args(argv)
     from .i18n import normalize_lang
 

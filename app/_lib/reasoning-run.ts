@@ -8,7 +8,7 @@ import { resolveMatchInput, materializeMatchInput, type MatchInputBody } from ".
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { computeCorpusFingerprint } from "./automation-cache-key";
 import { reasoningCacheKey } from "./reasoning-cache-key";
-import { isCacheableReasoning } from "./reasoning-cache-policy";
+import { isCacheableReasoning, narrativeLangFor } from "./reasoning-cache-policy";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { isLocale } from "@/i18n/locales";
 
@@ -136,7 +136,13 @@ export async function runReasoning(
     if (isCacheableReasoning(data)) {
       storePromptCache(hash, data, REASONING_PROMPT_VERSION, CACHE_TTL_HOURS);
     }
-    return { ...data, cached: false, narrativeLang: engineLang };
+    // narrativeLang must state the language the text was actually PRODUCED in.
+    // The deterministic fallback above (--no-llm, or a provider outage) is
+    // English-only by construction, so stamping the requested locale on it
+    // suppressed the panel's honest "shown in English" note. The cache-HIT
+    // branch keeps engineLang unconditionally and is correct: only "llm"
+    // payloads are ever stored (isCacheableReasoning).
+    return { ...data, cached: false, narrativeLang: narrativeLangFor(data, engineLang) };
   } finally {
     if (workdir) await cleanupWorkdir(workdir);
   }

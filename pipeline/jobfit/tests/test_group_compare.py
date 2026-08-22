@@ -151,6 +151,152 @@ class CoverageMetricTest(unittest.TestCase):
         self.assertNotIn("3/5", _all_text(deterministic_comparison(ctx)))
 
 
+class UnmeasuredCandidateTest(unittest.TestCase):
+    """A candidate the recruiter ranker could not resolve is still part of the
+    compared field, but arrives with ``total: null`` and empty matched/missingSkills
+    (group-eval-run.ts: a manually added pipeline row, or one whose profile AND
+    analysis are gone). Absent is not zero and not "no gaps" — the synthesis must
+    never rank, crown, or credit anyone on a measurement that was never taken."""
+
+    # Bára was never scored; Alice was, and covers 3 of 4 must-haves.
+    MIXED = {
+        "roleTitle": "Backend Engineer",
+        "candidates": [
+            {"label": "Bára", "archetype": "bau", "total": None, "skills": None,
+             "matchedSkills": [], "missingSkills": []},
+            {"label": "Alice", "archetype": "bau", "total": 74, "skills": 70,
+             "matchedSkills": ["Python", "SQL", "Docker"], "missingSkills": ["Kafka"]},
+        ],
+    }
+
+    def test_unscored_candidate_is_not_crowned_lead(self) -> None:
+        c = deterministic_comparison(self.MIXED)
+        # Pre-fix `sorted(key=lambda c: c.get("total") or 0)` tied Bára's null with a
+        # real 0, and a stable sort left her first → "**Bára** leads 2 candidates …
+        # on overall fit (**?**)" plus "Advance **Bára** first".
+        self.assertIn("Alice", c["headline"])
+        self.assertNotIn("Bára", c["headline"])
+        self.assertNotIn("?", c["headline"])
+        self.assertIn("Alice", c["recommendation"])
+        self.assertNotIn("Bára", c["recommendation"])
+        # …and with only one candidate measured there is still no one to lead: the
+        # rivals were never scored, so nobody was out-ranked.
+        self.assertNotIn("leads", c["headline"])
+        self.assertIn("only scored candidate", c["headline"])
+
+    def test_unscored_candidate_does_not_win_must_have_coverage(self) -> None:
+        points = deterministic_comparison(self.MIXED)["keyPoints"]
+        cov = [p for p in points if "must-have" in p]
+        self.assertEqual(len(cov), 1, points)
+        # Pre-fix the field-wide `min` read Bára's EMPTY missingSkills as 0 unmet and
+        # credited the one person nobody had checked with "**Bára** has **no unmet
+        # must-haves**", beating Alice's genuine 3-of-4.
+        self.assertIn("Alice", cov[0])
+        self.assertNotIn("Bára", cov[0])
+        self.assertIn("not scored on skills", cov[0])
+
+    def test_unscored_candidate_is_disclosed_not_dropped(self) -> None:
+        text = _all_text(deterministic_comparison(self.MIXED))
+        self.assertIn("Bára", text)
+        self.assertIn("no fit score", text)
+
+    def test_unscored_candidate_is_not_called_the_weakest_fit(self) -> None:
+        points = deterministic_comparison(self.MIXED)["keyPoints"]
+        self.assertFalse([p for p in points if "weakest fit" in p], points)
+
+    def test_no_superlative_when_only_one_candidate_carries_the_dimension(self) -> None:
+        # Dana is the ONLY candidate with a skills score, so "**Dana** has the
+        # strongest skills match (**90**)" credits her with beating a field nobody
+        # measured — the same absent-vs-empty conflation, on a dimension.
+        ctx = {
+            "roleTitle": "Backend Engineer",
+            "candidates": [
+                {"label": "Alice", "archetype": "bau", "total": 74, "skills": None},
+                {"label": "Dana", "archetype": "bau", "total": 60, "skills": 90},
+            ],
+        }
+        points = deterministic_comparison(ctx)["keyPoints"]
+        self.assertFalse([p for p in points if "strongest skills" in p], points)
+        # Non-vacuity: with both scored on the dimension the superlative still lands.
+        ctx["candidates"][0]["skills"] = 55  # type: ignore[index]
+        points = deterministic_comparison(ctx)["keyPoints"]
+        self.assertTrue([p for p in points if "strongest skills" in p and "Dana" in p], points)
+
+    def test_all_unscored_field_crowns_nobody(self) -> None:
+        ctx = {
+            "roleTitle": "Backend Engineer",
+            "candidates": [
+                {"label": "Bára", "archetype": "bau", "total": None},
+                {"label": "Cyril", "archetype": "bau", "total": None},
+            ],
+        }
+        c = deterministic_comparison(ctx)
+        # group-eval-run's own summary already says "unscored" for this field; the
+        # narrative renders INSTEAD of it, so it must not re-crown a lead with "?".
+        self.assertNotIn("leads", c["headline"])
+        self.assertNotIn("?", c["headline"])
+        self.assertIn("comparable fit score", c["headline"])
+        self.assertNotIn("Advance", c["recommendation"])
+
+    def test_a_real_zero_is_still_a_measurement(self) -> None:
+        # None-vs-0 must not collapse the other way either: a genuine 0 is scored,
+        # so it ranks, is disclosed as weakest, and is never listed as "no fit score".
+        ctx = {
+            "roleTitle": "Backend Engineer",
+            "candidates": [
+                {"label": "Zoe", "archetype": "bau", "total": 0},
+                {"label": "Alice", "archetype": "bau", "total": 74},
+            ],
+        }
+        c = deterministic_comparison(ctx)
+        self.assertIn("Alice", c["headline"])
+        self.assertNotIn("no fit score", _all_text(c))
+        self.assertTrue([p for p in c["keyPoints"] if "weakest fit" in p and "Zoe" in p])
+
+
+class SingleCandidateTest(unittest.TestCase):
+    """GROUP_EVAL_MIN_COHORT (app/_lib/group-eval-cohort.ts) says a comparative
+    verdict needs two candidates; the caller now gates on it, but the module must not
+    hand a crown to any other caller either — its n==1 branch used to emit
+    "**Ada** leads 1 candidate … on overall fit (**90**)" and "Advance **Ada** — the
+    only candidate in this role", exactly the claim the floor had refused."""
+
+    SOLO = {
+        "roleTitle": "Backend Engineer",
+        "candidates": [{"label": "Ada", "archetype": "bau", "total": 90, "skills": 88,
+                        "matchedSkills": ["Python"], "missingSkills": []}],
+    }
+
+    def test_single_candidate_makes_no_leadership_claim(self) -> None:
+        c = deterministic_comparison(self.SOLO)
+        self.assertIn("Ada", c["headline"])
+        self.assertNotIn("leads", c["headline"])
+        self.assertIn("only candidate", c["headline"])
+        self.assertIn("nothing to compare", c["headline"])
+
+    def test_single_candidate_recommendation_does_not_crown(self) -> None:
+        rec = deterministic_comparison(self.SOLO)["recommendation"]
+        self.assertNotIn("Advance", rec)
+        self.assertIn("Ada", rec)
+
+    def test_single_candidate_states_no_comparative_key_point(self) -> None:
+        points = deterministic_comparison(self.SOLO)["keyPoints"]
+        for banned in ("strongest skills", "Closest alternative", "fewest", "weakest fit"):
+            self.assertFalse([p for p in points if banned in p], points)
+        # …but the non-comparative fact about them still lands.
+        self.assertTrue([p for p in points if "no unmet must-haves" in p], points)
+
+
+class PromptHonestyTest(unittest.TestCase):
+    def test_prompt_tells_the_model_null_means_unmeasured(self) -> None:
+        # The LLM path sees the same nulls the deterministic synthesis now guards.
+        from pipeline.jobfit.group_compare import build_prompt
+
+        prompt = build_prompt(UnmeasuredCandidateTest.MIXED)
+        self.assertIn("NEVER MEASURED", prompt)
+        self.assertIn("not a zero", prompt)
+
+
 class GenerateFallbackTest(unittest.TestCase):
     def test_no_provider_is_deterministic(self) -> None:
         comparison, source = generate(CONTEXT, provider=None)
@@ -186,10 +332,26 @@ class GenerateFallbackTest(unittest.TestCase):
                 return {"headline": "x"}  # no keyPoints → backfill from deterministic
 
         comparison, source = generate(CONTEXT, provider=Partial())
-        # Source stays 'llm' (the call succeeded) but the body is the deterministic synthesis.
-        self.assertEqual(source, "llm")
+        # The call succeeded, but the answer ON THE WIRE is the deterministic
+        # synthesis — every word of it — so the source must say "deterministic".
+        # Reporting "llm" was a green lie the recruiter could see: the Decisions
+        # modal stamps the AI-backed pill straight off comparisonSource === "llm"
+        # (useGroupEval.ts), and group_compare_cli's emit_deterministic ledger
+        # entry (which keys off the same value) never fired for this path.
+        # match_reasoning._coerce fixed the identical bug on the reasoning side.
+        self.assertEqual(source, "deterministic")
         self.assertIn("Alice", comparison["headline"])
         self.assertTrue(comparison["keyPoints"])
+
+    def test_llm_source_survives_a_complete_payload(self) -> None:
+        # Non-vacuity for the assertion above: a payload the model really did write
+        # is still reported as "llm" — the fix narrows the claim, it doesn't erase it.
+        class Ok:
+            def complete_json(self, *_args, **_kwargs):
+                return {"headline": "**Alice** leads.", "keyPoints": ["**Alice** covers the musts."]}
+
+        _comparison, source = generate(CONTEXT, provider=Ok())
+        self.assertEqual(source, "llm")
 
     def test_prompt_version_is_stamped(self) -> None:
         self.assertTrue(GROUP_COMPARE_PROMPT_VERSION)

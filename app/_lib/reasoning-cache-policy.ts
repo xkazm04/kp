@@ -22,3 +22,19 @@ export function isCacheableReasoning(payload: unknown): boolean {
     (payload as { source?: unknown }).source === CACHEABLE_REASONING_SOURCE
   );
 }
+
+// The language the rationale was actually PRODUCED in — which is not always the
+// one that was asked for. The deterministic template is English-only by
+// construction (match_reasoning.py / reasoning_cli.py both say so), so a `cs`
+// request that falls back — no provider configured, a provider outage, or past
+// the ai_candidates allowance (--no-llm) — comes back as English prose.
+//
+// Stamping the REQUESTED locale on it made MatchReasoningPanel's honest "shown
+// in {language}" note disappear, because that note fires on
+// `narrativeLang !== locale`: the one field carrying the locale honesty of this
+// surface was computed from the ask rather than from the answer, so English
+// rendered as if it were the Czech narrative. Only an authoritative LLM answer
+// is in the engine language.
+export function narrativeLangFor(payload: unknown, engineLang: string): string {
+  return isCacheableReasoning(payload) ? engineLang : "en";
+}

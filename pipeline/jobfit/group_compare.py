@@ -19,7 +19,7 @@ from . import registry
 from .i18n import language_directive
 from .market_config import ACTIVE_MARKET, MarketConfig
 
-GROUP_COMPARE_PROMPT_VERSION = "group-compare-v2"
+GROUP_COMPARE_PROMPT_VERSION = "group-compare-v3"
 
 
 def _system_prompt(market: MarketConfig = ACTIVE_MARKET) -> str:
@@ -62,7 +62,13 @@ def build_prompt(context: dict[str, Any]) -> str:
         "coverage, budget fit when a candidate's salaryExpectation sits outside roleSalaryBand, "
         "and a standout strength or risk; each point bolds its decisive fact),\n"
         '  "recommendation": str (ONE sentence — the concrete next action) }\n'
-        "Name candidates, cite the numbers, be honest. JSON only."
+        "Name candidates, cite the numbers, be honest.\n"
+        "A null score (total/skills/career/personal) means the candidate was NEVER MEASURED on "
+        "that dimension — it is not a zero and not a low score. Never rank, crown, or compare a "
+        "candidate on a null value, and never call anyone the strongest/weakest on a dimension "
+        "fewer than two candidates were scored on; say the score is missing instead. An empty "
+        "matchedSkills/missingSkills means the same: not scored on skills, NOT 'no gaps'.\n"
+        "JSON only."
     )
 
 
@@ -77,30 +83,71 @@ def _bold(text: str) -> str:
     return f"**{text}**"
 
 
+def _num(value: Any) -> float | None:
+    """A dimension's value, or ``None`` when the candidate was never MEASURED on it.
+
+    An absent score is not a zero and not a low score. group-eval-run passes
+    ``total: null`` for every candidate the recruiter ranker could not resolve (a
+    manually added pipeline row with no candidateId, a candidateId whose profile AND
+    analysis are both gone, a row recruiter_cli skipped) and ``skills/career/personal:
+    null`` whenever there is no recruiter breakdown at all — and those candidates are
+    still part of the compared field. The old ``c.get("total") or 0`` folded absent
+    into a real 0, so an unscored candidate ranked, could be crowned lead, and had
+    their fit printed as "?" — the same absent-vs-empty conflation the TS half fixed
+    for differentiators. ``bool`` is rejected explicitly (it is an ``int`` subclass).
+    """
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _label(c: dict[str, Any]) -> str:
+    return str(c.get("label"))
+
+
 def deterministic_comparison(context: dict[str, Any]) -> dict[str, Any]:
-    """Always-useful, bold-formatted comparison synthesized from structured deltas."""
+    """Always-useful, bold-formatted comparison synthesized from structured deltas.
+
+    Every claim is bounded by what was actually MEASURED: an unscored candidate is
+    disclosed, never ranked or crowned; a superlative ("the strongest skills match",
+    "the fewest unmet must-haves") needs two measured candidates to be a comparison at
+    all; and a one-candidate field asserts no leadership (the same
+    GROUP_EVAL_MIN_COHORT floor app/_lib/group-eval-cohort.ts enforces on the caller
+    side — mirrored here so the module cannot hand a crown to any other caller).
+    """
     role = str(context.get("roleTitle") or "the role")
-    cands = sorted(_candidates(context), key=lambda c: c.get("total") or 0, reverse=True)
-    if not cands:
+    field = _candidates(context)
+    if not field:
         return {"headline": f"No candidates to compare for {role}.", "keyPoints": [], "recommendation": ""}
 
-    n = len(cands)
-    top = cands[0]
-    headline = (
-        f"{_bold(str(top.get('label')))} leads {n} candidate{'s' if n != 1 else ''} "
-        f"for {role} on overall fit ({_bold(_fmt(top.get('total')))})."
+    # Rank the MEASURED candidates only; the unscored keep their input order at the
+    # bottom and are disclosed as a key point instead of silently ranking as 0.
+    scored = sorted(
+        (c for c in field if _num(c.get("total")) is not None),
+        key=lambda c: _num(c.get("total")) or 0.0,
+        reverse=True,
     )
+    unscored = [c for c in field if _num(c.get("total")) is None]
+    cands = scored + unscored
+    n = len(cands)
+    top = scored[0] if scored else None
 
     points: list[str] = []
 
     def leader(key: str) -> dict[str, Any] | None:
-        scored = [c for c in cands if isinstance(c.get(key), (int, float))]
-        return max(scored, key=lambda c: c.get(key)) if scored else None
+        """The dimension leader — but only when at least TWO candidates carry the
+        dimension. "X has the strongest skills match" is a claim about the field, and
+        a field of one is not a comparison: with the rivals unmeasured on that
+        dimension the superlative credits X with beating nobody."""
+        dim = [c for c in cands if _num(c.get(key)) is not None]
+        if len(dim) < 2:
+            return None
+        return max(dim, key=lambda c: _num(c.get(key)) or 0.0)
 
     skills_leader = leader("skills")
-    if skills_leader and skills_leader.get("label") != top.get("label"):
+    if skills_leader and (top is None or _label(skills_leader) != _label(top)):
         points.append(
-            f"{_bold(str(skills_leader.get('label')))} has the strongest skills match "
+            f"{_bold(_label(skills_leader))} has the strongest skills match "
             f"({_bold(_fmt(skills_leader.get('skills')))})."
         )
 
@@ -120,44 +167,100 @@ def deterministic_comparison(context: dict[str, Any]) -> dict[str, Any]:
     def matched_count(c: dict[str, Any]) -> int:
         return len(c.get("matchedSkills") or [])
 
-    best_cov = min(cands, key=lambda c: (unmet_musts(c), -matched_count(c)))
-    # Emit the point only when the field carries real skill data (the old ``if bt:``
-    # guard) — a job-less role with no matched/missing skills makes no coverage claim.
-    if any(matched_count(c) or unmet_musts(c) for c in cands):
+    # …and it must rank only over candidates who were SCORED on skills. Both lists are
+    # empty for a candidate the ranker never resolved, which reads as "0 unmet
+    # must-haves" — so the old field-wide ``min`` handed the coverage crown to the one
+    # person nobody had checked ("**Bára** has **no unmet must-haves**" about a
+    # manually added row with no profile), beating a candidate who genuinely covered
+    # 3 of 4. The whole-field guard below could not catch it: it passes as soon as ONE
+    # other candidate carries skill data.
+    covered = [c for c in cands if matched_count(c) or unmet_musts(c)]
+    if covered:
+        best_cov = min(covered, key=lambda c: (unmet_musts(c), -matched_count(c)))
         gap = unmet_musts(best_cov)
+        name = _bold(_label(best_cov))
         if gap == 0:
-            points.append(f"{_bold(str(best_cov.get('label')))} has **no unmet must-haves**.")
-        else:
-            points.append(
-                f"{_bold(str(best_cov.get('label')))} has the fewest unmet must-haves "
-                f"({_bold(f'{gap} missing')})."
-            )
+            claim = f"{name} has **no unmet must-haves**"
+        elif len(covered) >= 2:
+            claim = f"{name} has the fewest unmet must-haves ({_bold(f'{gap} missing')})"
+        else:  # one datum is not a "fewest" — state the gap without the superlative
+            claim = f"{name} has {_bold(f'{gap} unmet must-have' + ('' if gap == 1 else 's'))}"
+        if len(covered) < n:
+            claim += " — the other candidates were not scored on skills"
+        points.append(claim + ".")
 
-    if n > 1:
-        runner = cands[1]
-        points.append(f"Closest alternative is {_bold(str(runner.get('label')))} (fit {_bold(_fmt(runner.get('total')))}).")
+    if len(scored) > 1:
+        runner = scored[1]
+        points.append(f"Closest alternative is {_bold(_label(runner))} (fit {_bold(_fmt(runner.get('total')))}).")
+
+    if unscored and scored:
+        names = ", ".join(_label(c) for c in unscored)
+        verb = "carries" if len(unscored) == 1 else "carry"
+        points.append(f"{_bold(names)} {verb} **no fit score** — not ranked in this comparison.")
 
     early = [c for c in cands if c.get("archetype") in _EARLY_CAREER]
     if early:
-        names = ", ".join(str(c.get("label")) for c in early)
+        names = ", ".join(_label(c) for c in early)
         verb = "is" if len(early) == 1 else "are"
         points.append(f"{_bold(names)} {verb} **early-career** — judge on potential and trajectory on a separate track.")
 
-    weakest = cands[-1]
-    if (weakest.get("total") or 0) < 55 and weakest.get("label") != top.get("label"):
-        points.append(
-            f"{_bold(str(weakest.get('label')))} is the weakest fit ({_bold(_fmt(weakest.get('total')))}) — confirm must-haves at interview."
-        )
+    # "Weakest fit" ranks the field, so it is claimed only about a MEASURED candidate
+    # in a measured field — an unscored candidate used to land here (fit "?") purely
+    # because absent read as 0.
+    if len(scored) > 1:
+        weakest = scored[-1]
+        if (_num(weakest.get("total")) or 0.0) < 55 and _label(weakest) != _label(top):
+            points.append(
+                f"{_bold(_label(weakest))} is the weakest fit ({_bold(_fmt(weakest.get('total')))}) — confirm must-haves at interview."
+            )
 
-    if n > 1:
-        recommendation = f"Advance {_bold(str(top.get('label')))} first; keep the rest warm pending interview."
+    if n == 1:
+        solo = cands[0]
+        fit = f" (fit {_bold(_fmt(solo.get('total')))})" if _num(solo.get("total")) is not None else ""
+        headline = f"{_bold(_label(solo))} is the {_bold('only candidate')} for {role}{fit} — nothing to compare."
+        recommendation = f"Assess {_bold(_label(solo))} on their own merits; one candidate is not a comparison."
+    elif top is None:
+        headline = f"None of the {n} candidates for {role} carries a {_bold('comparable fit score')}."
+        recommendation = "Score the field before ranking anyone — no candidate here has a fit score to compare."
+    elif len(scored) == n:
+        headline = (
+            f"{_bold(_label(top))} leads {n} candidates "
+            f"for {role} on overall fit ({_bold(_fmt(top.get('total')))})."
+        )
+        recommendation = f"Advance {_bold(_label(top))} first; keep the rest warm pending interview."
+    elif len(scored) == 1:
+        # "Leads" over a field of one measured candidate is the n==1 crown wearing a
+        # bigger cohort: the rivals were never scored, so nobody was out-ranked.
+        headline = (
+            f"{_bold(_label(top))} is the {_bold('only scored candidate')} of {n} "
+            f"for {role} (fit {_bold(_fmt(top.get('total')))})."
+        )
+        recommendation = (
+            f"Advance {_bold(_label(top))} — the only candidate with a fit score; "
+            "score the rest before ruling them out."
+        )
     else:
-        recommendation = f"Advance {_bold(str(top.get('label')))} — the only candidate in this role."
+        headline = (
+            f"{_bold(_label(top))} leads the {len(scored)} scored of {n} candidates "
+            f"for {role} on overall fit ({_bold(_fmt(top.get('total')))})."
+        )
+        recommendation = f"Advance {_bold(_label(top))} first; keep the rest warm pending interview."
 
     return {"headline": headline, "keyPoints": points, "recommendation": recommendation}
 
 
-def _coerce(payload: Any, context: dict[str, Any]) -> dict[str, Any]:
+def _coerce(payload: Any, context: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    """Validate the model payload; returns (comparison, degraded).
+
+    ``degraded`` is True when the answer on the wire is the deterministic synthesis
+    rather than the model's — the caller reports that as source="deterministic". The
+    LLM call succeeding is not the same as the LLM writing the answer: an
+    under-delivered payload (no keyPoints) is replaced WHOLESALE here, and reporting
+    "llm" for it billed the template's words to the model. That lie is user-visible —
+    the Decisions modal's AiVerdict pill reads comparisonSource === "llm" and stamps
+    template prose "AI-backed" (useGroupEval.ts) — and it also suppressed the CLI's
+    ``emit_deterministic`` ledger entry, so the fallback traffic stayed invisible.
+    Mirrors match_reasoning._coerce, which fixed the identical green lie."""
     if isinstance(payload, dict):
         headline = str(payload.get("headline") or "").strip()
         raw_points = payload.get("keyPoints")
@@ -168,8 +271,8 @@ def _coerce(payload: Any, context: dict[str, Any]) -> dict[str, Any]:
         # A usable answer needs at least a headline and one comparative point;
         # otherwise backfill the whole thing from the deterministic synthesis.
         if headline and key_points:
-            return {"headline": headline, "keyPoints": key_points, "recommendation": recommendation}
-    return deterministic_comparison(context)
+            return {"headline": headline, "keyPoints": key_points, "recommendation": recommendation}, False
+    return deterministic_comparison(context), True
 
 
 def generate(
@@ -188,6 +291,10 @@ def generate(
     try:
         prompt = f"{build_prompt(context)}\n\n{language_directive(lang)}"
         payload = provider.complete_json(prompt, system=_system_prompt(market))
-        return _coerce(payload, context), "llm"
+        comparison, degraded = _coerce(payload, context)
+        # A backfilled comparison IS the deterministic synthesis — say so instead of
+        # billing the template's words to the model (the tokens were spent, but the
+        # answer on the wire is not the model's).
+        return comparison, ("deterministic" if degraded else "llm")
     except Exception:
         return deterministic_comparison(context), "deterministic"
