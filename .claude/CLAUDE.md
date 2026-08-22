@@ -214,3 +214,10 @@ This project has a machine-readable context map at `context-map.json` (repo root
 
 The map is validated on each export: dangling `filePaths` (files no longer on disk) are pruned from the published map, and the `audit` block reports any remaining drift (`staleContexts`, `missingFiles`, `unresolvedCrossRefs`) alongside a git `provenance` stamp so you can judge staleness against the current commit — so treat a resolving reference as trustworthy. Regenerate from Vibeman rather than hand-editing; a context can be `pinned` to survive a full rebuild.
 <!-- vibeman:context-map:end -->
+
+## AI registry (knowledge + skills)
+
+This repo is wired to the organization's AI registry (github:xkazm04/ai-registry; local sibling checkout `../ai-registry`).
+
+- **Knowledge**: this repo consumes the `recruiting` and `software-engineering` bundle(s). Before a product, architecture or domain decision in those areas, run `/consult <topic>` - it reads the relevant subjects (golden path + techniques) and logs the consult to `.ai/consults.jsonl` (gitignored).
+- **Skills**: shared skills come from the `ai-registry` plugin marketplace, declared in `.claude/settings.json` (`enabledPlugins`). Do not copy a registry skill into `.claude/skills/` - only project-specific skills live there. Update with `claude plugin update <skill>@ai-registry`. Project-specific configuration for a registry skill lives in its committed overlay (e.g. `.claude/perfect/config.md`).

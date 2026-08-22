@@ -15,5 +15,23 @@
         ]
       }
     ]
+  },
+  "extraKnownMarketplaces": {
+    "ai-registry": {
+      "source": {
+        "source": "github",
+        "repo": "xkazm04/ai-registry"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "i18n-translate@ai-registry": true,
+    "perfect@ai-registry": true,
+    "project-populate@ai-registry": true,
+    "scan-sweep@ai-registry": true,
+    "ship-loop@ai-registry": true,
+    "tiger@ai-registry": true,
+    "uat@ai-registry": true,
+    "consult@ai-registry": true
   }
 }

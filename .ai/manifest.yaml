@@ -1,0 +1,17 @@
+# .ai/manifest.yaml - the agent-facing contract for this repo (ai-manifest spec; the
+# capability blocks can be added later - unknown/missing fields are ignored by readers).
+schema: ai-manifest
+schemaVersion: 0.1.0
+generatedAt: "2026-08-22"
+
+repo:
+  name: kp
+  purpose: "A self-hostable hiring workspace: screening behind human approval gates, work samples, voice interviews"
+
+# The organization's AI registry - knowledge bundles this repo consumes and the skill
+# marketplace it installs from. Unknown fields MUST be ignored by a reader.
+registry:
+  remote: github:xkazm04/ai-registry
+  local: ../ai-registry
+knowledge:
+  domains: [recruiting, software-engineering]

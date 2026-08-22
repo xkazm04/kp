@@ -71,3 +71,6 @@ data/piper/
 /.claude/ship-loop/
 /docs/product/competitor-talentpilot.md
 /docs/product/coverage-plan.md
+
+# /consult skill log (counts reach the ai-registry signals lane; the log itself stays local)
+.ai/consults.jsonl
