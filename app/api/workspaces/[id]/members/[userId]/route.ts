@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { callerDelegationCeiling, currentUser, requireWorkspaceCapability } from "@/app/_lib/auth/current-user";
 import { DEFAULT_ORG_ID } from "@/app/_lib/db/organizations";
 import { getUserById } from "@/app/_lib/db/users";
-import { addMemberToWorkspace, removeMemberFromWorkspace, type MemberOpResult } from "@/app/_lib/org-service";
+import { getMembership } from "@/app/_lib/db/memberships";
+import { addMemberToWorkspace, changeMemberRole, removeMemberFromWorkspace, type MemberOpResult } from "@/app/_lib/org-service";
 import { canAssignRole, isMemberRole } from "@/app/_lib/auth/roles";
 
 // One person's membership on one team (P2) — the write path behind the Workspaces
@@ -13,9 +14,11 @@ import { canAssignRole, isMemberRole } from "@/app/_lib/auth/roles";
 //        survive — deleting the account is DELETE /api/org/members/[userId], a
 //        deliberately separate and differently-worded action.
 //
-// Role/permission tuning on an EXISTING membership keeps flowing through
-// PATCH /api/org/members/[userId] (which already accepts workspaceId and owns the
-// capability-delegation delta); this route does not duplicate that logic.
+// PER-USER CAPABILITY tuning on an existing membership keeps flowing through
+// PATCH /api/org/members/[userId] (which owns the capability-delegation delta);
+// this route does not duplicate that logic. Its ROLE write, though, is an upsert
+// that can land on an existing membership, so it shares that route's last-owner
+// backstop (org-service.changeMemberRole) — see the note on the write below.
 
 function opStatus(reason?: MemberOpResult["reason"]): number {
   if (reason === "last_owner") return 409;
@@ -53,7 +56,19 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
   if (!canAssignRole(await callerDelegationCeiling(), body.role)) {
     return NextResponse.json({ error: "Cannot assign a role above your own privileges" }, { status: 403 });
   }
-  const r = addMemberToWorkspace(userId, id, body.role);
+  // Demoting somebody who ALREADY holds `owner` here is a role CHANGE, not a seat,
+  // so it has to clear the org's last-owner backstop. addMemberToWorkspace is a plain
+  // upsert with no such guard: PUT {"role":"recruiter"} on the org's only owner left
+  // the organization with nobody holding `org:manage`, and because `owner` may only be
+  // granted by a caller who already holds it (canAssignRole, above) NOBODY could ever
+  // restore it — billing, org settings and the backup routes are gated on that
+  // capability. DELETE on this very route already refuses exactly that outcome
+  // (409 last_owner) and so does PATCH /api/org/members/[userId]; only PUT did not.
+  const seated = getMembership(userId, id);
+  const r =
+    seated?.role === "owner" && body.role !== "owner"
+      ? changeMemberRole(userId, id, body.role)
+      : addMemberToWorkspace(userId, id, body.role);
   if (!r.ok) return NextResponse.json({ error: r.reason, code: r.reason }, { status: opStatus(r.reason) });
   return NextResponse.json({ ok: true });
 }

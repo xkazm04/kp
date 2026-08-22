@@ -215,6 +215,32 @@ test("a plain recruiter cannot seat anyone", async () => {
   assert.equal((await seatRoute(req({ role: "viewer" }), params({ id: teamA.id, userId: target.id }))).status, 403);
 });
 
+// The PUT verb is an UPSERT, so it also rewrites the role on a membership that
+// already exists — which makes it a demotion path, and demotion has a backstop the
+// seat path never had. An org that loses its last owner loses `org:manage` FOREVER:
+// billing, org settings and the backup routes are gated on it, and `owner` can only
+// be granted by someone who already holds it (canAssignRole). DELETE on this same
+// route has always refused that outcome; PUT used to perform it.
+const SOLO_ORG = "org-solo";
+const soloTeam = createWorkspace("Solo team", SOLO_ORG);
+const soloOwner = createUser({ orgId: SOLO_ORG, email: "solo.owner@solo.test", name: "Solo Owner", status: "active", password: "solo-pw-1234" });
+const soloAdmin = createUser({ orgId: SOLO_ORG, email: "solo.admin@solo.test", name: "Solo Admin", status: "active", password: "solo-pw-5678" });
+upsertMembership(soloOwner.id, soloTeam.id, "owner");
+upsertMembership(soloAdmin.id, soloTeam.id, "admin");
+
+test("PUT refuses to demote the org's LAST owner (409), the same way DELETE does", async () => {
+  signedInAs(soloAdmin, soloTeam.id);
+  const r = await seatRoute(req({ role: "recruiter" }), params({ id: soloTeam.id, userId: soloOwner.id }));
+  assert.equal(r.status, 409, "an admin must not be able to strip the org's only owner via the seat verb");
+  assert.equal(((await r.json()) as { code?: string }).code, "last_owner");
+  assert.equal(getMembership(soloOwner.id, soloTeam.id)?.role, "owner", "the owner keeps the seat the refusal protected");
+  // …and the guard is NARROW: once a second owner exists the demotion is allowed.
+  const second = createUser({ orgId: SOLO_ORG, email: "solo.second@solo.test", name: "Solo Second", status: "active", password: "solo-pw-9012" });
+  upsertMembership(second.id, soloTeam.id, "owner");
+  assert.equal((await seatRoute(req({ role: "recruiter" }), params({ id: soloTeam.id, userId: soloOwner.id }))).status, 200);
+  assert.equal(getMembership(soloOwner.id, soloTeam.id)?.role, "recruiter");
+});
+
 test("DELETE removes one seat and leaves the account and other seats alone", async () => {
   signedInAs(staffer);
   assert.equal((await unseatRoute(req(), params({ id: teamB.id, userId: target.id }))).status, 200);

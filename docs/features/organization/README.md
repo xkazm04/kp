@@ -43,6 +43,18 @@ inventing a second scoping dimension.
   (`app/_lib/auth/roles.ts`: `roleCan`, `roleAtLeast`, `resolveCapabilities`,
   `canAssignRole`). `org:manage` can never be granted by an override — only the
   owner role carries it, closing a prior privilege-escalation path.
+- **The org can never be left without an owner.** `org:manage` is owner-only and
+  `canAssignRole` refuses to grant a role whose capabilities the actor lacks, so
+  an org that loses its last owner can never get one back. Every write that could
+  produce that state therefore clears `org-service`'s last-owner backstop:
+  `changeMemberRole` (demote), `removeMemberFromWorkspace` (unseat),
+  `setMemberStatus` (disable), `removeMember` (delete account) — each answers
+  `last_owner` → **409**. `PUT /api/workspaces/[id]/members/[userId]` is an
+  UPSERT, so it is a demotion path too: when the target already holds `owner` on
+  that team it routes through `changeMemberRole` rather than the unguarded
+  `addMemberToWorkspace`. It previously did not, and an `admin` could strip the
+  org's only owner with one call while `DELETE` on the same route refused it
+  (pinned in `app/api/workspaces/workspaces-route.test.ts`).
 - Open-mode + operator-password sessions fold to `owner` so local dev is
   unchanged.
 - **Disabling a member bites immediately, not at next login.**
@@ -226,7 +238,7 @@ so the session would 403 on everything anyway.
 | Layer | File(s) |
 |---|---|
 | Org/member/invite API | `app/api/org/members/route.ts`, `app/api/org/members/[userId]/route.ts`, `app/api/org/invites/route.ts`, `app/api/org/invites/[token]/route.ts` |
-| Workspace API | `app/api/workspaces/route.ts` (GET org-filtered list + memberCount/role/canManage; POST `team:manage`-gated, stamps the caller's org, seats the creator as owner), `app/api/workspaces/[id]/route.ts` (rename), `app/api/workspaces/[id]/members/[userId]/route.ts` (PUT seat/re-role, DELETE unseat) |
+| Workspace API | `app/api/workspaces/route.ts` (GET org-filtered list + memberCount/role/canManage; POST `team:manage`-gated, stamps the caller's org, seats the creator as owner), `app/api/workspaces/[id]/route.ts` (rename), `app/api/workspaces/[id]/members/[userId]/route.ts` (PUT seat/re-role — delegation-capped, and last-owner-guarded when it demotes an existing owner; DELETE unseat) |
 | Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required |
 | Org backup/restore | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` (`dumpOrg`, `restoreOrg`, `planOrgRestore`) |
 | DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |

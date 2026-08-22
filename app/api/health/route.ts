@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { getSeedHealth, ensureDb } from "@/app/_lib/db/core";
 import { coreTableCounts, countActiveTasks } from "@/app/_lib/db/tasks";
 import { engineAvailability } from "@/app/_lib/engine-preflight";
+import { isOperator } from "@/app/_lib/auth/require-operator";
 import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler-health";
 
 
@@ -12,7 +13,24 @@ import { schedulerLiveness, schedulerLivenessReason } from "@/app/_lib/scheduler
 // task queue depth. Returns 200 when healthy, 503 when degraded — so a deploy
 // check / uptime monitor can gate on a real signal instead of just "the process
 // is up". Read-only: it reports orphaned tasks rather than mutating them.
+//
+// PUBLIC (public-routes.ts PUBLIC_API_EXACT), so the payload is SPLIT. The verdict
+// — ok / db / seeds / clock / engines and the status code — is what an uptime
+// monitor with no cookie needs, and it carries no tenant or host detail. The
+// DETAIL is not: `tables` is coreTableCounts(), a deployment-wide
+// `SELECT COUNT(*)` over jobs/profiles/pipeline_entries/analyses/tasks, `queue`
+// counts every tenant's runs, and a seed failure spells out an absolute server
+// filesystem path. /api/ops gates that exact payload behind requireOperator()
+// precisely so a caller cannot read off how many candidates and analyses the box
+// holds — but this route was handing the same numbers to callers with NO session
+// at all. So the detail now rides the same gate.
+//
+// isOperator() is TRUE in open dev (no KP_OPERATOR_PASSWORD) and for any valid
+// non-demo session, so local dev, the UAT preflight and the signed-in shell
+// (useEngineAvailability) see exactly what they saw before; only the anonymous
+// caller on a password-protected deploy loses the detail.
 export async function GET() {
+  const trusted = await isOperator();
   const degradedReasons: string[] = [];
 
   let seedOk = true;
@@ -40,9 +58,16 @@ export async function GET() {
     const clockReason = schedulerLivenessReason(clock, lastTickAt);
     if (clockReason) degradedReasons.push(clockReason);
   } catch (error) {
-    // DB failed to open/seed — the hardest failure; report it and bail to 503.
+    // DB failed to open/seed — the hardest failure; report it and bail to 503. The
+    // driver's message quotes the database FILE PATH, so an untrusted caller gets the
+    // verdict and the server log keeps the detail (the safeJsonError doctrine).
+    console.error("[api/health] database unavailable", error);
     return NextResponse.json(
-      { ok: false, db: "unavailable", error: error instanceof Error ? error.message : String(error) },
+      {
+        ok: false,
+        db: "unavailable",
+        ...(trusted ? { error: error instanceof Error ? error.message : String(error) } : {}),
+      },
       { status: 503 }
     );
   }
@@ -55,13 +80,14 @@ export async function GET() {
       seeds: seedOk ? "ok" : "degraded",
       // Named sub-check so the response says WHICH thing is broken, not just "unhealthy".
       clock,
-      tables,
-      queue,
-      degradedReasons,
       // DATA4 — informational, never a degradedReason: a missing Claude CLI is
       // a designed fallback mode, and a missing Gemini key may be intentional
       // in a demo sandbox; 503-ing on either would block deploys that mean it.
       engines: engineAvailability(),
+      // Host/tenant detail — operator only (see the header). OMITTED rather than
+      // blanked for an untrusted caller: an empty `degradedReasons` beside a 503
+      // would be a confident lie about a probe that DID find reasons.
+      ...(trusted ? { tables, queue, degradedReasons } : {}),
     },
     { status: ok ? 200 : 503 }
   );

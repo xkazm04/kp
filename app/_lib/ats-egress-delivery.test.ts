@@ -64,6 +64,31 @@ test("deliver treats a network error / timeout as a FAILURE", async () => {
   if (!r.delivered) assert.match(r.reason, /socket hang up/);
 });
 
+// A2 — the SSRF boundary vets ONLY the URL we dial. With the default `redirect:
+// "follow"` a vetted public host could answer `302 Location: http://169.254.169.254/…`
+// (or a 307 to 127.0.0.1, replaying method + the signed PII body) and undici would dial
+// that address with no re-vetting. NON-VACUITY: pre-fix `init.redirect` is undefined and
+// the reason is "webhook endpoint responded 0" — both asserts below fail.
+test("deliver never FOLLOWS a redirect (a vetted host must not become a redirector into the LAN)", async () => {
+  setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.hired"] });
+  let init: RequestInit | undefined;
+  const r = await withFetch(
+    (async (_url: unknown, i: RequestInit) => {
+      init = i;
+      // What the fetch spec produces for redirect:"manual" — an opaque-redirect
+      // response: status 0, ok false, no headers.
+      return { ok: false, status: 0, type: "opaqueredirect" };
+    }) as unknown as typeof fetch,
+    () => deliver("ping", { ping: true })
+  );
+  assert.equal(init?.redirect, "manual", "the POST must be issued with redirect:'manual' — a followed 3xx bypasses the resolve-and-reject guard entirely");
+  assert.equal(r.delivered, false, "a redirect is not an acceptance");
+  if (!r.delivered) {
+    assert.match(r.reason, /redirect/i, "the operator is told the endpoint redirected, not given a bogus status");
+    assert.equal(r.status, undefined, "0 is not an HTTP status — the ledger must not record it as one");
+  }
+});
+
 test("deliver reports delivered only on a 2xx", async () => {
   setAtsConfig({ webhookUrl: "https://example.com/hook", events: ["candidate.hired"] });
   const r = await withFetch(
@@ -137,4 +162,80 @@ test("dispatchAtsEvent records a failed delivery as a durable retryable ledger r
   // schedule is respected — but exists as the replay mechanism.
   const summary = await retryDueAtsDeliveries(new Date());
   assert.equal(summary.due, 0, "not yet due, so the immediate sweep does nothing");
+});
+
+// D — MULTI-TENANCY. `ats_config`/`ats_delivery` are deliberately org-level (one
+// deployment-wide mirror of every team, tenancy.ts), but the record BUILD is
+// workspace-scoped. Pre-fix `getAtsRecord(entryId)` was unscoped → it resolved against
+// the DEFAULT workspace, returned null for a team-b entry, and dispatch returned BEFORE
+// recordAtsDeliveryStart: `candidate.hired` never fired for any non-default team AND
+// left nothing in GET /api/ats/deliveries. Hermetic (a `.invalid` host never resolves).
+//
+// NON-VACUITY, two independent halves:
+//   • the row-count assert fails pre-fix (no ledger row at all);
+//   • the `doesNotMatch` assert fails if only the open-and-fail half is applied
+//     (the row would exist, but carrying `not found in workspace "workspace"`).
+test("dispatchAtsEvent mirrors a NON-DEFAULT team's hire — never a silent, ledger-less no-op", async () => {
+  setAtsConfig({ webhookUrl: "https://kp-nonexistent-webhook.invalid/hook", events: ["candidate.hired"] });
+  const { entry } = createPipelineEntry({
+    candidateId: "c-ats-team-b",
+    candidateLabel: "Team B Hire",
+    jobId: "job-team-b",
+    jobTitle: "Role",
+    workspaceId: "team-b",
+  });
+  assert.equal(entry.workspaceId, "team-b", "the fixture really is outside the default tenant");
+
+  const before = listAtsDeliveries().length;
+  await dispatchAtsEvent("candidate.hired", entry.id);
+
+  const rows = listAtsDeliveries();
+  assert.equal(rows.length, before + 1, "a team-b hire opens a ledger row (pre-fix: dispatch returned before the ledger — nothing at all)");
+  const row = rows.find((r) => r.entryId === entry.id);
+  assert.equal(row?.status, "failed", "the unreachable receiver is recorded as failed");
+  assert.ok(row?.nextAttemptAt, "and it is retryable");
+  assert.doesNotMatch(
+    row?.lastError ?? "",
+    /not found in workspace/,
+    "the record BUILT for team-b — the failure is the unreachable host, not an unresolvable entry"
+  );
+});
+
+test("dispatchAtsEvent FAILS a visible ledger row when the entry cannot be resolved (never a silent return)", async () => {
+  setAtsConfig({ webhookUrl: "https://kp-nonexistent-webhook.invalid/hook", events: ["candidate.hired"] });
+  const before = listAtsDeliveries().length;
+  await dispatchAtsEvent("candidate.hired", "pe-does-not-exist");
+  const rows = listAtsDeliveries();
+  assert.equal(rows.length, before + 1, "an unmirrorable hire is still recorded (pre-fix: `if (!record) return` — invisible)");
+  const row = rows.find((r) => r.entryId === "pe-does-not-exist");
+  assert.equal(row?.status, "failed");
+  assert.match(row?.lastError ?? "", /not found in workspace/, "and it says WHY, instead of a delivery that never happened");
+});
+
+// E — the retry sweep had the identical unscoped read, so it would finalize a LIVE
+// non-default-team entry with the false terminal reason "pipeline entry no longer
+// exists" (and dead-letter it after MAX_ATTEMPTS). `ats_delivery` carries no tenant
+// column (org-level by design), so the sweep re-derives it from the entry id.
+test("the retry sweep re-resolves a non-default team's entry instead of declaring it gone", async () => {
+  setAtsConfig({ webhookUrl: "https://kp-nonexistent-webhook.invalid/hook", events: ["candidate.hired"] });
+  const { entry } = createPipelineEntry({
+    candidateId: "c-ats-retry-b",
+    candidateLabel: "Retry B",
+    jobId: "job-retry-b",
+    jobTitle: "Role",
+    workspaceId: "team-b",
+  });
+  const id = recordAtsDeliveryStart("candidate.hired", entry.id);
+  // Backdate the failure so its backoff window has already elapsed and it is due now.
+  finalizeAtsDelivery(id, { delivered: false, reason: "transient" }, new Date(Date.now() - 3600_000));
+
+  const summary = await retryDueAtsDeliveries(new Date());
+  assert.ok(summary.due >= 1, "the backdated row is due");
+  const row = getAtsDelivery(id);
+  assert.equal(row?.attempts, 2, "the sweep made a second attempt");
+  assert.doesNotMatch(
+    row?.lastError ?? "",
+    /no longer exists/,
+    "a LIVE team-b entry must never be finalized with a false terminal reason"
+  );
 });

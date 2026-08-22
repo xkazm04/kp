@@ -139,6 +139,24 @@ ping (`POST /api/ats/test`).
   `hasSecret` only, and an untouched field leaves the stored secret in place. When set,
   deliveries carry an HMAC-SHA256 `X-Kp-Signature`.
 - **An empty URL disables delivery** rather than queuing undeliverable events.
+- **Every team's outcomes mirror through this one endpoint.** `ats_config` and the
+  `ats_delivery` ledger are org-level by design (`app/_lib/tenancy.ts`): one deployment-wide
+  mirror of every tenant, not one webhook per hiring team. The *record* behind an event is
+  still built tenant-scoped, so `dispatchAtsEvent` takes the caller's workspace and falls back
+  to the entry's owning workspace (`getEntryWorkspace`) when the caller holds none; the retry
+  sweep re-derives it the same way, because a ledger row carries no tenant column. Both reads
+  used to be unscoped — they resolved against the default workspace, so `candidate.hired` never
+  fired for any other team and left no trace that it hadn't.
+- **Nothing exits without a ledger row.** A dispatch opens its `ats_delivery` row *before* the
+  record is built, so an entry that cannot be resolved — or a build that throws — becomes a
+  `failed`, retryable, operator-visible row that says why, never a silent return. A hire that
+  cannot be mirrored must not also be invisible.
+- **Redirects are not followed** (`redirect: "manual"`). The SSRF guard resolves and vets only
+  the host kp dials; with the default follow behaviour a vetted public endpoint answering
+  `302 Location: http://169.254.169.254/…` (or a 307 to a loopback port, which replays the
+  method *and* the signed PII body) would put that request into the internal network with no
+  re-vetting, and hand `/api/ats/test` a port-scan oracle. A 3xx is reported as a delivery
+  failure telling the operator to configure the final https endpoint.
 - **The test ping tests what is *stored*, not what is typed.** `POST /api/ats/test` has no
   body — it pings the saved endpoint with the saved secret — so the button is disabled
   until the field matches the URL the server last confirmed, and editing the field retires
@@ -155,8 +173,7 @@ ping (`POST /api/ats/test`).
 - **Pull works too**: `GET /api/ats/candidate/<entryId>` returns the same record on demand —
   operator-gated, scoped to the caller's workspace, and every successful export is audited
   onto that candidate's own pipeline-event timeline (`ats_export`).
-- **The pull door honours the consent gate.** It is the one place identity leaves for a
-  third-party system, so it applies `consentWithholdsPii` at read time: an entry whose
+- **The pull door honours the consent gate.** It applies `consentWithholdsPii` at read time: an entry whose
   retention window has lapsed (or that is already anonymized) exports with its label masked
   to `First L.` and `contact: null` — exactly what `anonymizeEntry` would have written —
   while keeping the non-identifying retained record (stage, status, match score, archetype,
@@ -203,6 +220,18 @@ The envelope, signing and delivery/retry semantics live in
 
 ## Known gaps
 
+- **A dead-lettered delivery cannot be replayed.** After `MAX_ATTEMPTS` (6, exponential from
+  one minute — roughly half an hour of receiver downtime) a failed row keeps
+  `next_attempt_at NULL` for good. `POST /api/ats/deliveries` sweeps only rows that are still
+  *due*, so the terminal row is visible in the ledger but has no force-replay path; recovering
+  that hire means editing the row by hand. `ats-delivery-store.ts` calls the dead-letter
+  "force-retryable", which is the intent, not yet the code.
+- **The push does not apply the consent gate the pull door does.** `GET /api/ats/candidate/<id>`
+  masks identity when the retention window has lapsed; `dispatchAtsEvent` sends the unredacted
+  record. Only `candidate.hired` fires today (consent on a just-hired candidate is current, and
+  the retry window is ~30 minutes), so the exposure is narrow — but the redaction helper lives
+  behind the route (`app/api/ats/candidate/ats-candidate-audit.ts`) rather than in the record
+  builder both doors share, and it needs to move before `candidate.rejected` is wired up.
 - **The field map has no UI.** A connection saved here uses the stored map (or an empty
   one), and an empty map has no `externalId` path — so a sync using it fails loudly rather
   than importing under a bad identity. Editing it still requires a `POST` with a `fieldMap`
