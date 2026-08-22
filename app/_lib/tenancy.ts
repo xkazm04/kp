@@ -17,8 +17,18 @@
 // COLUMN alone is NOT enough (pipeline_entries has the column but listPipeline is
 // blind), so it does NOT belong here yet.
 
-/** Tables whose read+write paths are verified workspace-scoped (each has a
- *  `<table>-tenancy.test.ts` pinning the WHERE workspace_id = ? filter). */
+/** Tables whose read+write paths are verified workspace-scoped: each is pinned by a
+ *  query-level guard — normally a colocated `<table>-tenancy.test.ts`, and for the five
+ *  stores that never got one (candidate_nps, outreach_state, ats_links,
+ *  calendar_connections, apply_sessions) an equivalent pin inside
+ *  tenancy-coverage.test.ts. That file now ENFORCES the rule: a table cannot be added
+ *  to this list without a proof, because "verified" used to be a claim nothing checked
+ *  and those five carried it on nothing at all.
+ *
+ *  What a pin does NOT settle is which point-ops each guard exempts. Every guard writes
+ *  its own by-id / by-token carve-out, and a carve-out is only as good as its reason:
+ *  a candidate capability token or a read of a globally-unique PK is safe, a STICKY
+ *  recruiter-visible WRITE is not. Say which one applies in the entry below. */
 export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "analyses",
   "profiles",
@@ -251,6 +261,15 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // per-candidate rows it produces land in ats_links, which IS workspace-scoped.
   "ats_connections",
   "comms_relay_config", // the org's outbound comms delivery relay (one endpoint; sibling of ats_config)
+  // The local half of the edge pairing (edge-config.ts, docs/concepts/local-first-edge.md):
+  // where the edge lives, the shared HMAC secret, this INSTALL's sealing keypair and the
+  // drain cursor. Its own header says it is "modeled on comms-relay-store.ts down to the
+  // details", and it is exempt for the same reason as that sibling: a literal singleton
+  // (`CHECK (id = 1)`) of deployment-level integration config and secrets, paired once per
+  // install and holding no candidate data. The per-tenant rows the drain produces land in
+  // the tables scoped above. Lazy-store table (own openStore connection), hence also in
+  // TENANCY_LAZY_TABLES; and a singleton with no org_id, hence ORG_CONFIG_NOT_PORTABLE.
+  "edge_config",
   // Agent-candidate bridge config (agent-hire/bridge-store.ts): the Personas desktop
   // app's base URL + encrypted pk_ API key + paired flag — deployment-level
   // integration config exactly like ats_connections (connected once for the
@@ -300,6 +319,7 @@ export const TENANCY_LAZY_TABLES: ReadonlySet<string> = new Set([
   "dev_audit",
   "dev_control",
   "dev_outcomes",
+  "edge_config",
   "group_evals",
   "interview_preps",
   "jd_templates",
@@ -464,11 +484,15 @@ export function orgExportClass(
   return null;
 }
 
-/** SIX tables tenancy.ts calls "org-level" that carry NO org_id — they are literal
+/** The tables tenancy.ts calls "org-level" that carry NO org_id — they are literal
  *  singletons (`CHECK (id = 1)`, a fixed ROW_ID, or a provider PK). A backup cannot
  *  say which org owns them, so an org restore leaves them alone and the org
  *  re-enters its integration settings. Re-keying them by org is the prerequisite
- *  for carrying them, and is tracked in docs/features/organization/README.md. */
+ *  for carrying them, and is tracked in docs/features/organization/README.md.
+ *
+ *  This is the list the restore SUMMARY reads out, so a new singleton config table
+ *  that is merely excluded — and not named here — restores as a silent blank the
+ *  operator is never told to re-enter. */
 export const ORG_CONFIG_NOT_PORTABLE: ReadonlySet<string> = new Set([
   "brand_settings",
   "ats_config",
@@ -476,4 +500,5 @@ export const ORG_CONFIG_NOT_PORTABLE: ReadonlySet<string> = new Set([
   "ats_delivery",
   "comms_relay_config",
   "personas_bridge",
+  "edge_config", // the edge pairing: URL + HMAC secret + this install's sealing keypair
 ]);

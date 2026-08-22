@@ -76,6 +76,46 @@ test("keys are independent — one hot account can't throttle another", () => {
   assert.equal(isThrottled("acct:b", OPTS, T0 + OPTS.limit), false, "a different account is unaffected");
 });
 
+test("an oversized key is stored as a fixed-size digest, and still behaves as one bucket", () => {
+  // The login route keys the account bucket on `login:acct:${normalizeEmail(email)}`,
+  // and `email` is an unvalidated request-body string. Without a cap, ONE POST with a
+  // multi-megabyte "email" writes a multi-megabyte row into kp.sqlite.
+  const huge = `login:acct:${"a".repeat(50_000)}@example.test`;
+  recordFailedAttempt(huge, OPTS, T0);
+  const raw = new Database(TMP);
+  const keys = (raw.prepare(`SELECT bucket_key FROM login_attempts`).all() as { bucket_key: string }[]).map((r) => r.bucket_key);
+  raw.close();
+  assert.equal(
+    keys.some((k) => k.length > 200),
+    false,
+    "no stored key may carry the caller's unbounded input verbatim"
+  );
+  // …and the digest is still a real bucket: it counts, trips, and clears.
+  for (let i = 1; i < OPTS.limit; i++) recordFailedAttempt(huge, OPTS, T0 + i);
+  assert.equal(isThrottled(huge, OPTS, T0 + OPTS.limit), true, "a long key still throttles");
+  clearFailures(huge);
+  assert.equal(isThrottled(huge, OPTS, T0 + OPTS.limit + 1), false, "…and still clears");
+});
+
+test("elapsed windows are swept, so a spray of distinct keys cannot grow the table forever", () => {
+  // Rows were only ever deleted by clearFailures() on a SUCCESSFUL login, so every
+  // distinct key ever seen stayed forever: /api/auth/login is public and carries no
+  // rateLimit(), so POSTing a fresh email per request grew kp.sqlite without bound.
+  for (let i = 0; i < 50; i++) recordFailedAttempt(`spray:${i}`, OPTS, T0);
+  const count = (at: number) => {
+    const raw = new Database(TMP);
+    const row = raw.prepare(`SELECT COUNT(*) AS n FROM login_attempts WHERE bucket_key LIKE 'spray:%'`).get() as { n: number };
+    raw.close();
+    return row.n + at * 0;
+  };
+  assert.equal(count(0), 50, "all 50 buckets are live inside the window");
+  // A single later attempt, long past every window: the sweep must reclaim the dead rows.
+  recordFailedAttempt("spray:live", OPTS, T0 + 10 * OPTS.windowMs);
+  assert.equal(count(1), 1, "only the live bucket survives — dead buckets are not kept forever");
+  assert.equal(isThrottled("spray:live", OPTS, T0 + 10 * OPTS.windowMs), false, "the live bucket is intact");
+  clearFailures("spray:live");
+});
+
 test("the counter is DURABLE across connections (multi-process safety)", () => {
   const key = "ip:x";
   recordFailedAttempt(key, OPTS, T0);

@@ -3,10 +3,12 @@ import { cookies } from "next/headers";
 import {
   SESSION_COOKIE,
   SESSION_TTL_MS,
+  DEMO_WORKSPACE,
   signSession,
   verifySession,
   currentUserId,
   currentOrgId,
+  currentWorkspaceId,
   isOperatorSession,
   type SessionClaims,
 } from "@/app/_lib/auth/session";
@@ -26,6 +28,22 @@ export async function POST(request: Request) {
     const session = verifySession(jar.get(SESSION_COOKIE)?.value);
     if (!session) {
       return NextResponse.json({ error: "Sign in to switch workspaces." }, { status: 401 });
+    }
+    // A DEMO session never leaves the demo workspace. `/api/demo` is a PUBLIC route
+    // that hands any anonymous visitor a validly-signed cookie carrying NO `sub` and
+    // NO `op` — and the workspace id "demo" is the ONLY thing that tells it apart
+    // from a real operator session downstream (isOperator() in auth/require-operator
+    // .ts allows every valid non-demo session; so do home-gate-server and
+    // /api/me/onboarding). The membership guard below could not catch it: a demo
+    // cookie has no user identity, so the whole identity block is skipped, and
+    // canSwitchWorkspace() waves the DEFAULT workspace through even with
+    // KP_MULTI_WORKSPACE off. So GET /api/demo followed by POST here with
+    // {"workspaceId":"workspace"} re-minted the cookie onto the real tenant and
+    // promoted an anonymous visitor to full operator — provider-key writes, model
+    // routing, and the whole-DB export/import channel that require-operator.ts's
+    // demo check exists to deny. Fail closed on the workspace the session came from.
+    if (currentWorkspaceId(session) === DEMO_WORKSPACE) {
+      return NextResponse.json({ error: "The guided demo cannot switch workspaces." }, { status: 403 });
     }
     const body = (await request.json().catch(() => ({}))) as { workspaceId?: unknown };
     const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : "";

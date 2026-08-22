@@ -70,6 +70,21 @@ inventing a second scoping dimension.
   `callerOrgCapabilities`/`callerDelegationCeiling`) does not consult the status,
   so a disabled admin's live session can still reach member/team administration —
   see Known gaps.
+- **The login throttle's storage is bounded, not just its counters.**
+  `app/_lib/auth/login-throttle.ts` keeps one `login_attempts` row per bucket key
+  (`login:acct:<email>` / `login:ip:<ip>` / `login:op:<ip>`). Rows used to be
+  deleted only by `clearFailures` on a SUCCESSFUL login, so every distinct key
+  ever seen persisted forever — and `/api/auth/login` is proxy-public with no
+  `rateLimit()`, so an anonymous caller posting a fresh `email` per request grew
+  `kp.sqlite` without bound (a persistent disk-fill on the only database). Two
+  bounds now hold: `recordFailedAttempt` lazily sweeps rows whose OWN window has
+  elapsed (at most one pass per 60 s; the per-row `window_ms` column — added by
+  in-place migration, legacy rows assumed 15 min — means a short-window caller
+  can never reclaim a long-window caller's live bucket), and a key longer than
+  160 chars is stored as a fixed-size SHA-256 digest so an unvalidated
+  request-body `email` cannot write a multi-megabyte row. A swept row is already
+  semantically absent (`isThrottled` admits it, `recordFailedAttempt` restarts it
+  at 1), so the sweep can never release a live bucket.
 - **Every server-side session read calls `await connection()` before verifying.**
   `verifySession` checks expiry against the wall clock (`Date.now()`), which
   Cache Components (Next 16.3) treats as an unstable value a prerender may not
@@ -90,20 +105,45 @@ workspace-scoped. As of this pass:
 
 - **`tenancyGaps()` is ZERO** and `assertTenancyReady(multiWorkspace=true)`
   passes — every per-team table's read+write paths are workspace-scoped, each
-  proven by a colocated `*-tenancy.test.ts` (20+ such files: pipeline, jobs
+  proven by a query-level guard (40+ such files: pipeline, jobs
   corpus, channels, schedule, dev-case, offers/status-links/
   skill-profiles, interviews, the background-task queue, `decision_records`).
+  **That "each" is now machine-checked**, and it was not true when it was first
+  written: five scoped tables (`candidate_nps`, `outreach_state`, `ats_links`,
+  `calendar_connections`, `apply_sessions`) had no tenancy guard anywhere in
+  `app/`. Their SQL was correctly scoped, but the manifest was reporting
+  "verified" on a promise nothing checked — and membership of
+  `TENANCY_SCOPED_TABLES` is exactly what lets the boot guard wave
+  `KP_MULTI_WORKSPACE` through. `tenancy-coverage.test.ts` now fails when a
+  scoped table has no proof, and carries pins for those five (each asserting
+  every statement **binds** `workspace_id`, not merely mentions it) until real
+  colocated guards are written.
 - **`decision_records`** — the tamper-evident hiring-decision hash chain — has
   been **re-architected to per-tenant chains** (was previously a single global
   chain; this was the hardest structural item). Verified in
   `app/_lib/decision-records-tenancy.test.ts`.
 - Org/deployment **config + metering** (`billing_*`, `provider_keys`,
-  `brand_settings`, `ats_config`, `analytics_targets`, `decision_config`'s
-  org-default tier, `jd_templates`, `llm_usage`) is classified **exempt** —
-  org-level, not per-team, by design.
+  `brand_settings`, `ats_config`, `ats_connections`, `comms_relay_config`,
+  `personas_bridge`, `edge_config`, `llm_usage`) is classified **exempt** —
+  org- or install-level, not per-team, by design. (`analytics_targets`,
+  `jd_templates` and `decision_config` are *not* on that list: they are scoped,
+  the latter two as a dual tier whose `workspace_id IS NULL` rows are the org
+  layer every team inherits.)
 - A **lazy-table hole** in the boot guard (store tables created on first
   request, not at `ensureDb()`) is closed: `TENANCY_LAZY_TABLES` is unioned into
   the guard's check, kept in lockstep by `tenancy-coverage.test.ts`.
+
+**What the coverage guard does NOT do.** It inspects no SQL. It answers "is every
+table classified, exportable, and proven *somewhere*" — never "is this statement
+scoped". Per-statement scoping lives in the per-table guards, and **each of those
+owns its own by-id / by-token exemption**. So a table can sit in
+`TENANCY_SCOPED_TABLES`, pass every coverage assertion, and still carry an unscoped
+point-op its own guard deliberately excluded. That is a judgement call in *that*
+guard: exempting a by-token read (the token *is* the capability) or a read keyed on
+a globally-unique PK is sound; exempting a **sticky write** reachable from an id a
+recruiter can already see is not — the write then needs `AND workspace_id = ?` like
+any enumeration. When adding a by-id carve-out, say in the manifest entry which of
+those two it is.
 
 Reference implementation for scoping a new table: `app/_lib/db/{analyses,profiles}.ts`
 + their `*-tenancy.test.ts`.
@@ -233,13 +273,23 @@ An org admin can seat people on a team they don't belong to, but cannot park a
 session on it — without a membership their capabilities inside it resolve empty,
 so the session would 403 on everything anyway.
 
+A **demo session cannot switch at all** (403). `/api/demo` is public and mints a
+validly-signed cookie with no `sub` and no `op`, so the membership check above is
+skipped for it entirely — and the workspace id `demo` is the only thing that marks
+it as not-an-operator downstream (`isOperator()` in `auth/require-operator.ts`
+admits any valid non-demo session, as do `home-gate-server.ts` and
+`/api/me/onboarding`). Re-minting that cookie onto the default workspace therefore
+promoted an anonymous visitor to full operator, including the org export/import
+routes below. The switch route now refuses on the workspace the session came from
+(`app/api/auth/switch-workspace/route.test.ts`).
+
 ## Surface
 
 | Layer | File(s) |
 |---|---|
 | Org/member/invite API | `app/api/org/members/route.ts`, `app/api/org/members/[userId]/route.ts`, `app/api/org/invites/route.ts`, `app/api/org/invites/[token]/route.ts` |
 | Workspace API | `app/api/workspaces/route.ts` (GET org-filtered list + memberCount/role/canManage; POST `team:manage`-gated, stamps the caller's org, seats the creator as owner), `app/api/workspaces/[id]/route.ts` (rename), `app/api/workspaces/[id]/members/[userId]/route.ts` (PUT seat/re-role — delegation-capped, and last-owner-guarded when it demotes an existing owner; DELETE unseat) |
-| Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required |
+| Workspace switch | `app/api/auth/switch-workspace/route.ts` — membership + org required; a `demo`-workspace session is refused outright (403) |
 | Org backup/restore | `app/api/workspace/export/route.ts`, `app/api/workspace/import/route.ts`, `app/_lib/db-portability.ts` (`dumpOrg`, `restoreOrg`, `planOrgRestore`) |
 | DB — identity | `app/_lib/db/organizations.ts`, `app/_lib/db/users.ts`, `app/_lib/db/memberships.ts`, `app/_lib/db/invites.ts`, `app/_lib/db/workspaces.ts` (`listWorkspacesForUser`, `renameWorkspace`) |
 | RBAC | `app/_lib/auth/roles.ts`, `app/_lib/auth/org-authority.ts` |
@@ -432,9 +482,9 @@ live for real multi-team customers (see `app/_lib/tenancy.ts` comments and
   alone so two orgs' defaults cannot coexist, and the HMAC chains in
   `decision_records` / `skill_profiles` verify against deployment-local key
   material.
-- **Six config tables are not carried by a backup** (`ORG_CONFIG_NOT_PORTABLE` in
+- **Seven config tables are not carried by a backup** (`ORG_CONFIG_NOT_PORTABLE` in
   `app/_lib/tenancy.ts`): `brand_settings`, `ats_config`, `ats_connections`,
-  `ats_delivery`, `comms_relay_config`, `personas_bridge`. Each is a literal
+  `ats_delivery`, `comms_relay_config`, `personas_bridge`, `edge_config`. Each is a literal
   singleton (`CHECK (id = 1)`, a fixed row id, or a provider PK) carrying no
   `org_id`, so a backup cannot say which org owns them. The restore **reports**
   the list (`notRestored`, surfaced in the panel) rather than leaving the operator
