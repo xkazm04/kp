@@ -93,11 +93,15 @@ Struck-through items closed since 2026-07-27.
 | G12 | Per-tenant export/import. | 10 | Provider | M | **Closed** — the decision chain is per-tenant (`app/api/decisions/records/route.ts`: "integrity is PER-TENANT... each team has its own independent chain"), and `app/api/workspace/export/route.ts` / `import/route.ts` now move ONE ORGANIZATION (`dumpOrg` / `restoreOrg`), scoped by the tenancy manifest (`orgExportClass`) and gated on `org:manage`. Round trip pinned by `app/_lib/db-portability-org.test.ts`. Two documented limits remain, both surfaced to the operator rather than silent: the restore is in-place (same deployment), and six singleton config tables carry no `org_id` so a backup cannot carry them (`ORG_CONFIG_NOT_PORTABLE`). |
 | G13 | Document the no-demographic-data posture as the deliberate bias-mitigation choice, its limits, and the deployer-side 4/5ths workflow (`app/_lib/adverse-impact.ts`). | 10 | Provider | S | **Open** |
 | G14 | Registration + declaration-of-conformity scaffolding. Premature before G1/G2; keep on the E-track. | 47-49, 71 | Provider | L | **Open** |
+| G16 | `AiDisclosure` asserts a human-in-the-loop the config can turn off. The body reads "A human reviews and makes every advance, offer, and rejection decision; nothing adverse is decided automatically." The FIRST clause is false whenever a workspace sets an interview-plan gate to `auto`: `app/_lib/automation-run.ts` then ratifies an advance unattended via `actOnPipelineEntry` with `actor: "system"` (decision kind `auto_advanced`, actor `auto:interview-plan`), and the offer branch extends an offer with no human in the loop. The component renders UNCONDITIONALLY on eight public candidate surfaces (`/apply/[id]`, `/apply/[id]/quick`, `/devcase/apply/[token]`, `/interview/[token]`, `/schedule/[token]`, `/status/[token]`, `/offer/[token]`, InterviewSimTab). Scope, honestly: the schema default is `human` (`decision-config-schema.ts`), so a DEFAULT install tells the truth — this is false only where an operator opted into an auto gate. The SECOND clause survives: auto mode never overrides a hold or reject, and auto-reject is human-triggered from Decisions. So the defect is the human-in-the-loop claim, not the adversity claim. | 50, 13 | Provider | M | **Open** — found by the scan-sweep of 2026-08-25 |
 | ~~G15~~ | ~~Widen the autonomy pause into a real Art. 14(4)(e) stop control.~~ | 14 | Provider | M | **Closed (2026-08-22)** — see below |
 
 Already adequate, keep as-is: the Art. 12 decision
 chain, voice-consent enforcement, GDPR erasure/consent machinery, KP_OFFLINE,
-and now the name-neutrality eval and candidate-facing AI disclosure/explanation.
+and now the name-neutrality eval and candidate-facing AI explanation. The
+disclosure itself is no longer in that list — see G16: its text is correct for a
+default install and false for one that opted into an auto gate, which is the same
+claim-outran-the-code shape G15 was.
 The Art. 14 oversight layer is adequate on its *decision* gates (nothing adverse
 happens without a human), and since 2026-08-22 also on the pause's REACH — G15 is
 closed.

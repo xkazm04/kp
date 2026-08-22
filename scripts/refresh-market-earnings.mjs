@@ -41,6 +41,25 @@ const SNAPSHOT = path.join(ROOT, "data", "market_pulse.json");
 const COVERAGE_NOTE =
   "Two sources, kept apart on purpose. Vacancy counts are live openings registered at the Czech Labour Office (Úřad práce ČR) — real postings, though the register skews toward service, trades and operational roles, so higher-skill and senior corporate counts read low. Every salary figure comes instead from the official ISPV earnings survey (and its regional RSCP cut): what people are actually paid, not what a posting advertises. Where the survey has no figure for something, we leave it out rather than estimate it.";
 
+/** The advertised figure is captured ONCE and never re-derived.
+ *
+ *  build-market-pulse.mjs already writes BOTH layers — `medianSalary` from the ISPV/RSCP
+ *  survey and `advertisedMedian` from the ÚP posting median — so on any snapshot it
+ *  produced, `medianSalary` is already earnings. Re-deriving
+ *  `advertisedMedian = round100(medianSalary)` here therefore read the EARNINGS number
+ *  and stamped it over the advertised one: on the committed snapshot, one
+ *  `npm run market:earnings` turned Praha's 24 100 Kč advertised median into 53 600
+ *  (the offered-vs-actual spread this field exists to carry collapsed to zero) and
+ *  nulled the staffing-agency tile's 25 500 outright, since that row has no survey
+ *  median and round100(null) is null. A second run of this script did the same thing.
+ *
+ *  So an EXISTING key always wins, null included. The derivation survives only as the
+ *  migration path for a LEGACY snapshot from before the split — one that carries no
+ *  `advertisedMedian` at all and whose `medianSalary` really is still the advert. */
+function captureAdvertised(row, advertisedKey, currentKey) {
+  return Object.hasOwn(row, advertisedKey) ? row[advertisedKey] : round100(row[currentKey]);
+}
+
 async function main() {
   const snapshot = JSON.parse(readFileSync(SNAPSHOT, "utf8"));
   console.log(`[market-earnings] fetching ISPV national + RSCP regional from data.mpsv.cz …`);
@@ -56,13 +75,13 @@ async function main() {
       unmatched.push(region.name);
       // No survey figure → null, so the page hides the number instead of
       // falling back to the advertised one it was just corrected away from.
-      region.advertisedMedian = round100(region.medianSalary);
+      region.advertisedMedian = captureAdvertised(region, "advertisedMedian", "medianSalary");
       region.medianSalary = null;
       region.p25 = null;
       region.p75 = null;
       continue;
     }
-    region.advertisedMedian = round100(region.medianSalary);
+    region.advertisedMedian = captureAdvertised(region, "advertisedMedian", "medianSalary");
     region.medianSalary = earnings.median;
     region.p25 = earnings.p25;
     region.p75 = earnings.p75;
@@ -73,7 +92,7 @@ async function main() {
   const spheres = sphereEarnings(national);
   for (const org of snapshot.org_types) {
     const earnings = spheres[org.orgType];
-    org.advertisedMedian = round100(org.medianSalary);
+    org.advertisedMedian = captureAdvertised(org, "advertisedMedian", "medianSalary");
     org.medianSalary = earnings ? earnings.median : null;
     org.p25 = earnings ? earnings.p25 : null;
     org.p75 = earnings ? earnings.p75 : null;
@@ -81,7 +100,7 @@ async function main() {
 
   // ── meta ───────────────────────────────────────────────────────────────────
   const nation = nationalEarnings(national);
-  snapshot.meta.advertised_national_median = round100(snapshot.meta.national_median);
+  snapshot.meta.advertised_national_median = captureAdvertised(snapshot.meta, "advertised_national_median", "national_median");
   snapshot.meta.national_median = nation.median;
   snapshot.meta.national_p25 = nation.p25;
   snapshot.meta.national_p75 = nation.p75;
@@ -111,7 +130,10 @@ async function main() {
     .filter((r) => r.medianSalary != null)
     .sort((a, b) => b.medianSalary - a.medianSalary);
   console.log(
-    `[market-earnings] national median ${nation.median} Kč (was ${snapshot.meta.advertised_national_median}) · ` +
+    // "advertised", not "was": the number beside it is the posting median this snapshot
+    // carries, which after the capture-once fix above is no longer whatever
+    // national_median happened to hold on the previous run.
+    `[market-earnings] national median ${nation.median} Kč (advertised ${snapshot.meta.advertised_national_median}) · ` +
       `${ranked.length}/14 regions re-levelled · top ${ranked[0]?.name} ${ranked[0]?.medianSalary} · ` +
       `bottom ${ranked[ranked.length - 1]?.name} ${ranked[ranked.length - 1]?.medianSalary}`
   );

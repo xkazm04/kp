@@ -280,6 +280,15 @@ page figures.
 - The advertised medians are not deleted; each moves to `advertisedMedian` /
   `meta.advertised_national_median`. The offered-vs-actual spread is a genuine
   signal, it is just not "median salary".
+- That advertised figure is **captured once and never re-derived**
+  (`captureAdvertised` in `refresh-market-earnings.mjs`): an existing key always
+  wins, `null` included. `market:build` already writes both layers, so a snapshot
+  it produced holds earnings in `medianSalary` — re-deriving
+  `advertisedMedian = round100(medianSalary)` on a later `market:earnings` run
+  read the earnings number and stamped it over the advert (Prague 24 100 → 53 600,
+  spread zero) and nulled the agency tile's 25 500, whose `medianSalary` is null.
+  The derivation survives only to migrate a legacy snapshot that carries no
+  `advertisedMedian` at all.
 
 ### Building
 
