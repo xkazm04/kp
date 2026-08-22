@@ -5,10 +5,12 @@ import {
   GOOGLE_OAUTH_CALLBACK_PATH,
   GoogleOAuthError,
   accessTokenExpired,
+  exchangeCode,
   googleConsentUrl,
   googleOAuthConfig,
   missingScopes,
   parseTokenResponse,
+  refreshAccessToken,
 } from "./google-oauth.ts";
 
 const CONFIG = { clientId: "cid.apps.googleusercontent.com", clientSecret: "secret", redirectUri: "https://kp.example/api/calendar/google/callback" };
@@ -79,6 +81,52 @@ test("expiry is judged with skew, so a token cannot die mid-request", () => {
   assert.equal(accessTokenExpired(new Date(now - 1).toISOString(), now), true);
   assert.equal(accessTokenExpired(null, now), true);
   assert.equal(accessTokenExpired("not a date", now), true);
+});
+
+/** A blackholed endpoint: the connection is accepted and the response never comes. Only
+ *  an abort ends the request — which is exactly the fact under test. */
+function stubBlackholedGoogle(): { restore: () => void; sawSignal: () => boolean } {
+  const real = globalThis.fetch;
+  let sawSignal = false;
+  globalThis.fetch = ((_url: string | URL | Request, init?: RequestInit) => {
+    sawSignal = init?.signal instanceof AbortSignal;
+    return new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+    });
+  }) as typeof globalThis.fetch;
+  return { restore: () => void (globalThis.fetch = real), sawSignal: () => sawSignal };
+}
+
+/** Settle `work` or report "hung" — never actually hang the suite on the pre-fix code. */
+async function raceAgainstHang(work: Promise<unknown>): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const hung = new Promise<string>((resolve) => {
+    timer = setTimeout(() => resolve("hung"), 2000);
+  });
+  const outcome = await Promise.race([work.then(() => "resolved", (e: unknown) => `rejected:${(e as Error).name}`), hung]);
+  clearTimeout(timer);
+  return outcome;
+}
+
+test("a Google that never answers cannot hang the caller — the token calls are BOUNDED", async () => {
+  // This is the one Google call on a PUBLIC path: /schedule/<token> proposes slots →
+  // fetchBusy → accessTokenFor → refreshAccessToken. google-calendar.ts holds its own
+  // calls to 8s; these held nothing, so a blackholed token endpoint (an egress firewall
+  // that DROPs instead of RSTs is the everyday shape of this) left undici's 300s header
+  // timeout as the only bound on a candidate's booking page.
+  const stub = stubBlackholedGoogle();
+  try {
+    const exchanged = await raceAgainstHang(exchangeCode(CONFIG, "auth-code", 25));
+    assert.equal(stub.sawSignal(), true, "the request must carry an abort signal");
+    assert.notEqual(exchanged, "hung", "an unanswered Google must not hang the callback");
+    assert.equal(exchanged, "rejected:GoogleOAuthError", "and it fails as our own error, not a raw AbortError");
+
+    const refreshed = await raceAgainstHang(refreshAccessToken(CONFIG, "refresh-token", 25));
+    assert.notEqual(refreshed, "hung", "nor the candidate's slot lookup, which refreshes first");
+    assert.equal(refreshed, "rejected:GoogleOAuthError");
+  } finally {
+    stub.restore();
+  }
 });
 
 test("a partial grant is detected at connect time", () => {

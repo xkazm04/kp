@@ -20,19 +20,44 @@ const FREEBUSY_ENDPOINT = "https://www.googleapis.com/calendar/v3/freeBusy";
 const EVENTS_ENDPOINT = "https://www.googleapis.com/calendar/v3/calendars";
 const TIMEOUT_MS = 8000;
 
+/**
+ * Read one stored credential, treating an UNREADABLE one as an absent one.
+ *
+ * The tokens are AES-GCM ciphertext (token-store.ts), so `decryptAtsSecret` THROWS when
+ * the at-rest key changed under them — an operator rotating KP_SECRET, or setting
+ * KP_ATS_SECRET_KEY to decouple the two (which ats-secret.ts actively invites). That
+ * throw used to escape this module: past `fetchBusy`, past `proposeFreeSlots`, and out of
+ * the PUBLIC candidate route, which has no catch around the slot proposal — so an
+ * operator's env change turned the candidate's booking page into a 500, from the one
+ * module whose whole contract is "degrade, never block". A credential we cannot read is a
+ * grant we cannot use, which is precisely what `null` already means here (and surfaces as
+ * "unavailable", not "not connected" — kp does still hold a grant).
+ */
+function readStoredToken<T>(workspaceId: string, read: (id: string) => T | null): T | null {
+  try {
+    return read(workspaceId);
+  } catch (err) {
+    console.error(
+      `[calendar] the stored Google tokens for workspace "${workspaceId}" could not be decrypted — has the at-rest key (KP_ATS_SECRET_KEY / KP_SECRET) changed since the calendar was connected?`,
+      err
+    );
+    return null;
+  }
+}
+
 /** Resolve a usable access token for this workspace, refreshing if needed. Null whenever
  *  the integration is not usable, for ANY reason — unconfigured, never connected, revoked,
- *  or a refresh that failed. */
+ *  a credential that no longer decrypts, or a refresh that failed. */
 async function accessTokenFor(workspaceId: string): Promise<{ token: string; config: GoogleOAuthConfig } | null> {
   const config = googleOAuthConfig(publicBaseUrl(null));
   if (!config) return null;
   const connection = getCalendarConnection(workspaceId);
   if (!connection?.connected) return null;
 
-  const cached = getCachedAccessToken(workspaceId);
+  const cached = readStoredToken(workspaceId, getCachedAccessToken);
   if (cached && !accessTokenExpired(cached.expiresAt)) return { token: cached.token, config };
 
-  const refresh = getRefreshToken(workspaceId);
+  const refresh = readStoredToken(workspaceId, getRefreshToken);
   if (!refresh) return null;
   try {
     const tokens = await refreshAccessToken(config, refresh);

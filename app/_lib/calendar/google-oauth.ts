@@ -117,24 +117,52 @@ export function missingScopes(granted: readonly string[]): string[] {
   return GOOGLE_CALENDAR_SCOPES.filter((s) => !granted.includes(s));
 }
 
-async function postForm(url: string, body: URLSearchParams): Promise<unknown> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: body.toString(),
-  });
-  const text = await res.text();
-  let payload: unknown;
+/**
+ * How long any call to Google's OAuth endpoints may take. Same bound google-calendar.ts
+ * puts on the Calendar API calls, and for the same reason — except this one is load
+ * bearing on a PUBLIC path: a free/busy lookup refreshes the access token first, so an
+ * unbounded fetch here is an unbounded /schedule/<token>. Node's fetch only falls back to
+ * undici's 300s header timeout, which is not a bound a candidate's booking page can wear.
+ * "Degrade, never block" has to hold for the whole chain, not most of it.
+ */
+export const OAUTH_TIMEOUT_MS = 8000;
+
+async function postForm(url: string, body: URLSearchParams, timeoutMs: number = OAUTH_TIMEOUT_MS): Promise<unknown> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    payload = JSON.parse(text);
-  } catch {
-    throw new GoogleOAuthError(`Google returned a non-JSON response (HTTP ${res.status}).`);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new GoogleOAuthError(`Google returned a non-JSON response (HTTP ${res.status}).`);
+    }
+  } catch (err) {
+    // Our own parse rejection passes through unchanged; a transport failure (including
+    // our abort) becomes the same fact for the caller: Google gave no answer.
+    if (err instanceof GoogleOAuthError) throw err;
+    throw new GoogleOAuthError(
+      controller.signal.aborted
+        ? `Google did not answer within ${timeoutMs}ms.`
+        : `Google could not be reached (${err instanceof Error ? err.message : String(err)}).`
+    );
+  } finally {
+    clearTimeout(timer);
   }
-  return payload;
 }
 
 /** Exchange the one-time authorization code for tokens. */
-export async function exchangeCode(config: GoogleOAuthConfig, code: string): Promise<GoogleTokens> {
+export async function exchangeCode(
+  config: GoogleOAuthConfig,
+  code: string,
+  timeoutMs: number = OAUTH_TIMEOUT_MS
+): Promise<GoogleTokens> {
   return parseTokenResponse(
     await postForm(
       TOKEN_ENDPOINT,
@@ -144,14 +172,19 @@ export async function exchangeCode(config: GoogleOAuthConfig, code: string): Pro
         client_secret: config.clientSecret,
         redirect_uri: config.redirectUri,
         grant_type: "authorization_code",
-      })
+      }),
+      timeoutMs
     )
   );
 }
 
 /** Trade the stored refresh token for a fresh access token. Google does NOT return a new
  *  refresh token here, so the caller keeps the one it has. */
-export async function refreshAccessToken(config: GoogleOAuthConfig, refreshToken: string): Promise<GoogleTokens> {
+export async function refreshAccessToken(
+  config: GoogleOAuthConfig,
+  refreshToken: string,
+  timeoutMs: number = OAUTH_TIMEOUT_MS
+): Promise<GoogleTokens> {
   const tokens = parseTokenResponse(
     await postForm(
       TOKEN_ENDPOINT,
@@ -160,19 +193,30 @@ export async function refreshAccessToken(config: GoogleOAuthConfig, refreshToken
         client_id: config.clientId,
         client_secret: config.clientSecret,
         grant_type: "refresh_token",
-      })
+      }),
+      timeoutMs
     )
   );
   return { ...tokens, refreshToken: tokens.refreshToken ?? refreshToken };
 }
 
 /** Best-effort revoke, so disconnecting in kp actually withdraws the grant at Google
- *  rather than merely forgetting the token on our side. */
-export async function revokeToken(token: string): Promise<boolean> {
+ *  rather than merely forgetting the token on our side. Bounded like the token calls: a
+ *  Google that never answers must not leave the operator's Disconnect button spinning
+ *  for minutes — a failed revoke is a reportable outcome (`revokedAtGoogle: false`), a
+ *  hung one is not an outcome at all. */
+export async function revokeToken(token: string, timeoutMs: number = OAUTH_TIMEOUT_MS): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, { method: "POST" });
+    const res = await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`, {
+      method: "POST",
+      signal: controller.signal,
+    });
     return res.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }

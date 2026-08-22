@@ -30,7 +30,18 @@ export async function DELETE() {
   // Revoke at Google FIRST. Deleting our row without revoking leaves a live grant that
   // nobody can see in kp and nobody can withdraw from kp — the user would have to hunt it
   // down in their Google account security settings.
-  const refresh = getRefreshToken(workspaceId);
+  // The token is ciphertext at rest, and decryption THROWS when the at-rest key changed
+  // under it (a KP_SECRET rotation, or KP_ATS_SECRET_KEY set later to decouple the two).
+  // That must not 500 the disconnect: this is the button that CLEARS a connection kp can
+  // no longer use, so failing it would trap the operator with a row they cannot delete
+  // and a grant they were never told to withdraw. Unreadable ⇒ no revoke, said out loud
+  // (`revokedAtGoogle: false` renders as "disconnected, but go withdraw it at Google").
+  let refresh: string | null = null;
+  try {
+    refresh = getRefreshToken(workspaceId);
+  } catch (err) {
+    console.error("[api/calendar/google] the stored refresh token could not be read; disconnecting locally only", err);
+  }
   const revoked = refresh ? await revokeToken(refresh) : false;
   const removed = deleteCalendarConnection(workspaceId);
   // Report both outcomes separately: a failed revoke with a successful delete is exactly
