@@ -33,7 +33,10 @@ export function PlanImpactStrip({ plan, axis = DEFAULT_STAGE_AXIS }: { plan: Pip
       <div className="mt-2 grid gap-3 lg:grid-cols-3">
         <ImpactOverviewCard stations={impact.overview} stationLabel={stationLabel} />
         <ImpactDecisionsCard plan={plan} touchpoints={impact.humanTouchpoints} axis={axis} />
-        <ImpactScheduleCard schedule={impact.schedule} bookings={roundCount(plan)} />
+        {/* Bookings are counted against the SAME axis the other two cards walk —
+            a round at a column this draft dropped is not a booking anybody makes,
+            and counting it made this card contradict Overview. */}
+        <ImpactScheduleCard schedule={impact.schedule} bookings={roundCount(plan, axis)} />
       </div>
     </section>
   );

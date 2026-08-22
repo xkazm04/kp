@@ -5,6 +5,7 @@ import {
   planHasRound,
   planRounds,
   planRoutesAiScorecardToHumanRound,
+  planStep,
   prunePlanToAxis,
   validateDecisionConfig,
   type InterviewPlanRound,
@@ -21,6 +22,7 @@ import {
   roundCount,
   setStepGate,
   setStepRounds,
+  sortPlanToAxis,
   patchRound,
   type PipelinePlan,
 } from "./pipelineComposerModel";
@@ -307,7 +309,106 @@ test("the round budget is plan-wide, not per column", () => {
     { id: "Out", label: "Out", role: "terminal" },
   ];
   const spread = plan({ rounds: [newRound("ai"), newRound("human")] }, axis);
-  assert.equal(roundCount(spread), 2, "one round at each of two columns still counts two");
+  assert.equal(roundCount(spread, axis), 2, "one round at each of two columns still counts two");
+});
+
+test("a column the draft has REMOVED takes its rounds out of every card, Schedule included", () => {
+  const full: StageDef[] = [
+    { id: "Accepted", label: "Accepted", role: "entry" },
+    { id: "Screened", label: "Screened", role: "screening" },
+    { id: "Interview", label: "Interview", role: "interview" },
+    { id: "Offer", label: "Offer", role: "offer" },
+    { id: "Hired", label: "Hired", role: "terminal" },
+  ];
+  const composed = plan({ rounds: [newRound("ai")] }, full);
+  assert.deepEqual(deriveImpact(composed, full).schedule, { aiRound: true, humanRound: false });
+  assert.equal(roundCount(composed, full), 1);
+
+  // The composer drops the Interview column. The plan still NAMES it until the
+  // next save — and the server prunes that step on the very next read, so no AI
+  // round can run. The preview must say so on every card: Overview already walks
+  // the axis and shows nothing, and Schedule used to contradict it by promising
+  // an AI docket and a round to book.
+  const narrowed = full.filter((s) => s.id !== "Interview");
+  const impact = deriveImpact(composed, narrowed);
+  assert.deepEqual(impact.overview.flatMap((s) => s.rounds), [], "no station runs a round");
+  assert.deepEqual(impact.schedule, { aiRound: false, humanRound: false }, "…so no Schedule surface is live");
+  assert.equal(roundCount(composed, narrowed), 0, "…and there is nothing to book");
+  // The server's own read agrees, which is the reading the preview must match.
+  assert.equal(planRounds(prunePlanToAxis(composed, narrowed)).length, 0);
+
+  // The other half of the same rule: a column that is still ON the axis but has
+  // been re-roled to one that cannot hold policy. `prunePlanToAxis` drops it too,
+  // so the preview must not draw a round at the terminal column.
+  const reRoled = full.map((s) => (s.id === "Interview" ? { ...s, role: "terminal" as const } : s));
+  const asTerminal = deriveImpact(composed, reRoled);
+  assert.deepEqual(asTerminal.overview.flatMap((s) => s.rounds), [], "arrival and outcome run nothing");
+  assert.deepEqual(asTerminal.schedule, { aiRound: false, humanRound: false });
+  assert.equal(roundCount(composed, reRoled), 0);
+});
+
+test("a save sends the plan in BOARD order, so the reducer is judged against the round the candidate meets first", () => {
+  // A second interview column added, then moved ABOVE the shipped one. The step
+  // array still carries the columns in the order the reader TOUCHED them, because
+  // the editor appends a step on first touch and never reorders.
+  const axis: StageDef[] = [
+    { id: "Accepted", label: "Accepted", role: "entry" },
+    { id: "Screened", label: "Screened", role: "screening" },
+    { id: "New step", label: "New step", role: "interview" },
+    { id: "Interview", label: "Interview", role: "interview" },
+    { id: "Offer", label: "Offer", role: "offer" },
+    { id: "Hired", label: "Hired", role: "terminal" },
+  ];
+  const touched: PipelinePlan = {
+    steps: [
+      { stageId: "Screened", gate: "human", rounds: [] },
+      // The board's SECOND interview column, so the editor offers it a cohort
+      // reducer and the reader picks Top 3.
+      { stageId: "Interview", gate: "human", rounds: [{ kind: "ai", gate: "human", topN: 3 }] },
+      { stageId: "Offer", gate: "human", rounds: [] },
+      { stageId: "New step", gate: "human", rounds: [{ kind: "ai", gate: "human", topN: null }] },
+    ],
+  };
+
+  // Sent as touched, the validator numbers rounds by ARRAY position: Interview's
+  // round looks like the plan's first, so its Top 3 is stripped and the save
+  // reports success anyway. That is the defect.
+  const asTouched = validateDecisionConfig("interviewPlan", touched);
+  assert.equal(asTouched.ok, true);
+  if (asTouched.ok && asTouched.phase === "interviewPlan") {
+    assert.equal(planStep(asTouched.config, "Interview")!.rounds[0].topN, null, "array order strips the reducer");
+  }
+
+  // Sorted to the board first, the reducer lands where the composer offered it.
+  const sent = validateDecisionConfig("interviewPlan", sortPlanToAxis(touched, axis));
+  assert.equal(sent.ok, true);
+  if (sent.ok && sent.phase === "interviewPlan") {
+    assert.deepEqual(sent.config.steps.map((s) => s.stageId), ["Screened", "New step", "Interview", "Offer"]);
+    assert.equal(planStep(sent.config, "New step")!.rounds[0].topN, null, "the first round has no cohort to reduce");
+    assert.equal(planStep(sent.config, "Interview")!.rounds[0].topN, 3, "the second keeps the reducer the reader chose");
+  }
+});
+
+test("sortPlanToAxis parks an off-axis step LAST rather than letting it claim round one", () => {
+  const axis: StageDef[] = [
+    { id: "In", label: "In", role: "entry" },
+    { id: "R1", label: "R1", role: "interview" },
+    { id: "Out", label: "Out", role: "terminal" },
+  ];
+  const stale: PipelinePlan = {
+    steps: [
+      { stageId: "Gone", gate: "human", rounds: [{ kind: "ai", gate: "human", topN: null }] },
+      { stageId: "R1", gate: "human", rounds: [{ kind: "ai", gate: "human", topN: 5 }] },
+    ],
+  };
+  // "Gone" is pruned on the next read, so it must not be the round that spends
+  // the no-reducer exemption — R1 would then keep a topN it is not entitled to.
+  assert.deepEqual(sortPlanToAxis(stale, axis).steps.map((s) => s.stageId), ["R1", "Gone"]);
+  const sent = validateDecisionConfig("interviewPlan", sortPlanToAxis(stale, axis));
+  assert.equal(sent.ok, true);
+  if (sent.ok && sent.phase === "interviewPlan") {
+    assert.equal(planStep(sent.config, "R1")!.rounds[0].topN, null, "the surviving column holds round one");
+  }
 });
 
 

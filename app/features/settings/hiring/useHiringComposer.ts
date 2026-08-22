@@ -27,7 +27,7 @@ import {
   strandedByDraft,
   type AxisDraft,
 } from "@/app/features/shared/pipelineAxisDraft";
-import { planEqualsStored, type PipelinePlan } from "./pipelineComposerModel";
+import { planEqualsStored, sortPlanToAxis, type PipelinePlan } from "./pipelineComposerModel";
 
 type ConfigPayload = { configs?: { interviewPlan?: InterviewPlanRule; pipelineStages?: PipelineStagesRule } };
 
@@ -127,7 +127,13 @@ export function useHiringComposer() {
         // request. Splitting them would let a client perform half.
         await applyAxis(draftToStored(axis, savedStages), migrate, errMsg, t("saveFailed"));
       }
-      if (planDirty) await writePhase("interviewPlan", plan, errMsg, t("saveFailed"));
+      // Sent in BOARD order. The editor appends a column's step on first touch,
+      // so a step added and then moved earlier leaves the array disagreeing with
+      // the board — and the validator numbers rounds by array position to decide
+      // which one is the plan's first (and so carries no cohort reducer). Sorting
+      // here is what stops a "Top 3" the composer legitimately offered from being
+      // stripped by the save that reports success.
+      if (planDirty) await writePhase("interviewPlan", sortPlanToAxis(plan, axis.stages), errMsg, t("saveFailed"));
       const refreshed = (await fetch("/api/decisions/config").then((r) => r.json())) as ConfigPayload;
       if (refreshed.configs) adopt(refreshed.configs);
       // Occupancy changed if anybody moved; re-read so a follow-up edit is judged

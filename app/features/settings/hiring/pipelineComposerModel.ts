@@ -20,8 +20,8 @@
 import {
   INTERVIEW_PLAN_MAX_ROUNDS,
   migrateLegacyInterviewPlan,
-  planRounds,
   planStep,
+  prunePlanToAxis,
   type InterviewPlanGate,
   type InterviewPlanRound,
   type InterviewPlanRule,
@@ -129,11 +129,55 @@ export function patchRound(plan: PipelinePlan, stageId: string, index: number, p
   return setStepRounds(plan, stageId, rounds);
 }
 
-/** How many rounds the whole plan runs — the cap is a plan-wide budget, not a
- *  per-column one (spreading three rounds over three columns is the same amount
- *  of interviewing as stacking them on one). */
-export function roundCount(plan: PipelinePlan): number {
-  return planRounds(plan).length;
+/**
+ * THE PLAN AS THE SERVER WILL READ IT — the only shape a preview may reason from.
+ *
+ * The composer is the one reader in the product that sees the plan RAW: it loads
+ * `/api/decisions/config` (`getAllDecisionConfigs`), while every server consumer
+ * goes through `getInterviewPlan`, which `prunePlanToAxis`-es first. So the blob
+ * the editor holds can name a column this axis does not draw (the draft just
+ * removed it; an org-baseline plan was authored against a different axis) or one
+ * that cannot hold policy at all (a column re-roled to entry/terminal). Those
+ * steps are already dead — the very next server read drops them — and a preview
+ * built on them promises interviews that will never run.
+ *
+ * Reusing the server's own function rather than re-deriving "which columns count"
+ * is the point: there is one rule, and the preview is on the same side of it as
+ * the runtime.
+ */
+function planOnAxis(plan: PipelinePlan, axis: readonly StageDef[]): PipelinePlan {
+  return prunePlanToAxis(plan, axis);
+}
+
+/** How many rounds the plan runs on this board — the cap is a plan-wide budget,
+ *  not a per-column one (spreading three rounds over three columns is the same
+ *  amount of interviewing as stacking them on one). Axis-scoped for the same
+ *  reason `deriveImpact` is: a round at a column this board does not draw is not
+ *  a booking anybody will make. */
+export function roundCount(plan: PipelinePlan, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): number {
+  return planOnAxis(plan, axis).steps.reduce((n, s) => n + s.rounds.length, 0);
+}
+
+/**
+ * The plan's steps re-ordered to match the board — what a SAVE must send.
+ *
+ * The wire shape is order-sensitive in one place: the validator numbers rounds by
+ * their position in `steps` to decide which is the plan's FIRST (the one that has
+ * no previous cohort to reduce, so its `topN` is nulled). The editor, meanwhile,
+ * appends a column's step on first touch and never reorders — so a column added
+ * and then moved earlier leaves the array disagreeing with the board, and the
+ * validator strips the reducer off the wrong round. `prunePlanToAxis` sorts on
+ * READ, which hides the divergence from every consumer and from nobody at all on
+ * the way in.
+ *
+ * Steps for columns this axis does not draw sort LAST (stable, so their relative
+ * order survives): they are pruned on the next read, and letting one hold
+ * position 0 would hand the reducer exemption to a round that is about to vanish.
+ */
+export function sortPlanToAxis(plan: PipelinePlan, axis: readonly StageDef[]): PipelinePlan {
+  const order = new Map(axis.map((s, i) => [s.id, i]));
+  const rank = (stageId: string) => order.get(stageId) ?? Number.MAX_SAFE_INTEGER;
+  return { steps: [...plan.steps].sort((a, b) => rank(a.stageId) - rank(b.stageId)) };
 }
 
 // ---- Derived impact --------------------------------------------------------
@@ -172,18 +216,22 @@ export type PlanImpact = {
  *
  * A column the plan says nothing about contributes no rounds and no queue —
  * absence stays absence, never a defaulted gate.
+ *
+ * Every reading below is taken from the plan AS THE SERVER WILL READ IT
+ * (`planOnAxis`), so a step the next read prunes cannot light up a card here.
  */
 export function deriveImpact(plan: PipelinePlan, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): PlanImpact {
+  const live = planOnAxis(plan, axis);
   const overview: PlanOverviewStation[] = axis.map((stage) => ({
     stageId: stage.id,
     role: stage.role,
-    rounds: (planStep(plan, stage.id)?.rounds ?? []).map((r) => r.kind),
+    rounds: (planStep(live, stage.id)?.rounds ?? []).map((r) => r.kind),
   }));
 
   const decisions: PlanImpact["decisions"] = [];
   // Board order, so the queues list the way a candidate meets them.
   for (const stage of axis) {
-    const step = planStep(plan, stage.id);
+    const step = planStep(live, stage.id);
     if (!step) continue;
     if (stage.role === "screening" && step.gate === "human") decisions.push("screening_review");
     for (const r of step.rounds) {
@@ -197,7 +245,12 @@ export function deriveImpact(plan: PipelinePlan, axis: readonly StageDef[] = DEF
     if (stage.role === "offer" && step.gate === "human") decisions.push("offer_review");
   }
 
-  const rounds = planRounds(plan);
+  // Off the LIVE plan, not the whole blob: a round at a column this draft no
+  // longer draws lights up no Schedule surface, because the server prunes that
+  // step before anything schedules anything. Reading it here used to make this
+  // card promise an AI docket while Overview, which walks the axis, showed the
+  // board running nothing at all.
+  const rounds = live.steps.flatMap((s) => s.rounds);
   return {
     overview,
     decisions,

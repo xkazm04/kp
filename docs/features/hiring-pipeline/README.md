@@ -59,6 +59,21 @@ The block placement in the week grid is a representative week, not a forecast,
 and is labelled as one (`impact.weekAria`); the legend under the grid carries the
 load-bearing claim about which surfaces are actually in play.
 
+**Every card previews the plan AS THE SERVER WILL READ IT.** The composer is the
+only reader in the product that holds the plan *raw*: it loads
+`/api/decisions/config` (`getAllDecisionConfigs`), while every server consumer
+goes through `getInterviewPlan`, which `prunePlanToAxis`-es first. So the blob the
+editor holds can name a column this axis does not draw (the draft just removed
+it; an org-baseline plan was authored against a different axis) or one that
+cannot hold policy at all (a column re-roled to entry/terminal). `deriveImpact()`,
+`roundCount(plan, axis)` and `gateLedger()` therefore all run the SAME
+`prunePlanToAxis` the runtime does, rather than re-deriving which columns count.
+
+Before that, the three cards could contradict each other from one plan: removing
+the only interview column left Overview correctly showing the board running
+nothing while Schedule still promised an AI docket and "1 round to book", off a
+step the very next server read discards.
+
 ## The preview previews the REAL board
 
 `deriveImpact().overview` used to emit its own station vocabulary — `screened →
@@ -110,7 +125,7 @@ each round at its own column, but the shipped default still stacks two at
 rule hidden in a derivation. That is what unblocks merging the steps editor and
 the policy matrix into one row-per-step table.
 
-Pinned by `pipelineComposerModel.test.ts` (24 checks): every preset's preview must
+Pinned by `pipelineComposerModel.test.ts` (32 checks): every preset's preview must
 equal the real axis, no phantom columns, the composer's fixed rows must point at
 stages that exist — and, for the stage-keyed shape, that the legacy default lands
 both rounds on the one `Interview` column, that a two-interview-column axis takes
@@ -290,6 +305,19 @@ then the plan: the plan's stations resolve against the axis
 axis does not have yet would leave a window where the two disagree. Only the
 phase that actually changed is written.
 
+**The plan is sent in BOARD order** (`sortPlanToAxis`, applied in `save()` against
+the *draft* axis). The wire shape is order-sensitive in exactly one place: the
+validator numbers rounds by their position in `steps` to decide which is the
+plan's FIRST — the one with no previous cohort to reduce, whose `topN` it nulls.
+The editor, meanwhile, appends a column's step on first touch and never reorders,
+so a step added and then moved earlier leaves the array disagreeing with the
+board. Without the sort, a "Top 3" the composer legitimately offered on the
+board's *second* interview round was stripped by a save that reported success.
+`prunePlanToAxis` sorts on READ, which hides the divergence from every consumer
+and from nobody at all on the way in. Steps for columns the axis does not draw
+sort LAST: they are pruned on the next read, so letting one hold position 0 would
+hand the no-reducer exemption to a round that is about to vanish.
+
 **Shipped default (behaviour change).** The default plan is human-reviewed
 screening, ONE gated AI round, human-approved offers. It used to be two rounds (AI,
 then human for the top 3) stacked behind the single `Interview` column. The hybrid
@@ -315,9 +343,11 @@ untouched until their next save.
 ## Lib surface
 
 `pipelineComposerModel.ts` — pure, unit-tested (`pipelineComposerModel.test.ts`):
-`PipelinePlan`/`PlanRound` (UI shape with list-key ids), `PRESETS`,
-`deriveImpact()`, `matchesPreset()`, and the wire conversions
-`toStoredPlan()` / `fromStoredPlan()` / `planEqualsStored()`.
+`PipelinePlan`/`PlanRound` (aliases of the wire shape — there is no projection),
+`PRESETS`, the editing helpers `setStepGate()` / `setStepRounds()` /
+`patchRound()`, the axis-scoped readings `deriveImpact()` / `roundCount()`, the
+save-time normalizer `sortPlanToAxis()`, and the comparisons `planEqualsStored()`
+/ `matchesPreset()`.
 
 ## Enforcement (what the plan drives today)
 

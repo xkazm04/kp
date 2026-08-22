@@ -21,6 +21,7 @@ import { Bot, CalendarClock, LayoutDashboard, Scale, UserRound } from "lucide-re
 import { useTranslations } from "next-intl";
 import { PANEL } from "@/app/_components/ui/recipes";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { prunePlanToAxis } from "@/app/_lib/decision-config-schema";
 import type { StageDef } from "@/app/_lib/pipeline-stages";
 import type { GateMode, PipelinePlan, RoundKind } from "../pipelineComposerModel";
 import { DEFAULT_STAGE_AXIS } from "@/app/_lib/pipeline-stages";
@@ -165,8 +166,14 @@ export type GateRow = {
 export function gateLedger(plan: PipelinePlan, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): GateRow[] {
   const rows: GateRow[] = [];
   let n = 0;
+  // The plan AS THE SERVER WILL READ IT — same projection `deriveImpact` takes,
+  // so the ladder and the touchpoint count beside it cannot disagree. The
+  // composer is the only reader that holds the raw blob (it loads
+  // getAllDecisionConfigs, not getInterviewPlan), so a step at a column this axis
+  // has dropped or re-roled would otherwise draw a checkpoint nobody ever reaches.
+  const live = prunePlanToAxis(plan, axis);
   for (const stage of axis) {
-    const step = plan.steps.find((s) => s.stageId === stage.id);
+    const step = live.steps.find((s) => s.stageId === stage.id);
     if (!step) continue;
     if (stage.role === "screening") rows.push({ key: `${stage.id}:gate`, kind: "screening", stageId: stage.id, mode: step.gate });
     step.rounds.forEach((r, i) => {
