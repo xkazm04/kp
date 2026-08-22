@@ -190,10 +190,14 @@ for (const f of walk(libDir)) {
 // ---- 2. find route-layer calls that omit it --------------------------------
 type Offender = { file: string; fn: string; line: number };
 
-function offendersIn(files: string[], root: string): Offender[] {
+function offendersIn(
+  files: string[],
+  root: string,
+  readSource: (f: string) => string = (f) => readFileSync(f, "utf8"),
+): Offender[] {
   const found: Offender[] = [];
   for (const f of files) {
-    const src = readFileSync(f, "utf8");
+    const src = readSource(f);
     const lines = src.split("\n");
     for (const [fn, idx] of tenantArgIndex) {
       const re = new RegExp(`(?<![A-Za-z0-9_.])${fn}\\s*\\(`, "g");
@@ -202,7 +206,12 @@ function offendersIn(files: string[], root: string): Offender[] {
         const open = src.indexOf("(", m.index + fn.length - 1);
         const args = splitTopLevel(stripComments(argText(src, open)));
         const passed = args.length === 1 && args[0] === "" ? 0 : args.length;
-        if (passed > idx) continue;
+        // A literal `undefined` in the tenant slot is the SAME defect as omitting it —
+        // a defaulted parameter takes the default for both — but it looked like a
+        // correctly-threaded call to an arity-only check. Counting it as passed made
+        // "argument present" a rubber stamp the compiler happily accepts (the parameter
+        // is `workspaceId: string = DEFAULT_WORKSPACE_ID`, so `undefined` type-checks).
+        if (passed > idx && args[idx] !== "undefined") continue;
         const line = src.slice(0, m.index).split("\n").length;
         // Prose in this codebase documents its own past tenant bugs by name
         // ("listPostings() bare read the DEFAULT workspace") — a sentence is not a
@@ -234,8 +243,18 @@ test("the route layer threads a tenant into every tenant-defaulting store call",
     `expected to derive the tenant-defaulting store surface, only found ${tenantArgIndex.size} functions — the scanner is broken, not the code`
   );
 
-  const routeFiles = walk(apiDir).filter((f) => f.endsWith("route.ts"));
-  assert.ok(routeFiles.length >= 50, `expected to scan the API surface, only found ${routeFiles.length} routes`);
+  // EVERY module in the route layer, not just `route.ts`. A handler that moves its
+  // body into a colocated helper (`app/api/**/…​.ts` — ats-candidate-audit,
+  // ingest-job, importMerge, …) still runs inside the request, still reads the same
+  // stores, and used to fall straight out of this scan: relocating an unscoped call
+  // one file sideways silenced the ratchet without changing behaviour.
+  const routeFiles = walk(apiDir);
+  const handlerFiles = routeFiles.filter((f) => f.endsWith("route.ts"));
+  assert.ok(handlerFiles.length >= 50, `expected to scan the API surface, only found ${handlerFiles.length} routes`);
+  assert.ok(
+    routeFiles.length > handlerFiles.length,
+    "the scan must also cover the colocated helper modules the handlers delegate to",
+  );
 
   const offenders = offendersIn(routeFiles, apiDir);
   const unexplained = offenders
@@ -252,5 +271,40 @@ test("the route layer threads a tenant into every tenant-defaulting store call",
       `invite.workspaceId, sub.workspaceId), from a linked one (getEntryWorkspace), or —\n` +
       `only on a session route, never a public token route — \`await currentWorkspace()\`.\n` +
       `If the omission is genuinely correct, add it to ALLOWED in this file WITH THE REASON.`
+  );
+});
+
+// NON-VACUITY, proved rather than asserted. A ratchet whose whole output is "[] === []"
+// looks identical whether it is clean or blind — the failure mode this file was written
+// to catch, one layer up. Drive the same scanner over synthetic sources with a known
+// answer, including one in a COLOCATED HELPER (not `route.ts`) and one that passes a
+// literal `undefined`, so a regression in the scan itself is red rather than quiet.
+test("the scanner is not blind: it flags the shapes it exists to flag", () => {
+  const zeroIdx = [...tenantArgIndex.entries()].find(([, idx]) => idx === 0);
+  assert.ok(zeroIdx, "expected at least one store function whose FIRST parameter is the tenant");
+  const [fn] = zeroIdx;
+
+  const fixtures = new Map<string, string>([
+    // Offends: bare call in a route.
+    [path.join(apiDir, "fixture", "route.ts"), `export async function GET() { return ${fn}(); }\n`],
+    // Offends: the same bare call, moved one file sideways into a colocated helper.
+    [path.join(apiDir, "fixture", "helper.ts"), `export function load() { return ${fn}(); }\n`],
+    // Offends: the tenant slot is filled with a literal \`undefined\`, which defaults.
+    [path.join(apiDir, "fixture", "undef.ts"), `export function load() { return ${fn}(undefined); }\n`],
+    // Clean: a real tenant is threaded through.
+    [path.join(apiDir, "fixture", "ok.ts"), `export function load(ws: string) { return ${fn}(ws); }\n`],
+    // Clean: prose naming the function is not a call site.
+    [path.join(apiDir, "fixture", "prose.ts"), `// ${fn}() bare read the DEFAULT workspace once.\nexport const x = 1;\n`],
+  ]);
+
+  const flagged = offendersIn([...fixtures.keys()], apiDir, (f) => fixtures.get(f) ?? "")
+    .map((o) => o.file)
+    .sort();
+
+  assert.deepEqual(
+    flagged,
+    ["fixture/helper.ts", "fixture/route.ts", "fixture/undef.ts"],
+    `the scanner must flag a bare call in a route AND in a colocated helper AND a literal
+     \`undefined\` in the tenant slot, while leaving a threaded call and a comment alone`,
   );
 });

@@ -12,6 +12,89 @@
 // and the liveness staleness threshold share ONE source and can never drift.
 import { SCHEDULER_TICK_MS } from "./app/_lib/scheduler-health.ts";
 
+// --- The stop control (EU AI-Act pack G15, Art. 14(4)(e)) --------------------
+// The Control Room's autonomy pause is presented to the operator as "Pause to halt
+// all automation immediately" (`control.autonomy.runningBody`). It used to have
+// exactly ONE behavioural consumer — `devcase-orchestrator.ts` — so a paused
+// deployment kept sending candidate-facing interview and offer reminders, kept
+// lapsing live offers, and kept running the policy pass. During an incident that is
+// the opposite of a stop control: the surface said "halted" while the clock kept
+// acting on candidates. `clockIsPaused()` is what makes the button true for the
+// server clock as well.
+//
+// SCOPE, stated deliberately rather than left to whichever module happened to
+// import dev-control:
+//   HALTED while paused — every DISCRETIONARY pass: the inbound pull/edge passes
+//     (they file leads through the intake core, which dispatches a candidate-facing
+//     acknowledgement), the policy pass, interview reminders, offer lapse, offer
+//     reminders. Nothing is lost by halting them: pull cursors only advance over
+//     applied events, the edge holds its log until acked, reminders re-become due,
+//     and an offer's expiry is also applied lazily on the candidate's own read.
+//   EXEMPT — the GDPR consent-expiry sweep (`sweepExpiredConsents` below). See the
+//     reasoning on that function: it is a statutory retention duty, not an
+//     automated decision, and a UI toggle must not be able to suspend it.
+//   ALWAYS — the liveness heartbeat, so ops can still tell a PAUSED clock from a
+//     WEDGED one. A pause must not look like a crash.
+let lastAutonomySeen: "on" | "paused" = "on";
+
+async function clockIsPaused(): Promise<boolean> {
+  // FAIL CLOSED. Every gated sweep below needs the same SQLite file this read
+  // needs, so a read failure means no sweep could do useful work anyway — and a
+  // stop control that silently keeps going when it cannot read its own flag is not
+  // a stop control. Self-healing: the next tick re-reads.
+  let paused = true;
+  try {
+    const { getAutonomy } = await import("./app/_lib/dev-control");
+    paused = getAutonomy() === "paused";
+  } catch (e) {
+    console.error("[clock] autonomy read failed — halting this tick (fail closed):", e);
+  }
+  const state: "on" | "paused" = paused ? "paused" : "on";
+  // Audit the TRANSITION only. At a 1-minute cadence a row per tick would bury the
+  // dev_audit chain that Art. 12 record-keeping leans on.
+  if (state !== lastAutonomySeen) {
+    lastAutonomySeen = state;
+    try {
+      const { recordAudit } = await import("./app/_lib/dev-control");
+      recordAudit({
+        actor: "system",
+        action: paused ? "clock_halted" : "clock_resumed",
+        reason: paused
+          ? "autonomy paused — the clock's discretionary passes are skipped (the statutory consent-expiry sweep keeps running)"
+          : "autonomy on — the clock's discretionary passes resume",
+      });
+    } catch {
+      /* the audit must never break the clock */
+    }
+  }
+  return paused;
+}
+
+/** GDPR consent-expiry sweep (consent.ts) — independent, best-effort, idempotent.
+ *  Anonymizes candidates whose data-processing consent has lapsed (PII scrubbed,
+ *  scores/notes/stage retained for re-engagement). The candidate erasure path also
+ *  anonymizes on demand; this sweep is what honors a silent expiry on time.
+ *
+ *  DELIBERATELY EXEMPT from the autonomy pause, and the reasoning is the decision
+ *  itself rather than an accident of imports: this is not an automated DECISION about
+ *  a candidate (the Art. 14 oversight surface governs those), it is the execution of a
+ *  statutory retention duty — storage limitation (GDPR Art. 5(1)(e)) once the lawful
+ *  basis has lapsed. Continuing to hold identifiable data past consent expiry is the
+ *  unlawful state, so a UI toggle that suspends the scrub would let an operator park
+ *  the deployment in it indefinitely, with no record that they had. The sweep also
+ *  destroys nothing a human decision needs: it de-identifies, keeping stage/score/
+ *  notes. If a future erasure-hold ("legal hold") capability is added, it belongs on
+ *  the consent record where it can be per-candidate and audited — not on this pause. */
+async function sweepExpiredConsents(): Promise<void> {
+  try {
+    const { anonymizeExpiredConsents } = await import("./app/_lib/db");
+    const anonymized = anonymizeExpiredConsents();
+    if (anonymized) console.log("[clock] consents expired → anonymized:", anonymized);
+  } catch (e) {
+    console.error("[clock] consent anonymization sweep failed:", e);
+  }
+}
+
 export async function startClock(): Promise<void> {
   const g = globalThis as typeof globalThis & { __kpClockStarted?: boolean };
   if (g.__kpClockStarted) return; // guard against duplicate intervals across HMR
@@ -47,6 +130,15 @@ export async function startClock(): Promise<void> {
         .run(new Date().toISOString());
     } catch (e) {
       console.error("[clock] heartbeat write failed:", e);
+    }
+    // THE STOP CONTROL (G15). Placed after the heartbeat so a paused clock still
+    // proves it is alive, and before every discretionary pass so "paused" means the
+    // machine stops ACTING — no policy advance, no candidate-facing send, no lead
+    // filed — rather than merely stopping the case-lifecycle orchestrator. The
+    // statutory consent sweep is the one documented exemption; see its definition.
+    if (await clockIsPaused()) {
+      await sweepExpiredConsents();
+      return;
     }
     // COLLECT BEFORE YOU DECIDE (docs/concepts/local-first-edge.md): both inbound
     // sweeps run BEFORE the policy pass, so a lead that arrived while this machine
@@ -140,17 +232,8 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] offer reminder sweep failed:", e);
     }
-    // GDPR consent-expiry sweep (consent.ts) — independent, best-effort, idempotent.
-    // Anonymizes candidates whose data-processing consent has lapsed (PII scrubbed,
-    // scores/notes/stage retained for re-engagement). The candidate erasure path
-    // also anonymizes on demand; this sweep is what honors a silent expiry on time.
-    try {
-      const { anonymizeExpiredConsents } = await import("./app/_lib/db");
-      const anonymized = anonymizeExpiredConsents();
-      if (anonymized) console.log("[clock] consents expired → anonymized:", anonymized);
-    } catch (e) {
-      console.error("[clock] consent anonymization sweep failed:", e);
-    }
+    // GDPR consent-expiry sweep — runs in BOTH states; see sweepExpiredConsents.
+    await sweepExpiredConsents();
   };
 
   // Self-rescheduling chain instead of setInterval: arm the NEXT tick only AFTER the

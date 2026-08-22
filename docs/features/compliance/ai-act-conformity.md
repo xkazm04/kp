@@ -61,7 +61,7 @@ Gap ids (G1…) resolve in §3.
 | **Art. 11 + Annex IV** Technical documentation | 🔴 | This document's §4 is the skeleton; no model card, no instructions-for-use published. | G2 |
 | **Art. 12** Record-keeping (automatic logs) | 🟢/🟡 | Per-tenant tamper-evident decision chain: HMAC-SHA256 with key rotation + anti-downgrade + atomic seal (`app/_lib/decision-record-store.ts` — `sealDecisionRecord` ~L199, `verifyDecisionChain` ~L350, `heldOutEntryIds` ~L403); each record stamps kind, actor (`auto:scorecard-v5` vs `human:recruiter`), policyVersion, candidateRef, rationale, reasonCode, decisive inputs; operational log `pipeline_events` with honest auto/human attribution (`app/_lib/decision-attribution.ts`); `consent_events` append-only (`app/_lib/db/core.ts`); `llm_usage` ledger incl. `deterministic` source honesty (`core.ts`). | G4 (no `audit_events` for auth/config/PII-read/export), G6 (no retention window config), G7 (no SIEM/signed export) |
 | **Art. 13** Transparency & instructions for use | 🟡 | Provenance dossier "for a compliance review under the EU AI Act" (`app/_lib/provenance-dossier.ts`); jurisdiction regime catalog with explicit not-legal-advice framing (`app/_lib/compliance-regimes.ts`); public compliance endpoint (`app/api/compliance/route.ts`); internal posture board at `/trust` (`app/trust/`, noindexed, see below). | G2 (no deployer instructions-for-use), and — **newly closed** — the candidate dossier gap (previously G9) is now partially addressed, see below |
-| **Art. 14** Human oversight | 🟢 | Signed human-approval token on auto-reject waves — server recomputes and refuses on cohort drift, client-supplied approver ignored (`app/_lib/screen-wave-approval.ts`, `app/api/decisions/screen-wave/route.ts`); AUTO1 retired — unattended pass queues rejects for a human, never executes them (`app/_lib/automation-pass.ts:302-308`, comment explicitly titled "AUTO1 RETIRED (UAT M6 / GDPR Art. 22)"); approval-kind taxonomy fails closed on typos (`app/_lib/approval-kinds.ts`); advance-top-N stops before Offer (`app/api/pipeline/command/route.ts`); sticky group-eval governance — governed modes can't downgrade to auto-seal (`app/_lib/group-eval-governance.ts`); autonomy pause, **single-click by design** and scoped to the case-lifecycle orchestrator (`app/_lib/dev-control.ts` `getAutonomy`, read only at `app/_lib/devcase-orchestrator.ts:104`; the arm-then-confirm guard in `app/control/ControlRoom.tsx` is on **Reconcile**, not on pause — `app/control/AutonomyBar.tsx:6-8` states the reasoning); human disposition captured on analyses (`app/_lib/db/core.ts`). | G5 (approver identity is a role string unless `KP_OPERATOR_NAME` is set — E0 identity layer now exists (`app/_lib/db/users.ts`, memberships) but `operatorApprover()` in `app/_lib/auth/operator-approver.ts` has not yet been threaded to the logged-in user); **G15** (the autonomy pause is not a global Art. 14(4)(e) stop control — the clock's timed passes in `instrumentation-node.ts` never read `getAutonomy()`: policy pass `:52`, interview reminders `:72`, offer lapse `:95`, offer reminders `:106`, GDPR consent anonymisation `:117`; the last three have no off switch at all, and `control.autonomy.runningBody` in `messages/*.json` still promises "halt all automation immediately") |
+| **Art. 14** Human oversight | 🟢 | Signed human-approval token on auto-reject waves — server recomputes and refuses on cohort drift, client-supplied approver ignored (`app/_lib/screen-wave-approval.ts`, `app/api/decisions/screen-wave/route.ts`); AUTO1 retired — unattended pass queues rejects for a human, never executes them (`app/_lib/automation-pass.ts:302-308`, comment explicitly titled "AUTO1 RETIRED (UAT M6 / GDPR Art. 22)"); approval-kind taxonomy fails closed on typos (`app/_lib/approval-kinds.ts`); advance-top-N stops before Offer (`app/api/pipeline/command/route.ts`); sticky group-eval governance — governed modes can't downgrade to auto-seal (`app/_lib/group-eval-governance.ts`); autonomy pause, **single-click by design** and scoped to the case-lifecycle orchestrator (`app/_lib/dev-control.ts` `getAutonomy`, read only at `app/_lib/devcase-orchestrator.ts:104`; the arm-then-confirm guard in `app/control/ControlRoom.tsx` is on **Reconcile**, not on pause — `app/control/AutonomyBar.tsx:6-8` states the reasoning); human disposition captured on analyses (`app/_lib/db/core.ts`). | G5 (approver identity is a role string unless `KP_OPERATOR_NAME` is set — E0 identity layer now exists (`app/_lib/db/users.ts`, memberships) but `operatorApprover()` in `app/_lib/auth/operator-approver.ts` has not yet been threaded to the logged-in user); **G15 closed** — the pause is now a real Art. 14(4)(e) stop control: `instrumentation-node.ts` reads `getAutonomy()` once per tick (`clockIsPaused`) and, while paused, skips every discretionary pass (inbound pull + edge drain, scheduling policy pass, interview reminders, offer lapse, offer reminders), records one `clock_halted` audit row on the transition, and still writes its liveness heartbeat so a pause cannot be mistaken for a wedged clock. The GDPR consent-expiry sweep is the one **documented exemption** (see G15 in §3) |
 | **Art. 15** Accuracy, robustness, cybersecurity | 🟡→ improved | Calibration with honesty floor + Brier (`app/_lib/calibration.ts`); per-source label-leakage disclosure; deterministic clean-arm holdout, sealed and read back (`app/_lib/screen-wave-holdout.ts`, `decision-record-store.ts`); threshold changes sealed as human policy acts (`app/api/analytics/calibration/apply-threshold/route.ts:82` — `kind: "screening_threshold_adjusted"`); unevidenced skill claims discounted for all candidates (`pipeline/jobfit/transform.py`); fail-closed null scores (`app/_lib/match-score.ts`); tie-safe cutoffs + score-staleness flags (`screen-wave.ts`); weighting-robustness matrix (`app/features/hiring/decisions/groupEval/GroupEvalFairnessPanel.tsx` — path corrected, see below); bilingual-parity eval gates (`pipeline/jobfit/tests/test_tech_bilingual_parity.py`, confirmed present); **name/gender-proxy neutrality eval now exists** (`pipeline/jobfit/tests/test_name_neutrality.py`) — this closes what was G3. | G3 closed; G10 (no post-market drift monitoring beyond display) still open |
 | **Art. 26** Deployer obligations | 🟡 | The product operationalizes the deployer's duties: oversight assignment via `KP_OPERATOR_NAME` (`app/_lib/auth/operator-approver.ts`), logs kept (chain never pruned), candidate information duties via the disclosure layer. | G2 (instructions-for-use is the vehicle for telling deployers *their* duties: worker-representative notification, Art. 27 FRIA for public bodies, log retention ≥ 6 months) |
 | **Art. 50** Transparency (AI interaction) | 🟢 | `AiDisclosure` on quick/conversational/dev-case apply, voice portal, offer, schedule, **and now `/status/[token]`** (`app/_components/AiDisclosure.tsx`; `app/status/[token]/StatusClient.tsx:324` — the comment cites "EU AI-Act pack G9/G11" directly). (`/onboarding/[token]` carried it too until the post-hire onboarding module was removed with that surface.) Voice consent is server-enforced at credential mint AND transcript persist (`app/_lib/interview-consent.ts`, `app/api/interview/connect/route.ts`); "AI-led conversation" / "Reviewed by a human" chips (`app/interview/[token]/page.tsx`). | **G11 closed** (was the last uncovered candidate surface; every surviving candidate surface renders `AiDisclosure`) |
@@ -93,13 +93,56 @@ Struck-through items closed since 2026-07-27.
 | G12 | Per-tenant export/import. | 10 | Provider | M | **Closed** — the decision chain is per-tenant (`app/api/decisions/records/route.ts`: "integrity is PER-TENANT... each team has its own independent chain"), and `app/api/workspace/export/route.ts` / `import/route.ts` now move ONE ORGANIZATION (`dumpOrg` / `restoreOrg`), scoped by the tenancy manifest (`orgExportClass`) and gated on `org:manage`. Round trip pinned by `app/_lib/db-portability-org.test.ts`. Two documented limits remain, both surfaced to the operator rather than silent: the restore is in-place (same deployment), and six singleton config tables carry no `org_id` so a backup cannot carry them (`ORG_CONFIG_NOT_PORTABLE`). |
 | G13 | Document the no-demographic-data posture as the deliberate bias-mitigation choice, its limits, and the deployer-side 4/5ths workflow (`app/_lib/adverse-impact.ts`). | 10 | Provider | S | **Open** |
 | G14 | Registration + declaration-of-conformity scaffolding. Premature before G1/G2; keep on the E-track. | 47-49, 71 | Provider | L | **Open** |
-| G15 | Widen the autonomy pause into a real Art. 14(4)(e) stop control. `getAutonomy()` (`app/_lib/dev-control.ts:71`) is read by exactly one behavioural consumer — `app/_lib/devcase-orchestrator.ts:104`. The server clock's five timed passes (`instrumentation-node.ts`: policy `:52`, interview reminders `:72`, offer lapse `:95`, offer reminders `:106`, GDPR consent anonymisation `:117`) never consult it; the policy and reminder jobs at least have per-job `enabled` flags in `scheduler-store`, the other three have no off switch at all. Until it is wired through, `control.autonomy.runningBody` ("Pause to halt all automation immediately") overstates what the button does. | 14 | Provider | M | **Open** — the public claim in `app/_lib/trust-posture.ts` was corrected to match the code on 2026-08-22; the code half is what remains |
+| ~~G15~~ | ~~Widen the autonomy pause into a real Art. 14(4)(e) stop control.~~ | 14 | Provider | M | **Closed (2026-08-22)** — see below |
 
 Already adequate, keep as-is: the Art. 12 decision
 chain, voice-consent enforcement, GDPR erasure/consent machinery, KP_OFFLINE,
 and now the name-neutrality eval and candidate-facing AI disclosure/explanation.
 The Art. 14 oversight layer is adequate on its *decision* gates (nothing adverse
-happens without a human); its one open piece is the pause's reach — G15.
+happens without a human), and since 2026-08-22 also on the pause's REACH — G15 is
+closed.
+
+### G15 in detail — what the pause now stops, and the one thing it does not
+
+`app/_lib/dev-control.ts` `getAutonomy()` used to have exactly one behavioural
+consumer (`app/_lib/devcase-orchestrator.ts`), so an operator who pressed Pause
+during an incident still had the server clock sending candidate-facing interview and
+offer reminders, lapsing live offers, running the scheduling policy pass and filing
+inbound leads — while the Control Room said "Paused" and the copy beside the button
+promised to "halt all automation immediately".
+
+`instrumentation-node.ts` now reads the flag once per tick (`clockIsPaused`), and the
+scope is a stated decision rather than an accident of which module imported
+`dev-control`:
+
+- **Halted while paused** — every discretionary pass: the L0 pull pass and the L1 edge
+  drain (both file leads through the intake core, which dispatches a candidate-facing
+  acknowledgement), the scheduling policy pass, interview reminders, offer lapse and
+  offer reminders. Nothing is lost by halting them: pull cursors advance only over
+  applied events, the edge holds its log until acked, reminders re-become due, and an
+  offer's expiry is applied lazily on the candidate's own read anyway.
+- **Exempt** — the GDPR consent-expiry sweep (`anonymizeExpiredConsents`). This is not
+  an automated *decision* about a candidate, which is what the Art. 14 oversight
+  surface governs; it is the execution of a statutory retention duty (storage
+  limitation, GDPR Art. 5(1)(e)) once the lawful basis has lapsed. Continuing to hold
+  identifiable data past consent expiry IS the unlawful state, so a UI toggle able to
+  suspend the scrub would let an operator park a deployment in it indefinitely. The
+  sweep also destroys nothing a human decision needs — it de-identifies and keeps
+  stage/score/notes. A future per-candidate, audited "legal hold" belongs on the
+  consent record, not on this pause.
+- **Always** — the liveness heartbeat, so `schedulerLiveness` still distinguishes a
+  PAUSED clock from a WEDGED one. A pause must not look like a crash.
+- **Fail-closed** — if the autonomy flag cannot be read, the tick halts. Every gated
+  sweep needs the same SQLite file the flag does, so halting costs nothing, and a stop
+  control that keeps going when it cannot read its own flag is not a stop control.
+- **Audited** — one `clock_halted` / `clock_resumed` row in `dev_audit` per transition
+  (not per tick: at a 1-minute cadence that would bury the Art. 12 chain).
+
+Follow-up, tracked here rather than left implicit: the public projection in
+`app/_lib/trust-posture.ts` (Art. 14 `gap`) still describes the pre-fix scope. It now
+UNDER-claims the control, which is the safe direction, but it should be updated —
+together with the pinned comment in `app/_lib/trust-posture.test.ts`, whose assertion
+requires the Art. 14 row to keep naming *some* pause-related gap.
 
 ---
 
@@ -197,10 +240,11 @@ landed since). Corrections applied in this rewrite:
   separately". Both halves were false. The pause is **single-click by design**
   (`app/control/AutonomyBar.tsx:6-8` — "an oversight surface must be able to halt
   automation instantly"); the arm-then-confirm guard sits on **Reconcile**, which
-  mutates lifecycle state. And it is **scoped**: `getAutonomy()` gates only
-  `devcase-orchestrator.ts:104`, while the clock keeps running five timed passes.
-  Both the row and the public summary now say what the code does, and the scope
-  is registered as G15 rather than left implied.
+  mutates lifecycle state. And it was **scoped**: `getAutonomy()` gated only
+  `devcase-orchestrator.ts`, while the clock kept running five timed passes.
+  Both the row and the public summary were corrected to say what the code does,
+  and the scope was registered as G15 rather than left implied. The code half of
+  G15 was then closed the same day — see "G15 in detail" in §3.
 - **Wrong path**: the original cited
   `app/features/sub_decisions/group-eval/FairnessPanel.tsx`, which does not
   exist. The real component is

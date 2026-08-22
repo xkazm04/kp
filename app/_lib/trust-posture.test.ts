@@ -70,11 +70,14 @@ test("the Art. 14 kill-switch clause matches the control that actually exists", 
   //     comment ("an oversight surface must be able to halt automation instantly"); the
   //     arm/confirm guard is on Reconcile, which mutates lifecycle state. The old claim
   //     "a kill switch arms and confirms separately" described the opposite control.
-  //  2. It is SCOPED — getAutonomy() (app/_lib/dev-control.ts) has exactly one
-  //     behavioural consumer, the case-lifecycle orchestrator. The timed passes in
-  //     instrumentation-node.ts (policy pass, interview reminders, offer lapse, offer
-  //     reminders, consent anonymisation) never read it, so the scope has to be a
-  //     stated gap rather than an unstated one.
+  //  2. It is SCOPED, and the scope has MOVED. getAutonomy() once had a single
+  //     behavioural consumer (the case-lifecycle orchestrator) while every timed pass
+  //     in instrumentation-node.ts ignored it. That is closed: the clock now gates the
+  //     policy pass, interview/offer reminders, offer lapse and the pull/edge drain on
+  //     it. ONE pass stays exempt on purpose — the consent-expiry anonymisation sweep,
+  //     a statutory retention duty an operator toggle must not be able to suspend. So
+  //     the gap must still exist and must still name the exemption; the assertion below
+  //     is deliberately loose about the wording and strict about it being SAID.
   const art14 = OBLIGATIONS.find((r) => r.article === "Art. 14");
   assert.ok(art14, "Art. 14 row is missing");
   assert.doesNotMatch(
@@ -86,6 +89,20 @@ test("the Art. 14 kill-switch clause matches the control that actually exists", 
   assert.ok(
     art14.gap && /paus/i.test(art14.gap),
     "an enforced row whose stop control is scoped must still name that scope as a gap",
+  );
+  // The exemption is the whole of the remaining scope limit, so it is the one thing a
+  // reviewer must not have to infer. Pinned by SUBJECT (consent/anonymis*), not by
+  // phrasing, so the sentence can be reworded without going red — but cannot be
+  // silently dropped, and cannot drift back to claiming the pause reaches everything.
+  assert.match(
+    art14.gap!,
+    /consent|anonymis/i,
+    "the one exempt pass must be named — a reviewer cannot be left to infer what the stop control does not reach",
+  );
+  assert.doesNotMatch(
+    art14.gap!,
+    /are not yet wired to it/i,
+    "the pre-closure scope claim must not survive: the timed passes ARE wired to the pause now",
   );
 });
 

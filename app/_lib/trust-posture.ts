@@ -90,13 +90,15 @@ export const OBLIGATIONS: readonly ObligationRow[] = [
     // softened: the pause fires on a SINGLE click by deliberate design (an oversight
     // control that needs a second confirm cannot stop anything instantly — the
     // arm/confirm guard sits on Reconcile, which mutates lifecycle state), and it is
-    // read by the case-lifecycle orchestrator only, not by the timed passes the server
-    // clock drives. The scope limit is stated as a gap instead of being implied away:
-    // a reviewer reading Art. 14 is looking for an Art. 14(4)(e) stop control, and must
-    // not come away believing this one reaches every automated pass.
+    // at the time read by the case-lifecycle orchestrator ONLY, not by the timed passes
+    // the server clock drives. That scope gap has since been closed (instrumentation-node
+    // now gates every discretionary pass on it), so the `gap` below states the ONE
+    // remaining exemption rather than the old, much wider one. It is still stated as a
+    // gap rather than implied away: a reviewer reading Art. 14 is looking for an
+    // Art. 14(4)(e) stop control and must know exactly what it does not reach.
     summary:
       "No candidate is rejected, advanced or offered by the machine alone. Bulk rejections need a signed human approval that the server recomputes and refuses if the cohort drifted; unattended automation queues rejections for a person rather than executing them; advance-top-N stops before Offer; governed evaluation modes cannot be downgraded to auto-seal; and an operator can halt the automated case lifecycle on a single click, with no confirmation step in the way of stopping it.",
-    gap: "That pause halts the automated case lifecycle. The scheduled passes the server runs on a timer — the scheduling policy pass, interview and offer reminders, offer expiry, and the consent-expiry anonymisation sweep — are not yet wired to it and keep running while it is paused, so it is not a single stop control over every automated process.",
+    gap: "That pause now halts every discretionary pass the server clock runs — the scheduling policy pass, interview and offer reminders, offer expiry, and the inbound pull/edge drain — as well as the automated case lifecycle. One pass is deliberately exempt: the consent-expiry anonymisation sweep keeps running, because it discharges a statutory retention duty (GDPR Art. 5(1)(e)) rather than making an automated decision, and holding identifiable data past consent expiry is itself the unlawful state — so an operator toggle must not be able to suspend it indefinitely.",
   },
   {
     article: "Art. 15",

@@ -17,12 +17,27 @@
 //   npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { FILE_TOO_LARGE_STATUS } from "../_lib/upload-constraints.ts";
 
 function read(rel: string): string {
   return readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+}
+
+const apiDir = path.dirname(fileURLToPath(import.meta.url));
+
+function walk(dir: string, out: string[] = []): string[] {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      if (e.name !== "node_modules") walk(p, out);
+    } else if (e.name === "route.ts") {
+      out.push(p);
+    }
+  }
+  return out;
 }
 
 const ROUTES = ["./analyze/route.ts", "./extract-text/route.ts"];
@@ -35,7 +50,11 @@ for (const rel of ROUTES) {
     // upload-constraints.ts rather than re-checking MIME/size inline — that
     // shared gate is what keeps "too big" wired to FILE_TOO_LARGE_STATUS.
     assert.match(src, /from "@\/app\/_lib\/upload-constraints"/, "must read the upload-size contract");
-    assert.match(src, /validateUploadServer/, "must reject via the shared server gate, not an inline check");
+    // A CALL, not the bare identifier. `/validateUploadServer/` alone was satisfied by
+    // the IMPORT LINE in both routes, so deleting the call site while leaving the import
+    // (an easy "unused variable" style edit, or a half-finished refactor) kept this guard
+    // green while the route accepted an unbounded file. The `(` is what makes it a gate.
+    assert.match(src, /validateUploadServer\(/, "must CALL the shared server gate — an import gates nothing");
 
     // No hand-rolled size branch in the route: the `file.size > MAX_FILE_BYTES`
     // guard now lives only in the shared gate, so a route can't quietly collapse
@@ -65,4 +84,63 @@ test("validateUploadServer wires the over-limit branch to FILE_TOO_LARGE_STATUS"
 // together rather than silently re-merging the two rejection reasons.
 test("FILE_TOO_LARGE_STATUS is 413", () => {
   assert.equal(FILE_TOO_LARGE_STATUS, 413);
+});
+
+// The THIRD enforcement point, and the one nothing pinned until now: two more upload
+// routes (`/api/sim/apply-cv`, `/api/channels/inbound/[token]`) never call
+// validateUploadServer themselves — they hand the File to `extractUploadedText`, which
+// is where their size gate lives. Deleting that one call would have removed the 413
+// contract from half the upload surface with every guard in this file still green.
+test("cv-intake's shared extractor gates the file before it spawns anything", () => {
+  const src = read("../_lib/cv-intake.ts");
+  const at = src.indexOf("validateUploadServer(");
+  assert.ok(at >= 0, "extractUploadedText must call the shared server gate");
+  // The rejection must be RETURNED with its status, not logged and walked past.
+  assert.match(
+    src.slice(at, at + 200),
+    /rejection\.status/,
+    "the rejection's shared status must be surfaced to the caller",
+  );
+  // …and it must run before the Python subprocess, or an over-limit file is paid for
+  // (workdir write + spawn) before it is refused.
+  const spawnAt = src.indexOf("spawnPython(");
+  assert.ok(spawnAt > at, "the size gate must precede the extractor subprocess");
+});
+
+// COVERAGE, not a pin list. The three tests above name their routes by hand, so a NEW
+// file-accepting route inherits nothing — which is exactly how `/api/sim/apply-cv` and
+// `/api/channels/inbound/[token]` came to be uploads this contract never mentioned.
+// Derive the file-accepting surface from the source instead and require every member of
+// it to reach the one shared gate, directly or through the shared extractor pinned above.
+test("every file-accepting route reaches the one shared upload gate", () => {
+  const routes = walk(apiDir);
+  assert.ok(routes.length >= 50, `expected to scan the API surface, only found ${routes.length} routes`);
+
+  const uploaders = routes.filter((f) => {
+    const s = readFileSync(f, "utf8");
+    return s.includes(".formData()") && s.includes("instanceof File");
+  });
+  // Non-vacuity: a broken heuristic must fail loudly, not pass with nothing to check.
+  assert.ok(
+    uploaders.length >= 4,
+    `expected to find the file-accepting routes, found ${uploaders.length} — the scan is broken, not the code`,
+  );
+
+  const unguarded = uploaders
+    .filter((f) => {
+      const s = readFileSync(f, "utf8");
+      // Either gate is fine; both are CALLS, and both end at MAX_FILE_BYTES/413.
+      return !/validateUploadServer\(/.test(s) && !/extractUploadedText\(/.test(s);
+    })
+    .map((f) => path.relative(apiDir, f).replace(/\\/g, "/"))
+    .sort();
+
+  assert.deepEqual(
+    unguarded,
+    [],
+    `These routes accept an uploaded File but never reach the shared upload gate, so the\n` +
+      `8 MB / 413 contract does not apply to them:\n  ${unguarded.join("\n  ")}\n\n` +
+      `Fix by calling validateUploadServer(file, label) and returning its rejection, or by\n` +
+      `routing the file through extractUploadedText() like the CV-intake surfaces do.`,
+  );
 });
