@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 
 /*
@@ -42,19 +43,37 @@ export function resolveErrorMessage(
   return fallback;
 }
 
-/** The hook form, for components and other hooks. */
+/** The hook form, for components and other hooks.
+ *
+ *  STABLE IDENTITY, deliberately: the resolver is memoized on the translator, so
+ *  it is safe in a `useCallback`/`useMemo`/`useEffect` dependency array. It used
+ *  to be a bare arrow re-created on every render, and a resolver that changes
+ *  identity every render is not a formatter — it is a render-loop trigger: put it
+ *  in a fetching effect's deps and the effect re-fires on the very re-render its
+ *  own setState caused. Two call sites had already routed AROUND this hook to
+ *  escape that (app/features/library/jds/jdsHooks.ts read the catalog key
+ *  directly; app/features/shell/useWorkspaceCommandPaletteSearch.ts re-wrapped
+ *  the pure resolveErrorMessage in its own useCallback), which is the shape of a
+ *  primitive that has to be worked around rather than used.
+ *
+ *  `t` from next-intl is itself a useMemo over the intl context, so it only
+ *  changes when the locale or the catalog does — which is exactly when a bound
+ *  resolver SHOULD change. */
 export function useErrorMessage(): (payload: ApiErrorPayload | null | undefined, fallback: string) => string {
   const t = useTranslations("errors");
   type ErrorKey = Parameters<typeof t>[0];
-  return (payload, fallback) =>
-    // `t.has`/`t` are typed to known keys; the code is a runtime string, so cast
-    // at the boundary — the existence check guards against an unknown code.
-    resolveErrorMessage(
-      payload,
-      fallback,
-      (code) => t.has(code as ErrorKey),
-      (code) => t(code as ErrorKey)
-    );
+  return useCallback(
+    (payload: ApiErrorPayload | null | undefined, fallback: string) =>
+      // `t.has`/`t` are typed to known keys; the code is a runtime string, so cast
+      // at the boundary — the existence check guards against an unknown code.
+      resolveErrorMessage(
+        payload,
+        fallback,
+        (code) => t.has(code as ErrorKey),
+        (code) => t(code as ErrorKey)
+      ),
+    [t]
+  );
 }
 
 /** The bound resolver's type. Non-hook helpers take one of these as a parameter

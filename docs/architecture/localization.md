@@ -71,6 +71,16 @@ const errMsg = useErrorMessage();
 if (!r.ok) setError(errMsg(body, t("saveFailed")));
 ```
 
+The bound resolver has a **stable identity** — it is memoized on next-intl's
+translator, so it only changes when the locale or the catalog does. That makes
+it safe to name in a `useCallback` / `useMemo` / `useEffect` dependency array,
+which matters because most call sites resolve a failure *inside* a fetching
+callback. The same contract holds for the other bound-formatter hooks
+(`useGithubErrorMessage`, `useEnumLabel`, `useRelativeTime`, `useNumberFormat`,
+`useSlotLabel`, `useRubricStrings`): a formatter whose identity churns every
+render is not a formatter, it is a render loop waiting for someone to list it
+as a dependency.
+
 ### The trap this replaced
 
 `body.error ?? t("saveFailed")` reads like a sensible fallback chain and is
@@ -204,6 +214,25 @@ Call sites thread it in exactly two ways:
 | Client component | `useNumberFormat()` (`app/_lib/use-number-format.ts`) → `n.grouped` / `n.money` / `n.salaryRange`; `useRelativeTime()` for "x ago" |
 | Server component / route | `await getLocale()` passed to the helper directly |
 | Locale-dumb module (`jdsLibrary.shortDate`, `matchTypes.formatBandCompact`, `jobsCoachSalary.fmtBand`) | Takes a `locale` parameter; the client consumer passes `useLocale()` |
+
+### Ordering follows the reader too
+
+Collation is the third locale-dependent operation, after formatting and copy,
+and the easiest to overlook because a wrong order still *looks* like an order.
+Czech treats `č`, `ř`, `š` and `ž` as their own letters placed after their base
+letter, so an `en` collation of a candidate roster puts "Švec" above "Sýkora"
+where a Czech reader expects the reverse.
+
+`compareCells` in `app/_components/table/useTableSort.ts` — the shared table
+sort — therefore takes the locale as an **optional trailing argument**, exactly
+like `format.ts`, and `useTableSort` threads `useLocale()` into it. Passing
+nothing falls back to the runtime default, which is the *server's* locale during
+SSR and the *browser's* after hydration: the same "bare `undefined`" bug the
+rule above names, with the extra sting that the two renders can disagree.
+`Intl.Collator` instances are cached per locale rather than built per
+comparison. Modules that sort outside this hook
+(`analyticsDecisionLogTypes.ts`, `profileRosterView.ts`) hold their own
+collator and take the locale as a parameter for the same reason.
 
 Some places format for a reader who is **not** the UI user, and take the
 *document's* language rather than the app's: `jobsMarkdown.ts` (`numberLocale`

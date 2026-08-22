@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { resolveErrorMessage, type ApiErrorPayload } from "./use-error-message";
 
@@ -21,13 +22,19 @@ import { resolveErrorMessage, type ApiErrorPayload } from "./use-error-message";
 export function useGithubErrorMessage(): (payload: ApiErrorPayload | null | undefined, fallback: string) => string {
   const t = useTranslations("results.github.errors");
   type ErrorKey = Parameters<typeof t>[0];
-  return (payload, fallback) =>
-    // The code is a runtime string, so cast at the boundary — the existence check
-    // guards against a code this catalog doesn't know.
-    resolveErrorMessage(
-      payload,
-      fallback,
-      (code) => t.has(code as ErrorKey),
-      (code) => t(code as ErrorKey)
-    );
+  // Memoized on the translator for the same reason useErrorMessage is — see its
+  // header. A resolver with a fresh identity every render cannot be named in a
+  // dependency array without re-firing whatever depends on it.
+  return useCallback(
+    (payload: ApiErrorPayload | null | undefined, fallback: string) =>
+      // The code is a runtime string, so cast at the boundary — the existence check
+      // guards against a code this catalog doesn't know.
+      resolveErrorMessage(
+        payload,
+        fallback,
+        (code) => t.has(code as ErrorKey),
+        (code) => t(code as ErrorKey)
+      ),
+    [t]
+  );
 }

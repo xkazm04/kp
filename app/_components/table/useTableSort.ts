@@ -17,6 +17,7 @@
 // descending must not float "we don't know" to the top of a ranking. See
 // compareCells.
 
+import { useLocale } from "next-intl";
 import { useMemo, useState } from "react";
 
 export type SortDir = "asc" | "desc";
@@ -30,13 +31,37 @@ export type SortAccessors<T, C extends string> = Record<C, (row: T) => SortCell>
 
 const isMissing = (v: SortCell): boolean => v === null || v === undefined || v === "";
 
+// One collator per locale, built once. `localeCompare(…, opts)` constructs a
+// fresh collator on EVERY call, and a 200-row sort is ~1500 calls — but the real
+// reason this is a map keyed by locale is the argument it makes impossible to
+// forget: the collation locale is a parameter, never the ambient default.
+const COLLATORS = new Map<string, Intl.Collator>();
+function collatorFor(locale: string | undefined): Intl.Collator {
+  const key = locale ?? "";
+  let c = COLLATORS.get(key);
+  if (!c) {
+    c = new Intl.Collator(locale, { numeric: true, sensitivity: "base" });
+    COLLATORS.set(key, c);
+  }
+  return c;
+}
+
 /**
  * Compare two cells for `dir`, with missing values pinned last in BOTH
  * directions. Numbers compare numerically, booleans as false < true, and strings
- * through localeCompare with `numeric` on — so "Role 2" sorts before "Role 10"
+ * through a collator with `numeric` on — so "Role 2" sorts before "Role 10"
  * instead of the codepoint order that puts "10" first.
+ *
+ * `locale` is the READER's locale (useTableSort threads next-intl's active one
+ * in). Omitting it falls back to the runtime default, which is the bug this
+ * parameter exists to close: the runtime default is the SERVER's locale during
+ * SSR (`en-US` under Node) and the BROWSER's afterwards, neither of which is the
+ * language the app is being read in. Czech collation is not a cosmetic
+ * difference — `š`/`č`/`ř`/`ž` are their own letters there, so under `en` a
+ * roster orders "Švec, Sýkora, Tesař" where a Czech reader expects "Sýkora,
+ * Švec, Tesař", and the two orders disagree across hydration.
  */
-export function compareCells(a: SortCell, b: SortCell, dir: SortDir): number {
+export function compareCells(a: SortCell, b: SortCell, dir: SortDir, locale?: string): number {
   const aMissing = isMissing(a);
   const bMissing = isMissing(b);
   // Pinned before the direction flip is applied — that is the whole point.
@@ -47,9 +72,29 @@ export function compareCells(a: SortCell, b: SortCell, dir: SortDir): number {
   let cmp: number;
   if (typeof a === "number" && typeof b === "number") cmp = a - b;
   else if (typeof a === "boolean" || typeof b === "boolean") cmp = Number(a) - Number(b);
-  else cmp = String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+  else cmp = collatorFor(locale).compare(String(a), String(b));
 
   return dir === "desc" ? -cmp : cmp;
+}
+
+/**
+ * The direction a column starts in when the reader first sorts by it: DESCENDING
+ * for a numeric column ("sort by hires" means "most hires first"), ascending
+ * otherwise ("sort by role" means A–Z).
+ *
+ * It samples the first row that actually HAS a value rather than row 0, because a
+ * missing cell has no type to read: an Economics board whose top channel has no
+ * spend entered (`null`) sampled `null`, decided "not a number", and opened the
+ * Spend column cheapest-first — the exact opposite of what the click meant, on a
+ * column where the reader is looking for the biggest number.
+ */
+export function initialDir<T>(rows: readonly T[], get: (row: T) => SortCell): SortDir {
+  for (const row of rows) {
+    const sample = get(row);
+    if (isMissing(sample)) continue;
+    return typeof sample === "number" ? "desc" : "asc";
+  }
+  return "asc";
 }
 
 /**
@@ -58,10 +103,10 @@ export function compareCells(a: SortCell, b: SortCell, dir: SortDir): number {
  * state, and a `toggle` that flips direction on the active column and otherwise
  * moves to the new one.
  *
- * A new column starts DESCENDING when its first row reads as a number and
- * ascending otherwise: "sort by hires" almost always means "most hires first",
- * while "sort by role" means A–Z. Getting this wrong costs the reader a second
- * click on every single column, every time.
+ * A new column starts DESCENDING when it reads as numeric and ascending
+ * otherwise (see initialDir): "sort by hires" almost always means "most hires
+ * first", while "sort by role" means A–Z. Getting this wrong costs the reader a
+ * second click on every single column, every time.
  */
 export function useTableSort<T, C extends string>(
   rows: readonly T[],
@@ -69,25 +114,26 @@ export function useTableSort<T, C extends string>(
   initial: SortState<C>
 ): { sorted: T[]; sort: SortState<C>; toggle: (col: C) => void } {
   const [sort, setSort] = useState<SortState<C>>(initial);
+  // The READER's locale, not the runtime's — see compareCells.
+  const locale = useLocale();
 
   const toggle = (col: C) => {
     setSort((prev) => {
       if (prev.col === col) return { col, dir: prev.dir === "asc" ? "desc" : "asc" };
-      const sample = rows.length > 0 ? accessors[col](rows[0]) : null;
-      return { col, dir: typeof sample === "number" ? "desc" : "asc" };
+      return { col, dir: initialDir(rows, accessors[col]) };
     });
   };
 
   const sorted = useMemo(() => {
     const get = accessors[sort.col];
     if (!get) return [...rows];
-    return [...rows].sort((a, b) => compareCells(get(a), get(b), sort.dir));
+    return [...rows].sort((a, b) => compareCells(get(a), get(b), sort.dir, locale));
     // `accessors` is an object literal at most call sites (new identity each
     // render), so it is intentionally NOT a dependency — the column KEY is what
     // selects the extractor, and re-sorting on every render is the bug this
     // memo exists to prevent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, sort.col, sort.dir]);
+  }, [rows, sort.col, sort.dir, locale]);
 
   return { sorted, sort, toggle };
 }

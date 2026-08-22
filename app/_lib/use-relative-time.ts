@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useLocale } from "next-intl";
 import { formatRelativeTime } from "@/app/_lib/format";
 
@@ -14,8 +15,12 @@ import { formatRelativeTime } from "@/app/_lib/format";
  * inside formatRelativeTime — this hook only threads next-intl's active locale
  * into it. Server components skip the hook and pass `await getLocale()` to
  * formatRelativeTime directly.
+ *
+ * Memoized on the locale — the same stable-identity contract as
+ * {@link useNumberFormat} and useErrorMessage, so the formatter is safe to name
+ * in a dependency array.
  */
 export function useRelativeTime(): (iso: string | null | undefined) => string {
   const locale = useLocale();
-  return (iso) => (iso ? formatRelativeTime(iso, locale) : "");
+  return useCallback((iso: string | null | undefined) => (iso ? formatRelativeTime(iso, locale) : ""), [locale]);
 }

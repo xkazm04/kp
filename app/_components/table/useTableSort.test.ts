@@ -10,7 +10,7 @@
 // unknowns, and the reader has no way to tell the difference.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { compareCells } from "./useTableSort.ts";
+import { compareCells, initialDir } from "./useTableSort.ts";
 
 test("missing values sort last in BOTH directions", () => {
   // Ascending: a real value outranks a missing one.
@@ -59,4 +59,40 @@ test("booleans order false before true, and flip with direction", () => {
 test("direction inverts the comparison for real values", () => {
   assert.equal(Math.sign(compareCells(1, 2, "asc")), -Math.sign(compareCells(1, 2, "desc")));
   assert.equal(Math.sign(compareCells("a", "b", "asc")), -Math.sign(compareCells("a", "b", "desc")));
+});
+
+test("strings collate in the READER's locale, not the runtime's", () => {
+  // Czech treats š/č/ř/ž as their own letters, sorted after their base letter.
+  // Under the runtime default (en-US on a Node server, whatever the OS says in a
+  // browser) the diacritic folds away and the order flips — so a Czech recruiter
+  // sorting a roster A–Z saw "Švec" jump above "Sýkora". Both orders were also
+  // rendered in the same session: SSR resolves the default to the SERVER's locale
+  // and hydration re-sorts with the browser's.
+  assert.ok(compareCells("Švec", "Sýkora", "asc", "cs") > 0, "cs: Sýkora precedes Švec");
+  assert.ok(compareCells("Čapek", "Cyril", "asc", "cs") > 0, "cs: Cyril precedes Čapek");
+  // …and the same two names order the other way for a German or English reader,
+  // which is the point of threading the locale rather than picking one.
+  assert.ok(compareCells("Švec", "Sýkora", "asc", "en") < 0, "en: Švec folds to Svec and precedes Sýkora");
+  assert.ok(compareCells("Čapek", "Cyril", "asc", "de") < 0, "de: Čapek folds to Capek and precedes Cyril");
+  // Direction still inverts, and missing values are still pinned last, per locale.
+  assert.ok(compareCells("Švec", "Sýkora", "desc", "cs") < 0);
+  assert.ok(compareCells(null, "Sýkora", "desc", "cs") > 0);
+  // The numeric-collation rule survives the collator swap.
+  assert.ok(compareCells("Role 2", "Role 10", "asc", "cs") < 0);
+});
+
+test("a new column's start direction samples the first row that HAS a value", () => {
+  // The Economics board's honest nulls (a channel with no spend entered) cluster
+  // at the top of the unsorted feed. Reading only row 0 saw `null`, decided "not
+  // a number", and opened Spend ASCENDING — cheapest first, on the one column the
+  // reader clicks to find the biggest number.
+  const rows = [{ spend: null }, { spend: null }, { spend: 4200 }];
+  assert.equal(initialDir(rows, (r) => r.spend), "desc");
+  // A blank string is missing too, not a tiny string.
+  assert.equal(initialDir([{ name: "" }, { name: "Backend" }], (r) => r.name), "asc");
+  // Text columns still open A–Z, and an all-missing (or empty) column has nothing
+  // to read as numeric, so it opens ascending rather than guessing.
+  assert.equal(initialDir([{ name: "Backend" }, { name: null }], (r) => r.name), "asc");
+  assert.equal(initialDir([{ spend: null }], (r) => r.spend), "asc");
+  assert.equal(initialDir([] as { spend: number | null }[], (r) => r.spend), "asc");
 });

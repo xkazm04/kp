@@ -14,8 +14,8 @@ import path from "node:path";
 import { createTranslator } from "next-intl";
 import { LOCALES, type Locale } from "@/i18n/locales";
 
-// (key, values) exactly as TablePager.tsx / ColumnFilter.tsx / FilterMenu.tsx call
-// them. Keep in lockstep with those three files.
+// (key, values) exactly as TablePager.tsx / ColumnFilter.tsx / FilterMenu.tsx /
+// ColumnHead.tsx call them. Keep in lockstep with those four files.
 const PLAIN: [string, Record<string, unknown>][] = [
   ["pager.label", {}],
   ["pager.range", { from: 21, to: 40, total: 47 }],
@@ -30,6 +30,13 @@ const PLAIN: [string, Record<string, unknown>][] = [
   ["filters.searchColumn", { column: "Rolle" }],
   ["filters.allOf", { column: "Rolle" }],
   ["filters.select", {}],
+  // The two column-scoped strings that are ACCESSIBLE NAMES rather than visible
+  // copy — ColumnFilter's icon trigger (trigger="icon") and ColumnHead's sort
+  // button carry no text label, so a message that drops {column} leaves a screen
+  // reader with a row of identical "Filter"/"Sort by" buttons and no way to tell
+  // which column each one belongs to. Nothing on screen would look wrong.
+  ["filters.filterColumn", { column: "Rolle" }],
+  ["sortBy", { column: "Rolle" }],
 ];
 
 for (const locale of LOCALES) {
@@ -60,6 +67,21 @@ for (const locale of LOCALES) {
     const out = t("pager.range", { from: 21, to: 40, total: 47 });
     for (const n of ["21", "40", "47"]) {
       assert.ok(out.includes(n), `${locale} table.pager.range must show ${n}: ${out}`);
+    }
+  });
+
+  test(`table catalog (${locale}): the icon controls' accessible names still name the column`, () => {
+    const messages = JSON.parse(readFileSync(path.join(process.cwd(), "messages", `${locale}.json`), "utf-8"));
+    const t = createTranslator({ locale, messages, namespace: "table" }) as unknown as (
+      key: string,
+      values?: Record<string, unknown>
+    ) => string;
+    // A translation that drops {column} passes ICU and reads fine on screen (the
+    // controls are icon-only), but every column's filter and sort button then
+    // announces the same name.
+    for (const key of ["filters.filterColumn", "sortBy"]) {
+      const out = t(key, { column: "Rolle" });
+      assert.ok(out.includes("Rolle"), `${locale} table.${key} must name the column: ${out}`);
     }
   });
 }

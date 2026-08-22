@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { labelize } from "@/app/_lib/format";
 
@@ -10,14 +11,25 @@ import { labelize } from "@/app/_lib/format";
 // `labelize(slug)` (the prior English Title-Case behaviour) — so a slug without a
 // catalog entry yet degrades gracefully instead of throwing on a missing key.
 // This is the recruiter-side replacement for scattered `labelize(...)` calls.
+//
+// Memoized on the translator (which next-intl already memoizes over the intl
+// context), so the returned labeller is a STABLE identity across renders and can
+// be named in a dependency array. Several call sites already list it in a
+// useMemo's deps over the whole roster — ProfileRoster's facet+row build,
+// jdsLedgerLogic's option lists — and a labeller re-created every render turned
+// each of those memos into a no-op: the roster re-derived its facets and
+// re-collated every row on renders that changed nothing about the data.
 export function useEnumLabel(): (group: string, slug: string | null | undefined) => string {
   const t = useTranslations("enums");
-  return (group, slug) => {
-    const s = (slug ?? "").trim();
-    if (!s) return "";
-    const key = `${group}.${s}` as Parameters<typeof t>[0];
-    return t.has(key) ? t(key) : labelize(s);
-  };
+  return useCallback(
+    (group: string, slug: string | null | undefined) => {
+      const s = (slug ?? "").trim();
+      if (!s) return "";
+      const key = `${group}.${s}` as Parameters<typeof t>[0];
+      return t.has(key) ? t(key) : labelize(s);
+    },
+    [t]
+  );
 }
 
 // Minimal structural shape of any next-intl translator (the value from

@@ -5,7 +5,7 @@
 // option-list body. Split out of ColumnFilter.tsx so that file stays under the
 // 200-line cap. Copy resolves through `table.filters.*` in four locales.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Check, Search } from "lucide-react";
@@ -97,16 +97,35 @@ export function AnchoredMenu({
   width: number;
   children: React.ReactNode;
 }) {
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    // Scroll closes the menu because the anchor rect is measured ONCE — scroll the
+    // page or the table and a fixed-position menu would hang in mid-air over the
+    // wrong header. Hence the capture listener: `scroll` does not bubble, and the
+    // capture phase is the only way to see a scroll inside the table's own
+    // overflow container.
+    //
+    // …which is also why the menu has to exempt ITSELF. The option list is
+    // `max-h-56 overflow-auto` (about seven rows), so a Role filter with more
+    // options than that — the Archetypes roster, the webhook role picker — fired
+    // this same capture listener the moment the reader scrolled the list, closing
+    // the menu under them and making every option past the seventh unreachable by
+    // pointer. Nothing moves relative to the anchor when the list scrolls inside
+    // itself, so that scroll is precisely the one that must NOT close.
+    const onScroll = (e: Event) => {
+      const target = e.target as Node | null;
+      if (target && menuRef.current?.contains(target)) return;
+      onClose();
+    };
     const close = () => onClose();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    window.addEventListener("scroll", close, true);
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", close);
     window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", close);
       window.removeEventListener("keydown", onKey);
     };
@@ -126,7 +145,7 @@ export function AnchoredMenu({
     <>
       {/* z above the Modal overlay (z-50) so the menu works inside the Add modal. */}
       <button type="button" aria-hidden tabIndex={-1} onClick={onClose} className="fixed inset-0 z-[60] cursor-default" />
-      <div style={style} className="fixed z-[70] rounded-lg border border-stone-200 bg-white shadow-pop">
+      <div ref={menuRef} style={style} className="fixed z-[70] rounded-lg border border-stone-200 bg-white shadow-pop">
         {children}
       </div>
     </>,
