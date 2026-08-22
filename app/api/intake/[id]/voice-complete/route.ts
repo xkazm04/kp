@@ -34,8 +34,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const ws = await currentWorkspace();
     const intake = getIntake(id, ws);
     if (!intake) return NextResponse.json({ error: "Intake not found." }, { status: 404 });
-    if (intake.status !== "open") {
-      return NextResponse.json({ error: "This intake session is closed." }, { status: 409 });
+    // A CLOSED (`complete`) session still accepts this call — it is the only
+    // route that can. /voice-turn flips the session to `complete` on a
+    // confirmed spoken read-back BEFORE the client's closing sweep fires
+    // (completeTurn() sets `extract: true` on the closing turn, and finish()
+    // posts the recovery `turns` right after), so refusing anything that is
+    // not `open` rejected the LAST extraction of every voice call — the LLM
+    // fast thread never extracts, so the closing exchanges never reached the
+    // brief — and threw away the stray turns the recovery payload carries,
+    // while the requestor saw a red "failed" note on a call that succeeded.
+    // Only `promoted` stays frozen (the JD exists — same rule as brief and
+    // attachments), and this route still never CLOSES a session itself.
+    if (intake.status !== "open" && intake.status !== "complete") {
+      return NextResponse.json({ error: "This session was promoted — its record is frozen." }, { status: 409 });
     }
     const body = (await request.json().catch(() => ({}))) as { turns?: unknown };
     const rawTurns = Array.isArray(body.turns) ? body.turns.slice(0, MAX_VOICE_TURNS) : [];

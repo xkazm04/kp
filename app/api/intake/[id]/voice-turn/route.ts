@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getIntake, updateIntakeDialog } from "@/app/_lib/db/intakes";
 import { runIntakeVoiceTurn } from "@/app/_lib/intake-run";
+import { stripEndSentinel } from "../../reply-sentinel";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
@@ -44,11 +45,19 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const lang = intake.lang === "cs" ? "cs" : "en";
     const turn = await runIntakeVoiceTurn({ transcript: intake.transcript, brief: intake.brief, message, lang, attachments: intake.attachments });
 
+    // Strip the <<END>> close sentinel exactly like /message — here it matters
+    // MORE, not less: this reply is handed to the transport, which is told to
+    // say it "exactly, verbatim" (speakText), so the unstripped token was the
+    // last thing the requestor HEARD on every closed call (the scripted
+    // keyless close always carries it), was persisted into the transcript, and
+    // would be spoken again as `spokenOpener` on the next connect. `done` is
+    // already carried by turn.done — the token itself is pure wire contract.
+    const reply = stripEndSentinel(turn.reply);
     const now = new Date().toISOString();
     const transcript = [
       ...intake.transcript,
       { role: "candidate" as const, text: message, at: now },
-      { role: "interviewer" as const, text: turn.reply, at: now },
+      { role: "interviewer" as const, text: reply, at: now },
     ];
     // Deterministic fast thread extracted inline → persist its brief; the LLM
     // path leaves the stored brief for the periodic extraction thread.
@@ -66,7 +75,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ws
     );
     return NextResponse.json({
-      reply: turn.reply,
+      reply,
       done: turn.done,
       source: turn.source,
       ...(turn.brief ? { brief: turn.brief } : {}),

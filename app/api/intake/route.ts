@@ -4,6 +4,7 @@ import { runIntakeOpening } from "@/app/_lib/intake-run";
 import { updateIntakeDialog } from "@/app/_lib/db/intakes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 // Role-intake dialogs (docs/concepts/role-intake-dialog.md, Phase 1).
@@ -18,6 +19,20 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json().catch(() => ({}))) as { title?: unknown; lang?: unknown };
     const lang = body.lang === "cs" ? "cs" : "en";
+
+    // THROTTLE: the opener spawns `intake_cli --opening` — a Python subprocess
+    // per request, the same premise the house pins for /api/extract-text — and
+    // this is also the first hop of the spend chain (create → PATCH /brief →
+    // /promote, a paid jd_build). Operator-gated, but in open mode (no
+    // KP_OPERATOR_PASSWORD) that gate is a no-op for the whole API. 30/10min
+    // per IP is far above human pace (a session is a ten-minute conversation);
+    // it runs BEFORE createIntake so a refused call leaves no orphan row.
+    // Belongs in app/api/rate-limit-contract.test.ts beside the other intake
+    // throttles (expensive marker: `runIntakeOpening(`).
+    if (!rateLimit(`intake-create:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
+
     const ws = await currentWorkspace();
     const intake = createIntake({ title: typeof body.title === "string" ? body.title : "", lang }, ws);
     const opening = await runIntakeOpening(lang);

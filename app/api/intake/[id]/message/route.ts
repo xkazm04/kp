@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getIntake, updateIntakeDialog } from "@/app/_lib/db/intakes";
 import { runIntakeExchange } from "@/app/_lib/intake-run";
+import { stripEndSentinel } from "../../reply-sentinel";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
@@ -50,8 +51,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     // Recertify R-2: the <<END>> sentinel is an engine/eval wire contract, not
     // copy — strip it at the route boundary so it never reaches the stored
-    // transcript or the requestor's screen.
-    const reply = exchange.reply.replace(/\s*<<END>>\s*/g, " ").trim();
+    // transcript or the requestor's screen. Shared with /voice-turn, which
+    // needs the same strip for a stronger reason (the transport SPEAKS the
+    // reply verbatim) — reply-sentinel.ts.
+    const reply = stripEndSentinel(exchange.reply);
     const now = new Date().toISOString();
     const transcript = [
       ...intake.transcript,

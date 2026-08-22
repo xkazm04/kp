@@ -104,7 +104,8 @@ the shared `generate_with_fallback` contract. The UI shows a quiet
 | Routes | `app/api/intake/route.ts` (create/list), `[id]` (read), `[id]/message` (exchange), `[id]/promote`, `[id]/brief` (PATCH — human edit), `[id]/reopen` |
 | Edit sanitizer + edit-provenance diff (pure) | `app/_lib/brief-edit.ts` |
 | Export builder (pure) | `app/_lib/intake-export.ts` |
-| Rate limit | `intake-message:<ip>` 30/10min on the message route (pinned in `app/api/rate-limit-contract.test.ts`) |
+| Close sentinel strip (pure) | `app/api/intake/reply-sentinel.ts` (`stripEndSentinel`, `voice-close-guard.test.ts`) |
+| Rate limit | `intake-message:<ip>` 30/10min on the message route (pinned in `app/api/rate-limit-contract.test.ts`); `intake-create:<ip>` 30/10min (the opener spawns Python) and `intake-promote:<ip>` 20/10min (the paid `jd_build`) — both limiters shipped, contract pins still to add |
 | UI | `app/features/library/jds/intake/` (`JdsIntakePanel`, `JdsIntakeChat`, `JdsIntakeBriefPanel`, `jdsIntakeLogic`) |
 
 ## Data model
@@ -181,13 +182,21 @@ infrastructure). Conversation direction is OURS, in two LLM threads:
   utterance, injected via the transport's `speakText`. The exchange persists
   server-side BEFORE the reply is spoken, so a drop or transport swap loses
   at most the utterance in flight. A spoken confirmed read-back (`<<END>>`)
-  closes the session like the text plane.
+  closes the session like the text plane — and the sentinel itself is stripped
+  at the route boundary (`stripEndSentinel`, shared with `/message`): the
+  transport is told to say the reply "exactly, verbatim", so an unstripped
+  token would be read ALOUD as the closing line, stored in the transcript and
+  spoken again by `spokenOpener` on the next connect. `done` carries the close.
 - **Periodic extraction thread** — every couple of exchanges (and at hang-up)
   the client fires `/api/intake/[id]/voice-complete` with no body:
   `extract_transcript` runs over the STORED transcript through the same
   coerce + `merge_brief` path as text, so the **live brief panel fills during
   the call** (lagging a turn or two — honest by design). With `{turns}` the
-  same route is the drop-recovery path (append strays, then extract).
+  same route is the drop-recovery path (append strays, then extract). It
+  accepts a session `/voice-turn` just flipped to `complete` — the closing
+  sweep and the hang-up recovery both arrive after the close, so refusing them
+  lost the last exchanges; only `promoted` is frozen, and this route still
+  never closes a session itself (`voice-close-guard.test.ts`).
 
 Client pieces: `JdsIntakeVoice.tsx` (thin driver) over the pure orchestrator
 `voiceOrchestration.ts` (serializes fast turns, coalesces utterances spoken
@@ -226,9 +235,11 @@ untouched. No LLM mid-call → the scripted slot engine IS the fast thread
 (deterministic, milliseconds, extracts inline). No LLM at extraction → the
 transcript is stored, the brief stays **unchanged**, the UI says so
 (`voice.storedNote`). Rate limits (all pinned in
-`app/api/rate-limit-contract.test.ts`): connect 6/10min per intake (120
-self-hosted), fast turns 60/10min per intake, extraction sweeps 20/10min
-per IP.
+`app/api/rate-limit-contract.test.ts`): connect 6/10min per intake — flat, no
+self-hosted raise, because this route mints OpenAI Realtime credentials and
+only those (a locally configured ElevenLabs is unreachable from it, so
+"nothing billable is minted" is false here) — fast turns 60/10min per intake,
+extraction sweeps 20/10min per IP.
 
 ## Editable brief + re-openable sessions (UAT drain §2.1)
 
@@ -326,14 +337,6 @@ token/recipe level (dark rounded-2xl / sticker shadows on the new surfaces).
 
 - Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back
   to the language directive only.
-- **A spoken close refuses its own final sweep.** `/voice-turn` flips the
-  session to `complete` on a confirmed read-back, and `/voice-complete`
-  answers `409` for any session that is not `open` — so the closing extraction
-  (`extract` is always true at the close) and the hang-up recovery POST are
-  both rejected, the last exchanges never reach the brief, and `finish()`
-  renders the red "failed" note at the end of a call that in fact succeeded.
-  The client cannot fix this alone: the route must accept a body-less sweep
-  (and stray `turns`) on a session it just closed.
 - The voice plane is **not live-verified**: built and unit/contract-tested,
   but no OpenAI Realtime key was available in the build sessions, so no real
   call has been placed. The audio-in-the-loop harness hook is designed in the

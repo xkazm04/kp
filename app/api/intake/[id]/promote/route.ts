@@ -6,6 +6,7 @@ import { jdJobId } from "@/app/_lib/jd-limits";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { startTask } from "@/app/_lib/tasks";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { safeJsonError } from "@/app/_lib/api-response";
 
 // POST /api/intake/[id]/promote — turn a captured RoleBrief into a JD + a
@@ -31,6 +32,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         { status: 400 }
       );
     }
+    // THROTTLE: promotion is the most expensive single operation this feature
+    // has — it starts a full backgrounded jd_build (description + market
+    // research + optionally a designed work-sample case), all paid. The route
+    // is operator-gated, but in open mode (no KP_OPERATOR_PASSWORD) that gate
+    // is a no-op for the whole API, and nothing else in the chain is limited:
+    // POST /api/intake → PATCH /brief (a client-supplied brief passes the
+    // ready-to-promote gate) → POST /promote loops unbounded paid builds.
+    // 20/10min per IP is far above any human pace (each promote produces a JD
+    // the requestor then reads). Sits AFTER the 404/409/400 refusals so a
+    // rejected promote never consumes budget, and BEFORE the insert + build.
+    // Belongs in app/api/rate-limit-contract.test.ts beside the other intake
+    // throttles (expensive marker: `insertAnalyzingJd(`) so the budget and the
+    // ordering stay contract-locked.
+    if (!rateLimit(`intake-promote:${clientIpFrom(request.headers)}`, { limit: 20, windowMs: 10 * 60_000 })) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
+
     const body = (await request.json().catch(() => ({}))) as {
       company?: unknown;
       caseDesign?: unknown;

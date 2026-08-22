@@ -216,11 +216,40 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'intake.status !== "open"',
   },
   {
+    // ADDED scan-sweep 2026-08-24, with the limiter itself. In open mode
+    // (requireOperator is a documented no-op there) the whole intake spend chain
+    // was unlimited: POST /api/intake spawns intake_cli per request, and promote
+    // starts a full paid jd_build. Both budgets sit far above human pace — a
+    // session is a ten-minute conversation; a promote produces a JD to read.
+    rel: "./intake/route.ts",
+    key: "`intake-create:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    // The CALL SITE, not a bare `runIntakeOpening(`: that substring also appears in
+    // this route's IMPORT and in the comment above the limiter, both of which
+    // precede it — so the generic marker would fail on prose, not on ordering.
+    expensive: "runIntakeOpening(lang)",
+  },
+  {
+    rel: "./intake/[id]/promote/route.ts",
+    key: "`intake-promote:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    // The limiter sits AFTER the cheap 404/409/400 refusals, so a request that was
+    // never going to promote costs no budget.
+    // Same reason: `insertAnalyzingJd(` appears in this route's own comment above
+    // the limiter. Pin the call's opening brace instead.
+    expensive: "insertAnalyzingJd({",
+    servedBefore: "briefReadyToPromote(intake.brief)",
+  },
+  {
     rel: "./intake/[id]/voice-connect/route.ts",
-    // Per-INTAKE, 6/10min hosted (one start + five reconnects) — credential
-    // minting burns OpenAI Realtime credits, the same premise and budget as
-    // interview-connect; self-hosted voice mints nothing billable so the
-    // budget raises to 120. Both values pinned via the defining line.
+    // Per-INTAKE, 6/10min FLAT (one start + five reconnects) — credential minting
+    // burns OpenAI Realtime credits, the same premise and budget as
+    // interview-connect. The self-hosted raise to 120 that used to sit here was
+    // removed from the route (scan-sweep 2026-08-24): this handler mints
+    // getVoiceAdapter("openai") credentials and ONLY those, so a locally
+    // configured ElevenLabs is unreachable from it and the "nothing billable is
+    // minted" premise was false — the raise let one open intake id mint 120 PAID
+    // ephemeral credentials per 10 minutes. Value pinned via the defining line.
     key: "`intake-voice-connect:${id}`",
     limit: 6,
     limitSrc: "voiceConnectLimit",
