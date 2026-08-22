@@ -177,6 +177,129 @@ test("strict mode dedupes a repeated unresolved endpoint", () => {
   assert.equal(d.edges.length, 0);
 });
 
+// ---------------------------------------------------------------------------
+// Directional / coloured connectors. parse.ts's header advertises `-down->` and
+// `-[#aaa]->`, but ARROW_RE only ever saw the leading single "-": it failed the
+// "genuine connector" guard, so tryEdge returned false and the edge vanished with
+// NO node, NO unresolvedEndpoints record and NO dev warning — the one failure mode
+// the strict-mode machinery exists to prevent. Prose that merely looks like one
+// ("top-left-corner") must still NOT become an edge.
+// ---------------------------------------------------------------------------
+
+const DIRECTIONAL: [string, string][] = [
+  ["-down->", "a -down-> b"],
+  ["-up->", "a -up-> b"],
+  ["-right->", "a -right-> b"],
+  ["-[#aaa]->", "a -[#aaa]-> b"],
+  ["..down.>", "a .down.> b"],
+];
+for (const [name, line] of DIRECTIONAL) {
+  test(`directional connector: \`${name}\` still connects a -> b`, () => {
+    const d = parsePuml(`@startuml\n[A] as a\n[B] as b\n${line}\n@enduml`, { strict: true });
+    assert.deepEqual(d.unresolvedEndpoints, [], "endpoints must resolve to the declared nodes");
+    assert.equal(d.edges.length, 1, "the edge must not be silently dropped");
+    assert.equal(d.edges[0].source, "a");
+    assert.equal(d.edges[0].target, "b");
+    assert.equal(d.edges[0].undirected, false);
+  });
+}
+
+test("directional connector: `<-down-` reverses instead of inventing a phantom node", () => {
+  // Pre-fix this parsed as `a <- ` + an endpoint literally labelled "down- b".
+  const d = parsePuml(`@startuml\n[A] as a\n[B] as b\na <-down- b\n@enduml`, { strict: true });
+  assert.deepEqual(d.unresolvedEndpoints, []);
+  assert.deepEqual(
+    d.edges.map((e) => [e.source, e.target]),
+    [["b", "a"]]
+  );
+});
+
+test("a hyphenated word is NOT a connector (no arrowhead, no edge)", () => {
+  for (const line of ["top-left-corner", "read-only cache", "a --down b", "co-located -- shared x"]) {
+    const d = parsePuml(`@startuml\n[A] as a\n[B] as b\n${line}\n@enduml`, { strict: true });
+    assert.equal(d.edges.length, 0, `"${line}" must not read as an edge`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Unterminated `note` bodies: the section-break fallback (pinned so the linear
+// lookahead memos in parsePuml can't quietly change WHERE a note body ends).
+// ---------------------------------------------------------------------------
+
+test("an unterminated note stops at the author's blank line, not at EOF", () => {
+  const d = parsePuml(`@startuml
+[A] as a
+note right of a
+body line
+
+[B] as b
+a --> b
+@enduml`);
+  // [B] and the edge survive: they were NOT swallowed into the note body.
+  assert.equal(d.index.get("b")?.type, "node");
+  assert.equal(d.edges.filter((e) => e.source === "a" && e.target === "b").length, 1);
+  const note = [...d.index.values()].find((el) => el.type === "node" && el.kind === "note");
+  assert.equal(note && note.type === "node" ? note.label : null, "body line");
+});
+
+test("consecutive unterminated notes each stop at their OWN section break", () => {
+  const d = parsePuml(`@startuml
+[A] as a
+note right of a
+first body
+
+note left of a
+second body
+
+[B] as b
+@enduml`);
+  const notes = [...d.index.values()].filter((el) => el.type === "node" && el.kind === "note");
+  assert.deepEqual(
+    notes.map((n) => (n.type === "node" ? n.label : "")),
+    ["first body", "second body"]
+  );
+  assert.equal(d.index.get("b")?.type, "node");
+});
+
+// ---------------------------------------------------------------------------
+// Parse cost must stay LINEAR in the source. parsePuml runs inside PlantUml's
+// render-phase useMemo, and Markdown renders EVERY ```puml fence in an
+// operator-authored (or, on some surfaces, candidate-authored) body — so a
+// quadratic scan here is a frozen tab, and isDiagramTooLarge cannot save it
+// (that guard only runs on the already-parsed diagram). All three shapes below
+// were O(n²) before the lookahead memos: 20k unterminated `note` lines cost
+// ~7.1s, a 400k-char run of unclosed "[" ~4.9s, 30k distinct bad endpoints
+// ~3.4s. Post-fix they are 23 / 12 / 84 ms; the budgets sit ~12-80x above that
+// and ~3-5x below the pre-fix cost, so they only trip on a return to O(n²).
+// ---------------------------------------------------------------------------
+
+function parseMs(source: string, opts?: { strict?: boolean }): { ms: number; diagram: ReturnType<typeof parsePuml> } {
+  const t0 = performance.now();
+  const diagram = parsePuml(source, opts);
+  return { ms: performance.now() - t0, diagram };
+}
+
+test("linear parse: 20k unterminated notes don't freeze the render-phase parse", () => {
+  const src = `@startuml\n${Array.from({ length: 20000 }, () => "note x").join("\n")}\n@enduml`;
+  const { ms, diagram } = parseMs(src);
+  assert.equal(diagram.roots.length, 20000);
+  assert.ok(ms < 1500, `took ${Math.round(ms)}ms — pre-fix ~7100ms (per-note EOF scan is back)`);
+});
+
+test("linear parse: a 400k-char run of unclosed brackets doesn't freeze maskSpans", () => {
+  const src = `@startuml\n${"[".repeat(400_000)}\n@enduml`;
+  const { ms, diagram } = parseMs(src);
+  assert.equal(diagram.roots.length, 0, "an unclosed bracket is not a node");
+  assert.ok(ms < 1000, `took ${Math.round(ms)}ms — pre-fix ~4900ms (per-opener indexOf rescan is back)`);
+});
+
+test("linear parse: 30k distinct unresolved endpoints are recorded in linear time", () => {
+  const src = `@startuml\n${Array.from({ length: 30000 }, (_, k) => `a${k} --> b${k}`).join("\n")}\n@enduml`;
+  const { ms, diagram } = parseMs(src, { strict: true });
+  assert.equal(diagram.unresolvedEndpoints.length, 60000);
+  assert.ok(ms < 1000, `took ${Math.round(ms)}ms — pre-fix ~3350ms (linear dedupe scan is back)`);
+});
+
 // The trust-critical guard: a typo in any interactive-funnel diagram (the funnel
 // source + every per-step STEP_DETAILS diagram) would surface here as an
 // unresolved endpoint, instead of shipping a confidently-wrong picture.

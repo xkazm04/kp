@@ -91,15 +91,26 @@ const LEAF_KEYWORDS: Record<string, PumlNodeKind> = {
 function maskSpans(line: string): string {
   let out = "";
   let i = 0;
+  // Once a closing delimiter is absent from the rest of the line it is absent for
+  // every LATER opener too, so remember that instead of re-scanning to end-of-line
+  // per opener. Without the memo a line of N unclosed "[" costs O(N²) indexOf work
+  // (400k chars ≈ 5s) — and maskSpans runs during the render-phase parse, so that
+  // is a frozen tab, not a slow render.
+  let noCloseBracket = false;
+  let noCloseQuote = false;
   while (i < line.length) {
     const ch = line[i];
     if (ch === "[" || ch === '"') {
-      const close = ch === "[" ? "]" : '"';
-      const end = line.indexOf(close, i + 1);
-      if (end !== -1) {
-        out += MASK.repeat(end - i + 1);
-        i = end + 1;
-        continue;
+      const isBracket = ch === "[";
+      if (!(isBracket ? noCloseBracket : noCloseQuote)) {
+        const end = line.indexOf(isBracket ? "]" : '"', i + 1);
+        if (end !== -1) {
+          out += MASK.repeat(end - i + 1);
+          i = end + 1;
+          continue;
+        }
+        if (isBracket) noCloseBracket = true;
+        else noCloseQuote = true;
       }
     }
     out += ch;
@@ -121,6 +132,10 @@ type ParseState = {
   diagram: PumlDiagram;
   stack: PumlContainer[]; // current open containers
   aliases: Map<string, string>; // alias / label key -> canonical id
+  /** Membership index for `diagram.unresolvedEndpoints` — the array stays the public
+   *  shape, but the dedupe check must not be a linear scan (an edge block with many
+   *  distinct bad endpoints made recording them O(n²)). */
+  unresolvedSeen: Set<string>;
   counter: { n: number };
   /** When true, an edge endpoint that resolves to nothing is recorded and the
    *  edge dropped, instead of fabricating a phantom node (PlantUML-style
@@ -256,9 +271,14 @@ function tryLeaf(line: string, state: ParseState): boolean {
 }
 
 // A PlantUML connector: optional "<" head, a run of "-" (solid) or "." (dashed),
-// optional ">" tail. Covers the forms our diagrams use: -> --> ..> <-- <-> -- ..
+// an OPTIONAL inline modifier (a direction word, or a `[#color]` span — already
+// masked to MASK runs) that must be followed by a second dash/dot run, and an
+// optional ">" tail. Covers the forms our diagrams use (-> --> ..> <-- <-> -- ..)
+// plus the `-down->` / `-[#aaa]->` forms this file's header advertises: those used
+// to match only the leading single "-", fail the connector guard below, and drop
+// the whole edge SILENTLY (no node, no unresolvedEndpoints record, no dev warning).
 // Bracket/quote spans are masked before this runs, so "->" inside a label is safe.
-const ARROW_RE = /(<?)([-.]+)(>?)/;
+const ARROW_RE = new RegExp(`(<?)([-.]+)(?:(?:up|down|left|right|${MASK}+)([-.]+))?(>?)`, "i");
 
 function resolveEndpoint(token: string, state: ParseState): string | null {
   let t = token.trim();
@@ -276,7 +296,8 @@ function resolveEndpoint(token: string, state: ParseState): string | null {
   // box that becomes a dead click target. Non-strict keeps PlantUML's legacy
   // auto-vivification (some class diagrams render purely from edge endpoints).
   const label = cleanLabel(t);
-  if (!state.diagram.unresolvedEndpoints.includes(label)) {
+  if (!state.unresolvedSeen.has(label)) {
+    state.unresolvedSeen.add(label);
     state.diagram.unresolvedEndpoints.push(label);
   }
   if (state.strict) return null;
@@ -288,10 +309,13 @@ function tryEdge(line: string, state: ParseState): boolean {
   const masked = maskSpans(line);
   const m = ARROW_RE.exec(masked);
   if (!m) return false;
-  const [whole, head, body, tail] = m;
+  const [whole, head, run1, run2, tail] = m;
+  const body = run1 + (run2 ?? "");
   // Require a genuine connector: an arrowhead, or a 2+ char dash/dot run. This
-  // rejects a stray "." or "-" that is part of a token rather than an edge.
-  if (head !== "<" && tail !== ">" && body.length < 2) return false;
+  // rejects a stray "." or "-" that is part of a token rather than an edge. When a
+  // direction/colour modifier was consumed, an arrowhead is REQUIRED — otherwise
+  // ordinary prose ("top-left-corner") would read as an undirected edge.
+  if (head !== "<" && tail !== ">" && (run2 !== undefined || body.length < 2)) return false;
 
   const start = m.index;
   const leftRaw = line.slice(0, start).trim();
@@ -335,6 +359,7 @@ export function parsePuml(source: string, opts?: { strict?: boolean }): PumlDiag
     diagram,
     stack: [],
     aliases: new Map(),
+    unresolvedSeen: new Set(),
     counter: { n: 0 },
     strict: opts?.strict ?? false,
   };
@@ -343,6 +368,17 @@ export function parsePuml(source: string, opts?: { strict?: boolean }): PumlDiag
   const lines = source.replace(/\r\n/g, "\n").replace(/\\n/g, NL).split("\n");
 
   let skinDepth = 0; // brace depth while skipping a skinparam {...} block
+
+  // Lookahead memos for the two scans an unterminated `note` performs (see below).
+  // Both used to walk to EOF for EVERY such note, so N unterminated notes cost
+  // O(N²) line tests — 32k `note` lines burned ~18s of synchronous work, and this
+  // parse runs in PlantUml's render-phase useMemo, so that is a frozen tab and the
+  // isDiagramTooLarge guard (which only runs on the finished diagram) never gets a
+  // chance to degrade the render. `i` only moves forward, so remembering where the
+  // previous scan ended makes the whole pass linear.
+  let noEndNoteFrom = Number.POSITIVE_INFINITY; // no `end note` exists at/after here
+  let breakFrom = -1; // the last section scan proved [breakFrom, breakAt) has no break
+  let breakAt = -1; // first blank / `}` / @enduml at/after breakFrom (lines.length = none)
 
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
@@ -389,8 +425,13 @@ export function parsePuml(source: string, opts?: { strict?: boolean }): PumlDiag
         // rendering the diagram truncated with no error. Look ahead for the
         // terminator first; only consume the body to it if it actually exists.
         let term = i + 1;
-        while (term < lines.length && !/^end\s*note\s*$/i.test(lines[term].trim())) {
-          term += 1;
+        if (term >= noEndNoteFrom) {
+          term = lines.length; // an earlier scan already proved there is none left
+        } else {
+          while (term < lines.length && !/^end\s*note\s*$/i.test(lines[term].trim())) {
+            term += 1;
+          }
+          if (term >= lines.length) noEndNoteFrom = i + 1;
         }
         if (term < lines.length) {
           // Terminator found — body is everything up to `end note` (skipped next).
@@ -404,11 +445,18 @@ export function parsePuml(source: string, opts?: { strict?: boolean }): PumlDiag
           // where the note stops — fall back to single-line handling (empty body,
           // consume nothing) so the following nodes, edges and the closing brace
           // still parse, rather than being swallowed into the note.
-          let stop = i + 1;
-          while (stop < lines.length && lines[stop].trim() !== "") {
-            const t = lines[stop].trim();
-            if (t === "}" || /^@enduml\b/i.test(t)) break;
-            stop += 1;
+          let stop: number;
+          if (i + 1 >= breakFrom && i + 1 <= breakAt) {
+            stop = breakAt; // inside a stretch a previous scan already proved break-free
+          } else {
+            stop = i + 1;
+            while (stop < lines.length && lines[stop].trim() !== "") {
+              const t = lines[stop].trim();
+              if (t === "}" || /^@enduml\b/i.test(t)) break;
+              stop += 1;
+            }
+            breakFrom = i + 1;
+            breakAt = stop;
           }
           if (stop < lines.length && lines[stop].trim() === "") {
             text = lines.slice(i + 1, stop).map((l) => l.trim()).join("\n");
