@@ -10,6 +10,8 @@ from unittest import mock
 
 from pipeline.jobfit.claude_cli import ClaudeCliProvider
 from pipeline.jobfit.llm import LLMError, resolve_provider
+from pipeline.jobfit.llm.capabilities import USE_CASE_MAX_TOKENS, USE_CASE_REQUIREMENTS
+from pipeline.jobfit.llm.registry import KEY_PROBE_USE_CASE, probe_provider
 from pipeline.jobfit.llm.adapters import (
     AnthropicProvider,
     AzureOpenAIProvider,
@@ -316,6 +318,107 @@ class LoadConfigTest(unittest.TestCase):
         entry = cfg.for_use_case("x")
         self.assertEqual(entry.max_tokens, 2048)
         self.assertIsNone(entry.timeout_s)
+
+
+class ProbeProviderTest(unittest.TestCase):
+    """``probe_provider`` — what the Models keys panel's Test button runs.
+
+    AUDIT 2026-08-22: nothing in this context exercised it. Four separate
+    mutations of the function all passed every guard in the context —
+
+      * ``resolved_model = default_model(...)`` (the caller's explicit model
+        dropped, so an Azure deployment / OpenRouter slug is silently replaced),
+      * ``"api_key": None`` (the key the operator just SAVED never reaches the
+        adapter, so Test reports a healthy key as unavailable),
+      * the unknown-provider guard removed (a typo'd provider name reaches
+        ``ADAPTERS[name]`` and dies as a KeyError instead of a clear LLMError),
+      * ``KEY_PROBE_USE_CASE = "match_reasoning"`` (admin probe spend booked
+        against a real use case's call count in the usage ledger).
+
+    Each assertion below fails under exactly one of those.
+    """
+
+    def test_probe_uses_the_saved_key_and_default_model(self) -> None:
+        cfg = {"keys": {"anthropic": {"apiKey": "sk-saved"}}}
+        with llm_config(cfg):
+            provider = probe_provider("anthropic")
+        self.assertIsInstance(provider, AnthropicProvider)
+        self.assertEqual(provider.api_key, "sk-saved")
+        self.assertEqual(provider.model, "claude-haiku-4-5")
+        self.assertEqual(provider.use_case, KEY_PROBE_USE_CASE)
+
+    def test_explicit_model_wins_over_the_default(self) -> None:
+        with llm_config({"keys": {"openai": {"apiKey": "k"}}}):
+            provider = probe_provider("openai", model="gpt-5-mini")
+        self.assertEqual(provider.model, "gpt-5-mini")
+
+    def test_customer_named_providers_need_an_explicit_model(self) -> None:
+        # Azure deployments / OpenRouter+Ollama+Qwen slugs have no built-in default,
+        # so a probe without one must fail loud rather than build a model-less client.
+        for name in ("azure_openai", "openrouter", "ollama", "qwen"):
+            with self.subTest(provider=name):
+                with llm_config(None):
+                    with self.assertRaises(LLMError):
+                        probe_provider(name)
+
+    def test_explicit_model_and_endpoint_flow_through(self) -> None:
+        cfg = {
+            "keys": {
+                "azure_openai": {
+                    "apiKey": "k",
+                    "endpoint": "https://res.openai.azure.com",
+                    "apiVersion": "2024-10-21",
+                },
+                "ollama": {"baseUrl": "http://gpu-box:11434/v1"},
+            }
+        }
+        with llm_config(cfg):
+            azure = probe_provider("azure_openai", model="my-dep")
+            ollama = probe_provider("ollama", model="lfm2.5:8b")
+        self.assertIsInstance(azure, AzureOpenAIProvider)
+        self.assertEqual(azure.endpoint, "https://res.openai.azure.com")
+        self.assertEqual(azure.api_version, "2024-10-21")
+        self.assertIsInstance(ollama, OllamaProvider)
+        self.assertEqual(ollama._resolved_base_url(), "http://gpu-box:11434/v1")
+
+    def test_unknown_provider_raises_llm_error_not_a_key_error(self) -> None:
+        with llm_config(None):
+            with self.assertRaises(LLMError) as ctx:
+                probe_provider("mistral", model="whatever")
+        self.assertIn("mistral", str(ctx.exception))
+
+    def test_claude_cli_probes_without_a_model(self) -> None:
+        with llm_config(None):
+            provider = probe_provider("claude_cli", timeout=42)
+        self.assertIsInstance(provider, ClaudeCliProvider)
+        self.assertEqual(provider.timeout, 42)
+        self.assertEqual(provider.use_case, KEY_PROBE_USE_CASE)
+
+    def test_routing_does_not_enter_into_a_probe(self) -> None:
+        # "Can this key complete a request" is a different question from "who serves
+        # this use case": a config pinning every use case elsewhere must not change
+        # which adapter a probe of `openai` returns.
+        cfg = {
+            "useCases": {"*": {"provider": "gemini"}},
+            "keys": {"openai": {"apiKey": "k"}},
+        }
+        with llm_config(cfg):
+            provider = probe_provider("openai")
+        self.assertIsInstance(provider, OpenAIProvider)
+        self.assertEqual(provider.api_key, "k")
+
+    def test_the_probe_use_case_is_its_own_ledger_bucket(self) -> None:
+        # The probe is real metered spend, so it lands in the usage ledger. Filing it
+        # under a production use case would inflate that use case's call count with
+        # admin traffic — and would silently hand the probe that case's max-tokens
+        # ceiling as well.
+        self.assertNotIn(KEY_PROBE_USE_CASE, USE_CASE_REQUIREMENTS)
+        self.assertNotIn(KEY_PROBE_USE_CASE, USE_CASE_MAX_TOKENS)
+        with llm_config({"keys": {"anthropic": {"apiKey": "k"}}}):
+            provider = probe_provider("anthropic")
+        from pipeline.jobfit.llm.base import DEFAULT_MAX_TOKENS
+
+        self.assertEqual(provider.max_tokens, DEFAULT_MAX_TOKENS)
 
 
 if __name__ == "__main__":

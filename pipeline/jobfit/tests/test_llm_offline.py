@@ -17,13 +17,14 @@ from unittest import mock
 
 from pipeline.jobfit.claude_cli import ClaudeCliProvider
 from pipeline.jobfit.llm.adapters import (
+    ADAPTERS,
     AnthropicProvider,
     AzureOpenAIProvider,
     GeminiProvider,
     OpenAIProvider,
     OpenRouterProvider,
 )
-from pipeline.jobfit.llm.base import LLMError
+from pipeline.jobfit.llm.base import LLMError, LLMResult, TextProvider
 from pipeline.jobfit.llm.offline import is_local_url, is_offline
 
 
@@ -32,7 +33,13 @@ def offline(on: bool = True, **env):
     """KP_OFFLINE on/off, plus optional extra env vars (None clears one)."""
     with mock.patch.dict(os.environ, {}, clear=False):
         # Isolate the base-URL env so ambient .env values can't skew resolution.
-        for key in ("OPENAI_BASE_URL", "OPENROUTER_BASE_URL", "AZURE_OPENAI_ENDPOINT"):
+        for key in (
+            "OPENAI_BASE_URL",
+            "OPENROUTER_BASE_URL",
+            "AZURE_OPENAI_ENDPOINT",
+            "QWEN_BASE_URL",
+            "OLLAMA_BASE_URL",
+        ):
             os.environ.pop(key, None)
         if on:
             os.environ["KP_OFFLINE"] = "1"
@@ -249,6 +256,119 @@ class NonOfflineUnchangedTest(unittest.TestCase):
                 result = provider.complete("hello")
         self.assertEqual(result.text, "ok")
         call.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Every registered adapter, not just the four this file happened to name.
+#
+# AUDIT 2026-08-22: deleting the two-line offline gate from ``QwenProvider.available()``
+# (a cloud gateway — dashscope-intl.aliyuncs.com) left this whole file green, because
+# nothing here ever constructed a Qwen adapter. The seal is only as strong as its
+# least-tested adapter, so the sweep below drives EVERY entry of ``ADAPTERS`` and the
+# table must be updated whenever one is added — the omission itself is the failure.
+# ---------------------------------------------------------------------------
+
+# Does this adapter's DEFAULT (unconfigured) endpoint stay on the box? Stated here
+# independently of the implementation so the test is a claim about each provider,
+# not a re-derivation of ``is_local_url`` from the code under test.
+_ADAPTER_DEFAULT_IS_ON_BOX: dict[str, bool] = {
+    "anthropic": False,  # api.anthropic.com
+    "openai": False,  # api.openai.com
+    "azure_openai": False,  # <resource>.openai.azure.com
+    "gemini": False,  # generativelanguage.googleapis.com
+    "openrouter": False,  # openrouter.ai
+    "qwen": False,  # dashscope-intl.aliyuncs.com
+    "ollama": True,  # http://localhost:11434/v1 — the on-box exception
+}
+
+
+def _adapter(name: str):
+    """A fully-credentialed adapter at its DEFAULT endpoint, so the only thing that
+    can make ``available()`` False is the offline seal."""
+    kwargs: dict = {"model": "m", "api_key": "k"}
+    if name == "azure_openai":
+        kwargs["endpoint"] = "https://res.openai.azure.com"
+    return ADAPTERS[name](**kwargs)
+
+
+class EveryAdapterHonoursTheSealTest(unittest.TestCase):
+    def test_the_table_covers_every_registered_adapter(self) -> None:
+        self.assertEqual(
+            set(_ADAPTER_DEFAULT_IS_ON_BOX),
+            set(ADAPTERS),
+            "a provider adapter was added/removed without classifying its default "
+            "endpoint here — the KP_OFFLINE seal is unverified for it",
+        )
+
+    def test_cloud_adapters_are_sealed_off_and_refuse_to_complete(self) -> None:
+        for name, on_box in sorted(_ADAPTER_DEFAULT_IS_ON_BOX.items()):
+            if on_box:
+                continue
+            with self.subTest(provider=name):
+                provider = _adapter(name)
+                cls = type(provider)
+                with mock.patch.object(cls, "_import_sdk", return_value=True), mock.patch.object(
+                    TextProvider, "_load_env", lambda self: None
+                ):
+                    with offline():
+                        self.assertFalse(
+                            provider.available(),
+                            f"{name}: available() must fail closed under KP_OFFLINE",
+                        )
+                        with mock.patch.object(cls, "_call") as call:
+                            with self.assertRaises(LLMError) as ctx:
+                                provider.complete("leak my CV please")
+                            self.assertEqual(ctx.exception.subtype, "offline_egress_blocked")
+                            self.assertIn("KP_OFFLINE", str(ctx.exception))
+                            call.assert_not_called()  # never reached the network seam
+                    # Non-vacuity: the SAME adapter is available with the flag off, so
+                    # the assertFalse above isolates KP_OFFLINE and nothing else.
+                    with offline(False):
+                        self.assertTrue(
+                            provider.available(),
+                            f"{name}: unavailable even without KP_OFFLINE — the offline "
+                            "assertion above proves nothing",
+                        )
+
+    def test_on_box_adapters_keep_serving_offline(self) -> None:
+        for name, on_box in sorted(_ADAPTER_DEFAULT_IS_ON_BOX.items()):
+            if not on_box:
+                continue
+            with self.subTest(provider=name):
+                provider = _adapter(name)
+                with mock.patch.object(
+                    type(provider), "_import_sdk", return_value=True
+                ), mock.patch.object(TextProvider, "_load_env", lambda self: None):
+                    with offline():
+                        self.assertTrue(provider.available(), f"{name} must stay usable offline")
+                        sentinel = LLMResult(text="ok", provider=name, model="m")
+                        with mock.patch.object(
+                            type(provider), "_call", return_value=sentinel
+                        ) as call:
+                            self.assertEqual(provider.complete("hello").text, "ok")
+                        call.assert_called_once()
+
+
+class NewAdapterIsBlockedByOmissionTest(unittest.TestCase):
+    """The base's stated guarantee: an adapter that forgets to declare an egress URL
+    is treated as cloud-only, so the seal cannot be lost by omission."""
+
+    def test_adapter_without_an_egress_url_override_is_blocked(self) -> None:
+        class FutureProvider(TextProvider):
+            name = "future"
+
+            def _call(self, prompt, *, system, timeout):  # pragma: no cover - never reached
+                raise AssertionError("egressed under KP_OFFLINE")
+
+        provider = FutureProvider(model="m", api_key="k")
+        with mock.patch.object(FutureProvider, "_import_sdk", return_value=True):
+            with offline():
+                self.assertFalse(provider.available())
+                with self.assertRaises(LLMError) as ctx:
+                    provider.complete("hello")
+                self.assertEqual(ctx.exception.subtype, "offline_egress_blocked")
+            with offline(False):
+                self.assertTrue(provider.available())  # non-vacuity
 
 
 if __name__ == "__main__":

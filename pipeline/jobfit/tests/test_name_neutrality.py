@@ -30,10 +30,14 @@ redaction path, not here.
 
 from __future__ import annotations
 
+import copy
 import json
 import unittest
+from pathlib import Path
 from typing import Any
+from unittest import mock
 
+import pipeline.jobfit.pipeline as P
 from pipeline.jobfit.matching import MatchCandidate, load_corpus, match
 from pipeline.jobfit.profile import CandidateProfileV2, Evidence, SkillClaim
 from pipeline.jobfit.transform import build_match_candidate
@@ -193,6 +197,184 @@ class NameNeutralityTest(unittest.TestCase):
             any(sentinel in h for h in candidate.experience_highlights),
             "fixture stopped putting the name into the CV text — the probe went dark",
         )
+
+
+# ---------------------------------------------------------------------------
+# Layer 2: the CV-ANALYSIS engine (pipeline.analyze_cv)
+#
+# The matching guard above pins ``match()``. It cannot see the OTHER scored
+# surface the product ships — the 0-100 headline on the Analyze tab, which
+# pipeline automation, auto-reject and the shortlist all read. That score is
+# assembled in ``analyze_cv`` from the model payload plus a long deterministic
+# post-pass (salary anchoring, soft signals, keyword coverage, evidence trace,
+# interview kit, sanity checks, the v2 profile). AUDIT 2026-08-22: a gendered
+# penalty planted in that post-pass —
+#
+#     if (profile.name or "").casefold().endswith("ov\u00e1"):
+#         score = score.model_copy(update={"total": max(0, score.total - 7)})
+#
+# — left every guard in this context GREEN, because nothing here ever called
+# ``analyze_cv`` with two different names. The class below closes that: the
+# model payload is held byte-constant and ONLY the name varies, so any delta in
+# the assembled AnalysisResult is by construction a name dependence.
+#
+# The LLM's own judgement is still out of scope (it is mitigated by blind mode /
+# redact.py) — what is pinned here is that the deterministic Python half never
+# re-reads the name.
+# ---------------------------------------------------------------------------
+
+# A complete, valid Gemini payload (profile + score + salary) so the whole
+# post-Gemini assembly runs; ``{name}`` is substituted only for the
+# name-inside-the-CV-text variant.
+_CV_RAW_TEXT_TEMPLATE = (
+    "{name} is a senior backend engineer with 8 years building Python and Go "
+    "services at a fintech. Led a team of four, owned the payments platform, "
+    "mentored juniors and shipped the billing rewrite."
+) * 2
+
+_CV_PAYLOAD: dict[str, Any] = {
+    "profile": {
+        "raw_text": "",  # filled per run
+        "name": "",  # the perturbed field
+        "years_experience": 8,
+        "current_seniority": "senior",
+        "role_family": "backend",
+        "education_level": "master",
+        "skills": ["Python", "Go", "Postgres"],
+    },
+    "score": {
+        "experience": 20,
+        "skills": 25,
+        "role_seniority": 20,
+        "education": 10,
+        "traits": 8,
+        "total": 83,
+    },
+    "salary": {"minimum": 90000, "maximum": 130000, "currency": "CZK", "period": "month"},
+    "strengths": ["Strong backend"],
+    "gaps": [],
+    "recommendations": [],
+    "explanation": "Solid senior backend candidate.",
+}
+
+# The ONLY fields of an AnalysisResult that may legitimately differ between two
+# runs that differ solely in the applicant's name. Everything else — score,
+# salary, job_fit, soft_signals, keyword_coverage, market_evidence,
+# evidence_trace, interview_kit, sanity_checks, metadata — must be identical.
+_ANALYSIS_NAME_CARRIERS = (
+    "candidate.name",
+    "soft_signals.display_name",
+    "v2_profile.displayName",
+)
+# Additionally allowed when the name is written INSIDE the CV text: the verbatim
+# document text and its length, which are transcription, not judgement.
+_ANALYSIS_CV_TEXT_CARRIERS = (
+    "candidate.raw_text",
+    "extraction_comparison.gemini_text",
+    "extraction_comparison.pypdf_text",
+    "extraction_quality.gemini_text_length",
+    "extraction_quality.pypdf_text_length",
+)
+
+
+def _pop_path(data: dict[str, Any], dotted: str) -> Any:
+    """Remove ``a.b.c`` from a nested dict, FAILING if the path is absent.
+
+    Failing loudly matters: if a carrier is renamed, the exclusion list must be
+    updated deliberately rather than silently widening to cover a field that no
+    longer exists (which would let a real name leak through unexamined).
+    """
+    node: Any = data
+    parts = dotted.split(".")
+    for part in parts[:-1]:
+        if not isinstance(node, dict) or part not in node:
+            raise KeyError(f"carrier path {dotted!r} no longer exists in the AnalysisResult")
+        node = node[part]
+    if not isinstance(node, dict) or parts[-1] not in node:
+        raise KeyError(f"carrier path {dotted!r} no longer exists in the AnalysisResult")
+    return node.pop(parts[-1])
+
+
+def _analysis_payload(
+    name: str, *, name_in_cv_text: bool = False, carriers: tuple[str, ...] = _ANALYSIS_NAME_CARRIERS
+) -> tuple[bytes, dict[str, Any], Any]:
+    """Run analyze_cv over a FIXED model payload whose only variable is the name.
+
+    Returns (canonical bytes with the sanctioned carriers removed, the carrier
+    values that were removed, the AnalysisResult itself).
+    """
+    raw_text = _CV_RAW_TEXT_TEMPLATE.format(name=name if name_in_cv_text else "The candidate")
+    payload = copy.deepcopy(_CV_PAYLOAD)
+    payload["profile"]["name"] = name
+    payload["profile"]["raw_text"] = raw_text
+    with mock.patch.object(P, "extract_text", lambda _p: raw_text), mock.patch.object(
+        P, "analyze_profile_with_gemini", lambda *a, **k: (payload, [], {})
+    ):
+        result = P.analyze_cv(Path("fixture.pdf"))
+    data = result.model_dump()
+    carried = {path: _pop_path(data, path) for path in carriers}
+    blob = json.dumps(data, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")
+    return blob, carried, result
+
+
+class AnalyzeCvNameNeutralityTest(unittest.TestCase):
+    """The applicant's name cannot influence the CV-analysis result either."""
+
+    baseline: bytes
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.baseline, _, _ = _analysis_payload(BASELINE_NAME)
+
+    def test_the_analysis_actually_ran(self) -> None:
+        # Non-vacuity: an empty/aborted result would make every comparison
+        # trivially equal. Assert the expensive surfaces really are present.
+        _blob, carried, result = _analysis_payload(BASELINE_NAME)
+        self.assertEqual(result.score.total, 83)
+        self.assertEqual(result.salary.minimum, 90000)
+        self.assertIsNotNone(result.soft_signals)
+        self.assertIsNotNone(result.v2_profile)
+        # ...and the sanctioned carriers really do carry the name (the probe is live).
+        for path, value in carried.items():
+            self.assertEqual(value, BASELINE_NAME, f"{path} stopped echoing the name")
+        # The compared surface still contains the score/salary blocks.
+        self.assertIn(b'"score"', self.baseline)
+        self.assertIn(b'"salary"', self.baseline)
+
+    def test_name_never_moves_the_analysis_payload(self) -> None:
+        for axis, name in NAME_VARIANTS.items():
+            with self.subTest(axis=axis, name=name):
+                blob, carried, _ = _analysis_payload(name)
+                self.assertEqual(carried["candidate.name"], name)
+                self.assertEqual(
+                    blob,
+                    self.baseline,
+                    f"NAME INFLUENCED THE CV-ANALYSIS PAYLOAD for {axis} ({name}) — "
+                    "a gender/ethnic proxy reached the analyze_cv assembly",
+                )
+
+    def test_gendered_surname_pair_analyses_identically(self) -> None:
+        male, _, _ = _analysis_payload(NAME_VARIANTS["czech_male"])
+        female, _, _ = _analysis_payload(NAME_VARIANTS["czech_female_ova"])
+        self.assertEqual(male, female, "gendered surname moved the CV-analysis payload")
+
+    def test_name_inside_the_cv_text_moves_only_the_transcription(self) -> None:
+        """A real CV carries the name in its text. That text is transcribed into
+        raw_text / the extraction comparison (allowed) but must not move any
+        judgement: score, salary, soft signals, coverage, evidence trace, kit."""
+        carriers = _ANALYSIS_NAME_CARRIERS + _ANALYSIS_CV_TEXT_CARRIERS
+        baseline, _, _ = _analysis_payload(BASELINE_NAME, name_in_cv_text=True, carriers=carriers)
+        for axis, name in NAME_VARIANTS.items():
+            with self.subTest(axis=axis, name=name):
+                blob, carried, _ = _analysis_payload(
+                    name, name_in_cv_text=True, carriers=carriers
+                )
+                self.assertIn(name, str(carried["candidate.raw_text"]))  # probe is live
+                self.assertEqual(
+                    blob,
+                    baseline,
+                    f"a name written INSIDE the CV text moved the analysis for {axis} ({name})",
+                )
 
 
 if __name__ == "__main__":
