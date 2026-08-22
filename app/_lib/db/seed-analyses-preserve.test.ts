@@ -26,6 +26,8 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { ensureDb } from "./core.ts";
 import { setAnalysisDisposition, setAnalysisGithub, loadAnalysis } from "./analyses.ts";
+import { anonymizeProfile } from "./profiles.ts";
+import { anonymizeEntry } from "./pipeline.ts";
 
 after(() => cleanupUnitDb());
 
@@ -103,6 +105,99 @@ test("re-seeding preserves recruiter dispositions + GitHub deep-dives on seeded 
   assert.ok(loaded, "loadAnalysis resolves the seeded row after reboot");
   assert.equal(loaded.row.disposition, "advance");
   assert.equal(loaded.row.github_json, githubJson);
+});
+
+// ---- The sibling seeder: seedCandidates over the shipped `cand-*` profiles ----
+//
+// Same class of defect, same file. seedCandidates used `INSERT OR REPLACE` (delete-
+// then-insert) over a 7-column list that predates workspace_id and the lineage /
+// divergence stamps, and it too runs UNCONDITIONALLY on every boot. 54 of the shipped
+// pipeline entries carry a `cand-*` candidate_id, so anonymizeEntry → anonymizeProfile
+// (GDPR erasure / consent expiry) masked the name and scrubbed the CV payload in
+// place — and the very next restart re-inserted BOTH straight from the committed seed
+// JSON. Erasure that un-erases itself on a timer is the worst possible failure here.
+type ProfileCols = { label: string; payload_json: string; updated_at: string | null };
+const readProfile = (id: string): ProfileCols =>
+  ensureDb().prepare(`SELECT label, payload_json, updated_at FROM profiles WHERE id = ?`).get(id) as ProfileCols;
+
+test("re-seeding never resurrects an ERASED seeded candidate profile (GDPR Art. 17)", () => {
+  ensureDb(); // the shipped cand-* population is seeded on boot
+  const seeded = ensureDb()
+    .prepare(`SELECT id FROM profiles WHERE id LIKE 'cand-%' ORDER BY id LIMIT 1`)
+    .get() as { id: string } | undefined;
+  assert.ok(seeded, "expected the shipped cand-* candidate population to be seeded");
+  const id = seeded.id;
+  const original = readProfile(id);
+
+  // A candidate exercises their right to erasure (or their consent lapses): the label
+  // is masked and the CV payload deep-scrubbed in place.
+  assert.equal(anonymizeProfile(id, "workspace"), true, "the seeded profile is erasable");
+  const erased = readProfile(id);
+  // Guard against a vacuous pass: the erasure actually changed the row BEFORE the reboot.
+  assert.notEqual(erased.label, original.label, "the erasure masked the candidate's name");
+  assert.notEqual(erased.payload_json, original.payload_json, "the erasure scrubbed the CV payload");
+  assert.ok(erased.updated_at, "the content write stamped updated_at");
+
+  // Server restart: seedCandidates re-runs unconditionally over the same file.
+  simulateReboot();
+
+  const after = readProfile(id);
+  assert.equal(after.label, erased.label, "the boot re-seed resurrected the erased candidate's NAME");
+  assert.equal(after.payload_json, erased.payload_json, "the boot re-seed resurrected the erased CV PAYLOAD");
+});
+
+test("…yet an untouched seeded profile still refreshes from the committed corpus (non-vacuous)", () => {
+  const pristine = ensureDb()
+    .prepare(`SELECT id, label FROM profiles WHERE id LIKE 'cand-%' AND updated_at IS NULL ORDER BY id DESC LIMIT 1`)
+    .get() as { id: string; label: string } | undefined;
+  assert.ok(pristine, "expected a pristine (never app-written) seeded profile");
+  // Stand in for a regenerated seed corpus: drift the stored row WITHOUT the product
+  // writing it (updated_at stays NULL), exactly as a re-generated seed JSON would look.
+  ensureDb().prepare(`UPDATE profiles SET label = 'DRIFTED' WHERE id = ?`).run(pristine.id);
+  simulateReboot();
+  assert.equal(
+    readProfile(pristine.id).label,
+    pristine.label,
+    "a pristine seed row must still be refreshed from the committed seed JSON"
+  );
+});
+
+// The two columns the seed upsert DOES own — candidate_label and payload_json — are
+// exactly the two anonymizeEntry scrubs on a linked analysis, so preserving
+// disposition/github_json alone was not enough: the CV payload came straight back on
+// the next boot. 54 shipped pipeline entries resolve to a seeded analysis by label.
+test("re-seeding never resurrects an ERASED seeded analysis (GDPR Art. 17)", () => {
+  const link = ensureDb()
+    .prepare(
+      `SELECT a.slug AS slug, e.id AS entryId
+         FROM analyses a
+         JOIN pipeline_entries e
+           ON LOWER(TRIM(a.candidate_label)) = LOWER(TRIM(e.candidate_label))
+          AND a.workspace_id = e.workspace_id
+        WHERE a.slug LIKE 'seed-%' AND e.anonymized_at IS NULL
+        ORDER BY a.slug LIMIT 1`
+    )
+    .get() as { slug: string; entryId: string } | undefined;
+  assert.ok(link, "expected a seeded analysis reachable from a seeded pipeline entry");
+  const readCv = (slug: string) =>
+    ensureDb().prepare(`SELECT candidate_label, payload_json FROM analyses WHERE slug = ?`).get(slug) as {
+      candidate_label: string;
+      payload_json: string;
+    };
+  const before = readCv(link.slug);
+
+  // The candidate exercises their right to erasure via the public /data/[token] page.
+  assert.ok(anonymizeEntry(link.entryId, "erasure"), "the seeded entry is erasable");
+  const erased = readCv(link.slug);
+  // Guard against a vacuous pass: the erasure reached the analysis BEFORE the reboot.
+  assert.notEqual(erased.candidate_label, before.candidate_label, "the erasure masked the name on the analysis");
+  assert.notEqual(erased.payload_json, before.payload_json, "the erasure scrubbed the CV payload on the analysis");
+
+  simulateReboot();
+
+  const after = readCv(link.slug);
+  assert.equal(after.candidate_label, erased.candidate_label, "the boot re-seed resurrected the erased NAME");
+  assert.equal(after.payload_json, erased.payload_json, "the boot re-seed resurrected the erased CV PAYLOAD");
 });
 
 test("a genuinely new seed row still inserts on a truly empty DB (one-time seed intact)", () => {

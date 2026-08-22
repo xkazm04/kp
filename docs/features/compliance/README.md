@@ -62,6 +62,20 @@ in History and `/api/analyses/[slug]` after an Art. 17 erasure. `explanation` an
 (keyless) builders interpolate `candidate.name` straight into them. Retained, as
 before: scores, skills, seniority, role family, salary band, traits.
 
+**Erasure survives a restart.** The shipped demo corpus is not inert: `ensureDb()`
+re-runs `seedCandidates` and `seedAnalyses` on **every** boot (no empty-table guard,
+by design, so a regenerated seed refreshes the pool without a DB reset), and 54 of the
+seeded pipeline entries resolve to a `cand-*` profile and a `seed-*` analysis. Both
+seeders therefore write the exact columns `anonymizeEntry` scrubs — the label and the
+CV payload — so a re-seed used to hand the erased candidate's name and full CV back on
+the next restart. `app/_lib/db/core.ts` now gates both upserts: `seedCandidates`
+refreshes a row only while `profiles.updated_at IS NULL` (the marker meaning the
+product has never written it — `saveProfile` stamps it at birth, `updateProfile` on
+every content write, and `anonymizeProfile` goes through `updateProfile`), and
+`seedAnalyses` skips any row linked — by `anonymizeEntry`'s own normalized-label +
+workspace rule — to a `pipeline_entries` row carrying `anonymized_at`. Untouched seed
+rows still refresh. `seed-analyses-preserve.test.ts` pins both directions.
+
 **Self-service erasure.** `ensureErasureToken` mints a per-entry token;
 `app/data/[token]/page.tsx` + `DataClient.tsx` render the candidate's held
 data and an erase button; `app/api/data/[token]/route.ts` handles GET

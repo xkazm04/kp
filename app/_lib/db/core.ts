@@ -1242,6 +1242,26 @@ export function ensureDb(): Database.Database {
     // recruiter who navigated away can't miss a finish. Server-side (not a
     // localStorage watermark) so the ack survives browsers and sessions.
     "ALTER TABLE tasks ADD COLUMN seen_at TEXT",
+    // L0 "pull on wake" (docs/concepts/local-first-edge.md §3.1) — a receiver row
+    // becomes BIDIRECTIONAL. Until now a channel_webhooks row could only be PUSHED
+    // to (the source POSTs to /api/channels/inbound/<token>), which silently loses
+    // every delivery made while a local-first install is switched off. With a
+    // pull_url set, the clock also PULLS: it GETs the source on each tick and files
+    // whatever arrived since `pull_cursor` through the same lead-intake core. The
+    // token/job/lang/workspace binding — and therefore the tenancy — is the row's,
+    // unchanged; only the direction of travel is new.
+    "ALTER TABLE channel_webhooks ADD COLUMN pull_url TEXT",
+    // Encrypted at rest under KP_SECRET (ats-secret helpers), like every other
+    // stored integration credential. Sent as a bearer token when pulling.
+    "ALTER TABLE channel_webhooks ADD COLUMN pull_secret TEXT",
+    // Opaque, source-owned resume marker echoed back as ?since= on the next pull.
+    // NULL = never pulled ⇒ the first pull asks for the source's own default window
+    // (we do NOT invent a start date and silently import a decade of leads).
+    "ALTER TABLE channel_webhooks ADD COLUMN pull_cursor TEXT",
+    "ALTER TABLE channel_webhooks ADD COLUMN last_pull_at TEXT",
+    // failure-truth-everywhere (the dev_outbox.failure_detail precedent): WHY the
+    // last pull failed, surfaced on the receiver row. NULL after a clean pull.
+    "ALTER TABLE channel_webhooks ADD COLUMN last_pull_error TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
@@ -1756,11 +1776,39 @@ function seedCandidates(db: Database.Database): void {
   // the committed candidate seed — e.g. after the ČS skill alignment — refreshes
   // the profiles pool without a DB reset. Recruiter-built profiles use random,
   // non-`cand-` slugs, so they are never touched or replaced.
+  //
+  // NON-DESTRUCTIVE upsert, and PRISTINE-ONLY (the seedAnalyses fix, applied to its
+  // sibling — this seeder still used `INSERT OR REPLACE`, i.e. delete-then-insert
+  // over a 7-column list that predates workspace_id / the lineage + divergence
+  // stamps). Two live consequences, both silent and timer-driven:
+  //   1. GDPR. anonymizeEntry → anonymizeProfile masks the label and scrubs the CV
+  //      payload IN PLACE (name, raw CV text, contact, evidence quotes). 54 of the
+  //      shipped pipeline entries point at `cand-*` profiles, so an erasure request
+  //      honoured on Monday was UNDONE by Tuesday's restart: REPLACE re-inserted the
+  //      original name + full payload straight from the committed seed JSON.
+  //   2. Recruiter edits + lineage. updateProfile / setProfileLineage writes were
+  //      reverted, and source_analysis_slug / source_cv_hash / source_analyzed_at /
+  //      updated_at / lineage_stamped_at (plus workspace_id) were re-NULLed on every
+  //      boot — so profileDivergence could never warn before a rebuild clobbered an
+  //      edit, and profileStaleness never saw a seeded profile's lineage.
+  // `updated_at IS NULL` is the exact "the app has never written this row" marker:
+  // the seed INSERT below omits the column, while saveProfile stamps it at birth and
+  // updateProfile on every content write. So an untouched seed row still refreshes
+  // from a regenerated corpus (the documented purpose), and a row the product has
+  // written — edited, rebuilt, or ERASED — is left exactly as the product left it.
   const records = loadSeedArray<Record<string, unknown>>("candidates", SEED_CANDIDATES_PATH);
   if (!records) return;
   const insert = db.prepare(
-    `INSERT OR REPLACE INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at)
-     VALUES (@id, @label, @archetype, @role_family, @completeness, @payload_json, @created_at)`
+    `INSERT INTO profiles (id, label, archetype, role_family, completeness, payload_json, created_at)
+     VALUES (@id, @label, @archetype, @role_family, @completeness, @payload_json, @created_at)
+     ON CONFLICT(id) DO UPDATE SET
+       label = excluded.label,
+       archetype = excluded.archetype,
+       role_family = excluded.role_family,
+       completeness = excluded.completeness,
+       payload_json = excluded.payload_json,
+       created_at = excluded.created_at
+     WHERE profiles.updated_at IS NULL`
   );
   const tx = db.transaction((rows: Array<Record<string, unknown>>) => {
     for (const rec of rows) {
@@ -1821,7 +1869,23 @@ function seedAnalyses(db: Database.Database): void {
        role_family = excluded.role_family,
        seniority = excluded.seniority,
        payload_json = excluded.payload_json,
-       created_at = excluded.created_at`
+       created_at = excluded.created_at
+     -- …but NEVER over an ERASED candidate. The columns this upsert refreshes are
+     -- exactly the two anonymizeEntry scrubs (candidate_label → "First L.",
+     -- payload_json → PII stripped of name / rawText / contact / evidence quotes), so
+     -- protecting disposition + github_json alone still let a boot re-write the CV
+     -- payload straight back from the committed seed JSON: 54 shipped pipeline entries
+     -- resolve to a seeded analysis by label, and erasure that undoes itself on the next
+     -- restart is worse than no erasure at all. The predicate is anonymizeEntry's OWN
+     -- link (normalized label + same workspace) keyed on the durable anonymized_at stamp
+     -- rather than on label drift — erasure anonymizes in place and never deletes the
+     -- entry, so the suppression stays true for the life of the row.
+     WHERE NOT EXISTS (
+       SELECT 1 FROM pipeline_entries pe
+        WHERE pe.anonymized_at IS NOT NULL
+          AND pe.workspace_id = analyses.workspace_id
+          AND LOWER(TRIM(pe.candidate_label)) = LOWER(TRIM(analyses.candidate_label))
+     )`
   );
   const tx = db.transaction((rows: Array<Record<string, unknown>>) => {
     for (const rec of rows) {
