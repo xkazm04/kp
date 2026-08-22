@@ -5,6 +5,7 @@
 // these add the facts that decide whether it is the one you meant.
 import { useTranslations } from "next-intl";
 import type { PalettePreview } from "@/app/_lib/palette-preview/types";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { Badge, type BadgeTone } from "@/app/_components/Badge";
 import { Meter } from "@/app/_components/Meter";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
@@ -15,10 +16,15 @@ type V<K extends PalettePreview["view"]> = Extract<PalettePreview, { view: K }>;
 
 export function PreviewProfile({ p }: { p: V<"profile"> }) {
   const t = useTranslations("palettePreview.profile");
+  const enumLabel = useEnumLabel();
   const { date } = useFmt();
   return (
     <>
-      <Chips items={[p.archetype, p.roleFamily]} />
+      {/* Archetype + role family arrive as canonical slugs (`bau`,
+          `software_engineering`) — the wire value the pipeline branches on. Every
+          other surface displays them through the `enums` catalog (useEnumLabel);
+          rendering them raw here printed the slug itself in all four locales. */}
+      <Chips items={[enumLabel("archetype", p.archetype), enumLabel("family", p.roleFamily)]} />
       {p.completeness != null ? (
         // completeness is a 0–1 fraction in the store (ProfileRosterRow's convention).
         <div className="space-y-1">
@@ -74,12 +80,13 @@ const JOB_STATUS_TONE: Record<string, BadgeTone> = { published: "positive", draf
 
 export function PreviewJob({ p }: { p: V<"job"> }) {
   const t = useTranslations("palettePreview.job");
+  const enumLabel = useEnumLabel();
   const { num } = useFmt();
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
         {p.status ? <Badge tone={JOB_STATUS_TONE[p.status] ?? "neutral"} label={p.status} /> : null}
-        <Chips items={[p.company, p.location, p.seniority]} />
+        <Chips items={[p.company, p.location, enumLabel("seniority", p.seniority)]} />
       </div>
       <Sub>{t("funnel")}</Sub>
       <PipelineShapeBar label={p.title} total={p.total} reachedInterview={p.reachedInterview} hired={p.hired} peak={Math.max(1, p.total)} />
@@ -115,6 +122,7 @@ const DISPOSITION_TONE: Record<string, BadgeTone> = { advance: "positive", hold:
 
 export function PreviewAnalysis({ p }: { p: V<"analysis"> }) {
   const t = useTranslations("palettePreview.analysis");
+  const enumLabel = useEnumLabel();
   const { date } = useFmt();
   return (
     <>
@@ -122,7 +130,7 @@ export function PreviewAnalysis({ p }: { p: V<"analysis"> }) {
         <ScoreBadge score={p.score} />
         {p.disposition ? <Badge tone={DISPOSITION_TONE[p.disposition] ?? "neutral"} label={p.disposition} /> : <Badge tone="neutral" label={t("undecided")} />}
       </div>
-      <Chips items={[p.roleFamily, p.seniority]} />
+      <Chips items={[enumLabel("family", p.roleFamily), enumLabel("seniority", p.seniority)]} />
       <Rows>
         <Row label={t("created")}>{date(p.createdAt)}</Row>
         {p.jdSlug ? <Row label={t("jd")}>{p.jdSlug}</Row> : null}

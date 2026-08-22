@@ -4,6 +4,7 @@
 // Analyze, Interview sim, Assignments).
 import { useTranslations } from "next-intl";
 import type { PalettePreview } from "@/app/_lib/palette-preview/types";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { RankList, Row, Rows, Sub, Tile, Tiles, useFmt } from "./previewBits";
 
@@ -11,6 +12,7 @@ type V<K extends PalettePreview["view"]> = Extract<PalettePreview, { view: K }>;
 
 export function PreviewJobs({ p }: { p: V<"jobs"> }) {
   const t = useTranslations("palettePreview.jobs");
+  const enumLabel = useEnumLabel();
   const { num } = useFmt();
   return (
     <>
@@ -22,7 +24,10 @@ export function PreviewJobs({ p }: { p: V<"jobs"> }) {
       {p.families.length ? (
         <>
           <Sub>{t("families")}</Sub>
-          <RankList items={p.families} />
+          {/* The resolver groups jobs by the raw `role_family` column, so `name` is a
+              slug — display it through the same `enums.family` catalog the Matrix and
+              Decisions surfaces use, not as `software_engineering`. */}
+          <RankList items={p.families.map((f) => ({ ...f, name: enumLabel("family", f.name) }))} />
         </>
       ) : null}
     </>
@@ -53,6 +58,7 @@ export function PreviewLibrary({ p }: { p: V<"library"> }) {
 
 export function PreviewArchetypes({ p }: { p: V<"archetypes"> }) {
   const t = useTranslations("palettePreview.archetypes");
+  const enumLabel = useEnumLabel();
   const { num } = useFmt();
   return (
     <>
@@ -63,7 +69,8 @@ export function PreviewArchetypes({ p }: { p: V<"archetypes"> }) {
       {p.top.length ? (
         <>
           <Sub>{t("top")}</Sub>
-          <RankList items={p.top} />
+          {/* Same rule as the role families above: `name` is an archetype slug. */}
+          <RankList items={p.top.map((a) => ({ ...a, name: enumLabel("archetype", a.name) }))} />
         </>
       ) : null}
     </>

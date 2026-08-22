@@ -13,8 +13,9 @@ export function NavPanelItem({
   item,
   isActive,
   isLink,
-  badge,
-  sliceHref,
+  badge: rawBadge,
+  showAttention = true,
+  sliceHref: rawSliceHref,
   navText,
   attentionLabel,
   attentionGoLabel,
@@ -26,6 +27,15 @@ export function NavPanelItem({
   isActive: boolean;
   isLink: boolean;
   badge: number;
+  /** May this row show queue depths at all? Defaults to TRUE (today's behaviour) so
+   *  no caller has to opt in. Pass `false` for a viewer who is not the workspace's
+   *  operator: this nav also renders on /jds/[slug], which is on the PUBLIC proxy
+   *  allow-list, and `currentWorkspace()` resolves a cookieless caller to
+   *  DEFAULT_WORKSPACE — so an anonymous reader of a shared role link was served the
+   *  team's real queue depths as bare integers. Enforced HERE, not only at the count
+   *  source, so a future caller that hands over a populated `attention` map for a
+   *  non-operator still renders no badge. */
+  showAttention?: boolean;
   sliceHref: string | null;
   navText: (key: string, fallback: string) => string;
   attentionLabel: (count: number) => string;
@@ -37,6 +47,10 @@ export function NavPanelItem({
   onPrefetch?: (id: WorkspaceTabId) => void;
 }) {
   const Icon = TAB_ICON[item.id];
+  // The suppression is total: no inline pill, no slice pill, and no `pr-9` gutter
+  // reserved for one — a row that cannot show a count must not look like it lost one.
+  const badge = showAttention ? rawBadge : 0;
+  const sliceHref = showAttention ? rawSliceHref : null;
   const rowClass = `group focus-ring relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-base font-medium transition-colors ${navItemClass(isActive)} ${sliceHref ? "pr-9" : ""}`;
   const rowInner = (
     <>

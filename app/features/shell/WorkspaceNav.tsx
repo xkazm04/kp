@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getTranslations } from "next-intl/server";
 import { attentionCounts, type AttentionCounts } from "@/app/_lib/attention";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { isOperator } from "@/app/_lib/auth/require-operator";
 import { SignOutButton } from "@/app/_components/auth/SignOutButton";
 import { CommandPalette } from "./WorkspaceCommandPalette";
 import { NavFeedbackButton } from "./nav/NavFeedbackButton";
@@ -25,16 +26,34 @@ import { NAV_GROUPS, type WorkspaceTabId } from "./tabs";
 // self-resolves them. The TasksIndicator is SPA-only and intentionally omitted here;
 // the CommandPalette (rail search) mounts on both.
 export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
+  // Who is looking. NOT a prop: one of this nav's three hosts — /jds/[slug] — is on
+  // the PUBLIC allow-list (public-routes.ts), so a page that forgot to pass the flag
+  // would silently re-open the leak below. The nav owns its own gate instead.
+  //
+  // The leak it closes: an anonymous candidate on a shared role link renders this
+  // sidebar, and `currentWorkspace()` resolves a cookieless caller to
+  // DEFAULT_WORKSPACE — so `curl https://host/jds/<slug>` with no cookies came back
+  // with the default team's real queue depths (entries awaiting a human decision,
+  // entries past their stage SLA, confirmed future interviews, unpublished draft
+  // roles, new inbound arrivals) rendered as bare integers in NavPanelItem.
+  //
+  // Open mode (KP_OPERATOR_PASSWORD unset) is true for everyone by design, so this
+  // changes nothing on a keyless/dev install — only a password-protected deploy,
+  // which is exactly where the anonymous visitor is a real, distinct principal.
+  const operator = await isOperator();
+
   // SHELL2 — same badge counts as the interactive shell, computed server-side at
   // render (a detail page is a snapshot; the SPA shell owns the live poll). Best-effort:
   // a store fault must not take the whole page down for a badge.
   let attention: AttentionCounts | null = null;
-  try {
-    // Same tenant scope as /api/attention: the badges describe the workspace this
-    // session is signed into, never the default one.
-    attention = attentionCounts(await currentWorkspace());
-  } catch (error) {
-    console.error("[WorkspaceNav] attention counts unavailable", error);
+  if (operator) {
+    try {
+      // Same tenant scope as /api/attention: the badges describe the workspace this
+      // session is signed into, never the default one.
+      attention = attentionCounts(await currentWorkspace());
+    } catch (error) {
+      console.error("[WorkspaceNav] attention counts unavailable", error);
+    }
   }
   const t = await getTranslations("nav");
   return (
@@ -71,18 +90,30 @@ export async function WorkspaceNav({ active }: { active: WorkspaceTabId }) {
         // shell (the old panel footer here carried the theme toggle but no
         // language switcher). The TasksIndicator stays SPA-only, so this sidebar
         // has no panel footer at all.
+        //
+        // Search / feedback / sign-out are OPERATOR controls and render only for one
+        // (see `operator` above). On the public JD share link they were all three
+        // wrong for the viewer: the palette searches the workspace's candidates and
+        // roles behind a gated /api/search, the feedback door is the recruiter's, and
+        // "Sign out" offered a candidate who never had a session a button that POSTs
+        // /api/auth/logout and hard-navigates them off the job ad they were reading.
+        // Appearance/language are viewer chrome and stay for everyone.
         railFooter={
           <>
-            {/* Global search on every route — same rail button + Ctrl/Cmd+K as the
-                SPA shell (the tour command is absent here: no SimulationProvider).
-                Suspense: the palette reads useSearchParams from a client island. */}
-            <Suspense fallback={null}>
-              <CommandPalette />
-            </Suspense>
-            <NavFeedbackButton />
+            {operator ? (
+              <>
+                {/* Global search on every route — same rail button + Ctrl/Cmd+K as the
+                    SPA shell (the tour command is absent here: no SimulationProvider).
+                    Suspense: the palette reads useSearchParams from a client island. */}
+                <Suspense fallback={null}>
+                  <CommandPalette />
+                </Suspense>
+                <NavFeedbackButton />
+              </>
+            ) : null}
             <RailPreferences />
             {/* Drop the dev session and return to the landing. */}
-            <SignOutButton />
+            {operator ? <SignOutButton /> : null}
           </>
         }
       />

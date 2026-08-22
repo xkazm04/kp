@@ -145,6 +145,44 @@ warms every chunk in its group on hover, focus and click (`prefetchSection`), so
 opening a section starts all of its tabs' downloads at once — 2–7 small chunks
 per group, deduped per document by `prefetchTabChunk`.
 
+### The deep-link sidebar has a public viewer, so it gates on `isOperator()`
+
+`shell/WorkspaceNav.tsx` (`WorkspaceShell`) is the link-mode sidebar for the three
+server-rendered detail pages — `/jds/[slug]`, `/history/[slug]`, `/diagrams`. Two of
+those are gated, but **`/jds/` is on the public allow-list**
+(`app/_lib/auth/public-routes.ts`): it is the shareable, candidate-facing role page
+with the Apply CTA and the OG unfurl. So this sidebar renders for anonymous visitors,
+and everything it draws must be safe for one.
+
+It therefore resolves `await isOperator()` **itself**, rather than taking the answer
+as a prop — a host page that forgot to pass it would silently re-open the leak, and
+the nav is the thing that knows what its own chrome costs. Two things hang off it:
+
+- **Attention badges.** `attentionCounts(await currentWorkspace())` runs only for an
+  operator. `currentWorkspace()` resolves a cookieless caller to `DEFAULT_WORKSPACE`,
+  so before the gate `curl https://host/jds/<slug>` with no cookies returned the
+  default team's real queue depths (entries awaiting a human decision, entries past
+  their stage SLA, confirmed future interviews, unpublished draft roles, new inbound
+  arrivals) as bare integers in `NavPanelItem`. A non-operator gets
+  `attention={null}`, which the shared renderer already treats as "no badge".
+  The renderer carries a second, explicit gate for the same rule:
+  `NavSectionRail`/`NavPanelItem` take an optional `showAttention` (default `true`,
+  so omitting it is today's behaviour), and `false` suppresses the inline pill, the
+  badge-slice pill and the `pr-9` gutter reserved for one even if a populated
+  `attention` map is handed in. Withholding the counts and passing `showAttention`
+  are equivalent and compose; neither depends on the other.
+- **Operator-only rail controls.** The command palette (it searches the workspace's
+  candidates and roles behind a gated `/api/search`), the recruiter feedback door, and
+  Sign out — which offered a candidate who never had a session a button that POSTs
+  `/api/auth/logout` and hard-navigates them off the job ad. Appearance and language
+  (`RailPreferences`) are viewer chrome and stay for everyone.
+
+Open mode (`KP_OPERATOR_PASSWORD` unset) makes `isOperator()` true for everyone by
+design, so a keyless/dev install and the e2e subset are unchanged; only a
+password-protected deploy has an anonymous principal to distinguish. A `/api/demo`
+demo session is deliberately *not* an operator (see `require-operator.ts`), so it also
+sees the un-badged rail on these three pages.
+
 ### The command palette lives on the rail
 
 `shell/WorkspaceCommandPalette.tsx` is the Ctrl/Cmd+K search + navigator. Its
@@ -157,6 +195,16 @@ pages; wrapped in `Suspense` because it reads `useSearchParams`, and it uses
 (`Modal placement="top" bare` — the launcher idiom: the eye starts at the input,
 results grow down). The host owns all state (query, debounced `/api/search`,
 keyboard highlight); while typing, entity hits lead and the tab navigator trails.
+
+**A failed search clears the rows.** `useWorkspaceCommandPaletteSearch.ts` reduces
+each response through the pure `searchResponseState(ok, body)`
+(`useWorkspaceCommandPaletteSearch.test.ts`): a non-ok status, an `error` body or an
+unparseable body yields `{ hits: [], failed: true }`. It used to raise the error and
+leave the previous query's hits standing — and since `paletteListView` reads
+`itemCount > 0` as "settled results", nothing dimmed them, the highlight stayed on
+row 0, and Enter opened a candidate the recruiter had not typed. A malformed but
+successful body is the opposite case and stays a genuine zero-hit result, so the
+palette may still say "no matches" for it.
 
 The body is `WorkspacePaletteLedger.tsx` — the `/prototype` winner ("Ledger",
 master–detail): a dense grouped index on the left (`WorkspacePaletteRow.tsx`:
@@ -180,6 +228,14 @@ which dispatches to one small renderer per view (`PreviewHiring.tsx`,
 built from `previewBits.tsx` (Tiles/Tile, Row, Status dot, Chips, RankList,
 `useFmt`). Copy lives under the `palettePreview` catalog namespace. Adding a
 destination = one union member + one resolver case + one renderer.
+
+The union carries **canonical slugs**, not display text, wherever the value is one
+the pipeline branches on — archetype, role family, seniority (the resolvers group
+straight off `role_family` / `profiles.archetype`). Renderers must put those through
+`useEnumLabel()` (`enums.<group>.<slug>`, `labelize` fallback), exactly as the board,
+Decisions and Matrix do; rendering them raw printed `software_engineering` / `bau` in
+all four locales. Stage is the exception — `resolve-entities.ts` resolves it to the
+workspace's own column label server-side, so it arrives ready to draw.
 
 The old sidebar "Recent" group (`WorkspaceRecentsNav`) was removed; `recents.ts`
 remains, feeding the palette's resting state and recording opens.

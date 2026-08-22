@@ -42,6 +42,7 @@ export function NavSectionRail({
   groups,
   navActive,
   attention,
+  showAttention = true,
   search,
   mode = "select",
   onSelect,
@@ -55,6 +56,14 @@ export function NavSectionRail({
   groups: NavGroup[];
   navActive: WorkspaceTabId;
   attention: AttentionCounts | null;
+  /** May THIS VIEWER see the queue depths? Defaults to true — omitting it keeps
+   *  today's behaviour, so the interactive shell needs no change. `false` suppresses
+   *  every badge even if `attention` is populated: this renderer also serves
+   *  /jds/[slug], which is on the public proxy allow-list, and a cookieless caller
+   *  resolves to DEFAULT_WORKSPACE. A host that already withholds the counts (passing
+   *  `attention={null}`, as WorkspaceNav does for a non-operator) is equivalent; both
+   *  gates compose, and neither depends on the other having landed. */
+  showAttention?: boolean;
   /** the React-tracked query string (buildUrl composes the badge-slice href off it);
    *  the deep-link pages pass "" — a detail page carries no live tab query. */
   search: string;
@@ -179,7 +188,9 @@ export function NavSectionRail({
           {shownGroup?.items.map((item) => {
             const isActive = item.id === navActive;
             // SHELL2: live queue-depth pill for items that declared a badgeKey.
-            const badge = item.badgeKey && attention ? attention[item.badgeKey] : 0;
+            // `showAttention` is the viewer gate (see the prop) — a false value means
+            // no count reaches the row, whatever `attention` happens to hold.
+            const badge = showAttention && item.badgeKey && attention ? attention[item.badgeKey] : 0;
             // Items with badgeParams get a second click target: the badge opens the
             // tab pre-filtered to the counted slice. Rendered as a SIBLING of the row
             // (a button/anchor may not nest interactive content), overlaid on the
@@ -192,6 +203,7 @@ export function NavSectionRail({
                 isActive={isActive}
                 isLink={isLink}
                 badge={badge}
+                showAttention={showAttention}
                 sliceHref={sliceHref}
                 navText={navText}
                 attentionLabel={attentionLabel}

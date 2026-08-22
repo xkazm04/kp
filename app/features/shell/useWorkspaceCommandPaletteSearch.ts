@@ -7,6 +7,30 @@ import { useTranslations } from "next-intl";
 import { resolveErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import { DEBOUNCE_MS, type SearchHit } from "./workspaceCommandPaletteTypes";
 
+/**
+ * Reduce one /api/search response to the palette's next result state. Pure, and
+ * exported, so the rule below can be pinned without a React renderer.
+ *
+ * The rule: a FAILED response CLEARS the previous query's hits. It used to only
+ * raise the error and leave them standing — so typing "nov" (3 matches), then
+ * continuing to "nováková" into a 401 (expired session) or a 500 left those three
+ * rows listed, undimmed, as the answer for "nováková". `paletteListView` reads
+ * itemCount > 0 as "settled results", so nothing marked them stale, the highlight
+ * sat on row 0, and Enter opened a candidate the recruiter had not typed. The
+ * sibling loading path already forbids exactly this ("a prior query's hits don't
+ * linger silently" — workspacePaletteResults.ts); the error path was the gap.
+ *
+ * `failed` rather than a message: the caller resolves the wording from the machine
+ * `code` on the body (use-error-message.ts), which is not this function's business.
+ */
+export function searchResponseState(
+  ok: boolean,
+  body: { results?: unknown; error?: unknown; code?: unknown } | null
+): { hits: SearchHit[]; failed: boolean } {
+  if (!ok || !body || body.error) return { hits: [], failed: true };
+  return { hits: Array.isArray(body.results) ? (body.results as SearchHit[]) : [], failed: false };
+}
+
 export function useWorkspaceCommandPaletteSearch(
   open: boolean,
   query: string,
@@ -58,16 +82,16 @@ export function useWorkspaceCommandPaletteSearch(
           const body = (await r.json().catch(() => null)) as { results?: SearchHit[]; error?: string; code?: string } | null;
           // An aborted (superseded) request leaves `loading` for the newer run to own.
           if (controller.signal.aborted) return;
-          if (!r.ok || !body || body.error) {
-            setError(errMsg(body, t("searchFailed")));
-          } else {
-            setError(null);
-            setHits(Array.isArray(body.results) ? body.results : []);
-          }
+          const next = searchResponseState(r.ok, body);
+          setHits(next.hits); // a failure clears the prior query's rows — see above
+          setError(next.failed ? errMsg(body, t("searchFailed")) : null);
           setLoading(false);
         })
         .catch(() => {
           if (!controller.signal.aborted) {
+            // Same rule as the non-ok branch: an unreachable search must not leave
+            // the prior query's rows standing as this query's answer.
+            setHits([]);
             setError(t("searchFailed"));
             setLoading(false);
           }
