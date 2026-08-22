@@ -41,12 +41,23 @@ def _production_gemini_default(use_case: str, cfg: LLMConfig | None, timeout: in
     if unsupported_caps(use_case, "gemini"):
         return None
     keys = cfg.keys.get("gemini") if cfg else None
-    provider = ADAPTERS["gemini"](
-        model=default_model(use_case, "gemini"),
-        api_key=keys.api_key if keys else None,
-        timeout=timeout or DEFAULT_TIMEOUT_S,
-        use_case=use_case,
-    )
+    kwargs: dict[str, Any] = {
+        "model": default_model(use_case, "gemini"),
+        "api_key": keys.api_key if keys else None,
+        "timeout": timeout or DEFAULT_TIMEOUT_S,
+        "use_case": use_case,
+    }
+    # The heavy-output headroom applies HERE too, not only on the configured path
+    # below: without it this default ran every use case at the base 2048 cost cap,
+    # so a cloud deployment with a Gemini key and no config row truncated exactly
+    # the payloads capabilities.USE_CASE_MAX_TOKENS exists to protect
+    # (weight_proposal 16384, jd_ingest 6144, campaign_pack 8192) — the JSON then
+    # fails coercion, burns the one complete_json repair re-prompt, and ships the
+    # deterministic fallback after two paid calls.
+    max_tokens = default_max_tokens(use_case)
+    if max_tokens:
+        kwargs["max_tokens"] = max_tokens
+    provider = ADAPTERS["gemini"](**kwargs)
     return provider if provider.available() else None
 
 

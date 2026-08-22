@@ -214,6 +214,40 @@ class ProductionDefaultTest(unittest.TestCase):
                     provider = resolve_provider("match_reasoning")
         self.assertIsInstance(provider, ClaudeCliProvider)
 
+    def _production_default(self, use_case: str):
+        with llm_config(None):
+            with mock.patch.dict(os.environ, {"NODE_ENV": "production"}):
+                with mock.patch.object(GeminiProvider, "available", lambda self: True):
+                    return resolve_provider(use_case)
+
+    def test_production_default_carries_the_use_case_max_tokens(self) -> None:
+        """The heavy-output headroom (capabilities.USE_CASE_MAX_TOKENS) must apply on
+        the config-less production default too.
+
+        Pre-fix _production_gemini_default built the adapter without max_tokens, so a
+        cloud deployment with GEMINI_API_KEY and no KP_LLM_CONFIG row ran EVERY use
+        case at the base 2048 cost cap — exactly the truncation USE_CASE_MAX_TOKENS
+        exists to prevent (the payload is cut, complete_json burns its one repair
+        re-prompt, and the deterministic template ships after two paid calls)."""
+        from pipeline.jobfit.llm.capabilities import USE_CASE_MAX_TOKENS
+
+        for use_case, expected in (
+            ("weight_proposal", USE_CASE_MAX_TOKENS["weight_proposal"]),
+            ("jd_ingest", USE_CASE_MAX_TOKENS["jd_ingest"]),
+            ("campaign_pack", USE_CASE_MAX_TOKENS["campaign_pack"]),
+        ):
+            with self.subTest(use_case=use_case):
+                provider = self._production_default(use_case)
+                self.assertIsInstance(provider, GeminiProvider)
+                self.assertEqual(provider.max_tokens, expected)
+
+    def test_production_default_keeps_the_base_cap_for_light_use_cases(self) -> None:
+        # No USE_CASE_MAX_TOKENS row → the base cost cap stays in force.
+        from pipeline.jobfit.llm.base import DEFAULT_MAX_TOKENS
+
+        provider = self._production_default("match_reasoning")
+        self.assertEqual(provider.max_tokens, DEFAULT_MAX_TOKENS)
+
 
 class ValidationTest(unittest.TestCase):
     def test_invalid_json_raises(self) -> None:

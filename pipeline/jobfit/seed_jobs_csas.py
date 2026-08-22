@@ -161,6 +161,17 @@ _NONTECH_ID_START = 100
 
 
 def build_specs(count: int, *, seed: int = 42) -> list[dict[str, Any]]:
+    # The tech slice numbers job-000..job-{count-1} and the non-tech slice starts at
+    # job-100, so a count above _NONTECH_ID_START mints DUPLICATE ids. generate()
+    # keys its output dict on the id, so the two specs race: the corpus that lands
+    # depends on which LLM call returned last (two runs of the same command differ)
+    # and one of the two roles is silently dropped. Refuse instead of racing.
+    if count > _NONTECH_ID_START:
+        raise ValueError(
+            f"--count {count} exceeds the tech-slice ceiling ({_NONTECH_ID_START}): ids job-"
+            f"{_NONTECH_ID_START:03d}.. are reserved for the fixed non-tech slice "
+            f"(CSAS_NONTECH_ROLES). Raise _NONTECH_ID_START to grow the tech corpus."
+        )
     rng = random.Random(seed)
     specs: list[dict[str, Any]] = []
     for i in range(count):

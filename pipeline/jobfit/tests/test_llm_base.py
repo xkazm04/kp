@@ -441,5 +441,82 @@ class AzureAdapterTest(unittest.TestCase):
             self.assertTrue(provider._resolved_api_version())
 
 
+class _BlockedResponse:
+    """A google-genai response whose ``.text`` raises — what the SDK does when the
+    only candidate carries no parts (safety block / recitation / an empty stop)."""
+
+    def __init__(self, finish_reason: str | None) -> None:
+        self.candidates = (
+            [SimpleNamespace(finish_reason=SimpleNamespace(name=finish_reason))]
+            if finish_reason
+            else []
+        )
+
+    @property
+    def text(self):
+        raise ValueError("response has no candidates with text parts")
+
+
+class GeminiEmptyResponseTest(unittest.TestCase):
+    """A Gemini response with NO usable text must fail loudly, not return ``""``.
+
+    Pre-fix the adapter swallowed both shapes (``.text`` raising, and ``.text`` None)
+    into ``text=""`` and handed the base a *successful* LLMResult: the blocked call
+    was metered as a healthy completion and every plain ``complete()`` caller
+    (intake.run_voice_turn, the interview/intake eval personas) took the empty string
+    as the model's real answer. This is the same class the OpenAI adapter's
+    ``_raise_on_error_response`` already closed for empty choices / content filters.
+    """
+
+    def _run(self, resp):
+        try:
+            import google.genai  # noqa: F401
+        except ImportError:
+            self.skipTest("google-genai SDK not installed")
+        from pipeline.jobfit.llm.adapters.gemini_api import GeminiProvider
+
+        provider = GeminiProvider(model="gemini-3.6-flash", api_key="k")
+        fake_client = SimpleNamespace(
+            models=SimpleNamespace(generate_content=lambda **kw: resp)
+        )
+        with mock.patch.object(GeminiProvider, "_make_client", return_value=fake_client), \
+            mock.patch(
+                "pipeline.jobfit.gemini._usage_metadata",
+                return_value={"prompt_tokens": 1200, "candidate_tokens": 0, "cached_tokens": 0},
+            ), \
+            mock.patch("pipeline.jobfit.llm.adapters.gemini_api.monitor") as adapter_monitor, \
+            mock.patch("pipeline.jobfit.llm.base.monitor"):
+            with self.assertRaises(LLMError) as ctx:
+                provider.complete("summarise this CV")
+        return ctx.exception, adapter_monitor
+
+    def test_safety_block_raises_with_the_finish_reason(self) -> None:
+        exc, _ = self._run(_BlockedResponse("SAFETY"))
+        self.assertEqual(exc.subtype, "empty_response")
+        self.assertIn("SAFETY", str(exc))
+
+    def test_none_text_raises(self) -> None:
+        # The other SDK shape: `.text` returns None rather than raising.
+        exc, _ = self._run(SimpleNamespace(text=None, candidates=[]))
+        self.assertEqual(exc.subtype, "empty_response")
+
+    def test_whitespace_only_text_raises(self) -> None:
+        exc, _ = self._run(SimpleNamespace(text="   \n ", candidates=[]))
+        self.assertEqual(exc.subtype, "empty_response")
+
+    def test_paid_input_tokens_still_land_in_the_ledger(self) -> None:
+        # Google bills the prompt for a blocked response, so the spend record must
+        # survive the failure — the same ordering gemini.py's production path uses
+        # (_meter_success before parsing) and the same success-then-error pair
+        # complete_json emits for an unusable-but-paid completion.
+        _exc, adapter_monitor = self._run(_BlockedResponse("PROHIBITED_CONTENT"))
+        self.assertTrue(adapter_monitor.emit_result.called)
+        kwargs = adapter_monitor.emit_result.call_args.kwargs
+        self.assertEqual(kwargs["usage"]["input_tokens"], 1200)
+        self.assertEqual(kwargs["provider"], "gemini")
+        # 1200 in × $1.50/MTok + 0 out × $7.00/MTok
+        self.assertAlmostEqual(kwargs["cost_usd"], 0.0018)
+
+
 if __name__ == "__main__":
     unittest.main()

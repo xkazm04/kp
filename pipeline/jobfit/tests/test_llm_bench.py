@@ -211,6 +211,89 @@ class JudgeScopeTest(unittest.TestCase):
         self.assertIsNone(fallback_row.judge_score)
 
 
+class ValidRateScopeTest(unittest.TestCase):
+    """`validRate` must measure the MODEL's answers, not the harness's fallback.
+
+    The deterministic fallback passes every contract by construction (contracts.py
+    mirrors the production coercion), so counting fallback rows made validRate a
+    signal that could not fail: a target whose every call was unusable — coerced
+    to the template on all 8 scenarios — used to publish `valid 100%`.
+    """
+
+    @staticmethod
+    def _rows(sources: list[str]) -> list:
+        from pipeline.jobfit.llm.bench.runner import BenchRecord
+
+        return [
+            BenchRecord(
+                scenario_id=f"s{i}", use_case="match_reasoning", provider="gemini",
+                model="gemini-3.6-flash", source=src, valid=True,
+            )
+            for i, src in enumerate(sources)
+        ]
+
+    def test_all_fallback_target_is_not_100_percent_valid(self) -> None:
+        row = summarize(self._rows(["deterministic"] * 8))[0]
+        self.assertEqual(row["llmRate"], 0.0)
+        self.assertEqual(row["validRate"], 0.0)  # never once answered → nothing valid
+        self.assertIn("0%", to_markdown([row]))
+
+    def test_partial_fallback_scopes_validity_to_served_rows(self) -> None:
+        rows = self._rows(["llm", "llm", "deterministic", "deterministic"])
+        rows[1].valid = False  # one real answer violated the contract
+        row = summarize(rows)[0]
+        self.assertEqual(row["llmRate"], 0.5)
+        self.assertEqual(row["validRate"], 0.5)  # 1 of the 2 SERVED rows, not 3 of 4
+
+    def test_fully_served_target_is_unchanged(self) -> None:
+        row = summarize(self._rows(["llm"] * 4))[0]
+        self.assertEqual(row["validRate"], 1.0)
+        self.assertEqual(row["llmRate"], 1.0)
+
+
+class JudgeScopeDenominatorTest(unittest.TestCase):
+    """`judged N/M` and the "judge produced no scores" warning must count only the
+    rows the judge actually looks at.
+
+    With fallback rows in the denominator, a run where the TARGET degraded on every
+    scenario printed "judged 0/8" and raised a WARNING blaming an unauthenticated /
+    usage-capped Claude CLI — sending the operator to re-run a healthy judge instead
+    of reading the 0% llm-rate that was the real signal.
+    """
+
+    @staticmethod
+    def _row(source: str, *, payload=object(), error=None):
+        from pipeline.jobfit.llm.bench.runner import BenchRecord
+
+        return BenchRecord(
+            scenario_id="s", use_case="match_reasoning", provider="gemini", model="m",
+            source=source, payload=payload, error=error,
+        )
+
+    def test_fallback_rows_are_not_judgeable(self) -> None:
+        from pipeline.jobfit.llm.bench.bench_cli import judge_scope
+
+        records = [self._row("llm"), self._row("deterministic"), self._row("deterministic")]
+        self.assertEqual(judge_scope(records), (1, 2))
+
+    def test_all_fallback_run_reports_nothing_judgeable(self) -> None:
+        from pipeline.jobfit.llm.bench.bench_cli import judge_scope
+
+        judgeable, fell_back = judge_scope([self._row("deterministic") for _ in range(8)])
+        self.assertEqual(judgeable, 0)  # → the "judge is broken" warning must NOT fire
+        self.assertEqual(fell_back, 8)
+
+    def test_errored_and_payloadless_rows_are_excluded(self) -> None:
+        from pipeline.jobfit.llm.bench.bench_cli import judge_scope
+
+        records = [
+            self._row("llm"),
+            self._row("", payload=None, error="provider unavailable"),
+            self._row("llm", payload=None),
+        ]
+        self.assertEqual(judge_scope(records), (1, 0))
+
+
 class BenchTargetTest(unittest.TestCase):
     def test_parse_with_model(self) -> None:
         target = BenchTarget.parse("anthropic:claude-sonnet-4-6")

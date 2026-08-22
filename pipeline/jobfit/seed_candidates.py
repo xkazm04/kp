@@ -103,12 +103,35 @@ _SURNAMES = (
 )
 
 
+# Softening map for the "fleeting -ě-" surnames (Vaněk -> Vaňková): dropping the
+# ě leaves the preceding consonant soft, which Czech spells with a háček.
+_SOFTEN = {"n": "ň", "t": "ť", "d": "ď"}
+
+
 def _feminize(surname: str) -> str:
-    """Masculine Czech surname -> feminine form (Novák->Nováková, Černý->Černá, Svoboda->Svobodová)."""
+    """Masculine Czech surname -> feminine form.
+
+    Novák->Nováková, Černý->Černá, Svoboda->Svobodová — and the FLEETING-E class,
+    where the final -e- of ``-ek``/``-ec``/``-ěk`` drops before the suffix:
+    Hájek->Hájková, Němec->Němcová, Vaněk->Vaňková. Naively appending -ová there
+    minted forms that do not exist in Czech (``Hájeková``, ``Němecová``) — 10 of
+    the 66 shipped seed candidates carried one, on a corpus demoed to a Czech bank.
+
+    Known limitation: the fleeting-e rule is regular for the curated ``_SURNAMES``
+    pool but has lexical exceptions elsewhere (Švec->Ševcová); adding such a name
+    to the pool needs its own case here.
+    """
     if surname.endswith(("ý", "í")):
         return surname[:-1] + "á"
     if surname.endswith("a"):
         return surname[:-1] + "ová"
+    # -ěk: drop the ě and soften the consonant it palatalized (Vaněk -> Vaňková).
+    if len(surname) > 2 and surname.endswith("ěk"):
+        stem, prev = surname[:-3], surname[-3]
+        return stem + _SOFTEN.get(prev.lower(), prev) + "ková"
+    # -ek / -ec: the e is fleeting (Hájek -> Hájková, Němec -> Němcová).
+    if len(surname) > 2 and surname.endswith(("ek", "ec")):
+        return surname[:-2] + surname[-1] + "ová"
     return surname + "ová"
 
 
@@ -386,6 +409,26 @@ def generate(
     return ordered, dict(failures)
 
 
+def _refuse_id_collision(count: int) -> str | None:
+    """Message when ``--count`` would let the TECH slice overwrite the NON-TECH one.
+
+    ``build_specs`` numbers cand-000..cand-{count-1}; the fixed bank slice starts at
+    cand-050. Above that ceiling the ids overlap, and both ``generate``'s resume
+    merge and the final write are keyed on the id — so ``--count 60 --no-resume``
+    silently replaces 10 of the 16 non-tech bank candidates with tech ones, while
+    the seeded analyses and pipeline entries keep pointing at those ids under their
+    old (now wrong) role family. Refuse instead. Returns None when the count is safe.
+    """
+    if count <= _NONTECH_ID_START:
+        return None
+    return (
+        f"--count {count} exceeds the tech-slice ceiling ({_NONTECH_ID_START}): ids "
+        f"cand-{_NONTECH_ID_START:03d}.. belong to the fixed non-tech bank slice "
+        "(CSAS_NONTECH_ROLES) and would be overwritten. Raise _NONTECH_ID_START to "
+        "grow the tech corpus, or use --nontech to regenerate only the bank slice."
+    )
+
+
 def _warn_if_over_capacity(requested: int) -> None:
     """Tell the operator up front when names will degrade to numbered suffixes."""
     capacity = name_pool_capacity()
@@ -450,6 +493,11 @@ def main(argv: list[str] | None = None) -> int:
         distinct = len({r["displayName"] for r in records})
         print(f"Renamed {len(records)} candidates to {distinct} unique names.", file=sys.stderr)
         return 0 if distinct == len(records) else 1
+
+    # --nontech generates ONLY the fixed bank slice, so the tech ceiling doesn't apply.
+    if not args.nontech and (refusal := _refuse_id_collision(args.count)):
+        print(refusal, file=sys.stderr)
+        return 1
 
     _warn_if_over_capacity(args.count)
     existing: dict[str, dict[str, Any]] = {}

@@ -182,7 +182,11 @@ def summarize(records: Sequence[BenchRecord]) -> list[dict[str, Any]]:
     - **judged quality** (``meanJudge``/``judged``) — LLM-as-judge over real LLM
       outputs only (judge.py skips deterministic fallbacks);
     - **measured reliability** (``errors``/``validRate``/``llmRate``) — how often
-      the target actually served, with a well-shaped payload;
+      the target actually served, with a well-shaped payload. ``validRate`` is
+      scoped to the rows the MODEL answered (``source == "llm"``), the same scope
+      bake_quality._cell uses: the deterministic fallback is contract-valid by
+      construction, so counting it made ``validRate`` a signal that could not
+      fail — a target that never once served read as "valid 100%";
     - **measured economics** (``costPerTaskUsd``/``totalCostUsd``/tokens) and
       **latency** (``p50Ms``/``p95Ms``) — deterministic facts from the envelopes.
 
@@ -197,6 +201,10 @@ def summarize(records: Sequence[BenchRecord]) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for (use_case, provider, model), group in sorted(groups.items()):
         ok = [r for r in group if r.error is None]
+        # The MODEL's own rows: a deterministic fallback is the same template for
+        # every target, so it can neither pass nor fail a contract on the model's
+        # behalf (it always passes). Reliability of the answer belongs to llmRate.
+        served = [r for r in ok if r.source == "llm"]
         latencies = [r.wall_ms for r in ok]
         costs = [r.cost_usd for r in ok if r.cost_usd is not None]
         judged = [r.judge_score for r in ok if r.judge_score is not None]
@@ -212,8 +220,9 @@ def summarize(records: Sequence[BenchRecord]) -> list[dict[str, Any]]:
                 "meanJudge": round(sum(judged) / len(judged), 2) if judged else None,
                 # measured reliability
                 "errors": len(group) - len(ok),
-                "validRate": round(sum(1 for r in ok if r.valid) / len(ok), 3) if ok else 0.0,
-                "llmRate": round(sum(1 for r in ok if r.source == "llm") / len(ok), 3) if ok else 0.0,
+                # Over the model's OWN answers; 0.0 when it never served one.
+                "validRate": round(sum(1 for r in served if r.valid) / len(served), 3) if served else 0.0,
+                "llmRate": round(len(served) / len(ok), 3) if ok else 0.0,
                 # measured economics
                 "costPerTaskUsd": round(sum(costs) / len(ok), 4) if costs and ok else None,
                 "totalCostUsd": round(sum(costs), 4) if costs else None,
@@ -245,6 +254,8 @@ def to_markdown(summary_rows: Sequence[dict[str, Any]]) -> str:
     lines.append(
         "\n\\* judge scores REAL LLM outputs only (1–10); a run that degraded to the "
         "deterministic fallback counts against the llm-rate column, never against quality. "
+        "`valid` is scoped the same way — the share of the model's OWN answers that passed "
+        "the contract, so a target that always fell back reads 0%, not 100%. "
         "Online ops answer to p50/p95; background ops answer to $/task."
     )
     return "\n".join(lines)

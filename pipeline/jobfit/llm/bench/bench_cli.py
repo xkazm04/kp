@@ -19,9 +19,25 @@ import argparse
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Sequence
 
 from .runner import BenchTarget, run_matrix, summarize, to_markdown, write_outputs
 from .scenarios import SCENARIO_BUILDERS
+
+
+def judge_scope(records: Sequence[Any]) -> tuple[int, int]:
+    """``(judgeable, fell_back)`` for the ``--judge`` progress line.
+
+    ``judgeable`` must be the rows the judge WILL look at: ``judge_records``
+    scores REAL LLM outputs only, because a deterministic fallback is the same
+    template for every model. Counting fallbacks in the denominator made a
+    degraded run print "judged 0/40" and trip the warning below — blaming a
+    healthy Claude CLI for what is actually a 0% llm-rate on the TARGET, and
+    sending the operator to re-run a judge pass that was never the problem.
+    """
+    judgeable = sum(1 for r in records if r.error is None and r.payload is not None and r.source == "llm")
+    fell_back = sum(1 for r in records if r.error is None and r.source == "deterministic")
+    return judgeable, fell_back
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -71,9 +87,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.judge:
         from .judge import default_judge_provider, judge_records
 
-        judgeable = sum(1 for r in records if r.error is None and r.payload is not None)
+        judgeable, fell_back = judge_scope(records)
         scored = judge_records(records, default_judge_provider(args.judge_model))
-        print(f"judged {scored}/{judgeable} served output(s) with the Claude CLI\n")
+        print(f"judged {scored}/{judgeable} real LLM output(s) with the Claude CLI", end="")
+        print(
+            f" ({fell_back} row(s) degraded to the deterministic fallback — see the llm column)\n"
+            if fell_back
+            else "\n"
+        )
         # A judge pass that scores nothing (or almost nothing) means the Claude CLI is
         # unauthenticated or usage-capped — the scorecard would ship with an empty judge
         # column that reads as "not requested". Fail loudly instead of silently.

@@ -51,6 +51,7 @@ from .pipeline import (
     compare_extraction_quality,
 )
 from .profile import CandidateProfileV2
+from .seed_candidates import CSAS_NONTECH_ROLES as _CSAS_NONTECH_ROLES
 from .taxonomy import role_band
 from .transform import build_match_candidate
 
@@ -162,10 +163,27 @@ _SEN_PTS = {"junior": 11, "medior": 16, "senior": 20, "lead": 23}
 _TRACK_BY_TARGET: dict[str, tuple[str, dict[str, Any]]] = {
     t["target"]: (fam, t) for fam, ts in _CSAS_TRACKS.items() for t in ts
 }
+# The bank's NON-TECH candidate slice (cand-050.., seed_candidates.CSAS_NONTECH_ROLES)
+# carries the same ``targetRole`` key but is NOT in align_candidates_csas.TRACKS (that
+# map only covers the tech tribes). Without these rows every accountant, personal
+# banker and contact-centre specialist fell through to JD_DRAFTS — which has no
+# non-tech family — and was analyzed against the generic "Software Engineer" JD:
+# missing skills TypeScript/React/Node.js and a salary anchored to the
+# software_engineering band (a ČS accountant quoted 120–180k CZK/month).
+_TRACK_BY_TARGET.update(
+    {
+        role["target"]: (role["family"], {"target": role["target"], "skills": role["skills"]})
+        for role in _CSAS_NONTECH_ROLES
+    }
+)
 _FAMILY_CTX = {
     "software_engineering": "George digital banking and core banking services on the Erste platform",
     "data_ai": "risk, fraud, personalization and reporting models for retail banking",
     "product_project": "a digital-banking product tribe",
+    "finance_accounting": "credit risk, accounting and financial control for the bank",
+    "operations_logistics": "back-office operations for payments, cards and lending",
+    "sales_marketing": "client acquisition and relationship banking across the George ecosystem",
+    "customer_support": "client servicing across the contact centre and digital channels",
 }
 
 # Cross-cutting "ideal" must-haves a ČS role wants beyond the narrow track stack.
@@ -175,6 +193,13 @@ _FAMILY_STRETCH = {
     "software_engineering": ["Kubernetes", "CI/CD"],
     "data_ai": ["MLOps", "cloud"],
     "product_project": ["SQL", "data analysis"],
+    # Non-tech stretch skills are picked to RESOLVE against the phase-1 taxonomy
+    # (sql / risk_management_fin / crm / process_improvement / reporting_skill)
+    # so the gap shows as a real requirement, not a raw string.
+    "finance_accounting": ["SQL", "risk management"],
+    "operations_logistics": ["process improvement", "SQL"],
+    "sales_marketing": ["CRM", "reporting"],
+    "customer_support": ["CRM", "process improvement"],
 }
 
 
@@ -203,6 +228,27 @@ def _jd_for_track(target: str, family: str, track: dict[str, Any]) -> dict[str, 
         "description": desc,
         "requirements": reqs,
     }
+
+
+def _declared_skills(profile: CandidateProfileV2, *, limit: int = 6) -> list[str]:
+    """The candidate's own strongest declared skills — the fallback JD's requirements
+    when no curated track matches their family."""
+    seen: list[str] = []
+    for skill in [c.skill for c in profile.skill_claims] + [s for e in profile.evidence for s in e.skills]:
+        if skill and skill not in seen:
+            seen.append(skill)
+        if len(seen) >= limit:
+            break
+    return seen
+
+
+def _synth_title(profile: CandidateProfileV2) -> str:
+    """A role title for the fallback JD: the candidate's stated aspiration, else a
+    readable label derived from their role family."""
+    aspiration = next((a.strip() for a in (profile.aspirations or []) if a and a.strip()), "")
+    if aspiration:
+        return aspiration
+    return profile.role_family.replace("_", " ").title() + " Specialist"
 
 
 def _grad_year(profile: CandidateProfileV2) -> str | None:
@@ -383,8 +429,20 @@ def build_analysis(record: dict[str, Any]) -> dict[str, Any]:
     if target in _TRACK_BY_TARGET:
         family, track = _TRACK_BY_TARGET[target]
         jd = _jd_for_track(target, family, track)
+    elif profile.role_family in JD_DRAFTS:
+        family = profile.role_family
+        jd = JD_DRAFTS[family]
+    elif role_band(profile.role_family, "medior"):
+        # A family the taxonomy prices but JD_DRAFTS does not cover (the bank's
+        # non-tech slice). Falling through to _DEFAULT_FAMILY here analyzed an
+        # accountant against the Software Engineer JD; synthesize a role from the
+        # candidate's OWN declared skills instead, so the fit, the gaps and the
+        # salary band stay inside the family they actually work in.
+        family = profile.role_family
+        title = _synth_title(profile)
+        jd = _jd_for_track(title, family, {"target": title, "skills": _declared_skills(profile)})
     else:
-        family = profile.role_family if profile.role_family in JD_DRAFTS else _DEFAULT_FAMILY
+        family = _DEFAULT_FAMILY
         jd = JD_DRAFTS[family]
     job = normalize_job(jd)
     mc = build_match_candidate(profile)
