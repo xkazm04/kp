@@ -49,6 +49,15 @@ class GeminiEmbeddingProvider:
         self._client: Any | None = None
 
     def available(self) -> bool:
+        # KP_OFFLINE (E-SH-4): embeddings are a CLOUD call to
+        # generativelanguage.googleapis.com made from the spawned Python process, so
+        # neither the Node fetch guard nor the llm/base adapter seal covers it.
+        # Report unavailable — exactly the contract self-hosting.md §7 states — and
+        # the caller stays on the deterministic keyword heuristic.
+        from .llm.offline import is_offline  # lazy: keep this leaf module cycle-free
+
+        if is_offline():
+            return False
         if not (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")):
             return False
         try:  # the SDK is an optional dependency of the scoring path

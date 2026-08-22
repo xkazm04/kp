@@ -167,6 +167,13 @@ explicitly configured. Concretely:
   OpenAI **without** a `base_url`) report unavailable → the call falls back to
   deterministic output (`pipeline/jobfit/llm/offline.py`). A self-hosted OpenAI
   endpoint (`OPENAI_BASE_URL`) and Azure (its configured `endpoint`) keep working.
+  This covers the two Gemini call sites that bypass the `llm/base` adapters as well:
+  `gemini.get_client()` (the flagship multimodal CV analysis + profile extractor —
+  the one call that ships the candidate's whole file) and
+  `embedding_bridge.GeminiEmbeddingProvider`. Both are enforced **in Python**, not by
+  the Node `fetch` guard, which cannot see a spawned subprocess — and they must be,
+  because `get_gemini_api_key()` re-reads `.env.local`/`.env`, so clearing the
+  variable in the service unit does not clear the key.
 - **Billing:** Polar is disabled (billing routes report unconfigured).
 
 The **allowlist** = loopback + the hosts of `OPENAI_BASE_URL`, `AZURE_OPENAI_ENDPOINT`,

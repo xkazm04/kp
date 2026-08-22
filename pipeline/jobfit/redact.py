@@ -48,19 +48,113 @@ _HONORIFIC = re.compile(
     r"\b(?:Mr|Mrs|Ms|Miss|(?i:pan|pani|paní|slecna|slečna))\.?(?=\s+[A-ZÁ-Ž])"
 )
 # Explicit age / birth markers (EN + CS).
+# The Czech participle inflects for gender and the class must carry BOTH long forms:
+# with `narozen[aý]?` the masculine "Narozený 1990" was redacted but the feminine
+# "Narozená 1990" was not — two CVs identical except for the writer's gender, and
+# only the woman's birth year (under a feminine-marked participle that leaks her
+# gender as well) reached the model. `y`/`a` are the accent-stripped spellings a
+# lossy extract produces.
 _AGE = re.compile(
     r"\b(?:age|věk|vek)\s*[:\-]?\s*\d{1,2}\b"
-    r"|\b(?:born|narozen[aý]?|date of birth|datum narození|datum narozeni)\b[^\n]{0,24}\b(?:19|20)\d{2}\b",
+    r"|\b(?:born|narozen[aáyý]?|date of birth|datum narození|datum narozeni)\b[^\n]{0,24}\b(?:19|20)\d{2}\b",
     re.IGNORECASE,
 )
 
 # A title-cased name token (incl. common diacritics); a CV header name line is 2-4 of these.
 _NAME_TOKEN = re.compile(r"^[A-ZÁ-Ž][A-Za-zÀ-ž'\-]+$")
-_TITLE_WORDS = {"curriculum", "vitae", "cv", "résumé", "resume", "profile", "contact", "životopis"}
+# Words that make a title-cased line a SECTION HEADER, never the candidate's name.
+# A CV whose first line is such a header ("Osobní údaje", "Personal Details",
+# "Professional Summary", "Persönliche Daten", "Informations Personnelles") used to
+# have the HEADER returned as detected_name — three failures at once: the header
+# words were masked as [NAME] across the document, the REAL name on the next line
+# stayed verbatim in the blind text the model reads, and name_detected=True made the
+# pipeline print "Blind screening active — identity redacted" over a CV whose
+# identity had NOT been redacted (the honest "PARTIAL" branch never fired) while the
+# header was re-attached to the result as the candidate's name. Matched per token and
+# case-folded, in the four product locales plus the accent-stripped spellings a lossy
+# PDF extract produces. None of these words is a personal name in any of them.
+_TITLE_WORDS = frozenset(
+    {
+        # en
+        "curriculum", "vitae", "cv", "résumé", "resume", "profile", "contact",
+        "contacts", "personal", "details", "detail", "information", "info",
+        "summary", "about", "particulars", "objective", "professional",
+        # cs
+        "životopis", "zivotopis", "osobní", "osobni", "údaje", "udaje",
+        "informace", "kontakt", "kontakty", "kontaktní", "kontaktni", "profil",
+        "shrnutí", "shrnuti", "praxe", "pracovní", "pracovni", "zkušenosti",
+        "zkusenosti", "vzdělání", "vzdelani", "dovednosti", "jazyky",
+        # de
+        "lebenslauf", "persönliche", "personliche", "daten", "angaben",
+        "kontaktdaten", "zusammenfassung", "berufserfahrung",
+        # fr
+        "informations", "personnelles", "coordonnées", "coordonnees",
+        "renseignements", "expérience", "experience",
+    }
+)
+
+# Academic / professional titles that bracket a name line — "Ing. Jan Novák",
+# "Mgr. Jana Nováková" (the standard Czech CV header), "Jane Doe Ph.D.", "Jan Novák
+# MBA". Stripped from BOTH ends of a name candidate before the 2-4-token test:
+#   * a LEADING "Ing." carries a dot, so _NAME_TOKEN rejected the token, the whole
+#     line failed and NO name was detected at all — the candidate's full name then
+#     rode into the blind text (honestly flagged "PARTIAL", but still unredacted);
+#   * a TRAILING "MBA" is title-cased, so it was swallowed INTO the detected name and
+#     then masked as [NAME] on every later mention, deleting the degree from the
+#     scored text.
+# The trailing set is deliberately narrow: short ambiguous suffixes (MA / BA / MS)
+# are real surnames (Ma, Ba) and are left alone.
+_LEADING_TITLES = frozenset(
+    {
+        "ing", "bc", "bca", "mgr", "mga", "mudr", "mvdr", "judr", "phdr", "rndr",
+        "pharmdr", "thdr", "paeddr", "dr", "doc", "prof", "dipl", "mag",
+    }
+)
+_TRAILING_TITLES = frozenset(
+    {
+        "mba", "emba", "msc", "bsc", "dsc", "phd", "dis", "csc", "drsc", "llm",
+        "mpa", "mph", "cfa", "cpa", "pmp", "cissp",
+    }
+)
+
+
+def _title_key(token: str) -> str:
+    """Case-folded token with dots dropped — 'Ph.D.' -> 'phd', 'Ing.' -> 'ing'."""
+    return token.replace(".", "").casefold()
+
+
+def _strip_title_tokens(tokens: list[str]) -> list[str]:
+    """``tokens`` without the academic/professional titles bracketing the name."""
+    out = list(tokens)
+    while out and _title_key(out[0]) in _LEADING_TITLES:
+        out.pop(0)
+    while out and _title_key(out[-1]) in _TRAILING_TITLES:
+        out.pop()
+    return out
+
+
 # Separators that delimit a name from a same-line job title ("Jane Doe | CTO",
 # "Jan Novák — Senior Engineer"). The spaced hyphen " - " is included but a glued
 # hyphen is not, so a hyphenated name ("Anne-Marie") is never split.
 _NAME_SEPARATOR = re.compile(r"\s*[|•·–—,/]\s*|\s+-\s+")
+
+# Given names that are ALSO month names/abbreviations. "Jan" is the most common Czech
+# male first name AND the standard abbreviation for January, so masking every
+# whole-word "Jan" turned an employment history of "Jan 2020 - Jan 2023" into
+# "[NAME] 2020 - [NAME] 2023" — deleting the tenure/recency dates the scorer reads,
+# for this candidate only: an otherwise identical CV belonging to a Petr kept them.
+# The token stays masked everywhere else (a later "Dear Jan," is still identity); only
+# an occurrence immediately followed by a four-digit year is spared, which reads
+# unambiguously as a date rather than a person.
+_MONTH_TOKENS = frozenset(
+    {
+        "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "sept",
+        "oct", "nov", "dec", "january", "february", "march", "april", "june",
+        "july", "august", "september", "october", "november", "december",
+    }
+)
+# Negative lookahead for "<token> 2020" / "Jan. 2020" / "Jan-2020" / "Jan/2020".
+_FOLLOWED_BY_YEAR = r"(?![\s.,/\-]{0,3}(?:19|20)\d{2}\b)"
 
 
 def _looks_like_role_headline(cand: str) -> bool:
@@ -96,20 +190,27 @@ def _guess_name_line(text: str) -> str | None:
         for cand in candidates:
             if len(cand) > 40 or "@" in cand or any(ch.isdigit() for ch in cand):
                 continue
-            tokens = cand.split()
+            raw_tokens = cand.split()
+            # Drop the academic/professional titles bracketing the name ("Ing. Jan
+            # Novák", "Jane Doe Ph.D.") — they are qualifications, not identity, and
+            # leaving them in either blocked detection outright or dragged a degree
+            # into the mask. The candidate is returned VERBATIM when nothing was
+            # stripped, so an ordinary name line is byte-for-byte unchanged.
+            tokens = _strip_title_tokens(raw_tokens)
             if not (2 <= len(tokens) <= 4):
                 continue
-            if any(t.lower() in _TITLE_WORDS for t in tokens):
+            if any(t.casefold() in _TITLE_WORDS for t in tokens):
                 continue
             if not all(_NAME_TOKEN.match(t) for t in tokens):
                 continue
+            name = cand if tokens == raw_tokens else " ".join(tokens)
             # A clean 2-4 title-cased-token line can still be a role/skill HEADLINE
             # ("Machine Learning Engineer") rather than a name. Reject it against the
             # taxonomy vocabulary so its common CV words aren't masked as [NAME]
             # throughout the blind text and it isn't re-attached as the name.
-            if _looks_like_role_headline(cand):
+            if _looks_like_role_headline(name):
                 continue
-            return cand
+            return name
     return None
 
 
@@ -139,8 +240,14 @@ def redact_pii(text: str) -> RedactResult:
         # Also mask each name token elsewhere (e.g. a "Dear Jane," later on); skip
         # very short tokens to avoid clobbering unrelated words.
         for token in detected_name.split():
-            if len(token) >= 3:
-                redacted = re.sub(rf"\b{re.escape(token)}\b", "[NAME]", redacted)
+            if len(token) < 3:
+                continue
+            pattern = rf"\b{re.escape(token)}\b"
+            if _title_key(token) in _MONTH_TOKENS:
+                # …but never the date occurrence ("Jan 2020"), which is employment
+                # evidence, not identity.
+                pattern += _FOLLOWED_BY_YEAR
+            redacted = re.sub(pattern, "[NAME]", redacted)
         categories.append("name")
 
     for pattern, tag, cat in (

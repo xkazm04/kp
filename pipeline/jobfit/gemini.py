@@ -160,7 +160,39 @@ def _gemini_timeout_ms() -> int:
     return 90_000  # 90s — a stalled call fails fast instead of hanging the analysis.
 
 
+def _assert_egress_allowed() -> None:
+    """Seal this DIRECT Gemini path under ``KP_OFFLINE`` (E-SH-4,
+    docs/architecture/self-hosting.md §7).
+
+    The no-egress flag was enforced in two places that both MISS this module: the
+    Node ``fetch`` guard (``app/_lib/offline.ts``) cannot see a spawned Python
+    process, and the Python seal lives in ``llm/base.TextProvider`` — which this
+    path deliberately bypasses (it needs multimodal file bytes + grounding, see
+    ``_meter_success``). So an air-gapped install with ``KP_OFFLINE=1`` and a
+    leftover ``GEMINI_API_KEY`` still uploaded the candidate's WHOLE CV file to
+    generativelanguage.googleapis.com — the exact traffic the flag exists to stop,
+    and the opposite of what self-hosting.md §7 promises. ``get_gemini_api_key``
+    makes that easy to hit by design: it re-reads ``.env.local`` / ``.env``, so
+    clearing the variable in the service unit does not clear the key.
+
+    Fails CLOSED with an actionable message (the module's established pattern for
+    "refusing to send data is better than sending it"): callers that pass a
+    ``fallback`` to :func:`grounded_answer` degrade to deterministic output, and
+    the CV analysis — which has no fallback — stops with the reason stated.
+    """
+    from .llm.offline import is_offline  # lazy: keep this module import-cycle free
+
+    if is_offline():
+        raise RuntimeError(
+            "KP_OFFLINE is set: refusing to send this request to Gemini "
+            "(generativelanguage.googleapis.com). Air-gapped installs must route AI "
+            "through an on-box endpoint (OPENAI_BASE_URL) or run without it. Unset "
+            "KP_OFFLINE to allow cloud calls."
+        )
+
+
 def get_client() -> genai.Client:
+    _assert_egress_allowed()
     _remove_null_proxy_env()
     return genai.Client(
         api_key=get_gemini_api_key(),

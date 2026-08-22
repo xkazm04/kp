@@ -102,6 +102,49 @@ and a DOCX body is declared UTF-8). Known limit: a Czech document with none of
 visible mis-mapping instead of silent deletion. Pinned by
 `pipeline/jobfit/tests/test_extractors.py::PlainTextDecodingTest`.
 
+**Blind screening reads a real CV header, not just "Firstname Lastname".**
+`pipeline/jobfit/redact.py::_guess_name_line` scans the first 8 lines for a 2-4
+title-cased-token fragment; three shapes used to defeat it, each with a different
+failure direction. (1) A leading **section header** — `Osobní údaje`, `Personal
+Details`, `Professional Summary`, `Persönliche Daten`, `Informations
+Personnelles` — was returned as the name: the header words were masked as
+`[NAME]` document-wide, the *real* name on the next line stayed in the text the
+model reads, and `name_detected=True` made `pipeline.py` print "Blind screening
+active — identity redacted" over an unredacted CV (the honest "PARTIAL" branch
+never fired). `_TITLE_WORDS` now carries that header vocabulary in all four
+locales plus the accent-stripped spellings a lossy extract produces. (2) A
+leading **academic title** (`Ing. Jan Novák`, `Mgr. Jana Nováková` — the standard
+Czech CV header) carries a dot, so the token test rejected the whole line and no
+name was detected at all; a trailing degree (`Jan Novák MBA`, `Jane Doe Ph.D.`)
+was swallowed *into* the name and then masked everywhere, deleting the
+qualification from the scored text. Titles are stripped from both ends now and
+survive in the text. (3) A given name that is also a month abbreviation — **Jan**,
+the most common Czech male name — turned `Jan 2020 - Jan 2023` into `[NAME] 2020
+- [NAME] 2023`, deleting the tenure dates an otherwise identical CV keeps; the
+mask now spares an occurrence immediately followed by a four-digit year and
+nothing else. Separately, the age/birth filter's Czech participle class carried
+only `narozen[aý]`, so the masculine `Narozený 1990` was redacted and the
+feminine `Narozená 1990` was not — the redaction itself was gender-dependent, and
+only the woman's birth year (under a gender-marked participle) reached the model.
+Pinned by `pipeline/jobfit/tests/test_redact.py`
+(`SectionHeaderIsNotTheNameTest`, `AcademicTitleTest`,
+`CzechBirthMarkerGenderParityTest`, `MonthNameOverRedactionTest`). Still
+best-effort by design: an undetected name
+degrades to the honest "Blind screening PARTIAL" note, never to a false
+"identity redacted" claim.
+
+**`KP_OFFLINE` also seals the direct Gemini path.** `pipeline/jobfit/gemini.py`
+bypasses the `llm/base.TextProvider` adapters (it needs multimodal file bytes and
+grounding), and the Node `fetch` guard cannot see a spawned Python process — so
+the no-egress flag missed the one call that ships the candidate's whole CV file
+to `generativelanguage.googleapis.com`. `get_client()` now refuses under
+`KP_OFFLINE` before the SDK client is built (callers with a deterministic
+`fallback` degrade to it; the CV analysis, which has none, stops with the reason
+stated), and `embedding_bridge.GeminiEmbeddingProvider.available()` reports
+`False` so scoring stays on the keyword heuristic. See
+[self-hosting §7](../../architecture/self-hosting.md) and
+`pipeline/jobfit/tests/test_gemini_offline.py`.
+
 When the analysis targets a library JD (`jdSlug`), `analyze-run.ts` also
 resolves the ingested structured Job at `jd-<slug>` server-side and passes it to
 the CLI as `--job-json` (role-intake Phase 0): the honesty cross-check in
