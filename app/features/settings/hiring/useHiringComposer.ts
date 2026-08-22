@@ -27,7 +27,7 @@ import {
   strandedByDraft,
   type AxisDraft,
 } from "@/app/features/shared/pipelineAxisDraft";
-import { fromStoredPlan, planEqualsStored, toStoredPlan, type PipelinePlan } from "./pipelineComposerModel";
+import { planEqualsStored, type PipelinePlan } from "./pipelineComposerModel";
 
 type ConfigPayload = { configs?: { interviewPlan?: InterviewPlanRule; pipelineStages?: PipelineStagesRule } };
 
@@ -49,13 +49,16 @@ export function useHiringComposer() {
   const [countsLoaded, setCountsLoaded] = useState(false);
 
   const adopt = useCallback((configs: NonNullable<ConfigPayload["configs"]>) => {
-    if (configs.interviewPlan) {
-      setSavedPlan(configs.interviewPlan);
-      setPlan(fromStoredPlan(configs.interviewPlan));
-    }
     if (configs.pipelineStages) {
       setSavedAxis(configs.pipelineStages);
       setAxis(draftFromStored(configs.pipelineStages));
+    }
+    // No projection: the composer edits the stored shape directly (both are
+    // stage-keyed), so nothing is lost on the way in or out and there is no
+    // second model to keep in step with this one.
+    if (configs.interviewPlan) {
+      setSavedPlan(configs.interviewPlan);
+      setPlan(configs.interviewPlan);
     }
   }, []);
 
@@ -105,7 +108,7 @@ export function useHiringComposer() {
     setMappingState((cur) => ({ ...cur, [fromStage]: toStage }));
 
   const discard = () => {
-    if (savedPlan) setPlan(fromStoredPlan(savedPlan));
+    if (savedPlan) setPlan(savedPlan);
     if (savedAxis) setAxis(draftFromStored(savedAxis));
     setMappingState({});
   };
@@ -124,7 +127,7 @@ export function useHiringComposer() {
         // request. Splitting them would let a client perform half.
         await applyAxis(draftToStored(axis, savedStages), migrate, errMsg, t("saveFailed"));
       }
-      if (planDirty) await writePhase("interviewPlan", toStoredPlan(plan), errMsg, t("saveFailed"));
+      if (planDirty) await writePhase("interviewPlan", plan, errMsg, t("saveFailed"));
       const refreshed = (await fetch("/api/decisions/config").then((r) => r.json())) as ConfigPayload;
       if (refreshed.configs) adopt(refreshed.configs);
       // Occupancy changed if anybody moved; re-read so a follow-up edit is judged

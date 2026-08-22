@@ -1,17 +1,19 @@
 "use client";
 
-// Settings → Hiring — the workspace's pipeline, in two coordinated halves:
+// Settings → Hiring — the workspace's pipeline, as ONE table plus its preview:
 //
-//   Steps   the board's COLUMNS (PipelineStepsEditor) — add, rename, reorder,
-//           remove. This is the half that used to not exist: the five columns
-//           were a compile-time literal, identical for every workspace forever.
-//   Policy  how AI and human rounds combine on those columns and where humans
-//           approve (PipelineComposerMatrix), with the impact strip narrating
-//           the result against the REAL board.
+//   Steps   the board's COLUMNS and the policy at each of them
+//           (PipelineStepsEditor) — add, rename, reorder, remove; and, per row,
+//           what runs there and who approves it. Both halves used to not exist:
+//           the five columns were a compile-time literal, and the policy was a
+//           SECOND table (PipelineComposerMatrix, deleted) that listed the same
+//           columns again in its own order with its own words.
+//   Impact  the strip below, narrating the result against the REAL board.
 //
-// Both edit the same draft axis, so renaming a column updates the policy rows and
-// the preview as you type — the two tables are visibly one pipeline, which is
-// the whole point of the synchronization work.
+// Merging the two tables needed the stage-keyed plan (decision-config-schema.ts):
+// a row-per-column editor needs one policy per column, and the old wire shape had
+// a single workspace-wide screening gate plus a flat round array bound to columns
+// by an implicit rule. Now each row simply reads its own column's policy.
 //
 // PERSISTENCE, save-gated on purpose: edits accumulate as a local DRAFT and
 // nothing is stored until Save — a stray click on a preset chip or a gate toggle
@@ -23,7 +25,6 @@ import { Loader2, RotateCcw, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { EYEBROW, INTRO, TITLE_DISPLAY } from "@/app/_components/ui/recipes";
 import { PlanImpactStrip } from "./PipelineComposerBits";
-import { PipelineComposerMatrix } from "./PipelineComposerMatrix";
 import { PipelineStepsEditor } from "./PipelineStepsEditor";
 import { useHiringComposer } from "./useHiringComposer";
 
@@ -54,9 +55,9 @@ export function HiringTab() {
             stranded={c.stranded}
             mapping={c.mapping}
             onMap={c.setMapping}
+            plan={c.plan}
+            onPlan={c.setPlan}
           />
-
-          <PipelineComposerMatrix plan={c.plan} onChange={c.setPlan} axis={c.axis.stages} />
 
           {/* Save bar — the plan is a DRAFT until saved. Disabled while the draft
               is invalid or would strand somebody, with the reason stated above

@@ -31,9 +31,15 @@ export type FunnelStage = (typeof FUNNEL_STAGES)[number];
 // interview role — all of which keep working when a workspace renames Accepted to
 // "New applicants" or splits Interview into three rounds.
 //
+// `scoring` is the automated pass that turns a conversation into a comparable
+// number — the step between an AI interview and a human one in the shape most
+// teams actually run. It is a column of its own rather than a property of the
+// interview because it is a distinct thing the product DOES (and a distinct thing
+// a human can be asked to ratify), and because a candidate genuinely waits there.
+//
 // `custom` is the escape hatch for a stage a workspace invents that maps to none
 // of the product's semantics; it participates in ordering and nothing else.
-export type StageRole = "entry" | "screening" | "interview" | "offer" | "terminal" | "custom";
+export type StageRole = "entry" | "screening" | "interview" | "scoring" | "offer" | "terminal" | "custom";
 
 /** One column on the board: a stable `id` (what is STORED, never shown), a
  *  freely-editable `label` (what is SHOWN), and the `role` that carries meaning.

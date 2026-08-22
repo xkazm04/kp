@@ -66,3 +66,20 @@ export function usePipelineAxisProblemText(): (problem: AxisProblem) => string {
     }
   };
 }
+
+/**
+ * What ACTUALLY HAPPENS on a column, in one plain sentence.
+ *
+ * The role labels above are the product's nouns ("Screening", "Offer"); these are
+ * the sentences a first-run operator needs before those nouns mean anything. Same
+ * `hiringPlan` namespace, same reason: two surfaces must not describe one process
+ * two ways. An unnamed role yields an empty string rather than a slug — a missing
+ * sentence is better rendered as no sentence than as "custom".
+ */
+export function usePipelineStageRoleMeaning(): (role: string) => string {
+  const tMeaning = useTranslations("hiringPlan.roleMeaning");
+  return (role: string): string => {
+    const key = role as Parameters<typeof tMeaning>[0];
+    return tMeaning.has(key) ? tMeaning(key) : "";
+  };
+}

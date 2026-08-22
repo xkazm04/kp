@@ -5,14 +5,20 @@
  *
  * Metaphor: **three recipes, then the knobs.** A first-run operator usually has
  * an opinion about how many conversations their hiring takes, and none at all
- * about "stage roles". So the step leads with three named funnel shapes — keep
- * what ships, run it lean, add a work sample — as sticker tiles that show the
- * resulting chain, and only then offers the row-by-row editor underneath.
+ * about "stage roles". So the editor leads with three named funnel shapes — keep
+ * what ships, run it lean, add a work sample — as sticker tiles, and only then
+ * offers the row-by-row editor underneath.
  *
- * Differs from the board variant: it takes a position. One click gets to a
- * coherent funnel instead of five renames, and the tiles teach what the columns
- * are FOR by contrasting three answers. The trade is that it doesn't show the
- * board — the chain is a summary, not a preview.
+ * ONE chain, not four. Each tile used to draw its own resulting funnel, which put
+ * three unpicked futures on screen beside the one that is actually loaded and made
+ * a 3-up grid of tiles read as a wall of chips. The chain now sits once, below the
+ * tiles, and shows the CURRENT draft — so it answers "what did that click do to my
+ * board" instead of "what would each of these clicks do", and it keeps answering
+ * after a hand-edit in the rows below, which a per-tile preview never did.
+ *
+ * It takes a position, which is the point: one click gets to a coherent funnel
+ * instead of five renames, and the three titles teach what the columns are FOR by
+ * contrasting three answers.
  *
  * The presets are derived from the workspace's real axis, never invented
  * (setupPipelinePresets.ts): the ids stay canonical and the labels stay whatever
@@ -41,7 +47,10 @@ export function SetupPipelinePresetsVariant({ edit }: { edit: SetupPipelineEdit 
   // same shape instead of compounding.
   const base = draftFromStored(edit.pipeline.stored);
   const active = activePipelinePreset(edit.draft, base, workSampleLabel);
+  // Columns the DRAFT adds to the loaded axis — drawn in the accent in the chain
+  // below, so "with a work sample" shows which step it is.
   const baseIds = new Set(base.stages.map((s) => s.id));
+  const addedIds = edit.stages.filter((s) => !baseIds.has(s.id)).map((s) => s.id);
 
   return (
     <div className="space-y-5">
@@ -81,16 +90,19 @@ export function SetupPipelinePresetsVariant({ edit }: { edit: SetupPipelineEdit 
                   </span>
                 </span>
                 <span className="text-sm text-steel">{t(`presets.${key}.body`)}</span>
-                {/* The actual resulting funnel — the tile's claim, shown rather
-                    than described. A column this shape ADDS is drawn in accent. */}
-                <SetupPipelineChain
-                  stages={shape.stages.map((s) => ({ id: s.id, label: displayLabel(s) }))}
-                  addedIds={shape.stages.filter((s) => !baseIds.has(s.id)).map((s) => s.id)}
-                  className="mt-0.5"
-                />
               </motion.button>
             );
           })}
+        </div>
+        {/* The result of the click that just happened, and of every rename and
+            reorder made below it — the tiles' claim, shown rather than described. */}
+        <div className="mt-2.5 rounded-md border border-stone-200 bg-paper/50 px-2.5 py-2">
+          <p className={META_LABEL}>{t("chainLabel")}</p>
+          <SetupPipelineChain
+            stages={edit.stages.map((s) => ({ id: s.id, label: displayLabel(s) }))}
+            addedIds={addedIds}
+            className="mt-1"
+          />
         </div>
       </div>
 

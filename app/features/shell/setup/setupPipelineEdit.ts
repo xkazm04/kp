@@ -32,7 +32,7 @@ import type { OnboardingCtrl, SetupPipeline } from "./setupSteps";
 
 /** Roles the wizard offers for a middle column. `entry`/`terminal` are omitted
  *  deliberately (see the header): they are already taken and stay put. */
-export const SETUP_STAGE_ROLES: readonly PipelineStageRoleWire[] = ["screening", "interview", "offer", "custom"];
+export const SETUP_STAGE_ROLES: readonly PipelineStageRoleWire[] = ["screening", "interview", "scoring", "offer", "custom"];
 
 export type SetupPipelineEdit = {
   pipeline: SetupPipeline;

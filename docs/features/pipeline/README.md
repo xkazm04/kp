@@ -602,11 +602,21 @@ re-arms the calendar approval, records a `human_round_queued` event and seals
 the decision with `policyVersion: "interview-plan"`. Guards: only AI-sourced
 scorecards (`approvalDetail.source !== "human"`), only pre-Offer stages. The
 Decisions queue narrates the handoff via the "queued on Schedule" banner
-(`routedToHumanRound` on the accept response). The plan's other two gates are
-enforced at the automation apply boundary (`automation-run.ts`):
-`screeningGate: "auto"` auto-ratifies parked ADVANCE screening verdicts (hold/
-reject always park); `offerGate: "auto"` auto-extends priced offer drafts via
-the shared `extendDraftedOffer` path (unpriced fail-safe drafts always park).
+(`routedToHumanRound` on the accept response). `planRoutesAiScorecardToHumanRound`
+reads the plan's rounds flattened in board order, so it behaves the same whether
+the human round sits at the same column as the AI one (the stacked default) or at
+its own.
+
+The plan's other two gates are enforced at the automation apply boundary
+(`automation-run.ts`), now read per board column rather than per role name:
+`getPlanGateForRole("screening") === "auto"` auto-ratifies parked ADVANCE
+screening verdicts (hold/reject always park); `getPlanGateForRole("offer") ===
+"auto"` auto-extends priced offer drafts via the shared `extendDraftedOffer` path
+(unpriced fail-safe drafts always park). Both resolve the FIRST column with that
+role and fall back to `"human"` when the plan says nothing — the conservative
+direction, parking the decision for a person rather than ratifying it unattended.
+Routing a specific candidate through the gate of the specific column they stand
+on needs a per-entry stage read the automation path does not thread yet.
 Full plan mechanics: `docs/features/hiring-pipeline/README.md`.
 
 ## Known gaps

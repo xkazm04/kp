@@ -11,16 +11,53 @@ Feature dir: `app/features/settings/hiring/`.
 
 ## What it does
 
-Composes how candidates move from application to offer: one row per station
-(Screening / Round 1..n / Offer, up to `INTERVIEW_PLAN_MAX_ROUNDS = 3`
-interview rounds), columns for mode (AI or human round), approval gating
-(human approves vs auto) and the cohort reducer between rounds (top-N).
-Quick-apply org-complexity presets (Solo-lean / Team-hybrid / Enterprise-
-governance) sit above the table. The **impact strip** (`PlanImpactStrip`)
+Composes how candidates move from application to offer in **one table**: a row per
+board column, carrying both the column itself (type, name, order) and the policy
+that runs there — mode (AI or human round), approval gating (human approves vs
+auto) and the cohort reducer into each round (top-N), up to
+`INTERVIEW_PLAN_MAX_ROUNDS = 3` rounds across the whole plan. Quick-apply
+org-complexity presets (Solo-lean / Team-hybrid / Enterprise-governance) sit above
+it.
+
+It was two tables until the plan became stage-keyed: this one, and a Station /
+Mode / Approval / Cohort matrix (`PipelineComposerMatrix`, deleted) that listed
+the same columns again in its own order with its own words, so the recruiter had
+to hold "row 3 there is row 2 here" in their head. A row-per-column editor needs
+one policy per column, which the role-keyed shape could not give it. The **impact strip** (`PlanImpactStrip`)
 derives, live, what the composed plan does to the Hiring tabs: the Overview
 funnel stations, the human queues appearing in Decisions (with a
 decisions-per-hire count), and which Schedule surfaces (AI-round docket /
 calendar + self-scheduling) are in play.
+
+### How the impact strip is drawn
+
+The strip lives in `app/features/settings/hiring/impact/`;
+`PipelineComposerBits.tsx` re-exports `PlanImpactStrip` from there, so consumers
+are unchanged. It used to be three identical `ImpactPanel` rectangles of chips —
+nothing about a card said WHICH surface it predicted. Each card now borrows its
+destination's own grammar, and `impact/impactShared.tsx` owns that identity once
+(`TONE`: Overview a coral top rule, Decisions an amber left margin, Schedule a
+tinted calendar header band) plus the `ImpactCard` shell, `RoundChip`,
+`useImpactCopy()` and `gateLedger()`.
+
+| Card | File | Drawn as |
+| --- | --- | --- |
+| Overview | `ImpactOverviewCard.tsx` | a miniature of the board — ruled columns in board order, `enums.stage.*` headers, the board's own `·` in a column the plan runs nothing at |
+| Decisions | `ImpactDecisionsCard.tsx` | a checkpoint ladder over `gateLedger()`, mirroring the policy table above it |
+| Schedule | `ImpactScheduleCard.tsx` | a miniature week grid in ScheduleCalendar's `grid-cols-[2rem_repeat(5,1fr)]` shape, plus a legend naming the live channels |
+
+**The ladder shows the gates you turned OFF.** `PlanImpact.decisions` lists only
+the HUMAN queues, so any reading built on it alone is blind to an `auto` gate —
+the recruiter could not see what they had just switched off. `gateLedger()`
+(`impact/impactShared.tsx`) instead returns EVERY point where a verdict could be
+ratified — screening, each round, offer — with the mode that governs it, and the
+card draws the auto ones as hollow dashed checkpoints. It applies the same rule
+`deriveImpact()` does: a HUMAN round's verdict is human by definition, so the
+gate only governs AI rounds.
+
+The block placement in the week grid is a representative week, not a forecast,
+and is labelled as one (`impact.weekAria`); the legend under the grid carries the
+load-bearing claim about which surfaces are actually in play.
 
 ## The preview previews the REAL board
 
@@ -41,17 +78,88 @@ in every locale. The composer's fixed station rows are labelled from the axis
 too (`COMPOSER_STATIONS`), so "Screened" and "Offer" name columns you can go and
 look at.
 
-**One round is not one column, yet.** The shipped default plan runs *two* rounds
-(AI, then human) across the *one* `Interview` column — that is what the hybrid
-handoff does at runtime: it queues a human round without moving the candidate off
-Interview. Rounds therefore bind to interview stages left-to-right and any
-surplus **stacks on the last one**, which the preview states (`Interview AI →
-Human`) instead of drawing a column that does not exist. Making rounds and
-interview stages 1:1 is the job of the per-workspace-axis phase.
+**The plan is stage-keyed.** Every gate and every round names the board column it
+governs (`InterviewPlanStep.stageId`). It did not always: the wire shape used to
+be `screeningGate` + a flat `rounds` array + `offerGate`, which said nothing about
+*which* column anything ran at, and two defects followed —
 
-Pinned by `pipelineComposerModel.test.ts`: every preset's preview must equal the
-real axis, no phantom columns, and the composer's fixed rows must point at stages
-that exist.
+- rounds bound to interview columns left-to-right with any **surplus stacking
+  implicitly on the last one**. The shipped default relies on this (two rounds,
+  one `Interview` column: the hybrid handoff queues a human round without moving
+  the candidate off Interview). The binding lived in a derivation, so nothing
+  could state it and nothing could edit it.
+- the gates were keyed by **role**, not column — one `screeningGate` per
+  workspace. But the axis model only forces entry, terminal and offer to be
+  unique (`UNIQUE_ROLES`): screening and interview columns may repeat, so a
+  second screening column silently shared the first one's gate.
+
+Both are fixed in the data now. `migrateLegacyInterviewPlan(legacy, axis)`
+converts a pre-migration blob by reproducing exactly what the old runtime did —
+the screening gate goes to every screening column, the offer gate to the offer
+column, rounds bind left-to-right with the surplus still landing on the last
+interview column — so a migration cannot change what a workspace's hiring
+already does. Rounds with no interview column to land at are **dropped**, which
+is what the board already showed. Reads go through `getInterviewPlan`, which
+`prunePlanToAxis`-es against the workspace's real axis (a column dropped since
+the last save takes its policy with it); nothing is rewritten on disk until the
+composer next saves.
+
+**One round is still not one column.** The stage-keyed shape lets a workspace put
+each round at its own column, but the shipped default still stacks two at
+`Interview` — now explicitly, as `steps[].rounds.length === 2`, rather than by a
+rule hidden in a derivation. That is what unblocks merging the steps editor and
+the policy matrix into one row-per-step table.
+
+Pinned by `pipelineComposerModel.test.ts` (24 checks): every preset's preview must
+equal the real axis, no phantom columns, the composer's fixed rows must point at
+stages that exist — and, for the stage-keyed shape, that the legacy default lands
+both rounds on the one `Interview` column, that a two-interview-column axis takes
+one round each, that **two screening columns get two independently settable
+gates**, that rounds with nowhere to run are dropped rather than invented, that
+the validator refuses two policies for one column, that the round cap counts the
+whole plan rather than one column, and that only the plan's very first round is
+exempt from the cohort reducer.
+
+**The UI model is the wire model.** `PipelinePlan` is an alias of
+`InterviewPlanRule`, not a translation of it: the `fromStoredPlan` /
+`toStoredPlan` projection is gone, along with the minted round ids it existed to
+add and strip. It was only ever a bridge from when the wire shape was role-keyed
+too, and a projection could only ever lose what the merged editor was built to
+express (two screening columns with different gates). Nothing is converted on load
+or save, so there is no second model to keep in step.
+
+**One step, one activity.** An interview column runs exactly ONE round. Rounds used
+to stack — two conversations behind one column, added with an *Add interview round*
+button that quietly created configuration the board could not draw. They are steps
+now: to run an AI round, then scoring, then a human panel, the operator adds three
+steps and picks their types. That is the same gesture the rest of the table already
+uses, and it produces a board a candidate can actually be standing on. The
+add-round button is gone with the stacking; **`scoring` is a stage role**
+(`pipeline-stages.ts`), so the automated pass between the two interviews is a
+column like any other — nameable, reorderable, removable.
+
+A plan saved *before* that rule can still hold a stacked column. The editor renders
+its first round and shows an amber "{n} rounds here" chip naming the fix, and
+leaves the data alone: silently dropping a round would change who gets interviewed.
+
+Three fixed slots per row, in `PipelineStepPolicy` — **cohort · executor · guard**,
+at widths shared with the header (`POLICY_SLOT`), so one dimension reads straight
+down the table. What fills them is decided by the column's TYPE, never its position:
+
+| Type | Cohort | Executor | Guard |
+| --- | --- | --- | --- |
+| entry, terminal | — | — | — (arrival and outcome are not decisions) |
+| screening | — | AI, stated | who signs the screen off |
+| interview | who reaches this round | AI or a person | who ratifies the verdict |
+| scoring | — | AI, stated | who signs the score off |
+| offer | — | AI drafts it, stated | who sends it |
+| custom | — | — | — (the automation layer resolves policy by role, so a guard here would be a switch wired to nothing) |
+
+Each decision is ONE button showing its current value, flipping on click, with a
+`title` that says both the state and what a click does. A cohort is offered only
+where it means something — the plan's first round has no previous cohort to reduce,
+which is what the validator enforces — and its slot is reserved even then, so rows
+stay in a grid.
 
 ## Pipeline steps — the board's columns, editable
 
@@ -60,8 +168,21 @@ it landed, Settings → Hiring could compose *policy* (who approves what) but no
 the funnel: the five board columns were a compile-time literal, identical for
 every workspace forever.
 
-Each row is one board column: **label** (free text), **role**, the stored **id**
-(read-only), reorder, remove. Add appends before the terminal column.
+Each row is one board column: **type** (the role picker, fixed width), **label**
+(free text, elastic), the stored **id** (read-only), reorder, remove. Add appends
+before the terminal column.
+
+The row itself is `app/features/shared/PipelineStepRow.tsx` — shared with the
+first-run wizard's Pipeline step, which binds it through
+`SetupPipelineStageRow.tsx`. Type comes **before** the name in both: the type is
+the closed vocabulary every product rule resolves through, and it is what makes a
+free-text name legible ("Tech screen" says nothing until you know it is an
+*Interview*). It is also the only fixed-width cell, so a column of pickers lines
+up down the list while the name field is the one thing that flexes. What the two
+callers pass in rather than fork: the assignable role set, whether a row's type is
+stated instead of offered (the wizard pins entry and terminal), what rides in the
+meta slot (this editor's stored id / *new* badge; the wizard's occupancy count),
+and every accessible name.
 
 Two rules earn their keep:
 
@@ -169,12 +290,27 @@ then the plan: the plan's stations resolve against the axis
 axis does not have yet would leave a window where the two disagree. Only the
 phase that actually changed is written.
 
+**Shipped default (behaviour change).** The default plan is human-reviewed
+screening, ONE gated AI round, human-approved offers. It used to be two rounds (AI,
+then human for the top 3) stacked behind the single `Interview` column. The hybrid
+handoff (`planRoutesAiScorecardToHumanRound`) needs a human round after an AI one,
+so **it no longer fires by default**. A workspace that has ever saved its hiring
+plan is untouched — defaults apply only where nothing was chosen — and a workspace
+that wants the handoff adds an Interview step and sets its executor to a person,
+which is a visible decision instead of an invisible one. Presets follow the same
+rule: they CLIP to the interview columns the board has rather than doubling rounds
+up behind the last one.
+
 Storage: the `"interviewPlan"` phase of the tiered decision-config store
 (`decision-config-schema.ts` owns the wire shape `InterviewPlanRule` +
-validation — human rounds are force-gated human, round 1 carries no reducer,
-`topN` clamps to 1–50; `decision-config-store.ts` persists it; the existing
-operator-gated `/api/decisions/config` route reads/writes it, team-override
-tier). No new table — the tenancy manifest is untouched.
+validation — human rounds are force-gated human, the plan's first round carries
+no reducer, `topN` clamps to 1–50, a duplicate `stageId` is refused, and the
+3-round cap counts the whole plan; `decision-config-store.ts` persists it; the
+existing operator-gated `/api/decisions/config` route reads/writes it,
+team-override tier). No new table — the tenancy manifest is untouched, and the
+stage-keyed migration needs **no DB migration**: the validator accepts both wire
+shapes and converts a legacy blob on read, so stored plans keep working
+untouched until their next save.
 
 ## Lib surface
 
@@ -205,7 +341,8 @@ tier). No new table — the tenancy manifest is untouched.
   `decision-config-schema.ts`.
 
 - **Auto screening gate** (`automation-run.ts`, screen task):
-  `screeningGate: "auto"` ratifies a parked screening review UNATTENDED when
+  `getPlanGateForRole("screening")` `=== "auto"` ratifies a parked screening
+  review UNATTENDED when
   the AI's recommendation is **advance** (i.e. it parked only for confidence)
   — through the same accept machinery a recruiter's click uses (advance +
   calendar gate, `auto_advanced` event, sealed with actor
@@ -213,7 +350,8 @@ tier). No new table — the tenancy manifest is untouched.
   reject recommendations always park** — auto mode never overrides a cautious
   or adverse verdict, preserving the fairness posture. `"human"` (default) is
   today's behavior byte-identical.
-- **Auto offer gate** (`automation-run.ts`, offer task): `offerGate: "auto"`
+- **Auto offer gate** (`automation-run.ts`, offer task):
+  `getPlanGateForRole("offer") === "auto"`
   extends a freshly-drafted offer unattended via the shared
   `extendDraftedOffer` path (idempotent open-offer reuse, truthful sent/queued
   dispatch, sealed `offer_terms` with the machine as actor, `applied:

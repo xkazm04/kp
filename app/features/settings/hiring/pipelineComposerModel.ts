@@ -6,69 +6,135 @@
 //
 // PERSISTENCE: the plan is stored per workspace as the "interviewPlan" phase of
 // the tiered decision-config store (decision-config-schema.ts owns the wire
-// shape + validation). The stored shape carries no round ids — those are UI
-// list keys minted here on load (fromStoredPlan / toStoredPlan below).
-import type { InterviewPlanRule } from "@/app/_lib/decision-config-schema";
+// shape + validation).
+//
+// THE UI MODEL *IS* THE WIRE MODEL. There used to be a second, narrower shape
+// here — one `screeningGate`, a flat `rounds` array, one `offerGate` — projected
+// to and from storage on every load and save. It existed because the wire shape
+// was role-keyed too, and it survived the stage-keyed migration as a temporary
+// bridge. It is gone now: the merged step editor sets policy per COLUMN, which a
+// role-level model cannot represent (two screening columns would share one
+// gate), so a projection layer could only lose what the screen was built to
+// express. `PipelinePlan` is an alias, not a translation — no round ids to mint,
+// no round ids to drop, nothing to keep in sync.
+import {
+  INTERVIEW_PLAN_MAX_ROUNDS,
+  migrateLegacyInterviewPlan,
+  planRounds,
+  planStep,
+  type InterviewPlanGate,
+  type InterviewPlanRound,
+  type InterviewPlanRule,
+  type InterviewPlanStep,
+} from "@/app/_lib/decision-config-schema";
 import { DEFAULT_STAGE_AXIS, stagesWithRole, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
 
-export type GateMode = "auto" | "human";
-export type RoundKind = "ai" | "human";
+export type GateMode = InterviewPlanGate;
+export type RoundKind = InterviewPlanRound["kind"];
+export type PlanRound = InterviewPlanRound;
+export type PlanStep = InterviewPlanStep;
+/** The composed plan. Identical to what is stored — see the header. */
+export type PipelinePlan = InterviewPlanRule;
 
-export type PlanRound = {
-  id: string;
-  kind: RoundKind;
-  /** Who ratifies this round's verdict: "human" routes it through Decisions
-   *  (scorecard review); "auto" applies the AI verdict unattended. A HUMAN
-   *  round's verdict is always human by definition — gate applies to AI rounds. */
-  gate: GateMode;
-  /** Cohort reducer INTO this round: only the top N of the previous round's
-   *  advancers proceed. Null = everyone who advanced. Meaningless on round 1. */
-  topN: number | null;
-};
+export const MAX_ROUNDS = INTERVIEW_PLAN_MAX_ROUNDS;
 
-export type PipelinePlan = {
-  /** AI screening verdicts: reviewed in Decisions ("human") or auto-applied. */
-  screeningGate: GateMode;
-  rounds: PlanRound[];
-  /** Offer drafts: approved by a human in Decisions or auto-sent. */
-  offerGate: GateMode;
-};
-
-export const MAX_ROUNDS = 3;
-
-let seq = 0;
 export const newRound = (kind: RoundKind, gate: GateMode = "human", topN: number | null = null): PlanRound => ({
-  // Stable-enough ids for list keys within a session; the plan is client state
-  // during prototyping (no persistence yet).
-  id: `r${++seq}`,
   kind,
-  gate,
+  // A human round's verdict IS the human decision — the validator enforces this
+  // on the way to storage; matching it here keeps the UI from ever showing a
+  // toggle state that will not survive a save.
+  gate: kind === "human" ? "human" : gate,
   topN,
 });
 
+/** A React list key for a round. Rounds have no id — they are a short ordered
+ *  list inside one column, so position within that column names them, and the
+ *  column's id is already unique. */
+export const roundKey = (stageId: string, index: number): string => `${stageId}:${index}`;
+
 export type PresetId = "lean" | "hybrid" | "enterprise";
-export type Preset = { id: PresetId; plan: () => PipelinePlan };
+export type Preset = { id: PresetId; plan: (axis?: readonly StageDef[]) => PipelinePlan };
+
+/**
+ * Build a preset: the INTENT, bound to whatever axis the workspace actually has.
+ *
+ * Authored in the pre-migration vocabulary and converted by
+ * `migrateLegacyInterviewPlan`, for two reasons. It reads as the intent ("screen
+ * unattended, one AI round, human offer") rather than as a list of stage ids the
+ * author would have to guess; and binding it to the live axis means a preset never
+ * mints a policy for a column the board does not draw.
+ *
+ * CLIPPED, not stacked. The migration puts surplus rounds on the last interview
+ * column, which is right for reading an old plan faithfully and wrong for writing
+ * a new one: one step runs one activity now. A preset that asks for more rounds
+ * than the board has interview columns drops the extras rather than doubling them
+ * up — the operator adds an Interview step and applies the preset again.
+ */
+function preset(id: PresetId, screeningGate: GateMode, rounds: PlanRound[], offerGate: GateMode): Preset {
+  return {
+    id,
+    plan: (axis = DEFAULT_STAGE_AXIS) =>
+      migrateLegacyInterviewPlan(
+        { screeningGate, rounds: rounds.slice(0, stagesWithRole("interview", axis).length), offerGate },
+        axis
+      ),
+  };
+}
 
 /** Org-complexity presets: solo founder → team → governance-heavy enterprise. */
 export const PRESETS: Preset[] = [
-  { id: "lean", plan: () => ({ screeningGate: "auto", rounds: [newRound("ai", "human")], offerGate: "human" }) },
-  {
-    id: "hybrid",
-    plan: () => ({
-      screeningGate: "human",
-      rounds: [newRound("ai", "human"), newRound("human", "human", 3)],
-      offerGate: "human",
-    }),
-  },
-  {
-    id: "enterprise",
-    plan: () => ({
-      screeningGate: "human",
-      rounds: [newRound("ai", "human"), newRound("human", "human", 5), newRound("human", "human", 2)],
-      offerGate: "human",
-    }),
-  },
+  preset("lean", "auto", [newRound("ai", "human")], "human"),
+  preset("hybrid", "human", [newRound("ai", "human"), newRound("human", "human", 3)], "human"),
+  preset(
+    "enterprise",
+    "human",
+    [newRound("ai", "human"), newRound("human", "human", 5), newRound("human", "human", 2)],
+    "human"
+  ),
 ];
+
+// ---- Editing ---------------------------------------------------------------
+//
+// Every mutation returns a NEW plan; the editor holds it as state and the host
+// decides when it reaches the server. A column with no step yet gets one on
+// first touch — absence means "no policy", so the first edit is what creates it.
+
+/** Set a column's approval gate, creating its step if the plan had none. */
+export function setStepGate(plan: PipelinePlan, stageId: string, gate: GateMode): PipelinePlan {
+  if (planStep(plan, stageId)) {
+    return { steps: plan.steps.map((s) => (s.stageId === stageId ? { ...s, gate } : s)) };
+  }
+  return { steps: [...plan.steps, { stageId, gate, rounds: [] }] };
+}
+
+/** Replace a column's rounds wholesale (add, remove, re-kind, re-cohort). */
+export function setStepRounds(plan: PipelinePlan, stageId: string, rounds: PlanRound[]): PipelinePlan {
+  if (planStep(plan, stageId)) {
+    return { steps: plan.steps.map((s) => (s.stageId === stageId ? { ...s, rounds } : s)) };
+  }
+  return { steps: [...plan.steps, { stageId, gate: rounds[0]?.gate ?? "human", rounds }] };
+}
+
+/** Patch one round of one column. */
+export function patchRound(plan: PipelinePlan, stageId: string, index: number, patch: Partial<PlanRound>): PipelinePlan {
+  const step = planStep(plan, stageId);
+  if (!step) return plan;
+  const rounds = step.rounds.map((r, i) => {
+    if (i !== index) return r;
+    const next = { ...r, ...patch };
+    // Re-assert the invariant after ANY patch: flipping kind to human must also
+    // drop an "auto" gate, or the UI would show a state the validator rewrites.
+    return { ...next, gate: next.kind === "human" ? "human" : next.gate };
+  });
+  return setStepRounds(plan, stageId, rounds);
+}
+
+/** How many rounds the whole plan runs — the cap is a plan-wide budget, not a
+ *  per-column one (spreading three rounds over three columns is the same amount
+ *  of interviewing as stacking them on one). */
+export function roundCount(plan: PipelinePlan): number {
+  return planRounds(plan).length;
+}
 
 // ---- Derived impact --------------------------------------------------------
 
@@ -98,61 +164,52 @@ export type PlanImpact = {
 /**
  * Derive the impact of a plan ON THE ACTUAL BOARD.
  *
- * This used to emit its own private vocabulary — `screened → ai_interview →
- * human_interview → offer → hired` — under a panel headed "Overview". The real
- * Overview renders `Accepted → Screened → Interview → Offer → Hired`, so the
- * preview was three things wrong at once: it omitted the entry column, it
- * invented an AI/human interview split the board has no columns for, and it
- * labelled everything from `hiringPlan.impact.ov*` while the board's headers come
- * from `enums.stage.*`. Whatever it was showing, it was not a preview.
+ * This used to re-derive which column each round ran at, because the stored plan
+ * did not say — rounds bound to interview stages left-to-right and any surplus
+ * stacked on the last one. The plan says now (`InterviewPlanStep.stageId`), so
+ * this reads the binding instead of inventing it, and a preview can no longer
+ * disagree with what a save will persist.
  *
- * Now it walks the board axis itself and annotates each column with the rounds
- * the plan runs there. Where a plan declares more rounds than the axis has
- * interview stages — the default plan does exactly this: two rounds, one
- * `Interview` column — the extra rounds stack onto the last interview stage and
- * the preview SAYS SO rather than inventing a column. That is the honest picture
- * of today's product: the hybrid handoff runs a second round without moving the
- * candidate off the Interview column.
+ * A column the plan says nothing about contributes no rounds and no queue —
+ * absence stays absence, never a defaulted gate.
  */
 export function deriveImpact(plan: PipelinePlan, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): PlanImpact {
-  const interviewStages = stagesWithRole("interview", axis);
-  // Rounds bind to interview stages left-to-right; any surplus stacks on the last
-  // one (see the doc comment). A plan with rounds and an axis with no interview
-  // stage at all drops them onto no station — the board genuinely has nowhere to
-  // draw them, and pretending otherwise is what this rewrite exists to stop.
-  const roundsByStage = new Map<string, RoundKind[]>();
-  plan.rounds.forEach((round, i) => {
-    const stageId = interviewStages[Math.min(i, interviewStages.length - 1)];
-    if (!stageId) return;
-    roundsByStage.set(stageId, [...(roundsByStage.get(stageId) ?? []), round.kind]);
-  });
-
   const overview: PlanOverviewStation[] = axis.map((stage) => ({
     stageId: stage.id,
     role: stage.role,
-    rounds: roundsByStage.get(stage.id) ?? [],
+    rounds: (planStep(plan, stage.id)?.rounds ?? []).map((r) => r.kind),
   }));
 
   const decisions: PlanImpact["decisions"] = [];
-  if (plan.screeningGate === "human") decisions.push("screening_review");
-  for (const r of plan.rounds) {
-    if (r.kind === "human") decisions.push("human_scorecard_review");
-    else if (r.gate === "human") decisions.push("ai_scorecard_review");
+  // Board order, so the queues list the way a candidate meets them.
+  for (const stage of axis) {
+    const step = planStep(plan, stage.id);
+    if (!step) continue;
+    if (stage.role === "screening" && step.gate === "human") decisions.push("screening_review");
+    for (const r of step.rounds) {
+      if (r.kind === "human") decisions.push("human_scorecard_review");
+      else if (r.gate === "human") decisions.push("ai_scorecard_review");
+    }
+    // A scoring column is the AI turning a conversation into a number; a human
+    // guard on it is somebody ratifying that number, which is the same queue an
+    // AI round's scorecard lands in.
+    if (stage.role === "scoring" && step.gate === "human") decisions.push("ai_scorecard_review");
+    if (stage.role === "offer" && step.gate === "human") decisions.push("offer_review");
   }
-  if (plan.offerGate === "human") decisions.push("offer_review");
 
+  const rounds = planRounds(plan);
   return {
     overview,
     decisions,
     schedule: {
-      aiRound: plan.rounds.some((r) => r.kind === "ai"),
-      humanRound: plan.rounds.some((r) => r.kind === "human"),
+      aiRound: rounds.some((r) => r.kind === "ai"),
+      humanRound: rounds.some((r) => r.kind === "human"),
     },
     humanTouchpoints: decisions.length,
   };
 }
 
-/** The board stage each fixed composer row governs, so the Settings table names
+/** The board stage each fixed composer row governs, so a policy surface names
  *  the same columns the board draws instead of its own private station words.
  *
  *  A function of the axis, not a module constant: the axis is per-workspace data
@@ -166,38 +223,17 @@ export function composerStations(axis: readonly StageDef[] = DEFAULT_STAGE_AXIS)
   };
 }
 
-/** Persisted wire shape → UI plan (mints round ids for list keys). */
-export function fromStoredPlan(rule: InterviewPlanRule): PipelinePlan {
-  return {
-    screeningGate: rule.screeningGate,
-    rounds: rule.rounds.map((r) => newRound(r.kind, r.gate, r.topN)),
-    offerGate: rule.offerGate,
-  };
+/** Structural equality against the last-saved plan — drives the dirty state that
+ *  gates the Save button. A plain comparison now that the UI and wire shapes are
+ *  the same object; step ORDER is not meaningful, so it is normalized away. */
+export function planEqualsStored(plan: PipelinePlan, stored: PipelinePlan): boolean {
+  const norm = (p: PipelinePlan) => JSON.stringify([...p.steps].sort((a, b) => a.stageId.localeCompare(b.stageId)));
+  return norm(plan) === norm(stored);
 }
 
-/** UI plan → persisted wire shape (drops the UI-only round ids). */
-export function toStoredPlan(plan: PipelinePlan): InterviewPlanRule {
-  return {
-    screeningGate: plan.screeningGate,
-    rounds: plan.rounds.map((r) => ({ kind: r.kind, gate: r.kind === "human" ? "human" : r.gate, topN: r.topN })),
-    offerGate: plan.offerGate,
-  };
-}
-
-/** Structural equality against the last-saved wire shape — drives the dirty
- *  state that gates the Save button. */
-export function planEqualsStored(plan: PipelinePlan, stored: InterviewPlanRule): boolean {
-  return JSON.stringify(toStoredPlan(plan)) === JSON.stringify(stored);
-}
-
-/** Does the composed plan match a preset structurally (ids ignored)? Used to
- *  highlight the active blueprint card after fine-tuning. */
-export function matchesPreset(plan: PipelinePlan, preset: Preset): boolean {
-  const p = preset.plan();
-  return (
-    plan.screeningGate === p.screeningGate &&
-    plan.offerGate === p.offerGate &&
-    plan.rounds.length === p.rounds.length &&
-    plan.rounds.every((r, i) => r.kind === p.rounds[i].kind && r.gate === p.rounds[i].gate && r.topN === p.rounds[i].topN)
-  );
+/** Does the composed plan match a preset structurally? Used to highlight the
+ *  active blueprint after fine-tuning. Compared against the preset built for the
+ *  SAME axis — a preset is an intent, and its shape depends on the board. */
+export function matchesPreset(plan: PipelinePlan, preset: Preset, axis: readonly StageDef[] = DEFAULT_STAGE_AXIS): boolean {
+  return planEqualsStored(plan, preset.plan(axis));
 }

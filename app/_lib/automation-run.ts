@@ -16,7 +16,7 @@ import {
   UI_LANG_TASKS,
 } from "./automation-cache-key";
 import { screenStageOutcome } from "./pipeline-stages";
-import { getInterviewPlan } from "./interview-plan";
+import { getPlanGateForRole } from "./interview-plan";
 import { extendDraftedOffer } from "./pipeline-entry-action";
 import { sealDecisionSafe } from "./decision-record-store";
 import { resolveCommsLocale } from "./comms-locale";
@@ -322,7 +322,7 @@ export async function runAutomationTask(
       // event), CAS-guarded on the approval just set. hold/reject recommendations
       // ALWAYS park — auto mode never overrides a cautious or adverse verdict.
       if (
-        getInterviewPlan(workspaceId).screeningGate === "auto" &&
+        getPlanGateForRole("screening", workspaceId) === "auto" &&
         coerceInterviewRecommendation(String((result as { recommendation?: unknown }).recommendation ?? "")) === "advance"
       ) {
         const ratified = actOnPipelineEntry(
@@ -365,7 +365,7 @@ export async function runAutomationTask(
     //     concurrent decision can't be clobbered.
     // Origin "" → publicBaseUrl resolves the configured/canonical public origin
     // (never a request Host), which is exactly right for a background extend.
-    if (getInterviewPlan(workspaceId).offerGate === "auto" && result.recommended != null) {
+    if (getPlanGateForRole("offer", workspaceId) === "auto" && result.recommended != null) {
       const fresh = getPipelineEntry(entry.id, workspaceId);
       if (fresh && fresh.approvalKind === "offer_review") {
         try {

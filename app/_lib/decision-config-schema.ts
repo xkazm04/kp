@@ -13,7 +13,7 @@ import { ROLE_FAMILY_SLUGS } from "./role-families.ts";
 // pipeline-stages.ts is equally dependency-free (no DB, no alias), so importing
 // the shipped axis here keeps this module loadable by `node --test` and the
 // browser alike — and makes the board the literal source of the axis default.
-import { DEFAULT_STAGE_AXIS } from "./pipeline-stages.ts";
+import { DEFAULT_STAGE_AXIS, roleOf, stagesWithRole, stageWithRole, type StageDef, type StageRole } from "./pipeline-stages.ts";
 
 // Screening auto-reject: drop the bottom `rejectBottomPercent` of a role's
 // matched candidates that are ALSO below `maxMatchToReject` match — never
@@ -95,6 +95,24 @@ export const COMPLIANCE_DEFAULT: ComplianceRule = {
 // decision-config store; consumed (eventually) by the pipeline action layer —
 // see docs/concepts/interview-rounds.md. The stored shape carries NO round ids
 // (those are UI list keys, minted on load by the composer model).
+// STAGE-KEYED (v2). The plan used to be three loose fields — `screeningGate`, a
+// flat `rounds` array, `offerGate` — which said nothing about WHICH board column
+// each governed. Two defects followed, and both are why the steps editor and the
+// policy matrix had to stay two separate tables:
+//
+//   1. Rounds bound to interview columns left-to-right and any SURPLUS stacked
+//      implicitly on the last one (the shipped default does exactly this: two
+//      rounds, one `Interview` column). That binding lived in a derivation, not
+//      in the data, so nothing could state it and nothing could edit it.
+//   2. The gates were keyed by ROLE, not by column — one `screeningGate` for the
+//      whole workspace. But `pipelineAxisDraft` only requires entry, terminal and
+//      offer to be UNIQUE: screening and interview columns may repeat. A second
+//      screening column shared the first one's gate, so a per-column control
+//      would have been writing a shared value while appearing to write its own.
+//
+// Now every policy names its `stageId` and an interview column carries its own
+// rounds. A column the plan says nothing about (entry, terminal, or one just
+// added) simply has no step — absence is the default, never a fabricated gate.
 export type InterviewPlanGate = "auto" | "human";
 export type InterviewPlanRoundKind = "ai" | "human";
 export type InterviewPlanRound = {
@@ -104,45 +122,167 @@ export type InterviewPlanRound = {
    *  unattended human interview. */
   gate: InterviewPlanGate;
   /** Cohort reducer INTO this round (top N of the previous round's advancers);
-   *  null = everyone. Always null on the first round. */
+   *  null = everyone. Always null on the plan's first round. */
   topN: number | null;
 };
-export type InterviewPlanRule = {
-  screeningGate: InterviewPlanGate;
+/** One board column's policy. */
+export type InterviewPlanStep = {
+  /** A stage id from this workspace's `pipelineStages` axis — the same id the
+   *  board draws as a column and `pipeline_entries.stage` stores. */
+  stageId: string;
+  /** Who ratifies what happens at this column. */
+  gate: InterviewPlanGate;
+  /** The rounds that run HERE, in order. Empty on non-interview columns. One
+   *  round is the 1:1 shape the merged editor draws as a single row; more than
+   *  one is legal and lossless — that is what the old flat array's implicit
+   *  stacking actually meant, now said out loud. */
   rounds: InterviewPlanRound[];
-  offerGate: InterviewPlanGate;
+};
+export type InterviewPlanRule = {
+  /** Per-column policy, in board order. Columns absent from this list have no
+   *  policy — never a defaulted one. */
+  steps: InterviewPlanStep[];
 };
 
 export const INTERVIEW_PLAN_MAX_ROUNDS = 3;
+/** Columns a plan may govern. Entry and terminal are arrival and outcome, not
+ *  decisions, so a step naming one is dropped rather than silently kept. */
+const PLANNABLE_ROLES: readonly StageRole[] = ["screening", "interview", "scoring", "offer", "custom"];
+
+/** This column's policy, or null when the plan says nothing about it. Null is a
+ *  real answer — a column added after the plan was saved has no gate, and
+ *  inventing one would claim an approval rule nobody chose. */
+export function planStep(plan: InterviewPlanRule, stageId: string): InterviewPlanStep | null {
+  return plan.steps.find((s) => s.stageId === stageId) ?? null;
+}
+
+/** Every round the plan runs, flattened in board order. The old flat `rounds`
+ *  array read this way by construction; the sequencing rules below still think
+ *  in it, so it stays available as a derivation rather than as storage. */
+export function planRounds(plan: InterviewPlanRule): InterviewPlanRound[] {
+  return plan.steps.flatMap((s) => s.rounds);
+}
 
 /** Does the plan run at least one round of this kind? Drives which Schedule
  *  surfaces (AI docket / human calendar) are live for the workspace. Pure —
  *  shared by the client tab and the server routing. */
 export function planHasRound(plan: InterviewPlanRule, kind: InterviewPlanRoundKind): boolean {
-  return plan.rounds.some((r) => r.kind === kind);
+  return plan.steps.some((s) => s.rounds.some((r) => r.kind === kind));
 }
 
 /** The hybrid handoff rule: after an AI round's scorecard is ACCEPTED, does a
  *  HUMAN round still follow in the plan? True → the accept routes the candidate
  *  back to the calendar gate (human-round scheduling) instead of advancing
  *  toward Offer. Anchored on the FIRST ai round — the product runs one AI round
- *  today; a second AI round would need a per-entry round pointer to sequence. */
+ *  today; a second AI round would need a per-entry round pointer to sequence.
+ *
+ *  Reads the flattened sequence, so it is indifferent to whether the human round
+ *  sits at the same column as the AI one (the legacy stacked shape) or at its
+ *  own column (what the stage-keyed model lets a workspace express). */
 export function planRoutesAiScorecardToHumanRound(plan: InterviewPlanRule): boolean {
-  const aiIdx = plan.rounds.findIndex((r) => r.kind === "ai");
+  const rounds = planRounds(plan);
+  const aiIdx = rounds.findIndex((r) => r.kind === "ai");
   if (aiIdx === -1) return false;
-  return plan.rounds.slice(aiIdx + 1).some((r) => r.kind === "human");
+  return rounds.slice(aiIdx + 1).some((r) => r.kind === "human");
 }
 
-/** Default = the team-hybrid archetype: gated AI round, then a human round for
- *  the top 3, everything human-approved. */
-export const INTERVIEW_PLAN_DEFAULT: InterviewPlanRule = {
-  screeningGate: "human",
-  rounds: [
-    { kind: "ai", gate: "human", topN: null },
-    { kind: "human", gate: "human", topN: 3 },
-  ],
-  offerGate: "human",
+/** Drop steps this axis has no column for, or whose column cannot hold policy
+ *  (entry/terminal). Applied at READ time: an axis edit that removes a column
+ *  must not leave the plan governing a column that is gone, and the plan is not
+ *  rewritten on disk for it — the next save persists the pruned shape. */
+export function prunePlanToAxis(plan: InterviewPlanRule, axis: readonly StageDef[]): InterviewPlanRule {
+  const order = new Map(axis.map((s, i) => [s.id, i]));
+  const steps = plan.steps
+    .filter((step) => {
+      if (!order.has(step.stageId)) return false;
+      const role = roleOf(step.stageId, axis);
+      return role != null && PLANNABLE_ROLES.includes(role);
+    })
+    // Board order, so `planRounds` sequences the way the candidate travels.
+    .sort((a, b) => (order.get(a.stageId) ?? 0) - (order.get(b.stageId) ?? 0));
+  return steps.length === plan.steps.length && steps.every((s, i) => s === plan.steps[i]) ? plan : { steps };
+}
+
+/** The pre-stage-keyed wire shape, kept ONLY so stored blobs written before the
+ *  migration can still be read. Never written. */
+export type LegacyInterviewPlanRule = {
+  screeningGate: InterviewPlanGate;
+  rounds: InterviewPlanRound[];
+  offerGate: InterviewPlanGate;
 };
+
+/**
+ * Legacy plan → stage-keyed plan, against the axis that plan actually ran on.
+ *
+ * The conversion is the old runtime's own behavior, written down instead of
+ * derived:
+ *
+ *  - `screeningGate` governed EVERY screening column (there was one gate and the
+ *    axis may hold several), so each screening column gets it. Same for offer,
+ *    which the axis model already forces to be unique.
+ *  - rounds bound to interview columns left to right, and any surplus stacked on
+ *    the LAST one — `deriveImpact` did exactly this, and the shipped default
+ *    relies on it (two rounds, one `Interview` column). Reproduced here, so the
+ *    migration cannot change what a workspace's hiring already does.
+ *  - an interview column's gate is its first round's gate; a column that ends up
+ *    with no rounds keeps "human", the conservative reading of an unstated gate.
+ *  - rounds with nowhere to land (a plan with rounds on an axis with no
+ *    interview column) are DROPPED, which is what the board already showed —
+ *    there is no column to run them at.
+ */
+export function migrateLegacyInterviewPlan(
+  legacy: LegacyInterviewPlanRule,
+  axis: readonly StageDef[] = DEFAULT_STAGE_AXIS
+): InterviewPlanRule {
+  const roundsByStage = new Map<string, InterviewPlanRound[]>();
+  const interviewStages = stagesWithRole("interview", axis);
+  legacy.rounds.forEach((round, i) => {
+    const stageId = interviewStages[Math.min(i, interviewStages.length - 1)];
+    if (!stageId) return;
+    roundsByStage.set(stageId, [...(roundsByStage.get(stageId) ?? []), round]);
+  });
+
+  const offerStage = stageWithRole("offer", axis);
+  const steps: InterviewPlanStep[] = [];
+  for (const stage of axis) {
+    if (stage.role === "screening") steps.push({ stageId: stage.id, gate: legacy.screeningGate, rounds: [] });
+    else if (stage.role === "interview") {
+      const rounds = roundsByStage.get(stage.id) ?? [];
+      steps.push({ stageId: stage.id, gate: rounds[0]?.gate ?? "human", rounds });
+    } else if (stage.id === offerStage) steps.push({ stageId: stage.id, gate: legacy.offerGate, rounds: [] });
+  }
+  return { steps };
+}
+
+/** Is this raw blob the pre-migration shape? Structural, not a version field:
+ *  the store holds blobs written before any version existed. */
+export function isLegacyInterviewPlan(raw: Record<string, unknown>): boolean {
+  return raw.steps === undefined && (raw.screeningGate !== undefined || raw.offerGate !== undefined || Array.isArray(raw.rounds));
+}
+
+/**
+ * Default: human-reviewed screening, ONE gated AI round at the board's single
+ * `Interview` column, human-approved offers.
+ *
+ * It used to be two rounds (AI, then human for the top 3) STACKED behind that one
+ * column, because nothing stopped it. One step now runs one activity — a second
+ * conversation is a second column, which is a shape a candidate can actually be
+ * standing on and a board can actually draw. The shipped board has one interview
+ * column, so the shipped plan has one round.
+ *
+ * BEHAVIOUR CHANGE, and the only one in this pass: the hybrid handoff
+ * (`planRoutesAiScorecardToHumanRound`) needs a human round AFTER an AI one, so it
+ * no longer fires by default. A workspace that has ever saved its hiring plan is
+ * untouched — the store returns what it saved, defaults apply only where nothing
+ * was chosen — and a workspace that wants the handoff adds an Interview step and
+ * sets its executor to a person, which is now a visible decision instead of an
+ * invisible one.
+ */
+export const INTERVIEW_PLAN_DEFAULT: InterviewPlanRule = migrateLegacyInterviewPlan({
+  screeningGate: "human",
+  rounds: [{ kind: "ai", gate: "human", topN: null }],
+  offerGate: "human",
+});
 
 // ---- pipelineStages: the board's own column axis, per workspace -------------
 //
@@ -157,7 +297,7 @@ export const INTERVIEW_PLAN_DEFAULT: InterviewPlanRule = {
 // `pipeline_events` rows and analytics buckets referencing it still resolve to a
 // label instead of rendering a raw id — and so a candidate found sitting on it
 // can be named in the migration prompt. The board renders only `stages`.
-export type PipelineStageRoleWire = "entry" | "screening" | "interview" | "offer" | "terminal" | "custom";
+export type PipelineStageRoleWire = "entry" | "screening" | "interview" | "scoring" | "offer" | "terminal" | "custom";
 export type PipelineStageWire = { id: string; label: string; role: PipelineStageRoleWire };
 export type PipelineStagesRule = {
   stages: PipelineStageWire[];
@@ -176,7 +316,7 @@ export const PIPELINE_STAGES_DEFAULT: PipelineStagesRule = {
   retired: [],
 };
 
-const STAGE_ROLES: readonly PipelineStageRoleWire[] = ["entry", "screening", "interview", "offer", "terminal", "custom"];
+const STAGE_ROLES: readonly PipelineStageRoleWire[] = ["entry", "screening", "interview", "scoring", "offer", "terminal", "custom"];
 /** Roles that may appear AT MOST once: they answer "where does the funnel start /
  *  end / close", which cannot have two answers. `screening`, `interview` and
  *  `custom` repeat freely. */
@@ -193,7 +333,9 @@ export type DecisionPhase = (typeof KNOWN_DECISION_PHASES)[number];
 
 const SCREENING_KEYS = ["autoRejectEnabled", "rejectBottomPercent", "maxMatchToReject", "familyFloors", "holdoutPercent"] as const;
 const COMPLIANCE_KEYS = ["jurisdiction"] as const;
-const INTERVIEW_PLAN_KEYS = ["screeningGate", "rounds", "offerGate"] as const;
+const INTERVIEW_PLAN_KEYS = ["steps"] as const;
+const LEGACY_INTERVIEW_PLAN_KEYS = ["screeningGate", "rounds", "offerGate"] as const;
+const INTERVIEW_PLAN_STEP_KEYS = ["stageId", "gate", "rounds"] as const;
 const INTERVIEW_PLAN_ROUND_KEYS = ["kind", "gate", "topN"] as const;
 const PIPELINE_STAGES_KEYS = ["stages", "retired"] as const;
 const STAGE_KEYS = ["id", "label", "role"] as const;
@@ -349,8 +491,107 @@ function validatePipelineStages(raw: Record<string, unknown>): DecisionConfigRes
 
 const isGate = (v: unknown): v is InterviewPlanGate => v === "auto" || v === "human";
 
+/** One round, validated. `seq` is its index in the WHOLE plan (not in its
+ *  column): the "first round has no cohort to reduce" rule is about the
+ *  candidate's journey, so it must not reset at each column. `where` is the
+ *  error path. */
+function validatePlanRound(rec: Record<string, unknown>, seq: number, where: string): { ok: true; round: InterviewPlanRound } | { ok: false; error: string } {
+  const strayR = Object.keys(rec).filter((k) => !(INTERVIEW_PLAN_ROUND_KEYS as readonly string[]).includes(k));
+  if (strayR.length > 0) return { ok: false, error: `${where}: unknown key(s) ${strayR.join(", ")}.` };
+  if (rec.kind !== "ai" && rec.kind !== "human") return { ok: false, error: `${where}.kind must be 'ai' or 'human'.` };
+  if (!isGate(rec.gate)) return { ok: false, error: `${where}.gate must be 'auto' or 'human'.` };
+  let topN: number | null = null;
+  if (rec.topN !== null && rec.topN !== undefined) {
+    if (typeof rec.topN !== "number" || !Number.isFinite(rec.topN)) {
+      return { ok: false, error: `${where}.topN must be a number or null.` };
+    }
+    // Out-of-range but coercible → clamp (same posture as the 0–100 fields).
+    topN = Math.max(1, Math.min(50, Math.round(rec.topN)));
+  }
+  return {
+    ok: true,
+    round: {
+      kind: rec.kind,
+      // A human round's verdict IS the human decision — never persist it as
+      // unattended, whatever the client sent.
+      gate: rec.kind === "human" ? "human" : rec.gate,
+      // The plan's first round has no previous cohort to reduce.
+      topN: seq === 0 ? null : topN,
+    },
+  };
+}
+
+/**
+ * Accepts BOTH wire shapes.
+ *
+ * A blob written before the stage-keyed migration has no `steps`; it is
+ * validated as the legacy shape and converted through
+ * `migrateLegacyInterviewPlan`, so nothing has to be rewritten on disk for a
+ * stored plan to keep working — the next save persists the new shape.
+ *
+ * The conversion here uses the DEFAULT axis, because a validator receives one
+ * config and cannot see the workspace's `pipelineStages`. That is right for the
+ * shipped column ids (which are stable under rename) and approximate for a
+ * workspace that had ADDED interview columns — `getInterviewPlan` re-runs the
+ * migration against the real axis, which is the path every reader actually uses.
+ */
 function validateInterviewPlan(raw: Record<string, unknown>): DecisionConfigResult {
+  if (isLegacyInterviewPlan(raw)) return validateLegacyInterviewPlan(raw);
+
   const stray = Object.keys(raw).filter((k) => !(INTERVIEW_PLAN_KEYS as readonly string[]).includes(k));
+  if (stray.length > 0) return { ok: false, error: `interviewPlan: unknown key(s) ${stray.join(", ")}.` };
+  if (!Array.isArray(raw.steps)) return { ok: false, error: "interviewPlan.steps must be an array." };
+
+  const steps: InterviewPlanStep[] = [];
+  const seen = new Set<string>();
+  let seq = 0;
+  for (const [i, s] of raw.steps.entries()) {
+    if (typeof s !== "object" || s === null || Array.isArray(s)) {
+      return { ok: false, error: `interviewPlan.steps[${i}] must be an object.` };
+    }
+    const rec = s as Record<string, unknown>;
+    const strayS = Object.keys(rec).filter((k) => !(INTERVIEW_PLAN_STEP_KEYS as readonly string[]).includes(k));
+    if (strayS.length > 0) return { ok: false, error: `interviewPlan.steps[${i}]: unknown key(s) ${strayS.join(", ")}.` };
+    if (typeof rec.stageId !== "string" || rec.stageId.trim() === "") {
+      return { ok: false, error: `interviewPlan.steps[${i}].stageId must be a non-empty string.` };
+    }
+    // Two policies for one column is not a merge conflict the store can settle —
+    // whichever won would be arbitrary, and the loser's gate would vanish
+    // silently. Refused. (Which columns EXIST is the axis's business, checked at
+    // read time by prunePlanToAxis; a validator sees one config, not both.)
+    if (seen.has(rec.stageId)) return { ok: false, error: `interviewPlan: duplicate step for "${rec.stageId}".` };
+    seen.add(rec.stageId);
+    if (!isGate(rec.gate)) return { ok: false, error: `interviewPlan.steps[${i}].gate must be 'auto' or 'human'.` };
+
+    const rawRounds = rec.rounds === undefined ? [] : rec.rounds;
+    if (!Array.isArray(rawRounds)) return { ok: false, error: `interviewPlan.steps[${i}].rounds must be an array.` };
+    const rounds: InterviewPlanRound[] = [];
+    for (const [j, r] of rawRounds.entries()) {
+      if (typeof r !== "object" || r === null || Array.isArray(r)) {
+        return { ok: false, error: `interviewPlan.steps[${i}].rounds[${j}] must be an object.` };
+      }
+      const checked = validatePlanRound(r as Record<string, unknown>, seq, `interviewPlan.steps[${i}].rounds[${j}]`);
+      if (!checked.ok) return checked;
+      rounds.push(checked.round);
+      seq += 1;
+    }
+    steps.push({ stageId: rec.stageId, gate: rec.gate, rounds });
+  }
+  // The cap counts ROUNDS across the plan, exactly as it did when they lived in
+  // one flat array — spreading three rounds over three columns is the same
+  // amount of interviewing as stacking them on one.
+  if (seq > INTERVIEW_PLAN_MAX_ROUNDS) {
+    return { ok: false, error: `interviewPlan: capped at ${INTERVIEW_PLAN_MAX_ROUNDS} rounds.` };
+  }
+  return { ok: true, phase: "interviewPlan", config: { steps } };
+}
+
+/** The pre-migration shape, validated with the old rules and then converted.
+ *  Kept whole rather than folded into the new path: these are the rules that
+ *  were in force when such a blob was written, and relaxing them retroactively
+ *  would let a bad legacy blob through as if it had always been legal. */
+function validateLegacyInterviewPlan(raw: Record<string, unknown>): DecisionConfigResult {
+  const stray = Object.keys(raw).filter((k) => !(LEGACY_INTERVIEW_PLAN_KEYS as readonly string[]).includes(k));
   if (stray.length > 0) return { ok: false, error: `interviewPlan: unknown key(s) ${stray.join(", ")}.` };
   if (!isGate(raw.screeningGate)) return { ok: false, error: "interviewPlan.screeningGate must be 'auto' or 'human'." };
   if (!isGate(raw.offerGate)) return { ok: false, error: "interviewPlan.offerGate must be 'auto' or 'human'." };
@@ -363,31 +604,15 @@ function validateInterviewPlan(raw: Record<string, unknown>): DecisionConfigResu
     if (typeof r !== "object" || r === null || Array.isArray(r)) {
       return { ok: false, error: `interviewPlan.rounds[${i}] must be an object.` };
     }
-    const rec = r as Record<string, unknown>;
-    const strayR = Object.keys(rec).filter((k) => !(INTERVIEW_PLAN_ROUND_KEYS as readonly string[]).includes(k));
-    if (strayR.length > 0) return { ok: false, error: `interviewPlan.rounds[${i}]: unknown key(s) ${strayR.join(", ")}.` };
-    if (rec.kind !== "ai" && rec.kind !== "human") {
-      return { ok: false, error: `interviewPlan.rounds[${i}].kind must be 'ai' or 'human'.` };
-    }
-    if (!isGate(rec.gate)) return { ok: false, error: `interviewPlan.rounds[${i}].gate must be 'auto' or 'human'.` };
-    let topN: number | null = null;
-    if (rec.topN !== null && rec.topN !== undefined) {
-      if (typeof rec.topN !== "number" || !Number.isFinite(rec.topN)) {
-        return { ok: false, error: `interviewPlan.rounds[${i}].topN must be a number or null.` };
-      }
-      // Out-of-range but coercible → clamp (same posture as the 0–100 fields).
-      topN = Math.max(1, Math.min(50, Math.round(rec.topN)));
-    }
-    rounds.push({
-      kind: rec.kind,
-      // A human round's verdict IS the human decision — never persist it as
-      // unattended, whatever the client sent.
-      gate: rec.kind === "human" ? "human" : rec.gate,
-      // The first round has no previous cohort to reduce.
-      topN: i === 0 ? null : topN,
-    });
+    const checked = validatePlanRound(r as Record<string, unknown>, i, `interviewPlan.rounds[${i}]`);
+    if (!checked.ok) return checked;
+    rounds.push(checked.round);
   }
-  return { ok: true, phase: "interviewPlan", config: { screeningGate: raw.screeningGate, rounds, offerGate: raw.offerGate } };
+  return {
+    ok: true,
+    phase: "interviewPlan",
+    config: migrateLegacyInterviewPlan({ screeningGate: raw.screeningGate, rounds, offerGate: raw.offerGate }),
+  };
 }
 
 function validateComplianceRule(raw: Record<string, unknown>): DecisionConfigResult {

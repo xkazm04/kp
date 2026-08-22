@@ -1,155 +1,138 @@
 "use client";
 
-// Shared controls + the impact strip for the hiring-pipeline composer (the
-// "Matrix" control board — winner of the /prototype round, 2026-08-10). The
-// impact strip is the surface's core promise: every change immediately
-// narrates what Overview, Decisions and Schedule will look like under the
-// composed plan — the recruiter composes consequences, not abstract config.
-import { Bot, CalendarClock, LayoutDashboard, Scale, UserRound } from "lucide-react";
+// The policy cell's controls — one button per decision.
+//
+// These were two-button segmented toggles ([Human approves | Auto], [AI | Human]).
+// In a table that shows one row per board column that was four buttons and two
+// group borders per interview round, the labels wrapped to two lines inside their
+// slot, and no two rows lined up. A binary choice does not need two controls: the
+// button SHOWS the current answer and clicking it flips to the other one, which is
+// half the elements, one line of text, and a fixed width every row can share.
+//
+// The icon carries the meaning and a `title` carries the sentence — including what
+// clicking will do, which is the part an icon cannot say. Every button also has a
+// real accessible name and `aria-pressed` is deliberately absent: this is not a
+// toggle that is on or off, it is a value that alternates, so the name states the
+// value instead.
+import { Bot, Check, UserRound, Zap, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { TOGGLE_GROUP, toggleBtn } from "@/app/_components/ui/recipes";
-import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { DEFAULT_STAGE_AXIS, type StageDef } from "@/app/_lib/pipeline-stages";
-import { deriveImpact, type GateMode, type PipelinePlan, type RoundKind } from "./pipelineComposerModel";
+import { Select } from "@/app/_components/Select";
+import type { GateMode, RoundKind } from "./pipelineComposerModel";
 
-export function GateToggle({ value, onChange, compact = false }: { value: GateMode; onChange: (v: GateMode) => void; compact?: boolean }) {
-  const t = useTranslations("hiringPlan");
-  const pad = compact ? "px-1.5 py-0.5" : "px-2 py-1";
+export { PlanImpactStrip } from "./impact/PlanImpactStrip";
+
+/** Fixed slot widths, so the same decision sits in the same column on every row —
+ *  and wide enough that no label truncates, which the halved name field and the
+ *  retired per-round remove button paid for. A row whose column has no such
+ *  decision renders the slot empty rather than collapsing it; alignment is why the
+ *  two tables were merged in the first place. */
+const SLOT = "flex items-center self-stretch border-l border-stone-200 px-0.5";
+export const POLICY_SLOT = {
+  cohort: `${SLOT} w-36`,
+  executor: `${SLOT} w-28`,
+  guard: `${SLOT} w-28`,
+} as const;
+
+const BTN =
+  "focus-ring inline-flex h-8 w-full items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2 text-sm font-semibold text-ink transition-colors hover:border-coral/40";
+
+/** One binary decision as ONE button: icon + the current value, click to flip. */
+function PolicyButton({
+  icon: Icon,
+  label,
+  title,
+  ariaLabel,
+  onClick,
+  accent,
+}: {
+  icon: LucideIcon;
+  label: string;
+  /** The full sentence, including what a click does. */
+  title: string;
+  ariaLabel: string;
+  onClick: () => void;
+  accent: string;
+}) {
   return (
-    <span className={TOGGLE_GROUP} role="group" aria-label={t("gateAria")}>
-      <button type="button" aria-pressed={value === "human"} onClick={() => onChange("human")} className={`focus-ring rounded ${pad} text-sm font-semibold ${toggleBtn(value === "human")}`}>
-        {t("gateHuman")}
-      </button>
-      <button type="button" aria-pressed={value === "auto"} onClick={() => onChange("auto")} className={`focus-ring rounded ${pad} text-sm font-semibold ${toggleBtn(value === "auto")}`}>
-        {t("gateAuto")}
-      </button>
+    <button type="button" onClick={onClick} title={title} aria-label={ariaLabel} className={BTN}>
+      <Icon size={13} aria-hidden className={`shrink-0 ${accent}`} />
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
+
+/** A decision the product makes for you — same footprint, no affordance. Rendered
+ *  as text-on-surface rather than as a disabled button, because a control that can
+ *  never be operated reads as broken rather than as settled. */
+export function PolicyStatic({ icon: Icon, label, title }: { icon: LucideIcon; label: string; title: string }) {
+  return (
+    // A transparent border matching the button's, so a stated value starts at the
+    // same x as a chosen one and the column reads as one edge.
+    <span title={title} className="inline-flex h-8 w-full items-center gap-1.5 rounded-md border border-transparent px-2 text-sm text-steel">
+      <Icon size={13} aria-hidden className="shrink-0 text-stone-400" />
+      <span className="truncate">{label}</span>
     </span>
   );
 }
 
-export function KindToggle({ value, onChange }: { value: RoundKind; onChange: (v: RoundKind) => void }) {
+/** Who ratifies the verdict here: a person in Decisions, or nobody. */
+export function GateButton({ value, onChange, stage }: { value: GateMode; onChange: (v: GateMode) => void; stage: string }) {
+  const t = useTranslations("hiringPlan");
+  const human = value === "human";
+  return (
+    <PolicyButton
+      icon={human ? Check : Zap}
+      label={human ? t("gateShortHuman") : t("gateAuto")}
+      title={human ? t("tipGateHuman") : t("tipGateAuto")}
+      ariaLabel={t("gateAriaFor", { stage })}
+      accent={human ? "text-moss" : "text-coral"}
+      onClick={() => onChange(human ? "auto" : "human")}
+    />
+  );
+}
+
+/** Who runs the conversation: the AI interviewer, or a person. */
+export function KindButton({ value, onChange, stage }: { value: RoundKind; onChange: (v: RoundKind) => void; stage: string }) {
+  const t = useTranslations("hiringPlan");
+  const ai = value === "ai";
+  return (
+    <PolicyButton
+      icon={ai ? Bot : UserRound}
+      label={ai ? t("kindAi") : t("kindHuman")}
+      title={ai ? t("tipKindAi") : t("tipKindHuman")}
+      ariaLabel={t("kindAriaFor", { stage })}
+      accent={ai ? "text-coral" : "text-moss"}
+      onClick={() => onChange(ai ? "human" : "ai")}
+    />
+  );
+}
+
+/** Cohort reducer INTO a round: everyone who advanced, or only the top N.
+ *
+ *  The app's own Select, not a native one — an OS-rendered option list ignores the
+ *  theme tokens, so in Spark Dark the closed control re-skinned and the open menu
+ *  stayed a light OS menu. */
+export function CohortSelect({
+  value,
+  onChange,
+  stage,
+}: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  stage: string;
+}) {
   const t = useTranslations("hiringPlan");
   return (
-    <span className={TOGGLE_GROUP} role="group" aria-label={t("kindAria")}>
-      <button type="button" aria-pressed={value === "ai"} onClick={() => onChange("ai")} className={`focus-ring inline-flex items-center gap-1 rounded px-2 py-1 text-sm font-semibold ${toggleBtn(value === "ai")}`}>
-        <Bot size={12} aria-hidden /> {t("kindAi")}
-      </button>
-      <button type="button" aria-pressed={value === "human"} onClick={() => onChange("human")} className={`focus-ring inline-flex items-center gap-1 rounded px-2 py-1 text-sm font-semibold ${toggleBtn(value === "human")}`}>
-        <UserRound size={12} aria-hidden /> {t("kindHuman")}
-      </button>
-    </span>
-  );
-}
-
-/** Cohort reducer select: "everyone advancing" ↔ top-N. */
-export function TopNControl({ value, onChange }: { value: number | null; onChange: (v: number | null) => void }) {
-  const t = useTranslations("hiringPlan");
-  return (
-    <span className="inline-flex items-center gap-1 text-sm text-steel">
-      <select
-        value={value == null ? "all" : String(value)}
-        onChange={(e) => onChange(e.target.value === "all" ? null : Number(e.target.value))}
-        className="focus-ring rounded-md border border-stone-200 bg-white px-1.5 py-0.5 text-sm text-ink"
-        aria-label={t("cohortAria")}
-      >
-        <option value="all">{t("cohortEveryone")}</option>
-        {[2, 3, 5, 8].map((n) => (
-          <option key={n} value={n}>
-            {t("cohortTopN", { n })}
-          </option>
-        ))}
-      </select>
-    </span>
-  );
-}
-
-// ---- Impact strip ----------------------------------------------------------
-
-function ImpactPanel({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-panel">
-      <p className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
-        {icon} {title}
-      </p>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">{children}</div>
-    </div>
-  );
-}
-
-export function PlanImpactStrip({ plan, axis = DEFAULT_STAGE_AXIS }: { plan: PipelinePlan; axis?: readonly StageDef[] }) {
-  const t = useTranslations("hiringPlan.impact");
-  // The board's OWN stage labels (enums.stage.*) — the same catalog PipelineBoard
-  // renders its column headers from. The strip used to have a private label set
-  // (ovScreened / ovAiInterview / …) naming stations the board does not have,
-  // which is why Settings and Overview read as two unrelated products.
-  const enumLabel = useEnumLabel();
-  // A workspace-renamed column shows its own words; a shipped one stays localized.
-  const stationLabel = (id: string): string => {
-    const stage = axis.find((s) => s.id === id);
-    return stage && stage.label !== stage.id ? stage.label : enumLabel("stage", id);
-  };
-  const impact = deriveImpact(plan, axis);
-  const decLabel: Record<string, string> = {
-    screening_review: t("decScreening"),
-    ai_scorecard_review: t("decAiScorecard"),
-    human_scorecard_review: t("decHumanScorecard"),
-    offer_review: t("decOffer"),
-  };
-  return (
-    <section aria-label={t("heading")}>
-      <p className="text-meta uppercase tracking-wide text-steel">{t("heading")}</p>
-      <div className="mt-2 grid gap-3 lg:grid-cols-3">
-        <ImpactPanel icon={<LayoutDashboard size={12} className="text-coral" aria-hidden />} title={t("overview")}>
-          {/* One chip per REAL board column, in board order, tinted by whether this
-              plan runs anything there. A column carrying rounds gets them listed
-              underneath — that is how the default plan's two rounds in one
-              Interview column become visible instead of imaginary. */}
-          {impact.overview.map((station, i) => (
-            <span key={station.stageId} className="inline-flex items-center gap-1.5">
-              {i > 0 ? (
-                <span className="text-steel/50" aria-hidden>
-                  →
-                </span>
-              ) : null}
-              <span
-                className={`rounded-full px-2 py-0.5 text-sm font-semibold ${
-                  station.rounds.length > 0 ? "bg-coral/10 text-coral" : "bg-stone-100 text-steel"
-                }`}
-              >
-                {stationLabel(station.stageId)}
-                {station.rounds.length > 0 ? (
-                  <span className="ml-1 font-normal">
-                    {station.rounds.map((kind) => (kind === "ai" ? t("roundAi") : t("roundHuman"))).join(" → ")}
-                  </span>
-                ) : null}
-              </span>
-            </span>
-          ))}
-        </ImpactPanel>
-        <ImpactPanel icon={<Scale size={12} className="text-coral" aria-hidden />} title={t("decisions")}>
-          {impact.decisions.length === 0 ? (
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-800">{t("decNone")}</span>
-          ) : (
-            impact.decisions.map((d, i) => (
-              <span key={i} className="rounded-full bg-stone-100 px-2 py-0.5 text-sm font-semibold text-ink">
-                {decLabel[d]}
-              </span>
-            ))
-          )}
-          <span className="nums w-full text-sm text-steel">{t("touchpoints", { count: impact.humanTouchpoints })}</span>
-        </ImpactPanel>
-        <ImpactPanel icon={<CalendarClock size={12} className="text-coral" aria-hidden />} title={t("schedule")}>
-          {impact.schedule.aiRound ? (
-            <span className="rounded-full bg-coral/10 px-2 py-0.5 text-sm font-semibold text-coral">{t("schAiDocket")}</span>
-          ) : null}
-          {impact.schedule.humanRound ? (
-            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-sm font-semibold text-blue-700">{t("schCalendar")}</span>
-          ) : null}
-          {!impact.schedule.aiRound && !impact.schedule.humanRound ? (
-            <span className="rounded-full bg-stone-100 px-2 py-0.5 text-sm text-steel">{t("schNone")}</span>
-          ) : null}
-        </ImpactPanel>
-      </div>
-    </section>
+    <Select
+      value={value == null ? "all" : String(value)}
+      onChange={(next) => onChange(next === "all" ? null : Number(next))}
+      ariaLabel={t("cohortAriaFor", { stage })}
+      sizeVariant="sm"
+      className="w-full"
+      options={[
+        { value: "all", label: t("cohortEveryone") },
+        ...[2, 3, 5, 8].map((n) => ({ value: String(n), label: t("cohortTopN", { n }) })),
+      ]}
+    />
   );
 }
