@@ -57,7 +57,8 @@ Don't pay the migration cost until one of those is a real, blocking requirement.
 
 ## 3. The seam (what already exists)
 
-Every connection in the app — `ensureDb()` and all ~18 isolated stores — opens
+Every connection in the app — `ensureDb()` and all ~19 isolated stores (the newest
+is `edge-config.ts`, the always-on edge's pairing row) — opens
 through **one function**: `openStore()` in `app/_lib/db-path.ts`. That is the single
 place a backend adapter slots into. `resolveDbBackend()` lives there:
 

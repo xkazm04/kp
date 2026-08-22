@@ -96,6 +96,30 @@ that would bounce off the start route's 503. **Scheduling keeps working:**
 `proposeSlots`'s local arithmetic and reports `calendarChecked: false`, so a caller never
 claims a slot was calendar-confirmed when nothing was checked.
 
+### When Google hangs, or the at-rest key moves
+
+Two failure modes reach a **public** path — a free/busy lookup runs inside
+`GET /api/schedule/<token>`, the candidate's own booking page — so neither may throw and
+neither may block:
+
+- **Every outbound Google call is bounded at 8s.** `TIMEOUT_MS` in `google-calendar.ts`
+  covers the Calendar API; `OAUTH_TIMEOUT_MS` in `google-oauth.ts` covers the token
+  endpoint and the revoke, which the Calendar calls sit *behind* (a free/busy lookup
+  refreshes the access token first). Without the second bound a blackholed
+  `oauth2.googleapis.com` left undici's 300s header timeout as the only limit on a
+  candidate's booking page, and on the operator's Disconnect button. A timeout surfaces as
+  a `GoogleOAuthError` and degrades to the unchecked slot list.
+- **A token that no longer decrypts is treated as absent, not as an exception.** The
+  grant is AES-256-GCM ciphertext keyed on `KP_ATS_SECRET_KEY` (falling back to
+  `KP_SECRET`), so rotating either — or setting the dedicated key on an install that had
+  been using the fallback — makes the stored token unreadable. `readStoredToken` in
+  `google-calendar.ts` catches that, logs which env var to look at, and returns `null`, so
+  scheduling degrades to `calendarStatus: "unavailable"` (kp *does* still hold a grant, it
+  just cannot use it) instead of 500-ing the candidate's page. `DELETE
+  /api/calendar/google` tolerates the same failure and still drops the row, reporting
+  `revokedAtGoogle: false` — otherwise the operator would be trapped with a connection they
+  could neither use nor remove. Guarded by `app/_lib/calendar/google-calendar.test.ts`.
+
 ## ATS connections (inbound)
 
 One connection per provider — `ATS_PROVIDERS = ["recruitee", "recruitis", "teamio"]`, an

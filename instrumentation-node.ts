@@ -48,6 +48,37 @@ export async function startClock(): Promise<void> {
     } catch (e) {
       console.error("[clock] heartbeat write failed:", e);
     }
+    // COLLECT BEFORE YOU DECIDE (docs/concepts/local-first-edge.md): both inbound
+    // sweeps run BEFORE the policy pass, so a lead that arrived while this machine
+    // was off is already filed when the pass looks at the pipeline — instead of
+    // waiting a whole cadence to be seen. Independent and best-effort, like every
+    // other sweep here: a source that is down cannot stop the clock.
+    //
+    // L0 — pull the sources that can be listed. Costs nothing and needs no cloud.
+    try {
+      const { runPullPass } = await import("./app/_lib/pull-pass");
+      const pulled = await runPullPass();
+      if (pulled.applied || pulled.failed) {
+        console.log("[clock] pull pass:", JSON.stringify({ applied: pulled.applied, rejected: pulled.rejected, failed: pulled.failed }));
+      }
+    } catch (e) {
+      console.error("[clock] pull pass failed:", e);
+    }
+    // L1 — drain the edge that answered for us while we were down, then tell it we
+    // are awake. The heartbeat is sent whether or not anything drained: it is what
+    // keeps the "your studio has mail" nudge quiet while the studio is open.
+    try {
+      const { drainEdge, sendEdgeHeartbeat } = await import("./app/_lib/edge-drain");
+      const drained = await drainEdge();
+      if (drained.configured) {
+        if (drained.applied || drained.error) {
+          console.log("[clock] edge drain:", JSON.stringify({ applied: drained.applied, skipped: drained.skipped, cursor: drained.cursor, error: drained.error }));
+        }
+        await sendEdgeHeartbeat();
+      }
+    } catch (e) {
+      console.error("[clock] edge drain failed:", e);
+    }
     try {
       const { tickScheduler } = await import("./app/_lib/scheduler");
       const r = await tickScheduler();

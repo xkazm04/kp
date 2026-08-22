@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { hasOutboxSendFor, recordOutbox } from "@/app/_lib/db/devcase";
 import { isBounceOutcome } from "@/app/_lib/comms-status";
+import { recordDeliveryReceipt } from "@/app/_lib/comms-receipt";
 import { jsonError, jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import {
   secretsMatch,
@@ -99,29 +99,17 @@ export async function POST(request: NextRequest) {
     }
     claimedNonce = nonce;
     const recipient =
-      typeof body.recipient === "string" && body.recipient.trim() ? body.recipient.trim() : "(relay callback)";
+      typeof body.recipient === "string" && body.recipient.trim() ? body.recipient.trim() : null;
     // ORPHAN RECEIPTS (callback-unblocked): (ref, kind) is the ONLY key a receipt
     // carries, and the route used to validate it as merely non-empty — so a receipt
     // naming a pair kp never sent (an integrator on a different ref scheme, or a kind
     // we don't emit) was stored as truth and then displayed NOWHERE, because
     // deriveCommsView drops every bounce row that folds onto no send. That is a silent
     // integration failure: the relay reads 200 {recorded:true} while nothing lands.
-    // Now the mismatch is answered on the FIRST call. The receipt is still stored —
-    // append-only, and its orphan state is DERIVED (comms-view.ts), not frozen into a
-    // column, so it self-heals into a normal fold if the send shows up out of order —
-    // and comms-view surfaces it in the Comms Center's actionable set instead of
-    // dropping it.
-    const matched = hasOutboxSendFor(ref, kind);
-    recordOutbox({
-      recipient,
-      subject: "Delivery receipt",
-      body: detail,
-      kind,
-      channel: "relay-callback",
-      status: "bounced",
-      ref,
-    });
-    if (!matched) return jsonOk({ recorded: false, reason: "no_matching_send", stored: true, outcome });
+    // Now the mismatch is answered on the FIRST call, in the shared recording core
+    // (comms-receipt.ts) that the edge drain applies receipts through too.
+    const applied = recordDeliveryReceipt({ ref, kind, outcome, detail, recipient });
+    if (!applied.recorded) return jsonOk({ recorded: false, reason: applied.reason, stored: applied.stored, outcome });
     return jsonOk({ recorded: true, outcome });
   } catch (error) {
     // The receipt was NOT recorded (a locked/failed DB write, a thrown lookup) —

@@ -1,0 +1,17 @@
+{
+  "name": "kp-edge",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Store-and-forward edge for a local-first KP install (deploy to your own Cloudflare account)",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "schema": "wrangler d1 execute kp-edge --remote --file=./schema.sql"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260801.0",
+    "typescript": "^5",
+    "wrangler": "^4"
+  }
+}

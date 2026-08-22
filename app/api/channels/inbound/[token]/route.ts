@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTranslations } from "next-intl/server";
 import { getActiveChannelWebhook, recordChannelWebhookAccepted, recordChannelWebhookReceipt } from "@/app/_lib/db/channels";
 import { getJob } from "@/app/_lib/db/jobs";
-import { recordAutomationEvent } from "@/app/_lib/db/pipeline";
-import { recordOutreachReply } from "@/app/_lib/outreach-state-store";
-import { applyKoSteps } from "@/app/_lib/apply";
+import {
+  ingestInboundLeadJson,
+  MAX_LEAD_EMAIL_LENGTH,
+  MAX_LEAD_NAME_LENGTH,
+} from "@/app/_lib/inbound-lead";
 import { getJobStatus, isJobOpenForApplications } from "@/app/_lib/job-ingest";
-import { intakeLead } from "@/app/_lib/lead-intake";
-import { extractLead } from "@/app/_lib/lead-payload";
-import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { readTextWithLimit } from "@/app/_lib/request-body";
 import { claimWebhookIdempotency, releaseWebhookIdempotency, webhookIdempotencyKey } from "@/app/_lib/webhook-idempotency";
@@ -40,9 +38,10 @@ const MAX_INBOUND_BODY_BYTES = 64 * 1024;
 // A CV attachment is far larger than a JSON lead; the file branch fails closed on
 // content-length above this, and validateUploadServer re-checks the real size.
 const MAX_INBOUND_FILE_BYTES = 12 * 1024 * 1024;
-const MAX_NAME_LENGTH = 200;
-const MAX_EMAIL_LENGTH = 254;
-const MAX_ATTRIBUTION_LENGTH = 120;
+// The field caps live with the intake core now (inbound-lead.ts) — the multipart
+// branch below is the OTHER half of this one endpoint and must clamp identically.
+const MAX_NAME_LENGTH = MAX_LEAD_NAME_LENGTH;
+const MAX_EMAIL_LENGTH = MAX_LEAD_EMAIL_LENGTH;
 
 // Abuse containment for a public, side-effecting endpoint (each accept can
 // dispatch a candidate email). Per token+IP; ad-burst friendly, flood hostile.
@@ -199,93 +198,21 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
       return NextResponse.json({ error: "Body must be JSON." }, { status: 400 });
     }
 
-    // The webhook's pinned candidate language drives KO-step derivation (ids
-    // only — prompts are unused here), the entry locale, and the ack language.
-    const storedLang = webhook.lang ?? "";
-    const locale: Locale = isLocale(storedLang) ? storedLang : DEFAULT_LOCALE;
-    const t = await getTranslations({ locale, namespace: "apply" });
-    const expectedKoIds = applyKoSteps(job, t).map((s) => s.id);
-
-    const lead = extractLead(payload, expectedKoIds);
-    if (!lead.email || lead.email.length > MAX_EMAIL_LENGTH) {
-      // An unreachable lead defeats the channel's purpose (no enrichment loop,
-      // undeliverable comms). This is a DETERMINISTIC rejection, returned BEFORE the
-      // idempotency claim — so a byte-identical retry re-validates and gets the same
-      // actionable 422 (the field-mapping diagnostic) instead of a misleading
-      // "duplicate_ignored" 200 that would tell the integrator the lead was handled.
-      return NextResponse.json(
-        { error: "No email field could be mapped from the payload.", code: "missing_email" },
-        { status: 422 }
-      );
-    }
-
-    // Request-level idempotency: a provider retry or double-fire of the SAME valid
-    // delivery must not pile up another `re_applied`, re-dispatch the acknowledgement, or
-    // double-count the ACCEPTED lead. Claimed ONLY now that the role is open + the payload
-    // is valid, so the claim brackets exactly the real side-effects window (intakeLead +
-    // the accepted stamp). A held key short-circuits to an idempotent 200 (intakeLead also
-    // dedupes the entry by email); released in the catch if intakeLead throws, so a genuine
-    // retry re-runs. It does NOT suppress the liveness receipt — that is stamped at
-    // authentication and deliberately counts raw authenticated POSTs, retries included.
-    const idemKey = `inbound:${token}:${webhookIdempotencyKey(
-      rawBody,
-      request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
-    )}`;
-    if (!claimWebhookIdempotency(idemKey)) {
-      return NextResponse.json({ result: "duplicate_ignored", duplicate: true }, { status: 200 });
-    }
-    claimedIdemKey = idemKey;
-
-    const outcome = await intakeLead({
+    // Everything from here — KO derivation, field caps, idempotency, intake, the
+    // accepted stamp and the reply-halt — is the SHARED receiver contract, so it
+    // lives in app/_lib/inbound-lead.ts and the two clock-driven doors (pull-pass,
+    // edge-drain) reach the identical code. `requestScoped` keeps next-intl's
+    // request translator on this path, exactly as before.
+    const result = await ingestInboundLeadJson({
+      webhook,
       job,
-      // Filed into the webhook-owning team (see the CV branch above).
-      workspaceId: webhook.workspaceId,
-      name: lead.name.slice(0, MAX_NAME_LENGTH),
-      email: lead.email,
-      locale,
-      sourceChannel: webhook.channel,
-      // E5 — campaign/creative attribution forwarded by the integration.
-      sourceCampaign: lead.campaign.slice(0, MAX_ATTRIBUTION_LENGTH) || null,
-      sourceVariant: lead.variant.slice(0, MAX_ATTRIBUTION_LENGTH) || null,
-      channelLabel: `${webhook.channel} webhook`,
-      failedKoIds: lead.failedKoIds,
-      // Provided-only verdict: record as PASSED only the gates the source form
-      // actually asked and answered affirmatively — ungated ids stay unrecorded,
-      // so the enrichment chat asks them instead of assuming.
-      passedKoIds: expectedKoIds.filter(
-        (id) => !lead.failedKoIds.includes(id) && !lead.ungatedKoIds.includes(id)
-      ),
-      // The integrator's board shows "submitted"; only this comm tells the
-      // candidate the eligibility outcome (the own form shows it live instead).
-      notifyDecline: true,
-      ungatedKoIds: lead.ungatedKoIds,
-      // lead-intake appends the entry's opaque lead token before the ack goes out.
-      enrichLink: `${publicBaseUrl(new URL(request.url).origin)}/apply/${job.id}?lang=${locale}`,
+      rawBody,
+      payload,
+      idempotencyKey: request.headers.get("idempotency-key") ?? request.headers.get("x-idempotency-key"),
+      origin: new URL(request.url).origin,
+      requestScoped: true,
     });
-
-    if (outcome.result === "declined") {
-      return NextResponse.json({ result: "declined", code: "knockout_failed", failed: lead.failedKoIds });
-    }
-    // Stamp an ACCEPTED lead only for a genuinely NEW candidate — not a probe (already
-    // 422'd above), a KO-decline, or a duplicate re-apply — so the Channels "leads"
-    // metric and time-to-first-lead count real candidates, not raw POSTs.
-    if (!outcome.duplicate) recordChannelWebhookAccepted(token);
-    // W2.3 — a message from someone we already reached out to is a REPLY, and the
-    // sequence stops. Guarded on `duplicate` (a brand-new lead cannot be answering
-    // anything) and, inside the store, on having actually sent outreach first — a
-    // second portal application is a duplicate too, and halting a sequence that never
-    // ran would mark an inbound-sourced candidate as contacted. Best-effort: failing to
-    // halt must not fail the webhook, or the provider retries a lead we already filed.
-    if (outcome.duplicate) {
-      try {
-        if (recordOutreachReply(outcome.entryId, webhook.workspaceId)) {
-          recordAutomationEvent(outcome.entryId, "outreach_halted", "candidate replied", webhook.workspaceId);
-        }
-      } catch (err) {
-        console.error(`[channels:inbound] could not record a reply for entry "${outcome.entryId}":`, err);
-      }
-    }
-    return NextResponse.json({ result: "accepted", duplicate: outcome.duplicate, entryId: outcome.entryId });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     // Processing failed → the provider will retry; release the claim so the retry
     // isn't wrongly treated as a duplicate of work that never completed.

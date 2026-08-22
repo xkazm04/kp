@@ -1,9 +1,15 @@
 # Local-first KP with a costless edge — the middle ground between "laptop" and "SaaS"
 
-Status: **concept, not implemented** (2026-08-22). This doc fixes the architecture
-that lets a self-hosted, laptop-run KP keep the power of local execution (local
+Status: **L0 and L1 SHIPPED** (2026-08-22); L2–L4 remain proposals. What is built
+is documented as behaviour in `docs/features/comms/README.md` §11 (contracts,
+known gaps), `docs/architecture/self-hosting.md` §7b (egress, threat model) and
+`edge/README.md` (deploying the Worker). This document stays the DESIGN: the
+reasoning, the rungs not yet climbed, and the registry path. Deviations taken
+during the build are recorded in §11.
+
+The architecture it fixes: how a self-hosted, laptop-run KP keeps the power of local execution (local
 LLM CLIs on a subscription, connector keys that never leave the machine, one
-SQLite file of truth) **and** still behave like an always-on service where it
+SQLite file of truth) **and** still behaves like an always-on service where it
 must — inbound events, candidate-facing pages, and a nudge when work has piled
 up — without reintroducing a hosted SaaS in the path. It also fixes the path by
 which this pattern is forged into the AI registry (`../../../ai-registry`) so
@@ -84,8 +90,8 @@ is identical, only the owner of the runtime differs.
 
 | Rung | What | Cost | Closes |
 |---|---|---|---|
-| **L0 — pull on wake** | IMAP/board-API polling on boot + scheduler tick; local Claude CLI does the work | 0 | email ingestion (late but complete) |
-| **L1 — mailbox + heartbeat + nudge** | Cloudflare Worker: inbound receiver + Email Routing → log (D1/KV); heartbeat POST from the app; push via ntfy / Web Push when `unread > 0 && lastSeen > N min` | 0 (free tier) | class A, class C |
+| **L0 — pull on wake** ✅ | Pull sources on the scheduler tick, through the shared intake core | 0 | board/bridge ingestion (late but complete) |
+| **L1 — mailbox + heartbeat + nudge** ✅ | Cloudflare Worker: inbound receiver + Email Routing → D1 log; signed drain/ack; heartbeat from the clock; cron nudge to ntfy/webhook | 0 (free tier) | class A, class C |
 | **L2 — public projection** | local publishes signed per-token snapshots; edge serves `schedule/status/apply`, appends candidate actions with a tentative confirmation; local reconciles | 0 | class B |
 | **L3 — deterministic edge subset** | port the keyless fallbacks: ack templates, receiver-token routing, per-IP limits, dedupe | 0 | immediate acks |
 | **L4 — cloud brain (opt-in)** | (a) the user's own scheduled Claude Code cloud agent works the edge queue on their subscription; (b) BYO provider key at the edge (reintroduces custody — opt-in only); (c) hosted KP | user's | offline LLM work |
@@ -387,3 +393,42 @@ manifest and the skill stays unchanged.
 4. Forge the registry subject + practice starter + generic skill (§6).
 5. **L2** projection, beginning with `schedule/[token]` (highest candidate pain).
 6. Decide L4(a) after watching how often the nudge fires in practice.
+
+---
+
+## 11. Build notes — what L0/L1 actually shipped, and where it deviates
+
+Recorded here because a design doc that quietly disagrees with the code is worse
+than no design doc.
+
+- **IMAP was dropped from L0.** §3.1 named it; it needs a mail client plus a MIME
+  parser, i.e. a dependency decision rather than a code decision, and L1's Email
+  Routing handler answers the same need with no dependency at all. L0 shipped as a
+  generic HTTP pull contract instead (`GET ?since=` → `{events, cursor}`), which
+  covers board APIs and any mail-to-JSON bridge. Better trade than planned.
+- **Sealing shipped in L1, not later.** §2 rule 3 promised ciphertext at the edge
+  "for CV uploads"; the build generalized it to EVERY stored body (RSA-OAEP-wrapped
+  AES-256-GCM, `app/_lib/edge-crypto.ts`), and made it opt-in per install via
+  `POST /api/edge/pair`. Unsealed remains a legitimate state and the UI says which
+  one is true rather than implying the safer one.
+- **Mail is headers-only.** Stronger than the doc's threat model (which accepted
+  raw MIME at rest, encrypted). The cost is real and stated everywhere it is felt:
+  an emailed CV becomes a lead with a subject line, and the enrichment link does
+  the rest. Carrying attachments is a genuine feature, not a tweak.
+- **The receiver contract was extracted, not duplicated.** `app/_lib/inbound-lead.ts`
+  is now the one door; the route keeps only the HTTP-shaped parts. This was the
+  precondition that made three arrival paths safe, and it is pinned by
+  `channels-receiver-contract.test.ts`.
+- **No new status vocabulary locally.** `held-at-edge` / `deferred-to-local` from §2
+  rule 4 live on the WIRE (the Worker answers `202 {result:"held"}`) rather than in
+  `OUTBOX_STATUSES`; outbound delivery truth was never in question, and adding
+  statuses nothing transitions would have been the drift the vocabulary rule exists
+  to prevent.
+- **Pull sources have no UI yet** (`PATCH /api/channels/webhooks` only), while the
+  edge got a full Channels card. Listed in the comms doc's Known gaps.
+- **Tenancy:** `edge_config` is deployment-level and EXEMPT (sibling of
+  `comms_relay_config`); the clock's pull sweep is a named, narrow exemption in
+  `channels-tenancy.test.ts`, while the recruiter-facing half stays scoped.
+
+Next rung, unchanged: **L2** (signed public projection so `schedule/[token]` and
+friends survive a closed studio), starting with scheduling.

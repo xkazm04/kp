@@ -30,6 +30,15 @@ const receiverSrc = read("inbound", "[token]", "route.ts");
 const webhooksSrc = read("webhooks", "route.ts");
 const modalSrc = read("..", "..", "features", "hiring", "channels", "ChannelsAddReceiverModal.tsx");
 const channelsDbSrc = read("..", "..", "_lib", "db", "channels.ts");
+// L0 (docs/concepts/local-first-edge.md) moved the JSON-lead half of the receiver
+// into a shared core, so the clock's pull + drain doors reach the SAME contract
+// instead of a second copy of it. The guards below therefore read the receiver and
+// the core as ONE surface: `where()` finds a marker in whichever file owns it now,
+// and both files are still required to exist. A marker that vanished from both
+// still fails — which is the property these tests were written to hold.
+const coreSrc = read("..", "..", "_lib", "inbound-lead.ts");
+const surface = `${receiverSrc}
+${coreSrc}`;
 
 test("the liveness receipt is stamped exactly once, right after the token authenticates", () => {
   const stamps = [...receiverSrc.matchAll(/recordChannelWebhookReceipt\(token\)/g)];
@@ -43,19 +52,37 @@ test("the liveness receipt is stamped exactly once, right after the token authen
   assert.ok(rateLimitAt < stampAt, "a flood shed before the token is read must stamp nothing");
   assert.ok(authAt < stampAt, "the receipt is attributed to an AUTHENTICATED caller");
 
-  // It must precede every payload branch, so a rejected body still proves liveness.
-  for (const marker of ['contentType.includes("multipart/form-data")', '"Payload too large."', "missing_email", "intakeLead(", "duplicate_ignored"]) {
+  // It must precede every payload branch IN THE ROUTE, so a rejected body still
+  // proves liveness. The branches that moved into the core are ordered by call:
+  // the route stamps before it ever calls ingestInboundLeadJson, so every outcome
+  // the core can return is necessarily downstream of the stamp.
+  for (const marker of ['contentType.includes("multipart/form-data")', '"Payload too large."', "ingestInboundLeadJson("]) {
     const at = receiverSrc.indexOf(marker);
     assert.ok(at >= 0, `guard the guard: "${marker}" still exists in the receiver`);
     assert.ok(stampAt < at, `the receipt must be stamped before the "${marker}" branch can return unstamped`);
   }
+  for (const marker of ["missing_email", "intakeLead(", "duplicate_ignored"]) {
+    assert.ok(surface.includes(marker), `guard the guard: "${marker}" still exists on the receiver surface`);
+  }
+});
+
+test("the clock doors reach the receiver contract through the SAME core, not a copy", () => {
+  // The whole point of the extraction: three arrival paths, one implementation. If a
+  // future change re-inlines the intake into the route (or into a puller), the KO
+  // semantics, the idempotency window and the accepted/receipt stamps drift apart
+  // silently — exactly the class of bug the liveness guard above exists to catch.
+  assert.match(receiverSrc, /ingestInboundLeadJson\(/, "the route delegates the JSON branch to the core");
+  assert.doesNotMatch(receiverSrc, /intakeLead\(/, "the route must not file leads itself any more");
+  assert.match(coreSrc, /export async function ingestInboundLeadByToken/, "the token-authenticating door the clock uses");
+  // The core's own door must stamp liveness for a pulled/drained delivery too.
+  assert.match(coreSrc, /recordChannelWebhookReceipt\(input\.token\)/, "a pulled delivery proves liveness like a pushed one");
 });
 
 test("the ACCEPTED lead counter stays separate and stays gated on a real new candidate", () => {
-  const accepted = [...receiverSrc.matchAll(/recordChannelWebhookAccepted\(token\)/g)];
-  assert.equal(accepted.length, 2, "one per intake branch (CV upload, JSON lead)");
+  const accepted = [...surface.matchAll(/recordChannelWebhookAccepted\((token|webhook\.token)\)/g)];
+  assert.equal(accepted.length, 2, "one per intake branch (CV upload in the route, JSON lead in the core)");
   assert.match(receiverSrc, /if \(outcome\.created\) recordChannelWebhookAccepted/, "CV branch: only a new candidate");
-  assert.match(receiverSrc, /if \(!outcome\.duplicate\) recordChannelWebhookAccepted/, "JSON branch: never a duplicate");
+  assert.match(coreSrc, /if \(!outcome\.duplicate\) recordChannelWebhookAccepted/, "JSON branch: never a duplicate");
 });
 
 test("the documented liveness contract names the authenticated-POST boundary", () => {

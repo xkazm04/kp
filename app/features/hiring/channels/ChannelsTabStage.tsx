@@ -19,6 +19,7 @@ import type { Accent } from "./channelsAccent";
 import { ChannelEmpty } from "./ChannelsEmpty";
 import { CommsTable } from "./ChannelsCommsTable";
 import { RelayConfigCard } from "./ChannelsRelayConfigCard";
+import { EdgeConfigCard } from "./ChannelsEdgeCard";
 import { AdFormsPane } from "./ChannelsAdFormsPane";
 import { EmailIntakeWizard } from "./ChannelsEmailIntakeWizard";
 import { CopyLink, Stat } from "./ChannelsTabWidgets";
@@ -152,6 +153,10 @@ export function ChannelsTabStage({
                   AND behind its own GET, which pushed the ledger down twice — once
                   when the card mounted, again when its config landed. */}
               <RelayConfigCard />
+              {/* The INBOUND twin of the relay, and deliberately next to it: one card
+                  says where outbound messages go, the other says who answers for this
+                  install while it is switched off. */}
+              <EdgeConfigCard />
               <CommsTable />
             </div>
           ) : null}

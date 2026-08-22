@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createChannelWebhook, isWebhookChannel, listChannelWebhooks, type ChannelWebhookRecord } from "@/app/_lib/db/channels";
+import {
+  createChannelWebhook,
+  getChannelPullConfig,
+  isWebhookChannel,
+  listChannelWebhooks,
+  setChannelPull,
+  type ChannelWebhookRecord,
+} from "@/app/_lib/db/channels";
 import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { isLocale } from "@/i18n/locales";
@@ -51,6 +58,49 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to create the webhook." },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Configure the PULL half of a receiver (L0 — docs/concepts/local-first-edge.md §3.1).
+ *
+ * A receiver is push-only until a `pullUrl` is set; with one, the clock also asks the
+ * source what arrived while this machine was off, and files it through the same
+ * intake. That is the cheapest complete answer to "my studio is closed at 22:00" for
+ * any source that can be listed.
+ *
+ * Secret semantics are the repo's stored-credential contract, and the response
+ * carries `hasSecret` rather than the token:
+ *   • omitted → keep · "" → clear · any string → replace (encrypted at rest)
+ *
+ * Scoped to the owning team by setChannelPull: knowing a token is not enough to
+ * point another team's receiver at your server.
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = (await request.json().catch(() => ({}))) as { token?: unknown; pullUrl?: unknown; pullSecret?: unknown };
+    const token = String(body.token ?? "").trim();
+    if (!token) return NextResponse.json({ error: "token is required." }, { status: 400 });
+    const pullUrl = body.pullUrl === null || body.pullUrl === undefined || body.pullUrl === "" ? null : String(body.pullUrl);
+    const secret = body.pullSecret === undefined ? undefined : String(body.pullSecret);
+    // A malformed/unsafe URL throws out of the store's validation — answer 400 with
+    // the reason rather than a 500, since it is the caller's input that is wrong.
+    const ws = await currentWorkspace();
+    let ok: boolean;
+    try {
+      ok = setChannelPull(token, { url: pullUrl, secret }, ws);
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Invalid pull URL." }, { status: 400 });
+    }
+    // Same answer as an unknown token, for the same reason the receiver gives it:
+    // a caller must not be able to probe which tokens exist in another team.
+    if (!ok) return NextResponse.json({ error: "Webhook not found." }, { status: 404 });
+    return NextResponse.json({ pull: getChannelPullConfig(token, ws) });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to update the webhook." },
       { status: 500 }
     );
   }

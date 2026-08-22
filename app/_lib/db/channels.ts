@@ -1,4 +1,6 @@
 import { randomToken } from "../random-id";
+import { decryptAtsSecret, encryptAtsSecret, isEncryptedAtsSecret } from "../ats-secret";
+import { assertPublicHttpsEndpoint } from "../safe-url";
 import { ensureDb } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 
@@ -164,6 +166,171 @@ export function recordChannelWebhookAccepted(token: string): void {
             first_accepted_at = COALESCE(first_accepted_at, ?)
       WHERE token = ?`
   ).run(now, token);
+}
+
+// ---- Pull sources (L0, docs/concepts/local-first-edge.md §3.1) --------------
+
+// A receiver row with `pull_url` set is BIDIRECTIONAL: the source still may POST to
+// /api/channels/inbound/<token>, and the clock ALSO pulls it on each tick. That is
+// the whole answer to the local-first problem for sources that can be listed — a
+// delivery made while the studio was closed is not lost, it is simply collected
+// late. The row's job/lang/workspace binding is unchanged, so a pulled lead files
+// exactly where a pushed one would.
+
+/** The pull half of a receiver row. `hasSecret` follows the write-only credential
+ *  doctrine (ats-config-store): a reader learns THAT a token is set, never its value. */
+export type ChannelPullConfig = {
+  url: string | null;
+  hasSecret: boolean;
+  cursor: string | null;
+  lastPullAt: string | null;
+  lastPullError: string | null;
+};
+
+type PullRow = {
+  pull_url: string | null;
+  pull_secret: string | null;
+  pull_cursor: string | null;
+  last_pull_at: string | null;
+  last_pull_error: string | null;
+};
+
+/** One pull source as the CLOCK needs it — including the decrypted bearer token,
+ *  which is why this is server-internal and never shaped into an API response. */
+export type PullSource = {
+  token: string;
+  channel: WebhookChannelId;
+  jobId: string;
+  lang: string | null;
+  workspaceId: string;
+  url: string;
+  secret: string | null;
+  cursor: string | null;
+};
+
+/** The recruiter-side read, and therefore TENANT-SCOPED: unlike the receiver's own
+ *  by-token lookup (where the CSPRNG token IS the capability), this answers a
+ *  logged-in session, so it must not describe another team's receiver. */
+export function getChannelPullConfig(token: string, workspaceId: string): ChannelPullConfig | null {
+  const row = ensureDb()
+    .prepare(
+      `SELECT pull_url, pull_secret, pull_cursor, last_pull_at, last_pull_error
+         FROM channel_webhooks WHERE token = ? AND workspace_id = ?`
+    )
+    .get(token, workspaceId) as PullRow | undefined;
+  if (!row) return null;
+  return {
+    url: row.pull_url,
+    hasSecret: !!row.pull_secret,
+    cursor: row.pull_cursor,
+    lastPullAt: row.last_pull_at,
+    lastPullError: row.last_pull_error,
+  };
+}
+
+/**
+ * Configure (or disable) pulling for one receiver. Secret handling copies the
+ * ats-config-store contract exactly:
+ *   • `secret` omitted (undefined) → keep the stored token.
+ *   • `secret` === ""              → clear it (pulls go unauthenticated).
+ *   • any other string             → replace it (encrypted at rest).
+ * `url` === null or "" disables pulling and CLEARS the cursor — re-enabling a
+ * source later must not silently resume from a marker the source has forgotten.
+ *
+ * Scoped to the owning team (the revokeChannelWebhook precedent): this is a
+ * recruiter management action, not the public receiver, so learning a token is
+ * not enough to point another team's receiver at your server.
+ */
+export function setChannelPull(
+  token: string,
+  input: { url: string | null; secret?: string | undefined },
+  workspaceId: string
+): boolean {
+  const db = ensureDb();
+  // Validated HERE, at the write, as well as at every pull: an operator who pastes a
+  // loopback or plain-http endpoint learns immediately instead of discovering it in
+  // a `last_pull_error` fifteen minutes later. Same SSRF posture as the relay.
+  const url = input.url && input.url.trim() ? assertPublicHttpsEndpoint(input.url.trim(), "pullUrl") : null;
+  const current = db
+    .prepare(`SELECT pull_secret FROM channel_webhooks WHERE token = ? AND workspace_id = ?`)
+    .get(token, workspaceId) as { pull_secret: string | null } | undefined;
+  if (!current) return false;
+  let stored: string | null = current.pull_secret;
+  if (input.secret !== undefined) {
+    stored = input.secret === "" ? null : encryptAtsSecret(input.secret);
+  }
+  const res = db
+    .prepare(
+      `UPDATE channel_webhooks
+          SET pull_url = ?,
+              pull_secret = ?,
+              pull_cursor = CASE WHEN ? IS NULL THEN NULL ELSE pull_cursor END,
+              last_pull_error = NULL
+        WHERE token = ? AND workspace_id = ?`
+    )
+    .run(url, url ? stored : null, url, token, workspaceId);
+  return res.changes > 0;
+}
+
+/** Every active pull source across the WHOLE installation, for the clock.
+ *
+ *  GLOBAL BY DESIGN — and deliberately without a defaulted workspace parameter, so
+ *  it can never be mistaken for a tenant read (route-tenancy-coverage.test.ts pins
+ *  that distinction). The clock is one per installation and must poll every team's
+ *  sources; each row carries its own `workspaceId`, which the intake then files
+ *  into, so the sweep stays correctly scoped per LEAD without being scoped per
+ *  SWEEP. This is the same posture as the automation pass over
+ *  listActiveEntriesForAutomation. */
+export function listPullSources(): PullSource[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT token, channel, job_id, lang, workspace_id, pull_url, pull_secret, pull_cursor
+         FROM channel_webhooks
+        WHERE revoked_at IS NULL AND pull_url IS NOT NULL AND pull_url <> ''
+        ORDER BY created_at ASC`
+    )
+    .all() as {
+    token: string;
+    channel: string;
+    job_id: string;
+    lang: string | null;
+    workspace_id: string;
+    pull_url: string;
+    pull_secret: string | null;
+    pull_cursor: string | null;
+  }[];
+  return rows.map((r) => ({
+    token: r.token,
+    channel: r.channel as WebhookChannelId,
+    jobId: r.job_id,
+    lang: r.lang,
+    workspaceId: r.workspace_id,
+    url: r.pull_url,
+    // Legacy plaintext tolerated and re-encrypted on the next write (ats doctrine).
+    secret: r.pull_secret === null ? null : isEncryptedAtsSecret(r.pull_secret) ? decryptAtsSecret(r.pull_secret) : r.pull_secret,
+    cursor: r.pull_cursor,
+  }));
+}
+
+/** Record the outcome of one pull. The cursor advances ONLY on a clean pass — a
+ *  partially-applied page must be re-fetched rather than skipped, since the source
+ *  is the only thing that can replay it (the lead-intake core dedupes by email, so
+ *  a re-fetch is cheap and safe; a skipped page is a lost candidate).
+ *
+ *  `error` is stored as the last-pull truth: null CLEARS a previous failure, so the
+ *  UI never shows a stale red on a source that has since recovered. */
+export function recordPullResult(token: string, result: { cursor?: string | null; error: string | null }): void {
+  const db = ensureDb();
+  const now = new Date().toISOString();
+  if (result.error === null && result.cursor !== undefined) {
+    db.prepare(`UPDATE channel_webhooks SET last_pull_at = ?, last_pull_error = NULL, pull_cursor = ? WHERE token = ?`).run(
+      now,
+      result.cursor,
+      token
+    );
+    return;
+  }
+  db.prepare(`UPDATE channel_webhooks SET last_pull_at = ?, last_pull_error = ? WHERE token = ?`).run(now, result.error, token);
 }
 
 // ---- Channel spend (Erika gap E5) -------------------------------------------

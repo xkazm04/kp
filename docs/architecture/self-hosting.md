@@ -135,6 +135,9 @@ off). This is the list to hand your security team.
 | LightTrack | your `LIGHTTRACK_URL` | `LIGHTTRACK_URL` | off | LLM observability (self-hosted sibling). Unset ⇒ off. |
 | Sentry | your DSN's ingest host (`*.sentry.io`, or self-hosted) | `SENTRY_DSN` (server) / `NEXT_PUBLIC_SENTRY_DSN` (browser, baked at build) | off | Error reporting (`instrumentation.ts`, error boundaries). Unset ⇒ no init, no SDK load. `KP_OFFLINE=1` skips it even with a DSN set. |
 | Next.js telemetry | `telemetry.nextjs.org` | — | **off** | Disabled by `NEXT_TELEMETRY_DISABLED=1` (set in the image). |
+| Your pull sources | whatever `pullUrl` you configured on a receiver | a receiver's `pullUrl` (`PATCH /api/channels/webhooks`) | off | The clock GETs each source per tick to collect leads that arrived while KP was down (§7b). `https` + public host enforced. Clear `pullUrl` ⇒ off. |
+| Your edge | your `KP_EDGE_URL` (a Worker in **your** Cloudflare account) | `KP_EDGE_URL` + `KP_EDGE_SECRET` | off | Draining held inbound events + the presence heartbeat (§7b). Unset ⇒ off. |
+| Your nudge endpoint | your `KP_NUDGE_TARGET` | `KP_NUDGE_TARGET` | off | Contacted by the **edge**, not by KP — KP only re-publishes the target on each heartbeat. Unset ⇒ never nudged. |
 
 KP does **not** fetch fonts, scripts, or styles from a CDN at runtime — assets are
 served from the image — so it renders correctly with no internet access.
@@ -184,6 +187,47 @@ same-network gateway.
 > This is an **application-level** backstop. For a hard guarantee, still enforce a
 > **network egress policy** at the deployment layer (Kubernetes NetworkPolicy /
 > firewall / no-egress subnet) — `KP_OFFLINE` complements it, it doesn't replace it.
+
+## 7b. The always-on edge (optional companion)
+
+_Full design: `docs/concepts/local-first-edge.md`. Operator guide: `edge/README.md`.
+Behaviour and contracts: `docs/features/comms/README.md` §11._
+
+A self-hosted install that runs on a **laptop** loses inbound webhooks, candidate
+mail and bounce receipts for every hour it is switched off. Two optional
+mechanisms close that without moving any decision off your infrastructure:
+
+1. **Pull sources** — a receiver can carry a `pullUrl`; the clock asks it what
+   arrived since the last cursor and files it. No third party involved at all.
+2. **The edge** — a ~250-line Cloudflare Worker you deploy to **your own**
+   account, which accepts those events on your behalf and hands them over on the
+   next tick.
+
+What leaves your host when the edge is paired: HMAC-signed `GET /drain`,
+`POST /ack` and `POST /heartbeat` calls to the endpoint you configured. Nothing
+else — no candidate data is uploaded by KP; the edge only hands data *down*.
+
+What the edge holds: an append-only log that is **deleted as it drains**, one
+shared HMAC secret, and (optionally) your public sealing key. It holds no provider
+keys, no calendar tokens, no session secret and no database. Publish the sealing
+key and stored bodies are AES-256-GCM sealed under a key wrapped to your RSA
+public key, whose private half never leaves the host (encrypted at rest under
+`KP_SECRET`, like every stored credential).
+
+**State this honestly to your security team**: the Worker still *sees* an event in
+memory as it seals it, and always sees routing metadata (which receiver token,
+what size, when). Inbound mail is stored as headers only (sender + subject) — the
+body and attachments are never written. If that residual is unacceptable, do not
+pair an edge: pull sources alone need no third party, and running the same image
+on an always-on host inside your network removes the problem entirely.
+
+**Air-gap interaction:** `KP_OFFLINE=1` disables the edge client outright, ahead
+of any stored or env configuration (`resolveEdge`). An air-gapped install is
+therefore unaffected by anything in this section.
+
+**Region:** Workers run at the edge; D1 takes a location hint. Do not promise
+strict data residency for events *in transit* through the edge. Events at rest on
+your host remain wherever `KP_DB_PATH` lives (§4).
 
 ## 8. Production checklist (closes backlog #27)
 

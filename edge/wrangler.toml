@@ -1,0 +1,32 @@
+# The KP edge, deployed to YOUR Cloudflare account. See README.md next to this file.
+#
+# Everything referenced here is on Cloudflare's free plan at single-operator volume:
+# Workers requests, a D1 database, a cron trigger and Email Routing. KP bills none of
+# it and cannot see it — the account, the domain and the data are yours.
+
+name = "kp-edge"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# The append-only event log + the meta scratchpad (schema.sql).
+[[d1_databases]]
+binding = "DB"
+database_name = "kp-edge"
+# `wrangler d1 create kp-edge` prints this id — paste it here before deploying.
+database_id = "REPLACE_WITH_YOUR_D1_ID"
+
+[vars]
+# Minutes of silence from the install before a nudge may be sent. One nudge per
+# quiet period regardless — see scheduled() in src/index.ts.
+KP_NUDGE_AFTER_MIN = "60"
+
+# The nudge clock. Every 15 minutes is far more often than a nudge can actually
+# fire (that is what KP_NUDGE_AFTER_MIN and nudged_at bound); it just means the
+# nudge arrives promptly once the quiet period has elapsed.
+[triggers]
+crons = ["*/15 * * * *"]
+
+# KP_EDGE_SECRET is a SECRET, not a var — it never belongs in this file or in git:
+#   wrangler secret put KP_EDGE_SECRET
+# It is the same value your install holds as KP_EDGE_SECRET, and its entire power is
+# "may drain and ack this queue". No provider key, no candidate data, no database.

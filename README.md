@@ -40,6 +40,12 @@ populated Pipeline board rather than an empty shell.
 `PYTHON_CMD`). Docker and Helm alternatives, plus the production checklist, are in
 [`docs/architecture/self-hosting.md`](docs/architecture/self-hosting.md).
 
+**Laptop, home box, or hosted.** Local-first does not have to mean "my laptop":
+the same `next start` on a Raspberry Pi, a NAS or any always-on mini-PC is a full
+install with nothing switched off, and the Docker image already exists. If it *is*
+your laptop, the section below is how inbound events survive the hours it is
+closed.
+
 ### Bring your own model
 
 Every AI call routes to a provider **you** choose. Configure them in
@@ -75,6 +81,29 @@ local model server and the whole product runs with no internet at all. Both halv
 (TypeScript `fetch` guard + the Python engines' own refusal) are application
 backstops — a network policy at the deployment layer is still the real guarantee.
 
+### Always-on with a free edge (optional)
+
+Your machine is off most of the day, and three things cannot wait for it: an
+inbound webhook (the sender retries a few times, then gives up), a candidate
+email, and a delivery receipt for a bounce. You do not need a SaaS for that — you
+need an answering machine.
+
+| You want | What to do | Cost |
+| --- | --- | --- |
+| **Nothing online** | Nothing. Inbound events reach kp only while it runs, and every surface says so rather than implying otherwise. Outbound messages queue honestly. | free |
+| **A source you can poll** (a board API, a mail-to-JSON bridge) | Point a receiver at it: `PATCH /api/channels/webhooks {token, pullUrl}`. The clock asks it what arrived while you were away, on every tick. No cloud, no account. | free |
+| **Webhooks + email + "you have mail"** | Deploy the ~250-line Worker in [`edge/`](edge/README.md) to **your own** Cloudflare account (`wrangler deploy`), put `KP_EDGE_URL` + `KP_EDGE_SECRET` in `.env.local`, point your sources at it. Candidate mail arrives through Cloudflare Email Routing; a cron nudges you (ntfy, web push, mail) when events are waiting and kp has been quiet. | free on Cloudflare's free plan — Workers, D1, cron and Email Routing all included |
+| **Candidate pages up 24/7** | Not yet. See [the concept doc](docs/concepts/local-first-edge.md) — the edge serving a signed projection is designed and unbuilt. | — |
+
+**The edge holds no keys and no database.** One shared HMAC secret whose whole
+power is "may talk to this queue", and an append-only log that is *deleted* as
+your install drains it. Publish a sealing key (Channels → Edge → Enable sealing)
+and it cannot read what it holds either: bodies are AES-256-GCM sealed under a key
+wrapped to your public RSA key, whose private half never leaves your machine. It
+runs in your Cloudflare account; KP neither hosts it, sees it, nor bills it. Every
+decision — eligibility, scoring, replies — still happens on your machine, on your
+models. `KP_OFFLINE=1` disables the whole thing.
+
 ### Optional keys
 
 Only set what you actually use. Everything below is opt-in:
@@ -86,6 +115,7 @@ Only set what you actually use. Everything below is opt-in:
 | Voice interviews (`/interview/[token]`, Interview-lab) | `ELEVENLABS_API_KEY` + `ELEVENLABS_AGENT_ID`, or `OPENAI_API_KEY` for the OpenAI Realtime provider |
 | GitHub repo-signal deep dive | `GITHUB_TOKEN` (optional; raises rate limits) |
 | Encrypted provider keys in Settings | `KP_SECRET` |
+| Inbound events while kp is off (webhooks, mail, bounce receipts) | `KP_EDGE_URL` + `KP_EDGE_SECRET` — the free Worker in [`edge/`](edge/README.md), in your own Cloudflare account. Optional `KP_NUDGE_TARGET` to be told when events are waiting. |
 | A password on the operator routes | `KP_OPERATOR_PASSWORD` — **unset means the app runs fully open**. Fine locally; a production build refuses to start open unless `KP_ALLOW_OPEN=1` says you meant it. |
 | Payment plans | `POLAR_*` — only for running KP *as a paid service*. Unset (the normal case) means nothing is metered. |
 
@@ -193,7 +223,11 @@ The script creates the Conversational AI agent straight from the API (multilingu
 ### Environment reference
 
 Every variable, grouped and commented, lives in [`.env.example`](./.env.example) —
-copy it to `.env.local` and fill in only what you use. Two notes worth repeating
+copy it to `.env.local` and fill in only what you use. Or let the agent do it:
+run `claude` in the checkout and type `/onboarding` — it probes what you have
+installed, asks which capabilities you actually want, writes `.env.local`, boots
+the app to verify, and hands back a matrix of what is on, what is limited and
+exactly which variable lifts each limit. Two notes worth repeating
 here because they surprise people:
 
 - `ANTHROPIC_API_KEY` is deliberately **not** part of the setup. The Claude CLI

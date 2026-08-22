@@ -60,6 +60,18 @@ Three mutually exclusive, terminal states:
 If `queued` ever appears *with* a relay configured, that is a bug, not a
 pending send — nothing in the system transitions a `queued` row.
 
+**The edge does not add a fourth status.** An install paired with an always-on
+edge (§11) can have inbound events *held* remotely, but nothing about an
+OUTBOUND message changes: it is still `queued`, `sent` or `failed` here, decided
+here. What the edge introduces is a held state on the INBOUND side, and it lives
+on the wire rather than in this vocabulary — the Worker answers `202
+{result:"held"}` to a source, never `200 {result:"accepted"}`, because the
+eligibility decision has not happened yet and an integrator's log must not read
+as though a candidate was filed. A bounce receipt that arrives while the studio
+is closed is likewise *held*, then recorded through the ordinary
+`recordDeliveryReceipt` core the moment the clock drains it — the Comms Center
+sees the same `bounced` row it would have seen live, only later.
+
 ## 3. Webhook failures: retry and dead-letter
 
 No durable queue or background worker — retries happen inline, bounded,
@@ -244,6 +256,115 @@ param into the `NEXT_LOCALE` cookie, and without it the page resolved from a coo
 candidate does not have and then from `Accept-Language`, opening the erasure explainer
 in a language they never chose. Locked by `comms-dispatch-links.test.ts`.
 
+## 11. Inbound when the studio is off: pull sources and the always-on edge
+
+_Design and the full ladder: `docs/concepts/local-first-edge.md`. What follows is
+what is IMPLEMENTED._
+
+kp is local-first: the database, the model keys and every decision live on the
+operator's machine, and that machine is off most of the day. Every inbound channel
+was PUSH-only, so a lead delivered at 22:00 was not late, it was **lost** — the
+source retried into a dead socket and gave up. Two doors now close that, and
+neither of them moves a decision off this machine.
+
+### One receiver contract, three doors
+
+The JSON-lead half of the receiver lives in `app/_lib/inbound-lead.ts`
+(`ingestInboundLeadJson`, and `ingestInboundLeadByToken` for callers that hold a
+token but no HTTP request). The live route
+(`app/api/channels/inbound/[token]/route.ts`) keeps only what is genuinely HTTP —
+the rate limiter, the body-size reader and the multipart/CV branch — and calls the
+core for everything else. So a pushed, pulled and drained lead get the same KO
+semantics, the same idempotency window, the same receipt/accepted stamps and the
+same reply-halt, by construction rather than by discipline. Pinned by
+`channels-receiver-contract.test.ts`.
+
+### L0 — pull sources (no cloud, no account, no dependency)
+
+A receiver row is now bidirectional. Set `pull_url` on it and the clock, on every
+tick, asks that source what has arrived since the stored cursor and files it
+through the core (`app/_lib/pull-pass.ts`, wired in `instrumentation-node.ts`
+BEFORE the policy pass so a lead collected on wake is already visible to the same
+tick's automation).
+
+The contract an integrator implements:
+
+```
+GET <pull_url>[?since=<cursor>]        Authorization: Bearer <pull_secret>
+200 { "events": [ { "id": "…", "payload": { …lead… } } ], "cursor": "…" }
+```
+
+`payload` is exactly the body that source would have POSTed to the receiver, so a
+source that already speaks push speaks pull for free; a bare array of leads (no
+envelope) is accepted as itself. `cursor` is opaque and source-owned. The source's
+`id` becomes the idempotency key when present, else the payload bytes are hashed.
+
+Rules that matter: the cursor advances **only on a clean pass** (a 5xx-class
+failure re-asks the same window next tick rather than skipping it — the source is
+the only thing that can replay it); a page is clamped to 50 events and 1 MB with a
+15 s timeout; the URL is validated `https`-and-public at write AND at every pull
+(the relay/ATS SSRF posture); a failure is recorded on the row as
+`last_pull_error` and cleared by the next clean pull, never left sticky.
+
+Configuration is API-only today: `PATCH /api/channels/webhooks`
+`{token, pullUrl, pullSecret}` (team-scoped; secret semantics are the usual
+omit-keeps / `""`-clears / string-replaces, encrypted at rest). There is no UI for
+it yet — see Known gaps.
+
+**IMAP is deliberately absent.** It needs a mail dependency and a MIME parser,
+which is a dependency decision, not a code decision — and the edge's Email Routing
+handler below answers the same need with none. A mail-to-JSON bridge that speaks
+the contract above works today.
+
+### L1 — the always-on edge
+
+An optional ~250-line Cloudflare Worker (`edge/`, deployed to the operator's OWN
+account, free tier) accepts webhooks, candidate mail and delivery receipts while
+this install is off, holds them in an append-only log, and hands them over on the
+next tick. `app/_lib/edge-drain.ts` is the local half.
+
+What the edge is **not**: it holds no candidate database (the log is DELETED as it
+drains), no provider keys, no session secrets — one shared HMAC secret whose whole
+power is "may talk to this queue". Once the install publishes a sealing key
+(Channels → Edge → Enable sealing, `POST /api/edge/pair`), it cannot read what it
+stores either: bodies are AES-256-GCM sealed under a key wrapped to the install's
+public RSA key (`app/_lib/edge-crypto.ts`), and the private half never leaves the
+machine. `edge_config` is a deployment-level table, exempt in `tenancy.ts` for the
+same reason `comms_relay_config` is; the leads it produces are filed into the
+workspace of the RECEIVER TOKEN they were addressed to, by the core.
+
+The loop, and why the order is load-bearing:
+
+| Step | Call | Why here |
+|---|---|---|
+| 1 | `GET /drain?since=&limit=` (signed) | events in sequence order |
+| 2 | apply each through the same cores a live request uses | the decision stays local |
+| 3 | `POST /ack {upto}` (signed) | **only after** applying — a crash between 2 and 3 replays harmlessly (idempotency key + email dedupe); a crash between 3 and 2 would lose a candidate silently |
+| 4 | `POST /heartbeat` (signed) | presence; this is what keeps the nudge quiet |
+
+A deterministic refusal (unknown token, closed role, no mappable email, a kind
+this version does not understand) is **handled** and advances the cursor — a retry
+would only reproduce it. Anything 5xx-class **holds**: the page stops at the last
+good sequence and the operator gets a reason on the Channels card.
+
+Signing is the relay/ATS scheme: `x-kp-timestamp` (epoch ms, ±5 min) plus
+`x-kp-signature` = HMAC-SHA256 of `<timestamp>.<signed>`, where `<signed>` is the
+body for a POST and the path+query for a GET. Both halves of that choice are
+pinned across the two runtimes by `edge-drain.test.ts`.
+
+**The nudge** — "your studio needs to run" — lives on the Worker's cron, not here,
+for the obvious reason: the machine that is switched off cannot be the machine
+that notices it is switched off. One nudge per quiet period (`nudged_at` is
+cleared by the next heartbeat), carrying COUNTS, never names.
+
+**Mail is stored as headers only** (sender + subject). An emailed CV therefore
+arrives as a *lead* whose acknowledgement carries the enrichment link, not as a
+parsed candidate — carrying attachments would mean storing the body, which is the
+one thing this design refuses to do.
+
+`KP_OFFLINE=1` disables the edge entirely, ahead of any config: air-gapped means
+air-gapped.
+
 ## Configuration summary
 
 | Variable | Direction | Unset (honest default) | Set |
@@ -252,6 +373,9 @@ in a language they never chose. Locked by `comms-dispatch-links.test.ts`.
 | *(Channels tab → Relay config)* | outbound | same as above until a URL is saved | stored URL + optional secret; HMAC-signed sends |
 | `COMMS_CALLBACK_SECRET` | inbound receipts | `POST /api/comms/callback` answers `503` (fail-closed) | relay receipts accepted with header auth + timestamp + nonce guard |
 | `EMAIL_INBOUND_DOMAIN` | inbound email | the Email intake wizard shows the HTTP receiver URL and says forwarding isn't wired | wizard hands out `<token>@<domain>`, routed to `POST /api/channels/inbound/<token>` |
+| `KP_EDGE_URL` + `KP_EDGE_SECRET` | inbound (all kinds) | **inbound events reach this install only while it is running** — the honest local-first default; the Channels → Edge card says "Not paired" | the clock drains the edge every tick: webhooks, mail and bounce receipts that arrived while the studio was closed are filed on wake (§11) |
+| *(Channels tab → Edge card)* | inbound | same as above until a URL is saved | stored URL + secret (encrypted at rest), env wins when both are set |
+| `KP_NUDGE_TARGET` | inbound | the edge still holds and counts; it just never tells you | the edge POSTs "N events waiting" to this endpoint after a quiet period — counts, never names |
 
 ## Surface
 
@@ -396,6 +520,22 @@ already returns alongside the entries. Both rules are pinned by
   ternary, which handles only `anonymized` and treats everything else as a consent
   lapse. Both halves want the same change: carry the delivery status in
   `OutreachResult` and map every reason 1:1 at the consumer.
+- **Pull sources have no UI.** `PATCH /api/channels/webhooks` is the only way to
+  set `pullUrl` / `pullSecret`; the receiver table shows neither the pull URL nor
+  `last_pull_error`, so a source that has been failing for a week is visible only
+  in the clock's log. The Edge card (§11) is the model for what this needs.
+- **The edge cannot carry a CV.** Mail is headers-only by design, so an emailed
+  attachment is not extracted — the candidate has to follow the enrichment link.
+  Closing this means sealing the body at the edge and extracting locally on drain,
+  which is a real feature, not a tweak.
+- **Candidate-facing pages are still dark while the studio is off.** The edge
+  answers for INBOUND events only; `schedule/[token]`, `status/[token]` and
+  `apply/[id]` are unreachable when the machine is off. That is L2 in
+  `docs/concepts/local-first-edge.md` (a signed projection the install publishes)
+  and is not built.
+- **One drain, one cursor, one machine.** Two installs draining the same edge would
+  race on the cursor; a multi-operator deployment should run the runtime on one
+  always-on host rather than pairing several laptops to one edge.
 - No durable retry queue — retries are inline/bounded within the request;
   `comms.log` is not yet shipped to an external alerting sink.
 - Positive/soft bounce-callback outcomes (delivered/opened/deferred) are
