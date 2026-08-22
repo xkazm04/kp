@@ -85,8 +85,18 @@ export const OBLIGATIONS: readonly ObligationRow[] = [
     article: "Art. 14",
     title: "Human oversight",
     posture: "enforced",
+    // The kill-switch clause used to read "a kill switch arms and confirms separately".
+    // Both halves were false against the code, so both were corrected rather than
+    // softened: the pause fires on a SINGLE click by deliberate design (an oversight
+    // control that needs a second confirm cannot stop anything instantly — the
+    // arm/confirm guard sits on Reconcile, which mutates lifecycle state), and it is
+    // read by the case-lifecycle orchestrator only, not by the timed passes the server
+    // clock drives. The scope limit is stated as a gap instead of being implied away:
+    // a reviewer reading Art. 14 is looking for an Art. 14(4)(e) stop control, and must
+    // not come away believing this one reaches every automated pass.
     summary:
-      "No candidate is rejected, advanced or offered by the machine alone. Bulk rejections need a signed human approval that the server recomputes and refuses if the cohort drifted; unattended automation queues rejections for a person rather than executing them; advance-top-N stops before Offer; governed evaluation modes cannot be downgraded to auto-seal; a kill switch arms and confirms separately.",
+      "No candidate is rejected, advanced or offered by the machine alone. Bulk rejections need a signed human approval that the server recomputes and refuses if the cohort drifted; unattended automation queues rejections for a person rather than executing them; advance-top-N stops before Offer; governed evaluation modes cannot be downgraded to auto-seal; and an operator can halt the automated case lifecycle on a single click, with no confirmation step in the way of stopping it.",
+    gap: "That pause halts the automated case lifecycle. The scheduled passes the server runs on a timer — the scheduling policy pass, interview and offer reminders, offer expiry, and the consent-expiry anonymisation sweep — are not yet wired to it and keep running while it is paused, so it is not a single stop control over every automated process.",
   },
   {
     article: "Art. 15",

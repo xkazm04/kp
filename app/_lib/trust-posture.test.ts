@@ -60,6 +60,35 @@ test("the two articles kp leads on are the two it claims as enforced", () => {
   assert.equal(byArticle["Art. 14"], "enforced");
 });
 
+test("the Art. 14 kill-switch clause matches the control that actually exists", () => {
+  // Pinned like the subprocessor invariant below, and for the same reason: this is the
+  // sentence a procurement/DPO reviewer reads as an Art. 14(4)(e) stop control, so it
+  // must not drift back into describing a control the code does not implement.
+  //
+  // Two facts it is pinned against:
+  //  1. The pause is SINGLE-CLICK by design — app/control/AutonomyBar.tsx says so in a
+  //     comment ("an oversight surface must be able to halt automation instantly"); the
+  //     arm/confirm guard is on Reconcile, which mutates lifecycle state. The old claim
+  //     "a kill switch arms and confirms separately" described the opposite control.
+  //  2. It is SCOPED — getAutonomy() (app/_lib/dev-control.ts) has exactly one
+  //     behavioural consumer, the case-lifecycle orchestrator. The timed passes in
+  //     instrumentation-node.ts (policy pass, interview reminders, offer lapse, offer
+  //     reminders, consent anonymisation) never read it, so the scope has to be a
+  //     stated gap rather than an unstated one.
+  const art14 = OBLIGATIONS.find((r) => r.article === "Art. 14");
+  assert.ok(art14, "Art. 14 row is missing");
+  assert.doesNotMatch(
+    art14.summary,
+    /arms and confirms/i,
+    "the pause fires on a single click by design; only Reconcile arms and confirms",
+  );
+  assert.match(art14.summary, /single click/i, "the single-click property must be stated, not implied");
+  assert.ok(
+    art14.gap && /paus/i.test(art14.gap),
+    "an enforced row whose stop control is scoped must still name that scope as a gap",
+  );
+});
+
 test("every subprocessor is optional — the self-host path must stay real", () => {
   // kp advertises an air-gapped install. A mandatory external processor would make that
   // claim false, so the invariant is checked rather than trusted.

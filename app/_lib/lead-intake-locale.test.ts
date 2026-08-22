@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createTranslator } from "next-intl";
+import type { Locale } from "@/i18n/locales";
 import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { intakeLead } from "./lead-intake.ts";
 import { getPipelineEntry } from "./db/pipeline.ts";
@@ -37,7 +38,7 @@ test("a lead applying in Czech files with locale 'cs' and is acknowledged in Cze
   assert.ok(entry, "the lead filed a pipeline entry");
   assert.equal(entry.locale, "cs", "the applicant's explicit language choice is persisted on the entry");
 
-  const catalog = (locale: string) =>
+  const catalog = (locale: Locale) =>
     createTranslator({
       locale,
       messages: JSON.parse(readFileSync(path.join(process.cwd(), "messages", `${locale}.json`), "utf-8")),

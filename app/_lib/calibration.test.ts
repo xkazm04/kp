@@ -247,6 +247,32 @@ test("recommendation is null when the near-floor bands are too sparse to defend"
   assert.equal(recommendScreeningThreshold(pairs, cleanBelow(3, 0), 45), null);
 });
 
+// THE TOP OF THE SCALE. The above-floor band is clamped to `min(100, T + bandWidth)`,
+// so any floor at 90+ produced `[T, 100)` — a band that could not see a perfect 100.
+// The advice is one click from the live auto-reject floor, so a band blind to its own
+// best candidates is not a rounding detail.
+test("the above-floor band at the top of the scale INCLUDES a perfect 100", () => {
+  // Floor 95. Eight 97s advanced 1/8 — a textbook "raise". Five 100s all advanced, so
+  // the band's real rate is 6/13 = 46%, ABOVE the 40% gate: there is nothing to advise.
+  // NON-VACUITY: with `score < 100` the five 100s vanished and this returned
+  // { direction: "raise", suggestedThreshold: 100 } off an 12.5% rate.
+  const cleanArm = bandPairs(90, 4, 4); // [85,95), 8 spared, 50% — no "lower" either
+  const pairs: ScoreOutcome[] = [
+    ...bandPairs(97, 1, 7),
+    ...bandPairs(100, 5, 0),
+    ...bandPairs(20, 0, 20), // padding for the overall gate, far below the floor
+  ];
+  assert.equal(recommendScreeningThreshold(pairs, cleanArm, 95), null);
+
+  // And when the 100-scorers fail too, the raise still fires — over ALL thirteen.
+  const allFail: ScoreOutcome[] = [...bandPairs(97, 1, 7), ...bandPairs(100, 0, 5), ...bandPairs(20, 0, 20)];
+  const rec = recommendScreeningThreshold(allFail, cleanArm, 95);
+  assert.ok(rec);
+  assert.equal(rec!.direction, "raise");
+  assert.equal(rec!.n, 13, "the 100-scorers are inside the top band, not outside every band");
+  assert.equal(rec!.advanceRatePct, 8); // 1/13
+});
+
 test("recommendation is null when adjacent bands are unremarkable (~50/50)", () => {
   const pairs: ScoreOutcome[] = [
     ...bandPairs(40, 5, 5), // below floor in the contaminated arm — ignored by design
@@ -313,6 +339,21 @@ test("band membership mirrors the recommendation's [lo, hi): hi is exclusive", (
   const eff = computeThresholdEffect(pairs, { lo: 35, hi: 45 }, APPLY);
   assert.ok(eff);
   assert.equal(eff!.after!.n, 8, "score 45 (== hi) and 34 (< lo) are excluded");
+});
+
+test("a sealed TOP-of-scale band measures its 100-scorers on the side they happened", () => {
+  // The band a recommendation sealed must later be measured with the membership it
+  // was argued from. NON-VACUITY: with `score >= hi` excluded, the four 100s were
+  // dropped and the after-side read n=8 / 0% instead of n=12 / 33%.
+  const pairs: ScoreOutcomeAt[] = [
+    ...Array.from({ length: 8 }, () => at(97, 0, AFTER)),
+    ...Array.from({ length: 4 }, () => at(100, 1, AFTER)),
+  ];
+  const eff = computeThresholdEffect(pairs, { lo: 95, hi: 100 }, APPLY);
+  assert.ok(eff);
+  assert.equal(eff!.after!.n, 12);
+  assert.equal(eff!.after!.advanced, 4);
+  assert.equal(eff!.after!.advanceRatePct, 33);
 });
 
 test("a pair with a malformed timestamp is dropped, never misattributed to a side", () => {

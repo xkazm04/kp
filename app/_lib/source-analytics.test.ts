@@ -108,6 +108,44 @@ test("worst performers sort first", () => {
   );
 });
 
+test("a variant younger than the observation window is not flagged on the GROUP's clock", () => {
+  // A creative added to a long-running group. The group has run for 10 days, so the
+  // group clock is satisfied — but v3 has existed for two hours, and its 1% share is
+  // an artifact of that, not a verdict. NON-VACUITY: with the group clock as the only
+  // gate this returned one recommendation for v3 ("holds 1% of 101 leads"), under
+  // copy that promises "after 72 hours of data".
+  const JUST_LAUNCHED = new Date(NOW - 2 * H).toISOString();
+  const recs = variantPauseRecommendations(
+    [variant("v1", 60), variant("v2", 40), variant("v3", 1, { firstLeadAt: JUST_LAUNCHED })],
+    NOW
+  );
+  assert.deepEqual(recs, []);
+
+  // …and the same variant IS judged once its own clock clears the window.
+  const matured = variantPauseRecommendations(
+    [variant("v1", 60), variant("v2", 40), variant("v3", 1)],
+    NOW
+  );
+  assert.equal(matured.length, 1);
+  assert.equal(matured[0].variant, "v3");
+});
+
+test("a starving variant that DID land leads is never reported as a flat 0%", () => {
+  // 1 lead in 201 is 0.5%. NON-VACUITY: Math.round(0.4975) is 0, so the line read
+  // "holds 0% of 201 leads" about a variant that produced a real lead.
+  const recs = variantPauseRecommendations([variant("v1", 200), variant("v2", 1)], NOW);
+  assert.equal(recs.length, 1);
+  assert.equal(recs[0].groupTotal, 201);
+  assert.equal(recs[0].leadSharePct, 0.5);
+  // Sub-1% shares stay distinguishable, so "worst performers first" still orders them.
+  const many = variantPauseRecommendations(
+    [variant("v1", 996), variant("v2", 2), variant("v3", 1), variant("v4", 4)],
+    NOW
+  );
+  assert.deepEqual(many.map((r) => r.variant), ["v3", "v2", "v4"]);
+  assert.deepEqual(many.map((r) => r.leadSharePct), [0.1, 0.2, 0.4]);
+});
+
 test("an unobservable group (no parseable first lead) flags nothing", () => {
   const recs = variantPauseRecommendations(
     [variant("v1", 11, { firstLeadAt: null }), variant("v2", 1, { firstLeadAt: "garbage" })],

@@ -29,8 +29,9 @@ export type VariantRecommendation = {
 //   - a creative group = one (job × campaign): the variants competing for the
 //     same audience;
 //   - judge only after MIN observation: ≥ minVariants competing, ≥ minGroupLeads
-//     leads landed, and ≥ observeHours since the group's FIRST lead (younger
-//     data flags nothing — early noise isn't a verdict);
+//     leads landed, ≥ observeHours since the group's FIRST lead, AND ≥ observeHours
+//     since THIS VARIANT's first lead (younger data flags nothing — early noise
+//     isn't a verdict);
 //   - flag a variant whose lead share is under fairShareFactor × its fair split
 //     (with 4 variants, fair = 25%, flagged under 12.5%).
 // A RECOMMENDATION, never an actuator — the recruiter pauses the ad, not kp.
@@ -52,6 +53,16 @@ export function medianHours(durationsMs: readonly number[]): number | null {
   return Math.round((ms / 3_600_000) * 10) / 10;
 }
 
+/** The lead share a recruiter reads ("holds {sharePct}% of {groupTotal} leads").
+ *  Whole percent, EXCEPT that a variant which DID land leads is never reported as a
+ *  flat 0: one lead in 201 is 0.5%, and `Math.round` printed that as "holds 0% of 201
+ *  leads" — a false statement about a real number, and a sort key that collapsed every
+ *  sub-1% variant into one tie so "worst performers first" ordered them arbitrarily. */
+function sharePct(share: number): number {
+  const whole = Math.round(share * 100);
+  return whole > 0 ? whole : Math.round(share * 10_000) / 100;
+}
+
 export function variantPauseRecommendations(
   rows: readonly VariantStat[],
   nowMs: number
@@ -64,28 +75,41 @@ export function variantPauseRecommendations(
     else groups.set(key, [row]);
   }
 
+  const observeMs = VARIANT_RULE.observeHours * 3_600_000;
+  const observedFor = (v: VariantStat): number => {
+    const first = v.firstLeadAt ? Date.parse(v.firstLeadAt) : NaN;
+    return Number.isFinite(first) ? nowMs - first : NaN;
+  };
+
   const recommendations: VariantRecommendation[] = [];
   for (const group of groups.values()) {
     if (group.length < VARIANT_RULE.minVariants) continue;
     const groupTotal = group.reduce((sum, v) => sum + v.total, 0);
     if (groupTotal < VARIANT_RULE.minGroupLeads) continue;
-    // Observation clock = the group's earliest lead. A group with no parseable
-    // first-lead timestamp is unobservable — flag nothing.
-    const firstLeadTimes = group
-      .map((v) => (v.firstLeadAt ? Date.parse(v.firstLeadAt) : NaN))
-      .filter((ms) => Number.isFinite(ms));
-    if (firstLeadTimes.length === 0) continue;
-    if (nowMs - Math.min(...firstLeadTimes) < VARIANT_RULE.observeHours * 3_600_000) continue;
+    // Group clock = the group's earliest lead: how long the COMPARISON has been
+    // running. A group with no parseable first-lead timestamp is unobservable —
+    // flag nothing.
+    const groupAges = group.map(observedFor).filter((ms) => Number.isFinite(ms));
+    if (groupAges.length === 0) continue;
+    if (Math.max(...groupAges) < observeMs) continue;
 
     const flagBelow = (1 / group.length) * VARIANT_RULE.fairShareFactor;
     for (const v of group) {
+      // …and each variant is judged on ITS OWN clock (VariantStat.firstLeadAt is
+      // documented as exactly that). On the group clock alone, a creative added to a
+      // long-running group was flagged the moment it appeared: 60/40/1 leads with the
+      // third variant two hours old flagged that variant at a 1% share, under copy
+      // that promises "after 72 hours of data". Early noise isn't a verdict — for the
+      // group OR for the variant inside it.
+      const age = observedFor(v);
+      if (!Number.isFinite(age) || age < observeMs) continue;
       const share = v.total / groupTotal;
       if (share < flagBelow) {
         recommendations.push({
           jobTitle: v.jobTitle,
           campaign: v.campaign,
           variant: v.variant,
-          leadSharePct: Math.round(share * 100),
+          leadSharePct: sharePct(share),
           groupTotal,
         });
       }

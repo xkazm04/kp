@@ -225,6 +225,28 @@ means `LIMIT 300` (a supplied one caps at 500), so a workspace carrying more vis
 than that had its capacity numerator silently truncated to the cap and shipped as `measured` in
 the pack. Identical on the seeded corpus (100 either way); it only diverges above the cap.
 
+**…but the count is still the wrong TIER (open).** `listCorpusJobs(ws)` enumerates the dual-tier
+predicate `workspace_id IS NULL OR workspace_id = ws`, and the ~100 seeded rows every tenant
+matches against are `workspace_id IS NULL`. So on the shipped database a workspace that has
+authored **zero** live roles and carries one recruiter reports `100 roles/recruiter`,
+`status: measured`, basis *"100 open roles carried by 1 recruiter"* — a per-team capacity figure
+that is byte-identical for every tenant, under a pack whose own disclaimer says *"Figures
+describe this workspace's own recorded activity."* `countOpenRoles(ws)` (`db/jobs.ts`) returns
+`{ own, corpus, visible }` precisely so the call site can choose; the choice (almost certainly
+`own`) and a `basis` string that **names the tier** are both still to be made, in
+`app/api/analytics/metric-pack/route.ts` + the `analytics.metricPack.basis.*` catalog keys.
+
+**The variant pause heuristic judges each creative on its own clock.**
+`variantPauseRecommendations` (`app/_lib/source-analytics.ts`) gates a group on the *group's*
+earliest lead — how long the comparison has run — **and** each variant on **its own**
+`firstLeadAt`, the field's documented meaning. On the group clock alone, a creative added to a
+long-running group was flagged the moment it appeared (60/40/1 leads with the third variant two
+hours old flagged that variant at a 1 % share) under copy that promises *"after 72 hours of
+data"*. Same rule for the share it prints: whole percent, except that a variant which **did**
+land leads is never reported as a flat `0` — one lead in 201 is 0.5 %, and `Math.round` printed
+*"holds 0% of 201 leads"* about a real lead, and tied every sub-1 % variant together so
+"worst performers first" ordered them arbitrarily. `VARIANT_RULE`'s values are untouched.
+
 ## Quality — calibration honesty
 
 `sections/QualityInstrument.tsx` answers the question that comes before every decision below
@@ -289,6 +311,15 @@ it: should this score be allowed to decide at all.
   stating this is absence of evidence, not endorsement of the current floor; an empty
   `familyFloors` map says every family screens at the global floor; a suggestion off a
   high-leakage arm carries its contamination caveat beside the Apply button.
+- **A score band is `[lo, hi)` — except at the top of the scale, where it closes.**
+  `recommendScreeningThreshold` builds its above-floor band as `[T, min(100, T + bandWidth))`,
+  so any floor at 90+ produced a band that could not see a perfect 100. With a floor at 95,
+  eight 97s that mostly failed read as a textbook *"raise the floor to 100"*, while five 100s
+  that all advanced — which put the band's real rate at 6/13 = 46 %, above the `lowRate` gate,
+  i.e. *nothing to advise* — were invisible to the arithmetic that a single click applies to the
+  live auto-reject floor. One `inBand()` predicate now decides membership, closing at `100`, and
+  `computeThresholdEffect` uses the **same** one, so a sealed `[95,100]` band is later measured
+  with exactly the membership it was argued from. Interior bands are unchanged.
 - **The verdict states its scope, and reports the hire question separately.**
   `sections/QualityInstrument.tsx` reads both arms on the **advance** axis by construction, so
   its verdict is a claim about *advancing past screening*, with Interview / Offer / Hired as one
@@ -636,6 +667,33 @@ Two call sites were still doing that and are pinned by `analytics-custom-axis.te
 
 ## Known gaps
 
+- **The metric pack's `time_to_hire` sample counts a bigger population than the median was
+  measured over.** `metric-pack.ts` samples that metric with `input.hired`, but
+  `medianTimeToHireDays` / `avgTimeToHireDays` are computed in `db/analytics.ts` over the
+  narrower `tth` set — terminal rows that ALSO carry `created_at`, `stage_changed_at` and a
+  non-negative duration. On the shipped database 9 entries stand on `Hired` and 4 of them have
+  no `stage_changed_at`, so the median rests on **5** observations while the pack prints
+  *"Median days from first contact to hire, over 9 hires"*, `sample: 9`, `status: measured` —
+  9 clears `MIN_SAMPLE = 8`, 5 does not, so a `certifiable` pack is published off a sample the
+  pack's own contract calls thin. `status: measured` has to mean measured. Closing it means
+  `pipelineAnalytics` returning the tth count (it has it in hand) and the route passing that as
+  the sample; `metric-pack.ts` cannot see the divergence from its current input shape.
+- **`recruiter_capacity` is a point-in-time snapshot published under a windowed header.**
+  `?days=90` prints *"Window: last 90 days"* over every row, but capacity's two terms
+  (open roles, membership roster) are current counts with no window applied — the only row in
+  the pack that is not a figure about the stated period, and its `basis` names no period either.
+  (`cost_per_hire` is windowed-aware in the honest direction: spend is lifetime, so the route
+  returns `null` and the pack says `not_measurable` rather than dividing a lifetime numerator by
+  a windowed denominator.)
+- **The metric-pack route's capacity comment argues the wrong way round.**
+  `app/api/analytics/metric-pack/route.ts`: *"inflating the denominator would understate
+  capacity, which is the direction that flatters us."* A capacity metric is roles **per**
+  recruiter, so a larger denominator gives a **lower** ratio — the *un*flattering direction —
+  and the narrow `CARRYING_ROLES` set is therefore the flattering choice, not the cautious one
+  the comment claims. The same sentence also mis-names the set: it says *"Owners and admins"*
+  while the code is `new Set(["owner", "recruiter"])`, which excludes `admin` and includes
+  `recruiter` (`MEMBER_ROLES` in `app/_lib/auth/roles.ts`). The numbers are unaffected; the
+  stated reasoning is not.
 - **Quality presents the auto-reject floor as *in force* — the payload now says otherwise, the
   panels still do not read it.** `/api/analytics/calibration` ships `currentThreshold =
   effectiveFloor(screening, family)`, a plain number falling back to

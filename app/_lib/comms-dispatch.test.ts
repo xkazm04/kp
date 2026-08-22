@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createTranslator } from "next-intl";
+import { LOCALES, type Locale } from "@/i18n/locales";
 
 // SIM3 — pins the `comms.*` catalog: comms-dispatch loads messages dynamically
 // (so its keys type as `never` and the compiler can't check them), so render
@@ -27,12 +28,11 @@ type Catalog = {
   (key: string, values?: Record<string, string | number>): string;
   has: (key: string) => boolean;
 };
-function translator(locale: string, namespace: string): Catalog {
+function translator(locale: Locale, namespace: string): Catalog {
   const messages = JSON.parse(readFileSync(path.join(ROOT, `${locale}.json`), "utf-8"));
   return createTranslator({ locale, messages, namespace }) as unknown as Catalog;
 }
 
-const LOCALES = ["en", "cs", "de", "fr"] as const;
 
 // SOURCE GUARD: every key comms-dispatch.ts renders through its `comms` translator
 // (`t("…")`) and its `apply` translator (`ta("…")`) must EXIST in all four catalogs.

@@ -180,6 +180,32 @@ export function computeCalibrationCohorts(
  *  many decided candidates before its advance rate is signal, not noise. */
 export const MIN_CALIBRATION_BAND_OUTCOMES = 8;
 
+/** The top of the match-score scale. Bands are half-open [lo, hi) so adjacent bands
+ *  can't double-count a candidate — but the band at the TOP of the scale has no
+ *  neighbour above it, so a half-open top edge puts a perfect 100 in NO band at all. */
+const MAX_SCORE = 100;
+
+/**
+ * Band membership on the 0-100 score scale: [lo, hi), EXCEPT that a band whose upper
+ * edge IS the top of the scale is closed at 100.
+ *
+ * Why the exception is not a nicety: `recommendScreeningThreshold` builds its
+ * above-floor band as `[T, min(100, T + bandWidth))`, so any floor at 90 or above
+ * produced a band that silently dropped every 100-scorer. With a floor at 95, eight
+ * 97s that mostly failed read as a textbook "raise the floor to 100", while the five
+ * 100s that all advanced — which put the band's real rate at 6/13 = 46%, ABOVE the
+ * lowRate gate, i.e. "nothing to advise" — were invisible to the arithmetic. The
+ * advice is one click from the live auto-reject floor, so a band that cannot see the
+ * best candidates in it is not a rounding detail.
+ *
+ * `computeThresholdEffect` uses the SAME predicate, so the band a recommendation
+ * sealed is later measured with exactly the membership it was argued from.
+ */
+function inBand(score: number, lo: number, hi: number): boolean {
+  if (!Number.isFinite(score) || score < lo) return false;
+  return hi >= MAX_SCORE ? score <= MAX_SCORE : score < hi;
+}
+
 export type ThresholdRecommendation = {
   // "lower" — candidates just BELOW the floor mostly advanced, so the floor is
   //   auto-rejecting people who work out; move it down (candidate-protective).
@@ -245,10 +271,13 @@ export function recommendScreeningThreshold(
     arr.reduce((s, p) => s + (p.outcome >= 0.5 ? 1 : 0), 0) / arr.length;
 
   const lowerLo = Math.max(0, T - bandWidth);
-  // Below the floor: clean arm only (see RATCHET GUARD above).
-  const below = holdoutPairs.filter((p) => p.score >= lowerLo && p.score < T);
+  // Below the floor: clean arm only (see RATCHET GUARD above). T < 100 is guaranteed
+  // by the edge guard, so this band is always half-open.
+  const below = holdoutPairs.filter((p) => inBand(p.score, lowerLo, T));
   const upperHi = Math.min(100, T + bandWidth);
-  const above = pairs.filter((p) => p.score >= T && p.score < upperHi);
+  // Closed at the top of the scale — see inBand: a floor at 90+ otherwise argued
+  // "raise" off a band that could not see its own 100-scorers.
+  const above = pairs.filter((p) => inBand(p.score, T, upperHi));
   // Both branches hang off the clean-arm band having enough support to argue for
   // "lower". Without that gate, "raise" is the only answer this function can reach.
   if (below.length < minBand) return null;
@@ -328,7 +357,8 @@ function effectSide(pairs: ScoreOutcome[]): ThresholdEffectSide | null {
 /**
  * Measure a threshold change's effect on the band it targeted: the in-band advance
  * rate BEFORE the apply vs AFTER it. Band membership mirrors the recommendation's
- * own `score >= lo && score < hi`. A pair whose timestamp can't be parsed is dropped
+ * own `inBand` — [lo, hi), closed when hi is the top of the scale. A pair whose
+ * timestamp can't be parsed is dropped
  * (it can't be placed either side of the apply), never misattributed. Returns null
  * only when the apply timestamp itself is unparseable; otherwise returns both sides
  * (null per side when that side is empty) and a `measurable` flag gated on the
@@ -345,7 +375,9 @@ export function computeThresholdEffect(
   const before: ScoreOutcome[] = [];
   const after: ScoreOutcome[] = [];
   for (const p of pairs) {
-    if (!Number.isFinite(p.score) || p.score < band.lo || p.score >= band.hi) continue;
+    // Same predicate the recommendation argued from (inBand): [lo, hi), closed when
+    // hi is the top of the scale, so a sealed [95,100] band measures its 100-scorers.
+    if (!inBand(p.score, band.lo, band.hi)) continue;
     const t = new Date(p.at).getTime();
     if (!Number.isFinite(t)) continue; // a malformed timestamp can't be placed either side
     (t < applied ? before : after).push({ score: p.score, outcome: p.outcome });
