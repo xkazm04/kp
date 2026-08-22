@@ -1,6 +1,7 @@
 // Save/preview submission state + request split out of ProfileEditor.tsx: owns result/
 // loading/error and the POST/PUT to /api/profile. persist=false → dry-run preview (always
-// POST, never writes). persist=true → POST a new row (create/duplicate) or PUT the edited row.
+// POST, never writes). persist=true → PUT when this editor session already has a row (an
+// edit's editingId, or the id a create's FIRST save returned), else POST a new one.
 import { useState } from "react";
 import type { useTranslations } from "next-intl";
 import type { BuildResult } from "@/app/features/shared/profileTypes";
@@ -23,6 +24,16 @@ export function useProfileEditorSubmit(args: {
   const [result, setResult] = useState<BuildResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The row a create-mode save actually wrote. The editor deliberately STAYS OPEN after
+  // a save (below) because the result panel's completeness gaps are meant to be worked
+  // through — "save → click a gap → fill the field → save" is the designed loop. But
+  // `mode` stays "create" for that whole session, so every one of those saves used to
+  // POST, and each POST INSERTS: the loop the UI invites filed one extra profile per
+  // click, leaving the roster with several half-finished rows for one candidate and no
+  // hint which is current. Remembering the id turns every save after the first into the
+  // PUT it always meant to be. Never set from a persist:false preview (which writes
+  // nothing), and irrelevant in edit mode, which already has an editingId.
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   const build = async (
     persist: boolean,
@@ -47,7 +58,8 @@ export function useProfileEditorSubmit(args: {
         hasSubstantialExperience: fields.hasSubstantialExperience,
       };
 
-      const isEdit = persist && mode === "edit" && editingId;
+      const targetId = mode === "edit" ? editingId : createdId;
+      const isEdit = Boolean(persist && targetId);
       // Carry the source-analysis slug on any real save (never on a dry-run preview):
       // the route resolves the CV hash + analyzed-at from it and stamps lineage, so a
       // build-from-analysis (POST) or a rebuild-from-latest (PUT) becomes traceable.
@@ -56,13 +68,16 @@ export function useProfileEditorSubmit(args: {
         method: isEdit ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          isEdit ? { id: editingId, profile, signals, ...lineage } : { profile, signals, persist, ...lineage }
+          isEdit ? { id: targetId, profile, signals, ...lineage } : { profile, signals, persist, ...lineage }
         ),
       });
       const payload = await r.json();
       if (!r.ok) throw new Error(errMsg(payload, t("buildFailedStatus", { status: r.status })));
-      setResult(payload as BuildResult);
+      const built = payload as BuildResult;
+      setResult(built);
       if (persist) {
+        // Pin the created row so the NEXT save updates it instead of inserting again.
+        if (!targetId && built.saved?.id) setCreatedId(built.saved.id);
         // Stay on the editor and surface the saved result panel — its "Match now"
         // CTA is the one-click build→match loop. (Previously this navigated straight
         // back to the list, so running a match meant 4 clicks across tabs.) The Back

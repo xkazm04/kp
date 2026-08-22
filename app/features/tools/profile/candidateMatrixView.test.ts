@@ -120,6 +120,18 @@ test("each filter narrows on the facts the card stopped printing, and they compo
   assert.deepEqual(ids({ family: "design", seniority: "junior" }), [], "a contradictory pair is empty, not everything");
 });
 
+test("the matrix name search folds diacritics, exactly like the roster's", () => {
+  // Both surfaces search the SAME candidate names, so a person findable in the List
+  // projection and invisible in the Matrix one is the bug. "Řezníčková" is not
+  // typeable on a foreign keyboard.
+  const czech = [...POOL, { ...C("p6", "Řezníčková Eva", "bau", 55), role: null }];
+  const ids = (q: string) => filterCandidates(czech, withFilters({ q })).map((c) => c.key);
+  assert.deepEqual(ids("reznickova"), ["p6"]);
+  assert.deepEqual(ids("REZNICKOVA"), ["p6"]);
+  assert.deepEqual(ids("Řezníčková"), ["p6"]);
+  assert.deepEqual(ids("qqq"), [], "folding widens the match, it does not match everything");
+});
+
 test("a candidate with no role/seniority is hidden by those filters but never by a blank one", () => {
   // "Unknown" must not silently satisfy every filter — that would smuggle
   // unclassified people into a cohort the recruiter thinks they scoped.

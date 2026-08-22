@@ -65,6 +65,22 @@ test("every filter narrows, and they compose", () => {
   assert.deepEqual(run({ archetype: "bau", family: "design", q: "zoe" }), [], "a contradictory combination is empty, not everything");
 });
 
+test("name search is diacritic-insensitive — 'capek' must find Čapek", () => {
+  const run = (q: string) =>
+    rosterRows(PROFILES, { ...base, sort: sortByName, filters: { q, archetype: "", family: "", status: "" } }).map((p) => p.id);
+  // A Czech recruiter on a foreign keyboard cannot type Č. A diacritic-EXACT filter
+  // answers "No profile matches these filters" and a "0 of 4" count — i.e. the
+  // candidate is invisible and reads as never saved. Same fold as the analytics
+  // audit log's subject search (UAT LUC-ANA-5).
+  assert.deepEqual(run("capek"), ["3"], "ASCII query finds the diacritic name");
+  assert.deepEqual(run("CAPEK"), ["3"], "and is case-insensitive on top of that");
+  // The reverse direction too: typing the diacritic must still find it.
+  assert.deepEqual(run("Čapek"), ["3"]);
+  // Folding widens the match; it must not make the filter match everything.
+  assert.deepEqual(run("novak"), ["4"]);
+  assert.deepEqual(run("zzz"), []);
+});
+
 test("completeness sorts numerically and puts unknown at the least-complete end", () => {
   const ids = (dir: "asc" | "desc") =>
     rosterRows(PROFILES, { ...base, filters: { q: "", archetype: "", family: "", status: "" }, sort: { col: "completeness", dir } }).map(

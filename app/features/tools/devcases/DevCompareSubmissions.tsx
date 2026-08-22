@@ -20,14 +20,31 @@ export function CompareSubmissions({
   // A comparison needs at least two evaluated candidates and an axis to compare on.
   if (columns.length < 2 || axes.length === 0) return null;
 
+  // rubricCompare CAPS the matrix at its top-N by transfer fit and its contract says
+  // "the caller reports the true count" — this one reported `columns.length`, so a
+  // nine-candidate cohort rendered as "· 5" with no tell that four were dropped. Two
+  // things then read wrong: the count looks like the whole evaluated field, and the
+  // moss per-axis leader reads as the cohort's leader when a hidden submission (lower
+  // transfer fit, higher on that one axis) actually leads it. Same predicate the lib
+  // filters on, so the two counts can't disagree.
+  const evaluatedTotal = submissions.filter((s) => s.evaluation?.evaluation).length;
+  const hidden = evaluatedTotal - columns.length;
+  const truncationNote =
+    hidden > 0
+      ? `Ranked by transfer fit — the axis leader below is the strongest of these ${columns.length}, not of the whole cohort. ${hidden} further evaluated submission${hidden === 1 ? " is" : "s are"} not in this matrix.`
+      : null;
+
   const shortRef = (ref: string | null, i: number) => (ref ? ref.split(/[@\s]/)[0].slice(0, 14) : `#${i + 1}`);
 
   return (
     <section>
       <h3 className="flex items-center gap-1.5 text-meta uppercase tracking-wide text-steel">
         <Columns3 size={13} className="text-coral" /> Compare on rubric axes
-        <span className="text-coral">· {columns.length}</span>
+        <span className="text-coral">
+          · {hidden > 0 ? `top ${columns.length} of ${evaluatedTotal}` : columns.length}
+        </span>
       </h3>
+      {truncationNote ? <p className="mt-1 text-micro text-steel">{truncationNote}</p> : null}
       <div className="mt-2 overflow-x-auto rounded-lg border border-stone-200 bg-white shadow-panel">
         <table className="w-full text-micro">
           <thead>

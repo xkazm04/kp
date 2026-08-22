@@ -5,7 +5,7 @@
 // profiles scan as a column of names, archetypes and completeness bars rather than
 // as a hundred stacked cards.
 import { Pencil, RefreshCw, Trash2, Zap } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { Meter } from "@/app/_components/Meter";
 import { scoreTone } from "@/app/_lib/format";
 import { archetypeDisplayKey } from "@/app/_lib/archetypes";
@@ -38,6 +38,11 @@ export function ProfileRosterRow({
   onConfirmDelete: (id: string) => void;
 }) {
   const t = useTranslations("profile.roster");
+  // The READER's locale, not the machine's: a bare toLocaleDateString() formats for
+  // the OS, so a cs recruiter on an en-US box read "3/4/2026" inside a Czech sentence
+  // and had no way to tell 3 April from 4 March — on the very date they use to decide
+  // whether this profile is worth rebuilding. Same idiom as ModelsKeyRow.
+  const format = useFormatter();
   const enumLabel = useEnumLabel();
   const pct = Math.round((p.completeness ?? 0) * 100);
   const iconBtn = "focus-ring rounded-md p-1.5 text-steel";
@@ -80,7 +85,7 @@ export function ProfileRosterRow({
           // analysis exists than the one this profile was built from.
           <span
             className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-micro font-semibold uppercase tracking-wide text-amber-800"
-            title={t("staleTitle", { date: new Date(staleInfo.newerAnalyzedAt).toLocaleDateString() })}
+            title={t("staleTitle", { date: format.dateTime(new Date(staleInfo.newerAnalyzedAt), { dateStyle: "medium" }) })}
           >
             <RefreshCw size={11} aria-hidden /> {t("staleBadge")}
           </span>

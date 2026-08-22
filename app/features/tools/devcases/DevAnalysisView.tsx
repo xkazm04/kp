@@ -103,7 +103,14 @@ export function AnalysisView({
         </div>
       ) : (
         <div className="rounded-lg border border-stone-200 bg-red-50 p-4 text-base text-red-700">
-          {viewed.error ?? "Analysis did not complete."}
+          {/* Reaching this branch with a SUCCEEDED task means the run finished and its
+              full record could not be read (useTaskResult gave up after
+              RESULT_FETCH_MAX_ATTEMPTS, or the record carries no result) — saying
+              "did not complete" over that would blame the analysis for a fetch that
+              failed, and hide the fact that a retry is a re-fetch, not a re-run. */}
+          {viewed.status === "succeeded"
+            ? "The analysis finished, but its result could not be loaded. Reopen it from the Tasks tab, or run the analysis again."
+            : viewed.error ?? "Analysis did not complete."}
         </div>
       )}
     </section>

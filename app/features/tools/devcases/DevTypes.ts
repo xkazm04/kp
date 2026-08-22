@@ -142,7 +142,29 @@ export type Lifecycle = {
   case?: CaseScenario | null;
 };
 
-export type OutboxItem = { id: string; recipient: string | null; subject: string | null; kind: string | null; channel: string | null; status: OutboxStatus; createdAt: string };
+// One dev_outbox row exactly as GET /api/devcase/comms serves it (listOutbox returns
+// the whole OutboxEntry). `ref` and `body` are NOT decoration: the outbox is
+// APPEND-ONLY — a later same-(ref,kind) row supersedes an earlier one — so a `bounced`
+// receipt supersedes the green `sent` it concerns and a successful resend supersedes a
+// dead letter, and `deriveCommsView` needs both fields to fold that log into a delivery
+// verdict. This type used to declare only the subset the table happened to render,
+// which is exactly why this surface projected the RAW `status` column and disagreed
+// with the Comms Center about the same message (see outboxView.ts).
+export type OutboxItem = {
+  id: string;
+  recipient: string | null;
+  subject: string | null;
+  kind: string | null;
+  channel: string | null;
+  status: OutboxStatus;
+  createdAt: string;
+  /** Pipeline entry / submission id this message concerns — the supersession key. */
+  ref?: string | null;
+  /** A `bounced` receipt carries the relay's reported reason in its body. */
+  body?: string | null;
+  /** WHY a `failed` row dead-lettered; null on every other row. */
+  failureDetail?: string | null;
+};
 
 export type Reflection = {
   narrative?: string;

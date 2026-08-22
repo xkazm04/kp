@@ -38,7 +38,13 @@ career-switcher) that other features key off. Downstream ranking is
     `CandidateMatrixFilterBar.tsx` (population filters) and
     `CandidateDetailModal.tsx` (per-candidate detail) rather than on every card.
 - **Saved analysis report** — `app/history/[slug]/page.tsx`; history list —
-  `app/features/tools/analyze/history/HistoryTab.tsx`.
+  `app/features/tools/analyze/history/HistoryTab.tsx`. Its search/role-family/
+  seniority/decision filters run CLIENT-side over the rows `/api/analyses`
+  returned (a hard `LIMIT 200`, no truncation flag — see Known gaps). The
+  family/seniority dropdowns are ordered by their **localized** label through
+  `sortOptionsByLabel` (`HistoryTypes.ts`, pinned by `HistoryTypes.test.ts`):
+  the canonical slug order is alphabetical only in English, and a locale-less
+  `.sort()` files Č/Ř/Š/Ž after Z for a `cs` reader.
 - **Public skill credential** — `app/skill/[token]/page.tsx`. Token-gated, no
   session; `verifySkillProfileToken` re-checks signature + revocation on every
   render, and `skillProfileFreshnessNow` re-checks age, so a revoked or aged-out
@@ -64,6 +70,19 @@ per-skill provenance**, and archetype signals (`is_enrolled`,
 `has_substantial_experience`). Orchestration lives in `app/_lib/analyze-run.ts`
 and `app/_lib/analyze-phases.ts`; results persist to the `analyses` table and
 render in `HistoryTab.tsx` / `app/history/[slug]/page.tsx`.
+
+**CV intake takes a batch, and says what it refused.** The CV column advertises
+up to `MAX_CV_VARIANTS` ("Add variant (1/3)", the best-of-N comparison), so its
+pickers carry `multiple` and its empty drop zone reads the whole
+`dataTransfer.files` list — `AnalyzeProfileInput.addFiles` is the one cap/gate
+choke point they all pass through (`useAnalyzeFileAccept`), it stops at the first
+rejection so the gate's inline message survives, and a batch past the cap ends on
+the same `variantLimitReject` row a single over-cap drop shows. Still single-file:
+the window-level "drop a CV anywhere" catch (`useAnalyzeGlobalFileDrag`, which
+routes `dataTransfer.files[0]`) and the JD/company zones, which hold one file by
+design. The saved-JD picker distinguishes an empty library from a failed load —
+`AnalyzeSavedJdPicker` renders `jdLoadFailed` in preference to "No JDs saved", so
+a `?jd=` deep link that wouldn't resolve never reads as "your library is empty".
 
 **Plain-text uploads carry a code page.** `pipeline/jobfit/extractors.py`
 (`_decode_text_document`) decodes a `.txt`/`.md` upload as `utf-8-sig` first — the
@@ -107,6 +126,20 @@ hash on the survivor's report and send History grouping (`listAnalyses` keys on
 profile CV lineage (`analysisLineageSource`) to the wrong CV. One AI-candidate
 meter unit is debited per delivered, non-cached run — variants of the same person
 count once, and a fully-cached re-run debits nothing.
+
+**One cohort, one ranking axis.** The compare winner (`resolveWinnerIndex` in
+`app/_lib/comparison.ts` — the single rule `buildComparison`'s `bestLabel`, the
+crowned grid column and the verdict banner all read) ranks on an axis resolved
+ONCE for the whole cohort by `comparisonMetric`: the **job-fit** score only when
+every variant carries one, otherwise the **component total** every variant always
+has. `jobFit` is nullish per analysis (`schemas.generated.ts`) because each variant
+is an independent engine call, so a JD-bound multi-CV run can come back with a
+job-fit read for one CV and none for another; picking the axis per variant ranked
+one CV's job-fit against another's component total — two different 0-100 producers
+— and then labelled the pair "overall score" in the driver narrative. The driver
+items (`metric`), the bullets section pick and the merged-bullet ordering all read
+the same cohort axis, so every figure the compare report quotes is one the ranking
+actually used. Pinned by `comparison.test.ts`.
 
 **Cancelling the CV scan does not discard a GitHub deep-dive that already
 landed.** The deep-dive (`executeGithubAnalysis`) is a parallel client-side run
@@ -165,6 +198,27 @@ pinned by `app/api/apply/apply-intake-scope.test.ts`:
 required fields (education detail + aspirations for early-career; years/seniority
 for experienced) and a provenance dropdown per skill claim
 (`ProfileEditorFields.tsx`, `profileCompletenessFields.ts`).
+
+The editor deliberately STAYS OPEN after a save, so the result panel's clickable
+completeness gaps can be worked through in place ("save → click a gap → fill the
+field → save"). `useProfileEditorSubmit` therefore remembers the id the FIRST
+create-mode save returned and PUTs to it on every later save in the same session;
+without that, each pass through the loop POSTed again and each POST inserts, so
+one candidate accumulated a row per click. A `persist:false` preview never claims
+an id (it writes nothing).
+
+The roster's per-column controls live in the pure `profileRosterView.ts`
+(filter/sort) — the name search folds diacritics and case (`foldForSearch`, the
+same fold as the analytics audit log's subject search), so a recruiter who cannot
+type `Č` on their keyboard still finds `Čapek`. `candidateMatrixView.ts` uses the
+same fold for the matrix's name filter; the two projections search one population,
+so a name findable in one and invisible in the other would be the bug.
+
+Rebuild-from-latest (the roster's amber "Newer CV" action) is a CALLBACK into
+`ProfileTab`'s `openRebuild`, not a `?fromAnalysis=…&rebuild=…` URL push. The
+roster only ever renders inside the tab that owns the deep-link effect, and that
+effect is mount-only, so pushing those params navigated the tab to itself and the
+button did nothing.
 
 ### 4. Archetype detection
 Single-sourced in `pipeline/jobfit/archetypes.json`, read by both Python
@@ -404,16 +458,59 @@ Two derived add-ons state signals about a named person and share one rule: a
   manager shows its generic save-failed label for them (see §4). `edit_builtin_shield`
   has the same gap, and it is the reachable one: the edit panel renders the
   fairness checkbox and the scoring-model select as editable for built-ins, so
-  unticking either yields a bare "Save failed (400)."
+  unticking either yields a bare "Save failed (400)." (Clearing an archetype's
+  apply self-declaration is no longer in this list: `useArchetypeManagerActions`
+  now sends the trimmed string unconditionally, so the empty string reaches
+  `pickEditable`'s merge and actually persists.)
 - **The candidate matrix ranks a silently capped field.**
   `GET /api/profile/candidates` reads `listAnalysisRecords(200, ws)` (newest first)
   and returns no `truncated` flag, so past 200 saved analyses the board's lane
   counts, distribution bars and "N candidates" label describe the newest 200 —
   presented as the whole population.
-- **Clearing an archetype's apply self-declaration is a no-op.** The manager posts
-  `applyLabel: draft.applyLabel.trim() || undefined`; `JSON.stringify` drops the key,
-  so `pickEditable`'s merge keeps the previous value and the save reports success
-  without removing it.
+- **The History table claims a total it only loaded a slice of.** Same cap, same
+  missing flag on `GET /api/analyses` (`listAnalyses(200, ws)`), and `HistoryTab`
+  filters CLIENT-side over that slice: searching a candidate analysed 250 runs ago
+  returns "No runs match your search or filter", and `Showing {shown} of {total}`
+  passes `rows.length` as the total, so a 900-run workspace reads "Showing 0 of
+  200". The row is still reachable at `/history/[slug]`, so this is discoverability
+  loss rather than data loss. The honest fix needs a server `truncated`/`total`
+  (or a query param + pager) plus new `history` keys in all four catalogs.
+- **The saved-profile roster claims a silently capped population.**
+  `GET /api/profile` serves `cachedProfileRecords` = `listProfileRecords(200, ws)`
+  with no total and no `truncated` flag, and `ProfileRoster` renders
+  `count: all.length` — so a 350-profile workspace reads "200 saved profiles" and a
+  narrowed view reads "12 of 200". The Fit-matrix cap next door already does this
+  honestly (`MATRIX_POOL_CAP` + `countMatrixProfiles`); the fix is the same shape —
+  a server total plus a catalog key — and needs both, so it is not a client-only
+  change.
+- **The matrix's own "build from analysis" action is inert.**
+  `CandidateMatrix.tsx` pushes `?tab=archetypes&fromAnalysis=<slug>`, but the matrix
+  renders INSIDE the archetypes tab: `navActive` doesn't change, `WorkspaceTabPanel`'s
+  `key` is stable, `ProfileTab` is not remounted, and the mount-only deep-link effect
+  never reads the params. Same defect the roster's Rebuild had; same fix (a callback
+  prop fed from `ProfileTab`'s `openFromAnalysis`). The equivalent push from
+  `MatchResultsHeader` is fine — it crosses tabs, so the panel does remount.
+- **A hidden graduation-year typo disables Save with nothing on screen.**
+  `validateProfileEditorFields` gates `yearsError` on field visibility ("a stale,
+  hidden value won't be submitted, so it must not block Save either") but validates
+  `expectedGraduation` unconditionally. Type `20266` under Student/Auto, switch the
+  archetype to Experienced, and the field disappears while `hasFieldErrors` stays
+  true: Save is disabled, no error is rendered anywhere, and the offending input is
+  not on the page. The visibility flag (`isStudentish`) is computed in
+  `ProfileEditor.tsx`, not in the helper, so the fix has to thread it through.
+- **A failed archetype-registry load is swallowed.** `reloadArchetypes`
+  (`useProfileTabDeepLinks.ts`) ends in `.catch(() => undefined)`, so a failing
+  `GET /api/archetypes` leaves `archetypes: []` with no message; the editor then
+  renders its routing control from the baseline fallback, and a profile routed to a
+  custom archetype shows nothing selected — picking any segment re-routes that
+  candidate onto a different weight vector.
+- **Matrix lanes tie-break on a locale-less `localeCompare`.**
+  `groupByArchetype` sorts by score then `a.name.localeCompare(b.name)` with no
+  locale (the module's other sorts take the caller's collator). Every
+  `source: "profile"` candidate has `score: null`, so in a profile-heavy lane that
+  compare orders the WHOLE lane — under the machine's locale, not the reader's
+  (`Chalupová` before `Ivanov` in en, after it in cs). Threading `locale` in means
+  changing the `CandidateMatrix` call site.
 - Student/career-switcher scoring mechanics (potential score, observed-evidence
   minting, fairness matrix) are documented in `docs/features/matching/README.md`;
   the harder-to-validate parts of that model (whether `potential_score`'s

@@ -9,25 +9,40 @@ import { useTranslations } from "next-intl";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { META_LABEL } from "@/app/_components/ui/recipes";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
-import type { OutboxStatus } from "@/app/_lib/comms-status";
+import type { CommsVerdict } from "@/app/_lib/comms-view";
 import { ResendButton } from "./ResendButton";
-import { isDeadLetter, type OutboxFacets, type OutboxFilters } from "./outboxView";
-import type { OutboxItem } from "./DevTypes";
+import { isDeadLetter, type OutboxFacets, type OutboxFilters, type OutboxRowView } from "./outboxView";
 
-// Badge tints by message kind — positive (invite/outreach/ack) vs. adverse (rejection).
+// Badge tints by message kind — positive (schedule invite/outreach/ack) vs. adverse
+// (rejection). Keyed by the wire codes KNOWN_COMM_KINDS actually emits: an "invite"
+// key sat here for rounds, tinting nothing, while the real `schedule_invite` fell
+// through to the neutral default (outbox-kind-catalog.test.ts tells the same story
+// about the i18n catalog that was authored from the same guess).
 const KIND_STYLE: Record<string, string> = {
-  invite: "bg-moss/15 text-moss",
   acknowledgement: "bg-moss/15 text-moss",
+  schedule_invite: "bg-moss/15 text-moss",
+  interview_invite: "bg-moss/15 text-moss",
+  interview_confirmation: "bg-moss/15 text-moss",
+  interview_reminder: "bg-moss/15 text-moss",
+  offer: "bg-moss/15 text-moss",
+  offer_reminder: "bg-moss/15 text-moss",
   outreach: "bg-coral/15 text-coral",
   rejection: "bg-red-50 text-red-700",
+  ko_decline: "bg-red-50 text-red-700",
 };
 
-// Delivery-status tint — `failed`/`bounced` (dead letters) are loud so a dropped
-// offer or rejection never reads as benign. `queued` shows the channel instead of a
-// status word: locally it is terminal, and calling it "sent" would be a green lie.
-const STATUS_STYLE: Record<OutboxStatus, string> = {
+// Tint for the DERIVED delivery verdict (comms-view.ts `commsVerdict`) — the same
+// tone split the candidate drawer uses (PipelineCommsList): `failed`/`bounced` are
+// loud so a dropped or undeliverable offer never reads as benign; `orphaned` is a
+// relay-integration fault rather than a message, so it is caution, not alarm;
+// `recovered` is green because a later resend did reach the relay. `queued` shows the
+// channel instead of a status word: locally it is terminal, and calling it "sent"
+// would be a green lie.
+const VERDICT_STYLE: Record<CommsVerdict, string> = {
   queued: "text-steel",
   sent: "text-moss",
+  recovered: "text-moss",
+  orphaned: "text-amber-700 font-semibold",
   failed: "text-red-700 font-semibold",
   bounced: "text-red-800 font-semibold",
 };
@@ -43,7 +58,7 @@ export function OutboxRows({
   statusLabel,
   onResent,
 }: {
-  shown: OutboxItem[];
+  shown: OutboxRowView[];
   /** Filters cut a non-empty outbox to zero rows. */
   emptyFiltered: boolean;
   onClearFilters: () => void;
@@ -51,7 +66,7 @@ export function OutboxRows({
   onFilters: (patch: Partial<OutboxFilters>) => void;
   facets: OutboxFacets;
   kindLabel: (kind: string) => string;
-  statusLabel: (status: OutboxStatus) => string;
+  statusLabel: (verdict: CommsVerdict) => string;
   onResent?: () => void;
 }) {
   const t = useTranslations("devcase.outbox");
@@ -125,15 +140,17 @@ export function OutboxRows({
               </td>
               <td className="max-w-0 truncate px-3 py-2 text-sm text-steel sm:max-w-40">{m.recipient}</td>
               <td className="max-w-0 truncate px-3 py-2 text-sm text-ink">{m.subject}</td>
-              <td className={`whitespace-nowrap px-3 py-2 text-micro uppercase ${STATUS_STYLE[m.status] ?? "text-steel"}`}>
+              <td className={`whitespace-nowrap px-3 py-2 text-micro uppercase ${VERDICT_STYLE[m.verdict] ?? "text-steel"}`}>
                 <span className="inline-flex items-center gap-1.5">
-                  {m.status === "queued" ? `${m.channel}` : statusLabel(m.status)}
-                  {/* `failed` only. A BOUNCED row is one the relay accepted and then
-                      rejected, so re-sending it to the same address just bounces
-                      again — that case needs the corrected-address form (Channels'
-                      BouncedResend), not a one-click retry. It still sorts and
-                      highlights as a dead letter here. */}
-                  {m.status === "failed" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}
+                  {m.verdict === "queued" ? m.channel ?? statusLabel(m.verdict) : statusLabel(m.verdict)}
+                  {/* An UNRECOVERED `failed` only. A BOUNCED row is one the relay
+                      accepted and then rejected, so re-sending it to the same address
+                      just bounces again — that case needs the corrected-address form
+                      (Channels' BouncedResend), not a one-click retry. And a
+                      `recovered` one already has a later delivery: offering the button
+                      there produced a 409 "already re-sent" that reads like a fresh
+                      failure. Both still sort and highlight by their own verdict. */}
+                  {m.verdict === "failed" ? <ResendButton id={m.id} onResent={onResent} compact /> : null}
                 </span>
               </td>
               <td className="hidden whitespace-nowrap px-3 py-2 text-sm text-steel sm:table-cell">{rel(m.createdAt) || "—"}</td>

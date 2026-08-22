@@ -15,6 +15,9 @@
 
 import { scoreTone } from "@/app/_lib/format";
 import { archetypeDisplayKey } from "@/app/_lib/archetypes";
+// The sibling roster's search fold. Both surfaces search the SAME candidate names,
+// so a name findable in one and invisible in the other is the bug, not the feature.
+import { foldForSearch } from "./profileRosterView";
 import type { ArchetypeDef, CandidateRow } from "@/app/features/shared/profileTypes";
 
 /** The score bands the distribution bar splits a group into — the SAME 75/50
@@ -126,9 +129,9 @@ export function filterCandidates(
   candidates: readonly CandidateRow[],
   filters: CandidateFilters
 ): CandidateRow[] {
-  const needle = filters.q.trim().toLowerCase();
+  const needle = foldForSearch(filters.q.trim());
   return candidates.filter((c) => {
-    if (needle && !c.name.toLowerCase().includes(needle)) return false;
+    if (needle && !foldForSearch(c.name).includes(needle)) return false;
     if (filters.family && c.role !== filters.family) return false;
     if (filters.seniority && c.seniority !== filters.seniority) return false;
     if (filters.source && c.source !== filters.source) return false;

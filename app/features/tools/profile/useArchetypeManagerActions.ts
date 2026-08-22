@@ -76,7 +76,17 @@ export function useArchetypeManagerActions(args: {
       id: draft.id.trim().toLowerCase(),
       label: draft.label.trim(),
       badge: draft.badge.trim() || draft.label.trim(),
-      applyLabel: draft.applyLabel.trim() || undefined,
+      // The trimmed string UNCONDITIONALLY, empty included. `|| undefined` read as a
+      // harmless tidy-up, but JSON.stringify DROPS an undefined value: clearing the
+      // field produced a body with no `applyLabel` key at all, so the registry's
+      // pickEditable never copied it, `{...current, ...editable}` kept the previous
+      // string, and the 200 sent the panel back to view mode while the apply chat went
+      // on offering the self-declaration the operator had just deleted. "" is a real
+      // value the merge can persist, and every reader is truthiness-gated (apply.ts
+      // only offers archetypes WITH an applyLabel; the view panel's clause is
+      // `applyLabel ? …`), so an empty one reads exactly like an absent one. On create
+      // the registry maps a falsy applyLabel back to undefined, so nothing changes there.
+      applyLabel: draft.applyLabel.trim(),
       scoringModel: draft.scoringModel,
       fairnessProtected: draft.fairnessProtected,
       weights: { skills: draft.pct.skills / 100, career: draft.pct.career / 100, personal: draft.pct.personal / 100 },

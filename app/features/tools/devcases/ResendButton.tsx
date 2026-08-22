@@ -14,6 +14,11 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 // flip to "Resent" on any 2xx, INCLUDING the case where the fresh row dead-lettered
 // again. Both halves of a resend's outcome are now reported: why the server refused,
 // and whether the new send actually landed.
+//
+// FOUR outcomes, because the recorded row's own status is the only thing that says
+// whether a candidate will receive this: refused (non-2xx) ▸ dead-lettered again
+// (`failed`/`bounced`) ▸ recorded but undeliverable (`queued` — no relay) ▸ actually
+// relayed (`sent`). Only the last one may say "Resent".
 export function ResendButton({ id, onResent, compact = false }: { id: string; onResent?: () => void; compact?: boolean }) {
   const t = useTranslations("channels.comms");
   // The outbox-row copy this button needs beyond the shared comms vocabulary.
@@ -21,7 +26,7 @@ export function ResendButton({ id, onResent, compact = false }: { id: string; on
   // Resolve API failures from the machine `code`, never from the server's
   // English `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
-  const [state, setState] = useState<"idle" | "busy" | "done" | "deadLettered" | "error">("idle");
+  const [state, setState] = useState<"idle" | "busy" | "done" | "queued" | "deadLettered" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const resend = async () => {
     if (state === "busy" || state === "done") return;
@@ -37,10 +42,22 @@ export function ResendButton({ id, onResent, compact = false }: { id: string; on
         setState("error");
         return;
       }
+      // Recorded, but NOTHING WILL DELIVER IT. `queued` is the terminal local-outbox
+      // state (comms-status.ts), reached when no relay is configured — and the relay
+      // is a stored, UI-editable capability (comms-relay.ts resolves env ▸ stored ▸
+      // nothing), so it can be gone by the time a recruiter chases a dead letter that
+      // was produced while it was wired. Saying "Resent" for a row that never leaves
+      // the building is the same green lie the dead-letter branch below prevents.
+      if (payload?.entry?.status === "queued") {
+        setMessage(t("relayNotConfigured"));
+        setState("queued");
+        onResent?.();
+        return;
+      }
       // Recorded, but the relay rejected it again — claiming "Resent" here is exactly
       // the false green the dead-letter state exists to prevent. Refresh either way:
       // the new row is real audit, whatever its outcome.
-      if (payload?.entry?.status === "failed") {
+      if (payload?.entry?.status === "failed" || payload?.entry?.status === "bounced") {
         const detail = payload.entry.failureDetail;
         setMessage(detail ? `${t("resendDeadLettered")} ${t("failureDetail", { detail })}` : t("resendDeadLettered"));
         setState("deadLettered");
@@ -60,14 +77,22 @@ export function ResendButton({ id, onResent, compact = false }: { id: string; on
       <button
         type="button"
         onClick={resend}
-        disabled={state === "busy" || state === "done"}
+        disabled={state === "busy" || state === "done" || state === "queued"}
         title={td("resendTitle")}
         className={`focus-ring inline-flex shrink-0 items-center gap-1 rounded border border-stone-200 bg-white font-semibold text-coral hover:bg-coral/5 disabled:opacity-50 ${
           compact ? "px-1.5 py-0.5 text-micro" : "px-2 py-1 text-sm"
         }`}
       >
         <RefreshCw size={compact ? 10 : 12} className={state === "busy" ? "animate-spin" : ""} aria-hidden />
-        {state === "done" ? t("resent") : adverse ? td("retryResend") : state === "busy" ? t("resending") : t("resend")}
+        {state === "done"
+          ? t("resent")
+          : state === "queued"
+            ? t("statusQueued")
+            : adverse
+              ? td("retryResend")
+              : state === "busy"
+                ? t("resending")
+                : t("resend")}
       </button>
       {message ? (
         <span

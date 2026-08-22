@@ -38,6 +38,7 @@ import type { ArchetypeDef } from "@/app/features/shared/profileTypes";
 // /api/profile.
 export function ProfileRoster({
   onEdit,
+  onRebuild,
   onChanged,
   archivedArchetypeIds,
   archetypes,
@@ -45,6 +46,12 @@ export function ProfileRoster({
 }: {
   /** Open the editor for this profile id (parent reuses the ?edit= flow). */
   onEdit: (id: string) => void;
+  /** Re-point this profile at the newer same-CV analysis (divergence check first).
+   *  A CALLBACK, not a URL push: the roster only ever renders inside the tab that
+   *  owns the rebuild flow, so pushing `?fromAnalysis=…&rebuild=…` navigated the tab
+   *  to itself — the deep-link effect that reads those params runs once at mount and
+   *  the panel never remounts, so the button did nothing at all. */
+  onRebuild: (id: string, newerSlug: string) => void;
   /** Fired after a delete so sibling views (the matrix) can refetch. */
   onChanged?: () => void;
   /** Ids of retired archetypes — a profile routed to one still works but is flagged. */
@@ -85,7 +92,13 @@ export function ProfileRoster({
       .then((r) => r.json())
       .then((p) => {
         if (!alive) return;
-        if (p.error) setError(p.error);
+        // The localized fallback, never the server's English `error` — the same rule
+        // the delete path below already follows (app/_lib/use-error-message.ts). This
+        // read used to `setError(p.error)`, so a failing GET /api/profile put a raw
+        // English sentence (or a bare SQLite message) in front of a cs/de/fr reader.
+        // The route's failure body carries no machine `code` to resolve, so the
+        // catalog string IS the whole honest answer here.
+        if (p.error) setError(t("loadFailed"));
         else {
           setProfiles((p.profiles as RosterProfile[]) ?? []);
           setStale((p.stale as StaleMap) ?? {});
@@ -105,13 +118,6 @@ export function ProfileRoster({
   // shortlist filing all moved into Matrix as its candidate-focus mode, so this
   // deep link points at the one surface that still runs it.
   const runMatch = (id: string) => router.push(buildUrl({ tab: "matrix", profile: id }, ""));
-
-  // Rebuild-from-latest: open the editor prefilled from the NEWER same-CV analysis,
-  // re-pointing THIS profile (rebuild=<id> ⇒ an in-place update, not a duplicate).
-  // The recruiter reviews and saves; the saved profile carries the new lineage and
-  // its staleness clears.
-  const rebuild = (id: string, newerSlug: string) =>
-    router.push(buildUrl({ tab: "archetypes", fromAnalysis: newerSlug, rebuild: id }, ""));
 
   const remove = async (id: string) => {
     if (busyId) return;
@@ -204,7 +210,7 @@ export function ProfileRoster({
               busyId={busyId}
               onEdit={onEdit}
               onMatch={runMatch}
-              onRebuild={rebuild}
+              onRebuild={onRebuild}
               onStartDelete={setConfirmingId}
               onCancelDelete={() => setConfirmingId(null)}
               onConfirmDelete={remove}

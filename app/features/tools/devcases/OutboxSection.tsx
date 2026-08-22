@@ -7,6 +7,7 @@ import { LoadStatus } from "@/app/_components/LoadStatus";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
 import { CHIP_TOGGLE } from "@/app/_components/ui/recipes";
 import type { LoadState } from "@/app/_lib/useLoader";
+import type { CommsVerdict } from "@/app/_lib/comms-view";
 import { OutboxRows } from "./OutboxRows";
 import { outboxRows, type OutboxFilters } from "./outboxView";
 import type { OutboxItem } from "./DevTypes";
@@ -47,10 +48,22 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
     },
     [tk]
   );
+  // Copy for the DERIVED verdict (comms-view.ts `commsVerdict`), not the raw status
+  // column — same six words the Comms Center uses (channelsCommsHelpers
+  // `commsStatusLabels`), because a surface may choose its own tone but never its own
+  // delivery vocabulary. Total, so a new verdict is a tsc error rather than a row
+  // silently labelled "Queued".
   const statusLabel = useCallback(
-    (status: OutboxItem["status"]) => {
-      const KEY = { queued: "statusQueued", sent: "statusSent", failed: "statusFailed", bounced: "statusBounced" } as const;
-      return tc(KEY[status] ?? "statusQueued");
+    (verdict: CommsVerdict) => {
+      const KEY: Record<CommsVerdict, "orphanBadge" | "statusBounced" | "statusRecovered" | "statusFailed" | "statusSent" | "statusQueued"> = {
+        orphaned: "orphanBadge",
+        bounced: "statusBounced",
+        recovered: "statusRecovered",
+        failed: "statusFailed",
+        sent: "statusSent",
+        queued: "statusQueued",
+      };
+      return tc(KEY[verdict]);
     },
     [tc]
   );
@@ -77,6 +90,14 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
 
   return (
     <div className="space-y-3">
+      {/* The stale/offline banner the rest of the studio shows over data that is no
+          longer fresh (DevShared does the same for every dev section). It used to render
+          ONLY on the empty branch, so a refresh that failed right after a resend left
+          the recruiter reading a dead letter that had already been re-dispatched — or
+          missing one that had just arrived — with nothing on screen saying the view
+          was stale. */}
+      <LoadStatus state={state} label="the comms outbox" />
+
       <p className="text-micro text-steel">
         {t.rich("relayHint", {
           code: (chunks) => <span className="font-mono">{chunks}</span>,
@@ -89,10 +110,14 @@ export function OutboxTable({ outbox, state, onResent }: { outbox: OutboxItem[];
           count reads off the FILTERED set with the total beside it, so a narrowed
           view never looks like an outbox that lost rows. */}
       <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* Both halves read the DERIVED population (view.total), not the raw row
+            count: a folded bounce receipt is relay signal, not a message the pipeline
+            sent, so counting it here would report a ledger one message longer than the
+            one on screen and make an unfiltered table read as filtered. */}
         <p className="text-sm text-steel">
-          {view.rows.length === outbox.length
-            ? t("count", { count: outbox.length })
-            : t("countFiltered", { shown: view.rows.length, total: outbox.length })}
+          {view.rows.length === view.total
+            ? t("count", { count: view.total })
+            : t("countFiltered", { shown: view.rows.length, total: view.total })}
         </p>
         {view.failedCount > 0 ? (
           <button

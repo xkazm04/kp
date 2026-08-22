@@ -2,7 +2,7 @@
 
 // The "profile diverged since it was built" confirm dialog, split out of ProfileTab.tsx.
 import { AlertTriangle } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
 import type { RebuildWarn } from "./ProfileTabTypes";
 
@@ -20,6 +20,11 @@ export function ProfileTabRebuildWarnModal({
   onProceed: (slug: string, profileId: string) => void;
 }) {
   const t = useTranslations("profile.tab");
+  // The READER's locale, not the machine's (a bare toLocaleDateString() reads the OS).
+  // This date is the whole decision: it is how the recruiter recognizes the edits they
+  // are about to let a rebuild overwrite, and "3/4/2026" inside a Czech sentence is a
+  // date a Czech reader will read as 3 April.
+  const format = useFormatter();
   return (
     <Modal
       size="md"
@@ -50,7 +55,7 @@ export function ProfileTabRebuildWarnModal({
         </span>
         <p className="text-body text-steel">
           {rebuildWarn.editedAt
-            ? t("rebuildWarnBody", { date: new Date(rebuildWarn.editedAt).toLocaleDateString() })
+            ? t("rebuildWarnBody", { date: format.dateTime(new Date(rebuildWarn.editedAt), { dateStyle: "medium" }) })
             : t("rebuildWarnBodyNoDate")}
         </p>
       </div>

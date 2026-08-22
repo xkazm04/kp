@@ -56,7 +56,14 @@ export function ProfileTab() {
   const [projection, setProjection] = useState<"list" | "matrix">("list");
   const reduced = useReducedMotion();
 
-  const { archetypes, archLoading, openEditor, openFromAnalysis, reloadArchetypes } = useProfileTabDeepLinks({
+  // openRebuild is called DIRECTLY by the roster's Rebuild action rather than being
+  // reached through a `?fromAnalysis=…&rebuild=…` push. That push navigated this tab
+  // to itself: `navActive` never changes, so WorkspaceTabPanel's `key` is stable, this
+  // panel is not remounted, and the hook's deep-link effect (mount-only by design —
+  // keying it on `params` re-fired it when router.replace cleared them) never reads
+  // the intent. The button was inert, and the params it left behind meant an unrelated
+  // page reload would later spring the editor open on a rebuild nobody asked for.
+  const { archetypes, archLoading, openEditor, openFromAnalysis, openRebuild, reloadArchetypes } = useProfileTabDeepLinks({
     t,
     router,
     params,
@@ -124,6 +131,7 @@ export function ProfileTab() {
             {projection === "list" ? (
               <ProfileRoster
                 onEdit={(id) => void openEditor(id)}
+                onRebuild={(id, newerSlug) => void openRebuild(newerSlug, id)}
                 onChanged={() => setDataRev((v) => v + 1)}
                 archivedArchetypeIds={archetypes.filter((a) => a.archived).map((a) => a.id)}
                 archetypes={archetypes}

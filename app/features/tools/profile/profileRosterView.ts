@@ -35,6 +35,21 @@ type EnumLabel = (group: string, slug: string | null | undefined) => string;
 type StatusLabel = (status: RosterStatus) => string;
 
 /**
+ * Case- AND diacritic-insensitive search key for the free-text name filter.
+ *
+ * A Czech recruiter on a foreign keyboard types "capek" looking for "Čapek". A
+ * diacritic-EXACT match is one they cannot spell their way into: the table answers
+ * with "No profile matches these filters" and the count reads "0 of N", so the
+ * candidate is simply invisible and the recruiter concludes they were never saved.
+ * Same fold, and the same reasoning, as the analytics audit log's foldForSearch
+ * (analyticsDecisionLogTypes.ts, UAT LUC-ANA-5) — kept local so this pure view model
+ * doesn't reach into another feature module for three lines.
+ */
+export function foldForSearch(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+/**
  * A profile's standing. Retired outranks stale: a profile routed to an archetype
  * that no longer exists is the more urgent thing to fix, and showing two flags
  * competing in one cell was what made the old card list hard to scan.
@@ -96,11 +111,11 @@ export function rosterRows(
   }
 ): RosterProfile[] {
   const { filters, sort, stale, archivedSet, locale, enumLabel } = opts;
-  const needle = filters.q.trim().toLowerCase();
+  const needle = foldForSearch(filters.q.trim());
   const collator = new Intl.Collator(locale);
 
   const kept = profiles.filter((p) => {
-    if (needle && !p.label.toLowerCase().includes(needle)) return false;
+    if (needle && !foldForSearch(p.label).includes(needle)) return false;
     if (filters.archetype && archetypeDisplayKey(p.archetype) !== filters.archetype) return false;
     if (filters.family && p.role_family !== filters.family) return false;
     if (filters.status && rosterStatus(p, stale, archivedSet) !== filters.status) return false;

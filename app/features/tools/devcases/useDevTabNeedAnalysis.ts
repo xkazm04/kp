@@ -14,6 +14,19 @@ export function useDevTabNeedAnalysis(args: {
   const { tasks, startTask, buildNeed, runAction, loadCases } = args;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [designId, setDesignId] = useState<string | null>(null);
+  // LINEAGE STAMP. `viewed` is a DERIVED pointer into a workspace-wide task poll, not a
+  // held value: it falls back to needTasks[0] whenever the selected task isn't in the
+  // polled list (it is capped at LIMIT 60 / a 7-day window) and whenever selectedId is
+  // still null, so a newer need_analysis started in a second tab or by a teammate lands
+  // at index 0 and silently re-points it. approve() re-read viewedNeed/result at CLICK
+  // time, so with a design card open across such a flip it persisted a case whose
+  // role+case came from need A while its stored need+analysis came from need B — the
+  // case's own record of why it exists, wrong, and unfalsifiable after the fact. Pin the
+  // pair at the moment the design is started, which is also exactly what the design task
+  // was given, so the saved case can only ever carry the need it was designed from.
+  const [designFrom, setDesignFrom] = useState<{ need: Record<string, unknown>; analysis: Result["analysis"] } | null>(
+    null
+  );
   const [approving, setApproving] = useState(false);
   const [approvedId, setApprovedId] = useState<string | null>(null);
 
@@ -26,8 +39,15 @@ export function useDevTabNeedAnalysis(args: {
   // viewed need-analysis task's full record on demand. `awaitingResult` holds the
   // "analyzing" state through the brief fetch after the task succeeds, so the panel
   // never flashes its "did not complete" error between finish and result arrival.
-  const { full: viewedFull } = useTaskResult(viewed?.id ?? null);
-  const awaitingResult = viewed?.status === "succeeded" && !viewedFull;
+  // OO-L2-12: useTaskResult gives up after RESULT_FETCH_MAX_ATTEMPTS failed full-record
+  // fetches and raises `resultUnavailable`, whose contract is explicit — "Consumers MUST
+  // resolve their busy state and surface an error instead of spinning forever". This
+  // consumer ignored it, so a need analysis that SUCCEEDED but whose GET /api/tasks/[id]
+  // kept failing (500 / offline / unparseable blob) held `awaitingResult` true for the
+  // life of the view: the pane spun "Pulling the codebase + reflecting…" with no error
+  // and no way out. Dropping the busy state hands the view its error branch instead.
+  const { full: viewedFull, resultUnavailable: resultLost } = useTaskResult(viewed?.id ?? null);
+  const awaitingResult = viewed?.status === "succeeded" && !viewedFull && !resultLost;
   const running = (viewed ? viewed.status === "running" || viewed.status === "queued" : false) || awaitingResult;
   const result = viewed?.status === "succeeded" ? ((viewedFull?.result as Result | undefined) ?? null) : null;
   const analysis = result?.analysis ?? {};
@@ -36,13 +56,18 @@ export function useDevTabNeedAnalysis(args: {
   const snapshots = result?.snapshots ?? (result?.snapshot ? [result.snapshot] : []);
   const viewedNeed = (viewedFull?.params as { need?: Record<string, unknown> } | undefined)?.need;
 
-  const { full: designFull, status: designStatus } = useTaskResult(designId);
-  const designing = designStatus === "running" || designStatus === "queued" || (designStatus === "succeeded" && !designFull);
+  // Same give-up contract on the design watch: without it a succeeded design_artifacts
+  // task whose full record never loads left "Designing the role + assignment…" spinning
+  // permanently, hiding the "Design role & assignment" button that would restart it.
+  const { full: designFull, status: designStatus, resultUnavailable: designLost } = useTaskResult(designId);
+  const designing =
+    designStatus === "running" || designStatus === "queued" || (designStatus === "succeeded" && !designFull && !designLost);
   const design = designStatus === "succeeded" ? ((designFull?.result as Design | undefined) ?? null) : null;
 
   const selectNeed = (id: string) => {
     setSelectedId(id);
     setDesignId(null);
+    setDesignFrom(null);
     setApprovedId(null);
   };
 
@@ -54,12 +79,19 @@ export function useDevTabNeedAnalysis(args: {
   const startDesign = async () => {
     if (!viewedNeed || !result) return;
     setApprovedId(null);
-    const t = await startTask("design_artifacts", { need: viewedNeed, analysis: result.analysis });
-    if (t) setDesignId(t.id);
+    const pinned = { need: viewedNeed, analysis: result.analysis };
+    const t = await startTask("design_artifacts", pinned);
+    if (t) {
+      setDesignId(t.id);
+      setDesignFrom(pinned);
+    }
   };
 
   const approve = async () => {
-    if (!design?.role || !design?.case) return;
+    // designFrom is set with designId and cleared with it, so this can only be null for
+    // a design that was never started from this hook — but it is the lineage the write
+    // is stamped with, so it gates the write rather than silently defaulting.
+    if (!design?.role || !design?.case || !designFrom) return;
     setApproving(true);
     try {
       // Route through the shared runAction error surface like every other write on
@@ -74,7 +106,12 @@ export function useDevTabNeedAnalysis(args: {
           fetch("/api/devcase", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ need: viewedNeed, analysis: result?.analysis, role: design.role, case: design.case }),
+            body: JSON.stringify({
+              need: designFrom.need,
+              analysis: designFrom.analysis,
+              role: design.role,
+              case: design.case,
+            }),
           }),
         (body) => {
           setApprovedId((body as { id?: string } | null)?.id ?? null);
