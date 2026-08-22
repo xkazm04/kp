@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getHiredAgent, recordAgentLifecycle, updateHiredAgentStatus, type AgentStatus } from "@/app/_lib/db/agents";
+import { getHiredAgent, recordAgentLifecycle, updateHiredAgentStatus, type AgentStatus, type HiredAgentRecord } from "@/app/_lib/db/agents";
 import { createPipelineEntry, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -10,6 +10,19 @@ import { fetchRequestStatus } from "@/app/_lib/agent-hire/bridge-client";
 // fallback for deployments where the push report path can't reach kp). The push
 // path (/api/agents/report/[token]) stays the primary contract; this maps the
 // same lifecycle states onto the row, including the activated → Hired move.
+//
+// Like the roster read (GET /api/agents), the response carries the SAFE agent
+// projection: report_token is the ONLY auth on the public report endpoint, so it
+// never crosses the wire — a client holding it could POST lifecycle/execution
+// reports for this agent with no session at all.
+
+/** The wire projection of a hired agent — everything except the report token. */
+function safeAgent(agent: HiredAgentRecord | null): Omit<HiredAgentRecord, "reportToken"> | null {
+  if (!agent) return null;
+  const { reportToken, ...safe } = agent;
+  void reportToken; // stripped: the token is the report route's auth capability
+  return safe;
+}
 
 const STATUS_MAP: Record<string, AgentStatus> = {
   pending: "pending_approval",
@@ -38,15 +51,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const agent = getHiredAgent(id, ws);
     if (!agent) return NextResponse.json({ error: "Agent not found." }, { status: 404 });
     if (!agent.requestId) {
-      return NextResponse.json({ agent, refreshed: false, reason: "No Personas request to poll (dispatch failed?)." });
+      return NextResponse.json({ agent: safeAgent(agent), refreshed: false, reason: "No Personas request to poll (dispatch failed?)." });
     }
     const polled = await fetchRequestStatus(agent.requestId);
     if (!polled.ok) {
-      return NextResponse.json({ agent, refreshed: false, reason: polled.error });
+      return NextResponse.json({ agent: safeAgent(agent), refreshed: false, reason: polled.error });
     }
     const mapped = STATUS_MAP[polled.status.toLowerCase()];
     if (!mapped || mapped === agent.status) {
-      return NextResponse.json({ agent, refreshed: false, personasStatus: polled.status });
+      return NextResponse.json({ agent: safeAgent(agent), refreshed: false, personasStatus: polled.status });
     }
     const updated = updateHiredAgentStatus(id, mapped, { personaId: polled.personaId, personaName: polled.personaName }, ws);
     recordAgentLifecycle(id, { event: `poll:${polled.status}` }, ws);
@@ -64,7 +77,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       });
       setPipelineEntryStage(entry.id, "Hired", undefined, ws);
     }
-    return NextResponse.json({ agent: updated, refreshed: true, personasStatus: polled.status });
+    return NextResponse.json({ agent: safeAgent(updated), refreshed: true, personasStatus: polled.status });
   } catch (error) {
     return safeJsonError(error, "api:agents/refresh", "AGENT_REFRESH_FAILED");
   }

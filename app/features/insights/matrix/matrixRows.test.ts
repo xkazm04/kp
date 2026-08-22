@@ -63,6 +63,22 @@ test("column sort ranks by the chosen column, sinking rows unassessed on THAT co
   assert.deepEqual(order, ["lo", "hi", "none"]);
 });
 
+// The A–Z sort collates under the READER's locale. Without a locale, localeCompare uses the
+// JS runtime default (the browser's locale), which disagrees with Czech: `cs` ranks Č as its
+// own letter straight after C, `en` folds it into C and compares the next letter instead. A
+// cs recruiter on an en-US browser therefore read an "A–Z" list in English order.
+test("A–Z collates under the passed locale, not the runtime default (cs orders C before Č)", () => {
+  const rows = [
+    { item: "cech", label: "Čech", visibleScores: [50] },
+    { item: "cejka", label: "Cejka", visibleScores: [50] },
+  ];
+  const opts = { sortByFit: false, sortByColumn: false, minFit: 0 };
+  // Czech: C < Č as PRIMARY letters, so "Cejka" precedes "Čech".
+  assert.deepEqual(orderMatrixRows(rows, { ...opts, locale: "cs" }).order, ["cejka", "cech"]);
+  // English: č is a c with an accent, so the third letter decides — "Čech" precedes "Cejka".
+  assert.deepEqual(orderMatrixRows(rows, { ...opts, locale: "en" }).order, ["cech", "cejka"]);
+});
+
 test("A–Z sort is alphabetical regardless of assessment", () => {
   const rows = [
     { item: "z", label: "Zoe", visibleScores: [99] },

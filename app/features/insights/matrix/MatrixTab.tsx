@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
+import { X } from "lucide-react";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { useShellNavigate } from "@/app/features/shell/nav/shallow-nav";
@@ -174,6 +175,28 @@ function MatrixGridView({ m }: { m: ReturnType<typeof useMatrixTab> }) {
           onDismiss={() => m.setLastAdd(null)}
           dismissLabel={t("addedDismiss")}
         />
+      ) : null}
+
+      {/* …and when EVERY row failed there is no success to report, so the band above stays
+          hidden and the only account of the failure was the sr-only live region: a sighted
+          recruiter saw the button re-enable, the ticks still there, and nothing else — the
+          same "silent" outcome the band was added to kill. Say it plainly, in the failure
+          register (nothing landed, so no board link to offer). */}
+      {m.lastAdd && m.lastAdd.ok === 0 && m.lastAdd.failed > 0 ? (
+        <p
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700"
+        >
+          <span>{t("addedPartial", { ok: 0, failed: m.lastAdd.failed })}</span>
+          <button
+            type="button"
+            onClick={() => m.setLastAdd(null)}
+            aria-label={t("addedDismiss")}
+            className="focus-ring shrink-0 rounded p-0.5 hover:text-ink"
+          >
+            <X size={14} aria-hidden />
+          </button>
+        </p>
       ) : null}
 
       {m.selectMode ? (

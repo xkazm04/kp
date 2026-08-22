@@ -41,9 +41,18 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    the operator meant $2,000. `2,000` is 2000 in `en` and 2.0 in `cs`, so a
    grouped-*looking* value (1–3 digits, one separator, exactly 3 digits) is now reported
    invalid and retyped rather than guessed; `1234.56` and the decimal comma are
-   untouched. Pinned by `jobsAgentFitModel.test.ts`. A `hired_agents` row is minted (idempotent — one live agent per
-   job) and the agent enters the pipeline at Offer (`candidateId agent-<id>`,
-   `sourceChannel agent-bridge`).
+   untouched. Pinned by `jobsAgentFitModel.test.ts`. That client check is **not** the bound:
+   `POST /api/agents/dispatch` now 400s a `budgetUsd` that is present but unusable
+   (negative, non-numeric, non-finite) instead of silently swapping in the stored
+   suggestion — an *omitted* budget still falls back to `suggestedMonthlyUsd`, which is
+   what a blank field sends. A `hired_agents` row is minted (idempotent — one live agent per
+   job) and, **once Personas has accepted the request**, the agent enters the pipeline at
+   Offer (`candidateId agent-<id>`, `sourceChannel agent-bridge`). The board write is
+   deliberately last: a failed dispatch mints a fresh agent id on every retry, so filing
+   the card up front left one phantom Offer-stage candidate per attempt — and an
+   **unpaired** kp fails every dispatch before a byte leaves the process. A 502 now
+   leaves the roster row marked `failed` and the board untouched
+   (`agents-bridge.test.ts`).
 4. **Approve in Personas**: the status ladder is
    `dispatched → pending_approval → onboarding → active` (terminal: `rejected`,
    `failed`, `retired`). The push path is the token-authed public report route; the
@@ -64,7 +73,7 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 | `GET /api/agents/catalog` | Connector catalog for the spec editor (Personas live list, else the built-in fallback; `source` says which) |
 | `POST + GET /api/jobs/[id]/agent-fit` | Start the backgrounded transform (returns `{taskId}`) / read the latest stored spec |
 | `POST /api/agents/dispatch` | `{jobId, overrides?}` → merge overrides onto the stored spec, mint the hire, POST the persona request |
-| `POST /api/agents/[id]/refresh` | Poll Personas for the request state (pull fallback), map it onto the row |
+| `POST /api/agents/[id]/refresh` | Poll Personas for the request state (pull fallback), map it onto the row; returns the same safe projection as the roster — `reportToken` is stripped on every response path |
 | `POST /api/agents/report/[token]` | PUBLIC inbound report route — the CSPRNG token is the capability |
 | `app/_lib/agent-hire/*` | `bridge-store` (encrypted config, env override), `bridge-client` (loopback fetch helpers), `pairing`, `transform-run`, `report-payload` |
 | `app/_lib/db/agents.ts` | Records, statuses, activity ledger, aggregates |
@@ -78,7 +87,11 @@ Three tables (all tenancy-scoped by `workspace_id`; see `app/_lib/db/agents.ts`)
   `metrics` JSON + `source`); the latest row per job is what dispatch reads.
 - **`hired_agents`** — one row per hire: job link, persona identity (filled on approval),
   status, dispatched spec/fit/metrics, `budget_usd`, and the CSPRNG `report_token` (the
-  only gate on the public report route; retired agents' tokens are dead).
+  only gate on the public report route; retired agents' tokens are dead). The token is
+  **server-side only**: every recruiter-facing read (`GET /api/agents`,
+  `POST /api/agents/[id]/refresh`) returns `Omit<HiredAgentRecord, "reportToken">`,
+  because a client holding it could post lifecycle/execution reports for that agent with
+  no session at all.
 - **`agent_activity`** — the activity ledger: `execution` events (idempotent by
   `exec_id`), `rollup` periods (upsert — Personas reports absolutes; a month's rollup is
   authoritative over that month's events), `lifecycle` audit rows.

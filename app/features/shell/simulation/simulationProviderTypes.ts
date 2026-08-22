@@ -63,6 +63,12 @@ export const SLOW_FACTOR = 1.8;
 // canonical 5-stage list — NOT a literal — so the 7→5 stage consolidation (and any
 // future reshaping) can't silently invalidate the bound the way the old hardcoded
 // `4` did. (The board's STAGES mirror db.ts PIPELINE_STAGES; both are 5 stages.)
+//
+// This is now the FALLBACK bound only. advanceTo measures the board it is actually
+// walking (`getBoard().axis`, the workspace's own composed columns) and uses this
+// shipped depth just when the payload carries no axis at all: a workspace may
+// compose up to PIPELINE_STAGES_MAX columns, and a bound frozen at the shipped
+// depth refused targets that were genuinely reachable on a deeper board.
 export const MAX_STAGE_ADVANCES = PIPELINE_STAGES.length - 1;
 export class SimStop extends Error {}
 export const JSON_HEADERS = { "Content-Type": "application/json" };

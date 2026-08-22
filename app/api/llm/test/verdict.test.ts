@@ -109,6 +109,32 @@ test("a real success still returns ok, unchanged (provider/model/latency pass th
   assert.deepEqual(verdict, { ok: true, provider: "anthropic", model: "claude-haiku-4-5", latencyMs: 812 });
 });
 
+test("a provider-side 503 is NOT reported as 'no usable key or SDK on the server'", () => {
+  // The `unavailable` code renders as "Nothing to call: no usable key or SDK on
+  // the server." (models.testReason.unavailable) — a verdict about kp's OWN
+  // configuration. It must be reserved for test_cli's own marker, which is the
+  // only place that string is authored; every other error it reports is a raw
+  // provider exception, and a transient provider outage spells "unavailable" too.
+  // Pre-fix, matching the bare word sent an operator with a perfectly valid key
+  // off to re-paste it while the provider was simply overloaded.
+  const geminiOverload =
+    "ServerError: 503 UNAVAILABLE. {'error': {'code': 503, 'message': 'The model is overloaded. Please try again later.', 'status': 'UNAVAILABLE'}}";
+  assert.notEqual(
+    classifyProviderError(geminiOverload),
+    "unavailable",
+    "a provider 503 must not be diagnosed as a missing key/SDK on our side",
+  );
+  assert.equal(classifyProviderError(geminiOverload), "rate_limit", "an overloaded model is a retry, not a config fault");
+
+  // Same for a 503 with no overload wording — anything but the config verdict.
+  const openaiOutage = "APIStatusError: Error code: 503 - {'error': {'message': 'Service Unavailable', 'type': 'server_error'}}";
+  assert.notEqual(classifyProviderError(openaiOutage), "unavailable");
+
+  // …and test_cli's own marker still lands on `unavailable` (that IS the config case).
+  assert.equal(classifyProviderError("provider unavailable (missing key or SDK/CLI)"), "unavailable");
+  assert.equal(classifyProviderError("ValueError: no api key configured, missing key"), "unavailable");
+});
+
 test("classifyProviderError maps the known error families (and defaults to generic)", () => {
   assert.equal(classifyProviderError("AuthenticationError: bad key"), "auth");
   assert.equal(classifyProviderError("RateLimitError: 429"), "rate_limit");

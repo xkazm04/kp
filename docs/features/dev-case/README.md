@@ -341,6 +341,28 @@ an API key.
 and was never displayed, so "propagated · src/rates.ts" did not say whether a wrong
 constant or a stale doc had survived.
 
+**An empty finding set is explained by the step that produced it.** Strengths and
+concerns come from the `evaluate` step alone, but `DevEvalPanelScores` picked its
+"no findings" line off the run-wide `source` — and `provenance.py` returns `partial`
+for *any* mix. A degraded run whose evaluate step really did call the LLM was told
+"No strengths surfaced yet. Re-run with the LLM for a richer read", relabelling a
+genuine LLM verdict as a template artifact one chip to the left of the provenance
+strip that exists to be honest about exactly that. `DevHelpers.findingsSource` now
+reads `perStepSources.evaluate` and falls back to `source` only for bundles saved
+before the per-step envelope (pinned in `DevHelpers.test.ts`).
+
+**The probe gate's refusal reaches the reviewer.** `enforceProbeGate` answers 422
+`{ code: "probe_audit_failed" }` for a case with no load-bearing probes, and the
+`errors` catalog has no entry for that code — so `useErrorMessage` fell through to
+`DevLifecycleReviewPanel`'s generic "Approve failed." and the reviewer lost both the
+cause and the way out, while the *editless* approve path (`useDevTabActions.runAction`)
+showed the server's full English sentence. The panel now selects its fallback from the
+code (`DevHelpers.approveFallbackFor`) and states the refusal in the reader's language
+by reusing the two strings already on screen: the probe banner's `none` verdict plus
+`review.engineOwned`, which names the exit — Regenerate with note, the button beside
+Approve. The test pins the code literal against `enforceProbeGate` itself, so a rename
+cannot silently restore the generic message.
+
 ### Known gap: engine-authored English sentences
 
 Roughly 25 user-facing sentences are still constructed in code and rendered verbatim:

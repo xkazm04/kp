@@ -4,6 +4,8 @@ import { createPipelineEntry, listPipeline } from "@/app/_lib/db/pipeline";
 import { listMatrixProfiles } from "@/app/_lib/db/profiles";
 import { simCvIntakeTarget } from "@/app/_lib/cv-intake";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { stageWithRole } from "@/app/_lib/pipeline-stages";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { jsonError } from "@/app/_lib/api-response";
 import { SIM_SCREEN_POLICY } from "@/app/features/shell/simulation/constants";
@@ -59,7 +61,15 @@ export async function POST(request: NextRequest) {
       jobTitle: target.jobTitle,
       workspaceId: target.workspaceId,
       matchScore: score,
-      stage: "Accepted",
+      // The board's ENTRY column, resolved from the target workspace's own axis by
+      // ROLE — not the literal "Accepted", which is only that column's name on the
+      // shipped board. Settings → Hiring composes the axis per workspace (stage ids
+      // are free-form, and createPipelineEntry validates nothing), so a team that
+      // renamed its first column got this row filed onto a stage its board does not
+      // render: the Channels tab claimed "Filed at Accepted", the row was stranded
+      // off-axis, and the Waiting stat — which resolves the entry stage by role —
+      // never moved. Same seam as its sibling /api/sim/apply-cv (cv-intake.ts).
+      stage: stageWithRole("entry", getPipelineAxis(target.workspaceId).stages) ?? "Accepted",
       // The simulated applicant is a seeded profile — infer their language from
       // the profile's CV languages so demo comms render like real inbound ones.
       locale: inferProfileLocale(applicant.id, target.workspaceId),

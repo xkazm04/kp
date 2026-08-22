@@ -58,7 +58,16 @@ export function classifyProviderError(raw: string): TestErrorCode {
   const cls = (raw.match(/^\s*([a-z_][a-z0-9_.]*)\s*:/i)?.[1] ?? "").toLowerCase();
   const has = (...markers: string[]) => markers.some((m) => t.includes(m) || cls.includes(m));
 
-  if (has("unavailable", "missing key")) return "unavailable";
+  // test_cli's OWN "nothing to call" marker, matched as the full phrase it emits
+  // ("provider unavailable (missing key or SDK/CLI)"). The bare word `unavailable`
+  // is NOT specific enough: every other error test_cli reports is a raw provider
+  // exception, and a provider-side 503 spells it too — google.genai's
+  // `ServerError: 503 UNAVAILABLE. {... 'The model is overloaded ...'}` and
+  // openai's `Error code: 503 - {... 'Service Unavailable' ...}` both matched
+  // here and told the operator "no usable key or SDK on the server" about a key
+  // that is perfectly fine. Transient provider outages fall through to the
+  // overloaded/rate-limit family (retry) or the generic bucket instead.
+  if (has("provider unavailable", "missing key")) return "unavailable";
   if (has("unexpected canary payload", "unexpected")) return "bad_payload";
   if (has("authentication", "unauthorized", "invalid_api_key", "invalid api key", "no api key", "api key", "401"))
     return "auth";

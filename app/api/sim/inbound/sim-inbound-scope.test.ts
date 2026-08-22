@@ -28,6 +28,10 @@ import { insertJob } from "@/app/_lib/job-ingest";
 import { pipelineAnalytics } from "@/app/_lib/db/analytics";
 import { resetSim } from "@/app/_lib/sim-store";
 import { ensureDb } from "@/app/_lib/db/core";
+import { setDecisionConfig } from "@/app/_lib/decision-config-store";
+import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
+import { knownStageIds } from "@/app/_lib/pipeline-axis";
+import { stageWithRole } from "@/app/_lib/pipeline-stages";
 import { isSimTitle } from "@/app/features/shell/simulation/constants";
 
 after(() => cleanupUnitDb());
@@ -45,6 +49,77 @@ test("the sim inbound route derives its write target from simCvIntakeTarget", ()
     /simCvIntakeTarget\(job, await currentWorkspace\(\)\)/,
     "the target is derived from the real job AND the caller's own workspace"
   );
+});
+
+test("the applicant is filed at the board's ENTRY column, resolved by role", () => {
+  // The literal `stage: "Accepted"` is only that column's NAME on the shipped axis.
+  // Settings → Hiring composes the axis per workspace (free-form stage ids), and
+  // createPipelineEntry validates nothing, so the literal filed the demo applicant
+  // onto a column the board does not render. Same seam as /api/apply/[id] and
+  // cv-intake.ts, pinned the same way (cf. apply-intake-scope.test.ts).
+  assert.match(src, /import \{ getPipelineAxis \}/, "the axis must be read for the write target's workspace");
+  assert.match(
+    src,
+    /stage: stageWithRole\("entry", getPipelineAxis\(target\.workspaceId\)\.stages\) \?\? "Accepted"/,
+    "the entry column is resolved by ROLE from the target workspace's own axis"
+  );
+  assert.doesNotMatch(src, /stage: "Accepted"/, "the shipped column NAME must never be written as a literal");
+});
+
+test("on a workspace that composed its own axis, the literal 'Accepted' is off-axis and the role-resolved column is not", () => {
+  // The behavioural half of the guard above: build the exact axis a team gets when
+  // it renames its first column, then show what each of the two write targets does.
+  const WS = "team-composed-axis";
+  setDecisionConfig(
+    "pipelineStages",
+    {
+      stages: [
+        { id: "Triage", label: "Triage", role: "entry" },
+        { id: "Screened", label: "Screened", role: "screening" },
+        { id: "Interview", label: "Interview", role: "interview" },
+        { id: "Offer", label: "Offer", role: "offer" },
+        { id: "Hired", label: "Hired", role: "terminal" },
+      ],
+      retired: [],
+    },
+    WS
+  );
+
+  const axis = getPipelineAxis(WS);
+  const known = knownStageIds(axis);
+  const resolved = stageWithRole("entry", axis.stages) ?? "Accepted";
+
+  assert.equal(resolved, "Triage", "the entry ROLE resolves to this board's own first column");
+  assert.equal(known.has("Accepted"), false, "the shipped column name is NOT a column this board has");
+  assert.equal(known.has(resolved), true, "the role-resolved column IS one this board renders");
+
+  // Both writes succeed at the DB layer — that is the point: nothing rejects an
+  // off-axis stage, so a literal leaves a permanently stranded row.
+  const stranded = createPipelineEntry({
+    candidateId: "sim-offaxis-cand",
+    candidateLabel: "Stranded Applicant",
+    jobId: "sim-offaxis-job",
+    jobTitle: "Backend Engineer (SIM)",
+    workspaceId: WS,
+    stage: "Accepted",
+  });
+  const filed = createPipelineEntry({
+    candidateId: "sim-onaxis-cand",
+    candidateLabel: "Filed Applicant",
+    jobId: "sim-offaxis-job",
+    jobTitle: "Backend Engineer (SIM)",
+    workspaceId: WS,
+    stage: resolved,
+  });
+  assert.equal(known.has(stranded.entry.stage), false, "the literal write lands on no column of this board");
+  assert.equal(known.has(filed.entry.stage), true, "the role-resolved write lands on a real column");
+
+  // And the read side the Channels tab uses (stage ROLE, see countWaitingAtEntry)
+  // only ever sees the second one — the "Waiting" stat that never moved.
+  const waiting = ensureDb()
+    .prepare(`SELECT COUNT(*) AS c FROM pipeline_entries WHERE workspace_id = ? AND stage = ?`)
+    .get(WS, resolved) as { c: number };
+  assert.equal(waiting.c, 1, "exactly the role-resolved arrival is waiting at the entry column");
 });
 
 test("both the dedupe READ and the entry WRITE are scoped to the sim workspace", () => {

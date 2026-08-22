@@ -131,7 +131,7 @@ export function ConversationalApply({
   useApplyDraftRestore({
     draftStorageKey,
     draftFingerprint,
-    stepCount: steps.length,
+    stepIds: steps.map((s) => s.id),
     hydratedRef,
     answeredRef,
     onRestore: (d) => {
@@ -212,6 +212,16 @@ export function ConversationalApply({
   // typed here and aren't what the server rejected).
   const restartConversation = () => {
     if (submitting) return;
+    // Cancel any step hand-off still in flight. The resumed-draft banner's
+    // "start fresh" is live DURING the 250ms hop, so without this the pending
+    // timer fires after the reset and drops the candidate onto the next step
+    // with a blank answer set — they then walk only the tail of the script and
+    // submit with no name, no email and the knockout gates before it missing.
+    if (stepTimer.current !== null) {
+      window.clearTimeout(stepTimer.current);
+      stepTimer.current = null;
+    }
+    setTransitioning(false);
     answeredRef.current = new Set();
     clearApplyDraft(draftStorageKey);
     setResumed(false);
@@ -222,6 +232,10 @@ export function ConversationalApply({
     followup.resetGaps();
     setAnswers({ ...(prefill?.answers ?? {}) });
     setInput("");
+    setStepError(null);
+    // The CV step leads the script, so a stale "couldn't read that file" would
+    // otherwise greet the candidate under the very first question of the retry.
+    setUploadErr(null);
     setIdx(0);
     setMsgs(initialMsgs());
   };

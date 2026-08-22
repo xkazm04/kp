@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { Lock, RefreshCw, ShieldCheck } from "lucide-react";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { Markdown } from "@/app/_components/Markdown";
-import { caseToMarkdown } from "./DevHelpers";
+import { approveFallbackFor, caseToMarkdown } from "./DevHelpers";
 import { ProbeRow } from "./DevShared";
 import { ProbeStrengthBanner } from "./DevProbeStrengthBanner";
 import type { CaseScenario, Lifecycle } from "./DevTypes";
@@ -22,9 +22,18 @@ import type { CaseScenario, Lifecycle } from "./DevTypes";
 // with the reviewer's feedback instead of a full lifecycle re-run from intake.
 export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Lifecycle; onApprove: () => void; onChanged?: () => void }) {
   const t = useTranslations("devcase.review");
+  const tProbe = useTranslations("devcase.probeAudit");
   // Resolve API failures from the machine `code`, never from the server's
   // English `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
+  // …but the ONE refusal this gate can raise — 422 probe_audit_failed, a case whose
+  // probes can't tell a strong submission from a naive one — has no `errors` catalog
+  // entry, so the resolver fell through to the generic "Approve failed." and the
+  // reviewer lost both the cause and the way out. The banner two panels up already
+  // states that cause in their language, and `engineOwned` names the exit (Regenerate
+  // with note — the button beside Approve), so the refusal answers itself.
+  const approveFallback = (payload: { code?: string | null } | null) =>
+    approveFallbackFor(payload?.code, { probeGate: `${tProbe("none")} ${t("engineOwned")}`, generic: t("approveFailed") });
   const kase: CaseScenario = lc.case ?? {};
   const [title, setTitle] = useState(kase.title ?? "");
   const [brief, setBrief] = useState(kase.brief ?? "");
@@ -63,7 +72,7 @@ export function DevLifecycleReviewPanel({ lc, onApprove, onChanged }: { lc: Life
           body: JSON.stringify({ case: edits }),
         });
         const payload = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
-        if (!r.ok) throw new Error(errMsg(payload, t("approveFailed")));
+        if (!r.ok) throw new Error(errMsg(payload, approveFallback(payload)));
         onChanged?.();
       } else {
         // No edits — the parent's existing approve flow (POST + reload).

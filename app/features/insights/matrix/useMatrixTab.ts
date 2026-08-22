@@ -200,9 +200,21 @@ export function useMatrixTab() {
       visibleScores: colIdx.map((ci) => data.cells[ri]?.[ci]?.score ?? null),
       sortColScore: sortByColumn ? data.cells[ri]?.[sortCol]?.score ?? null : undefined,
     }));
-    return orderMatrixRows(inputs, { sortByFit, sortByColumn, minFit });
-  }, [data, cols, sortByFit, minFit, sortCol]);
+    // The A–Z branch collates under the READER's locale — a bare localeCompare() uses the
+    // browser's default, and cs/en disagree (cs ranks Č as its own letter after C).
+    return orderMatrixRows(inputs, { sortByFit, sortByColumn, minFit, locale });
+  }, [data, cols, sortByFit, minFit, sortCol, locale]);
   const rows = rowOrder.order;
+
+  // The column sort only APPLIES while its column is visible (orderMatrixRows falls back to
+  // best-fit/A–Z otherwise — see `sortByColumn` above), so a family filter that hides the
+  // sorted role silently re-sorts the grid. Report the EFFECTIVE column, not the raw state:
+  // the toolbar was still reading "Sort: by column" over rows the grid had re-ranked by best
+  // fit, naming a sort key that wasn't even on screen.
+  const sortColActive = useMemo(
+    () => (sortCol != null && cols.some((c) => c.i === sortCol) ? sortCol : null),
+    [cols, sortCol],
+  );
 
   // MAT2 row counterpart: how many VISIBLE roles each candidate is a strong fit
   // for (score >= STRONG_THRESHOLD) — a versatile-vs-niche read per candidate,
@@ -266,25 +278,37 @@ export function useMatrixTab() {
     setPopover(null);
   };
 
+  // Cell keys already requested — in flight or resolved. The de-dupe has to live OUT here,
+  // in a ref, because the request it guards costs an LLM call: it used to be fired from
+  // inside the setReasoning updater, and React invokes an updater more than once for a
+  // single dispatch (StrictMode double-invokes it in dev to check purity, and a rebased
+  // update queue can replay it). Both invocations saw the same pre-update `cur`, so one
+  // cell click spent TWO /api/match/reasoning calls — two LLM-backed Python spawns, both
+  // missing the prompt cache because neither had written it yet.
+  const requestedReasoning = useRef<Set<string>>(new Set());
   // deec915c — lazily fetch (and cache) the reasoning for a (candidate, job) pair.
   const fetchReasoning = (candId: string, posId: string) => {
     const key = `${candId}|${posId}`;
-    setReasoning((cur) => {
-      if (cur[key]?.data || cur[key]?.loading) return cur; // already loaded / in flight
-      void fetch("/api/match/reasoning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId: candId, jobId: posId, lang: locale }),
+    if (requestedReasoning.current.has(key)) return; // already loaded / in flight
+    requestedReasoning.current.add(key);
+    setReasoning((cur) => ({ ...cur, [key]: { loading: true } }));
+    void fetch("/api/match/reasoning", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileId: candId, jobId: posId, lang: locale }),
+    })
+      .then(async (r) => {
+        const p = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(errMsg(p, t("reasoningFailed")));
+        return p as { reasoning?: Reasoning; source?: string; cached?: boolean };
       })
-        .then(async (r) => {
-          const p = await r.json().catch(() => ({}));
-          if (!r.ok) throw new Error(errMsg(p, t("reasoningFailed")));
-          return p as { reasoning?: Reasoning; source?: string; cached?: boolean };
-        })
-        .then((p) => setReasoning((s) => ({ ...s, [key]: { data: p.reasoning, source: p.source, cached: p.cached } })))
-        .catch((e) => setReasoning((s) => ({ ...s, [key]: { error: e instanceof Error ? e.message : t("reasoningFailed") } })));
-      return { ...cur, [key]: { loading: true } };
-    });
+      .then((p) => setReasoning((s) => ({ ...s, [key]: { data: p.reasoning, source: p.source, cached: p.cached } })))
+      .catch((e) => {
+        // Release the key so re-opening the cell can retry — the old guard allowed that
+        // too (it only skipped keys holding `data` or `loading`).
+        requestedReasoning.current.delete(key);
+        setReasoning((s) => ({ ...s, [key]: { error: e instanceof Error ? e.message : t("reasoningFailed") } }));
+      });
   };
 
   // Open the popover anchored under the clicked cell (viewport-fixed from its rect),
@@ -405,7 +429,7 @@ export function useMatrixTab() {
     setFamily,
     minFit,
     setMinFit,
-    sortCol,
+    sortCol: sortColActive,
     setSortCol,
     selectMode,
     setSelectMode,

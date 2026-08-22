@@ -1,6 +1,6 @@
 // The "observation + real-click engine" half of SimulationProvider, split out so
 // the provider stays under the 200-line file cap. Verbatim logic — board
-// observation (getEntries/entriesFor/topScreened), DOM polling (waitDom/waitEntry),
+// observation (getBoard/getEntries/entriesFor/topScreened), DOM polling (waitDom/waitEntry),
 // the real-click dispatcher (clickEl), pipeline advances (advance/advanceTo), and
 // the group-evaluation runner (runGroupEval). Takes the provider's shared
 // ctrl ref + patch/beat/log so this stays wired to the SAME run-control state.
@@ -10,6 +10,7 @@ import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { resolveErrorMessage, type ApiErrorPayload } from "@/app/_lib/use-error-message";
 import type { GroupEvalPayload } from "@/app/features/hiring/decisions/GroupEvalModal";
 import type { PipelineEntryView } from "@/app/_lib/db/pipeline";
+import { DEFAULT_STAGE_AXIS, stageHasRole, type StageDef } from "@/app/_lib/pipeline-stages";
 import { compareByMatchScoreDesc } from "@/app/_lib/match-score";
 import { JSON_HEADERS, MAX_STAGE_ADVANCES, SimStop, sleep, type SimState } from "./simulationProviderTypes";
 
@@ -45,15 +46,44 @@ export function useSimulationEngine({
     [tErrors]
   );
 
-  const getEntries = useCallback(async (): Promise<PipelineEntryView[]> => {
+  // The board this run is driving: the workspace's own entries AND its own column
+  // axis, which /api/pipeline already ships beside them. The axis is per-workspace
+  // DATA (Settings → Hiring composes it; stage ids are free-form and a team may add,
+  // reorder or drop columns), so every stage question the walk asks — where an
+  // accept landed, which column carries the offer role, how deep the board is — has
+  // to be answered from HERE rather than from the shipped 5-stage literal. Reading
+  // the axis off the same response the entries come from costs nothing extra and
+  // keeps the two consistent by construction.
+  const getBoard = useCallback(async (): Promise<{ entries: PipelineEntryView[]; axis: StageDef[] }> => {
     // Throw on a non-OK response instead of letting `?? []` coerce a transient 500 into an
     // empty board — which read as "intake returned none" and silently halted the sim beat.
     // A throw surfaces the failure to the sim run's error handling.
     const r = await fetch("/api/pipeline");
     if (!r.ok) throw new Error(tSim("error.pipelineFetch", { status: r.status }));
     const p = await r.json();
-    return (p.entries as PipelineEntryView[]) ?? [];
+    const axis = (p.stages as StageDef[] | undefined) ?? [];
+    return {
+      entries: (p.entries as PipelineEntryView[]) ?? [],
+      axis: axis.length > 0 ? axis : DEFAULT_STAGE_AXIS.map((s) => ({ ...s })),
+    };
   }, [tSim]);
+
+  const getEntries = useCallback(async (): Promise<PipelineEntryView[]> => (await getBoard()).entries, [getBoard]);
+
+  // Read a JSON body that MUST have succeeded. Same FAILURE POLICY as
+  // waitEntry/advanceTo/getBoard: on a non-OK response the body is an ERROR object,
+  // so a caller's `?? []` / `?? 0` silently coerces it into a zero-shape and the
+  // demo NARRATES an outcome the server never produced. Resolve the machine code
+  // into the reader's language, fall back to the control center's own copy, and
+  // THROW so run()'s catch shows "Failed: …".
+  const okJson = useCallback(
+    async <T,>(r: Response): Promise<T> => {
+      const p = (await r.json().catch(() => ({}))) as T & ApiErrorPayload;
+      if (!r.ok) throw new Error(errMsg(p, t("errorRun")));
+      return p;
+    },
+    [errMsg, t]
+  );
 
   // The sim walk repeatedly re-fetches the whole board and selects the cohort for
   // the role under demo. Co-locate that selection so the jobId scope and the stage
@@ -70,8 +100,13 @@ export function useSimulationEngine({
     // Best-first via the shared null-safe comparator: an unscored entry sorts
     // last (never fabricated into a "score 0" pick), so the sim follows a
     // candidate who was actually measured.
-    async (jobId: string): Promise<PipelineEntryView | undefined> =>
-      (await entriesFor(jobId, "Screened")).sort(compareByMatchScoreDesc)[0],
+    //
+    // The screened column is a PARAMETER, not the literal "Screened": the walk
+    // resolves it from the live axis by role (screenedLandingStage), so a workspace
+    // whose screening column is called something else still yields a candidate to
+    // follow instead of an empty cohort and a bogus "intake returned none" halt.
+    async (jobId: string, screenedStage: string): Promise<PipelineEntryView | undefined> =>
+      (await entriesFor(jobId, screenedStage)).sort(compareByMatchScoreDesc)[0],
     [entriesFor]
   );
 
@@ -145,20 +180,36 @@ export function useSimulationEngine({
   // out by catching this explicitly.
   const advanceTo = useCallback(
     async (entryId: string, stage: string): Promise<string> => {
+      // Bound + target checked against the LIVE board, not the shipped 5-stage list.
+      // Two distinct failures the compile-time bound hid:
+      //   • a workspace may compose up to PIPELINE_STAGES_MAX columns, so a bound of
+      //     4 refuses a target that IS reachable on a deeper board;
+      //   • the `offer` role is OPTIONAL on a composed axis and stage ids are
+      //     free-form, so a target the axis simply does not have used to be
+      //     discovered only AFTER the loop had accepted the candidate through every
+      //     remaining column — extending a real offer and landing them on the
+      //     terminal stage — on the way to failing. Refuse before the FIRST advance,
+      //     and stop at the terminal column, where further accepts can only re-fire
+      //     terminal-stage side effects.
+      const { axis } = await getBoard();
+      const maxSteps = axis.length > 1 ? axis.length - 1 : MAX_STAGE_ADVANCES;
       let st = "";
-      for (let i = 0; i < MAX_STAGE_ADVANCES; i++) {
-        st = await advance(entryId);
-        if (st === stage) return st;
+      if (axis.some((s) => s.id === stage)) {
+        for (let i = 0; i < maxSteps; i++) {
+          st = await advance(entryId);
+          if (st === stage) return st;
+          if (stageHasRole(st, "terminal", axis)) break;
+        }
       }
       throw new Error(
         tSim("error.advanceStalled", {
           stage,
-          steps: MAX_STAGE_ADVANCES,
+          steps: maxSteps,
           current: st || tSim("error.unknownStage"),
         })
       );
     },
-    [advance, tSim]
+    [advance, getBoard, tSim]
   );
 
   // Run + show a group evaluation for a role (keyless: deterministic ranking when
@@ -215,5 +266,5 @@ export function useSimulationEngine({
     [ctrl, entriesFor, locale, log, patch, tSim]
   );
 
-  return { getEntries, entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval };
+  return { getBoard, getEntries, okJson, entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval };
 }

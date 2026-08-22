@@ -43,8 +43,13 @@ export function ProbeStrengthBanner({ probes }: { probes: CoverProbe[] }) {
       </p>
       {dead.length > 0 ? (
         <ul className="mt-1 space-y-0.5">
-          {dead.map((p) => (
-            <li key={p.probeId || p.where}>
+          {/* `probeId` and `where` are BOTH optional on a designed probe, and "no
+              concrete seam" (empty `where`) is one of the very issues that lands a
+              probe in this list — so two dead probes routinely share the key ""
+              here. The list is a filtered, order-stable projection of a prop, so
+              the index is the honest stable identity. */}
+          {dead.map((p, i) => (
+            <li key={`${p.probeId}|${p.where}|${i}`}>
               <span className="rounded bg-white/70 px-1 py-0.5 font-semibold uppercase">{p.kind.replace(/_/g, " ")}</span>{" "}
               <span className="text-steel">@ {p.where || "—"}</span> — {p.issues.join(" ")}
             </li>

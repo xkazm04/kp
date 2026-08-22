@@ -91,6 +91,31 @@ honors `KP_OFFLINE`), so a keyless self-hosted deployment keeps the unchanged
 CLI default and its deterministic fallbacks. An explicit config row — including
 `claude_cli` — always wins. (`registry._production_gemini_default`; use cases
 needing `file_input` are excluded and keep their dedicated `gemini.py` path.)
+This default carries the same `USE_CASE_MAX_TOKENS` ceiling as a configured row
+(below) — it used to build the adapter without one, so a config-less cloud box
+ran every heavy-output use case at the 2048 cost cap and shipped the
+deterministic fallback after two truncated, paid calls.
+
+## A non-answer is never an answer
+
+An adapter must not turn a provider-side non-answer into a successful
+`LLMResult`. An empty string handed back as a completion is metered as a healthy
+paid call and is taken by every plain `complete()` caller (`intake.run_voice_turn`,
+the interview/intake eval personas) as the model's real reply — a fallback with no
+signal that it *is* one. Each adapter raises a typed `LLMError` instead:
+
+| Shape | Adapter | `LLMError.subtype` |
+| --- | --- | --- |
+| HTTP 200 whose body carries a top-level `{"error": …}` | `openai_api._raise_on_error_response` | `provider_error` |
+| HTTP 200 with no `choices` | same | `empty_choices` |
+| `finish_reason` = `error` / `content_filter` | same | `content_filter` |
+| Gemini response with no text (safety/recitation block, or a stop with no parts — `.text` raises or is `None`) | `gemini_api._call` | `empty_response` |
+| Parseable-JSON failure surviving the one repair re-prompt | `base.complete_json` | `unparseable_json` |
+
+Where the tokens were already billed (a Gemini block bills the prompt; a paid
+completion that came back as unusable JSON), the adapter emits the usage line
+**before** raising, so the spend still reaches the ledger and the failure still
+reaches LightTrack — the same success-then-error pair `complete_json` uses.
 
 ## Observability — LightTrack (`pipeline/jobfit/llm/monitor.py`)
 
@@ -152,6 +177,23 @@ must land 9–10) and sees an **input-evidence excerpt** per scenario
 or candidate×match facts) so correctness is graded against evidence. The earlier
 unanchored, evidence-free judge compressed the whole 7-model matrix into the 5–8
 band. `--judge-model` picks the CLI model alias for the judge seat (e.g. `fable`).
+
+**Scorecard scoping — what each column can and cannot fail on.** The three axes
+(`summarize()` in `bench/runner.py`) are deliberately disjoint, and all three are
+now scoped to the rows the *model itself* answered (`source == "llm"`):
+
+| column | scope | why |
+| --- | --- | --- |
+| `judge*` | LLM rows only | the deterministic fallback is the same template for every target — judging it measures the fallback, not the model |
+| `valid` | LLM rows only | the fallback passes every contract *by construction* (contracts.py mirrors the production coercion), so counting it made `valid` a signal that could not fail: a target that never once served read `valid 100%`. It now reads `0%` |
+| `llm` | all served rows | the reliability axis — where a degraded target is supposed to show up |
+| `$/task`, `p50/p95` | all served rows | envelope facts |
+
+`bench_cli --judge` reports `judged N/M` over LLM rows only for the same reason;
+its "the judge scored 0 outputs" warning therefore fires on a broken *judge*, not
+on a target that fell back on every scenario (which it used to blame the Claude
+CLI for). `bake_quality.py` already scoped its cells this way — the summary table
+now matches it.
 
 ## Background-mode contract + the Activity log (2026-08-12)
 
@@ -289,6 +331,16 @@ saving one.
   connection / timeout / …) onto localized copy. The codes were always computed
   server-side and always thrown away by the client, which resolved them through
   the `errors` namespace — a namespace that carries none of them.
+- `classifyProviderError` (`app/api/llm/test/verdict.ts`) reads the raw text ONLY
+  to pick that code, and its marker precedence matters: the `unavailable` code
+  renders as *"Nothing to call: no usable key or SDK on the server"* — a verdict
+  about **kp's own config** — so it is matched on `test_cli`'s full phrase
+  (`"provider unavailable (missing key or SDK/CLI)"`), never the bare word.
+  Everything else `test_cli` reports is a raw provider exception, and a
+  provider-side 503 spells "unavailable" too (`ServerError: 503 UNAVAILABLE …`,
+  `Error code: 503 - … 'Service Unavailable'`); those now land on the
+  overloaded/rate-limit family or the generic bucket instead of telling an
+  operator with a valid key that no key is stored. Pinned by `verdict.test.ts`.
 
 ## Invariants
 

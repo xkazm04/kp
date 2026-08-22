@@ -35,6 +35,13 @@ export type MatrixRowInput<T> = {
   sortColScore?: number | null;
 };
 
+/** BCP-47 tag the A–Z sort collates under. Omitted = the JS runtime default, which is the
+ *  BROWSER's locale, not the reader's chosen app locale — and the two disagree on Czech:
+ *  `cs` treats Č as its own letter directly after C ("Cejka" < "Čech"), while `en` folds it
+ *  into C as an accent and compares the next letter instead ("Čech" < "Cejka"). A cs reader
+ *  on an en-US browser got the English order under an "A–Z" label. */
+export type CollationLocale = string | undefined;
+
 export type MatrixRowOrder<T> = {
   order: T[];
   /** Rows that HAD an assessed best but scored below minFit (a real weak fit, hidden). */
@@ -55,7 +62,7 @@ function scoreDesc(a: number | null | undefined, b: number | null | undefined): 
  *  else A–Z. Unassessed (null-best) rows trail every scored row under both numeric sorts. */
 export function orderMatrixRows<T>(
   rows: ReadonlyArray<MatrixRowInput<T>>,
-  opts: { sortByFit: boolean; sortByColumn: boolean; minFit: number },
+  opts: { sortByFit: boolean; sortByColumn: boolean; minFit: number; locale?: CollationLocale },
 ): MatrixRowOrder<T> {
   const withBest = rows.map((r) => ({ r, best: bestVisibleScore(r.visibleScores) }));
 
@@ -77,7 +84,7 @@ export function orderMatrixRows<T>(
   const sorted = [...kept].sort((a, b) => {
     if (opts.sortByColumn) return scoreDesc(a.r.sortColScore, b.r.sortColScore);
     if (opts.sortByFit) return scoreDesc(a.best, b.best);
-    return a.r.label.localeCompare(b.r.label);
+    return a.r.label.localeCompare(b.r.label, opts.locale);
   });
 
   return { order: sorted.map(({ r }) => r.item), hiddenByFloor, hiddenUnassessed };

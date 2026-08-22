@@ -13,10 +13,11 @@ import { useCallback, type MutableRefObject } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { clearedTabScopedParams } from "@/app/features/shell/tabs";
 import { jdJobId } from "@/app/_lib/jd-limits";
+import { screenedLandingStage, stageWithRole } from "@/app/_lib/pipeline-stages";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { SIM_COMPANY, SIM_ROLE, SIM_SALARY, SIM_SCREEN_POLICY, SIM_TITLE } from "./constants";
 import { applyCompanyTemplate } from "./simCompanyTemplate";
-import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, sleep, type SimState, type StepOpts } from "./simulationProviderTypes";
+import { CLEAR_OVERLAYS, JSON_HEADERS, SimStop, sleep, type ScreenWave, type SimState, type StepOpts } from "./simulationProviderTypes";
 import type { useSimulationEngine } from "./useSimulationEngine";
 
 /** The audit actor recorded on the demo's screening approval. NOT localized on
@@ -28,6 +29,11 @@ import type { useSimulationEngine } from "./useSimulationEngine";
  *  `rationale` is English for exactly the same reason; the UI renders its
  *  localized mirror from `reasonCode` instead (see SimDecisionWave). */
 const DEMO_APPROVER = "Guided demo (auto-approved)";
+
+/** What /api/decisions/screen-wave returns. Every field optional: the response is
+ *  only trustworthy once its status has been checked (see `okJson`), and the
+ *  approval token is minted by the preview for the commit to carry. */
+type ScreenWaveResponse = Partial<ScreenWave> & { approvalToken?: string };
 
 export function useSimulationWalk({
   ctrl,
@@ -46,7 +52,7 @@ export function useSimulationWalk({
   gate: () => Promise<void>;
   engine: ReturnType<typeof useSimulationEngine>;
 }) {
-  const { entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval } = engine;
+  const { getBoard, okJson, entriesFor, topScreened, waitDom, waitEntry, clickEl, advance, advanceTo, runGroupEval } = engine;
   const t = useTranslations("simulation");
   // The demo JD prints a salary band; its digit grouping follows the active
   // locale like every other figure in the app (app/_lib/format.ts).
@@ -117,6 +123,20 @@ export function useSimulationWalk({
       log(t("log.resetting"));
       await fetch("/api/sim/reset", { method: "POST" });
 
+      // The columns THIS workspace's board actually has. The axis is per-workspace
+      // data (Settings → Hiring composes it: free-form stage ids, extra rounds, an
+      // optional offer column), so every stage the walk names is resolved from it BY
+      // ROLE. Reading it once here is safe — nothing in a run edits the axis — and
+      // it is what stops the demo from chasing columns that exist only on the
+      // shipped board: with the literals, a renamed entry column made "sourced"
+      // count 0 over a full pool, the cohort advance dragged every candidate toward
+      // the terminal stage looking for a "Screened" that was not there, and the run
+      // died on "intake returned none".
+      const { axis } = await getBoard();
+      const entryStage = stageWithRole("entry", axis) ?? "Accepted";
+      const screenedStage = screenedLandingStage(axis) || "Screened";
+      const offerStage = stageWithRole("offer", axis) ?? "Offer";
+
       await step({
         id: "design",
         tab: "library",
@@ -169,7 +189,7 @@ export function useSimulationWalk({
           const deadline = Date.now() + 12_000;
           while (Date.now() < deadline) {
             if (ctrl.current.stop) throw new SimStop();
-            sourced = (await entriesFor(jobId, "Accepted")).length;
+            sourced = (await entriesFor(jobId, entryStage)).length;
             if (sourced > 0) break;
             await sleep(400);
           }
@@ -193,15 +213,22 @@ export function useSimulationWalk({
           notifyDataChanged();
           await beat(1400);
 
-          // Match all intake (Accepted) → Screened (first-wave evaluation: match + AI screen).
-          const intake = await entriesFor(jobId, "Accepted");
+          // Match all intake (the entry column) → the screened column (first-wave
+          // evaluation: match + AI screen), both resolved from this board's axis.
+          const intake = await entriesFor(jobId, entryStage);
           // Best-effort cohort advance: this is the ONE site that deliberately opts
           // out of advanceTo's throw-on-failure policy — a stray un-advanceable stub
           // shouldn't abort the whole demo. Log each straggler and continue; the
           // `if (!top)` guard below still HALTS if the cohort produced nobody Screened.
+          // Count what ACTUALLY reached the screened column, not how many were in
+          // intake: the loop tolerates stragglers, so `intake.length` narrated
+          // "5 candidates matched → Screened" directly above the two "stuck,
+          // skipping" lines that contradicted it.
+          let matched = 0;
           for (const e of intake) {
             try {
-              await advanceTo(e.id, "Screened");
+              await advanceTo(e.id, screenedStage);
+              matched++;
             } catch (err) {
               if (err instanceof SimStop) throw err;
               log(
@@ -212,14 +239,14 @@ export function useSimulationWalk({
               );
             }
           }
-          const top = await topScreened(jobId);
+          const top = await topScreened(jobId, screenedStage);
           if (!top) throw new Error(t("error.noScreened"));
           targetId = top.id;
           targetLabel = top.candidateLabel;
           patch({ targetLabel });
           log(
             t("log.matched", {
-              count: intake.length,
+              count: matched,
               candidate: targetLabel,
               score: top.matchScore ?? t("log.noScore"),
             })
@@ -244,17 +271,35 @@ export function useSimulationWalk({
           // (constants.ts), coupled to its inboundScoreFloor by an invariant (the
           // scripted applicant must outscore the reject ceiling, or it gets
           // auto-rejected mid-demo). constants.test.ts pins that invariant.
+          //
+          // BOTH calls go through okJson: a non-OK screen-wave response is an error
+          // object, and `wave.decisions ?? []` / `?? 0` used to coerce it into the
+          // zero shape — so the modal announced "0 matched · 0 auto-rejected · 0
+          // advanced" over a cohort the previous step had just logged as matched,
+          // and the walk carried on to log "passed screening" for an automated
+          // decision wave that never ran. This route is reachably non-OK: it is
+          // requireOperator-gated and explicitly rejects the anonymous demo-workspace
+          // session (401), refuses a commit whose approval token is missing or no
+          // longer matches the reviewed set (409), and 400s a rejected override. A
+          // labelled throw halts the run with "Failed: …" instead of a green lie —
+          // the same failure policy waitEntry / advanceTo / getBoard already use.
           const screenWaveBody = { jobId, override: SIM_SCREEN_POLICY.screenWaveOverride };
-          const wavePreview = await fetch("/api/decisions/screen-wave", {
-            method: "POST",
-            headers: JSON_HEADERS,
-            body: JSON.stringify({ ...screenWaveBody, dryRun: true }),
-          }).then((r) => r.json());
-          const wave = await fetch("/api/decisions/screen-wave", {
-            method: "POST",
-            headers: JSON_HEADERS,
-            body: JSON.stringify({ ...screenWaveBody, approvalToken: wavePreview.approvalToken, approvedBy: DEMO_APPROVER }),
-          }).then((r) => r.json());
+          const wavePreview = await okJson<ScreenWaveResponse>(
+            await fetch("/api/decisions/screen-wave", {
+              method: "POST",
+              headers: JSON_HEADERS,
+              body: JSON.stringify({ ...screenWaveBody, dryRun: true }),
+            })
+          );
+          // A missing token is not silently committed as "no approval": the route's
+          // Art. 22 gate refuses a token-less commit (409), which okJson surfaces.
+          const wave = await okJson<ScreenWaveResponse>(
+            await fetch("/api/decisions/screen-wave", {
+              method: "POST",
+              headers: JSON_HEADERS,
+              body: JSON.stringify({ ...screenWaveBody, approvalToken: wavePreview.approvalToken, approvedBy: DEMO_APPROVER }),
+            })
+          );
           patch({ screenWave: { decisions: wave.decisions ?? [], rejected: wave.rejected ?? 0, kept: wave.kept ?? 0, cohort: wave.cohort ?? 0 } });
           notifyDataChanged();
           await beat(3400); // let the viewer read the audit
@@ -270,8 +315,13 @@ export function useSimulationWalk({
           // bare-accepted an Offer-stage entry into a phantom Hired and the walk
           // crashed at the Interview→Offer seam. One accept, one stage.)
           await fetch("/api/sim/screen-draft", { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ entryId: targetId }) });
-          await advance(targetId); // accept the screening review: Screened → Interview + calendar gate
-          await waitEntry(targetId, (e) => e.stage === "Interview" || e.approvalKind === "calendar", t("wait.screeningGate"));
+          // accept the screening review: one stage forward + the calendar gate.
+          // WAIT on the stage the accept ACTUALLY produced, not on the literal
+          // "Interview": which column lies one step past screening is workspace data,
+          // so on a board that inserts a round (or renames the column) both halves of
+          // the old predicate stayed false for the full 9s and the tour died.
+          const landed = await advance(targetId);
+          await waitEntry(targetId, (e) => e.stage === landed || e.approvalKind === "calendar", t("wait.screeningGate"));
           notifyDataChanged();
           log(t("log.passedScreening", { candidate: targetLabel }));
         },
@@ -322,7 +372,7 @@ export function useSimulationWalk({
             }
           }
           await waitEntry(targetId, (e) => e.approvalKind !== "calendar", t("wait.slotConfirmed"));
-          const st = await advanceTo(targetId, "Offer");
+          const st = await advanceTo(targetId, offerStage);
           log(t("log.stage", { stage: stageLabel(st) }));
         },
         readMs: 1500,
@@ -408,7 +458,7 @@ export function useSimulationWalk({
       patch({ running: false, error: msg, status: t("status.failed", { message: msg }), ...CLEAR_OVERLAYS });
       log(t("log.error", { message: msg }));
     }
-  }, [advance, advanceTo, beat, clickEl, ctrl, entriesFor, topScreened, locale, log, nav, patch, runGroupEval, stageLabel, step, t, waitDom, waitEntry]);
+  }, [advance, advanceTo, beat, clickEl, ctrl, entriesFor, getBoard, okJson, topScreened, locale, log, nav, patch, runGroupEval, stageLabel, step, t, waitDom, waitEntry]);
 
   return { run };
 }

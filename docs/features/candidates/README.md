@@ -173,6 +173,25 @@ header that merely repeats it — otherwise a "Curriculum Vitae — Jane Applica
 Prepared by: recruiter@agency.com" preamble prefills the agency's address as the
 candidate's. Pinned by `app/_lib/cv-autofill.test.ts`.
 
+The chat's CV step offers exactly `ACCEPT_EXTENSIONS` from
+`app/_lib/upload-constraints.ts` — the same constant the recruiter-side drop zones
+render, and the same set `validateUploadServer` and `pipeline/jobfit/extractors.py`
+enforce. It used to hardcode a wider literal that included `.doc`, which nothing
+downstream reads: the picker offered legacy Word and the server refused it with a
+400 *after* the upload, on a public flow with no support channel.
+
+An abandoned chat resumes from a localStorage draft (`use-apply-draft.ts`) keyed by
+job (+ lead token) and fingerprinted against the script that recorded it. Two rules
+make a resume safe: a fingerprint mismatch discards the draft outright rather than
+replaying answers under the wrong step ids, and `resumableAnsweredIds` drops the id
+of the step the draft resumes *on* from the double-answer guard. The second exists
+because `advance()` marks a step answered before awaiting the final POST while `idx`
+still points at it — so a draft written at that instant (failed submit, tab closed
+mid-request) would otherwise come back with the final knockout question rendered
+behind a guard that silently swallows every tap. It is applied on read, so drafts
+already in candidates' browsers are healed too. `apply-draft-fingerprint.test.ts`
+pins both.
+
 Three invariants both intake surfaces hold on the way into the pipeline —
 pinned by `app/api/apply/apply-intake-scope.test.ts`:
 

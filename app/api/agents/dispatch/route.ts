@@ -13,10 +13,11 @@ import { dispatchPersonaRequest, type DispatchSpec } from "@/app/_lib/agent-hire
 // Personas as a persona request:
 //   1. idempotency: a live agent for the job is returned as-is (409-free reuse);
 //   2. a hired_agents row is minted (status dispatched, CSPRNG report token);
-//   3. the agent enters the pipeline at Offer (candidateId "agent-<id>",
-//      sourceChannel "agent-bridge") — activation later auto-moves it to Hired;
-//   4. the persona request POSTs to Personas; success stamps requestId +
-//      pending_approval, failure marks the row failed (the roster shows why).
+//   3. the persona request POSTs to Personas; success stamps requestId +
+//      pending_approval, failure marks the row failed (the roster shows why);
+//   4. only on success does the agent enter the pipeline at Offer (candidateId
+//      "agent-<id>", sourceChannel "agent-bridge") — activation later auto-moves
+//      it to Hired. A failed dispatch leaves NO card on the board.
 
 type SpecShape = {
   name?: unknown;
@@ -85,12 +86,26 @@ export async function POST(request: NextRequest) {
 
     const overrides = (body?.overrides ?? {}) as SpecShape & { budgetUsd?: unknown };
     const storedBudget = (fitSpec.budget ?? {}) as { suggestedMonthlyUsd?: unknown };
-    const budgetUsd =
-      typeof overrides.budgetUsd === "number" && Number.isFinite(overrides.budgetUsd) && overrides.budgetUsd >= 0
-        ? overrides.budgetUsd
-        : typeof storedBudget.suggestedMonthlyUsd === "number"
-          ? storedBudget.suggestedMonthlyUsd
-          : null;
+    // The monthly cap is the one number here that costs money if it is wrong, and
+    // the client's own validation (budgetFromInput) is NOT a bound — anything can
+    // POST this route. An OMITTED/null budget still falls back to the stored
+    // suggestion (buildOverrides drops the key when the field is blank), but a
+    // budget that is PRESENT and unusable is refused out loud: silently swapping
+    // in the LLM-suggested cap dispatched an agent at a spend limit the operator
+    // never asked for and never saw.
+    const rawBudget = overrides.budgetUsd;
+    const budgetProvided = rawBudget !== undefined && rawBudget !== null;
+    if (budgetProvided && !(typeof rawBudget === "number" && Number.isFinite(rawBudget) && rawBudget >= 0)) {
+      return NextResponse.json(
+        { error: "overrides.budgetUsd must be a non-negative number of USD (omit it to use the suggested budget)." },
+        { status: 400 }
+      );
+    }
+    const budgetUsd = budgetProvided
+      ? (rawBudget as number)
+      : typeof storedBudget.suggestedMonthlyUsd === "number" && Number.isFinite(storedBudget.suggestedMonthlyUsd)
+        ? storedBudget.suggestedMonthlyUsd
+        : null;
     const spec = mergedSpec(fitSpec.spec, overrides, budgetUsd);
     const metrics = Array.isArray(fitSpec.metrics) ? fitSpec.metrics : [];
     spec.successMetrics = metrics;
@@ -99,18 +114,6 @@ export async function POST(request: NextRequest) {
       { jobId, jobTitle: job.title, spec, fit: fitSpec.fit, metrics, budgetUsd },
       ws
     );
-
-    // The agent enters the pipeline at Offer alongside human candidates for this
-    // job. Idempotent per (candidate, job) via the m-<candidate>-<job> id scheme.
-    const { entry } = createPipelineEntry({
-      candidateId: `agent-${agent.id}`,
-      candidateLabel: spec.name,
-      jobId,
-      jobTitle: job.title,
-      stage: "Offer",
-      sourceChannel: "agent-bridge",
-      workspaceId: ws,
-    });
 
     const kpLink = {
       baseUrl: publicBaseUrl(new URL(request.url).origin),
@@ -129,6 +132,22 @@ export async function POST(request: NextRequest) {
     }
     setHiredAgentRequest(agent.id, dispatched.requestId, ws);
     recordAgentLifecycle(agent.id, { event: "dispatched", reason: `Personas request ${dispatched.requestId}` }, ws);
+
+    // The agent enters the pipeline at Offer alongside human candidates for this
+    // job. Idempotent per (candidate, job) via the m-<candidate>-<job> id scheme.
+    // Created only AFTER Personas accepted the request: a failed dispatch mints a
+    // fresh agent id each retry, so filing the board entry up front left one
+    // phantom Offer-stage card per attempt — and an UNPAIRED kp (the default)
+    // fails every dispatch before a single byte leaves the process.
+    const { entry } = createPipelineEntry({
+      candidateId: `agent-${agent.id}`,
+      candidateLabel: spec.name,
+      jobId,
+      jobTitle: job.title,
+      stage: "Offer",
+      sourceChannel: "agent-bridge",
+      workspaceId: ws,
+    });
     recordAutomationEvent(entry.id, "agent_dispatched", `Persona request ${dispatched.requestId} awaiting approval in Personas`, ws);
     return NextResponse.json({ hiredAgentId: agent.id, requestId: dispatched.requestId, status: "pending_approval" });
   } catch (error) {

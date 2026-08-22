@@ -6,13 +6,16 @@
 //     payload-shape 400s, exec_id idempotency, rollup accept, lifecycle
 //     activated → pipeline Hired, workspace-from-token writes
 //   POST /api/agents/dispatch — fit-spec gate, one live agent per job
-//     (idempotent re-dispatch never re-POSTs to Personas), failure marking
+//     (idempotent re-dispatch never re-POSTs to Personas), failure marking and
+//     no phantom board card when the dispatch fails
+//   POST /api/agents/[id]/refresh — the safe wire projection (no report token)
 import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { POST as reportPost } from "./report/[token]/route.ts";
 import { POST as dispatchPost } from "./dispatch/route.ts";
+import { POST as refreshPost } from "./[id]/refresh/route.ts";
 import {
   createHiredAgent,
   createPipelineEntry,
@@ -177,4 +180,73 @@ test("dispatch route: a Personas failure marks the hire failed (and frees the jo
   const body = (await r.json()) as { hiredAgentId: string };
   assert.equal(getHiredAgent(body.hiredAgentId)?.status, "failed");
   assert.equal(getActiveHiredAgentForJob("job-d2"), null, "a failed dispatch doesn't block a retry");
+
+  // …and it leaves NO card on the pipeline board. The board entry used to be
+  // filed BEFORE the dispatch, so every failed attempt (an unpaired kp fails
+  // them all, before a byte leaves the process) parked a phantom agent in the
+  // Offer column — and each retry minted a fresh agent id, so they accumulated.
+  const entryId = `m-agent-${body.hiredAgentId}-job-d2`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
+  assert.equal(getPipelineEntry(entryId), null, "a failed dispatch must not leave a phantom Offer-stage card");
+});
+
+test("dispatch route: a present-but-unusable budget is refused, never swapped for the suggestion", async () => {
+  insertJob(job("job-d3", "Budget Role"), undefined, "published");
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ requestId: "pr-77" }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+
+  saveAgentFitSpec({ jobId: "job-d3", fit: { verdict: "temporary", coverage: [], coverageRatio: 0.5 }, spec: SPEC, budget: { suggestedMonthlyUsd: 400, rule: "2% of salary-band midpoint", salaryBandRef: "x" }, metrics: [], source: "llm" });
+
+  const dispatchWith = (overrides: unknown) =>
+    dispatchPost(
+      new NextRequest("http://localhost/api/agents/dispatch", {
+        method: "POST",
+        body: JSON.stringify({ jobId: "job-d3", overrides }),
+        headers: { "content-type": "application/json" },
+      })
+    );
+
+  // The client refuses these, but the client is not a bound — anything can POST
+  // here. Pre-fix each one fell through to `suggestedMonthlyUsd`, so an operator
+  // asking for a cap of -500 / "2000" dispatched a $400/month agent, 200 OK, with
+  // nothing saying the number had been replaced.
+  for (const bad of [-500, "2000", true, {}]) {
+    const r = await dispatchWith({ budgetUsd: bad });
+    assert.equal(r.status, 400, `expected 400 for budgetUsd ${JSON.stringify(bad)}`);
+  }
+  assert.equal(calls, 0, "a refused budget must not reach Personas");
+  assert.equal(getActiveHiredAgentForJob("job-d3"), null, "…and must not mint a hire");
+
+  // An omitted budget still falls back to the stored suggestion — the documented
+  // buildOverrides contract (a blank field drops the key entirely).
+  const ok = await dispatchWith({ name: "A" });
+  assert.equal(ok.status, 200);
+  const hire = getActiveHiredAgentForJob("job-d3");
+  assert.equal(hire?.budgetUsd, 400, "an omitted budget keeps using the suggestion");
+});
+
+test("refresh route: the response never carries the agent's report token", async () => {
+  // report_token is the ONLY auth on the PUBLIC /api/agents/report/[token]
+  // endpoint. The roster read (GET /api/agents) strips it; this pull-fallback
+  // returned the store row verbatim, so anyone who could read the response could
+  // then POST lifecycle/execution reports for the agent with no session at all.
+  const agent = createHiredAgent({ jobId: "job-rf1", jobTitle: "Refresh Role", spec: SPEC });
+  assert.match(agent.reportToken, /^agrpt-/, "guard: the stored row does carry a token to leak");
+  assert.equal(getHiredAgent(agent.id)?.reportToken, agent.reportToken, "guard: the by-id read still returns it");
+
+  // No requestId → the earliest return path, so no Personas call is made.
+  const res = await refreshPost(
+    new NextRequest(`http://localhost/api/agents/${agent.id}/refresh`, { method: "POST" }),
+    { params: Promise.resolve({ id: agent.id }) }
+  );
+  assert.equal(res.status, 200);
+  const raw = await res.text();
+  assert.ok(!raw.includes(agent.reportToken), "no report-token byte may reach the client");
+  const parsed = JSON.parse(raw) as { agent: Record<string, unknown> };
+  assert.equal("reportToken" in parsed.agent, false, "the wire projection must omit reportToken");
+  assert.equal(parsed.agent.id, agent.id, "…while still returning the agent the panel re-renders");
 });

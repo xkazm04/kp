@@ -26,6 +26,33 @@ export type ApplyDraft = { idx: number; answers: Record<string, unknown>; msgs: 
  *  which is prefill policy, not storage policy. */
 export type RestoredApplyDraft = { idx: number; answers: Record<string, unknown>; msgs: Msg[] };
 
+/**
+ * The answered-step ids a RESTORED draft resumes with.
+ *
+ * A draft is written the instant an answer lands — including the answer to the
+ * LAST step, which `advance()` marks answered *before* awaiting the final POST,
+ * while `idx` still points at it (there is no next step to hop to). So a draft
+ * saved at that moment — the final POST failed, or the tab/signal died
+ * mid-request — comes back with `idx` on a step its own `answeredIds` already
+ * contains. Restored verbatim, the chat renders that step's controls while
+ * advance()'s idempotence guard silently swallows every answer: on the real
+ * script the last step is a KNOCKOUT question, so the returning candidate taps
+ * Yes/No forever with nothing happening, and their only escape is "start fresh"
+ * — which discards all 8–11 answers.
+ *
+ * So the step being resumed ON is always dropped: whatever the chat shows
+ * controls for must be answerable. Re-answering it just overwrites that one
+ * answer and moves on, and every EARLIER step stays guarded. Applied on READ
+ * rather than on write, so the poisoned drafts already sitting in candidates'
+ * browsers are healed too (same reasoning as the optional `fp` field).
+ */
+export function resumableAnsweredIds(answeredIds: unknown, resumeStepId: string | undefined): Set<string> {
+  const ids = Array.isArray(answeredIds) ? answeredIds.filter((v): v is string => typeof v === "string") : [];
+  const set = new Set(ids);
+  if (resumeStepId !== undefined) set.delete(resumeStepId);
+  return set;
+}
+
 // Restore an in-progress draft once, on mount (idea-939d96e9). Client-only
 // (localStorage), so it runs in an effect — not the initial state — to keep
 // hydration matching the server's empty render. Guarded against corrupt/stale
@@ -33,14 +60,16 @@ export type RestoredApplyDraft = { idx: number; answers: Record<string, unknown>
 export function useApplyDraftRestore({
   draftStorageKey,
   draftFingerprint,
-  stepCount,
+  stepIds,
   hydratedRef,
   answeredRef,
   onRestore,
 }: {
   draftStorageKey: string;
   draftFingerprint: string;
-  stepCount: number;
+  /** This visit's script, in order — the bounds check for `idx` AND the id of
+   *  the step the draft resumes on (see resumableAnsweredIds). */
+  stepIds: string[];
   hydratedRef: RefObject<boolean>;
   answeredRef: RefObject<Set<string>>;
   onRestore: (draft: RestoredApplyDraft) => void;
@@ -51,7 +80,7 @@ export function useApplyDraftRestore({
       const raw = window.localStorage.getItem(draftStorageKey);
       if (!raw) return;
       const d = JSON.parse(raw) as ApplyDraft;
-      if (!d || typeof d.idx !== "number" || d.idx < 0 || d.idx >= stepCount) return;
+      if (!d || typeof d.idx !== "number" || d.idx < 0 || d.idx >= stepIds.length) return;
       // Script identity, not just a bounds check: `idx` and the answer keys are
       // only meaningful against the script that recorded them. A mismatch (or a
       // pre-fingerprint draft) is discarded outright — replaying it would put the
@@ -63,7 +92,7 @@ export function useApplyDraftRestore({
       }
       if (!d.answers || typeof d.answers !== "object" || !Array.isArray(d.msgs) || d.msgs.length === 0) return;
       if (Object.keys(d.answers).length === 0) return;
-      answeredRef.current = new Set(Array.isArray(d.answeredIds) ? d.answeredIds : []);
+      answeredRef.current = resumableAnsweredIds(d.answeredIds, stepIds[d.idx]);
       onRestore({ idx: d.idx, answers: d.answers, msgs: d.msgs });
     } catch {
       /* corrupt draft — ignore and start fresh */

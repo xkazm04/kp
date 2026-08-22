@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resumableAnsweredIds } from "./use-apply-draft";
 
 // The in-progress-draft restore (idea-939d96e9) must only replay a draft onto
 // the SCRIPT that recorded it. Source-contract test — the repo pattern for
@@ -62,6 +63,33 @@ test("the persist writes the fingerprint alongside the answers", () => {
     draftModule,
     /const draft: ApplyDraft = \{[^}]*fp: draftFingerprint[^}]*\}/,
     "a saved draft without a fingerprint would be discarded on every resume"
+  );
+});
+
+test("a draft that stopped ON a step resumes with that step still answerable", () => {
+  // advance() marks a step answered BEFORE awaiting the final POST, and on the
+  // last step `idx` never moves (there is no next step) — so a draft written at
+  // that instant (the POST failed, or the tab died mid-request) carries an idx
+  // pointing at a step its own answeredIds already contains. Restored verbatim,
+  // the chat renders that step's controls behind advance()'s idempotence guard
+  // and swallows every answer: on the real script the final step is a KNOCKOUT
+  // question, so the returning candidate taps Yes/No forever with no response.
+  const resumed = resumableAnsweredIds(["cv", "name", "email", "ko_auth"], "ko_auth");
+  assert.equal(resumed.has("ko_auth"), false, "the step being resumed ON must be answerable");
+  assert.deepEqual([...resumed].sort(), ["cv", "email", "name"], "every EARLIER answer stays double-answer guarded");
+});
+
+test("the restored answered set survives a corrupt / legacy answeredIds list", () => {
+  assert.deepEqual([...resumableAnsweredIds(undefined, "cv")], [], "a draft with no answeredIds restores an empty set");
+  assert.deepEqual([...resumableAnsweredIds(["name", 7, null], undefined)], ["name"], "non-string ids are dropped");
+});
+
+test("the view hands the restore hook the step ids it needs to do that", () => {
+  assert.match(view, /stepIds: steps\.map\(\(s\) => s\.id\)/, "the restore hook is given THIS visit's script, in order");
+  assert.match(
+    draftModule,
+    /answeredRef\.current = resumableAnsweredIds\(d\.answeredIds, stepIds\[d\.idx\]\)/,
+    "…and uses it to keep the resumed step answerable"
   );
 });
 

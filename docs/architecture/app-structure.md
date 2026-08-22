@@ -210,6 +210,42 @@ entry over `maxMatchToReject` — so without it a workspace that applied a calib
 threshold to the demo role's family (`software_engineering`) silently governed the
 demo's reject floor. `constants.test.ts` pins that against the real resolver.
 
+### The guided walk reads the board, it does not assume it
+
+Two rules the walk (`shell/simulation/useSimulationWalk.ts` + `useSimulationEngine.ts`)
+now follows, because the demo is the first thing a prospect sees and a narration line
+that outruns the server is the same class of problem as a marketing overclaim:
+
+- **Stages come from the workspace's own axis, resolved by ROLE.** `getBoard()`
+  reads `stages` off the `/api/pipeline` payload (the axis `getPipelineAxis()`
+  resolved for this team) and the run derives its entry / screened / offer columns
+  through `stageWithRole()` + `screenedLandingStage()`. Stage **ids** are stable and
+  a literal id is fine; the axis **shape** is workspace data (Settings → Hiring
+  composes it, ids are free-form, the `offer` column is optional), so nothing in the
+  walk may assume the shipped five columns. `advanceTo()` bounds itself by that live
+  axis and refuses a target the board does not have *before* the first accept —
+  previously it accepted the candidate through every remaining column, extending a
+  real offer and landing them on the terminal stage, on the way to failing. The
+  post-screening wait keys off the stage the accept actually returned rather than the
+  literal `"Interview"`. `/api/sim/inbound` files its applicant the same way
+  (`stageWithRole("entry", …)`, the seam `cv-intake.ts` and `/api/apply/[id]` already
+  use); `sim-inbound-scope.test.ts` pins it.
+- **Every response the walk consumes is status-checked.** `okJson()` throws a
+  localized, labelled error on any non-OK body, so the failure surfaces as the dock's
+  "Failed: …" instead of `?? 0` coercing an error object into a zero shape. This
+  matters most at the screening step: `/api/decisions/screen-wave` is
+  `requireOperator()`-gated and **rejects the anonymous demo-workspace session**
+  (401), refuses a commit whose approval token is missing or no longer matches the
+  reviewed set (409), and 400s a rejected override — each of which used to render
+  "0 matched · 0 auto-rejected · 0 advanced" over a live cohort and then log
+  "passed screening" for a decision wave that never ran.
+
+`/api/sim/offer-link` hands back an offer **capability token**, and `/api/offer/<token>`
+is a public route that accepts or declines on the candidate's behalf — so it resolves
+the entry in `currentWorkspace()` first and 404s otherwise, like its sibling sim
+routes. Entry ids are derived (`m-<candidateId>-<jobId>`), not secret, so the scoping
+is the authorization (`offer-link-scope.test.ts`).
+
 ## Why `shared/` exists
 
 Before the refactor, three things made the tree impossible to split cleanly:

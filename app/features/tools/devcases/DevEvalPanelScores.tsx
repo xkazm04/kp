@@ -6,6 +6,7 @@
 import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { assertScore, formatFraction } from "@/app/_lib/format";
+import { findingsSource } from "./DevHelpers";
 import { ProvenanceStrip } from "./DevProvenanceStrip";
 import { ScoreBar } from "./DevScoreBar";
 import { LOW_CONFIDENCE } from "./DevTypes";
@@ -119,7 +120,12 @@ export function DevEvalPanelScores({
         <div className="mt-1 flex items-start gap-1.5 rounded bg-paper px-2 py-1 text-micro text-steel">
           <Info size={12} className="mt-px shrink-0" aria-hidden />
           <span>
-            {ev.source === "llm" ? tr("noFindingsLlm") : tr("noFindingsDeterministic")}
+            {/* The findings come from the EVALUATE step, so the explanation for an
+                empty set must read that step's provenance — not the whole run's.
+                `source` is "partial" for any mix, and a partial run whose evaluate
+                step really did call the LLM was told to "re-run with the LLM",
+                relabelling a genuine LLM verdict as a template artifact. */}
+            {findingsSource(ev) === "llm" ? tr("noFindingsLlm") : tr("noFindingsDeterministic")}
           </span>
         </div>
       )}

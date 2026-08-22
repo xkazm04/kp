@@ -4,6 +4,12 @@ import { useTranslations } from "next-intl";
 import type { RefObject } from "react";
 import { TextInput } from "@/app/_components/TextInput";
 import type { ApplyStep } from "@/app/_lib/apply";
+// The SAME accept list the recruiter-side drop zones render — and the same one
+// the server gate (validateUploadServer) and the Python extractor enforce. This
+// picker used to hardcode a wider literal that included `.doc`, which nothing
+// downstream can read: legacy Word was offered by the picker and then refused
+// with a 400 AFTER the upload, on a public flow with no support channel.
+import { ACCEPT_EXTENSIONS } from "@/app/_lib/upload-constraints";
 
 /**
  * The controls for the step the conversation is currently on — one branch per
@@ -101,7 +107,7 @@ export function ApplyStepControls({
               {uploading ? t("reading") : t("attachCv")}
               <input
                 type="file"
-                accept=".pdf,.docx,.doc,.txt,.md,application/pdf"
+                accept={ACCEPT_EXTENSIONS}
                 disabled={busy || uploading}
                 onChange={(e) => {
                   const f = e.target.files?.[0];

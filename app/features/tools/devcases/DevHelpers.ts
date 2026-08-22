@@ -1,4 +1,4 @@
-import type { CaseScenario, RoleSpec, SourceDescriptor, SourceKind } from "./DevTypes";
+import type { CaseScenario, PerStepSources, RoleSpec, SourceDescriptor, SourceKind } from "./DevTypes";
 
 // Single source of truth for how each provenance state reads and looks, so the
 // label, chip colour and degraded warning are decided in one place and always
@@ -17,6 +17,36 @@ const SOURCE_DESCRIPTORS: Record<SourceKind, SourceDescriptor> = {
 // the type checker can't see in data parsed from JSON.
 export function describeSource(source?: SourceKind | null): SourceDescriptor {
   return (source && SOURCE_DESCRIPTORS[source]) ?? SOURCE_DESCRIPTORS.deterministic;
+}
+
+// WHICH provenance produced the evaluation's strengths/concerns — the `evaluate`
+// step alone, never the whole run. The combined `source` is "partial" for ANY mix
+// (provenance.py: all-llm -> "llm", all-template -> "deterministic", mixed ->
+// "partial"), so reading it to explain an empty finding set told the recruiter
+// "re-run with the LLM for a richer read" about a read the LLM had already
+// produced — a claim about provenance the same bundle contradicts one chip to the
+// left, on the strip that exists to be honest about exactly this. Bundles saved
+// before the per-step envelope carry no map and fall back to the run source.
+export function findingsSource(bundle: {
+  source?: SourceKind | null;
+  perStepSources?: PerStepSources | null;
+}): SourceKind | null {
+  return bundle.perStepSources?.evaluate ?? bundle.source ?? null;
+}
+
+// The approve gate refuses a case whose probes can't discriminate with
+// 422 { code: "probe_audit_failed" } (devcase-probe-audit.enforceProbeGate). The
+// `errors` catalog carries no entry for that code, so the shared code-resolver fell
+// through to the caller's generic fallback and the reviewer was told only "Approve
+// failed." — the refusal is specific, actionable and already stated in the reader's
+// language by the probe-strength banner in the very same drawer. Pick the fallback
+// from the code so the one refusal the gate can raise names itself.
+export const PROBE_GATE_CODE = "probe_audit_failed";
+export function approveFallbackFor(
+  code: string | null | undefined,
+  strings: { probeGate: string; generic: string }
+): string {
+  return code === PROBE_GATE_CODE ? strings.probeGate : strings.generic;
 }
 
 // The grounded repo analysis only supports GitHub (github.com URL or bare
