@@ -13,8 +13,13 @@ from pipeline.jobfit.eval.matching_eval import (
     THRESHOLDS,
     Report,
     ScenarioResult,
+    _senior_backend,
+    _student_frontend,
     run,
 )
+from pipeline.jobfit.matching import fairness_matrix, load_corpus, match, propose_weights
+from pipeline.jobfit.profile import Evidence
+from pipeline.jobfit.transform import build_match_candidate
 
 
 class GateHonestyTest(unittest.TestCase):
@@ -89,6 +94,115 @@ class MatchingEvalTest(unittest.TestCase):
             if s.profile.role_family not in ("software_engineering", "data_ai", "product_project")
         }
         self.assertTrue({"bau", "career_switcher"} <= non_tech, non_tech)
+
+
+
+# Two CVs that differ ONLY in the writer's gender: the Czech feminine surname suffix
+# (-ová), the gendered honorific (pan / paní), the gendered pronoun, and the
+# gender-inflected Czech job title. Each pair is (masculine, feminine); the
+# accent-stripped pair is what a lossy PDF extract actually produces, and the English
+# pair pins that the axis is not Czech-only.
+_GENDER_PAIRS = (
+    ("Jan Novák", "Jana Nováková"),
+    ("Jan Novak", "Jana Novakova"),          # accent-stripped (lossy extract)
+    ("Ing. Jan Novák", "Ing. Jana Nováková"),
+    ("John Smith", "Jane Smith"),
+)
+_GENDERED_PROSE = (
+    ("pan Jan Novák; on byl vedoucí vývojář týmu", "paní Jana Nováková; ona byla vedoucí vývojářka týmu"),
+    ("Mr Smith led the team; his work shipped", "Ms Smith led the team; her work shipped"),
+)
+
+
+class GenderNeutralityTest(unittest.TestCase):
+    """AUDIT 2026-08-22 — the fairness axis this file never measured.
+
+    The four probes above cover pedigree, socioeconomic background, language and
+    monotonicity. GENDER was absent, and the candidate's name reaches the matcher
+    (``build_match_candidate`` sets ``label=profile.display_name`` and copies the CV
+    prose into ``experience_highlights``) — so a gender-coded token is physically
+    present in the scored payload, unlike ``education_detail``, which the pedigree
+    probe proves is dropped.
+
+    MUTATION THAT STAYED GREEN: a four-point penalty in ``matching.score_job`` for a
+    candidate whose label ends in the Czech feminine surname suffix ``-ová`` — i.e.
+    every Czech woman scored 4 points below an otherwise byte-identical man — left all
+    233 tests in this context passing. That is the same defect shape as the ``-ová``
+    penalty on the CV headline score found earlier in this sweep.
+
+    The invariant: gender-coded text in the candidate payload must move NOTHING. Both
+    deterministic ranking engines are covered — ``match()`` (which routes through
+    ``score_job``) and ``fairness_matrix()`` (which bypasses ``score_job`` for
+    ``_score_dimensions``/``_weighted_total``), because a penalty planted in either one
+    alone is invisible to the other.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.jobs = load_corpus()
+        assert cls.jobs, "job corpus is empty — gender neutrality cannot be measured"
+
+    def _profile(self, builder, name: str, prose: str | None = None):
+        profile = builder()
+        profile.display_name = name
+        if prose is not None:
+            profile.evidence = [
+                *profile.evidence,
+                Evidence(kind="job", title=prose, text=prose),
+            ]
+        return build_match_candidate(profile)
+
+    def _ranking(self, candidate) -> list[tuple[str, int]]:
+        return [(m.job_id, m.total) for m in match(candidate, self.jobs, limit=50).matches]
+
+    def test_gendered_name_does_not_move_the_ranking(self) -> None:
+        for builder in (_student_frontend, _senior_backend):
+            for masculine, feminine in _GENDER_PAIRS:
+                with self.subTest(builder=builder.__name__, pair=(masculine, feminine)):
+                    self.assertEqual(
+                        self._ranking(self._profile(builder, masculine)),
+                        self._ranking(self._profile(builder, feminine)),
+                        f"the ranking changed between {masculine!r} and {feminine!r} — "
+                        "the candidate's gender moved the score",
+                    )
+
+    def test_gendered_prose_in_the_cv_does_not_move_the_ranking(self) -> None:
+        # Honorifics, pronouns and gender-inflected role titles ride into
+        # experience_highlights verbatim, so they are scored text too.
+        for masculine, feminine in _GENDERED_PROSE:
+            with self.subTest(pair=(masculine, feminine)):
+                self.assertEqual(
+                    self._ranking(self._profile(_senior_backend, "Candidate", masculine)),
+                    self._ranking(self._profile(_senior_backend, "Candidate", feminine)),
+                    f"gendered CV prose moved the score: {masculine!r} vs {feminine!r}",
+                )
+
+    def test_naming_a_candidate_at_all_does_not_move_the_ranking(self) -> None:
+        # Control on the same axis: an unnamed candidate and a named one must score
+        # identically, so "no name" is not itself an advantage or a penalty.
+        anonymous = self._ranking(self._profile(_senior_backend, "Candidate"))
+        for _masculine, feminine in _GENDER_PAIRS:
+            with self.subTest(name=feminine):
+                self.assertEqual(anonymous, self._ranking(self._profile(_senior_backend, feminine)))
+
+    def test_gender_neutral_in_the_group_ranking_engine_too(self) -> None:
+        # fairness_matrix does NOT call score_job — it recombines _score_dimensions
+        # with each scheme's weights — so it needs its own assertion or a penalty
+        # planted on that path stays invisible.
+        job = self.jobs[0]
+        pairs_m = []
+        pairs_f = []
+        for builder, (masculine, feminine) in zip(
+            (_student_frontend, _senior_backend, _senior_backend), _GENDER_PAIRS
+        ):
+            cm = self._profile(builder, masculine)
+            cf = self._profile(builder, feminine)
+            pairs_m.append((cm, propose_weights(cm, job)[0]))
+            pairs_f.append((cf, propose_weights(cf, job)[0]))
+        res_m = fairness_matrix(pairs_m, job)
+        res_f = fairness_matrix(pairs_f, job)
+        self.assertEqual(res_m["matrix"], res_f["matrix"], "the group-compare matrix is gender-sensitive")
+        self.assertEqual(res_m["own"], res_f["own"])
 
 
 if __name__ == "__main__":

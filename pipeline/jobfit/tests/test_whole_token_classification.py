@@ -15,13 +15,28 @@ Two guards:
 2. ``matching._LANG_ALIASES`` was a hardcoded 4-language dict; it now loads from
    ``data/taxonomy.json::language_aliases`` (``taxonomy.LANGUAGE_ALIASES``) with a
    validation guard, byte-identical to the original four buckets.
+
+3. ``matching._WORD_RE`` — the splitter behind the SAME whole-token promise, one
+   layer down in ``score_personal``'s description-overlap term. Guard 1 above only
+   ever probed ``taxonomy._text_contains``, so the ASCII splitter (``[a-z0-9]+``)
+   that treated every Czech diacritic as a word SEPARATOR sailed through this file:
+   "podávání léků" shredded into ``{pod, v, n, l, k}``, fragments that trivially all
+   appear as standalone runs in Czech prose, so a clinical skill "overlapped" an iOS
+   ad. See ``UnicodeWordSplitterTest`` below.
 """
 
 from __future__ import annotations
 
+import re
 import unittest
 
-from pipeline.jobfit.matching import _LANG_ALIASES, _has_language
+from pipeline.jobfit.matching import (
+    _LANG_ALIASES,
+    _WORD_RE,
+    _description_words,
+    _has_language,
+    _term_in_words,
+)
 from pipeline.jobfit.taxonomy import (
     LANGUAGE_ALIASES,
     classify_role_family,
@@ -63,6 +78,60 @@ class ShortTokenTrapTest(unittest.TestCase):
         # Non-vacuity: the fix must not over-restrict — a real standalone "AI" token
         # still produces the signal.
         self.assertIn("ai", detected_signals("Hands-on AI and ML research in Python."))
+
+
+
+class UnicodeWordSplitterTest(unittest.TestCase):
+    """``matching._WORD_RE`` must split on WORD characters, not on ASCII letters.
+
+    The whole-token promise this file guards for ``taxonomy._text_contains`` has a
+    twin one layer down: ``score_personal``'s description-overlap term reduces both
+    the ad and each candidate token to whole words via ``_WORD_RE`` and requires
+    every part to appear as a standalone word. Under the former ASCII pattern
+    (``[a-z0-9]+``) every Czech diacritic was a SEPARATOR, so an accented skill was
+    shredded into one- and two-letter fragments that appear in any Czech prose —
+    fragment matching, i.e. exactly the substring defect the whole-token rule
+    exists to remove, left open for every accented language.
+
+    The trap is deliberately built so the ASCII fragments ARE present in the ad
+    (``test_the_trap_is_live``): the guard only means something if the pre-fix
+    splitter would really have scored a hit here.
+    """
+
+    # A Czech iOS ad. It shares no word with a nursing skill, but its ASCII letter
+    # runs do contain pod / v / n / l / k (podíl, v, náš, čistý, kód).
+    AD_CZ = (
+        "Náš tým staví iOS aplikace. Nabízíme podíl na produktu, "
+        "kávu zdarma a čistý kód v Swiftu."
+    )
+    CLINICAL_SKILL = "podávání léků"  # administering medication
+
+    def test_accented_surfaces_tokenize_to_whole_words(self) -> None:
+        self.assertEqual(_WORD_RE.findall(self.CLINICAL_SKILL), ["podávání", "léků"])
+        self.assertEqual(_WORD_RE.findall("vývojář"), ["vývojář"])
+        self.assertEqual(_WORD_RE.findall("ošetřovatelství"), ["ošetřovatelství"])
+
+    def test_the_trap_is_live(self) -> None:
+        # Non-vacuity: under the pre-fix ASCII splitter the skill's fragments really
+        # are all standalone tokens of this ad, so the false overlap below would fire.
+        ascii_words = set(re.findall(r"[a-z0-9]+", self.AD_CZ.casefold()))
+        ascii_parts = re.findall(r"[a-z0-9]+", self.CLINICAL_SKILL.casefold())
+        self.assertEqual(ascii_parts, ["pod", "v", "n", "l", "k"])
+        self.assertTrue(set(ascii_parts) <= ascii_words, sorted(ascii_words))
+
+    def test_a_clinical_czech_skill_earns_no_overlap_on_an_ios_ad(self) -> None:
+        self.assertFalse(_term_in_words(self.CLINICAL_SKILL, _description_words(self.AD_CZ)))
+
+    def test_a_genuinely_present_czech_skill_still_matches(self) -> None:
+        # No over-restriction: the accented multi-word skill the ad DOES name still hits.
+        self.assertTrue(_term_in_words("čistý kód", _description_words(self.AD_CZ)))
+        self.assertTrue(_term_in_words("Swiftu", _description_words(self.AD_CZ)))
+
+    def test_english_substring_matching_stays_closed(self) -> None:
+        # The English half of the same rule, pinned alongside: "Rust" must not hit
+        # the "rust" inside "trust".
+        self.assertFalse(_term_in_words("rust", _description_words("A team you can trust.")))
+        self.assertTrue(_term_in_words("rust", _description_words("We write Rust.")))
 
 
 class ClassificationCorpusSnapshotTest(unittest.TestCase):

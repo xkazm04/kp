@@ -47,18 +47,52 @@ def _cand(label: str, skills: list[str], **kw) -> MatchCandidate:
     return MatchCandidate(label=label, skills=skills, role_family="software_engineering", **kw)
 
 
+def _pairs(job: Job) -> list[tuple[MatchCandidate, dict[str, float] | None]]:
+    """The (candidate, proposed-weights) pool the matrix is built from.
+
+    AUDIT 2026-08-22 — every candidate here used to be the default ``bau``
+    archetype and every proposal came from ``propose_weights``, which returned the
+    SAME baseline vector for three of the four. ``fairness_matrix`` resolves each
+    scheme with ``resolve_weights(c.archetype, w)`` — the archetype selects both the
+    baseline (when a caller passes no proposal, which ``recruiter_cli`` does) and the
+    clamp bounds — so the archetype was an UNMEASURED input to the reused key. This
+    pool spans three archetypes AND both resolution branches:
+
+      * ``S`` passes ``None``  -> the scheme IS ``weights_for(archetype)``;
+      * ``W`` passes a raw vector below BAU's skills floor (0.35) but inside the
+        switcher's (0.20) -> the CLAMP differs by archetype.
+    """
+    return [
+        (_cand("A", ["python", "kafka", "sql"], seniority="senior"), None),
+        (_cand("B", ["python", "sql"], seniority="medior"), None),
+        (_cand("C", ["python", "kafka"], seniority="senior",
+               skill_provenance={"python": "professional", "kafka": "professional"}), None),
+        (_cand("D", ["java"], seniority="junior"), None),
+        (_cand("S", ["python", "sql"], seniority="junior", archetype="student",
+               potential_score=0.8, learning_signals=["thesis"]), None),
+        (_cand("W", ["python", "kafka"], seniority="medior", archetype="career_switcher",
+               potential_score=0.55, transferable_skills=["stakeholder communication"]),
+         {"skills": 0.25, "career": 0.5, "personal": 0.25}),
+    ]
+
+
+def _resolved_pairs(job: Job) -> list[tuple[MatchCandidate, dict[str, float] | None]]:
+    """``_pairs`` with each ``None`` proposal filled in by ``propose_weights`` —
+    except ``S``, which deliberately stays ``None`` so the baseline branch of
+    ``resolve_weights`` (the one that reads ``weights_for(archetype)`` directly) is
+    exercised, exactly as ``recruiter_cli`` does for a candidate with no proposal."""
+    out: list[tuple[MatchCandidate, dict[str, float] | None]] = []
+    for c, w in _pairs(job):
+        if w is None and c.label != "S":
+            w = propose_weights(c, job)[0]
+        out.append((c, w))
+    return out
+
+
 class FairnessMatrixIdentityTest(unittest.TestCase):
     def test_optimized_matrix_equals_naive_score_job_grid(self) -> None:
         job = _job()
-        candidates = [
-            _cand("A", ["python", "kafka", "sql"], seniority="senior"),
-            _cand("B", ["python", "sql"], seniority="medior"),
-            _cand("C", ["python", "kafka"], seniority="senior",
-                  skill_provenance={"python": "professional", "kafka": "professional"}),
-            _cand("D", ["java"], seniority="junior"),
-        ]
-        # Give each candidate a real (varied) proposed weight vector so schemes differ.
-        pairs = [(c, propose_weights(c, job)[0]) for c in candidates]
+        pairs = _resolved_pairs(job)
 
         result = fairness_matrix(pairs, job)
         schemes = result["schemes"]
@@ -74,6 +108,39 @@ class FairnessMatrixIdentityTest(unittest.TestCase):
         self.assertEqual(
             result["schemes"], [resolve_weights(c.archetype, w) for c, w in pairs]
         )
+
+    def test_the_scheme_axis_is_not_degenerate(self) -> None:
+        """Non-vacuity for the grid above: identical schemes make every column of the
+        matrix identical, so a combine that ignored the scheme — or resolved every
+        candidate's proposal against ONE hardcoded archetype — would still match the
+        naive grid cell for cell.
+
+        MUTATION THAT STAYED GREEN with the old all-bau pool: replacing
+        ``resolve_weights(c.archetype, w)`` with ``resolve_weights("bau", w)`` inside
+        ``fairness_matrix`` — i.e. scoring a student or a career switcher in group
+        compare on the BAU yardstick — passed all 237 tests in this context.
+        """
+        job = _job()
+        pairs = _resolved_pairs(job)
+        schemes = fairness_matrix(pairs, job)["schemes"]
+        distinct = {tuple(sorted(s.items())) for s in schemes}
+        self.assertGreaterEqual(
+            len(distinct), 3, f"the matrix fixture no longer spans distinct schemes: {schemes}"
+        )
+        archetypes = {c.archetype for c, _w in pairs}
+        self.assertGreaterEqual(len(archetypes), 3, f"pool no longer spans archetypes: {archetypes}")
+        # The archetype is load-bearing in BOTH resolution branches, so dropping it
+        # from the key cannot be invisible.
+        for (c, w), scheme in zip(pairs, schemes):
+            with self.subTest(candidate=c.label):
+                self.assertEqual(scheme, resolve_weights(c.archetype, w))
+                if c.archetype != "bau":
+                    self.assertNotEqual(
+                        scheme,
+                        resolve_weights("bau", w),
+                        f"{c.label}'s scheme is indistinguishable from the BAU resolution — "
+                        "this fixture cannot detect a dropped archetype",
+                    )
 
 
 class WinnabilityIdentityTest(unittest.TestCase):

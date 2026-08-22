@@ -280,6 +280,62 @@ class Probe:
     detail: str
 
 
+def _probe_gender(jobs: list[Any]) -> Probe:
+    """The candidate's NAME must not move the ranking.
+
+    Unlike ``education_detail`` — which ``build_match_candidate`` structurally drops,
+    so the pedigree probe can lean on absence — the display name DOES reach the
+    scorer: ``label`` carries it and CV prose is copied into
+    ``experience_highlights``. So this axis has to be measured, not argued.
+
+    It was measured nowhere. The report shipped four probes (pedigree,
+    socioeconomic, language, monotonicity) and printed a clean "Fairness: 4/4 PASS"
+    while five separate gendered-Czech defects reached real candidates during the
+    2026-08 sweep — masculine-only taxonomy stems that knocked a woman out of senior
+    roles her identical male twin passed, an ASCII tokenizer that shredded accented
+    skills, a birth-marker filter that redacted a man's year and not a woman's, and a
+    section header returned as the candidate's name. An auditor reading this artifact
+    would have been told fairness was checked.
+
+    Czech marks gender in the surname itself (-ová), so the pair is a genuine
+    same-person comparison; the accent-stripped spelling is what a lossy PDF extract
+    produces. Any non-zero delta on the FULL ranking is the bug — there is no
+    tolerance to hide in, for the same reason the pedigree probe dropped its own.
+    """
+    def ranked(name: str) -> list[tuple[str, int]]:
+        p = _student_frontend()
+        p.display_name = name
+        return [(m.job_id, m.total) for m in match(build_match_candidate(p), jobs, limit=50).matches]
+
+    pairs = [
+        ("Jan Novák", "Jana Nováková"),      # the shipped Czech marking
+        ("Jan Novak", "Jana Novakova"),      # accent-stripped: a lossy extract
+        ("John Smith", "Jane Smith"),        # English control
+    ]
+    diffs: list[str] = []
+    for masc, fem in pairs:
+        a, b = ranked(masc), ranked(fem)
+        if a != b:
+            top_a = a[0][1] if a else 0
+            top_b = b[0][1] if b else 0
+            diffs.append(f"{masc!r} vs {fem!r} (top {top_a} vs {top_b})")
+
+    # Non-vacuity: if naming a candidate at all changed nothing measurable, the probe
+    # could pass on a scorer that ignores every input. A ranking must exist to compare.
+    measured = bool(ranked("Jan Novák"))
+    passed = measured and not diffs
+    detail = (
+        f"ranking identical across {len(pairs)} gender-marked name pairs (full top-50, exact)"
+        if passed
+        else (
+            f"GENDER PENALTY: {'; '.join(diffs)}"
+            if diffs
+            else "probe produced no ranking to compare — cannot certify"
+        )
+    )
+    return Probe("gender_neutrality", passed, detail)
+
+
 def _probe_pedigree(jobs: list[Any]) -> Probe:
     """The university NAME must never reach the matcher. build_match_candidate
     intentionally drops ``education_detail`` (keeping only ``education_level``), so
@@ -394,6 +450,7 @@ def run(jobs: list[Any] | None = None) -> Report:
     for scenario in SCENARIOS:
         report.scenarios.append(_eval_scenario(scenario, jobs))
     report.probes = [
+        _probe_gender(jobs),
         _probe_pedigree(jobs),
         _probe_socioeconomic(jobs),
         _probe_language(),

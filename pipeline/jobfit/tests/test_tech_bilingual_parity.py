@@ -15,7 +15,7 @@ import unittest
 
 from pipeline.jobfit import taxonomy as tax
 from pipeline.jobfit import taxonomy_check as tc
-from pipeline.jobfit.matching import MatchCandidate, score_skills
+from pipeline.jobfit.matching import MatchCandidate, score_personal, score_skills
 from pipeline.jobfit.tests._helpers import mkjob
 
 
@@ -96,6 +96,63 @@ class EnglishResolutionUnchangedTest(unittest.TestCase):
         self.assertEqual(tax.term_match_score("react", "python"), 0.0)
 
 
+class OverlapHeuristicBilingualParityTest(unittest.TestCase):
+    """Parity is not only about ``resolve_term``: ``score_personal``'s description
+    -overlap term must treat a Czech pair exactly as it treats the English one.
+
+    It did not. ``matching._WORD_RE`` was ASCII (``[a-z0-9]+``), so every diacritic
+    read as a word SEPARATOR and an accented skill was shredded into one- and
+    two-letter fragments — fragments Czech prose is full of. Measured on the pair
+    below, the Czech nurse scored HIGHER on an iOS ad than her English twin scored
+    on the identical English ad: false personal-fit credit handed out by language,
+    which is precisely the parity claim this file exists to make.
+
+    The assertion is a CROSS-LANGUAGE EQUALITY rather than an absolute number, so it
+    stays true under any future re-calibration of the overlap term while still
+    failing the moment the two languages diverge.
+    """
+
+    AD_CZ = (
+        "Náš tým staví iOS aplikace. Nabízíme podíl na produktu, "
+        "kávu zdarma a čistý kód v Swiftu."
+    )
+    AD_EN = (
+        "Our team builds iOS apps. We offer a share in the product, "
+        "free coffee and clean code in Swift."
+    )
+
+    def _cand(self, skill: str) -> MatchCandidate:
+        return MatchCandidate(
+            skills=[skill], seniority="senior", role_family="healthcare_clinical",
+            languages=["Czech", "English"], years_experience=6,
+            provenance_default="professional",
+        )
+
+    def _job(self, description: str):
+        # languages=[] so the language term is the NEUTRAL constant and the overlap
+        # term is the only thing that can separate the two sides.
+        return mkjob(description=description, languages=[], requirements=[])
+
+    def test_an_off_domain_skill_scores_the_same_in_czech_as_in_english(self) -> None:
+        cz = score_personal(self._cand("podávání léků"), self._job(self.AD_CZ))
+        en = score_personal(self._cand("administering medication"), self._job(self.AD_EN))
+        self.assertEqual(
+            cz, en,
+            "a Czech clinical skill earned description-overlap credit on an iOS ad "
+            "that its English twin did not — the accented surface was shredded into "
+            "letter fragments instead of tokenized as whole words",
+        )
+
+    def test_an_on_domain_skill_also_scores_the_same_in_both_languages(self) -> None:
+        # The other direction: parity must not be bought by under-crediting Czech.
+        cz = score_personal(self._cand("čistý kód"), self._job(self.AD_CZ))
+        en = score_personal(self._cand("clean code"), self._job(self.AD_EN))
+        self.assertEqual(cz, en)
+        # Non-vacuity: the on-domain skill really does out-score the off-domain one,
+        # so the equality above is not two identical zeros.
+        self.assertGreater(cz, score_personal(self._cand("podávání léků"), self._job(self.AD_CZ)))
+
+
 class BilingualParityMetricTest(unittest.TestCase):
     """The parity metric counts proper-noun exemptions but only where the flag is set,
     and the three pilot tech families reach ~100% parity."""
@@ -112,6 +169,43 @@ class BilingualParityMetricTest(unittest.TestCase):
         r = self.rows["software_engineering"]
         self.assertEqual(r.bilingual_parity, r.bilingual + r.bilingual_exempt)
         self.assertGreater(r.bilingual_exempt, 0, "swe parity relies on proper-noun exemptions")
+
+    def test_the_parity_formula_is_pinned_off_the_live_data(self) -> None:
+        # EVERY live family is at 100% parity today, so `bilingual_parity ==
+        # bilingual + exempt` is arithmetically indistinguishable from
+        # `== total_terms` on the shipped taxonomy — the assertion above cannot
+        # actually constrain the formula. Pin it on a row where the three numbers
+        # genuinely differ, so "counts exemptions, and ONLY exemptions" is a real
+        # claim: a single-surface term WITHOUT the flag must never reach parity.
+        row = tc.FamilyCoverage(
+            family="synthetic", skill_terms=4, total_terms=10, with_parents=3,
+            bilingual=4, bilingual_exempt=2,
+        )
+        self.assertEqual(row.bilingual_parity, 6)      # NOT 10
+        self.assertAlmostEqual(row.pct_parity, 60.0)   # NOT 100.0
+        self.assertAlmostEqual(row.pct_bilingual, 40.0)
+        self.assertAlmostEqual(row.pct_parents, 30.0)
+
+    def test_an_unflagged_single_surface_term_is_counted_as_a_gap(self) -> None:
+        # Same claim end-to-end through the counter: three terms voting for one
+        # family — bilingual, exempt-monolingual, and monolingual-with-NO-flag. Only
+        # the first two may reach parity; the third is the gap the metric exists to
+        # show. (The flag is explicit per-term, so parity can never be gamed by
+        # silently exempting a term that does have a Czech surface.)
+        synthetic = {
+            "terms": [
+                {"id": "a", "match": ["project management", "projektové řízení"],
+                 "categories": ["skill"], "role_family_votes": {"synthetic_fam": 1}},
+                {"id": "b", "match": ["docker"], "bilingual_exempt": True,
+                 "categories": ["skill"], "role_family_votes": {"synthetic_fam": 1}},
+                {"id": "c", "match": ["stakeholder alignment"],
+                 "categories": ["skill"], "role_family_votes": {"synthetic_fam": 1}},
+            ]
+        }
+        row = {r.family: r for r in tc.coverage_by_family(synthetic)}["synthetic_fam"]
+        self.assertEqual((row.total_terms, row.bilingual, row.bilingual_exempt), (3, 1, 1))
+        self.assertEqual(row.bilingual_parity, 2)
+        self.assertAlmostEqual(row.pct_parity, 100.0 * 2 / 3)
 
     def test_new_tech_aliases_are_collision_clean(self) -> None:
         # The Czech/expansion aliases added to the concept terms must not spuriously
