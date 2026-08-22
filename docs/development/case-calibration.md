@@ -52,7 +52,7 @@ prompt-version pointer.
 |------|------|
 | `pipeline/jobfit/devcase/real_corpus.py` | Fetch + classify + stratify real JDs → `data/seed_calibration/jobs.json`; `scenarios_from_jobs()` adapter. |
 | `pipeline/jobfit/devcase/calibrate.py` | Orchestrator: run the chain per-use-case, reuse the lifecycle validators/signals/judge, write per-case JSON + reports + acceptance gate. |
-| `pipeline/jobfit/devcase/lifecycle_eval.py` | (reused) `_check_*` validators + no-LLM `signals()`. `_check_analysis` was de-industry-locked here. |
+| `pipeline/jobfit/devcase/lifecycle_eval.py` | (reused) `_check_*` validators + no-LLM `signals()`. `_check_analysis` was de-industry-locked here. Each planted-flag signal now reports its **behaviour-matched control and the lift**: `gap_caught_on_mismatch` 1.0 with a 0.2 control is a real 0.8 lift, but `clarify_probe_on_ambiguous` 1.0 turned out to be lift **0.0** — the designer plants an `underspecified` probe on every need, ambiguous or not, so the raw rate could never fail. A rate without a control certifies nothing (the same lesson as the `submission_eval` fairness gate). |
 | `pipeline/jobfit/devcase/lifecycle_audits.py` | (reused) automated `judge` + `quality_summary`; `role_fit_verdicts()` factored out to run on every row. |
 | `pipeline/jobfit/tests/test_real_corpus.py` | Network-free tests for classify / office-filter / stratify / adapter. |
 | `data/seed_calibration/` | Output: `jobs.json`, `cases/<id>.json`, `cases.json`, `judge_report.json`, `JUDGE_REPORT.md`, `_calibration_report.json`, `JUDGE_RUBRIC.md`, `FROZEN.json`. |
@@ -135,6 +135,13 @@ Two layers, by design:
 - automated **case** judge mean ≥ 4.0 (the case is the target; the analyze step is
   inherently ungrounded for repo-less roles, so it is reported but **not** gated)
 - case-title uniqueness ≥ 0.95
+- with `--judge`, both judged dimensions must actually have been **measured**. A judged
+  run whose judge returned nothing — `run_judge` silently drops every call that errors or
+  returns unparseable JSON, so exhausting the Claude session limit mid-run empties both —
+  now FAILS instead of skipping them. It used to pass: with the cases served from the
+  `--resume` cache, reliability stayed 1.0 and `error_fallbacks` 0, so `--strict --freeze`
+  exited 0 and stamped `FROZEN.json` `passed: true` on a corpus whose quality and role-fit
+  were never measured at all.
 
 ## Calibration findings & fixes (Part 1)
 

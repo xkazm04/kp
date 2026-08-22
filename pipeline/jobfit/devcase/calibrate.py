@@ -253,7 +253,19 @@ def write_manifest(rows: list[Row], jobs_by_id: dict[str, dict]) -> None:
 
 
 def evaluate_gate(sig: dict, role_fit_rate: float | None, qual: dict | None, judged: bool) -> tuple[bool, list[str]]:
-    """Return (passed, failure_reasons). My-judge dimensions are out of band."""
+    """Return (passed, failure_reasons). My-judge dimensions are out of band.
+
+    A REQUESTED-but-unmeasured judged dimension FAILS rather than being skipped. Both
+    judged metrics arrive as ``None`` in two very different situations: the judge was never
+    asked for (no ``--judge`` — ``judged`` is False, and the gate legitimately ignores them),
+    or the judge WAS asked for and came back with nothing. The second is reachable in the
+    ordinary way: ``run_judge`` silently drops every call that errors or returns unparseable
+    JSON, so exhausting the Claude subscription session limit mid-run (or any provider-side
+    failure that leaves ``available()`` True) empties ``mean_by_task`` and ``verdicts``. With
+    the generation rows served from the ``--resume`` cache, ``reliability`` stays 1.0 and
+    ``error_fallbacks`` 0, so ``--strict --freeze`` used to exit 0 and stamp FROZEN.json
+    ``passed: true`` on a corpus whose quality and role-fit were never measured at all.
+    """
     reasons: list[str] = []
     if sig["reliability"] < GATE["reliability"]:
         reasons.append(f"reliability {sig['reliability']:.0%} < {GATE['reliability']:.0%}")
@@ -264,8 +276,12 @@ def evaluate_gate(sig: dict, role_fit_rate: float | None, qual: dict | None, jud
         reasons.append(f"case-title uniqueness {tu:.0%} < {GATE['title_uniqueness']:.0%} (template collapse)")
     if role_fit_rate is not None and role_fit_rate < GATE["role_fit_rate"]:
         reasons.append(f"role-fit rate {role_fit_rate:.0%} < {GATE['role_fit_rate']:.0%}")
+    elif judged and role_fit_rate is None:
+        reasons.append("role-fit was judged but produced NO verdicts (every judge call errored or returned unparseable JSON) — an unmeasured gate dimension cannot pass")
     case_mean = (qual.get("mean_by_task") or {}).get("case") if qual else None
-    if judged and case_mean is not None and case_mean < GATE["judge_case"]:
+    if judged and case_mean is None:
+        reasons.append(f"automated judge produced NO case scores (every judge call errored or returned unparseable JSON) — the {GATE['judge_case']} case-mean bar was never measured, so it cannot pass")
+    elif judged and case_mean < GATE["judge_case"]:
         reasons.append(f"automated judge case-mean {case_mean} < {GATE['judge_case']}")
     return (not reasons), reasons
 

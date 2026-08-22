@@ -21,11 +21,42 @@ import re
 
 # Words that signal the candidate is asking the model to VERIFY rather than produce —
 # the LLM-era analogue of writing a test.
+#
+# LOCALE PARITY (2026-08-22): these lists must cover every locale the case itself can be
+# delivered in. The brief/tasks/seed prose and BOTH chat personas are rendered in the
+# posting's language (`devcase_cli --lang`, `chat.chat_reply`, `seed_materializer`), so a
+# cs/de/fr candidate writes their prompts in that language. While the pattern was
+# English-only, an identical session scored differently by language: "ověř prosím, jestli
+# ten výpočet sedí" produced verificationAsks=0, which costs 0.2 of the observed
+# verification term in `evaluate.evaluate_submission`'s deterministic path (judgment 80
+# instead of 100) and drops the "asked the model to verify" evidence line from the LLM
+# prompt. Same defect class as the Czech masculine-only stems in the CV pipeline.
+#
+# English keeps full word boundaries; cs/de/fr are matched as STEMS (leading \b only)
+# because they inflect the ending — "ověř" must also catch "ověřit/ověřte/ověřil".
+# Diacritic-free spellings ride along, as in automation._DECLARED_LANG_TO_LOCALE, since
+# candidates routinely type without them. Tokens are chosen to be low-collision across
+# the four languages (e.g. no bare "proc", which would match English "process").
 _VERIFY_RE = re.compile(
-    r"\b(verify|check|test|prove|confirm|validate|wrong|incorrect|mistake|are you sure|why did|why does|double.?check)\b",
+    r"\b(verify|check|test|prove|confirm|validate|wrong|incorrect|mistake|are you sure|why did|why does|double.?check)\b"
+    # cs
+    r"|\b(ověř|overit|overte|zkontroluj|kontrol|vyzkouš|vyzkous|otestuj|špatn|spatn|chybn|nesed|nesouhlas|si jist|opravdu|proč)"
+    # de — `teste(n|st)` / `teste(z|r)` (fr) are spelled out rather than left as a bare
+    # "teste" stem so the widening can't reach back into English "tested"/"tester" and
+    # quietly hand English speakers a signal the other three don't get.
+    r"|\b(überprüf|uberpruf|prüf|pruf|kontrollier|teste(n|st)?\b|stimmt|falsch|fehler|sicher|wirklich|warum)"
+    # fr
+    r"|\b(vérifi|verifi|contrôl|controle|teste(z|r)?\b|erreur|faux|fausse|erroné|errone|pourquoi|vraiment|sûr que|sur que)",
     re.IGNORECASE,
 )
-_QUESTION_RE = re.compile(r"\?|\b(what|which|should|how|why|can|could|do you|is it|are there)\b", re.IGNORECASE)
+_QUESTION_RE = re.compile(
+    r"\?|\b(what|which|should|how|why|can|could|do you|is it|are there)\b"
+    # Non-English interrogatives, for a question written without a question mark.
+    r"|\b(jak|proč|mám|máme|můž|muz|který|která|které|kdy|kde)"
+    r"|\b(wie|warum|wieso|soll|kann|könn|konn|welche)"
+    r"|\b(pourquoi|comment|quel|quelle|dois-je|puis-je|est-ce|faut-il)",
+    re.IGNORECASE,
+)
 
 
 def _norm(text: str) -> str:

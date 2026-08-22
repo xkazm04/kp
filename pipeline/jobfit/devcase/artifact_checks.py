@@ -24,6 +24,24 @@ import re
 # A canary's `flaw` quotes the flawed fragment; we accept '…', "…" or `…` quoting.
 _QUOTE_RE = re.compile(r"[\"'`]([^\"'`]{4,200})[\"'`]")
 
+# "This is wrong" in every locale a case can be delivered in. The brief, the seed's
+# DECISIONS scaffolding and both chat personas render in the posting's language
+# (`devcase_cli --lang`), so the FLAGGED verdict below — flaw left in place but called
+# out — must not depend on the candidate writing English. While this was the literal
+# substring "wrong", a Czech candidate whose DECISIONS log said "config.py — RATE mi
+# přijde špatně" scored `propagated` ("the planted flaw survived untouched"), the
+# strongest negative the canary check can emit, for behaviour an English candidate got
+# credit for. Direct equivalents only (a wider synonym set would over-credit, since a
+# false FLAGGED reads to the evaluator as read-and-verified); "incorrect" is the one
+# English addition — the exact synonym whose omission was the same artifact.
+_FLAGGED_WRONG_RE = re.compile(
+    r"\b(wrong|incorrect)\b"
+    r"|\b(špatn|spatn|chybn|nesprávn|nespravn)"  # cs
+    r"|\b(falsch)"  # de
+    r"|\b(faux|fausse|erroné|errone)",  # fr
+    re.IGNORECASE,
+)
+
 
 def _fragment(flaw: str) -> str | None:
     """The longest quoted fragment in the flaw description — the checkable token."""
@@ -96,7 +114,9 @@ def canary_outcomes(seed: dict | None, files: list[dict] | None, chat: list[dict
             status = "unverifiable"
             note = "submitted file does not descend from the seed version — not mechanically gradable"
         else:
-            mentioned = bool(frag.lower() in voiced) or bool(path and path.lower() in voiced and "wrong" in voiced)
+            mentioned = bool(frag.lower() in voiced) or bool(
+                path and path.lower() in voiced and _FLAGGED_WRONG_RE.search(voiced)
+            )
             if frag not in sub_body:
                 status = "addressed"
                 note = "the flawed fragment is gone from the submitted file"

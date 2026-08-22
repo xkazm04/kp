@@ -168,5 +168,37 @@ class TestResumeCacheKey(_CalibrateTempDir):
             calibrate.run_one = orig
 
 
+class TestGateCannotCertifyAnUnmeasuredJudge(unittest.TestCase):
+    """#3 (2026-08-22): a REQUESTED judged dimension that produced no verdicts used to be
+    skipped, not failed. `run_judge` silently drops every call that errors or returns
+    unparseable JSON, so exhausting the Claude session limit mid-run empties both judged
+    metrics; with the cases served from the --resume cache, reliability stays 1.0 and
+    error_fallbacks 0, and `--strict --freeze` stamped FROZEN.json `passed: true` on a
+    corpus whose quality and role-fit were never measured."""
+
+    HEALTHY = {"reliability": 1.0, "error_fallbacks": 0, "case_title_uniqueness": 1.0}
+
+    def test_judge_that_returned_nothing_fails_the_gate(self):
+        passed, reasons = calibrate.evaluate_gate(
+            self.HEALTHY, None, {"mean_by_task": {}, "overall": None}, judged=True
+        )
+        self.assertFalse(passed)
+        self.assertTrue(any("NO case scores" in r for r in reasons), reasons)
+        self.assertTrue(any("role-fit" in r for r in reasons), reasons)
+
+    def test_unjudged_run_is_unaffected(self):
+        # No --judge: the judged dimensions were never requested, so their absence is not
+        # a failure (the structural gates still apply).
+        passed, reasons = calibrate.evaluate_gate(self.HEALTHY, None, None, judged=False)
+        self.assertTrue(passed, reasons)
+
+    def test_a_measured_judge_still_passes_and_still_fails_on_a_low_mean(self):
+        passed, _ = calibrate.evaluate_gate(self.HEALTHY, 1.0, {"mean_by_task": {"case": 4.4}}, judged=True)
+        self.assertTrue(passed)
+        passed, reasons = calibrate.evaluate_gate(self.HEALTHY, 1.0, {"mean_by_task": {"case": 2.1}}, judged=True)
+        self.assertFalse(passed)
+        self.assertTrue(any("case-mean 2.1" in r for r in reasons), reasons)
+
+
 if __name__ == "__main__":
     unittest.main()

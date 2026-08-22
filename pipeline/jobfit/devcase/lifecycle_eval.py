@@ -151,18 +151,42 @@ def run(scenarios: list[Scenario], provider: Any | None, workers: int = 4) -> li
 # --- quality SIGNALS (no LLM) ----------------------------------------------
 
 
+def _rate(rows: list[Row], pred) -> float | None:
+    """Share of ``rows`` satisfying ``pred``; None for an empty cohort."""
+    return (sum(1 for r in rows if pred(r)) / len(rows)) if rows else None
+
+
+def _lift(hit: float | None, control: float | None) -> float | None:
+    """Detection rate MINUS the behaviour-matched control rate — what the signal is
+    actually worth. A raw hit-rate over the planted-positive subset alone certifies
+    nothing: a designer that emits the same artifact for EVERY need scores a perfect
+    1.0 on it. Only the lift over the un-planted rows says the pipeline RESPONDED to
+    what was planted. (Same control-group rule the submission_eval fairness gate had to
+    learn on 2026-08-21: measure against a behaviour-matched cohort, not against
+    whoever happens to be on the other side.)"""
+    return round(hit - control, 3) if (hit is not None and control is not None) else None
+
+
 def signals(rows: list[Row]) -> dict[str, Any]:
     done = [r for r in rows if r.source != "error" and r.case]
     mism = [r for r in done if r.planted.get("mismatch")]
     ambig = [r for r in done if r.planted.get("ambiguous")]
+    # The behaviour-matched CONTROL cohorts: identical pipeline, nothing planted. Only
+    # populated when the positive cohort exists, so a corpus with no planted flags at
+    # all (real_corpus rows) reports None on both sides rather than a control against
+    # nothing.
+    matched = [r for r in done if not r.planted.get("mismatch")] if mism else []
+    unambig = [r for r in done if not r.planted.get("ambiguous")] if ambig else []
 
     # on a planted MISMATCH, a grounded analysis should flag stated-vs-real gaps
-    gap_caught = sum(1 for r in mism if r.analysis.get("statedVsRealGaps")) / len(mism) if mism else None
-    clarify_on_ambig = (
-        sum(1 for r in ambig if any(p.get("kind") in ("ambiguity", "underspecified") for p in (r.case.get("coverProbes") or []))) / len(ambig)
-        if ambig
-        else None
+    has_gaps = lambda r: bool(r.analysis.get("statedVsRealGaps"))  # noqa: E731
+    has_clarify = lambda r: any(  # noqa: E731
+        p.get("kind") in ("ambiguity", "underspecified") for p in (r.case.get("coverProbes") or [])
     )
+    gap_caught = _rate(mism, has_gaps)
+    gap_false = _rate(matched, has_gaps)
+    clarify_on_ambig = _rate(ambig, has_clarify)
+    clarify_control = _rate(unambig, has_clarify)
     all_kinds = Counter(p.get("kind") for r in done for p in (r.case.get("coverProbes") or []))
     titles = [r.case.get("title", "") for r in done]
     probe_counts = Counter(len(r.case.get("coverProbes") or []) for r in done)
@@ -173,7 +197,18 @@ def signals(rows: list[Row]) -> dict[str, Any]:
         "llm_rows": sum(1 for r in rows if r.source == "llm"),
         "error_fallbacks": sum(1 for r in rows if r.fallback_reasons),
         "gap_caught_on_mismatch": round(gap_caught, 3) if gap_caught is not None else None,
+        # Control + lift for the two planted-flag signals (see _lift). Without them a
+        # rate of 1.0 reads as "the pipeline caught every planted case" when it may
+        # simply be what the pipeline emits unconditionally — which is exactly what
+        # clarify_probe_on_ambiguous was: the deterministic template always plants an
+        # `underspecified` probe (design._PROBE_REVEALS_DEFAULT / det_probes p1) and the
+        # LLM prompt mandates one, so it measured 1.0 on ambiguous AND non-ambiguous
+        # needs alike — lift 0.0, a health signal that could never fail.
+        "gap_flagged_on_matched": round(gap_false, 3) if gap_false is not None else None,
+        "gap_detection_lift": _lift(gap_caught, gap_false),
         "clarify_probe_on_ambiguous": round(clarify_on_ambig, 3) if clarify_on_ambig is not None else None,
+        "clarify_probe_on_non_ambiguous": round(clarify_control, 3) if clarify_control is not None else None,
+        "clarify_probe_lift": _lift(clarify_on_ambig, clarify_control),
         "probe_kind_diversity": round(len([k for k in all_kinds if k in PROBE_KINDS]) / len(PROBE_KINDS), 2),
         "probe_kind_counts": dict(all_kinds),
         "probe_count_dist": dict(probe_counts),
@@ -196,8 +231,13 @@ def _report_md(rows: list[Row], sig: dict, qual: dict | None) -> str:
         )
     L += [
         "## Health signals (no-LLM)\n",
-        f"- gap caught on planted MISMATCH: {sig['gap_caught_on_mismatch']}",
-        f"- clarify-probe present on AMBIGUOUS needs: {sig['clarify_probe_on_ambiguous']}",
+        # Each planted-flag signal is reported WITH its behaviour-matched control and the
+        # lift between them: the raw rate alone can't tell "caught what was planted" from
+        # "emits this for every need" (a lift of 0.0 means the signal measures nothing).
+        f"- gap caught on planted MISMATCH: {sig['gap_caught_on_mismatch']} "
+        f"(control, matched needs: {sig['gap_flagged_on_matched']} · **lift {sig['gap_detection_lift']}**)",
+        f"- clarify-probe present on AMBIGUOUS needs: {sig['clarify_probe_on_ambiguous']} "
+        f"(control, non-ambiguous needs: {sig['clarify_probe_on_non_ambiguous']} · **lift {sig['clarify_probe_lift']}**)",
         f"- probe-kind diversity: {sig['probe_kind_diversity']} · counts {sig['probe_kind_counts']}",
         f"- probe-count distribution: {sig['probe_count_dist']}",
         f"- case-title uniqueness: {sig['case_title_uniqueness']}",
