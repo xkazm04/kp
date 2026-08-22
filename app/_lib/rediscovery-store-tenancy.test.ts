@@ -62,7 +62,9 @@ const DEFAULT_WS = "workspace";
 const WS_B = "team-beta";
 
 const { createPipelineEntry, candidateOutcomes, saveCampaignPack, getCampaignPack } = await import("./db.ts");
-const { recordRediscoveryAlerts, listRediscoveryAlerts } = await import("./rediscovery-alert-store.ts");
+const { recordRediscoveryAlerts, listRediscoveryAlerts, dismissRediscoveryAlert } = await import(
+  "./rediscovery-alert-store.ts"
+);
 
 // Closes the memoized main connection and removes this run's temp dir; a still-open
 // isolated handle only means the fixture's sweep reclaims the dir on a later run.
@@ -100,6 +102,46 @@ test("rediscovery alerts record + list are isolated by workspace", () => {
   assert.equal(beta[0].candidateId, "cand-B");
   // …and the default tenant sees nothing (unscoped list would have leaked it).
   assert.deepEqual(listRediscoveryAlerts(DEFAULT_WS), []);
+});
+
+test("dismissing an alert BY ID cannot reach another tenant's row (dismissal is sticky)", () => {
+  // The alert id is NOT a capability token: listRediscoveryAlerts hands it to every
+  // recruiter in the feed, and dismissal is permanent (the UNIQUE (job_id, candidate_id)
+  // index means a later sweep re-INSERTs nothing, so a dismissed row never comes back).
+  // An unscoped `WHERE id = ? AND dismissed_at IS NULL` therefore let ANY caller
+  // permanently suppress another team's silver medalist.
+  recordRediscoveryAlerts(
+    "jobB2",
+    "Beta Role Two",
+    [
+      {
+        candidateId: "cand-dismiss",
+        label: "Cand Dismiss",
+        archetype: "bau",
+        score: 81,
+        prior: { kind: "rejected", label: "Rejected · Y", stage: "Interview", depth: 2 },
+      },
+    ],
+    WS_B
+  );
+  const target = listRediscoveryAlerts(WS_B).find((a) => a.candidateId === "cand-dismiss");
+  assert.ok(target, "team-beta has a standing alert to target");
+
+  // A DEFAULT-tenant caller holding that id must not flip it…
+  assert.equal(dismissRediscoveryAlert(target!.id, DEFAULT_WS), false, "a cross-tenant dismiss must report no change");
+  assert.ok(
+    listRediscoveryAlerts(WS_B).some((a) => a.candidateId === "cand-dismiss"),
+    "team-beta's alert must SURVIVE another tenant's dismiss"
+  );
+
+  // …while the OWNING tenant still dismisses it (no over-blocking), stickily.
+  assert.equal(dismissRediscoveryAlert(target!.id, WS_B), true, "the owning tenant dismisses its own alert");
+  assert.equal(
+    listRediscoveryAlerts(WS_B).some((a) => a.candidateId === "cand-dismiss"),
+    false,
+    "the dismissed alert leaves the owner's feed"
+  );
+  assert.equal(dismissRediscoveryAlert(target!.id, WS_B), false, "already dismissed → no second flip");
 });
 
 test("campaign packs save + get are isolated by workspace", () => {

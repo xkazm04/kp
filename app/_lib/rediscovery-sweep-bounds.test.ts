@@ -84,6 +84,51 @@ test("sweepRediscoveryAlerts caps roles per sweep, logs the truncation, and hono
   assert.equal(maxActive, SWEEP_CONCURRENCY, "the pool should saturate to the concurrency cap");
 });
 
+test("the ceiling DEFERS the excess to the next sweep — it never makes roles unreachable", async () => {
+  // The ceiling used to slice the FIRST SWEEP_MAX_ROLES ids off a stable list every
+  // time, so "deferring N to the next Refresh" was a false claim: the next Refresh
+  // re-swept the identical prefix and roles past the ceiling could NEVER surface a
+  // silver medalist, however many times a recruiter clicked Refresh. Two sweeps of a
+  // 40-role catalog must therefore cover DISJOINT windows and reach every role.
+  const PUBLISHED = SWEEP_MAX_ROLES + 15;
+  const roles = Array.from({ length: PUBLISHED }, (_, i) => `rot-${i}`);
+  const seen: string[][] = [];
+  const mkDeps = (): SweepDeps => {
+    const batch: string[] = [];
+    seen.push(batch);
+    return {
+      listPublishedJobIds: () => roles,
+      raiseForJob: async (jobId) => {
+        batch.push(jobId);
+        return 0;
+      },
+    };
+  };
+  // A workspace key of its own, so this file's earlier sweep can't shift the cursor.
+  const opts = { workspaceId: "ws-rotation" };
+  const origWarn = console.warn;
+  console.warn = () => {};
+  try {
+    await sweepRediscoveryAlerts(opts, mkDeps());
+    await sweepRediscoveryAlerts(opts, mkDeps());
+  } finally {
+    console.warn = origWarn;
+  }
+
+  const [first, second] = seen;
+  assert.equal(first.length, SWEEP_MAX_ROLES, "the ceiling still bounds each sweep");
+  assert.equal(second.length, SWEEP_MAX_ROLES);
+  // The second sweep RESUMES where the first stopped — no overlap with the deferred set.
+  assert.deepEqual(
+    second.slice(0, PUBLISHED - SWEEP_MAX_ROLES),
+    roles.slice(SWEEP_MAX_ROLES),
+    "the second sweep must start with the roles the first one deferred"
+  );
+  // Every published role is reached across the two sweeps — nothing is unreachable.
+  const covered = new Set([...first, ...second]);
+  assert.equal(covered.size, PUBLISHED, `all ${PUBLISHED} roles must be reached, only ${covered.size} were`);
+});
+
 test("raiseForJobBounded aborts a role whose ranking outruns the per-role timeout", async () => {
   let sawAbort = false;
   // A ranking that never resolves on its own — only the timeout can end it.

@@ -56,7 +56,10 @@ export type RediscoverResult = {
   more: number;
 };
 
-function pickPrior(hist: CandidateOutcome[], jobId: string): PriorOutcome | null {
+/** Choose the ONE prior outcome that justifies resurfacing this candidate against
+ *  `jobId`. Pure over already-fetched rows, and exported so the "the prior must be
+ *  another role" rule below is pinned directly (rediscover.test.ts). */
+export function pickPrior(hist: CandidateOutcome[], jobId: string): PriorOutcome | null {
   const role = (o: CandidateOutcome) => o.jobTitle ?? "another role";
   // The prior's terminal stage is already on the fetched outcome row — read it for
   // the transparent, band-limited depth boost (priorDepthBoost) + the disclosed
@@ -67,15 +70,28 @@ function pickPrior(hist: CandidateOutcome[], jobId: string): PriorOutcome | null
     stage: o.stage,
     depth: priorDepthBoost(o.stage),
   });
-  const rejected = hist.find((h) => h.status === "rejected");
+  // A rediscovery prior must belong to ANOTHER role — that IS the feature ("people
+  // rejected/closed ELSEWHERE who clear the bar for this one and aren't already in
+  // it"). Only the `elsewhere` branch enforced it, so a candidate the team rejected
+  // FROM THIS VERY ROLE was resurfaced as a silver medalist FOR it: chipped
+  // "Rejected · <this role's own title>" and floated by the depth boost they earned
+  // inside it. Reachable on every genuine go-live (publish raises alerts, and a
+  // closed→re-published role keeps its rejects) and on every Rediscover-panel open.
+  // Nothing legitimate is lost: re-publish already reinstates this role's role_closed
+  // entries to `active` (reopenEntriesByJobId, BEFORE the alert raise), and the
+  // reach-out linker has always excluded the target role too
+  // (terminalPriorEntriesForCandidate's `job_id != ?`) — so a same-role prior could
+  // never even be linked to the entry it justified.
+  const other = hist.filter((h) => h.jobId !== jobId);
+  const rejected = other.find((h) => h.status === "rejected");
   if (rejected) return make("rejected", `Rejected · ${role(rejected)}`, rejected);
   // `role_closed` (the role was filled/closed under them, JOB2) and `declined` both make
   // strong re-engagement targets — they cleared the bar, so resurface them as "closed"
   // silver medalists. (Pre-JOB2 this read `status === "closed"`, a value the taxonomy
   // never produced, so role-closed candidates were silently never rediscovered.)
-  const closed = hist.find((h) => h.status === "role_closed" || h.status === "declined");
+  const closed = other.find((h) => h.status === "role_closed" || h.status === "declined");
   if (closed) return make("closed", `Closed · ${role(closed)}`, closed);
-  const elsewhere = hist.find((h) => h.jobId !== jobId && (h.status === "active" || h.stage === "Hired"));
+  const elsewhere = other.find((h) => h.status === "active" || h.stage === "Hired");
   // An `elsewhere` prior is a LIVE entry, not a terminal one — the depth boost (and
   // its "got as far as X last time" disclosure) is about how far a silver medalist's
   // FINISHED run advanced, so a currently-active candidate takes no boost: their
@@ -271,23 +287,49 @@ function defaultSweepDeps(workspaceId?: string): SweepDeps {
   };
 }
 
+// Round-robin sweep coverage. The ceiling DEFERS the excess — it must never EXCLUDE
+// it. `listPublishedJobIds` returns a stable order (listJobStatuses has no ORDER BY,
+// so SQLite hands back the same rowid order on every call), so slicing the first
+// SWEEP_MAX_ROLES ids every time made "deferring N to the next Refresh" a false
+// claim: the next Refresh re-swept the identical prefix, and a workspace with more
+// than SWEEP_MAX_ROLES published roles could NEVER surface a silver medalist for the
+// roles past the cut, however many times a recruiter clicked. So each sweep RESUMES
+// where the previous one stopped.
+//
+// Per-process, per-workspace, and deliberately NOT persisted: it needs no schema or
+// migration, and losing it on restart only restarts the rotation — sweeping a role
+// again is idempotent (recordRediscoveryAlerts is INSERT OR IGNORE, so a re-sweep
+// neither duplicates nor un-dismisses) and costs no more than today's every-click
+// re-sweep of the same prefix. The ceiling, the pool, and the per-role timeout are
+// untouched: this changes WHICH roles a sweep covers, never HOW MANY.
+const sweepCursor = new Map<string, number>();
+
 /** Sweep published roles and raise silver-medalist alerts — the "a strong
  *  candidate entered the pool" trigger, run on demand from the feed's Refresh.
  *  BOUNDED (bug-ui-scan #2): at most SWEEP_MAX_ROLES roles per sweep (excess
  *  deferred + logged), a SWEEP_CONCURRENCY worker pool, and a per-role timeout —
- *  so the request cost can never scale linearly with the catalog. `deps` is
- *  injectable for tests. Returns the roles actually swept, the newly-surfaced
- *  count, and how many roles were deferred (`truncated`). */
+ *  so the request cost can never scale linearly with the catalog. Successive sweeps
+ *  ROTATE through the catalog (sweepCursor) so the deferred roles are genuinely
+ *  reached next time. `deps` is injectable for tests. Returns the roles actually
+ *  swept, the newly-surfaced count, and how many roles were deferred (`truncated`). */
 export async function sweepRediscoveryAlerts(
   opts: { signal?: AbortSignal; workspaceId?: string } = {},
   deps: SweepDeps = defaultSweepDeps(opts.workspaceId)
 ): Promise<{ jobsSwept: number; newAlerts: number; truncated: number }> {
   const publishedIds = deps.listPublishedJobIds();
-  const roles = publishedIds.slice(0, SWEEP_MAX_ROLES);
+  const cursorKey = opts.workspaceId ?? "";
+  // Rotate the catalog to the resume point, THEN apply the unchanged ceiling. `% length`
+  // keeps a stale cursor in range when roles are unpublished between sweeps.
+  const start = publishedIds.length > 0 ? (sweepCursor.get(cursorKey) ?? 0) % publishedIds.length : 0;
+  const rotated = start === 0 ? publishedIds : [...publishedIds.slice(start), ...publishedIds.slice(0, start)];
+  const roles = rotated.slice(0, SWEEP_MAX_ROLES);
   const truncated = publishedIds.length - roles.length;
+  if (publishedIds.length > 0) {
+    sweepCursor.set(cursorKey, (start + roles.length) % publishedIds.length);
+  }
   if (truncated > 0) {
     console.warn(
-      `[rediscovery] sweep truncated: ${publishedIds.length} published roles exceed the ${SWEEP_MAX_ROLES}-role/sweep ceiling — processing ${roles.length}, deferring ${truncated} to the next Refresh.`
+      `[rediscovery] sweep truncated: ${publishedIds.length} published roles exceed the ${SWEEP_MAX_ROLES}-role/sweep ceiling — processing ${roles.length} starting at index ${start}, deferring ${truncated} to the next Refresh (which resumes from there).`
     );
   }
   let newAlerts = 0;

@@ -37,7 +37,14 @@ function relevantAlerts(workspaceId: string) {
     listRediscoveryAlerts(workspaceId),
     (jobId) => statuses[jobId] === "published",
     (jobId, candidateId) =>
-      (outcomes.get(candidateId) ?? []).some((o) => o.jobId === jobId && o.status === "active")
+      // ANY entry in that role means a recruiter already acted on this alert. Testing
+      // `status === "active"` instead meant that adding the candidate and THEN rejecting
+      // them flipped the predicate back to false, so the alert RESURFACED — recommending
+      // the person for the role they had just been rejected from, still carrying its
+      // original "Rejected · <other role>" chip so it read as a fresh suggestion. No
+      // over-filtering results: pickPrior now only ever raises an alert for a candidate
+      // with no entry in that role, so a later entry can only mean it was acted on.
+      (outcomes.get(candidateId) ?? []).some((o) => o.jobId === jobId)
   );
 }
 
@@ -55,7 +62,12 @@ export async function PATCH(request: Request) {
     const body = (await request.json().catch(() => null)) as { id?: unknown } | null;
     const id = typeof body?.id === "string" ? body.id : null;
     if (!id) return NextResponse.json({ error: "id is required." }, { status: 400 });
-    const dismissed = dismissRediscoveryAlert(id);
+    // Dismissal is STICKY (the UNIQUE (job_id, candidate_id) index makes every later
+    // sweep an INSERT OR IGNORE no-op) and an alert id is NOT a capability token —
+    // listRediscoveryAlerts hands it to every recruiter in the feed. So scope the
+    // write to the caller's team; `dismissed: false` answers "not yours", "already
+    // dismissed" and "never existed" identically, so it is no existence oracle.
+    const dismissed = dismissRediscoveryAlert(id, await currentWorkspace());
     return NextResponse.json({ dismissed });
   } catch (error) {
     return safeJsonError(error, "api:rediscovery-alerts", "REDISCOVERY_ALERTS_FAILED");

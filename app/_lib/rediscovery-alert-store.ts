@@ -172,12 +172,31 @@ export function listRediscoveryAlerts(workspaceId: string = DEFAULT_WORKSPACE_ID
   }));
 }
 
-/** Dismiss one alert (guarded to a still-active row → res.changes===0 when it was
- *  already dismissed or never existed; returns whether it flipped). */
-export function dismissRediscoveryAlert(id: string): boolean {
+/** Dismiss one alert, scoped to the CALLER's workspace.
+ *
+ *  The by-id predicate alone is NOT sufficient authorization here. An alert id is not
+ *  a capability token — listRediscoveryAlerts hands it to every recruiter in that
+ *  team's feed — and dismissal is STICKY: the UNIQUE (job_id, candidate_id) index
+ *  makes every later sweep an INSERT OR IGNORE no-op, so a dismissed row never comes
+ *  back. Without the workspace predicate, anyone holding an id could permanently
+ *  suppress ANOTHER team's silver-medalist alert.
+ *
+ *  Guarded to a still-active row IN THIS WORKSPACE → res.changes===0 covers "already
+ *  dismissed", "never existed", and "not yours" identically, which is exactly the
+ *  answer a caller should get for all three (no existence oracle, no new branch).
+ *
+ *  CALLERS MUST THREAD THE SESSION WORKSPACE. The DEFAULT_WORKSPACE_ID default only
+ *  matches the sibling list/record signatures — a request-scoped caller that omits it
+ *  targets the default tenant, so a non-default team's dismiss would silently no-op
+ *  (the row returns on reload). /api/rediscovery/alerts PATCH already resolves
+ *  `currentWorkspace()` for GET/POST; it must pass the same value here. */
+export function dismissRediscoveryAlert(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
   const res = db()
-    .prepare(`UPDATE rediscovery_alerts SET dismissed_at = ? WHERE id = ? AND dismissed_at IS NULL`)
-    .run(new Date().toISOString(), id);
+    .prepare(
+      `UPDATE rediscovery_alerts SET dismissed_at = ?
+        WHERE id = ? AND workspace_id = ? AND dismissed_at IS NULL`
+    )
+    .run(new Date().toISOString(), id, workspaceId);
   return res.changes > 0;
 }
 

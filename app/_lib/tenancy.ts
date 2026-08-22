@@ -146,8 +146,13 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // session's workspace at INSERT (appendDevSessionChat); by-session reads are
   // exempt like the sibling event log.
   "dev_session_chat",
-  // Phase 1 — rediscovery_alerts (standing silver-medalist feed): record stamps +
-  // list filters workspace_id; dismiss is by-id (rediscovery-tenancy.test.ts).
+  // Phase 1 — rediscovery_alerts (standing silver-medalist feed): record stamps, and
+  // list + dismiss BOTH filter workspace_id. NO by-id exemption — the note here used to
+  // grant one ("dismiss is by-id"), and that carve-out is exactly what shipped a
+  // cross-tenant write: an alert id is handed to every recruiter by
+  // listRediscoveryAlerts and dismissal is sticky, so a by-id write is not
+  // self-authorizing the way a candidate capability token is. rediscovery-tenancy.test.ts
+  // now carries a literal per-statement exemption allowlist, currently empty.
   "rediscovery_alerts",
   // Phase 1 — interview_preps: one plan per pipeline entry, all ops keyed by the
   // globally-unique entry_id (can't cross tenants); the write stamps workspace_id
