@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getJob, listJdRevisions, loadJd, revertJd } from "@/app/_lib/db/jobs";
-import { ingestJobAd } from "@/app/_lib/job-ingest";
+import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -53,11 +53,15 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
 
     // Keep the linked jd-<slug> job in step with the reverted wording — best-effort,
     // mirroring the PATCH edit path (insertJob preserves lifecycle status on upsert).
+    // ingestJobAd parses; insertJob persists. Skipping the write made the revert
+    // half a revert — the JD body rolled back while the matchable job kept the
+    // requirements parsed from the text the operator just discarded.
     let jobResynced = false;
     const jobId = jdJobId(slug);
     if (getJob(jobId)) {
       try {
-        await ingestJobAd(restored.body, jobId);
+        const { job } = await ingestJobAd(restored.body, jobId);
+        insertJob({ ...job, id: jobId }, undefined, "draft", ws);
         jobResynced = true;
       } catch (ingestError) {
         console.error(`[api:jds/revisions] JD ${slug} reverted but job re-ingest failed`, ingestError);

@@ -38,6 +38,36 @@ test("save route supports a retry that re-ingests under an existing slug", () =>
   assert.match(src, /status:\s*404/, "an unknown retry slug must 404");
 });
 
+// The other half of the same contract: an ingest that RUNS must also LAND.
+// `ingestJobAd` spawns `jobs_cli ingest` and returns the parsed Job — it writes
+// nothing at all (the Python side has no DB; `insertJob` is the sole writer of the
+// `jobs` table, which is why POST /api/jobs/ingest pairs the two calls). Three JD
+// routes called it and dropped the result on the floor while reporting success:
+//   • POST /api/jds/[slug]/ingest-job  — burned a paid Claude ad-parse and answered
+//     `{ ok: true, already: false, jobId: "jd-<slug>" }` with no row written, so the
+//     Ledger row stayed `unlinked`, "Source into Pipeline" 404'd, and every re-click
+//     re-spent the parse.
+//   • PATCH /api/jds/[slug] and POST /api/jds/[slug]/revisions — answered
+//     `jobResynced: true` while the matchable job kept the requirements/education
+//     floor parsed from the PRE-edit (or just-reverted) text, so match scores and the
+//     winnability coach kept answering the old wording.
+// Pinned as a source guard for the same reason as the rest of this file: these
+// modules import via "@/..." and pull in next/server.
+test("every JD route that re-parses the body PERSISTS the parse (ingestJobAd only parses)", () => {
+  for (const rel of ["../[slug]/ingest-job/route.ts", "../[slug]/route.ts", "../[slug]/revisions/route.ts"]) {
+    const src = read(rel);
+    assert.match(src, /await ingestJobAd\(/, `${rel} is expected to re-parse the JD body`);
+    assert.match(src, /\binsertJob\(/, `${rel} must persist the parse — ingestJobAd writes nothing`);
+    // The write must follow the parse it persists.
+    const parseAt = src.search(/await ingestJobAd\(/);
+    const writeAt = src.search(/\binsertJob\(/);
+    assert.ok(writeAt > parseAt, `${rel} must call insertJob AFTER ingestJobAd`);
+    // …and under the EXPLICIT jd-<slug> id, or content-twin dedup can file the parse
+    // onto an unrelated job and leave the JD unlinked while the response says ok.
+    assert.match(src, /insertJob\([^)]*\bjobId\b[^)]*\)/, `${rel} must persist under the jd-<slug> job id`);
+  }
+});
+
 test("the Ledger offers an in-place re-ingest for a JD with no matchable job (no dead-end)", () => {
   // A JD that never got a matchable Job (ingest failed, or a description-less build)
   // reads as `unlinked` and MUST offer an in-place re-ingest — never a

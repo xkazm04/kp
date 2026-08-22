@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getJob } from "@/app/_lib/db/jobs";
+import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import {
@@ -21,14 +21,20 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const { id } = await context.params;
   let workdir: string | null = null;
   try {
+    // Visibility gate (mirrors GET /api/jobs/[id]): getJob is a by-id point read over a
+    // globally-unique PK, so unguarded this graded ANY tenant's role — and the grade is
+    // derived from the role's own requirements ("loosen min_years to reach +12"), i.e. it
+    // hands another team's private must-haves back as coaching. 404, not 403, so the
+    // endpoint can't confirm an id exists; seeded corpus rows stay visible to everyone.
+    const ws = await currentWorkspace();
     const job = getJob(id);
-    if (!job) {
+    if (!job || !jobVisibleToWorkspace(id, ws)) {
       return NextResponse.json({ error: "Job not found." }, { status: 404 });
     }
 
     // Same population the candidates tab ranks, so the coach and the ranking
     // never diverge on who's in the pool. Workspace-scoped like the ranking.
-    const { entries } = buildCandidatePool(await currentWorkspace());
+    const { entries } = buildCandidatePool(ws);
     if (entries.length === 0) {
       return NextResponse.json({ poolSize: 0, note: "No saved candidates yet." });
     }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getJob, loadJd } from "@/app/_lib/db/jobs";
-import { ingestJobAd } from "@/app/_lib/job-ingest";
+import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -23,7 +23,8 @@ export async function POST(_request: Request, context: { params: Promise<{ slug:
   if (denied) return denied;
   const { slug } = await context.params;
   try {
-    const jd = loadJd(slug, await currentWorkspace());
+    const ws = await currentWorkspace();
+    const jd = loadJd(slug, ws);
     if (!jd) return NextResponse.json({ error: "JD not found." }, { status: 404 });
 
     const jobId = jdJobId(slug);
@@ -31,7 +32,20 @@ export async function POST(_request: Request, context: { params: Promise<{ slug:
       return NextResponse.json({ ok: true, jobId, already: true });
     }
     const { job, source } = await ingestJobAd(jd.body, jobId);
-    return NextResponse.json({ ok: true, jobId: job.id ?? jobId, already: false, source });
+    // ingestJobAd only PARSES (it spawns jobs_cli and hands back the structured
+    // record); `insertJob` is the sole writer of the `jobs` table. Without this the
+    // route burned a Claude ad-parse and answered `{ ok: true, already: false }`
+    // while nothing was written — the JD stayed `unlinked`, "Source into Pipeline"
+    // 404'd, and every re-click re-spent the parse. Same shape as
+    // POST /api/jobs/ingest, scoped to the workspace that owns the JD (proven by
+    // the loadJd above) so the opening lands in the corpus of the team that asked.
+    //
+    // Deliberately NO content hash: the JD↔Job identity contract is `jd-<slug>`
+    // (jd-limits.ts), and insertJob's content-twin dedup would hand back an
+    // unrelated job id — leaving the JD unlinked while the response claimed
+    // success. The `getJob` short-circuit above already makes this idempotent.
+    const { id } = insertJob({ ...job, id: jobId }, undefined, "draft", ws);
+    return NextResponse.json({ ok: true, jobId: id, already: false, source });
   } catch (error) {
     return safeJsonError(error, "api:jds:ingest-job", "JD_SAVE_FAILED");
   }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getJob, loadJd, setJdArchived, updateJd } from "@/app/_lib/db/jobs";
 import { promotedBriefForJob } from "@/app/_lib/db/intakes";
-import { ingestJobAd } from "@/app/_lib/job-ingest";
+import { ingestJobAd, insertJob } from "@/app/_lib/job-ingest";
 import { jdJobId, validateJdFields } from "@/app/_lib/jd-limits";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
@@ -104,11 +104,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
     // best-effort: insertJob's explicit-jobId upsert updates fields while
     // deliberately preserving lifecycle status, so an edit can't demote a
     // live role; a re-ingest failure leaves the JD edit committed.
+    // ingestJobAd PARSES only — the persist is insertJob's job. Without the
+    // write the re-parse was discarded and `jobResynced: true` was a claim the
+    // server never made good on: the matchable job kept its pre-edit
+    // requirements/education floor, so every subsequent match score (and the
+    // winnability coach's "+N eligible") answered the OLD text.
     let jobResynced = false;
     const jobId = jdJobId(slug);
     if (getJob(jobId)) {
       try {
-        await ingestJobAd(fields.body, jobId);
+        const { job } = await ingestJobAd(fields.body, jobId);
+        // No content hash: the row already exists under this explicit id, so the
+        // upsert path applies and the lifecycle status is preserved.
+        insertJob({ ...job, id: jobId }, undefined, "draft", ws);
         jobResynced = true;
       } catch (ingestError) {
         console.error(`[api:jds] JD ${slug} edited but job re-ingest failed`, ingestError);

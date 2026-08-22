@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getJob } from "@/app/_lib/db/jobs";
+import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { rediscoverForJob } from "@/app/_lib/rediscover";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
@@ -12,14 +12,22 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
+    // Visibility gate (mirrors GET /api/jobs/[id]): getJob is a by-id point read over a
+    // globally-unique PK, so unguarded this ranked the CALLER's pool against ANOTHER
+    // team's role and echoed that role's title back — plus it spawned a recruiter_cli
+    // child per call. Gate before the spawn. 404, not 403, so the endpoint can't be used
+    // to probe ids; seeded corpus rows stay visible to every tenant.
+    const ws = await currentWorkspace();
     const job = getJob(id);
-    if (!job) return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    if (!job || !jobVisibleToWorkspace(id, ws)) {
+      return NextResponse.json({ error: "Job not found." }, { status: 404 });
+    }
 
     // Threads the request's AbortSignal so abandoning rediscovery (clicking to the
     // next role, closing the panel) promptly SIGKILLs the recruiter_cli child.
     const { rediscovered, skipped, more } = await rediscoverForJob(job, {
       signal: request.signal,
-      workspaceId: await currentWorkspace(),
+      workspaceId: ws,
     });
     return NextResponse.json({
       job: { id: job.id, title: job.title },

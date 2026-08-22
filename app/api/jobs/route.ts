@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSeedHealth } from "@/app/_lib/db/core";
-import { listJobs, jobStats } from "@/app/_lib/db/jobs";
+import { countJobs, jobStats, listJobsPage, type JobFilter } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 
@@ -24,19 +24,28 @@ export async function GET(request: NextRequest) {
     const entry = sp.get("entryEligible");
     const open = sp.get("openOnly");
     const ws = await currentWorkspace();
-    const jobs = listJobs(
-      {
-        roleFamily: sp.get("roleFamily") ?? undefined,
-        seniority: sp.get("seniority") ?? undefined,
-        workMode: sp.get("workMode") ?? undefined,
-        entryEligible: entry === null ? undefined : entry === "true" || entry === "1",
-        // Opt-in: only roles open for applications (NULL/'published' status).
-        openOnly: open === "true" || open === "1" ? true : undefined,
-        q: sp.get("q") ?? undefined,
-        limit: parseLimit(sp.get("limit")),
-      },
-      ws
-    );
+    // ONE filter object, bound once: the page read and the COUNT below must run the
+    // identical predicate or the summary they feed contradicts itself.
+    const filter: JobFilter = {
+      roleFamily: sp.get("roleFamily") ?? undefined,
+      seniority: sp.get("seniority") ?? undefined,
+      workMode: sp.get("workMode") ?? undefined,
+      entryEligible: entry === null ? undefined : entry === "true" || entry === "1",
+      // Opt-in: only roles open for applications (NULL/'published' status).
+      openOnly: open === "true" || open === "1" ? true : undefined,
+      q: sp.get("q") ?? undefined,
+      limit: parseLimit(sp.get("limit")),
+    };
+    // listJobsPage, not listJobs: the page read looks ONE row past the slice, so the
+    // response can say "the first N of more" instead of presenting a cut slice as the
+    // whole result. Paired with `matching` — the unbounded COUNT over the SAME
+    // predicate — the client can tell "300 of 340 in this workspace" (ordinary
+    // filtering) apart from "300 of 312 matching, cut" (40 roles unreachable). With
+    // only `stats.total` (a real, UNFILTERED count) the truncation was invisible:
+    // a workspace of 340 roles rendered "Showing 300 of 340" and the 40 missing roles
+    // read as filtered-out rather than as a page the UI offers no way to advance past.
+    const { jobs, truncated, limit } = listJobsPage(filter, ws);
+    const matching = countJobs(filter, ws);
     const stats = jobStats(ws);
     // An empty corpus caused by a corrupt seed used to be invisible — surface it
     // with the failing path + reason instead of serving a silent empty catalog.
@@ -49,7 +58,7 @@ export async function GET(request: NextRequest) {
         );
       }
     }
-    return NextResponse.json({ jobs, stats });
+    return NextResponse.json({ jobs, stats, truncated, matching, limit });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to list jobs.";
     return NextResponse.json({ error: message }, { status: 500 });

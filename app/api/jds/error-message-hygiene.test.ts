@@ -47,7 +47,9 @@ test("no JD/template route forwards a raw error message to the client", () => {
 test("every store-backed route routes its catch path through safeJsonError", () => {
   for (const rel of ROUTES) {
     const src = read(rel);
-    assert.match(src, /safeJsonError/, `${rel} must use the shared safe-error responder`);
+    // The CALL, not a bare mention: a route that keeps the import but answers its
+    // catch some other way satisfied `/safeJsonError/` while leaking again.
+    assert.match(src, /return safeJsonError\(/, `${rel} must RETURN the shared safe-error responder from its catch`);
     assert.match(
       src,
       /from "@\/app\/_lib\/api-response"/,

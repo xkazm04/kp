@@ -138,6 +138,32 @@ test("flags an over-long must-have list", () => {
   assert.ok((many?.count ?? 0) > 8);
 });
 
+test("flags an over-long must-have list written in CZECH (diacritic-final markers count)", () => {
+  // The Czech markers are the reason this regression is invisible: `\b` is
+  // ASCII-only, so /musí\b/ never matched ("í" and " " are both non-\w) and a
+  // Czech JD with a dozen hard requirements counted ZERO must-haves — lint clean,
+  // while the identical English JD flagged. This assertion FAILS against the
+  // trailing-\b regex (findings has no manyMustHaves at all).
+  const body =
+    "Praha, hybrid. 80 000 Kč. Kandidát musí mít 5 let praxe. Musí umět Javu. " +
+    "musí znát SQL. Musí ovládat Kubernetes. musí mít VŠ. Musí umět anglicky. " +
+    "musí znát Docker. Musí mít ŘP. musí umět Python. Nutné je němčina. Povinná je čeština.";
+  const findings = lintJd({ body });
+  const many = findings.find((f) => f.kind === "manyMustHaves") as { count: number } | undefined;
+  assert.ok(many, "a Czech must-have pile-up must flag, exactly as the English one does");
+  assert.ok((many?.count ?? 0) > 8, `expected >8 Czech markers, counted ${many?.count}`);
+});
+
+test("Czech negation and unrelated words are not counted as must-have markers", () => {
+  // "nemusí" (need NOT) is the opposite claim, and no ordinary word may pad the
+  // count into a false manyMustHaves finding.
+  const body =
+    "Praha, remote. 80 000 Kč. Nemusíte umět německy, nemusí to být senior. " +
+    "Máme muzeum a museum-grade kávovar.";
+  const findings = lintJd({ body });
+  assert.equal(findings.filter((f) => f.kind === "manyMustHaves").length, 0);
+});
+
 test("an inclusive, concrete JD has no exclusionary findings", () => {
   const body = "Backend engineer in Prague (hybrid). 90 000–110 000 Kč. You will own our payments service.";
   const findings = lintJd({ body });

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import type { JobRecord } from "./db/core";
@@ -64,6 +64,20 @@ function db(): Database.Database {
 
 export const jobContentHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 24);
 
+/** The first free job id at or after `desired`. A DERIVED id (see insertJob's
+ *  `derivedId`) carries no claim on an existing row, so a collision must fork a new
+ *  role — `backend-engineer`, `backend-engineer-2`, … — never overwrite the incumbent.
+ *  The random backstop keeps the loop bounded on a pathological corpus. */
+function freeJobId(d: Database.Database, desired: string): string {
+  const taken = d.prepare(`SELECT 1 FROM jobs WHERE id = ?`);
+  if (!taken.get(desired)) return desired;
+  for (let n = 2; n <= 200; n += 1) {
+    const candidate = `${desired}-${n}`;
+    if (!taken.get(candidate)) return candidate;
+  }
+  return `${desired}-${randomUUID().slice(0, 8)}`;
+}
+
 /**
  * Upsert a structured job into the corpus. With a contentHash, a previously
  * ingested identical ad is reused (returns its id, created=false) so the same
@@ -71,12 +85,20 @@ export const jobContentHash = (s: string) => createHash("sha256").update(s).dige
  *
  * `status` seeds the lifecycle ONLY when a brand-new row is inserted; updating an
  * existing row preserves its stored status (setJobStatus owns transitions).
+ *
+ * `opts.derivedId` = the id was MINTED from the record (pipeline/jobfit/jobs.py's
+ * `_slug_from_title`, a bare title slug with no uniqueness component), not named by
+ * the caller. Such an id carries no "update THAT row" intent, so a collision forks a
+ * new job instead of clobbering the incumbent — see the contract below. Defaults to
+ * false so every caller that passes a genuinely explicit id (jd-<slug>, tests) keeps
+ * its update-in-place semantics.
  */
 export function insertJob(
   job: JobRecord,
   contentHash?: string,
   status: string = "published",
-  workspaceId: string = DEFAULT_WORKSPACE_ID
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  opts?: { derivedId?: boolean }
 ): { id: string; created: boolean } {
   const d = db();
   // Contract for content-hash dedup vs. an explicit jobId:
@@ -85,7 +107,18 @@ export function insertJob(
   //     re-ingest (or a deliberate update under a known id) edits that row.
   //   • Otherwise we dedup by content hash: a re-ingest of identical ad text
   //     reuses the prior job (created=false) instead of forking a duplicate.
-  const targetsExisting = !!d.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(job.id);
+  //
+  // A DERIVED id can never take the first branch. Two DIFFERENT ads sharing a title
+  // ("Java Developer" in Prague and in Brno — the everyday shape of a bulk req-list
+  // paste) slug to the SAME id, and reading that collision as "update THIS job" made
+  // the second ad's ON CONFLICT UPDATE overwrite the first role's title/company/
+  // salary/payload: two roles silently merged into one, the panel reporting the
+  // second as "already in the catalog". Across tenants it was worse — the row keeps
+  // its original workspace_id and status, so team B's paste rewrote team A's LIVE
+  // opening (which kept accepting applications under B's ad text) while B's own
+  // catalog gained nothing.
+  const derivedId = opts?.derivedId === true;
+  const targetsExisting = !derivedId && !!d.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(job.id);
   if (contentHash && !targetsExisting) {
     // Dedup is per-workspace: a team only reuses its OWN prior ingest of identical
     // ad text — never another team's job (job_ingests PK is (content_hash, workspace_id)).
@@ -95,6 +128,14 @@ export function insertJob(
     if (seen && d.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(seen.job_id)) {
       return { id: seen.job_id, created: false };
     }
+  }
+  // Only AFTER the content-hash dedup: a genuine re-ingest of the same ad must still
+  // resolve to its existing job (above) rather than fork `-2` on every retry.
+  if (derivedId) {
+    const free = freeJobId(d, job.id);
+    // Re-stamp the record so payload_json (the row the readers parse back) carries the
+    // id it is actually stored under, not the colliding slug the CLI minted.
+    if (free !== job.id) job = { ...job, id: free };
   }
   const now = new Date().toISOString();
   // `status` is set ONLY on first INSERT — the ON CONFLICT UPDATE deliberately

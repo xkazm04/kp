@@ -110,6 +110,22 @@ market band suppresses the salary finding), exclusionary/gendered-coded
 language, and an over-long must-have list. Findings render in a panel in
 `JdBuilderResult` with an explicit all-clear state. Pinned by `jd-lint.test.ts`.
 
+Every rule here uses `\p{L}` guards, never `\b`: JS word boundaries are defined by
+ASCII `\w`, so a trailing `\b` after a diacritic-final stem can never match. That
+is not theoretical — `/musí\b/` failed on *every* occurrence ("í" and " " are both
+non-`\w`, so there is no boundary), which meant a Czech JD listing a dozen
+`musí …` requirements counted **zero** must-have markers and linted clean while
+the identical English JD flagged. The markers now read
+`(?<!\p{L})…(?!\p{L})`; `PLACE_RE` drops the boundary entirely for the same reason.
+
+The `manyMustHaves` finding is a **warning above 8, not a cap** — nothing clamps
+the list, deliberately: a blind slice can drop a confirmed dealbreaker that
+happens to be listed ninth (a language requirement, say), turning a knockout into
+silence. It also only sees markers in the *prose*: a build whose `RoleSpec`
+carries eleven `mustHaves` renders them as plain bullets under "What you'll bring"
+(`composeMarkdown`, `jd-build-run.ts`), which contain no marker word, so the
+builder's own output does not trip the rule.
+
 ## The posting is a document, so it picks its own language
 
 The Posting tab renders `jobToMarkdown` — the copy-to-job-board artifact — and
@@ -200,7 +216,7 @@ still never blanks content that is already correct.
 | `app/_lib/job-ingest.ts` | `setJobStatus`, `getJobStatus`, `isJobOpenForApplications`, draft/published/closed lifecycle. |
 | `app/api/jds/route.ts`, `app/api/jds/save/route.ts` | Manual paste / AI-builder save + best-effort ingest. |
 | `app/api/jds/save/ingest-job.ts` | `ingestStructuredJob` — JD → structured `jobs` row. |
-| `app/api/jds/[slug]/**` | Analyses, retry-analysis, revisions, per-slug JD read. |
+| `app/api/jds/[slug]/**` | Analyses, retry-analysis, revisions, per-slug JD read, `ingest-job` (make a saved JD matchable). |
 | `app/api/jobs/route.ts`, `app/api/jobs/[id]/route.ts` | Job listing / read. |
 | `app/api/jobs/[id]/publish/route.ts` | Draft → published + source into Pipeline. |
 | `app/api/jobs/[id]/close/route.ts` | Published/draft → closed + withdraw in-flight entries. |
@@ -319,6 +335,63 @@ gate in `ko_filter` (`matching.py`, ranked through `_EDU_RANK`), the coach's
 saving the JD body re-ingests the linked job (`app/api/jds/[slug]/route.ts`) so
 the re-parsed floor moves eligibility by that amount.
 
+## `ingestJobAd` parses; `insertJob` persists — both, or the claim is a lie
+
+`ingestJobAd` (`app/_lib/job-ingest.ts`) spawns `jobs_cli ingest` and returns the
+structured `Job`. It writes **nothing** — the Python side has no database, and
+`insertJob` is the sole writer of the `jobs` table. Every caller must pair them,
+the way `POST /api/jobs/ingest` does.
+
+Three JD routes called only the first half and still reported success:
+`POST /api/jds/[slug]/ingest-job` spent a Claude ad-parse and answered
+`{ ok: true, already: false, jobId: "jd-<slug>" }` with no row written (so the
+Ledger row stayed `unlinked`, "Source into Pipeline" 404'd, and each re-click
+re-spent the parse); `PATCH /api/jds/[slug]` and `POST /api/jds/[slug]/revisions`
+answered `jobResynced: true` while the matchable job kept the
+requirements/education floor parsed from the *pre-edit* (or just-reverted) text —
+which is exactly the coupling the education-lever paragraph above depends on.
+All three now persist under the explicit `jd-<slug>` id, deliberately **without**
+a content hash: the JD↔Job identity contract (`jdJobId`, `app/_lib/jd-limits.ts`)
+must win, and `insertJob`'s content-twin dedup would otherwise file the parse
+onto an unrelated job and leave the JD unlinked behind an `ok: true`. The pairing
+is pinned by `app/api/jds/save/save-ingest-contract.test.ts`.
+
+### A MINTED job id is not a claim on an existing row
+
+A prose ad carries no id: `normalize_job` (`pipeline/jobfit/jobs.py`) mints one
+with `_slug_from_title` — a bare slug of the ad's title, no uniqueness component.
+`insertJob` used to read *any* pre-existing row under `job.id` as "the caller
+means update THAT job", which is right for an explicit `jd-<slug>` and wrong for
+a minted slug: two different roles sharing a title (a bulk req-list paste with
+"Java Developer" in Prague **and** in Brno) slugged to the same id, so the second
+ad's `ON CONFLICT … DO UPDATE` overwrote the first role's title/company/salary/
+payload. Two roles merged into one and the panel reported the second as
+"already in the catalog". Across tenants the same write crossed the boundary: the
+row keeps its original `workspace_id` and `status`, so team B's paste rewrote
+team A's **live** opening (still accepting applications, now under B's ad text)
+while B's own catalog gained nothing.
+
+`insertJob(job, hash, status, ws, { derivedId: true })` marks the minted case:
+the content-hash dedup still resolves a genuine re-ingest first (no `-2` churn on
+a retry), and only a real collision forks — `java-developer`, `java-developer-2`,
+… — with the payload re-stamped so the stored record carries the id it lives
+under. `POST /api/jobs/ingest` passes it whenever the caller named no `jobId`.
+Behavioral coverage: `app/_lib/job-ingest.test.ts`.
+
+### By-id job routes re-apply the list's visibility predicate
+
+`getJob` is a by-id point read over a globally-unique PK (the documented
+`jobs-tenancy.test.ts` exemption), so *any* `/api/jobs/[id]/*` route answers for
+*any* tenant's job unless it re-checks `jobVisibleToWorkspace(id, ws)` — the by-id
+form of the list's `(workspace_id IS NULL OR workspace_id = ?)` predicate. All of
+`campaign` (GET + POST), `winnability`, `rediscover` and `agent-fit` now do, ahead
+of the spend, answering `404` (never `403`, so the endpoint can't confirm an id
+exists); seeded corpus rows stay visible to every tenant. `POST /api/jobs/ingest`
+carries the write-side twin — an explicit `jobId` is a content overwrite of a
+named row, so it gates on `canWriteJobLifecycle` exactly like `/close` and
+`/publish`, before the Claude ad-parse is spent. Pinned by
+`app/api/jobs/lifecycle-signals.test.ts`.
+
 ## Reading the `jobs` corpus: a page is not a count, and "visible" is not "owned"
 
 Two traps live in `app/_lib/db/jobs.ts`, both now named by primitives.
@@ -334,6 +407,7 @@ roles" (30 roles/recruiter instead of 35) for a workspace carrying 350, labelled
 | `listJobsPage(filter, ws)` | `{ jobs, truncated, limit }` — the same `truncated` contract as `buildCandidatePool`, so a cut slice says so (it reads one row past the page to decide). |
 | `listJobs(filter, ws)` | The bare array (unchanged for the catalog UI) — now a thin wrapper over `listJobsPage`. |
 | `countJobs(filter, ws)` | The unbounded `COUNT(*)` over the *identical* predicate; `limit` is ignored. |
+| `GET /api/jobs` | `{ jobs, stats, truncated, matching, limit }` — `jobs` is `listJobsPage`'s slice, `matching` is `countJobs` over the **same bound filter object**, and `truncated` says the slice was cut. `stats.total` stays the workspace-wide **unfiltered** count, so "300 of 340" (ordinary filtering) and "300 of 312 matching, cut" (40 roles the UI offers no way to reach) are finally distinguishable. |
 | `listCorpusJobs(ws)` | Every live row as full records (the matcher/rematch corpus). |
 
 **The dual-tier predicate `(workspace_id IS NULL OR workspace_id = ?)` shows a
@@ -372,11 +446,20 @@ include `workspace_id`).
   team's save is refused with an error instead of being silently lost; making it
   actually work needs a table rebuild onto `(job_id, lang, workspace_id)` in
   `app/_lib/db/core.ts`.
-- `GET /api/jobs` does not yet forward `listJobsPage`'s `truncated` flag, so the
-  Jobs catalog still cannot say "first 300 of more". `jobStats.total` is a real
-  `COUNT(*)`, so the header count stays honest. The UI half is ready: the
-  "Showing N of M" line already reads both numbers off props, so plumbing a
-  `truncated` flag through `useJobsList` is all the client needs.
+- `GET /api/jobs` now forwards `truncated` / `matching` / `limit` (see the table
+  above), but **no client reads them yet**: `useJobsList` still stores only
+  `jobs` + `stats`, so `JobsTabResults`' "Showing N of M" line keeps comparing a
+  cut slice against `jobStats.total`. Plumbing the three fields through
+  `useJobsList` into that line (and a load-more/pager) is the remaining half.
+- `GET /api/jobs/[id]/candidates` forwards `poolTruncated` (from
+  `buildCandidatePool`) and **nothing reads it**: the `data` state in
+  `app/features/library/jobs/jobsRecruiterCandidatesLogic.ts` types only
+  `candidates` / `skipped` / `fairness`. A workspace whose corpus exceeds
+  `PROFILE_POOL_CAP + ANALYSIS_POOL_CAP` (~160) therefore sees a ranking, a
+  KO-filtered count and a Pool-Fit count all computed over a subset with no
+  notice. `GET /api/jobs/[id]/winnability` drops the same flag on the floor
+  (`const { entries } = buildCandidatePool(ws)`), so its "+N if you loosen this"
+  promises are capped the same way.
 - **The Fair Rank audit table ranks one number across cohorts it is not
   comparable within.** `recruiter.fairness_check` is handed *every* validated
   candidate, so its `own` / `mean` arrays include both fairness tracks **and**

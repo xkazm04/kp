@@ -17,8 +17,15 @@ import { TEMPLATE_LOCALIZED_TOKENS, type TemplateTokens } from "@/app/features/s
 /** Resolve every TEMPLATE_LOCALIZED_TOKEN for the JD's output language. */
 export async function jdTemplateTokens(lang: string | null | undefined): Promise<TemplateTokens> {
   const t = await namespaceTranslator(isLocale(lang) ? lang : DEFAULT_LOCALE, "library.templates.token");
-  // Built from the token tuple rather than a hand-written object literal, so a new
-  // token in TEMPLATE_LOCALIZED_TOKENS is a missing-catalog-key failure here (loud)
-  // instead of a silently unresolved `{{token}}` on a live posting (silent).
+  // Built from the token tuple rather than a hand-written object literal, so the map
+  // can never carry fewer keys than renderTemplate substitutes.
+  //
+  // A missing CATALOG entry is NOT loud, though: namespaceTranslator loads messages
+  // dynamically (next-intl's compile-time key checking is off — see
+  // catalog-translator.ts), and next-intl's missing-message fallback is the KEY PATH
+  // itself, a perfectly non-empty string. So an absent key ships
+  // "library.templates.token.heading_about" as a section heading on a live posting
+  // rather than throwing. `jd-template-tokens.test.ts` is the guard that makes it
+  // loud, rendering every token in all four locales.
   return Object.fromEntries(TEMPLATE_LOCALIZED_TOKENS.map((token) => [token, t(token)])) as TemplateTokens;
 }

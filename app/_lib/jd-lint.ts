@@ -59,7 +59,16 @@ const EXCLUSIONARY_PATTERNS: RegExp[] = [
 
 // "must"/"required"/"musí"/"nutné" markers — a long list of them deters
 // under-represented applicants who self-select out unless they meet 100%.
-const MUST_HAVE_RE = /\b(?:must(?:\s+have)?|required|musí|nutn\p{L}*|povinn\p{L}*)\b/giu;
+//
+// Unicode-aware word guards, NOT `\b`: JS `\b` is defined by ASCII `\w`, so a
+// trailing `\b` after a diacritic-final stem can never match — in "musí mít"
+// both "í" and " " are non-`\w`, there is no boundary, and /musí\b/ failed on
+// EVERY occurrence. A Czech JD listing twelve "musí …" requirements therefore
+// counted ZERO must-have markers and lint clean, while the same JD in English
+// flagged. (Same hazard the PLACE_RE comment above calls out; the stems already
+// use \p{L} for the identical reason.) `(?<!\p{L})…(?!\p{L})` keeps the English
+// behavior byte-identical and makes the Czech markers count.
+const MUST_HAVE_RE = /(?<!\p{L})(?:must(?:\s+have)?|required|musí\p{L}*|nutn\p{L}*|povinn\p{L}*)(?!\p{L})/giu;
 const MANY_MUST_HAVES = 8;
 
 // A stated pay figure: digits followed by a currency token ("65 000 Kč",
