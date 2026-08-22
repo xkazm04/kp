@@ -6,12 +6,18 @@
 // Runner: node --test with type stripping (no DOM, no JSX). `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildKeyRequestBody, findExistingKey } from "./modelsKeysPanelLogic.ts";
+import { buildKeyRequestBody, findExistingKey, keyFormMetaFor } from "./modelsKeysPanelLogic.ts";
 
 // A ProviderKeyMeta-shaped fixture (only the fields the helper reads matter here).
 const keys = [
-  { provider: "openai", scope: "byom", updatedAt: "2026-07-01T00:00:00Z" },
-  { provider: "azure_openai", scope: "platform", endpoint: "https://r.openai.azure.com", updatedAt: "2026-07-02T00:00:00Z" },
+  { provider: "openai", scope: "byom", baseUrl: "https://gw.corp.example/v1", updatedAt: "2026-07-01T00:00:00Z" },
+  {
+    provider: "azure_openai",
+    scope: "platform",
+    endpoint: "https://r.openai.azure.com",
+    apiVersion: "2024-06-01",
+    updatedAt: "2026-07-02T00:00:00Z",
+  },
 ];
 
 test("#4 findExistingKey returns the row a save would overwrite (provider+scope match)", () => {
@@ -55,6 +61,46 @@ test("#2 Azure keeps its endpoint/apiVersion (trimmed)", () => {
     endpoint: "https://r.openai.azure.com",
     apiVersion: "2024-06-01",
   });
+});
+
+// keyFormMetaFor: a save REPLACES the row's metadata wholesale, so an empty box is
+// a delete. The boxes must therefore show what is stored for the selected row.
+test("NON-VACUITY: rotating a key round-trips the stored Server URL instead of wiping it", () => {
+  // Operator selects the openai/byom row (pointed at an in-house gateway) to paste
+  // a rotated key. Pre-fix the form showed a blank Server URL, and the PUT body
+  // built from it dropped `baseUrl` — silently sending the next call, with the
+  // gateway's key, to the vendor cloud.
+  const meta = keyFormMetaFor(keys, "openai", "byom");
+  assert.equal(meta.baseUrl, "https://gw.corp.example/v1", "the stored server URL must be offered back");
+
+  const body = buildKeyRequestBody({
+    provider: "openai",
+    scope: "byom",
+    apiKey: "sk-rotated",
+    endpoint: meta.endpoint,
+    apiVersion: meta.apiVersion,
+    baseUrl: meta.baseUrl,
+  });
+  assert.deepEqual(body, {
+    provider: "openai",
+    scope: "byom",
+    apiKey: "sk-rotated",
+    baseUrl: "https://gw.corp.example/v1",
+  });
+});
+
+test("keyFormMetaFor offers Azure's endpoint/apiVersion back, and only to Azure", () => {
+  assert.deepEqual(keyFormMetaFor(keys, "azure_openai", "platform"), {
+    endpoint: "https://r.openai.azure.com",
+    apiVersion: "2024-06-01",
+    baseUrl: "",
+  });
+  // A different scope on the same provider is a NEW row — nothing to seed.
+  assert.deepEqual(keyFormMetaFor(keys, "azure_openai", "byom"), { endpoint: "", apiVersion: "", baseUrl: "" });
+  // Same drop-for-the-wrong-provider rule as buildKeyRequestBody: a provider whose
+  // adapter ignores a field is never seeded with one, and gemini takes no base URL.
+  assert.deepEqual(keyFormMetaFor(keys, "gemini", "byom"), { endpoint: "", apiVersion: "", baseUrl: "" });
+  assert.deepEqual(keyFormMetaFor(undefined, "openai", "byom"), { endpoint: "", apiVersion: "", baseUrl: "" });
 });
 
 test("#2 Azure with empty endpoint/apiVersion omits them rather than sending blanks", () => {

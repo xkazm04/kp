@@ -125,14 +125,23 @@ export function parseAgentReport(payload: unknown): ParseReportResult {
     if (!period || !PERIOD.test(period)) {
       return { ok: false, error: 'rollup reports require a period like "2026-08" or "2026-08-04".' };
     }
+    const successes = int(p.successes) ?? 0;
+    const failures = int(p.failures) ?? 0;
+    // A rollup that claims more outcomes than runs is internally inconsistent,
+    // and the aggregates divide successes by runs: {runs:2, successes:5} put
+    // "250% success" on the roster and a ✓ against a "≥ 90%" expectation. A
+    // reported success implies a run, so runs is corrected UPWARD to the outcomes
+    // actually reported — the period's spend still lands (rejecting the report
+    // would lose the ledger row) and the rate can no longer exceed 100%.
+    const runs = Math.max(int(p.runs) ?? 0, successes + failures);
     return {
       ok: true,
       report: {
         kind: "rollup",
         period,
-        runs: int(p.runs) ?? 0,
-        successes: int(p.successes) ?? 0,
-        failures: int(p.failures) ?? 0,
+        runs,
+        successes,
+        failures,
         costUsd: num(p.costUsd),
         tokensIn: int(p.tokensIn),
         tokensOut: int(p.tokensOut),

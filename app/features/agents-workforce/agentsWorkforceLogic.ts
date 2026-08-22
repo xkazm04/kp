@@ -39,6 +39,12 @@ export function metricsOf(raw: unknown): MetricSpec[] {
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
+// A cost metric is either a PER-UNIT ceiling or a period total, and the two are
+// not interchangeable. agentfit.py's shipped deterministic metric is
+// `cost_per_task` (target = suggested monthly budget / 20 runs), and the LLM path
+// may name any snake_case key — so classify before comparing.
+const COST_RATE_KEY = /per[_-]?(task|run|exec|execution|job|call|item)/;
+
 /** The live value behind a metric key, from the roster aggregates. null = this
  *  key has no client-side mapping (or no signal yet) — an honest "no data",
  *  never a fabricated 0. `runs_per_week` is approximated from total runs over
@@ -54,6 +60,18 @@ export function metricActual(
     return aggregates.successRate == null ? null : Math.round(aggregates.successRate * 1000) / 10;
   }
   if (k.includes("cost") || k.includes("budget") || k.includes("spend")) {
+    // Spend is a MEASUREMENT only once something has actually been costed: the
+    // provider CLI reports $0 on subscription auth (the `spendNote` copy says so
+    // in as many words), so an uncosted ledger is "no data" — never a green ✓
+    // against a cost ceiling the agent was never measured against.
+    if (!(aggregates.costUsd > 0)) return null;
+    if (COST_RATE_KEY.test(k)) {
+      // A per-task ceiling is a RATE. Comparing it against the month's TOTAL
+      // spend reported every busy-but-cheap agent as far over its per-task
+      // budget ($10 of month spend vs a $2.17/task ceiling read as "missed"
+      // while the agent was actually spending $0.50 a task).
+      return aggregates.runs > 0 ? Math.round((aggregates.costUsd / aggregates.runs) * 100) / 100 : null;
+    }
     return aggregates.monthCostUsd;
   }
   if (k.includes("per_week")) {

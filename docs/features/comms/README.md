@@ -175,8 +175,15 @@ back, keyed by the message's `ref` + `kind`:
   (`candidate-timeline.ts` → `toCandidateComm`); parity locked by
   `comms-delivery-truth.test.ts`.
 - **Resend claims are honest** — both resend clients (Dev outbox
-  `ResendButton`, Comms Center `BouncedResend`) surface the server's refusal
-  reason and only report success when the fresh row itself isn't `failed`.
+  `ResendButton`, Comms Center `BouncedResend`) split the same **four** outcomes,
+  because `POST /api/comms/[id]/resend` answers `200` for three of them: refused
+  (non-2xx → the server's own reason, resolved from the machine `code`) ▸
+  dead-lettered again (`failed`/`bounced`) ▸ **recorded but undeliverable
+  (`queued` — no relay configured)** ▸ actually relayed (`sent`). Only the last
+  may say "Resent". `queued` is the one that bit: the relay is a stored,
+  UI-editable capability, so it can be gone by the time a recruiter chases a
+  bounce raised while it was wired, and a corrected address that never leaves the
+  building must not report green.
 
 ## 9. The adverse comm: recorded reasons only, protected attributes dropped
 
@@ -286,7 +293,17 @@ section are closed:
   secret badge and the env-override note wait for the read, and the URL field
   refuses to be overwritten by a late response once someone has typed in it. It is
   no longer wrapped in `<Defer>` either — deferring a card that already holds its
-  own height only pushed the ledger down a second time.
+  own height only pushed the ledger down a second time. The one thing the usable
+  form must **not** do while that read is unknown is save a blank URL:
+  `setRelayConfig` has no "keep the stored URL" shape — an absent or empty `url`
+  **disables** the relay — so a secret rotation typed on a failed read would have
+  cleared a live endpoint and answered "Saved". Save is therefore held back for
+  exactly the ambiguous case (config unknown *and* the field empty), the same
+  "unknown ⇒ say nothing" rule the badge and the Test button already follow. A
+  successful save then **re-reads** `GET /api/comms/relay` instead of patching the
+  old state: the POST echoes the stored config but reports no `envConfigured`, and
+  after a failed initial read there was no state to patch — which left the pending
+  pill and a disabled Test button sitting over a relay just configured.
 - `CommsTable` held back the caption, the column headers and the filters inside
   them behind the same fetch, although all three depend on nothing but client
   state. They now render immediately with a quiet reserved-height body.
@@ -319,7 +336,14 @@ an unread receiver list — it was the third render site of `webhooks ?? []` and
 one that still printed a hard `0` next to a status badge honestly holding its
 pending pill — and "Receive a test application" stays disabled until the jobs list
 settles, because it fires at `jobs[0]` and answered "Create a job first" over a list
-it had not read.
+it had not read. The last site to collapse the distinction was the **Add-receiver
+modal**: both panes handed it `jobs ?? []` and it branched on `length === 0` to
+assert *"Publish a role first. Each receiver binds to one job."* plus a "Go to the
+JD library" CTA — a **cause** the modal cannot know, shown to workspaces full of
+published roles whenever the jobs read was in flight or had failed. It now takes
+`ReceiverJob[] | null`, holds the picker's height while unknown, and preselects the
+first role by derivation so a list that lands *after* the modal opened still fills
+the picker.
 
 **Careers links list only roles that can actually be applied to.** The jobs read
 passes `openOnly=1` (`isJobOpenForApplications`: `NULL`/`published`). Unfiltered, it

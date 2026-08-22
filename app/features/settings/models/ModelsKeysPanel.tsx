@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { BTN_SECONDARY, PANEL } from "@/app/_components/ui/recipes";
@@ -8,7 +8,7 @@ import { labelize } from "@/app/_lib/format";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { ProviderKeyMeta } from "@/app/_lib/llm-config";
 import { KEYLESS_PROVIDERS, providerAcceptsBaseUrl } from "@/app/_lib/llm-model-defaults";
-import { buildKeyRequestBody, canSubmitKeyForm, findExistingKey } from "./modelsKeysPanelLogic";
+import { buildKeyRequestBody, canSubmitKeyForm, findExistingKey, keyFormMetaFor } from "./modelsKeysPanelLogic";
 import { useProviderName } from "./modelsProviderNames";
 import { ModelsKeysList } from "./ModelsKeysList";
 import { ModelsKeyAddForm } from "./ModelsKeyAddForm";
@@ -46,6 +46,24 @@ export function KeysPanel() {
   // under the verbatim server message.
   const [note, setNote] = useState<{ text: string; ok: boolean; kpSecret?: boolean } | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  // The first successful load seeds the metadata boxes once; later loads can only
+  // happen through the retry button, which is reachable only while nothing loaded.
+  const seeded = useRef(false);
+
+  // Show the metadata a save would REPLACE. The PUT rewrites the row's meta
+  // wholesale, so a blank Server URL / API version box deletes the stored one —
+  // see keyFormMetaFor. Called from the provider/scope selectors (an event
+  // handler), never from an effect, so it can't clobber a value mid-typing.
+  const applyStoredMeta = (
+    keys: ProviderKeyMeta[] | undefined,
+    nextProvider: string,
+    nextScope: "byom" | "platform"
+  ) => {
+    const meta = keyFormMetaFor(keys, nextProvider, nextScope);
+    setEndpoint(meta.endpoint);
+    setApiVersion(meta.apiVersion);
+    setBaseUrl(meta.baseUrl);
+  };
 
   // State updates only happen in the async callbacks (never synchronously in
   // the effect body); the retry button clears the failure flag in its event
@@ -61,9 +79,19 @@ export function KeysPanel() {
         setData(payload);
         // The GET surface already excludes keyless providers (claude_cli), so
         // the first offered provider is just the head of the list.
-        setProvider((cur) => cur || payload.providers[0] || "");
+        const initial = payload.providers[0] || "";
+        setProvider((cur) => cur || initial);
+        // The selects still hold their initial (initial, "byom") pair here: the
+        // form only renders once `data` lands, so nothing could have changed them.
+        if (!seeded.current) {
+          seeded.current = true;
+          applyStoredMeta(payload.keys, initial, "byom");
+        }
       })
       .catch(() => setLoadFailed(true));
+    // Dependency-free on purpose (the mount effect must not re-fire per keystroke):
+    // the applyStoredMeta captured here reads nothing from the render it came from —
+    // it takes the key list as an argument and only calls setState.
   }, []);
   useEffect(() => {
     load();
@@ -171,9 +199,15 @@ export function KeysPanel() {
           <ModelsKeysList keys={data.keys} deleting={deleting} providerName={providerName} scopeLabel={scopeLabel} onRemove={remove} />
           <ModelsKeyAddForm
             provider={provider}
-            onProviderChange={setProvider}
+            onProviderChange={(next) => {
+              setProvider(next);
+              applyStoredMeta(data.keys, next, scope);
+            }}
             scope={scope}
-            onScopeChange={setScope}
+            onScopeChange={(next) => {
+              setScope(next);
+              applyStoredMeta(data.keys, provider, next);
+            }}
             apiKey={apiKey}
             onApiKeyChange={setApiKey}
             endpoint={endpoint}

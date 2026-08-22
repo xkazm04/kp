@@ -12,6 +12,15 @@ import { markBridgeOk, resolveBridge } from "./bridge-store";
 // Error model (the ats-egress deliver() contract): every helper returns a
 // structured `{ok, ...} | {ok:false, error, status?}` result and NEVER throws to
 // the route; all calls carry a 5s AbortSignal timeout.
+//
+// `redirect: "manual"` on every call, same reasoning as ats-egress.deliver():
+// "loopback by design" describes the URL WE DIAL, and with the default `follow`
+// undici re-dials whatever the answer points at. A 307/308 replays method AND
+// body — and the dispatch body carries `reportToken`, the ONLY auth on the public
+// POST /api/agents/report/[token] route, plus kp's own base URL. Whoever received
+// that replay could move the agent to Hired and post fabricated spend with no
+// session. Not following also matches what the local app actually does (a JSON
+// management API never redirects).
 
 const TIMEOUT_MS = 5_000;
 
@@ -21,6 +30,15 @@ function failure(e: unknown): BridgeFailure {
   if (e instanceof Error && e.name === "TimeoutError") return { ok: false, error: "Personas did not respond within 5s." };
   return { ok: false, error: e instanceof Error ? e.message : "Personas request failed." };
 }
+
+/** A `redirect:"manual"` 3xx surfaces as an opaque-redirect response (fetch spec:
+ *  type "opaqueredirect", status 0, ok false). Shared with pairing.ts. */
+export function isRedirectResponse(r: Response): boolean {
+  return r.type === "opaqueredirect" || r.status === 0 || (r.status >= 300 && r.status < 400);
+}
+
+export const REDIRECT_ERROR =
+  "Personas answered with a redirect; redirects are not followed — point the bridge URL at the Personas app itself.";
 
 function headers(apiKey: string | null): Record<string, string> {
   const h: Record<string, string> = { "Content-Type": "application/json" };
@@ -84,6 +102,7 @@ export async function fetchConnectorCatalog(): Promise<ConnectorCatalogResult> {
     const bridge = resolveBridge();
     const r = await fetch(`${bridge.baseUrl}/api/kp/connector-catalog`, {
       headers: headers(bridge.apiKey),
+      redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (r.ok) {
@@ -141,8 +160,12 @@ export async function dispatchPersonaRequest(
       method: "POST",
       headers: headers(bridge.apiKey),
       body: JSON.stringify({ kp, spec, reportToken }),
+      redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
+    // Checked BEFORE `!r.ok`: a redirect is not an HTTP status to report back
+    // (status 0), and it must never read as an acceptance of the hire.
+    if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
     if (!r.ok) return { ok: false, status: r.status, error: `Personas responded ${r.status}.` };
     const body = unwrapEnvelope(await r.json().catch(() => null)) as { requestId?: unknown } | null;
     const requestId = typeof body?.requestId === "string" ? body.requestId : "";
@@ -165,8 +188,10 @@ export async function fetchRequestStatus(requestId: string): Promise<RequestStat
   try {
     const r = await fetch(`${bridge.baseUrl}/api/kp/persona-requests/${encodeURIComponent(requestId)}`, {
       headers: headers(bridge.apiKey),
+      redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
+    if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
     if (!r.ok) return { ok: false, status: r.status, error: `Personas responded ${r.status}.` };
     const body = unwrapEnvelope(await r.json().catch(() => null)) as
       | { status?: unknown; personaId?: unknown; personaName?: unknown }

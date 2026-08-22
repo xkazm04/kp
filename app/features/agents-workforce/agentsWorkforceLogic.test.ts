@@ -33,12 +33,15 @@ function agg(partial: Partial<AgentAggregates> = {}): AgentAggregates {
   };
 }
 
-// The deterministic metric set agentfit.py emits (runs_per_week gte, success_rate
-// gte %, monthly_cost_usd lte).
+// The metric set agentfit.py ACTUALLY emits (_deterministic_metrics): runs_per_week
+// gte, success_rate gte %, and cost_per_task lte USD — a PER-TASK ceiling of
+// suggestedMonthlyUsd / 20, not a monthly total. This fixture used to name a
+// `monthly_cost_usd` key the transform never produces, so the shipped key's
+// mapping was never exercised here at all.
 const METRICS = metricsOf([
   { key: "runs_per_week", label: "Completed runs per week", target: 5, unit: "runs", direction: "gte" },
   { key: "success_rate", label: "Run success rate", target: 90, unit: "%", direction: "gte" },
-  { key: "monthly_cost_usd", label: "Monthly cost", target: 100, unit: "USD", direction: "lte" },
+  { key: "cost_per_task", label: "Cost per completed task", target: 2.17, unit: "USD", direction: "lte" },
 ]);
 
 test("status → badge mapping is exhaustive over the AgentStatus union", () => {
@@ -58,22 +61,37 @@ test("status → badge mapping is exhaustive over the AgentStatus union", () => 
 });
 
 test("expectationsVerdict: gte and lte directions both evaluate against actuals", () => {
-  // 20 runs over 2 weeks = 10/week (≥5 met); 95% success (≥90 met); $150 month
-  // cost (≤100 missed).
-  const a = agg({
+  // 20 runs over 2 weeks = 10/week (≥5 met); 95% success (≥90 met); $12 of spend
+  // over those 20 runs = $0.60 a task (≤ 2.17 met).
+  const cheap = agg({
     runs: 20,
     successes: 19,
     successRate: 0.95,
-    monthCostUsd: 150,
+    costUsd: 12,
+    monthCostUsd: 12,
     lastActivityAt: "2026-08-01T00:00:00Z",
   });
-  const v = expectationsVerdict(METRICS, a, TWO_WEEKS_AGO, NOW);
+  const v = expectationsVerdict(METRICS, cheap, TWO_WEEKS_AGO, NOW);
   assert.equal(v.total, 3);
-  assert.equal(v.met, 2);
+  // Pre-fix this read 2/3: the per-task ceiling was compared against the MONTH's
+  // total spend ($12 vs a $2.17/task target), so a busy, cheap agent was reported
+  // as 5x over the cost it was hired at.
+  assert.equal(v.met, 3);
   assert.deepEqual(
     v.rows.map((r) => r.state),
-    ["met", "met", "missed"]
+    ["met", "met", "met"]
   );
+
+  // …and a genuinely expensive agent still misses that ceiling: $60 / 20 runs = $3.
+  const pricey = expectationsVerdict(
+    METRICS,
+    { ...cheap, costUsd: 60, monthCostUsd: 60 },
+    TWO_WEEKS_AGO,
+    NOW
+  );
+  assert.equal(pricey.met, 2);
+  assert.equal(pricey.rows[2].state, "missed");
+  assert.equal(pricey.rows[2].actual, 3);
 });
 
 test("expectationsVerdict: no reported activity → every row is nodata, 0 met", () => {
@@ -86,7 +104,7 @@ test("expectationsVerdict: no reported activity → every row is nodata, 0 met",
 });
 
 test("metricActual maps the known key families and refuses the unknown", () => {
-  const a = agg({ runs: 14, successRate: 0.5, monthCostUsd: 42.5, lastActivityAt: "2026-08-01T00:00:00Z" });
+  const a = agg({ runs: 14, successRate: 0.5, costUsd: 42.5, monthCostUsd: 42.5, lastActivityAt: "2026-08-01T00:00:00Z" });
   assert.equal(metricActual("success_rate", a, TWO_WEEKS_AGO, NOW), 50);
   assert.equal(metricActual("monthly_cost_usd", a, TWO_WEEKS_AGO, NOW), 42.5);
   assert.equal(metricActual("runs_per_week", a, TWO_WEEKS_AGO, NOW), 7); // 14 runs / 2 weeks
@@ -95,6 +113,31 @@ test("metricActual maps the known key families and refuses the unknown", () => {
   assert.equal(metricActual("tickets_resolved", a, TWO_WEEKS_AGO, NOW), null);
   // successRate null (no runs) stays null even when other signals exist.
   assert.equal(metricActual("success_rate", agg({ lastActivityAt: "x" }), TWO_WEEKS_AGO, NOW), null);
+});
+
+test("metricActual: a per-unit cost target is a rate, and an uncosted ledger is no data", () => {
+  const live = "2026-08-01T00:00:00Z";
+  const a = agg({ runs: 20, costUsd: 12, monthCostUsd: 12, lastActivityAt: live });
+  // cost_per_task is what agentfit.py ships: total spend ÷ runs, NOT the month's bill.
+  assert.equal(metricActual("cost_per_task", a, TWO_WEEKS_AGO, NOW), 0.6);
+  assert.equal(metricActual("cost_per_run", a, TWO_WEEKS_AGO, NOW), 0.6);
+  // A period total still reads as the month's spend.
+  assert.equal(metricActual("monthly_cost_usd", a, TWO_WEEKS_AGO, NOW), 12);
+
+  // Spend the provider never costed (subscription auth reads $0 — the roster's own
+  // spendNote says so) is "no data", never a ✓ against a ceiling: an agent that has
+  // only reported a lifecycle event used to score its budget target as met.
+  const uncosted = agg({ runs: 20, lastActivityAt: live });
+  assert.equal(metricActual("cost_per_task", uncosted, TWO_WEEKS_AGO, NOW), null);
+  assert.equal(metricActual("monthly_cost_usd", uncosted, TWO_WEEKS_AGO, NOW), null);
+  assert.equal(
+    expectationsVerdict(METRICS, agg({ lastActivityAt: live }), TWO_WEEKS_AGO, NOW).rows[2].state,
+    "nodata",
+    "an activated-but-idle agent has no cost verdict at all"
+  );
+
+  // A costed ledger with no runs cannot state a per-task rate either (guarded divisor).
+  assert.equal(metricActual("cost_per_task", agg({ costUsd: 5, lastActivityAt: live }), TWO_WEEKS_AGO, NOW), null);
 });
 
 test("metricsOf drops malformed entries and defaults direction to gte", () => {

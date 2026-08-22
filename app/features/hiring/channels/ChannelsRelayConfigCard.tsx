@@ -38,20 +38,32 @@ export function RelayConfigCard() {
   // overwrite what someone has already typed into it.
   const urlTouched = useRef(false);
 
+  // Pure read, no state of its own, so BOTH the mount effect and a successful save
+  // can adopt the same authoritative answer. Null = "still unknown" (in flight,
+  // failed, or operator-denied) — never a fabricated default.
+  const readConfig = useCallback(async (): Promise<RelayState | null> => {
+    try {
+      const r = await fetch("/api/comms/relay");
+      if (!r.ok) return null;
+      const d = (await r.json()) as { config?: { url: string | null; hasSecret: boolean }; envConfigured?: boolean } | null;
+      if (!d?.config) return null;
+      return { url: d.config.url ?? "", hasSecret: d.config.hasSecret, envConfigured: Boolean(d.envConfigured) };
+    } catch {
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     let alive = true;
-    fetch("/api/comms/relay")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { config?: { url: string | null; hasSecret: boolean }; envConfigured?: boolean } | null) => {
-        if (!alive || !d?.config) return;
-        setState({ url: d.config.url ?? "", hasSecret: d.config.hasSecret, envConfigured: Boolean(d.envConfigured) });
-        if (!urlTouched.current) setUrl(d.config.url ?? "");
-      })
-      .catch(() => {});
+    readConfig().then((next) => {
+      if (!alive || !next) return;
+      setState(next);
+      if (!urlTouched.current) setUrl(next.url);
+    });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [readConfig]);
 
   const save = useCallback(async () => {
     setBusy(true);
@@ -62,9 +74,15 @@ export function RelayConfigCard() {
       const r = await fetch("/api/comms/relay", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = (await r.json().catch(() => null)) as { config?: { url: string | null; hasSecret: boolean }; error?: string; code?: string } | null;
       if (r.ok && d?.config) {
-        setState((s) => (s ? { ...s, url: d.config?.url ?? "", hasSecret: Boolean(d.config?.hasSecret) } : s));
         setSecret("");
         setNote({ ok: true, text: t("saved") });
+        // RE-READ rather than patch the old state. The POST echoes the stored config
+        // but says nothing about `envConfigured`, and when the initial GET never
+        // landed there was no state to patch at all — so `setState(s => s ? … : s)`
+        // was a no-op and the card kept its pending pill and a disabled Test button
+        // over a relay the operator had *just* configured.
+        const next = await readConfig();
+        if (next) setState(next);
       } else {
         setNote({ ok: false, text: errMsg(d, t("saveFailed")) });
       }
@@ -73,7 +91,7 @@ export function RelayConfigCard() {
     } finally {
       setBusy(false);
     }
-  }, [url, secret, t, errMsg]);
+  }, [url, secret, t, errMsg, readConfig]);
 
   const testPing = useCallback(async () => {
     setBusy(true);
@@ -98,6 +116,15 @@ export function RelayConfigCard() {
   // to a demo session — either way the editor renders, and only what the response
   // would have told us is held back.
   const active = state ? state.envConfigured || state.url.trim() !== "" : false;
+  // The POST is a full REPLACE: setRelayConfig treats an absent/empty `url` as "disable
+  // the relay" (comms-relay-store.ts validateUrl), and there is no "keep the stored
+  // one" shape. So an empty field is only a legitimate save once we KNOW the field
+  // reflects what is stored. While the GET is in flight — or after it failed, which is
+  // the state this card deliberately stays usable in — the field is empty because we
+  // never read it, and saving it silently cleared a live relay URL: a secret rotation
+  // typed on a failed read stopped ALL outbound delivery and answered "Saved". Held
+  // back like the badge and Test above, whose "unknown ⇒ say nothing" rule this is.
+  const blankSaveOnUnknownConfig = state === null && url.trim() === "";
 
   return (
     <section aria-label={t("title")} className="rounded-lg border border-stone-200 bg-paper/50 p-4">
@@ -155,7 +182,7 @@ export function RelayConfigCard() {
               className="mt-1 w-full"
             />
           </div>
-          <button type="button" onClick={save} disabled={busy} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
+          <button type="button" onClick={save} disabled={busy || blankSaveOnUnknownConfig} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
             {t("save")}
           </button>
         </div>

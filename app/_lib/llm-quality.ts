@@ -111,7 +111,11 @@ export function cellComposite(scores: QualityScores, op: string, modelSlug: stri
   return c ? qualityComposite(c) : null;
 }
 
-/** The best (highest-composite) model for one bench op. */
+/** The best (highest-composite) model for one bench op. On an exact tie this
+ *  returns the first tied model in `scores.models` order — fine for "show me one
+ *  representative winner", but NOT for counting wins: that order is the bench
+ *  run's record order, not a measurement. Use `topModelsForOp` when every tied
+ *  model has to be credited. */
 export function bestModelForOp(
   scores: QualityScores,
   op: string
@@ -122,6 +126,16 @@ export function bestModelForOp(
     if (c !== null && (!best || c > best.composite)) best = { model, composite: c };
   }
   return best;
+}
+
+/** EVERY model that ties for the top composite on one bench op (empty when the op
+ *  has no measured cell). Composites are rounded to one decimal by `clamp10`, so
+ *  an exact `===` here is a real dead heat at the precision the scorecard shows,
+ *  not a float coincidence. */
+export function topModelsForOp(scores: QualityScores, op: string): string[] {
+  const best = bestModelForOp(scores, op);
+  if (!best) return [];
+  return scores.models.filter((m) => cellComposite(scores, op, m) === best.composite);
 }
 
 /** The best model for a ROUTING use case = highest mean composite across the bench
@@ -153,7 +167,8 @@ export interface ModelOverall {
   coverage: number;
   measured: number;
   total: number;
-  /** ops where this model is the top scorer */
+  /** ops where this model is the top scorer — a dead heat credits EVERY tied
+   *  model, so the per-model counts can sum to more than `total` */
   wins: number;
   /** median of the model's per-op p50 latencies, ms (the speed axis) */
   p50Ms: number | null;
@@ -181,7 +196,14 @@ export function modelOverall(scores: QualityScores, model: string): ModelOverall
     }
   }
   const overall = comps.length ? clamp10(comps.reduce((s, v) => s + v, 0) / comps.length) : null;
-  const wins = ops.filter((op) => bestModelForOp(scores, op)?.model === model).length;
+  // Ties count for BOTH models. Asking `bestModelForOp(...)?.model === model`
+  // credited a dead heat to whichever tied model came first in `scores.models` —
+  // and that array is the bench run's record order, so the rendered "wins" column
+  // moved with an artifact of the run instead of the measurement. On the
+  // 2026-08-12 matrix that silently docked claude-opus-5 both of its dead heats
+  // (automation_offer, devcase_role_design), publishing 10/15 for a model that is
+  // top or joint-top on 12.
+  const wins = ops.filter((op) => topModelsForOp(scores, op).includes(model)).length;
   return {
     model,
     overall,

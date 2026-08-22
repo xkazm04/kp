@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { assertPublicHttpsEndpoint } from "./safe-url.ts";
 import { assertPublicHttpsEndpointResolved } from "./ats-egress-guard.ts";
 
@@ -91,5 +94,24 @@ test("rejects a host that does not resolve at all", async () => {
   await assert.rejects(
     assertPublicHttpsEndpointResolved("https://nope.example.com", "endpoint", fakeLookup({})),
     /could not be resolved/,
+  );
+});
+
+// Everything above proves the GUARD. This proves the CONSUMER still calls the
+// resolving one: llm-config.ts drags the SQLite store in, so it cannot be loaded
+// under `node --test` and the wiring can only be pinned at the source level (same
+// technique as llm-spawn-contract.test.ts / llm-model-required.test.ts). Downgrading
+// saveProviderKey back to the string-only `assertPublicHttpsEndpoint` would leave
+// every test above green while re-opening the DNS-rebinding pivot.
+test("saveProviderKey still applies the RESOLVING guard to the Azure endpoint", () => {
+  const source = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), "llm-config.ts"),
+    "utf-8",
+  );
+  assert.match(
+    source,
+    /await assertPublicHttpsEndpointResolved\(\s*endpoint/,
+    "llm-config.saveProviderKey must await assertPublicHttpsEndpointResolved(endpoint, …) — " +
+      "the string-only gate accepts a public-looking host that answers 169.254.169.254 at fetch time.",
   );
 });

@@ -162,7 +162,9 @@ export function EmailIntakeWizard({
         <AddReceiverModal
           title={t("email.title")}
           channel="email"
-          jobs={jobs ?? []}
+          // Passed through UNFLATTENED — see AddReceiverModal's `jobs` prop: an
+          // unread list must not be narrated as "no published roles".
+          jobs={jobs}
           onClose={() => setAddOpen(false)}
           onCreated={(token) => {
             load();

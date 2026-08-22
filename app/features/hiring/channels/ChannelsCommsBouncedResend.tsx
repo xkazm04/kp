@@ -18,13 +18,13 @@ export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; 
   // `error` — see app/_lib/use-error-message.ts.
   const errMsg = useErrorMessage();
   const [recipient, setRecipient] = useState(defaultRecipient ?? "");
-  const [state, setState] = useState<"idle" | "busy" | "done" | "deadLettered" | "error">("idle");
+  const [state, setState] = useState<"idle" | "busy" | "done" | "queued" | "deadLettered" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const valid = isDeliverableAddress(recipient.trim());
   // Same honesty fix as ResendButton: surface the server's own refusal reason, and
   // claim success only when the corrected address actually took.
   const resend = async () => {
-    if (state === "busy" || state === "done" || !valid) return;
+    if (state === "busy" || state === "done" || state === "queued" || !valid) return;
     setState("busy");
     setMessage(null);
     try {
@@ -41,7 +41,20 @@ export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; 
         setState("error");
         return;
       }
-      if (payload?.entry?.status === "failed") {
+      // Recorded, but NOTHING WILL DELIVER IT. `queued` is the terminal local-outbox
+      // state (comms-status.ts), reached when no relay is configured — and the relay is
+      // a stored, UI-editable capability (comms-relay.ts resolves env ▸ stored ▸
+      // nothing), so it can be gone by the time a recruiter chases a bounce raised while
+      // it was wired. The route still answers 200, so "the call resolved" said nothing:
+      // the absence of this branch was exactly how a corrected offer that never left
+      // the building reported a green "Resent". Four outcomes, as in ResendButton.
+      if (payload?.entry?.status === "queued") {
+        setMessage(t("relayNotConfigured"));
+        setState("queued");
+        onResent();
+        return;
+      }
+      if (payload?.entry?.status === "failed" || payload?.entry?.status === "bounced") {
         const detail = payload.entry.failureDetail;
         setMessage(detail ? `${t("resendDeadLettered")} ${t("failureDetail", { detail })}` : t("resendDeadLettered"));
         setState("deadLettered");
@@ -65,7 +78,12 @@ export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; 
           value={recipient}
           onChange={(e) => {
             setRecipient(e.target.value);
-            if (state !== "idle") setState("idle");
+            // NOT while the POST is in flight: clearing `busy` here re-enabled the
+            // button mid-request, so editing the address and clicking again fired a
+            // second resend. The server collapses it (resendInFlight → 409), and that
+            // refusal could resolve LAST — reporting "Couldn't resend" over a resend
+            // that had in fact gone out.
+            if (state !== "idle" && state !== "busy") setState("idle");
           }}
           placeholder={t("bouncedRecipientPlaceholder")}
           className={`${FIELD} w-full text-sm`}
@@ -81,10 +99,16 @@ export function BouncedResend({ id, defaultRecipient, onResent }: { id: string; 
         <button
           type="button"
           onClick={resend}
-          disabled={!valid || state === "busy" || state === "done"}
+          disabled={!valid || state === "busy" || state === "done" || state === "queued"}
           className={`${BTN_PRIMARY} h-8 px-3 text-sm`}
         >
-          {state === "done" ? t("resent") : state === "busy" ? t("resending") : t("resend")}
+          {state === "done"
+            ? t("resent")
+            : state === "queued"
+              ? t("statusQueued")
+              : state === "busy"
+                ? t("resending")
+                : t("resend")}
         </button>
       </div>
     </div>

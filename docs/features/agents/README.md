@@ -62,6 +62,13 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    through `POST /api/agents/report/[token]`; the Agents module shows aggregates (runs,
    success rate, month spend vs budget, connector use) and a client-computed
    "n/m expectations met" verdict (`agentsWorkforceLogic.expectationsVerdict`).
+   `metricActual` maps a metric key onto that ledger, and a **cost** key is read as a
+   rate or a total depending on its name: `cost_per_task` — the ceiling agentfit ships
+   (`suggestedMonthlyUsd / 20`) — is spend ÷ runs, not the month's bill, because
+   comparing a per-task ceiling against the month total reported every busy-but-cheap
+   agent as far over the cost it was hired at. A cost target is scored only once
+   something has actually been costed: an uncosted ledger reads `–` ("no data"), never a
+   ✓, since the provider CLI reports $0 on subscription auth. An unmapped key stays `–`.
 
 ## API / lib surface
 
@@ -94,7 +101,12 @@ Three tables (all tenancy-scoped by `workspace_id`; see `app/_lib/db/agents.ts`)
   no session at all.
 - **`agent_activity`** — the activity ledger: `execution` events (idempotent by
   `exec_id`), `rollup` periods (upsert — Personas reports absolutes; a month's rollup is
-  authoritative over that month's events), `lifecycle` audit rows.
+  authoritative over that month's events), `lifecycle` audit rows. Everything inbound is
+  bounded at the `report-payload.ts` trust boundary (string caps, finite non-negative
+  numbers, list caps) — including internal consistency: a rollup claiming more outcomes
+  than runs has `runs` corrected up to `successes + failures`, because the aggregates
+  divide the two and `{runs:2, successes:5}` otherwise rendered a **250% success rate**
+  (and a ✓ against a "≥ 90%" expectation).
 
 Plus the single-row **`personas_bridge`** config (base URL + AES-256-GCM-encrypted `pk_`
 key; `PERSONAS_BRIDGE_URL`/`PERSONAS_BRIDGE_KEY` env vars beat the stored row).
@@ -114,6 +126,11 @@ key; `PERSONAS_BRIDGE_URL`/`PERSONAS_BRIDGE_KEY` env vars beat the stored row).
 - **Localhost-only bridge**: Personas is a local desktop app
   (`http://127.0.0.1:9420` default) — the bridge client is loopback by design and
   deliberately skips the SSRF egress guard. The URL comes only from operator config/env.
+  "Loopback by design" describes the URL kp *dials*, so every bridge call (catalog,
+  dispatch, status poll, both pairing phases) is issued `redirect: "manual"` like
+  `ats-egress.deliver()`: a followed 307/308 replays method **and body** to wherever the
+  answer points, and the dispatch body carries the `reportToken` — the only auth on the
+  public report route. A 3xx is reported as a redirect, never as an acceptance.
 
 ## Known gaps
 

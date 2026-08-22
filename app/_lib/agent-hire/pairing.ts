@@ -1,4 +1,5 @@
 import { randomToken } from "../random-id";
+import { isRedirectResponse, REDIRECT_ERROR } from "./bridge-client";
 import { resolveBridge, markBridgeOk, setBridgeConfig } from "./bridge-store";
 
 // Personas pairing (WP1) — the human-approved key exchange.
@@ -11,7 +12,9 @@ import { resolveBridge, markBridgeOk, setBridgeConfig } from "./bridge-store";
 // (WP2) polls claim without holding a long-blocking request open; a successful
 // claim stores the key encrypted (bridge-store) and the nonce is spent.
 //
-// Loopback by design — see bridge-client.ts for why no SSRF guard runs here.
+// Loopback by design — see bridge-client.ts for why no SSRF guard runs here, and
+// why every bridge call is issued `redirect: "manual"` (the claim response
+// carries the pk_ key, and the request carries the nonce that redeems it).
 
 const TIMEOUT_MS = 5_000;
 export const PAIRING_SCOPES = ["personas:read", "personas:build"] as const;
@@ -37,8 +40,10 @@ export async function startPairing(): Promise<PairStartResult> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nonce, scopes: PAIRING_SCOPES, client: "kp" }),
+      redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
+    if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
     if (!r.ok) return { ok: false, error: `Personas responded ${r.status} to the pairing request.` };
     const now = Date.now();
     sweep(now);
@@ -73,8 +78,12 @@ export async function claimPairing(nonce: string): Promise<PairClaimResult> {
   const bridge = resolveBridge();
   try {
     const r = await fetch(`${bridge.baseUrl}/pair/claim?nonce=${encodeURIComponent(nonce)}`, {
+      redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
+    // Before the pending checks: an opaque redirect is status 0, and a redirect
+    // is neither "still pending" nor a place to hand the nonce to.
+    if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
     if (r.status === 404 || r.status === 202) return { ok: true, paired: false, state: "pending" };
     if (!r.ok) return { ok: false, error: `Personas responded ${r.status} to the pairing claim.` };
     const body = (await r.json().catch(() => null)) as { apiKey?: unknown; key?: unknown; status?: unknown } | null;

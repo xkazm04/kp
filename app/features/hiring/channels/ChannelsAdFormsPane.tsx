@@ -103,7 +103,10 @@ export function AdFormsPane({
         <AddReceiverModal
           title={t("ads.title")}
           channel="boards"
-          jobs={jobs ?? []}
+          // Passed through UNFLATTENED: `jobs ?? []` made a failed/in-flight read
+          // indistinguishable from a workspace with no published roles, and the modal
+          // asserted the latter ("Publish a role first").
+          jobs={jobs}
           onClose={() => setAddOpen(false)}
           onCreated={(token) => {
             load();

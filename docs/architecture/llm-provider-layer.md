@@ -135,9 +135,13 @@ LLM telemetry goes to **LightTrack** (sibling repo `../LightTrack`, self-hosted)
   it *is* Anthropic spend — so subscription vs metered stays separable).
 - Direct Gemini paths and the TS github-analysis call (via
   `app/_lib/llm-lighttrack.ts`, the TS counterpart to `monitor.py`) meter through
-  the same seam. **Known gap:** the TS seam still assigns the use case to
-  `operation`, so TS-originated events collapse to `other` — the Python fix above
-  has not been mirrored there yet.
+  the same seam — including the `operation`/tag rule above, which the TS half now
+  mirrors (it used to put the use case on `operation`, so every TS-originated
+  event silently deserialized into the `other` bucket and answered no
+  `use_case:` filter at all, while the Python half read `chat`). Pinned by
+  `app/_lib/llm-lighttrack.test.ts`, which stubs `fetch` and asserts the emitted
+  body — the failure mode is invisible at runtime, since the enum's serde
+  catch-all accepts anything.
 - Activation is double-gated (SDK importable AND `LIGHTTRACK_URL` set); emission
   is fire-and-forget on a daemon thread, exception-swallowed — an observability
   outage can never fail an LLM call.
@@ -342,6 +346,18 @@ saving one.
   overloaded/rate-limit family or the generic bucket instead of telling an
   operator with a valid key that no key is stored. Pinned by `verdict.test.ts`.
 
+### A Test only ever claims what the server holds
+
+`POST /api/llm/test` takes `{ useCase }` and nothing else — it resolves the pin
+the **server** has stored. So the routing row's Test button is disabled while its
+draft is unsaved (`canTest={!dirty}` in `ModelsRoutingRow.tsx`), for the same
+reason it is absent on an unpinned row: with an edited provider/model sitting in
+the boxes, a verdict about the stored pin reads as a verdict about the edit —
+green ("that typo works") or red ("my correction didn't help") equally wrongly.
+Save, then test. The key row's Test is a different case and stays enabled: its
+`model` box is an argument of the probe, not stored state, and the key it proves
+is the stored one.
+
 ## Invariants
 
 1. **Deterministic fallbacks stay** — adapter failure never surfaces as a broken
@@ -429,6 +445,25 @@ intended values. The threat models genuinely differ:
 
 It replaces the `OPENAI_BASE_URL` / `OLLAMA_BASE_URL` env vars and sits at the same
 trust level as them.
+
+### A blank box is a delete, so the boxes show what is stored
+
+`upsertProviderKey` sets `meta_json = excluded.meta_json` — a save rewrites the
+row's metadata **wholesale**. An empty Server URL / API version box therefore
+DELETES the stored one; it does not mean "leave it alone". The add-replace form
+used to open those boxes blank whatever was stored, so rotating the key on an
+`openai` row pointed at an in-house gateway wiped its Server URL with no warning
+and sent the next call — carrying the gateway's key — to `api.openai.com`.
+
+`keyFormMetaFor` (`modelsKeysPanelLogic.ts`) now seeds `endpoint` / `apiVersion` /
+`baseUrl` from the row a save would REPLACE, applied by the provider and scope
+selects (never from an effect, so it cannot clobber a value mid-typing). It keeps
+`buildKeyRequestBody`'s drop-for-the-wrong-provider rule, so nothing is re-seeded
+from a row whose provider has since been flipped away. The stored base URL also
+renders on the key row beside the Azure endpoint — it is not a secret, it decides
+where the key is sent, and it was the one stored field the list dropped. Pinned by
+`modelsKeysPanelLogic.test.ts`. (Azure's `endpoint` could never be wiped this way —
+the PUT rejects an Azure save without one — but its `apiVersion` could.)
 
 ### Offline
 

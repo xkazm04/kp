@@ -91,6 +91,11 @@ export function ModelsKeyRow({
         <span className="font-semibold text-ink">{label}</span>
         <Badge tone={entry.scope === "byom" ? "info" : "neutral"} label={scope} />
         {entry.endpoint ? <span className="break-all text-steel">{entry.endpoint}</span> : null}
+        {/* The configured OpenAI-compatible server (Ollama / LM Studio / a gateway).
+            It is not a secret and it decides WHERE this key is sent, so the row that
+            lists what is stored has to show it — it was the one stored field the
+            list dropped, which is how it could also be wiped unnoticed on a save. */}
+        {entry.baseUrl ? <span className="break-all text-steel">{entry.baseUrl}</span> : null}
         {entry.apiVersion ? <span className="text-steel">{t("apiVersionValue", { version: entry.apiVersion })}</span> : null}
         <span className="ml-auto flex items-center gap-2">
           <span className="text-steel">

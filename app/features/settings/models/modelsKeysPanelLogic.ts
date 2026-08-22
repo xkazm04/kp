@@ -19,6 +19,35 @@ export function findExistingKey(
   return keys?.find((k) => k.provider === provider && k.scope === scope);
 }
 
+/** The metadata boxes (endpoint / apiVersion / Server URL) the add-replace form
+ *  must show for a (provider, scope) selection.
+ *
+ *  A save rewrites the row's metadata WHOLESALE — `upsertProviderKey`'s
+ *  `ON CONFLICT … DO UPDATE SET meta_json = excluded.meta_json` — so a box left
+ *  blank DELETES whatever was stored there; it does not mean "leave it alone".
+ *  The form never seeded these boxes from the stored row, so rotating the key on
+ *  an `openai` row pointed at an in-house gateway wiped its Server URL without a
+ *  word, and the next call went to the vendor cloud carrying the gateway's key.
+ *  Seeding from the row a save would REPLACE makes the boxes state what will be
+ *  stored, and keeps clearing one a deliberate act.
+ *
+ *  Same drop-for-the-wrong-provider discipline as `buildKeyRequestBody`: only the
+ *  fields the selected provider actually owns are offered back, so nothing can be
+ *  re-seeded from a row whose provider has since been flipped away. */
+export function keyFormMetaFor(
+  keys: readonly ProviderKeyMeta[] | undefined,
+  provider: string,
+  scope: string
+): { endpoint: string; apiVersion: string; baseUrl: string } {
+  const existing = findExistingKey(keys, provider, scope);
+  const isAzure = provider === "azure_openai";
+  return {
+    endpoint: isAzure ? (existing?.endpoint ?? "") : "",
+    apiVersion: isAzure ? (existing?.apiVersion ?? "") : "",
+    baseUrl: providerAcceptsBaseUrl(provider) ? (existing?.baseUrl ?? "") : "",
+  };
+}
+
 export type KeyRequestBody = {
   provider: string;
   scope: "byom" | "platform";

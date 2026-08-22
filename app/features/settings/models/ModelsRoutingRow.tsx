@@ -156,6 +156,10 @@ export function ModelsRoutingRow({
             useCase={useCase}
             hasRow={row !== null}
             canSave={Boolean(provider) && dirty}
+            // The canary sends `{ useCase }` — the server answers about the
+            // STORED pin. With an unsaved draft in the boxes, that verdict
+            // (green OR red) would be read as being about the draft.
+            canTest={!dirty}
             busy={busy}
             onSave={save}
             onTest={test}

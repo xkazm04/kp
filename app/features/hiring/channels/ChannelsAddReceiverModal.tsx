@@ -25,27 +25,37 @@ export function AddReceiverModal({
 }: {
   title: string;
   channel: string;
-  jobs: ReceiverJob[];
+  /** The tab's published-roles list, or null while its fetch is in flight / after it
+   *  FAILED (ChannelsTab holds the failure at null rather than collapsing it to []).
+   *  The distinction is load-bearing here: `add.noJobs` asserts "Publish a role first"
+   *  — a CAUSE this modal cannot know from an empty array. An unread list rendered
+   *  that sentence plus a "Go to the JD library" CTA to workspaces full of published
+   *  roles. Unknown now holds the picker's height and says nothing; the tab's own
+   *  error strip already carries the failure. */
+  jobs: ReceiverJob[] | null;
   onClose: () => void;
   onCreated: (token: string) => void;
 }) {
   const t = useTranslations("channels");
   const router = useRouter();
   const search = useSearchParams();
-  const [jobId, setJobId] = useState(jobs[0]?.id ?? "");
+  // Empty = "nothing picked yet"; the first role is the DERIVED default rather than a
+  // seeded one, so a list that arrives after the modal opened still preselects.
+  const [jobId, setJobId] = useState("");
+  const selectedJobId = jobId || jobs?.[0]?.id || "";
   const [lang, setLang] = useState<Locale>(DEFAULT_LOCALE);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const create = async () => {
-    if (creating || !jobId) return;
+    if (creating || !selectedJobId) return;
     setCreating(true);
     setError(null);
     try {
       const r = await fetch("/api/channels/webhooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channel, jobId, lang }),
+        body: JSON.stringify({ channel, jobId: selectedJobId, lang }),
       });
       // The route answers `{ webhook }` (POST /api/channels/webhooks), not a bare
       // token. Reading `p.token` therefore ALWAYS yielded undefined → onCreated("")
@@ -66,7 +76,11 @@ export function AddReceiverModal({
 
   return (
     <Modal title={title} onClose={onClose} size="md">
-      {jobs.length === 0 ? (
+      {jobs === null ? (
+        // Tier 2 (docs/design/loading-choreography.md): the roles list hasn't settled,
+        // or its read failed. Hold the picker's height and assert nothing.
+        <div className="reveal-quiet min-h-[9rem]" aria-hidden />
+      ) : jobs.length === 0 ? (
         <p className="text-sm text-steel">
           {t("add.noJobs")}{" "}
           <button
@@ -82,7 +96,7 @@ export function AddReceiverModal({
           <div>
             <label className={`mb-1 block ${META_LABEL}`}>{t("add.roleLabel")}</label>
             <SearchSelect
-              value={jobId}
+              value={selectedJobId}
               onChange={setJobId}
               placeholder={t("add.rolePlaceholder")}
               options={jobs.map((j) => ({ value: j.id, label: j.title }))}
@@ -115,7 +129,7 @@ export function AddReceiverModal({
             <button type="button" onClick={onClose} className={`${BTN_SECONDARY} h-9 px-4 text-sm`}>
               {t("add.cancel")}
             </button>
-            <button type="button" onClick={create} disabled={creating || !jobId} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
+            <button type="button" onClick={create} disabled={creating || !selectedJobId} className={`${BTN_PRIMARY} h-9 px-4 text-sm`}>
               {creating ? t("add.creating") : t("add.create")}
             </button>
           </div>

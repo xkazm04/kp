@@ -34,7 +34,8 @@ const PROVIDER_ALIASES: Record<string, string> = {
 export type LightTrackInput = {
   provider: string;
   model?: string | null;
-  /** The kp use-case id — becomes the LightTrack `operation` (per-tool attribution). */
+  /** The kp use-case id — emitted as the `use_case:` / `tool:` tags (per-tool
+   *  attribution). NOT as `operation`, which is a closed enum: see OPERATION. */
   useCase?: string | null;
   inputTokens?: number | null;
   outputTokens?: number | null;
@@ -49,6 +50,18 @@ export type LightTrackInput = {
 
 /** Timeout for the fire-and-forget POST — mirrors the SDK default (2s). */
 const LIGHTTRACK_TIMEOUT_MS = 2000;
+
+// LightTrack's `operation` is a FIXED 4-variant enum (chat|completion|embedding|
+// other) with a serde catch-all (`Operation` in ../tracklight crates/core/src/
+// event.rs), so an arbitrary string does not fail — it silently deserializes to
+// "other". Putting the kp use case there therefore buried every TS-direct call in
+// the "other" bucket while all Python-metered calls read "chat", and left the
+// use-case axis empty for TS traffic. Same resolution as monitor.py's _OPERATION:
+// operation is uniformly "chat" (every call through this seam is a structured
+// JSON completion) and the use case rides on the `use_case:<name>` TAG, which is
+// the queryable custom axis (cost_summary groups by provider+model; per-use-case
+// slicing is tag-filtered).
+const OPERATION = "chat";
 
 const intOrUndef = (v: number | null | undefined): number | undefined =>
   typeof v === "number" && Number.isFinite(v) ? Math.trunc(v) : undefined;
@@ -76,7 +89,7 @@ export function trackLlmToLightTrack(input: LightTrackInput): void {
 
     const project = process.env.LIGHTTRACK_PROJECT;
     if (project) event.project_id = project;
-    if (input.useCase) event.operation = input.useCase;
+    event.operation = OPERATION;
     const latency = intOrUndef(input.latencyMs);
     if (latency != null) event.latency_ms = latency;
     if (input.error) {
@@ -85,9 +98,17 @@ export function trackLlmToLightTrack(input: LightTrackInput): void {
     }
     // Tag TS-direct traffic so it's distinguishable from the Python-metered
     // adapters that dominate the ledger (matching monitor.py's "llm-layer" tag),
-    // plus a `tool:<use_case>` tag for per-tool attribution — the server stores
-    // `operation` as a small enum, so the tag is what LightTrack groups spend by.
-    event.tags = ["llm-layer", "runtime:ts", ...(input.useCase ? [`tool:${input.useCase}`] : []), ...(input.tags ?? [])];
+    // plus the SAME pair monitor._tags emits for every Python call: `use_case:<id>`
+    // (the queryable axis the `operation` enum cannot carry — see OPERATION above)
+    // and `tool:<id>` (what the events UI groups spend by). Both, so a TS-direct
+    // call answers the same tag filter as a Python one instead of being invisible
+    // to it.
+    event.tags = [
+      "llm-layer",
+      "runtime:ts",
+      ...(input.useCase ? [`use_case:${input.useCase}`, `tool:${input.useCase}`] : []),
+      ...(input.tags ?? []),
+    ];
     if (input.costUsd != null) event.metadata = { cost_usd: input.costUsd };
 
     const url = base.replace(/\/+$/, "") + "/v1/events";

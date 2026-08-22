@@ -9,6 +9,7 @@ export function ModelsRoutingRowActions({
   useCase,
   hasRow,
   canSave,
+  canTest,
   busy,
   onSave,
   onTest,
@@ -17,6 +18,10 @@ export function ModelsRoutingRowActions({
   useCase: string;
   hasRow: boolean;
   canSave: boolean;
+  /** False while the row's draft differs from the stored pin — the canary calls
+   *  `/api/llm/test` with the use case only, so it can only ever prove what the
+   *  SERVER has stored. */
+  canTest: boolean;
   busy: "save" | "reset" | "test" | null;
   onSave: () => void;
   onTest: () => void;
@@ -29,9 +34,18 @@ export function ModelsRoutingRowActions({
         {busy === "save" ? t("saving") : t("save")}
       </button>
       {/* The canary route refuses the catch-all (a "*" test would prove
-          nothing specific), so the button only renders on real use cases. */}
+          nothing specific), so the button only renders on real use cases.
+          It is disabled while the draft is unsaved for the same reason it is
+          absent on an unpinned row: the request carries the use case, not the
+          typed provider/model, so a verdict about the stored pin would be read
+          as a verdict on the edit sitting in the boxes beside it. Save first. */}
       {hasRow && useCase !== "*" ? (
-        <button type="button" onClick={onTest} disabled={busy !== null} className={`${BTN_SECONDARY} h-8 px-2.5 text-sm`}>
+        <button
+          type="button"
+          onClick={onTest}
+          disabled={!canTest || busy !== null}
+          className={`${BTN_SECONDARY} h-8 px-2.5 text-sm`}
+        >
           {busy === "test" ? t("testing") : t("test")}
         </button>
       ) : null}

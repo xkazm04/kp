@@ -78,8 +78,10 @@ Bold = op winner. n=4/cell (~±0.3–0.5 noise); ties within 0.3 are noise.
 1. **The 8–9 band is the panel norm now.** Panel means 8.4–8.9 (was 5.6–7.2 two
    harness generations ago); every op's winner scores ≥8.6; 56 of 60 cells sit
    at 7.7+.
-2. **claude-opus-5 is the across-the-board quality leader** — 8.9 mean, 10/15 op
-   wins, 100% reliability, and after the CLI's own latency profile it is not even
+2. **claude-opus-5 is the across-the-board quality leader** — 8.9 mean, top or
+   joint-top on 12 of 15 ops (10 outright, plus dead heats with gemini on
+   `automation_offer` and sonnet on `devcase_role_design`), 100% reliability, and
+   after the CLI's own latency profile it is not even
    slow (19s median). It is the priciest column; buy it where quality binds
    (assignment design, weight proposal, outreach).
 3. **The flash tier is within half a point of the frontier.** deepseek 8.5 at
@@ -111,6 +113,14 @@ Pipeline: bench matrix → `bake_quality.py` → `app/_lib/llm-quality-scores.ts
 (generated, **do not hand-edit**) → `app/_lib/llm-quality.ts` → **Settings →
 Models** (`ModelsQualityOverview.tsx`). Baked from
 `n4-api-keep + n4-api2-keep + n4-api3 + n4-cli`, judge label `fable-5`.
+
+**The Wins column credits every model in a dead heat** (`topModelsForOp` in
+`llm-quality.ts`), so per-model counts can sum above the op count. It used to ask
+"is this model `bestModelForOp`", which awards a tie to whichever model the bench
+run happened to write into `models` first — the record order is not a ranking, and
+that artifact was reaching a published number (opus read 10/15 on the ops it is
+top or joint-top on 12 of). Composites are rounded to one decimal before the
+comparison, so a tie means a tie at the precision the table shows.
 
 ## Reproduce
 
