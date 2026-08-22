@@ -18,7 +18,7 @@ after(() => cleanupUnitDb());
 
 // Reconstruct the EXACT key runReasoning computes, from the same primitives, so
 // the seeded cache entry is a genuine hit (not a hand-forged hash that drifts).
-function keyFor(profileId: string, jobId: string, lang: "en" | "cs" = "en"): string {
+function keyFor(profileId: string, jobId: string, lang: string = "en"): string {
   const input = resolveMatchInput({ profileId });
   assert.ok("keyPart" in input, "profile must resolve");
   const corpusJobs = listCorpusJobs();
@@ -51,6 +51,64 @@ test("a cache HIT returns the cached verdict with ZERO Python spawn or serializa
   assert.equal(out.cached, true, "served from cache");
   assert.deepEqual(out.reasoning, verdict.reasoning, "the cached verdict, verbatim");
   assert.equal(out.source, "llm");
+});
+
+// ---- The narrative locale actually reaches the engine (MAT1) ----------------
+// runReasoning used to derive its engine locale as `requestedLang === "cs" ? "cs" : "en"`,
+// so a de/fr request was GENERATED in English and stamped narrativeLang "en" — the
+// panel then rendered its honest "shown in English" note for two of the four shipped
+// locales. pipeline/jobfit/i18n.py's LANG_NAMES ships en/cs/de/fr and language_directive
+// names German and French (pinned Python-side by test_prompt_locale.py::
+// test_every_shipped_locale_reaches_the_prompt_as_ITSELF), so the collapse was pure
+// loss. These pin the resolution rule from the Node side: the requested locale IS the
+// engine locale, and an unsupported value still fails safe to en.
+for (const lang of ["de", "fr"] as const) {
+  test(`a ${lang} request is generated in ${lang}, not collapsed to English`, async () => {
+    const { id } = saveProfile({
+      label: `Locale candidate ${lang}`,
+      archetype: "bau",
+      roleFamily: "software_engineering",
+      completeness: 90,
+      payload: { skills: ["ts"] },
+    });
+    const jobId = `job-lang-${lang}`;
+    // The slot this locale keys onto (lang has always been a cache axis, so de/fr
+    // never shared the en slot — only the GENERATION language was being collapsed).
+    storePromptCache(
+      keyFor(id, jobId, lang),
+      { reasoning: { verdict: "strong", strengths: ["ts"] }, source: "llm" },
+      REASONING_PROMPT_VERSION,
+      168
+    );
+    const out = await runReasoning({ jobId, profileId: id, lang });
+    assert.equal(out.cached, true, `the ${lang} slot must be the one that is read`);
+    assert.equal(
+      out.narrativeLang,
+      lang,
+      `an llm verdict for a ${lang} request is in ${lang} — reporting "en" is the collapse this closes`
+    );
+  });
+}
+
+test("an unsupported lang still fails safe to en (no unknown language reaches the prompt)", async () => {
+  const { id } = saveProfile({
+    label: "Junk-locale candidate",
+    archetype: "bau",
+    roleFamily: "software_engineering",
+    completeness: 90,
+    payload: { skills: ["ts"] },
+  });
+  const jobId = "job-lang-junk";
+  // isLocale rejects "xx", so the request resolves to en and keys onto the en slot.
+  storePromptCache(
+    keyFor(id, jobId, "en"),
+    { reasoning: { verdict: "hold", strengths: [] }, source: "llm" },
+    REASONING_PROMPT_VERSION,
+    168
+  );
+  const out = await runReasoning({ jobId, profileId: id, lang: "xx" });
+  assert.equal(out.cached, true, "an unknown locale must resolve to the en slot, not its own");
+  assert.equal(out.narrativeLang, "en");
 });
 
 test("a cache MISS reaches the spawn seam (proving the hit above genuinely skipped it)", async () => {

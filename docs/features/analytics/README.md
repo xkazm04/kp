@@ -675,9 +675,13 @@ Two call sites were still doing that and are pinned by `analytics-custom-axis.te
   no `stage_changed_at`, so the median rests on **5** observations while the pack prints
   *"Median days from first contact to hire, over 9 hires"*, `sample: 9`, `status: measured` —
   9 clears `MIN_SAMPLE = 8`, 5 does not, so a `certifiable` pack is published off a sample the
-  pack's own contract calls thin. `status: measured` has to mean measured. Closing it means
-  `pipelineAnalytics` returning the tth count (it has it in hand) and the route passing that as
-  the sample; `metric-pack.ts` cannot see the divergence from its current input shape.
+  pack's own contract calls thin. `status: measured` has to mean measured.
+  **Producer half closed:** `pipelineAnalytics` now returns `timeToHireSamples` (`tth.length`)
+  alongside the two statistics, pinned by `analytics-median-tth.test.ts` — nine terminal
+  entries, five with both timestamps, `hired: 9` and `timeToHireSamples: 5`. The remaining
+  edit is one line in `app/api/analytics/metric-pack/route.ts`: pass that field into
+  `MetricPackInput` and sample `time_to_hire` with it instead of `hired`. Until then the
+  divergence is visible in the payload but still published as `sample: 9`.
 - **`recruiter_capacity` is a point-in-time snapshot published under a windowed header.**
   `?days=90` prints *"Window: last 90 days"* over every row, but capacity's two terms
   (open roles, membership roster) are current counts with no window applied — the only row in

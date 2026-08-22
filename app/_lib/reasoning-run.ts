@@ -12,11 +12,19 @@ import { isCacheableReasoning, narrativeLangFor } from "./reasoning-cache-policy
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { isLocale } from "@/i18n/locales";
 
+// v4 (scan-sweep 2026-08-24): the engine-language collapse below was fixed in
+// the same batch, so every de/fr slot written in the last 168h holds ENGLISH
+// prose under a de/fr key — generated with --lang en, keyed on the request.
+// Nothing in a stored payload records its language, so those slots would now
+// be served stamped narrativeLang="de" and suppress the panel's honest note.
+// Bumping retires them; en/cs slots are correct today and are retired too,
+// which buys the correctness with one round of recompute.
+//
 // Must match pipeline/jobfit/match_reasoning.py::REASONING_PROMPT_VERSION — a
 // drift here leaves the reasoning cache silently stale. The pairing is enforced
 // by pipeline/jobfit/tests/test_prompt_version_sync.py (CI fails on divergence).
 // Exported so the cache-first test can reconstruct the exact key runReasoning uses.
-export const REASONING_PROMPT_VERSION = "match-reasoning-v3";
+export const REASONING_PROMPT_VERSION = "match-reasoning-v4";
 const CACHE_TTL_HOURS = 168;
 
 export class ReasoningError extends Error {
@@ -47,16 +55,24 @@ export async function runReasoning(
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<Record<string, unknown>> {
   if (!body.jobId) throw new ReasoningError("jobId is required.", 400);
-  // The engine narrative supports only en/cs (pipeline/jobfit/i18n.py LANG_NAMES):
-  // de/fr collapse to en for GENERATION. But key the cache by the TRUE requested
-  // locale so a de/fr request gets its OWN cache slot rather than silently sharing
-  // — and being mislabeled as — the en verdict, and the UI can flag "shown in
-  // English". requestedLang == engineLang for en/cs, so their keys are unchanged;
-  // only de/fr keys move off the en slot (the honest fix). narrativeLang is the
-  // language the text was actually generated in, returned so the UI can compare it
-  // against the reader's locale and show an honest fallback note.
+  // The engine narrative supports EVERY shipped locale: pipeline/jobfit/i18n.py
+  // LANG_NAMES carries en/cs/de/fr and `language_directive` names German and
+  // French, so `--lang de|fr` reaches the prompt as its own language. This used to
+  // read `requestedLang === "cs" ? "cs" : "en"` — a collapse justified by a comment
+  // claiming the engine was en/cs-only. That claim went stale when the Python side
+  // gained de/fr (guarded by its own test_prompt_locale.py
+  // ::test_every_shipped_locale_reaches_the_prompt_as_ITSELF), leaving a German or
+  // French recruiter with an English rationale plus a "shown in English" note —
+  // honest, but a needless degradation for half the shipped locales. Pass the
+  // requested locale straight through; normalize_lang on the Python side fails safe
+  // to en for anything it doesn't know, so an unexpected value can't reach a prompt
+  // as an unknown language.
+  //
+  // The cache is keyed by this same locale (a de request has always had its OWN
+  // slot, never the en one), and narrativeLang reports the language the text was
+  // actually produced in so the UI can still flag a deterministic English fallback.
   const requestedLang = isLocale(body.lang) ? body.lang : "en";
-  const engineLang = requestedLang === "cs" ? "cs" : "en";
+  const engineLang = requestedLang;
 
   // Cache-first (Direction 2): resolve the candidate/profile and read the corpus
   // from the DB — but write NOTHING to disk and spawn NOTHING yet. The full 5-axis

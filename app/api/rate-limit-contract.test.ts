@@ -49,6 +49,14 @@ type RouteSpec = {
   limitSrc?: string;
   /** The exact defining line for `limitSrc`; must appear before the limiter call. */
   limitDef?: string;
+  /** Source text when the route passes a whole named OPTIONS OBJECT rather than an
+   *  inline `{ limit, windowMs }` literal (e.g. `rateLimit(key, APPLY_RATE_LIMIT)`).
+   *  Pair it with `optsDef` so the constant's VALUES stay pinned too — otherwise the
+   *  contract would pin only a name, which a later edit could redefine freely. */
+  optsSrc?: string;
+  /** The exact defining line for `optsSrc`; must precede the limiter call and must
+   *  itself spell out the pinned limit and window. */
+  optsDef?: string;
   /** A snippet marking the expensive work the limiter must precede. */
   expensive: string;
   /** Optional snippet that must run BEFORE the limiter (a branch that keeps serving freely). */
@@ -89,6 +97,63 @@ const ROUTES: RouteSpec[] = [
     // limiter, so the generic marker would fail on prose rather than on ordering.
     expensive: "startTask(task.kind",
     servedBefore: "RETRYABLE.has(task.status)",
+  },
+  // The four PUBLIC apply surfaces. Every one is unauthenticated, spawns the
+  // deterministic profile_cli and writes a pipeline entry, and every one has
+  // carried a limiter since it shipped — but none was PINNED until the
+  // scan-sweep of 2026-08-24 noticed the gap. That is the failure mode this file
+  // exists for: an unpinned limiter can be re-keyed, widened or moved below the
+  // expensive work by a later edit with nothing to catch it. Each passes a named
+  // constant, so limitSrc+limitDef keep the VALUE pinned and not just the name.
+  {
+    rel: "./apply/[id]/route.ts",
+    key: "`apply:${id}:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "APPLY_RATE_LIMIT",
+    optsDef: "const APPLY_RATE_LIMIT = { limit: 20, windowMs: 60_000 };",
+    expensive: "buildApplicantProfile(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    rel: "./apply/[id]/quick/route.ts",
+    key: "`apply-quick:${id}:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    optsSrc: "QUICK_APPLY_RATE_LIMIT",
+    optsDef: "const QUICK_APPLY_RATE_LIMIT = { limit: 30, windowMs: 60_000 };",
+    expensive: "intakeLead(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    rel: "./apply/[id]/followup/route.ts",
+    key: "`apply-followup:${id}:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    optsSrc: "FOLLOWUP_RATE_LIMIT",
+    optsDef: "const FOLLOWUP_RATE_LIMIT = { limit: 10, windowMs: 60_000 };",
+    expensive: "renormalizeApplicantProfile(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    rel: "./apply/[id]/session/route.ts",
+    key: "`apply-session:${id}:${clientIpFrom(request.headers)}`",
+    limit: 12,
+    optsSrc: "SESSION_RATE_LIMIT",
+    optsDef: "const SESSION_RATE_LIMIT = { limit: 12, windowMs: 60_000 };",
+    expensive: "startApplySession(",
+    windowMs: 60_000,
+    windowSrc: "60_000",
+  },
+  {
+    // ADDED scan-sweep 2026-08-24. The SYNCHRONOUS twin of ./tasks/route.ts kind
+    // "reasoning" — same runReasoning, same LLM spend, but reachable directly and
+    // unlimited until now. 60/10min is below the batch path's 120 because a matrix
+    // session legitimately opens many cells.
+    rel: "./match/reasoning/route.ts",
+    key: "`match-reasoning:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    expensive: "runReasoning(",
   },
   {
     rel: "./github-analysis/route.ts",
@@ -218,7 +283,8 @@ for (const spec of ROUTES) {
     const src = read(spec.rel);
     assert.match(src, /from "@\/app\/_lib\/rate-limit"/, "must reuse the one shared limiter");
 
-    const call = `rateLimit(${spec.key}, { limit: ${spec.limitSrc ?? spec.limit}, windowMs: ${windowSrc} })`;
+    const opts = spec.optsSrc ?? `{ limit: ${spec.limitSrc ?? spec.limit}, windowMs: ${windowSrc} }`;
+    const call = `rateLimit(${spec.key}, ${opts})`;
     const at = src.indexOf(call);
     assert.ok(at >= 0, `expected the pinned limiter call:\n  ${call}`);
 
@@ -228,6 +294,20 @@ for (const spec of ROUTES) {
       const defAt = src.indexOf(spec.limitDef);
       assert.ok(defAt >= 0, `expected the pinned limit definition:\n  ${spec.limitDef}`);
       assert.ok(defAt < at, "the limit definition must precede the limiter call");
+    }
+
+    // Same contract for a named options OBJECT: it must exist, precede the call,
+    // and literally carry the pinned limit and window — so re-pointing the constant
+    // at a laxer budget is a red test rather than a silent widening.
+    if (spec.optsDef) {
+      const optsAt = src.indexOf(spec.optsDef);
+      assert.ok(optsAt >= 0, `expected the pinned limiter options:
+  ${spec.optsDef}`);
+      assert.ok(optsAt < at, "the limiter options must precede the limiter call");
+      assert.ok(
+        spec.optsDef.includes(`limit: ${spec.limit}`) && spec.optsDef.includes(`windowMs: ${windowSrc}`),
+        "the pinned options line must spell out the limit and window this spec claims",
+      );
     }
 
     // The refusal must follow the shared 429 convention used by every existing

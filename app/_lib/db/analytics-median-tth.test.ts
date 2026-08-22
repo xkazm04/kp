@@ -36,4 +36,52 @@ test("both statistics are null when there are no hires in the workspace", () => 
   const a = pipelineAnalytics(undefined, undefined, "median-tth-empty-ws");
   assert.equal(a.medianTimeToHireDays, null);
   assert.equal(a.avgTimeToHireDays, null);
+  assert.equal(a.timeToHireSamples, 0, "no sample, and it says 0 rather than leaving the reader to assume `hired`");
+});
+
+// THE SAMPLE IS NOT `hired`. A terminal entry with no stage_changed_at is a real hire
+// the duration sample cannot contain — it is exactly the shape the shipped corpus has
+// (4 of its 9 terminal entries), and every path in pipeline.ts that deliberately leaves
+// stage_changed_at alone produces another one. A consumer that publishes the median
+// alongside `hired` therefore claims a sample it does not have; the metric pack does
+// precisely that, clearing its MIN_SAMPLE floor on observations that were never made.
+const NARROW_WS = "median-tth-narrow-ws";
+
+test("setup — 5 hires with both timestamps and 4 terminal entries with none", () => {
+  for (const [i, tth] of [5, 6, 7, 8, 60].entries()) {
+    const { entry } = createPipelineEntry({
+      candidateId: `nar-${i}`,
+      candidateLabel: `nar-${i}`,
+      jobId: "nar-job",
+      jobTitle: "Role",
+      stage: "Hired",
+      workspaceId: NARROW_WS,
+    });
+    ensureDb()
+      .prepare(`UPDATE pipeline_entries SET created_at = ?, stage_changed_at = ? WHERE id = ?`)
+      .run(new Date(Date.now() - (tth + 2) * DAY).toISOString(), new Date(Date.now() - 2 * DAY).toISOString(), entry.id);
+  }
+  for (let i = 0; i < 4; i += 1) {
+    const { entry } = createPipelineEntry({
+      candidateId: `nar-null-${i}`,
+      candidateLabel: `nar-null-${i}`,
+      jobId: "nar-job",
+      jobTitle: "Role",
+      stage: "Hired",
+      workspaceId: NARROW_WS,
+    });
+    ensureDb().prepare(`UPDATE pipeline_entries SET stage_changed_at = NULL WHERE id = ?`).run(entry.id);
+  }
+});
+
+test("the payload states the sample the median actually covers, not the hire count", () => {
+  const a = pipelineAnalytics(undefined, undefined, NARROW_WS);
+  assert.equal(a.hired, 9, "nine entries stand on the terminal stage");
+  assert.equal(a.timeToHireSamples, 5, "…but only five carry both timestamps the duration needs");
+  assert.equal(a.medianTimeToHireDays, 7, "the median is the median of those five");
+  assert.notEqual(
+    a.timeToHireSamples,
+    a.hired,
+    "the two counts diverge silently — publishing the median with `hired` as its sample is the defect"
+  );
 });

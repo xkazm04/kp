@@ -25,7 +25,7 @@ from .jobs import Job
 from .matching import MatchCandidate, MatchResult, fit_tier_for
 from .taxonomy import PROVENANCE_RANK, ROLE_FAMILY_DESCRIPTIONS
 
-REASONING_PROMPT_VERSION = "match-reasoning-v3"
+REASONING_PROMPT_VERSION = "match-reasoning-v4"
 
 # Provenance rungs that genuinely mean "acquired in study or academic/personal
 # projects" (vocabulary: taxonomy.PROVENANCE_RANK). Deliberately EXCLUDES

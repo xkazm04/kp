@@ -49,6 +49,21 @@ export type PipelineAnalytics = {
   // ROI ledger tile is labeled "median" and reads this, so an audit-grade leadership
   // readout states the statistic it claims (analytics-calibration-dashboards #1).
   medianTimeToHireDays: number | null;
+  // HOW MANY hires the two statistics above were actually computed over — NOT `hired`.
+  // The two populations are different and diverge silently: `hired` counts every entry
+  // standing on a terminal stage, while the time-to-hire sample additionally needs BOTH
+  // timestamps (created_at AND stage_changed_at) and a non-negative duration. An entry
+  // seeded onto a terminal stage, or moved there by a path that deliberately leaves
+  // stage_changed_at alone (see pipeline.ts — several transitions do exactly that so
+  // time-in-stage stays honest), is a real hire the median cannot see. On the shipped
+  // corpus that is 4 of the 9 terminal entries.
+  //
+  // Any consumer that publishes the median WITH A SAMPLE SIZE must quote this number,
+  // never `hired`: the metric pack samples time_to_hire with `hired`, so a workspace
+  // whose median rests on 5 observations can print "median 26 days over 9 hires",
+  // clear the pack's MIN_SAMPLE floor on a sample that does not exist, and mark the
+  // row `measured` / certifiable — in the one artifact meant to survive procurement.
+  timeToHireSamples: number;
   // UAT M7 — blended overall cost per hire (Σ recruiter-entered channel spend ÷
   // hires), all-time only (windowed = null, mirroring the per-channel rule); the
   // single cost figure for the leadership readout.
@@ -704,6 +719,9 @@ export function pipelineAnalytics(
     funnel,
     avgTimeToHireDays,
     medianTimeToHireDays,
+    // The population the two statistics above actually cover — see the field note.
+    // `hired` is a DIFFERENT (larger) count and must never be quoted as their sample.
+    timeToHireSamples: tth.length,
     avgAgeDays,
     bottleneck,
     stageDwell,

@@ -342,6 +342,20 @@ appends `--no-llm`) read English prose presented as the Czech narrative. The
 cache-hit branch keeps the engine language unconditionally and is correct:
 `isCacheableReasoning` stores `llm` payloads only.
 
+The **engine language is now the requested locale for all four shipped locales**.
+`runReasoning` used to derive it as `requestedLang === "cs" ? "cs" : "en"`, so a
+`de` or `fr` request was generated in English and correctly (but needlessly)
+labelled "shown in English". That collapse was justified by an engine that only
+spoke en/cs; `pipeline/jobfit/i18n.py::LANG_NAMES` has since carried en/cs/de/fr
+with `language_directive` naming German and French, pinned Python-side by
+`test_prompt_locale.py::test_every_shipped_locale_reaches_the_prompt_as_ITSELF`.
+`--lang` is now passed straight through — `normalize_lang` fails safe to `en` for
+anything unknown, so a junk locale still cannot reach a prompt as an unknown
+language. The requested locale has always been the cache axis
+(`reasoning-cache-key.ts`), so no key moved; note that a `de`/`fr` slot written
+*before* this change holds English text, and only a `REASONING_PROMPT_VERSION`
+bump (paired with the Python constant) retires those within the 168h TTL.
+
 The candidate block of that prompt is **fenced as untrusted data**. The
 candidate authors their own CV, and `reasoning_context` forwards `summary`,
 `experienceHighlights`, `aspirations` and `workLinks` verbatim, so an injected
