@@ -42,6 +42,8 @@ from .taxonomy import (
     ROLE_FAMILY_SET,
     _text_contains,
     contains_whole_token,
+    feminine_probe_forms,
+    feminine_variants,
     normalize_text,
 )
 
@@ -407,6 +409,92 @@ def scan_corpus_collisions(
     return collisions
 
 
+# ---------------------------------------------------------------------------
+# Czech gender-parity scan.
+#
+# Every surface in this file is matched as a substring / whole token, and Czech
+# titles, seniority adjectives and agent nouns inflect for gender — so a surface
+# written only in the masculine classifies the man and not the woman who wrote the
+# identical CV. Measured before ``taxonomy.feminine_variants`` existed:
+# "Zkušená samostatná specialistka" inferred `junior` where the masculine twin
+# inferred `senior` (a HARD ko_filter knockout from every senior role), "Grafička"
+# routed to general_professional where "Grafik" routed to creative_design, and
+# domain_distance graded "Analytička" `moderate` where "Analytik" graded `adjacent`.
+#
+# The scan probes the LIVE matcher with the real feminine word each masculine
+# surface names (:func:`taxonomy.feminine_probe_forms`) and reports every one the
+# matcher cannot reach. ``derive=False`` reproduces the pre-rule behaviour, which is
+# what makes this a measurement and not a tautology: the tests assert the same data
+# reports gaps without the derivation and none with it.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class GenderGap:
+    """A masculine surface whose feminine counterpart the matcher cannot reach."""
+
+    where: str  # "terms[role_legal]" | "adjacent_domain_signals[legal_compliance]"
+    masculine: str
+    feminine: str
+
+    def describe(self) -> str:
+        return (
+            f"{self.where}: {self.masculine!r} is matched but its feminine "
+            f"{self.feminine!r} is not — same role, different classification by gender"
+        )
+
+
+def _reaches(forms: list[str], probe: str) -> bool:
+    """Does any of ``forms`` match ``probe`` under ``taxonomy._text_contains``?"""
+    probe_n = normalize_text(probe)
+    probe_c = _compact(probe_n)
+    return any(_text_contains(probe_n, probe_c, form) for form in forms)
+
+
+def scan_gender_gaps(taxonomy: dict[str, Any], *, derive: bool = True) -> list[GenderGap]:
+    """Masculine surfaces in ``taxonomy`` whose feminine form nothing matches.
+
+    Covers both consumers of the file's Czech vocabulary: ``terms[].match`` (the
+    classifier dimensions — role_title, seniority, education — read through
+    ``_text_contains``) and ``adjacent_domain_signals`` (read by
+    ``transferable.domain_distance`` with a plain ``signal in text`` substring test,
+    which this scan mirrors exactly rather than approximating).
+
+    ``derive=False`` omits the feminine forms ``taxonomy`` derives at import, i.e.
+    reports the gaps as they stood before the rule existed.
+    """
+    gaps: list[GenderGap] = []
+
+    def expand(authored: list[str]) -> list[str]:
+        forms = list(authored)
+        if derive:
+            for form in authored:
+                forms.extend(feminine_variants(normalize_text(form)))
+        return forms
+
+    for term in taxonomy.get("terms") or []:
+        if not isinstance(term, dict):
+            continue
+        authored = [f for f in term.get("match") or [] if isinstance(f, str) and f.strip()]
+        forms = expand(authored)
+        for surface in authored:
+            for probe in feminine_probe_forms(normalize_text(surface)):
+                if not _reaches(forms, probe):
+                    gaps.append(GenderGap(f"terms[{term.get('id')}]", surface, probe))
+
+    for family, signals in (taxonomy.get("adjacent_domain_signals") or {}).items():
+        authored = [str(s) for s in signals or [] if str(s).strip()]
+        forms = expand(authored)
+        for surface in authored:
+            for probe in feminine_probe_forms(normalize_text(surface)):
+                # domain_distance's own rule: a bare substring test over the text.
+                if not any(form in probe for form in forms):
+                    gaps.append(
+                        GenderGap(f"adjacent_domain_signals[{family}]", surface, probe)
+                    )
+    return gaps
+
+
 def lint_taxonomy(
     taxonomy: dict[str, Any],
     *,
@@ -691,6 +779,23 @@ def main(argv: list[str] | None = None) -> int:
         for c in gated:
             print(f"  ERROR {c.describe()}", file=sys.stderr)
 
+    # Czech gender parity: every masculine surface must reach its feminine form.
+    gender_gaps = scan_gender_gaps(taxonomy)
+    if gender_gaps:
+        print(
+            f"\nERROR: {len(gender_gaps)} Czech surface(s) classify a woman "
+            "differently from a man with the same role:",
+            file=sys.stderr,
+        )
+        for g in gender_gaps:
+            print(f"  ERROR {g.describe()}", file=sys.stderr)
+    else:
+        closed = len(scan_gender_gaps(taxonomy, derive=False))
+        print(
+            f"\nGENDER PARITY: no gaps — {closed} masculine-only surface(s) are "
+            "covered by the derived feminine forms (taxonomy.feminine_variants)."
+        )
+
     print()
     print(render_coverage_table(taxonomy))
 
@@ -708,7 +813,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 1
 
-    return 0 if (result.ok and not gated) else 1
+    return 0 if (result.ok and not gated and not gender_gaps) else 1
 
 
 if __name__ == "__main__":  # pragma: no cover

@@ -165,6 +165,123 @@ def role_family_catalog() -> list[tuple[str, str]]:
             catalog.append((fam, desc))
     return catalog
 
+# --- Czech gender parity of surface forms ----------------------------------
+#
+# Every matcher in this module (and ``transferable.domain_distance``) works on
+# SURFACE forms, and Czech job titles, seniority adjectives and agent nouns inflect
+# for gender. A surface written only in the masculine therefore classifies the man
+# and not the woman who wrote the identical CV. Measured before this rule existed:
+#
+#   detected_seniority_levels("zkušený samostatný specialista") -> {senior, medior}
+#   detected_seniority_levels("zkušená samostatná specialistka") -> set()
+#     …which build_profile turns into `senior` vs `junior`, and ko_filter turns a
+#     `junior` into a HARD knockout from every senior role.
+#   classify_role_family("Grafik") -> creative_design / ("Grafička") -> general_professional
+#   domain_distance("Analytik", "data_ai") -> adjacent / ("Analytička") -> moderate
+#
+# MOST masculine forms need no entry at all: the masculine is a PREFIX of the
+# feminine ("učitel" ⊂ "učitelka", "absolvent" ⊂ "absolventka", "prodavač" ⊂
+# "prodavačka") and both matchers already tolerate a suffix. The gap is exactly the
+# forms where the STEM CHANGES, which no amount of suffix tolerance can bridge.
+# data/taxonomy.json already carries hand-authored feminine forms where the authors
+# happened to think of one (lékař/lékařka, student/studentka, prodavač/prodavačka),
+# so parity is the data's INTENT — it was just applied unevenly. Deriving the
+# stem-changing cases here (rather than duplicating them by hand in the data) means
+# a masculine surface added tomorrow is covered the day it lands.
+#
+# ``(matching stem, full nominative)`` per masculine ending. The STEM is what a
+# single-token surface contributes, because it also covers the feminine's own
+# declension (analytič -> analytička / analytičky / analytičce / analytičku) — the
+# same tolerance the masculine gets for free. The FULL form is what a multi-word
+# surface contributes, because the compact fallback only relaxes its end condition
+# for single plain tokens, so a multi-word stem could never match (see
+# ``_compact_fallback_hit``); a full nominative matches the same one case the
+# multi-word masculine itself matches. First matching ending wins, so "-ník" is
+# tested before "-ik".
+#
+# Only the LONG-í "-ník" class is listed: Czech agent nouns of that class always
+# carry it (číšník, zámečník, právník, skladník, začátečník), while a short-i
+# "-nik" tail belongs to the "-ik" class ("technik" -> "technička"). Deriving
+# "technik" as a "-ník" would emit the stem "technic", which matches the ENGLISH
+# "technical"/"technician" and would silently widen the signal beyond gender parity.
+_FEMININE_ENDINGS: tuple[tuple[str, tuple[tuple[str, str], ...]], ...] = (
+    ("ník", (("nic", "nice"), ("nič", "nička"))),  # číšník→číšnice, právník→právnička
+    ("ík", (("ič", "ička"),)),
+    ("ik", (("ič", "ička"),)),  # analytik→analytička, grafik→grafička, logistik→logistička
+    ("log", (("lož", "ložka"),)),  # biolog→bioložka
+    ("gog", (("gož", "gožka"),)),  # pedagog→pedagožka
+    ("ák", (("ač", "ačka"),)),  # voják→vojačka
+    ("ista", (("istk", "istka"),)),  # specialista→specialistka, stážista→stážistka
+    ("ý", (("á", "á"),)),  # zkušený→zkušená, samostatný→samostatná (adjective)
+)
+# Bounds the cartesian product below; a real surface varies in at most two tokens.
+_MAX_FEMININE_VARIANTS = 8
+
+
+def _token_feminine(token: str, *, full: bool) -> tuple[str, ...]:
+    """Feminine stem(s) (``full=False``) or full nominative(s) for one token."""
+    for ending, replacements in _FEMININE_ENDINGS:
+        if token.endswith(ending) and len(token) > len(ending):
+            stem = token[: -len(ending)]
+            idx = 1 if full else 0
+            return tuple(dict.fromkeys(stem + repl[idx] for repl in replacements))
+    return ()
+
+
+def feminine_variants(surface: str) -> tuple[str, ...]:
+    """Feminine match-surfaces for a Czech masculine ``surface``, or ``()``.
+
+    ``surface`` must already be :func:`normalize_text`-folded (the taxonomy authors
+    its surfaces lowercase; the term path folds first). Returns ``()`` when no token
+    carries a stem-changing masculine ending — which is every English surface and
+    most Czech ones, whose feminine the matchers already reach by prefix.
+
+    Single-token surfaces yield STEMS; multi-token surfaces yield FULLY feminized
+    nominative phrases, so the adjective agrees with the noun ("datový analytik" ->
+    "datová analytička"). A multi-word surface is only feminized when its HEAD (last)
+    token does — otherwise the phrase is not an agent-noun phrase and feminizing only
+    its adjective would emit a non-phrase ("čerstvý absolvent" -> "čerstvá absolvent").
+    The result never contains ``surface`` itself.
+    """
+    return _feminine_surfaces(surface, full=len(surface.strip().split()) != 1)
+
+
+def feminine_probe_forms(surface: str) -> tuple[str, ...]:
+    """The full feminine NOMINATIVE word(s) ``surface`` names, or ``()``.
+
+    The counterpart of :func:`feminine_variants`: that one returns what the matcher
+    must MATCH ON (a stem, for a single token), this one returns the real Czech words
+    a CV would actually be written with. The authoring harness
+    (``taxonomy_check.scan_gender_gaps``) probes the live matcher with these, so
+    "the rule covers the data" is asserted end-to-end rather than assumed.
+    """
+    return _feminine_surfaces(surface, full=True)
+
+
+def _feminine_surfaces(surface: str, *, full: bool) -> tuple[str, ...]:
+    tokens = surface.strip().split()
+    if not tokens:
+        return ()
+    if not _token_feminine(tokens[-1], full=full):
+        return ()  # the head noun does not inflect — nothing to derive
+    per_token = [_token_feminine(tok, full=full) or (tok,) for tok in tokens]
+    variants: list[str] = [""]
+    for opts in per_token:
+        variants = [f"{prefix} {opt}".strip() for prefix in variants for opt in opts]
+        if len(variants) > _MAX_FEMININE_VARIANTS:
+            variants = variants[:_MAX_FEMININE_VARIANTS]
+    return tuple(v for v in dict.fromkeys(variants) if v and v != surface.strip())
+
+
+def _with_feminine_variants(forms: list[str]) -> tuple[str, ...]:
+    """``forms`` plus their derived feminine surfaces, de-duplicated, order-stable."""
+    out: list[str] = []
+    for form in forms:
+        out.append(form)
+        out.extend(feminine_variants(form))
+    return tuple(dict.fromkeys(out))
+
+
 # Role-family-keyed surface heuristics for the early-career / career-switcher
 # transform (transform.compute_potential, transferable.domain_distance). The
 # taxonomy owns them as DATA so all 16 families are covered — a non-tech family is
@@ -176,8 +293,12 @@ FAMILY_DEGREE_TERMS: dict[str, tuple[str, ...]] = {
     str(fam): tuple(str(t) for t in terms)
     for fam, terms in (_TAXONOMY.get("family_degree_terms") or {}).items()
 }
+# Prior-role signals name PEOPLE ("analytik", "právník", "číšník"), so they carry
+# the gender gap above and are widened with their feminine forms. FAMILY_DEGREE_TERMS
+# deliberately is NOT: those name FIELDS OF STUDY ("informat", "pedagog(ika)",
+# "právo"), which do not inflect for the student's gender.
 ADJACENT_DOMAIN_SIGNALS: dict[str, tuple[str, ...]] = {
-    str(fam): tuple(str(s) for s in sigs)
+    str(fam): _with_feminine_variants([str(s) for s in sigs])
     for fam, sigs in (_TAXONOMY.get("adjacent_domain_signals") or {}).items()
 }
 for _map_name, _fam_map in (("family_degree_terms", FAMILY_DEGREE_TERMS), ("adjacent_domain_signals", ADJACENT_DOMAIN_SIGNALS)):
@@ -385,8 +506,38 @@ def _text_contains(text: str, compact_text: str, surface: str) -> bool:
     )
 
 
+# Derived Czech feminine surfaces per term id (see feminine_variants). Kept in a
+# PARALLEL map instead of being spliced into ``term["match"]`` so everything that
+# READS BACK a surface — detected_skills / skill_keyword_pool (which hand their
+# strings to the LLM prompt and the ATS panel), the _SURFACE_TO_TERM index and the
+# one-side token fallback — still sees exactly the vocabulary the data authored.
+# Only the DETECTION paths below (_term_in_text, classify_role_family,
+# detected_signals) consult the derived forms, which is where the gender gap bit.
+_TERM_FEMININE_FORMS: dict[str, tuple[str, ...]] = {}
+_DETECTION_FORMS: dict[str, tuple[str, ...]] = {}
+for _term in _TERMS:
+    _authored = [str(_form) for _form in _term["match"]]
+    _authored_norm = {_normalize(_f).strip() for _f in _authored}
+    _derived = tuple(
+        dict.fromkeys(
+            _variant
+            for _form in _authored
+            for _variant in feminine_variants(_normalize(_form))
+            if _variant not in _authored_norm
+        )
+    )
+    _TERM_FEMININE_FORMS[_term["id"]] = _derived
+    _DETECTION_FORMS[_term["id"]] = tuple(_authored) + _derived
+
+
+def detection_forms(term: dict[str, Any]) -> tuple[str, ...]:
+    """Surfaces a term is DETECTED by: its authored ``match`` list plus the derived
+    Czech feminine forms. Never use for display — see :data:`_TERM_FEMININE_FORMS`."""
+    return _DETECTION_FORMS.get(term.get("id", ""), tuple(term.get("match", ())))
+
+
 def _term_in_text(term: dict[str, Any], text: str, compact_text: str) -> bool:
-    return any(_text_contains(text, compact_text, surface) for surface in term["match"])
+    return any(_text_contains(text, compact_text, surface) for surface in detection_forms(term))
 
 
 def _terms_by_category(category: str) -> list[dict[str, Any]]:
@@ -651,7 +802,7 @@ def detected_signals(text: str) -> list[str]:
         signal = term.get("salary_signal")
         if not signal or signal in seen:
             continue
-        for form in term["match"]:
+        for form in detection_forms(term):
             if _text_contains(text_n, compact, form):
                 signals.append(signal)
                 seen.add(signal)
@@ -689,9 +840,10 @@ def classify_role_family(skills: list[str], text: str, recent_text: str = "") ->
             continue
         forms = _term_match_strings(term)
         in_skills = any(form in skill_set for form in forms)
-        in_text = any(_text_contains(text_n, compact_text, form) for form in term["match"])
+        detect = detection_forms(term)
+        in_text = any(_text_contains(text_n, compact_text, form) for form in detect)
         in_recent = bool(recent_n) and any(
-            _text_contains(recent_n, compact_recent, form) for form in term["match"]
+            _text_contains(recent_n, compact_recent, form) for form in detect
         )
         for family, weight in votes.items():
             if family not in ROLE_FAMILY_SET:

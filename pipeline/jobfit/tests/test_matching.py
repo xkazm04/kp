@@ -300,6 +300,28 @@ class ScorePersonalOverlapTest(unittest.TestCase):
         # -> overlap 0.2 -> 0.25 + 0.5*0.2 = 0.35.
         self.assertEqual(self._personal(["Rust"], "We build core services in Rust."), 0.35)
 
+    def test_an_accented_skill_is_one_word_not_a_bag_of_letters(self) -> None:
+        """The whole-word rule has to hold for ACCENTED languages too.
+
+        The splitter used to be ASCII-only (``[a-z0-9]+``), so every Czech diacritic
+        acted as a separator and a Czech skill collapsed into single-letter fragments
+        that trivially all occur in Czech prose. Measured on the seed corpus: the
+        healthcare skill "podávání léků" (administering medication) tokenized to
+        {pod, v, n, l, k} and scored an overlap hit against the *iOS Engineer* ad,
+        and 38 other surfaces were credited the same way. 0 hits is the correct
+        answer here -> the neutral-language floor 0.25, no overlap credit.
+        """
+        # Every ASCII fragment of "podávání léků" — pod, v, n, l, k — occurs as a
+        # standalone run in this ordinary Czech benefits sentence (podíl -> pod|l,
+        # výsledku -> v|sledku, něco -> n|co, k), so the ASCII splitter scored it a
+        # full hit. Nothing here is about medication.
+        czech_benefits_ad = "Nabízíme podíl na výsledku, něco k učení v týmu a férové jednání."
+        self.assertEqual(self._personal(["podávání léků"], czech_benefits_ad), 0.25)
+        # …while an accented skill the ad DOES name still scores as a whole word.
+        self.assertEqual(
+            self._personal(["podíl"], "Nabízíme podíl na výsledku firmy."), 0.35
+        )
+
 
 class ScorePersonalCalibrationTest(unittest.TestCase):
     """The overlap denominator scales with the ad's must-have count (no fixed /5.0

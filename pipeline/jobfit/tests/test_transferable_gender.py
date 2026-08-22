@@ -58,11 +58,14 @@ class GenderedTitleSymmetryTest(unittest.TestCase):
         bridge was graded FAR ("shares no surface signals") while the masculine
         graded MODERATE through the meta-skill map.
 
-        Only the _TRANSFERABLE_MAP layer is asserted here. The ADJACENT signal
-        lists live in data/taxonomy.json (taxonomy.ADJACENT_DOMAIN_SIGNALS) and
-        still carry masculine-only stems of their own — "Analytik" grades
-        `adjacent` against data_ai where "Analytička" grades `moderate` — which is
-        that file's fix to make, not this one's.
+        The ADJACENT signal lists (data/taxonomy.json ::adjacent_domain_signals,
+        read as taxonomy.ADJACENT_DOMAIN_SIGNALS) used to carry masculine-only stems
+        of their own — "Analytik" graded `adjacent` against data_ai where
+        "Analytička" graded `moderate`. taxonomy.feminine_variants now derives the
+        feminine stems at load, so the assertion below was STRENGTHENED from "the
+        feminine is not stranded at far" to "both genders grade IDENTICALLY", which
+        is the property the two layers together now guarantee.
+        pipeline/jobfit/tests/test_taxonomy_gender.py pins the taxonomy layer.
         """
         for masculine, feminine in GENDERED_TITLES:
             with self.subTest(title=masculine):
@@ -70,10 +73,11 @@ class GenderedTitleSymmetryTest(unittest.TestCase):
                     male = domain_distance(_evidence(masculine), family)[0]
                     female = domain_distance(_evidence(feminine), family)[0]
                     self.assertNotEqual(male, "far", f"{masculine!r} vs {family}")
-                    self.assertNotEqual(
+                    self.assertEqual(
                         female,
-                        "far",
-                        f"{feminine!r} graded 'far' against {family} while {masculine!r} graded {male!r}",
+                        male,
+                        f"{feminine!r} graded {female!r} against {family} while "
+                        f"{masculine!r} graded {male!r}",
                     )
 
     def test_a_female_project_manager_still_earns_project_management(self) -> None:

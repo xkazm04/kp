@@ -468,16 +468,27 @@ def score_career(candidate: MatchCandidate, job: Job) -> float:
     return round(0.6 * family + 0.4 * max(0.0, seniority_proximity), 4)
 
 
-# Word splitter for the description-overlap heuristic: alphanumeric runs only, so
-# both the description and each candidate token reduce to whole words and matching
-# is never substring-based.
-_WORD_RE = re.compile(r"[a-z0-9]+")
+# Word splitter for the description-overlap heuristic: word-character runs, so both
+# the description and each candidate token reduce to whole words and matching is
+# never substring-based.
+#
+# UNICODE-AWARE (``[^\W_]+``, the same primitive taxonomy_check's corpus scan uses)
+# rather than the former ASCII ``[a-z0-9]+``. Under ASCII every Czech diacritic was a
+# SEPARATOR, so a Czech skill was shredded into single-letter fragments that trivially
+# all appear in Czech prose: "podávání léků" (administering medication) tokenized to
+# {pod, v, n, l, k} and therefore "overlapped" the *iOS Engineer* ad, and "vývojář" to
+# {v, voj} which hit 24 of the 120 seed ads. Measured over the seed corpus, the ASCII
+# splitter awarded overlap credit for 39 skill surfaces that the whole-word rule
+# rejects, and MISSED none — so this is purely a removal of false credit, no candidate
+# loses a legitimate match. It is the same defect the substring->whole-word fix below
+# closed for English ("Rust" inside "trust"), left open for every accented language.
+_WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
 
 
 def _term_in_words(term: str, desc_words: frozenset[str] | set[str]) -> bool:
-    """Whole-word containment: every alphanumeric word-part of ``term`` must appear
-    as a standalone word in the description, never merely as a substring (so "Rust"
-    no longer hits the "rust" inside "trust")."""
+    """Whole-word containment: every word-part of ``term`` must appear as a standalone
+    word in the description, never merely as a substring (so "Rust" no longer hits the
+    "rust" inside "trust")."""
     parts = _WORD_RE.findall(term.casefold())
     return bool(parts) and all(part in desc_words for part in parts)
 
