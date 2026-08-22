@@ -61,12 +61,21 @@ export function attentionCounts(workspaceId?: string): AttentionCounts {
   // would be counted as aging forever, and the Channels badge would read zero.
   const axis = getPipelineAxis(workspaceId).stages;
   const decisions = entries.filter((e) => e.status === "active" && needsHumanDecision(e.approvalKind)).length;
-  const stale = entries.filter(
-    (e) =>
-      e.status === "active" &&
-      !stageHasRole(e.stage, "terminal", axis) &&
-      (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage)
-  ).length;
+  const stale = entries.filter((e) => {
+    if (e.status !== "active" || stageHasRole(e.stage, "terminal", axis)) return false;
+    // slaForStage's documented contract: a NON-POSITIVE threshold means the stage
+    // never ages. `days >= sla` inverts that — with sla 0 every entry is instantly
+    // stale — and the role check above was the only thing hiding it, because on the
+    // shipped axis the one 0-day stage IS the terminal one. It stops hiding it the
+    // moment a workspace migrates its board: rename the terminal column (say to
+    // "Placed") and RETIRE the id "Hired", and every already-hired entry (stage
+    // 'Hired', status 'active' — see pipeline-status.ts) resolves to no live role,
+    // escapes the exclusion, and is counted as aging from day 0 forever, with no
+    // board move that can clear it. Honor the contract instead of relying on the
+    // coincidence. Byte-identical on the shipped axis.
+    const sla = slaForStage(e.stage);
+    return sla > 0 && (daysSince(e.stageChangedAt) ?? 0) >= sla;
+  }).length;
   const schedule = countFutureConfirmedInvites(workspaceId);
   const jobs = Object.values(listJobStatuses(workspaceId)).filter((s) => s === "draft").length;
   const channels = entries.filter((e) => e.status === "active" && stageHasRole(e.stage, "entry", axis)).length;

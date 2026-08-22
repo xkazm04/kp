@@ -11,9 +11,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { cleanupUnitDb } from "./testing/unit-db.ts";
+import Database from "better-sqlite3";
+import { cleanupUnitDb, UNIT_DB_PATH } from "./testing/unit-db.ts";
 import { attentionCounts } from "./attention.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
+import { setDecisionConfig } from "./decision-config-store.ts";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 
 after(() => cleanupUnitDb());
@@ -71,4 +73,56 @@ const navSrc = readFileSync(path.join(HERE, "..", "features", "shell", "Workspac
 test("both call sites pass the session workspace", () => {
   assert.match(routeSrc, /attentionCounts\(await currentWorkspace\(\)\)/, "/api/attention scopes to the session");
   assert.match(navSrc, /attentionCounts\(await currentWorkspace\(\)\)/, "the server-rendered nav scopes to the session");
+});
+
+// --- the aging badge honors the SLA contract, not the shipped-axis coincidence ---
+// slaForStage documents a non-positive threshold as "this stage never ages", and
+// STAGE_SLA_DEFAULTS.Hired is 0. The count is `days >= sla`, which reads 0 as
+// "always stale" — the exact inverse. On the shipped board the terminal-role
+// exclusion hides that, because the only 0-day stage IS the terminal one. A
+// workspace that MIGRATES its board unhides it: rename the terminal column and
+// retire the old id, and every entry still standing on the retired id resolves to
+// no live role, escapes the exclusion, and is counted as aging from day 0 with no
+// board move able to clear it (the board doesn't draw a retired column).
+const WS_MIGRATED = "team-attention-migrated";
+setDecisionConfig(
+  "pipelineStages",
+  {
+    stages: [
+      { id: "Accepted", label: "Applied", role: "entry" },
+      { id: "Screened", label: "Screened", role: "screening" },
+      { id: "Interview", label: "Interview", role: "interview" },
+      { id: "Offer", label: "Offer", role: "offer" },
+      { id: "Placed", label: "Placed", role: "terminal" },
+    ],
+    retired: [{ id: "Hired", label: "Hired (retired)", role: "terminal" }],
+  },
+  WS_MIGRATED
+);
+
+test("an entry stranded on a RETIRED 0-day stage is not counted as aging forever", () => {
+  const before = attentionCounts(WS_MIGRATED).pipeline;
+  // A candidate hired before the migration: stage 'Hired' (now retired), status
+  // stays 'active' by design (pipeline-status.ts header).
+  entryIn(WS_MIGRATED, "Hired");
+  assert.equal(
+    attentionCounts(WS_MIGRATED).pipeline,
+    before,
+    "a stage whose SLA is 0 never ages — the badge must not latch on a placed candidate"
+  );
+});
+
+test("a genuinely aging entry is still counted (the badge is not simply switched off)", () => {
+  const before = attentionCounts(WS_MIGRATED).pipeline;
+  const aging = entryIn(WS_MIGRATED, "Offer"); // Offer's default SLA is 3 days
+  assert.equal(attentionCounts(WS_MIGRATED).pipeline, before, "a fresh Offer entry is not yet aging");
+  // Backdate the stage clock past the SLA on a separate write connection to the
+  // same throwaway file (the way db.ts and the sibling stores share kp.sqlite).
+  const d = new Database(UNIT_DB_PATH);
+  d.prepare(`UPDATE pipeline_entries SET stage_changed_at = ? WHERE id = ?`).run(
+    new Date(Date.now() - 9 * 86_400_000).toISOString(),
+    aging.id
+  );
+  d.close();
+  assert.equal(attentionCounts(WS_MIGRATED).pipeline, before + 1, "9 days at Offer is past its 3-day SLA");
 });

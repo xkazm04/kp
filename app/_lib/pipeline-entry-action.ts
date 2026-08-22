@@ -2,7 +2,6 @@ import type { PipelineEntry } from "@/app/_lib/db/core";
 import {
   actOnPipelineEntry,
   getPipelineEntry,
-  PIPELINE_STAGES,
   recordAutomationEvent,
   setApproval,
   setPipelineEntryStage,
@@ -16,8 +15,7 @@ import { planRoutesAiScorecardToHumanRound } from "@/app/_lib/decision-config-sc
 import { getInterviewPlan } from "@/app/_lib/interview-plan";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { getPipelineAxis } from "@/app/_lib/pipeline-axis-server";
-import { knownStageIds } from "@/app/_lib/pipeline-axis";
-import { stageHasRole, stageIndex, stageWithRole } from "@/app/_lib/pipeline-stages";
+import { stageHasRole, stageIndex, stageWithRole, type StageDef } from "@/app/_lib/pipeline-stages";
 
 // One canonical move/decide action against a single pipeline entry, shared by the
 // per-entry route (/api/pipeline/[id]) AND the batch route (/api/pipeline/batch)
@@ -84,6 +82,28 @@ export type EntryActionInput = {
 
 // A plain, transport-agnostic result: status + JSON body. ok is the 200 case.
 export type EntryActionResult = { status: number; body: Record<string, unknown> };
+
+/** Would a one-stage `accept` from `stage` LAND on this board's TERMINAL column?
+ *
+ *  Mirrors the store's own advance rule (nextStageOnAxis in db/pipeline.ts): the
+ *  next column on the axis, clamped at the end, and an off-axis stage has no
+ *  "next" so it never moves. False when the entry is ALREADY at the terminal
+ *  stage — that accept is the no-op approval clear the store already handles, not
+ *  a new outcome.
+ *
+ *  This is the real form of the "the terminal stage is outcome-bearing" rule that
+ *  `set_stage` enforces by role. The accept path used to express it as "is the
+ *  entry standing on the OFFER column", which is only a proxy: it holds on the
+ *  shipped axis because Offer immediately precedes Hired, and stops holding the
+ *  moment a workspace composes its own board (validatePipelineStages requires only
+ *  an entry and a terminal stage, so an axis may put a column between offer and
+ *  terminal — or carry no offer column at all). */
+function acceptWouldReachTerminal(stage: string, axis: readonly StageDef[]): boolean {
+  const i = stageIndex(stage, axis);
+  if (i < 0 || i >= axis.length - 1) return false;
+  const next = axis[i + 1];
+  return !!next && stageHasRole(next.id, "terminal", axis);
+}
 
 const ok = (body: Record<string, unknown>): EntryActionResult => ({ status: 200, body });
 const err = (status: number, error: string, extra: Record<string, unknown> = {}): EntryActionResult => ({
@@ -225,14 +245,31 @@ export async function runPipelineEntryAction(input: EntryActionInput): Promise<E
   const atOfferStage = stageHasRole(current.stage, "offer", axis);
 
   // Approving a drafted offer extends it to the candidate (not a bare Hire click).
-  if (action === "accept" && atOfferStage && current.approvalKind === "offer_review") {
+  //
+  // Gated on the APPROVAL, not on the column the entry happens to stand on. The
+  // offer_review approval IS the offer decision, and the writer that raises it
+  // (runAutomationTask("offer") / the sim's offer-draft) sets it WITHOUT moving the
+  // stage. On the shipped axis the two coincide, so this is a no-op there; on a
+  // workspace board with no offer-role column at all (valid — validatePipelineStages
+  // requires only an entry and a terminal stage) `atOfferStage` was false everywhere,
+  // so approving a drafted offer fell through to the generic advance below — which
+  // NULLs approval_detail. The drafted terms were destroyed and the candidate was
+  // advanced with no offer ever extended, no offers row and no acceptance.
+  if (action === "accept" && current.approvalKind === "offer_review") {
     return await extendDraftedOffer(current, workspaceId, origin, input.ttlDays, sealActor);
   }
 
-  // The terminal stage is outcome-bearing (same rule as the set_stage guard): a
-  // bare accept on an offer-stage entry is refused; the legitimate accept there is
-  // the offer_review approval handled above.
-  if (action === "accept" && atOfferStage) {
+  // The terminal stage is outcome-bearing (same rule as the set_stage guard): the
+  // only path onto it is the candidate accepting an EXTENDED offer. Refused when the
+  // entry stands on the offer step (that step's own rule — the legitimate accept
+  // there is the offer_review approval handled above) OR when a one-stage advance
+  // would LAND on the terminal column, which is the invariant itself. The
+  // offer-column test alone was a proxy that only holds on the shipped axis, where
+  // Offer immediately precedes Hired; a composed board that keeps a column between
+  // them, or drops the offer column entirely, let a bare accept hand-set the outcome
+  // — exactly the phantom hire the set_stage guard 422s. Byte-identical on the
+  // shipped axis (there, "at Offer" and "the next stage is Hired" are the same set).
+  if (action === "accept" && (atOfferStage || acceptWouldReachTerminal(current.stage, axis))) {
     return err(
       422,
       "The final stage is set when the candidate accepts an offer, not by advancing them. Draft and extend an offer instead."
