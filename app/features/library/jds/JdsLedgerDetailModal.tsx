@@ -7,7 +7,7 @@ import { Modal } from "@/app/_components/Modal";
 import { Markdown } from "@/app/_components/Markdown";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { useIngestJob, useJdDetail } from "./jdsHooks";
-import { builderLintFindings, jdMarketResearchAvailable, type JdRow } from "./jdsLibrary";
+import { builderLintFindings, isUnlinked, jdMarketResearchAvailable, jdMustHaveCount, LINT_MIN_BODY_CHARS, type JdRow } from "./jdsLibrary";
 import { JdLintPanel } from "./JdsLintPanel";
 import type { CoachEdit } from "@/app/features/library/jobs/jobsCoachApply";
 import { BuildingPanel, CaseCard, FailedPanel, SalaryCard } from "./JdsLedgerDetailPanels";
@@ -135,6 +135,12 @@ export function LedgerDetailModal({
               initialTitle={jd.title}
               initialBody={jd.body}
               marketResearch={marketResearch}
+              // Whether a jd-<slug> job actually exists. PATCH /api/jds/[slug]
+              // re-ingests the linked role ONLY inside `if (getJob(jobId))`, so on an
+              // unlinked JD the editor's "edits update the linked role too" note
+              // described a write the server never performs — while the rail beside
+              // it showed the Unlinked chip and an "Ingest as job" button.
+              linked={!isUnlinked(effRow)}
               stagedSuggestion={showStaged}
               onDone={() => {
                 exitEdit();
@@ -164,8 +170,17 @@ export function LedgerDetailModal({
                       advisory specificity/inclusivity engine the editor uses over the
                       rendered body, threading the same salary-suppression seam (a grounded
                       market band ⇒ don't flag missing salary). The all-clear state renders
-                      too, so a clean JD says so. */}
-                  <JdLintPanel findings={builderLintFindings(jd.body, { marketResearch })} />
+                      too, so a clean JD says so — but ONLY once the body is long enough for
+                      the engine to have actually run: builderLintFindings returns [] below
+                      LINT_MIN_BODY_CHARS (the anti-nagging threshold), and this is the one
+                      surface that renders zero findings as a positive verdict. A short
+                      hand-saved JD ("Senior React developer needed.") therefore claimed
+                      "pay, place, no boilerplate" about text carrying neither. Below the
+                      threshold the panel stays silent instead of vouching for an unlinted
+                      body. */}
+                  {jd.body.trim().length >= LINT_MIN_BODY_CHARS ? (
+                    <JdLintPanel findings={builderLintFindings(jd.body, { marketResearch, mustHaveCount: jdMustHaveCount(artifacts) })} />
+                  ) : null}
                 </>
               ) : (
                 <p className="text-sm italic text-steel">{t("noDescriptionYet")}</p>

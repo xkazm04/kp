@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "next-intl";
 import { RotateCcw } from "lucide-react";
 import type { JdRevision } from "./jdsEditClient";
 
@@ -33,13 +34,22 @@ export function JdRevisionList({
   revertingLabel: string;
 }) {
   const [expanded, setExpanded] = useState<number | null>(null);
+  // The stamp is the ONLY thing that tells two revisions of the same JD apart
+  // (their titles are usually identical), and it decides which snapshot the
+  // recruiter reverts to — so it must read in the APP's locale, not the OS's.
+  // A bare `toLocaleString()` follows the browser/OS: a cs workspace opened in an
+  // en-US browser stamped this list "3/4/2026, 5:12:00 PM", which a Czech reader
+  // parses as 3 April while it means 4 March — the wrong snapshot restored. Same
+  // contract, same fix as `shortDate(iso, locale)` in jdsLibrary.ts and
+  // `useRelativeTime`: the module stays locale-dumb, the client threads useLocale().
+  const locale = useLocale();
   return (
     <ul className="space-y-2">
       {revisions.map((rev) => (
         <li key={rev.id} className="rounded-md border border-stone-100 bg-white px-3 py-2 text-sm">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold text-ink">{rev.title}</span>
-            <span className="text-steel">· {new Date(rev.created_at).toLocaleString()}</span>
+            <span className="text-steel">· {new Date(rev.created_at).toLocaleString(locale)}</span>
             <button
               type="button"
               onClick={() => setExpanded(expanded === rev.id ? null : rev.id)}

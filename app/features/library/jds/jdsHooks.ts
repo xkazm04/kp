@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import type { JdDetail, JdRow } from "./jdsLibrary";
 
 // Shared JD-list fetch for the two-level surface: same abort-on-unmount +
@@ -9,24 +10,48 @@ import type { JdDetail, JdRow } from "./jdsLibrary";
 export function useJdLibrary() {
   const [rows, setRows] = useState<JdRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The banner this `error` paints (JdsSavedLedgerPanel) sits in a fully localized
+  // console, so the copy must be too. It used to be two hand-written ENGLISH
+  // strings ("Couldn't load your library (status 500).") shown verbatim to cs/de/fr
+  // recruiters. GET /api/jds already answers with a machine code (safeJsonError →
+  // JD_LIST_FAILED), and that code is in the shared `errors` catalog in all four
+  // locales — so the honest line was there all along, just never read.
+  //
+  // Read straight from the catalog rather than through `useErrorMessage`: that
+  // resolver is a fresh closure on every render, and putting it in `load`'s deps
+  // would re-create `load` → re-fire the mount effect → refetch in a loop. This
+  // route has exactly ONE failure code, so the resolver could only ever return
+  // this same string anyway.
+  const loadFailed = useTranslations("errors")("JD_LIST_FAILED");
 
   // `silent` fetches WITHOUT blanking rows to the skeleton — for the analyzing-JD
   // poll, which must update rows in place rather than flicker the whole table every
   // few seconds. The initial load and user-triggered reloads blank as before.
-  const load = useCallback(async (signal?: AbortSignal, opts?: { silent?: boolean }) => {
-    setError(null);
-    if (!opts?.silent) setRows(null);
-    try {
-      const res = await fetch("/api/jds", { signal });
-      if (!res.ok) throw new Error(`Couldn't load your library (status ${res.status}).`);
-      const payload = await res.json();
-      if (signal?.aborted) return;
-      setRows((payload.jds as JdRow[]) ?? []);
-    } catch (caught) {
-      if (signal?.aborted || (caught instanceof DOMException && caught.name === "AbortError")) return;
-      setError(caught instanceof Error ? caught.message : "Couldn't load your library.");
-    }
-  }, []);
+  const load = useCallback(
+    async (signal?: AbortSignal, opts?: { silent?: boolean }) => {
+      setError(null);
+      if (!opts?.silent) setRows(null);
+      try {
+        const res = await fetch("/api/jds", { signal });
+        // Both failure shapes (a non-2xx, and the throw below) resolve to the SAME
+        // localized line, so there is nothing to carry through an Error message.
+        if (!res.ok) {
+          setError(loadFailed);
+          return;
+        }
+        const payload = await res.json();
+        if (signal?.aborted) return;
+        setRows((payload.jds as JdRow[]) ?? []);
+      } catch (caught) {
+        if (signal?.aborted || (caught instanceof DOMException && caught.name === "AbortError")) return;
+        // A dropped connection / unparseable 200 body throws the BROWSER's own
+        // English message ("Failed to fetch"), so `caught.message` is never
+        // surfaced — the localized load-failure line is honest for both paths.
+        setError(loadFailed);
+      }
+    },
+    [loadFailed]
+  );
 
   useEffect(() => {
     const controller = new AbortController();

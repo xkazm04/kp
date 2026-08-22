@@ -50,8 +50,10 @@ const SITE_DESCRIPTION =
 const BRAND = "KandiDate";
 
 // SHELL5 — BCP-47 → OpenGraph locale code (underscored region form og:locale
-// expects). Keep in sync with the LOCALES universe.
-const OG_LOCALE: Record<string, string> = { en: "en_US", cs: "cs_CZ" };
+// expects). Keep in sync with the LOCALES universe: `de`/`fr` joined it after this
+// map was written, so a German or French share unfurled as `og:locale en_US` under
+// a `<html lang="de">` document — the exact drift the "keep in sync" note warns about.
+const OG_LOCALE: Record<string, string> = { en: "en_US", cs: "cs_CZ", de: "de_DE", fr: "fr_FR" };
 
 // Anchors metadataBase (and so relative OG/Twitter/canonical URLs) to an
 // absolute origin. Shared with robots.ts/sitemap.ts via app/_lib/site-url.ts so

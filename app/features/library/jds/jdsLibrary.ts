@@ -9,17 +9,29 @@ import { lintJd, type JdLintFinding } from "@/app/_lib/jd-lint";
 import { normalizeMarketSalary } from "@/app/_lib/salary-band";
 import type { BadgeTone } from "@/app/_components/Badge";
 
-// Whether the JD's stored build artifacts ground a market-salary figure — the
+// Whether the JD's stored build artifacts GROUND a market-salary figure — the
 // ONE rule that feeds the lint's `salaryAvailable` suppression seam on every
-// surface (the ledger modal, the ledger read-view, AND the public page's
-// editor). A ticked "market research" build option OR a usable normalized band
-// counts. Kept here (pure, artifact-shaped) so those surfaces can't disagree on
-// when a role "has a salary".
+// POST-BUILD surface (the ledger modal, the ledger read-view, AND the public
+// page's editor). Kept here (pure, artifact-shaped) so those surfaces can't
+// disagree on when a role "has a salary".
+//
+// Only a USABLE normalized band counts. A ticked `options.marketResearch` used to
+// count as well, and that was the defect: the tick is the recruiter's pre-build
+// INTENT, recorded before the step ran, and runMarketSalary legitimately resolves
+// to `available: false` (the CLI's 0–0 taxonomy miss, or a keyless deterministic
+// run that yields no band — degrading without keys is a product property here).
+// composeMarkdown then OMITS the salary line entirely and marketSalaryLabel
+// renders "" into a template's {{salary}} slot, so the published body carries no
+// pay figure ANYWHERE — while the lint, trusting the tick, suppressed its
+// missing-salary finding and the panel rendered its all-clear. On the public JD
+// page's editor there isn't even a SalaryCard to contradict it. After the build
+// the artifacts are the evidence; the tick is a promise we can now check.
+// Pinned by jdsLintWiring.test.ts.
 export function jdMarketResearchAvailable(
   artifacts: { options?: { marketResearch?: boolean }; salary?: unknown } | null | undefined
 ): boolean {
   if (!artifacts) return false;
-  return Boolean(artifacts.options?.marketResearch) || normalizeMarketSalary(artifacts.salary).available;
+  return normalizeMarketSalary(artifacts.salary).available;
 }
 
 // Below this many characters the "describe the need" body is too thin to lint
@@ -31,15 +43,31 @@ export const LINT_MIN_BODY_CHARS = 40;
 // The builder's advisory specificity/inclusivity lint over its rich-editor body —
 // the SAME finished jd-lint engine that already backs the public-page panel, wired
 // (finally) to the authoring surface. Findings are ADVISORY; the panel hides at
-// zero (below the threshold this returns none). `marketResearch` is the ticked
-// "market research" step: the published artifacts will then carry a grounded
-// salary figure even if the prose doesn't spell one out, so it feeds the engine's
-// `salaryAvailable` to suppress the missing-salary finding (its documented
-// contract). The engine itself is bilingual by content (EN+CS regexes) — no lang
-// argument to thread.
-export function builderLintFindings(body: string, opts: { marketResearch: boolean }): JdLintFinding[] {
+// zero (below the threshold this returns none). `marketResearch` feeds the
+// engine's `salaryAvailable` seam — "a grounded figure exists outside the prose,
+// so don't nag about pay". It is resolved per surface: PRE-build (JdBuilder) it's
+// the ticked "market research" checkbox, an intent whose result isn't knowable
+// yet; POST-build (the ledger read-view/editor, the public page's editor) it MUST
+// come from jdMarketResearchAvailable above, which checks the band the build
+// actually produced rather than re-trusting the tick. The engine itself is
+// bilingual by content (EN+CS regexes) — no lang argument to thread.
+export function builderLintFindings(
+  body: string,
+  opts: { marketResearch: boolean; mustHaveCount?: number }
+): JdLintFinding[] {
   if ((body ?? "").trim().length < LINT_MIN_BODY_CHARS) return [];
-  return lintJd({ body, salaryAvailable: opts.marketResearch });
+  return lintJd({ body, salaryAvailable: opts.marketResearch, mustHaveCount: opts.mustHaveCount });
+}
+
+/** The structured must-have count from a build's artifacts, for the lint's
+ *  manyMustHaves rule. Only the artifact-bearing surfaces can supply it — the
+ *  builder lints the recruiter's PROMPT and has no RoleSpec yet, so it passes
+ *  nothing and the rule falls back to counting marker words in prose. */
+export function jdMustHaveCount(
+  artifacts: { role?: { mustHaves?: unknown[] } } | null | undefined
+): number | undefined {
+  const n = artifacts?.role?.mustHaves?.length;
+  return typeof n === "number" && n > 0 ? n : undefined;
 }
 
 // Mirrors the JdRow the /api/jds list endpoint returns (identity + a

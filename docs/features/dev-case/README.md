@@ -125,6 +125,17 @@ controls](#anti-delegation-controls-shipped) below. All six are shipped.
    `recordPipelineOutcome` auto-writes a row when a promoted `ds-<submissionId>`
    entry reaches a terminal stage.
 
+   The five rationales split on whether a band **actually converted**. The `85`
+   no-converging-band fallback (no band reached a 50 % hire rate) is *advice*, not a
+   measurement, so it can only ever read `raise` or `weak`. The two rationales that
+   assert an observed conversion — `calibrated` ("sits at the first band where most
+   promoted candidates were hired") and `lower` ("candidates from X–Y converted
+   well") — require a real converging band; otherwise the control room printed a
+   sentence contradicting the hire-rate column directly above it, on the screen whose
+   button moves the live promote floor. The reachable path was the operator taking the
+   app's own advice: apply suggested → 85, then read "well-calibrated" on the next
+   3-second poll. Pinned in `app/_lib/dev-outcomes.test.ts`.
+
    **The control room is no longer the only writer of the `performance` rating.**
    The module also exports `recordHirePerformance()` / `hireOutcomeRef()` /
    `countRatedHires()`, used by `POST /api/pipeline/outcomes` so a recruiter can

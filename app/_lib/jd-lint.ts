@@ -123,15 +123,31 @@ export function findExclusionaryPhrases(text: string): string[] {
  * `salaryAvailable` — the builder's structured market band exists, so the
  * published artifacts will carry a figure even if the prose doesn't spell one
  * out yet; suppresses the missing-salary finding.
+ *
+ * `mustHaveCount` — the STRUCTURED must-have count from the build artifacts, when
+ * the caller has them. Without it this rule was unreachable on generated JDs:
+ * composeMarkdown renders role.mustHaves as plain bullets under "What you'll bring"
+ * (and the seeded template under {{heading_requirements}}), and neither emits a
+ * marker word — so an eleven-dealbreaker RoleSpec produced a body whose prose count
+ * was ZERO and linted clean. The threshold only ever fired on recruiter-TYPED prose,
+ * i.e. the one case the AI did not produce. That matters because the Python coercion
+ * deliberately does NOT clamp the list (a blind slice can drop a confirmed
+ * dealbreaker listed ninth), which makes this lint the compensating control.
  */
-export function lintJd(input: { body: string; salaryAvailable?: boolean }): JdLintFinding[] {
+export function lintJd(input: {
+  body: string;
+  salaryAvailable?: boolean;
+  mustHaveCount?: number;
+}): JdLintFinding[] {
   const body = input.body ?? "";
   const findings: JdLintFinding[] = findVaguePhrases(body).map((phrase) => ({ kind: "vague", phrase }));
   if (!input.salaryAvailable && !MONEY_RE.test(body)) findings.push({ kind: "missing", what: "salary" });
   if (!PLACE_RE.test(body)) findings.push({ kind: "missing", what: "place" });
   // 7469c05f — inclusivity: coded/exclusionary phrases + an over-long must-have list.
   for (const phrase of findExclusionaryPhrases(body)) findings.push({ kind: "exclusionary", phrase });
-  const mustHaves = (body.match(MUST_HAVE_RE) ?? []).length;
+  // max(), not a replacement: a generated body can ALSO carry typed marker prose,
+  // and whichever count is higher is the one worth warning about.
+  const mustHaves = Math.max((body.match(MUST_HAVE_RE) ?? []).length, input.mustHaveCount ?? 0);
   if (mustHaves > MANY_MUST_HAVES) findings.push({ kind: "manyMustHaves", count: mustHaves });
   return findings;
 }

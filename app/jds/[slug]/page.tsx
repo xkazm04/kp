@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Send, UserPlus } from "lucide-react";
 import { WorkspaceShell } from "@/app/features/shell/WorkspaceNav";
 import { RecordRecent } from "@/app/features/shell/RecordRecent";
@@ -43,6 +43,27 @@ function jdOwnerWorkspace(slug: string): string {
   return getJobWorkspace(jdJobId(slug));
 }
 
+// …and the hole that authority leaves. `getJobWorkspace` folds "unknown job id" into
+// the DEFAULT workspace, and a JD does not always have an opening: "Save as draft" in
+// the builder posts to POST /api/jds, which saves the row and ingests NOTHING, and the
+// generate path's `jd-<slug>` ingest is explicitly best-effort (`jobIngested: false`).
+// For any team other than the default one that meant the opening-derived lookup missed
+// and the recruiter's OWN JD 404'd on its own detail page — the page the Ledger links to.
+// So: try the opening's team first (the public authority, unchanged), then fall back to
+// the VIEWER's own team. The fallback cannot widen what is public — loadJd matches on the
+// workspace we pass, and an anonymous visitor resolves to the DEFAULT workspace, i.e.
+// exactly the query that just missed — and it cannot cross tenants, because the only
+// other workspace it ever reads is the caller's own session's.
+async function loadPublicJd(slug: string): Promise<{ jd: JdRow; owner: string } | null> {
+  const opening = jdOwnerWorkspace(slug);
+  const fromOpening = loadJd(slug, opening);
+  if (fromOpening) return { jd: fromOpening, owner: opening };
+  const viewer = await currentWorkspace();
+  if (viewer === opening) return null;
+  const fromViewer = loadJd(slug, viewer);
+  return fromViewer ? { jd: fromViewer, owner: viewer } : null;
+}
+
 // SEO / share metadata for the flagship public JD page — without this a shared link
 // (the documented "shareable ?lang=cs links" use case) unfurled as a bare URL with the
 // app-default title and was invisible to search. Archived roles return noindex so a
@@ -52,7 +73,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   let jd: JdRow | null = null;
   try {
-    jd = loadJd(slug, jdOwnerWorkspace(slug));
+    jd = (await loadPublicJd(slug))?.jd ?? null;
   } catch {
     jd = null;
   }
@@ -83,16 +104,15 @@ export default async function JdDetailPage({
   // — use; locale resolves from the cookie/Accept-Language via getServerLocale).
   // The JD BODY stays in its authored language (JdBody below is not translated).
   const t = await getTranslations("jdPublic");
+  const locale = await getLocale();
 
   // The JD body is the primary, public, shareable content. Load it independently so
   // a transient SQLite error (a locked WAL mid-write, a corrupt row) renders a scoped
   // in-shell message instead of crashing the whole route into the Next error boundary
   // — the owner lookup is a DB read too, so it belongs inside the same guard.
-  let jd: JdRow | null;
-  let owner: string;
+  let found: { jd: JdRow; owner: string } | null;
   try {
-    owner = jdOwnerWorkspace(slug);
-    jd = loadJd(slug, owner);
+    found = await loadPublicJd(slug);
   } catch {
     return (
       <WorkspaceShell active="library">
@@ -100,7 +120,8 @@ export default async function JdDetailPage({
       </WorkspaceShell>
     );
   }
-  if (!jd) notFound();
+  if (!found) notFound();
+  const { jd, owner } = found;
 
   // Privacy (biz-ui scan 2026-06-12 #1) — no analyzed-candidate data on this
   // page. It is the public, candidate-facing artifact (Apply CTA below,
@@ -152,7 +173,12 @@ export default async function JdDetailPage({
         <div>
           <p className="text-meta uppercase text-coral">{t("eyebrow")} · {slug}</p>
           <h1 className="mt-1 font-serif text-display text-ink">{jd.title}</h1>
-          <p className="mt-2 text-sm text-steel">{t("savedAt", { date: new Date(jd.created_at).toLocaleString() })}</p>
+          {/* Bare toLocaleString() runs in NODE here (server component), so it formatted
+              the stamp in the SERVER's locale — a cs/de/fr visitor on the share link read
+              an en-US date under otherwise fully translated chrome. Pass the resolved
+              locale. (The time ZONE is still the server's: next-intl configures none —
+              see i18n/request.ts — which is a separate, deliberate open question.) */}
+          <p className="mt-2 text-sm text-steel">{t("savedAt", { date: new Date(jd.created_at).toLocaleString(locale) })}</p>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row lg:items-end">
           {applyOpen ? (

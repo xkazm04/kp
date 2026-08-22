@@ -84,6 +84,29 @@ Publish click would 404. The builder reads `jobIngested`: `false` disables
 duplicate draft). When `slug` is supplied, the save route rejects an unknown
 slug (404) so a retry can never mint a `jd-<slug>` Job with no backing draft.
 
+### Which team's JD `/jds/[slug]` serves
+
+The page is candidate-facing and a candidate carries no session, so the visitor's
+workspace cannot be the tenant authority. `app/jds/[slug]/page.tsx` resolves it in
+two steps:
+
+1. **The linked opening's team** — `getJobWorkspace(jdJobId(slug))`. This is the
+   public authority: a share link resolves to the team that published the role, for
+   anyone holding it.
+2. **The viewer's own team**, only when step 1 returned no row. A JD does not always
+   have an opening — the builder's "Save as draft" posts to `POST /api/jds`, which
+   ingests nothing, and the generate path's ingest is best-effort (`jobIngested:
+   false`) — and `getJobWorkspace` folds "unknown job id" into the DEFAULT workspace.
+   Without this step, a JD authored by any **non-default** team and not (yet) linked
+   to a job 404'd on its own detail page, for its own author.
+
+The fallback cannot widen what is public: `loadJd` matches on the workspace it is
+given, an anonymous visitor resolves to the DEFAULT workspace (i.e. the query that
+just missed), and the only other workspace ever read is the caller's own session's.
+`canManage` (the Edit/Archive/History controls) still requires
+`isOperator() && currentWorkspace() === owner`, where `owner` is whichever of the
+two produced the row.
+
 ## The two meanings of "Publish" — disambiguated
 
 1. **Source into Pipeline** *(internal go-live)* — marks a saved draft live
@@ -107,8 +130,21 @@ edit in the builder: EN+CS boilerplate phrases ("competitive salary", "dynamic
 environment", with inflection-tolerant Czech stems), missing concretes (no pay
 figure, no place of work — a work-mode keyword counts as place; a structured
 market band suppresses the salary finding), exclusionary/gendered-coded
-language, and an over-long must-have list. Findings render in a panel in
-`JdBuilderResult` with an explicit all-clear state. Pinned by `jd-lint.test.ts`.
+language, and an over-long must-have list. Findings render through one shared
+panel, `app/features/library/jds/JdsLintPanel.tsx` (the `JdBuilderResult` this
+section used to name is gone). Pinned by `jd-lint.test.ts`.
+
+**Only one surface renders the all-clear.** `JdBuilder`, the ledger's in-modal
+editor and the public page's `JdActions` all gate on `findings.length > 0`, so a
+draft that has not been linted simply shows nothing. The Ledger detail read-view
+(`JdsLedgerDetailModal`) is the exception — a clean *published* JD should say so
+— which makes it the one place where "zero findings" is spoken aloud as a verdict.
+It therefore has to respect the engine's own entry condition:
+`builderLintFindings` returns `[]` for any body shorter than `LINT_MIN_BODY_CHARS`
+(40) so a thin draft isn't nagged, and the read-view treats that `[]` as an
+all-clear it never earned — a hand-saved JD reading "Senior React developer
+needed." was told "pay, place, no boilerplate. Reads concrete." about text that
+states neither. The panel now renders only once the body clears the threshold.
 
 Every rule here uses `\p{L}` guards, never `\b`: JS word boundaries are defined by
 ASCII `\w`, so a trailing `\b` after a diacritic-final stem can never match. That
@@ -125,6 +161,27 @@ silence. It also only sees markers in the *prose*: a build whose `RoleSpec`
 carries eleven `mustHaves` renders them as plain bullets under "What you'll bring"
 (`composeMarkdown`, `jd-build-run.ts`), which contain no marker word, so the
 builder's own output does not trip the rule.
+
+### The salary-suppression seam is resolved per surface
+
+`lintJd`'s `salaryAvailable` input means "a grounded figure exists outside the
+prose, so don't nag about pay", and it is resolved differently before and after a
+build. **Pre-build** (`JdBuilder`, over the recruiter's typed need) it is the
+ticked *market research* checkbox — an intent whose result isn't knowable yet.
+**Post-build** — the Ledger read-view and in-modal editor, and the public JD
+page's editor — it comes from `jdMarketResearchAvailable`
+(`app/features/library/jds/jdsLibrary.ts`), which asks only whether the stored
+artifacts carry a **usable normalized band** (`normalizeMarketSalary(...).available`).
+
+That function used to accept the ticked option as evidence too, and that was
+wrong in exactly the case the lint exists for: `runMarketSalary` legitimately
+resolves to `available: false` (the CLI's 0–0 taxonomy miss, or a keyless
+deterministic run with no band), and `composeMarkdown` then **omits the salary
+line entirely** while `marketSalaryLabel` renders `""` into a template's
+`{{salary}}` slot — so the published body carried no pay figure anywhere and the
+lint panel still showed its all-clear. In the Ledger the read-only `SalaryCard`
+at least says "salary unavailable"; on the public page's editor there is nothing
+to contradict the all-clear. Pinned by `jdsLintWiring.test.ts`.
 
 ## The posting is a document, so it picks its own language
 
@@ -264,6 +321,50 @@ either the sweep's outcome ("Checked 12 roles: 3 new matches") or its failure, a
 the failure was painted `text-moss` — this app's "it worked" green — whenever any
 alert was already on screen.
 
+## A rediscovery prior must be another role
+
+`pickPrior` (`app/_lib/rediscover.ts`) picks the one past outcome that justifies
+resurfacing a candidate. Its `elsewhere` branch always required `jobId !== jobId`;
+the `rejected` and `closed` branches did not — so a candidate the team had rejected
+from **this very role** was re-listed as a silver medalist **for** it, chipped
+`Rejected · <this role's own title>` and floated up the list by the
+`priorDepthBoost` they earned inside it. Reachable on every genuine go-live (publish
+raises standing alerts, and a closed→re-published role keeps its rejects) and on
+every Rediscover-panel open. Prior selection now reads only other-role history, per
+the module's stated contract ("people rejected/closed *elsewhere*… who aren't
+already in it"). Nothing legitimate is lost: re-publish already reinstates the
+role's own `role_closed` entries to `active` (`reopenEntriesByJobId`, which runs
+*before* the alert raise), and the reach-out linker has always excluded the target
+role (`terminalPriorEntriesForCandidate`'s `job_id != ?`).
+
+## Dismissing a standing alert is workspace-scoped
+
+`dismissRediscoveryAlert` (`app/_lib/rediscovery-alert-store.ts`) wrote
+`WHERE id = ? AND dismissed_at IS NULL` with no tenant predicate. An alert id is not
+a capability token — `listRediscoveryAlerts` hands it to every recruiter in that
+team's feed — and dismissal is sticky (the `UNIQUE (job_id, candidate_id)` index
+makes every later sweep an `INSERT OR IGNORE` no-op), so any holder could
+permanently suppress another team's silver-medalist alert. The write now filters
+`workspace_id` too; `changes > 0` answers "already dismissed", "never existed", and
+"not yours" identically. The source guard (`rediscovery-tenancy.test.ts`) used to
+strip every statement containing `id = ?` before asserting — that blanket carve-out
+is what let the unscoped write ship — and now keeps an explicit, currently-empty
+allowlist of literal exempted statements instead.
+
+## The sweep ceiling defers, it does not exclude
+
+`sweepRediscoveryAlerts` bounds a Refresh three ways (worker-pool concurrency, a
+per-role timeout, and `SWEEP_MAX_ROLES` roles per sweep). The ceiling sliced the
+first N ids off a stable list every time (`listJobStatuses` has no `ORDER BY`), so
+"deferring N to the next Refresh" was false — the next Refresh re-swept the
+identical prefix, and a catalog above the ceiling could never surface a silver
+medalist for the roles past the cut. Sweeps now rotate: a per-process,
+per-workspace cursor resumes where the previous one stopped. The ceiling, pool, and
+timeout are unchanged — only *which* roles a sweep covers. The cursor is
+deliberately not persisted; re-sweeping a role is idempotent
+(`recordRediscoveryAlerts` is `INSERT OR IGNORE`), so losing it on restart only
+restarts the rotation.
+
 ## The JD ledger shows each role's live pipeline
 
 The saved-JD table carries a **Pipeline** column: a stacked shape bar
@@ -356,6 +457,24 @@ must win, and `insertJob`'s content-twin dedup would otherwise file the parse
 onto an unrelated job and leave the JD unlinked behind an `ok: true`. The pairing
 is pinned by `app/api/jds/save/save-ingest-contract.test.ts`.
 
+### The Ledger modal has to agree with `if (getJob(jobId))`
+
+The resync in `PATCH /api/jds/[slug]` runs **only** when a `jd-<slug>` job already
+exists; on an unlinked JD the route skips it and returns `jobResynced: false`. The
+in-modal editor printed `library.tab.editLinkedNote` ("Edits update the linked role
+too. Its live or draft status is preserved.") unconditionally — describing a write
+the server never performs, while the rail one column over showed the **Unlinked**
+chip and an "Ingest as job" button. `JdsLedgerDetailModal` now passes
+`linked={!isUnlinked(effRow)}` and `JdsModalEditor` renders the note only then.
+
+The same rail gated its "Ingest as job" button on the *snapshot* row rather than
+`effRow` (the polled status). Because `statusCategory` returns `analyzing`/`failed`
+ahead of the linked-job status, a modal opened mid-build kept `isUnlinked(row)`
+false after the poll flipped the JD ready — Unlinked chip, no way to ingest until
+the modal was closed and reopened — and after a Retry the stale `ready` snapshot
+left the button live during the rebuild, one click away from spending an ad-parse
+on the pre-retry body. Both directions read `effRow` now.
+
 ### A MINTED job id is not a claim on an existing row
 
 A prose ad carries no id: `normalize_job` (`pipeline/jobfit/jobs.py`) mints one
@@ -441,6 +560,23 @@ include `workspace_id`).
 ## Known gaps
 
 - External "Publish to job boards" distribution is not implemented.
+- **`/jds/[slug]` renders the recruiter shell to anonymous visitors.** The page is
+  on the public allow-list (`app/_lib/auth/public-routes.ts`), but it wraps its
+  content in `WorkspaceShell` (`app/features/shell/WorkspaceNav.tsx`), which
+  computes `attentionCounts(await currentWorkspace())` server-side and renders the
+  raw numbers as nav badges (`NavPanelItem`). A visitor with no session resolves to
+  the DEFAULT workspace, so the candidate-facing share link ships that team's
+  pending-decision / aging-pipeline / upcoming-interview / draft-role / new-inbound
+  counts — plus the Settings, Billing and Analytics nav, a sign-out button and the
+  command palette. Fixing it means a nav variant (or an `operator` prop) that drops
+  the badges and the operator-only rail items for a non-operator viewer; the page
+  already knows the answer (`isOperator()`).
+- **The public JD page's saved-at stamp uses the server's time zone.** The date now
+  formats in the visitor's locale, but `i18n/request.ts` returns no `timeZone` and
+  `app/layout.tsx` passes `NextIntlClientProvider` only `locale` + `messages`, so
+  every next-intl / `toLocale*` format falls back to the environment default —
+  the server's zone during SSR, the browser's after hydration. Picking a zone
+  (workspace setting? UTC? the JD's own?) is a product decision, not a patch.
 - `campaign_packs` is keyed `(job_id, lang)` without `workspace_id`, so only ONE
   team can hold a pack for a given shared-corpus role + language. The second
   team's save is refused with an error instead of being silently lost; making it
@@ -451,6 +587,28 @@ include `workspace_id`).
   `jobs` + `stats`, so `JobsTabResults`' "Showing N of M" line keeps comparing a
   cut slice against `jobStats.total`. Plumbing the three fields through
   `useJobsList` into that line (and a load-more/pager) is the remaining half.
+- **The JD editor's 409 recovery destroys the edit it tells you to re-apply.**
+  `useJdEditor`'s content-CAS is correct — a concurrent write 409s instead of
+  clobbering — but the only way forward from the conflict discards the draft. The
+  copy reads "Reload to get the latest, then re-apply your edit"; in the ledger
+  modal `editReload` calls `onDone`, which leaves edit mode and unmounts
+  `JdsModalEditor`, taking `draftBody` with it. Re-saving without reloading is not
+  an option either: `baseBody` is fixed at mount, so every retry 409s again. A
+  recruiter who rewrote a long posting loses it with nothing to paste from.
+  Fixing it means keeping the editor mounted across the reload and showing the
+  server's latest body beside the draft (or at minimum offering the draft for
+  copy) — new copy in all four locales, and it belongs in the shared hook so the
+  public page's `JdActions` gets it too.
+- **The JD Ledger is a 200-row page presented as the library.** `GET /api/jds`
+  calls `listJds(200, ws)` and returns a bare `{ jds }` — no `truncated`, no
+  count — and the client has no pagination: `useJdLibrary` stores the array,
+  `filterAndSortJds` filters it in memory, and `JdsSavedLedgerPanel`'s footer
+  prints `entryCount` over `visible.length`. A workspace holding 240 non-archived
+  JDs therefore sees the 200 newest, a footer reading "200 entries", a Role search
+  that silently cannot find the 40 oldest, and Field/Seniority facet counts
+  computed only over the page. Same shape as `listJobs`' `LIMIT 300` trap above,
+  and the same fix: a `listJdsPage`-style `{ jds, truncated, limit }` plus a
+  "showing N of M" line (new `library.tab.*` copy across all four locales).
 - `GET /api/jobs/[id]/candidates` forwards `poolTruncated` (from
   `buildCandidatePool`) and **nothing reads it**: the `data` state in
   `app/features/library/jobs/jobsRecruiterCandidatesLogic.ts` types only

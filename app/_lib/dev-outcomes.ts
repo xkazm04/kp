@@ -459,7 +459,9 @@ export type Calibration = {
 //     defensible cut rather than an optimised one.
 //   • NO-CONVERGING-BAND FALLBACK = 85 — when NO band reaches the 0.5 hire rate, fall back to 85
 //     (the floor of the top BANDS tier): the most conservative advice available — "only promote
-//     the very strongest until the data shows a lower band converting".
+//     the very strongest until the data shows a lower band converting". That fallback is advice,
+//     NOT a measured band, so the rationale it carries is only ever "raise" or "weak" — never
+//     "calibrated"/"lower", which both assert a conversion that was observed (see below).
 //
 // SMALL-SAMPLE CAVEAT (why a suggestion can be noise): because BANDS are fixed, a band can be
 // decided by a single outcome. At n = 1 a band's hireRate is forced to exactly 0.0 or 1.0, so
@@ -542,11 +544,26 @@ export function calibrate(currentFloor: number, workspaceId: string = DEFAULT_WO
 
   // Which conclusion holds is the engine's call; the wording is the control room's
   // (control.calibration.rationale.* — see the CalibrationRationale note above).
+  //
+  // `good` (a band that actually converted) vs the 85 FALLBACK is load-bearing here: two of
+  // the five rationales ASSERT an observed conversion — "calibrated" says the floor "sits at
+  // the first band where most promoted candidates were hired", "lower" says the band between
+  // the suggestion and the current floor "converted well". On the fallback path NO band
+  // reached the majority test, so both sentences state the opposite of the hire-rate column
+  // rendered directly above them, on the screen whose button moves the live promote floor.
+  // The operator reaches that exact state by taking the app's own advice (apply suggested →
+  // 85, then read "well-calibrated" on the next poll). Only "raise" survives the fallback —
+  // "candidates below 85 rarely converted" is true when nothing converted anywhere, and it
+  // is the conservative direction the 85 fallback exists to advise. Everything else falls
+  // back to "weak" ("investigate the rubric before moving the floor"), which is what an
+  // all-zero hire rate actually supports.
   let rationale: CalibrationRationale;
   if (!predictive) {
     rationale = { kind: "weak" };
   } else if (suggestedFloor > currentFloor) {
     rationale = { kind: "raise", params: { current: currentFloor, suggested: suggestedFloor } };
+  } else if (!good) {
+    rationale = { kind: "weak" };
   } else if (suggestedFloor < currentFloor) {
     rationale = { kind: "lower", params: { current: currentFloor, suggested: suggestedFloor } };
   } else {

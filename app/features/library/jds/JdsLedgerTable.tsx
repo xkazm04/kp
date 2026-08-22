@@ -10,9 +10,14 @@ import { JdsLedgerTableHead } from "./JdsLedgerTableHead";
 import { JdsLedgerRow } from "./JdsLedgerRow";
 
 // The table's column count; kept in one place so the "no match" / empty / loading
-// rows span them all. Bumped 7 → 9 when the per-role Pipeline and Hired columns
-// arrived from the Analytics scoreboard prototype.
-const COLS = 9;
+// rows span them all. Role · Field · Seniority · Status · Pipeline · Analyzed ·
+// Saved · Actions — 8, matching JdsLedgerTableHead's five <th> + three <ColumnHead>
+// and JdsLedgerRow's eight <td>. It read 9 from the moment the Analytics scoreboard
+// columns landed as a SPLIT Pipeline + Hired pair; they were merged back into the
+// single Pipeline cell (see JdsLedgerRow's note) without walking this back, so every
+// colSpan below declared a phantom ninth column that no header names — an extra
+// headerless column in the accessibility tree on the empty / no-match / loading rows.
+const COLS = 8;
 
 // The saved-JD table: filterable column headers + rows, plus its own empty/no-
 // match/loading states — extracted verbatim from LibrarySavedJdsLedger.tsx so

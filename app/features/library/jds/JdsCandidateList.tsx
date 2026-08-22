@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { History, RotateCcw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
+import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { shortDate } from "./jdsLibrary";
 
 type JdAnalysisRow = {
@@ -23,6 +24,12 @@ export function JdCandidateList({ slug, count }: { slug: string; count: number }
   const t = useTranslations("library.tab");
   // The JD-edited stamp follows the APP locale, not the browser/OS one (see shortDate).
   const locale = useLocale();
+  // Role family + seniority arrive as canonical SLUGS ("software_engineering",
+  // "senior"). They used to be printed raw under a `capitalize` class, which renders
+  // "Software_engineering · Senior" in every locale — the one place in this feature
+  // that bypassed the shared enums catalog while the ledger column one panel over
+  // (JdsLedgerRow) and the analyze history table both localize the same values.
+  const enumLabel = useEnumLabel();
 
   const [analyses, setAnalyses] = useState<JdAnalysisRow[] | null>(null);
   // When the JD body last changed (null = never edited). Any analysis scored
@@ -87,8 +94,9 @@ export function JdCandidateList({ slug, count }: { slug: string; count: number }
               <Link href={`/history/${row.slug}`} className="text-sm font-semibold text-ink hover:text-coral hover:underline">
                 {row.candidate_label}
               </Link>
-              <p className="truncate text-sm capitalize text-steel">
-                {row.role_family ?? "—"} · {row.seniority ?? "—"}
+              <p className="truncate text-sm text-steel">
+                {row.role_family ? enumLabel("family", row.role_family) : "—"} ·{" "}
+                {row.seniority ? enumLabel("seniority", row.seniority) : "—"}
               </p>
               {stale ? (
                 <span

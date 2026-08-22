@@ -79,7 +79,16 @@ export function JdsLedgerDetailRail({
           {duplicating ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Copy size={15} aria-hidden />}
           {t("duplicate")}
         </button>
-        {isUnlinked(row) ? (
+        {/* Gate on effRow (the POLLED status), not the snapshot row the ledger
+            handed us: statusCategory returns "analyzing"/"failed" ahead of the
+            linked-job status, so a modal opened mid-build kept isUnlinked(row)
+            false after the poll flipped it ready — the rail showed the Unlinked
+            chip (which already reads effRow) with no way to ingest until the modal
+            was closed and reopened. It also failed the other way: after a Retry the
+            snapshot still said ready/unlinked, so "Ingest as job" stayed clickable
+            during the rebuild and would have spent an LLM parse on the pre-retry
+            body. */}
+        {isUnlinked(effRow) ? (
           <button
             type="button"
             onClick={ing.run}

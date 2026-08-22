@@ -277,6 +277,44 @@ test("ratings are per workspace — one team's on-the-job data never counts for 
   assert.equal(latestOutcomeByRefs([`${PIPELINE_OUTCOME_REF_PREFIX}pe-1`], "workspace").get(`${PIPELINE_OUTCOME_REF_PREFIX}pe-1`)?.performance, 4);
 });
 
+// The 85 NO-CONVERGING-BAND fallback is "nothing converted anywhere, stay conservative"
+// advice — NOT a measured band. Two of the five rationales assert a conversion that was
+// actually observed: "calibrated" says the floor "sits at the first band where most promoted
+// candidates were hired", and "lower" says the band between the suggestion and the current
+// floor "converted well". Riding the fallback, both sentences contradict the hire-rate column
+// printed directly above them in CalibrationPanel — and the operator reaches that state by
+// TAKING THE APP'S OWN ADVICE: apply suggested → 85, then read "well-calibrated" on the next
+// 3-second poll. Pre-fix these assertions fail with "calibrated" / "lower".
+test("the no-converging-band fallback never claims a floor is calibrated or too strict", () => {
+  for (const [ref, score] of [
+    ["z1", 95],
+    ["z2", 88],
+    ["z3", 60],
+    ["z4", 50],
+  ] as const) {
+    recordOutcome({ ref, predictedScore: score, outcome: "rejected" });
+  }
+  const atFallback = calibrate(85);
+  assert.equal(atFallback.suggestedFloor, 85, "the conservative fallback itself is unchanged");
+  assert.equal(atFallback.rationale.kind, "weak", "no band converted — the floor is not 'well-calibrated'");
+  const above = calibrate(90);
+  assert.equal(above.rationale.kind, "weak", "no band converted — 85–90 did not 'convert well'");
+  // Raising toward the fallback is the documented conservative advice and stays truthful:
+  // with every band at a 0 hire rate, "candidates below 85 rarely converted" holds.
+  assert.equal(calibrate(55).rationale.kind, "raise");
+});
+
+test("a band that really did convert still reads as calibrated at its own floor", () => {
+  recordOutcome({ ref: "c1", predictedScore: 60, outcome: "hired" });
+  recordOutcome({ ref: "c2", predictedScore: 65, outcome: "hired" });
+  recordOutcome({ ref: "c3", predictedScore: 40, outcome: "rejected" });
+  recordOutcome({ ref: "c4", predictedScore: 20, outcome: "rejected" });
+  const cal = calibrate(55);
+  assert.equal(cal.suggestedFloor, 55); // the 55–69 band converted
+  assert.equal(cal.rationale.kind, "calibrated"); // a real converging band still earns the claim
+  assert.equal(calibrate(70).rationale.kind, "lower"); // …and so does the "too strict" advice
+});
+
 test("calibrate counts an upserted ref once — a re-record cannot inflate the resolved sample", () => {
   recordOutcome({ ref: "a", outcome: "hired", predictedScore: 90 });
   recordOutcome({ ref: "b", outcome: "hired", predictedScore: 88 });

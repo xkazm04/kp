@@ -36,6 +36,7 @@ export function JdModalEditor({
   initialTitle,
   initialBody,
   marketResearch,
+  linked,
   stagedSuggestion,
   onDone,
 }: {
@@ -46,6 +47,12 @@ export function JdModalEditor({
   // suppression exactly as the builder does (the same seam), so a role that carries
   // a band doesn't trip the missing-salary advisory.
   marketResearch: boolean;
+  // Whether a matchable `jd-<slug>` job exists behind this JD. The PATCH route only
+  // re-ingests the linked role inside `if (getJob(jobId))`, so the "edits update the
+  // linked role too" note is TRUE only here — on an unlinked JD it promised a resync
+  // the server never runs (and contradicted the Unlinked chip + "Ingest as job"
+  // button in the rail one column over). False ⇒ the note is simply not shown.
+  linked: boolean;
   // winnability-apply — when the editor was opened from a coach recommendation, the
   // staged change to surface as a dismissible suggestion banner above the fields.
   // Advisory only: the recruiter makes the wording change themselves and saves
@@ -137,7 +144,7 @@ export function JdModalEditor({
           >
             <History size={13} aria-hidden /> {editor.historyOpen ? t("editHideHistory") : t("editHistory")}
           </button>
-          <span className="text-sm text-steel">{t("editLinkedNote")}</span>
+          {linked ? <span className="text-sm text-steel">{t("editLinkedNote")}</span> : null}
         </div>
 
         {editor.error ? (
