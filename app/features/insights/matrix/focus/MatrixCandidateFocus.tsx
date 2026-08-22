@@ -6,6 +6,7 @@ import { ChainEmptyState } from "@/app/_components/ChainEmptyState";
 import { SegmentedControl } from "@/app/_components/SegmentedControl";
 import { Select } from "@/app/_components/Select";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import type { OptionsPlaceholder } from "./matchView";
 import { useMatchTabRun } from "./useMatchTabRun";
 
 // The Matrix tab's CANDIDATE FOCUS mode — formerly the standalone Match tab.
@@ -35,12 +36,16 @@ const MatchResults = dynamic(() => import("./MatchResults").then((m) => ({ defau
 
 export function MatrixCandidateFocus() {
   const t = useTranslations("match.tab");
+  // Shares the grid's catalog for the one string both modes need verbatim — the
+  // honest "the read failed" label, so an outage can't be reported as an empty account.
+  const tMatrix = useTranslations("matrix");
   const enumLabel = useEnumLabel();
   const {
     source, setSource,
     profiles, stale,
     analyses,
     optionsLoaded,
+    profilePlaceholder, analysisPlaceholder,
     selProfile, setSelProfile,
     selAnalysis, setSelAnalysis,
     result, matchRef,
@@ -49,6 +54,11 @@ export function MatrixCandidateFocus() {
     runMatchFor, runMatch,
     view,
   } = useMatchTabRun(t);
+
+  // Three mutually-exclusive reasons a candidate list is empty — in flight, the read
+  // failed, or the account really has none. Only the last may name a next step.
+  const placeholderLabel = (kind: Exclude<OptionsPlaceholder, null>, emptyLabel: string) =>
+    kind === "loading" ? t("loadingOptions") : kind === "failed" ? tMatrix("loadFailed") : emptyLabel;
 
   return (
     // aria-busy covers only the first options load (GET /api/profile +
@@ -82,18 +92,16 @@ export function MatrixCandidateFocus() {
               disabled={!optionsLoaded}
               className="min-w-[280px]"
               options={
-                !optionsLoaded
-                  ? [{ value: "", label: t("loadingOptions") }]
-                  : profiles.length === 0
-                    ? [{ value: "", label: t("noProfiles") }]
-                    : profiles.map((p) => ({
-                        value: p.id,
-                        label: t("profileOption", {
-                          label: p.label,
-                          archetype: enumLabel("archetype", p.archetype ?? ""),
-                          completeness: Math.round((p.completeness ?? 0) * 100),
-                        }),
-                      }))
+                profilePlaceholder
+                  ? [{ value: "", label: placeholderLabel(profilePlaceholder, t("noProfiles")) }]
+                  : profiles.map((p) => ({
+                      value: p.id,
+                      label: t("profileOption", {
+                        label: p.label,
+                        archetype: enumLabel("archetype", p.archetype ?? ""),
+                        completeness: Math.round((p.completeness ?? 0) * 100),
+                      }),
+                    }))
               }
             />
           ) : (
@@ -104,14 +112,12 @@ export function MatrixCandidateFocus() {
               disabled={!optionsLoaded}
               className="min-w-[280px]"
               options={
-                !optionsLoaded
-                  ? [{ value: "", label: t("loadingOptions") }]
-                  : analyses.length === 0
-                    ? [{ value: "", label: t("noAnalyses") }]
-                    : analyses.map((a) => ({
-                        value: a.slug,
-                        label: t("analysisOption", { label: a.candidate_label, family: a.role_family ?? "—", seniority: a.seniority ?? "—" }),
-                      }))
+                analysisPlaceholder
+                  ? [{ value: "", label: placeholderLabel(analysisPlaceholder, t("noAnalyses")) }]
+                  : analyses.map((a) => ({
+                      value: a.slug,
+                      label: t("analysisOption", { label: a.candidate_label, family: a.role_family ?? "—", seniority: a.seniority ?? "—" }),
+                    }))
               }
             />
           )}

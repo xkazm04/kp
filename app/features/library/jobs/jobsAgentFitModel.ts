@@ -102,6 +102,16 @@ export function toggleConnector(list: string[], name: string): string[] {
 export function budgetFromInput(text: string): { value: number | null; invalid: boolean } {
   const trimmed = text.trim();
   if (!trimmed) return { value: null, invalid: false };
+  // A single comma is the cs/de/fr DECIMAL separator, so "99,5" is 99.5 — but a
+  // GROUP separator wears the same character. "2,000" fell through this function as
+  // Number("2.000") = 2 with invalid:false, so an operator capping an agent at
+  // $2,000/month dispatched it with a $2 cap and never saw a validation error. Which
+  // one "2,000" means is genuinely undecidable across the four locales this app ships
+  // (1500 in en, 1.5 in cs), so a grouped-LOOKING value — 1-3 digits, one separator,
+  // exactly 3 digits — is reported invalid and retyped rather than guessed. Values
+  // that cannot be read as grouping ("1234.56") and the decimal comma are untouched;
+  // two separators ("1,234.56") already fell out as NaN below.
+  if (/^\d{1,3}[.,]\d{3}$/.test(trimmed)) return { value: null, invalid: true };
   const n = Number(trimmed.replace(",", "."));
   if (!Number.isFinite(n) || n < 0) return { value: null, invalid: true };
   return { value: Math.round(n * 100) / 100, invalid: false };

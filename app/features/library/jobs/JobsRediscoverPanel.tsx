@@ -21,15 +21,27 @@ const PRIOR_STYLE: Record<string, string> = {
 
 export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const t = useTranslations("jobs.rediscover");
+  // The shared "+{count} more" truncation line (match.card.moreCount) — the same
+  // parameterized, plural-correct string the match cards and the pipeline board
+  // already use for a cut list, borrowed rather than forked into a new key.
+  const tMore = useTranslations("match.card");
   // Localized pipeline-stage name for the disclosed prior depth (canonical stage →
   // enums.stage, with graceful fallback — the recruiter-side enum-label helper).
   const enumLabel = useEnumLabel();
-  const { data: body, error } = useJsonFetch<{ rediscovered?: Rediscovered[]; skipped?: SkippedCandidate[] }>(
-    `/api/jobs/${encodeURIComponent(jobId)}/rediscover`,
-    t("loadFailed")
-  );
+  const { data: body, error } = useJsonFetch<{
+    rediscovered?: Rediscovered[];
+    skipped?: SkippedCandidate[];
+    // How many silver medalists cleared the bar BEYOND the ones returned —
+    // rediscoverForJob slices at REDISCOVER_LIMIT (20) and reports the remainder.
+    more?: number;
+  }>(`/api/jobs/${encodeURIComponent(jobId)}/rediscover`, t("loadFailed"));
   const data = body ? body.rediscovered ?? [] : null;
   const skipped = body?.skipped ?? [];
+  // The route has always shipped this and this panel has always dropped it, so a
+  // pool with 35 qualifying past candidates rendered its top 20 and said nothing —
+  // presenting a cut slice as "the past candidates who clear the bar for this role"
+  // on the one surface whose promise is that nobody falls through the cracks.
+  const more = typeof body?.more === "number" && body.more > 0 ? body.more : 0;
   const { add, added, adding, error: addError, announce } = useAddToPipeline(jobId, jobTitle, "sourcing");
   const { reach, reached, reaching, error: reachError, announce: reachAnnounce } = useReachOut(jobId, "sourcing");
 
@@ -152,6 +164,9 @@ export function RediscoverPanel({ jobId, jobTitle }: { jobId: string; jobTitle: 
           );
         })}
       </ul>
+      {more > 0 ? (
+        <p className="mt-2 text-sm text-steel">{tMore("moreCount", { count: more })}</p>
+      ) : null}
     </div>
   );
 }

@@ -34,7 +34,14 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    rendering a partial answer as 100%.
 3. **Edit + dispatch**: name, mission, connector chips (catalog via
    `GET /api/agents/catalog`) and the monthly budget are editable; *Dispatch to Personas*
-   POSTs the overrides. A `hired_agents` row is minted (idempotent — one live agent per
+   POSTs the overrides. The budget field is free text (`inputMode="decimal"`) and
+   `budgetFromInput` reads a comma as the cs/de/fr **decimal** separator, so `99,5` is
+   99.5 — but a **group** separator wears the same character, and `2,000` used to parse
+   as `Number("2.000")` = 2 with no validation shown, dispatching a $2/month cap where
+   the operator meant $2,000. `2,000` is 2000 in `en` and 2.0 in `cs`, so a
+   grouped-*looking* value (1–3 digits, one separator, exactly 3 digits) is now reported
+   invalid and retyped rather than guessed; `1234.56` and the decimal comma are
+   untouched. Pinned by `jobsAgentFitModel.test.ts`. A `hired_agents` row is minted (idempotent — one live agent per
    job) and the agent enters the pipeline at Offer (`candidateId agent-<id>`,
    `sourceChannel agent-bridge`).
 4. **Approve in Personas**: the status ladder is

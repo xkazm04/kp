@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { useTranslations } from "next-intl";
 import type { AnalysisRow, MatchRef, MatchResponse, ProfileRow, WeightVector } from "@/app/features/shared/matchTypes";
-import { selectMatchView } from "./matchView";
+import { candidateOptionsPlaceholder, selectMatchView } from "./matchView";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 
 type Translator = ReturnType<typeof useTranslations>;
@@ -21,6 +21,12 @@ export function useMatchTabRun(t: Translator) {
   const [stale, setStale] = useState<Record<string, { newerSlug: string; newerAnalyzedAt: string }>>({});
   const [analyses, setAnalyses] = useState<AnalysisRow[]>([]);
   const [optionsLoaded, setOptionsLoaded] = useState(false);
+  // Per-list load failure. A 500 from either options route resolves to a body with
+  // no rows, so without this an outage rendered as "No saved profiles/analyses" —
+  // an empty state asserting a cause it cannot know (the account is not empty; the
+  // read failed). Tracked separately per list because either can fail alone.
+  const [profilesFailed, setProfilesFailed] = useState(false);
+  const [analysesFailed, setAnalysesFailed] = useState(false);
   const [selProfile, setSelProfile] = useState("");
   const [selAnalysis, setSelAnalysis] = useState("");
 
@@ -56,24 +62,45 @@ export function useMatchTabRun(t: Translator) {
     // Track when BOTH option fetches have settled so the candidate <select> can show a
     // loading placeholder instead of "No saved profiles/analyses" (which conflated the
     // in-flight fetch with a genuinely empty account).
+    // Both reads check `r.ok` BEFORE trusting the body: a failed fetch must land in
+    // the failed branch, never in the "genuinely empty account" one — which also
+    // means a profile-read outage no longer silently flips the source segment to
+    // "Saved analysis" the way a truly empty profile list legitimately does.
     Promise.allSettled([
       fetch("/api/profile")
-        .then((r) => r.json())
+        .then(async (r) => {
+          const p = (await r.json().catch(() => ({}))) as {
+            profiles?: ProfileRow[];
+            stale?: Record<string, { newerSlug: string; newerAnalyzedAt: string }>;
+          };
+          if (!r.ok) throw new Error("profile options");
+          return p;
+        })
         .then((p) => {
           if (!alive) return;
-          const rows = (p.profiles as ProfileRow[]) ?? [];
+          const rows = p.profiles ?? [];
           setProfiles(rows);
-          setStale((p.stale as Record<string, { newerSlug: string; newerAnalyzedAt: string }>) ?? {});
+          setStale(p.stale ?? {});
           if (rows.length) setSelProfile(rows[0].id);
           else setSource("analysis");
+        })
+        .catch(() => {
+          if (alive) setProfilesFailed(true);
         }),
       fetch("/api/analyses")
-        .then((r) => r.json())
+        .then(async (r) => {
+          const p = (await r.json().catch(() => ({}))) as { analyses?: AnalysisRow[] };
+          if (!r.ok) throw new Error("analysis options");
+          return p;
+        })
         .then((p) => {
           if (!alive) return;
-          const rows = (p.analyses as AnalysisRow[]) ?? [];
+          const rows = p.analyses ?? [];
           setAnalyses(rows);
           if (rows.length) setSelAnalysis(rows[0].slug);
+        })
+        .catch(() => {
+          if (alive) setAnalysesFailed(true);
         }),
     ]).finally(() => {
       if (alive) setOptionsLoaded(true);
@@ -154,11 +181,25 @@ export function useMatchTabRun(t: Translator) {
   // reserved for when there is no ranking to protect.
   const view = selectMatchView({ hasResult: result !== null, error, loading });
 
+  // Which of "loading" / "failed" / "empty" the candidate <select> may claim — never
+  // more than the fetch actually proved.
+  const profilePlaceholder = candidateOptionsPlaceholder({
+    loaded: optionsLoaded,
+    failed: profilesFailed,
+    count: profiles.length,
+  });
+  const analysisPlaceholder = candidateOptionsPlaceholder({
+    loaded: optionsLoaded,
+    failed: analysesFailed,
+    count: analyses.length,
+  });
+
   return {
     source, setSource,
     profiles, stale,
     analyses,
     optionsLoaded,
+    profilePlaceholder, analysisPlaceholder,
     selProfile, setSelProfile,
     selAnalysis, setSelAnalysis,
     result, matchRef,

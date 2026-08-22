@@ -278,6 +278,28 @@ every gate and left the badge the recruiter reads on the old scale. Pinned by
 `app/_lib/fit-thresholds.test.ts`. The TS↔Python pairing itself stays hand-kept —
 one number on each side of the boundary, and both sides say so.
 
+### Both modes say when their field was cut
+Every list on this surface is capped, so each cap is stated rather than hidden —
+the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
+
+- **Grid.** `/api/matrix` scores at most `MATRIX_POOL_CAP` profiles and returns the
+  unclamped `poolTotal` beside it; `MatrixDataNotices.tsx` renders `matrix.ofCount`
+  ("200 of 350") whenever `poolTotal > poolCap`.
+- **Candidate focus.** `useMatchTabRun` posts `limit: 25` and `matching.py::match`
+  returns `scored[:limit]`, reporting BOTH `meta.survivors` (roles that cleared every
+  KO gate and were scored) and `meta.returned` (the slice). `rankedField` compares
+  them and `MatchResultsHeader.tsx` renders the "Ranked" chip as the same
+  `matrix.ofCount` sentence — "25 of 74" — when the cap cut the list, plain "25" when
+  it didn't. Without it the chip row read "Evaluated 120 · KO-filtered 46 · Ranked
+  25": arithmetic that doesn't close, with 49 scored roles invisible (the CSV export
+  carries the same slice).
+- **Candidate picker.** The `/api/profile` and `/api/analyses` option reads check
+  `r.ok` before trusting the body, so `candidateOptionsPlaceholder` can tell the
+  three cases apart — in flight ("Loading…"), the read failed (`matrix.loadFailed`),
+  or the account genuinely has none ("No saved profiles (build one in Profile)"). A
+  failed profile read also no longer flips the source segment to "Saved analysis" the
+  way a truly empty list legitimately does.
+
 ## Data model
 
 - `pipeline_entries.match_score` — a **snapshot** at score time, not
@@ -355,6 +377,14 @@ degrading to English for the other app locales rather than failing.
 
 ## Known gaps
 
+- The candidate-focus **picker itself** is still silently capped: `/api/analyses`
+  returns `listAnalyses(200, ws)` and `/api/profile` returns `cachedProfileRecords(ws)`
+  (the old `listProfiles(200, ws)`), and neither carries a total or a `truncated`
+  flag — so past 200 saved candidates the dropdown quietly omits the oldest with no
+  "showing 200 of N". The UI half is ready (`candidateOptionsPlaceholder` /
+  `matrix.ofCount`); closing it needs the two routes to return the count, following
+  the `listJobsPage`/`countJobs` template in `app/_lib/db/jobs.ts`. Deep links
+  (`?analysis=<slug>`, `?profile=<id>`) still reach an omitted candidate.
 - Salary anchoring for CV analysis still uses the matched job's band rather
   than a candidate-seniority band when the two diverge — tracked in
   `docs/features/candidates/README.md`.

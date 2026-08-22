@@ -72,6 +72,22 @@ test("budgetFromInput: empty = no cap, junk = invalid, comma decimals accepted",
   assert.deepEqual(budgetFromInput("abc"), { value: null, invalid: true });
 });
 
+test("budgetFromInput: a grouped-looking thousands value is refused, never read as a decimal", () => {
+  // The bug this guards: the comma-decimal support ("99,5" -> 99.5) also swallowed a
+  // GROUP separator. Typing "2,000" into the Monthly budget (USD) field returned
+  // { value: 2, invalid: false }, so buildOverrides POSTed budgetUsd: 2 and the agent
+  // was dispatched with a $2/month cap instead of $2,000 — with no validation shown.
+  // "2,000" is 2000 in en and 2.0 in cs, so it is refused, not guessed.
+  assert.deepEqual(budgetFromInput("2,000"), { value: null, invalid: true });
+  assert.deepEqual(budgetFromInput("12,500"), { value: null, invalid: true });
+  assert.deepEqual(budgetFromInput("1.000"), { value: null, invalid: true });
+  // And nothing that ISN'T grouping-shaped is refused: the decimal comma still
+  // parses, and a plain 4-digit value (with or without decimals) is untouched.
+  assert.deepEqual(budgetFromInput("99,5"), { value: 99.5, invalid: false });
+  assert.deepEqual(budgetFromInput("2000"), { value: 2000, invalid: false });
+  assert.deepEqual(budgetFromInput("1234.56"), { value: 1234.56, invalid: false });
+});
+
 test("buildOverrides carries exactly the fields the dispatch route honors", () => {
   const overrides = buildOverrides({ name: " A ", mission: " m ", connectors: ["gmail"], budget: "50" });
   assert.deepEqual(overrides, { name: "A", mission: "m", connectors: ["gmail"], budgetUsd: 50 });

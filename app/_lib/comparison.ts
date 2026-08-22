@@ -24,6 +24,11 @@ const COMPONENT_LABELS: Record<ComponentKey, string> = SCORE_COMPONENT_LABELS;
 export type CompareDriver = NonNullable<ComparisonPayload["driverInsightItems"]>[number];
 type SectionPick = ComparisonPayload["mergedRecommendation"]["sectionPicks"][number];
 
+/** The ranking/narrative axis code, derived from the persisted schema's
+ *  `compareMetricSchema` so the axis this module ranks on and the code CompareTab
+ *  localizes can never drift apart. */
+export type CompareMetric = Extract<CompareDriver, { kind: "delta" }>["metric"];
+
 /**
  * True when an analysis carries a comparison that meets the minimum-variant
  * contract (>= MIN_COMPARISON_VARIANTS). This is the SINGLE gate the UI consults:
@@ -95,29 +100,46 @@ export function buildComparison(inputs: ComparisonInput[]): ComparisonPayload {
 }
 
 // THE winner-by-index rule, in one place. The winning variant is the one with the
-// max `primaryScore`; a strict `>` keeps the EARLIEST column on a tie, matching the
-// stable order variants are stored in. buildComparison crowns `bestLabel` with it,
-// and BOTH the compare grid (which highlights a column) and the verdict banner (which
-// headlines the winner) import it — so a label collision or a tie can never make the
-// three surfaces disagree about who won. Returns an index (not a label) because labels
-// aren't unique: two CV variants can share a filename.
+// max `primaryScore` ON THE COHORT'S SHARED AXIS (see comparisonMetric); a strict `>`
+// keeps the EARLIEST column on a tie, matching the stable order variants are stored
+// in. buildComparison crowns `bestLabel` with it, and BOTH the compare grid (which
+// highlights a column) and the verdict banner (which headlines the winner) import it —
+// so a label collision or a tie can never make the three surfaces disagree about who
+// won. Returns an index (not a label) because labels aren't unique: two CV variants
+// can share a filename.
 export function resolveWinnerIndex(variants: ComparisonVariant[]): number {
+  const metric = comparisonMetric(variants);
   let winner = 0;
   for (let i = 1; i < variants.length; i++) {
-    if (primaryScore(variants[i]) > primaryScore(variants[winner])) winner = i;
+    if (primaryScore(variants[i], metric) > primaryScore(variants[winner], metric)) winner = i;
   }
   return winner;
 }
 
-// The single "which score ranks this variant" rule: the job-fit score when present,
-// else the component total. Exported so CompareTab's winner-by-index highlight uses
-// the exact same order buildComparison ranks by — the two can't crown different
-// columns.
-export function primaryScore(variant: ComparisonVariant): number {
-  if (variant.jobFitScore != null) {
-    return variant.jobFitScore;
-  }
-  return variant.score.total;
+/** THE axis a whole cohort of variants is ranked and narrated on.
+ *
+ *  Job-fit is the sharper signal, but it is a DIFFERENT 0-100 producer than the
+ *  component total, and `jobFit` is nullish per analysis (`schemas.generated.ts`):
+ *  each variant is an independent engine call, so a JD-bound multi-CV run can come
+ *  back with a job-fit read for one variant and none for another. Picking the axis
+ *  PER VARIANT then ranked one CV's job-fit against another's component total — two
+ *  incomparable scales — and labelled the mixed pair "overall score": a variant with
+ *  jobFit 82 / total 55 was crowned over a variant with total 74, and the driver line
+ *  read `leads by 8 on overall score (82 vs 74)` where the leader's overall is 55.
+ *  The axis is therefore resolved ONCE for the cohort: job-fit only when EVERY
+ *  variant carries one, else the component total every variant always has. */
+export function comparisonMetric(variants: ComparisonVariant[]): CompareMetric {
+  return variants.length > 0 && variants.every((v) => v.jobFitScore != null) ? "jobFit" : "overall";
+}
+
+// The single "which score ranks this variant" rule, read on the cohort's shared axis
+// (`comparisonMetric`). Exported so CompareTab's winner-by-index highlight uses the
+// exact same order buildComparison ranks by — the two can't crown different columns.
+export function primaryScore(variant: ComparisonVariant, metric: CompareMetric): number {
+  // The `?? score.total` is unreachable under a "jobFit" metric (comparisonMetric
+  // only returns it when every variant has a read) — it exists so a hand-built
+  // caller can never mint a number out of an absent job-fit.
+  return metric === "jobFit" ? variant.jobFitScore ?? variant.score.total : variant.score.total;
 }
 
 function computeDriverInsights(
@@ -135,15 +157,19 @@ function computeDriverInsights(
   // and the English fallback describe the exact same drivers in the same order.
   const items: CompareDriver[] = [];
 
-  const bestPrimary = primaryScore(best);
+  // "overall score" vs "job-fit score" is a code (CompareDriver.metric), localized
+  // at render; the English word only survives in the fallback string below. Resolved
+  // ONCE for the cohort — the same axis the winner was crowned on — so the reported
+  // numbers are always the ones the ranking actually used (it used to be recomputed
+  // per PAIR, which could label the same cohort two different ways and quote a
+  // variant's job-fit number under the words "overall score").
+  const metric = comparisonMetric(variants);
+  const metricWord = metric === "jobFit" ? "job-fit score" : "overall score";
+
+  const bestPrimary = primaryScore(best, metric);
   for (const other of others) {
-    const otherPrimary = primaryScore(other);
+    const otherPrimary = primaryScore(other, metric);
     const totalDelta = bestPrimary - otherPrimary;
-    // "overall score" vs "job-fit score" is a code (CompareDriver.metric), localized
-    // at render; the English word only survives in the fallback string below.
-    const metric: "overall" | "jobFit" =
-      best.jobFitScore != null && other.jobFitScore != null ? "jobFit" : "overall";
-    const metricWord = metric === "jobFit" ? "job-fit score" : "overall score";
     if (totalDelta === 0) {
       insights.push(`"${best.label}" ties "${other.label}" on ${metricWord} (${bestPrimary.toFixed(0)}).`);
       items.push({ kind: "tie", best: best.label, other: other.label, metric, score: Math.round(bestPrimary) });
@@ -247,12 +273,17 @@ function buildMergedRecommendation(
     reason: `Strongest experience framing (${summaryPick.score.experience.toFixed(0)} pts, ${summaryPick.yearsExperience} yrs surfaced).`,
     reasonParams: { pts: Math.round(summaryPick.score.experience), yrs: summaryPick.yearsExperience }
   });
+  // The bullets pick IS the crowned winner, so quote it on the axis it won on
+  // (comparisonMetric) — quoting a job-fit number here while the cohort ranked on
+  // overall totals (or vice versa) printed a figure that appears nowhere else in the
+  // report.
+  const metric = comparisonMetric(variants);
   sectionPicks.push({
     section: "Bullets",
     key: "bullets",
     sourceLabel: bulletsPick.label,
-    reason: `Highest overall fit (${primaryScore(bulletsPick).toFixed(0)}).`,
-    reasonParams: { score: Math.round(primaryScore(bulletsPick)) }
+    reason: `Highest overall fit (${primaryScore(bulletsPick, metric).toFixed(0)}).`,
+    reasonParams: { score: Math.round(primaryScore(bulletsPick, metric)) }
   });
   sectionPicks.push({
     section: "Skills line",
@@ -310,7 +341,10 @@ function mergeBestBullets(inputs: ComparisonInput[], variants: ComparisonVariant
   const merged: string[] = [];
   // Order INDICES by score (not variant objects), so a duplicate label can't collide
   // when we pull each variant's bullets from its own aligned input.
-  const orderedIdx = variants.map((_, i) => i).sort((a, b) => primaryScore(variants[b]) - primaryScore(variants[a]));
+  const metric = comparisonMetric(variants);
+  const orderedIdx = variants
+    .map((_, i) => i)
+    .sort((a, b) => primaryScore(variants[b], metric) - primaryScore(variants[a], metric));
   // Pull bullets from interviewTalkingPoints (when JD-bound) or strengths (otherwise);
   // both surface concrete evidence the candidate could lead a CV rewrite with.
   const bulletsByIndex = inputs.map((input) => [

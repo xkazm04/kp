@@ -1,11 +1,11 @@
 "use client";
 
 // Search + role-family/seniority/disposition filter row, split out of HistoryTab.tsx.
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { TextInput } from "@/app/_components/TextInput";
 import { Select } from "@/app/_components/Select";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { DISPOSITION_STYLE } from "./HistoryTypes";
+import { DISPOSITION_STYLE, sortOptionsByLabel } from "./HistoryTypes";
 
 export function HistoryFilterBar({
   q,
@@ -42,6 +42,10 @@ export function HistoryFilterBar({
 }) {
   const t = useTranslations("history");
   const enumLabel = useEnumLabel();
+  // The dropdowns list LOCALIZED labels, so they must be ordered by those labels
+  // in the active locale — not by the canonical English slug behind them. See
+  // sortOptionsByLabel for the two orderings this replaces.
+  const locale = useLocale();
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -60,14 +64,20 @@ export function HistoryFilterBar({
         value={roleFamily}
         onChange={setRoleFamily}
         size="sm"
-        options={[{ value: "", label: t("allFamilies") }, ...families.map((f) => ({ value: f, label: enumLabel("family", f) }))]}
+        options={[
+          { value: "", label: t("allFamilies") },
+          ...sortOptionsByLabel(families.map((f) => ({ value: f, label: enumLabel("family", f) })), locale),
+        ]}
       />
       <Select
         ariaLabel={t("filterSeniority")}
         value={seniority}
         onChange={setSeniority}
         size="sm"
-        options={[{ value: "", label: t("allSeniority") }, ...seniorities.map((s) => ({ value: s, label: enumLabel("seniority", s) }))]}
+        options={[
+          { value: "", label: t("allSeniority") },
+          ...sortOptionsByLabel(seniorities.map((s) => ({ value: s, label: enumLabel("seniority", s) })), locale),
+        ]}
       />
       <Select
         ariaLabel={t("filterDisposition")}

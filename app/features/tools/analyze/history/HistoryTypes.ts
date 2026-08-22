@@ -27,7 +27,31 @@ export const DISPOSITION_STYLE: Record<string, string> = {
 };
 
 // Distinct, sorted, non-null values of a column — drives the filter dropdowns
-// from whatever's actually in the loaded history.
+// from whatever's actually in the loaded history. The order here is over the
+// canonical English SLUGS (`sales_marketing`, `data_ai`); what the dropdown
+// actually shows is the localized label, so the caller re-sorts by that — see
+// sortOptionsByLabel.
 export function distinct(values: (string | null)[]): string[] {
   return [...new Set(values.filter((v): v is string => Boolean(v)))].sort();
+}
+
+// Filter-dropdown options ordered by what is ON SCREEN, in the reader's locale.
+//
+// Two bugs in one: the options were emitted in `distinct()`'s slug order, which
+// is alphabetical only for a reader of English — under `cs` the same order
+// renders as "Kreativa / design · Zákaznická podpora · Data / AI · Vzdělávání…",
+// i.e. no order at all. And re-sorting them with a plain `<` / locale-less
+// `localeCompare` would swap that for the classic Czech collation failure: `.sort()`
+// compares UTF-16 code units, so Č/Ř/Š/Ž (U+010C…) all file AFTER Z — "Řemesla /
+// technické profese" lands past "Zákaznická podpora", dead last. An Intl.Collator
+// bound to the ACTIVE locale is the only ordering a Czech recruiter can scan
+// (the rule analytics' `nameCollator` documents for candidate names).
+//
+// The leading "All role families" sentinel is prepended by the caller and is
+// deliberately not part of the input, so it always stays first.
+export function sortOptionsByLabel<T extends { label: string }>(options: T[], locale: string): T[] {
+  // `numeric` matches the shared name comparator, so "Level 2" precedes "Level 10";
+  // an unsupported tag makes the Intl constructor fall back rather than throw.
+  const collator = new Intl.Collator(locale, { numeric: true });
+  return [...options].sort((a, b) => collator.compare(a.label, b.label));
 }

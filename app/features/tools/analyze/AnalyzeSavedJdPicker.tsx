@@ -24,6 +24,22 @@ export function AnalyzeSavedJdPicker({
 }) {
   const t = useTranslations("analyze");
   if (jds.length === 0) {
+    // A failed load is NOT an empty library. `loadFailed` is otherwise only
+    // rendered in the populated branch below, so a ?jd= deep link whose body
+    // fetch failed (a deleted slug, or the same outage that left this list
+    // empty) fell through to "No JDs saved. Save one for reuse." — a claim about
+    // the library the client never confirmed, with the one message explaining
+    // why the pick vanished unreachable. Prefer the failure.
+    if (loadFailed) {
+      return (
+        <p
+          role="alert"
+          className="rounded-md border border-dashed border-coral/50 bg-white p-2 text-sm font-medium text-coral"
+        >
+          {t("jdLoadFailed")}
+        </p>
+      );
+    }
     return (
       <p className="rounded-md border border-dashed border-stone-300 bg-white p-2 text-sm text-steel">
         {t.rich("noJds", {

@@ -11,6 +11,7 @@ import { Chip, useMatchLabels } from "@/app/features/shared/MatchPresentation";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { PotentialBadge } from "@/app/_components/PotentialBadge";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { rankedField } from "./matchView";
 
 export function MatchResultsHeader({
   matchRef,
@@ -34,9 +35,18 @@ export function MatchResultsHeader({
   onExportCsv: () => void;
 }) {
   const t = useTranslations("match.results");
+  // This surface IS the Matrix tab's focus mode (MatrixTab owns the page header for
+  // both modes), so the grid's "{shown} of {total}" string is the same sentence in
+  // the same feature — reused rather than duplicated, exactly as MatrixDataNotices
+  // reuses it for the pool cap.
+  const tMatrix = useTranslations("matrix");
   const { assumptions: assumptionLabels } = useMatchLabels();
   const enumLabel = useEnumLabel();
   const router = useRouter();
+  // "Ranked" was the LIMIT, not the field: /api/match is called with limit 25 and
+  // meta.survivors carries how many roles actually cleared the KO filter. Say
+  // "25 of 74" when the cap cut the list, plain "25" when it didn't (see rankedField).
+  const ranked = rankedField(meta, matchesLength);
 
   return (
     <>
@@ -73,7 +83,11 @@ export function MatchResultsHeader({
         <Chip label={t("chipProfile")} value={`${candidate.roleFamily ? enumLabel("family", candidate.roleFamily) : "—"} / ${candidate.seniority ?? "—"}`} />
         <Chip label={t("chipEvaluated")} value={meta.evaluated ?? 0} />
         <Chip label={t("chipKoFiltered")} value={meta.koFiltered ?? 0} tone="amber" />
-        <Chip label={t("chipRanked")} value={meta.returned ?? matchesLength} tone="green" />
+        <Chip
+          label={t("chipRanked")}
+          value={ranked.total == null ? ranked.shown : tMatrix("ofCount", { shown: ranked.shown, total: ranked.total })}
+          tone="green"
+        />
         {early && candidate.potentialScore != null ? (
           <PotentialBadge
             potential={{

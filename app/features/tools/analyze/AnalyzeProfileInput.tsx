@@ -34,15 +34,39 @@ export function AnalyzeProfileInput({
   // The variant cap is enforced here, at the single add choke point, so a drop
   // beyond the limit (the drop-anywhere overlay stays live even once the Add
   // button is hidden) surfaces the inline message instead of silently vanishing.
-  const addFile = (file: File) => {
-    if (files.length >= maxVariants) {
+  //
+  // BATCH intake: this column advertises up to `maxVariants` ("Add variant
+  // (1/3)", the best-of-N comparison), so selecting three CVs at once and
+  // dropping them is the natural gesture — but every entry point used to read
+  // `files[0]` and discard the rest with NO message anywhere, leaving the user
+  // reading "1 of 3" and assuming the other two were queued. Each file still
+  // clears the same `accept` gate one at a time (nothing bypasses it); the loop
+  // stops on the first rejection so the gate's inline message can't be cleared
+  // by a later file's success, and a batch that overflows the cap ends on the
+  // same message a single over-cap drop already produced.
+  const addFiles = (incoming: File[]) => {
+    if (incoming.length === 0) return;
+    const room = maxVariants - files.length;
+    if (room <= 0) {
       reject(t("variantLimitReject", { count: maxVariants }));
       return;
     }
-    accept(file, onAdd);
+    for (const file of incoming.slice(0, room)) {
+      let committed = false;
+      accept(file, (next) => {
+        committed = true;
+        onAdd(next);
+      });
+      if (!committed) return; // the gate already said why; don't overwrite it
+    }
+    if (incoming.length > room) reject(t("variantLimitReject", { count: maxVariants }));
   };
+  const addFile = (file: File) => addFiles([file]);
   const replaceFile = (index: number, file: File) => accept(file, (next) => onReplace(index, next));
   // Drag-highlight state for the empty CV zone (shared with the JD/company zone).
+  // The shared hook's own `onDrop` commits `dataTransfer.files[0]` only; the
+  // empty zone overrides it below to take the whole batch, so `addFile` here is
+  // the single-file fallback the hook's signature still expects.
   const { isOver: isOverDropzone, dragProps } = useDropZoneHighlight(addFile);
 
   const isWindowDragging = useGlobalFileDrag(addFile);
@@ -100,6 +124,16 @@ export function AnalyzeProfileInput({
           htmlFor="profile-file-0"
           {...ownedDropZoneProps}
           {...dragProps}
+          // Deliberately AFTER {...dragProps}: the shared highlight hook's onDrop
+          // commits only files[0]. Snapshot the whole FileList (valid only during
+          // dispatch), clear the highlight through the hook's own leave handler,
+          // then run the batch through the single cap/gate path above.
+          onDrop={(event) => {
+            const dropped = Array.from(event.dataTransfer?.files ?? []);
+            event.preventDefault();
+            dragProps.onDragLeave(event);
+            addFiles(dropped);
+          }}
           className={`flex min-h-20 cursor-pointer flex-col items-center justify-center rounded-lg border px-3 text-center transition-colors ${
             isActive
               ? "border-solid border-coral bg-coral/5"
@@ -116,11 +150,11 @@ export function AnalyzeProfileInput({
         <input
           id="profile-file-0"
           type="file"
+          multiple
           accept={ACCEPT_EXTENSIONS}
           className="sr-only"
           onChange={(event) => {
-            const next = event.target.files?.[0];
-            if (next) addFile(next);
+            addFiles(Array.from(event.target.files ?? []));
             event.target.value = "";
           }}
         />
@@ -146,7 +180,7 @@ export function AnalyzeProfileInput({
       isWindowDragging={isWindowDragging}
       dragOverlay={dragOverlay}
       errorRow={errorRow}
-      onAddFile={addFile}
+      onAddFiles={addFiles}
       onReplaceFile={replaceFile}
       onRemove={onRemove}
     />

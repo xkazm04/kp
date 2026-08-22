@@ -27,6 +27,11 @@ export function JobsTab() {
 
   const { openJob, setOpenJob, armPendingOpen, lookupMissed, dismissLookupMissed } = useJobsTabDeepLink(jobs);
 
+  // Entry-eligible share of the WHOLE catalog: both halves come from jobStats, which
+  // is workspace-wide and unfiltered, so the chip's numerator and denominator are one
+  // population regardless of the filters applied to the table below.
+  const entryPct = stats ? (stats.entryEligible / Math.max(stats.total, 1)) * 100 : 0;
+
   return (
     // Tier 1 (docs/design/loading-choreography.md): header, filters and the table's
     // column headers are chrome — they render on the first frame regardless of
@@ -68,7 +73,12 @@ export function JobsTab() {
           <Chip label={t("statTotal")} value={stats.total} />
           <Chip
             label={t("statEntryEligible")}
-            value={`${stats.entryEligible} (${formatPercent((stats.entryEligible / Math.max(stats.total, 1)) * 100)})`}
+            // A share that exists must never print as an absolute zero: at whole-number
+            // precision a workspace with 1 entry-eligible role in 400 rendered
+            // "1 (0%)" — its own count contradicting its own percentage. A sub-0.5%
+            // share (and only that case) keeps one decimal; every ordinary share stays
+            // the whole number the chip has always shown.
+            value={`${stats.entryEligible} (${formatPercent(entryPct, { digits: entryPct > 0 && entryPct < 0.5 ? 1 : 0 })})`}
             tone="green"
           />
           {Object.entries(stats.byRoleFamily).map(([k, v]) => (

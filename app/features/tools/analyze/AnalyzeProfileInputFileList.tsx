@@ -16,7 +16,7 @@ export function AnalyzeProfileInputFileList({
   isWindowDragging,
   dragOverlay,
   errorRow,
-  onAddFile,
+  onAddFiles,
   onReplaceFile,
   onRemove,
 }: {
@@ -25,7 +25,9 @@ export function AnalyzeProfileInputFileList({
   isWindowDragging: boolean;
   dragOverlay: ReactNode;
   errorRow: ReactNode;
-  onAddFile: (file: File) => void;
+  /** Batch intake — the "add another variant" picker accepts a multi-selection,
+   *  so the parent's single cap/gate path decides how many of them fit. */
+  onAddFiles: (files: File[]) => void;
   onReplaceFile: (index: number, file: File) => void;
   onRemove: (index: number) => void;
 }) {
@@ -96,14 +98,18 @@ export function AnalyzeProfileInputFileList({
             <Plus className="h-3.5 w-3.5" aria-hidden />
             {t("addVariant", { current: files.length, max: maxVariants })}
           </label>
+          {/* `multiple`: with room for more than one variant left, picking two
+              files at once used to keep the first and drop the rest silently —
+              while this very label reads "Add variant (1/3)". The parent applies
+              the cap and surfaces the inline message for any overflow. */}
           <input
             id={`profile-file-${files.length}`}
             type="file"
+            multiple={maxVariants - files.length > 1}
             accept={ACCEPT_EXTENSIONS}
             className="sr-only"
             onChange={(event) => {
-              const next = event.target.files?.[0];
-              if (next) onAddFile(next);
+              onAddFiles(Array.from(event.target.files ?? []));
               event.target.value = "";
             }}
           />

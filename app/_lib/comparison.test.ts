@@ -30,6 +30,10 @@ function analysisWith(opts: {
   traits: number;
   yearsExperience: number;
   skillList: string[];
+  /** Optional job-fit read. `jobFit` is nullish in the persisted schema: each CV
+   *  variant is an independent engine call, so a JD-bound run can return a job-fit
+   *  read for one variant and none for another. */
+  jobFitScore?: number;
 }): Analysis {
   return analysisSchema.parse({
     candidate: {
@@ -65,6 +69,25 @@ function analysisWith(opts: {
     recommendations: ["Highlight system-design ownership."],
     explanation: "Strong senior backend match.",
     sanityChecks: [],
+    ...(opts.jobFitScore == null
+      ? {}
+      : {
+          jobFit: {
+            score: opts.jobFitScore,
+            summary: "Fits the payments brief.",
+            matchingSkills: ["python"],
+            missingSkills: ["kafka"],
+            seniorityAlignment: "aligned",
+            roleAlignment: "aligned",
+            salaryAssessment: "within band",
+            recommendations: ["Probe event-driven depth."],
+            interviewTalkingPoints: ["Walk through the migration."],
+            cvRewriteSuggestions: ["Lead with payments scale."],
+            mustProveEvidence: ["Ownership of the migration."],
+            negotiationAngle: "Mid-band offer.",
+            recruiterRiskFlags: [],
+          },
+        }),
   });
 }
 
@@ -225,6 +248,66 @@ test("a distinct variant sharing the winner's label is still compared (not label
   // top-level comparison. Pre-fix the label filter excluded v1 too, leaving 1.
   const topLevel = (payload.driverInsightItems ?? []).filter((it) => it.kind === "delta" || it.kind === "tie").length;
   assert.equal(topLevel, 2, "both non-winner variants are compared, including the one sharing the winner's label");
+});
+
+// ── One cohort, ONE ranking axis (mixed job-fit reads) ────────────────────────
+// `jobFit` is nullish PER VARIANT (schemas.generated.ts) because every variant is an
+// independent engine call — a JD-bound multi-CV run can come back with a job-fit read
+// for one CV and none for another. Job-fit and the component total are two different
+// 0-100 producers, so the axis must be resolved ONCE for the cohort (job-fit only when
+// every variant carries one) instead of per variant. Picking it per variant crowned a
+// jobFit-82/total-55 CV over a total-74 CV and then quoted the 82 under the words
+// "overall score" — one ranking mixing two score producers.
+test("a cohort where only ONE variant has a job-fit read ranks on the shared overall axis", () => {
+  // withFit: job-fit 82 but a weak overall 55. noFit: no job-fit read, overall 74.
+  const withFit = {
+    label: "with-fit.pdf",
+    analysis: analysisWith({ total: 55, experience: 12, skills: 14, roleSeniority: 11, education: 9, traits: 9, yearsExperience: 4, skillList: ["python"], jobFitScore: 82 }),
+  };
+  const noFit = {
+    label: "no-fit.pdf",
+    analysis: analysisWith({ total: 74, experience: 18, skills: 20, roleSeniority: 14, education: 11, traits: 11, yearsExperience: 7, skillList: ["python", "go"] }),
+  };
+  const payload = buildComparison([withFit, noFit]);
+
+  // The only axis BOTH variants carry is the component total: 74 > 55.
+  assert.equal(payload.bestLabel, "no-fit.pdf");
+  assert.equal(resolveWinnerIndex(payload.variants), 1);
+
+  const delta = (payload.driverInsightItems ?? []).find((i) => i.kind === "delta");
+  assert.ok(delta && delta.kind === "delta");
+  assert.equal(delta.metric, "overall");
+  // The reported numbers are the ones the ranking actually used — never the loser's
+  // job-fit 82 printed under the words "overall score".
+  assert.deepEqual(
+    { best: delta.best, other: delta.other, dir: delta.dir, amount: delta.amount, bestScore: delta.bestScore, otherScore: delta.otherScore },
+    { best: "no-fit.pdf", other: "with-fit.pdf", dir: "lead", amount: 19, bestScore: 74, otherScore: 55 }
+  );
+  // The bullets pick quotes the winner on the SAME axis, so the figure the merged
+  // recommendation shows is one that appears in the compare grid.
+  const bullets = payload.mergedRecommendation.sectionPicks.find((p) => p.key === "bullets");
+  assert.equal(bullets?.reasonParams?.score, 74);
+});
+
+test("a cohort where EVERY variant has a job-fit read still ranks on job-fit", () => {
+  // Non-regression for the documented preference (verdict.test.ts pins the same rule):
+  // when the axis exists for the whole cohort, the lower total but higher job-fit wins.
+  const a = {
+    label: "a.pdf",
+    analysis: analysisWith({ total: 90, experience: 22, skills: 28, roleSeniority: 20, education: 10, traits: 10, yearsExperience: 10, skillList: ["python"], jobFitScore: 40 }),
+  };
+  const b = {
+    label: "b.pdf",
+    analysis: analysisWith({ total: 50, experience: 10, skills: 12, roleSeniority: 10, education: 9, traits: 9, yearsExperience: 3, skillList: ["go"], jobFitScore: 88 }),
+  };
+  const payload = buildComparison([a, b]);
+
+  assert.equal(payload.bestLabel, "b.pdf");
+  const delta = (payload.driverInsightItems ?? []).find((i) => i.kind === "delta");
+  assert.ok(delta && delta.kind === "delta");
+  assert.equal(delta.metric, "jobFit");
+  assert.equal(delta.bestScore, 88);
+  assert.equal(delta.otherScore, 40);
 });
 
 test("the merged recommendation pulls each section from the index-matched CV, not the label-collision last one", () => {

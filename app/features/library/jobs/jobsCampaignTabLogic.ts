@@ -52,7 +52,17 @@ export function useCampaignTabLogic(jobId: string, appLocale: string, jobTitle?:
           if (requestKeyRef.current === key) setRecord((d.pack as PackRecord | null) ?? null);
         })
         .catch(() => {
-          if (requestKeyRef.current === key) setError(t("loadFailed"));
+          if (requestKeyRef.current !== key) return;
+          setError(t("loadFailed"));
+          // A failed load must not leave the PREVIOUS language's pack on screen under
+          // the newly-selected one: the tab renders the error banner AND the stored
+          // pack side by side, and nothing in the pack names its language — so a
+          // recruiter who toggled cs -> de into a 500 saw the Czech ad copy sitting
+          // under a lit "DE" toggle and could "Copy all" it onto a German job board.
+          // Only a pack that belongs to the key we just failed to load survives (a
+          // same-(job, lang) reload after a generation), so a refresh still never
+          // blanks content that is already correct — loading-choreography law 2.
+          setRecord((prev) => (prev && `${prev.jobId}|${prev.lang}` === key ? prev : null));
         })
         .finally(() => {
           if (requestKeyRef.current === key) setLoading(false);

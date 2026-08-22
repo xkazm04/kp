@@ -184,6 +184,15 @@ the tasks dock. The runner itself never reads it (`campaign-run.ts` re-reads the
 job from the DB). The stored pack's "generated at" stamp is formatted in the APP
 locale, not the browser's, for the reason `groupEvalHelpers.ranWhen` documents.
 
+The language toggle and the stored pack are read as a pair. The tab renders its
+load error *beside* the pack rather than instead of it, and nothing in the pack
+names its own language — so `useCampaignTabLogic`'s failed-load path drops any
+record whose `(jobId, lang)` is not the pair that just failed. Without that, a
+`cs → de` toggle into a 500 left the Czech ad copy on screen under a lit **DE**
+toggle, ready to be copied onto a German job board. A reload of the *same* pair
+(the refetch after a finished generation task) keeps its record, so a refresh
+still never blanks content that is already correct.
+
 ## Surface
 
 | Module / route | Purpose |
@@ -221,6 +230,23 @@ cannot be read in lockstep now leaves the map empty, which hides the Fair Rank
 toggle and the audit panel (the same honest "not assessed" stance
 `assessRobustness` takes for the group eval), and the CSV writes an empty delta
 cell rather than a number derived from a missing side.
+
+## Rediscovery shows a page, and says when it is one
+
+`rediscoverForJob` slices its ranked silver medalists at `REDISCOVER_LIMIT` (20)
+and returns the remainder as `more`; `GET /api/jobs/[id]/rediscover` forwards it.
+`JobsRediscoverPanel` dropped that number, so a pool holding 35 qualifying past
+candidates rendered its top 20 under an intro that describes the list as "past
+candidates who clear the bar for this role" — a cut slice presented as the whole
+set, on the surface whose entire promise is that nobody falls through the cracks.
+The panel now appends the shared `match.card.moreCount` line ("+15 more") below
+the list whenever `more > 0`. The **standing** feed (`JobsRediscoveryFeed`) is a
+separate, alert-backed surface and is not paged this way.
+
+A failed sweep in that feed also stopped wearing the success tone: `note` carries
+either the sweep's outcome ("Checked 12 roles: 3 new matches") or its failure, and
+the failure was painted `text-moss` — this app's "it worked" green — whenever any
+alert was already on screen.
 
 ## The JD ledger shows each role's live pipeline
 
@@ -318,6 +344,13 @@ now splits them: `{ own, corpus, visible }` over the open-for-applications
 predicate (`status IS NULL OR 'published'`). On the shipped DB a workspace that
 has authored nothing reports `own: 0`, `corpus: 100`, `visible: 100`.
 
+`jobStats` is workspace-wide and **unfiltered**, which is what makes the Jobs tab
+header chips safe to read as one population while the table below is filtered. Its
+entry-eligible chip prints the count and the share; at whole-number precision a
+catalog with 1 entry-eligible role in 400 rendered `1 (0%)` — its own count
+contradicting its own percentage — so a sub-0.5% share (and only that case) keeps
+one decimal.
+
 Whether a corpus role a team has *adopted* counts as a carried requisition is an
 open product decision — the primitive makes the choice explicit at the call site
 instead of hiding it in a predicate; it does not take the decision. Related but
@@ -341,7 +374,25 @@ include `workspace_id`).
   `app/_lib/db/core.ts`.
 - `GET /api/jobs` does not yet forward `listJobsPage`'s `truncated` flag, so the
   Jobs catalog still cannot say "first 300 of more". `jobStats.total` is a real
-  `COUNT(*)`, so the header count stays honest.
+  `COUNT(*)`, so the header count stays honest. The UI half is ready: the
+  "Showing N of M" line already reads both numbers off props, so plumbing a
+  `truncated` flag through `useJobsList` is all the client needs.
+- **The Fair Rank audit table ranks one number across cohorts it is not
+  comparable within.** `recruiter.fairness_check` is handed *every* validated
+  candidate, so its `own` / `mean` arrays include both fairness tracks **and**
+  the KO-filtered ones. `FairnessAuditPanel` renders them as a single list
+  sorted by `mean` descending with no track and no eligibility column — so an
+  early-career candidate scored on *potential* is ranked against an experienced
+  one scored on work history (the interleave the Candidates tab promises two
+  paragraphs above it never happens: "never ranked on one number against
+  experienced candidates"), and a candidate the KO filter rejected outright can
+  sit at the top of the bias-defensible record. Fixing it needs `koPassed` +
+  `track` passed down from `JobsRecruiterCandidates.tsx`, and a column label.
+- **`poolTruncated` is shipped and unread.** `GET /api/jobs/[id]/candidates`
+  returns it ("the corpus exceeds the pool caps, so some candidates were never
+  scored here"), but `jobsRecruiterCandidatesLogic.ts` does not type or read it,
+  so an over-cap workspace presents a capped ranking as the pool with no note —
+  the same cut-slice-as-whole-set shape rediscovery just closed.
 - No structurally-tracked, independently-provenanced editable salary band yet
   (would need its own `source: "manual"` marker, not a re-parse of the
   markdown).

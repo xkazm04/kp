@@ -20,6 +20,15 @@ export function RediscoveryFeed() {
   // after the pool changes. Hidden entirely until the first load resolves.
   if (alerts === null) return null;
 
+  // `note` carries EITHER the sweep's outcome line ("Checked 12 roles: 3 new
+  // matches") or its failure — and the failure was painted `text-moss`, this app's
+  // "it worked" green, whenever any alert was already on screen. A recruiter whose
+  // refresh 500'd read a green "Couldn't check for silver medalists." and walked
+  // away believing the pool had just been re-swept with nothing new. Same
+  // translator instance the hook wrote the note with, same parameter-free message,
+  // so the comparison is exact — the failure reads red, an outcome keeps its tone.
+  const sweepFailed = note != null && note === t("sweepFailed");
+
   return (
     <section className="mt-4 rounded-lg border border-coral/30 bg-coral/5 p-3" aria-label={t("title")}>
       <div className="flex items-center gap-2">
@@ -39,11 +48,11 @@ export function RediscoveryFeed() {
       </div>
 
       {alerts.length === 0 ? (
-        <p className="mt-1.5 text-sm text-steel">{note ?? t("empty")}</p>
+        <p className={`mt-1.5 text-sm ${sweepFailed ? "text-red-700" : "text-steel"}`}>{note ?? t("empty")}</p>
       ) : (
         <>
           <p className="mt-1 text-sm text-steel">{t("intro")}</p>
-          {note ? <p className="mt-1 text-sm text-moss">{note}</p> : null}
+          {note ? <p className={`mt-1 text-sm ${sweepFailed ? "text-red-700" : "text-moss"}`}>{note}</p> : null}
           <ul className="mt-2 space-y-2">
             {alerts.map((a) => (
               <JobsRediscoveryFeedRow
