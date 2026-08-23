@@ -6916,7 +6916,8 @@
         "profiles": "Kandidáti a profily",
         "interviews": "Pohovory",
         "assignments": "Zadání",
-        "other": "Ostatní"
+        "other": "Ostatní",
+        "companion": "Společník"
       }
     },
     "usage": {
@@ -6980,7 +6981,8 @@
       "cv_analysis": "Analýza CV",
       "profile_extract": "Extrakce profilu",
       "grounded_salary": "Tržní odhad mzdy",
-      "interview_realtime": "Hlasový pohovor"
+      "interview_realtime": "Hlasový pohovor",
+      "assistant": "Asistent"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -7059,7 +7061,8 @@
       "devcase_evaluate": "Hodnotí odevzdané zadání podle rubriky úkolu; obsluhuje i chat během řešení.",
       "devcase_judge": "Nezávislý druhý model, který posuzuje hodnocení zadání.",
       "devcase_tooling": "Rezervováno pro vyhodnocení použitých nástrojů. Zatím bez živého volání.",
-      "devcase_transfer": "Rezervováno pro vyhodnocení přenositelnosti. Zatím bez živého volání."
+      "devcase_transfer": "Rezervováno pro vyhodnocení přenositelnosti. Zatím bez živého volání.",
+      "assistant": "Konverzační tahy operátorova společníka."
     }
   },
   "jdPublic": {

@@ -6916,7 +6916,8 @@
         "profiles": "Kandidaten & Profile",
         "interviews": "Interviews",
         "assignments": "Aufgaben",
-        "other": "Sonstiges"
+        "other": "Sonstiges",
+        "companion": "Begleiter"
       }
     },
     "usage": {
@@ -6980,7 +6981,8 @@
       "cv_analysis": "CV-Analyse",
       "profile_extract": "Profil-Extraktion",
       "grounded_salary": "Fundiertes Gehalt",
-      "interview_realtime": "Voice-Interview"
+      "interview_realtime": "Voice-Interview",
+      "assistant": "Assistent"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -7059,7 +7061,8 @@
       "devcase_evaluate": "Bewertet eine eingereichte Aufgabe anhand der Rubrik; bedient auch den Chat in der Session.",
       "devcase_judge": "Das unabhängige Zweitmodell, das Aufgabenbewertungen beurteilt.",
       "devcase_tooling": "Reserviert für die Tooling-Auswertung. Noch ohne aktiven Aufruf.",
-      "devcase_transfer": "Reserviert für die Transfer-Auswertung. Noch ohne aktiven Aufruf."
+      "devcase_transfer": "Reserviert für die Transfer-Auswertung. Noch ohne aktiven Aufruf.",
+      "assistant": "Chat-Turns des Operator-Begleiters."
     }
   },
   "jdPublic": {

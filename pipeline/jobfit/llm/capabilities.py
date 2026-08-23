@@ -75,6 +75,10 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     # utterances at speech pace — pin a fast model here without touching the
     # text dialog's routing. No JSON capability required by design.
     "role_intake_voice": frozenset(),
+    # The operator companion's chat turns (companion_cli.py). PROSE, like
+    # role_intake_voice: one plain-text reply per turn, no JSON contract, so it
+    # requires no capability at all and every provider can serve it.
+    "assistant": frozenset(),
     "github_analysis": frozenset({CAP_JSON}),
     "cv_analysis": frozenset({CAP_FILE_INPUT}),
     "profile_extract": frozenset({CAP_FILE_INPUT}),
@@ -119,6 +123,11 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     # 2026-08-11 bench (the CLI reference run needed ~15.6k).
     "weight_proposal": 16384,
     "campaign_pack": 8192,
+    # The companion answers in prose and the reply is capped at ~1200 chars, but
+    # the PROMPT carries the constitution, the identity, six recalled episodes and
+    # the grounding blob — a provider that reasons before answering runs past the
+    # base 2048 and truncates mid-sentence, which reads as the companion trailing off.
+    "assistant": 4096,
     "interview_scorecard": 6144,
     "devcase_case_design": 8192,
     "devcase_role_design": 6144,

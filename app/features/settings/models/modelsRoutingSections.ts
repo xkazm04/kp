@@ -30,6 +30,12 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
   { key: "profiles", useCases: ["cv_analysis", "profile_extract", "profile_draft", "github_analysis"] },
   // Interview outputs.
   { key: "interviews", useCases: ["interview_scorecard"] },
+  // The operator's own companion. Its own section rather than a guest in one of
+  // the process clusters above: `assistant` is the only use case that serves the
+  // OPERATOR instead of a hiring artifact, so filing it under "Automation &
+  // outreach" or "Roles & intake" would mislabel it in the one place an operator
+  // goes to decide which model reads what.
+  { key: "companion", useCases: ["assistant"] },
   // The work-sample (dev-case) assignment lifecycle, design → evaluation.
   {
     key: "assignments",

@@ -223,6 +223,18 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   // team's override wins, else the org default, else the code default); a write targets exactly
   // one tier. Every query filters workspace_id — no by-id exemptions (decision-config-tenancy.test.ts).
   "decision_config",
+  // Operator companion (db/companion.ts): the conversation threads, their turns,
+  // the proposals the companion offers for the operator to accept, and the read
+  // mirror of the markdown brain. Operator-internal, no public token, so every
+  // query — point reads and the brain upsert included — filters workspace_id
+  // (companion-tenancy.test.ts, exemption list empty). The brain index deserves
+  // the strictness most: its rows point into the operator's private memory tree,
+  // so an unscoped by-node_id read would turn a leaked episode id into a bearer
+  // token for another team's conversations.
+  "companion_threads",
+  "companion_turns",
+  "companion_proposals",
+  "companion_brain_index",
 ]);
 
 /** Tables that legitimately hold NO per-tenant data: the tenant registry itself,
@@ -479,6 +491,16 @@ export const ORG_EXPORT_OVERRIDES: ReadonlyMap<string, OrgExportClass> = new Map
 
   // Runner state, not org data — and already the whole-DB dump's documented skip.
   ["tasks", "exclude"],
+
+  // The companion's brain index is a MIRROR, not a record: every row points at a
+  // markdown file under ~/.personas/companion-brain on the operator's own
+  // machine. Carrying it into an org export would ship dangling pointers into a
+  // tree the restoring install does not have — and the excerpts alongside them,
+  // which is the operator's private conversation, not the org's hiring data.
+  // Restoring an empty index costs nothing: a reindex rebuilds it from the tree.
+  // The threads and proposals ARE the org's record (they are what the operator
+  // decided and what they were offered), so those keep the "workspace" default.
+  ["companion_brain_index", "exclude"],
 ]);
 
 /** The export class for one table. Unknown ⇒ null, which the coverage test turns
