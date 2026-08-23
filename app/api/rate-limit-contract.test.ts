@@ -179,6 +179,18 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "readGithubCache(cacheKey)",
   },
   {
+    // ADDED with the route (operator companion WP2). Per-IP. 30/10min: every
+    // accepted message spawns companion_cli AND makes a paid `assistant` call.
+    // Operator-gated, but open mode makes that a no-op for the whole API.
+    rel: "./companion/[id]/message/route.ts",
+    key: "`companion-message:${clientIpFrom(request.headers)}`",
+    limit: 30,
+    expensive: "runCompanionTurn(",
+    // The 404 (unknown / other-tenant thread) and the 400 (empty message) keep
+    // their semantics ahead of the throttle, so a rejected call never consumes budget.
+    servedBefore: "if (!thread) return NextResponse.json",
+  },
+  {
     rel: "./extract-text/route.ts",
     // Per-IP. 20/10min: one extract per JD/CV file in every real flow.
     key: "`extract-text:${clientIpFrom(request.headers)}`",

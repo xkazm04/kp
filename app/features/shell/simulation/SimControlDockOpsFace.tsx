@@ -3,10 +3,11 @@
 // FACE 2 — the operations deck, split out of SimControlDock.tsx so it stays under
 // the 200-line file cap. Verbatim markup: command bar + automation module tiles,
 // the awaiting-decisions pill, and the pass-strip/scheduler drawers underneath.
-import { Clock, Sparkles, Wand2 } from "lucide-react";
+import { Clock, MessagesSquare, Sparkles, Wand2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { CommandBar } from "@/app/features/hiring/pipeline/CommandBar";
 import { SchedulerControl } from "@/app/features/hiring/pipeline/SchedulerControl";
+import { useOptionalCompanionDock } from "@/app/features/shell/companion/CompanionDockProvider";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import type { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import type { useAutomationPass } from "./simControlCenterKit";
@@ -36,6 +37,11 @@ export function SimControlDockOpsFace({
   onCollapse: () => void;
 }) {
   const t = useTranslations("pipeline.controlCenter");
+  // Candi's own copy lives in the `companion` namespace, beside the dock she opens.
+  const tc = useTranslations("companion");
+  // Null on the deep-link pages, which render no dock — the tile is then omitted
+  // rather than rendered as a control that does nothing.
+  const companion = useOptionalCompanionDock();
   return (
     <div className="space-y-2.5">
       <div className="flex flex-wrap items-center gap-3">
@@ -71,6 +77,9 @@ export function SimControlDockOpsFace({
           />
           <DeckTile icon={Wand2} label={t("automationPass")} onClick={() => void pass.dryRun()} active={!!pass.preview} disabled={pass.busy} />
           <DeckTile icon={Clock} label={t("schedule")} onClick={() => setScheduleOpen((o) => !o)} active={scheduleOpen} />
+          {companion ? (
+            <DeckTile icon={MessagesSquare} label={tc("dock.askCandi")} onClick={() => companion.openDock()} active={companion.open} />
+          ) : null}
           <GuidedDemoTile label={t("guidedTour")} onClick={onStartTour} />
         </div>
       </div>

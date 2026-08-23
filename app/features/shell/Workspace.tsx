@@ -12,6 +12,7 @@ import { isMainInert } from "./nav/navDrawerA11y";
 import { useAttention } from "./useAttention";
 import { TasksProvider } from "./tasks/TasksProvider";
 import { SimulationProvider } from "./simulation/SimulationProvider";
+import { CompanionDockProvider } from "./companion/CompanionDockProvider";
 import { WorkspaceNavDrawer } from "./WorkspaceNavDrawer";
 import { WorkspaceTabPanel } from "./WorkspaceTabChunks";
 import { SimSurfaces, FirstRunOnboarding } from "./WorkspaceSimSurfaces";
@@ -162,6 +163,10 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
   return (
     <TasksProvider>
     <SimulationProvider>
+    {/* Candi's dock mounts as a SIBLING of this div (fixed-positioned), inside every
+        provider and outside the keyed tab panel — so a conversation survives tab
+        switches. The provider renders it; see companion/CompanionDockProvider.tsx. */}
+    <CompanionDockProvider>
     <div className="min-h-screen bg-paper md:flex">
       <a
         href="#main"
@@ -210,6 +215,7 @@ export function Workspace({ firstRunOnboarding = false }: { firstRunOnboarding?:
       <SimSurfaces />
       {onboardingOpen && <FirstRunOnboarding mode="live" onClose={() => setOnboardingOpen(false)} />}
     </div>
+    </CompanionDockProvider>
     </SimulationProvider>
     </TasksProvider>
   );

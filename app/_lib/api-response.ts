@@ -145,6 +145,12 @@ export const STORE_ERRORS = {
   // message, which is exactly what must not reach the wire.
   REPO_SCAN_FAILED: "Could not start the repository scan. Please try again.",
   REPO_SCAN_READ_FAILED: "Could not load the repository scan. Please try again.",
+  // Operator companion (docs/features/companion/README.md). The message route
+  // spawns companion_cli, whose thrown errors carry provider stderr and the
+  // operator's own brain-tree paths — neither belongs on the wire.
+  COMPANION_THREADS_FAILED: "Could not load your conversations with Candi. Please try again.",
+  COMPANION_THREAD_CREATE_FAILED: "Could not start a new conversation with Candi. Please try again.",
+  COMPANION_MESSAGE_FAILED: "Could not process that message. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

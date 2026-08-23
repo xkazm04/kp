@@ -17,6 +17,7 @@ export function useWorkspaceCommandPaletteItems({
   recents,
   simRunning,
   simStart,
+  askCandi,
   nav,
   t,
 }: {
@@ -26,6 +27,9 @@ export function useWorkspaceCommandPaletteItems({
   recents: RecentItem[];
   simRunning: boolean;
   simStart: () => void;
+  /** Opens the companion dock seeded with the query. Null on the deep-link pages,
+   *  which render the palette without the workspace shell (and so without a dock). */
+  askCandi: ((query: string) => void) | null;
   nav: Translate;
   t: Translate;
 }): PaletteItem[] {
@@ -96,6 +100,23 @@ export function useWorkspaceCommandPaletteItems({
         action: simStart,
       });
     }
+    // "Ask Candi: <query>" — the palette's ONE non-navigation answer to a query
+    // that matches nothing. It is appended to the navigator (so entity hits and
+    // tab matches always outrank it) and offered from two characters, which is
+    // also the point at which the search itself starts running. Because it is a
+    // real item rather than a placeholder, the dead-end "No matches for …" line
+    // is now unreachable while the dock exists — the operator can always press
+    // Enter on something.
+    if (askCandi && q.length >= 2) {
+      const asked = query.trim();
+      navOut.push({
+        key: "action-ask-candi",
+        group: "actions",
+        label: t("askCandi", { q: asked }),
+        sub: t("askCandiSub"),
+        action: () => askCandi(asked),
+      });
+    }
     for (const type of HIT_TYPE_ORDER) {
       for (const hit of hits.filter((h) => h.type === type)) {
         out.push({
@@ -110,5 +131,5 @@ export function useWorkspaceCommandPaletteItems({
     }
     return q ? out.concat(navOut) : out;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tabLabel is stable per locale; nav/t hooks re-render on locale change anyway
-  }, [query, hits, search, recents, simRunning, simStart, locale]);
+  }, [query, hits, search, recents, simRunning, simStart, askCandi, locale]);
 }

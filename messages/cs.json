@@ -1298,7 +1298,10 @@
     "HIRE_RATING_NOT_HIRED": "Hodnocení v praxi lze zaznamenat jen u přijatého kandidáta.",
     "HIRE_RATING_INVALID": "Hodnocení v praxi musí být celé číslo od 1 do 5.",
     "INTAKE_DOSSIER_FAILED": "Čtení kódu se k této relaci nepodařilo připojit. Zkuste to prosím znovu.",
-    "INTAKE_COMPOSE_APP_MASTER_FAILED": "Specifikaci správce aplikace se nepodařilo sestavit. Zkuste to prosím znovu."
+    "INTAKE_COMPOSE_APP_MASTER_FAILED": "Specifikaci správce aplikace se nepodařilo sestavit. Zkuste to prosím znovu.",
+    "COMPANION_THREADS_FAILED": "Konverzace s Candi se nepodařilo načíst.",
+    "COMPANION_THREAD_CREATE_FAILED": "Novou konverzaci s Candi se nepodařilo založit.",
+    "COMPANION_MESSAGE_FAILED": "Candi na tuto zprávu neodpověděla. Vaše slova jsou uložená."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1746,7 +1749,9 @@
     "whereJd": "detail JD",
     "whereAnalysis": "report analýzy",
     "whereTab": "záložka {tab}",
-    "resultsCount": "{count, plural, =0 {Žádné výsledky} one {# výsledek} few {# výsledky} other {# výsledků}}"
+    "resultsCount": "{count, plural, =0 {Žádné výsledky} one {# výsledek} few {# výsledky} other {# výsledků}}",
+    "askCandi": "Zeptat se Candi: „{q}“",
+    "askCandiSub": "Otevře panel společnice s vaším dotazem"
   },
   "palettePreview": {
     "loading": "Načítání náhledu…",
@@ -3555,7 +3560,8 @@
         "composer": {
           "placeholder": "Odpovězte vlastními slovy. Klidně i mlhavě.",
           "send": "Odeslat",
-          "closed": "Tento rozhovor je uzavřený."
+          "closed": "Tento rozhovor je uzavřený.",
+          "transcriptLabel": "Konverzace k zadání role"
         },
         "degradedNote": "AI je offline, takže pokračujeme vedeným dotazníkem. Vaše odpovědi se ukládají stejně.",
         "sendError": "Zprávu se nepodařilo odeslat. Zkuste to prosím znovu.",
@@ -8669,5 +8675,53 @@
         "s9": "na Přijat se odsud nedostane nikdo"
       }
     }
+  },
+  "companion": {
+    "name": "Candi",
+    "dock": {
+      "eyebrow": "Společnice",
+      "title": "Candi, společnice vašeho studia",
+      "open": "Zeptat se Candi",
+      "close": "Zavřít Candi",
+      "askCandi": "Zeptat se Candi",
+      "variantLabel": "Rozvržení panelu",
+      "variantColleague": "Kolegyně",
+      "variantDesk": "Pult"
+    },
+    "chat": {
+      "placeholder": "Zeptejte se na své studio. Ona navrhuje, vy rozhodujete.",
+      "placeholderDense": "Zeptejte se studia…",
+      "send": "Odeslat",
+      "thinking": "Přemýšlí…",
+      "thinkingSlow": "Stále přemýšlí. Podložená odpověď obvykle trvá 5–10 sekund.",
+      "thinkingSlowCalm": "Jsem tu s vámi. Než odpoví, projde si stav studia, takže to pár sekund zabere.",
+      "transcriptLabel": "Konverzace s Candi",
+      "errorGeneric": "Zpráva neprošla. Nic se neztratilo, zkuste to prosím znovu."
+    },
+    "state": {
+      "here": "Jsem tu, když budete potřebovat.",
+      "clear": "Právě teď na vás nic nečeká.",
+      "thinking": "Prochází stav studia…",
+      "thinkingAbout": "Přemýšlí o {count, plural, one {# rozhodnutí} few {# rozhodnutích} other {# rozhodnutích}}…",
+      "watching": "Sleduje {count, plural, one {# věc} few {# věci} other {# věcí}}, které vás potřebují."
+    },
+    "meta": {
+      "remembered": "pamatuje si:",
+      "degraded": "žádný model",
+      "sourceLlm": "model",
+      "sourceDeterministic": "náhradní",
+      "recallCount": "{count, plural, one {# vzpomínka} few {# vzpomínky} other {# vzpomínek}}",
+      "fallbackFlag": "náhradní odpověď"
+    },
+    "desk": {
+      "decisions": "Rozhodnutí",
+      "pipeline": "Stárnoucí",
+      "schedule": "Naplánováno",
+      "enter": "Enter",
+      "enterHint": "odeslat",
+      "shiftEnter": "Shift + Enter",
+      "shiftEnterHint": "nový řádek"
+    },
+    "greeting": "Jsem Candi. Vím, co vaše studio drží, a pamatuji si naše dřívější rozhovory. Zeptejte se mě, co vás potřebuje nebo co se změnilo. Vždy jen navrhuji: rozhodnutí zůstává vaše."
   }
 }

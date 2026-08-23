@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
@@ -8,6 +8,7 @@ import { Modal } from "@/app/_components/Modal";
 import { recordRecent, useRecents } from "./recents";
 import { paletteItemId, paletteListView } from "./workspacePaletteResults";
 import { useOptionalSimulation } from "./simulation/SimulationProvider";
+import { useOptionalCompanionDock } from "./companion/CompanionDockProvider";
 import { useWorkspaceCommandPaletteItems } from "./useWorkspaceCommandPaletteItems";
 import { useWorkspaceCommandPaletteSearch } from "./useWorkspaceCommandPaletteSearch";
 import { WorkspacePaletteLedger } from "./WorkspacePaletteLedger";
@@ -83,6 +84,13 @@ export function CommandPalette() {
   // (no SimulationProvider there): reported as "running" so the command is
   // simply not offered.
   const sim = useOptionalSimulation();
+  // Null on the deep-link pages (no CompanionDockProvider there): the "Ask Candi"
+  // item is then simply not offered, rather than opening nothing.
+  const companion = useOptionalCompanionDock();
+  const askCandi = useMemo(
+    () => (companion ? (q: string) => companion.openDock(q) : null),
+    [companion]
+  );
   const items = useWorkspaceCommandPaletteItems({
     query,
     hits,
@@ -90,6 +98,7 @@ export function CommandPalette() {
     recents,
     simRunning: sim ? sim.running : true,
     simStart: sim ? sim.start : () => {},
+    askCandi,
     nav,
     t,
   });
