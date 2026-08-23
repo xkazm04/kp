@@ -4,14 +4,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { AgentAggregates, AgentStatus } from "@/app/_lib/db/agents.ts";
+import type { ReportedKpiDelta } from "@/app/_lib/agent-hire/report-payload.ts";
 import {
+  BACKBONE_GLYPH,
+  BACKBONE_TEXT,
   budgetFraction,
   expectationsVerdict,
   fmtUsd,
+  isAppMaster,
   metricActual,
   metricsOf,
+  probationCountdown,
   STATUS_BADGE,
   topConnectors,
+  type AgentRosterEntry,
 } from "./agentsWorkforceLogic.ts";
 
 const NOW = new Date("2026-08-04T00:00:00Z");
@@ -173,4 +179,118 @@ test("budgetFraction caps at 1 and is null without a usable budget", () => {
 test("fmtUsd renders whole dollars without cents", () => {
   assert.equal(fmtUsd(120, "en"), "$120");
   assert.equal(fmtUsd(42.5, "en"), "$42.50");
+});
+
+// ---- App master ---------------------------------------------------------------
+
+const OBJECTIVES = metricsOf([
+  { key: "gate_green_rate", label: "Gates green", target: 0.95, unit: "ratio", direction: "gte" },
+  { key: "p95_ttfb_ms", label: "p95 TTFB", target: 600, unit: "ms", direction: "lte" },
+  { key: "open_bug_age_days", label: "Open bug age", target: 7, unit: "days", direction: "lte" },
+]);
+
+function delta(partial: Partial<ReportedKpiDelta> & { kpiKey: string }): ReportedKpiDelta {
+  return {
+    baseline: null,
+    current: null,
+    target: null,
+    direction: "gte",
+    windowDays: 30,
+    measured: false,
+    ...partial,
+  };
+}
+
+test("expectationsVerdict: reported KPI deltas take over from the run/spend proxies", () => {
+  // The aggregates say the agent is busy and cheap; the value ledger says two of
+  // three objectives moved. An App master is hired against the LEDGER, and
+  // scoring it on runs would answer a question nobody asked.
+  const deltas: ReportedKpiDelta[] = [
+    delta({ kpiKey: "gate_green_rate", baseline: 0.7, current: 0.96, target: 0.95, direction: "gte", measured: true }),
+    delta({ kpiKey: "p95_ttfb_ms", baseline: 820, current: 610, target: 600, direction: "lte", measured: true }),
+    // Reported, but nobody read the meter → a coverage gap, NOT a miss.
+    delta({ kpiKey: "open_bug_age_days", target: 7, direction: "lte", measured: false }),
+  ];
+  const verdict = expectationsVerdict(OBJECTIVES, agg({ runs: 40, lastActivityAt: "2026-08-03T00:00:00.000Z" }), TWO_WEEKS_AGO, NOW, deltas);
+  assert.equal(verdict.source, "kpiDeltas");
+  assert.equal(verdict.met, 2);
+  assert.equal(verdict.total, 3);
+  assert.deepEqual(
+    verdict.rows.map((r) => r.state),
+    ["met", "met", "nodata"],
+    "an unmeasured objective is a dash, never a ✗"
+  );
+  assert.equal(verdict.rows[1].actual, 610, "the reading shown is the KPI's own, not a run count");
+});
+
+test("expectationsVerdict: an objective with no delta at all reads nodata, and no deltas falls back", () => {
+  const partial = expectationsVerdict(OBJECTIVES, agg({ lastActivityAt: "2026-08-03T00:00:00.000Z" }), TWO_WEEKS_AGO, NOW, [
+    delta({ kpiKey: "gate_green_rate", baseline: 0.7, current: 0.5, target: 0.95, direction: "gte", measured: true }),
+  ]);
+  assert.equal(partial.source, "kpiDeltas");
+  assert.deepEqual(
+    partial.rows.map((r) => r.state),
+    ["missed", "nodata", "nodata"],
+    "objectives the reporter never mentioned are unread, not failed"
+  );
+
+  // No deltas (a task agent, or a pre-v2 reporter) → today's aggregate mapping.
+  assert.equal(expectationsVerdict(METRICS, agg({ lastActivityAt: "2026-08-03T00:00:00.000Z" }), TWO_WEEKS_AGO, NOW, null).source, "aggregates");
+  assert.equal(expectationsVerdict(METRICS, agg({ lastActivityAt: "2026-08-03T00:00:00.000Z" }), TWO_WEEKS_AGO, NOW, []).source, "aggregates");
+});
+
+function rosterRow(partial: Partial<AgentRosterEntry> = {}): AgentRosterEntry {
+  return {
+    id: "agent-1",
+    workspaceId: "workspace",
+    jobId: "",
+    jobTitle: "App master",
+    intakeId: "intake-1",
+    appMaster: { population: "agent", scopeRung: 2, probationDays: 30, autopilotMode: "suggest" },
+    personaId: null,
+    personaName: null,
+    requestId: "pr-1",
+    status: "onboarding",
+    spec: null,
+    fit: null,
+    metrics: null,
+    budgetUsd: 120,
+    createdAt: "2026-07-21T00:00:00.000Z",
+    updatedAt: null,
+    aggregates: agg(),
+    backbone: null,
+    kpiDeltas: null,
+    ...partial,
+  };
+}
+
+test("probationCountdown: counts down while the agent is still on probation, and stops once a human has decided", () => {
+  // Hired 14 days before NOW, on a 30-day probation.
+  const running = probationCountdown(rosterRow(), NOW);
+  assert.deepEqual(running, { totalDays: 30, elapsedDays: 14, daysLeft: 16, due: false });
+
+  // Past the window and still in onboarding → the review is DUE and says so.
+  const overdue = probationCountdown(rosterRow({ createdAt: "2026-06-01T00:00:00.000Z" }), NOW);
+  assert.equal(overdue?.daysLeft, 0);
+  assert.equal(overdue?.due, true);
+
+  // A human already decided (activated / retired / rejected) — nothing to count.
+  for (const status of ["active", "retired", "rejected", "failed"] as const) {
+    assert.equal(probationCountdown(rosterRow({ status }), NOW), null, status);
+  }
+  // Not an App master, or no probation window on the spec.
+  assert.equal(probationCountdown(rosterRow({ appMaster: null }), NOW), null);
+  assert.equal(
+    probationCountdown(rosterRow({ appMaster: { population: "agent", scopeRung: 2, probationDays: null, autopilotMode: null } }), NOW),
+    null
+  );
+});
+
+test("isAppMaster + the backbone glyphs follow the shared ✓/–/✗ convention", () => {
+  assert.equal(isAppMaster(rosterRow()), true);
+  assert.equal(isAppMaster(rosterRow({ appMaster: null })), false);
+  // `incomplete` is a DASH, not a soft ✓: the scorer could not read enough to
+  // judge, and a checkmark there is exactly the green lie the rubric forbids.
+  assert.deepEqual(BACKBONE_GLYPH, { pass: "✓", incomplete: "–", fail: "✗" });
+  assert.equal(BACKBONE_TEXT.incomplete, "text-score-null");
 });

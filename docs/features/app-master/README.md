@@ -1,6 +1,6 @@
 # App master — the role standard
 
-> **Implementation status (2026-08-23, phase P3).** Three things ship. The
+> **Implementation status (2026-08-23, phase P4).** Four things ship. The
 > *contract* (P1): the rubric below, the `AppMasterSpec` / `RepoDossier` /
 > `PerformanceBackbone` schemas in `pipeline/jobfit/appmaster.py`, their coercer,
 > the deterministic `backbone_score()` and their TypeScript projection through
@@ -10,8 +10,15 @@
 > path on top of it (§3 below). And the *intake shape* (P3): `app_master` beside
 > `power_unit`/`story`, the dossier-grounded dialog, the population-fit verdict
 > and the spec compose — so kp **does** write an `AppMasterSpec` at runtime now
-> (`POST /api/intake/[id]/compose-app-master`). Still open: the **dispatch path
-> and Personas-side enforcement (P4)** and the probation review (P5) of
+> (`POST /api/intake/[id]/compose-app-master`). And the *hire* (P4, kp side):
+> `POST /api/agents/dispatch {intakeId}` sends the spec to Personas as an
+> additive `appMaster` block, the report route takes reporter v2's backbone
+> rollup fields and the `probation_review` lifecycle event, `backbone_score` is
+> ported to TypeScript with generated parity fixtures, and the Agents roster
+> renders the verdict, the mandate rung, the autopilot mode and the probation
+> countdown. Still open on the **Personas** side: the hire handler v2, mandate
+> enforcement in `autonomy.rs` and the reporter that fills those fields; and the
+> R1 probation review (P5) of
 > [`docs/concepts/app-master.md`](../../concepts/app-master.md).
 
 An **App master** is the single accountable owner of one application's value.
@@ -38,8 +45,13 @@ fork.
 | Population fit `human \| agent \| hybrid \| unassessed` | **shipped (P3)** | `pipeline/jobfit/agentfit.py::assess_population_fit` |
 | Dossier card + fit verdict + composed spec in the brief panel | **shipped (P3)** | `app/features/library/jds/intake/JdsIntakeAppMasterCard.tsx` |
 | `AppMasterSpec` composed from a brief (pure, schema-validated) | **shipped (P3)** | `app/_lib/intake-brief.ts::briefToAppMasterSpec`; `POST /api/intake/[id]/compose-app-master` |
-| Dispatch payload `appMaster` block → Personas | planned (P4) — a **disabled, labelled** control today; nothing is sent | extends `app/_lib/agent-hire/bridge-client.ts` |
-| Roster surfacing of the backbone + probation decision | planned (P4–P5) | extends `app/features/agents-workforce/**` |
+| `POST /api/agents/dispatch {intakeId}` → hire the composed spec | **shipped (P4)** | `app/api/agents/dispatch/route.ts`; the *Dispatch to Personas* control on the card above |
+| Dispatch payload `appMaster` block beside `spec` | **shipped (P4)** | `app/_lib/agent-hire/bridge-client.ts::dispatchPersonaRequest` |
+| Reporter v2 — backbone rollup fields + `probation_review` lifecycle | **shipped (P4)** | `app/_lib/agent-hire/report-payload.ts`, `app/api/agents/report/[token]/route.ts` |
+| `backbone_score` in TypeScript, pinned to the Python authority by generated fixtures | **shipped (P4)** | `app/_lib/app-master/backbone.ts`, `__fixtures__/` (regenerate: `python app/_lib/app-master/__fixtures__/generate.py`) |
+| Roster: backbone verdict, per-rule contributions, mandate rung, autopilot mode, probation countdown | **shipped (P4)** | `app/features/agents-workforce/**`, `GET /api/agents` |
+| Personas hire handler v2, mandate enforcement, reporter that FILLS the v2 fields | planned (P4, Personas side) | `personas/` — `approval_exec_core.rs`, `autonomy.rs`, `kp_reporter.rs` |
+| Probation review packet + the human decision loop | planned (P5) | Personas Director + the `probation_review` event kp already accepts |
 
 A dossier can be produced today, from the API or straight from the CLI:
 
@@ -82,22 +94,40 @@ kp-computed ratio → `AppMasterSpec` is composed by a pure, schema-validated
 function. **Shipped, P3** — the whole flow, keyless included; see
 [docs/features/intake/README.md](../intake/README.md) for the dialog itself.
 
-**2. Hire (P4, planned).** Human population → the spec's `human` block promotes
-to the existing JD build. Agent population → the spec rides the existing bridge
-as an additive `appMaster` block beside `spec`; Personas ensures a `DevProject`
-from `app.repo`, seeds `objectives` as project KPIs, installs `cadence.triggers`,
-and starts on probation (`autopilot: suggest`).
+**2. Hire (P4 — kp side shipped).** Human population → the spec's `human` block
+promotes to the existing JD build. Agent population → *Dispatch to Personas* on
+the card POSTs `{intakeId}` to `/api/agents/dispatch`: the stored spec is
+re-validated against `appMasterSpecSchema`, a `human` population is refused
+(400) rather than quietly hired, the flat bridge `spec` is projected from
+`appMaster.agent`, and the whole `AppMasterSpec` rides beside it as an additive
+`appMaster` block. A `hired_agents` row is minted with `intake_id` and the
+dispatched spec, and — because an App master owns an application, not a job
+posting — **no pipeline card is filed**. What Personas then does with the block
+(ensure a `DevProject` from `app.repo`, seed `objectives` as project KPIs,
+install `cadence.triggers`, start on probation at `autopilot: suggest`) is the
+half still to build there. See
+[docs/features/agents/README.md](../agents/README.md) § "Hiring an App master by
+intake" for the wire shape and the failure semantics.
 
-**3. Review (P5, planned).** At `tenure.probationDays` the window's
-`PerformanceBackbone` is scored by `backbone_score()` — deterministically, in
-code — and an LLM *narrates* that result. It never rescores it. A human then
-promotes, extends probation, or retires against `tenure.retireCriteria`.
+**3. Review (P5 — the receiving half shipped).** At `tenure.probationDays` the
+window's `PerformanceBackbone` is scored by `backbone_score()` —
+deterministically, in code — and an LLM *narrates* that result. It never
+rescores it. kp now scores and renders that window on the Agents roster from
+whatever the latest rollup reported, and accepts the human's decision as the
+`probation_review` lifecycle event (`activated | extended | retired`, where
+**extended keeps the agent in onboarding** — more probation is not a promotion).
+What is missing is the Personas-side review packet that produces the decision,
+and a real cycle to run it on (R1).
 
-**Today (P3)** the first flow is real end to end — a composed `AppMasterSpec` is
-stored on the intake row (`role_intakes.app_master_spec_json`). The third flow's
-arithmetic is real as a pure function over a backbone somebody hands it. The
-middle — the hire — is not built: the human half reuses the existing JD promote,
-and the agent half is a disabled control that says P4 rather than a green lie.
+**Today (P4)** the first two flows are real end to end on kp's side: a composed
+`AppMasterSpec` is stored on the intake row
+(`role_intakes.app_master_spec_json`), dispatched to Personas, and persisted on
+the hire (`hired_agents.app_master_spec_json`). The third flow's arithmetic has a
+caller at last — `GET /api/agents` scores the latest reported window and the
+roster renders the verdict — but nothing on the Personas side FILLS those fields
+yet, so a real hire's backbone reads "no performance record reported yet" rather
+than a fabricated row of zeroes. That is the honest state, and it is what the
+roster says.
 
 ---
 
@@ -687,9 +717,30 @@ The schemas travel three ways once the later phases land:
 - **Population parity is unverified.** The claim that the core scores a human and
   an agent comparably is exactly what T3's parity check is for, and it has not
   run.
-- **`backbone_score` still has no caller.** The spec has a producer now (P3), but
-  nothing scores a real review window — that is P4's reporter and P5's probation
-  review.
+- **Nothing on the Personas side reports the backbone yet.** kp accepts, bounds,
+  stores, scores and renders every reporter-v2 field, but the sender is P4's
+  Personas half. Until it ships, every App-master row's backbone is `null` and the
+  roster says "no performance record reported yet" — deliberately, rather than
+  scoring six absent counters as measured zeroes.
+- **`backbone_score` lives in two languages.** Python is the authority; the
+  TypeScript port exists because the roster scores every row on every read and a
+  subprocess per row is not an option. They are pinned by fixtures the Python
+  function generated (`app/_lib/app-master/backbone.test.ts`, byte-identical on
+  three cases), but a rule change still has to be made twice.
+- **Only the latest period is scored.** Rollups are absolutes per period, so the
+  latest one is treated as the review window. An agent that reported August and
+  went quiet keeps showing August's verdict; there is no trend across windows and
+  no staleness marker beyond the period name.
+- **The mandate is data kp dispatches, not a bound kp enforces.** `scopeRung` and
+  `forbiddenClasses` ride the wire and the roster shows them; blocking a proposal
+  that touches a forbidden class happens in Personas' `autonomy.rs`, which is not
+  built. `forbiddenClassViolations` is therefore a number kp trusts its sender to
+  report honestly — the A3 axis it scores is exactly the one it cannot verify.
+- **An App-master hire has no board presence.** `job_id` is the empty string for
+  an intake-originated hire, so it never appears on the pipeline board and the
+  roster's role column is plain text. `job_id` stays `NOT NULL` in the DDL (the
+  alternative was a SQLite table rebuild of a table other sessions write); the
+  empty string is the disclosed absence, carried by the nullable `intake_id`.
 - **The population-fit thresholds are asserted, not calibrated.** The verdict is
   computed in code from kp's own coverage ratio, cut at ≥ 0.75 for `agent` and
   ≤ 0.25 for `human` (`AGENT_POPULATION_FLOOR` / `HUMAN_POPULATION_CEILING` in

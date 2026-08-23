@@ -377,9 +377,10 @@
       ]
     },
     {
-      "_comment": "P2 landed the repo scan under repo-scan* / repo_scan* rather than the app-master/** directories P1 anticipated — the scan is one task and one store, not a module tree, so the globs name the files that exist. A later phase that does create app/_lib/app-master/** adds it here in the same change (the map's own test asserts every glob root exists on disk, so a forward-looking glob cannot be pre-registered).",
+      "_comment": "P2 landed the repo scan under repo-scan* / repo_scan* rather than the app-master/** directories P1 anticipated — the scan is one task and one store, not a module tree, so the globs name the files that exist. P4 created app/_lib/app-master/** (the TS port of the performance backbone plus its Python-generated parity fixtures) and registered it here in the same change, as that note required. The P4 dispatch/report/roster surfaces live under app/api/agents/** and app/features/agents-workforce/**, which the agents doc already owns — the App-master doc links to it rather than claiming the same globs twice.",
       "doc": "docs/features/app-master/README.md",
       "sourceGlobs": [
+        "app/_lib/app-master/**",
         "app/_lib/repo-scan*.ts",
         "app/_lib/db/repo-scans*.ts",
         "app/api/repo-scan/**",

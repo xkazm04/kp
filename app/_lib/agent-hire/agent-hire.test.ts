@@ -5,6 +5,7 @@ import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { cleanupUnitDb } from "../testing/unit-db.ts";
 import { parseAgentReport } from "./report-payload.ts";
+import type { LifecycleReport, RollupBackbone, RollupReport } from "./report-payload.ts";
 import { toAgentFitEnvelope } from "./transform-run.ts";
 import {
   BUILTIN_CONNECTOR_CATALOG,
@@ -144,4 +145,86 @@ test("connector catalog: a live Personas catalog wins over the built-in list", a
   const r = await fetchConnectorCatalog();
   assert.equal(r.source, "personas");
   assert.deepEqual(r.connectors, [{ name: "custom-crm", description: "CRM ops" }]);
+});
+
+/** Narrow a parse result to a rollup's v2 backbone block (or null for a pre-v2
+ *  rollup), failing the test loudly if the shape isn't a rollup at all. */
+function rollupBackboneOf(payload: unknown): RollupBackbone | null {
+  const parsed = parseAgentReport(payload);
+  assert.ok(parsed.ok, "expected the rollup to parse");
+  assert.equal(parsed.report.kind, "rollup");
+  return (parsed.report as RollupReport).backbone;
+}
+
+test("report payload v2: the backbone block is bounded and internally consistent", () => {
+  const b = rollupBackboneOf({
+    kind: "rollup",
+    period: "2026-08",
+    runs: 10,
+    successes: 9,
+    failures: 1,
+    // Every one of these is wrong in a way the roster would DIVIDE by.
+    proposalsOpened: 5,
+    proposalsMerged: 9, // > opened → a 180% delivery rate
+    proposalsReverted: 12, // > merged → negative durability
+    gatePassRate: 1.6, // > 1 → a 160% gate pass rate
+    forbiddenClassViolations: -3, // a negative violation count
+    budgetReservedUsd: 100,
+    budgetSettledUsd: 250,
+    ledgerConsistent: false,
+    autopilotMode: "suggest",
+    kpiDeltas: [
+      { kpiKey: "p95", baseline: 900, current: -40, target: 600, direction: "lte", windowDays: 7, measured: true },
+      { kpiKey: "", current: 1, measured: true }, // no key → cannot match an objective
+      { kpiKey: "unread", windowDays: -5 }, // no reading, nonsense window
+      "nope",
+    ],
+  });
+  assert.ok(b);
+  assert.equal(b.proposalsMerged, 5, "merged is capped at opened");
+  assert.equal(b.proposalsReverted, 5, "reverted is capped at merged");
+  assert.equal(b.gatePassRate, 1, "the gate rate is clamped into 0..1");
+  assert.equal(b.forbiddenClassViolations, 0, "a negative violation count is 0, never a credit");
+  assert.equal(b.ledgerConsistent, false);
+  assert.equal(b.autopilotMode, "suggest");
+  assert.equal(b.kpiDeltas.length, 2, "the keyless delta and the non-object are dropped");
+  assert.equal(b.kpiDeltas[0].current, -40, "a KPI reading may be negative — it is not a count");
+  assert.equal(b.kpiDeltas[1].measured, false, "an unstated `measured` is false, never a scored miss");
+  assert.equal(b.kpiDeltas[1].windowDays, 30, "a nonsense window falls back to 30 days");
+  assert.equal(rollupBackboneOf({ kind: "rollup", period: "2026-08", autopilotMode: "yolo" })?.autopilotMode, null);
+});
+
+test("report payload v2: unmeasured spend is disclosed, never scored as adherence", () => {
+  // Explicit: the sender says it did not meter, and still reports a settled
+  // figure. Both are kept — the figure is REPORTED, the adherence is WITHHELD.
+  const declared = rollupBackboneOf({ kind: "rollup", period: "2026-08", budgetSettledUsd: 40, budgetUnmeasured: true });
+  assert.equal(declared?.budgetUnmeasured, true);
+  assert.equal(declared?.budgetSettledUsd, 40, "the settled figure still lands in the ledger");
+
+  // Implicit: no budget numbers at all is NOT a $0 window.
+  assert.equal(rollupBackboneOf({ kind: "rollup", period: "2026-08", proposalsOpened: 2 })?.budgetUnmeasured, true);
+
+  // A pre-v2 rollup carries NO backbone at all — distinguishable from zeroes,
+  // so a Personas build that predates reporter v2 is never scored as an agent
+  // that opened no proposals and spent nothing.
+  assert.equal(rollupBackboneOf({ kind: "rollup", period: "2026-08", runs: 3, successes: 3, failures: 0, costUsd: 1 }), null);
+});
+
+test("report payload v2: probation_review requires a decision; other lifecycle events are unchanged", () => {
+  assert.equal(
+    parseAgentReport({ kind: "lifecycle", event: "probation_review" }).ok,
+    false,
+    "a probation review with no decision is not a review"
+  );
+  assert.equal(parseAgentReport({ kind: "lifecycle", event: "probation_review", decision: "promoted" }).ok, false);
+  for (const decision of ["activated", "extended", "retired"]) {
+    const r = parseAgentReport({ kind: "lifecycle", event: "probation_review", decision, note: "n" });
+    assert.ok(r.ok, decision);
+    assert.equal((r.report as LifecycleReport).decision, decision);
+    assert.equal((r.report as LifecycleReport).note, "n");
+  }
+  // A non-probation event never carries a decision, whatever the sender put there.
+  const plain = parseAgentReport({ kind: "lifecycle", event: "activated", decision: "retired" });
+  assert.ok(plain.ok);
+  assert.equal((plain.report as LifecycleReport).decision, null);
 });
