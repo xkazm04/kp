@@ -47,6 +47,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       message,
       lang: intake.lang === "cs" ? "cs" : "en",
       attachments: intake.attachments,
+      // App master: the completed scan grounds every turn. Its presence is what
+      // selects the persona overlay and the app-master slot script, so a session
+      // whose scan has not landed yet talks like a normal intake until it does.
+      dossier: intake.dossier,
     });
 
     // Recertify R-2: the <<END>> sentinel is an engine/eval wire contract, not

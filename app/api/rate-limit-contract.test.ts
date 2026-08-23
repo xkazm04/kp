@@ -68,6 +68,18 @@ type RouteSpec = {
 
 const ROUTES: RouteSpec[] = [
   {
+    // ADDED with the route (voice-tts package, 2026-08-23). Operator-gated, but
+    // open mode makes that a no-op: a cloud call costs money and a local call
+    // spawns a sidecar per request. 60/10min per IP — the compare panel is one
+    // click per utterance.
+    rel: "./tts/route.ts",
+    key: "`tts:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    optsSrc: "TTS_RATE_LIMIT",
+    optsDef: "const TTS_RATE_LIMIT = { limit: 60, windowMs: 10 * 60_000 };",
+    expensive: "getTts().speak(",
+  },
+  {
     rel: "./analyze/route.ts",
     // Per-IP. 30/10min: the UI submits ONE request per run (multi-CV variants
     // ride together inside it), so a single operator never hits this.
@@ -227,7 +239,9 @@ const ROUTES: RouteSpec[] = [
     // The CALL SITE, not a bare `runIntakeOpening(`: that substring also appears in
     // this route's IMPORT and in the comment above the limiter, both of which
     // precede it — so the generic marker would fail on prose, not on ordering.
-    expensive: "runIntakeOpening(lang)",
+    // `lang,` (with the comma) since the App-master shape added a second
+    // argument: `runIntakeOpening(lang, scanId ? "app_master" : undefined)`.
+    expensive: "runIntakeOpening(lang,",
   },
   {
     rel: "./intake/[id]/promote/route.ts",
@@ -290,8 +304,7 @@ const ROUTES: RouteSpec[] = [
     // The CALL SITE, not a bare `startRepoScan(`: that substring also appears in
     // this route's import and header comment, both of which precede the limiter, so
     // the generic marker would fail on prose rather than on ordering.
-    expensive: "startRepoScan(
-",
+    expensive: "startRepoScan(\n",
   },
   {
     rel: "./feedback/route.ts",

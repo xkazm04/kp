@@ -5,6 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  briefToAppMasterSpec,
   briefDealbreakerEvidence,
   briefIntentSummary,
   briefMustSkills,
@@ -152,4 +153,172 @@ test("briefIntentSummary grounds a facet-only brief (both homes, like the promot
     facets: [{ key: "dealbreaker_context", label: "", value: "z".repeat(600), importance: "core", provenance: "stated", confidence: 1 }],
   });
   assert.ok(long && !long.includes("z".repeat(201)), "long facet prose must be trimmed");
+});
+
+// --------------------------------------------------------------------------
+// App master: RoleBrief (+ RepoDossier) -> AppMasterSpec
+// --------------------------------------------------------------------------
+
+const dossier = {
+  dossierId: "dossier_kp1",
+  repo: { url: "https://github.com/xkazm04/kp", rootPath: null, mainBranch: "main" },
+  source: "heuristic" as const,
+  generatedAt: "2026-08-23T09:00:00Z",
+  stack: ["TypeScript", "Python"],
+  size: { files: 2377, sourceFiles: 2100, contexts: 143 },
+  declaredGates: ["npm run typecheck", "npm run test:unit"],
+  contexts: [{ name: "Role intake", category: "ui", fileCount: 14 }],
+  hotSpots: [{ ref: "app/_lib/db/core.ts", note: "churn" }],
+  riskAreas: [{ ref: "app/_lib/auth", note: "custom HMAC" }],
+  existingKpis: [],
+  maintainerLoadEstimate: "~1.5 devs, bursty",
+  candidateObjectives: [
+    { kpiKey: "gate_pass_rate", label: "Gate pass rate", baseline: 0.8, target: null, unit: "%", direction: "gte" as const, windowDays: 60 },
+  ],
+  fieldProvenance: {},
+  promptVersion: "app-master-v1",
+};
+
+const facet = (key: string, value: string) => ({
+  key,
+  label: key,
+  value,
+  importance: "core" as const,
+  provenance: "stated" as const,
+  confidence: 0.9,
+  sourceTurn: null,
+});
+
+const appMasterBrief = (extra: { key: string; value: string }[] = []): RoleBrief => ({
+  title: "App master for kp",
+  seniority: "medior",
+  spineProvenance: { title: "stated" },
+  facets: [
+    facet("objective:gate_pass_rate", "gate pass rate: 95% within 60 days"),
+    facet("mandate.scopeRung", "2"),
+    facet("mandate.forbiddenClasses", "all six stand"),
+    facet("budget.monthlyUsd", "120 USD"),
+    facet("mandate.owner", "Martin, head of engineering"),
+    facet("tenure.probationDays", "45"),
+    facet("role.population", "either"),
+    ...extra.map((e) => facet(e.key, e.value)),
+  ],
+});
+
+test("briefToAppMasterSpec reads the six answer facet keys back into the spec", () => {
+  const spec = briefToAppMasterSpec(appMasterBrief(), dossier);
+  assert.equal(spec.mandate.scopeRung, 2);
+  assert.equal(spec.mandate.owner, "Martin, head of engineering");
+  assert.equal(spec.budget.monthlyUsd, 120);
+  assert.equal(spec.budget.onCap, "drain");
+  assert.equal(spec.tenure.probationDays, 45);
+  assert.equal(spec.role.population, "either");
+  // "a step past senior" — a seniority the requestor never stated must not
+  // read as a decision they made.
+  assert.equal(spec.role.seniority, "senior");
+  assert.equal(spec.app.repo.url, "https://github.com/xkazm04/kp");
+  assert.equal(spec.app.dossierId, "dossier_kp1");
+  // The repo's OWN gates are what a proposal must pass.
+  assert.deepEqual(spec.mandate.approvalGates, ["npm run typecheck", "npm run test:unit"]);
+});
+
+test("briefToAppMasterSpec parses target + window out of the requestor's own line", () => {
+  const spec = briefToAppMasterSpec(appMasterBrief(), dossier);
+  assert.equal(spec.objectives.length, 1);
+  const [objective] = spec.objectives;
+  assert.equal(objective.kpiKey, "gate_pass_rate");
+  assert.equal(objective.target, 95);
+  assert.equal(objective.windowDays, 60);
+  // Baseline/unit/direction come from the scan's proposal — the requestor was
+  // not asked to restate what the machine already read.
+  assert.equal(objective.baseline, 0.8);
+  assert.equal(objective.unit, "%");
+  assert.equal(objective.direction, "gte");
+});
+
+test("an objective with no readable number is recorded unquantified, never zeroed", () => {
+  const brief = appMasterBrief();
+  brief.facets = brief.facets!.map((f) =>
+    f.key === "objective:gate_pass_rate" ? { ...f, value: "gates should just stop failing" } : f
+  );
+  const spec = briefToAppMasterSpec(brief, dossier);
+  assert.equal(spec.objectives[0].target, null, "0 would invent a target nobody set");
+  assert.ok(spec.coercionNotes.some((n) => n.includes("no numeric target")));
+});
+
+test("the defaults are the safe end: unreadable answers keep rung 2 and all six classes", () => {
+  const brief = appMasterBrief();
+  brief.facets = brief.facets!.map((f) =>
+    f.key === "mandate.scopeRung" ? { ...f, value: "whatever you think" } : f
+  );
+  const spec = briefToAppMasterSpec(brief, dossier);
+  assert.equal(spec.mandate.scopeRung, 2);
+  assert.equal(spec.mandate.forbiddenClasses.length, 6);
+  assert.ok(spec.coercionNotes.some((n) => n.includes("could not read a scope rung")));
+});
+
+test("a rung above the ladder is clamped and the clamp is recorded", () => {
+  const brief = appMasterBrief();
+  brief.facets = brief.facets!.map((f) => (f.key === "mandate.scopeRung" ? { ...f, value: "4" } : f));
+  const spec = briefToAppMasterSpec(brief, dossier);
+  assert.equal(spec.mandate.scopeRung, 2);
+  assert.ok(spec.coercionNotes.some((n) => n.includes("not grantable in v1")));
+});
+
+test("only an explicit allow verb relaxes a forbidden class", () => {
+  const emphatic = appMasterBrief();
+  emphatic.facets = emphatic.facets!.map((f) =>
+    f.key === "mandate.forbiddenClasses" ? { ...f, value: "we take test deletion extremely seriously" } : f
+  );
+  assert.equal(briefToAppMasterSpec(emphatic, dossier).mandate.forbiddenClasses.length, 6);
+
+  const relaxed = appMasterBrief();
+  relaxed.facets = relaxed.facets!.map((f) =>
+    f.key === "mandate.forbiddenClasses" ? { ...f, value: "you may bump a dependency, the rest stand" } : f
+  );
+  const spec = briefToAppMasterSpec(relaxed, dossier);
+  assert.equal(spec.mandate.forbiddenClasses.length, 5);
+  assert.ok(!spec.mandate.forbiddenClasses.includes("dependency_bump_to_satisfy_check"));
+  assert.ok(spec.coercionNotes.some((n) => n.includes("relaxed")));
+});
+
+test("population drives which tail block exists, and 'either' stays disclosed", () => {
+  const either = briefToAppMasterSpec(appMasterBrief(), dossier);
+  assert.equal(either.agent, null);
+  assert.equal(either.human, null);
+
+  const agentBrief = appMasterBrief();
+  agentBrief.facets = agentBrief.facets!.map((f) =>
+    f.key === "role.population" ? { ...f, value: "an AI agent" } : f
+  );
+  const agent = briefToAppMasterSpec(agentBrief, dossier);
+  assert.equal(agent.role.population, "agent");
+  assert.ok(agent.agent);
+  // The connector catalog is not available to a pure function — guessing one
+  // would put an unverified connector on a dispatch payload.
+  assert.deepEqual(agent.agent!.connectors, []);
+  assert.ok(agent.agent!.systemPromptDraft.includes("rung 2"));
+
+  const humanBrief = appMasterBrief();
+  humanBrief.facets = humanBrief.facets!.map((f) =>
+    f.key === "role.population" ? { ...f, value: "a human, definitely" } : f
+  );
+  const human = briefToAppMasterSpec(humanBrief, dossier);
+  assert.equal(human.role.population, "human");
+  assert.ok(human.human!.compBandRef.includes("assumption"));
+});
+
+test("a missing dossier composes a spec that says the app binding is incomplete", () => {
+  const spec = briefToAppMasterSpec(appMasterBrief(), null);
+  assert.equal(spec.app.repo.url, null);
+  assert.equal(spec.app.repo.mainBranch, "main");
+  assert.ok(spec.coercionNotes.some((n) => n.includes("no repo dossier")));
+  // Still a valid spec — the requestor's answers survived.
+  assert.equal(spec.mandate.scopeRung, 2);
+});
+
+test("briefToAppMasterSpec is pure: the same inputs always yield the same spec", () => {
+  const a = briefToAppMasterSpec(appMasterBrief(), dossier);
+  const b = briefToAppMasterSpec(appMasterBrief(), dossier);
+  assert.deepEqual(a, b);
 });

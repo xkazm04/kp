@@ -361,3 +361,194 @@ def analyze_agent_fit(
     result["budget"] = budget
     result["promptVersion"] = AGENT_FIT_PROMPT_VERSION
     return result, source
+
+
+# --------------------------------------------------------------------------- #
+# Population fit — App master (docs/concepts/app-master.md §3 step 4)
+# --------------------------------------------------------------------------- #
+
+# Who should hold an App master role. "hybrid" is the honest middle (some
+# objectives an agent can own, others need a person); "unassessed" is the
+# DISCLOSED unknown — never a quiet "human" standing in for a judgment nobody
+# made. Same discipline as FIT_VERDICTS above, different question.
+POPULATION_VERDICTS = ("human", "agent", "hybrid", "unassessed")
+
+# Where the code-owned verdict rule cuts the coverage ratio. Asserted, not
+# calibrated (docs/features/app-master/README.md, Known gaps) — stated as
+# constants so a re-cut is a visible diff rather than a buried literal.
+AGENT_POPULATION_FLOOR = 0.75
+HUMAN_POPULATION_CEILING = 0.25
+
+_POPULATION_SYSTEM = (
+    "You are an AI-workforce analyst judging who should hold the App-master role for ONE "
+    "application: an AI agent, a human, or a mix. You are given what a machine read off the "
+    "application's own codebase and the outcomes the hiring requestor chose to be measured on. "
+    "Judge each OBJECTIVE honestly: can an agent working at scope rung 2 (open a branch, propose a "
+    "change a human merges) own it end-to-end, only assist on it, or is it human-only? Be "
+    "conservative: anything needing accountability to a person, negotiation, or judgment about what "
+    "the product should become is human_only. Output strict JSON only."
+)
+
+
+def _objective_items(brief: Any) -> list[dict[str, str]]:
+    """The objectives the population fit is judged over: the requestor's chosen
+    `objective:<kpiKey>` facets (stated), which is the only home the App-master
+    dialog writes them to."""
+    facets = getattr(brief, "facets", None)
+    if facets is None and isinstance(brief, dict):
+        facets = brief.get("facets") or []
+    out: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for facet in facets or []:
+        key = getattr(facet, "key", None) if not isinstance(facet, dict) else facet.get("key")
+        value = getattr(facet, "value", None) if not isinstance(facet, dict) else facet.get("value")
+        label = getattr(facet, "label", None) if not isinstance(facet, dict) else facet.get("label")
+        key = str(key or "")
+        if not key.startswith("objective:"):
+            continue
+        kpi_key = key.split(":", 1)[1].strip()
+        if not kpi_key or kpi_key in seen:
+            continue
+        seen.add(kpi_key)
+        out.append({"kpiKey": kpi_key, "label": str(label or kpi_key), "statement": str(value or "").strip()})
+    return out[:_MAX_COVERAGE_ITEMS]
+
+
+def _dossier_tokens(dossier: Any) -> set[str]:
+    """Everything the scan established, as a keyword bag — the keyless path's
+    only evidence that a tool exists in an objective's vicinity."""
+    if not isinstance(dossier, dict):
+        return set()
+    parts: list[str] = []
+    for key in ("stack", "declaredGates", "declared_gates", "existingKpis", "existing_kpis"):
+        for entry in dossier.get(key) or []:
+            parts.append(str(entry))
+    for key in ("hotSpots", "hot_spots", "riskAreas", "risk_areas"):
+        for entry in dossier.get(key) or []:
+            if isinstance(entry, dict):
+                parts.append(f"{entry.get('ref', '')} {entry.get('note', '')}")
+    for entry in dossier.get("candidateObjectives") or dossier.get("candidate_objectives") or []:
+        if isinstance(entry, dict):
+            parts.append(f"{entry.get('kpiKey') or entry.get('kpi_key', '')} {entry.get('label', '')}")
+    return _tokens(" ".join(parts))
+
+
+def _population_verdict(coverage: list[dict[str, Any]], ratio: float, assessed: bool) -> str:
+    """The verdict, derived IN CODE from the code-computed ratio.
+
+    The model classifies each objective; it never picks the verdict, exactly as
+    `coverage_ratio` is never LLM arithmetic. Unassessed when nothing could be
+    judged — the keyless path can distinguish "a tool exists nearby" from "an
+    agent can own this", and only the second is a hiring answer."""
+    if not assessed or not coverage:
+        return "unassessed"
+    if ratio >= AGENT_POPULATION_FLOOR:
+        return "agent"
+    if ratio <= HUMAN_POPULATION_CEILING:
+        return "human"
+    return "hybrid"
+
+
+def assess_population_fit(
+    dossier: Any,
+    brief: Any,
+    *,
+    provider: Any | None = None,
+    lang: object | None = None,
+) -> dict[str, Any]:
+    """Who should hold this App-master role — human, agent, hybrid, or unknown.
+
+    Returns ``{verdict, perObjective: [{kpiKey, coverage, rationale}],
+    coverageRatio, source}``. The coverage vocabulary is the module's existing
+    :data:`COVERAGE_CLASSES`; the ratio is the module's existing
+    :func:`coverage_ratio` (code-owned on BOTH paths, denominator = the
+    objectives actually chosen, so a partial classification cannot read as full
+    coverage).
+
+    Keyless invariants (the product property, pinned by test_agentfit.py):
+
+    * no objective is ever classified ``automatable`` — a keyword match against
+      the dossier means a tool exists in the vicinity, which justifies
+      ``assisted`` and nothing more;
+    * the verdict stays ``unassessed`` — deciding "an agent can own this app's
+      value" is exactly the judgment that needs a model, and a deterministic
+      keyword walk asserting "agent" would be the dishonest green.
+    """
+    objectives = _objective_items(brief)
+    tokens = _dossier_tokens(dossier)
+
+    def deterministic() -> dict:
+        per: list[dict[str, Any]] = []
+        for obj in objectives:
+            hit = bool(_tokens(f"{obj['label']} {obj['statement']}") & tokens)
+            per.append(
+                {
+                    "kpiKey": obj["kpiKey"],
+                    "coverage": "assisted" if hit else "human_only",
+                    "rationale": (
+                        "Keyword overlap with the scanned repo (stack, gates or hot spots) — a tool "
+                        "exists in the vicinity, which is not the same as an agent owning the outcome."
+                        if hit
+                        else "Nothing the scan read connects to this outcome."
+                    ),
+                }
+            )
+        return {"perObjective": per, "assessed": False}
+
+    def coerce(payload: Any) -> dict:
+        raw = payload if isinstance(payload, dict) else {}
+        wanted = {o["kpiKey"] for o in objectives}
+        per: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for entry in raw.get("perObjective") or []:
+            if not isinstance(entry, dict):
+                continue
+            kpi_key = str(entry.get("kpiKey") or entry.get("kpi_key") or "").strip()
+            klass = str(entry.get("coverage") or "").strip().lower()
+            # An objective the requestor never chose cannot enter the answer —
+            # same trust boundary as the connector catalog intersection above.
+            if kpi_key not in wanted or kpi_key in seen or klass not in COVERAGE_CLASSES:
+                continue
+            seen.add(kpi_key)
+            per.append({"kpiKey": kpi_key, "coverage": klass, "rationale": str(entry.get("rationale") or "").strip()})
+        if not per:
+            raise ValueError("population fit returned no classifiable objective")
+        return {"perObjective": per, "assessed": True}
+
+    if not objectives:
+        # Nothing was chosen yet: an honest empty answer, not a model call.
+        return {"verdict": "unassessed", "perObjective": [], "coverageRatio": 0.0, "source": "deterministic"}
+
+    ctx = {
+        "app": {
+            "repo": (dossier or {}).get("repo") if isinstance(dossier, dict) else None,
+            "stack": (dossier or {}).get("stack") if isinstance(dossier, dict) else None,
+            "declaredGates": (dossier or {}).get("declaredGates") if isinstance(dossier, dict) else None,
+            "riskAreas": (dossier or {}).get("riskAreas") if isinstance(dossier, dict) else None,
+            "maintainerLoadEstimate": (dossier or {}).get("maintainerLoadEstimate") if isinstance(dossier, dict) else None,
+        },
+        "objectives": objectives,
+    }
+    prompt = (
+        "Classify EVERY objective below as automatable (an agent at scope rung 2 can own the outcome "
+        "end-to-end, proposing changes a human merges), assisted (the agent moves it but a human "
+        "finishes or decides), or human_only — with a one-line rationale each, grounded in the app "
+        "facts given.\n"
+        f"{json.dumps(ctx, ensure_ascii=False, indent=2)}\n\n"
+        'Return JSON: { "perObjective": [ { "kpiKey": str (EXACTLY one of the kpiKeys above), '
+        '"coverage": "automatable|assisted|human_only", "rationale": str } ] }. '
+        "Do not return a verdict or a ratio — those are computed outside you. JSON only.\n"
+        f"{language_directive(lang)}"
+    )
+
+    result, source = generate_with_fallback(
+        provider, prompt, _POPULATION_SYSTEM, deterministic, coerce, _LOG, expected_keys=("perObjective",)
+    )
+    per = result["perObjective"]
+    ratio = coverage_ratio(per, total_items=len(objectives))
+    return {
+        "verdict": _population_verdict(per, ratio, bool(result.get("assessed"))),
+        "perObjective": per,
+        "coverageRatio": ratio,
+        "source": source,
+    }

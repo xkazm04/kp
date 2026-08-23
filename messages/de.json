@@ -1289,7 +1289,9 @@
     "STAGE_MIGRATION_FAILED": "Die Pipeline-Änderung konnte nicht angewendet werden. Versuchen Sie es erneut.",
     "HIRE_RATING_ENTRY_NOT_FOUND": "Diese Kandidatin oder dieser Kandidat ist nicht auf diesem Board.",
     "HIRE_RATING_NOT_HIRED": "Nur eine eingestellte Person kann eine Bewertung der Arbeitsleistung tragen.",
-    "HIRE_RATING_INVALID": "Eine Bewertung der Arbeitsleistung muss eine ganze Zahl von 1 bis 5 sein."
+    "HIRE_RATING_INVALID": "Eine Bewertung der Arbeitsleistung muss eine ganze Zahl von 1 bis 5 sein.",
+    "INTAKE_DOSSIER_FAILED": "Die Code-Lesung konnte dieser Sitzung nicht angehängt werden. Bitte erneut versuchen.",
+    "INTAKE_COMPOSE_APP_MASTER_FAILED": "Die App-Master-Spezifikation konnte nicht erstellt werden. Bitte erneut versuchen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1684,7 +1686,27 @@
         "listening": "Hört zu",
         "unstable": "Verbindung instabil, Wiederverbindung…"
       },
-      "transcriptLabel": "Live-Transkript des Interviews"
+      "transcriptLabel": "Live-Transkript des Interviews",
+      "ttsCompare": {
+        "eyebrow": "Sprachausgabe",
+        "title": "Sprachanbieter vergleichen",
+        "intro": "Derselbe Satz durch jeden Anbieter, den diese Installation zulässt. {preferredVar} legt den Standard fest, {allowedVar} begrenzt, was hier angeboten wird.",
+        "default": "Standard",
+        "noneAllowed": "Auf dieser Installation ist kein Anbieter für Sprachausgabe zugelassen.",
+        "probing": "Anbieter werden geprüft…",
+        "stateLocalReady": "lokal · bereit",
+        "stateCloudReady": "Cloud · bereit",
+        "stateAbsent": "nicht installiert",
+        "stateBroken": "defekt",
+        "speak": "Sprechen",
+        "synthesizing": "Wird synthetisiert…",
+        "stop": "Stopp",
+        "resume": "Abspielen (Browser hat Autoplay blockiert)",
+        "textLabel": "Zu sprechender Text",
+        "spokenBy": "Gesprochen von {provider} in {ms} ms",
+        "fellBack": "— Ausweichlösung statt {provider}",
+        "providerGroup": "Anbieter"
+      }
     }
   },
   "palette": {
@@ -3516,7 +3538,8 @@
         },
         "shape": {
           "powerUnit": "Nachbesetzung",
-          "story": "Erkundung"
+          "story": "Erkundung",
+          "appMaster": "App-Master"
         },
         "thinking": "Denkt nach…",
         "thinkingSlow": "Wir denken noch nach. Eine gründliche Antwort dauert meist 30–40 Sekunden.",
@@ -3657,6 +3680,89 @@
             "cueAction": "Unterlagen öffnen",
             "reveal": "{count, plural, =0 {Unterlagen: noch nichts angehängt} one {Unterlagen: # angehängt} other {Unterlagen: # angehängt}}"
           }
+        },
+        "appMaster": {
+          "start": "App-Master",
+          "startHint": "Eine Anwendung durchgängig verantworten. Zeigen Sie kp die App: Der Code wird gelesen, bevor die Rolle entsteht.",
+          "repoUrl": "GitHub-URL",
+          "rootPath": "Lokaler Pfad",
+          "repoPlaceholder": "https://github.com/org/app",
+          "pathPlaceholder": "C:\\code\\app",
+          "repoHint": "Ein öffentliches Repository oder eines, das dieser Server erreicht.",
+          "pathHint": "Nur Pfade, die dieser selbst gehostete Server zulässt, werden gescannt.",
+          "begin": "Scannen und starten",
+          "starting": "Wird gestartet…",
+          "cancel": "Abbrechen",
+          "startError": "Der Scan konnte nicht gestartet werden. Bitte Repository prüfen und erneut versuchen.",
+          "scan": {
+            "queued": "Code wird gelesen (in der Warteschlange)",
+            "running": "Code wird gelesen…",
+            "complete": "Der Code wurde gelesen.",
+            "failed": "Der Scan ist fehlgeschlagen. Führen Sie das Gespräch fort; das Briefing enthält dann keine Code-Lesung.",
+            "unreachable": "Der Scan ist gerade nicht erreichbar. Erneuter Versuch läuft."
+          },
+          "dossier": {
+            "title": "Was der Scan gelesen hat",
+            "pending": "Der Scan liest den Code noch.",
+            "source": {
+              "llm": "direkt im Repository gelesen",
+              "heuristic": "Dateidurchlauf, ohne KI"
+            },
+            "stack": "Technologien",
+            "gates": "Deklarierte Gates",
+            "contexts": "Kontexte",
+            "contextCount": "{count, plural, one {# Kontext} other {# Kontexte}}",
+            "hotSpots": "Hotspots",
+            "riskAreas": "Risikobereiche",
+            "objectives": "Vorgeschlagene Ergebnisse",
+            "load": "Wartungsaufwand"
+          },
+          "fit": {
+            "title": "Wer die Rolle halten soll",
+            "needsObjectives": "Wählen Sie zuerst die Ergebnisse: Daran wird die Eignung gemessen.",
+            "notRun": "Noch nicht bewertet. Erstellen Sie die Spezifikation, dann läuft die Bewertung.",
+            "verdict": {
+              "agent": "Ein KI-Agent könnte diese Rolle halten",
+              "hybrid": "Teils Agent, teils Mensch",
+              "human": "Ein Mensch sollte diese Rolle halten",
+              "unassessed": "Nicht entschieden"
+            },
+            "coverage": "{pct}% der gewählten Ergebnisse könnte ein Agent bewegen",
+            "keyless": "KI ist offline, daher wurde nichts als vollständig automatisierbar bewertet",
+            "coverageClass": {
+              "automatable": "Agent kann es allein",
+              "assisted": "Agent unterstützt",
+              "human_only": "nur Mensch"
+            }
+          },
+          "compose": "Spezifikation erstellen",
+          "recompose": "Neu erstellen",
+          "composing": "Wird erstellt…",
+          "composeError": "Die Spezifikation konnte nicht erstellt werden. Bitte erneut versuchen.",
+          "spec": {
+            "title": "App-Master-Spezifikation",
+            "empty": "Erstellen Sie die Spezifikation, sobald Ergebnisse und Mandat erfasst sind.",
+            "population": "Wer die Rolle halten darf",
+            "rung": "Mandat",
+            "rungValue": {
+              "0": "nur lesen und berichten",
+              "1": "bestehende Arbeit erneut ausführen",
+              "2": "Branch öffnen und Änderung vorschlagen"
+            },
+            "forbidden": "Verbotene Änderungsklassen",
+            "forbiddenCount": "{count, plural, one {# Klasse} other {# Klassen}}",
+            "budget": "Monatliche Obergrenze",
+            "budgetValue": "{usd} USD",
+            "probation": "Probezeit",
+            "probationValue": "{days, plural, one {# Tag} other {# Tage}}",
+            "owner": "Prüfende Person",
+            "noOwner": "nicht benannt, Eskalationen haben also kein Ziel",
+            "objectives": "Ergebnisse",
+            "objectiveCount": "{count, plural, one {# Ergebnis} other {# Ergebnisse}}",
+            "notes": "Festgehaltene Annahmen"
+          },
+          "dispatch": "An Personas senden",
+          "dispatchP4": "Der Agenten-Versand kommt in einer späteren Phase (P4). Es wird noch nichts gesendet."
         }
       }
     },
@@ -7657,7 +7763,9 @@
         "failed": "Entsendung fehlgeschlagen. Personas war nicht erreichbar oder hat die Anfrage abgewiesen. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
         "retired": "Dieser Agent wurde außer Dienst gestellt."
       }
-    }
+    },
+    "appMasterNote": "Die ganze App zu verantworten (nicht nur die Aufgaben dieser Stelle) ist die App-Master-Rolle. Sie beginnt beim Code.",
+    "appMasterCta": "App-Master-Intake starten"
   },
   "agentsWorkforce": {
     "eyebrow": "Belegschaft",

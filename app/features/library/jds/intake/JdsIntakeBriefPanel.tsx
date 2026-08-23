@@ -79,6 +79,7 @@ export function JdsIntakeBriefPanel({
   // Prototype layouts carry their own column header — suppress the inner title
   // so "Živé zadání" doesn't render twice (the edit affordance stays).
   showTitle = true,
+  appMasterSlot,
 }: {
   brief: RoleBrief | null;
   // Promoted session: the JD exists, the brief is frozen (edit hidden + note).
@@ -90,6 +91,10 @@ export function JdsIntakeBriefPanel({
   onSaveBrief?: (edited: RoleBrief) => void | Promise<boolean>;
   onJumpToTurn?: (turn: number) => void;
   showTitle?: boolean;
+  /** App master (docs/features/app-master/README.md): the Dossier / population-fit
+   *  / composed-spec card, rendered ABOVE the brief sections because everything
+   *  below it was shaped by what the scan read. Absent on the other two shapes. */
+  appMasterSlot?: React.ReactNode;
 }) {
   const t = useTranslations("library.tab.intake.brief");
   const tEdit = useTranslations("library.tab.intake.edit");
@@ -111,6 +116,7 @@ export function JdsIntakeBriefPanel({
         ) : null}
       </div>
       {frozen ? <p className="text-meta text-steel">{tEdit("frozen")}</p> : null}
+      {appMasterSlot}
       {empty ? (
         <p className="text-body text-steel">{t("empty")}</p>
       ) : editing && brief && onSaveBrief ? (

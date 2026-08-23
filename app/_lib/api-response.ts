@@ -54,6 +54,8 @@ export const STORE_ERRORS = {
   INTAKE_ATTACHMENT_FAILED: "Could not update the attachments. Please try again.",
   INTAKE_BRIEF_SAVE_FAILED: "Could not save the brief edit. Please try again.",
   INTAKE_REOPEN_FAILED: "Could not re-open the session. Please try again.",
+  INTAKE_DOSSIER_FAILED: "Could not attach the codebase reading to this session. Please try again.",
+  INTAKE_COMPOSE_APP_MASTER_FAILED: "Could not compose the App master spec. Please try again.",
   INTAKE_PROMOTE_FAILED: "Could not create the JD from this brief. Please try again.",
   // Recruiter-side analyzed-candidates read (biz-ui scan 2026-06-12 #1).
   JD_ANALYSES_FAILED: "Could not load candidates for this JD. Please try again.",

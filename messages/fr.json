@@ -1289,7 +1289,9 @@
     "STAGE_MIGRATION_FAILED": "Impossible d’appliquer la modification du pipeline. Réessayez.",
     "HIRE_RATING_ENTRY_NOT_FOUND": "Ce candidat ne figure pas sur ce tableau.",
     "HIRE_RATING_NOT_HIRED": "Seule une personne recrutée peut recevoir une évaluation en poste.",
-    "HIRE_RATING_INVALID": "Une évaluation en poste doit être un nombre entier de 1 à 5."
+    "HIRE_RATING_INVALID": "Une évaluation en poste doit être un nombre entier de 1 à 5.",
+    "INTAKE_DOSSIER_FAILED": "Impossible de rattacher la lecture du code à cette session. Veuillez réessayer.",
+    "INTAKE_COMPOSE_APP_MASTER_FAILED": "Impossible de composer la spécification du maître d'application. Veuillez réessayer."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1684,7 +1686,27 @@
         "listening": "À l’écoute",
         "unstable": "Connexion instable, reconnexion…"
       },
-      "transcriptLabel": "Transcription en direct de l’entretien"
+      "transcriptLabel": "Transcription en direct de l’entretien",
+      "ttsCompare": {
+        "eyebrow": "Sortie vocale",
+        "title": "Comparer les fournisseurs vocaux",
+        "intro": "La même phrase via chaque fournisseur autorisé sur cette installation. {preferredVar} fixe le fournisseur par défaut et {allowedVar} limite ce qui est proposé ici.",
+        "default": "par défaut",
+        "noneAllowed": "Aucun fournisseur de sortie vocale n’est autorisé sur cette installation.",
+        "probing": "Détection des fournisseurs…",
+        "stateLocalReady": "local · prêt",
+        "stateCloudReady": "cloud · prêt",
+        "stateAbsent": "non installé",
+        "stateBroken": "défaillant",
+        "speak": "Parler",
+        "synthesizing": "Synthèse en cours…",
+        "stop": "Arrêter",
+        "resume": "Lire (lecture automatique bloquée par le navigateur)",
+        "textLabel": "Texte à prononcer",
+        "spokenBy": "Prononcé par {provider} en {ms} ms",
+        "fellBack": "— repli depuis {provider}",
+        "providerGroup": "Fournisseur"
+      }
     }
   },
   "palette": {
@@ -3516,7 +3538,8 @@
         },
         "shape": {
           "powerUnit": "Remplacement",
-          "story": "Exploration"
+          "story": "Exploration",
+          "appMaster": "Maître d'application"
         },
         "thinking": "Réflexion…",
         "thinkingSlow": "Nous réfléchissons encore. Une réponse soignée prend généralement 30 à 40 secondes.",
@@ -3657,6 +3680,89 @@
             "cueAction": "Ouvrir Documents",
             "reveal": "{count, plural, =0 {Documents : rien de joint pour l’instant} one {Documents : # joint} other {Documents : # joints}}"
           }
+        },
+        "appMaster": {
+          "start": "Maître d'application",
+          "startHint": "Porter une application de bout en bout. Indiquez l'application à kp : il lit le code avant que le rôle ne soit composé.",
+          "repoUrl": "URL GitHub",
+          "rootPath": "Chemin local",
+          "repoPlaceholder": "https://github.com/org/app",
+          "pathPlaceholder": "C:\\code\\app",
+          "repoHint": "Un dépôt public, ou un dépôt accessible depuis ce serveur.",
+          "pathHint": "Seuls les chemins autorisés par ce serveur auto-hébergé sont analysés.",
+          "begin": "Analyser et démarrer",
+          "starting": "Démarrage…",
+          "cancel": "Annuler",
+          "startError": "Impossible de lancer l'analyse. Vérifiez le dépôt et réessayez.",
+          "scan": {
+            "queued": "Lecture du code (en file d'attente)",
+            "running": "Lecture du code…",
+            "complete": "Le code a été lu.",
+            "failed": "L'analyse a échoué. Poursuivez la conversation ; le brief ne portera aucune lecture du code.",
+            "unreachable": "Analyse injoignable pour le moment. Nouvelle tentative en cours."
+          },
+          "dossier": {
+            "title": "Ce que l'analyse a lu",
+            "pending": "L'analyse lit encore le code.",
+            "source": {
+              "llm": "lu directement dans le dépôt",
+              "heuristic": "parcours des fichiers, sans IA"
+            },
+            "stack": "Technologies",
+            "gates": "Contrôles déclarés",
+            "contexts": "Contextes",
+            "contextCount": "{count, plural, one {# contexte} other {# contextes}}",
+            "hotSpots": "Points chauds",
+            "riskAreas": "Zones à risque",
+            "objectives": "Résultats proposés",
+            "load": "Charge de maintenance"
+          },
+          "fit": {
+            "title": "Qui doit tenir le rôle",
+            "needsObjectives": "Choisissez d'abord les résultats : l'adéquation se juge sur eux.",
+            "notRun": "Pas encore évalué. Composez la spécification pour lancer l'évaluation.",
+            "verdict": {
+              "agent": "Un agent IA pourrait tenir ce rôle",
+              "hybrid": "En partie agent, en partie humain",
+              "human": "Un humain devrait tenir ce rôle",
+              "unassessed": "Non tranché"
+            },
+            "coverage": "{pct} % des résultats choisis qu'un agent pourrait faire bouger",
+            "keyless": "L'IA est hors ligne : rien n'a été jugé pleinement automatisable",
+            "coverageClass": {
+              "automatable": "l'agent peut le porter",
+              "assisted": "l'agent assiste",
+              "human_only": "humain uniquement"
+            }
+          },
+          "compose": "Composer la spécification",
+          "recompose": "Recomposer",
+          "composing": "Composition…",
+          "composeError": "Impossible de composer la spécification. Veuillez réessayer.",
+          "spec": {
+            "title": "Spécification du maître d'application",
+            "empty": "Composez la spécification une fois les résultats et le mandat saisis.",
+            "population": "Qui peut tenir le rôle",
+            "rung": "Mandat",
+            "rungValue": {
+              "0": "lire et rendre compte seulement",
+              "1": "relancer un travail existant",
+              "2": "ouvrir une branche et proposer"
+            },
+            "forbidden": "Classes de changement interdites",
+            "forbiddenCount": "{count, plural, one {# classe} other {# classes}}",
+            "budget": "Plafond mensuel",
+            "budgetValue": "{usd} USD",
+            "probation": "Période d'essai",
+            "probationValue": "{days, plural, one {# jour} other {# jours}}",
+            "owner": "Personne qui relit",
+            "noOwner": "non désignée, les escalades n'ont donc nulle part où aller",
+            "objectives": "Résultats",
+            "objectiveCount": "{count, plural, one {# résultat} other {# résultats}}",
+            "notes": "Hypothèses consignées"
+          },
+          "dispatch": "Envoyer à Personas",
+          "dispatchP4": "L'envoi de l'agent arrivera dans une phase ultérieure (P4). Rien n'est envoyé pour l'instant."
         }
       }
     },
@@ -7657,7 +7763,9 @@
         "failed": "Envoi échoué. Personas était injoignable ou a refusé la demande. Vérifiez la connexion et réessayez.",
         "retired": "Cet agent a été retiré."
       }
-    }
+    },
+    "appMasterNote": "Porter l'application entière (pas seulement les tâches de ce poste), c'est le rôle de maître d'application. Il part du code.",
+    "appMasterCta": "Démarrer un intake maître d'application"
   },
   "agentsWorkforce": {
     "eyebrow": "Effectifs",

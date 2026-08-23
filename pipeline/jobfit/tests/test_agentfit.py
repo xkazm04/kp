@@ -210,5 +210,98 @@ class AgentFitCliTest(unittest.TestCase):
             self.assertEqual(envelope["code"], "invalid_input")
 
 
+class PopulationFitTest(unittest.TestCase):
+    """App master (docs/features/app-master/README.md §3 step 4): who should
+    hold the role — judged over the objectives the requestor actually chose."""
+
+    DOSSIER = {
+        "repo": {"url": "https://github.com/xkazm04/kp"},
+        "stack": ["TypeScript", "Python"],
+        "declaredGates": ["npm run typecheck", "npm run test:unit"],
+        "hotSpots": [{"ref": "app/_lib/db/core.ts", "note": "every migration lands here"}],
+        "riskAreas": [{"ref": "auth", "note": "custom HMAC"}],
+        "candidateObjectives": [{"kpiKey": "gate_pass_rate", "label": "Gate pass rate"}],
+        "maintainerLoadEstimate": "~1.5 devs",
+    }
+
+    def _brief(self, *keys: str):
+        from pipeline.jobfit.rolebrief import BriefFacet, RoleBrief
+
+        return RoleBrief(
+            facets=[
+                BriefFacet(key=f"objective:{k}", label=k, value=f"{k} target", provenance="stated")
+                for k in keys
+            ]
+        )
+
+    def test_keyless_never_returns_automatable_and_stays_unassessed(self) -> None:
+        result = agentfit.assess_population_fit(
+            self.DOSSIER, self._brief("gate_pass_rate", "stakeholder_trust")
+        )
+        # A keyword match proves a tool is in the vicinity, not that an agent
+        # can own the outcome — judging that is exactly what needs a model.
+        self.assertNotIn("automatable", [o["coverage"] for o in result["perObjective"]])
+        self.assertEqual(result["verdict"], "unassessed")
+        self.assertEqual(result["source"], "deterministic")
+
+    def test_keyless_is_deterministic(self) -> None:
+        brief = self._brief("gate_pass_rate", "stakeholder_trust")
+        first = agentfit.assess_population_fit(self.DOSSIER, brief)
+        second = agentfit.assess_population_fit(self.DOSSIER, brief)
+        self.assertEqual(first, second)
+
+    def test_no_objectives_means_an_honest_empty_answer_not_a_model_call(self) -> None:
+        from pipeline.jobfit.rolebrief import RoleBrief
+
+        result = agentfit.assess_population_fit(self.DOSSIER, RoleBrief())
+        self.assertEqual(result, {"verdict": "unassessed", "perObjective": [], "coverageRatio": 0.0, "source": "deterministic"})
+
+    def test_the_ratio_is_code_owned_and_the_verdict_follows_it(self) -> None:
+        # Not LLM arithmetic: the model classifies, kp divides and decides.
+        allthree = [{"coverage": "automatable"}, {"coverage": "automatable"}, {"coverage": "automatable"}]
+        self.assertEqual(agentfit.coverage_ratio(allthree, total_items=3), 1.0)
+        self.assertEqual(agentfit._population_verdict(allthree, 1.0, True), "agent")
+        mixed = [{"coverage": "assisted"}, {"coverage": "human_only"}]
+        self.assertEqual(agentfit._population_verdict(mixed, 0.25, True), "human")
+        self.assertEqual(agentfit._population_verdict(mixed, 0.5, True), "hybrid")
+        # Assessed=False can never produce a hiring answer, whatever the ratio.
+        self.assertEqual(agentfit._population_verdict(allthree, 1.0, False), "unassessed")
+
+    def test_an_llm_answer_is_intersected_with_the_chosen_objectives(self) -> None:
+        class FakeProvider:
+            def complete_json(self, prompt, *, system=None, **_kwargs):
+                return {
+                    "perObjective": [
+                        {"kpiKey": "gate_pass_rate", "coverage": "automatable", "rationale": "gates are scripted"},
+                        # Never chosen by the requestor — must not enter the answer.
+                        {"kpiKey": "invented_kpi", "coverage": "automatable", "rationale": "made up"},
+                        # Off-taxonomy coverage class — dropped like every other
+                        # closed vocabulary at a trust boundary.
+                        {"kpiKey": "stakeholder_trust", "coverage": "mostly", "rationale": "?"},
+                    ]
+                }
+
+        result = agentfit.assess_population_fit(
+            self.DOSSIER, self._brief("gate_pass_rate", "stakeholder_trust"), provider=FakeProvider()
+        )
+        self.assertEqual([o["kpiKey"] for o in result["perObjective"]], ["gate_pass_rate"])
+        # One automatable row out of TWO chosen objectives is 50%, not 100% —
+        # the denominator is the itemization, not the rows the model returned.
+        self.assertEqual(result["coverageRatio"], 0.5)
+        self.assertEqual(result["verdict"], "hybrid")
+        self.assertEqual(result["source"], "llm")
+
+    def test_an_unusable_llm_answer_falls_back_to_the_honest_unassessed_path(self) -> None:
+        class FakeProvider:
+            def complete_json(self, prompt, *, system=None, **_kwargs):
+                return {"perObjective": [{"kpiKey": "nothing_chosen", "coverage": "automatable"}]}
+
+        result = agentfit.assess_population_fit(
+            self.DOSSIER, self._brief("gate_pass_rate"), provider=FakeProvider()
+        )
+        self.assertEqual(result["verdict"], "unassessed")
+        self.assertNotIn("automatable", [o["coverage"] for o in result["perObjective"]])
+
+
 if __name__ == "__main__":
     unittest.main()

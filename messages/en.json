@@ -1289,7 +1289,9 @@
     "STAGE_MIGRATION_FAILED": "Could not apply the pipeline change. Try again.",
     "HIRE_RATING_ENTRY_NOT_FOUND": "That candidate is not on this board.",
     "HIRE_RATING_NOT_HIRED": "Only a hired candidate can carry an on-the-job rating.",
-    "HIRE_RATING_INVALID": "An on-the-job rating must be a whole number from 1 to 5."
+    "HIRE_RATING_INVALID": "An on-the-job rating must be a whole number from 1 to 5.",
+    "INTAKE_DOSSIER_FAILED": "Could not attach the codebase reading to this session. Please try again.",
+    "INTAKE_COMPOSE_APP_MASTER_FAILED": "Could not compose the App master spec. Please try again."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1684,7 +1686,27 @@
         "listening": "Listening",
         "unstable": "Connection unstable, reconnecting…"
       },
-      "transcriptLabel": "Live interview transcript"
+      "transcriptLabel": "Live interview transcript",
+      "ttsCompare": {
+        "eyebrow": "Spoken output",
+        "title": "Compare voice providers",
+        "intro": "The same sentence through each provider this install allows. Set {preferredVar} to pin the default and {allowedVar} to limit what is offered here.",
+        "default": "default",
+        "noneAllowed": "No spoken-output provider is allowed on this install.",
+        "probing": "Probing providers…",
+        "stateLocalReady": "local · ready",
+        "stateCloudReady": "cloud · ready",
+        "stateAbsent": "not installed",
+        "stateBroken": "broken",
+        "speak": "Speak",
+        "synthesizing": "Synthesizing…",
+        "stop": "Stop",
+        "resume": "Play (browser blocked autoplay)",
+        "textLabel": "Text to speak",
+        "spokenBy": "Spoken by {provider} in {ms} ms",
+        "fellBack": "— fell back from {provider}",
+        "providerGroup": "Provider"
+      }
     }
   },
   "palette": {
@@ -3516,7 +3538,8 @@
         },
         "shape": {
           "powerUnit": "Backfill",
-          "story": "Exploration"
+          "story": "Exploration",
+          "appMaster": "App master"
         },
         "thinking": "Thinking…",
         "thinkingSlow": "Still thinking. A thorough reply usually takes 30–40 seconds.",
@@ -3657,6 +3680,89 @@
             "cueAction": "Open Materials",
             "reveal": "{count, plural, =0 {Materials: nothing attached yet} one {Materials: # attached} other {Materials: # attached}}"
           }
+        },
+        "appMaster": {
+          "start": "App master",
+          "startHint": "Own one application end to end. Point kp at the app and it reads the codebase before the role is composed.",
+          "repoUrl": "GitHub URL",
+          "rootPath": "Local path",
+          "repoPlaceholder": "https://github.com/org/app",
+          "pathPlaceholder": "C:\\code\\app",
+          "repoHint": "A public repository, or one this server can reach.",
+          "pathHint": "Only paths this self-hosted server allows are scanned.",
+          "begin": "Scan and start",
+          "starting": "Starting…",
+          "cancel": "Cancel",
+          "startError": "The scan could not be started. Check the repository and try again.",
+          "scan": {
+            "queued": "Reading the codebase (queued)",
+            "running": "Reading the codebase…",
+            "complete": "The codebase has been read.",
+            "failed": "The scan failed. Continue in conversation; the brief will carry no codebase reading.",
+            "unreachable": "Can't reach the scan right now. Retrying."
+          },
+          "dossier": {
+            "title": "What the scan read",
+            "pending": "The scan is still reading the codebase.",
+            "source": {
+              "llm": "read in place",
+              "heuristic": "file-walk, no AI"
+            },
+            "stack": "Stack",
+            "gates": "Declared gates",
+            "contexts": "Contexts",
+            "contextCount": "{count, plural, one {# context} other {# contexts}}",
+            "hotSpots": "Hot spots",
+            "riskAreas": "Risk areas",
+            "objectives": "Proposed outcomes",
+            "load": "Maintainer load"
+          },
+          "fit": {
+            "title": "Who should hold it",
+            "needsObjectives": "Pick the outcomes first: the fit is judged over them.",
+            "notRun": "Not judged yet. Compose the spec to run it.",
+            "verdict": {
+              "agent": "An AI agent could hold this role",
+              "hybrid": "Part agent, part human",
+              "human": "A human should hold this role",
+              "unassessed": "Not decided"
+            },
+            "coverage": "{pct}% of the chosen outcomes an agent could move",
+            "keyless": "AI is offline, so nothing was judged automatable",
+            "coverageClass": {
+              "automatable": "agent can own it",
+              "assisted": "agent assists",
+              "human_only": "human only"
+            }
+          },
+          "compose": "Compose the spec",
+          "recompose": "Re-compose",
+          "composing": "Composing…",
+          "composeError": "Could not compose the spec. Please try again.",
+          "spec": {
+            "title": "App master spec",
+            "empty": "Compose the spec once the outcomes and the mandate are captured.",
+            "population": "Who may hold it",
+            "rung": "Mandate",
+            "rungValue": {
+              "0": "read and report only",
+              "1": "re-run existing work",
+              "2": "open a branch and propose"
+            },
+            "forbidden": "Forbidden change classes",
+            "forbiddenCount": "{count, plural, one {# class} other {# classes}}",
+            "budget": "Monthly ceiling",
+            "budgetValue": "${usd}",
+            "probation": "Probation",
+            "probationValue": "{days, plural, one {# day} other {# days}}",
+            "owner": "Review owner",
+            "noOwner": "not named, so escalations have nowhere to go",
+            "objectives": "Outcomes",
+            "objectiveCount": "{count, plural, one {# outcome} other {# outcomes}}",
+            "notes": "Assumptions recorded"
+          },
+          "dispatch": "Dispatch to Personas",
+          "dispatchP4": "Agent dispatch ships in a later phase (P4). Nothing is sent yet."
         }
       }
     },
@@ -7657,7 +7763,9 @@
         "failed": "Dispatch failed. Personas couldn't be reached or refused the request. Check the connection and try again.",
         "retired": "This agent has been retired."
       }
-    }
+    },
+    "appMasterNote": "Owning the whole app (not just this job's tasks) is the App master role. It starts from the codebase.",
+    "appMasterCta": "Start an App master intake"
   },
   "agentsWorkforce": {
     "eyebrow": "Workforce",

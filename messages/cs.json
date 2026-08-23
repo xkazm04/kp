@@ -1289,7 +1289,9 @@
     "STAGE_MIGRATION_FAILED": "Změnu náboru se nepodařilo použít. Zkuste to znovu.",
     "HIRE_RATING_ENTRY_NOT_FOUND": "Tento kandidát na této nástěnce není.",
     "HIRE_RATING_NOT_HIRED": "Hodnocení v praxi lze zaznamenat jen u přijatého kandidáta.",
-    "HIRE_RATING_INVALID": "Hodnocení v praxi musí být celé číslo od 1 do 5."
+    "HIRE_RATING_INVALID": "Hodnocení v praxi musí být celé číslo od 1 do 5.",
+    "INTAKE_DOSSIER_FAILED": "Čtení kódu se k této relaci nepodařilo připojit. Zkuste to prosím znovu.",
+    "INTAKE_COMPOSE_APP_MASTER_FAILED": "Specifikaci správce aplikace se nepodařilo sestavit. Zkuste to prosím znovu."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1684,7 +1686,27 @@
         "listening": "AI poslouchá",
         "unstable": "Nestabilní spojení, obnovování…"
       },
-      "transcriptLabel": "Živý přepis pohovoru"
+      "transcriptLabel": "Živý přepis pohovoru",
+      "ttsCompare": {
+        "eyebrow": "Mluvený výstup",
+        "title": "Porovnat hlasové poskytovatele",
+        "intro": "Stejná věta přes každého poskytovatele, kterého tato instalace povoluje. Proměnnou {preferredVar} nastavíte výchozího a {allowedVar} omezíte, co se zde nabízí.",
+        "default": "výchozí",
+        "noneAllowed": "Na této instalaci není povolen žádný poskytovatel mluveného výstupu.",
+        "probing": "Zjišťuji poskytovatele…",
+        "stateLocalReady": "lokální · připraven",
+        "stateCloudReady": "cloud · připraven",
+        "stateAbsent": "nenainstalováno",
+        "stateBroken": "nefunkční",
+        "speak": "Přehrát",
+        "synthesizing": "Syntetizuji…",
+        "stop": "Zastavit",
+        "resume": "Přehrát (prohlížeč zablokoval automatické přehrání)",
+        "textLabel": "Text k přečtení",
+        "spokenBy": "Namluvil {provider} za {ms} ms",
+        "fellBack": "— záložní volba místo {provider}",
+        "providerGroup": "Poskytovatel"
+      }
     }
   },
   "palette": {
@@ -3516,7 +3538,8 @@
         },
         "shape": {
           "powerUnit": "Náhrada",
-          "story": "Hledání podoby"
+          "story": "Hledání podoby",
+          "appMaster": "Správce aplikace"
         },
         "thinking": "Přemýšlíme…",
         "thinkingSlow": "Ještě přemýšlíme. Pořádná odpověď obvykle zabere 30–40 sekund.",
@@ -3657,6 +3680,89 @@
             "cueAction": "Otevřít Podklady",
             "reveal": "{count, plural, =0 {Podklady: zatím nic přiloženo} one {Podklady: # přiložený} few {Podklady: # přiložené} other {Podklady: # přiložených}}"
           }
+        },
+        "appMaster": {
+          "start": "Správce aplikace",
+          "startHint": "Vlastnictví jedné aplikace od začátku do konce. Ukažte kp na aplikaci a on si před sestavením role přečte její kód.",
+          "repoUrl": "Adresa na GitHubu",
+          "rootPath": "Místní cesta",
+          "repoPlaceholder": "https://github.com/org/app",
+          "pathPlaceholder": "C:\\code\\app",
+          "repoHint": "Veřejný repozitář, nebo takový, na který tento server dosáhne.",
+          "pathHint": "Skenují se pouze cesty, které tento self-hosted server povoluje.",
+          "begin": "Naskenovat a začít",
+          "starting": "Spouštím…",
+          "cancel": "Zrušit",
+          "startError": "Sken se nepodařilo spustit. Zkontrolujte prosím repozitář a zkuste to znovu.",
+          "scan": {
+            "queued": "Čtu kód (ve frontě)",
+            "running": "Čtu kód…",
+            "complete": "Kód je přečtený.",
+            "failed": "Sken selhal. Pokračujte prosím v rozhovoru; zadání pak neponese žádné čtení kódu.",
+            "unreachable": "Na sken teď nedosáhnu. Zkouším to znovu."
+          },
+          "dossier": {
+            "title": "Co sken přečetl",
+            "pending": "Sken stále čte kód.",
+            "source": {
+              "llm": "přečteno přímo v repozitáři",
+              "heuristic": "průchod soubory, bez AI"
+            },
+            "stack": "Technologie",
+            "gates": "Deklarované brány",
+            "contexts": "Kontexty",
+            "contextCount": "{count, plural, one {# kontext} few {# kontexty} other {# kontextů}}",
+            "hotSpots": "Nejrušnější místa",
+            "riskAreas": "Rizikové oblasti",
+            "objectives": "Navržené výsledky",
+            "load": "Odhad zátěže údržby"
+          },
+          "fit": {
+            "title": "Kdo má roli zastávat",
+            "needsObjectives": "Nejprve vyberte výsledky: podle nich se vhodnost posuzuje.",
+            "notRun": "Zatím neposouzeno. Sestavte specifikaci a posouzení proběhne.",
+            "verdict": {
+              "agent": "Roli by mohl zastávat AI agent",
+              "hybrid": "Zčásti agent, zčásti člověk",
+              "human": "Roli by měl zastávat člověk",
+              "unassessed": "Nerozhodnuto"
+            },
+            "coverage": "{pct} % vybraných výsledků by agent dokázal posunout",
+            "keyless": "AI je offline, nic proto nebylo označeno jako plně automatizovatelné",
+            "coverageClass": {
+              "automatable": "agent to zvládne sám",
+              "assisted": "agent pomáhá",
+              "human_only": "pouze člověk"
+            }
+          },
+          "compose": "Sestavit specifikaci",
+          "recompose": "Sestavit znovu",
+          "composing": "Sestavuji…",
+          "composeError": "Specifikaci se nepodařilo sestavit. Zkuste to prosím znovu.",
+          "spec": {
+            "title": "Specifikace správce aplikace",
+            "empty": "Specifikaci sestavte, jakmile budou zachyceny výsledky a mandát.",
+            "population": "Kdo může roli zastávat",
+            "rung": "Mandát",
+            "rungValue": {
+              "0": "pouze číst a hlásit",
+              "1": "znovu spustit existující práci",
+              "2": "otevřít větev a navrhnout změnu"
+            },
+            "forbidden": "Zakázané třídy změn",
+            "forbiddenCount": "{count, plural, one {# třída} few {# třídy} other {# tříd}}",
+            "budget": "Měsíční strop",
+            "budgetValue": "{usd} USD",
+            "probation": "Zkušební doba",
+            "probationValue": "{days, plural, one {# den} few {# dny} other {# dní}}",
+            "owner": "Kdo posuzuje",
+            "noOwner": "neuvedeno, eskalace tedy nemají kam jít",
+            "objectives": "Výsledky",
+            "objectiveCount": "{count, plural, one {# výsledek} few {# výsledky} other {# výsledků}}",
+            "notes": "Zaznamenané předpoklady"
+          },
+          "dispatch": "Odeslat do Personas",
+          "dispatchP4": "Odeslání agenta přijde v pozdější fázi (P4). Zatím se nic neodesílá."
         }
       }
     },
@@ -7657,7 +7763,9 @@
         "failed": "Vyslání selhalo. Personas nebylo dosažitelné, nebo požadavek odmítlo. Zkontrolujte připojení a zkuste to znovu.",
         "retired": "Tento agent byl vyřazen."
       }
-    }
+    },
+    "appMasterNote": "Vlastnictví celé aplikace (ne jen úkolů této pozice) je role správce aplikace. Začíná od kódu.",
+    "appMasterCta": "Zahájit zadání pro správce aplikace"
   },
   "agentsWorkforce": {
     "eyebrow": "Pracovní síla",

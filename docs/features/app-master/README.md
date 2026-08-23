@@ -1,16 +1,18 @@
 # App master — the role standard
 
-> **Implementation status (2026-08-23, phase P2).** Two things ship. The
+> **Implementation status (2026-08-23, phase P3).** Three things ship. The
 > *contract* (P1): the rubric below, the `AppMasterSpec` / `RepoDossier` /
 > `PerformanceBackbone` schemas in `pipeline/jobfit/appmaster.py`, their coercer,
 > the deterministic `backbone_score()` and their TypeScript projection through
-> `npm run schemas:gen`. And the *repo scan* (P2): the `repo_scan` background
+> `npm run schemas:gen`. The *repo scan* (P2): the `repo_scan` background
 > task, its store, its two routes and the Python engine that fills a
 > `RepoDossier` — with a deterministic keyless floor and a read-only Claude Code
-> path on top of it (§3 below). There is still **no intake shape, no dispatch
-> path and no Personas-side enforcement** — P3–P4 of
-> [`docs/concepts/app-master.md`](../../concepts/app-master.md). Nothing in kp
-> writes an `AppMasterSpec` at runtime as of this phase.
+> path on top of it (§3 below). And the *intake shape* (P3): `app_master` beside
+> `power_unit`/`story`, the dossier-grounded dialog, the population-fit verdict
+> and the spec compose — so kp **does** write an `AppMasterSpec` at runtime now
+> (`POST /api/intake/[id]/compose-app-master`). Still open: the **dispatch path
+> and Personas-side enforcement (P4)** and the probation review (P5) of
+> [`docs/concepts/app-master.md`](../../concepts/app-master.md).
 
 An **App master** is the single accountable owner of one application's value.
 The role is unusual in one respect that shapes everything below: it can be held
@@ -31,8 +33,12 @@ fork.
 | `POST /api/repo-scan` → `{ scanId, taskId }` | **shipped (P2)** | `app/api/repo-scan/route.ts` |
 | `GET /api/repo-scan/[id]` → the scan row | **shipped (P2)** | `app/api/repo-scan/[id]/route.ts` |
 | `repo_scan` background task → `RepoDossier` | **shipped (P2)** | `app/_lib/repo-scan.ts`, `app/_lib/repo-scan-run.ts`, `pipeline/jobfit/repo_scan.py` |
-| Intake shape `app_master` (Intake sub-tab / a job's Agent-fit tab) | planned (P3) | — |
-| Dispatch payload `appMaster` block → Personas | planned (P4) | extends `app/_lib/agent-hire/bridge-client.ts` |
+| Intake shape `app_master` — the **App master** start option on the Intake sub-tab (a job's Agent-fit tab links here) | **shipped (P3)** | `app/features/library/jds/intake/JdsIntakeAppMasterStart.tsx`, `pipeline/jobfit/intake.py` |
+| `codebase_dossier.*` facets on the RoleBrief (7, all `inferred`) | **shipped (P3)** | `pipeline/jobfit/intake.py::dossier_facets` / `merge_dossier`; `POST /api/intake/[id]/dossier` |
+| Population fit `human \| agent \| hybrid \| unassessed` | **shipped (P3)** | `pipeline/jobfit/agentfit.py::assess_population_fit` |
+| Dossier card + fit verdict + composed spec in the brief panel | **shipped (P3)** | `app/features/library/jds/intake/JdsIntakeAppMasterCard.tsx` |
+| `AppMasterSpec` composed from a brief (pure, schema-validated) | **shipped (P3)** | `app/_lib/intake-brief.ts::briefToAppMasterSpec`; `POST /api/intake/[id]/compose-app-master` |
+| Dispatch payload `appMaster` block → Personas | planned (P4) — a **disabled, labelled** control today; nothing is sent | extends `app/_lib/agent-hire/bridge-client.ts` |
 | Roster surfacing of the backbone + probation decision | planned (P4–P5) | extends `app/features/agents-workforce/**` |
 
 A dossier can be produced today, from the API or straight from the CLI:
@@ -66,10 +72,15 @@ scan reads the repo and returns a `RepoDossier` (`source: "llm"` when Claude Cod
 read it in place, `source: "heuristic"` when the keyless file-walk produced the
 same shape) — **shipped, P2, §3 below** → the intake dialog asks only what the
 scan could *not* know (which outcomes matter, where the mandate line is, what the
-budget is, who reviews) → dossier facts land on the RoleBrief as
-`codebase_dossier` facets with `provenance: "inferred"`, answers as `"stated"` →
-the fit transform returns `human | agent | either` with per-objective rationale →
-`AppMasterSpec` is composed. *(Everything after the dossier is P3, planned.)*
+budget is, who reviews, and whether an agent may hold it) → dossier facts land on
+the RoleBrief as seven `codebase_dossier.*` facets with `provenance: "inferred"`,
+answers as `"stated"` under a closed key contract (`objective:<kpiKey>`,
+`mandate.scopeRung`, `mandate.forbiddenClasses`, `budget.monthlyUsd`,
+`mandate.owner`, `tenure.probationDays`, `role.population`) → the fit transform
+returns `human | agent | hybrid | unassessed` with per-objective coverage and a
+kp-computed ratio → `AppMasterSpec` is composed by a pure, schema-validated
+function. **Shipped, P3** — the whole flow, keyless included; see
+[docs/features/intake/README.md](../intake/README.md) for the dialog itself.
 
 **2. Hire (P4, planned).** Human population → the spec's `human` block promotes
 to the existing JD build. Agent population → the spec rides the existing bridge
@@ -82,9 +93,11 @@ and starts on probation (`autopilot: suggest`).
 code — and an LLM *narrates* that result. It never rescores it. A human then
 promotes, extends probation, or retires against `tenure.retireCriteria`.
 
-**Today (P2)** the first flow is real up to and including the dossier; the third
-flow's arithmetic is real as a pure function over a backbone somebody hands it;
-the middle is not built.
+**Today (P3)** the first flow is real end to end — a composed `AppMasterSpec` is
+stored on the intake row (`role_intakes.app_master_spec_json`). The third flow's
+arithmetic is real as a pure function over a backbone somebody hands it. The
+middle — the hire — is not built: the human half reuses the existing JD promote,
+and the agent half is a disabled control that says P4 rather than a green lie.
 
 ---
 
@@ -674,8 +687,23 @@ The schemas travel three ways once the later phases land:
 - **Population parity is unverified.** The claim that the core scores a human and
   an agent comparably is exactly what T3's parity check is for, and it has not
   run.
-- **No `AppMasterSpec` producer.** The dossier is produced at runtime now; the
-  spec still is not, and `backbone_score` still has no caller. P3–P4.
+- **`backbone_score` still has no caller.** The spec has a producer now (P3), but
+  nothing scores a real review window — that is P4's reporter and P5's probation
+  review.
+- **The population-fit thresholds are asserted, not calibrated.** The verdict is
+  computed in code from kp's own coverage ratio, cut at ≥ 0.75 for `agent` and
+  ≤ 0.25 for `human` (`AGENT_POPULATION_FLOOR` / `HUMAN_POPULATION_CEILING` in
+  `agentfit.py`). Nothing yet shows those cuts agree with a human panel — the
+  concept's T1 "fit agreement" metric is the missing harness. Keyless the verdict
+  is always `unassessed`, which is the honest answer, not a degraded one.
+- **The dossier reaches the intake through the client.** `POST
+  /api/intake/[id]/dossier` clamps the payload with `repoDossierSchema` and pins
+  it to the intake's own `scanId`, which is the same trust posture as the
+  brief-edit route — but a server-side read of the scan store would be stricter
+  and should replace it.
+- **The App-master card has had no browser pass.** It is built from
+  `recipes.ts` + tokens with no raw colour, so both themes are covered at the
+  token level only (the same standing gap the rest of the intake surface has).
 - **The dossier's LLM path has no eval.** The heuristic walk is pinned by
   `test_repo_scan` (including byte-reproducibility and a self-scan of kp whose
   context count must equal `context-map.json`'s), but nothing grades the

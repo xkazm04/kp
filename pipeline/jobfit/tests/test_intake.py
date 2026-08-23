@@ -18,6 +18,8 @@ from pipeline.jobfit.intake import (
     _apply_answer,
     deterministic_turn,
     detect_shape,
+    dossier_facets,
+    merge_dossier,
     extract_transcript,
     intake_system_brief,
     brief_gap_summary,
@@ -586,6 +588,204 @@ class AttachmentsTest(unittest.TestCase):
         run_voice_turn(FakeProvider(), [], None, "hello", lang="en", attachments=self._ATTACH)
         self.assertIn("Legacy JD", captured["prompt"])
         self.assertNotIn("Must: Java, Spring.", captured["prompt"])  # body never rides the fast thread
+
+
+# ---------------------------------------------------------------------------
+# App master (docs/features/app-master/README.md) — the third shape
+# ---------------------------------------------------------------------------
+
+DOSSIER = {
+    "dossierId": "dossier_kp1",
+    "repo": {"url": "https://github.com/xkazm04/kp", "rootPath": None, "mainBranch": "main"},
+    "source": "heuristic",
+    "generatedAt": "2026-08-23T09:00:00Z",
+    "stack": ["TypeScript", "Next.js", "Python"],
+    "size": {"files": 2377, "sourceFiles": 2100, "contexts": 143},
+    "declaredGates": ["npm run typecheck", "npm run test:unit", "npm run i18n:check"],
+    "contexts": [{"name": "Role intake", "category": "ui", "fileCount": 14}],
+    "hotSpots": [{"ref": "app/_lib/db/core.ts", "note": "every migration lands here"}],
+    "riskAreas": [{"ref": "app/_lib/auth", "note": "custom HMAC session auth"}],
+    "existingKpis": [],
+    "maintainerLoadEstimate": "~1.5 devs, bursty",
+    "candidateObjectives": [
+        {"kpiKey": "gate_pass_rate", "label": "Gate pass rate", "unit": "%", "direction": "gte", "windowDays": 60},
+        {"kpiKey": "open_bugs", "label": "Open bugs", "unit": "count", "direction": "lte", "windowDays": 30},
+    ],
+    "fieldProvenance": {},
+    "promptVersion": "app-master-v1",
+}
+
+_AM_ANSWERS = [
+    "Releases keep slipping and nobody owns the whole app",  # am_context
+    "App master for kp",                                     # title
+    "gate pass rate: 95% within 60 days\nopen bugs: under 10 in 30 days",  # am_objectives
+    "2",                                                     # am_mandate_rung
+    "all six stand",                                         # am_forbidden
+    "120 USD",                                               # am_budget
+    "Martin, head of engineering",                           # am_owner
+    "45",                                                    # am_probation
+    "either",                                                # am_population
+]
+
+
+class AppMasterShapeTest(unittest.TestCase):
+    """The shape is decided by an ACT (a repo was pointed at), never by prose."""
+
+    def test_triage_is_app_master_whenever_a_scan_is_bound(self) -> None:
+        # The very words that force `story` on a normal session must not
+        # un-bind an app-master one.
+        turns = [{"role": "candidate", "text": "not sure, we have never had this role"}]
+        self.assertEqual(detect_shape(turns), "story")
+        self.assertEqual(detect_shape(turns, app_master=True), "app_master")
+
+    def test_run_intake_turn_reports_app_master_whenever_a_dossier_rides(self) -> None:
+        opener = opening_turn("en", shape="app_master")
+        self.assertEqual(opener["shape"], "app_master")
+        turns = [{"role": "interviewer", "text": opener["reply"]}]
+        result = run_intake_turn(None, turns, opener["brief"], "nobody owns it", lang="en", dossier=DOSSIER)
+        self.assertEqual(result["shape"], "app_master")
+        self.assertEqual(result["source"], "deterministic")
+
+    def test_persona_overlay_only_on_the_app_master_shape(self) -> None:
+        plain = intake_system_brief("en")
+        overlay = intake_system_brief("en", shape="app_master")
+        self.assertIn("APP MASTER", overlay)
+        self.assertNotIn("APP MASTER", plain)
+        # The rungs that are never grantable must be named as such in the persona.
+        self.assertIn("NEVER granted", overlay)
+
+    def test_the_dossier_is_fenced_as_a_machine_reading_never_as_the_requestor(self) -> None:
+        captured: dict = {}
+
+        class FakeProvider:
+            def complete_json(self, prompt, *, system=None, **_kwargs):
+                captured["prompt"] = prompt
+                captured["system"] = system
+                raise RuntimeError("stop after capture")  # fall to the scripted path
+
+        run_intake_turn(FakeProvider(), [], None, "hi", lang="en", dossier=DOSSIER)
+        self.assertIn("<<<CODEBASE_DOSSIER>>>", captured["prompt"])
+        self.assertIn("MACHINE READING", captured["prompt"])
+        self.assertIn("APP MASTER", captured["system"])
+
+
+class DossierFacetsTest(unittest.TestCase):
+    def test_one_facet_per_headline_field_all_inferred(self) -> None:
+        facets = dossier_facets(DOSSIER)
+        self.assertEqual(
+            [f.key for f in facets],
+            [
+                "codebase_dossier.stack",
+                "codebase_dossier.declared_gates",
+                "codebase_dossier.contexts",
+                "codebase_dossier.hot_spots",
+                "codebase_dossier.risk_areas",
+                "codebase_dossier.candidate_objectives",
+                "codebase_dossier.maintainer_load",
+            ],
+        )
+        # A machine read it; the requestor never said it.
+        self.assertTrue(all(f.provenance == "inferred" for f in facets))
+        self.assertIn("143 contexts", next(f.value for f in facets if f.key.endswith(".contexts")))
+
+    def test_empty_dossier_fields_produce_no_facet(self) -> None:
+        thin = {"dossierId": "d", "source": "heuristic", "stack": [], "contexts": [], "size": {"contexts": 0}}
+        self.assertEqual(dossier_facets(thin), [])
+
+    def test_merge_is_idempotent_and_never_overwrites_a_stated_answer(self) -> None:
+        base = RoleBrief(
+            facets=[
+                BriefFacet(key="codebase_dossier.stack", label="Stack", value="hand-corrected", provenance="stated"),
+            ]
+        )
+        once = merge_dossier(base, DOSSIER)
+        twice = merge_dossier(once, DOSSIER)
+        self.assertEqual([f.key for f in once.facets], [f.key for f in twice.facets])
+        stack = next(f for f in twice.facets if f.key == "codebase_dossier.stack")
+        # merge_brief's rule: a stated value never regresses to an inferred one.
+        self.assertEqual(stack.value, "hand-corrected")
+        self.assertEqual(stack.provenance, "stated")
+
+    def test_dossier_confidence_reflects_how_it_was_read(self) -> None:
+        heuristic = dossier_facets(DOSSIER)[0]
+        llm = dossier_facets({**DOSSIER, "source": "llm"})[0]
+        self.assertLess(heuristic.confidence, llm.confidence)
+
+
+class AppMasterScriptedPathTest(unittest.TestCase):
+    """Keyless, the scripted slot script asks ONLY what a scan cannot know."""
+
+    def _drive(self):
+        opener = opening_turn("en", shape="app_master")
+        brief = merge_dossier(coerce_role_brief(opener["brief"]), DOSSIER)
+        turns = [{"role": "interviewer", "text": opener["reply"]}]
+        result = opener
+        for answer in _AM_ANSWERS:
+            result = deterministic_turn(turns, brief, answer, "en", dossier=DOSSIER)
+            turns.append({"role": "candidate", "text": answer})
+            turns.append({"role": "interviewer", "text": result["reply"]})
+            brief = coerce_role_brief(result["brief"])
+        return turns, brief, result
+
+    def test_the_script_never_asks_what_the_scan_already_read(self) -> None:
+        turns, _brief, _result = self._drive()
+        asked = " ".join(t["text"] for t in turns if t["role"] == "interviewer").lower()
+        for never in ("which capabilities are true dealbreakers", "which working languages", "who will they work with"):
+            self.assertNotIn(never, asked)
+        self.assertIn("how far may the holder go", asked)
+        # The scan's own proposals are offered for ranking, not re-derived.
+        self.assertIn("gate_pass_rate", asked)
+
+    def test_the_six_answer_facet_keys_are_the_contract(self) -> None:
+        _turns, brief, _result = self._drive()
+        keys = {f.key for f in brief.facets}
+        for key in (
+            "objective:gate_pass_rate",
+            "objective:open_bugs",
+            "mandate.scopeRung",
+            "mandate.forbiddenClasses",
+            "budget.monthlyUsd",
+            "mandate.owner",
+            "tenure.probationDays",
+            "role.population",
+        ):
+            self.assertIn(key, keys)
+        stated = {f.key for f in brief.facets if f.provenance == "stated"}
+        self.assertIn("mandate.scopeRung", stated)
+        # The chosen outcomes are ALSO 90-day outcomes — which is what makes an
+        # app-master brief promotable for the human population.
+        self.assertEqual(len(brief.success_criteria), 2)
+
+    def test_objectives_bind_to_the_scans_own_kpi_keys(self) -> None:
+        _turns, brief, _result = self._drive()
+        objective = next(f for f in brief.facets if f.key == "objective:gate_pass_rate")
+        self.assertIn("95%", objective.value)
+        self.assertEqual(objective.label, "Gate pass rate")
+
+    def test_an_outcome_the_scan_never_proposed_is_kept_verbatim(self) -> None:
+        brief = merge_dossier(RoleBrief(), DOSSIER)
+        brief = _apply_answer(brief, "am_objectives", "onboarding time under a day", "en", 3, dossier=DOSSIER)
+        keys = [f.key for f in brief.facets if f.key.startswith("objective:")]
+        self.assertEqual(keys, ["objective:onboarding_time_under_a_day"])
+
+    def test_readback_prints_the_mandate_and_the_budget_then_closes(self) -> None:
+        turns, brief, result = self._drive()
+        self.assertIn("Here's what I took away", result["reply"])
+        self.assertIn("Mandate", result["reply"])
+        self.assertIn("120 USD", result["reply"])
+        # The machine reading is read back too, so a wrong one can be corrected
+        # before the session closes.
+        self.assertIn("Stack (read from the repo)", result["reply"])
+        confirm = deterministic_turn(turns, brief, "ok", "en", dossier=DOSSIER)
+        self.assertTrue(confirm["done"])
+        self.assertIn("<<END>>", confirm["reply"])
+
+    def test_czech_script_runs_in_the_formal_register(self) -> None:
+        opener = opening_turn("cs", shape="app_master")
+        brief = merge_dossier(coerce_role_brief(opener["brief"]), DOSSIER, lang="cs")
+        turns = [{"role": "interviewer", "text": opener["reply"]}]
+        result = deterministic_turn(turns, brief, "nikdo to nevlastni", "cs", dossier=DOSSIER)
+        self.assertIn("Jak byste roli nazvali", result["reply"])
 
 
 if __name__ == "__main__":

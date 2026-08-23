@@ -7,18 +7,27 @@ import { BTN_GHOST, BTN_PRIMARY, BTN_SECONDARY, CHIP_QUIET, INTRO, META_LABEL, P
 import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "@/app/_lib/useReducedMotion";
 import { briefDraftHasContent } from "@/app/_lib/intake-draft";
+import { JdsIntakeAppMasterCard } from "./JdsIntakeAppMasterCard";
+import { JdsIntakeAppMasterStart } from "./JdsIntakeAppMasterStart";
 import { JdsIntakeAttachmentsPane } from "./JdsIntakeAttachmentsPane";
 import { JdsIntakeBriefPanel } from "./JdsIntakeBriefPanel";
 import { JdsIntakeChat } from "./JdsIntakeChat";
 import { JdsIntakeDraftPane } from "./JdsIntakeDraftPane";
 import { JdsIntakeLayoutTriptych } from "./JdsIntakeLayoutTriptych";
 import { JdsIntakeVoice } from "./JdsIntakeVoice";
+import { useAppMasterLogic } from "./jdsIntakeAppMaster";
 import { useIntakeLogic } from "./jdsIntakeLogic";
 
 // Role-intake dialog surface (docs/concepts/role-intake-dialog.md, Phase 1):
 // a coaching-register conversation with the requestor on the left, the live
 // RoleBrief filling in on the right, and Promote → the existing backgrounded
 // JD build. Ledger of past sessions when none is open.
+
+const SHAPE_KEY = {
+  power_unit: "shape.powerUnit",
+  story: "shape.story",
+  app_master: "shape.appMaster",
+} as const;
 
 export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   const t = useTranslations("library.tab.intake");
@@ -32,6 +41,8 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
     degraded,
     error,
     startNew,
+    startAppMaster,
+    applySession,
     openSession,
     closeSession,
     send,
@@ -50,6 +61,12 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
     removeAttachment,
     savingAttachment,
   } = useIntakeLogic(onPromoted);
+  // App master (docs/features/app-master/README.md): the scan watcher lives
+  // HERE, not in useIntakeLogic — it needs the shared TasksProvider as its clock,
+  // and importing that provider into the logic module would drag React and
+  // next-intl into its node:test unit run. Called before the ledger early-return
+  // so the hook order is stable across both branches.
+  const { scanState, composeAppMaster, composing, composeError } = useAppMasterLogic(active, applySession);
   const reduced = useReducedMotion();
   // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
   const [withCase, setWithCase] = useState(false);
@@ -75,7 +92,15 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             {creating ? t("starting") : t("new")}
           </button>
         </div>
-        {error ? <p className="mt-3 text-body text-red-700">{t("error")}</p> : null}
+        {/* App master (docs/features/app-master/README.md): the third shape does
+            not start from a blank conversation — it starts from an APP. */}
+        <JdsIntakeAppMasterStart
+          busy={creating}
+          onStart={(repo) => startAppMaster(locale === "cs" ? "cs" : "en", repo)}
+        />
+        {error ? (
+          <p className="mt-3 text-body text-red-700">{t(error === "appMaster" ? "appMaster.startError" : "error")}</p>
+        ) : null}
         <div className="mt-4 space-y-2">
           {sessions === null ? (
             <div className="reveal-quiet min-h-[6rem]" aria-hidden />
@@ -91,7 +116,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
               >
                 <span className="text-body font-medium text-ink">{s.title || t("untitled")}</span>
                 <span className="flex items-center gap-2">
-                  {s.shape ? <span className={CHIP_QUIET}>{t(s.shape === "power_unit" ? "shape.powerUnit" : "shape.story")}</span> : null}
+                  {s.shape ? <span className={CHIP_QUIET}>{t(SHAPE_KEY[s.shape])}</span> : null}
                   <span className={CHIP_QUIET}>{t(`status.${s.status}`)}</span>
                   <span className="text-meta text-steel nums">{t("turns", { count: s.turnCount })}</span>
                 </span>
@@ -109,6 +134,10 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   // and its hint can never disagree again.
   const blockers = briefPromoteBlockers(active.brief);
   const ready = blockers.length === 0;
+  // The scan line the chat shows under the opener while the codebase is read.
+  // Cleared the moment the dossier lands — the card then speaks for itself.
+  const scanNote = scanState ? t(`appMaster.scan.${scanState}`) : null;
+  const objectiveCount = (active.brief?.facets ?? []).filter((f) => f.key?.startsWith("objective:")).length;
   const promoteHint = ready ? undefined : blockers.map((b) => t(`promoteMissing.${b}`)).join(" ");
 
   return (
@@ -119,9 +148,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             {t("back")}
           </button>
           <span className="text-body font-medium text-ink">{active.title || t("untitled")}</span>
-          {active.shape ? (
-            <span className={CHIP_QUIET}>{t(active.shape === "power_unit" ? "shape.powerUnit" : "shape.story")}</span>
-          ) : null}
+          {active.shape ? <span className={CHIP_QUIET}>{t(SHAPE_KEY[active.shape])}</span> : null}
           <span className={CHIP_QUIET}>{t(`status.${active.status}`)}</span>
         </div>
         <div className="flex items-center gap-3">
@@ -226,6 +253,7 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             }
             highlightTurn={highlightTurn}
             onHighlightDone={clearHighlight}
+            statusNote={scanNote}
           />
         }
         brief={
@@ -236,6 +264,20 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
             onSaveBrief={active.status !== "promoted" ? saveBrief : undefined}
             onJumpToTurn={jumpToTurn}
             showTitle={false}
+            appMasterSlot={
+              active.shape === "app_master" ? (
+                <JdsIntakeAppMasterCard
+                  dossier={active.dossier}
+                  appMaster={active.appMaster}
+                  scanNote={scanNote}
+                  objectiveCount={objectiveCount}
+                  composing={composing}
+                  composeError={composeError !== null}
+                  onCompose={active.status !== "promoted" ? composeAppMaster : undefined}
+                  frozen={active.status === "promoted"}
+                />
+              ) : null
+            }
           />
         }
         draft={

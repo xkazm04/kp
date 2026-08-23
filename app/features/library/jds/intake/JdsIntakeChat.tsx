@@ -25,6 +25,7 @@ export function JdsIntakeChat({
   voiceSlot,
   highlightTurn,
   onHighlightDone,
+  statusNote,
 }: {
   transcript: IntakeTurn[];
   sending: boolean;
@@ -38,6 +39,11 @@ export function JdsIntakeChat({
   /** Transcript index to scroll to + flash (a brief citation was clicked). */
   highlightTurn?: number | null;
   onHighlightDone?: () => void;
+  /** A quiet line under the last turn about work happening OUTSIDE the dialog —
+   *  today only the App-master repo scan, which runs while the requestor answers
+   *  the opener. It is not a transcript turn (nothing said it), so it renders as
+   *  a system-style aside and is never stored. */
+  statusNote?: string | null;
 }) {
   const t = useTranslations("library.tab.intake");
   const reduced = useReducedMotion();
@@ -159,6 +165,20 @@ export function JdsIntakeChat({
                   ) : null}
                 </AnimatePresence>
               </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+        <AnimatePresence initial={false}>
+          {statusNote ? (
+            <motion.div
+              key="statusNote"
+              initial={{ opacity: reduced ? 1 : 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: reduced ? 1 : 0 }}
+              transition={{ duration: reduced ? 0 : 0.18, ease: "easeOut" }}
+              className="flex justify-center"
+            >
+              <span className="text-meta text-steel">— {statusNote} —</span>
             </motion.div>
           ) : null}
         </AnimatePresence>

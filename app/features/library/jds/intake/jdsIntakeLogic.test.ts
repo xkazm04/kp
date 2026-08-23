@@ -35,6 +35,9 @@ const session = (id: string): IntakeSession => ({
   brief: brief("Data Analyst", "SQL"),
   attachments: [],
   shape: null,
+  scanId: null,
+  dossier: null,
+  appMaster: null,
   jdSlug: null,
 });
 

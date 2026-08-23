@@ -39,6 +39,22 @@ export function JobsAgentFitTab({ jobId }: { jobId: string }) {
         </div>
       ) : null}
 
+      {/* App master entry (docs/features/app-master/README.md, P3). This tab
+          answers "how much of this JOB could an agent take over"; the App master
+          shape answers a different question — "who should own this APP" — and it
+          needs an input this tab does not have: the codebase. Point at the
+          Intake sub-tab rather than pretending the two are the same flow. */}
+      <div className={`${PANEL_SUNKEN} flex flex-wrap items-center gap-x-3 gap-y-1.5 p-3`}>
+        <p className="text-sm text-steel">{t("appMasterNote")}</p>
+        <button
+          type="button"
+          onClick={() => router.push(buildTabSwitchUrl("library", search.toString()))}
+          className="focus-ring text-sm font-semibold text-coral hover:underline"
+        >
+          {t("appMasterCta")}
+        </button>
+      </div>
+
       {agent ? (
         <JobsAgentFitStatus
           agent={agent}

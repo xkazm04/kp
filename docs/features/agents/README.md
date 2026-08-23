@@ -10,7 +10,7 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 
 | Surface | Where | What it does |
 | --- | --- | --- |
-| **Agent fit** tab | Job detail modal (`app/features/library/jobs/JobsAgentFitTab.tsx`, 7th tab of `JobsPostingModal.tsx`) | Assess the role, edit the spec, dispatch, track the hire's status |
+| **Agent fit** tab | Job detail modal (`app/features/library/jobs/JobsAgentFitTab.tsx`, 7th tab of `JobsPostingModal.tsx`) | Assess the role, edit the spec, dispatch, track the hire's status. Also points at the **App master** intake: owning a whole application is a different question from automating this job's tasks, and it needs an input this tab does not have (the codebase) — see [docs/features/app-master/README.md](../app-master/README.md) |
 | **Agents** nav module | Sidebar, hiring group (`app/features/agents-workforce/AgentsWorkforceTab.tsx`) | Roster of hired agents: status, spend vs budget, runs, connectors, expectations verdict |
 | **Personas bridge** card | Settings → Integrations (`app/features/settings/integrations/IntegrationsPersonasPanel.tsx`) | Two-phase human-approved pairing, base-URL override, disconnect |
 
@@ -85,6 +85,7 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
 | `app/_lib/agent-hire/*` | `bridge-store` (encrypted config, env override), `bridge-client` (loopback fetch helpers), `pairing`, `transform-run`, `report-payload` |
 | `app/_lib/db/agents.ts` | Records, statuses, activity ledger, aggregates |
 | `pipeline/jobfit/agentfit.py` + `agentfit_cli.py` | The job → AgentFitSpec transform (LLM + deterministic fallback) |
+| `pipeline/jobfit/agentfit.py::assess_population_fit` | A SECOND question in the same module, for the App master role: given a `RepoDossier` and the outcomes a requestor chose, who should hold the role — `human \| agent \| hybrid \| unassessed`. Reuses this module's `COVERAGE_CLASSES` and `coverage_ratio` (code-owned on both paths); the verdict is derived from the ratio in code, and the keyless path never returns `automatable`. Consumed by the intake shape `app_master` — see [docs/features/app-master/README.md](../app-master/README.md) |
 
 ## Data model
 

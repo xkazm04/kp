@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RoleBrief } from "@/app/_lib/rolespec";
+import type { AppMasterCompose } from "@/app/_lib/db/intakes";
+import type { RepoDossier } from "@/app/_lib/schemas.generated";
 
 // State + API client for the role-intake dialog surface (Phase 1 of
 // docs/concepts/role-intake-dialog.md). Pure fetch/state — rendering lives in
@@ -9,11 +11,13 @@ import type { RoleBrief } from "@/app/_lib/rolespec";
 
 export type IntakeTurn = { role: "interviewer" | "candidate" | "system"; text: string; at?: string };
 
+export type IntakeShape = "power_unit" | "story" | "app_master" | null;
+
 export type IntakeSummary = {
   id: string;
   title: string;
   status: "open" | "complete" | "promoted";
-  shape: "power_unit" | "story" | null;
+  shape: IntakeShape;
   jdSlug: string | null;
   jobId: string | null;
   createdAt: string;
@@ -31,9 +35,18 @@ export type IntakeSession = {
   transcript: IntakeTurn[];
   brief: RoleBrief | null;
   attachments: IntakeAttachment[];
-  shape: "power_unit" | "story" | null;
+  shape: IntakeShape;
+  // App master (docs/features/app-master/README.md): the scan this session was
+  // started from, what it read, and the composed spec + population fit.
+  scanId: string | null;
+  dossier: RepoDossier | null;
+  appMaster: AppMasterCompose | null;
   jdSlug: string | null;
 };
+
+/** What the scan is doing right now, for the line the chat shows under the
+ *  opener. `null` = this is not an App-master session (or the dossier landed). */
+export type ScanState = "queued" | "running" | "complete" | "failed" | "unreachable" | null;
 
 export type VoiceSweepResult = {
   transcript: IntakeTurn[];
@@ -144,6 +157,41 @@ export function useIntakeLogic(onPromoted?: () => void) {
       setDegraded(false);
     } catch {
       setError("create");
+    } finally {
+      setCreating(false);
+    }
+  }, []);
+
+  // App master (docs/features/app-master/README.md): point kp at an app, start
+  // the repo scan FIRST, then open a session bound to it. The order matters —
+  // the scan id is stamped on the row at creation, so a reload can resume a
+  // scan that is still running instead of orphaning it.
+  const startAppMaster = useCallback(async (lang: string, repo: { repoUrl?: string; rootPath?: string }) => {
+    setCreating(true);
+    setError(null);
+    try {
+      const scanRes = await fetch("/api/repo-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(repo),
+      });
+      if (!scanRes.ok) throw new Error(`HTTP ${scanRes.status}`);
+      const scan = (await scanRes.json()) as { scanId?: string };
+      if (!scan.scanId) throw new Error("no scanId");
+      const res = await fetch("/api/intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lang, scanId: scan.scanId }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as IntakeSession;
+      activeIdRef.current = data.id;
+      setActive(data);
+      setDegraded(false);
+    } catch {
+      // The scan never started (bad repo, unreachable path, rate limit) — say
+      // so instead of opening a session bound to a scan that does not exist.
+      setError("appMaster");
     } finally {
       setCreating(false);
     }
@@ -372,6 +420,16 @@ export function useIntakeLogic(onPromoted?: () => void) {
   }, []);
   const clearHighlight = useCallback(() => setHighlightTurn(null), []);
 
+  // The one seam an OUT-OF-BAND updater writes the open session through (today:
+  // the App-master scan watcher in jdsIntakeAppMaster.ts). Identity-checked here
+  // so the stale-response guard the whole surface depends on lives in exactly one
+  // place — and so this module never has to import the tasks provider, which
+  // would drag React/next-intl into its node:test unit run.
+  const applySession = useCallback((intakeId: string, patch: Partial<IntakeSession>) => {
+    if (activeIdRef.current !== intakeId) return;
+    setActive((s) => (s && s.id === intakeId ? { ...s, ...patch } : s));
+  }, []);
+
   const closeSession = useCallback(() => {
     activeIdRef.current = null;
     setActive(null);
@@ -388,6 +446,8 @@ export function useIntakeLogic(onPromoted?: () => void) {
     degraded,
     error,
     startNew,
+    startAppMaster,
+    applySession,
     openSession,
     closeSession,
     send,

@@ -33,7 +33,8 @@ the existing JD build. Conversation design is normed by
 3. **Shape triage** — after 1–2 requestor turns the session is classified
    `power_unit` (backfill/clone → short confirm-and-generate path) or `story`
    (exploratory coaching path). Deterministic heuristic floor
-   (`detect_shape`); the LLM may override.
+   (`detect_shape`); the LLM may override. A third shape, **`app_master`**, is
+   never triaged from prose — see below.
 4. **Close** — the agent ends with a structured read-back + one open
    correction invitation, and **waits**: the close is a separate exchange
    (confirm → close; anything else lands as the requestor's `stated`
@@ -84,6 +85,80 @@ the existing JD build. Conversation design is normed by
    `jd_slug`/`job_id` so a job can be walked back to the conversation that
    defined it.
 
+## Shape `app_master` — composing a role from the codebase (P3)
+
+The third shape (contract + rubric:
+[docs/features/app-master/README.md](../app-master/README.md); plan:
+[docs/concepts/app-master.md](../../concepts/app-master.md) §3). It does not
+start from a blank conversation, it starts from an **app** — the one input no
+JD has ever had.
+
+- **Entry**: the Intake sub-tab's **App master** start option
+  (`JdsIntakeAppMasterStart.tsx`) takes a GitHub URL or a local path, POSTs
+  `/api/repo-scan` (P2's contract → `{scanId, taskId}`), then POSTs
+  `/api/intake` with that `scanId`. A second entry point points here from a
+  job's Agent-fit tab (`JobsAgentFitTab.tsx`) — that tab answers "how much of
+  this JOB could an agent take over", which is a different question.
+- **The shape is an ACT, not a triage.** `scan_id` is stamped on the row at
+  CREATE and `shape` is `app_master` from the first write, so a reload resumes a
+  running scan and no amount of "not sure, we've never had this role" can flip
+  the session back to `story` (`detect_shape(turns, app_master=True)`).
+- **While the scan runs** the chat shows the shape's own deterministic opener
+  plus a scan-progress line (`JdsIntakeChat`'s `statusNote`). The clock is the
+  **shared TasksProvider poll** — no second poller: its `tasks` array is
+  referentially stable across no-op polls, so `useAppMasterLogic`'s effect fires
+  exactly when a task's state moves.
+- **When the scan completes** the client POSTs `/api/intake/[id]/dossier`
+  `{scanId, dossier}`. The server clamps the payload (`repoDossierSchema`), pins
+  it to the intake's OWN `scanId`, and merges it into the brief through the same
+  `merge_brief` path a dialog turn uses. Seven `codebase_dossier.*` facets land,
+  all `provenance: inferred` (a machine read them; the requestor never said
+  them): `.stack`, `.declared_gates`, `.contexts`, `.hot_spots`, `.risk_areas`,
+  `.candidate_objectives`, `.maintainer_load`. Confidence is 0.8 when Claude
+  Code read the repo in place, 0.6 for the keyless file-walk. An empty dossier
+  field produces **no facet** — a hole reads as a hole.
+- **The dialog asks only what the scan cannot know.** A persona overlay
+  (`_PERSONA_APP_MASTER`) replaces the power-unit/story triage rules, and the
+  dossier rides the prompt in a fenced `CODEBASE_DOSSIER` block framed as a
+  MACHINE READING (never the requestor, never instructions). Six answers, each
+  landing as a `stated` facet under a **closed key contract**:
+
+  | Question | Facet key |
+  | --- | --- |
+  | Which outcomes matter (rank, target, window) | `objective:<kpiKey>` (one per pick) |
+  | How far may the holder go alone (rung 0–2) | `mandate.scopeRung` |
+  | Are all six forbidden classes non-negotiable | `mandate.forbiddenClasses` |
+  | Monthly budget ceiling | `budget.monthlyUsd` |
+  | Who reviews / answers an escalation | `mandate.owner` |
+  | Probation days | `tenure.probationDays` |
+  | Agent, human, or either | `role.population` |
+
+  A chosen objective also becomes a `successCriteria[]` entry — it IS what
+  "done" means for this holder, and it is what makes the brief promotable for
+  the human population. An outcome the scan never proposed is kept verbatim
+  under a slugified key rather than forced onto the nearest `kpiKey`.
+- **Keyless** the scripted slot script (`_APP_MASTER_SCRIPT`) asks the same six
+  questions in the same order, offering the dossier's candidate objectives for
+  ranking. The read-back prints the mandate, budget and tenure answers **and**
+  the machine reading, so a wrong dossier line can be corrected at the close.
+- **Population fit** (`pipeline/jobfit/agentfit.py::assess_population_fit`)
+  classifies each chosen objective on the existing `automatable | assisted |
+  human_only` vocabulary; the ratio is kp's own `coverage_ratio` (denominator =
+  the objectives chosen, never the rows a model returned) and the verdict
+  (`human | agent | hybrid | unassessed`) is derived from it **in code**.
+  Keyless it never returns `automatable` and stays `unassessed`: a keyword
+  match proves a tool is nearby, not that an agent can own an outcome.
+- **Compose** — `POST /api/intake/[id]/compose-app-master` runs
+  `briefToAppMasterSpec(brief, dossier)` (pure, validated with
+  `appMasterSpecSchema`) and stores `{spec, fit, composedAt}` on the row. The
+  defaults are always the safe end: an unreadable rung stays 2, an unreadable
+  forbidden-class answer keeps all six, an undecided population stays `either` —
+  and every assumption is recorded in `coercionNotes[]`.
+- **Hire** — the human population promotes through the existing JD build
+  (`/promote`, unchanged). The **agent population's dispatch to Personas is P4**:
+  the card shows a disabled "Dispatch to Personas" control saying so. No fake
+  success.
+
 ## Keyless behavior (product property)
 
 No provider → the dialog degrades to a deterministic scripted slot script
@@ -101,21 +176,39 @@ the shared `generate_with_fallback` contract. The UI shows a quiet
 | TS runner | `app/_lib/intake-run.ts` |
 | Brief → JD-build projection (pure) | `app/_lib/intake-brief.ts` |
 | Store | `app/_lib/db/intakes.ts` (`role_intakes`; tenancy: every query workspace-scoped, `intakes-tenancy.test.ts`) |
-| Routes | `app/api/intake/route.ts` (create/list), `[id]` (read), `[id]/message` (exchange), `[id]/promote`, `[id]/brief` (PATCH — human edit), `[id]/reopen` |
+| Routes | `app/api/intake/route.ts` (create/list), `[id]` (read), `[id]/message` (exchange), `[id]/promote`, `[id]/brief` (PATCH — human edit), `[id]/reopen`, `[id]/dossier` (App master: a completed scan lands), `[id]/compose-app-master` (App master: spec + fit) |
+| App master: dossier facets, persona overlay, slot script | `pipeline/jobfit/intake.py` (`dossier_facets`, `merge_dossier`, `_PERSONA_APP_MASTER`, `_APP_MASTER_SCRIPT`) |
+| App master: population fit | `pipeline/jobfit/agentfit.py::assess_population_fit` (`agent_fit` use case) |
+| App master: brief → spec (pure) | `app/_lib/intake-brief.ts::briefToAppMasterSpec` (`intake-brief.test.ts`) |
+| App master: scan watch + compose (client) | `app/features/library/jds/intake/jdsIntakeAppMaster.ts` |
+| App master: route trust boundaries | `app/api/intake/app-master-routes.test.ts` (source guard) |
 | Edit sanitizer + edit-provenance diff (pure) | `app/_lib/brief-edit.ts` |
 | Export builder (pure) | `app/_lib/intake-export.ts` |
 | Close sentinel strip (pure) | `app/api/intake/reply-sentinel.ts` (`stripEndSentinel`, `voice-close-guard.test.ts`) |
-| Rate limit | `intake-message:<ip>` 30/10min on the message route (pinned in `app/api/rate-limit-contract.test.ts`); `intake-create:<ip>` 30/10min (the opener spawns Python) and `intake-promote:<ip>` 20/10min (the paid `jd_build`) — both limiters shipped, contract pins still to add |
+| Rate limit | `intake-message:<ip>` 30/10min on the message route (pinned in `app/api/rate-limit-contract.test.ts`); `intake-create:<ip>` 30/10min (the opener spawns Python) and `intake-promote:<ip>` 20/10min (the paid `jd_build`) — both limiters shipped, contract pins still to add; `intake-dossier:<ip>` 20/10min and `intake-compose:<ip>` 30/10min (both spawn Python and can spend on `agent_fit`), pinned in `app/api/intake/app-master-routes.test.ts` |
 | UI | `app/features/library/jds/intake/` (`JdsIntakePanel`, `JdsIntakeChat`, `JdsIntakeBriefPanel`, `jdsIntakeLogic`) |
 
 ## Data model
 
 `role_intakes`: `id, workspace_id, title, status(open|complete|promoted),
 lang, transcript_json (VoiceTurn[] — "interviewer" = agent, "candidate" = the
-requestor), brief_json (RoleBrief), shape(power_unit|story|NULL), jd_slug,
-job_id, created_at, updated_at`. The RoleBrief schema is Pydantic-authoritative
+requestor), brief_json (RoleBrief), attachment_json (IntakeAttachment[]),
+shape(power_unit|story|app_master|NULL), jd_slug, job_id, created_at,
+updated_at`. The RoleBrief schema is Pydantic-authoritative
 (`pipeline/jobfit/rolebrief.py`) and codegen'd to `roleBriefSchema`
 (`app/_lib/schemas.generated.ts`).
+
+Three nullable columns carry the App-master shape, added by an idempotent
+`ALTER TABLE` inside `app/_lib/db/intakes.ts` itself (the
+`skill-profiles`/`decision-record` pattern) rather than in `core.ts`'s shared
+list — one owner per table, so a concurrent phase landing its own table never
+shares the diff:
+
+| Column | Holds |
+| --- | --- |
+| `scan_id` | the `repo_scan` the session was started from. Stamped at CREATE, before any dossier exists, so a reload resumes a running scan |
+| `dossier_json` | the `RepoDossier` that scan returned (`repoDossierSchema`). NULL while it runs or if it failed; the dialog reads it every turn |
+| `app_master_spec_json` | the composed record `{spec: AppMasterSpec, fit: PopulationFit, composedAt}`. Re-composing REPLACES it — a spec is a snapshot of the brief at compose time |
 
 ## Eval harness (Phase 2)
 
@@ -355,3 +448,10 @@ token/recipe level (dark rounded-2xl / sticker shadows on the new surfaces).
   facet; a structural field edit is the brief-panel edit mode's job.
 - Decision-audit surfacing of the intake back-link is future
   work.
+- **App master**: agent-population dispatch is P4 (a disabled, labelled control
+  today). The dossier reaches the intake **through the client** — it is clamped
+  by `repoDossierSchema` and pinned to the intake's own `scanId`, the same trust
+  posture as `PATCH /brief`, but a server-side read of the scan store would be
+  stricter and should replace it once that store is a stable dependency. The
+  population-fit thresholds (agent ≥ 0.75, human ≤ 0.25) are asserted, not
+  calibrated. The App-master card has not had a browser pass in either theme.

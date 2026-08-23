@@ -6,6 +6,15 @@ Input files keep the arg list short and unambiguous on Windows:
   --brief-json       the accumulated RoleBrief (optional; absent on turn 1)
   --message          the requestor's new message ("" + --opening for turn 0)
   --opening          emit the deterministic session opener (no LLM call)
+  --shape            session shape hint for --opening (app_master opens on its
+                     own question — the repo was already pointed at)
+  --dossier-json     a completed RepoDossier (App master, P2's repo_scan). Its
+                     presence makes the exchange an `app_master` one: persona
+                     overlay, fenced machine reading, app-master slot script
+  --app-master-sync  fold a dossier into the brief as `codebase_dossier.*`
+                     facets AND assess the population fit over the objectives
+                     the requestor chose (agent_fit use case; keyless =
+                     unassessed)
   --voice-turn       the FAST voice thread: one spoken utterance in → the next
                      spoken utterance out (role_intake_voice use case, plain
                      text, 30s timeout → deterministic script on any stall)
@@ -19,7 +28,8 @@ Input files keep the arg list short and unambiguous on Windows:
 
 Output: one JSON object — {reply, brief, shape, done, source[, fallbackReason]}
 for a dialog turn; {reply, done, source[, brief]} for --voice-turn;
-{brief, shape, extracted, source} for --extract-transcript.
+{brief, shape, extracted, source} for --extract-transcript;
+{brief, shape, fit} for --app-master-sync.
 """
 
 from __future__ import annotations
@@ -30,7 +40,16 @@ import sys
 from pathlib import Path
 
 from ._cli import configure_stdio
-from .intake import extract_transcript, opening_turn, run_intake_turn, run_voice_turn
+from .agentfit import assess_population_fit
+from .intake import (
+    APP_MASTER_SHAPE,
+    extract_transcript,
+    merge_dossier,
+    opening_turn,
+    run_intake_turn,
+    run_voice_turn,
+)
+from .rolebrief import coerce_role_brief
 from .llm.registry import resolve_provider
 
 
@@ -48,6 +67,9 @@ def main() -> int:
     parser.add_argument("--attachments-json", type=Path)
     parser.add_argument("--message", default="")
     parser.add_argument("--opening", action="store_true")
+    parser.add_argument("--shape", default="")
+    parser.add_argument("--dossier-json", type=Path)
+    parser.add_argument("--app-master-sync", action="store_true")
     parser.add_argument("--voice-turn", action="store_true")
     parser.add_argument("--extract-transcript", action="store_true")
     parser.add_argument("--lang", default="en")
@@ -58,7 +80,27 @@ def main() -> int:
         attachments = _load_json(args.attachments_json)
         if attachments is not None and not isinstance(attachments, list):
             raise ValueError("--attachments-json must contain a JSON array")
-        if args.voice_turn:
+        dossier = _load_json(args.dossier_json)
+        if dossier is not None and not isinstance(dossier, dict):
+            raise ValueError("--dossier-json must contain a JSON object")
+        if args.app_master_sync:
+            # Deterministic merge + the population-fit judgment, in ONE spawn:
+            # the route calls this when a scan lands and again at compose, and
+            # two subprocesses for one screen would be two subprocesses.
+            if dossier is None:
+                raise ValueError("--app-master-sync needs a --dossier-json object")
+            brief = merge_dossier(coerce_role_brief(_load_json(args.brief_json)), dossier, lang=args.lang)
+            provider = None
+            if not args.no_llm:
+                provider = resolve_provider("agent_fit", timeout=120)
+                if provider is not None and not provider.available():
+                    provider = None  # documented dance -> unassessed population fit
+            payload = {
+                "brief": brief.model_dump(by_alias=True),
+                "shape": APP_MASTER_SHAPE,
+                "fit": assess_population_fit(dossier, brief, provider=provider, lang=args.lang),
+            }
+        elif args.voice_turn:
             # The FAST voice thread: one spoken utterance, no JSON contract. Its
             # own use case so a fast model can be pinned; short timeout — a slow
             # provider must fall to the deterministic script, not stall the call.
@@ -84,7 +126,7 @@ def main() -> int:
                     provider = None  # documented dance → honest unextracted fallback
             payload = extract_transcript(provider, turns, brief, lang=args.lang)
         elif args.opening:
-            payload = opening_turn(args.lang)
+            payload = opening_turn(args.lang, shape=args.shape or None)
         else:
             turns = _load_json(args.transcript_json) or []
             if not isinstance(turns, list):
@@ -95,7 +137,9 @@ def main() -> int:
                 provider = resolve_provider("role_intake", timeout=120)
                 if provider is not None and not provider.available():
                     provider = None  # documented dance → deterministic fallback
-            payload = run_intake_turn(provider, turns, brief, args.message, lang=args.lang, attachments=attachments)
+            payload = run_intake_turn(
+                provider, turns, brief, args.message, lang=args.lang, attachments=attachments, dossier=dossier
+            )
     except ValueError as exc:
         print(json.dumps({"error": str(exc), "status": 400}, ensure_ascii=False), file=sys.stderr)
         return 2
