@@ -504,7 +504,15 @@ The default `Mandate` forbids **all six**: a spec composed from a thin answer mu
 never read as "these changes are fine here". A proposal touching one is blocked
 at dispatch and counted as a violation — it is never silently rewritten into an
 allowed shape (enforcement is P4; the schema and the counter are P1).
-`approvalGates[]` lists the commands a proposal must pass; `owner` names the human
+`approvalGates[]` lists the commands a proposal must pass — Personas **executes**
+them on every proposal branch (P5a), so kp fills the list by *selection*, not
+truncation: `selectApprovalGates` (`app/_lib/intake-brief.ts`) takes the
+dossier's `declaredGates`, drops pointers (`ci: <path>`) and heavy or
+environment-bound runs (`build`, `dev`, `e2e`, `eval`, `bench`, …), ranks the
+deciding gates first (`typecheck`, `lint`, `test:unit`, `test`,
+`test:python:gate`, …), and caps at 8. On kp that yields typecheck → lint →
+test:unit → test:python:gate → …; the earlier blind `slice(0,10)` of the
+alphabetical list had kept `build`/`test:e2e` and dropped `typecheck`. `owner` names the human
 who answers an escalation, and a spec with no owner carries a coercion note
 saying escalations have nowhere to go.
 
