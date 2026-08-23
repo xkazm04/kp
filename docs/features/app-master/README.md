@@ -369,8 +369,8 @@ Two rules that follow from the anchors being behavioural:
 | --- | --- |
 | L1 | Idle between assignments. Reports work complete when part of it is done, or reports "sent" for something that is only queued. A blocker surfaces when somebody thinks to ask. |
 | L2 | Picks up the next thing once told the previous one is finished. Reports accurately on what was done but not on what was not; raises blockers after the window they would have mattered in. |
-| L3 | **Starts each cycle from the value ledger without being asked, closes every loop it opens (proposal → outcome recorded), and reports state truthfully including partial and failed — a queued thing reads queued, a failed thing reads failed.** |
-| L4 | Also reports the negative result: names which of its own changes did not move the metric it was meant to move, and retires them. |
+| L3 | **Starts each cycle from the value ledger without being asked and closes every loop it opens (proposal → outcome recorded). Status is stated as it is: a queued thing reads queued, a failed thing reads failed, a half-done thing is not reported done.** |
+| L4 | Also keeps its own state visible before anyone asks — what is in flight, what is blocked, what needs a human — on a standing cadence; when blocked, escalates with the decision framed (options, recommendation, cost of waiting), not the problem dumped. |
 | L5 | Reports the thing that costs it something — its own wrong call, what it now believes instead, and what would have caught it earlier — and changes its working loop in response, visibly. |
 
 ### Human tail — H1–H2
@@ -382,8 +382,8 @@ being scored last.
 
 | Level | Anchor |
 | --- | --- |
-| L1 | Explains the change to a non-engineering audience in implementation terms; when they do not follow, repeats it more slowly. Commitments are given verbally with no date attached. |
-| L2 | Translates when asked a direct question, but volunteers nothing. Stakeholders learn about a schedule change at the deadline. |
+| L1 | Stakeholders are not told at all: they learn a change shipped, slipped or broke from the product itself or from a third party. Asked afterwards, cannot say who needed to know. |
+| L2 | Tells stakeholders, but in implementation terms and only when asked; when they do not follow, repeats it more slowly. Commitments are given verbally with no date attached, so a slip surfaces at the deadline. |
 | L3 | **States, in the listener's own terms, what changed for them, what it cost, and what is still open — and raises a slip when it becomes likely, not when it becomes certain.** |
 | L4 | Also runs the disagreement instead of routing around it: puts the trade-off (scope, date, quality) in front of the people who own it and leaves with an explicit, recorded decision. |
 | L5 | Changes what the stakeholder asks for — reframes a feature request as the outcome underneath it, agrees a measure for that outcome, and leaves with a smaller commitment that serves them better. |
@@ -443,7 +443,14 @@ to celebrate the excellent one.
 - **Acceptance test before these anchors are used on a real hire:** retranslation
   — strip the axis headers and level numbers, shuffle, and have raters who did
   not write them sort each paragraph back to an axis and a level. Target ≥ 0.8
-  sort accuracy (T3 in the concept). *Not yet run — see Known gaps.*
+  sort accuracy (T3 in the concept). **Run 2026-08-23, two rounds of 3 blind
+  Sonnet raters × 55 anchors.** Round 1: axis 0.95 / exact 0.885 — all three
+  raters swapped H1 L1↔L2 and two read C6 L4 as C1 (value judgment), so those
+  four anchors were rewritten (H1 L1 = stakeholders not told at all; C6 L4 =
+  state kept visible + escalation framed as a decision). Round 2 on the revised
+  set: **axis 0.988 / exact 0.958 / axis+adjacent 0.988, no miss shared by two
+  raters.** Rubric version stays `app-master-rubric-v1` (no rating had been
+  recorded against the pre-revision anchors).
 
 ---
 
@@ -699,10 +706,10 @@ The schemas travel three ways once the later phases land:
 
 ## Known gaps
 
-- **The anchors have never been retranslated.** T3 (blind raters sorting stripped
-  anchors back to axis + level, target ≥ 0.8) has not been run. Until it has,
-  treat any two adjacent levels as possibly indistinguishable in practice, and do
-  not use the rubric for an adverse decision on a real candidate.
+- **Retranslation passed with machine raters only.** T3 (2026-08-23) used blind
+  Sonnet raters, not humans; the residual single-rater misses are all adjacent
+  levels (C5 L4↔L5, A2 L4↔L5). A human-rater pass is still owed before the
+  rubric is used for an adverse decision on a real candidate.
 - **The anchors were drafted, not observed.** They were written from the concept
   and the registry technique, not from interviews already run for this role —
   because none have been. A machine-drafted ladder invents behaviours that sound
