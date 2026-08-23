@@ -20,7 +20,9 @@
     "weaklyGoverned": 9,
     "medianTopScore": 533.8,
     "carriedVerdicts": 0,
-    "restoredPairs": 0
+    "restoredPairs": 0,
+    "judged": 3,
+    "deviations": 3
   },
   "subjectIndex": {
     "machine-paced-delivery": [
@@ -2154,7 +2156,10 @@
             "shared"
           ],
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "AnalyticsByRoleTable.tsx:113-118 shows hireRatePct at any n>0 in moss; the sort excludes only total===0, so a 1-of-3 role outranks 40-of-200. No thin state anywhere.",
+          "evaluatedAt": "2026-08-23",
+          "evaluatedAgainst": "sha256:6e81093803d35285"
         },
         {
           "subject": "usage-analytics",
@@ -6573,7 +6578,10 @@
             "floor"
           ],
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "Red flags sit a click behind the card (DecisionsAnalysisParts.tsx:194, capped at 4) while score and rank sit on it; bulk accept fires unconfirmed, bulk reject is gated.",
+          "evaluatedAt": "2026-08-23",
+          "evaluatedAgainst": "sha256:6e81093803d35285"
         },
         {
           "subject": "bulk-adverse-action-governance",
@@ -6585,7 +6593,10 @@
             "review"
           ],
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "ScreenWaveModal.tsx:88-96 is approve-all or cancel, no per-person removal; the wave decides on matchScore while reconsider/route.ts:66 shows canonicalScore.",
+          "evaluatedAt": "2026-08-23",
+          "evaluatedAgainst": "sha256:6e81093803d35285"
         },
         {
           "subject": "portable-hiring-records",
