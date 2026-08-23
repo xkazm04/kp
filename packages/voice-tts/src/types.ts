@@ -109,6 +109,18 @@ export type TtsPreference = {
   allowed: readonly TtsProviderId[];
 };
 
+/** One row of a probe-only status read — what a settings or compare surface renders. */
+export type TtsStatus = {
+  id: TtsProviderId;
+  label: string;
+  kind: TtsKind;
+  capabilities: TtsCapabilities;
+  probe: TtsProbe;
+  /** In the host's compare set (preference.allowed). */
+  allowed: boolean;
+  preferred: boolean;
+};
+
 export type TtsResolution = {
   provider: TtsProvider;
   /** Set when `provider` is not the one asked for — fallback is visible, never silent. */

@@ -1,6 +1,6 @@
 export * from "./types.ts";
 export { TTS_MAX_CHARS, validateRequest, validateVoiceId, primaryLanguage } from "./validate.ts";
-export { createTts, defaultProviders, preferenceFromEnv, type Tts, type TtsStatus } from "./registry.ts";
+export { createTts, defaultProviders, preferenceFromEnv, type Tts } from "./registry.ts";
 export { sidecarHome } from "./node/resolve-bin.ts";
 export { speechReady, type SpeechReadyOptions } from "./text/normalize.ts";
 export { segmentSpeech, type SegmentOptions } from "./text/segment.ts";

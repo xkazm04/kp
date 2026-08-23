@@ -16,23 +16,14 @@ import {
   type TtsAudio,
   type TtsHost,
   type TtsPreference,
-  type TtsProbe,
   type TtsProvider,
   type TtsProviderId,
   type TtsRequest,
   type TtsResolution,
+  type TtsStatus,
 } from "./types.ts";
 
-export type TtsStatus = {
-  id: TtsProviderId;
-  label: string;
-  kind: TtsProvider["kind"];
-  capabilities: TtsProvider["capabilities"];
-  probe: TtsProbe;
-  /** In the host's compare set (preference.allowed). */
-  allowed: boolean;
-  preferred: boolean;
-};
+export type { TtsStatus } from "./types.ts";
 
 export type Tts = {
   readonly ids: readonly TtsProviderId[];
