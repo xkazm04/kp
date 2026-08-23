@@ -279,6 +279,21 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'intake.status !== "open"',
   },
   {
+    // App master (P2). Per-IP. Every accepted scan is a `git clone` plus a Python
+    // subprocess plus, when a provider is configured, an in-repo Claude Code
+    // session — by far the largest unit of work any single POST here buys. The
+    // operator gate above it stops a stranger; this stops a loop. 10/10min is the
+    // same budget as ./github-analysis, which guards a much cheaper harvest.
+    rel: "./repo-scan/route.ts",
+    key: "`repo-scan:${clientIpFrom(request.headers)}`",
+    limit: 10,
+    // The CALL SITE, not a bare `startRepoScan(`: that substring also appears in
+    // this route's import and header comment, both of which precede the limiter, so
+    // the generic marker would fail on prose rather than on ordering.
+    expensive: "startRepoScan(
+",
+  },
+  {
     rel: "./feedback/route.ts",
     // Per-IP. 10/10min: the dialog submits one message per open; a human never
     // meets this, while unmetered free-text storage on an open-mode deploy is a

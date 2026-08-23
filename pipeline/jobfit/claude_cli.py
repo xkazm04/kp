@@ -25,6 +25,7 @@ Usage::
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import re
@@ -39,6 +40,76 @@ from typing import Any, Sequence
 _API_KEY_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
 
 DEFAULT_TIMEOUT_S = 180
+
+# --------------------------------------------------------------------------- #
+# Running the CLI *inside* somebody else's repository (app-master repo_scan, P2)
+# --------------------------------------------------------------------------- #
+#
+# The repo dossier is worth having only if the agent actually reads the repo, and
+# that is exactly the moment the tool becomes dangerous: kp is pointed at a
+# checkout the operator owns, on the operator's own box, and a scan that could
+# WRITE there would be a scanning tool that edits your codebase. So read-only is
+# a hard requirement enforced three ways at once — an allowlist, a denylist, and
+# `--permission-mode plan` (which refuses edits at the session level) — rather
+# than by trusting the prompt to ask nicely.
+#
+# Flags verified against `claude --help` on 2026-08-23:
+#   --allowedTools <tools...>       comma- or space-separated; passed as ONE
+#                                   comma-joined argument so the variadic option
+#                                   cannot swallow the flags that follow it
+#   --disallowedTools <tools...>    same grammar; deny wins over allow
+#   --permission-mode <mode>        acceptEdits | auto | bypassPermissions |
+#                                   manual | dontAsk | plan
+# `--add-dir` is deliberately NOT used: the scan is confined to `cwd`.
+
+PERMISSION_MODES = ("acceptEdits", "auto", "bypassPermissions", "manual", "dontAsk", "plan")
+
+# The only mode this module will pair with a repo binding. `plan` is the CLI's
+# own read-only session mode; every other choice can author a file.
+READ_ONLY_PERMISSION_MODE = "plan"
+
+# What a repo scan may do: read files, search them, and read git HISTORY. Note the
+# git entries are scoped (`git log:*` / `git diff:*` / `git show:*`), never a bare
+# `Bash` — a bare Bash grant is a write grant with extra steps.
+READ_ONLY_TOOLS: tuple[str, ...] = (
+    "Read",
+    "Grep",
+    "Glob",
+    "Bash(git log:*)",
+    "Bash(git diff:*)",
+    "Bash(git show:*)",
+)
+
+# Belt and braces: even if a future edit widens the allowlist, these can never be
+# granted on a repo-bound session (deny takes precedence in the CLI).
+WRITE_TOOL_DENYLIST: tuple[str, ...] = (
+    "Write",
+    "Edit",
+    "MultiEdit",
+    "NotebookEdit",
+    "WebFetch",
+)
+
+
+def _tool_head(tool: str) -> str:
+    """`Bash(git log:*)` -> `Bash`; `Read` -> `Read`. The comparable identity."""
+    return tool.split("(", 1)[0].strip()
+
+
+def _validated_permission_mode(mode: str | None) -> str | None:
+    """Refuse a mode the installed CLI does not have.
+
+    An unknown value would be passed straight through to `--permission-mode` and
+    the CLI would exit on an argument error — an engine fault the caller would
+    read as "the model failed", which is the wrong diagnosis entirely.
+    """
+    if mode is None:
+        return None
+    if mode not in PERMISSION_MODES:
+        raise ValueError(
+            f"unknown Claude CLI permission mode {mode!r} (known: {', '.join(PERMISSION_MODES)})"
+        )
+    return mode
 
 
 class ClaudeCliError(RuntimeError):
@@ -84,6 +155,15 @@ class ClaudeCliProvider:
         from the child env so the call runs on the subscription, not the API.
     extra_args:
         Extra CLI flags appended verbatim (escape hatch for power users).
+    cwd:
+        Working directory for the child process — the repository the agent runs
+        *in*. ``None`` (default) inherits the caller's cwd, which is what every
+        text-in/text-out use case wants.
+    allowed_tools / disallowed_tools:
+        Tool allow/deny lists (``--allowedTools`` / ``--disallowedTools``). Deny
+        wins. Prefer :meth:`with_repo_access`, which sets the read-only triple.
+    permission_mode:
+        ``--permission-mode`` value; must be one of :data:`PERMISSION_MODES`.
     """
 
     def __init__(
@@ -94,12 +174,82 @@ class ClaudeCliProvider:
         timeout: int = DEFAULT_TIMEOUT_S,
         strip_api_key: bool = True,
         extra_args: Sequence[str] = (),
+        cwd: str | None = None,
+        allowed_tools: Sequence[str] | None = None,
+        disallowed_tools: Sequence[str] | None = None,
+        permission_mode: str | None = None,
     ) -> None:
         self.command = command
         self.model = model
         self.timeout = timeout
         self.strip_api_key = strip_api_key
         self.extra_args = tuple(extra_args)
+        self.cwd = cwd
+        self.allowed_tools = tuple(allowed_tools) if allowed_tools else None
+        self.disallowed_tools = tuple(disallowed_tools) if disallowed_tools else None
+        self.permission_mode = _validated_permission_mode(permission_mode)
+
+    # -- repo binding -------------------------------------------------------
+
+    def with_repo_access(
+        self,
+        cwd: str,
+        *,
+        allowed_tools: Sequence[str] = READ_ONLY_TOOLS,
+        timeout: int | None = None,
+    ) -> "ClaudeCliProvider":
+        """A COPY of this provider bound to ``cwd``, read-only.
+
+        Returns a copy rather than mutating in place so a provider handed out by
+        the registry (``MonitoredClaudeCli``, which subclasses this) keeps its
+        telemetry identity while one call site borrows it for a repo scan — and
+        so no other caller inherits a repo binding it never asked for.
+
+        The read-only guarantee is not advisory: the allowlist is intersected
+        with nothing (it is taken as given) but is *validated* against
+        :data:`WRITE_TOOL_DENYLIST`, the denylist is always applied, and the
+        session runs in :data:`READ_ONLY_PERMISSION_MODE`. Ask for a write tool
+        and this raises instead of quietly granting it.
+        """
+        offending = sorted({t for t in allowed_tools if _tool_head(t) in WRITE_TOOL_DENYLIST})
+        if offending:
+            raise ValueError(
+                "with_repo_access refuses write-capable tools on a scanned repo: "
+                + ", ".join(offending)
+            )
+        # A BARE `Bash` grant is a write grant with extra steps (`Bash` alone
+        # permits `rm`, `>file`, `git commit`). Scoped forms are fine.
+        bare_bash = [t for t in allowed_tools if t.strip() == "Bash"]
+        if bare_bash:
+            raise ValueError(
+                "with_repo_access refuses an unscoped Bash grant — use a scoped form "
+                'like "Bash(git log:*)"'
+            )
+        clone = copy.copy(self)
+        clone.cwd = cwd
+        clone.allowed_tools = tuple(allowed_tools)
+        clone.disallowed_tools = WRITE_TOOL_DENYLIST
+        clone.permission_mode = READ_ONLY_PERMISSION_MODE
+        if timeout is not None:
+            clone.timeout = timeout
+        return clone
+
+    def cli_args(self) -> list[str]:
+        """The argv this provider would run (executable resolved). Exported so the
+        read-only contract is assertable without spawning a subprocess."""
+        args = [self._executable(), "-p", "--output-format", "json"]
+        if self.model:
+            args += ["--model", self.model]
+        if self.permission_mode:
+            args += ["--permission-mode", self.permission_mode]
+        # ONE comma-joined argument per list: `--allowedTools` is variadic, so
+        # separate items would let it swallow the following flag.
+        if self.allowed_tools:
+            args += ["--allowedTools", ",".join(self.allowed_tools)]
+        if self.disallowed_tools:
+            args += ["--disallowedTools", ",".join(self.disallowed_tools)]
+        args += list(self.extra_args)
+        return args
 
     # -- discovery ----------------------------------------------------------
 
@@ -154,10 +304,7 @@ class ClaudeCliProvider:
         if system and system.strip():
             full_prompt = f"<system>\n{system.strip()}\n</system>\n\n{prompt}"
 
-        args = [self._executable(), "-p", "--output-format", "json"]
-        if self.model:
-            args += ["--model", self.model]
-        args += list(self.extra_args)
+        args = self.cli_args()
 
         try:
             completed = subprocess.run(
@@ -167,6 +314,7 @@ class ClaudeCliProvider:
                 text=True,
                 encoding="utf-8",
                 env=self._child_env(),
+                cwd=self.cwd,
                 timeout=timeout or self.timeout,
             )
         except FileNotFoundError as exc:

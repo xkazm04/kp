@@ -832,6 +832,32 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_role_intakes_ws ON role_intakes (workspace_id, created_at);
+
+    -- App master repo scans (db/repo-scans.ts, docs/features/app-master/README.md,
+    -- phase P2): one row per "read this codebase into a RepoDossier" run. The row is
+    -- the source of truth the poller reads, so a scan survives the operator
+    -- navigating away — the same contract as tasks/campaign_packs.
+    --
+    -- repo_url / root_path are the operator's OWN input, echoed back so they can see
+    -- what was scanned; root_path is only ever accepted behind the
+    -- KP_APP_MASTER_REPO_ROOTS allow-list (repo-scan.ts), which is what stops this
+    -- column from becoming a filesystem oracle. source is the dossier's provenance
+    -- (llm = Claude Code read the repo in place, heuristic = the deterministic walk),
+    -- NULL until the run finishes — a queued scan has no provenance to claim yet.
+    CREATE TABLE IF NOT EXISTS repo_scans (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      repo_url TEXT,
+      root_path TEXT,
+      status TEXT NOT NULL DEFAULT 'queued',
+      source TEXT,
+      dossier_json TEXT,
+      error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_repo_scans_ws ON repo_scans (workspace_id, created_at);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —

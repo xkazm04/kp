@@ -131,6 +131,11 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
     return k && `${k}:${localePart(p.lang)}`;
   },
   agent_fit: (p) => stableKey("agent_fit", p.jobId), // one transform per job; a re-trigger reuses the in-flight run
+  // One run per SCAN ROW, not per repository: each POST /api/repo-scan mints its own
+  // row (a re-scan is a new reading of a repo that has since changed, and must not be
+  // handed the previous run's dossier), while a retried/duplicated submission of the
+  // SAME scanId coalesces onto the run already in flight.
+  repo_scan: (p) => stableKey("repo_scan", p.scanId),
   // One pack per (job, language): a double-click on Generate reuses the in-flight
   // run, while switching the language toggle starts its own.
   campaign: (p) => stableKey("campaign", p.jobId, p.lang),

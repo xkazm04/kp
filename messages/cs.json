@@ -1265,6 +1265,8 @@
     "AGENT_CATALOG_FAILED": "Nepodařilo se načíst katalog konektorů. Zkuste to prosím znovu.",
     "AGENT_REFRESH_FAILED": "Nepodařilo se obnovit stav agenta. Zkuste to prosím znovu.",
     "AGENT_REPORT_FAILED": "Nepodařilo se zaznamenat hlášení agenta. Zkuste to prosím znovu.",
+    "REPO_SCAN_FAILED": "Nepodařilo se spustit načtení repozitáře. Zkuste to prosím znovu.",
+    "REPO_SCAN_READ_FAILED": "Nepodařilo se načíst výsledek čtení repozitáře. Zkuste to prosím znovu.",
     "FEEDBACK_INVALID": "Zkontrolujte zprávu (a e-mail) a zkuste to znovu.",
     "FEEDBACK_SAVE_FAILED": "Zpětnou vazbu se nepodařilo odeslat. Zkuste to prosím znovu.",
     "FEEDBACK_LIST_FAILED": "Zpětnou vazbu se nepodařilo načíst. Zkuste to prosím znovu.",

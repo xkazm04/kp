@@ -368,10 +368,14 @@
       ]
     },
     {
-      "_comment": "P2 adds \"app/_lib/app-master/**\" and \"app/api/app-master/**\" here in the same change that creates those directories — the map's own test asserts every glob root exists on disk, so a forward-looking glob cannot be pre-registered.",
+      "_comment": "P2 landed the repo scan under repo-scan* / repo_scan* rather than the app-master/** directories P1 anticipated — the scan is one task and one store, not a module tree, so the globs name the files that exist. A later phase that does create app/_lib/app-master/** adds it here in the same change (the map's own test asserts every glob root exists on disk, so a forward-looking glob cannot be pre-registered).",
       "doc": "docs/features/app-master/README.md",
       "sourceGlobs": [
-        "pipeline/jobfit/appmaster*.py"
+        "app/_lib/repo-scan*.ts",
+        "app/_lib/db/repo-scans*.ts",
+        "app/api/repo-scan/**",
+        "pipeline/jobfit/appmaster*.py",
+        "pipeline/jobfit/repo_scan*.py"
       ]
     },
     {

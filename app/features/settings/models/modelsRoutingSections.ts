@@ -22,7 +22,10 @@ export const ROUTING_SECTIONS: readonly RoutingSection[] = [
   // The pipeline's generated messages and ad copy.
   { key: "automation", useCases: ["automation", "campaign_pack"] },
   // Getting a role into the system — parsed, or talked through.
-  { key: "roles", useCases: ["jd_ingest", "role_intake", "role_intake_voice"] },
+  // `repo_scan` belongs here rather than under "profiles": it reads a CODEBASE to
+  // compose an App-master role (docs/features/app-master/README.md), so it is a way
+  // a role gets into the system — the third one, beside a parsed JD and a dialog.
+  { key: "roles", useCases: ["jd_ingest", "role_intake", "role_intake_voice", "repo_scan"] },
   // Reading candidates: CVs, profiles, public footprint.
   { key: "profiles", useCases: ["cv_analysis", "profile_extract", "profile_draft", "github_analysis"] },
   // Interview outputs.

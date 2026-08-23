@@ -21,6 +21,7 @@ import { runGroupEval } from "./group-eval-run";
 import { runJdBuild } from "./jd-build-run";
 import { runInterviewPrep } from "./interview-prep-run";
 import { runAgentFit } from "./agent-hire/transform-run";
+import { runRepoScan } from "./repo-scan-run";
 import { runCampaign, type CampaignParams } from "./campaign-run";
 import { runProfileDraft, type ProfileDraftParams } from "./profile-draft-run";
 import { randomId } from "./random-id";
@@ -238,6 +239,15 @@ const HANDLERS: Record<string, Spec> = {
   agent_fit: {
     run: (ctx) => runAgentFit(String(ctx.params.jobId), ctx.signal, ctx.workspaceId),
     label: (p) => encodeTaskLabel("agentFit", { job: detail(p.jobTitle, p.jobId) ?? "" }),
+  },
+  // App master (P2): read a codebase into a RepoDossier. Backgrounded because the
+  // in-repo agent path is minutes, not seconds — and because the repo_scans row is
+  // the durable result, so the operator can leave the intake and come back. The
+  // handler persists onto that row itself (success AND failure), so a reaped task
+  // still leaves an honest `failed` row rather than one stuck at `running`.
+  repo_scan: {
+    run: (ctx) => runRepoScan(ctx.params, ctx.signal, ctx.workspaceId, String(ctx.params.lang ?? "en")),
+    label: (p) => encodeTaskLabel("repoScan", { repo: detail(p.repoUrl, p.rootPath, p.scanId) ?? "" }),
   },
   // Campaign pack (background path of POST /api/jobs/[id]/campaign): the pack
   // persists in campaign_packs, so leaving mid-run loses nothing — the Campaign

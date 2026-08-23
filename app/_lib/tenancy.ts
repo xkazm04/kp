@@ -209,6 +209,14 @@ export const TENANCY_SCOPED_TABLES: ReadonlySet<string> = new Set([
   "agent_fit_specs",
   "hired_agents",
   "agent_activity",
+  // App master (P2) — repo_scans (db/repo-scans.ts): one row per machine read of a
+  // codebase into a RepoDossier. Scoped with NO by-id exemption, unlike most
+  // point-read stores here: the row carries a filesystem path on the operator's own
+  // machine plus a full read of a private codebase, so an unscoped by-id read would
+  // make a leaked scan id a bearer token for another team's source tree. Every
+  // read/write filters workspace_id and every UPDATE carries it in the predicate
+  // (repo-scans-tenancy.test.ts, whose exemption list is literally empty).
+  "repo_scans",
   // Phase 2 — the dual-tier hiring policy (decision-config-store.ts, a lazy store). ORG-DEFAULT
   // rows (workspace_id NULL — the company baseline every team inherits: screening rules +
   // compliance jurisdiction) + TEAM OVERRIDE rows (workspace_id = team). Reads CASCADE (the

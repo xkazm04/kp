@@ -1265,6 +1265,8 @@
     "AGENT_CATALOG_FAILED": "Impossible de charger le catalogue de connecteurs. Veuillez réessayer.",
     "AGENT_REFRESH_FAILED": "Impossible d’actualiser l’état de l’agent. Veuillez réessayer.",
     "AGENT_REPORT_FAILED": "Impossible d’enregistrer le rapport de l’agent. Veuillez réessayer.",
+    "REPO_SCAN_FAILED": "Impossible de lancer l’analyse du dépôt. Veuillez réessayer.",
+    "REPO_SCAN_READ_FAILED": "Impossible de charger l’analyse du dépôt. Veuillez réessayer.",
     "FEEDBACK_INVALID": "Vérifiez le message (et l’e-mail) et réessayez.",
     "FEEDBACK_SAVE_FAILED": "Impossible d’envoyer le retour. Veuillez réessayer.",
     "FEEDBACK_LIST_FAILED": "Impossible de charger les retours. Veuillez réessayer.",

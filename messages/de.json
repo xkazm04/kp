@@ -1265,6 +1265,8 @@
     "AGENT_CATALOG_FAILED": "Der Konnektor-Katalog konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "AGENT_REFRESH_FAILED": "Der Agentenstatus konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
     "AGENT_REPORT_FAILED": "Die Agentenmeldung konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
+    "REPO_SCAN_FAILED": "Das Auslesen des Repositorys konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "REPO_SCAN_READ_FAILED": "Das Ergebnis des Repository-Scans konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "FEEDBACK_INVALID": "Prüfen Sie die Nachricht (und die E-Mail) und versuchen Sie es erneut.",
     "FEEDBACK_SAVE_FAILED": "Feedback konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
     "FEEDBACK_LIST_FAILED": "Feedback konnte nicht geladen werden. Bitte versuchen Sie es erneut.",

@@ -138,6 +138,11 @@ export const STORE_ERRORS = {
   AGENT_CATALOG_FAILED: "Could not load the connector catalog. Please try again.",
   AGENT_REFRESH_FAILED: "Could not refresh the agent status. Please try again.",
   AGENT_REPORT_FAILED: "Could not record the agent report. Please try again.",
+  // App master repo scan (P2) — the start route spawns git + Python, the read route
+  // sits on better-sqlite3; both can throw with a local filesystem path inside the
+  // message, which is exactly what must not reach the wire.
+  REPO_SCAN_FAILED: "Could not start the repository scan. Please try again.",
+  REPO_SCAN_READ_FAILED: "Could not load the repository scan. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

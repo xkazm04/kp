@@ -61,6 +61,13 @@ USE_CASE_REQUIREMENTS: dict[str, frozenset[str]] = {
     "interview_scorecard": frozenset({CAP_JSON}),
     # Agent-candidate bridge: the job → AgentFitSpec transform (agentfit.py).
     "agent_fit": frozenset({CAP_JSON}),
+    # App master: read a repository into a RepoDossier (repo_scan.py). JSON-only,
+    # like agent_fit. The IN-REPO reading is a claude_cli-only superpower — every
+    # other provider answers from the heuristic dossier carried in the prompt — but
+    # that is a quality difference, not a capability the matrix can gate: there is no
+    # "runs in your checkout" capability, and declaring one would refuse a perfectly
+    # valid grounded refinement. `source` on the dossier stays honest either way.
+    "repo_scan": frozenset({CAP_JSON}),
     # Role-intake dialog with a hiring requestor (intake.py) — one JSON turn
     # per exchange (reply + updated RoleBrief).
     "role_intake": frozenset({CAP_JSON}),
@@ -118,6 +125,10 @@ USE_CASE_MAX_TOKENS: dict[str, int] = {
     "devcase_analyze": 6144,
     "devcase_interview_scenario": 6144,
     "group_compare": 4096,
+    # A dossier refinement returns up to 12 risk areas, 12 hot-spot rationales and
+    # 6 objectives in one object — past the base 2048 cap, at which point the JSON
+    # truncates and the identical heuristic dossier ships instead.
+    "repo_scan": 6144,
 }
 
 

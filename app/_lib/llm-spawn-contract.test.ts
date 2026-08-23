@@ -22,6 +22,7 @@ const LLM_SPAWN_MODULES: Record<string, string> = {
   "_lib/automation-run.ts": "automation / interview_scorecard",
   "_lib/devcase-run.ts": "devcase_*",
   "_lib/agent-hire/transform-run.ts": "agent_fit",
+  "_lib/repo-scan-run.ts": "repo_scan",
   "_lib/job-ingest.ts": "jd_ingest",
   "_lib/recruiter-run.ts": "weight_proposal",
   "_lib/group-eval-run.ts": "group_compare",

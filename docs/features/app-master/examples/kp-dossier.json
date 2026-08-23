@@ -1,0 +1,915 @@
+{
+  "dossierId": "kp-reference",
+  "repo": {
+    "url": "https://github.com/xkazm04/kp",
+    "rootPath": "C:\\Users\\kazda\\kiro\\kp",
+    "mainBranch": "main"
+  },
+  "source": "llm",
+  "generatedAt": "2026-08-23T14:18:22+00:00",
+  "stack": [
+    "TypeScript",
+    "Python",
+    "JavaScript",
+    "CSS",
+    "SQL",
+    "Node.js"
+  ],
+  "size": {
+    "files": 4343,
+    "sourceFiles": 2516,
+    "contexts": 143
+  },
+  "declaredGates": [
+    "npm run build",
+    "npm run design:check",
+    "npm run i18n:check",
+    "npm run lint",
+    "npm run schemas:check",
+    "npm run taxonomy:check",
+    "npm run test:e2e",
+    "npm run test:eval",
+    "npm run test:eval:match",
+    "npm run test:eval:strict",
+    "npm run test:python",
+    "npm run test:python:gate",
+    "npm run test:unit",
+    "npm run typecheck",
+    "ci: .github/workflows/ci.yml"
+  ],
+  "contexts": [
+    {
+      "name": "agent-workforce",
+      "category": "lib",
+      "fileCount": 11
+    },
+    {
+      "name": "integrations-settings",
+      "category": "ui",
+      "fileCount": 11
+    },
+    {
+      "name": "lib-llm-config",
+      "category": "lib",
+      "fileCount": 18
+    },
+    {
+      "name": "llm-adapters-and-llm-registry",
+      "category": "lib",
+      "fileCount": 16
+    },
+    {
+      "name": "llm-config-and-agent-workforce",
+      "category": "api",
+      "fileCount": 17
+    },
+    {
+      "name": "models-settings",
+      "category": "ui",
+      "fileCount": 16
+    },
+    {
+      "name": "py-cli-core-1",
+      "category": "test",
+      "fileCount": 20
+    },
+    {
+      "name": "py-cli-core-2",
+      "category": "test",
+      "fileCount": 20
+    },
+    {
+      "name": "py-cli-core-3",
+      "category": "test",
+      "fileCount": 20
+    },
+    {
+      "name": "py-cli-core-4",
+      "category": "test",
+      "fileCount": 20
+    },
+    {
+      "name": "py-cli-core-5",
+      "category": "lib",
+      "fileCount": 17
+    },
+    {
+      "name": "py-eval",
+      "category": "lib",
+      "fileCount": 14
+    },
+    {
+      "name": "py-llm-runtime",
+      "category": "lib",
+      "fileCount": 13
+    },
+    {
+      "name": "seeds-and-llm-bench",
+      "category": "lib",
+      "fileCount": 15
+    },
+    {
+      "name": "about-explainer",
+      "category": "ui",
+      "fileCount": 22
+    },
+    {
+      "name": "analytics-and-market-pulse",
+      "category": "api",
+      "fileCount": 18
+    },
+    {
+      "name": "analytics-tab-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "analytics-tab-2",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "analytics-tab-3",
+      "category": "test",
+      "fileCount": 20
+    },
+    {
+      "name": "db-analytics",
+      "category": "test",
+      "fileCount": 21
+    },
+    {
+      "name": "lib-analytics-1",
+      "category": "lib",
+      "fileCount": 12
+    },
+    {
+      "name": "lib-analytics-2",
+      "category": "lib",
+      "fileCount": 12
+    },
+    {
+      "name": "billing",
+      "category": "test",
+      "fileCount": 10
+    },
+    {
+      "name": "billing-core",
+      "category": "lib",
+      "fileCount": 15
+    },
+    {
+      "name": "billing-ui",
+      "category": "ui",
+      "fileCount": 21
+    },
+    {
+      "name": "analyze-ui-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "analyze-ui-2",
+      "category": "lib",
+      "fileCount": 14
+    },
+    {
+      "name": "db-profiles",
+      "category": "test",
+      "fileCount": 12
+    },
+    {
+      "name": "github-analysis",
+      "category": "lib",
+      "fileCount": 15
+    },
+    {
+      "name": "lib-analyze",
+      "category": "lib",
+      "fileCount": 15
+    },
+    {
+      "name": "lib-profile",
+      "category": "test",
+      "fileCount": 19
+    },
+    {
+      "name": "profile-ui-1",
+      "category": "ui",
+      "fileCount": 21
+    },
+    {
+      "name": "profile-ui-2",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "lib-matching",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "matrix-ui-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "matrix-ui-2",
+      "category": "ui",
+      "fileCount": 13
+    },
+    {
+      "name": "py-match-reasoning",
+      "category": "lib",
+      "fileCount": 10
+    },
+    {
+      "name": "py-scoring-core",
+      "category": "lib",
+      "fileCount": 11
+    },
+    {
+      "name": "salary-and-matching-and-analyses",
+      "category": "api",
+      "fileCount": 10
+    },
+    {
+      "name": "salary-market-and-taxonomy",
+      "category": "lib",
+      "fileCount": 13
+    },
+    {
+      "name": "candidate-apply",
+      "category": "ui",
+      "fileCount": 17
+    },
+    {
+      "name": "candidate-public-surfaces-1",
+      "category": "ui",
+      "fileCount": 12
+    },
+    {
+      "name": "candidate-public-surfaces-2",
+      "category": "ui",
+      "fileCount": 12
+    },
+    {
+      "name": "candidate-scheduling-and-candidate-public",
+      "category": "ui",
+      "fileCount": 16
+    },
+    {
+      "name": "landing-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "landing-2",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "landing-3",
+      "category": "ui",
+      "fileCount": 19
+    },
+    {
+      "name": "lib-candidate-apply",
+      "category": "test",
+      "fileCount": 17
+    },
+    {
+      "name": "api-ats-integration",
+      "category": "test",
+      "fileCount": 15
+    },
+    {
+      "name": "api-comms",
+      "category": "api",
+      "fileCount": 14
+    },
+    {
+      "name": "channels-1",
+      "category": "ui",
+      "fileCount": 12
+    },
+    {
+      "name": "channels-2",
+      "category": "lib",
+      "fileCount": 11
+    },
+    {
+      "name": "lib-ats-integration",
+      "category": "test",
+      "fileCount": 13
+    },
+    {
+      "name": "lib-comms-11",
+      "category": "test",
+      "fileCount": 13
+    },
+    {
+      "name": "lib-comms-12",
+      "category": "lib",
+      "fileCount": 12
+    },
+    {
+      "name": "lib-comms-2",
+      "category": "test",
+      "fileCount": 15
+    },
+    {
+      "name": "brand-theming",
+      "category": "lib",
+      "fileCount": 18
+    },
+    {
+      "name": "feature-shared",
+      "category": "lib",
+      "fileCount": 21
+    },
+    {
+      "name": "ui-glyphs-1",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "ui-primitives-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "ui-primitives-2",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "ui-primitives-3",
+      "category": "ui",
+      "fileCount": 19
+    },
+    {
+      "name": "ui-primitives-and-ui-puml",
+      "category": "lib",
+      "fileCount": 16
+    },
+    {
+      "name": "ui-result-panels-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "ui-result-panels-and-ui-glyphs",
+      "category": "lib",
+      "fileCount": 11
+    },
+    {
+      "name": "ui-table-and-react-hooks",
+      "category": "lib",
+      "fileCount": 14
+    },
+    {
+      "name": "api-devcase-1",
+      "category": "api",
+      "fileCount": 20
+    },
+    {
+      "name": "api-devcase-2",
+      "category": "lib",
+      "fileCount": 16
+    },
+    {
+      "name": "devcase-candidate-and-devcase",
+      "category": "ui",
+      "fileCount": 11
+    },
+    {
+      "name": "devcase-workspace-1",
+      "category": "ui",
+      "fileCount": 21
+    },
+    {
+      "name": "devcase-workspace-2",
+      "category": "ui",
+      "fileCount": 19
+    },
+    {
+      "name": "devcase-workspace-3",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "lib-devcase-11",
+      "category": "lib",
+      "fileCount": 15
+    },
+    {
+      "name": "lib-devcase-12",
+      "category": "lib",
+      "fileCount": 14
+    },
+    {
+      "name": "py-devcase-1",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "decisions-ui-1",
+      "category": "ui",
+      "fileCount": 21
+    },
+    {
+      "name": "decisions-ui-2",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "group-eval-ui",
+      "category": "ui",
+      "fileCount": 21
+    },
+    {
+      "name": "lib-automation",
+      "category": "lib",
+      "fileCount": 13
+    },
+    {
+      "name": "lib-decisions-1",
+      "category": "test",
+      "fileCount": 12
+    },
+    {
+      "name": "lib-decisions-2",
+      "category": "test",
+      "fileCount": 11
+    },
+    {
+      "name": "lib-group-eval",
+      "category": "test",
+      "fileCount": 19
+    },
+    {
+      "name": "py-automation",
+      "category": "api",
+      "fileCount": 20
+    },
+    {
+      "name": "api-pipeline",
+      "category": "api",
+      "fileCount": 21
+    },
+    {
+      "name": "db-pipeline",
+      "category": "test",
+      "fileCount": 15
+    },
+    {
+      "name": "lib-offers",
+      "category": "test",
+      "fileCount": 12
+    },
+    {
+      "name": "lib-pipeline",
+      "category": "test",
+      "fileCount": 20
+    },
+    {
+      "name": "pipeline-board-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "pipeline-board-2",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "pipeline-board-3",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "pipeline-board-4",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "pipeline-board-5",
+      "category": "lib",
+      "fileCount": 16
+    },
+    {
+      "name": "pipeline-composer",
+      "category": "ui",
+      "fileCount": 12
+    },
+    {
+      "name": "auth-core",
+      "category": "lib",
+      "fileCount": 22
+    },
+    {
+      "name": "lib-compliance",
+      "category": "test",
+      "fileCount": 14
+    },
+    {
+      "name": "lib-org",
+      "category": "lib",
+      "fileCount": 16
+    },
+    {
+      "name": "org-and-auth",
+      "category": "data",
+      "fileCount": 15
+    },
+    {
+      "name": "org-workspace-settings",
+      "category": "ui",
+      "fileCount": 14
+    },
+    {
+      "name": "calendar-integration",
+      "category": "lib",
+      "fileCount": 15
+    },
+    {
+      "name": "lib-scheduling",
+      "category": "test",
+      "fileCount": 16
+    },
+    {
+      "name": "schedule-ui-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "schedule-ui-2",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "scheduling-and-interview-prep",
+      "category": "test",
+      "fileCount": 18
+    },
+    {
+      "name": "api-jd-library",
+      "category": "api",
+      "fileCount": 19
+    },
+    {
+      "name": "api-jobs",
+      "category": "api",
+      "fileCount": 21
+    },
+    {
+      "name": "api-role-intake",
+      "category": "api",
+      "fileCount": 11
+    },
+    {
+      "name": "jd-library-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "jd-library-2",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "jobs-and-jobs-workspace",
+      "category": "test",
+      "fileCount": 13
+    },
+    {
+      "name": "jobs-workspace-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "jobs-workspace-2",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "jobs-workspace-3",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "lib-rediscovery",
+      "category": "test",
+      "fileCount": 13
+    },
+    {
+      "name": "py-jobs-intake",
+      "category": "lib",
+      "fileCount": 13
+    },
+    {
+      "name": "role-intake",
+      "category": "ui",
+      "fileCount": 13
+    },
+    {
+      "name": "role-intake-and-shared-utils",
+      "category": "lib",
+      "fileCount": 16
+    },
+    {
+      "name": "app-shell",
+      "category": "ui",
+      "fileCount": 14
+    },
+    {
+      "name": "build-scripts-1",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "db-core",
+      "category": "test",
+      "fileCount": 18
+    },
+    {
+      "name": "e2e-suite",
+      "category": "test",
+      "fileCount": 11
+    },
+    {
+      "name": "landing-and-i18n-and-dev-inspector",
+      "category": "lib",
+      "fileCount": 12
+    },
+    {
+      "name": "lib-infra-runtime-1",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "lib-infra-runtime-2",
+      "category": "lib",
+      "fileCount": 17
+    },
+    {
+      "name": "lib-shared-utils-1",
+      "category": "lib",
+      "fileCount": 20
+    },
+    {
+      "name": "root-config",
+      "category": "lib",
+      "fileCount": 13
+    },
+    {
+      "name": "test-infra-and-build-scripts",
+      "category": "lib",
+      "fileCount": 12
+    },
+    {
+      "name": "api-voice-interview",
+      "category": "api",
+      "fileCount": 18
+    },
+    {
+      "name": "eval-voice-and-voice-runtime",
+      "category": "lib",
+      "fileCount": 14
+    },
+    {
+      "name": "interview-ui-and-voice-interview-portal-and-interviews",
+      "category": "ui",
+      "fileCount": 10
+    },
+    {
+      "name": "lib-voice-interview-11",
+      "category": "lib",
+      "fileCount": 15
+    },
+    {
+      "name": "lib-voice-interview-12",
+      "category": "lib",
+      "fileCount": 14
+    },
+    {
+      "name": "py-interview-signals",
+      "category": "lib",
+      "fileCount": 10
+    },
+    {
+      "name": "voice-runtime-1",
+      "category": "lib",
+      "fileCount": 19
+    },
+    {
+      "name": "voice-ui-components",
+      "category": "ui",
+      "fileCount": 14
+    },
+    {
+      "name": "api-guided-simulation",
+      "category": "api",
+      "fileCount": 17
+    },
+    {
+      "name": "api-workspace",
+      "category": "api",
+      "fileCount": 18
+    },
+    {
+      "name": "background-tasks",
+      "category": "ui",
+      "fileCount": 22
+    },
+    {
+      "name": "background-tasks-and-onboarding-setup",
+      "category": "lib",
+      "fileCount": 22
+    },
+    {
+      "name": "guided-simulation-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "internal-explorers",
+      "category": "ui",
+      "fileCount": 19
+    },
+    {
+      "name": "onboarding-setup-1",
+      "category": "ui",
+      "fileCount": 20
+    },
+    {
+      "name": "shell-nav",
+      "category": "ui",
+      "fileCount": 21
+    },
+    {
+      "name": "shell-workspace-1",
+      "category": "ui",
+      "fileCount": 20
+    }
+  ],
+  "hotSpots": [
+    {
+      "ref": "messages/cs.json",
+      "note": "changed in 28 of the last 200 commit(s); Churns because i18n:check gates key parity with en.json, so it moves on every feature commit rather than on translation work."
+    },
+    {
+      "ref": "messages/de.json",
+      "note": "changed in 28 of the last 200 commit(s); Same parity-gate lockstep as en/cs; typed keys make an incomplete catalog a tsc error for everyone."
+    },
+    {
+      "ref": "messages/en.json",
+      "note": "changed in 28 of the last 200 commit(s); Every UI change adds typed next-intl keys, and the 4-locale parity gate forces cs/de/fr to move in the same commit, so all four catalogs churn in lockstep with product work (28/200, plus dedicated i18n review commits like 8f0278a5 and 02617eae)."
+    },
+    {
+      "ref": "messages/fr.json",
+      "note": "changed in 28 of the last 200 commit(s); Same parity-gate lockstep as the other catalogs."
+    },
+    {
+      "ref": ".claude/scan-history/scan-sweep.jsonl",
+      "note": "changed in 14 of the last 200 commit(s); Append-only ledger written by the /scan-sweep skill, so it grows by construction every time an agent sweeps a context."
+    },
+    {
+      "ref": "docs/features/organization/README.md",
+      "note": "changed in 14 of the last 200 commit(s); The Stop hook (scripts/docs/check-doc-sync.mjs) forces a doc edit alongside every mapped source change, and the org/tenancy area took a run of security fixes and the multi-tenant rework (edeb6175, c82fb50c, 9c8905da) in August."
+    },
+    {
+      "ref": "docs/features/analytics/README.md",
+      "note": "changed in 12 of the last 200 commit(s); Analytics was rebuilt in a UAT-driven variant loop (92f7d935 → 7a2d3c14 → adf6def2, 24 findings) and the doc-sync hook drags the doc along each round."
+    },
+    {
+      "ref": "docs/features/dev-case/README.md",
+      "note": "changed in 12 of the last 200 commit(s)"
+    },
+    {
+      "ref": "docs/architecture/app-structure.md",
+      "note": "changed in 11 of the last 200 commit(s); Tab and workspace-shell consolidations (d6e9c8be, 2d02a388, c53dbf61) each rename entry points the doc is obliged to track."
+    },
+    {
+      "ref": "docs/features/candidates/README.md",
+      "note": "changed in 11 of the last 200 commit(s)"
+    },
+    {
+      "ref": "docs/features/matching/README.md",
+      "note": "changed in 11 of the last 200 commit(s)"
+    },
+    {
+      "ref": "docs/features/billing/README.md",
+      "note": "changed in 9 of the last 200 commit(s)"
+    }
+  ],
+  "riskAreas": [
+    {
+      "ref": "app/_lib/tenancy.ts",
+      "note": "Fail-closed tenancy allowlist is the multi-workspace safety net, and five recent commits (9c8905da, 5aab8ba9, c82fb50c, 41f46129, d77e998e) were cross-tenant or auth leaks found after the fact, so new tables or routes are the likeliest place for the next one."
+    },
+    {
+      "ref": "npm run typecheck",
+      "note": "Typecheck and build both run Python codegen (schemas:gen) first, so a broken Python env or a pydantic drift silently blocks the whole Node gate, as ci.yml itself warns."
+    },
+    {
+      "ref": "app/_lib/llm-config.ts",
+      "note": "The TS↔Python provider capability tables (llm-config.ts ↔ pipeline/jobfit/llm/capabilities.py) are kept in sync by hand and both are uncommitted-modified right now; a mismatch would break the keyless-degradation product property."
+    },
+    {
+      "ref": "app/api/rate-limit-contract.test.ts",
+      "note": "Open/paid routes that spawn Python or spend LLM money are only guarded by a 9-assertion contract test; the new uncommitted app/api/repo-scan and app/api/tts routes are exactly the kind of route it must be extended for."
+    },
+    {
+      "ref": "git working tree",
+      "note": "55 uncommitted paths (2089 insertions) from concurrent agent sessions on one shared checkout, with commits like 2fd229bb/00aec539 literally titled 'another session's in-flight work' — integration discipline, not code, is the fragile part."
+    },
+    {
+      "ref": "npm run test:e2e",
+      "note": "Only the keyless deterministic subset runs in CI; the full Playwright smoke needs live provider keys and is deliberately excluded, so LLM-backed journeys regress unseen."
+    }
+  ],
+  "existingKpis": [
+    "app/_lib/analytics",
+    "app/api/analytics",
+    "app/features/insights/analytics",
+    "docs/features/analytics",
+    "app/_lib/analytics/track.ts (Plausible event tracking)",
+    "app/api/analytics funnel / stage conversion metrics",
+    "time_to_hire and cost_per_hire in app/features/insights/analytics",
+    "ci.yml KP_SKIP_BASELINE (Python gate skip ratchet)",
+    "pipeline/jobfit/eval (test:eval, test:eval:strict, test:eval:match scoring harnesses)",
+    "npm run i18n:check (4-locale key parity)",
+    "app/_lib/tenancy.ts boot-time scoped-table gap assertion"
+  ],
+  "maintainerLoadEstimate": "High and bursty: 134 of the last 200 commits landed in 2026-08-21/22/23 alone, from 2 authors driving many concurrent agent sessions on one shared checkout (55 uncommitted paths now; commits exist solely to sweep up 'another session's in-flight work'). The repo compensates with unusually heavy automation — 15 declared gates, a fail-closed tenancy manifest, a rate-limit contract test, a doc-sync Stop hook, and a skip-ratcheted Python gate — so the owner's job is less writing code than keeping those gates honest, integrating parallel streams, and chasing the security-class regressions (five tena",
+  "candidateObjectives": [
+    {
+      "kpiKey": "ci_gate_green_rate",
+      "label": "Share of pushes to main where all three ci.yml jobs (node-quality, python-gate, e2e-deterministic) pass",
+      "baseline": null,
+      "target": null,
+      "unit": "percent",
+      "direction": "gte",
+      "windowDays": 30
+    },
+    {
+      "kpiKey": "tenancy_gap_count",
+      "label": "Persistent tables neither in TENANCY_SCOPED_TABLES nor the exempt list, as reported by the boot-time assertion in app/_lib/db/core.ts",
+      "baseline": null,
+      "target": 0.0,
+      "unit": "tables",
+      "direction": "lte",
+      "windowDays": 30
+    },
+    {
+      "kpiKey": "python_gate_skip_count",
+      "label": "Skipped tests in the gated Python suite (KP_SKIP_BASELINE in ci.yml, currently tolerating 5)",
+      "baseline": 5.0,
+      "target": null,
+      "unit": "tests",
+      "direction": "lte",
+      "windowDays": 30
+    },
+    {
+      "kpiKey": "uncommitted_shared_checkout_paths",
+      "label": "Files left modified/untracked in the shared checkout at end of day, a proxy for unintegrated concurrent-agent work",
+      "baseline": 55.0,
+      "target": null,
+      "unit": "files",
+      "direction": "lte",
+      "windowDays": 14
+    },
+    {
+      "kpiKey": "keyless_e2e_pass_rate",
+      "label": "Pass rate of the deterministic keyless Playwright subset against a production build, certifying the degrade-gracefully property",
+      "baseline": null,
+      "target": null,
+      "unit": "percent",
+      "direction": "gte",
+      "windowDays": 30
+    },
+    {
+      "kpiKey": "doc_sync_dismissals",
+      "label": "Turns where the doc-sync Stop hook fired and was dismissed with 'internal-only' instead of a docs/ edit",
+      "baseline": null,
+      "target": null,
+      "unit": "count",
+      "direction": "lte",
+      "windowDays": 30
+    }
+  ],
+  "fieldProvenance": {
+    "stack": "heuristic",
+    "size": "heuristic",
+    "declaredGates": "heuristic",
+    "contexts": "heuristic",
+    "hotSpots": "llm",
+    "riskAreas": "llm",
+    "existingKpis": "llm",
+    "maintainerLoadEstimate": "llm",
+    "candidateObjectives": "llm"
+  },
+  "promptVersion": "app-master-v1"
+}

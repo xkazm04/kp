@@ -1,14 +1,16 @@
 # App master — the role standard
 
-> **Implementation status (2026-08-23, phase P1).** What ships today is the
-> *contract*: the rubric below, the `AppMasterSpec` / `RepoDossier` /
+> **Implementation status (2026-08-23, phase P2).** Two things ship. The
+> *contract* (P1): the rubric below, the `AppMasterSpec` / `RepoDossier` /
 > `PerformanceBackbone` schemas in `pipeline/jobfit/appmaster.py`, their coercer,
 > the deterministic `backbone_score()` and their TypeScript projection through
-> `npm run schemas:gen`. There is **no intake shape, no repo scan, no dispatch
-> path and no Personas-side enforcement yet** — those are P2–P4 of
-> [`docs/concepts/app-master.md`](../../concepts/app-master.md), and every section
-> here marks what is schema-only. Nothing in kp writes an `AppMasterSpec` at
-> runtime as of this phase.
+> `npm run schemas:gen`. And the *repo scan* (P2): the `repo_scan` background
+> task, its store, its two routes and the Python engine that fills a
+> `RepoDossier` — with a deterministic keyless floor and a read-only Claude Code
+> path on top of it (§3 below). There is still **no intake shape, no dispatch
+> path and no Personas-side enforcement** — P3–P4 of
+> [`docs/concepts/app-master.md`](../../concepts/app-master.md). Nothing in kp
+> writes an `AppMasterSpec` at runtime as of this phase.
 
 An **App master** is the single accountable owner of one application's value.
 The role is unusual in one respect that shapes everything below: it can be held
@@ -26,12 +28,28 @@ fork.
 | `pipeline.jobfit.appmaster` — schemas, coercer, backbone score | **shipped (P1)** | `pipeline/jobfit/appmaster.py` |
 | `appMasterSpecSchema` / `repoDossierSchema` / `performanceBackboneSchema` (Zod) | **shipped (P1)** | `app/_lib/schemas.generated.ts` (generated; do not edit) |
 | `codebase_dossier` facet key on a RoleBrief | **shipped (P1)** — suggested vocabulary only, never a validator | `pipeline/jobfit/rolebrief.py` |
+| `POST /api/repo-scan` → `{ scanId, taskId }` | **shipped (P2)** | `app/api/repo-scan/route.ts` |
+| `GET /api/repo-scan/[id]` → the scan row | **shipped (P2)** | `app/api/repo-scan/[id]/route.ts` |
+| `repo_scan` background task → `RepoDossier` | **shipped (P2)** | `app/_lib/repo-scan.ts`, `app/_lib/repo-scan-run.ts`, `pipeline/jobfit/repo_scan.py` |
 | Intake shape `app_master` (Intake sub-tab / a job's Agent-fit tab) | planned (P3) | — |
-| `repo_scan` background task → `RepoDossier` | planned (P2) | — |
 | Dispatch payload `appMaster` block → Personas | planned (P4) | extends `app/_lib/agent-hire/bridge-client.ts` |
 | Roster surfacing of the backbone + probation decision | planned (P4–P5) | extends `app/features/agents-workforce/**` |
 
-Until P3 lands, the only way to produce a spec is programmatically:
+A dossier can be produced today, from the API or straight from the CLI:
+
+```bash
+# keyless: the deterministic walk, ~0.5s on kp itself
+python -m pipeline.jobfit.repo_scan_cli --root /path/to/repo --no-llm
+
+# with the local Claude CLI: the same walk, refined in place, ~100s on kp
+KP_APP_MASTER_REPO_ROOTS=/path/to python -m pipeline.jobfit.repo_scan_cli --root /path/to/repo
+```
+
+A real dossier of kp itself is checked in as the reference example:
+[`examples/kp-dossier.json`](./examples/kp-dossier.json) (`source: "llm"`, 143
+contexts, 15 declared gates).
+
+A spec, by contrast, is still only producible programmatically until P3:
 
 ```python
 from pipeline.jobfit.appmaster import coerce_app_master_spec
@@ -42,16 +60,16 @@ spec = coerce_app_master_spec(raw_object, catalog=["github", "linear", "slack"])
 
 ## Flows
 
-**1. Compose the role from the codebase (P2–P3, planned).** Point kp at the app
-(GitHub URL, or a local path behind the `KP_APP_MASTER_REPO_ROOTS` allow-list) →
-a backgrounded scan reads the repo and returns a `RepoDossier` (`source: "llm"`
-when Claude Code read it in place, `source: "heuristic"` when the keyless
-file-walk produced the same shape) → the intake dialog asks only what the scan
-could *not* know (which outcomes matter, where the mandate line is, what the
+**1. Compose the role from the codebase.** Point kp at the app (GitHub URL, or a
+local path behind the `KP_APP_MASTER_REPO_ROOTS` allow-list) → a backgrounded
+scan reads the repo and returns a `RepoDossier` (`source: "llm"` when Claude Code
+read it in place, `source: "heuristic"` when the keyless file-walk produced the
+same shape) — **shipped, P2, §3 below** → the intake dialog asks only what the
+scan could *not* know (which outcomes matter, where the mandate line is, what the
 budget is, who reviews) → dossier facts land on the RoleBrief as
 `codebase_dossier` facets with `provenance: "inferred"`, answers as `"stated"` →
 the fit transform returns `human | agent | either` with per-objective rationale →
-`AppMasterSpec` is composed.
+`AppMasterSpec` is composed. *(Everything after the dossier is P3, planned.)*
 
 **2. Hire (P4, planned).** Human population → the spec's `human` block promotes
 to the existing JD build. Agent population → the spec rides the existing bridge
@@ -64,8 +82,138 @@ and starts on probation (`autopilot: suggest`).
 code — and an LLM *narrates* that result. It never rescores it. A human then
 promotes, extends probation, or retires against `tenure.retireCriteria`.
 
-**Today (P1)** only the third flow's arithmetic is real, and only as a pure
-function over a backbone somebody hands it.
+**Today (P2)** the first flow is real up to and including the dossier; the third
+flow's arithmetic is real as a pure function over a backbone somebody hands it;
+the middle is not built.
+
+---
+
+## 3. The repo scan (P2)
+
+The role needs one input no JD has ever had: the codebase, read by a machine
+before the role is composed. That is what `repo_scan` produces.
+
+### The two paths, stacked
+
+They are stacked, not alternatives — this is the shape of the whole feature:
+
+1. **The heuristic walker always runs first** (`pipeline/jobfit/repo_scan.py`,
+   `build_heuristic_dossier`). It reads what the repo says about *itself*:
+   `context-map.json`, `CLAUDE.md` / `AGENTS.md` / `CONTRIBUTING.md` /
+   `README.md`, `package.json` scripts, `pyproject.toml` / `Makefile`, CI
+   workflow files, `git log --name-only -n200` for churn hot spots and author
+   count, file counts by extension, and the paths where measurement already lives
+   (`analytics/`, `kpi*`). It fills a complete `RepoDossier` with
+   `source: "heuristic"`. That is the keyless result — and it is *also* the
+   grounding handed to the LLM.
+2. **The LLM path refines that dossier**, it never replaces it. With the local
+   Claude CLI the agent runs **in** the repository and reads the files; with any
+   other provider it answers from the grounding in the prompt. Either way it is
+   asked for exactly the four things a file walk cannot honestly produce —
+   `riskAreas`, a *rationale* per `hotSpot`, `candidateObjectives`,
+   `maintainerLoadEstimate` (plus `existingKpis`) — and
+   `coerce_repo_dossier` merges the answer onto the heuristic base.
+
+### What the model is not allowed to do
+
+The coercer's rules, in order:
+
+| Rule | Why |
+| --- | --- |
+| Only `REFINABLE_KEYS` are read | `size`, `contexts`, `declaredGates`, `repo` and `source` are **counted facts** or the caller's own input. A model restating a count is how a dossier acquires a number nobody measured. Non-refinable keys are dropped and logged. |
+| An omitted field keeps its heuristic value | A model that answered three of five questions must not blank the other two. |
+| A `hotSpots[].ref` not in the churn list is dropped | The model may *explain* a hot spot, not invent one — and an explanation of a file that never churned explains nothing. The counted churn note is kept and the rationale appended to it. |
+| A `baseline` / `target` that is not a real number becomes `null` | The baseline-unknown rule. `"unknown"`, `""` and a bare `0` are not readings, and an invented baseline makes an unmeasured objective *look* measured. |
+| A non-object answer keeps the heuristic dossier entirely | A failed parse is not a finding. |
+
+`fieldProvenance` then says, per field, which path established it —
+`heuristic` / `llm` / `unknown`. `candidateObjectives` is stamped `unknown` on a
+keyless run, because nothing on disk states what an app should aim at next: an
+empty list with an honest stamp is the report, and the intake dialog (P3) asks.
+
+### Read-only is enforced, not requested
+
+kp is pointed at a checkout the operator owns, on the operator's own machine. A
+scan that could *write* there would be a scanning tool that edits your codebase,
+so the guarantee is structural — three layers, verified against `claude --help`
+on 2026-08-23 and pinned by `test_repo_scan.ReadOnlyAccessTest`:
+
+```
+claude -p --output-format json \
+  --permission-mode plan \
+  --allowedTools "Read,Grep,Glob,Bash(git log:*),Bash(git diff:*),Bash(git show:*)" \
+  --disallowedTools "Write,Edit,MultiEdit,NotebookEdit,WebFetch"
+```
+
+`ClaudeCliProvider.with_repo_access(cwd)` is the only way to set them, it returns
+a **copy** (so a provider handed out by the registry never inherits a repo
+binding it did not ask for), and it *raises* rather than granting if the
+allowlist contains a write tool or a bare unscoped `Bash` — a bare `Bash` grant
+is a write grant with extra steps. `--add-dir` is deliberately unused: the
+session is confined to `cwd`.
+
+### Where the local path is gated
+
+`rootPath` is **fail-closed** (`app/_lib/repo-scan-target.ts`). A server that
+will read any local path you name and hand the contents back is a filesystem
+oracle, so:
+
+- With `KP_APP_MASTER_REPO_ROOTS` unset, every local path is refused — with a
+  message naming the env var, because an anonymous 403 is unactionable.
+- The env var is a platform path-separator list (`;` on Windows, `:` elsewhere),
+  like `PATH`. Each root is `realpath`'d; entries that do not resolve are dropped.
+- A path containing a `..` segment is refused **before** resolution (`path.resolve`
+  would flatten it into something innocent-looking).
+- The candidate path is `realpath`'d — so a symlink is compared at its **target** —
+  and containment is segment-aware, so `/srv/apps-old` is not inside `/srv/apps`.
+- "Exists but is not allowed" and "does not exist" return the *identical* refusal.
+  Distinguishing them maps the filesystem one probe at a time.
+
+`repoUrl` must be an `https://github.com/...` URL; the owner/repo grammar is
+`parseRepoRef` from `app/_lib/repo-snapshot.ts` (already hardened against
+traversal refs), and the ssh transport and the bare `owner/repo` shorthand that
+function also accepts are refused here. A URL scan shallow-clones into
+`os.tmpdir()/kp-repo-scan/<scanId>` (`--depth 50 --single-branch --no-tags`,
+120 s budget, `GIT_TERMINAL_PROMPT=0` so a credential prompt can neither hang the
+server nor attach the operator's credentials to a caller-supplied URL) and
+deletes the clone afterwards, best-effort. Under `KP_OFFLINE` a URL scan is
+refused outright — scan a local path instead.
+
+Supplying both shapes at once is refused rather than silently preferring one:
+they can name different repositories, and a scan that quietly ignored half its
+input would produce a dossier bound to a repo the operator did not ask about.
+
+### Lifecycle
+
+`POST /api/repo-scan` validates the target **before** minting anything, so a
+refused scan leaves no half-row and no queued subprocess; the row is then written
+with the *resolved* target. The `repo_scan` task (dedupe key `repo_scan:<scanId>`)
+re-validates the target inside the runner — the allow-list is process env, and a
+queued scan must not outlive the permission that admitted it — then spawns
+`python -m pipeline.jobfit.repo_scan_cli --root <dir>`. The handler writes the
+outcome onto the row itself, success *and* failure, so a reaped task leaves an
+honest `failed` row rather than one stuck at `running`.
+
+`GET /api/repo-scan/[id]` returns the row with one field withheld: the resolved
+`rootPath`, replaced by `isLocal: true`. That is the *server's* filesystem after
+symlink resolution, which can differ from what the operator typed. The dossier's
+own `repo.rootPath` still carries it — that is the binding an `AppMasterSpec`
+needs — so this is a projection choice, not a redaction claim.
+
+Both routes are `requireOperator`-gated (a documented no-op in open dev mode) and
+the POST is rate-limited `repo-scan:<ip>` at 10/10min, pinned in
+`app/api/rate-limit-contract.test.ts`. The spawn site is pinned in
+`app/_lib/llm-spawn-contract.test.ts`.
+
+### The reference reading
+
+`npm run schemas:gen`-shaped output from a real run against kp itself is checked
+in at [`examples/kp-dossier.json`](./examples/kp-dossier.json). The numbers, for
+calibration: 4,343 files / 2,516 source files / **143 contexts** (equal to
+`context-map.json`'s own count — the concept's acceptance check for this phase,
+asserted by `test_repo_scan.KpSelfScanTest`), 15 declared gates, 12 churn hot
+spots led by the four `messages/*.json` catalogs, 6 risk areas and 6 candidate
+objectives — of which only two carry a baseline, because only two were readable.
 
 ---
 
@@ -446,16 +594,49 @@ spec was composed, and it travels with the spec.
 | `APP_MASTER_PROMPT_VERSION`, `APP_MASTER_RUBRIC_VERSION` | constants | `"app-master-v1"`, `"app-master-rubric-v1"` |
 | `appMasterSpecSchema` / `repoDossierSchema` / `performanceBackboneSchema` + inferred types | generated TS | `app/_lib/schemas.generated.ts`, via `pipeline/jobfit/codegen.py` |
 
-No HTTP route, no store and no LLM call exists for this feature yet.
+### The repo scan (P2)
+
+| Symbol | Kind | What it is |
+| --- | --- | --- |
+| `POST /api/repo-scan` | route | `{ repoUrl? } \| { rootPath? }` → `{ scanId, taskId }`. `requireOperator`; `rateLimit("repo-scan:<ip>", 10/10min)` |
+| `GET /api/repo-scan/[id]` | route | → `{ scan }` — the row, minus the resolved `rootPath` (`isLocal` instead) |
+| `startRepoScan(input, workspaceId)` / `getRepoScan(id, workspaceId)` | function | `app/_lib/repo-scan.ts` — the front door P3 codes against |
+| `RepoScanRequestError` | class | a refused *target*, carrying an actionable message + status (vs. a generic 500) |
+| `resolveScanTarget` / `resolveRootPath` / `resolveRepoUrl` / `allowedRoots` / `isInsideRoot` / `hasTraversalSegment` | pure functions | `app/_lib/repo-scan-target.ts` — the fail-closed gate, DB-free and unit-testable |
+| `runRepoScan(params, signal, workspaceId, lang)` | function | `app/_lib/repo-scan-run.ts` — the `repo_scan` task body |
+| `shallowClone` / `toRepoScanEnvelope` / `scratchDirFor` / `CLONE_DEPTH` / `CLONE_TIMEOUT_MS` | function / const | the URL path and the envelope contract |
+| `createRepoScan` / `getRepoScanRecord` / `listRepoScans` / `markRepoScanRunning` / `completeRepoScan` / `failRepoScan` | store | `app/_lib/db/repo-scans.ts` |
+| task kind `repo_scan`, dedupe `repo_scan:<scanId>` | task | `app/_lib/tasks.ts`, `app/_lib/task-dedupe.ts` |
+| `scan_repo` / `build_heuristic_dossier` / `coerce_repo_dossier` / `build_prompt` / `bind_provider_to_repo` | Python | `pipeline/jobfit/repo_scan.py` |
+| `python -m pipeline.jobfit.repo_scan_cli --root …` | Python CLI | `--lang`, `--no-llm`, `--repo-url`, `--dossier-id`, `--main-branch`, `--churn-depth`; the standard provenance envelope |
+| `ClaudeCliProvider.with_repo_access(cwd)` / `cli_args()` / `READ_ONLY_TOOLS` / `WRITE_TOOL_DENYLIST` / `READ_ONLY_PERMISSION_MODE` / `PERMISSION_MODES` | Python | `pipeline/jobfit/claude_cli.py` — the read-only repo binding |
+| `repo_scan` LLM use case | config | `pipeline/jobfit/llm/capabilities.py` (`{json}`, 6144 max tokens) + `LLM_USE_CASES` in `app/_lib/llm-config.ts` (Settings → Models, "roles" section) |
+
+No dispatch path and no `AppMasterSpec` producer exist yet.
 
 ---
 
 ## Data model
 
-Nothing is persisted in this phase. There is **no `app_masters` table, no
-`repo_scans` table and no tenancy entry** — when P2 adds the scan store it must
-be workspace-scoped and listed in `app/_lib/tenancy.ts` with its own
-`*-tenancy.test.ts`, per the fail-closed manifest rule.
+One table: **`repo_scans`** (P2, `app/_lib/db/repo-scans.ts`, DDL in
+`app/_lib/db/core.ts`).
+
+| Column | Notes |
+| --- | --- |
+| `id`, `workspace_id`, `created_at`, `updated_at` | the id is also the dedupe key's identity and the dossier's `dossierId` — one identity across row, task and artifact |
+| `repo_url`, `root_path` | the **resolved** target, not what was typed. `root_path` is only ever written behind the allow-list, and is withheld from the GET projection |
+| `status` | `queued` \| `running` \| `complete` \| `failed`. An unreadable value reads `failed` — the safe direction for an unknown state is "this did not work" |
+| `source` | `llm` \| `heuristic`, **NULL until the run finishes**: a queued scan has not earned the right to claim either path, and a failed one produced neither. An unrecognised value reads as no claim at all |
+| `dossier_json` | the `RepoDossier` |
+| `error` | the failure reason, clamped to 2,000 chars so a runaway stderr cannot bloat the row |
+
+It is workspace-scoped with **no by-id exemption** — deliberately unlike most
+point-read stores here. The usual carve-out ("a globally-unique PK cannot cross
+tenants") does not hold: the row carries a filesystem path on the operator's own
+machine and a full machine read of a private codebase, so an unscoped by-id read
+would make a leaked scan id a bearer token for another team's source tree.
+`app/_lib/db/repo-scans-tenancy.test.ts` pins that, and its exemption list is
+literally empty. There is still **no `app_masters` table**.
 
 The schemas travel three ways once the later phases land:
 
@@ -463,8 +644,8 @@ The schemas travel three ways once the later phases land:
   `key: "codebase_dossier"` and `provenance: "inferred"`; the operator's answers
   land as `"stated"`. `codebase_dossier` is in `SUGGESTED_FACET_KEYS` — a
   vocabulary for UIs to offer, never a validator (any key is legal).
-- **`RepoDossier`.** Written by the P2 `repo_scan` task, referenced from a spec
-  by `app.dossierId`. `source` is the whole-dossier path (`llm` | `heuristic`)
+- **`RepoDossier`.** Written by the `repo_scan` task (P2, shipped), referenced
+  from a spec by `app.dossierId`. `source` is the whole-dossier path (`llm` | `heuristic`)
   and `fieldProvenance` refines it per field; a field absent from that map reads
   `unknown`, which is the honest default for anything nobody stamped.
 - **`AppMasterSpec`.** Composed at intake, dispatched inside the bridge payload's
@@ -493,13 +674,43 @@ The schemas travel three ways once the later phases land:
 - **Population parity is unverified.** The claim that the core scores a human and
   an agent comparably is exactly what T3's parity check is for, and it has not
   run.
-- **No producer, no consumer.** Nothing writes an `AppMasterSpec` or a
-  `RepoDossier` at runtime; `backbone_score` has no caller. P2–P4.
-- **The doc map only watches the Python module.**
-  `scripts/docs/feature-doc-map.json` maps `pipeline/jobfit/appmaster*.py` here.
-  The forward globs `app/_lib/app-master/**` and `app/api/app-master/**` are
-  *not* registered yet: the map's own test asserts every glob root exists on
-  disk, so P2 must add them in the change that creates those directories.
-- **Rate limiting, spawn contract and tenancy are not yet touched.** The P2 scan
-  introduces a new subprocess spawn site and an open-route cost, which must enter
-  `llm-spawn-contract.test.ts` and `rate-limit-contract.test.ts` in that phase.
+- **No `AppMasterSpec` producer.** The dossier is produced at runtime now; the
+  spec still is not, and `backbone_score` still has no caller. P3–P4.
+- **The dossier's LLM path has no eval.** The heuristic walk is pinned by
+  `test_repo_scan` (including byte-reproducibility and a self-scan of kp whose
+  context count must equal `context-map.json`'s), but nothing grades the
+  *refinement*: whether the risk areas are the real ones, whether the candidate
+  objectives are ones the repo could actually move. The concept's T1 metric
+  ("dossier field accuracy vs ground truth") is the missing harness. Treat the
+  reference reading in `examples/kp-dossier.json` as one sample, not a baseline.
+- **The scan is one-shot and never re-run.** A dossier is a reading of a repo at
+  a moment; nothing expires it, re-scans on a schedule, or tells the operator the
+  dossier a spec was composed from is now months old. `generatedAt` is on the
+  record, and reading it is currently the operator's job.
+- **Churn uses `--name-only`, not the concept's `--oneline`.**
+  `docs/concepts/app-master.md` §3 names `git log --oneline -200` for hot spots,
+  but that format prints no paths, so it cannot answer "what changes most". The
+  walk uses `git log --no-merges --pretty=format:%x00%an --name-only -n200`
+  instead. A shallow clone (`--depth 50`) therefore yields fewer commits than a
+  local scan — the hot-spot notes carry their own denominator, so the difference
+  is disclosed rather than averaged away.
+- **A URL scan is a weaker reading than a local one.** The clone is shallow and
+  single-branch, and the LLM path can only read a repo it is running in — so a
+  URL scan on a box without the Claude CLI produces the heuristic dossier over 50
+  commits. That is honest (`source`, `fieldProvenance`, the churn denominators
+  all say so) but it is not the same artifact.
+- **The gate heuristic is a name rule, not an understanding.** `_is_gate_script`
+  reads npm script *names* (`test*`/`check*` segments, exact `lint`/`typecheck`/
+  `build`), a `pyproject` `[tool.*]` section, and Makefile targets. A repo whose
+  gate is `npm run verify`, a bare `tox`, or a CI-only command is reported as
+  declaring fewer gates than it has — which shows up as a stated risk area, not
+  as silence, but it is still a miss. The LLM path can add to `existingKpis` but
+  deliberately **cannot** add to `declaredGates` (a counted fact).
+- **`isLocal` is a projection, not a secret.** `GET /api/repo-scan/[id]` withholds
+  the resolved `root_path`, but the dossier it returns carries `repo.rootPath` —
+  the binding an `AppMasterSpec` needs. An operator who can read the scan can read
+  the path; what they cannot do is probe for paths they were never allowed to scan.
+- **The task label has no catalog key.** `tasks.kind.repoScan` is not in
+  `messages/*` yet (P3 owns that file), so the Background-tasks row renders the
+  raw kind `repo_scan` until it is added. `renderTaskLabel` degrades by design;
+  this is a missing string, not a broken row.

@@ -27,7 +27,19 @@ Backend shipped and in production use:
 - Most production use cases ported: `match_reasoning`, `automation` (screen/
   outreach/reject/prep/scorecard/rematch), `campaign_pack`, `jd_ingest`,
   `group_compare`, `weight_proposal`, `devcase/*`, `profile_draft`
-  (config-gated — its unconfigured default stays the direct Gemini path).
+  (config-gated — its unconfigured default stays the direct Gemini path),
+  `agent_fit`, `role_intake` / `role_intake_voice`, `repo_scan`.
+- **`repo_scan` is the one use case whose *engine* changes what it can see.**
+  Every provider gets the same prompt, which carries the deterministic dossier and
+  the repo's own `CLAUDE.md`/`AGENTS.md` as grounding — but only `claude_cli` can
+  actually run *inside* the checkout and read the files
+  (`ClaudeCliProvider.with_repo_access` → `--permission-mode plan`, a read-only
+  `--allowedTools` list and a write `--disallowedTools` list). That is a quality
+  difference, not a capability the matrix can gate — there is no "runs in your
+  checkout" capability, and inventing one would refuse a perfectly valid grounded
+  refinement — so `capabilities.py` declares it `{json}` like `agent_fit`, and the
+  dossier's own `source` / `fieldProvenance` is what stays honest about which path
+  produced each field. See `docs/features/app-master/README.md`.
 - LightTrack observability (below) and the benchmark suite (below).
 
 **Outstanding:** `cv_analysis` fold-in (needs multimodal + grounding in the
