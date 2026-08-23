@@ -1,0 +1,112 @@
+{
+  "_generatedBy": "app/_lib/app-master/__fixtures__/generate.py",
+  "_source": "pipeline.jobfit.appmaster.backbone_score",
+  "backbone": {
+    "windowDays": 14,
+    "proposalsOpened": 0,
+    "proposalsMerged": 0,
+    "proposalsReverted": 0,
+    "gatePassRate": null,
+    "forbiddenClassViolations": 0,
+    "kpiDeltas": [
+      {
+        "kpiKey": "weekly_active_users",
+        "baseline": null,
+        "current": null,
+        "target": 500.0,
+        "direction": "gte",
+        "windowDays": 14,
+        "measured": false
+      }
+    ],
+    "budgetReservedUsd": 0.0,
+    "budgetSettledUsd": 0.0,
+    "budgetUnmeasured": true,
+    "ledgerConsistent": true
+  },
+  "expected": {
+    "rules": [
+      {
+        "rule": "delivery",
+        "label": "Proposals merged out of proposals opened",
+        "weight": 25,
+        "measured": false,
+        "value": null,
+        "contribution": null,
+        "reason": "no proposals were opened in the window \u2014 nothing to rate"
+      },
+      {
+        "rule": "durability",
+        "label": "Merged proposals that stayed merged",
+        "weight": 15,
+        "measured": false,
+        "value": null,
+        "contribution": null,
+        "reason": "no proposals merged in the window \u2014 nothing could revert"
+      },
+      {
+        "rule": "gates",
+        "label": "Gate pass rate on proposals",
+        "weight": 20,
+        "measured": false,
+        "value": null,
+        "contribution": null,
+        "reason": "gate outcomes were not recorded for the window"
+      },
+      {
+        "rule": "objectives",
+        "label": "Objectives moved toward target in window",
+        "weight": 25,
+        "measured": false,
+        "value": null,
+        "contribution": null,
+        "reason": "no objective had a reading in the window"
+      },
+      {
+        "rule": "budget",
+        "label": "Spend settled within the reservation",
+        "weight": 10,
+        "measured": false,
+        "value": null,
+        "contribution": null,
+        "reason": "spend was not metered for this window \u2014 unmeasured is not zero spend"
+      },
+      {
+        "rule": "ledger",
+        "label": "Activity ledger consistent with the proposal record",
+        "weight": 5,
+        "measured": true,
+        "value": true,
+        "contribution": 5.0,
+        "reason": "activity ledger matches the proposal record"
+      }
+    ],
+    "gates": [
+      {
+        "gate": "forbidden_classes",
+        "passed": true,
+        "value": 0,
+        "reason": "no proposal touched a forbidden-change class"
+      },
+      {
+        "gate": "mandate_rung",
+        "passed": true,
+        "value": 2,
+        "reason": "rungs 3 (deploy/merge) and 4 (change gates) are never granted in v1"
+      }
+    ],
+    "scoredWeight": 5,
+    "totalWeight": 100,
+    "coverage": 0.05,
+    "score": 1.0,
+    "unmeasured": [
+      "delivery",
+      "durability",
+      "gates",
+      "objectives",
+      "budget"
+    ],
+    "verdict": "incomplete",
+    "rubricVersion": "app-master-rubric-v1"
+  }
+}

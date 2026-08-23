@@ -3,7 +3,7 @@ name: onboarding
 description: "Take a fresh KP clone to a running, honestly-labelled install in one conversation: probe runtime deps, ask which connector capabilities the operator wants, collect keys into .env.local (or acknowledge per feature what stays limited without them), verify by booting the app, and hand back a capability matrix. Invoke with /onboarding (full run) or /onboarding <group> (one group, e.g. /onboarding voice)."
 category: workflow
 memory: none
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Onboarding — resolve every dependency, honestly
@@ -82,17 +82,60 @@ Batch A:
 2. **CV extraction and salary grounding** - GEMINI_API_KEY (GOOGLE_API_KEY is
    an alias). Without it: CV analysis fails loudly (this one does NOT degrade
    silently) and github-analysis errors. Options: paste key / later.
-3. **Voice interviews** - the canonical "acknowledge the limit" group.
-   Options:
+3. **Voice** - the canonical "acknowledge the limit" group. Two questions,
+   because kp has two voice planes (docs/architecture/voice-tts-package.md):
+   a live *conversation* provider for interviews, and *spoken output* (TTS)
+   behind the portable `packages/voice-tts` package.
+
+   **3a. Conversation provider** - header "Voice interviews":
    - ElevenLabs: ELEVENLABS_API_KEY now, then offer to run
      `node scripts/setup-eleven-agent.mjs` which creates the agent and writes
-     ELEVENLABS_AGENT_ID back into .env.local itself.
+     ELEVENLABS_AGENT_ID back into .env.local itself. Write
+     KP_VOICE_PROVIDER=elevenlabs so the default honors the choice.
    - OpenAI Realtime: OPENAI_API_KEY (+ OPENAI_REALTIME_MODEL default is fine).
+     Write KP_VOICE_PROVIDER=openai.
    - Self-hosted (Gravitone): ELEVENLABS_BASE_URL=http://127.0.0.1:8080,
      ELEVENLABS_AGENT_ID=local-interviewer, ELEVENLABS_API_KEY=local - free,
-     loopback sessions bypass the billing meter.
+     loopback sessions bypass the billing meter. KP_VOICE_PROVIDER=elevenlabs.
    - Off: voice features HIDE themselves rather than erroring - candidates
      never see a broken door. This is the designed keyless behavior.
+
+   **3b. Spoken output (TTS)** - header "Spoken output". Ask it as "where
+   should synthesized speech come from?" and let step 0's mode shape the
+   recommendation: developer laptop -> offer BOTH a local engine and the cloud
+   so the compare panel at /interview-lab can be used to judge quality by ear;
+   team self-host -> pick one and lock it.
+   - ElevenLabs (cloud): reuses ELEVENLABS_API_KEY from 3a (or collect it
+     now); optional ELEVENLABS_VOICE_ID. Costs per character.
+   - Kokoro (local, ENGLISH ONLY, best local quality): the sherpa-onnx sidecar +
+     ~310 MB model. PROBE FIRST: `ls ~/.personas/companion-tts/bin` and
+     `.../kokoro/model.onnx` - if the Personas desktop app is installed on this
+     machine the engine is already there and nothing needs downloading (one
+     install serves every app). If absent, help install: either open
+     Personas -> Companion -> Voice -> Install (one click, Windows), or point
+     KOKORO_BIN at a sherpa-onnx-offline-tts binary and KOKORO_MODEL_DIR at an
+     extracted kokoro-multi-lang-v1_0 folder (model.onnx, voices.bin,
+     tokens.txt, espeak-ng-data). Private: audio never leaves the machine.
+     SAY THE LIMIT OUT LOUD: Kokoro here speaks English only (one curated
+     voice, af_heart). A user who needs Czech spoken output gets it from
+     Piper or ElevenLabs; a Czech sentence sent to Kokoro comes back in an
+     English accent, not an error - so the matrix row must name the language.
+   - Piper (local, Czech-capable): `pip install piper-tts` then
+     `python -m piper.download_voices --download-dir data/piper
+     en_US-lessac-medium cs_CZ-jirka-medium` (~63 MB each). Lower voice quality
+     than Kokoro, but the only local Czech voice. Private.
+   - None: /api/tts answers 503 with a typed `unavailable` and the lab panel
+     shows every provider as "not installed" with its setup hint; nothing else
+     in the app depends on it.
+
+   Write KP_TTS_PROVIDER=<preferred id> and, when more than one was set up,
+   KP_TTS_PROVIDERS=<comma list> (unset means "offer everything registered";
+   a single id locks the compare panel to one provider for a team deploy).
+   Then verify without spending anything: `curl -s localhost:<port>/api/tts`
+   (GET probes only) and read each provider's `probe.state` - absent / broken /
+   ready are three different facts; a `broken` means installed-but-failing
+   (truncated download, wrong folder) and the reason names what to fix.
+
 4. **Comms delivery** - header "Comms":
    - Relay URL: COMMS_WEBHOOK_URL (+ COMMS_CALLBACK_SECRET for receipts) or
      the RelayConfigCard on the Channels tab.
@@ -141,7 +184,8 @@ optional, raises rate limits, never required.
 3. Probe against the live port: `/api/health` (200), `/api/comms/capability`
    (relay bit matches what was configured), the landing page (200).
 4. If voice was configured: confirm ELEVENLABS_AGENT_ID is now set (the setup
-   script writes it) - do not place a live call.
+   script writes it) - do not place a live call. For spoken output, GET
+   `/api/tts` and confirm the chosen KP_TTS_PROVIDER reports `ready`.
 5. Restart note: env changes require a dev-server restart to take effect; if a
    server was already running before step 3, tell the user to restart it.
 
@@ -157,6 +201,7 @@ table must not out-promise them:
 | LLM features | on (claude-cli) / on (provider) / deterministic | ... | Settings -> Models |
 | CV analysis | on / off | GEMINI_API_KEY | set it |
 | Voice interviews | on / hidden | keys or self-hosted URL | /onboarding voice |
+| Spoken output (TTS) | <provider> (+ languages: Kokoro en-only) / none | KP_TTS_PROVIDER + engine ready | /onboarding voice |
 | Comms delivery | sending / queued-only (honest) | relay or edge | /onboarding comms |
 | Calendar sync | on / link-based | Google OAuth | /onboarding calendar |
 | Auth | open (dev) / password | mode choice | KP_OPERATOR_PASSWORD |

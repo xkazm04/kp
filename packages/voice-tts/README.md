@@ -1,0 +1,91 @@
+# @kazm/voice-tts
+
+Multi-provider text-to-speech you can drop into any Node/React app: one interface, cloud +
+local adapters, honest probes, a host-bound preference, and a headless playback hook.
+Source-only — copy or link this directory; no build step; nothing here imports the host.
+
+```
+src/
+  types.ts          the contract: TtsProvider, TtsHost, TtsProbe, TtsPreference, TtsError
+  validate.ts       the ONE validation door (text cap, voice-id allowlist, language, speed)
+  registry.ts       createTts(): dispatch door, preference resolution, visible fallback
+  node/             spawn + binary-ladder helpers shared by local adapters
+  providers/        elevenlabs (cloud REST) · piper (local) · kokoro (local sherpa sidecar) · fake (tests)
+  react/useTts.ts   browser hook: status, speak, stop, blocked-autoplay resume
+```
+
+## Bind it to your app (the host seam)
+
+```ts
+import os from "node:os";
+import { createTts, preferenceFromEnv, type TtsHost } from "<path>/voice-tts/src/index.ts";
+
+const host: TtsHost = {
+  env: (k) => process.env[k],           // or your secrets vault
+  homeDir: () => os.homedir(),
+  cwd: () => process.cwd(),
+  log: (e) => { if (e.type === "fallback" || e.type === "error") console.warn("[tts]", e); },
+};
+export const tts = createTts({
+  host,
+  preference: preferenceFromEnv(host, { preferred: "MYAPP_TTS_PROVIDER", allowed: "MYAPP_TTS_PROVIDERS" }),
+});
+```
+
+The host names its own preference variables. `preferred` is what onboarding/settings wrote
+down; `allowed` is the compare set the UI may expose (unset = every registered provider — a
+local install; one id = locked — a team deploy). Unknown ids normalize away on read.
+
+## Wrap it in a route (the host wrapper)
+
+The package never owns auth, rate limiting or HTTP — those are the host's policy. The shape
+that `useTts` expects:
+
+- `GET <endpoint>` → `{ providers: TtsStatus[] }` (probe only; spends nothing)
+- `POST <endpoint> { text, language?, provider?, voiceId?, speed? }` → audio bytes with
+  headers `X-Tts-Provider`, `X-Tts-Elapsed-Ms`, and `X-Tts-Fallback-From` when the served
+  provider is not the one asked for.
+- Map `TtsError.code` → status: `invalid_*` 400, `unavailable` 503, `timeout` 504, else 502.
+- Gate it (a cloud call costs money, a local call spawns a process) — rate-limit per caller.
+
+Reference realization: kp's `app/api/tts/route.ts` + `app/_lib/tts.ts`.
+
+## Use it in the browser
+
+```tsx
+const tts = useTts({ endpoint: "/api/tts" });
+useEffect(() => { void tts.refreshProviders(); }, []);
+<button onClick={() => tts.speak({ text, language: "cs", provider: picked })}>Speak</button>
+{tts.playback === "blocked" && <button onClick={tts.resume}>Play</button>}
+{tts.served?.fallbackFrom && <span>fell back from {tts.served.fallbackFrom}</span>}
+```
+
+Render provider choices from `tts.providers` (filter `allowed`), disable those whose
+`probe.state !== "ready"`, and print `probe.reason` + `probe.setup` — absent (install
+something) and broken (fix something) are different next actions.
+
+## Rules the package keeps, and you should too
+
+1. **Never branch on `id` in a surface.** Branch on `capabilities` (`onDevice`, `languages`,
+   `speed`, `streaming`).
+2. **Every request passes `validateRequest`.** Adapters assume a bounded, sanitized request.
+3. **Probe the artifact, not the config.** Binary readable, `model.onnx` present, key accepted.
+4. **Fallback is visible; nothing-ready is an error.** Never an empty 200.
+5. **Local engines share one per-user home** (`~/.personas/companion-tts`, override
+   `VOICE_SIDECAR_HOME`) so one model download serves every app on the machine.
+6. **Adding a provider** = one literal in `TTS_PROVIDER_IDS` + one adapter file + a row in
+   `defaultProviders`. Nothing else.
+
+## Providers
+
+| id | kind | needs | output |
+| --- | --- | --- | --- |
+| `elevenlabs` | cloud | `ELEVENLABS_API_KEY` (+ `ELEVENLABS_VOICE_ID`, `ELEVENLABS_TTS_MODEL`, `ELEVENLABS_BASE_URL`) | MP3 |
+| `piper` | local | `piper` binary (`PIPER_BIN`), voices dir (`PIPER_VOICE_DIR`, default `<cwd>/data/piper`, plus `<home>/piper/*`) | WAV |
+| `kokoro` | local | `sherpa-onnx-offline-tts` (`KOKORO_BIN`) + `kokoro-multi-lang-v1_0` dir (`KOKORO_MODEL_DIR`, default `<home>/kokoro`); extra voices `KOKORO_VOICES="id:sid,…"` | WAV 24 kHz |
+
+## Tests
+
+`registry.test.ts` runs on Node's built-in runner with the `FakeTts` provider: validation
+door, preference parsing, resolution order, visible fallback, allowed-set enforcement,
+unavailable-with-reason, status enumeration. No audio, no network, no model files.

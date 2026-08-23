@@ -1,0 +1,124 @@
+{
+  "_generatedBy": "app/_lib/app-master/__fixtures__/generate.py",
+  "_source": "pipeline.jobfit.appmaster.backbone_score",
+  "backbone": {
+    "windowDays": 30,
+    "proposalsOpened": 8,
+    "proposalsMerged": 6,
+    "proposalsReverted": 1,
+    "gatePassRate": 0.92,
+    "forbiddenClassViolations": 0,
+    "kpiDeltas": [
+      {
+        "kpiKey": "p95_ttfb_ms",
+        "baseline": 820.0,
+        "current": 610.0,
+        "target": 600.0,
+        "direction": "lte",
+        "windowDays": 30,
+        "measured": true
+      },
+      {
+        "kpiKey": "gate_green_rate",
+        "baseline": 0.71,
+        "current": 0.94,
+        "target": 0.9,
+        "direction": "gte",
+        "windowDays": 30,
+        "measured": true
+      },
+      {
+        "kpiKey": "open_bug_age_days",
+        "baseline": 12.0,
+        "current": 14.0,
+        "target": 7.0,
+        "direction": "lte",
+        "windowDays": 30,
+        "measured": true
+      }
+    ],
+    "budgetReservedUsd": 120.0,
+    "budgetSettledUsd": 90.0,
+    "budgetUnmeasured": false,
+    "ledgerConsistent": true
+  },
+  "expected": {
+    "rules": [
+      {
+        "rule": "delivery",
+        "label": "Proposals merged out of proposals opened",
+        "weight": 25,
+        "measured": true,
+        "value": 0.75,
+        "contribution": 18.75,
+        "reason": "6 of 8 proposals merged"
+      },
+      {
+        "rule": "durability",
+        "label": "Merged proposals that stayed merged",
+        "weight": 15,
+        "measured": true,
+        "value": 0.833,
+        "contribution": 12.5,
+        "reason": "1 of 6 merged proposals reverted"
+      },
+      {
+        "rule": "gates",
+        "label": "Gate pass rate on proposals",
+        "weight": 20,
+        "measured": true,
+        "value": 0.92,
+        "contribution": 18.4,
+        "reason": "gate pass rate 92% on proposals"
+      },
+      {
+        "rule": "objectives",
+        "label": "Objectives moved toward target in window",
+        "weight": 25,
+        "measured": true,
+        "value": 0.667,
+        "contribution": 16.667,
+        "reason": "2 of 3 measured objectives moved toward target"
+      },
+      {
+        "rule": "budget",
+        "label": "Spend settled within the reservation",
+        "weight": 10,
+        "measured": true,
+        "value": 0.75,
+        "contribution": 10.0,
+        "reason": "$90.00 settled against $120.00 reserved"
+      },
+      {
+        "rule": "ledger",
+        "label": "Activity ledger consistent with the proposal record",
+        "weight": 5,
+        "measured": true,
+        "value": true,
+        "contribution": 5.0,
+        "reason": "activity ledger matches the proposal record"
+      }
+    ],
+    "gates": [
+      {
+        "gate": "forbidden_classes",
+        "passed": true,
+        "value": 0,
+        "reason": "no proposal touched a forbidden-change class"
+      },
+      {
+        "gate": "mandate_rung",
+        "passed": true,
+        "value": 2,
+        "reason": "rungs 3 (deploy/merge) and 4 (change gates) are never granted in v1"
+      }
+    ],
+    "scoredWeight": 100,
+    "totalWeight": 100,
+    "coverage": 1.0,
+    "score": 0.8132,
+    "unmeasured": [],
+    "verdict": "pass",
+    "rubricVersion": "app-master-rubric-v1"
+  }
+}

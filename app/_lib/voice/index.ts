@@ -33,7 +33,17 @@ export function pickDefaultProvider(
   requested: unknown,
   avail: VoiceAvailability = voiceAvailability(),
 ): VoiceProviderId {
-  return coerceProviderId(requested) ?? (VOICE_PROVIDER_ORDER.find((p) => avail[p]) ?? DEFAULT_VOICE_PROVIDER);
+  return coerceProviderId(requested) ?? onboardedVoiceProvider(avail) ?? (VOICE_PROVIDER_ORDER.find((p) => avail[p]) ?? DEFAULT_VOICE_PROVIDER);
+}
+
+/** The conversation provider the onboarding skill wrote down (KP_VOICE_PROVIDER),
+ *  honored only when that provider is actually configured — a stale preference
+ *  never pins the app to a provider that cannot connect. Sits between an explicit
+ *  request and the canonical order so a self-hosted install that chose
+ *  ElevenLabs (or the loopback self-hosted agent) is not silently served OpenAI. */
+export function onboardedVoiceProvider(avail: VoiceAvailability = voiceAvailability()): VoiceProviderId | null {
+  const pref = coerceProviderId(process.env.KP_VOICE_PROVIDER?.trim().toLowerCase());
+  return pref && avail[pref] ? pref : null;
 }
 
 /** A neutral first-round interviewer brief. For OpenAI it's the session prompt;

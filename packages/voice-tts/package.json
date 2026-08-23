@@ -1,0 +1,18 @@
+{
+  "name": "@kazm/voice-tts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-provider text-to-speech: one interface, cloud + local adapters, honest probes, host-bound preference. Source-only package: copy or link the directory; no build step, no host imports.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./react": "./src/react/useTts.ts",
+    "./providers/*": "./src/providers/*.ts"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": { "optional": true }
+  }
+}

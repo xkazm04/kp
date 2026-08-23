@@ -294,6 +294,15 @@
       ]
     },
     {
+      "doc": "docs/architecture/voice-tts-package.md",
+      "sourceGlobs": [
+        "packages/voice-tts/**",
+        "app/_lib/tts.ts",
+        "app/api/tts/**",
+        "app/_components/voice/TtsComparePanel.tsx"
+      ]
+    },
+    {
       "doc": "docs/architecture/llm-provider-layer.md",
       "sourceGlobs": [
         "pipeline/jobfit/llm/**",

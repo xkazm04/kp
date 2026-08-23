@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TtsComparePanel } from "@/app/_components/voice/TtsComparePanel";
 import { VoiceInterviewClient } from "@/app/_components/voice/VoiceInterviewClient";
 import { isInterviewLabEnabled } from "@/app/_lib/interview-lab";
 
@@ -46,6 +47,10 @@ export default function InterviewLabPage() {
 
       <div className="mt-6 rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
         <VoiceInterviewClient />
+      </div>
+
+      <div className="mt-6 rounded-lg border border-stone-200 bg-white p-5 shadow-panel">
+        <TtsComparePanel />
       </div>
 
       <p className="mt-4 text-meta text-steel">

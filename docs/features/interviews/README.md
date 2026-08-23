@@ -338,6 +338,15 @@ direction the conservative contract says must never happen.
 - The interview-lab dev harness path is disabled in production by default
   (`INTERVIEW_LAB_ENABLED`).
 
+## Spoken output (TTS) and the provider preference
+
+Plain text-to-speech (no listening) is a separate plane from the conversation providers
+above: the portable `packages/voice-tts` package behind `/api/tts`, with a compare-by-ear
+panel on `/interview-lab` (ElevenLabs cloud vs local Piper/Kokoro). The onboarding skill
+writes `KP_VOICE_PROVIDER` for the conversation default (honored by `pickDefaultProvider`
+when that provider is configured) and `KP_TTS_PROVIDER` / `KP_TTS_PROVIDERS` for spoken
+output. Details: [docs/architecture/voice-tts-package.md](../../architecture/voice-tts-package.md).
+
 ## Known gaps
 
 - **Failover can cross the free→paid boundary with no reservation behind it.**
