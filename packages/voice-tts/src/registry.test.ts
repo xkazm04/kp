@@ -14,7 +14,7 @@ test("validation door: empty, oversized, bad voice id", () => {
   assert.throws(() => validateRequest({ text: "x".repeat(TTS_MAX_CHARS + 1) }), (e: TtsError) => e.code === "invalid_text");
   assert.throws(() => validateRequest({ text: "hi", voiceId: "../etc" }), (e: TtsError) => e.code === "invalid_voice");
   const ok = validateRequest({ text: "  hello   world ", language: "CS-cz", speed: 9 });
-  assert.deepEqual(ok, { text: "hello world", language: "cs-cz", voiceId: null, speed: 2 });
+  assert.deepEqual(ok, { text: "hello world", language: "cs-cz", voiceId: null, speed: 2, format: "plain" });
 });
 
 test("preferenceFromEnv drops unknown ids and keeps preferred inside allowed", () => {

@@ -7,6 +7,8 @@ import { ElevenLabsTts } from "./providers/elevenlabs.ts";
 import { KokoroTts } from "./providers/kokoro.ts";
 import { PiperTts } from "./providers/piper.ts";
 import { validateRequest } from "./validate.ts";
+import { segmentSpeech } from "./text/segment.ts";
+import { concatWav } from "./node/wav.ts";
 import {
   isTtsProviderId,
   TTS_PROVIDER_IDS,
@@ -117,9 +119,30 @@ export function createTts(opts: { host: TtsHost; providers?: TtsProvider[]; pref
     async speak(raw, o) {
       const req = validateRequest(raw);
       const { provider, fallbackFrom } = await resolve(o?.provider);
-      const run = () => provider.synthesize(req, o?.signal);
+      // Above the engine's clip cap, synthesize sentence chunks and join them —
+      // the whole-clip host still gets one clip, and a streaming host calls
+      // speak() per chunk itself (see react/useTts).
+      const cap = provider.capabilities.maxClipChars;
+      const parts = req.text.length > cap ? segmentSpeech(req.text, { maxChars: cap, firstChunkClause: false }) : [req.text];
+      const run = async (): Promise<TtsAudio> => {
+        const clips: TtsAudio[] = [];
+        for (const text of parts) clips.push(await provider.synthesize({ ...req, text }, o?.signal));
+        if (clips.length === 1) return clips[0];
+        if (clips.some((c) => c.mimeType !== "audio/wav")) throw new TtsError("engine_failed", "cannot join non-WAV segments", provider.id);
+        return {
+          bytes: concatWav(clips.map((c) => c.bytes), provider.id),
+          mimeType: "audio/wav",
+          provider: provider.id,
+          voiceId: clips[0].voiceId,
+          elapsedMs: clips.reduce((n, c) => n + c.elapsedMs, 0),
+          segments: clips.length,
+        };
+      };
       let audio: TtsAudio;
       if (provider.kind === "local") {
+        // One local synthesis at a time per process: a CPU budget choice (two
+        // jobs each run at half speed), not a correctness rule — a persistent
+        // engine worker would lift it.
         const turn = localQueue.then(run, run);
         localQueue = turn.catch(() => {});
         audio = await turn;

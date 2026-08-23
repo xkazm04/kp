@@ -1265,6 +1265,13 @@
     "AGENT_CATALOG_FAILED": "Nepodařilo se načíst katalog konektorů. Zkuste to prosím znovu.",
     "AGENT_REFRESH_FAILED": "Nepodařilo se obnovit stav agenta. Zkuste to prosím znovu.",
     "AGENT_REPORT_FAILED": "Nepodařilo se zaznamenat hlášení agenta. Zkuste to prosím znovu.",
+    "AGENT_DISPATCH_NOT_COMPOSED": "Než specifikaci App master odešlete, nejdříve ji sestavte.",
+    "AGENT_DISPATCH_SPEC_STALE": "Uložená specifikace App master už neodpovídá kontraktu. Sestavte ji znovu a pak odešlete.",
+    "AGENT_DISPATCH_HUMAN_POPULATION": "Tato role je složena pro lidského držitele, agenta pro ni tedy nelze odeslat.",
+    "AGENT_DISPATCH_NO_AGENT_BLOCK": "Specifikace neobsahuje údaje o agentovi. Sestavte ji znovu s agentní populací.",
+    "AGENT_DISPATCH_NOT_APP_MASTER": "Tato příprava zadání není sezóna App master.",
+    "AGENT_DISPATCH_INTAKE_NOT_FOUND": "Tato příprava zadání už neexistuje.",
+    "AGENT_DISPATCH_BRIDGE_FAILED": "Personas žádost nepřijala, nikdo tedy nebyl najat.",
     "REPO_SCAN_FAILED": "Nepodařilo se spustit načtení repozitáře. Zkuste to prosím znovu.",
     "REPO_SCAN_READ_FAILED": "Nepodařilo se načíst výsledek čtení repozitáře. Zkuste to prosím znovu.",
     "FEEDBACK_INVALID": "Zkontrolujte zprávu (a e-mail) a zkuste to znovu.",
@@ -1703,9 +1710,11 @@
         "stop": "Zastavit",
         "resume": "Přehrát (prohlížeč zablokoval automatické přehrání)",
         "textLabel": "Text k přečtení",
-        "spokenBy": "Namluvil {provider} za {ms} ms",
-        "fellBack": "— záložní volba místo {provider}",
-        "providerGroup": "Poskytovatel"
+        "spokenBy": "Namluvil {provider}, první zvuk za {ms} ms",
+        "fellBack": "(záložní volba místo {provider})",
+        "providerGroup": "Poskytovatel",
+        "chunks": "{spoken} z {total} částí",
+        "truncated": "zastaveno po {spoken} z {total} částí. Zbytek je v textu."
       }
     }
   },
@@ -3762,7 +3771,11 @@
             "notes": "Zaznamenané předpoklady"
           },
           "dispatch": "Odeslat do Personas",
-          "dispatchP4": "Odeslání agenta přijde v pozdější fázi (P4). Zatím se nic neodesílá."
+          "dispatching": "Odesílám…",
+          "dispatchSent": "Personas žádost přijala. Než agent začne, musí ji tam schválit člověk.",
+          "dispatchError": "Odeslání selhalo. Nikdo nebyl najat.",
+          "dispatchHuman": "Tato specifikace je složena pro lidského držitele role. Povyšte ji místo toho na JD.",
+          "dispatchNeedsPairing": "Před vysláním spárujte Kandi s Personas v Nastavení → Integrace."
         }
       }
     },
@@ -7795,6 +7808,36 @@
     "moreConnectors": "{count, plural, one {+# další} few {+# další} other {+# dalších}}",
     "expectationsMet": "{met}/{total} splněno",
     "expectationsNoData": "Zatím bez dat",
+    "appMaster": {
+      "label": "App master",
+      "rung": {
+        "0": "Mandát: pouze číst a hlásit",
+        "1": "Mandát: znovu spustit stávající práci",
+        "2": "Mandát: otevřít větev a navrhnout",
+        "unknown": "Mandát není zaznamenán"
+      },
+      "autopilot": {
+        "off": "Autopilot vypnutý",
+        "measure": "Autopilot: měření",
+        "suggest": "Autopilot: návrhy",
+        "full": "Autopilot: plný"
+      },
+      "probationLeft": "Do konce {total}denní zkušební doby zbývá {left, plural, one {# den} few {# dny} other {# dní}}",
+      "probationDue": "Vyhodnocení zkušební doby je na řadě: {total}denní okno skončilo",
+      "backbone": {
+        "title": "Výkonnostní páteř",
+        "none": "Zatím nebyl nahlášen žádný výkonnostní záznam",
+        "noScore": "V tomto okně nebylo co hodnotit",
+        "scoreLine": "{score} % z měřitelného, pokryto {coverage} % záznamu",
+        "unmeasured": "neměřeno",
+        "contribution": "{earned} z {weight}",
+        "verdict": {
+          "pass": "Splňuje laťku",
+          "incomplete": "Změřeno bylo příliš málo",
+          "fail": "Pod laťkou"
+        }
+      }
+    },
     "status": {
       "dispatched": "Vysláno",
       "pendingApproval": "Čeká na schválení",
@@ -7807,6 +7850,7 @@
     "detail": {
       "mission": "Mise",
       "metricsHeading": "Očekávání vs. skutečnost",
+      "objectivesHeading": "Cíle vs. naměřené hodnoty",
       "noMetrics": "Pro tohoto agenta nebyly nastaveny žádné metriky úspěchu.",
       "noData": "zatím bez dat",
       "refresh": "Obnovit stav",

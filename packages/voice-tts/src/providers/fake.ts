@@ -28,7 +28,7 @@ export class FakeTts implements TtsProvider {
   readonly label: string;
   readonly kind: "cloud" | "local";
   readonly requiredEnv = [] as const;
-  readonly capabilities = { streaming: false, languages: "any", speed: true, onDevice: true } as const;
+  readonly capabilities = { streaming: false, languages: "any", speed: true, onDevice: true, maxClipChars: 1200 } as const;
   calls: TtsRequest[] = [];
 
   constructor(

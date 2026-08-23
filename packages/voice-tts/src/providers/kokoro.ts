@@ -16,7 +16,14 @@ const INSTALL_HINT = "Install the Companion voice in Personas (one click, writes
  *  catalog is a picker, not a download, and af_heart=3 is the load-bearing
  *  default shared with Personas. Extend via KOKORO_VOICES="name:sid,name:sid". */
 const BUILTIN_VOICES: readonly (TtsVoice & { sid: number })[] = [
+  // sids follow the alphabetical order of the v1.0 voice pack as packed in
+  // voices.bin (af_alloy=0 … af_heart=3 … am_michael=16 … bf_emma=21).
+  // af_heart=3 is verified by ear (shared with Personas); the other two are
+  // derived from that ordering — voice choice measurably moves trust, so a
+  // picker needs at least one male and one female voice, not one default.
   { id: "af_heart", label: "Heart (en-US, female)", language: "en", sid: 3 },
+  { id: "am_michael", label: "Michael (en-US, male)", language: "en", sid: 16 },
+  { id: "bf_emma", label: "Emma (en-GB, female)", language: "en", sid: 21 },
 ];
 
 export class KokoroTts implements TtsProvider {
@@ -24,7 +31,10 @@ export class KokoroTts implements TtsProvider {
   readonly label = "Kokoro (local)";
   readonly kind = "local" as const;
   readonly requiredEnv = ["KOKORO_BIN", "KOKORO_MODEL_DIR"] as const;
-  readonly capabilities = { streaming: false, languages: ["en"], speed: true, onDevice: true } as const;
+  /** The v1.0 multi-language pack speaks 8 languages — NOT Czech or German
+   *  (no grapheme-to-phoneme for them); a Czech sentence comes back in an
+   *  English accent rather than an error, so hosts route cs/de elsewhere. */
+  readonly capabilities = { streaming: false, languages: ["en", "es", "fr", "hi", "it", "ja", "pt", "zh"], speed: true, onDevice: true, maxClipChars: 300 } as const;
 
   constructor(private readonly host: TtsHost) {}
 

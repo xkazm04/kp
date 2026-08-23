@@ -26,6 +26,10 @@ export type TtsCapabilities = {
   speed: boolean;
   /** Audio never leaves the machine. */
   onDevice: boolean;
+  /** Longest text one synthesize() call should receive. Latency scales with
+   *  length (a CPU engine renders ~2x real time: 1200 chars is ~35 s before
+   *  the first word), so the registry segments above this and joins clips. */
+  maxClipChars: number;
 };
 
 /** Three distinguishable states — absent (offer setup) is not broken (offer
@@ -51,6 +55,9 @@ export type TtsRequest = {
   voiceId?: string | null;
   /** 1 = native rate. Ignored when `capabilities.speed` is false. */
   speed?: number | null;
+  /** "chat": the text is an assistant reply — markdown, code, links and emoji
+   *  are stripped by the validation door before any engine sees it. */
+  format?: "plain" | "chat" | null;
 };
 
 export type TtsAudio = {
@@ -59,6 +66,8 @@ export type TtsAudio = {
   provider: TtsProviderId;
   voiceId: string;
   elapsedMs: number;
+  /** How many synthesis calls produced this clip (1 = unsegmented). */
+  segments?: number;
 };
 
 export interface TtsProvider {

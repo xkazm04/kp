@@ -4,6 +4,8 @@ import { useTranslations } from "next-intl";
 import { BTN_SECONDARY, CHIP_QUIET, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import type { AppMasterCompose, PopulationFit } from "@/app/_lib/db/intakes";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
+import type { DispatchState } from "./jdsIntakeAppMaster";
 
 // The App-master card in the live brief panel (docs/features/app-master/README.md).
 // Three stacked truths, in the order they become true:
@@ -52,6 +54,9 @@ export function JdsIntakeAppMasterCard({
   composeError,
   onCompose,
   frozen,
+  paired,
+  dispatchState,
+  onDispatch,
 }: {
   dossier: RepoDossier | null;
   appMaster: AppMasterCompose | null;
@@ -63,8 +68,15 @@ export function JdsIntakeAppMasterCard({
   composeError: boolean;
   onCompose?: () => void;
   frozen?: boolean;
+  /** Personas pairing: null = not read yet, false = dispatch cannot work. */
+  paired: boolean | null;
+  dispatchState: DispatchState;
+  onDispatch?: () => void;
 }) {
   const t = useTranslations("library.tab.intake.appMaster");
+  // An API failure is shown from its machine `code`, never from the server's
+  // English `error` string (app/_lib/use-error-message.ts).
+  const resolveError = useErrorMessage();
   const fit = appMaster?.fit ?? null;
   const spec = appMaster?.spec ?? null;
 
@@ -176,15 +188,41 @@ export function JdsIntakeAppMasterCard({
                   </ul>
                 </div>
               ) : null}
-              {/* P4. Disabled and labelled — an enabled control that did nothing,
-                  or a green "dispatched", would be the exact dishonest success
-                  the mandate rules forbid on the other side of this feature. */}
-              <div className="pt-2">
-                <button type="button" className={`${BTN_SECONDARY} h-8 px-3 text-sm`} disabled title={t("dispatchP4")}>
-                  {t("dispatch")}
-                </button>
-                <p className="mt-1 text-meta text-steel">{t("dispatchP4")}</p>
-              </div>
+              {/* Dispatch (P4). Every reason the control cannot act is SAID —
+                  a human-population spec, an unpaired bridge, a frozen intake —
+                  rather than left as a dead button; and "sent" claims only what
+                  actually happened (Personas accepted the request; a human there
+                  still has to approve it), never "hired". */}
+              {(() => {
+                const humanOnly = spec.role.population === "human";
+                const blocked = humanOnly || paired === false || !!frozen || !onDispatch;
+                const sending = dispatchState.status === "sending";
+                return (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      className={`${BTN_SECONDARY} h-8 px-3 text-sm`}
+                      disabled={blocked || sending || dispatchState.status === "sent"}
+                      onClick={onDispatch}
+                    >
+                      {sending ? t("dispatching") : t("dispatch")}
+                    </button>
+                    {humanOnly ? (
+                      <p className="mt-1 text-meta text-steel">{t("dispatchHuman")}</p>
+                    ) : paired === false ? (
+                      <p className="mt-1 text-meta text-steel">{t("dispatchNeedsPairing")}</p>
+                    ) : null}
+                    {dispatchState.status === "sent" ? (
+                      <p className="mt-1 text-meta text-moss">{t("dispatchSent")}</p>
+                    ) : null}
+                    {dispatchState.status === "error" ? (
+                      <p className="mt-1 text-meta text-red-700">
+                        {resolveError({ code: dispatchState.code }, t("dispatchError"))}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             <p className="text-body text-steel">{t("spec.empty")}</p>

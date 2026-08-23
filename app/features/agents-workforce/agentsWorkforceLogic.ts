@@ -3,9 +3,35 @@
 // the returned keys through the `agentsWorkforce` catalog namespace.
 import type { AgentAggregates, AgentStatus, HiredAgentRecord } from "@/app/_lib/db/agents";
 import type { BadgeTone } from "@/app/_components/Badge";
+import type { BackboneScore } from "@/app/_lib/app-master/backbone";
+import { kpiMoved } from "@/app/_lib/app-master/backbone";
+import type { AutopilotMode, ReportedKpiDelta } from "@/app/_lib/agent-hire/report-payload";
+
+/** The four App-master facts the roster renders, as GET /api/agents projects
+ *  them off the dispatched spec. Null on a task-agent row. */
+export type AppMasterProjection = {
+  population: "human" | "agent" | "either";
+  scopeRung: number | null;
+  probationDays: number | null;
+  /** Personas' own reading, from the latest rollup — null until one reports. */
+  autopilotMode: AutopilotMode | null;
+};
 
 /** One roster row as GET /api/agents serves it (report token stripped server-side). */
-export type AgentRosterEntry = Omit<HiredAgentRecord, "reportToken"> & { aggregates: AgentAggregates };
+export type AgentRosterEntry = Omit<HiredAgentRecord, "reportToken"> & {
+  aggregates: AgentAggregates;
+  /** Present ⇒ an App-master hire. */
+  appMaster: AppMasterProjection | null;
+  /** The deterministic verdict for the latest reported window; null = no record yet. */
+  backbone: BackboneScore | null;
+  /** The per-objective readings behind that verdict. */
+  kpiDeltas: ReportedKpiDelta[] | null;
+};
+
+/** True for a row the App-master surfaces apply to. */
+export function isAppMaster(agent: AgentRosterEntry): boolean {
+  return agent.appMaster != null;
+}
 
 // status → Badge tone + i18n suffix (agentsWorkforce.status.<key>). Typed as an
 // exhaustive Record over the AgentStatus union so adding a status in the DB
@@ -85,18 +111,51 @@ export function metricActual(
 }
 
 export type MetricRow = { metric: MetricSpec; actual: number | null; state: "met" | "missed" | "nodata" };
-export type ExpectationsVerdict = { met: number; total: number; hasData: boolean; rows: MetricRow[] };
+export type ExpectationsVerdict = {
+  met: number;
+  total: number;
+  hasData: boolean;
+  rows: MetricRow[];
+  /** Which ledger answered: the reported KPI deltas (App master) or the run/spend
+   *  aggregates (task agent). The UI labels the column accordingly — the two are
+   *  not the same claim. */
+  source: "kpiDeltas" | "aggregates";
+};
 
 /** The "n/m met" expectations verdict, computed client-side from the metrics the
  *  agent was hired against vs its reported aggregates. Before ANY activity has
  *  been reported (lastActivityAt null) every row is `nodata` — a just-dispatched
- *  agent is not "missing" its targets, it simply hasn't reported yet. */
+ *  agent is not "missing" its targets, it simply hasn't reported yet.
+ *
+ *  `kpiDeltas` (reporter v2) takes over when present: an App master is hired
+ *  against a value ledger, and matching its objectives to run counts and spend
+ *  would answer a question nobody asked. Each objective is matched to its delta
+ *  BY KEY; an objective with no delta, or one whose delta says `measured:false`,
+ *  reads `nodata` — the same discipline the backbone applies (an unread meter is
+ *  a coverage gap, never a miss). */
 export function expectationsVerdict(
   metrics: MetricSpec[],
   aggregates: AgentAggregates,
   agentCreatedAt: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  kpiDeltas: ReportedKpiDelta[] | null = null
 ): ExpectationsVerdict {
+  if (kpiDeltas && kpiDeltas.length > 0) {
+    const byKey = new Map(kpiDeltas.map((d) => [d.kpiKey, d]));
+    const rows: MetricRow[] = metrics.map((metric) => {
+      const delta = byKey.get(metric.key);
+      const moved = delta ? kpiMoved(delta) : null;
+      if (!delta || moved === null) return { metric, actual: delta?.current ?? null, state: "nodata" };
+      return { metric, actual: delta.current, state: moved ? "met" : "missed" };
+    });
+    return {
+      met: rows.filter((r) => r.state === "met").length,
+      total: rows.length,
+      hasData: rows.some((r) => r.state !== "nodata"),
+      rows,
+      source: "kpiDeltas",
+    };
+  }
   const hasData = aggregates.lastActivityAt != null;
   const rows: MetricRow[] = metrics.map((metric) => {
     const actual = hasData ? metricActual(metric.key, aggregates, agentCreatedAt, now) : null;
@@ -104,7 +163,48 @@ export function expectationsVerdict(
     const met = metric.direction === "lte" ? actual <= metric.target : actual >= metric.target;
     return { metric, actual, state: met ? "met" : "missed" };
   });
-  return { met: rows.filter((r) => r.state === "met").length, total: rows.length, hasData, rows };
+  return { met: rows.filter((r) => r.state === "met").length, total: rows.length, hasData, rows, source: "aggregates" };
+}
+
+// ---- App master --------------------------------------------------------------
+
+/** The ✓ / – / ✗ convention the eval reports and the intake card already use.
+ *  `incomplete` is a DASH, not a soft pass: the backbone reaching "incomplete"
+ *  means it could not read enough to judge, and a checkmark there would be the
+ *  green lie the rubric it scores exists to prevent. */
+export const BACKBONE_GLYPH = { pass: "✓", incomplete: "–", fail: "✗" } as const;
+export const BACKBONE_TEXT = {
+  pass: "text-score-strong",
+  incomplete: "text-score-null",
+  fail: "text-score-weak",
+} as const;
+
+export type ProbationCountdown = {
+  totalDays: number;
+  /** Whole days elapsed since the hire was minted. */
+  elapsedDays: number;
+  /** Days still to run; 0 once the window has closed. */
+  daysLeft: number;
+  /** True once the review is due and no probation_review has landed. */
+  due: boolean;
+};
+
+/** How far into probation this hire is. Null when there is no probation window
+ *  to count (not an App master, or no probationDays on the spec) or once the
+ *  agent has left probation — `active` means a human already made the call, and
+ *  `rejected`/`failed`/`retired` mean the countdown is moot. */
+export function probationCountdown(
+  agent: AgentRosterEntry,
+  now: Date = new Date()
+): ProbationCountdown | null {
+  const total = agent.appMaster?.probationDays;
+  if (typeof total !== "number" || !Number.isFinite(total) || total <= 0) return null;
+  if (agent.status !== "dispatched" && agent.status !== "pending_approval" && agent.status !== "onboarding") return null;
+  const created = Date.parse(agent.createdAt);
+  if (!Number.isFinite(created)) return null;
+  const elapsed = Math.max(0, Math.floor((now.getTime() - created) / (24 * 60 * 60 * 1000)));
+  const left = Math.max(0, Math.round(total) - elapsed);
+  return { totalDays: Math.round(total), elapsedDays: elapsed, daysLeft: left, due: left === 0 };
 }
 
 export type ConnectorUseSummary = { top: { name: string; calls: number }[]; more: number };

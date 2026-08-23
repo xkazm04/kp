@@ -66,7 +66,8 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
   // and importing that provider into the logic module would drag React and
   // next-intl into its node:test unit run. Called before the ledger early-return
   // so the hook order is stable across both branches.
-  const { scanState, composeAppMaster, composing, composeError } = useAppMasterLogic(active, applySession);
+  const { scanState, composeAppMaster, composing, composeError, paired, dispatchState, dispatchAppMaster } =
+    useAppMasterLogic(active, applySession);
   const reduced = useReducedMotion();
   // Work-sample case design at promote — explicit opt-in (JD-builder checklist semantics).
   const [withCase, setWithCase] = useState(false);
@@ -275,6 +276,9 @@ export function JdsIntakePanel({ onPromoted }: { onPromoted?: () => void }) {
                   composeError={composeError !== null}
                   onCompose={active.status !== "promoted" ? composeAppMaster : undefined}
                   frozen={active.status === "promoted"}
+                  paired={paired}
+                  dispatchState={dispatchState}
+                  onDispatch={active.status !== "promoted" ? dispatchAppMaster : undefined}
                 />
               ) : null
             }

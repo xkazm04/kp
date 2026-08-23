@@ -50,6 +50,22 @@ that `useTts` expects:
 
 Reference realization: kp's `app/api/tts/route.ts` + `app/_lib/tts.ts`.
 
+## Chat text and chunking
+
+```ts
+import { speechReady, segmentSpeech } from "<path>/voice-tts/src/index.ts";
+speechReady("## Hi
+We **shipped** it — see [the PR](https://x/1) 🎉");
+// -> "Hi. We shipped it — see the PR."
+segmentSpeech("Dr. Novák přijde 7. dubna v 14.30. Cena je 3.5 milionu Kč.");
+// -> ["Dr. Novák přijde 7. dubna v 14.30.", "Cena je 3.5 milionu Kč."]
+```
+
+Pass `format: "chat"` to `speak()` and the validation door runs `speechReady` for you. Above
+the engine's `capabilities.maxClipChars` the registry segments and joins WAV clips; `useTts`
+does the same client-side and pipelines playback (chunk N plays while N+1 is fetched). Numbers
+are deliberately not expanded — inflected languages need a per-locale normalizer you own.
+
 ## Use it in the browser
 
 ```tsx
@@ -80,12 +96,12 @@ something) and broken (fix something) are different next actions.
 
 | id | kind | needs | output |
 | --- | --- | --- | --- |
-| `elevenlabs` | cloud | `ELEVENLABS_API_KEY` (+ `ELEVENLABS_VOICE_ID`, `ELEVENLABS_TTS_MODEL`, `ELEVENLABS_BASE_URL`) | MP3 |
+| `elevenlabs` | cloud | `ELEVENLABS_API_KEY` (+ `ELEVENLABS_VOICE_ID`, `ELEVENLABS_TTS_MODEL`, `ELEVENLABS_BASE_URL`) | WAV 24 kHz (PCM requested, wrapped here for like-for-like compare) |
 | `piper` | local | `piper` binary (`PIPER_BIN`), voices dir (`PIPER_VOICE_DIR`, default `<cwd>/data/piper`, plus `<home>/piper/*`) | WAV |
 | `kokoro` | local | `sherpa-onnx-offline-tts` (`KOKORO_BIN`) + `kokoro-multi-lang-v1_0` dir (`KOKORO_MODEL_DIR`, default `<home>/kokoro`); extra voices `KOKORO_VOICES="id:sid,…"` | WAV 24 kHz |
 
 ## Tests
 
-`registry.test.ts` runs on Node's built-in runner with the `FakeTts` provider: validation
+`registry.test.ts` and `text.test.ts` run on Node's built-in runner with the `FakeTts` provider: validation
 door, preference parsing, resolution order, visible fallback, allowed-set enforcement,
 unavailable-with-reason, status enumeration. No audio, no network, no model files.

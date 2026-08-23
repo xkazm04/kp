@@ -1265,6 +1265,13 @@
     "AGENT_CATALOG_FAILED": "Impossible de charger le catalogue de connecteurs. Veuillez réessayer.",
     "AGENT_REFRESH_FAILED": "Impossible d’actualiser l’état de l’agent. Veuillez réessayer.",
     "AGENT_REPORT_FAILED": "Impossible d’enregistrer le rapport de l’agent. Veuillez réessayer.",
+    "AGENT_DISPATCH_NOT_COMPOSED": "Composez la spécification App master avant de l’envoyer.",
+    "AGENT_DISPATCH_SPEC_STALE": "La spécification App master enregistrée ne correspond plus au contrat. Recomposez-la, puis envoyez-la.",
+    "AGENT_DISPATCH_HUMAN_POPULATION": "Ce rôle est composé pour un titulaire humain ; aucun agent ne peut donc être envoyé.",
+    "AGENT_DISPATCH_NO_AGENT_BLOCK": "La spécification ne contient aucun détail d’agent. Recomposez-la avec une population agent.",
+    "AGENT_DISPATCH_NOT_APP_MASTER": "Cette session de recueil n’est pas une session App master.",
+    "AGENT_DISPATCH_INTAKE_NOT_FOUND": "Cette session de recueil n’existe plus.",
+    "AGENT_DISPATCH_BRIDGE_FAILED": "Personas n’a pas accepté la demande ; personne n’a donc été recruté.",
     "REPO_SCAN_FAILED": "Impossible de lancer l’analyse du dépôt. Veuillez réessayer.",
     "REPO_SCAN_READ_FAILED": "Impossible de charger l’analyse du dépôt. Veuillez réessayer.",
     "FEEDBACK_INVALID": "Vérifiez le message (et l’e-mail) et réessayez.",
@@ -1703,9 +1710,11 @@
         "stop": "Arrêter",
         "resume": "Lire (lecture automatique bloquée par le navigateur)",
         "textLabel": "Texte à prononcer",
-        "spokenBy": "Prononcé par {provider} en {ms} ms",
-        "fellBack": "— repli depuis {provider}",
-        "providerGroup": "Fournisseur"
+        "spokenBy": "Prononcé par {provider}, premier son en {ms} ms",
+        "fellBack": "(repli depuis {provider})",
+        "providerGroup": "Fournisseur",
+        "chunks": "{spoken} sur {total} segments",
+        "truncated": "arrêté après {spoken} segments sur {total}. Le reste est dans le texte."
       }
     }
   },
@@ -3762,7 +3771,11 @@
             "notes": "Hypothèses consignées"
           },
           "dispatch": "Envoyer à Personas",
-          "dispatchP4": "L'envoi de l'agent arrivera dans une phase ultérieure (P4). Rien n'est envoyé pour l'instant."
+          "dispatching": "Envoi…",
+          "dispatchSent": "Personas a accepté la demande. Un humain l’y approuve avant que l’agent ne démarre.",
+          "dispatchError": "L’envoi a échoué. Personne n’a été recruté.",
+          "dispatchHuman": "Cette spécification est composée pour un titulaire humain. Promouvez-la plutôt en fiche de poste.",
+          "dispatchNeedsPairing": "Appairez Kandi avec Personas dans Paramètres → Intégrations avant d’envoyer."
         }
       }
     },
@@ -7795,6 +7808,36 @@
     "moreConnectors": "+{count} de plus",
     "expectationsMet": "{met}/{total} atteintes",
     "expectationsNoData": "Pas encore de données",
+    "appMaster": {
+      "label": "App master",
+      "rung": {
+        "0": "Mandat : lire et rendre compte uniquement",
+        "1": "Mandat : relancer un travail existant",
+        "2": "Mandat : ouvrir une branche et proposer",
+        "unknown": "Mandat non enregistré"
+      },
+      "autopilot": {
+        "off": "Pilote automatique désactivé",
+        "measure": "Pilote automatique : mesure",
+        "suggest": "Pilote automatique : suggestion",
+        "full": "Pilote automatique : complet"
+      },
+      "probationLeft": "Il reste {left, plural, one {# jour} other {# jours}} sur une période d’essai de {total} jours",
+      "probationDue": "Revue de période d’essai à faire : la fenêtre de {total} jours est close",
+      "backbone": {
+        "title": "Socle de performance",
+        "none": "Aucun relevé de performance transmis pour l’instant",
+        "noScore": "Rien n’a pu être noté sur cette fenêtre",
+        "scoreLine": "{score} % de ce qui était mesurable, sur {coverage} % du relevé",
+        "unmeasured": "non mesuré",
+        "contribution": "{earned} sur {weight}",
+        "verdict": {
+          "pass": "Au niveau attendu",
+          "incomplete": "Trop peu de choses mesurées",
+          "fail": "En deçà du niveau attendu"
+        }
+      }
+    },
     "status": {
       "dispatched": "Envoyé",
       "pendingApproval": "En attente d’approbation",
@@ -7807,6 +7850,7 @@
     "detail": {
       "mission": "Mission",
       "metricsHeading": "Attentes vs réel",
+      "objectivesHeading": "Objectifs vs relevés",
       "noMetrics": "Aucune métrique de réussite n’a été définie pour cet agent.",
       "noData": "pas encore de données",
       "refresh": "Actualiser le statut",

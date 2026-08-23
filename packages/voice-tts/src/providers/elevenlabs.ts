@@ -1,7 +1,10 @@
-// Cloud adapter: the hosted text-to-speech REST endpoint. Whole-clip MP3 (the
-// streaming endpoint exists, but whole-clip keeps the interface identical to
-// the local engines, and the compare surface needs like-for-like output).
+// Cloud adapter: the hosted text-to-speech REST endpoint. Whole-clip, returned
+// as raw PCM and wrapped into WAV here — the same container the local engines
+// produce, so a by-ear comparison measures the voice, not the codec (an MP3
+// against a WAV is identifiable by listeners and biases the compare). The
+// streaming endpoints exist; a streaming host segments and calls per chunk.
 // Credentials come through the host, never from process.env directly.
+import { pcmToWav } from "../node/wav.ts";
 import { TtsError, type TtsAudio, type TtsHost, type TtsProbe, type TtsProvider, type TtsRequest, type TtsVoice } from "../types.ts";
 
 const HOSTED_BASE_URL = "https://api.elevenlabs.io";
@@ -10,13 +13,14 @@ const DEFAULT_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 const DEFAULT_MODEL = "eleven_flash_v2_5";
 const PROBE_TTL_MS = 60_000;
 const TIMEOUT_MS = 30_000;
+const PCM_RATE = 24_000;
 
 export class ElevenLabsTts implements TtsProvider {
   readonly id = "elevenlabs" as const;
   readonly label = "ElevenLabs";
   readonly kind = "cloud" as const;
   readonly requiredEnv = ["ELEVENLABS_API_KEY"] as const;
-  readonly capabilities = { streaming: false, languages: "any", speed: true, onDevice: false } as const;
+  readonly capabilities = { streaming: false, languages: "any", speed: true, onDevice: false, maxClipChars: 1200 } as const;
 
   private probeCache: { at: number; probe: TtsProbe } | null = null;
 
@@ -77,9 +81,9 @@ export class ElevenLabsTts implements TtsProvider {
     if (req.speed && req.speed !== 1) body.voice_settings = { speed: req.speed };
     let res: Response;
     try {
-      res = await fetch(`${this.baseUrl()}/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
+      res = await fetch(`${this.baseUrl()}/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=pcm_${PCM_RATE}`, {
         method: "POST",
-        headers: { "xi-api-key": key, "content-type": "application/json", accept: "audio/mpeg" },
+        headers: { "xi-api-key": key, "content-type": "application/json", accept: "audio/pcm" },
         body: JSON.stringify(body),
         signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)]) : AbortSignal.timeout(TIMEOUT_MS),
       });
@@ -91,12 +95,15 @@ export class ElevenLabsTts implements TtsProvider {
     }
     if (!res.ok) {
       const detail = (await res.text().catch(() => "")).slice(0, 200);
+      // A positive probe is cached for a minute; a real failure invalidates it
+      // (quota can run out mid-minute), but a 429 is "busy", not "down".
+      if (res.status !== 429) this.probeCache = null;
       this.host.log?.({ type: "error", provider: this.id, message: `${res.status} ${detail}` });
       throw new TtsError(res.status === 401 ? "unavailable" : "engine_failed", `service answered ${res.status}`, this.id);
     }
-    const bytes = new Uint8Array(await res.arrayBuffer());
+    const bytes = pcmToWav(new Uint8Array(await res.arrayBuffer()), PCM_RATE);
     const elapsedMs = Date.now() - started;
     this.host.log?.({ type: "synthesize", provider: this.id, voiceId, chars: req.text.length, ms: elapsedMs, bytes: bytes.length });
-    return { bytes, mimeType: "audio/mpeg", provider: this.id, voiceId, elapsedMs };
+    return { bytes, mimeType: "audio/wav", provider: this.id, voiceId, elapsedMs };
   }
 }

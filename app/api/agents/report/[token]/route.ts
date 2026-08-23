@@ -27,13 +27,34 @@ const RATE_LIMIT = { limit: 60, windowMs: 60_000 };
 // Lifecycle event → hired_agents.status. `approved` lands in onboarding (the
 // human approved the request; Personas builds/configures next); `activated`
 // flips the agent live AND auto-moves its pipeline row to Hired.
-const LIFECYCLE_STATUS: Record<LifecycleReport["event"], AgentStatus> = {
+//
+// `probation_review` is the one event whose status is NOT a constant: the day-N
+// review's DECISION is the transition (concept §2.3). `extended` deliberately
+// maps back to `onboarding` — more probation is not a promotion, and showing it
+// as one would put a green "Active" on an agent a human just declined to
+// activate.
+const LIFECYCLE_STATUS: Record<Exclude<LifecycleReport["event"], "probation_review">, AgentStatus> = {
   approved: "onboarding",
   onboarding: "onboarding",
   activated: "active",
   rejected: "rejected",
   retired: "retired",
 };
+
+const PROBATION_STATUS = {
+  activated: "active",
+  extended: "onboarding",
+  retired: "retired",
+} as const satisfies Record<"activated" | "extended" | "retired", AgentStatus>;
+
+function statusFor(report: LifecycleReport): AgentStatus {
+  if (report.event === "probation_review") {
+    // parseAgentReport refuses a probation_review with no decision, so this
+    // fallback is unreachable — it exists so the union stays total.
+    return report.decision ? PROBATION_STATUS[report.decision] : "onboarding";
+  }
+  return LIFECYCLE_STATUS[report.event];
+}
 
 function applyReport(agent: HiredAgentRecord, report: AgentReport): { result: string; duplicate?: boolean } {
   const ws = agent.workspaceId;
@@ -67,20 +88,31 @@ function applyReport(agent: HiredAgentRecord, report: AgentReport): { result: st
         tokensIn: report.tokensIn,
         tokensOut: report.tokensOut,
         connectorUses: report.connectorUses,
+        // Reporter v2: the App-master backbone reading for the period. Stored in
+        // the rollup's raw_json beside runs/successes/failures (same JSON column,
+        // no migration); null when the sender reported none of it, which must
+        // stay distinguishable from a sender reporting zeroes.
+        backbone: report.backbone,
       },
       ws
     );
     return { result: "accepted" };
   }
   // lifecycle
-  recordAgentLifecycle(agent.id, { event: report.event, reason: report.reason, raw: report }, ws);
-  updateHiredAgentStatus(
+  const status = statusFor(report);
+  recordAgentLifecycle(
     agent.id,
-    LIFECYCLE_STATUS[report.event],
-    { personaId: report.personaId, personaName: report.personaName },
+    {
+      event: report.event === "probation_review" ? `probation_review:${report.decision}` : report.event,
+      reason: report.note ?? report.reason,
+      raw: report,
+    },
     ws
   );
-  if (report.event === "activated") {
+  updateHiredAgentStatus(agent.id, status, { personaId: report.personaId, personaName: report.personaName }, ws);
+  // A probation review that ACTIVATES lands the agent live for the first time,
+  // so it takes the same board move as a plain `activated` event.
+  if ((report.event === "activated" || (report.event === "probation_review" && report.decision === "activated")) && agent.jobId) {
     // The agent's pipeline row was created at dispatch with the same identity, so
     // this idempotent re-create resolves the SAME entry (the m-<candidate>-<job>
     // id scheme) whether or not it still exists, then moves it to Hired.

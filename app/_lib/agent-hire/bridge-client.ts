@@ -140,16 +140,29 @@ export type KpLink = {
   jobId: string;
   jobTitle: string;
   workspace: string;
+  /** App master only (P4): the role_intakes row the spec was composed in. An
+   *  App-master hire owns an application rather than filling a job posting, so
+   *  `jobId` is empty for it and this is the handle that resolves. Optional and
+   *  additive — a Personas build that ignores it is unaffected. */
+  intakeId?: string;
 };
 
 export type DispatchResult = { ok: true; requestId: string } | BridgeFailure;
 
 /** POST the persona request to Personas. `reportToken` is the capability the
- *  hired persona will report back with (the /api/agents/report/[token] route). */
+ *  hired persona will report back with (the /api/agents/report/[token] route).
+ *
+ *  `appMaster` is the P4 addition to the wire contract — the AppMasterSpec
+ *  exactly as codegen produces it (appMasterSpecSchema). It rides BESIDE `spec`,
+ *  never instead of it: `spec` is projected from `appMaster.agent`, so a
+ *  Personas build that has not shipped the hire handler v2 still receives a
+ *  complete, working flat spec and hires the persona as before. Its presence is
+ *  the signal "this is an App-master hire". */
 export async function dispatchPersonaRequest(
   spec: DispatchSpec,
   kp: KpLink,
-  reportToken: string
+  reportToken: string,
+  appMaster?: unknown
 ): Promise<DispatchResult> {
   const bridge = resolveBridge();
   if (!bridge.apiKey) {
@@ -159,7 +172,7 @@ export async function dispatchPersonaRequest(
     const r = await fetch(`${bridge.baseUrl}/api/kp/persona-requests`, {
       method: "POST",
       headers: headers(bridge.apiKey),
-      body: JSON.stringify({ kp, spec, reportToken }),
+      body: JSON.stringify({ kp, spec, reportToken, ...(appMaster ? { appMaster } : {}) }),
       redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });

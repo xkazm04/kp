@@ -97,8 +97,10 @@ function finite(value: unknown): number | null {
 
 type KpiDeltaLike = PerformanceBackbone["kpiDeltas"][number];
 
-/** Did this objective move toward its target? `null` = cannot tell. */
-function kpiMoved(delta: KpiDeltaLike): boolean | null {
+/** Did this objective move toward its target? `null` = cannot tell.
+ *  Exported because the roster renders the SAME judgment per objective; two
+ *  answers to "did this KPI move" on one screen is one too many. */
+export function kpiMoved(delta: KpiDeltaLike): boolean | null {
   if (!delta.measured) return null;
   const baseline = finite(delta.baseline);
   const current = finite(delta.current);

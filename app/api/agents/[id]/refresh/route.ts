@@ -63,7 +63,10 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
     const updated = updateHiredAgentStatus(id, mapped, { personaId: polled.personaId, personaName: polled.personaName }, ws);
     recordAgentLifecycle(id, { event: `poll:${polled.status}` }, ws);
-    if (mapped === "active") {
+    // `agent.jobId` guard: an App-master hire dispatched from an intake owns an
+    // application, not a job posting, so it has no board column — filing one
+    // would invent a candidate for a job nobody is hiring for.
+    if (mapped === "active" && agent.jobId) {
       // Same activated → Hired move the push report performs (idempotent entry
       // resolution via the m-<candidate>-<job> id scheme).
       const { entry } = createPipelineEntry({

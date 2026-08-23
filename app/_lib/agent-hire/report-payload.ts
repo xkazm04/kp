@@ -325,6 +325,7 @@ export function parseAgentReport(payload: unknown): ParseReportResult {
         tokensIn: int(p.tokensIn),
         tokensOut: int(p.tokensOut),
         connectorUses: connectorUses(p.connectorUses),
+        backbone: rollupBackbone(p),
       },
     };
   }
@@ -334,6 +335,15 @@ export function parseAgentReport(payload: unknown): ParseReportResult {
       ? (p.event as AgentLifecycleEvent)
       : null;
     if (!event) return { ok: false, error: `lifecycle reports require an event in: ${AGENT_LIFECYCLE_EVENTS.join(", ")}.` };
+    const decision = (PROBATION_DECISIONS as readonly string[]).includes(String(p.decision))
+      ? (p.decision as ProbationDecision)
+      : null;
+    // A probation review IS its decision — the event alone would move the agent
+    // nowhere and leave the roster showing "reviewed" with no outcome. Refused
+    // as a shape error (deterministic 400, retryable) rather than defaulted.
+    if (event === "probation_review" && !decision) {
+      return { ok: false, error: `probation_review requires a decision in: ${PROBATION_DECISIONS.join(", ")}.` };
+    }
     return {
       ok: true,
       report: {
@@ -342,6 +352,8 @@ export function parseAgentReport(payload: unknown): ParseReportResult {
         personaId: str(p.personaId),
         personaName: str(p.personaName),
         reason: str(p.reason, MAX_REASON),
+        decision: event === "probation_review" ? decision : null,
+        note: str(p.note, MAX_REASON),
       },
     };
   }

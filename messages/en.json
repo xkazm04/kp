@@ -1265,6 +1265,13 @@
     "AGENT_CATALOG_FAILED": "Could not load the connector catalog. Please try again.",
     "AGENT_REFRESH_FAILED": "Could not refresh the agent status. Please try again.",
     "AGENT_REPORT_FAILED": "Could not record the agent report. Please try again.",
+    "AGENT_DISPATCH_NOT_COMPOSED": "Compose the App master spec before dispatching it.",
+    "AGENT_DISPATCH_SPEC_STALE": "The stored App master spec no longer matches the contract. Re-compose it, then dispatch.",
+    "AGENT_DISPATCH_HUMAN_POPULATION": "This role is composed for a human holder, so no agent can be dispatched for it.",
+    "AGENT_DISPATCH_NO_AGENT_BLOCK": "The spec carries no agent details. Re-compose it with an agent population.",
+    "AGENT_DISPATCH_NOT_APP_MASTER": "This intake is not an App master session.",
+    "AGENT_DISPATCH_INTAKE_NOT_FOUND": "That intake session no longer exists.",
+    "AGENT_DISPATCH_BRIDGE_FAILED": "Personas did not accept the request, so nothing was hired.",
     "REPO_SCAN_FAILED": "Could not start the repository scan. Please try again.",
     "REPO_SCAN_READ_FAILED": "Could not load the repository scan. Please try again.",
     "FEEDBACK_INVALID": "Check the message (and email) and try again.",
@@ -1703,9 +1710,11 @@
         "stop": "Stop",
         "resume": "Play (browser blocked autoplay)",
         "textLabel": "Text to speak",
-        "spokenBy": "Spoken by {provider} in {ms} ms",
-        "fellBack": "— fell back from {provider}",
-        "providerGroup": "Provider"
+        "spokenBy": "Spoken by {provider}, first audio in {ms} ms",
+        "fellBack": "(fell back from {provider})",
+        "providerGroup": "Provider",
+        "chunks": "{spoken} of {total} chunks",
+        "truncated": "stopped after {spoken} of {total} chunks. The rest is in the text."
       }
     }
   },
@@ -3762,7 +3771,11 @@
             "notes": "Assumptions recorded"
           },
           "dispatch": "Dispatch to Personas",
-          "dispatchP4": "Agent dispatch ships in a later phase (P4). Nothing is sent yet."
+          "dispatching": "Dispatching…",
+          "dispatchSent": "Personas accepted the request. A human approves it there before the agent starts.",
+          "dispatchError": "The dispatch failed. Nothing was hired.",
+          "dispatchHuman": "This spec is composed for a human holder. Promote it to a JD instead.",
+          "dispatchNeedsPairing": "Pair with Personas in Settings → Integrations to dispatch."
         }
       }
     },
@@ -7795,6 +7808,36 @@
     "moreConnectors": "+{count} more",
     "expectationsMet": "{met}/{total} met",
     "expectationsNoData": "No data yet",
+    "appMaster": {
+      "label": "App master",
+      "rung": {
+        "0": "Mandate: read and report only",
+        "1": "Mandate: re-run existing work",
+        "2": "Mandate: open a branch and propose",
+        "unknown": "Mandate not recorded"
+      },
+      "autopilot": {
+        "off": "Autopilot off",
+        "measure": "Autopilot: measure",
+        "suggest": "Autopilot: suggest",
+        "full": "Autopilot: full"
+      },
+      "probationLeft": "{left, plural, one {# day} other {# days}} left of a {total}-day probation",
+      "probationDue": "Probation review due: the {total}-day window has closed",
+      "backbone": {
+        "title": "Performance backbone",
+        "none": "No performance record reported yet",
+        "noScore": "Nothing could be scored in this window",
+        "scoreLine": "{score}% of what was measurable, over {coverage}% of the record",
+        "unmeasured": "not measured",
+        "contribution": "{earned} of {weight}",
+        "verdict": {
+          "pass": "Meets the bar",
+          "incomplete": "Not enough was measured",
+          "fail": "Below the bar"
+        }
+      }
+    },
     "status": {
       "dispatched": "Dispatched",
       "pendingApproval": "Pending approval",
@@ -7807,6 +7850,7 @@
     "detail": {
       "mission": "Mission",
       "metricsHeading": "Expectations vs actuals",
+      "objectivesHeading": "Outcomes vs readings",
       "noMetrics": "No success metrics were set for this agent.",
       "noData": "no data yet",
       "refresh": "Refresh status",

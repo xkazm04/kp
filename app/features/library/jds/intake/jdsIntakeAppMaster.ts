@@ -19,6 +19,10 @@ import type { IntakeSession, ScanState } from "./jdsIntakeLogic";
 //     session still knows its `scanId`, so the same effect resumes the watch
 //     without needing the taskId the start call returned.
 //  2. **Compose** the AppMasterSpec + population-fit verdict on demand.
+//  3. **Dispatch** the composed spec to Personas as an agent hire (P4). The
+//     bridge's pairing state is read once per App-master session so the control
+//     can say WHY it is unavailable instead of failing on click — the same
+//     honesty the Agent-fit tab's `notConnected` banner shows.
 
 /** GET /api/repo-scan/[id] — P2's contract, read-only from here. */
 export type RepoScanView = {
@@ -28,6 +32,17 @@ export type RepoScanView = {
   dossier: RepoDossier | null;
   error?: string | null;
 };
+
+/** What the dispatch control is currently able to claim. `sent` means Personas
+ *  ACCEPTED the request (it still needs a human approval there) — never "hired". */
+export type DispatchState =
+  | { status: "idle" }
+  | { status: "sending" }
+  | { status: "sent"; hiredAgentId: string | null }
+  // The failure carries the server's machine CODE, never its English `error`
+  // string — the card resolves it through the `errors` catalog in the reader's
+  // language (app/_lib/use-error-message.ts).
+  | { status: "error"; code: string | null };
 
 export function useAppMasterLogic(
   active: IntakeSession | null,
@@ -116,5 +131,56 @@ export function useAppMasterLogic(
     }
   }, [intakeId, composing, applySession]);
 
-  return { scanState, composeAppMaster, composing, composeError };
+  // ---- P4: dispatch the composed spec to Personas ---------------------------
+
+  // null = not read yet (the control stays neutral rather than claiming
+  // "unpaired" before anything asked).
+  const [paired, setPaired] = useState<boolean | null>(null);
+  const [dispatchState, setDispatchState] = useState<DispatchState>({ status: "idle" });
+  const isAppMaster = active?.shape === "app_master";
+
+  useEffect(() => {
+    if (!isAppMaster || paired !== null) return;
+    let cancelled = false;
+    const read = async () => {
+      try {
+        const res = await fetch("/api/agents/bridge");
+        const body = res.ok ? ((await res.json()) as { bridge?: { paired?: boolean } }) : null;
+        if (!cancelled) setPaired(body?.bridge?.paired === true);
+      } catch {
+        // Unreachable reads as unpaired: dispatch would fail anyway, and saying
+        // so up front beats a click that 502s.
+        if (!cancelled) setPaired(false);
+      }
+    };
+    void read();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAppMaster, paired]);
+
+  const dispatchAppMaster = useCallback(async () => {
+    if (!intakeId || dispatchState.status === "sending") return;
+    setDispatchState({ status: "sending" });
+    try {
+      const res = await fetch("/api/agents/dispatch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ intakeId }),
+      });
+      const body = (await res.json().catch(() => null)) as { hiredAgentId?: string; code?: string } | null;
+      if (!res.ok) {
+        // The route distinguishes the failures that mean something to a
+        // requestor (unpaired bridge, human population, stale spec) by CODE; the
+        // card resolves it, so the reason survives translation.
+        setDispatchState({ status: "error", code: body?.code ?? null });
+        return;
+      }
+      setDispatchState({ status: "sent", hiredAgentId: body?.hiredAgentId ?? null });
+    } catch {
+      setDispatchState({ status: "error", code: null });
+    }
+  }, [intakeId, dispatchState.status]);
+
+  return { scanState, composeAppMaster, composing, composeError, paired, dispatchState, dispatchAppMaster };
 }

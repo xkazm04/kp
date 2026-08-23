@@ -15,6 +15,39 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 // same doctrine as channel_webhooks/offer tokens; the resolved row then supplies
 // the workspace every write scopes to (NEVER the payload).
 
+// App master (P4, docs/features/app-master/README.md) adds two columns to
+// hired_agents. They live HERE, not in core.ts's shared DDL, for the same reason
+// the intake store owns its own (db/intakes.ts): the columns are additive and
+// NULL on every pre-existing row, and one owner per table keeps a concurrent
+// session's migration out of this diff. Bound to the db INSTANCE so a reset
+// connection (tests) re-applies it.
+function agentsDb() {
+  const d = ensureDb();
+  const marked = d as unknown as { __kpHiredAgentsAppMaster?: boolean };
+  if (!marked.__kpHiredAgentsAppMaster) {
+    for (const col of [
+      // The role_intakes row an App-master hire was dispatched FROM. An agent
+      // hired for a whole application is composed in the intake dialog, not from
+      // a job posting, so it has no job to link to — see the createHiredAgent
+      // note on why job_id is empty rather than the table being rebuilt.
+      "intake_id TEXT",
+      // The AppMasterSpec exactly as it was DISPATCHED (appMasterSpecSchema).
+      // Stored on the hire, not read back through the intake, because the intake
+      // can be re-composed afterwards and the mandate the agent is actually
+      // working under is the one that crossed the wire.
+      "app_master_spec_json TEXT",
+    ]) {
+      try {
+        d.exec(`ALTER TABLE hired_agents ADD COLUMN ${col}`);
+      } catch {
+        /* column already exists — idempotent (core.ts's migrateExec benign path) */
+      }
+    }
+    marked.__kpHiredAgentsAppMaster = true;
+  }
+  return d;
+}
+
 export const AGENT_STATUSES = [
   "dispatched",
   "pending_approval",
@@ -74,7 +107,7 @@ export function saveAgentFitSpec(
   input: { jobId: string; fit: unknown; spec: unknown; budget: unknown; metrics: unknown; source: string },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): AgentFitSpecRecord {
-  const db = ensureDb();
+  const db = agentsDb();
   const id = randomId("afs");
   const now = new Date().toISOString();
   db.prepare(
@@ -95,7 +128,7 @@ export function saveAgentFitSpec(
 }
 
 export function getLatestAgentFitSpec(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): AgentFitSpecRecord | null {
-  const db = ensureDb();
+  const db = agentsDb();
   const row = db
     .prepare(
       // Tie-break on rowid, NOT id: created_at is an ISO MILLISECOND stamp, and two
@@ -114,8 +147,16 @@ export function getLatestAgentFitSpec(jobId: string, workspaceId: string = DEFAU
 export type HiredAgentRecord = {
   id: string;
   workspaceId: string;
+  /** The job posting this agent was hired against. EMPTY STRING for an App-master
+   *  hire dispatched from an intake: owning an application is not a job posting,
+   *  and there is nothing to link to. Read `intakeId` in that case. */
   jobId: string;
   jobTitle: string;
+  /** The role_intakes row an App-master hire came from, else null. */
+  intakeId: string | null;
+  /** The dispatched AppMasterSpec (appMasterSpecSchema), else null. Present ⇒
+   *  this is an App-master hire. */
+  appMaster: unknown;
   personaId: string | null;
   personaName: string | null;
   requestId: string | null;
@@ -134,6 +175,8 @@ type HiredAgentRow = {
   workspace_id: string;
   job_id: string;
   job_title: string;
+  intake_id: string | null;
+  app_master_spec_json: string | null;
   persona_id: string | null;
   persona_name: string | null;
   request_id: string | null;
@@ -153,6 +196,8 @@ function rowToHiredAgent(r: HiredAgentRow): HiredAgentRecord {
     workspaceId: r.workspace_id,
     jobId: r.job_id,
     jobTitle: r.job_title,
+    intakeId: r.intake_id ?? null,
+    appMaster: safeRowParse<unknown>(r.app_master_spec_json, "hiredAgent.appMaster", r.id),
     personaId: r.persona_id,
     personaName: r.persona_name,
     requestId: r.request_id,
@@ -171,10 +216,24 @@ function rowToHiredAgent(r: HiredAgentRow): HiredAgentRecord {
  *  the same job reuses this row instead of duplicating the hire. */
 export const ACTIVE_AGENT_STATUSES: readonly AgentStatus[] = ["dispatched", "pending_approval", "onboarding", "active"];
 
+/**
+ * Mint a hire. Two origins share this row:
+ *
+ * * **job** — the shipped agent-fit path: `jobId` names a published job.
+ * * **intake** (App master, P4) — `intakeId` names the role_intakes row the
+ *   `AppMasterSpec` was composed in, and `jobId` is EMPTY: the agent owns an
+ *   application, not a job posting, so there is no job to link and inventing one
+ *   would mean starting a paid JD build nobody asked for. `job_id` stays NOT
+ *   NULL in the DDL (relaxing it means a full SQLite table rebuild of a table
+ *   another session may be writing); the empty string is the disclosed absence,
+ *   and every read that navigates to a job checks for it.
+ */
 export function createHiredAgent(
   input: {
-    jobId: string;
+    jobId?: string;
     jobTitle: string;
+    intakeId?: string | null;
+    appMaster?: unknown;
     spec: unknown;
     fit?: unknown;
     metrics?: unknown;
@@ -182,19 +241,21 @@ export function createHiredAgent(
   },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): HiredAgentRecord {
-  const db = ensureDb();
+  const db = agentsDb();
   const id = randomId("agent");
   // The ONLY gate on the public report endpoint — CSPRNG, never randomId.
   const token = randomToken("agrpt");
   const now = new Date().toISOString();
   db.prepare(
-    `INSERT INTO hired_agents (id, workspace_id, job_id, job_title, status, spec_json, fit_json, metrics_json, budget_usd, report_token, created_at)
-     VALUES (?, ?, ?, ?, 'dispatched', ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO hired_agents (id, workspace_id, job_id, job_title, intake_id, app_master_spec_json, status, spec_json, fit_json, metrics_json, budget_usd, report_token, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'dispatched', ?, ?, ?, ?, ?, ?)`
   ).run(
     id,
     workspaceId,
-    input.jobId,
+    input.jobId ?? "",
     input.jobTitle,
+    input.intakeId ?? null,
+    input.appMaster === undefined || input.appMaster === null ? null : JSON.stringify(input.appMaster),
     JSON.stringify(input.spec ?? null),
     input.fit === undefined ? null : JSON.stringify(input.fit),
     input.metrics === undefined ? null : JSON.stringify(input.metrics),
@@ -207,7 +268,7 @@ export function createHiredAgent(
 }
 
 export function getHiredAgent(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): HiredAgentRecord | null {
-  const db = ensureDb();
+  const db = agentsDb();
   const row = db.prepare(`SELECT * FROM hired_agents WHERE id = ? AND workspace_id = ?`).get(id, workspaceId) as
     | HiredAgentRow
     | undefined;
@@ -215,23 +276,43 @@ export function getHiredAgent(id: string, workspaceId: string = DEFAULT_WORKSPAC
 }
 
 export function listHiredAgents(workspaceId: string = DEFAULT_WORKSPACE_ID): HiredAgentRecord[] {
-  const db = ensureDb();
+  const db = agentsDb();
   const rows = db
     .prepare(`SELECT * FROM hired_agents WHERE workspace_id = ? ORDER BY created_at DESC`)
     .all(workspaceId) as HiredAgentRow[];
   return rows.map(rowToHiredAgent);
 }
 
-/** A live (non-terminal) agent for a job, if any — the dispatch idempotency read. */
+/** A live (non-terminal) agent for a job, if any — the dispatch idempotency read.
+ *  `job_id != ''` because an App-master hire from an intake carries no job, and
+ *  without the guard an empty jobId would match every one of them. */
 export function getActiveHiredAgentForJob(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): HiredAgentRecord | null {
-  const db = ensureDb();
+  const db = agentsDb();
   const row = db
     .prepare(
       `SELECT * FROM hired_agents
-        WHERE job_id = ? AND workspace_id = ? AND status IN ('dispatched','pending_approval','onboarding','active')
+        WHERE job_id = ? AND job_id != '' AND workspace_id = ? AND status IN ('dispatched','pending_approval','onboarding','active')
         ORDER BY created_at DESC LIMIT 1`
     )
     .get(jobId, workspaceId) as HiredAgentRow | undefined;
+  return row ? rowToHiredAgent(row) : null;
+}
+
+/** The same idempotency read for an App-master hire: one live agent per INTAKE.
+ *  A double-clicked "Dispatch to Personas" must reuse the in-flight hire, not
+ *  compose a second App master for the same application. */
+export function getActiveHiredAgentForIntake(
+  intakeId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): HiredAgentRecord | null {
+  const db = agentsDb();
+  const row = db
+    .prepare(
+      `SELECT * FROM hired_agents
+        WHERE intake_id = ? AND workspace_id = ? AND status IN ('dispatched','pending_approval','onboarding','active')
+        ORDER BY created_at DESC LIMIT 1`
+    )
+    .get(intakeId, workspaceId) as HiredAgentRow | undefined;
   return row ? rowToHiredAgent(row) : null;
 }
 
@@ -240,7 +321,7 @@ export function getActiveHiredAgentForJob(jobId: string, workspaceId: string = D
  *  dead — indistinguishable from one that never existed (both 404), mirroring the
  *  revoked-webhook doctrine in channels.ts. */
 export function getHiredAgentByReportToken(token: string): HiredAgentRecord | null {
-  const db = ensureDb();
+  const db = agentsDb();
   const row = db
     .prepare(`SELECT * FROM hired_agents WHERE report_token = ? AND status != 'retired'`)
     .get(token) as HiredAgentRow | undefined;
@@ -249,7 +330,7 @@ export function getHiredAgentByReportToken(token: string): HiredAgentRecord | nu
 
 /** Stamp the Personas request id after a successful dispatch (status → pending_approval). */
 export function setHiredAgentRequest(id: string, requestId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): void {
-  const db = ensureDb();
+  const db = agentsDb();
   db.prepare(
     `UPDATE hired_agents SET request_id = ?, status = 'pending_approval', updated_at = ? WHERE id = ? AND workspace_id = ?`
   ).run(requestId, new Date().toISOString(), id, workspaceId);
@@ -261,7 +342,7 @@ export function updateHiredAgentStatus(
   opts: { personaId?: string | null; personaName?: string | null } = {},
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): HiredAgentRecord | null {
-  const db = ensureDb();
+  const db = agentsDb();
   // persona_id/name are FILL-OR-UPDATE on approve/activate (Personas is the
   // authority for its own ids), COALESCE-kept when the event omits them.
   db.prepare(
@@ -349,7 +430,7 @@ export function recordAgentExecution(
   },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): { created: boolean } {
-  const db = ensureDb();
+  const db = agentsDb();
   const res = db
     .prepare(
       `INSERT OR IGNORE INTO agent_activity
@@ -376,7 +457,14 @@ export function recordAgentExecution(
 /** One period rollup (period = "2026-08" or an ISO day). UPSERT by
  *  (hired_agent_id, period) — a re-sent rollup REPLACES the period's figures
  *  (latest wins), mirroring the incrementBillingUsage period-counter shape but
- *  with replace semantics: Personas reports absolutes, not deltas. */
+ *  with replace semantics: Personas reports absolutes, not deltas.
+ *
+ *  Reporter v2's backbone block (`backbone`) rides in `raw_json` beside
+ *  runs/successes/failures — the same JSON column those already use, so there is
+ *  no migration and a pre-v2 rollup keeps reading exactly as it did. It is
+ *  spread flat rather than nested so `backboneFromRollup` can read one object,
+ *  and so a rollup with none of it stays distinguishable from one reporting
+ *  zeroes (see `hasBackboneFields`). */
 export function upsertAgentRollup(
   hiredAgentId: string,
   input: {
@@ -388,13 +476,21 @@ export function upsertAgentRollup(
     tokensIn?: number | null;
     tokensOut?: number | null;
     connectorUses?: ConnectorUse[];
+    /** The v2 backbone fields, already bounded at report-payload.ts. */
+    backbone?: Record<string, unknown> | null;
     raw?: unknown;
   },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): void {
-  const db = ensureDb();
+  const db = agentsDb();
   const now = new Date().toISOString();
-  const raw = { runs: input.runs ?? null, successes: input.successes ?? null, failures: input.failures ?? null, ...(typeof input.raw === "object" && input.raw !== null ? input.raw : {}) };
+  const raw = {
+    runs: input.runs ?? null,
+    successes: input.successes ?? null,
+    failures: input.failures ?? null,
+    ...(input.backbone && typeof input.backbone === "object" ? input.backbone : {}),
+    ...(typeof input.raw === "object" && input.raw !== null ? input.raw : {}),
+  };
   const tx = db.transaction(() => {
     const existing = db
       .prepare(
@@ -444,7 +540,7 @@ export function recordAgentLifecycle(
   input: { event: string; reason?: string | null; raw?: unknown },
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): void {
-  const db = ensureDb();
+  const db = agentsDb();
   db.prepare(
     `INSERT INTO agent_activity (id, workspace_id, hired_agent_id, kind, ts, status, raw_json)
      VALUES (?, ?, ?, 'lifecycle', ?, ?, ?)`
@@ -458,12 +554,34 @@ export function recordAgentLifecycle(
   );
 }
 
+/** The most recent rollup period for an agent, as the raw stored object. The
+ *  App-master roster scores its backbone from this: rollups are absolutes per
+ *  period, so "latest period" IS the current review window — summing periods
+ *  would blur two windows into a number that describes neither.
+ *  Ordered by `period` (lexicographic = chronological for YYYY-MM[-DD]), then
+ *  `ts` for a re-sent period. */
+export function getLatestAgentRollupRaw(
+  hiredAgentId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { period: string; raw: unknown } | null {
+  const db = agentsDb();
+  const row = db
+    .prepare(
+      `SELECT period, raw_json FROM agent_activity
+        WHERE hired_agent_id = ? AND workspace_id = ? AND kind = 'rollup' AND period IS NOT NULL
+        ORDER BY period DESC, ts DESC, rowid DESC LIMIT 1`
+    )
+    .get(hiredAgentId, workspaceId) as { period: string; raw_json: string | null } | undefined;
+  if (!row) return null;
+  return { period: row.period, raw: safeRowParse<unknown>(row.raw_json, "agentActivity.rollupRaw", hiredAgentId) };
+}
+
 export function listAgentActivity(
   hiredAgentId: string,
   limit = 50,
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): AgentActivityRecord[] {
-  const db = ensureDb();
+  const db = agentsDb();
   const rows = db
     .prepare(
       `SELECT * FROM agent_activity WHERE hired_agent_id = ? AND workspace_id = ? ORDER BY ts DESC, id DESC LIMIT ?`
@@ -500,7 +618,7 @@ function currentPeriod(now: Date = new Date()): string {
  *  is its own dedup'd truth); months without a rollup sum their execution
  *  events. Day-grained rollup periods count toward their month. */
 export function getAgentAggregates(hiredAgentId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): AgentAggregates {
-  const db = ensureDb();
+  const db = agentsDb();
   const rows = db
     .prepare(`SELECT * FROM agent_activity WHERE hired_agent_id = ? AND workspace_id = ?`)
     .all(hiredAgentId, workspaceId) as AgentActivityRow[];

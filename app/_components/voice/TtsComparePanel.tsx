@@ -108,7 +108,7 @@ export function TtsComparePanel() {
           type="button"
           className={`${BTN_PRIMARY} h-9 px-4 text-sm`}
           disabled={!active || busy || !text.trim()}
-          onClick={() => void tts.speak({ text, language: lang, provider: active })}
+          onClick={() => void tts.speak({ text, language: lang, provider: active, format: "chat" })}
         >
           {busy ? t("synthesizing") : t("speak")}
         </button>
@@ -136,11 +136,13 @@ export function TtsComparePanel() {
         {!tts.error && tts.served ? (
           <>
             <span className="text-ink">
-              {t("spokenBy", { provider: providers.find((p) => p.id === tts.served?.provider)?.label ?? tts.served.provider, ms: tts.served.elapsedMs })}
+              {t("spokenBy", { provider: providers.find((p) => p.id === tts.served?.provider)?.label ?? tts.served.provider, ms: tts.served.firstAudioMs })}
             </span>
+            {tts.progress && tts.progress.total > 1 ? <span> · {t("chunks", { spoken: tts.progress.spoken, total: tts.progress.total })}</span> : null}
             {tts.served.fallbackFrom ? <span className="text-coral"> {t("fellBack", { provider: tts.served.fallbackFrom })}</span> : null}
           </>
         ) : null}
+        {tts.error && tts.progress && tts.progress.spoken > 0 ? <span> · {t("truncated", { spoken: tts.progress.spoken, total: tts.progress.total })}</span> : null}
       </p>
     </section>
   );

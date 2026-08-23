@@ -2,6 +2,7 @@
 // (registry.ts enforces it) so no adapter ever receives an unbounded string or
 // a voice id that could become a path or a URL segment.
 import { TtsError, type TtsRequest } from "./types.ts";
+import { speechReady } from "./text/normalize.ts";
 
 /** Long enough for an interviewer's opening paragraph, short enough that a
  *  one-shot local sidecar returns inside its timeout. Hosts chunk above this. */
@@ -18,7 +19,8 @@ export function validateVoiceId(value: unknown): string | null {
 }
 
 export function validateRequest(req: TtsRequest): TtsRequest {
-  const text = typeof req.text === "string" ? req.text.replace(/\s+/g, " ").trim() : "";
+  const raw = typeof req.text === "string" ? req.text : "";
+  const text = (req.format === "chat" ? speechReady(raw) : raw).replace(/\s+/g, " ").trim();
   if (!text) throw new TtsError("invalid_text", "text is empty");
   if (text.length > TTS_MAX_CHARS) throw new TtsError("invalid_text", `text exceeds ${TTS_MAX_CHARS} chars`);
   const language =
@@ -26,7 +28,7 @@ export function validateRequest(req: TtsRequest): TtsRequest {
       ? req.language.toLowerCase()
       : null;
   const speed = typeof req.speed === "number" && Number.isFinite(req.speed) ? Math.min(2, Math.max(0.5, req.speed)) : null;
-  return { text, language, voiceId: validateVoiceId(req.voiceId), speed };
+  return { text, language, voiceId: validateVoiceId(req.voiceId), speed, format: req.format === "chat" ? "chat" : "plain" };
 }
 
 /** Primary subtag for voice matching: "cs-CZ" -> "cs". */

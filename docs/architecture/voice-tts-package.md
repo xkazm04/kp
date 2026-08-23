@@ -50,13 +50,39 @@ served by this package once a streaming local engine is worth it.
   failures; `registry.test.ts` covers the door, the resolution order, visible fallback and
   the unavailable path with no audio hardware or network.
 
+## Chat quality: speech-ready text and chunked playback (deepen round, 2026-08-23)
+
+- **`speechReady(text)`** (`packages/voice-tts/src/text/normalize.ts`) turns an assistant reply
+  into speakable text: fenced code/tables/images/URLs/emails removed (optional spoken
+  stand-ins), link anchor text kept, emphasis/heading/bullet markers dropped, every line
+  terminated with punctuation, emoji dropped. It does **not** expand numbers — Czech expansion
+  is grammatical (cases, currency forms) and belongs to a per-locale normalizer kp does not
+  have yet. Applied by the validation door when `format: "chat"`.
+- **`segmentSpeech(text)`** (`text/segment.ts`) cuts at real sentence ends only — guards for
+  abbreviations (en/cs/de sets), decimals/times, initials, and the Czech ordinal dot
+  (`7. dubna`), never inside an open quote/bracket; merges below 40 chars, force-splits above
+  the engine's `capabilities.maxClipChars` (cloud 1200, local 300), and lets the *first* chunk
+  stop at a clause mark to win time-to-first-audio.
+- **Server**: above the engine cap, `speak()` segments and joins WAV clips itself, so a
+  whole-clip caller still gets one clip. Measured: a 450-char Czech paragraph on Piper = 10 s
+  synthesis for 58 s of audio — the number that makes pipelining mandatory.
+- **Browser**: `useTts` normalizes + segments client-side, fetches chunk N+1 while N plays
+  (lookahead 2), reports `served.firstAudioMs` and `progress {spoken,total}`; a mid-utterance
+  failure is shown as a truncation ("stopped after 2 of 5, the rest is in the text").
+- **Like-for-like compare**: ElevenLabs is requested as raw 24 kHz PCM and wrapped into WAV
+  (`node/wav.ts`), so all three providers return `audio/wav`. Not yet: loudness normalization,
+  leading-silence trim, showing the sample rate.
+- **Kokoro languages** corrected to the eight the v1.0 pack speaks (en es fr hi it ja pt zh) —
+  no Czech/German; a Czech sentence comes back in an English accent, not an error. Voices:
+  `af_heart` (verified by ear), `am_michael`, `bf_emma` (derived from the pack's ordering).
+
 ## Providers shipped
 
 | id | kind | Engine | Languages | Needs | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `elevenlabs` | cloud | hosted TTS REST (`/v1/text-to-speech/{voice}`), MP3 | any | `ELEVENLABS_API_KEY`, optional `ELEVENLABS_VOICE_ID`, `ELEVENLABS_TTS_MODEL` (default `eleven_flash_v2_5`), `ELEVENLABS_BASE_URL` | probe = `GET /v1/user`, cached 60 s; 401 → broken |
+| `elevenlabs` | cloud | hosted TTS REST (`/v1/text-to-speech/{voice}`), PCM 24 kHz wrapped to WAV | any | `ELEVENLABS_API_KEY`, optional `ELEVENLABS_VOICE_ID`, `ELEVENLABS_TTS_MODEL` (default `eleven_flash_v2_5`), `ELEVENLABS_BASE_URL` | probe = `GET /v1/user`, cached 60 s; 401 → broken |
 | `piper` | local | Piper ONNX via the `piper` CLI, text on stdin, WAV | en, cs (whatever voices are installed) | `piper` on PATH / `PIPER_BIN`; voices in `data/piper` (`PIPER_VOICE_DIR`) or `~/.personas/companion-tts/piper/*` | the only local Czech voice; a language hint picks the voice |
-| `kokoro` | local | Kokoro through the `sherpa-onnx-offline-tts` sidecar, text as trailing arg, 24 kHz WAV | en | sidecar + `kokoro-multi-lang-v1_0` in `~/.personas/companion-tts/{bin,kokoro}` (`KOKORO_BIN`, `KOKORO_MODEL_DIR`) | the same install the Personas desktop app makes — one download serves both apps; curated voice `af_heart` (sid 3), extend with `KOKORO_VOICES="id:sid,…"` |
+| `kokoro` | local | Kokoro through the `sherpa-onnx-offline-tts` sidecar, text as trailing arg, 24 kHz WAV | en es fr hi it ja pt zh (no cs/de) | sidecar + `kokoro-multi-lang-v1_0` in `~/.personas/companion-tts/{bin,kokoro}` (`KOKORO_BIN`, `KOKORO_MODEL_DIR`) | the same install the Personas desktop app makes — one download serves both apps; curated voice `af_heart` (sid 3), extend with `KOKORO_VOICES="id:sid,…"` |
 
 Shared sidecar home: `VOICE_SIDECAR_HOME` overrides `~/.personas/companion-tts`. Binary
 ladder: explicit env → shared home `bin/` → PATH.
@@ -90,8 +116,9 @@ No other kp feature depends on spoken output, so the app is whole without it.
 
 ## Known gaps
 
-- No streaming adapter yet (`capabilities.streaming` is false everywhere); the relay-mode
-  conversation plane keeps using the provider's own TTS until one exists.
-- Kokoro ships one curated English voice; no local Czech voice above Piper quality.
+- No streaming *adapter* yet (`capabilities.streaming` is false everywhere — pipelining is at
+  the utterance level); local engines are spawned per call (Piper/sherpa both have resident
+  modes — adopt when a host needs sub-second local first audio).
+- No local Czech voice above Piper quality; no Czech number expansion.
 - Preference lives in env, not Settings → the compare panel cannot persist a pick; that is
   the next step once a settings row for voice exists.

@@ -1265,6 +1265,13 @@
     "AGENT_CATALOG_FAILED": "Der Konnektor-Katalog konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "AGENT_REFRESH_FAILED": "Der Agentenstatus konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
     "AGENT_REPORT_FAILED": "Die Agentenmeldung konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",
+    "AGENT_DISPATCH_NOT_COMPOSED": "Erstellen Sie die App-Master-Spezifikation, bevor Sie sie senden.",
+    "AGENT_DISPATCH_SPEC_STALE": "Die gespeicherte App-Master-Spezifikation passt nicht mehr zum Vertrag. Erstellen Sie sie neu und senden Sie dann.",
+    "AGENT_DISPATCH_HUMAN_POPULATION": "Diese Rolle ist für einen menschlichen Inhaber verfasst, daher kann kein Agent dafür gesendet werden.",
+    "AGENT_DISPATCH_NO_AGENT_BLOCK": "Die Spezifikation enthält keine Agentendaten. Erstellen Sie sie neu mit einer Agentenpopulation.",
+    "AGENT_DISPATCH_NOT_APP_MASTER": "Diese Bedarfsaufnahme ist keine App-Master-Sitzung.",
+    "AGENT_DISPATCH_INTAKE_NOT_FOUND": "Diese Bedarfsaufnahme existiert nicht mehr.",
+    "AGENT_DISPATCH_BRIDGE_FAILED": "Personas hat die Anfrage nicht angenommen, es wurde also nichts eingestellt.",
     "REPO_SCAN_FAILED": "Das Auslesen des Repositorys konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
     "REPO_SCAN_READ_FAILED": "Das Ergebnis des Repository-Scans konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "FEEDBACK_INVALID": "Prüfen Sie die Nachricht (und die E-Mail) und versuchen Sie es erneut.",
@@ -1703,9 +1710,11 @@
         "stop": "Stopp",
         "resume": "Abspielen (Browser hat Autoplay blockiert)",
         "textLabel": "Zu sprechender Text",
-        "spokenBy": "Gesprochen von {provider} in {ms} ms",
-        "fellBack": "— Ausweichlösung statt {provider}",
-        "providerGroup": "Anbieter"
+        "spokenBy": "Gesprochen von {provider}, erster Ton nach {ms} ms",
+        "fellBack": "(Ausweichlösung statt {provider})",
+        "providerGroup": "Anbieter",
+        "chunks": "{spoken} von {total} Abschnitten",
+        "truncated": "nach {spoken} von {total} Abschnitten abgebrochen. Der Rest steht im Text."
       }
     }
   },
@@ -3762,7 +3771,11 @@
             "notes": "Festgehaltene Annahmen"
           },
           "dispatch": "An Personas senden",
-          "dispatchP4": "Der Agenten-Versand kommt in einer späteren Phase (P4). Es wird noch nichts gesendet."
+          "dispatching": "Wird gesendet…",
+          "dispatchSent": "Personas hat die Anfrage angenommen. Dort genehmigt sie ein Mensch, bevor der Agent startet.",
+          "dispatchError": "Das Senden ist fehlgeschlagen. Es wurde nichts eingestellt.",
+          "dispatchHuman": "Diese Spezifikation ist für einen menschlichen Rolleninhaber verfasst. Überführen Sie sie stattdessen in eine Stellenbeschreibung.",
+          "dispatchNeedsPairing": "Koppeln Sie Kandi unter Einstellungen → Integrationen mit Personas, um zu entsenden."
         }
       }
     },
@@ -7795,6 +7808,36 @@
     "moreConnectors": "+{count} weitere",
     "expectationsMet": "{met}/{total} erfüllt",
     "expectationsNoData": "Noch keine Daten",
+    "appMaster": {
+      "label": "App Master",
+      "rung": {
+        "0": "Mandat: nur lesen und berichten",
+        "1": "Mandat: bestehende Arbeit erneut ausführen",
+        "2": "Mandat: Branch öffnen und vorschlagen",
+        "unknown": "Mandat nicht erfasst"
+      },
+      "autopilot": {
+        "off": "Autopilot aus",
+        "measure": "Autopilot: messen",
+        "suggest": "Autopilot: vorschlagen",
+        "full": "Autopilot: vollständig"
+      },
+      "probationLeft": "Noch {left, plural, one {# Tag} other {# Tage}} von {total} Tagen Probezeit",
+      "probationDue": "Probezeit-Review fällig: das Fenster von {total} Tagen ist abgelaufen",
+      "backbone": {
+        "title": "Leistungsgerüst",
+        "none": "Noch kein Leistungsnachweis gemeldet",
+        "noScore": "In diesem Fenster war nichts bewertbar",
+        "scoreLine": "{score} % des Messbaren, über {coverage} % der Erfassung",
+        "unmeasured": "nicht gemessen",
+        "contribution": "{earned} von {weight}",
+        "verdict": {
+          "pass": "Erfüllt die Messlatte",
+          "incomplete": "Zu wenig gemessen",
+          "fail": "Unter der Messlatte"
+        }
+      }
+    },
     "status": {
       "dispatched": "Entsendet",
       "pendingApproval": "Freigabe ausstehend",
@@ -7807,6 +7850,7 @@
     "detail": {
       "mission": "Mission",
       "metricsHeading": "Erwartungen vs. Ist",
+      "objectivesHeading": "Ziele vs. Messwerte",
       "noMetrics": "Für diesen Agenten wurden keine Erfolgsmetriken gesetzt.",
       "noData": "noch keine Daten",
       "refresh": "Status aktualisieren",

@@ -20,7 +20,7 @@ export class PiperTts implements TtsProvider {
   readonly label = "Piper (local)";
   readonly kind = "local" as const;
   readonly requiredEnv = ["PIPER_BIN", "PIPER_VOICE_DIR"] as const;
-  readonly capabilities = { streaming: false, languages: ["en", "cs"], speed: true, onDevice: true } as const;
+  readonly capabilities = { streaming: false, languages: ["en", "cs"], speed: true, onDevice: true, maxClipChars: 300 } as const;
 
   constructor(private readonly host: TtsHost) {}
 
