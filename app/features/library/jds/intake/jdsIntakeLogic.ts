@@ -48,6 +48,38 @@ export type IntakeSession = {
  *  opener. `null` = this is not an App-master session (or the dossier landed). */
 export type ScanState = "queued" | "running" | "complete" | "failed" | "unreachable" | null;
 
+/** One repo scan as `GET /api/repo-scan/[id]` serves it (P2's contract). */
+export type RepoScanView = {
+  id: string;
+  status: "queued" | "running" | "complete" | "failed";
+  source: "llm" | "heuristic" | null;
+  dossier: RepoDossier | null;
+  /** The row's resolved `rootPath` is withheld; this is the projection of it. */
+  isLocal?: boolean;
+  error?: string | null;
+};
+
+/**
+ * Read that response. The row is WRAPPED — the route answers `{ scan }`
+ * (app/api/repo-scan/[id]/route.ts) — and reading it FLAT is how the App-master
+ * dossier silently never reached its intake: `body.status` was `undefined`, so
+ * the watcher's "has it completed?" test was false forever, and the card sat on
+ * "the scan is still reading the codebase" for a walk that had finished in about
+ * a second. Nothing errored; the whole App-master flow simply stopped.
+ * (Found by e2e/app-master-hire.spec.ts.)
+ *
+ * Pure and exported so the P2↔P3 seam is pinned by a unit test rather than by an
+ * e2e run — and STRICT: an unrecognised body returns null, which the caller
+ * surfaces as "can't reach the scan, retrying". Tolerating both shapes here
+ * would just hide the next shape change the same way.
+ */
+export function readRepoScanResponse(body: unknown): RepoScanView | null {
+  const scan = (body as { scan?: unknown } | null)?.scan;
+  if (!scan || typeof scan !== "object") return null;
+  const view = scan as RepoScanView;
+  return typeof view.status === "string" ? view : null;
+}
+
 export type VoiceSweepResult = {
   transcript: IntakeTurn[];
   brief: RoleBrief;

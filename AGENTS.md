@@ -23,7 +23,11 @@ short version:
 - Verification: `npm run test:unit` · `test:python:gate` · `lint` ·
   `design:check` · `i18n:check` · `test:e2e` (keyless deterministic subset:
   `e2e/journey-role-to-schedule.spec.ts e2e/modal-escape.spec.ts
-  e2e/profile-builder.spec.ts`; `KP_E2E_BASE_URL` targets a running server).
+  e2e/profile-builder.spec.ts e2e/app-master-hire.spec.ts`; `KP_E2E_BASE_URL`
+  targets a running server). The App-master spec additionally needs `KP_OFFLINE=1`
+  and `KP_APP_MASTER_REPO_ROOTS=<parent dir of this checkout>` set **on the
+  server** — it scans this repo and asserts the keyless labels, so it fails
+  loudly rather than silently running keyed.
 - Shared checkout with concurrent agent sessions: **pathspec commits only**
   (`git add <paths>`), never `git add -A`, never stash others' work; when you
   change behavior, update the mapped doc under `docs/` in the same change.

@@ -71,6 +71,9 @@ pipeline/jobfit/              # Python side: extraction, scoring, LLM registry,
 messages/{en,cs,de,fr}.json   # next-intl catalogs — en is the source of truth
 e2e/                          # Playwright; deterministic keyless subset =
                               # journey-role-to-schedule + modal-escape + profile-builder
+                              # + app-master-hire (the App-master battle test —
+                              # mock Personas bridge, needs KP_OFFLINE=1 and
+                              # KP_APP_MASTER_REPO_ROOTS on the SERVER process)
 ```
 
 Recurring patterns worth imitating: literal-array + derived-union + runtime

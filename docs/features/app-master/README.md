@@ -16,9 +16,12 @@
 > rollup fields and the `probation_review` lifecycle event, `backbone_score` is
 > ported to TypeScript with generated parity fixtures, and the Agents roster
 > renders the verdict, the mandate rung, the autopilot mode and the probation
-> countdown. Still open on the **Personas** side: the hire handler v2, mandate
-> enforcement in `autonomy.rs` and the reporter that fills those fields; and the
-> R1 probation review (P5) of
+> countdown. And the *battle test* (P5b): `e2e/app-master-hire.spec.ts` drives
+> that whole path keyless against a mock Personas bridge, which is the reference
+> the Ring-1 live run is compared against — and which found two silent breaks on
+> its first run (see the section at the end). Still open on the **Personas**
+> side: the hire handler v2, mandate enforcement in `autonomy.rs` and the
+> reporter that fills those fields; and the R1 probation review (P5) of
 > [`docs/concepts/app-master.md`](../../concepts/app-master.md).
 
 An **App master** is the single accountable owner of one application's value.
@@ -50,6 +53,7 @@ fork.
 | Reporter v2 — backbone rollup fields + `probation_review` lifecycle | **shipped (P4)** | `app/_lib/agent-hire/report-payload.ts`, `app/api/agents/report/[token]/route.ts` |
 | `backbone_score` in TypeScript, pinned to the Python authority by generated fixtures | **shipped (P4)** | `app/_lib/app-master/backbone.ts`, `__fixtures__/` (regenerate: `python app/_lib/app-master/__fixtures__/generate.py`) |
 | Roster: backbone verdict, per-rule contributions, mandate rung, autopilot mode, probation countdown | **shipped (P4)** | `app/features/agents-workforce/**`, `GET /api/agents` |
+| **Battle-test harness** — the whole path end to end against a mock Personas bridge | **shipped (P5b)** | `e2e/app-master-hire.spec.ts`, `e2e/fixtures/mock-personas-bridge.ts` (its own section below) |
 | Personas hire handler v2, mandate enforcement, reporter that FILLS the v2 fields | planned (P4, Personas side) | `personas/` — `approval_exec_core.rs`, `autonomy.rs`, `kp_reporter.rs` |
 | Probation review packet + the human decision loop | planned (P5) | Personas Director + the `probation_review` event kp already accepts |
 
@@ -662,7 +666,57 @@ spec was composed, and it travels with the spec.
 | `ClaudeCliProvider.with_repo_access(cwd)` / `cli_args()` / `READ_ONLY_TOOLS` / `WRITE_TOOL_DENYLIST` / `READ_ONLY_PERMISSION_MODE` / `PERMISSION_MODES` | Python | `pipeline/jobfit/claude_cli.py` — the read-only repo binding |
 | `repo_scan` LLM use case | config | `pipeline/jobfit/llm/capabilities.py` (`{json}`, 6144 max tokens) + `LLM_USE_CASES` in `app/_lib/llm-config.ts` (Settings → Models, "roles" section) |
 
-No dispatch path and no `AppMasterSpec` producer exist yet.
+(This table is the P2 scan's surface. The `AppMasterSpec` producer is P3's
+`briefToAppMasterSpec` + `POST /api/intake/[id]/compose-app-master`, and the
+dispatch path is P4's `POST /api/agents/dispatch {intakeId}` — both listed in
+*Entry points* above, both owned by the intake and agents docs respectively.)
+
+---
+
+## The battle test — keyless, without Personas (P5b)
+
+`e2e/app-master-hire.spec.ts` drives the entire path — pair → scan → dialog →
+compose → dispatch → approval ladder → reporter v2 → roster — with **no Personas
+desktop app**: `e2e/fixtures/mock-personas-bridge.ts` is a small loopback HTTP
+server implementing the management API kp actually calls (`/pair/request`,
+`/pair/claim`, `/api/kp/connector-catalog`, `/api/kp/persona-requests[/{id}]`,
+`/health`). It refuses what the real one refuses — an unauthenticated management
+call, a short nonce, a spent claim — and it records the dispatch body so the test
+can validate the `appMaster` block against `appMasterSpecSchema` itself.
+
+It is the reference the **Ring-1 live run** (against real Personas) is compared
+against: same journey, same assertions, no desktop app.
+
+Deterministic by construction, and it says so out loud rather than assuming:
+
+| Guard | What it pins |
+| --- | --- |
+| every dialog turn returns `source: "deterministic"` | the scripted slot script ran, not a model |
+| the dossier chip reads *"file-walk, no AI"* | `source: heuristic`, the keyless walk |
+| the conversation shows *"AI is offline, so the guided checklist runs instead"* | the degraded path is disclosed to the requestor |
+| the fit card shows *"AI is offline, so nothing was judged automatable"* | keyless population fit stays `unassessed`, never claims automatability |
+| `size.contexts` equals `context-map.json`'s own count, read at test time | the counted facts are counted, not asserted |
+
+Run it with `KP_OFFLINE=1`, `KP_APP_MASTER_REPO_ROOTS=<parent of this checkout>`
+and `KP_SECRET=<anything>` **on the server** (the spec header carries both
+invocations). It scans this repository, so the dossier assertions are checkable
+rather than fixture-shaped.
+
+**What its first run found** — both silent, both invisible to the unit suites:
+
+1. **Pairing could not complete on a default install.** The `pk_` key is stored
+   encrypted, and `encryptAtsSecret` throws without `KP_SECRET` /
+   `KP_ATS_SECRET_KEY` — *inside the claim*, i.e. after a human had approved the
+   request in Personas and the single-use nonce was spent, with an error message
+   about the ATS webhook signing secret. Both pairing phases now refuse up front
+   with `503 AGENT_PAIR_NO_SECRET` (`app/_lib/agent-hire/pairing.ts`,
+   `agent-hire.test.ts`).
+2. **A completed scan never reached its intake.** `GET /api/repo-scan/[id]`
+   answers `{ scan }`; the App-master watcher read the row flat, so `status` was
+   `undefined`, the completion test never fired, and the card sat on *"the scan
+   is still reading the codebase"* forever — no error anywhere. The unwrap is now
+   one pure, unit-tested reader (`readRepoScanResponse` in
+   `app/features/library/jds/intake/jdsIntakeLogic.ts`).
 
 ---
 

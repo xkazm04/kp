@@ -1,3 +1,4 @@
+import { atsSecretKeyConfigured } from "../ats-secret";
 import { randomToken } from "../random-id";
 import { isRedirectResponse, REDIRECT_ERROR } from "./bridge-client";
 import { resolveBridge, markBridgeOk, setBridgeConfig } from "./bridge-store";
@@ -28,10 +29,30 @@ function sweep(now: number): void {
   for (const [n, exp] of pending) if (exp <= now) pending.delete(n);
 }
 
-export type PairStartResult = { ok: true; nonce: string; expiresInS: number } | { ok: false; error: string };
+/**
+ * The claim stores the pk_ key ENCRYPTED (bridge-store → ats-secret), and that
+ * needs `KP_SECRET` / `KP_ATS_SECRET_KEY`. Without one, `encryptAtsSecret`
+ * throws — and it threw at the worst possible moment: inside the CLAIM, i.e.
+ * after a human had already approved the request in Personas and the single-use
+ * nonce had been spent there. The operator got a 502 whose text talked about the
+ * *ATS webhook signing secret*, and the approval was gone.
+ *
+ * So both phases refuse up front instead, with the reason and the fix. Checked in
+ * `claimPairing` too, not only in `startPairing`: the env can change between the
+ * two calls (a restart mid-pairing), and burning the claim is the expensive half.
+ */
+export const PAIR_NO_SECRET_CODE = "AGENT_PAIR_NO_SECRET";
+export const PAIR_NO_SECRET_ERROR =
+  "kp cannot store the Personas key: set KP_SECRET (or KP_ATS_SECRET_KEY) in the server environment and restart, then pair again. The key is held encrypted at rest, so without one the claim fails AFTER the request has been approved in Personas.";
+
+export type PairFailure = { ok: false; error: string; code?: string };
+export type PairStartResult = { ok: true; nonce: string; expiresInS: number } | PairFailure;
 
 /** Phase 1: mint a nonce and register the pairing request with Personas. */
 export async function startPairing(): Promise<PairStartResult> {
+  // BEFORE anything is registered: never ask a human to approve a pairing whose
+  // key this deployment could not keep.
+  if (!atsSecretKeyConfigured()) return { ok: false, error: PAIR_NO_SECRET_ERROR, code: PAIR_NO_SECRET_CODE };
   const bridge = resolveBridge();
   // randomToken mints prefix + 32 base64url chars — comfortably ≥16 chars of CSPRNG entropy.
   const nonce = randomToken("pairn");
@@ -65,12 +86,16 @@ export async function startPairing(): Promise<PairStartResult> {
 export type PairClaimResult =
   | { ok: true; paired: true }
   | { ok: true; paired: false; state: "pending" }
-  | { ok: false; error: string };
+  | PairFailure;
 
 /** Phase 2: one claim attempt for a nonce startPairing minted. "pending" until
  *  the human approves in Personas; on success the key is stored encrypted and
  *  the claim (single-use on the Personas side) is spent. */
 export async function claimPairing(nonce: string): Promise<PairClaimResult> {
+  // Refused BEFORE the GET: the claim is single-use on the Personas side, so
+  // spending it on a key kp is about to fail to store costs the operator the
+  // whole approval round-trip.
+  if (!atsSecretKeyConfigured()) return { ok: false, error: PAIR_NO_SECRET_ERROR, code: PAIR_NO_SECRET_CODE };
   const now = Date.now();
   sweep(now);
   const exp = pending.get(nonce);

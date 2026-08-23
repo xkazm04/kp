@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import type { AppMasterCompose } from "@/app/_lib/db/intakes";
 import type { RepoDossier } from "@/app/_lib/schemas.generated";
-import type { IntakeSession, ScanState } from "./jdsIntakeLogic";
+import { readRepoScanResponse, type IntakeSession, type RepoScanView, type ScanState } from "./jdsIntakeLogic";
 
 // App master (docs/features/app-master/README.md): the client half of the third
 // intake shape. Two jobs, both split out of jdsIntakeLogic so that file stays
@@ -24,14 +24,11 @@ import type { IntakeSession, ScanState } from "./jdsIntakeLogic";
 //     can say WHY it is unavailable instead of failing on click — the same
 //     honesty the Agent-fit tab's `notConnected` banner shows.
 
-/** GET /api/repo-scan/[id] — P2's contract, read-only from here. */
-export type RepoScanView = {
-  id: string;
-  status: "queued" | "running" | "complete" | "failed";
-  source: "llm" | "heuristic" | null;
-  dossier: RepoDossier | null;
-  error?: string | null;
-};
+/** GET /api/repo-scan/[id] — P2's contract, read-only from here. The type and its
+ *  (wrapper-aware) reader live in jdsIntakeLogic.ts so a node:test can pin them
+ *  without dragging TasksProvider's React/next-intl chain in; re-exported here
+ *  because this is the module that consumes them. */
+export type { RepoScanView };
 
 /** What the dispatch control is currently able to claim. `sent` means Personas
  *  ACCEPTED the request (it still needs a human approval there) — never "hired". */
@@ -71,7 +68,11 @@ export function useAppMasterLogic(
       try {
         const res = await fetch(`/api/repo-scan/${encodeURIComponent(scanId)}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const scan = (await res.json()) as RepoScanView;
+        // The route wraps the row (`{ scan }`); reading it flat left `status`
+        // undefined and stalled the whole App-master flow — see
+        // readRepoScanResponse.
+        const scan = readRepoScanResponse(await res.json());
+        if (!scan) throw new Error("unrecognized /api/repo-scan payload");
         if (cancelled) return;
         setScanState(scan.status);
         if (scan.status !== "complete" || !scan.dossier) return;

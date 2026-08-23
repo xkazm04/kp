@@ -108,6 +108,14 @@ JD has ever had.
   **shared TasksProvider poll** — no second poller: its `tasks` array is
   referentially stable across no-op polls, so `useAppMasterLogic`'s effect fires
   exactly when a task's state moves.
+- **The poll reads through the route's wrapper.** `GET /api/repo-scan/[id]`
+  answers `{ scan }`, and `readRepoScanResponse` (`jdsIntakeLogic.ts`, pure +
+  unit-tested) is the one place that unwraps it. It used to be read flat, so
+  `status` was `undefined`, the "has it completed?" test never fired, and a
+  dossier that finished in about a second never reached its intake — the card sat
+  on *"the scan is still reading the codebase"* with nothing wrong in any log.
+  An unrecognised body now returns null and surfaces as *"can't reach the scan,
+  retrying"* rather than a permanent, silent stall.
 - **When the scan completes** the client POSTs `/api/intake/[id]/dossier`
   `{scanId, dossier}`. The server clamps the payload (`repoDossierSchema`), pins
   it to the intake's OWN `scanId`, and merges it into the brief through the same

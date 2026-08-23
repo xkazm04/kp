@@ -1262,6 +1262,7 @@
     "AGENT_LIST_FAILED": "Nepodařilo se načíst seznam agentů. Zkuste to prosím znovu.",
     "AGENT_BRIDGE_FAILED": "Nepodařilo se načíst stav propojení s Personas. Zkuste to prosím znovu.",
     "AGENT_PAIR_FAILED": "Nepodařilo se spárovat s Personas. Zkuste to prosím znovu.",
+    "AGENT_PAIR_NO_SECRET": "Párování není k dispozici: tento server kp nemá šifrovací klíč pro uložení klíče Personas. Nastavte KP_SECRET (nebo KP_ATS_SECRET_KEY), restartujte server a spárujte znovu.",
     "AGENT_CATALOG_FAILED": "Nepodařilo se načíst katalog konektorů. Zkuste to prosím znovu.",
     "AGENT_REFRESH_FAILED": "Nepodařilo se obnovit stav agenta. Zkuste to prosím znovu.",
     "AGENT_REPORT_FAILED": "Nepodařilo se zaznamenat hlášení agenta. Zkuste to prosím znovu.",

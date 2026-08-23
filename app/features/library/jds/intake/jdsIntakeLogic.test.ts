@@ -5,7 +5,13 @@
 // it belongs to. Runner: `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { foldVoiceExchange, foldVoiceSweep, type IntakeSession, type VoiceSweepResult } from "./jdsIntakeLogic.ts";
+import {
+  foldVoiceExchange,
+  foldVoiceSweep,
+  readRepoScanResponse,
+  type IntakeSession,
+  type VoiceSweepResult,
+} from "./jdsIntakeLogic.ts";
 import type { RoleBrief } from "@/app/_lib/rolespec";
 
 const brief = (title: string, skill: string): RoleBrief =>
@@ -83,4 +89,27 @@ test("a spoken confirmed close flips status — but never a session that is no l
   assert.equal(foldVoiceExchange(session("intake-a"), "intake-a", payload)?.status, "complete");
   assert.equal(foldVoiceExchange(session("intake-b"), "intake-a", payload)?.status, "open");
   assert.equal(foldVoiceSweep(null, "intake-a", sweep), null);
+});
+
+// The P2 ↔ P3 seam. `GET /api/repo-scan/[id]` answers `{ scan }`; the App-master
+// watcher read the row FLAT, so `status` was undefined, the "has it completed?"
+// test never fired, and a scan that finished in a second left the card saying
+// "the scan is still reading the codebase" forever — no error, no dossier, no
+// spec, no hire. Found by e2e/app-master-hire.spec.ts; pinned here so the shape
+// cannot drift back without a unit failure.
+test("a repo-scan response is read through its { scan } wrapper, never flat", () => {
+  const row = { id: "rscan-1", status: "complete", source: "heuristic", dossier: { dossierId: "rscan-1" }, isLocal: true };
+
+  const view = readRepoScanResponse({ scan: row });
+  assert.equal(view?.status, "complete");
+  assert.equal(view?.source, "heuristic");
+  assert.ok(view?.dossier, "the finished dossier is what the intake is waiting for");
+
+  // NON-VACUITY: the pre-fix read. A flat row is NOT the route's contract, and
+  // accepting it silently is what hid the bug — it must refuse, so the caller
+  // shows "can't reach the scan, retrying" instead of a permanent "still reading".
+  assert.equal(readRepoScanResponse(row), null, "the flat row is not the wire shape");
+  assert.equal(readRepoScanResponse({ error: "Repo scan not found." }), null);
+  assert.equal(readRepoScanResponse({ scan: null }), null);
+  assert.equal(readRepoScanResponse(null), null);
 });

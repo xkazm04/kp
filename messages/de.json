@@ -1262,6 +1262,7 @@
     "AGENT_LIST_FAILED": "Die Agentenliste konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "AGENT_BRIDGE_FAILED": "Der Status der Personas-Verbindung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "AGENT_PAIR_FAILED": "Das Pairing mit Personas ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "AGENT_PAIR_NO_SECRET": "Pairing nicht möglich: Dieser kp-Server hat keinen Verschlüsselungsschlüssel, um den Personas-Schlüssel zu speichern. Setzen Sie KP_SECRET (oder KP_ATS_SECRET_KEY), starten Sie neu und koppeln Sie erneut.",
     "AGENT_CATALOG_FAILED": "Der Konnektor-Katalog konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
     "AGENT_REFRESH_FAILED": "Der Agentenstatus konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
     "AGENT_REPORT_FAILED": "Die Agentenmeldung konnte nicht erfasst werden. Bitte versuchen Sie es erneut.",

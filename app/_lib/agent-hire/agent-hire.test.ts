@@ -13,7 +13,7 @@ import {
   fetchConnectorCatalog,
   fetchRequestStatus,
 } from "./bridge-client.ts";
-import { startPairing } from "./pairing.ts";
+import { claimPairing, PAIR_NO_SECRET_CODE, startPairing } from "./pairing.ts";
 
 after(() => cleanupUnitDb());
 
@@ -22,6 +22,8 @@ afterEach(() => {
   globalThis.fetch = realFetch;
   delete process.env.PERSONAS_BRIDGE_URL;
   delete process.env.PERSONAS_BRIDGE_KEY;
+  delete process.env.KP_SECRET;
+  delete process.env.KP_ATS_SECRET_KEY;
 });
 
 test("report payload: bounds and shapes are enforced at the trust boundary", () => {
@@ -108,6 +110,10 @@ test("connector catalog: Personas 404 (route not shipped yet) falls back to the 
 test("bridge calls never FOLLOW a redirect (the dispatch body carries the report token)", async () => {
   process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
   process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
+  // The pairing phases now refuse BEFORE dialing when there is no at-rest key to
+  // store the pk_ under (see the no-secret test below), so this redirect probe
+  // needs a storable environment to reach the fetch it is asserting on.
+  process.env.KP_SECRET = "unit-test-secret";
   const inits: (RequestInit | undefined)[] = [];
   globalThis.fetch = (async (_input: unknown, init?: RequestInit) => {
     inits.push(init);
@@ -134,6 +140,42 @@ test("bridge calls never FOLLOW a redirect (the dispatch body carries the report
   const catalog = await fetchConnectorCatalog();
   assert.equal(inits[3]?.redirect, "manual");
   assert.equal(catalog.source, "builtin", "a redirecting catalog degrades to the built-in list");
+});
+
+// Found by e2e/app-master-hire.spec.ts: on a default open-dev install (no
+// KP_SECRET, no KP_ATS_SECRET_KEY) pairing completed the human approval in
+// Personas and THEN failed — claimPairing's setBridgeConfig hit encryptAtsSecret,
+// which throws without a master key. The nonce is single-use on the Personas
+// side, so the approval was spent, and the 502 the operator saw talked about the
+// "ATS webhook signing secret". Both phases now refuse up front, with a code the
+// UI can resolve in the reader's language.
+test("pairing refuses up front when there is no key to store the pk_ under", async () => {
+  let dialed = 0;
+  globalThis.fetch = (async () => {
+    dialed += 1;
+    return new Response(JSON.stringify({ apiKey: "pk_should_never_be_requested" }), { status: 200 });
+  }) as typeof fetch;
+
+  const started = await startPairing();
+  assert.equal(started.ok, false);
+  if (!started.ok) {
+    assert.equal(started.code, PAIR_NO_SECRET_CODE);
+    assert.match(started.error, /KP_SECRET/, "the refusal names the env var that fixes it");
+  }
+  // The whole point: nothing was registered, so no human is asked to approve a
+  // pairing this deployment cannot complete.
+  assert.equal(dialed, 0, "a start with nowhere to put the key must not reach Personas");
+
+  const claimed = await claimPairing("pairn_whatever");
+  assert.equal(claimed.ok, false);
+  if (!claimed.ok) assert.equal(claimed.code, PAIR_NO_SECRET_CODE);
+  assert.equal(dialed, 0, "…and the single-use claim is never spent either");
+
+  // With a key configured, the same start dials through (NON-VACUITY: the guard
+  // is what stopped it above, not a broken fetch stub).
+  process.env.KP_SECRET = "unit-test-secret";
+  await startPairing();
+  assert.equal(dialed, 1);
 });
 
 test("connector catalog: a live Personas catalog wins over the built-in list", async () => {

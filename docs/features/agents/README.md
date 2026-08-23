@@ -20,6 +20,12 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    pairing request (`POST /api/agents/pair {phase:"start"}`), the operator approves it in
    the Personas desktop app, and the card's 2s claim poll (`{phase:"claim"}`) picks up the
    `pk_` key — stored encrypted, write-only (reads expose only `hasKey`).
+   Encrypted at rest means a master key is **required**: both phases refuse with
+   `503 AGENT_PAIR_NO_SECRET` when neither `KP_SECRET` nor `KP_ATS_SECRET_KEY` is set,
+   before anything is registered and before the single-use claim is spent. It used to
+   fail *inside* the claim — after the human had approved in Personas — with a message
+   about the ATS webhook signing secret; `e2e/app-master-hire.spec.ts` found that on its
+   first run, and `agent-hire.test.ts` pins the refusal now.
 2. **Assess**: open a job → *Agent fit* → *Assess agent fit*. `POST /api/jobs/[id]/agent-fit`
    starts the backgrounded `agent_fit` task (`pipeline.jobfit.agentfit_cli`, one LLM call
    with a deterministic keyword fallback); the result persists as the job's latest

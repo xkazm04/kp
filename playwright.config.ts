@@ -36,7 +36,24 @@ export default defineConfig({
           command: "npm run dev -- --port 3101",
           url: "http://localhost:3101",
           reuseExistingServer: !process.env.CI,
-          timeout: 120_000
+          timeout: 120_000,
+          // Playwright already merges this over process.env, so these three are
+          // inherited anyway. They are named here so the config SAYS which server
+          // env the suite depends on (e2e/app-master-hire.spec.ts's header is the
+          // long version), and so a future `env:` that stops inheriting can't
+          // silently drop them:
+          //   KP_OFFLINE               forces the keyless/deterministic path
+          //   KP_APP_MASTER_REPO_ROOTS opens the local-path repo-scan allow-list
+          //   KP_SECRET                the at-rest key the Personas pk_ is stored under
+          // Only forwarded WHEN SET: an unset one must not arrive as "" (an empty
+          // KP_OFFLINE would be a truthiness trap waiting to happen).
+          env: {
+            ...(process.env.KP_OFFLINE ? { KP_OFFLINE: process.env.KP_OFFLINE } : {}),
+            ...(process.env.KP_APP_MASTER_REPO_ROOTS
+              ? { KP_APP_MASTER_REPO_ROOTS: process.env.KP_APP_MASTER_REPO_ROOTS }
+              : {}),
+            ...(process.env.KP_SECRET ? { KP_SECRET: process.env.KP_SECRET } : {})
+          }
         }
       }),
   projects: [

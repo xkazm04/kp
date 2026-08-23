@@ -1262,6 +1262,7 @@
     "AGENT_LIST_FAILED": "Impossible de charger la liste des agents. Veuillez réessayer.",
     "AGENT_BRIDGE_FAILED": "Impossible de charger l’état de la liaison Personas. Veuillez réessayer.",
     "AGENT_PAIR_FAILED": "Impossible d’établir l’appairage avec Personas. Veuillez réessayer.",
+    "AGENT_PAIR_NO_SECRET": "Appairage indisponible : ce serveur kp n’a pas de clé de chiffrement pour stocker la clé Personas. Définissez KP_SECRET (ou KP_ATS_SECRET_KEY), redémarrez, puis relancez l’appairage.",
     "AGENT_CATALOG_FAILED": "Impossible de charger le catalogue de connecteurs. Veuillez réessayer.",
     "AGENT_REFRESH_FAILED": "Impossible d’actualiser l’état de l’agent. Veuillez réessayer.",
     "AGENT_REPORT_FAILED": "Impossible d’enregistrer le rapport de l’agent. Veuillez réessayer.",
