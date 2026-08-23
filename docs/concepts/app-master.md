@@ -1,7 +1,8 @@
 # App master — a role that a human or an AI agent can hold
 
-> Concept + execution plan, 2026-08-23. Status: **design approved pending** — nothing below
-> is implemented yet except the artifacts listed under "What already exists".
+> Concept + execution plan, 2026-08-23. Status: **P0–P4 shipped, P5 in progress (2026-08-23)** — see the phase
+> table at the end for commit hashes; `docs/features/app-master/README.md` is the
+> implemented standard.
 > Registry consult logged (`.ai/consults.jsonl`): machine-paced-delivery
 > (proposal-not-push, scoped-delivery-access, verification-throughput), judgment-guardbands
 > (deterministic-backbone), structured-interview-scorecards (role-family-axis-extension),
@@ -184,12 +185,12 @@ diff against this document before merge; deviations from the registry rules are 
 
 | Phase | Deliverable | Builder write set | Gate / review point |
 | --- | --- | --- | --- |
-| **P0** | Personas bridge branch merged to master | `personas/` (bridge files only) | cargo tests green; kp `agents-bridge.test.ts` against a live :9420 |
-| **P1** | Role standard: `docs/features/app-master/README.md` (rubric + anchors), `AppMasterSpec` Pydantic + codegen, `RepoDossier` schema, feature-doc-map entry | `pipeline/jobfit/appmaster.py`, `rolebrief.py` (facet keys), `docs/`, `scripts/docs/feature-doc-map.json` | retranslation test (T3) on the anchors before P2 starts |
+| **P0** — **shipped** (personas `a846d026`) | Personas bridge branch merged to master (+ :9420 route-table race enforced, `/health.management`) | `personas/` (bridge files only) | cargo tests green; kp `agents-bridge.test.ts` against a live :9420 |
+| **P1** — **shipped** (`a1cd6651`; T3 `c912d968`) | Role standard: `docs/features/app-master/README.md` (rubric + anchors), `AppMasterSpec` Pydantic + codegen, `RepoDossier` schema, feature-doc-map entry | `pipeline/jobfit/appmaster.py`, `rolebrief.py` (facet keys), `docs/`, `scripts/docs/feature-doc-map.json` | ✅ T3 run: round 1 axis 0.95/exact 0.885 → 4 anchors revised → round 2 axis 0.988/exact 0.958 (3 blind Sonnet raters × 55) |
 | **P2** — **shipped 2026-08-23** | `repo_scan` task + `claude_cli` cwd/allowed-tools support + keyless walker + `repo_scans` store | `app/_lib/repo-scan*.ts`, `pipeline/jobfit/repo_scan*.py`, `tasks.ts`, `claude_cli.py`, tenancy + contract tests | ✅ dossier on kp itself matches `context-map.json` (143 contexts) — asserted by `test_repo_scan.KpSelfScanTest`; reference reading in `docs/features/app-master/examples/kp-dossier.json`. See that feature doc §3 for what actually shipped |
-| **P3** | Intake shape `app_master` + UI (dossier card in the brief panel, population-fit verdict) + 4-locale strings; agentfit reads the dossier | `pipeline/jobfit/intake.py`, `agentfit.py`, `app/features/library/jds/intake/**`, `messages/*` | `/uat run app-master-intake --l1` |
-| **P4** | Dispatch payload `appMaster` block; Personas hire handler v2, mandate enforcement, reporter v2; kp roster maps new rollup fields | kp `dispatch/route.ts`, `report-payload.ts`, `agentsWorkforceLogic.ts`; Personas `approval_exec_core.rs`, `autonomy.rs`, `kp_reporter.rs` | end-to-end: kp hires kp's App master, status reaches `active` on a `suggest` autopilot |
-| **P5** | R1 run: one probation cycle on kp; `appmaster-bench` seeded from `docs/BACKLOG.md`; T1/T2/T3 reports | `uat/`, Personas `docs/tests/appmaster-bench/` | numbers with denominators; go/no-go on rubric + prompt revisions |
+| **P3** — **shipped** (`a6fef617`) | Intake shape `app_master` + UI (dossier card in the brief panel, population-fit verdict) + 4-locale strings; agentfit reads the dossier | `pipeline/jobfit/intake.py`, `agentfit.py`, `app/features/library/jds/intake/**`, `messages/*` | `/uat run app-master-intake --l1` |
+| **P4** — **shipped** (kp `66fe8c20`, personas `a8793782`) | Dispatch payload `appMaster` block; Personas hire handler v2, mandate enforcement, reporter v2; kp roster maps new rollup fields | kp `dispatch/route.ts`, `report-payload.ts`, `agentsWorkforceLogic.ts`; Personas `approval_exec_core.rs`, `autonomy.rs`, `kp_reporter.rs` | ✅ mock-bridge e2e `e2e/app-master-hire.spec.ts` (`0f6e1228`) drives pair → scan → dialog → compose → dispatch → active → report v2 → roster; caught 2 integration bugs (pairing without `KP_SECRET`, flat read of `/api/repo-scan/[id]`). Live Personas run = P5 |
+| **P5** — **in progress** (personas `df39aa866` real gate runs + merge/revert detection, backbone 12/12; kp `08a46817` gate selection; bench skeleton `docs/tests/appmaster-bench/`) | R1 run: one probation cycle on kp; `appmaster-bench` seeded from `docs/BACKLOG.md`; T1/T2/T3 reports | `uat/`, Personas `docs/tests/appmaster-bench/` | numbers with denominators; go/no-go on rubric + prompt revisions |
 | **P6** | R2 spread (3 internal repos), then R3 synthetic; standard v1.0 | overlays only | parity + anchor tests still hold across repos |
 
 Open decisions for the operator (defaults in bold): local path allow-list vs GitHub-only
