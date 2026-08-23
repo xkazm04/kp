@@ -344,8 +344,9 @@ export function briefToAppMasterSpec(brief: RoleBrief, dossier: RepoDossier | nu
       scopeRung,
       forbiddenClasses,
       // The repo's OWN declared gates are what a proposal must pass — the scan
-      // read them, so they are inferred, not invented.
-      approvalGates: (dossier?.declaredGates ?? []).map((g) => String(g).slice(0, 200)).filter(Boolean).slice(0, 10),
+      // read them, so they are inferred, not invented. Personas EXECUTES this
+      // list on every proposal branch, so it is selected, not truncated.
+      approvalGates: selectApprovalGates(dossier?.declaredGates ?? []),
       owner,
     },
     // Triggers are installed at dispatch (P4) — an empty cadence here is the
@@ -419,4 +420,51 @@ function appMasterSystemPrompt(
     "Report truthfully: sent means sent, queued means queued, failed means failed. Unmeasured spend is not free spend.",
     "Stop at the mandate line and ask the named owner ONE specific question, carrying the options and your recommendation.",
   ].join("\n\n");
+}
+
+/**
+ * Pick the gates a proposal must pass from the dossier's declared list.
+ *
+ * Personas runs every entry of `mandate.approvalGates` as a shell command in a
+ * fresh worktree on each proposal (pre-authorship verification), so the list
+ * has to be (a) runnable — a `ci: .github/workflows/ci.yml` pointer is a
+ * finding, not a command — (b) the cheap, environment-free gates first, and
+ * (c) bounded. A blind `slice(0, 10)` of an alphabetical list kept `build`,
+ * `test:e2e` and three `test:eval*` runs and dropped `typecheck`, `test:unit`
+ * and `test:python:gate` — the exact gates that decide a proposal.
+ */
+export const APPROVAL_GATE_PRIORITY: readonly string[] = [
+  "typecheck",
+  "lint",
+  "test:unit",
+  "test",
+  "test:python:gate",
+  "test:python",
+  "design:check",
+  "i18n:check",
+  "schemas:check",
+  "taxonomy:check",
+  "check",
+];
+const APPROVAL_GATE_EXCLUDE = /(^|[\s:])(build|dev|start|deploy|release|publish|e2e|eval|bench|watch|storybook)([\s:]|$)/i;
+export const MAX_APPROVAL_GATES = 8;
+
+export function selectApprovalGates(declared: readonly unknown[]): string[] {
+  const cmds = declared
+    .map((g) => String(g ?? "").trim().slice(0, 200))
+    // "ci: .github/workflows/ci.yml" is a pointer, not a command.
+    .filter((g) => g.length > 0 && !/^[a-z_-]+:\s/i.test(g));
+  const rank = (cmd: string): number => {
+    const tail = cmd.replace(/^(npm|pnpm|yarn|bun)\s+(run\s+)?/i, "").split(/\s+/)[0] ?? cmd;
+    const i = APPROVAL_GATE_PRIORITY.indexOf(tail);
+    return i === -1 ? APPROVAL_GATE_PRIORITY.length : i;
+  };
+  const seen = new Set<string>();
+  return cmds
+    .filter((c) => !APPROVAL_GATE_EXCLUDE.test(c))
+    .map((c, i) => ({ c, i, r: rank(c) }))
+    .sort((a, b) => a.r - b.r || a.i - b.i)
+    .map((x) => x.c)
+    .filter((c) => (seen.has(c) ? false : (seen.add(c), true)))
+    .slice(0, MAX_APPROVAL_GATES);
 }

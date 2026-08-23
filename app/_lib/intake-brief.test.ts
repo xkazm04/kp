@@ -322,3 +322,26 @@ test("briefToAppMasterSpec is pure: the same inputs always yield the same spec",
   const b = briefToAppMasterSpec(appMasterBrief(), dossier);
   assert.deepEqual(a, b);
 });
+
+test("selectApprovalGates keeps the deciding gates first, drops pointers and heavy runs, caps the list", async () => {
+  const { selectApprovalGates, MAX_APPROVAL_GATES } = await import("./intake-brief.ts");
+  // The real kp dossier (docs/features/app-master/examples/kp-dossier.json):
+  // alphabetical, 15 entries. A blind slice(0,10) kept build/e2e/eval×3 and
+  // dropped typecheck, test:unit and test:python:gate.
+  const declared = [
+    "npm run build", "npm run design:check", "npm run i18n:check", "npm run lint",
+    "npm run schemas:check", "npm run taxonomy:check", "npm run test:e2e", "npm run test:eval",
+    "npm run test:eval:match", "npm run test:eval:strict", "npm run test:python",
+    "npm run test:python:gate", "npm run test:unit", "npm run typecheck",
+    "ci: .github/workflows/ci.yml",
+  ];
+  const picked = selectApprovalGates(declared);
+  assert.deepEqual(picked.slice(0, 4), ["npm run typecheck", "npm run lint", "npm run test:unit", "npm run test:python:gate"]);
+  assert.ok(picked.length <= MAX_APPROVAL_GATES);
+  for (const bad of ["npm run build", "npm run test:e2e", "npm run test:eval", "ci: .github/workflows/ci.yml"]) {
+    assert.ok(!picked.includes(bad), `${bad} must not be an executed gate`);
+  }
+  // Unknown-but-runnable commands survive after the ranked ones; duplicates collapse.
+  assert.deepEqual(selectApprovalGates(["make verify", "make verify", "npm test"]), ["npm test", "make verify"]);
+  assert.deepEqual(selectApprovalGates([]), []);
+});
