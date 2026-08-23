@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .appmaster import AppMasterSpec, PerformanceBackbone, RepoDossier
 from .devcase.models import MAX_TIMEBOX_HOURS, MIN_TIMEBOX_HOURS, RoleSpec
 from .models import AnalysisResult
 from .profile import EVIDENCE_KINDS, SKILL_LEVELS
@@ -69,6 +70,13 @@ def _emit(node: dict[str, Any], defs: dict[str, Any], indent: int = 0) -> str:
             return _emit(non_null[0], defs, indent)
         parts = [_emit(s, defs, indent) for s in non_null]
         return f"z.union([{', '.join(parts)}])"
+
+    # A SINGLE-value `Literal[...]` serializes as `const`, not `enum` (pydantic
+    # 2.x). Without this branch it fell through to `z.string()` and the one thing
+    # the literal was stating — e.g. Budget.onCap is only ever "drain" — was lost
+    # on the TS side.
+    if isinstance(node.get("const"), str):
+        return f"z.literal({json.dumps(node['const'])})"
 
     # `Literal[...]` of string values serializes as an `enum`; emit a matching
     # Zod enum so the union of states is enforced (and inferred) on the client.
@@ -126,10 +134,16 @@ def _is_nullable(sub: dict[str, Any], defs: dict[str, Any]) -> bool:
 # Every Pydantic model exported to the TS side: (model, exported schema const,
 # exported inferred type). RoleSpec/RoleBrief single-source the role shapes the
 # JD builder and role-intake flows share with Python (idea-dcf2460d).
+# The App master trio (docs/features/app-master/README.md) rides the same door:
+# the role contract, the machine-read dossier it is composed from, and the
+# deterministic performance record — all three cross the TS/Python seam.
 _EXPORTED_MODELS = (
     (AnalysisResult, "analysisResultSchema", "AnalysisResult"),
     (RoleSpec, "roleSpecSchema", "RoleSpec"),
     (RoleBrief, "roleBriefSchema", "RoleBrief"),
+    (AppMasterSpec, "appMasterSpecSchema", "AppMasterSpec"),
+    (RepoDossier, "repoDossierSchema", "RepoDossier"),
+    (PerformanceBackbone, "performanceBackboneSchema", "PerformanceBackbone"),
 )
 
 

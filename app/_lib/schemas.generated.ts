@@ -238,3 +238,139 @@ export const roleBriefSchema = z.object({
 });
 
 export type RoleBrief = z.infer<typeof roleBriefSchema>;
+
+export const appMasterSpecSchema = z.object({
+  schemaVersion: z.number(),
+  role: z.object({
+    title: z.string(),
+    population: z.enum(["human", "agent", "either"]),
+    seniority: z.string(),
+    rubricVersion: z.string()
+  }),
+  app: z.object({
+    name: z.string(),
+    repo: z.object({
+      url: z.string().nullish(),
+      rootPath: z.string().nullish(),
+      mainBranch: z.string()
+    }),
+    contextMapRef: z.string().nullish(),
+    dossierId: z.string().nullish()
+  }),
+  objectives: z.array(z.object({
+    kpiKey: z.string(),
+    label: z.string(),
+    baseline: z.number().nullish(),
+    target: z.number().nullish(),
+    unit: z.string(),
+    direction: z.enum(["gte", "lte"]),
+    windowDays: z.number()
+  })),
+  mandate: z.object({
+    scopeRung: z.number(),
+    forbiddenClasses: z.array(z.enum(["test_deletion_or_skip", "suppression_directive", "gate_configuration", "dependency_bump_to_satisfy_check", "credentials_or_permissions", "delivery_configuration"])),
+    approvalGates: z.array(z.string()),
+    owner: z.string()
+  }),
+  cadence: z.object({
+    triggers: z.array(z.object({
+      kind: z.enum(["schedule", "pr", "kpi_tick"]),
+      config: z.record(z.string(), z.unknown())
+    }))
+  }),
+  budget: z.object({
+    monthlyUsd: z.number(),
+    reservationPolicy: z.enum(["estimate", "fixed"]),
+    onCap: z.literal("drain")
+  }),
+  tenure: z.object({
+    probationDays: z.number(),
+    reviewCadenceDays: z.number(),
+    retireCriteria: z.array(z.string())
+  }),
+  agent: z.object({
+    name: z.string(),
+    mission: z.string(),
+    systemPromptDraft: z.string(),
+    connectors: z.array(z.string()),
+    maxTurns: z.number().nullish()
+  }).nullish(),
+  human: z.object({
+    jdSlug: z.string(),
+    compBandRef: z.string()
+  }).nullish(),
+  coercionNotes: z.array(z.string()),
+  promptVersion: z.string()
+});
+
+export type AppMasterSpec = z.infer<typeof appMasterSpecSchema>;
+
+export const repoDossierSchema = z.object({
+  dossierId: z.string(),
+  repo: z.object({
+    url: z.string().nullish(),
+    rootPath: z.string().nullish(),
+    mainBranch: z.string()
+  }),
+  source: z.enum(["llm", "heuristic"]),
+  generatedAt: z.string(),
+  stack: z.array(z.string()),
+  size: z.object({
+    files: z.number(),
+    sourceFiles: z.number(),
+    contexts: z.number()
+  }),
+  declaredGates: z.array(z.string()),
+  contexts: z.array(z.object({
+    name: z.string(),
+    category: z.string(),
+    fileCount: z.number()
+  })),
+  hotSpots: z.array(z.object({
+    ref: z.string(),
+    note: z.string()
+  })),
+  riskAreas: z.array(z.object({
+    ref: z.string(),
+    note: z.string()
+  })),
+  existingKpis: z.array(z.string()),
+  maintainerLoadEstimate: z.string(),
+  candidateObjectives: z.array(z.object({
+    kpiKey: z.string(),
+    label: z.string(),
+    baseline: z.number().nullish(),
+    target: z.number().nullish(),
+    unit: z.string(),
+    direction: z.enum(["gte", "lte"]),
+    windowDays: z.number()
+  })),
+  fieldProvenance: z.record(z.string(), z.string()),
+  promptVersion: z.string()
+});
+
+export type RepoDossier = z.infer<typeof repoDossierSchema>;
+
+export const performanceBackboneSchema = z.object({
+  windowDays: z.number(),
+  proposalsOpened: z.number(),
+  proposalsMerged: z.number(),
+  proposalsReverted: z.number(),
+  gatePassRate: z.number().nullish(),
+  forbiddenClassViolations: z.number(),
+  kpiDeltas: z.array(z.object({
+    kpiKey: z.string(),
+    baseline: z.number().nullish(),
+    current: z.number().nullish(),
+    target: z.number().nullish(),
+    direction: z.enum(["gte", "lte"]),
+    windowDays: z.number(),
+    measured: z.boolean()
+  })),
+  budgetReservedUsd: z.number(),
+  budgetSettledUsd: z.number(),
+  budgetUnmeasured: z.boolean(),
+  ledgerConsistent: z.boolean()
+});
+
+export type PerformanceBackbone = z.infer<typeof performanceBackboneSchema>;

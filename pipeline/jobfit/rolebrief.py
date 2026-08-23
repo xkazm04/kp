@@ -66,6 +66,10 @@ SUGGESTED_FACET_KEYS = (
     "dealbreaker_context",  # the story behind a hard requirement
     "grade_label",        # the requestor's own grade vocabulary ("Band 5", "AfC 6")
                           # when it maps to no seniority enum token — verbatim, stated
+    "codebase_dossier",   # what a machine read off the app's own repo before the role
+                          # was composed (stack, declared gates, hot spots, candidate
+                          # objectives) — App master intake, always `inferred`
+                          # (docs/features/app-master/README.md)
 )
 
 _KINDS = ("must_have", "nice_to_have")
