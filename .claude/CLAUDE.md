@@ -217,7 +217,23 @@ The map is validated on each export: dangling `filePaths` (files no longer on di
 
 ## AI registry (knowledge + skills)
 
-This repo is wired to the organization's AI registry (github:xkazm04/ai-registry; local sibling checkout `../ai-registry`).
+This repo is wired to the organization's AI registry - ONE local checkout, at the path in
+`.ai/manifest.yaml` under `registry.local` (default `../ai-registry`).
 
-- **Knowledge**: this repo consumes the `recruiting` and `software-engineering` bundle(s). Before a product, architecture or domain decision in those areas, run `/consult <topic>` - it reads the relevant subjects (golden path + techniques) and logs the consult to `.ai/consults.jsonl` (gitignored).
-- **Skills**: shared skills come from the `ai-registry` plugin marketplace, declared in `.claude/settings.json` (`enabledPlugins`). Do not copy a registry skill into `.claude/skills/` - only project-specific skills live there. Update with `claude plugin update <skill>@ai-registry`. Project-specific configuration for a registry skill lives in its committed overlay (e.g. `.claude/perfect/config.md`).
+- **The knowledge is already loaded.** `.claude/rules/ai-registry-*.md` are links to the
+  registry's generated rules: the access contract, plus a subject map for every domain in
+  `.ai/manifest.yaml` `knowledge.domains`. Rules load in every session, so the corpus is in
+  front of you without invoking anything. Before a design, architecture or product decision
+  in a covered domain, open the governing subject - resolve it through
+  `knowledge/<domain>/index.json` (`subjects["<slug>"].file`), never by building a path from
+  a slug. Where this repo falls short of the standard, that is a deviation to record, not a
+  reason to lower the standard. `/consult <topic>` does the same read deliberately and logs
+  it so the registry can see which knowledge is actually reached for.
+- **Shared skills are links, not copies.** Every name in `.ai/manifest.yaml` `skills:` is
+  linked from `.claude/skills/<name>` into the registry's lane, so there is exactly one file
+  on this machine: editing a shared skill from this repo edits the registry's file, and the
+  change is live in every project immediately. Never copy a registry skill in - a real
+  directory under `.claude/skills/` is a project-owned skill and must carry its own name.
+- **After changing the manifest**, re-link with `node <registry>/scripts/link-registry.mjs`
+  (`--check` verifies without writing). Project-specific configuration for a shared skill
+  lives in its committed overlay, e.g. `.claude/perfect/config.md`.

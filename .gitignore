@@ -74,3 +74,30 @@ data/piper/
 
 # /consult skill log (counts reach the ai-registry signals lane; the log itself stays local)
 .ai/consults.jsonl
+
+# BEGIN ai-registry linked skills (managed by ai-registry/scripts/link-skills.mjs)
+# The links are machine state; the declaration lives in .ai/manifest.yaml `skills:`.
+/.claude/skills/consult
+/.claude/skills/i18n-translate
+/.claude/skills/perfect
+/.claude/skills/project-populate
+/.claude/skills/scan-sweep
+/.claude/skills/ship-loop
+/.claude/skills/tiger
+/.claude/skills/uat
+# END ai-registry linked skills
+
+# BEGIN ai-registry linked skills (managed by ai-registry/scripts/link-registry.mjs)
+# Links are machine state; the declarations live in .ai/manifest.yaml (`skills:` and `knowledge.domains`).
+/.claude/skills/consult
+/.claude/skills/i18n-translate
+/.claude/skills/perfect
+/.claude/skills/project-populate
+/.claude/skills/scan-sweep
+/.claude/skills/ship-loop
+/.claude/skills/tiger
+/.claude/skills/uat
+/.claude/rules/ai-registry-access.md
+/.claude/rules/ai-registry-recruiting.md
+/.claude/rules/ai-registry-software-engineering.md
+# END ai-registry linked skills

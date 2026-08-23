@@ -15,3 +15,17 @@ registry:
   local: ../ai-registry
 knowledge:
   domains: [recruiting, software-engineering]
+
+# Shared skills this project uses, from the registry's skills/ lane. The LINK is machine
+# state (gitignored, made by ai-registry/scripts/link-skills.mjs); THIS list is the
+# reviewable declaration. A skill not listed here is project-owned and lives in
+# .claude/skills/ as a real directory.
+skills:
+  - consult
+  - i18n-translate
+  - perfect
+  - project-populate
+  - scan-sweep
+  - ship-loop
+  - tiger
+  - uat
