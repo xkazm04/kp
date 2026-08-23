@@ -614,6 +614,7 @@ function VoiceInterviewInner({ token, candidateLabel, jobTitle, provider: pinned
           conversation,
           signedUrl: c.signedUrl,
           agentPrompt: data.agentPrompt ?? undefined,
+          asrKeywords: Array.isArray(data.asrKeywords) ? data.asrKeywords : undefined,
           language,
           onAsyncError: (err) => {
             clearConnectTimer();

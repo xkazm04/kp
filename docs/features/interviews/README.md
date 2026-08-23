@@ -179,6 +179,7 @@ by both the portal page and `/api/interview/connect`:
 | `app/_lib/voice/connect-failover.ts`, `preflight.ts` | Provider failover + pre-connect capability checks (only a **connect** triggers a failover — a failing prompt build surfaces as itself, never as a second mint on the other provider) |
 | `app/_lib/voice/candidate-brief.ts` | The client-sent ElevenLabs brief's security boundary: allow-list sanitizers + `candidateSafeTopic` |
 | `app/_lib/voice/minute-prices.ts` | Per-minute cost estimates for the usage ledger |
+| `app/_lib/voice/asr-keywords.mjs` | The recognizer keyword bias — the account-wide floor list and the per-conversation builder (job terms first, capped at 50); shared with `scripts/setup-eleven-agent.mjs` |
 | `app/_lib/interview-run.ts` | `buildGroundedInterview` (interviewer brief + the stored candidate agenda, composed clean via `candidateRunOfShow`), `buildCandidateSafeBrief`, `runInterviewScorecard` |
 | `app/_lib/interview-scorecard.ts`, `interview-telemetry.ts`, `interview-transcript.ts` | Post-call scoring + telemetry |
 | `app/_lib/interview-rubric.ts` | The scorecard rubric resolved from `pipeline/jobfit/interview-rubrics.json` (base axes by scoring model + industry axes by role family), its version hash, and `rubricCoverage` (below) |
@@ -187,7 +188,7 @@ by both the portal page and `/api/interview/connect`:
 | `app/_lib/interview-reminders.ts`, `interview-reminder-policy.ts` | Scheduling reminders |
 | `app/_components/voice/VoiceInterview.tsx` | The live-call shell — phase, consent, finalize/beacon, and the call controls |
 | `app/_components/voice/transport/openai.ts` | OpenAI Realtime over raw WebRTC: connection setup, the H3 speaking meter, the H4 drop debounce, teardown, and the transcript-buffer half of the wire protocol |
-| `app/_components/voice/transport/elevenlabs.ts` | The `@elevenlabs/react` SDK path: `useConversation` wiring and the agent prompt/language overrides |
+| `app/_components/voice/transport/elevenlabs.ts` | The `@elevenlabs/react` SDK path: `useConversation` wiring and the agent prompt/language + `asr.keywords` overrides |
 | `app/_components/voice/useTranscriptPersistence.ts` | POST-with-retries to `/api/interview/complete`, the sessionStorage stash, and the online/visibility re-drive |
 | `app/_components/voice/useMicTest.ts` | The pre-call mic test (stream, analyser, level, verdict) |
 | `app/_components/voice/micErrorText.ts` | getUserMedia failure → actionable recovery copy |
@@ -378,11 +379,24 @@ direction the conservative contract says must never happen.
   (`limitDef`) in the same change.
 - ASR can corrupt technology terms in transcripts (a "low WER, high semantic
   damage" failure — a spoken skill can be silently substituted for another
-  before the scorecard scores it). A static agent-level `asr.keywords` bias
-  fix exists in `scripts/setup-eleven-agent.mjs` but requires recreating the
-  ElevenLabs agent (a deploy step) and was not yet run as of the last sweep.
-- Per-session (per-job) `asr.keywords` biasing is blocked — the
-  `@elevenlabs/react` SDK's override type has no `asr` field.
+  before the scorecard scores it). Two biases now push against it: the
+  account-wide `asr.keywords` list deployed onto the agent, and — since
+  `@elevenlabs/client` 1.21.0 added `overrides.asr.keywords` — a **per-job**
+  list the server builds from `requirements[].skill` + `detectedSkills`
+  (`interviewAsrKeywords` → `/api/interview/connect` → the SDK override, capped
+  at 50 terms with the floor list filling the remainder).
+  Both need the agent to have been created with the `asr.keywords` override
+  unlocked, or the platform silently ignores the per-session list and the call
+  runs on the account-wide one. **Deployed 2026-08-21** — `--check` reports zero
+  drift. That deploy also corrected two live defects the drift report surfaced:
+  the agent was running a `max_duration_seconds` of 600 (grounded screens book
+  15–30 min, so long calls were being cut off mid-answer) and a 717-char prompt
+  predating the one-question-per-turn and language-lock rules. Re-run
+  `node scripts/setup-eleven-agent.mjs --check` after any dashboard edit; a
+  `--deploy` rotates `ELEVENLABS_AGENT_ID` and needs the id updated anywhere
+  else that pins it.
+- The per-job list is built from the JOB only. The candidate's own CV-extracted
+  technologies would sharpen it further and are not read yet.
 - Sub-specialty language drift and a handful of interviewer-persona
   refinements (praise suppression, one-question-at-a-time, terse-candidate
   drawing-out) are tracked as ongoing prompt tuning, not code gaps — see

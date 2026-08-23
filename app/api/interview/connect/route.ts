@@ -14,7 +14,7 @@ import {
   type VoiceProviderId,
 } from "@/app/_lib/voice";
 import { QUICK_SCREEN_MIN } from "@/app/_lib/interview-duration.mjs";
-import { buildCandidateSafeBrief } from "@/app/_lib/interview-run";
+import { buildCandidateSafeBrief, interviewAsrKeywords } from "@/app/_lib/interview-run";
 import { safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { CONSENT_REQUIRED_ERROR, isConnectConsentSatisfied } from "@/app/_lib/interview-consent";
@@ -242,6 +242,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Per-JOB ASR keyword bias for the served ElevenLabs session. The recognizer
+    // corrupts technology names ("React" → "Rust", "PostgreSQL" → "později SQL")
+    // and the scorecard then rates the corruption as a skill set, so the terms
+    // this job actually talks about are pushed in front of the agent's
+    // account-wide list. Client-sent (overrides.asr.keywords) because that is the
+    // only place the ElevenLabs SDK accepts them — hence PUBLIC JOB FACTS ONLY,
+    // enforced at the source in interviewAsrKeywords. OpenAI sessions get null:
+    // their transcription is configured server-side and takes no keyword bias.
+    const asrKeywords = served === "elevenlabs" ? interviewAsrKeywords(session.entryId) : null;
+
     // The session token rides back so /complete can demand it as the completion
     // capability (idea-5248c3e9). Candidate/sim callers already hold it (it is
     // how they got here); for a fresh lab session this is the creator receiving
@@ -253,6 +263,7 @@ export async function POST(request: NextRequest) {
       token: session.token,
       provider: served,
       agentPrompt,
+      asrKeywords,
       connect,
     });
   } catch (error) {

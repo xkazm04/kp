@@ -98,7 +98,14 @@ export function getLatestAgentFitSpec(jobId: string, workspaceId: string = DEFAU
   const db = ensureDb();
   const row = db
     .prepare(
-      `SELECT * FROM agent_fit_specs WHERE job_id = ? AND workspace_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`
+      // Tie-break on rowid, NOT id: created_at is an ISO MILLISECOND stamp, and two
+      // specs saved back to back (a deterministic draft immediately refined by the
+      // LLM pass — the normal path) routinely share one. `id` is randomId(), whose
+      // ms-prefix ties then get decided by a Math.random() suffix, so "latest" was a
+      // coin flip inside the same millisecond. rowid is monotonic per INSERT, so the
+      // row written last always wins. (Caught as an intermittent CI failure of
+      // agents-store.test.ts on 2026-08-20.)
+      `SELECT * FROM agent_fit_specs WHERE job_id = ? AND workspace_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 1`
     )
     .get(jobId, workspaceId) as AgentFitSpecRow | undefined;
   return row ? rowToFitSpec(row) : null;
