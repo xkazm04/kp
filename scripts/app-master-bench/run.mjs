@@ -388,7 +388,7 @@ async function runScenario(scenario, opts) {
           }
           return status === "active" ? res.json.agent : null;
         },
-        { maxMs: opts.activateTimeoutMs, everyMs: 3_000, label: "the hire to reach `active` in Personas (headless mode auto-approves)" }
+        { maxMs: scenario.activateTimeoutMs ?? opts.activateTimeoutMs, everyMs: 3_000, label: "the hire to reach `active` in Personas (headless mode auto-approves)" }
       );
       result.hire.statusLadder = seen;
       result.hire.personaId = row.personaId ?? null;
@@ -599,7 +599,10 @@ async function main() {
     // — sweep #6 MEASURED 32 min end to end (13:55→14:27), and 20 min still timed
     // out on a healthy build (sweep #7). 45 min
     // holds a slow session; override with --activate-timeout (ms).
-    activateTimeoutMs: Number(args["activate-timeout"] || 45 * 60_000),
+    // Live builds measured 32–80+ min (turn-by-turn Claude sessions competing
+    // with the desktop's other AI work). A scenario can override with
+    // `activateTimeoutMs`; the flag beats both.
+    activateTimeoutMs: Number(args["activate-timeout"] || 90 * 60_000),
     // How long to sit out a 429 before retrying. kp's windows are fixed
     // 10-minute buckets, so 65s × 12 attempts crosses one from anywhere inside it.
     throttleWaitMs: Number(args["throttle-wait"] || 65_000),
