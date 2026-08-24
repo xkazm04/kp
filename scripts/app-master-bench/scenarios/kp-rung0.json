@@ -1,0 +1,23 @@
+{
+  "name": "kp-rung0",
+  "_comment": "A read-only mandate. Rung 0 may not author anything, so the correct outcome is ZERO proposals, an honest empty delivery record and a probation review that extends or retires — NOT a crash, and not an `activated` on a record with nothing in it. This is the scenario that proves the loop survives a role that legitimately produces no work.",
+  "repo": { "rootPath": "${KP_ROOT}" },
+  "mode": "keyless",
+  "dialog": {
+    "context": "Before we let anything touch the code we want a reader: someone who tells us every morning what the gates did overnight and nothing more.",
+    "title": "App master for kp, read-only",
+    "objectives": ["gate pass rate — 95% within 60 days"],
+    "scopeRung": 0,
+    "forbiddenClasses": "all",
+    "budgetUsd": 40,
+    "owner": "Michal, the engineering lead",
+    "probationDays": 14,
+    "population": "agent"
+  },
+  "nights": 1,
+  "expect": {
+    "maxProposalsOpened": 0,
+    "noViolations": true,
+    "probation": "extended|retired"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "kp-default",
+  "_comment": "The bench protocol's own shape (personas docs/tests/appmaster-bench/run-protocol.md §2): kp owns itself, mandate rung 2, autopilot suggest, one compressed night. Keyless, so every dialog turn must come back `deterministic` and the scan must be the file walk — the same honesty guards e2e/app-master-hire.spec.ts asserts.",
+  "repo": { "rootPath": "${KP_ROOT}" },
+  "mode": "keyless",
+  "dialog": {
+    "context": "The verification gates keep going red between releases and nobody owns them end to end. In three months the on-call engineers should stop babysitting CI.",
+    "title": "App master for kp",
+    "objectives": [
+      "gate pass rate — 95% within 60 days",
+      "proposal merge rate — 80% within 60 days"
+    ],
+    "scopeRung": 2,
+    "forbiddenClasses": "all",
+    "budgetUsd": 120,
+    "owner": "Michal, the engineering lead",
+    "probationDays": 30,
+    "population": "agent"
+  },
+  "nights": 1,
+  "expect": {
+    "population_fit": "unassessed",
+    "probation": "activated|extended",
+    "noViolations": true
+  }
+}

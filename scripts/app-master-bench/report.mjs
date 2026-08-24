@@ -1,0 +1,243 @@
+#!/usr/bin/env node
+// Aggregate every bench run into bench/app-master/REPORT.md.
+//
+//   node scripts/app-master-bench/report.mjs [--out bench/app-master]
+//
+// Follows the eval suite's report convention (pipeline/jobfit/eval/runner.py):
+// a lead VERDICT BANNER before any table, and one glyph set throughout —
+// ✓ pass · ✗ fail · – not measured. The third glyph carries the weight here:
+// this bench measures whether the App-master record is READABLE, so a lane
+// nobody reported must render as a dash and an explicit "unmeasured" note,
+// never as a zero that reads like a clean run.
+//
+// `renderReport` is pure (report.test.mjs runs it over a recorded fixture);
+// only `main` touches the filesystem.
+
+import { readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { GLYPH_NA, glyph, humanMs, parseArgs, verdictBanner } from "./lib.mjs";
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const DEFAULT_BENCH_ROOT = path.join(REPO_ROOT, "bench", "app-master");
+
+/** Markdown-safe cell: pipes and newlines would silently break the table. */
+function cell(value) {
+  if (value === null || value === undefined) return GLYPH_NA;
+  return String(value).replace(/\|/g, "\\|").replace(/\s*\n\s*/g, " ");
+}
+
+function num(value, digits = 2) {
+  return typeof value === "number" && Number.isFinite(value) ? Number(value.toFixed(digits)) : null;
+}
+
+/** The verdict glyph for a night: pass ✓ · fail ✗ · incomplete/absent –.
+ *  `incomplete` is deliberately a DASH, not a cross: not enough was measured is
+ *  not the same finding as measured and failed. */
+export function nightGlyph(verdict) {
+  if (verdict === "pass") return glyph(true);
+  if (verdict === "fail") return glyph(false);
+  return GLYPH_NA;
+}
+
+function maxOf(nights, read) {
+  let best = null;
+  for (const n of nights ?? []) {
+    const v = read(n);
+    if (typeof v === "number" && Number.isFinite(v)) best = best === null ? v : Math.max(best, v);
+  }
+  return best;
+}
+
+/** One run → the row the summary table carries. Exported for the test. */
+export function summarizeRun(result) {
+  const nights = result.nights ?? [];
+  const bestCoverage = maxOf(nights, (n) => n.backbone?.coverage ?? null);
+  const bestScore = maxOf(nights, (n) => n.backbone?.score ?? null);
+  const violations = maxOf(nights, (n) => n.reading?.forbiddenClassViolations ?? null);
+  const proposals = maxOf(nights, (n) => n.reading?.proposalsOpened ?? null);
+  const h = result.specHighlights ?? {};
+  return {
+    name: result.scenario?.name ?? "(unnamed)",
+    runDir: result.runDir ? path.basename(result.runDir) : "",
+    mode: result.mode ?? result.scenario?.mode ?? null,
+    stub: !!result.personas?.stub,
+    ok: !!result.ok,
+    failedPhase: result.failedPhase ?? null,
+    spec:
+      h.scopeRung === null || h.scopeRung === undefined
+        ? null
+        : `rung ${h.scopeRung} · $${h.budgetUsd} · ${h.probationDays}d · ${h.forbiddenClasses ?? GLYPH_NA} forbidden · ${(h.objectives ?? []).length} objectives`,
+    population: h.population ?? null,
+    fit: result.populationFit?.verdict ?? null,
+    nights: nights.map((n) => ({
+      night: n.night,
+      verdict: n.backbone?.verdict ?? null,
+      score: num(n.backbone?.score),
+      coverage: num(n.backbone?.coverage),
+      unmeasuredRules: n.backbone?.unmeasured ?? [],
+      proposalsOpened: n.reading?.proposalsOpened ?? null,
+      proposalsMerged: n.reading?.proposalsMerged ?? null,
+      gatePassRate: num(n.reading?.gatePassRate),
+      violations: n.reading?.forbiddenClassViolations ?? null,
+      autopilotMode: n.appMaster?.autopilotMode ?? n.reading?.autopilotMode ?? null,
+      ms: n.ms ?? null,
+      error: n.error ?? null,
+    })),
+    bestScore: num(bestScore),
+    bestCoverage: num(bestCoverage),
+    violations,
+    proposals,
+    probation: result.probation?.decision ?? null,
+    probationSource: result.probation?.decisionSource ?? null,
+    wallMs: result.wallMs ?? null,
+    costUsd: num(result.costReportedUsd),
+    unmeasured: result.unmeasured ?? [],
+    warnings: result.warnings ?? [],
+    expectations: result.expectations ?? [],
+    errors: (result.errors ?? []).map((e) => `${e.phase}: ${e.error}`),
+  };
+}
+
+/** The whole REPORT.md. Pure — `generatedAt` is injected so a test can pin it. */
+export function renderReport(results, { generatedAt = new Date().toISOString() } = {}) {
+  const rows = results.map(summarizeRun);
+  const passed = rows.filter((r) => r.ok).length;
+  const nightCount = rows.reduce((sum, r) => sum + r.nights.length, 0);
+  const unmeasuredLanes = rows.reduce((sum, r) => sum + r.unmeasured.length, 0);
+  const stubRuns = rows.filter((r) => r.stub).length;
+
+  const lines = [];
+  lines.push("# App master bench — aggregate report");
+  lines.push("");
+  lines.push("<!-- Generated by `npm run bench:app-master` (scripts/app-master-bench/report.mjs). Do not hand-edit. -->");
+  lines.push("");
+  lines.push("```");
+  lines.push(
+    verdictBanner([
+      `${passed}/${rows.length} runs PASS`,
+      `${nightCount} night(s)`,
+      unmeasuredLanes > 0 ? `${unmeasuredLanes} unmeasured lane(s)` : "nothing unmeasured",
+      stubRuns > 0 ? `${stubRuns} against a STUB Personas` : "",
+    ])
+  );
+  lines.push("```");
+  lines.push("");
+  lines.push(`Generated ${generatedAt}. Glyphs: ${glyph(true)} pass · ${glyph(false)} fail · ${GLYPH_NA} not measured.`);
+  if (stubRuns > 0) {
+    lines.push("");
+    lines.push(
+      `> **${stubRuns} run(s) ran against the in-process stub Personas** (\`--stub-personas\`). Every number those rows carry is CANNED — they prove the driver's loop, not the App master's performance.`
+    );
+  }
+  lines.push("");
+
+  lines.push("## Runs");
+  lines.push("");
+  lines.push(
+    "| | Scenario | Mode | Spec | Fit | Nights | Best score | Coverage | Proposals | Violations | Probation | Wall | $ | Unmeasured |"
+  );
+  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const r of rows) {
+    const nightCells = r.nights.length > 0 ? r.nights.map((n) => nightGlyph(n.verdict)).join(" ") : GLYPH_NA;
+    lines.push(
+      `| ${glyph(r.ok)} | ${cell(r.name)}${r.stub ? " *(stub)*" : ""} | ${cell(r.mode)} | ${cell(r.spec)} | ${cell(r.fit)} | ${nightCells} | ${cell(r.bestScore)} | ${cell(r.bestCoverage)} | ${cell(r.proposals)} | ${cell(r.violations)} | ${cell(r.probation)}${r.probationSource === "derived-from-status" ? " *(derived)*" : ""} | ${humanMs(r.wallMs)} | ${cell(r.costUsd)} | ${r.unmeasured.length || GLYPH_NA} |`
+    );
+  }
+  lines.push("");
+  lines.push(
+    `A ${GLYPH_NA} in **Proposals**, **Violations** or **$** is an *absence of a reading*, not a zero: nothing on the Personas side reported that counter for the window. The **Unmeasured** column counts the lanes this run could not read at all; each is named in the run's section below.`
+  );
+  lines.push("");
+
+  for (const r of rows) {
+    lines.push(`## ${r.name}${r.stub ? " *(stub Personas)*" : ""} — ${r.ok ? "PASS" : "FAIL"}`);
+    lines.push("");
+    lines.push(`\`${r.runDir}\` · mode \`${r.mode}\` · population \`${r.population ?? GLYPH_NA}\` · ${humanMs(r.wallMs)}`);
+    if (r.failedPhase) lines.push("");
+    if (r.failedPhase) lines.push(`**Failed in phase \`${r.failedPhase}\`.**`);
+    lines.push("");
+
+    if (r.nights.length > 0) {
+      lines.push("| Night | Verdict | Score | Coverage | Opened | Merged | Gate pass | Violations | Autopilot | Unmeasured rules | Wall |");
+      lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+      for (const n of r.nights) {
+        lines.push(
+          `| ${n.night} | ${nightGlyph(n.verdict)} ${cell(n.verdict)} | ${cell(n.score)} | ${cell(n.coverage)} | ${cell(n.proposalsOpened)} | ${cell(n.proposalsMerged)} | ${cell(n.gatePassRate)} | ${cell(n.violations)} | ${cell(n.autopilotMode)} | ${n.unmeasuredRules.length > 0 ? cell(n.unmeasuredRules.join(", ")) : GLYPH_NA} | ${humanMs(n.ms)} |`
+        );
+      }
+      lines.push("");
+    } else {
+      lines.push("_No night ran._");
+      lines.push("");
+    }
+
+    if (r.expectations.length > 0) {
+      lines.push("**Expectations**");
+      lines.push("");
+      lines.push("| | Check | Expected | Actual | Delta |");
+      lines.push("| --- | --- | --- | --- | --- |");
+      for (const c of r.expectations) {
+        lines.push(`| ${glyph(c.ok)} | ${cell(c.name)} | ${cell(c.expected)} | ${cell(JSON.stringify(c.actual))} | ${cell(c.delta)}${c.note ? ` ${cell(`(${c.note})`)}` : ""} |`);
+      }
+      lines.push("");
+    }
+
+    if (r.unmeasured.length > 0) {
+      lines.push("**Unmeasured** — each of these is a fact about this run, not a score:");
+      lines.push("");
+      for (const u of r.unmeasured) lines.push(`- ${GLYPH_NA} ${u}`);
+      lines.push("");
+    }
+    if (r.warnings.length > 0) {
+      lines.push("**Warnings**");
+      lines.push("");
+      for (const w of r.warnings) lines.push(`- ! ${w}`);
+      lines.push("");
+    }
+    if (r.errors.length > 0) {
+      lines.push("**Errors**");
+      lines.push("");
+      for (const e of r.errors) lines.push(`- ${glyph(false)} ${e}`);
+      lines.push("");
+    }
+  }
+
+  if (rows.length === 0) {
+    lines.push("_No runs found. Run `npm run bench:app-master` first._");
+    lines.push("");
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+/** Every run directory's `result.json` under a bench root, oldest first. */
+export function collectResults(benchRoot) {
+  const runsDir = path.join(benchRoot, "runs");
+  if (!existsSync(runsDir)) return [];
+  const out = [];
+  for (const entry of readdirSync(runsDir).sort()) {
+    const file = path.join(runsDir, entry, "result.json");
+    if (!existsSync(file)) continue;
+    try {
+      out.push(JSON.parse(readFileSync(file, "utf8")));
+    } catch (error) {
+      process.stderr.write(`skipping unreadable ${file}: ${error.message}\n`);
+    }
+  }
+  return out;
+}
+
+function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const benchRoot = args.out ? path.resolve(args.out) : DEFAULT_BENCH_ROOT;
+  const results = collectResults(benchRoot);
+  const markdown = renderReport(results);
+  const dest = path.join(benchRoot, "REPORT.md");
+  writeFileSync(dest, markdown, "utf8");
+  process.stderr.write(`wrote ${dest} (${results.length} run(s))\n`);
+  return 0;
+}
+
+const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) process.exitCode = main();

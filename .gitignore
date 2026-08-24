@@ -72,6 +72,13 @@ data/piper/
 /docs/product/competitor-talentpilot.md
 /docs/product/coverage-plan.md
 
+# /bench — App-master mass-test driver artifacts (scripts/app-master-bench).
+# Same rule as /uat above: runs are bulky, per-machine and per-session. The
+# DURABLE outcome of a bench sweep belongs in docs/features/app-master/README.md
+# or docs/BACKLOG.md, which stay tracked. The committed fixture the report tests
+# render lives in scripts/app-master-bench/__fixtures__/, not here.
+/bench/
+
 # /consult skill log (counts reach the ai-registry signals lane; the log itself stays local)
 .ai/consults.jsonl
 

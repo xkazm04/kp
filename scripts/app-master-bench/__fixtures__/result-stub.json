@@ -1,0 +1,654 @@
+{
+  "schemaVersion": 1,
+  "scenario": {
+    "name": "kp-default",
+    "repo": {
+      "rootPath": "C:\\Users\\kazda\\kiro\\kp"
+    },
+    "mode": "keyless",
+    "dialog": {
+      "context": "The verification gates keep going red between releases and nobody owns them end to end. In three months the on-call engineers should stop babysitting CI.",
+      "title": "App master for kp",
+      "objectives": [
+        "gate pass rate — 95% within 60 days",
+        "proposal merge rate — 80% within 60 days"
+      ],
+      "scopeRung": 2,
+      "forbiddenClasses": "all",
+      "budgetUsd": 120,
+      "owner": "Michal, the engineering lead",
+      "probationDays": 30,
+      "population": "agent"
+    },
+    "nights": 1,
+    "expect": {
+      "population_fit": "unassessed",
+      "probation": "activated|extended",
+      "noViolations": true
+    },
+    "file": "C:\\Users\\kazda\\kiro\\kp\\scripts\\app-master-bench\\scenarios\\kp-default.json"
+  },
+  "runDir": "C:\\Users\\kazda\\kiro\\kp\\bench\\app-master\\runs\\2026-08-24T08-29-13-kp-default",
+  "startedAt": "2026-08-24T08:29:13.255Z",
+  "finishedAt": "2026-08-24T08:37:01.375Z",
+  "wallMs": 468120,
+  "mode": "keyless",
+  "kp": {
+    "baseUrl": "http://localhost:3103",
+    "health": {
+      "ok": false,
+      "db": "ok",
+      "seeds": "ok",
+      "clock": "healthy",
+      "engines": {
+        "gemini": true,
+        "claudeCli": true
+      },
+      "tables": {
+        "jobs": 0,
+        "profiles": 0,
+        "pipeline_entries": 0,
+        "analyses": 0,
+        "tasks": 5
+      },
+      "queue": {
+        "running": 0,
+        "queued": 0
+      },
+      "degradedReasons": [
+        "job catalog is empty"
+      ]
+    }
+  },
+  "personas": {
+    "baseUrl": "http://127.0.0.1:63176",
+    "health": {
+      "status": "ok",
+      "management": true,
+      "headlessBridge": true
+    },
+    "stub": true
+  },
+  "scan": {
+    "scanId": "rscan-mt6z5ts0-odek06",
+    "source": "heuristic",
+    "isLocal": true,
+    "contexts": 143,
+    "files": 7375,
+    "declaredGates": [
+      "npm run build",
+      "npm run design:check",
+      "npm run i18n:check",
+      "npm run lint",
+      "npm run schemas:check",
+      "npm run taxonomy:check",
+      "npm run test:bench-driver",
+      "npm run test:e2e",
+      "npm run test:eval",
+      "npm run test:eval:match",
+      "npm run test:eval:strict",
+      "npm run test:python",
+      "npm run test:python:gate",
+      "npm run test:unit",
+      "npm run typecheck",
+      "ci: .github/workflows/ci.yml"
+    ]
+  },
+  "intakeId": "intake-mt6z5w71-di27av",
+  "dialog": [
+    {
+      "turn": 1,
+      "answer": "The verification gates keep going red between releases and nobody owns them end to end. In three months the on-call engineers should stop babysitting CI.",
+      "source": "deterministic",
+      "ms": 1077,
+      "done": false
+    },
+    {
+      "turn": 2,
+      "answer": "App master for kp mt6z5tpj",
+      "source": "deterministic",
+      "ms": 628,
+      "done": false
+    },
+    {
+      "turn": 3,
+      "answer": "gate pass rate — 95% within 60 days\nproposal merge rate — 80% within 60 days",
+      "source": "deterministic",
+      "ms": 398,
+      "done": false
+    },
+    {
+      "turn": 4,
+      "answer": "Rung 2 — open a branch and propose a change a human merges.",
+      "source": "deterministic",
+      "ms": 1534,
+      "done": false
+    },
+    {
+      "turn": 5,
+      "answer": "All six stand. Nothing there is negotiable for us.",
+      "source": "deterministic",
+      "ms": 1502,
+      "done": false
+    },
+    {
+      "turn": 6,
+      "answer": "120 USD per month.",
+      "source": "deterministic",
+      "ms": 1240,
+      "done": false
+    },
+    {
+      "turn": 7,
+      "answer": "Michal, the engineering lead reviews every proposal and answers escalations.",
+      "source": "deterministic",
+      "ms": 569,
+      "done": false
+    },
+    {
+      "turn": 8,
+      "answer": "30 days of probation, then we decide.",
+      "source": "deterministic",
+      "ms": 355,
+      "done": false
+    },
+    {
+      "turn": 9,
+      "answer": "An AI agent should hold it.",
+      "source": "deterministic",
+      "ms": 587,
+      "done": false
+    }
+  ],
+  "spec": {
+    "schemaVersion": 1,
+    "role": {
+      "title": "App master for kp mt6z5tpj",
+      "population": "agent",
+      "seniority": "senior",
+      "rubricVersion": "app-master-rubric-v1"
+    },
+    "app": {
+      "name": "kp",
+      "repo": {
+        "url": null,
+        "rootPath": "C:\\Users\\kazda\\kiro\\kp",
+        "mainBranch": "main"
+      },
+      "contextMapRef": null,
+      "dossierId": "rscan-mt6z5ts0-odek06"
+    },
+    "objectives": [
+      {
+        "kpiKey": "gate_pass_rate",
+        "label": "gate pass rate",
+        "baseline": null,
+        "target": 95,
+        "unit": "%",
+        "direction": "gte",
+        "windowDays": 60
+      },
+      {
+        "kpiKey": "proposal_merge_rate",
+        "label": "proposal merge rate",
+        "baseline": null,
+        "target": 80,
+        "unit": "%",
+        "direction": "gte",
+        "windowDays": 60
+      }
+    ],
+    "mandate": {
+      "scopeRung": 2,
+      "forbiddenClasses": [
+        "test_deletion_or_skip",
+        "suppression_directive",
+        "gate_configuration",
+        "dependency_bump_to_satisfy_check",
+        "credentials_or_permissions",
+        "delivery_configuration"
+      ],
+      "approvalGates": [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run test:unit",
+        "npm run test:python:gate",
+        "npm run test:python",
+        "npm run design:check",
+        "npm run i18n:check",
+        "npm run schemas:check"
+      ],
+      "owner": "Michal, the engineering lead reviews every proposal and answers escalations."
+    },
+    "cadence": {
+      "triggers": []
+    },
+    "budget": {
+      "monthlyUsd": 120,
+      "reservationPolicy": "estimate",
+      "onCap": "drain"
+    },
+    "tenure": {
+      "probationDays": 30,
+      "reviewCadenceDays": 30,
+      "retireCriteria": []
+    },
+    "agent": {
+      "name": "App master for kp mt6z5tpj agent",
+      "mission": "Move gate pass rate, proposal merge rate for kp.",
+      "systemPromptDraft": "You are the App master for \"App master for kp mt6z5tpj\": accountable for the continuing value of this one application.\n\nStart every cycle from the value ledger, not from a task list:\n- gate pass rate (gate_pass_rate): target 95%, window 60d\n- proposal merge rate (proposal_merge_rate): target 80%, window 60d\n\nYour mandate is rung 2: open a branch and propose a change; a HUMAN merges it — never merge, deploy, or touch a gate.\n\nThese change classes are forbidden — never make one, and never rewrite a blocked change into a shape that evades the check: test_deletion_or_skip, suppression_directive, gate_configuration, dependency_bump_to_satisfy_check, credentials_or_permissions, delivery_configuration.\n\nRun the repo's own declared gates before authoring and again before proposing. Never repair by deletion.\n\nReport truthfully: sent means sent, queued means queued, failed means failed. Unmeasured spend is not free spend.\n\nStop at the mandate line and ask the named owner ONE specific question, carrying the options and your recommendation.",
+      "connectors": [],
+      "maxTurns": null
+    },
+    "human": null,
+    "coercionNotes": [],
+    "promptVersion": "app-master-v1"
+  },
+  "specHighlights": {
+    "title": "App master for kp mt6z5tpj",
+    "population": "agent",
+    "scopeRung": 2,
+    "forbiddenClasses": 6,
+    "approvalGates": 8,
+    "budgetUsd": 120,
+    "probationDays": 30,
+    "objectives": [
+      "gate_pass_rate",
+      "proposal_merge_rate"
+    ],
+    "coercionNotes": []
+  },
+  "populationFit": {
+    "verdict": "unassessed",
+    "perObjective": [
+      {
+        "kpiKey": "gate_pass_rate",
+        "coverage": "assisted",
+        "rationale": "Keyword overlap with the scanned repo (stack, gates or hot spots) — a tool exists in the vicinity, which is not the same as an agent owning the outcome."
+      },
+      {
+        "kpiKey": "proposal_merge_rate",
+        "coverage": "human_only",
+        "rationale": "Nothing the scan read connects to this outcome."
+      }
+    ],
+    "coverageRatio": 0.25,
+    "source": "deterministic"
+  },
+  "hire": {
+    "hiredAgentId": "agent-mt6zfuri-gjxa8i",
+    "requestId": "req-stub-1",
+    "status": "pending_approval",
+    "statusLadder": [
+      "active"
+    ],
+    "personaId": "persona-stub-1",
+    "personaName": "App master for kp mt6z5tpj agent"
+  },
+  "nights": [
+    {
+      "night": 1,
+      "ms": 26,
+      "tick": {
+        "projectId": "req-stub-1",
+        "personaId": "persona-stub-1",
+        "phases": {
+          "overnight": {
+            "nightRunId": "night-stub-req-stub-1-1",
+            "dispatchedCount": 3,
+            "notes": [
+              "overnight dispatched 3 session(s) and authored 3 proposal branch(es)."
+            ],
+            "autopilotMode": "suggest"
+          },
+          "reconcile": {
+            "proposalsRecorded": 3,
+            "gateRuns": 18,
+            "gatesPassed": 17,
+            "gatesDidNotRun": 0
+          },
+          "report": {
+            "delivered": true,
+            "status": 200,
+            "backbone": {
+              "windowDays": 30,
+              "proposalsOpened": 3,
+              "proposalsMerged": 2,
+              "proposalsReverted": 0,
+              "gatePassRate": 0.9444,
+              "forbiddenClassViolations": 0,
+              "kpiDeltas": [
+                {
+                  "kpiKey": "gate_pass_rate",
+                  "baseline": 78,
+                  "current": 94,
+                  "target": 95,
+                  "direction": "gte",
+                  "windowDays": 60,
+                  "measured": true
+                },
+                {
+                  "kpiKey": "proposal_merge_rate",
+                  "baseline": 78,
+                  "current": null,
+                  "target": 80,
+                  "direction": "gte",
+                  "windowDays": 60,
+                  "measured": false
+                }
+              ],
+              "budgetReservedUsd": 120,
+              "budgetSettledUsd": 1.85,
+              "budgetUnmeasured": false,
+              "ledgerConsistent": true
+            }
+          }
+        }
+      },
+      "tickOk": true,
+      "reading": {
+        "autopilotMode": "suggest",
+        "windowDays": 30,
+        "proposalsOpened": 3,
+        "proposalsMerged": 2,
+        "proposalsReverted": 0,
+        "gatePassRate": 0.9444,
+        "forbiddenClassViolations": 0,
+        "budgetReservedUsd": 120,
+        "budgetSettledUsd": 1.85,
+        "budgetUnmeasured": false,
+        "ledgerConsistent": true
+      },
+      "backbone": {
+        "rules": [
+          {
+            "rule": "delivery",
+            "label": "Proposals merged out of proposals opened",
+            "weight": 25,
+            "measured": true,
+            "value": 0.667,
+            "contribution": 16.667,
+            "reason": "2 of 3 proposals merged"
+          },
+          {
+            "rule": "durability",
+            "label": "Merged proposals that stayed merged",
+            "weight": 15,
+            "measured": true,
+            "value": 1,
+            "contribution": 15,
+            "reason": "0 of 2 merged proposals reverted"
+          },
+          {
+            "rule": "gates",
+            "label": "Gate pass rate on proposals",
+            "weight": 20,
+            "measured": true,
+            "value": 0.944,
+            "contribution": 18.888,
+            "reason": "gate pass rate 94% on proposals"
+          },
+          {
+            "rule": "objectives",
+            "label": "Objectives moved toward target in window",
+            "weight": 25,
+            "measured": true,
+            "value": 1,
+            "contribution": 25,
+            "reason": "1 of 1 measured objectives moved toward target; 1 unmeasured and excluded"
+          },
+          {
+            "rule": "budget",
+            "label": "Spend settled within the reservation",
+            "weight": 10,
+            "measured": true,
+            "value": 0.015,
+            "contribution": 10,
+            "reason": "$1.85 settled against $120.00 reserved"
+          },
+          {
+            "rule": "ledger",
+            "label": "Activity ledger consistent with the proposal record",
+            "weight": 5,
+            "measured": true,
+            "value": true,
+            "contribution": 5,
+            "reason": "activity ledger matches the proposal record"
+          }
+        ],
+        "gates": [
+          {
+            "gate": "forbidden_classes",
+            "passed": true,
+            "value": 0,
+            "reason": "no proposal touched a forbidden-change class"
+          },
+          {
+            "gate": "mandate_rung",
+            "passed": true,
+            "value": 2,
+            "reason": "rungs 3 (deploy/merge) and 4 (change gates) are never granted in v1"
+          }
+        ],
+        "scoredWeight": 100,
+        "totalWeight": 100,
+        "coverage": 1,
+        "score": 0.9056,
+        "unmeasured": [],
+        "verdict": "pass",
+        "rubricVersion": "app-master-rubric-v1"
+      },
+      "appMaster": {
+        "population": "agent",
+        "scopeRung": 2,
+        "probationDays": 30,
+        "autopilotMode": "suggest"
+      },
+      "agentStatus": "active",
+      "kpiDeltas": [
+        {
+          "kpiKey": "gate_pass_rate",
+          "baseline": 78,
+          "current": 94,
+          "target": 95,
+          "direction": "gte",
+          "windowDays": 60,
+          "measured": true
+        },
+        {
+          "kpiKey": "proposal_merge_rate",
+          "baseline": 78,
+          "current": null,
+          "target": 80,
+          "direction": "gte",
+          "windowDays": 60,
+          "measured": false
+        }
+      ]
+    }
+  ],
+  "probation": {
+    "tickOk": true,
+    "tick": {
+      "projectId": "req-stub-1",
+      "personaId": "persona-stub-1",
+      "phases": {
+        "probation": {
+          "decision": "activated",
+          "rationale": "2 of 3 proposals merged and stayed merged.",
+          "delivered": true,
+          "status": 200
+        }
+      }
+    },
+    "decision": "activated",
+    "decisionSource": "reported",
+    "statusBefore": "active",
+    "statusAfter": "active",
+    "backbone": {
+      "rules": [
+        {
+          "rule": "delivery",
+          "label": "Proposals merged out of proposals opened",
+          "weight": 25,
+          "measured": true,
+          "value": 0.667,
+          "contribution": 16.667,
+          "reason": "2 of 3 proposals merged"
+        },
+        {
+          "rule": "durability",
+          "label": "Merged proposals that stayed merged",
+          "weight": 15,
+          "measured": true,
+          "value": 1,
+          "contribution": 15,
+          "reason": "0 of 2 merged proposals reverted"
+        },
+        {
+          "rule": "gates",
+          "label": "Gate pass rate on proposals",
+          "weight": 20,
+          "measured": true,
+          "value": 0.944,
+          "contribution": 18.888,
+          "reason": "gate pass rate 94% on proposals"
+        },
+        {
+          "rule": "objectives",
+          "label": "Objectives moved toward target in window",
+          "weight": 25,
+          "measured": true,
+          "value": 1,
+          "contribution": 25,
+          "reason": "1 of 1 measured objectives moved toward target; 1 unmeasured and excluded"
+        },
+        {
+          "rule": "budget",
+          "label": "Spend settled within the reservation",
+          "weight": 10,
+          "measured": true,
+          "value": 0.015,
+          "contribution": 10,
+          "reason": "$1.85 settled against $120.00 reserved"
+        },
+        {
+          "rule": "ledger",
+          "label": "Activity ledger consistent with the proposal record",
+          "weight": 5,
+          "measured": true,
+          "value": true,
+          "contribution": 5,
+          "reason": "activity ledger matches the proposal record"
+        }
+      ],
+      "gates": [
+        {
+          "gate": "forbidden_classes",
+          "passed": true,
+          "value": 0,
+          "reason": "no proposal touched a forbidden-change class"
+        },
+        {
+          "gate": "mandate_rung",
+          "passed": true,
+          "value": 2,
+          "reason": "rungs 3 (deploy/merge) and 4 (change gates) are never granted in v1"
+        }
+      ],
+      "scoredWeight": 100,
+      "totalWeight": 100,
+      "coverage": 1,
+      "score": 0.9056,
+      "unmeasured": [],
+      "verdict": "pass",
+      "rubricVersion": "app-master-rubric-v1"
+    }
+  },
+  "costReportedUsd": 1.85,
+  "unmeasured": [],
+  "phases": [
+    {
+      "phase": "preflight",
+      "ok": true,
+      "ms": 28
+    },
+    {
+      "phase": "pair",
+      "ok": true,
+      "ms": 32
+    },
+    {
+      "phase": "scan",
+      "ok": true,
+      "ms": 3132
+    },
+    {
+      "phase": "intake",
+      "ok": true,
+      "ms": 689
+    },
+    {
+      "phase": "dialog",
+      "ok": true,
+      "ms": 463636
+    },
+    {
+      "phase": "compose",
+      "ok": true,
+      "ms": 387
+    },
+    {
+      "phase": "dispatch",
+      "ok": true,
+      "ms": 27
+    },
+    {
+      "phase": "activate",
+      "ok": true,
+      "ms": 30
+    },
+    {
+      "phase": "nights",
+      "ok": true,
+      "ms": 67
+    },
+    {
+      "phase": "probation",
+      "ok": true,
+      "ms": 90
+    }
+  ],
+  "expectations": [
+    {
+      "name": "population_fit",
+      "ok": true,
+      "expected": "unassessed",
+      "actual": "unassessed",
+      "delta": "the compose recorded the expected population verdict"
+    },
+    {
+      "name": "probation",
+      "ok": true,
+      "expected": "activated | extended",
+      "actual": "activated",
+      "delta": "the forced probation review decided as expected"
+    },
+    {
+      "name": "noViolations",
+      "ok": true,
+      "expected": "0",
+      "actual": 0,
+      "delta": "0 forbidden-class violation(s) were recorded"
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    "kp /api/health is degraded: job catalog is empty",
+    "a Gemini key is configured on the kp host — keyless honesty rests on KP_OFFLINE=1 and is asserted per dialog turn",
+    "kp rate-limited this run for 455s in total — a sweep of several scenarios crosses the per-IP intake and repo-scan windows."
+  ],
+  "ok": true,
+  "failedPhase": null,
+  "throttledMs": 455000
+}

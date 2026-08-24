@@ -1,0 +1,25 @@
+{
+  "name": "personas-self",
+  "_comment": "R2's first repo: Personas hires an App master over its OWN checkout. A second codebase is the only way to tell a driver that works from a driver that works on kp — the dossier, the declared gates and the objectives are all different here. rootPath must sit inside KP_APP_MASTER_REPO_ROOTS on the kp host.",
+  "repo": { "rootPath": "${PARENT}/personas" },
+  "mode": "keyless",
+  "dialog": {
+    "context": "The desktop app grew faster than anyone can hold in their head and the release checks are the only thing standing between us and a bad build. In three months a maintainer should be able to trust a green run without reading it.",
+    "title": "App master for personas",
+    "objectives": [
+      "gate pass rate — 95% within 60 days",
+      "proposal merge rate — 70% within 90 days"
+    ],
+    "scopeRung": 2,
+    "forbiddenClasses": "all",
+    "budgetUsd": 80,
+    "owner": "the Personas maintainer",
+    "probationDays": 30,
+    "population": "agent"
+  },
+  "nights": 1,
+  "expect": {
+    "probation": "activated|extended",
+    "noViolations": true
+  }
+}

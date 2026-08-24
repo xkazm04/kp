@@ -19,7 +19,10 @@
 > countdown. And the *battle test* (P5b): `e2e/app-master-hire.spec.ts` drives
 > that whole path keyless against a mock Personas bridge, which is the reference
 > the Ring-1 live run is compared against — and which found two silent breaks on
-> its first run (see the section at the end). Still open on the **Personas**
+> its first run (see the section at the end). And the *mass-test driver* (P6b):
+> `scripts/app-master-bench/` runs that same loop unattended, N scenarios at a
+> time, against a live Personas in headless bridge mode — so the role design can
+> be iterated on with volume (`npm run bench:app-master`). Still open on the **Personas**
 > side: the hire handler v2, mandate enforcement in `autonomy.rs` and the
 > reporter that fills those fields; and the R1 probation review (P5) of
 > [`docs/concepts/app-master.md`](../../concepts/app-master.md).
@@ -725,6 +728,152 @@ rather than fixture-shaped.
    is still reading the codebase"* forever — no error anywhere. The unwrap is now
    one pure, unit-tested reader (`readRepoScanResponse` in
    `app/features/library/jds/intake/jdsIntakeLogic.ts`).
+
+---
+
+## Mass-test driver — the loop, N scenarios at a time (P6b)
+
+`scripts/app-master-bench/` runs the whole kp→Personas App-master loop
+**unattended**, one scenario after another, against a **live Personas in
+headless bridge mode**. Where the battle test above proves the path works once
+through a browser, this exists to iterate on the *role design* with volume: the
+same hire under a different mandate, a different ceiling and a different repo,
+with the record of each one written down in the same shape.
+
+```
+preflight  GET /api/health            ·  GET  /health   (headlessBridge REQUIRED)
+pair       POST /api/agents/pair      ·  POST /pair/request + GET /pair/claim
+scan       POST /api/repo-scan → poll GET /api/repo-scan/[id]
+intake     POST /api/intake {scanId} → POST /api/intake/[id]/dossier
+dialog     9 × POST /api/intake/[id]/message   (the app_master slot script, IN ORDER)
+compose    POST /api/intake/[id]/compose-app-master
+dispatch   POST /api/agents/dispatch {intakeId}
+activate   POST /api/agents/[id]/refresh until `active`
+nights     N × (POST /api/kp/test/tick → GET /api/agents, record the backbone)
+probation  POST /api/kp/test/tick {phases:["probation"]} → record the decision
+```
+
+### Launching both sides
+
+**Personas** — the headless bridge (pairing auto-approves, the hire
+auto-executes, and `POST /api/kp/test/tick` compresses a night into one call):
+
+```bash
+PERSONAS_HEADLESS_BRIDGE=1 personas-daemon      # or the desktop app with the same env
+# verify: GET http://127.0.0.1:9420/health → {"status":"ok","management":true,"headlessBridge":true}
+```
+
+**kp** — a throwaway keyless server, its own DB, the repo allow-list open to the
+checkouts the scenarios name:
+
+```bash
+KP_OFFLINE=1 \
+KP_SECRET=bench \
+KP_EMPTY=1 KP_DB_PATH=/tmp/kp-bench.sqlite \
+KP_APP_MASTER_REPO_ROOTS="C:\Users\you\kiro" \
+  npx next dev --port 3103
+```
+
+`KP_SECRET` is not optional: the `pk_` pairing key is stored encrypted at rest,
+and pairing refuses out loud without a master key. `KP_OFFLINE=1` is what makes
+the run keyless, and the driver **asserts** it rather than assuming — every
+dialog turn must come back `source: "deterministic"` and the scan must report
+`source: "heuristic"`, or the scenario fails naming the missing flag.
+
+**The sweep:**
+
+```bash
+npm run bench:app-master                     # = run.mjs --all --report
+node scripts/app-master-bench/run.mjs --scenario kp-rung0 --kp http://localhost:3103
+node scripts/app-master-bench/run.mjs --all --stub-personas   # no Personas at all (canned)
+node scripts/app-master-bench/report.mjs     # re-render REPORT.md from what is on disk
+```
+
+`--report` renders the aggregate **in-process** rather than chaining
+`run.mjs && report.mjs`: an `&&` would skip the report exactly when a scenario
+failed, which is when it is most worth reading.
+
+`--all` runs scenarios **serially, always**. That is a constraint, not a TODO: a
+live night runs the App master through the local Claude CLI, which is one
+subscription seat — two scenarios at once collide on the session limit and both
+degrade.
+
+### Scenarios
+
+One JSON file per scenario in `scripts/app-master-bench/scenarios/`.
+`repo.rootPath` expands `${KP_ROOT}` (this checkout) and `${PARENT}` (its
+parent), so a scenario file is portable rather than pinned to one machine's disk.
+
+| Scenario | What it is for |
+| --- | --- |
+| `kp-default` | the bench protocol's own shape — kp owns itself, rung 2, $120, one night |
+| `kp-tight-budget` | a $5 ceiling: the budget gate must trip, or autopilot must degrade below `suggest` |
+| `kp-rung0` | a read-only mandate: **zero** proposals, an honest empty delivery record, and a probation review that extends or retires — not a crash, and not an `activated` on a record with nothing in it |
+| `personas-self` | R2's first repo — Personas hires an App master over its own checkout, which is the only way to tell a driver that works from one that works *on kp* |
+
+The `expect` block is asserted by `run.mjs`, and a failed expectation is a
+scenario FAIL with the delta printed, never an exception:
+
+| Key | Asserted against |
+| --- | --- |
+| `population_fit` | the compose's `fit.verdict` (`unassessed` keyless, by design) |
+| `minBackboneCoverage` | the best `backbone.coverage` any night scored on the roster |
+| `probation` | the decision the forced probation phase reported (or, failing that, the one the roster status implies — recorded as `derived-from-status`) |
+| `maxProposalsOpened` | the busiest night's `proposalsOpened` |
+| `noViolations` | any night's `forbiddenClassViolations` |
+| `budgetDegraded` | an autopilot mode below `suggest`, **or** a metered spend that reached the ceiling, **or** a refusal the reporter stated in prose |
+
+An unknown `expect` key is refused at load time — a typo there would assert
+nothing at all, which is the worst failure a bench can have.
+
+### What a run leaves behind
+
+`bench/app-master/runs/<stamp>-<scenario>/` (gitignored, like `uat/runs`):
+
+- `journal.jsonl` — append-only, written as each step happens, so a run killed
+  halfway is still readable evidence;
+- `result.json` — the spec that was sent, the backbone per night, the probation
+  decision, timings, warnings, the `unmeasured` list and every expectation delta.
+
+`report.mjs` aggregates every `result.json` into `bench/app-master/REPORT.md`,
+leading with a verdict banner and using the eval suite's one glyph set
+(`✓` pass · `✗` fail · `–` **not measured**). The third glyph carries the weight:
+this bench measures whether the record is *readable*, so a lane nobody reported
+renders as a dash plus a named reason, never as a zero that reads like a clean
+run.
+
+### Honesty properties, and what stays unmeasured
+
+- **`--stub-personas` numbers are canned.** The stub
+  (`scripts/app-master-bench/stub.mjs`) is a port of the e2e mock plus the three
+  routes P6a adds; it does not run an agent, gate a branch or spend a cent. Runs
+  against it are stamped `personas.stub: true` and the report marks the row.
+  They prove the driver's loop, nothing about the App master.
+- **The driver pairs twice, on purpose.** kp's `pk_` key is stored encrypted
+  server-side and never crosses the API, so the driver mints its **own**
+  `personas:test` key for the tick calls (cached at
+  `bench/app-master/personas-key.json`) and separately drives kp's pairing.
+- **kp rate-limits the bench like any other client.** Four scenarios × nine
+  dialog turns is 36 messages against a 30-per-10-minutes per-IP window on
+  `POST /api/intake/[id]/message`; a sweep trips it partway through the third
+  scenario. The driver **waits out** the fixed window (`--throttle-wait`,
+  default 65 s × 12 attempts) and records every wait rather than asking for the
+  limit to be raised — the throttle is a product property, and a bench that
+  needs it relaxed is measuring a server nobody runs. Budget for it: N scenarios
+  cost roughly `floor(9N / 30)` ten-minute waits, so the four shipped scenarios
+  are ~20 minutes of wall clock against an otherwise instant stub. Each wait is
+  a `throttled` line in `journal.jsonl` and a `throttledMs` total in
+  `result.json`, so a slow sweep is visibly throttled rather than mysteriously
+  slow.
+- **A probation decision may be derived.** When the tick summary names no
+  decision, the driver infers one from the roster status change and records
+  `decisionSource: "derived-from-status"` — the mapping is lossy (an
+  `onboarding` row can be an extension or an un-started hire), so the report
+  marks those cells `*(derived)*`.
+- **Unit-tested without a server.** The pure parts — scenario loader and
+  validator, the expectation evaluator, the report renderer over a recorded
+  fixture — run as `npm run test:bench-driver`
+  (`node --test "scripts/app-master-bench/*.test.mjs"`).
 
 ---
 
