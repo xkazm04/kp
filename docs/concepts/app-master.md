@@ -85,8 +85,9 @@ already has:
 3. **Cadence** — triggers, not a turn cap: nightly scan delta, PR-opened review, KPI tick.
 4. **Budget** — monthly ceiling with reservation-at-launch and drain on cap; a cap-hit
    pauses, never "completes".
-5. **Tenure & feedback** — probation (`autopilot: suggest`) → active (`full`) on a human
-   review at day N; Director feedback memories are the calibration channel; retirement
+5. **Tenure & feedback** — probation runs `autopilot: full` inside the mandate (the
+   2026-08-24 live hire proved `suggest` unpassable — nothing dispatches, nothing is
+   measurable); the day-N human review decides continue / extend / retire; Director feedback memories are the calibration channel; retirement
    criteria are written at hire (creation-names-reaper).
 
 The **performance score is a deterministic backbone** (proposals opened / merged / reverted,
@@ -149,7 +150,7 @@ Security/contract work that rides along: the new spawn site enters
 2. **Hire handler v2** — on approval of a request carrying `appMaster`: ensure a
    `DevProject` (from `app.repo`), build the persona via the existing build session,
    create/bind the team, seed objectives as project KPIs, install triggers from `cadence`,
-   set autopilot to `suggest` (probation), persist mandate + tenure on the persona's
+   set autopilot to `full` (probation authors within the mandate), persist mandate + tenure on the persona's
    `design_context.kp_link`.
 3. **Mandate enforcement** — `autonomy.rs` consults the spec's `scopeRung` and
    `forbiddenClasses`; a proposal touching a forbidden class is blocked at dispatch and

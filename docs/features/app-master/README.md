@@ -111,7 +111,7 @@ re-validated against `appMasterSpecSchema`, a `human` population is refused
 dispatched spec, and — because an App master owns an application, not a job
 posting — **no pipeline card is filed**. What Personas then does with the block
 (ensure a `DevProject` from `app.repo`, seed `objectives` as project KPIs,
-install `cadence.triggers`, start on probation at `autopilot: suggest`) is the
+install `cadence.triggers`, start on probation at `autopilot: full`) is the
 half still to build there. See
 [docs/features/agents/README.md](../agents/README.md) § "Hiring an App master by
 intake" for the wire shape and the failure semantics.
@@ -544,8 +544,12 @@ $40 reserved" and "nobody read the meter" are different findings.
 ### 5. Tenure & feedback
 
 `probationDays`, `reviewCadenceDays`, `retireCriteria[]`. Probation runs at
-`autopilot: suggest`; promotion to `full` is a human decision at the probation
-review, taken on the backbone plus its narration. Retirement criteria are written
+`autopilot: full` **within the mandate** — the first live hire (kp, 2026-08-24)
+proved `suggest` makes probation unpassable: nothing dispatches, so delivery /
+durability / gates stay unmeasured and the verdict can only be `incomplete`.
+Branch authoring is the safe autonomous act (proposal-not-push); the human gate
+is the MERGE, and the probation review decides whether the tenure continues,
+taken on the backbone plus its narration. Retirement criteria are written
 **at hire** (creation-names-reaper) — a role with no stated way to end it does not
 end.
 
