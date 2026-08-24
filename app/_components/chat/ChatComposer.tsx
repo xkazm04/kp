@@ -20,6 +20,7 @@ export function ChatComposer({
   onSend,
   slot,
   dense = false,
+  tall = false,
 }: {
   labels: ChatLabels;
   busy: boolean;
@@ -27,6 +28,8 @@ export function ChatComposer({
   onSend: (message: string) => void | Promise<boolean>;
   slot?: ReactNode;
   dense?: boolean;
+  /** Doubled input area for surfaces where the operator writes longer prompts (companion dock). */
+  tall?: boolean;
 }) {
   const [draft, setDraft] = useState("");
 
@@ -41,8 +44,8 @@ export function ChatComposer({
   return (
     <div className={`flex flex-wrap items-end gap-2 ${dense ? "mt-2" : "mt-3"}`}>
       <textarea
-        className={`${FIELD} flex-1 resize-y ${dense ? "min-h-[2.5rem]" : "min-h-[3.25rem]"}`}
-        rows={dense ? 1 : 2}
+        className={`${FIELD} flex-1 resize-y ${dense ? "min-h-[2.5rem]" : tall ? "min-h-[6.5rem]" : "min-h-[3.25rem]"}`}
+        rows={dense ? 1 : tall ? 4 : 2}
         value={draft}
         placeholder={closed && labels.closed ? labels.closed : labels.placeholder}
         disabled={closed || busy}

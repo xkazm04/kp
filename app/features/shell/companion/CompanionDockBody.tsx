@@ -116,6 +116,7 @@ export function CompanionBody({ turns, busy, error, attention, onSend }: Compani
       {error ? <p className="pb-2 text-sm text-coral">{resolveError({ code: error }, t("chat.errorGeneric"))}</p> : null}
       <ChatTranscript
         className="min-h-0 flex-1"
+        tall
         turns={chatTurns}
         side={companionSide}
         labels={labels}

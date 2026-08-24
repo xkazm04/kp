@@ -55,6 +55,7 @@ export function ChatTranscript({
   onHighlightDone,
   className = "h-[32rem]",
   dense = false,
+  tall = false,
 }: {
   turns: ChatTurn[];
   side: (role: string) => ChatSide;
@@ -80,6 +81,7 @@ export function ChatTranscript({
   className?: string;
   /** Console register: tighter bubbles and gaps for a dense ops surface. */
   dense?: boolean;
+  tall?: boolean;
 }) {
   const reduced = useReducedMotion();
   const slow = useSlowHint(busy);
@@ -158,7 +160,7 @@ export function ChatTranscript({
           ) : null}
         </AnimatePresence>
       </div>
-      <ChatComposer labels={labels} busy={busy} closed={closed} onSend={onSend} slot={composerSlot} dense={dense} />
+      <ChatComposer labels={labels} busy={busy} closed={closed} onSend={onSend} slot={composerSlot} dense={dense} tall={tall} />
     </div>
   );
 }
