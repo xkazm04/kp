@@ -68,5 +68,7 @@ Authority: `AGENTS.md` and `CLAUDE.md` at the repo root - paste their digest int
   modes | docs-sync | out-of-scope.
 
 ## Question taste
+- 2026-08-23 wave1-2: picks Actor over Proposer; live shared state over import-copies; keeps product branding (Candi) over companion-name takeover. Offer the sharper architecture fork in wave 1, not wave 2.
+- 2026-08-24 triage r1: answers must not read like a book - short paragraphs + tables/small charts in chat; exclusive panel toggles (never two second-layer panels open); chat window docks LEFT over the nav rail so content stays visible. These are standing UI doctrine for any Chat/Athena surface, not per-spark choices.
 
 ## Skill improvement log

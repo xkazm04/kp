@@ -240,16 +240,50 @@ workspace's own column label server-side, so it arrives ready to draw.
 The old sidebar "Recent" group (`WorkspaceRecentsNav`) was removed; `recents.ts`
 remains, feeding the palette's resting state and recording opens.
 
-### The bottom control dock wears two faces
+### The bottom control dock is a two-layer toolbar
 
 `shell/simulation/SimBar.tsx` → `SimControlDock.tsx` is the always-mounted bottom
-deck. Which face it renders is decided in ONE place — `useControlMode()` in
-`shell/simulation/simControlCenterKit.ts`:
+deck. Collapsed, it is the Candi orb (`SimControlDockOrb.tsx`) — a haloed mark
+carrying the awaiting-decisions beacon and the aiBusy pulse. Raised, it is two
+layers:
 
-| Mode | When | Face |
+- **Layer 1** (`SimControlDockToolbar.tsx`) — always visible: the Candi switch that
+  lowers the deck, the "N need you" route into the decisions queue, and a compact
+  `role="toolbar"` icon row of four controls. Roving tabindex: one tab stop,
+  arrows/Home/End move FOCUS (never activation — half the row fires side effects),
+  Enter/Space activates. The math is `nextToolbarIndex()` in
+  `shell/simulation/simControlDockLayers.ts`, unit-tested beside it.
+- **Layer 2** — ONE panel rendered above the row, keyed by a single `panel` state
+  (`DockPanelId = "sim" | "ops" | "command"`). Re-selecting the active control
+  closes it (`toggleDockPanel()`); Escape closes it too, leaving the row in place.
+
+| Layer-1 control | Opens |
+| --- | --- |
+| Guided demo | `SimControlDockSimFace` — phase stepper, status line, run controls (Start/Pause/Next, Stop, Reset, Step, Explain) |
+| Operations | `SimControlDockOpsFace` — AI screen / automation pass / scheduler tiles, guided-tour invitation, pass strip |
+| Command | `hiring/pipeline/CommandBar` — the free-text pipeline command line, imported, not forked |
+| Ask Candi | nothing — it is an **action**: it calls `openDock()` on `CompanionDockProvider` and closes the open panel |
+
+Mutual exclusion is structural, not an effect: there is one `panel` slot, so a
+second panel cannot exist, and "Ask Candi" is deliberately not a member of
+`DOCK_PANEL_IDS` so it can never occupy that slot. It closes the open panel when
+raising the companion dock, and opening a panel calls `closeDock()` in return —
+the chat window counts as the competing surface in both directions. The control is
+omitted entirely when `useOptionalCompanionDock()` is null (the deep-link pages
+render no dock), rather than shown as a button that cannot work.
+
+`useControlMode()` in `shell/simulation/simControlCenterKit.ts` no longer picks a
+whole face — it picks the DEFAULT layer-2 panel on raise, auto-raises the deck onto
+the sim panel the moment a run begins, and names the deck in the layer-1 subtitle:
+
+| Mode | When | Default panel |
 | --- | --- | --- |
-| `sim` | a guided run is `running`, `done`, or **failed** (`error !== null`), or the page arrived at the public `/?sim=auto` entry | `SimControlDockSimFace` — phase stepper + run controls (Start/Pause/Next, Stop, Reset, Step, Explain) |
-| `ops` | otherwise | `SimControlDockOpsFace` — command bar, AI screen / automation pass / scheduler tiles, guided-tour invitation |
+| `sim` | a guided run is `running`, `done`, or **failed** (`error !== null`), or the page arrived at the public `/?sim=auto` entry | Guided demo |
+| `ops` | otherwise | Operations |
+
+`--sim-bar-h` (the height the sim overlays anchor above) is republished on every
+panel open/close for free: `usePublishBarHeight()` observes the deck with a
+`ResizeObserver` rather than recomputing on a state change.
 
 `error` is part of the predicate on purpose: the walk's failure path patches
 `{ running: false, error, status: "Failed: …" }` in one `setState`, so without it
