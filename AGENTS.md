@@ -10,24 +10,20 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # kp (CandiDate / KP studio)
 
-Full agent guidance lives in **[`.claude/CLAUDE.md`](./.claude/CLAUDE.md)** —
-project overview, commands, architecture, the dual-theme design law, doc-sync
-rules, and the conventions that bite. Read it before changing anything. The
-short version:
+Self-hostable AI recruiting studio (Next.js + Python jobfit pipeline).
 
-- Recruiting studio: Next 16 canary + React 19, better-sqlite3 (`data/kp.sqlite`),
-  custom HMAC auth (open dev mode; prod fails closed without `KP_ALLOW_OPEN=1`),
-  spawned Python jobfit pipeline, multi-provider LLM layer that degrades
-  gracefully keyless, next-intl (`en`/`cs`/`de`/`fr` — parity is gated).
-- `npm run typecheck` runs Python codegen (`schemas:gen`) before `tsc`.
-- Verification: `npm run test:unit` · `test:python:gate` · `lint` ·
-  `design:check` · `i18n:check` · `test:e2e` (keyless deterministic subset:
-  `e2e/journey-role-to-schedule.spec.ts e2e/modal-escape.spec.ts
-  e2e/profile-builder.spec.ts e2e/app-master-hire.spec.ts`; `KP_E2E_BASE_URL`
-  targets a running server). The App-master spec additionally needs `KP_OFFLINE=1`
-  and `KP_APP_MASTER_REPO_ROOTS=<parent dir of this checkout>` set **on the
-  server** — it scans this repo and asserts the keyless labels, so it fails
-  loudly rather than silently running keyed.
-- Shared checkout with concurrent agent sessions: **pathspec commits only**
-  (`git add <paths>`), never `git add -A`, never stash others' work; when you
-  change behavior, update the mapped doc under `docs/` in the same change.
+Full agent guide: **[`.claude/CLAUDE.md`](./.claude/CLAUDE.md)** — read it
+before changing anything.
+
+Verify a change:
+
+```bash
+npm run typecheck    # runs Python schemas:gen before tsc
+npm run test:unit
+npm run lint
+```
+
+Everything else — commit rules for this shared checkout (pathspec-only
+staging), the design-token and locale-parity gates, keyless e2e setup,
+doc-sync obligations — is stated once in `.claude/CLAUDE.md`; follow it as
+written there.
