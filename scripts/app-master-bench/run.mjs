@@ -442,6 +442,10 @@ async function runScenario(scenario, opts) {
       const tick = await personas.post("/api/kp/test/tick", {
         personaId: result.hire.personaId,
         phases: ["probation"],
+        // The scenario's probation window is days long and this is its last
+        // phase — force the review DUE now (headless test lever; the decision
+        // policy itself is the production path).
+        forceProbation: true,
       });
       const summary = tick.json?.data ?? tick.json ?? null;
       await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`).catch(() => null);
