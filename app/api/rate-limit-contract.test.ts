@@ -224,6 +224,13 @@ const ROUTES: RouteSpec[] = [
     // refusals run first so a rejected call never consumes budget.
     key: "`intake-message:${clientIpFrom(request.headers)}`",
     limit: 30,
+    // KP_BENCH_MODE=1 (server env, local app-master bench only — see
+    // scripts/app-master-bench) raises the budget to 600 so a scripted sweep
+    // is not throttled at human pace. The contract pins BOTH budgets and the
+    // env gate: the human default must stay 30, and the raise must remain
+    // server-env-gated, never reachable from a request.
+    limitSrc: "benchMode ? 600 : 30",
+    limitDef: 'const benchMode = process.env.KP_BENCH_MODE === "1";',
     expensive: "runIntakeExchange(",
     servedBefore: 'intake.status !== "open"',
   },

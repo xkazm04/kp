@@ -853,18 +853,20 @@ run.
   server-side and never crosses the API, so the driver mints its **own**
   `personas:test` key for the tick calls (cached at
   `bench/app-master/personas-key.json`) and separately drives kp's pairing.
-- **kp rate-limits the bench like any other client.** Four scenarios × nine
-  dialog turns is 36 messages against a 30-per-10-minutes per-IP window on
-  `POST /api/intake/[id]/message`; a sweep trips it partway through the third
-  scenario. The driver **waits out** the fixed window (`--throttle-wait`,
-  default 65 s × 12 attempts) and records every wait rather than asking for the
-  limit to be raised — the throttle is a product property, and a bench that
-  needs it relaxed is measuring a server nobody runs. Budget for it: N scenarios
-  cost roughly `floor(9N / 30)` ten-minute waits, so the four shipped scenarios
-  are ~20 minutes of wall clock against an otherwise instant stub. Each wait is
-  a `throttled` line in `journal.jsonl` and a `throttledMs` total in
-  `result.json`, so a slow sweep is visibly throttled rather than mysteriously
-  slow.
+- **kp rate-limits the bench like any other client — unless the SERVER opts
+  into bench mode.** Four scenarios × nine dialog turns is 36 messages against
+  the human-paced 30-per-10-minutes per-IP window on
+  `POST /api/intake/[id]/message`. Start the bench server with `KP_BENCH_MODE=1`
+  and the window widens to 600/10min — a deliberate, contract-pinned raise
+  (`rate-limit-contract.test.ts` pins both budgets AND the env gate, so the
+  human default cannot drift and the raise can never be triggered from a
+  request). Without the env, the driver still completes: it **waits out** the
+  window (`--throttle-wait`, default 65 s × 12 attempts) and records every wait
+  (`throttled` journal lines, `throttledMs` in `result.json`) — roughly
+  `floor(9N / 30)` ten-minute waits for N scenarios (~20 min for the four
+  shipped ones), so a slow sweep is visibly throttled rather than mysteriously
+  slow. Never set `KP_BENCH_MODE` on a server that anything but the local bench
+  talks to.
 - **A probation decision may be derived.** When the tick summary names no
   decision, the driver infers one from the roster status change and records
   `decisionSource: "derived-from-status"` — the mapping is lossy (an

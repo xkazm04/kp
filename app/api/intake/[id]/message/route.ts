@@ -34,7 +34,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const message = typeof body.message === "string" ? body.message.trim().slice(0, MAX_MESSAGE_CHARS) : "";
     if (!message) return NextResponse.json({ error: "message is required" }, { status: 400 });
 
-    if (!rateLimit(`intake-message:${clientIpFrom(request.headers)}`, { limit: 30, windowMs: 10 * 60_000 })) {
+    // 30/10min holds a human coaching pace. KP_BENCH_MODE=1 raises the budget
+    // for the app-master mass-test driver (scripts/app-master-bench) on a LOCAL
+    // bench server only — 4 scenarios × 9 scripted turns tripped the human
+    // budget and cost a stub sweep ~20 min of throttle waits. Deliberately
+    // env-gated at the server, never a client escape hatch; pinned in
+    // rate-limit-contract.test.ts (both budgets).
+    const benchMode = process.env.KP_BENCH_MODE === "1";
+    if (!rateLimit(`intake-message:${clientIpFrom(request.headers)}`, { limit: benchMode ? 600 : 30, windowMs: 10 * 60_000 })) {
       return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
     }
 
