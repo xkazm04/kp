@@ -1,4 +1,5 @@
 import { atsSecretKeyConfigured } from "../ats-secret";
+import { publicBaseUrl } from "../public-base-url";
 import { randomToken } from "../random-id";
 import { isRedirectResponse, REDIRECT_ERROR } from "./bridge-client";
 import { resolveBridge, markBridgeOk, setBridgeConfig } from "./bridge-store";
@@ -59,7 +60,12 @@ export async function startPairing(): Promise<PairStartResult> {
   try {
     const r = await fetch(`${bridge.baseUrl}/pair/request`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      // Personas reads the pairing origin from the Origin HEADER, never the
+      // body, and binds the minted pk_ key (and its CORS allowlist entry) to
+      // it. A server-side Node fetch sends no Origin on its own, so without
+      // this line every real pairing died with "400 Origin header required" —
+      // the P5b mock did not enforce the header, which is how it hid this.
+      headers: { "Content-Type": "application/json", Origin: publicBaseUrl() },
       body: JSON.stringify({ nonce, scopes: PAIRING_SCOPES, client: "kp" }),
       redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -103,6 +109,8 @@ export async function claimPairing(nonce: string): Promise<PairClaimResult> {
   const bridge = resolveBridge();
   try {
     const r = await fetch(`${bridge.baseUrl}/pair/claim?nonce=${encodeURIComponent(nonce)}`, {
+      // Same origin the request phase declared — the claim is origin-checked.
+      headers: { Origin: publicBaseUrl() },
       redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });

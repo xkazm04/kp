@@ -162,6 +162,14 @@ export async function startMockPersonasBridge(): Promise<MockPersonasBridge> {
       // ---- pairing (bare bodies, no envelope) -----------------------------
       if (method === "POST" && path === "/pair/request") {
         const body = await readJson(req);
+        // The REAL bridge reads the pairing origin from the Origin header and
+        // refuses without it — the mock enforces the same so a server-side
+        // caller that forgets the header fails HERE, not first in production.
+        // (Sweep #2 2026-08-24: kp's own pairing.ts had exactly that bug.)
+        if (!req.headers.origin) {
+          json(res, 400, { error: "Origin header required" });
+          return;
+        }
         const nonce = typeof body.nonce === "string" ? body.nonce : "";
         // The real side keys its pending entry by a ≥16-char nonce kp mints; a
         // shorter one would be a kp-side entropy regression, so refuse it.

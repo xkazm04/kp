@@ -181,6 +181,11 @@ export async function startStubPersonas({ kpBaseUrl = null } = {}) {
 
       if (method === "POST" && p === "/pair/request") {
         const body = await readJson(req);
+        // Mirror the real bridge: pairing origin comes from the Origin header.
+        if (!req.headers.origin) {
+          json(res, 400, { error: "Origin header required" });
+          return;
+        }
         const nonce = typeof body.nonce === "string" ? body.nonce : "";
         if (nonce.length < 16) {
           json(res, 400, { error: "nonce must be at least 16 characters" });

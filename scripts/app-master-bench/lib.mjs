@@ -163,9 +163,15 @@ export function kpClient(baseUrl, { timeoutMs = 300_000, throttleWaitMs = 65_000
 }
 
 /** The Personas management API, bearer-gated once a pk_ key is in hand. */
+// The driver's own client identity. Personas reads the pairing origin from the
+// Origin HEADER (never the body) and binds the minted key + CORS entry to it —
+// a Node fetch sends none on its own, so every /pair/* call carries this one.
+// Constant on purpose: the cached key stays claimable across sweeps.
+export const DRIVER_ORIGIN = "http://kp-app-master-bench.localhost";
+
 export function personasClient(baseUrl, apiKey = null, { timeoutMs = 600_000 } = {}) {
   const base = baseUrl.replace(/\/$/, "");
-  const auth = () => (apiKey ? { authorization: `Bearer ${apiKey}` } : {});
+  const auth = () => ({ origin: DRIVER_ORIGIN, ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) });
   return {
     base,
     get key() {
