@@ -2,7 +2,9 @@
 
 // LAYER-2 PANEL "sim" — the guided-simulation console. Was one of the dock's two
 // faces; the two-layer redesign turned it into a panel body, so the Candi switch
-// and the "Guided demo" eyebrow moved UP into the layer-1 toolbar. Everything the
+// and the "Guided demo" eyebrow left it — and round 3 moved both out of layer 1
+// again, to the rail beside the panel (SimControlDockRail.tsx), where the one
+// guide button that opens THIS panel now lives. Everything the
 // console itself owns is unchanged: the phase stepper, the status line, and the
 // run controls (primary action, stop/reset/step/explain) — including the primary
 // action, which used to be built in SimControlDock.tsx and now lives beside the

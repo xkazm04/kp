@@ -274,7 +274,9 @@ Ways in:
 - the command palette, from two characters: **"Ask Candi: <query>"**. It is a real
   ranked item, not a placeholder, so the palette's dead-end "No matches for …"
   line is now unreachable whenever the dock exists.
-- an **Ask Candi** tile on the ControlDock's ops face.
+- an **Ask Candi** control in the ControlDock's layer-1 toolbar (it moved out of
+  the ops face when the dock became two-layer; it is the row's one ACTION, so it
+  closes the open panel instead of becoming one).
 
 Both go through `useOptionalCompanionDock()`, which is null on the deep-link pages
 that render the palette without the workspace shell — the affordance is then

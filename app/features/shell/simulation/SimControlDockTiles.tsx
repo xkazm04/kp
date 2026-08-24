@@ -2,9 +2,11 @@
 
 // Small presentational pieces of the Flight Deck control dock, split out of
 // SimControlDock.tsx so it stays under the 200-line file cap. Verbatim markup —
-// the Candi power switch, one automation module tile, the elevated guided-demo
-// tile, and the dry-run/committed/error pass strip (AUTO3 look-before-commit).
-import { Check, Play, X, type LucideIcon } from "lucide-react";
+// the Candi power switch, one automation module tile, and the dry-run/committed/
+// error pass strip (AUTO3 look-before-commit). The guided-demo tile that used to
+// live here moved to SimControlDockRail.tsx when round 3 consolidated the demo's
+// two entry points into the ONE button outside the panel's right border.
+import { Check, X, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import type { useAutomationPass, PassSummary } from "./simControlCenterKit";
@@ -67,26 +69,6 @@ export function DeckTile({
         <span>{label}</span>
         {sublabel ? <span className="text-meta font-medium text-steel">{sublabel}</span> : null}
       </span>
-    </button>
-  );
-}
-
-// The guided-demo entry, elevated out of the utility DeckTile row: this is the
-// deck's one INVITATION (watch the whole hiring story) rather than an operation,
-// so it gets the first-run wizard's sticker treatment — drawn ink outline, paper
-// fill, coral play medallion, press-down hover — while keeping the row's h-11
-// rhythm. Tokens only; the tilt/press are the Spark-dark structural motifs.
-export function GuidedDemoTile({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="focus-ring group inline-flex h-11 items-center gap-2.5 rounded-xl border-2 border-ink bg-paper px-3.5 text-sm font-semibold text-ink shadow-sticker-sm transition-all hover:-translate-y-0.5 hover:shadow-pop motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:-rotate-1 dark:hover:rotate-0"
-    >
-      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-coral text-white shadow-sticker-xs transition-transform group-hover:scale-105 motion-reduce:transition-none">
-        <Play size={13} aria-hidden className="translate-x-px" />
-      </span>
-      {label}
     </button>
   );
 }

@@ -5,34 +5,35 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import { useAttention } from "@/app/features/shell/useAttention";
-import { CommandBar } from "@/app/features/hiring/pipeline/CommandBar";
 import { PassPreviewModal } from "@/app/features/hiring/pipeline/PassPreviewModal";
 import { useOptionalCompanionDock } from "@/app/features/shell/companion/CompanionDockProvider";
-import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import { SIM_PHASES } from "./constants";
 import { useSimulation } from "./SimulationProvider";
 import { useAutomationPass, useControlMode, usePublishBarHeight } from "./simControlCenterKit";
-import { SimControlDockSimFace } from "./SimControlDockSimFace";
-import { SimControlDockOpsFace } from "./SimControlDockOpsFace";
 import { SimControlDockOrb } from "./SimControlDockOrb";
-import { DOCK_PANEL_DOM_ID, dockTabDomId, SimControlDockToolbar } from "./SimControlDockToolbar";
-import { toggleDockPanel, type DockPanelId } from "./simControlDockLayers";
+import { SimControlDockPanelBody } from "./SimControlDockPanelBody";
+import { DockBrand, DockGuide } from "./SimControlDockRail";
+import { SimControlDockToolbar } from "./SimControlDockToolbar";
+import { dockPanelSlot } from "./dockPanelSlot";
+import { DOCK_PANEL_DOM_ID, dockTabDomId, type DockPanelId } from "./simControlDockLayers";
 
 /*
- * "Flight Deck", round 2 — a TWO-LAYER toolbar.
+ * "Flight Deck", round 3 — a two-layer toolbar with a rail beside it.
  *
  * Metaphor unchanged: a mission-control console pinned to the bottom edge, raised
- * and lowered by the Candi orb, whose collapsed rest state (halo, awaiting-decisions
- * beacon, aiBusy pulse) this redesign does not touch. What changed is the EXPANDED
- * state: two full faces picked for you by the run state — each with its own chrome
- * and its own always-mounted extras, so the command line occupied the deck whether
- * or not anyone was typing — became one compact always-visible icon row (LAYER 1)
- * over ONE panel it opens above itself (LAYER 2, a single `panel` state).
+ * and lowered by the Candi orb, whose collapsed rest state (halo, beacon, aiBusy
+ * pulse) no round has touched. Round 2 replaced two full faces with LAYER 1 (a
+ * compact icon row) over LAYER 2 (ONE panel it opens above itself, on a single
+ * `panel` state, so mutual exclusion is structural rather than an effect).
  *
- * Mutual exclusion is therefore structural: one slot, so a second panel cannot
- * exist. "Ask Candi" is the deliberate exception — an ACTION raising the companion
- * dock, which counts as the competing surface, so it closes the open panel instead
- * of becoming one (and, symmetrically, opening a panel lowers the companion dock).
+ * Round 3 finishes that exclusivity — the scheduler was still a tile INSIDE the
+ * ops panel on its own boolean, so promoting it to a fourth panel means one
+ * surface at a time holds inside the panel too — and spends the footer's spare
+ * width on a RAIL: the identity block outside the box's left border, the guided
+ * demo's single entry outside its right (SimControlDockRail.tsx). The demo had
+ * two doors to the same `sim.start()`; it now has one. "Ask Candi" stays the
+ * deliberate exception — an ACTION raising the companion dock, the competing
+ * surface, so the two close each other rather than sharing the slot.
  */
 
 export function ControlDock() {
@@ -48,20 +49,20 @@ export function ControlDock() {
   const companion = useOptionalCompanionDock();
 
   // Start raised when the page loads straight into a demo (public ?sim=auto); the
-  // effect below then handles the live ops → sim transition. Ops rest state is collapsed.
+  // effect below handles the live ops → sim transition. Ops rest state is collapsed.
   const [collapsed, setCollapsed] = useState(mode !== "sim");
   // THE single layer-2 slot. Its initial value is the face the old dock would have
   // shown, so raising the deck lands on the same content it always did.
   const [panel, setPanel] = useState<DockPanelId | null>(mode === "sim" ? "sim" : "ops");
-  const [scheduleOpen, setScheduleOpen] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
-  // ResizeObserver-backed, so opening/closing a layer-2 panel republishes the
-  // height the sim overlays anchor above without any extra wiring here.
-  usePublishBarHeight(panelRef, !collapsed);
+  const railRef = useRef<HTMLDivElement>(null);
+  // ResizeObserver-backed on the whole footer ROW (panel + both rail elements), so
+  // a layer-2 open/close republishes the height the sim overlays anchor above.
+  usePublishBarHeight(railRef, !collapsed);
 
   // Raise the deck automatically the moment a demo begins (ops → sim), so the tour
   // is visible without hunting for the switch. Fires on the transition only — the
-  // viewer can still lower it mid-run.
+  // viewer can still lower it mid-run, and it is what makes the guide button's
+  // `start` branch reveal the console: pressing it flips the mode, and this lands.
   const prevMode = useRef(mode);
   useEffect(() => {
     if (mode === "sim" && prevMode.current !== "sim") {
@@ -89,14 +90,14 @@ export function ControlDock() {
   const activeIdx = sim.phase ? SIM_PHASES.findIndex((p) => p.id === sim.phase) : -1;
   const last = sim.log[sim.log.length - 1]?.text;
   // The awaiting-a-human-decision count (the same number the sidebar Decisions
-  // badge shows) — it turns the collapsed orb into a live beacon and gives the
-  // layer-1 row a one-click route to what actually needs the recruiter.
+  // badge shows) — it beacons the collapsed orb and gives the layer-1 row a
+  // one-click route to what actually needs the recruiter.
   const awaiting = attention?.decisions ?? 0;
   const openDecisions = () => router.push(buildUrl({ tab: "decisions" }, searchParams.toString()));
 
   // The dry-run preview reuses the pipeline's rich look-before-commit modal
   // (reject-first, per-candidate), fed the board entries so each row names a
-  // person. Rendered in both collapsed + expanded states so it survives a collapse.
+  // person. Rendered collapsed AND expanded, so it survives a collapse.
   const passModal = pass.preview ? (
     <PassPreviewModal
       preview={pass.preview}
@@ -126,73 +127,59 @@ export function ControlDock() {
     );
   }
 
-  // Rule (b), both directions: picking a layer-1 option opens exactly one panel
-  // (or closes the active one), and whichever it opens lowers the companion dock.
-  const selectPanel = (id: DockPanelId) => {
-    const next = toggleDockPanel(panel, id);
-    setPanel(next);
-    if (next !== null) companion?.closeDock();
-  };
-  const askCandi = companion
-    ? () => {
-        setPanel(null);
-        companion.openDock();
-      }
-    : null;
+  const { selectPanel, askCandi, onGuide } = dockPanelSlot({ panel, setPanel, mode, companion, startSim: sim.start });
 
   return (
     <>
       {passModal}
       <div
-        ref={panelRef}
-        className="fixed inset-x-0 bottom-0 z-[var(--z-sim-bar)] animate-fade-in border-t-2 border-stone-300 bg-white/95 shadow-panel backdrop-blur"
+        ref={railRef}
+        // The row is no longer a full-bleed opaque bar, so the transparent strip
+        // around it must not swallow clicks meant for the page behind: the frame
+        // is pointer-events-none and each of the three parts opts back in.
+        className="animate-fade-in pointer-events-none fixed inset-x-0 bottom-0 z-[var(--z-sim-bar)] px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
-        <div className="mx-auto max-w-[1600px] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {/* ── LAYER 2 — the one exclusive panel, above the row that opened it ── */}
-          {panel ? (
-            <div
-              key={panel}
-              id={DOCK_PANEL_DOM_ID}
-              role="region"
-              aria-labelledby={dockTabDomId(panel)}
-              className="animate-fade-in mb-3 border-b border-stone-200 pb-3"
-            >
-              {panel === "sim" ? (
-                <SimControlDockSimFace
+        {/* The fixed footer ROW: rail · panel · rail. `items-end` keeps both side
+            elements on the toolbar's baseline while the panel grows upward, and
+            `min-w-0 flex-1` is what stops the box colliding with them. */}
+        <div className="mx-auto flex max-w-[1600px] items-end gap-3">
+          <DockBrand mode={mode} aiBusy={aiBusy} onCollapse={() => setCollapsed(true)} />
+          <div className="pointer-events-auto min-w-0 flex-1 rounded-xl border-2 border-stone-300 bg-white/95 px-4 py-3 shadow-panel backdrop-blur dark:rounded-2xl">
+            {/* ── LAYER 2 — the one exclusive panel, above the row that opened it ── */}
+            {panel ? (
+              <div
+                key={panel}
+                id={DOCK_PANEL_DOM_ID}
+                role="region"
+                aria-labelledby={dockTabDomId(panel)}
+                className="animate-fade-in mb-3 border-b border-stone-200 pb-3"
+              >
+                <SimControlDockPanelBody
+                  panel={panel}
                   sim={sim}
                   router={router}
                   searchParams={searchParams}
                   activeIdx={activeIdx}
                   last={last}
                   isPublicDemo={isPublicDemo}
-                />
-              ) : panel === "ops" ? (
-                <SimControlDockOpsFace
                   batch={batch}
                   startTask={startTask}
                   pass={pass}
-                  scheduleOpen={scheduleOpen}
-                  setScheduleOpen={setScheduleOpen}
-                  onStartTour={sim.start}
                 />
-              ) : (
-                <CommandBar onExecuted={() => notifyDataChanged()} />
-              )}
-            </div>
-          ) : null}
+              </div>
+            ) : null}
 
-          {/* ── LAYER 1 — always visible; the only way into a layer-2 panel ── */}
-          <SimControlDockToolbar
-            mode={mode}
-            panel={panel}
-            aiBusy={aiBusy}
-            awaiting={awaiting}
-            openDecisions={openDecisions}
-            onSelectPanel={selectPanel}
-            onAskCandi={askCandi}
-            companionOpen={companion?.open ?? false}
-            onCollapse={() => setCollapsed(true)}
-          />
+            {/* ── LAYER 1 — always visible; the way into every panel but the demo ── */}
+            <SimControlDockToolbar
+              panel={panel}
+              awaiting={awaiting}
+              openDecisions={openDecisions}
+              onSelectPanel={selectPanel}
+              onAskCandi={askCandi}
+              companionOpen={companion?.open ?? false}
+            />
+          </div>
+          <DockGuide open={panel === "sim"} onClick={onGuide} />
         </div>
       </div>
     </>

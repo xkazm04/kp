@@ -9,7 +9,7 @@ import { Defer } from "@/app/_components/ui/Defer";
  * survives every tab switch — the operator can ask about the pipeline, walk to
  * Jobs, and keep talking. This provider is what lets surfaces that are nowhere
  * near the dock open it: the command palette's "Ask Candi" item and the
- * ControlDock's ops-face affordance both just call openDock(query).
+ * ControlDock's layer-1 Ask Candi button both just call openDock(query).
  *
  * The dock itself is code-split (like the sim overlays in
  * WorkspaceSimSurfaces.tsx) and its first commit is deferred to idle, so an

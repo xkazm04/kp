@@ -240,29 +240,57 @@ workspace's own column label server-side, so it arrives ready to draw.
 The old sidebar "Recent" group (`WorkspaceRecentsNav`) was removed; `recents.ts`
 remains, feeding the palette's resting state and recording opens.
 
-### The bottom control dock is a two-layer toolbar
+### The bottom control dock is a two-layer toolbar with a rail
 
 `shell/simulation/SimBar.tsx` → `SimControlDock.tsx` is the always-mounted bottom
 deck. Collapsed, it is the Candi orb (`SimControlDockOrb.tsx`) — a haloed mark
-carrying the awaiting-decisions beacon and the aiBusy pulse. Raised, it is two
-layers:
+carrying the awaiting-decisions beacon and the aiBusy pulse. Raised, it is a fixed
+footer ROW of three parts: a bordered panel box in the middle, and one element
+outside each of its borders.
 
-- **Layer 1** (`SimControlDockToolbar.tsx`) — always visible: the Candi switch that
-  lowers the deck, the "N need you" route into the decisions queue, and a compact
-  `role="toolbar"` icon row of four controls. Roving tabindex: one tab stop,
-  arrows/Home/End move FOCUS (never activation — half the row fires side effects),
-  Enter/Space activates. The math is `nextToolbarIndex()` in
-  `shell/simulation/simControlDockLayers.ts`, unit-tested beside it.
-- **Layer 2** — ONE panel rendered above the row, keyed by a single `panel` state
-  (`DockPanelId = "sim" | "ops" | "command"`). Re-selecting the active control
-  closes it (`toggleDockPanel()`); Escape closes it too, leaving the row in place.
+- **Outside the borders** (`SimControlDockRail.tsx`) — the identity block on the
+  left (the Candi switch that lowers the deck, "Control center", and the mode
+  subtitle) and the ONE guided-demo button on the right. Neither ever hides,
+  because each is the only route to what it opens; they shed their TEXT instead
+  (brand at `lg`, guide label at `md`), leaving a 44px square that still hits the
+  touch target. The panel between them is `min-w-0 flex-1`, so it absorbs the
+  remaining width and wraps its own row rather than colliding with either side.
+- **Layer 1** (`SimControlDockToolbar.tsx`) — always visible inside the box: the
+  "N need you" route into the decisions queue, and a compact `role="toolbar"` icon
+  row of four controls. Roving tabindex: one tab stop, arrows/Home/End move FOCUS
+  (never activation — half the row fires side effects), Enter/Space activates. The
+  math is `nextToolbarIndex()` in `shell/simulation/simControlDockLayers.ts`,
+  unit-tested beside it. The guide button is NOT a member of the toolbar — it is
+  outside the box across a visual gap, so it owns its own tab stop.
+- **Layer 2** (`SimControlDockPanelBody.tsx`) — ONE panel rendered above the row,
+  keyed by a single `panel` state (`DockPanelId = "sim" | "ops" | "command" |
+  "schedule"`). Re-selecting the active control closes it (`toggleDockPanel()`);
+  Escape closes it too, leaving the row in place.
 
-| Layer-1 control | Opens |
-| --- | --- |
-| Guided demo | `SimControlDockSimFace` — phase stepper, status line, run controls (Start/Pause/Next, Stop, Reset, Step, Explain) |
-| Operations | `SimControlDockOpsFace` — AI screen / automation pass / scheduler tiles, guided-tour invitation, pass strip |
-| Command | `hiring/pipeline/CommandBar` — the free-text pipeline command line, imported, not forked |
-| Ask Candi | nothing — it is an **action**: it calls `openDock()` on `CompanionDockProvider` and closes the open panel |
+| Control | Where | Opens |
+| --- | --- | --- |
+| Guided demo | outside-right | `SimControlDockSimFace` — phase stepper, status line, run controls (Start/Pause/Next, Stop, Reset, Step, Explain) |
+| Automations | layer 1 | `SimControlDockOpsFace` — AI screen + automation pass tiles, pass strip |
+| Command | layer 1 | `hiring/pipeline/CommandBar` — the free-text pipeline command line, imported, not forked |
+| Schedule | layer 1 | `hiring/pipeline/SchedulerControl` — the automation clock, imported, not forked |
+| Ask Candi | layer 1 | nothing — it is an **action**: it calls `openDock()` on `CompanionDockProvider` and closes the open panel |
+
+The `ops` panel's LABEL is "Automations"; its panel id and its i18n key both stay
+`operations`, because an identifier is not a caption. The row's transitions all
+live in `shell/simulation/dockPanelSlot.ts` — deliberately a plain factory, not a
+`use*` hook, since the dock reaches it after the collapsed early return.
+
+Two round-3 consolidations are worth knowing about. **Schedule was a tile inside
+the ops panel** that unrolled `SchedulerControl` beneath the other tiles on its own
+`scheduleOpen` boolean — the last surface in the dock that could be open beside
+another one. Promoting it to a panel is what makes one-surface-at-a-time hold
+*inside* the panel too. And **the guided demo had two doors to the same
+`sim.start()`**: a layer-1 slot whose console carried the Start button, and a
+"Guided tour" tile in the ops panel that called `sim.start()` directly. They were
+one feature reached twice (the command palette's `action-tour` is a third route to
+the same call). They are now the single outside-right button, whose three branches
+are `guideAction()`: close the console, show it, or begin a run — after which the
+ops → sim effect below reveals the console itself.
 
 Mutual exclusion is structural, not an effect: there is one `panel` slot, so a
 second panel cannot exist, and "Ask Candi" is deliberately not a member of
@@ -279,7 +307,7 @@ the sim panel the moment a run begins, and names the deck in the layer-1 subtitl
 | Mode | When | Default panel |
 | --- | --- | --- |
 | `sim` | a guided run is `running`, `done`, or **failed** (`error !== null`), or the page arrived at the public `/?sim=auto` entry | Guided demo |
-| `ops` | otherwise | Operations |
+| `ops` | otherwise | Automations |
 
 `--sim-bar-h` (the height the sim overlays anchor above) is republished on every
 panel open/close for free: `usePublishBarHeight()` observes the deck with a
