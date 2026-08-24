@@ -210,6 +210,21 @@ const ROUTES: RouteSpec[] = [
     servedBefore: 'if (proposal.status !== "open")',
   },
   {
+    // ADDED with the route (operator companion WP4). Per-IP. 20/10min: recording
+    // consent spawns companion_cli, and the `birth` arm WRITES into the
+    // operator's home directory. It is answered ONCE at first run, so the budget
+    // sits far above any honest use and only a scripted loop can meet it.
+    rel: "./companion/brain/route.ts",
+    key: "`companion-brain:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    // The CALL SITE. Both helper names also appear in the import block above the
+    // limiter, so a bare name would fail on ordering rather than on a regression.
+    expensive: "? await birthCompanionBrain()",
+    // The 400 (an action that is neither connect nor birth) keeps its semantics
+    // ahead of the throttle, so a malformed call never starts a process.
+    servedBefore: 'action !== "connect" && action !== "birth"',
+  },
+  {
     rel: "./extract-text/route.ts",
     // Per-IP. 20/10min: one extract per JD/CV file in every real flow.
     key: "`extract-text:${clientIpFrom(request.headers)}`",

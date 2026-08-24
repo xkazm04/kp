@@ -1360,6 +1360,17 @@ export function ensureDb(): Database.Database {
     // failure-truth-everywhere (the dev_outbox.failure_detail precedent): WHY the
     // last pull failed, surfaced on the receiver row. NULL after a clean pull.
     "ALTER TABLE channel_webhooks ADD COLUMN last_pull_error TEXT",
+    // Companion memory consent (WP4): 'connected' | 'birthed' | NULL. Whether
+    // this workspace has agreed that Candi may keep a memory on this machine —
+    // 'connected' = the operator adopted a brain that was already on disk,
+    // 'birthed' = they asked for a fresh one, NULL = never asked or skipped.
+    // Skipping stamps NOTHING, so the column stays null and the dock runs
+    // memoryless (app/_lib/companion-brain.ts owns the rule, including the
+    // implicit-consent arm for installs that already have episodes). A
+    // per-workspace scalar in the default_locale / onboarding_state shape rather
+    // than a new table: the value is one word per tenant, and this repo has no
+    // key-value settings store to put it in.
+    "ALTER TABLE workspaces ADD COLUMN companion_brain_consent TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a

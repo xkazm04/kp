@@ -4,7 +4,16 @@
 
 reads ``<workdir>/turn.json``:
 
-    {workspace_id, session_id, message, transcript, grounding, locale}
+    {workspace_id, session_id, message, transcript, grounding, locale, memory}
+
+``memory`` is the CONSENT flag (WP4). ``false`` means the operator has not agreed
+to Candi keeping a memory on this machine: the turn recalls nothing, writes no
+episode, and does not even READ the brain - reading it would call
+``ensure_brain`` and create the tree the refusal was about. She still answers,
+still keeps the constitution, and the payload says ``memoryEnabled: false`` so
+the dock can say so out loud. An ABSENT key means yes, so every earlier caller is
+unchanged; the workspace-scoped consent rule lives in
+``app/_lib/companion-brain.ts``, because this process has no database.
 
 ``transcript`` is the last ~12 turns as ``[{role, content}]``; ``grounding`` is
 whatever JSON the route assembled (attention counts, a recent-pipeline summary)
@@ -21,6 +30,17 @@ carrying its reason.
 
 is the same door with nobody on the other side of it: no ``message``, one metered
 call, and the studio's digest as the answer.
+
+Two doors carry no turn at all and spend nothing:
+
+    python -m pipeline.jobfit.companion_cli --probe
+    python -m pipeline.jobfit.companion_cli --birth
+
+``--probe`` reports ``{root, present, episodes, identitySections,
+constitutionOrigin}`` and CREATES NOTHING - it is what first-run onboarding asks
+before offering to connect an existing mind or make a new one. ``--birth`` is
+``ensure_brain`` behind a flag: idempotent, never overwrites a file, and answers
+with the probe of the brain that now stands.
 
 Output is one terminal JSON line:
 
@@ -71,8 +91,11 @@ from .companion_blocks import (
     split_reply_blocks,
 )
 from .companion_brain import (
+    IDENTITY_SKELETON,
     append_episode,
+    constitution_template,
     ensure_brain,
+    probe_brain,
     read_constitution,
     read_identity,
     recall,
@@ -211,14 +234,19 @@ Hard limits. A proposal that breaks one is DROPPED and the operator never sees i
 Never claim you have done something. You proposed it."""
 
 
-def _system_prompt(locale: str, actions: list | None = None, digest: bool = False) -> str:
+def _system_prompt(locale: str, actions: list | None = None, digest: bool = False, memory: bool = True) -> str:
     """Constitution + identity ARE the system prompt. They are files the operator
     owns, so behaviour is edited on disk rather than in this module. The tone,
     block and action contracts are appended here because they belong to this
-    SURFACE - the same brain answers a terminal differently."""
+    SURFACE - the same brain answers a terminal differently.
+
+    With ``memory`` off the SHIPPED constitution and the empty identity skeleton
+    stand in for the files. She is still Candi and still keeps every rule; she
+    simply has no self on disk to read - and reading one would have created it,
+    because ``read_constitution`` calls ``ensure_brain``."""
     parts = [
-        read_constitution().strip(),
-        read_identity().strip(),
+        (read_constitution() if memory else constitution_template()).strip(),
+        (read_identity() if memory else IDENTITY_SKELETON).strip(),
         _TONE_CONTRACT,
         _BLOCK_CONTRACT,
     ]
@@ -262,7 +290,13 @@ def _build_prompt(message: str, hits: list[dict], grounding, turns: list) -> str
     )
 
 
-def _complete(prompt: str, locale: str, actions: list | None = None, digest: bool = False) -> tuple[str, str, str | None]:
+def _complete(
+    prompt: str,
+    locale: str,
+    actions: list | None = None,
+    digest: bool = False,
+    memory: bool = True,
+) -> tuple[str, str, str | None]:
     """(raw completion, source, fallbackReason). ``assistant`` is a literal so the
     BYOM coverage gate (test_byom_coverage.py) can see this call site.
 
@@ -274,7 +308,7 @@ def _complete(prompt: str, locale: str, actions: list | None = None, digest: boo
     if provider is None or not provider.available():
         return UNREACHABLE_REPLY[locale], "deterministic", "no provider available"
     try:
-        completion = provider.complete(prompt, system=_system_prompt(locale, actions, digest))
+        completion = provider.complete(prompt, system=_system_prompt(locale, actions, digest, memory))
         text = getattr(completion, "text", completion)
         raw = str(text or "").strip()[:MAX_COMPLETION_CHARS]
         if not raw:
@@ -315,8 +349,14 @@ def _shape(raw: str, locale: str, catalog: list) -> tuple[str, list, int, list, 
     return reply, blocks, blockErrors, actions, actionErrors
 
 
-def _payload(reply, blocks, blockErrors, actions, actionErrors, hits, episodes, source, fallbackReason) -> dict:
+def _payload(
+    reply, blocks, blockErrors, actions, actionErrors, hits, episodes, source, fallbackReason, memory=True
+) -> dict:
     payload = {
+        # What this turn actually did with the brain, reported rather than
+        # assumed: with consent absent the turn recalls nothing and writes
+        # nothing, and the dock says so instead of quietly looking forgetful.
+        "memoryEnabled": bool(memory),
         "reply": reply,
         "blocks": blocks,
         "blockErrors": blockErrors,
@@ -338,6 +378,17 @@ def _payload(reply, blocks, blockErrors, actions, actionErrors, hits, episodes, 
     return payload
 
 
+def _memory_flag(turn: dict) -> bool:
+    """Whether this turn may touch the brain at all.
+
+    The CALLER is the consent authority - app/_lib/companion-brain.ts holds the
+    rule, because consent is a workspace fact and this process has no database.
+    An ABSENT key means yes, which keeps every pre-consent caller (and the plain
+    ``python -m ... --workdir`` invocation a developer types) behaving exactly as
+    it did; only an explicit ``"memory": false`` turns the brain off."""
+    return turn.get("memory") is not False
+
+
 def run_turn(turn: dict) -> dict:
     message = str(turn.get("message") or "").strip()[:MAX_MESSAGE_CHARS]
     if not message:
@@ -347,21 +398,28 @@ def run_turn(turn: dict) -> dict:
     turns = transcript if isinstance(transcript, list) else []
     session = session_tag(str(turn.get("workspace_id") or ""))
     catalog = turn.get("actions") if isinstance(turn.get("actions"), list) else []
+    memory = _memory_flag(turn)
 
-    ensure_brain()
-    episodes = [append_episode("user", message, session)]
-    # The user episode above is now the closest text in the index to this very
-    # query, so raw recall would hand the message straight back. surface_recall
-    # drops that echo and the operator's same-day commands before either the
-    # prompt or the dock ever sees them.
-    hits = surface_recall(message, recall(message, RECALL_LIMIT))
+    episodes: list[dict] = []
+    hits: list[dict] = []
+    if memory:
+        ensure_brain()
+        episodes.append(append_episode("user", message, session))
+        # The user episode above is now the closest text in the index to this
+        # very query, so raw recall would hand the message straight back.
+        # surface_recall drops that echo and the operator's same-day commands
+        # before either the prompt or the dock ever sees them.
+        hits = surface_recall(message, recall(message, RECALL_LIMIT))
     raw, source, fallbackReason = _complete(
-        _build_prompt(message, hits, turn.get("grounding"), turns), locale, catalog
+        _build_prompt(message, hits, turn.get("grounding"), turns), locale, catalog, memory=memory
     )
 
     reply, blocks, blockErrors, actions, actionErrors = _shape(raw, locale, catalog)
-    episodes.append(append_episode("assistant", _episode_text(reply, blocks), session))
-    return _payload(reply, blocks, blockErrors, actions, actionErrors, hits, episodes, source, fallbackReason)
+    if memory:
+        episodes.append(append_episode("assistant", _episode_text(reply, blocks), session))
+    return _payload(
+        reply, blocks, blockErrors, actions, actionErrors, hits, episodes, source, fallbackReason, memory
+    )
 
 
 # What a digest recalls against. There is no operator message to match on, so the
@@ -394,10 +452,13 @@ def run_digest(turn: dict) -> dict:
     session = session_tag(str(turn.get("workspace_id") or ""))
     catalog = turn.get("actions") if isinstance(turn.get("actions"), list) else []
     grounding = turn.get("grounding")
+    memory = _memory_flag(turn)
 
-    ensure_brain()
-    query = _digest_query(grounding)
-    hits = surface_recall(query, recall(query, RECALL_LIMIT))
+    hits: list[dict] = []
+    if memory:
+        ensure_brain()
+        query = _digest_query(grounding)
+        hits = surface_recall(query, recall(query, RECALL_LIMIT))
     prompt = (
         "WHAT THE STUDIO LOOKS LIKE RIGHT NOW (the only facts you may state as facts):\n"
         f"{json.dumps(grounding, ensure_ascii=False, indent=1) if grounding else '(no grounding was provided)'}\n\n"
@@ -405,27 +466,52 @@ def run_digest(turn: dict) -> dict:
         "Write the digest now. Use plain ASCII punctuation everywhere, including inside block JSON: "
         "hyphens, never em dashes. Produce ONLY the digest."
     )
-    raw, source, fallbackReason = _complete(prompt, locale, catalog, digest=True)
+    raw, source, fallbackReason = _complete(prompt, locale, catalog, digest=True, memory=memory)
     reply, blocks, blockErrors, actions, actionErrors = _shape(raw, locale, catalog)
-    episodes = [append_episode("assistant", _episode_text(reply, blocks), session)]
-    return _payload(reply, blocks, blockErrors, actions, actionErrors, hits, episodes, source, fallbackReason)
+    episodes = [append_episode("assistant", _episode_text(reply, blocks), session)] if memory else []
+    return _payload(
+        reply, blocks, blockErrors, actions, actionErrors, hits, episodes, source, fallbackReason, memory
+    )
 
 
 def main() -> int:
     configure_stdio()
     parser = argparse.ArgumentParser(description="One operator-companion turn.")
-    parser.add_argument("--workdir", type=Path, required=True)
+    # Optional, not required: --probe and --birth answer questions ABOUT the
+    # brain and have no turn to read. A turn still demands one (checked below),
+    # so every existing invocation is unchanged.
+    parser.add_argument("--workdir", type=Path)
     parser.add_argument(
         "--digest",
         action="store_true",
         help="write the studio digest instead of answering a message (no message needed)",
     )
+    parser.add_argument(
+        "--probe",
+        action="store_true",
+        help="report what the brain holds WITHOUT creating anything (first-run consent gate)",
+    )
+    parser.add_argument(
+        "--birth",
+        action="store_true",
+        help="create the brain tree if it is missing (idempotent; never overwrites a file)",
+    )
     args = parser.parse_args()
     try:
-        raw = json.loads((args.workdir / "turn.json").read_text(encoding="utf-8"))
-        if not isinstance(raw, dict):
-            raise ValueError("turn.json must contain a JSON object")
-        payload = run_digest(raw) if args.digest else run_turn(raw)
+        if args.probe:
+            payload = probe_brain()
+        elif args.birth:
+            # The settled truth AFTER birth, not a claim about it: `born` names
+            # what this call actually wrote (empty when the tree already stood),
+            # and the probe keys describe the brain the operator now has.
+            payload = {**ensure_brain(), **probe_brain()}
+        else:
+            if args.workdir is None:
+                raise ValueError("--workdir is required for a turn")
+            raw = json.loads((args.workdir / "turn.json").read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                raise ValueError("turn.json must contain a JSON object")
+            payload = run_digest(raw) if args.digest else run_turn(raw)
     except (ValueError, FileNotFoundError) as exc:
         return emit_error(exc, status=400)
     except Exception as exc:  # keep the bridge's stderr contract: one JSON error line

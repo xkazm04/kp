@@ -4,7 +4,8 @@ The companion is the studio-side chat the operator talks to about their own
 workspace. It has continuity across sessions, it is grounded in what the studio
 actually holds, and it **never acts** — it proposes, and the operator accepts.
 
-> **Status: WP1 + WP2 (dock round 2) + WP3 (actor rails).** The brain, the turn
+> **Status: WP1 + WP2 (dock round 2) + WP3 (actor rails) + WP4 (first-run
+> consent).** The brain, the turn
 > CLI, the model use case and the persistence layer landed in WP1. WP2 added the
 > transport (two routes) and the client state. Round 1 prototyped two directional
 > docks; **Colleague won, Desk was deleted**, and round 2 moved the window to the
@@ -13,7 +14,11 @@ actually holds, and it **never acts** — it proposes, and the operator accepts.
 > WP3 made her an **actor on existing rails**: she can now propose four concrete
 > actions, each of which lands as a `companion_proposals` row the operator accepts
 > or declines, plus a scheduled-by-acceptance **digest**. She still never acts —
-> see "The action catalog" and "The proposal lifecycle" below.
+> see "The action catalog" and "The proposal lifecycle" below. WP4 put a
+> **consent gate** in front of the brain: a first-run wizard step asks before kp
+> reads, adopts or creates anything on the operator's disk, and a workspace that
+> has not agreed runs the dock **memoryless** — see "Consent: who may have a
+> memory" below.
 
 ## Where the companion's self lives
 
@@ -34,6 +39,129 @@ that app's episodic store (`brain/episodic.rs`), so a kp exchange is a
 first-class episode for Athena's recall and sleep cycle when the desktop app is
 installed. `pipeline/jobfit/tests/test_companion_brain.py` pins the markdown
 header so a drift is loud rather than silent.
+
+## Consent: who may have a memory (WP4)
+
+The brain is **markdown in the operator's own home directory**, and the tree is
+shared with Personas' Athena. So kp is not entitled to read it, adopt it, or
+create it until somebody says yes. Until WP4 the first companion turn on a fresh
+machine silently birthed a mind on the operator's disk; now a first-run wizard
+step asks.
+
+### The probe — the one door that creates nothing
+
+Every other reader in `companion_brain.py` goes through `ensure_brain()`, which
+is exactly why the question could not be asked before: *looking* birthed the
+thing being asked about. `probe_brain()` is the exception, and its whole contract
+is that it creates nothing:
+
+```bash
+python -m pipeline.jobfit.companion_cli --probe
+# {"root": "…", "present": true, "episodes": 41, "identitySections": 2,
+#  "constitutionOrigin": "kp"}
+python -m pipeline.jobfit.companion_cli --birth   # ensure_brain behind a flag
+```
+
+| Field | Means |
+| --- | --- |
+| `present` | a constitution, an identity or an `episodes/` directory exists |
+| `episodes` | episode files on disk, **capped at 999** (`EPISODE_PROBE_CAP`) — the walk stops there, because a human reads "hundreds" exactly as well as an exact five-digit count |
+| `identitySections` | `## ` headings in `identity.md` — how much of a self is written down |
+| `constitutionOrigin` | `kp` when the constitution carries this repo's `<!-- kp-constitution v1 -->` marker · `personas` when one exists WITHOUT it (Athena's own, or one the operator rewrote) · `none` when there is no constitution |
+
+`personas` is deliberately provenance rather than authorship: what the caller
+needs to decide is "was this mind made somewhere else", and an Athena tree and a
+hand-edited one answer that the same way.
+
+### The rule
+
+`companionMemoryEnabled(workspaceId)` (`app/_lib/companion-brain.ts`) is the
+single authority, and it has **two arms**:
+
+| Arm | Condition | Why |
+| --- | --- | --- |
+| explicit | `workspaces.companion_brain_consent` is `'connected'` or `'birthed'` | the operator answered the step |
+| implicit | `companion_brain_index` holds ≥ 1 row for this workspace | a row lands there only because `append_episode` put it there, so it is proof kp has **already written** to this brain with this workspace's session tag |
+
+The implicit arm exists for installs that predate the gate: an operator who has
+been talking to Candi for weeks must not have their memory switched off by a
+feature that arrived afterwards. It is keyed on **kp's own writes**, NOT on the
+probe's `present` — a brain that exists because Athena made it is somebody else's
+mind, and adopting it silently is the exact thing the gate is for. It is also
+per-TENANT: another team's episodes on the same disk enable nothing here.
+
+Skipping is a **stable** answer, not a delay: with memory off no episode is
+written, so the implicit arm can never bootstrap itself into a yes.
+
+There is deliberately **no stored "declined" state**. A null column and an
+explicit refusal behave identically (the dock runs memoryless), so the
+distinction would be a claim about which one a pre-existing row was.
+
+### Memory off is working software, not a failure
+
+`companion-run.ts` resolves the rule and ships the answer as `turn.json`'s
+`memory` flag — on the side of the boundary that has a database, because the CLI
+has no workspace to ask about. With it false the turn:
+
+- writes **no** episode (neither half of the exchange),
+- recalls **nothing**,
+- and does **not read** `constitution.md` / `identity.md` — `read_constitution`
+  calls `ensure_brain`, so reading them would have created the tree the refusal
+  was about. The **shipped** template and the empty identity skeleton stand in,
+  so she is still Candi and still keeps every rule.
+
+An ABSENT `memory` key means yes, which keeps every pre-WP4 caller (and a
+developer's plain `--workdir` invocation) behaving exactly as before. The payload
+reports `memoryEnabled` rather than letting the caller infer it from an empty
+`recallUsed`: "she remembered nothing" and "she may not remember" are different
+facts and only one of them is fixable.
+
+`GET /api/companion/threads` carries `memoryEnabled` on the dock's one boot
+request, and the dock prints a single quiet line under the state line — the same
+register as "watching 3 things", naming where the switch is, because a limitation
+with no stated remedy just reads as a defect.
+
+### The wizard step
+
+`app/features/shell/setup/SetupCompanionStep.tsx`, slotted between **Pipeline**
+and **Hand-off**. The host runs the probe once on mount
+(`useSetupCompanionBrain`) in BOTH modes — the probe creates nothing, so the
+Settings walkthrough can show the machine's real state without having caused it.
+
+Four outcomes, four different questions:
+
+| Probe says | The step asks |
+| --- | --- |
+| memory already on for this workspace | nothing — it says so. Offering to connect what is already connected is a control with nothing to do |
+| a brain is present | *"I found a memory already on this machine (N memories). Connect it?"* — **Connect it** / **Skip for now** |
+| no brain | *"Candi starts with a blank memory."* — **Create her memory** / **Skip for now** |
+| the probe failed | it says it could not look, and lets the operator past |
+
+**"Start a fresh one alongside" is never offered.** One mind per machine is the
+doctrine; a second tree would silently split her continuity in two.
+
+`stepSatisfied` stays default-true, and for a stronger reason than the other
+optional steps: a consent question that blocks the door is not a question.
+
+Nothing is written when the tile is clicked. The choice rides in the wizard's
+state and `finish()` POSTs it (`setupOnboardingFinish.persistCompanionConsent`),
+which is what makes the Settings walkthrough **incapable** of birthing a brain —
+preview's `finish()` persists nothing at all. A null choice posts nothing. The
+POST is silent on failure by design: the question is re-askable and nothing
+downstream breaks, so a red toast about the companion at the end of a successful
+setup would be noise.
+
+`POST /api/companion/brain` re-runs the probe itself rather than trusting the
+GET the wizard made minutes ago — a proposal-time check is a claim, an
+execution-time check is the guarantee — and `birth` runs *before* the stamp, so
+consent is only ever recorded over a brain that exists.
+
+> **No Getting-started checklist item was added.** `STEPS` in
+> `setupGettingStartedModel.ts` is "the four core steps a workspace genuinely
+> cannot hire without", and connecting Candi's memory gates no hiring. `team`
+> was removed from that list for precisely this reason ("the one step that never
+> gated anything"), and re-introducing the shape one step later would undo a
+> decision this repo already made.
 
 ## Write order — disk first, indexes after
 
@@ -62,8 +190,10 @@ python -m pipeline.jobfit.companion_cli --workdir <dir>   # reads <dir>/turn.jso
 ```
 
 `turn.json` carries `{workspace_id, session_id, message, transcript, grounding,
-locale}`. The CLI never queries kp — the caller decides what the companion may
-see, and hands it over as `grounding`.
+locale, memory}`. The CLI never queries kp — the caller decides what the
+companion may see, and hands it over as `grounding`. `memory` is the consent flag
+(above): false means recall nothing, write nothing, and do not even READ the
+brain files.
 
 Composition: constitution + identity + the **tone contract**, the **block
 contract** and — when the caller shipped an action catalog — the **action
@@ -72,7 +202,7 @@ grounding blob + the last 12 turns (the user prompt) → one completion under th
 **`assistant`** use case, answered in the operator's UI locale.
 
 Output is one JSON line: `{reply, blocks, blockErrors, actions, actionErrors,
-recallUsed, episodePaths, source, indexSkipped[, fallbackReason]}`, where each
+recallUsed, episodePaths, memoryEnabled, source, indexSkipped[, fallbackReason]}`, where each
 `recallUsed` entry is `{path, excerpt, insight}` (see **What she is allowed to
 remember at you** below). Both halves of
 the exchange are appended as episodes — the operator's message *before* the model is called, so a provider
@@ -347,6 +477,11 @@ All four tables are workspace-scoped with no by-id exemptions
 | `companion_proposals` | what the companion offered — `kind` is the action id, `payload_json` carries `{actionId, params, summary}` and (once answered) `outcome`; `open` until the operator accepts or declines |
 | `companion_brain_index` | the pointer mirror of the markdown brain |
 
+Consent itself is **not** one of these tables: it is
+`workspaces.companion_brain_consent`, a per-workspace scalar in the same shape as
+`default_locale` and `onboarding_state`. This repo has no key-value settings
+store, and one word per tenant does not earn a table.
+
 `companion_brain_index` is classed **not portable** in the org export
 (`ORG_EXPORT_OVERRIDES`): its rows point at files on the operator's own machine,
 and the excerpts beside them are private conversation, not the org's hiring
@@ -358,9 +493,11 @@ Operator-gated routes, all workspace-scoped through the store's own tenancy.
 
 | Route | Does |
 | --- | --- |
-| `GET /api/companion/threads` | the ledger, PLUS the newest thread's turns AND its proposals — the dock always opens on the most recent conversation, so a second request for what was just listed would be a wasted hop, and without the proposals it would paint an Accept button for something answered one round trip ago |
+| `GET /api/companion/threads` | the ledger, PLUS the newest thread's turns, its proposals AND `memoryEnabled` — the dock always opens on the most recent conversation, so a second request for what was just listed would be a wasted hop, and without the proposals it would paint an Accept button for something answered one round trip ago |
 | `POST /api/companion/threads` | start a conversation. No opener, no LLM call: unlike JD intake, Candi does not speak first. The dock renders a static greeting from the catalog and the first spend happens when the operator actually says something |
 | `POST /api/companion/[id]/message` | one exchange. Returns the thread's full turn list AND its live proposals |
+| `GET /api/companion/brain` | **WP4.** The probe (`companion_cli --probe`, which CREATES NOTHING) plus this workspace's `consent` and `memoryEnabled` |
+| `POST /api/companion/brain` | **WP4.** `{action: "connect" \| "birth"}`. Records consent; `birth` runs `ensure_brain` first, so consent is never stamped over a brain that does not exist. Per-IP 20/10min, after the 400 so a malformed call never starts a process. There is no "decline" |
 | `POST /api/companion/proposals/[id]/resolve` | **WP3.** `{decision: "accept" \| "decline"}`. The one door that executes anything — see "The proposal lifecycle". Per-IP 60/10min, pinned in `app/api/rate-limit-contract.test.ts`, after the 404/400/409 refusals so a rejected call never consumes budget |
 
 `app/_lib/companion-run.ts` spawns `companion_cli` with the whole turn in
@@ -565,6 +702,20 @@ surface changed.
   session tag (`kp-<workspace>`) only, matching the shared format; linking a
   turn back to its episode is done through `episodePaths` on the CLI's output.
 - No reindex command. If `companion_brain_index` is truncated, nothing rebuilds
-  it from the tree yet.
+  it from the tree yet. **This now has a second consequence**: the implicit
+  consent arm reads that table, so a truncated mirror on a workspace that never
+  answered the wizard step reads as "no consent" and the dock goes memoryless.
+  The fix is to answer the step, which the operator can currently only reach by
+  re-running onboarding.
+- **Consent has no Settings control yet.** `POST /api/companion/brain` is a
+  general operator route, not an onboarding-only one, so turning memory on later
+  is one button away — but the button does not exist. Today the only door is the
+  first-run wizard (`KP_FORCE_ONBOARDING=1` re-offers it; Settings →
+  "Preview onboarding" deliberately does NOT, because preview persists nothing).
+  The dock's memory-off line therefore names a switch that is currently hard to
+  reach. A Settings → Organization toggle is the owed follow-up.
+- **The consent step has not been painted by a browser.** It type-checks, lints,
+  and its rule is unit-tested on both arms, but no run of the wizard has drawn
+  it. Same standing caveat WP3 carries for the proposal card.
 - Nothing prunes or consolidates episodes on the kp side. With Personas
   installed, its sleep cycle does that for the shared tree.

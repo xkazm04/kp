@@ -177,6 +177,99 @@ def read_episode(rel_path: str) -> str:
     return (brain_root() / rel_path).read_text(encoding="utf-8")
 
 
+def constitution_template() -> str:
+    """The SHIPPED constitution, read from the repo instead of from the brain.
+
+    The keyless twin of ``read_constitution``. A memoryless turn still has to
+    behave like Candi, but ``read_constitution`` calls ``ensure_brain`` — so
+    using it would BIRTH the tree the operator has not consented to yet, which
+    is the one thing a memory-off turn must never do."""
+    return CONSTITUTION_TEMPLATE.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Probe — what is on disk, WITHOUT creating any of it
+# ---------------------------------------------------------------------------
+#
+# First-run onboarding asks the operator whether Candi may have a memory at all,
+# and it cannot ask honestly without first looking. Every other reader in this
+# module goes through ``ensure_brain`` — the probe is the one door that must not,
+# because a probe that births the tree has already answered the question it was
+# sent to ask.
+
+EPISODE_PROBE_CAP = 999
+CONSTITUTION_MARKER = "<!-- kp-constitution v1 -->"
+
+
+def _count_episodes(root: Path, cap: int = EPISODE_PROBE_CAP) -> int:
+    """Episode files on disk, counted cheaply and CAPPED.
+
+    The number is shown to a human as "it holds N memories", and a human reads
+    "999+" exactly as well as "41 812" — so the walk stops at the cap rather
+    than paying for an exact count of a tree that grows without bound."""
+    episodes = root / "episodes"
+    if not episodes.is_dir():
+        return 0
+    seen = 0
+    for _root, _dirs, files in os.walk(episodes):
+        for name in files:
+            if name.endswith(".md"):
+                seen += 1
+                if seen >= cap:
+                    return cap
+    return seen
+
+
+def _identity_sections(identity: Path) -> int:
+    """``## `` headings in identity.md — how much of a self is written down.
+    Zero on a freshly born brain (the skeleton's own sections are empty)."""
+    if not identity.is_file():
+        return 0
+    try:
+        text = identity.read_text(encoding="utf-8")
+    except OSError:
+        return 0
+    return sum(1 for line in text.splitlines() if line.startswith("## "))
+
+
+def _constitution_origin(constitution: Path) -> str:
+    """Who wrote the constitution this brain is running on.
+
+    ``kp`` when it carries the marker this repo's template opens with,
+    ``personas`` when a constitution exists WITHOUT it (Athena's own, or one the
+    operator rewrote), ``none`` when there is no constitution at all. The middle
+    verdict is deliberately a guess stated as provenance rather than authorship:
+    what the caller needs to decide is "was this mind made somewhere else", and
+    both an Athena tree and a hand-edited one answer that the same way."""
+    if not constitution.is_file():
+        return "none"
+    try:
+        text = constitution.read_text(encoding="utf-8")
+    except OSError:
+        return "none"
+    return "kp" if CONSTITUTION_MARKER in text[:400] else "personas"
+
+
+def probe_brain() -> dict:
+    """``{root, present, episodes, identitySections, constitutionOrigin}``.
+
+    Creates nothing, opens no index, and never raises on a missing tree: an
+    absent brain is a legitimate answer, not a failure."""
+    root = brain_root()
+    constitution = root / "constitution.md"
+    identity = root / "identity.md"
+    present = root.is_dir() and (
+        constitution.is_file() or identity.is_file() or (root / "episodes").is_dir()
+    )
+    return {
+        "root": str(root),
+        "present": present,
+        "episodes": _count_episodes(root),
+        "identitySections": _identity_sections(identity),
+        "constitutionOrigin": _constitution_origin(constitution),
+    }
+
+
 # ---------------------------------------------------------------------------
 # The kp-local index (brain-local FTS5) — the lane that always works
 # ---------------------------------------------------------------------------

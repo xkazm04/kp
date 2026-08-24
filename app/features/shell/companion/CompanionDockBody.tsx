@@ -42,6 +42,11 @@ export type CompanionBodyProps = {
   error: string | null;
   /** Live studio facts — the same counts behind the sidebar badges. */
   attention: AttentionCounts | null;
+  /** Whether this workspace has consented to Candi keeping a memory on this
+   *  machine (WP4). False is a legitimate, working state — she answers, she just
+   *  does not recall or record — and it is SAID rather than left to be inferred
+   *  from an answer that keeps forgetting last week. */
+  memoryEnabled: boolean;
   onSend: (message: string) => Promise<boolean>;
   onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
 };
@@ -93,6 +98,7 @@ export function CompanionBody({
   busy,
   error,
   attention,
+  memoryEnabled,
   onSend,
   onResolveProposal,
 }: CompanionBodyProps) {
@@ -127,6 +133,12 @@ export function CompanionBody({
       <div className="pb-3">
         <h2 className="font-serif text-h2 leading-tight text-ink">{t("name")}</h2>
         <p className="text-sm text-steel">{stateLine(t, busy, attention)}</p>
+        {/* One quiet line under the state, not a banner: a memoryless Candi is
+            working software, so the fact belongs in the same register as
+            "watching 3 things" rather than dressed as a fault. It names where
+            the switch is, because a limitation with no stated remedy just reads
+            as a defect. */}
+        {memoryEnabled ? null : <p className="text-sm text-steel">{t("state.memoryOff")}</p>}
       </div>
       {error ? <p className="pb-2 text-sm text-coral">{resolveError({ code: error }, t("chat.errorGeneric"))}</p> : null}
       <ChatTranscript

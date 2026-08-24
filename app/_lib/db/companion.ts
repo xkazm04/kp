@@ -574,6 +574,21 @@ export function searchBrain(
   return rows.map(brainFromRow);
 }
 
+/** How many episodes kp has mirrored for this workspace.
+ *
+ *  The cheap, server-observable answer to "has kp ALREADY written to the brain
+ *  on this machine" — a row lands here only because `append_episode` put one
+ *  there (companion_brain.py's kp lane), so a positive count is evidence of
+ *  USE, not of installation. That is what makes it usable as implicit consent
+ *  (app/_lib/companion-brain.ts): an install whose operator has been talking to
+ *  Candi for weeks must not be asked to consent to the memory it already has. */
+export function countBrainEntries(workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const row = ensureDb()
+    .prepare(`SELECT COUNT(*) AS n FROM companion_brain_index WHERE workspace_id = ?`)
+    .get(workspaceId) as { n?: number } | undefined;
+  return Number(row?.n ?? 0);
+}
+
 export function listBrainEntries(workspaceId: string = DEFAULT_WORKSPACE_ID, limit = 50): BrainIndexEntry[] {
   const rows = ensureDb()
     .prepare(

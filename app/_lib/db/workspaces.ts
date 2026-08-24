@@ -90,6 +90,39 @@ export function setWorkspaceOnboardingState(state: "completed" | "skipped", id: 
   db.prepare(`UPDATE workspaces SET onboarding_state = ? WHERE id = ?`).run(state, id);
 }
 
+// Companion memory consent (WP4) — whether this workspace has agreed that Candi
+// may keep a memory on this machine, and how it came about:
+//   'connected' the operator adopted a brain that was already on disk
+//   'birthed'   they asked for a fresh one at first run
+//   null        never asked, or skipped — the dock runs MEMORYLESS
+// Same per-workspace-scalar shape as default_locale and onboarding_state, and
+// validated at both boundaries for the same reason. This store answers "what was
+// recorded"; the RULE that turns it into "may this turn touch the brain" — which
+// also honours installs that already have episodes — lives in
+// app/_lib/companion-brain.ts, beside the probe it belongs with.
+export type CompanionBrainConsent = "connected" | "birthed" | null;
+
+export function getCompanionBrainConsent(id: string = DEFAULT_WORKSPACE_ID): CompanionBrainConsent {
+  const db = ensureDb();
+  const row = db.prepare(`SELECT companion_brain_consent FROM workspaces WHERE id = ?`).get(id) as
+    | { companion_brain_consent?: string | null }
+    | undefined;
+  const value = row?.companion_brain_consent;
+  return value === "connected" || value === "birthed" ? value : null;
+}
+
+/** Record consent. Deliberately NOT reversible here: "skip" writes nothing at
+ *  all rather than a third state, because a null column and an explicit refusal
+ *  behave identically (memory off) and inventing the distinction would mean
+ *  claiming to know which one an existing row was. */
+export function setCompanionBrainConsent(
+  state: "connected" | "birthed",
+  id: string = DEFAULT_WORKSPACE_ID
+): void {
+  const db = ensureDb();
+  db.prepare(`UPDATE workspaces SET companion_brain_consent = ? WHERE id = ?`).run(state, id);
+}
+
 export function createWorkspace(name: string, orgId: string = DEFAULT_ORG_ID): Workspace {
   const db = ensureDb();
   const id = randomId("ws");

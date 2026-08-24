@@ -1305,7 +1305,9 @@
     "COMPANION_MESSAGE_FAILED": "Candi na tuto zprávu neodpověděla. Vaše slova jsou uložená.",
     "COMPANION_PROPOSAL_NOT_FOUND": "Tento návrh už není k dispozici.",
     "COMPANION_PROPOSAL_RESOLVED": "Na tento návrh už bylo odpovězeno.",
-    "COMPANION_PROPOSAL_FAILED": "Návrh se nepodařilo provést. Nic se nezměnilo."
+    "COMPANION_PROPOSAL_FAILED": "Návrh se nepodařilo provést. Nic se nezměnilo.",
+    "COMPANION_BRAIN_FAILED": "Nepodařilo se ověřit paměť Candi v tomto počítači. Zkuste to prosím znovu.",
+    "COMPANION_BRAIN_ABSENT": "V tomto počítači není žádná paměť společnice, kterou by šlo připojit."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7155,6 +7157,12 @@
         "title": "Nastavte si náborovou nástěnku",
         "blurb": "Tohle jsou sloupce, kterými prochází každý kandidát. Výchozí sada vyhovuje většině týmů. Nechte ji, jak je, nebo si sloupce přejmenujte, přeskládejte a přidejte vlastní."
       },
+      "companion": {
+        "label": "Candi",
+        "eyebrow": "Nastavení · Candi",
+        "title": "Seznámit se s Candi",
+        "blurb": "Candi je společnice, která sedí vedle vašeho studia. Může si pamatovat vaši práci a tato paměť zůstává v tomto počítači."
+      },
       "handoff": {
         "label": "Hotovo",
         "eyebrow": "Vítejte na palubě",
@@ -7239,6 +7247,26 @@
       "loadFailed": "Sloupce nástěnky se nepodařilo načíst. Nastavení pokračuje: nástěnka si nechá stávající sloupce a změnit je můžete v Nastavení → Náborová pipeline.",
       "dirtyNote": "Změny nástěnky se uloží, až dokončíte nastavení. Kdykoli je upravíte v Nastavení → Náborová pipeline.",
       "laterNote": "Kdykoli to změníte v Nastavení → Náborová pipeline."
+    },
+    "companion": {
+      "loading": "Hledám v tomto počítači paměť…",
+      "loadFailed": "Nepodařilo se mi v tomto počítači paměť vyhledat. Můžete se rozhodnout později, nic se neztratí.",
+      "role": "Vaše společnice ve studiu",
+      "onTitle": "Candi si tento pracovní prostor už pamatuje.",
+      "onBody": "Její paměť je zapnutá, takže tady není co řešit.",
+      "foundTitle": "Našla jsem v tomto počítači již existující paměť.",
+      "foundBody": "{count, plural, =0 {Zatím je prázdná.} one {Obsahuje # vzpomínku.} few {Obsahuje # vzpomínky.} other {Obsahuje # vzpomínek.}} Když ji připojíte, Candi naváže tam, kde ta mysl skončila.",
+      "foundBodyMany": "Obsahuje stovky vzpomínek. Když ji připojíte, Candi naváže tam, kde ta mysl skončila.",
+      "originKp": "Zapsal ji Kandidate.",
+      "originPersonas": "Zapsala ji jiná aplikace v tomto počítači. Candi ji bude sdílet, nikdy ji nepřepíše.",
+      "absentTitle": "Candi začíná s prázdnou pamětí.",
+      "absentBody": "Učí se během vaší práce. Každá výměna se zapíše do složky v tomto počítači, kterou si můžete přečíst nebo smazat v jakémkoli textovém editoru, a nic z toho počítač neopustí.",
+      "connect": "Připojit ji",
+      "create": "Vytvořit její paměť",
+      "skip": "Zatím přeskočit",
+      "chosenConnect": "Připojím ji, až nastavení dokončíte.",
+      "chosenBirth": "Vytvořím ji, až nastavení dokončíte.",
+      "chosenSkip": "Candi bude pracovat bez paměti. Můžete ji zapnout později."
     },
     "handoff": {
       "readyTitle": "{org} může začít",
@@ -8708,7 +8736,8 @@
       "thinking": "Prochází stav studia…",
       "thinkingAbout": "Přemýšlí o {count, plural, one {# rozhodnutí} few {# rozhodnutích} other {# rozhodnutích}}…",
       "watching": "Sleduje {count, plural, one {# věc} few {# věci} other {# věcí}}, které vás potřebují.",
-      "proposals": "{count, plural, one {# návrh čeká na vás} few {# návrhy čekají na vás} other {# návrhů čeká na vás}}"
+      "proposals": "{count, plural, one {# návrh čeká na vás} few {# návrhy čekají na vás} other {# návrhů čeká na vás}}",
+      "memoryOff": "Paměť je vypnutá - zapnete ji v nastavení."
     },
     "meta": {
       "remembered": "pamatuje si:",

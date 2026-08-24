@@ -1305,7 +1305,9 @@
     "COMPANION_MESSAGE_FAILED": "Candi could not answer that message. Your words are saved.",
     "COMPANION_PROPOSAL_NOT_FOUND": "That proposal is no longer available.",
     "COMPANION_PROPOSAL_RESOLVED": "That proposal was already answered.",
-    "COMPANION_PROPOSAL_FAILED": "Could not run that proposal. Nothing was changed."
+    "COMPANION_PROPOSAL_FAILED": "Could not run that proposal. Nothing was changed.",
+    "COMPANION_BRAIN_FAILED": "Could not check this machine for Candi's memory. Please try again.",
+    "COMPANION_BRAIN_ABSENT": "There is no companion memory on this machine to connect."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7155,6 +7157,12 @@
         "title": "Shape your hiring board",
         "blurb": "These are the columns every candidate moves through. The ones that ship fit most teams. Keep them as they are, or rename, reorder and add your own."
       },
+      "companion": {
+        "label": "Candi",
+        "eyebrow": "Set up · Candi",
+        "title": "Meet Candi",
+        "blurb": "Candi is the companion who sits beside your studio. She can keep a memory of your work, and that memory lives on this computer."
+      },
       "handoff": {
         "label": "Done",
         "eyebrow": "Welcome aboard",
@@ -7239,6 +7247,26 @@
       "loadFailed": "Your board's columns couldn't be read. Setup carries on: the board keeps the columns it has, and you can change them in Settings → Hiring pipeline.",
       "dirtyNote": "Board changes apply when you finish setup. You can adjust them any time in Settings → Hiring pipeline.",
       "laterNote": "You can change these any time in Settings → Hiring pipeline."
+    },
+    "companion": {
+      "loading": "Looking on this machine for a memory…",
+      "loadFailed": "I could not look on this machine for a memory. You can decide this later; nothing is lost either way.",
+      "role": "Your studio companion",
+      "onTitle": "Candi already remembers this workspace.",
+      "onBody": "Her memory is on, so there is nothing to decide here.",
+      "foundTitle": "I found a memory already on this machine.",
+      "foundBody": "{count, plural, =0 {It is empty so far.} one {It holds # memory.} other {It holds # memories.}} Connect it and Candi picks up where that mind left off.",
+      "foundBodyMany": "It holds hundreds of memories. Connect it and Candi picks up where that mind left off.",
+      "originKp": "Kandidate wrote it.",
+      "originPersonas": "Another app on this computer wrote it. Candi would share it, never rewrite it.",
+      "absentTitle": "Candi starts with a blank memory.",
+      "absentBody": "She learns as you work. Every exchange is written to a folder on this computer that you can read or delete in any text editor, and none of it leaves the machine.",
+      "connect": "Connect it",
+      "create": "Create her memory",
+      "skip": "Skip for now",
+      "chosenConnect": "Connected when you finish setup.",
+      "chosenBirth": "Created when you finish setup.",
+      "chosenSkip": "Candi will work without a memory. You can turn this on later."
     },
     "handoff": {
       "readyTitle": "{org} is ready to go",
@@ -8708,7 +8736,8 @@
       "thinking": "Reading the studio…",
       "thinkingAbout": "Thinking about {count, plural, one {# decision} other {# decisions}}…",
       "watching": "Watching {count, plural, one {# thing} other {# things}} that need you.",
-      "proposals": "{count, plural, one {# proposal is waiting on you} other {# proposals are waiting on you}}"
+      "proposals": "{count, plural, one {# proposal is waiting on you} other {# proposals are waiting on you}}",
+      "memoryOff": "Memory off - turn it on in setup."
     },
     "meta": {
       "remembered": "remembered:",

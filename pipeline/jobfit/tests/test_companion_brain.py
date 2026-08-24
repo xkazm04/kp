@@ -69,6 +69,52 @@ class CompanionBrainTestCase(unittest.TestCase):
         self.assertEqual(brain.read_constitution(), "MINE, edited by the operator\n")
         self.assertEqual(brain.read_identity(), "MY identity\n")
 
+    # -- probe ---------------------------------------------------------------
+    #
+    # The probe is the first-run consent gate's only source of truth, and its
+    # ONE hard property is that it creates nothing: a probe that births the tree
+    # has already answered the question it was sent to ask.
+
+    def test_probe_creates_nothing_on_an_absent_brain(self):
+        probe = brain.probe_brain()
+        self.assertFalse(probe["present"])
+        self.assertEqual(probe["episodes"], 0)
+        self.assertEqual(probe["identitySections"], 0)
+        self.assertEqual(probe["constitutionOrigin"], "none")
+        self.assertFalse(brain.brain_root().exists())
+
+    def test_probe_reads_a_born_brain_without_touching_it(self):
+        brain.ensure_brain()
+        brain.append_episode("user", "How many candidates are waiting on me?", "kp-workspace")
+        before = sorted(p.name for p in brain.brain_root().iterdir())
+        probe = brain.probe_brain()
+        self.assertTrue(probe["present"])
+        self.assertEqual(probe["episodes"], 1)
+        self.assertEqual(probe["constitutionOrigin"], "kp")
+        # The skeleton ships two `## ` sections and nothing has filled them in.
+        self.assertEqual(probe["identitySections"], 2)
+        self.assertEqual(sorted(p.name for p in brain.brain_root().iterdir()), before)
+
+    def test_probe_calls_a_foreign_constitution_personas(self):
+        """A constitution without kp's marker was written somewhere else - by
+        Personas' own Athena sharing this root, or by the operator's editor. The
+        consent gate needs "made elsewhere", and both answer it the same way."""
+        brain.ensure_brain()
+        (brain.brain_root() / "constitution.md").write_text("# I am Athena\n", encoding="utf-8")
+        self.assertEqual(brain.probe_brain()["constitutionOrigin"], "personas")
+
+    def test_probe_counts_episodes_capped(self):
+        day = brain.brain_root() / "episodes" / "2026" / "08" / "24"
+        day.mkdir(parents=True)
+        for i in range(brain.EPISODE_PROBE_CAP + 5):
+            (day / f"ep_{i:05d}_user.md").write_text("x", encoding="utf-8")
+        # Present on the episodes dir alone — a tree can carry memories before
+        # anyone writes a constitution into it.
+        probe = brain.probe_brain()
+        self.assertTrue(probe["present"])
+        self.assertEqual(probe["episodes"], brain.EPISODE_PROBE_CAP)
+        self.assertEqual(probe["constitutionOrigin"], "none")
+
     # -- append --------------------------------------------------------------
 
     def test_append_writes_markdown_and_indexes_locally(self):

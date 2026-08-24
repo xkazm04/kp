@@ -1305,7 +1305,9 @@
     "COMPANION_MESSAGE_FAILED": "Candi n'a pas pu répondre à ce message. Vos mots sont enregistrés.",
     "COMPANION_PROPOSAL_NOT_FOUND": "Cette proposition n'est plus disponible.",
     "COMPANION_PROPOSAL_RESOLVED": "Cette proposition a déjà été traitée.",
-    "COMPANION_PROPOSAL_FAILED": "Impossible d'exécuter cette proposition. Rien n'a été modifié."
+    "COMPANION_PROPOSAL_FAILED": "Impossible d'exécuter cette proposition. Rien n'a été modifié.",
+    "COMPANION_BRAIN_FAILED": "Impossible de vérifier la mémoire de Candi sur cette machine. Veuillez réessayer.",
+    "COMPANION_BRAIN_ABSENT": "Il n'y a aucune mémoire de compagne à connecter sur cette machine."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7155,6 +7157,12 @@
         "title": "Composez votre tableau de recrutement",
         "blurb": "Voici les colonnes que traverse chaque candidat. Celles fournies conviennent à la plupart des équipes. Gardez-les telles quelles, ou renommez, réordonnez et ajoutez les vôtres."
       },
+      "companion": {
+        "label": "Candi",
+        "eyebrow": "Configuration · Candi",
+        "title": "Faites connaissance avec Candi",
+        "blurb": "Candi est la compagne installée à côté de votre studio. Elle peut garder une mémoire de votre travail, et cette mémoire reste sur cet ordinateur."
+      },
       "handoff": {
         "label": "Terminé",
         "eyebrow": "Bienvenue à bord",
@@ -7239,6 +7247,26 @@
       "loadFailed": "Impossible de lire les colonnes de votre tableau. La configuration continue : le tableau garde ses colonnes, et vous pouvez les modifier dans Paramètres → Pipeline de recrutement.",
       "dirtyNote": "Les modifications du tableau s’appliquent à la fin de la configuration. Vous pouvez les ajuster à tout moment dans Paramètres → Pipeline de recrutement.",
       "laterNote": "Vous pouvez modifier tout cela à tout moment dans Paramètres → Pipeline de recrutement."
+    },
+    "companion": {
+      "loading": "Je cherche une mémoire sur cette machine…",
+      "loadFailed": "Je n'ai pas pu chercher de mémoire sur cette machine. Vous pourrez décider plus tard, rien n'est perdu.",
+      "role": "Votre compagne de studio",
+      "onTitle": "Candi se souvient déjà de cet espace de travail.",
+      "onBody": "Sa mémoire est active, il n'y a donc rien à décider ici.",
+      "foundTitle": "J'ai trouvé une mémoire déjà présente sur cette machine.",
+      "foundBody": "{count, plural, =0 {Elle est encore vide.} one {Elle contient # souvenir.} other {Elle contient # souvenirs.}} Connectez-la et Candi reprendra là où cet esprit s'est arrêté.",
+      "foundBodyMany": "Elle contient des centaines de souvenirs. Connectez-la et Candi reprendra là où cet esprit s'est arrêté.",
+      "originKp": "C'est Kandidate qui l'a écrite.",
+      "originPersonas": "Une autre application de cet ordinateur l'a écrite. Candi la partagera, sans jamais la réécrire.",
+      "absentTitle": "Candi commence avec une mémoire vierge.",
+      "absentBody": "Elle apprend pendant que vous travaillez. Chaque échange est écrit dans un dossier de cet ordinateur que vous pouvez lire ou supprimer avec n'importe quel éditeur de texte, et rien n'en sort.",
+      "connect": "La connecter",
+      "create": "Créer sa mémoire",
+      "skip": "Passer pour l'instant",
+      "chosenConnect": "Sera connectée quand vous terminerez la configuration.",
+      "chosenBirth": "Sera créée quand vous terminerez la configuration.",
+      "chosenSkip": "Candi travaillera sans mémoire. Vous pourrez l'activer plus tard."
     },
     "handoff": {
       "readyTitle": "{org} peut démarrer",
@@ -8708,7 +8736,8 @@
       "thinking": "Lecture de l'état du studio…",
       "thinkingAbout": "Réfléchit à {count, plural, one {# décision} other {# décisions}}…",
       "watching": "Surveille {count, plural, one {# élément} other {# éléments}} qui vous attendent.",
-      "proposals": "{count, plural, one {# proposition vous attend} other {# propositions vous attendent}}"
+      "proposals": "{count, plural, one {# proposition vous attend} other {# propositions vous attendent}}",
+      "memoryOff": "Mémoire désactivée - activez-la dans la configuration."
     },
     "meta": {
       "remembered": "se souvient :",

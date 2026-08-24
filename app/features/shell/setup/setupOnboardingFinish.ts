@@ -42,6 +42,7 @@ export async function persistOnboardingSetup(state: SetupState, t: ReturnType<ty
   const invitesLanded = await sendSetupInvites(state.invites);
 
   await persistPipelineAxis(state, t);
+  await persistCompanionConsent(state);
   // The closing claim is the one the operator carries into the app, so it reports
   // what actually landed rather than what was attempted.
   if (invitesLanded) toast.success(t("toast.saved"));
@@ -74,6 +75,39 @@ export async function sendSetupInvites(invites: readonly SetupInvite[]): Promise
     )
   );
   return results.every((r) => r.status === "fulfilled" && r.value.ok);
+}
+
+/**
+ * Candi's memory — written only when the operator actually asked for it.
+ *
+ * A null choice is "skip for now" and it POSTS NOTHING. That is the whole design
+ * of the consent step: skipping must leave the machine exactly as it was, so
+ * there is no "declined" state to record and no request to make. Recording a
+ * refusal would also be a claim we cannot honour, since a null column and an
+ * explicit no behave identically (the dock runs memoryless either way).
+ *
+ * Deferred to finish() rather than fired on click for the same reason every
+ * other answer in this wizard is: preview mode's finish() persists nothing, so
+ * routing consent through here is what makes the Settings walkthrough incapable
+ * of birthing a brain. `birth` is idempotent server-side, so a double finish
+ * cannot make two.
+ *
+ * Silent on failure by design — the consent question is re-askable and nothing
+ * downstream is broken by a missed stamp (the dock simply stays memoryless), so
+ * a red toast about the companion at the end of a successful setup would be
+ * noise. The pipeline write, which CHANGES the board, is the one that speaks up.
+ */
+async function persistCompanionConsent(state: SetupState): Promise<void> {
+  if (!state.companionChoice) return;
+  try {
+    await fetch("/api/companion/brain", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: state.companionChoice }),
+    });
+  } catch {
+    /* re-askable; a missed stamp only means memory stays off */
+  }
 }
 
 /**

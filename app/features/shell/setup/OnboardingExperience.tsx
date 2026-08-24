@@ -9,6 +9,7 @@ import { OnboardingWizard } from "./SetupOnboardingWizard";
 import { INITIAL_SETUP, SETUP_STEPS, stepSatisfied, type OnboardingCtrl, type SetupInvite, type SetupState } from "./setupSteps";
 import { persistOnboardingSetup } from "./setupOnboardingFinish";
 import { useSetupPipelineAxis } from "./useSetupPipelineAxis";
+import { useSetupCompanionBrain } from "./useSetupCompanionBrain";
 
 // First-run onboarding host. Owns the setup state + step index and hands one
 // controller to the wizard. Rendered as a fixed overlay over the workspace. Two
@@ -115,6 +116,11 @@ export function OnboardingExperience({ mode = "preview", onClose }: { mode?: "li
   // The board's real columns, read once on mount (both modes — a walkthrough that
   // showed a made-up board would be teaching the wrong thing).
   useSetupPipelineAxis(update);
+
+  // What this machine already holds for Candi, read once on mount (both modes
+  // — the probe CREATES NOTHING, so the walkthrough can show the real state
+  // without the walkthrough having caused it).
+  useSetupCompanionBrain(update);
 
   // Persist everything the wizard collected, then close. Each step is best-effort
   // (one failing invite must not sink the rest), so a partial network hiccup still

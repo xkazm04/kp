@@ -107,6 +107,69 @@ class CompanionCliTestCase(unittest.TestCase):
         self.assertTrue(payload["recallUsed"])
         self.assertIn("rubric", provider.prompt or "")
 
+    # -- consent (WP4) -------------------------------------------------------
+    #
+    # The dock works before the operator has agreed to Candi keeping a memory;
+    # it just works MEMORYLESS. The hard property is that a memory-off turn does
+    # not create the tree it was refused - every ordinary reader in the brain
+    # module goes through ensure_brain(), so "read the constitution" would have
+    # been enough to birth it.
+
+    def test_a_memory_off_turn_never_touches_the_brain(self):
+        provider = _Provider()
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=provider):
+            payload = companion_cli.run_turn(dict(TURN, memory=False))
+        self.assertEqual(payload["reply"], "Four candidates are waiting on you.")
+        self.assertFalse(payload["memoryEnabled"])
+        self.assertEqual(payload["episodePaths"], [])
+        self.assertEqual(payload["recallUsed"], [])
+        # Nothing on disk: not the tree, not the index, not an episode.
+        self.assertFalse(brain.brain_root().exists())
+        # She is still Candi - the shipped constitution stood in for the file.
+        self.assertIn("kp-constitution v1", provider.system or "")
+        self.assertIn("unreviewed", provider.prompt or "")
+
+    def test_a_memory_off_turn_cannot_recall_what_is_already_there(self):
+        brain.append_episode("user", "The platform devcase needs a rubric.", "kp-workspace")
+        provider = _Provider()
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=provider):
+            payload = companion_cli.run_turn(dict(TURN, message="what about the rubric?", memory=False))
+        self.assertEqual(payload["recallUsed"], [])
+        self.assertNotIn("rubric", (provider.prompt or "").split("<<<OPERATOR_MESSAGE>>>")[0])
+
+    def test_an_absent_memory_key_still_means_yes(self):
+        """The consent authority is the CALLER, and every pre-WP4 caller omits
+        the key. Absent must therefore keep the historical behaviour exactly."""
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=_Provider()):
+            payload = companion_cli.run_turn(dict(TURN))
+        self.assertTrue(payload["memoryEnabled"])
+        self.assertEqual(len(payload["episodePaths"]), 2)
+
+    def test_the_probe_door_reports_without_creating(self):
+        with mock.patch("sys.argv", ["companion_cli", "--probe"]):
+            with mock.patch("builtins.print") as printed:
+                code = companion_cli.main()
+        self.assertEqual(code, 0)
+        emitted = json.loads(printed.call_args.args[0])
+        self.assertFalse(emitted["present"])
+        self.assertEqual(emitted["episodes"], 0)
+        self.assertFalse(brain.brain_root().exists())
+
+    def test_the_birth_door_creates_once_and_is_idempotent(self):
+        def birth():
+            with mock.patch("sys.argv", ["companion_cli", "--birth"]):
+                with mock.patch("builtins.print") as printed:
+                    self.assertEqual(companion_cli.main(), 0)
+                    return json.loads(printed.call_args.args[0])
+
+        first = birth()
+        self.assertEqual(sorted(first["born"]), ["constitution.md", "identity.md"])
+        self.assertTrue(first["present"])
+        self.assertEqual(first["constitutionOrigin"], "kp")
+        second = birth()
+        self.assertEqual(second["born"], [])
+        self.assertTrue(second["present"])
+
     def test_the_operators_own_message_never_comes_back_as_a_memory(self):
         """The round-5 finding, end to end. ``run_turn`` appends the message as
         an episode BEFORE it recalls, so raw BM25 hands that sentence straight

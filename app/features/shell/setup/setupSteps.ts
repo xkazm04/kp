@@ -1,7 +1,7 @@
 // First-run onboarding — shared step model + state. This is the SimBar "phases"
 // idea (constants.ts SIM_PHASES) retargeted from a demo chronology to a
 // user-completes-it setup journey: Welcome → Company → Team → Pipeline →
-// Hand-off. Copy lives in the `setup` i18n namespace (messages/*.json), not here
+// Candi → Hand-off. Copy lives in the `setup` i18n namespace (messages/*.json), not here
 // — steps carry ids only, so the catalogs stay the single source of wording.
 //
 // Step 4 used to be "First role" — the inputs of a real backgrounded JD build.
@@ -20,15 +20,20 @@
 import type { AppLanguage } from "@/app/features/shared/memberUi";
 import type { MemberRole } from "@/app/_lib/auth/roles";
 import type { PipelineStagesRule } from "@/app/_lib/decision-config-schema";
+// The PROBE module, never companion-brain.ts: that one spawns Python and opens
+// better-sqlite3, and this file is imported by a client component. Same
+// split-by-audience the dock's proposal card keeps.
+import type { CompanionBrainChoice, CompanionBrainStatus } from "@/app/_lib/companion-brain-probe";
 import { axisProblems, type AxisDraft } from "@/app/features/shared/pipelineAxisDraft";
 
-export type SetupStepId = "welcome" | "company" | "team" | "pipeline" | "handoff";
+export type SetupStepId = "welcome" | "company" | "team" | "pipeline" | "companion" | "handoff";
 
 export const SETUP_STEPS: { id: SetupStepId }[] = [
   { id: "welcome" },
   { id: "company" },
   { id: "team" },
   { id: "pipeline" },
+  { id: "companion" },
   { id: "handoff" },
 ];
 
@@ -55,6 +60,11 @@ export type SetupPipeline = {
  *  whatever it already had. */
 export type SetupPipelineLoad = "loading" | "ready" | "failed";
 
+/** Whether the brain probe has landed. Same three-state shape and the same
+ *  contract as the axis read: a failed probe SAYS SO and lets the operator past,
+ *  because a machine we could not look at is not a reason to block first run. */
+export type SetupBrainLoad = "loading" | "ready" | "failed";
+
 /** Whether a step's REQUIRED inputs are satisfied — the single gate behind the
  *  footer's Continue AND the rail's forward navigation, so the stepper can't
  *  bypass what the button enforces. Only `company` has a required input; `team`
@@ -62,7 +72,13 @@ export type SetupPipelineLoad = "loading" | "ready" | "failed";
  *  `pipeline` ships a working five-column board, so accepting either unchanged
  *  is a legitimate answer. The pipeline gate is therefore a
  *  VALIDITY check, not a completeness one: an axis the server would reject can't
- *  be carried to the hand-off, but an untouched one is fine. */
+ *  be carried to the hand-off, but an untouched one is fine.
+ *
+ *  `companion` is deliberately absent too, and for a stronger reason than the
+ *  others: it asks for CONSENT to keep a memory on the operator's own machine,
+ *  and a consent question that blocks the door is not a question. Skipping it is
+ *  a real answer — the dock still works, memoryless — so the step is always
+ *  satisfied and never gates Continue. */
 export function stepSatisfied(id: SetupStepId, state: SetupState): boolean {
   if (id === "company") return state.orgName.trim().length > 0;
   if (id === "pipeline") {
@@ -82,6 +98,16 @@ export type SetupState = {
   invites: SetupInvite[];
   pipeline: SetupPipeline | null;
   pipelineLoad: SetupPipelineLoad;
+  /** What this machine already holds for Candi, read WITHOUT creating any of it
+   *  (GET /api/companion/brain). Null until the probe lands or fails. */
+  brain: CompanionBrainStatus | null;
+  brainLoad: SetupBrainLoad;
+  /** What the operator answered about Candi's memory. `null` is "skip for now",
+   *  and it is the default: onboarding never blocks on the companion, and a skip
+   *  stamps NOTHING brain-related. Written by finish(), like every other answer
+   *  in this wizard — which is also what keeps the Settings walkthrough honest,
+   *  since preview mode's finish() persists nothing at all. */
+  companionChoice: CompanionBrainChoice;
 };
 
 export const INITIAL_SETUP: SetupState = {
@@ -92,6 +118,9 @@ export const INITIAL_SETUP: SetupState = {
   invites: [],
   pipeline: null,
   pipelineLoad: "loading",
+  brain: null,
+  brainLoad: "loading",
+  companionChoice: null,
 };
 
 // Shared controller — the onboarding host owns this and hands the SAME object to

@@ -46,6 +46,12 @@ export type CompanionThreadState = {
   /** Answer one proposal. Resolves false when the answer did not land, so the
    *  card re-arms rather than sitting disabled on a request that failed. */
   resolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
+  /** Whether this workspace has consented to Candi keeping a memory on this
+   *  machine (WP4). Read from the SAME boot request that hydrates the thread,
+   *  because the state line has to say "memory off" before a single message is
+   *  sent. Defaults TRUE so a failed or slow boot never accuses a perfectly
+   *  healthy install of having forgotten. */
+  memoryEnabled: boolean;
 };
 
 type Pending = { resolve: (ok: boolean) => void };
@@ -122,6 +128,10 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
+  // Optimistic yes: the honest failure of this flag is a missing warning, not a
+  // false one, and "Candi has forgotten everything" is a bad thing to say to an
+  // operator whose boot request merely timed out.
+  const [memoryEnabled, setMemoryEnabled] = useState(true);
   const machine = useRef<OrchestratorState>(initialOrchestratorState);
   // Every send waiting on the dispatch that carries it. Resolved together when
   // that request settles, because coalescing means one request answers several.
@@ -145,8 +155,10 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
           threads?: { id: string }[];
           turns?: CompanionTurn[];
           proposals?: CompanionProposal[];
+          memoryEnabled?: boolean;
           code?: string;
         };
+        if (res.ok) setMemoryEnabled(body.memoryEnabled !== false);
         if (res.ok && body.threads && body.threads.length > 0) {
           activeThread.current = body.threads[0].id;
           setThreadId(body.threads[0].id);
@@ -283,5 +295,6 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
     send,
     newThread,
     resolveProposal: resolveProposalById,
+    memoryEnabled,
   };
 }

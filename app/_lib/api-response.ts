@@ -158,6 +158,10 @@ export const STORE_ERRORS = {
   COMPANION_PROPOSAL_NOT_FOUND: "That proposal is no longer available.",
   COMPANION_PROPOSAL_RESOLVED: "That proposal was already answered.",
   COMPANION_PROPOSAL_FAILED: "Could not run that proposal. Nothing was changed.",
+  // Memory consent (WP4). The brain doors spawn companion_cli and their thrown
+  // errors carry the operator's own home-directory paths, which is precisely the
+  // detail this registry exists to keep off the wire.
+  COMPANION_BRAIN_FAILED: "Could not check this machine for Candi's memory. Please try again.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;
@@ -201,6 +205,11 @@ export const REFUSAL_ERRORS = {
   HIRE_RATING_NOT_HIRED: "Only a hired candidate can carry an on-the-job rating.",
   /** …or with a value outside the 1..5 scale (400). */
   HIRE_RATING_INVALID: "An on-the-job rating must be a whole number from 1 to 5.",
+  /** "Connect the memory that is already here" arrived when there is no memory
+   *  here (409). The probe is re-run inside the POST, so a wizard left open
+   *  while the folder was deleted refuses instead of recording consent to a
+   *  brain that does not exist. */
+  COMPANION_BRAIN_ABSENT: "There is no companion memory on this machine to connect.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

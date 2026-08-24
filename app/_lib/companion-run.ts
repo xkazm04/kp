@@ -8,6 +8,7 @@ import { attentionCounts } from "./attention";
 // modules and `next dev` compiles a route's whole module graph with no
 // tree-shaking (see the same note at the top of attention.ts).
 import { listPipeline } from "./db/pipeline";
+import { companionMemoryEnabled } from "./companion-brain";
 import { pipelineSummary, transcriptWindow, type CompanionWireTurn } from "./companion-turn";
 import { coerceChatBlocks, type ChatBlock } from "./companion-blocks";
 import {
@@ -58,6 +59,13 @@ export type CompanionTurnResult = {
   actionErrors: number;
   recallUsed: CompanionRecall[];
   episodePaths: string[];
+  /** Whether this turn was allowed to touch the brain (WP4). False means the
+   *  workspace has not consented to a memory on this machine: nothing was
+   *  recalled, nothing was written, and the dock says so rather than letting
+   *  Candi read as forgetful. Reported by the CLI, not inferred from the empty
+   *  `recallUsed` — "she remembered nothing" and "she may not remember" are
+   *  different facts and only one of them is fixable. */
+  memoryEnabled: boolean;
   source: "llm" | "deterministic";
   indexSkipped: string[];
   fallbackReason?: string;
@@ -134,6 +142,11 @@ function coerceTurn(payload: unknown): CompanionTurnResult {
     actionErrors: reportedActionErrors + dropped,
     recallUsed: coerceRecall(raw.recallUsed),
     episodePaths: coerceStrings(raw.episodePaths),
+    // Defaulted to TRUE when absent, matching the CLI's own rule for a missing
+    // `memory` key: a payload from a build that predates consent DID use the
+    // brain, and reading it as "memory off" would put a false warning under a
+    // turn that remembered perfectly well.
+    memoryEnabled: raw.memoryEnabled !== false,
     source: raw.source === "llm" ? "llm" : "deterministic",
     indexSkipped: coerceStrings(raw.indexSkipped),
     ...(typeof raw.fallbackReason === "string" ? { fallbackReason: raw.fallbackReason } : {}),
@@ -165,6 +178,11 @@ export async function runCompanionTurn(
       transcript: transcriptWindow(input.transcript),
       grounding: companionGrounding(input.workspaceId),
       locale: input.locale,
+      // CONSENT (WP4). The rule is resolved HERE, on the side of the boundary
+      // that has a database: the CLI has no workspace to ask about, so shipping
+      // the answer rather than the question is what keeps the brain door and the
+      // consent record from ever disagreeing.
+      memory: companionMemoryEnabled(input.workspaceId),
     },
     [],
     signal
@@ -202,6 +220,10 @@ export async function runCompanionDigest(
         openProposals: input.openProposals.map((p) => ({ id: p.id, summary: p.summary })),
       },
       locale: input.locale,
+      // Same consent gate as a typed turn. A digest is Candi speaking FIRST, so
+      // it is the one leg that must never be the reason a brain gets created:
+      // the operator did not ask for it and is not at the screen to see it.
+      memory: companionMemoryEnabled(input.workspaceId),
     },
     ["--digest"],
     signal

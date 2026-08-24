@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createThread, listProposalsForThread, listThreads, listTurns } from "@/app/_lib/db/companion";
+import { companionMemoryEnabled } from "@/app/_lib/companion-brain";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
@@ -28,7 +29,13 @@ export async function GET() {
     // the dock opens on that conversation and would otherwise paint an Accept
     // button for something the operator already answered, one round trip ago.
     const proposals = threads.length > 0 ? listProposalsForThread(threads[0].id, ws) : [];
-    return NextResponse.json({ threads, turns, proposals });
+    // Memory consent (WP4) rides along on the dock's ONE boot request, for the
+    // same reason the turns do: the state line has to say "memory off" before a
+    // single message is sent, and a second round trip for one boolean the DB
+    // already answered would be a wasted hop. It is the cheap arm of the rule
+    // only — a COUNT and a column read, never the probe spawn, which belongs to
+    // the wizard that actually asks the question.
+    return NextResponse.json({ threads, turns, proposals, memoryEnabled: companionMemoryEnabled(ws) });
   } catch (error) {
     return safeJsonError(error, "api:companion/threads", "COMPANION_THREADS_FAILED");
   }

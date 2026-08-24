@@ -1305,7 +1305,9 @@
     "COMPANION_MESSAGE_FAILED": "Candi konnte diese Nachricht nicht beantworten. Ihre Worte sind gespeichert.",
     "COMPANION_PROPOSAL_NOT_FOUND": "Dieser Vorschlag ist nicht mehr verfügbar.",
     "COMPANION_PROPOSAL_RESOLVED": "Dieser Vorschlag wurde bereits beantwortet.",
-    "COMPANION_PROPOSAL_FAILED": "Der Vorschlag konnte nicht ausgeführt werden. Es wurde nichts geändert."
+    "COMPANION_PROPOSAL_FAILED": "Der Vorschlag konnte nicht ausgeführt werden. Es wurde nichts geändert.",
+    "COMPANION_BRAIN_FAILED": "Das Gedächtnis von Candi konnte auf diesem Rechner nicht geprüft werden. Bitte erneut versuchen.",
+    "COMPANION_BRAIN_ABSENT": "Auf diesem Rechner gibt es kein Begleiter-Gedächtnis zum Verbinden."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7155,6 +7157,12 @@
         "title": "Bauen Sie Ihr Hiring-Board",
         "blurb": "Das sind die Spalten, die jede Kandidatin und jeder Kandidat durchläuft. Die Standardspalten passen den meisten Teams. Behalten Sie sie, oder benennen, sortieren und ergänzen Sie eigene."
       },
+      "companion": {
+        "label": "Candi",
+        "eyebrow": "Einrichtung · Candi",
+        "title": "Candi kennenlernen",
+        "blurb": "Candi ist die Begleiterin an der Seite Ihres Studios. Sie kann sich Ihre Arbeit merken, und dieses Gedächtnis bleibt auf diesem Computer."
+      },
       "handoff": {
         "label": "Fertig",
         "eyebrow": "Willkommen an Bord",
@@ -7239,6 +7247,26 @@
       "loadFailed": "Die Spalten Ihres Boards konnten nicht gelesen werden. Die Einrichtung läuft weiter: das Board behält seine Spalten, und Sie können sie unter Einstellungen → Hiring-Pipeline ändern.",
       "dirtyNote": "Board-Änderungen greifen, wenn Sie die Einrichtung abschließen. Anpassen können Sie sie jederzeit unter Einstellungen → Hiring-Pipeline.",
       "laterNote": "Sie können das jederzeit unter Einstellungen → Hiring-Pipeline ändern."
+    },
+    "companion": {
+      "loading": "Ich suche auf diesem Rechner nach einem Gedächtnis…",
+      "loadFailed": "Ich konnte auf diesem Rechner nicht nach einem Gedächtnis sehen. Sie können das später entscheiden, es geht nichts verloren.",
+      "role": "Ihre Studio-Begleiterin",
+      "onTitle": "Candi erinnert sich bereits an diesen Workspace.",
+      "onBody": "Ihr Gedächtnis ist aktiv, hier gibt es also nichts zu entscheiden.",
+      "foundTitle": "Ich habe auf diesem Rechner ein vorhandenes Gedächtnis gefunden.",
+      "foundBody": "{count, plural, =0 {Es ist bisher leer.} one {Es enthält # Erinnerung.} other {Es enthält # Erinnerungen.}} Verbinden Sie es, und Candi macht dort weiter, wo dieser Geist aufgehört hat.",
+      "foundBodyMany": "Es enthält Hunderte von Erinnerungen. Verbinden Sie es, und Candi macht dort weiter, wo dieser Geist aufgehört hat.",
+      "originKp": "Kandidate hat es geschrieben.",
+      "originPersonas": "Eine andere App auf diesem Rechner hat es geschrieben. Candi würde es teilen, niemals überschreiben.",
+      "absentTitle": "Candi beginnt mit einem leeren Gedächtnis.",
+      "absentBody": "Sie lernt, während Sie arbeiten. Jeder Austausch wird in einen Ordner auf diesem Rechner geschrieben, den Sie in jedem Texteditor lesen oder löschen können, und nichts davon verlässt den Rechner.",
+      "connect": "Verbinden",
+      "create": "Gedächtnis anlegen",
+      "skip": "Vorerst überspringen",
+      "chosenConnect": "Wird verbunden, sobald Sie die Einrichtung abschließen.",
+      "chosenBirth": "Wird angelegt, sobald Sie die Einrichtung abschließen.",
+      "chosenSkip": "Candi arbeitet ohne Gedächtnis. Sie können es später einschalten."
     },
     "handoff": {
       "readyTitle": "{org} ist startklar",
@@ -8708,7 +8736,8 @@
       "thinking": "Sieht sich das Studio an…",
       "thinkingAbout": "Denkt über {count, plural, one {# Entscheidung} other {# Entscheidungen}} nach…",
       "watching": "Behält {count, plural, one {# Sache} other {# Sachen}} im Blick, die Sie brauchen.",
-      "proposals": "{count, plural, one {# Vorschlag wartet auf Sie} other {# Vorschläge warten auf Sie}}"
+      "proposals": "{count, plural, one {# Vorschlag wartet auf Sie} other {# Vorschläge warten auf Sie}}",
+      "memoryOff": "Gedächtnis aus - in der Einrichtung aktivieren."
     },
     "meta": {
       "remembered": "erinnert:",

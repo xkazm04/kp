@@ -79,6 +79,7 @@ export function CompanionDock() {
           busy={thread.busy}
           error={thread.error}
           attention={attention}
+          memoryEnabled={thread.memoryEnabled}
           onSend={thread.send}
           onResolveProposal={thread.resolveProposal}
         />

@@ -10,6 +10,7 @@ import { CompanyStep } from "./SetupCompanyStep";
 import { InviteEditor } from "./SetupInviteEditor";
 import { SetupLanguageSwitch } from "./SetupLanguageSwitch";
 import { SetupPipelineStep } from "./SetupPipelineStep";
+import { SetupCompanionStep } from "./SetupCompanionStep";
 import { WelcomeStep } from "./SetupWelcomeStep";
 import { SetupHandoffSummary } from "./SetupHandoffSummary";
 import { SETUP_PROSE } from "./setupProse";
@@ -19,7 +20,7 @@ import { SETUP_STEPS, type OnboardingCtrl } from "./setupSteps";
 // rail carries the vertical stepper AND the language switch (visible for the
 // whole flow, not just step 1 — see SetupLanguageSwitch); the right pane devotes
 // the whole space to ONE step at a time (Welcome → Company → Team → Pipeline →
-// Hand-off), each crossfaded. The visual register runs marketing → functional:
+// Candi → Hand-off), each crossfaded. The visual register runs marketing → functional:
 // Welcome opens with the landing's stamp/pop energy (display face, sticker
 // tiles), the middle steps are calm forms, and the hand-off lands in the app's
 // plain voice — the wizard IS the transition from the Spark landing tone into the
@@ -147,6 +148,7 @@ export function OnboardingWizard({ ctrl }: { ctrl: OnboardingCtrl }) {
                     {step.id === "company" ? <CompanyStep ctrl={ctrl} /> : null}
                     {step.id === "team" ? <InviteEditor ctrl={ctrl} /> : null}
                     {step.id === "pipeline" ? <SetupPipelineStep ctrl={ctrl} /> : null}
+                    {step.id === "companion" ? <SetupCompanionStep ctrl={ctrl} /> : null}
                     {step.id === "handoff" ? <SetupHandoffSummary ctrl={ctrl} /> : null}
                   </div>
                 </motion.div>
