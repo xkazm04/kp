@@ -26,6 +26,12 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    fail *inside* the claim — after the human had approved in Personas — with a message
    about the ATS webhook signing secret; `e2e/app-master-hire.spec.ts` found that on its
    first run, and `agent-hire.test.ts` pins the refusal now.
+   Both bridge calls send an **`Origin` header** (`publicBaseUrl()`): Personas reads the
+   pairing origin from that header only and binds the minted key + CORS entry to it — a
+   server-side Node fetch sends none by itself, so pairing died with `400 Origin header
+   required` on first live contact (bench sweep 2026-08-24). The P5b mock had accepted
+   origin-less pairing, which is how a green e2e hid it; the mock now refuses like the
+   real bridge.
 2. **Assess**: open a job → *Agent fit* → *Assess agent fit*. `POST /api/jobs/[id]/agent-fit`
    starts the backgrounded `agent_fit` task (`pipeline.jobfit.agentfit_cli`, one LLM call
    with a deterministic keyword fallback); the result persists as the job's latest

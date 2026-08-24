@@ -853,6 +853,10 @@ run.
   server-side and never crosses the API, so the driver mints its **own**
   `personas:test` key for the tick calls (cached at
   `bench/app-master/personas-key.json`) and separately drives kp's pairing.
+  Every driver `/pair/*` call carries `Origin: http://kp-app-master-bench.localhost`
+  (`DRIVER_ORIGIN` in `lib.mjs`) — Personas takes the pairing origin from the
+  header only and binds the key to it, and the constant origin keeps the cached
+  key claimable across sweeps.
 - **kp rate-limits the bench like any other client — unless the SERVER opts
   into bench mode.** Four scenarios × nine dialog turns is 36 messages against
   the human-paced 30-per-10-minutes per-IP window on
