@@ -1,0 +1,50 @@
+// The two-layer control dock's FIRST level: the taxonomy of layer-1 selections
+// and the pure interaction math behind the icon row. Side-effect-free `.ts` so
+// both are unit-testable without rendering the dock (the bare `node --test`
+// runner strips `.ts` types but cannot load a `.tsx`).
+
+/** The layer-1 selections that OPEN a layer-2 panel.
+ *
+ *  "Ask Candi" is deliberately ABSENT. It is an action, not a panel — it opens
+ *  the companion dock, which is the competing surface — so it can never be the
+ *  value of the dock's single `panel` state. That is what makes the operator's
+ *  rule (b) ("no two options active at the same time") structural: there is one
+ *  slot, so a second panel cannot exist, and no cleanup effect has to enforce it. */
+export const DOCK_PANEL_IDS = ["sim", "ops", "command"] as const;
+export type DockPanelId = (typeof DOCK_PANEL_IDS)[number];
+
+/** Toggle semantics for the icon row: re-selecting the ACTIVE layer-1 option
+ *  closes its panel, any other selection switches to it. One transition, so
+ *  "opening one closes the other" is a property of the reducer rather than of
+ *  an effect that could run late or not at all. */
+export function toggleDockPanel(current: DockPanelId | null, next: DockPanelId): DockPanelId | null {
+  return current === next ? null : next;
+}
+
+/** Roving-focus target for the layer-1 toolbar (WAI-ARIA toolbar pattern: arrows
+ *  move FOCUS, never activation — activation stays on Enter/Space, because half
+ *  the row toggles a panel and half of it fires an action, and an arrow key that
+ *  committed either would be a change the operator did not ask for).
+ *
+ *  Horizontal keys first; the vertical pair is accepted too because the row wraps
+ *  on narrow viewports, where Down/Up is what the geometry suggests. Wraps at both
+ *  ends. Returns null for every key the toolbar does not own, so the caller knows
+ *  not to preventDefault. */
+export function nextToolbarIndex(current: number, key: string, count: number): number | null {
+  if (count <= 0) return null;
+  const cur = current < 0 || current >= count ? 0 : current;
+  switch (key) {
+    case "ArrowRight":
+    case "ArrowDown":
+      return (cur + 1) % count;
+    case "ArrowLeft":
+    case "ArrowUp":
+      return (cur - 1 + count) % count;
+    case "Home":
+      return 0;
+    case "End":
+      return count - 1;
+    default:
+      return null;
+  }
+}

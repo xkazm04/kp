@@ -50,6 +50,7 @@ export const LLM_USE_CASES = [
   "repo_scan",
   "role_intake",
   "role_intake_voice",
+  "assistant",
   "github_analysis",
   "cv_analysis",
   "profile_extract",

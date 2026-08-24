@@ -1299,7 +1299,10 @@
     "HIRE_RATING_NOT_HIRED": "Seule une personne recrutée peut recevoir une évaluation en poste.",
     "HIRE_RATING_INVALID": "Une évaluation en poste doit être un nombre entier de 1 à 5.",
     "INTAKE_DOSSIER_FAILED": "Impossible de rattacher la lecture du code à cette session. Veuillez réessayer.",
-    "INTAKE_COMPOSE_APP_MASTER_FAILED": "Impossible de composer la spécification du maître d'application. Veuillez réessayer."
+    "INTAKE_COMPOSE_APP_MASTER_FAILED": "Impossible de composer la spécification du maître d'application. Veuillez réessayer.",
+    "COMPANION_THREADS_FAILED": "Impossible de charger vos conversations avec Candi.",
+    "COMPANION_THREAD_CREATE_FAILED": "Impossible de démarrer une nouvelle conversation avec Candi.",
+    "COMPANION_MESSAGE_FAILED": "Candi n'a pas pu répondre à ce message. Vos mots sont enregistrés."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1747,7 +1750,9 @@
     "whereJd": "la page de la fiche de poste",
     "whereAnalysis": "le rapport d'analyse",
     "whereTab": "l'onglet {tab}",
-    "resultsCount": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}"
+    "resultsCount": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
+    "askCandi": "Demander à Candi : « {q} »",
+    "askCandiSub": "Ouvre le panneau companion avec votre question"
   },
   "palettePreview": {
     "loading": "Chargement de l’aperçu…",
@@ -2636,6 +2641,8 @@
       "title": "Centre de contrôle",
       "titleAwaiting": "Centre de contrôle · {count} à traiter",
       "operations": "Opérations",
+      "commandInput": "Commande",
+      "toolbarLabel": "Actions du centre de contrôle",
       "guidedDemo": "Démo guidée",
       "needYou": "à traiter",
       "openDecisions": "Ouvrir la file de décisions",
@@ -3556,7 +3563,8 @@
         "composer": {
           "placeholder": "Répondez avec vos mots. Le flou est permis.",
           "send": "Envoyer",
-          "closed": "Cette session est close."
+          "closed": "Cette session est close.",
+          "transcriptLabel": "Conversation de cadrage du poste"
         },
         "degradedNote": "L’AI est hors ligne, la liste guidée prend donc le relais. Vos réponses sont enregistrées malgré tout.",
         "sendError": "Le message n’est pas passé. Veuillez réessayer.",
@@ -6917,7 +6925,8 @@
         "profiles": "Candidats et profils",
         "interviews": "Entretiens",
         "assignments": "Exercices",
-        "other": "Autres"
+        "other": "Autres",
+        "companion": "Compagnon"
       }
     },
     "usage": {
@@ -6981,7 +6990,8 @@
       "cv_analysis": "Analyse de CV",
       "profile_extract": "Extraction de profil",
       "grounded_salary": "Salaire étayé",
-      "interview_realtime": "Entretien vocal"
+      "interview_realtime": "Entretien vocal",
+      "assistant": "Assistant"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -7060,7 +7070,8 @@
       "devcase_evaluate": "Note un exercice soumis selon la grille ; sert aussi le chat de session.",
       "devcase_judge": "Le second modèle indépendant qui juge les évaluations d'exercices.",
       "devcase_tooling": "Réservé à l’évaluation de l’outillage. Pas encore d’appel actif.",
-      "devcase_transfer": "Réservé à l’évaluation du transfert. Pas encore d’appel actif."
+      "devcase_transfer": "Réservé à l’évaluation du transfert. Pas encore d’appel actif.",
+      "assistant": "Tours de conversation du compagnon de l'opérateur."
     }
   },
   "jdPublic": {
@@ -8666,6 +8677,48 @@
         "s7": "AUTO1 RETIRED : la passe n'applique plus aucun rejet",
         "s9": "personne n'atteint Recruté depuis ici"
       }
+    }
+  },
+  "companion": {
+    "name": "Candi",
+    "dock": {
+      "eyebrow": "Companion",
+      "title": "Candi, la companion de votre studio",
+      "open": "Demander à Candi",
+      "close": "Fermer Candi",
+      "askCandi": "Demander à Candi",
+      "newThread": "Nouvelle conversation",
+      "actions": "Actions de Candi"
+    },
+    "chat": {
+      "placeholder": "Posez une question sur votre studio. Elle propose, vous décidez.",
+      "send": "Envoyer",
+      "thinking": "Réflexion…",
+      "thinkingSlowCalm": "Je suis toujours là. Elle lit l'état du studio avant de répondre, cela prend quelques secondes.",
+      "transcriptLabel": "Conversation avec Candi",
+      "errorGeneric": "Ce message n'est pas passé. Rien n'est perdu, réessayez."
+    },
+    "state": {
+      "here": "Je suis là quand vous en avez besoin.",
+      "clear": "Rien ne vous attend pour le moment.",
+      "thinking": "Lecture de l'état du studio…",
+      "thinkingAbout": "Réfléchit à {count, plural, one {# décision} other {# décisions}}…",
+      "watching": "Surveille {count, plural, one {# élément} other {# éléments}} qui vous attendent."
+    },
+    "meta": {
+      "remembered": "se souvient :",
+      "degraded": "aucun modèle joint",
+      "sourceLlm": "modèle",
+      "sourceDeterministic": "dégradé",
+      "recallCount": "{count, plural, one {# souvenir} other {# souvenirs}}",
+      "fallbackFlag": "réponse de repli"
+    },
+    "greeting": "Je suis Candi. Je sais ce que contient votre studio et je me souviens de nos échanges précédents. Demandez-moi ce qui vous attend ou ce qui a changé. Je ne fais que proposer : la décision reste la vôtre.",
+    "blocks": {
+      "table": "Tableau",
+      "chart": "Graphique",
+      "emptyCell": "·",
+      "dropped": "{count, plural, one {# bloc ignoré} other {# blocs ignorés}}"
     }
   }
 }

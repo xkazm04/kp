@@ -858,6 +858,78 @@ export function ensureDb(): Database.Database {
     );
 
     CREATE INDEX IF NOT EXISTS idx_repo_scans_ws ON repo_scans (workspace_id, created_at);
+
+    -- Operator companion (db/companion.ts, docs/features/companion/README.md) —
+    -- Candi, the studio-side chat the operator talks to. Four tables:
+    --
+    -- companion_threads   one conversation. Titles are derived, never typed.
+    -- companion_turns     the transcript. content is the literal text shown;
+    --                     meta_json carries the turn's provenance (which episodes
+    --                     it wrote, what it recalled, whether the model was
+    --                     reachable) so a degraded reply stays diagnosable.
+    -- companion_proposals the proposal-not-push law made storable: the companion
+    --                     NEVER acts, it writes a row here and the operator
+    --                     accepts it. status is open|accepted|declined and
+    --                     resolved_at stamps the operator's answer.
+    -- companion_brain_index  a READ MIRROR of the markdown brain at
+    --                     ~/.personas/companion-brain, written by
+    --                     pipeline/jobfit/companion_brain.py after the episode
+    --                     file lands. path is relative to the brain root, so the
+    --                     row is a pointer, never the record — deleting the DB
+    --                     loses an index, deleting the tree loses the memory.
+    --
+    -- Deliberately NOT an fts5 table: a virtual table drops five shadow tables
+    -- into sqlite_master, which the fail-closed tenancy guard (tenancy.ts) and
+    -- the whole-DB dump/restore (db-portability.ts) both enumerate. Search here
+    -- is LIKE over the excerpt; BM25 recall lives in the brain's OWN standalone
+    -- index (companion_brain.py), which is also what makes recall work with kp
+    -- shut down.
+    CREATE TABLE IF NOT EXISTS companion_threads (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      title TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_companion_threads_ws ON companion_threads (workspace_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS companion_turns (
+      id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      meta_json TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_companion_turns_ws ON companion_turns (workspace_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_companion_turns_thread ON companion_turns (thread_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS companion_proposals (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      kind TEXT NOT NULL,
+      payload_json TEXT,
+      status TEXT NOT NULL DEFAULT 'open',
+      thread_id TEXT,
+      created_at TEXT NOT NULL,
+      resolved_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_companion_proposals_ws ON companion_proposals (workspace_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS companion_brain_index (
+      node_id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL DEFAULT 'workspace',
+      kind TEXT NOT NULL,
+      excerpt TEXT,
+      path TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_companion_brain_index_ws ON companion_brain_index (workspace_id, created_at);
   `);
   // Run a DDL migration, swallowing ONLY the benign "already applied" error (re-running
   // ADD COLUMN / CREATE on a DB that already has the column). Any OTHER failure —

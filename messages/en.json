@@ -1299,7 +1299,10 @@
     "HIRE_RATING_NOT_HIRED": "Only a hired candidate can carry an on-the-job rating.",
     "HIRE_RATING_INVALID": "An on-the-job rating must be a whole number from 1 to 5.",
     "INTAKE_DOSSIER_FAILED": "Could not attach the codebase reading to this session. Please try again.",
-    "INTAKE_COMPOSE_APP_MASTER_FAILED": "Could not compose the App master spec. Please try again."
+    "INTAKE_COMPOSE_APP_MASTER_FAILED": "Could not compose the App master spec. Please try again.",
+    "COMPANION_THREADS_FAILED": "Could not load your conversations with Candi.",
+    "COMPANION_THREAD_CREATE_FAILED": "Could not start a new conversation with Candi.",
+    "COMPANION_MESSAGE_FAILED": "Candi could not answer that message. Your words are saved."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1747,7 +1750,9 @@
     "whereJd": "the JD detail page",
     "whereAnalysis": "the analysis report",
     "whereTab": "the {tab} tab",
-    "resultsCount": "{count, plural, =0 {No results} one {# result} other {# results}}"
+    "resultsCount": "{count, plural, =0 {No results} one {# result} other {# results}}",
+    "askCandi": "Ask Candi: “{q}”",
+    "askCandiSub": "Opens the companion dock with your question"
   },
   "palettePreview": {
     "loading": "Loading preview…",
@@ -2636,6 +2641,8 @@
       "title": "Control center",
       "titleAwaiting": "Control center · {count} need you",
       "operations": "Operations",
+      "commandInput": "Command",
+      "toolbarLabel": "Control center actions",
       "guidedDemo": "Guided demo",
       "needYou": "need you",
       "openDecisions": "Open the decisions queue",
@@ -3556,7 +3563,8 @@
         "composer": {
           "placeholder": "Answer in your own words. Vague is fine.",
           "send": "Send",
-          "closed": "This session is closed."
+          "closed": "This session is closed.",
+          "transcriptLabel": "Intake conversation"
         },
         "degradedNote": "AI is offline, so the guided checklist runs instead. Your answers are captured all the same.",
         "sendError": "That message didn't go through. Please try again.",
@@ -6917,7 +6925,8 @@
         "profiles": "Candidates & profiles",
         "interviews": "Interviews",
         "assignments": "Assignments",
-        "other": "Other"
+        "other": "Other",
+        "companion": "Companion"
       }
     },
     "usage": {
@@ -6981,7 +6990,8 @@
       "cv_analysis": "CV analysis",
       "profile_extract": "Profile extraction",
       "grounded_salary": "Grounded salary",
-      "interview_realtime": "Voice interview"
+      "interview_realtime": "Voice interview",
+      "assistant": "Assistant"
     },
     "providers": {
       "anthropic": "Anthropic",
@@ -7060,7 +7070,8 @@
       "devcase_evaluate": "Scores a submitted assignment against the case rubric; also serves the in-session chat.",
       "devcase_judge": "The independent second-model judge over assignment evaluations.",
       "devcase_tooling": "Reserved for the assignment tooling evaluator. No live call site yet.",
-      "devcase_transfer": "Reserved for the assignment transfer evaluator. No live call site yet."
+      "devcase_transfer": "Reserved for the assignment transfer evaluator. No live call site yet.",
+      "assistant": "Operator companion chat turns."
     }
   },
   "jdPublic": {
@@ -8666,6 +8677,48 @@
         "s7": "AUTO1 RETIRED: the pass no longer applies a rejection at all",
         "s9": "Hired is not reachable from here by anyone"
       }
+    }
+  },
+  "companion": {
+    "name": "Candi",
+    "dock": {
+      "eyebrow": "Companion",
+      "title": "Candi, your studio companion",
+      "open": "Ask Candi",
+      "close": "Close Candi",
+      "askCandi": "Ask Candi",
+      "newThread": "New conversation",
+      "actions": "Companion actions"
+    },
+    "chat": {
+      "placeholder": "Ask about your studio. She proposes, you decide.",
+      "send": "Send",
+      "thinking": "Thinking…",
+      "thinkingSlowCalm": "Still with you. She reads the studio before answering, so this takes a few seconds.",
+      "transcriptLabel": "Conversation with Candi",
+      "errorGeneric": "That message did not go through. Nothing was lost, so try again."
+    },
+    "state": {
+      "here": "Here when you need me.",
+      "clear": "Nothing is waiting on you right now.",
+      "thinking": "Reading the studio…",
+      "thinkingAbout": "Thinking about {count, plural, one {# decision} other {# decisions}}…",
+      "watching": "Watching {count, plural, one {# thing} other {# things}} that need you."
+    },
+    "meta": {
+      "remembered": "remembered:",
+      "degraded": "no model reached",
+      "sourceLlm": "model",
+      "sourceDeterministic": "degraded",
+      "recallCount": "{count, plural, one {# memory} other {# memories}}",
+      "fallbackFlag": "fallback"
+    },
+    "greeting": "I am Candi. I keep track of what your studio holds, and I remember our earlier conversations. Ask me what needs you, or what changed. I only ever propose: every call stays yours.",
+    "blocks": {
+      "table": "Table",
+      "chart": "Chart",
+      "emptyCell": "·",
+      "dropped": "{count, plural, one {# block was dropped} other {# blocks were dropped}}"
     }
   }
 }

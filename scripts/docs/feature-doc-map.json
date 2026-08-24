@@ -420,6 +420,15 @@
         "messages/**",
         "scripts/i18n-check.mjs"
       ]
+    },
+    {
+      "doc": "docs/features/companion/README.md",
+      "sourceGlobs": [
+        "pipeline/jobfit/companion_brain.py",
+        "pipeline/jobfit/companion_cli.py",
+        "pipeline/jobfit/companion_constitution.md",
+        "app/_lib/db/companion.ts"
+      ]
     }
   ]
 }
