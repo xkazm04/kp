@@ -72,6 +72,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         content: turn.reply,
         meta: {
           source: turn.source,
+          // Blocks ride in meta with the rest of the turn's provenance, so a
+          // transcript reload repaints the same answer it painted live.
+          ...(turn.blocks.length > 0 ? { blocks: turn.blocks } : {}),
+          ...(turn.blockErrors > 0 ? { blockErrors: turn.blockErrors } : {}),
           recallUsed: turn.recallUsed,
           episodePaths: turn.episodePaths,
           indexSkipped: turn.indexSkipped,

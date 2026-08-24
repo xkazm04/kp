@@ -2640,6 +2640,8 @@
       "title": "Kontrollzentrum",
       "titleAwaiting": "Kontrollzentrum · {count, plural, one {# wartet auf Sie} other {# warten auf Sie}}",
       "operations": "Betrieb",
+      "commandInput": "Befehl",
+      "toolbarLabel": "Aktionen des Kontrollzentrums",
       "guidedDemo": "Geführte Demo",
       "needYou": "zu erledigen",
       "openDecisions": "Entscheidungs-Warteschlange öffnen",
@@ -8684,16 +8686,13 @@
       "open": "Candi fragen",
       "close": "Candi schließen",
       "askCandi": "Candi fragen",
-      "variantLabel": "Panel-Layout",
-      "variantColleague": "Kollegin",
-      "variantDesk": "Pult"
+      "newThread": "Neues Gespräch",
+      "actions": "Candi-Aktionen"
     },
     "chat": {
       "placeholder": "Fragen Sie nach Ihrem Studio. Sie schlägt vor, Sie entscheiden.",
-      "placeholderDense": "Das Studio fragen…",
       "send": "Senden",
       "thinking": "Denkt nach…",
-      "thinkingSlow": "Denkt noch nach. Eine fundierte Antwort dauert meist 5–10 Sekunden.",
       "thinkingSlowCalm": "Ich bin noch da. Sie sieht sich erst das Studio an, deshalb dauert es ein paar Sekunden.",
       "transcriptLabel": "Gespräch mit Candi",
       "errorGeneric": "Diese Nachricht kam nicht an. Nichts ist verloren, versuchen Sie es noch einmal."
@@ -8713,15 +8712,12 @@
       "recallCount": "{count, plural, one {# Erinnerung} other {# Erinnerungen}}",
       "fallbackFlag": "Ersatzantwort"
     },
-    "desk": {
-      "decisions": "Entscheidungen",
-      "pipeline": "Überfällig",
-      "schedule": "Gebucht",
-      "enter": "Enter",
-      "enterHint": "senden",
-      "shiftEnter": "Umschalt + Enter",
-      "shiftEnterHint": "neue Zeile"
-    },
-    "greeting": "Ich bin Candi. Ich weiß, was Ihr Studio gerade hält, und ich erinnere mich an unsere früheren Gespräche. Fragen Sie mich, was Sie braucht oder was sich geändert hat. Ich schlage nur vor: die Entscheidung bleibt bei Ihnen."
+    "greeting": "Ich bin Candi. Ich weiß, was Ihr Studio gerade hält, und ich erinnere mich an unsere früheren Gespräche. Fragen Sie mich, was Sie braucht oder was sich geändert hat. Ich schlage nur vor: die Entscheidung bleibt bei Ihnen.",
+    "blocks": {
+      "table": "Tabelle",
+      "chart": "Diagramm",
+      "emptyCell": "·",
+      "dropped": "{count, plural, one {# Block verworfen} other {# Blöcke verworfen}}"
+    }
   }
 }

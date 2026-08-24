@@ -2640,6 +2640,8 @@
       "title": "Centre de contrôle",
       "titleAwaiting": "Centre de contrôle · {count} à traiter",
       "operations": "Opérations",
+      "commandInput": "Commande",
+      "toolbarLabel": "Actions du centre de contrôle",
       "guidedDemo": "Démo guidée",
       "needYou": "à traiter",
       "openDecisions": "Ouvrir la file de décisions",
@@ -8684,16 +8686,13 @@
       "open": "Demander à Candi",
       "close": "Fermer Candi",
       "askCandi": "Demander à Candi",
-      "variantLabel": "Disposition du panneau",
-      "variantColleague": "Collègue",
-      "variantDesk": "Pupitre"
+      "newThread": "Nouvelle conversation",
+      "actions": "Actions de Candi"
     },
     "chat": {
       "placeholder": "Posez une question sur votre studio. Elle propose, vous décidez.",
-      "placeholderDense": "Interroger le studio…",
       "send": "Envoyer",
       "thinking": "Réflexion…",
-      "thinkingSlow": "Toujours en réflexion. Une réponse étayée prend en général 5–10 secondes.",
       "thinkingSlowCalm": "Je suis toujours là. Elle lit l'état du studio avant de répondre, cela prend quelques secondes.",
       "transcriptLabel": "Conversation avec Candi",
       "errorGeneric": "Ce message n'est pas passé. Rien n'est perdu, réessayez."
@@ -8713,15 +8712,12 @@
       "recallCount": "{count, plural, one {# souvenir} other {# souvenirs}}",
       "fallbackFlag": "réponse de repli"
     },
-    "desk": {
-      "decisions": "Décisions",
-      "pipeline": "En retard",
-      "schedule": "Planifié",
-      "enter": "Entrée",
-      "enterHint": "envoyer",
-      "shiftEnter": "Maj + Entrée",
-      "shiftEnterHint": "nouvelle ligne"
-    },
-    "greeting": "Je suis Candi. Je sais ce que contient votre studio et je me souviens de nos échanges précédents. Demandez-moi ce qui vous attend ou ce qui a changé. Je ne fais que proposer : la décision reste la vôtre."
+    "greeting": "Je suis Candi. Je sais ce que contient votre studio et je me souviens de nos échanges précédents. Demandez-moi ce qui vous attend ou ce qui a changé. Je ne fais que proposer : la décision reste la vôtre.",
+    "blocks": {
+      "table": "Tableau",
+      "chart": "Graphique",
+      "emptyCell": "·",
+      "dropped": "{count, plural, one {# bloc ignoré} other {# blocs ignorés}}"
+    }
   }
 }

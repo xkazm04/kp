@@ -1,3 +1,4 @@
+import type { ChatBlock } from "@/app/_components/chat/chatBlockTypes";
 import { randomId } from "../random-id";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
@@ -23,13 +24,24 @@ const STATUSES: readonly ProposalStatus[] = ["open", "accepted", "declined"];
 
 /** Provenance of one assistant turn: what the companion recalled, which episode
  *  files it wrote, and whether it actually reached a model. Stored so a degraded
- *  reply stays diagnosable after the fact instead of just reading oddly. */
+ *  reply stays diagnosable after the fact instead of just reading oddly.
+ *
+ *  `blocks` is the non-text half of the reply — a table or a small chart the
+ *  companion composed instead of enumerating in prose. It lives in meta rather
+ *  than in a column because it is part of ONE turn: a transcript reload has to
+ *  paint the same answer it painted live, and a second table would otherwise
+ *  have to be joined back to the sentence that introduced it. */
 export type CompanionTurnMeta = {
   source?: "llm" | "deterministic";
   fallbackReason?: string;
   recallUsed?: { path: string; excerpt: string }[];
   episodePaths?: string[];
   indexSkipped?: string[];
+  blocks?: ChatBlock[];
+  /** How many blocks the model emitted that could not be rendered. Kept because
+   *  "she showed me nothing" and "she tried and it was malformed" are different
+   *  facts, and only one of them is worth telling the operator about. */
+  blockErrors?: number;
 };
 
 export type CompanionThread = {

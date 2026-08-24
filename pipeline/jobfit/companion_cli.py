@@ -11,14 +11,21 @@ whatever JSON the route assembled (attention counts, a recent-pipeline summary)
 — this CLI never queries kp itself, so the route stays the single place that
 decides what the companion is allowed to see.
 
-The completion is PROSE, not JSON: one plain-text reply through the shared
-provider layer under the ``assistant`` use case, exactly like intake's fast
-voice thread (``run_voice_turn``). Same three-outcome contract — no provider
-configured / success / raise → deterministic fallback carrying its reason.
+The completion is PROSE plus optional fenced blocks, never a JSON envelope: one
+completion through the shared provider layer under the ``assistant`` use case,
+exactly like intake's fast voice thread (``run_voice_turn``). Same three-outcome
+contract — no provider configured / success / raise → deterministic fallback
+carrying its reason.
 
 Output is one terminal JSON line:
 
-    {reply, recallUsed, episodePaths, source[, fallbackReason]}
+    {reply, blocks, blockErrors, recallUsed, episodePaths, source[, fallbackReason]}
+
+``reply`` is PROSE ONLY. A completion may also carry fenced ``kp:table`` /
+``kp:chart`` blocks (companion_blocks.py); they are validated, stripped out of
+the prose, and handed over as ``blocks`` for the dock to render as a real table
+or a real chart. A block that does not match its schema is dropped and counted
+in ``blockErrors`` — never raised, because a partly-rendered answer beats none.
 
 Both sides of the exchange are appended to the companion brain as episodes —
 the user's message BEFORE the model is called, so a provider failure can never
@@ -33,6 +40,14 @@ import sys
 from pathlib import Path
 
 from ._cli import configure_stdio, emit_error
+from .companion_blocks import (
+    MAX_BLOCKS,
+    MAX_CHART_POINTS,
+    MAX_CHART_SERIES,
+    MAX_TABLE_COLUMNS,
+    MAX_TABLE_ROWS,
+    split_reply_blocks,
+)
 from .companion_brain import (
     append_episode,
     ensure_brain,
@@ -45,7 +60,14 @@ from .i18n import language_directive, normalize_lang
 from .llm.registry import resolve_provider
 
 MAX_MESSAGE_CHARS = 4000
+# Two prose ceilings, not one. A reply that carries a table or a chart has
+# already said the comparable part structurally, so its prose is the takeaway
+# and nothing more; a prose-only reply may run longer because it is the whole
+# answer. Both are cuts of the PROSE — the completion itself is allowed to be
+# larger, or a fence would be sliced in half before it could be parsed.
 MAX_REPLY_CHARS = 1200
+MAX_REPLY_WITH_BLOCKS_CHARS = 700
+MAX_COMPLETION_CHARS = 6000
 MAX_TRANSCRIPT_TURNS = 12
 RECALL_LIMIT = 6
 LLM_TIMEOUT_S = 120
@@ -61,16 +83,65 @@ UNREACHABLE_REPLY: dict[str, str] = {
 }
 
 
+# What a reply says when the model answered entirely IN blocks. Not a greeting:
+# the table below it is the answer, and this is the one line that introduces it.
+BLOCKS_ONLY_LEAD: dict[str, str] = {
+    "en": "Here it is.",
+    "cs": "Tady to je.",
+    "de": "Hier ist es.",
+    "fr": "Le voici.",
+}
+
+
+# The register. The dock is a 26rem column beside the operator's work, not a page
+# they sit down to read, so the shape of the answer is part of the answer: the
+# takeaway first, then structure instead of an enumeration. Every line below is
+# a rule the model can check itself against rather than an adjective.
+_TONE_CONTRACT = f"""You are answering one turn in the kp studio's companion panel, a narrow chat dock
+beside the operator's work. Write like a modern web app, not like a book:
+- Lead with the answer in one or two short sentences. Never restate the question.
+- Paragraphs of at most three sentences. Use bullets rather than a wall of prose.
+- Every number carries its unit or its noun ("4 candidates", "12 days", "68 %").
+- No markdown headings, no preamble, no sign-off, no commentary about answering.
+- Say what you do not know in one clause, then move on.
+Prose ceiling: {MAX_REPLY_WITH_BLOCKS_CHARS} characters when you emit a block below,
+{MAX_REPLY_CHARS} characters otherwise."""
+
+# Rich turn components, taught by example: a schema described in prose gets
+# paraphrased, a fenced sample gets copied. The caps are the renderer's real
+# limits (companion_blocks.py), so they are stated as consequences rather than
+# requests - a block that breaks one is dropped, not drawn badly.
+_BLOCK_CONTRACT = f"""WHEN THREE OR MORE COMPARABLE THINGS ARE THE ANSWER, DO NOT ENUMERATE THEM IN PROSE.
+Emit one of the two blocks below instead, and keep the prose to the takeaway.
+A block is a fenced JSON object and nothing else:
+
+```kp:table
+{{"title": "Top candidates", "columns": [{{"key": "name", "label": "Candidate"}}, {{"key": "fit", "label": "Fit"}}], "rows": [{{"name": "A. Novak", "fit": "82"}}, {{"name": "J. Rimmer", "fit": "74"}}]}}
+```
+
+```kp:chart
+{{"title": "Pipeline by stage", "kind": "bar", "x": {{"label": "Stage", "values": ["Screen", "Interview", "Offer"]}}, "y": {{"label": "Candidates"}}, "series": [{{"label": "Active", "values": [12, 5, 2]}}]}}
+```
+
+Hard limits. A block that breaks one is DROPPED and the operator sees nothing:
+- table: at most {MAX_TABLE_COLUMNS} columns and {MAX_TABLE_ROWS} rows, and every row uses the column keys.
+- chart: "kind" is "bar" or "line"; at most {MAX_CHART_POINTS} x values and {MAX_CHART_SERIES} series;
+  every series carries exactly as many values as x has, and every value is a number.
+- at most {MAX_BLOCKS} blocks in one reply, built only from the grounding you were given.
+Never describe a block in prose. It is rendered, so the operator can already see it."""
+
+
 def _system_prompt(locale: str) -> str:
     """Constitution + identity ARE the system prompt. They are files the operator
-    owns, so behaviour is edited on disk rather than in this module."""
+    owns, so behaviour is edited on disk rather than in this module. The tone and
+    block contracts are appended here because they belong to this SURFACE - the
+    same brain answers a terminal differently."""
     return "\n\n".join(
         [
             read_constitution().strip(),
             read_identity().strip(),
-            "You are answering one turn in the kp studio's companion panel. "
-            "Reply in prose only — no JSON, no markdown headings, no preamble. "
-            f"Keep it under {MAX_REPLY_CHARS} characters.",
+            _TONE_CONTRACT,
+            _BLOCK_CONTRACT,
             language_directive(locale),
         ]
     )
@@ -107,20 +178,35 @@ def _build_prompt(message: str, hits: list[dict], grounding, turns: list) -> str
 
 
 def _complete(prompt: str, locale: str) -> tuple[str, str, str | None]:
-    """(reply, source, fallbackReason). ``assistant`` is a literal so the BYOM
-    coverage gate (test_byom_coverage.py) can see this call site."""
+    """(raw completion, source, fallbackReason). ``assistant`` is a literal so the
+    BYOM coverage gate (test_byom_coverage.py) can see this call site.
+
+    The cut here is deliberately generous: the PROSE ceilings are applied after
+    the fenced blocks have been parsed out, because slicing a completion at 700
+    characters would routinely cut a fence in half and turn a valid table into a
+    dropped one plus a paragraph of raw JSON."""
     provider = resolve_provider("assistant", timeout=LLM_TIMEOUT_S)
     if provider is None or not provider.available():
         return UNREACHABLE_REPLY[locale], "deterministic", "no provider available"
     try:
         completion = provider.complete(prompt, system=_system_prompt(locale))
         text = getattr(completion, "text", completion)
-        reply = str(text or "").strip()[:MAX_REPLY_CHARS]
-        if not reply:
+        raw = str(text or "").strip()[:MAX_COMPLETION_CHARS]
+        if not raw:
             raise ValueError("companion turn returned no text")
-        return reply, "llm", None
-    except Exception as exc:  # noqa: BLE001 — a degraded turn still answers, and says so
+        return raw, "llm", None
+    except Exception as exc:  # noqa: BLE001 - a degraded turn still answers, and says so
         return UNREACHABLE_REPLY[locale], "deterministic", f"{type(exc).__name__}: {exc}"[:200]
+
+
+def _episode_text(reply: str, blocks: list[dict]) -> str:
+    """What the brain remembers of an answer. Blocks are a rendering, but their
+    SUBJECT is part of what was said - an episode that dropped it would make
+    "what did you show me about the platform role?" unanswerable a week later."""
+    if not blocks:
+        return reply
+    named = ", ".join(str(b.get("title") or b.get("type")) for b in blocks)
+    return f"{reply}\n\n(shown as {len(blocks)} rendered block(s): {named})"
 
 
 def run_turn(turn: dict) -> dict:
@@ -135,11 +221,24 @@ def run_turn(turn: dict) -> dict:
     ensure_brain()
     episodes = [append_episode("user", message, session)]
     hits = recall(message, RECALL_LIMIT)
-    reply, source, fallbackReason = _complete(_build_prompt(message, hits, turn.get("grounding"), turns), locale)
-    episodes.append(append_episode("assistant", reply, session))
+    raw, source, fallbackReason = _complete(_build_prompt(message, hits, turn.get("grounding"), turns), locale)
+
+    # Blocks come out of the completion BEFORE the prose is cut, and the prose is
+    # then cut to whichever ceiling this reply earned.
+    reply, blocks, blockErrors = split_reply_blocks(raw)
+    reply = reply[: MAX_REPLY_WITH_BLOCKS_CHARS if blocks else MAX_REPLY_CHARS]
+    if not reply:
+        # A completion that was ONLY a block still has to say something: the
+        # transcript stores prose, and a blank bubble above a table reads as a
+        # bug. Deterministic per-locale text, like every other fallback here.
+        reply = BLOCKS_ONLY_LEAD[locale] if blocks else UNREACHABLE_REPLY[locale]
+
+    episodes.append(append_episode("assistant", _episode_text(reply, blocks), session))
 
     payload = {
         "reply": reply,
+        "blocks": blocks,
+        "blockErrors": blockErrors,
         "recallUsed": [{"path": h["path"], "excerpt": h["excerpt"]} for h in hits],
         "episodePaths": [e["path"] for e in episodes],
         "source": source,

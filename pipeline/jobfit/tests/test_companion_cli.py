@@ -107,6 +107,49 @@ class CompanionCliTestCase(unittest.TestCase):
         self.assertTrue(payload["recallUsed"])
         self.assertIn("rubric", provider.prompt or "")
 
+    def test_a_reply_carrying_blocks_ships_them_beside_clean_prose(self):
+        completion = (
+            "Two roles carry the load.\n\n"
+            '```kp:table\n{"title": "Load", "columns": [{"key": "role", "label": "Role"}], '
+            '"rows": [{"role": "Platform"}, {"role": "Data"}]}\n```\n\n'
+            "```kp:chart\nnot json\n```"
+        )
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=_Provider(completion)):
+            payload = companion_cli.run_turn(dict(TURN))
+        # The prose the operator reads never contains a fence, and the block that
+        # could not be parsed is COUNTED rather than swallowed or raised.
+        self.assertEqual(payload["reply"], "Two roles carry the load.")
+        self.assertEqual(payload["blockErrors"], 1)
+        self.assertEqual(len(payload["blocks"]), 1)
+        self.assertEqual(payload["blocks"][0]["type"], "table")
+        self.assertEqual(payload["source"], "llm")
+        # A rendered block is still something Candi said: the episode names it, so
+        # "what did you show me?" is answerable next week.
+        assistant = (brain.brain_root() / payload["episodePaths"][1]).read_text(encoding="utf-8")
+        self.assertIn("Load", assistant)
+
+    def test_a_blocks_only_completion_still_says_something(self):
+        completion = '```kp:table\n{"columns": [{"key": "role", "label": "Role"}], "rows": [{"role": "Platform"}]}\n```'
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=_Provider(completion)):
+            payload = companion_cli.run_turn(dict(TURN))
+        self.assertEqual(payload["reply"], companion_cli.BLOCKS_ONLY_LEAD["en"])
+        self.assertEqual(len(payload["blocks"]), 1)
+
+    def test_a_prose_only_turn_reports_no_blocks_at_all(self):
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=_Provider()):
+            payload = companion_cli.run_turn(dict(TURN))
+        self.assertEqual(payload["blocks"], [])
+        self.assertEqual(payload["blockErrors"], 0)
+
+    def test_the_prompt_teaches_the_block_syntax_and_the_register(self):
+        provider = _Provider()
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=provider):
+            companion_cli.run_turn(dict(TURN))
+        system = provider.system or ""
+        self.assertIn("```kp:table", system)
+        self.assertIn("```kp:chart", system)
+        self.assertIn("Never restate the question", system)
+
     def test_an_empty_message_is_a_400_not_a_turn(self):
         with self.assertRaises(ValueError):
             companion_cli.run_turn(dict(TURN, message="   "))

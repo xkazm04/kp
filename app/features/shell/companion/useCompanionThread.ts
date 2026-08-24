@@ -36,12 +36,19 @@ export type CompanionThreadState = {
   ready: boolean;
   /** Resolves false when the exchange did not land — the composer restores the draft. */
   send: (message: string) => Promise<boolean>;
+  /** Start a fresh conversation and swap to it. The old one is not deleted —
+   *  it stays in the ledger, which is what makes this a cheap, undoable act. */
+  newThread: () => Promise<boolean>;
 };
 
 type Pending = { resolve: (ok: boolean) => void };
 
 type ExchangeCtx = {
   machine: { current: OrchestratorState };
+  /** The thread the SCREEN is showing. An exchange dispatched against a thread
+   *  the operator has since left must not repaint the one they moved to — the
+   *  reply is still stored, it is just no longer what is on screen. */
+  activeThread: { current: string | null };
   waiting: { current: Pending[] };
   /** Whether the dock is on screen right now — a ref, because a reply can land
    *  long after the render that dispatched it. */
@@ -69,6 +76,12 @@ async function runExchange(ctx: ExchangeCtx, id: string, message: string): Promi
       body: JSON.stringify({ message }),
     });
     const body = (await res.json()) as { turns?: CompanionTurn[]; code?: string };
+    if (ctx.activeThread.current !== id) {
+      // The operator started a new conversation while this one was in flight.
+      // The turn landed in the database either way; it just is not this screen.
+      for (const pending of carried) pending.resolve(true);
+      return;
+    }
     if (res.ok && body.turns) {
       ctx.setTurns(body.turns);
       ctx.setError(null);
@@ -104,6 +117,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
   // that request settles, because coalescing means one request answers several.
   const waiting = useRef<Pending[]>([]);
   const loading = useRef(false);
+  const activeThread = useRef<string | null>(null);
   const visible = useRef(active);
   const unreadCb = useRef(onReplyWhileClosed);
   useEffect(() => {
@@ -119,6 +133,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
         const res = await fetch("/api/companion/threads");
         const body = (await res.json()) as { threads?: { id: string }[]; turns?: CompanionTurn[]; code?: string };
         if (res.ok && body.threads && body.threads.length > 0) {
+          activeThread.current = body.threads[0].id;
           setThreadId(body.threads[0].id);
           setTurns(body.turns ?? []);
           return;
@@ -127,6 +142,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
         const created = await fetch("/api/companion/threads", { method: "POST" });
         const thread = (await created.json()) as { id?: string; code?: string };
         if (!created.ok || !thread.id) throw new Error(thread.code ?? "COMPANION_THREAD_CREATE_FAILED");
+        activeThread.current = thread.id;
         setThreadId(thread.id);
       } catch (err) {
         setError(err instanceof Error ? err.message : "COMPANION_THREADS_FAILED");
@@ -140,7 +156,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
   // not a hook reading a binding it is still declaring. Every piece it needs is
   // stable: React setters never change identity, and refs are refs.
   const ctx = useMemo<ExchangeCtx>(
-    () => ({ machine, waiting, visible, onReplyWhileClosed: unreadCb, setTurns, setBusy, setError }),
+    () => ({ machine, waiting, activeThread, visible, onReplyWhileClosed: unreadCb, setTurns, setBusy, setError }),
     []
   );
   const dispatch = useCallback((id: string, message: string) => runExchange(ctx, id, message), [ctx]);
@@ -171,5 +187,32 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
     [threadId, dispatch]
   );
 
-  return { turns, busy, error, ready: threadId !== null, send };
+  /** The toolbar's new-conversation action. Only reachable when no turn is in
+   *  flight (the button disables while busy), so there is no exchange to orphan;
+   *  the machine and the queue are still reset, because a state machine that is
+   *  only correct when its caller behaves is not a state machine. */
+  const newThread = useCallback(async (): Promise<boolean> => {
+    try {
+      const created = await fetch("/api/companion/threads", { method: "POST" });
+      const thread = (await created.json()) as { id?: string; code?: string };
+      if (!created.ok || !thread.id) {
+        setError(thread.code ?? "COMPANION_THREAD_CREATE_FAILED");
+        return false;
+      }
+      machine.current = initialOrchestratorState;
+      for (const pending of waiting.current) pending.resolve(false);
+      waiting.current = [];
+      activeThread.current = thread.id;
+      setThreadId(thread.id);
+      setTurns([]);
+      setBusy(false);
+      setError(null);
+      return true;
+    } catch {
+      setError("COMPANION_THREAD_CREATE_FAILED");
+      return false;
+    }
+  }, []);
+
+  return { turns, busy, error, ready: threadId !== null, send, newThread };
 }

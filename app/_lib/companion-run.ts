@@ -9,6 +9,7 @@ import { attentionCounts } from "./attention";
 // tree-shaking (see the same note at the top of attention.ts).
 import { listPipeline } from "./db/pipeline";
 import { pipelineSummary, transcriptWindow, type CompanionWireTurn } from "./companion-turn";
+import { coerceChatBlocks, type ChatBlock } from "./companion-blocks";
 
 // Operator-companion turn runner (docs/features/companion/README.md, WP2).
 // One spawned `companion_cli` exchange per operator message, mirroring the other
@@ -21,6 +22,12 @@ export type CompanionRecall = { path: string; excerpt: string };
 
 export type CompanionTurnResult = {
   reply: string;
+  /** The rendered half of the answer: a table or a small chart the companion
+   *  composed instead of enumerating three or more comparable things in prose. */
+  blocks: ChatBlock[];
+  /** Blocks the model emitted that did not match their schema and were dropped
+   *  by companion_blocks.py. Counted, never guessed at, never raised. */
+  blockErrors: number;
   recallUsed: CompanionRecall[];
   episodePaths: string[];
   source: "llm" | "deterministic";
@@ -59,6 +66,8 @@ function coerceTurn(payload: unknown): CompanionTurnResult {
   if (!reply) throw new Error("Companion turn returned no reply.");
   return {
     reply,
+    blocks: coerceChatBlocks(raw.blocks),
+    blockErrors: typeof raw.blockErrors === "number" && raw.blockErrors > 0 ? Math.floor(raw.blockErrors) : 0,
     recallUsed: coerceRecall(raw.recallUsed),
     episodePaths: coerceStrings(raw.episodePaths),
     source: raw.source === "llm" ? "llm" : "deterministic",

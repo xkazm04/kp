@@ -2640,6 +2640,8 @@
       "title": "Řídicí centrum",
       "titleAwaiting": "Řídicí centrum · {count, plural, one {# čeká} few {# čekají} other {# čeká}} na vás",
       "operations": "Provoz",
+      "commandInput": "Příkaz",
+      "toolbarLabel": "Akce řídicího centra",
       "guidedDemo": "Řízená ukázka",
       "needYou": "k vyřízení",
       "openDecisions": "Otevřít frontu rozhodnutí",
@@ -8684,16 +8686,13 @@
       "open": "Zeptat se Candi",
       "close": "Zavřít Candi",
       "askCandi": "Zeptat se Candi",
-      "variantLabel": "Rozvržení panelu",
-      "variantColleague": "Kolegyně",
-      "variantDesk": "Pult"
+      "newThread": "Nová konverzace",
+      "actions": "Akce Candi"
     },
     "chat": {
       "placeholder": "Zeptejte se na své studio. Ona navrhuje, vy rozhodujete.",
-      "placeholderDense": "Zeptejte se studia…",
       "send": "Odeslat",
       "thinking": "Přemýšlí…",
-      "thinkingSlow": "Stále přemýšlí. Podložená odpověď obvykle trvá 5–10 sekund.",
       "thinkingSlowCalm": "Jsem tu s vámi. Než odpoví, projde si stav studia, takže to pár sekund zabere.",
       "transcriptLabel": "Konverzace s Candi",
       "errorGeneric": "Zpráva neprošla. Nic se neztratilo, zkuste to prosím znovu."
@@ -8713,15 +8712,12 @@
       "recallCount": "{count, plural, one {# vzpomínka} few {# vzpomínky} other {# vzpomínek}}",
       "fallbackFlag": "náhradní odpověď"
     },
-    "desk": {
-      "decisions": "Rozhodnutí",
-      "pipeline": "Stárnoucí",
-      "schedule": "Naplánováno",
-      "enter": "Enter",
-      "enterHint": "odeslat",
-      "shiftEnter": "Shift + Enter",
-      "shiftEnterHint": "nový řádek"
-    },
-    "greeting": "Jsem Candi. Vím, co vaše studio drží, a pamatuji si naše dřívější rozhovory. Zeptejte se mě, co vás potřebuje nebo co se změnilo. Vždy jen navrhuji: rozhodnutí zůstává vaše."
+    "greeting": "Jsem Candi. Vím, co vaše studio drží, a pamatuji si naše dřívější rozhovory. Zeptejte se mě, co vás potřebuje nebo co se změnilo. Vždy jen navrhuji: rozhodnutí zůstává vaše.",
+    "blocks": {
+      "table": "Tabulka",
+      "chart": "Graf",
+      "emptyCell": "·",
+      "dropped": "{count, plural, one {# blok vynechán} few {# bloky vynechány} other {# bloků vynecháno}}"
+    }
   }
 }

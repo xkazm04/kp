@@ -2640,6 +2640,8 @@
       "title": "Control center",
       "titleAwaiting": "Control center · {count} need you",
       "operations": "Operations",
+      "commandInput": "Command",
+      "toolbarLabel": "Control center actions",
       "guidedDemo": "Guided demo",
       "needYou": "need you",
       "openDecisions": "Open the decisions queue",
@@ -8684,16 +8686,13 @@
       "open": "Ask Candi",
       "close": "Close Candi",
       "askCandi": "Ask Candi",
-      "variantLabel": "Dock layout",
-      "variantColleague": "Colleague",
-      "variantDesk": "Desk"
+      "newThread": "New conversation",
+      "actions": "Companion actions"
     },
     "chat": {
       "placeholder": "Ask about your studio. She proposes, you decide.",
-      "placeholderDense": "Ask the studio…",
       "send": "Send",
       "thinking": "Thinking…",
-      "thinkingSlow": "Still thinking. A grounded reply usually takes 5–10 seconds.",
       "thinkingSlowCalm": "Still with you. She reads the studio before answering, so this takes a few seconds.",
       "transcriptLabel": "Conversation with Candi",
       "errorGeneric": "That message did not go through. Nothing was lost, so try again."
@@ -8713,15 +8712,12 @@
       "recallCount": "{count, plural, one {# memory} other {# memories}}",
       "fallbackFlag": "fallback"
     },
-    "desk": {
-      "decisions": "Decisions",
-      "pipeline": "Aging",
-      "schedule": "Booked",
-      "enter": "Enter",
-      "enterHint": "send",
-      "shiftEnter": "Shift + Enter",
-      "shiftEnterHint": "new line"
-    },
-    "greeting": "I am Candi. I keep track of what your studio holds, and I remember our earlier conversations. Ask me what needs you, or what changed. I only ever propose: every call stays yours."
+    "greeting": "I am Candi. I keep track of what your studio holds, and I remember our earlier conversations. Ask me what needs you, or what changed. I only ever propose: every call stays yours.",
+    "blocks": {
+      "table": "Table",
+      "chart": "Chart",
+      "emptyCell": "·",
+      "dropped": "{count, plural, one {# block was dropped} other {# blocks were dropped}}"
+    }
   }
 }
