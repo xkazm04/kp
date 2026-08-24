@@ -45,22 +45,31 @@ test("the transcript window keeps the LAST twelve turns, oldest first", () => {
   assert.equal(win[11].content, "m19");
 });
 
-test("the grounding summary counts only ACTIVE entries and never leaks a candidate", () => {
+test("the grounding summary counts only ACTIVE entries and carries their top candidates", () => {
   const summary = pipelineSummary([
-    { stage: "Screen", status: "active", jobTitle: "Backend engineer", matchScore: 80 },
-    { stage: "Screen", status: "active", jobTitle: "Backend engineer", matchScore: 60 },
-    { stage: "Offer", status: "active", jobTitle: "Designer", matchScore: null },
-    { stage: "Screen", status: "rejected", jobTitle: "Backend engineer", matchScore: 99 },
+    { stage: "Screen", status: "active", jobTitle: "Backend engineer", matchScore: 80, candidateLabel: "Alice A" },
+    { stage: "Screen", status: "active", jobTitle: "Backend engineer", matchScore: 60, candidateLabel: "Bob B" },
+    { stage: "Offer", status: "active", jobTitle: "Designer", matchScore: null, candidateLabel: "Cara C" },
+    { stage: "Screen", status: "rejected", jobTitle: "Backend engineer", matchScore: 99, candidateLabel: "Zed Z" },
   ]);
   assert.equal(summary.activeEntries, 3);
   assert.deepEqual(summary.byStage, { Screen: 2, Offer: 1 });
   assert.deepEqual(summary.topRoles, [
-    { role: "Backend engineer", entries: 2 },
-    { role: "Designer", entries: 1 },
+    {
+      role: "Backend engineer",
+      entries: 2,
+      // Sorted by score desc — the comparison table's raw material (decision 2026-08-24).
+      candidates: [
+        { label: "Alice A", matchScore: 80, stage: "Screen" },
+        { label: "Bob B", matchScore: 60, stage: "Screen" },
+      ],
+    },
+    { role: "Designer", entries: 1, candidates: [{ label: "Cara C", matchScore: null, stage: "Offer" }] },
   ]);
   // Mean over the two entries that HAVE a score; the unscored one is not a zero.
   assert.equal(summary.meanMatchScore, 70);
   assert.ok(!JSON.stringify(summary).includes("99"), "a rejected entry must not reach the model");
+  assert.ok(!JSON.stringify(summary).includes("Zed"), "a rejected candidate must not reach the model");
 });
 
 test("an empty board summarises to nothing rather than to zeros that read as facts", () => {

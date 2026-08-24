@@ -50,42 +50,58 @@ export type CompanionPipelineRow = {
   status: string;
   jobTitle: string | null;
   matchScore: number | null;
+  /** Candidate display label. Optional so leaner projections still summarize. */
+  candidateLabel?: string | null;
 };
 
 export type CompanionPipelineSummary = {
   activeEntries: number;
   byStage: Record<string, number>;
-  /** The busiest roles by active-entry count — what the operator is actually hiring for. */
-  topRoles: { role: string; entries: number }[];
+  /** The busiest roles by active-entry count — what the operator is actually hiring for.
+   *  Each carries its top candidates (label, score, stage) so comparison questions can
+   *  be answered as a table instead of a shrug. */
+  topRoles: { role: string; entries: number; candidates: { label: string; matchScore: number | null; stage: string }[] }[];
   /** Mean match score across active entries that have one, rounded. Null when none do. */
   meanMatchScore: number | null;
 };
 
 const TOP_ROLES = 5;
 
+const TOP_CANDIDATES_PER_ROLE = 5;
+
 /** A compact, factual picture of the board — small enough to sit in every prompt,
  *  specific enough that the companion can answer "what needs me" without guessing.
- *  Names and candidate labels are deliberately ABSENT: the grounding blob leaves
- *  the machine with the model, and a stage histogram is not a candidate record. */
+ *  Candidate labels are deliberately PRESENT (decision 2026-08-24, prototype round
+ *  2 triage): this is an operator-only surface behind the same auth as the board
+ *  itself, and without labels the flagship question — "compare my top candidates"
+ *  — is unanswerable. Capped at the busiest roles × top candidates by score. */
 export function pipelineSummary(rows: readonly CompanionPipelineRow[]): CompanionPipelineSummary {
   const active = rows.filter((r) => r.status === "active");
   const byStage: Record<string, number> = {};
-  const byRole = new Map<string, number>();
+  const byRole = new Map<string, CompanionPipelineRow[]>();
   let scoreSum = 0;
   let scored = 0;
   for (const row of active) {
     byStage[row.stage] = (byStage[row.stage] ?? 0) + 1;
     const role = (row.jobTitle ?? "").trim();
-    if (role) byRole.set(role, (byRole.get(role) ?? 0) + 1);
+    if (role) byRole.set(role, [...(byRole.get(role) ?? []), row]);
     if (typeof row.matchScore === "number" && Number.isFinite(row.matchScore)) {
       scoreSum += row.matchScore;
       scored += 1;
     }
   }
   const topRoles = [...byRole.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
     .slice(0, TOP_ROLES)
-    .map(([role, entries]) => ({ role, entries }));
+    .map(([role, entries]) => ({
+      role,
+      entries: entries.length,
+      candidates: entries
+        .slice()
+        .sort((a, b) => (b.matchScore ?? -1) - (a.matchScore ?? -1))
+        .slice(0, TOP_CANDIDATES_PER_ROLE)
+        .map((r) => ({ label: (r.candidateLabel ?? "").trim() || "(unlabeled)", matchScore: r.matchScore, stage: r.stage })),
+    }));
   return {
     activeEntries: active.length,
     byStage,
