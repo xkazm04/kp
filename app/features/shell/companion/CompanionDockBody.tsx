@@ -32,7 +32,6 @@ import { CompanionProposalCard } from "./CompanionProposalCard";
 
 const companionSide = (role: string): ChatSide => (role === "user" ? "right" : "left");
 const RECALL_CHIPS = 2;
-const EXCERPT_CHARS = 80;
 
 export type CompanionBodyProps = {
   turns: CompanionTurn[];
@@ -191,7 +190,13 @@ function TurnExtras({
   const blocks = meta?.blocks ?? [];
   const dropped = meta?.blockErrors ?? 0;
   const droppedActions = meta?.actionErrors ?? 0;
-  const recall = meta?.recallUsed ?? [];
+  // What she REMEMBERED, as insight rather than transcript. The strip prints the
+  // CLI's short `insight` form and nothing else: a hit that carries none grounded
+  // the answer without teaching anything, and an empty strip says that honestly.
+  // Round 5 replaced a raw-excerpt dump here that was echoing the operator's own
+  // commands back at them ("remembered: Please prepare a digest…"); a turn stored
+  // before that change carries no insight and correctly shows no chip.
+  const recall = (meta?.recallUsed ?? []).filter((hit) => (hit.insight ?? "").trim().length > 0);
   const isDegraded = meta?.source === "deterministic";
   // Ids the turn CLAIMS, resolved against the live rows: a proposal id that no
   // longer resolves (a restored database, a hand-deleted row) renders nothing
@@ -223,7 +228,7 @@ function TurnExtras({
         ) : null}
         {recall.slice(0, RECALL_CHIPS).map((hit) => (
           <span key={hit.path} className={CHIP_QUIET}>
-            {t("meta.remembered")} {hit.excerpt.slice(0, EXCERPT_CHARS)}
+            {t("meta.remembered")} {hit.insight}
           </span>
         ))}
       </div>

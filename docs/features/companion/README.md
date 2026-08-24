@@ -72,14 +72,58 @@ grounding blob + the last 12 turns (the user prompt) → one completion under th
 **`assistant`** use case, answered in the operator's UI locale.
 
 Output is one JSON line: `{reply, blocks, blockErrors, actions, actionErrors,
-recallUsed, episodePaths, source, indexSkipped[, fallbackReason]}`. Both halves of
+recallUsed, episodePaths, source, indexSkipped[, fallbackReason]}`, where each
+`recallUsed` entry is `{path, excerpt, insight}` (see **What she is allowed to
+remember at you** below). Both halves of
 the exchange are appended as episodes — the operator's message *before* the model is called, so a provider
 timeout can never cost them their own words. Keyless or unreachable, the reply
 says so in the operator's language rather than inventing an answer.
 
+## What she is allowed to remember at you
+
+**Storage is never filtered. Surfacing is.** Every exchange is written and
+indexed — episodes are the consolidation substrate, and a memory nobody keeps
+cannot become an insight later. What is narrowed is what a turn may STAND ON and
+what the dock may SHOW.
+
+BM25 answers "what is textually closest to this query", and the closest thing to
+a question is the question itself: `run_turn` appends the operator's message as
+an episode *before* it recalls, so the top hit for "Please prepare a digest of
+the workspace for me" is that same sentence, one second old. Round 5's operator
+click-through caught the dock printing exactly that back as
+`remembered: Please prepare a digest of the workspace for me`.
+
+`companion_brain.surface_recall(query, hits, today)` sits in front of
+`recall()` and applies two drops and one derivation:
+
+| | rule | why |
+|---|---|---|
+| drop | **near-echo** — the hit sits inside the normalized query, or ≥ `ECHO_OVERLAP` (0.6) of the HIT's tokens are already in the query | it is the operator's own words coming back; it grounds nothing. The ratio is DIRECTIONAL on purpose: the digest leg's query is a dozen words built from the board's own role names, and a symmetric ratio would call the most grounding episode in the index an echo of the question |
+| drop | **the operator's own bare command, dated today** — role from the episode filename, day from `created_at`, command shape from the first sentence (a question mark, or an opener in `COMMAND_OPENERS`) | an instruction is a thing asked, not a thing learned |
+| keep | everything else, including a command from an EARLIER day — it still grounds, it just earns no chip | |
+| derive | **`insight`** — role prefixes and markdown scaffolding stripped, collapsed to the first sentence, cut on a word boundary at `INSIGHT_CHARS` (90) | mechanical, inside the same turn: a chip that costs a second model leg is a chip that gets turned off |
+
+`INSIGHT_MARKERS` is the escape hatch that keeps a preference out of the command
+bucket: "Can you always put Czech roles first" opens like an instruction and is a
+standing rule, so ` always `, ` never `, ` i prefer `, ` from now on ` and friends
+override the opener test.
+
+The dock prints **at most two chips**, each the `insight` and never the excerpt,
+and prints **nothing at all** when no surviving hit carried one — absence is
+honest, and an empty strip beats an echo. A turn stored before round 5 carries no
+`insight`, so it correctly shows no chip rather than a raw excerpt.
+
+The tone contract closes the loop from the other side: when memory informs the
+answer she is told to weave it into a short natural sentence ("Yesterday this
+queue was 16") rather than block-quoting the past.
+
+Pinned by `test_companion_brain.py` (echo, command shape, role-from-filename,
+shortening, the whole surfacing pass) and `test_companion_cli.py` (the operator's
+own message never returns as a memory; `recallUsed` ships the short form).
+
 ## Rich turn components (blocks)
 
-The dock is a 26rem column, and an enumeration of three or more comparable
+The dock is a 30rem column, and an enumeration of three or more comparable
 things reads badly in one. So a completion may carry **fenced blocks** beside
 its prose; `pipeline/jobfit/companion_blocks.py` pulls them out, validates each
 against a strict schema, and returns the prose with the fences removed.
@@ -126,13 +170,26 @@ row written by an older build is untrusted input), and render through
 **The caps live in three places and must move together**: `companion_blocks.py`,
 `app/_components/chat/chatBlockTypes.ts`, and the renderers built to them.
 
+**Blocks are FULL-BLEED.** The bubble keeps the 85 % cap a paragraph needs to
+read as speech; a table or a chart is a drawing, and every pixel it hands back to
+the identity gutter is a column it cannot show. So `ChatBlocks` renders at the
+transcript's full width, beneath the bubble. Round 5 changed this after an
+operator click-through: a three-column table inside the old 26rem, 85 %-capped
+slot wrapped every cell to three lines and read as illegible chrome.
+
 `ChatMiniChart` is hand-rolled inline SVG — no chart library. recharts needs
 literal color strings for its chrome and therefore a `useTheme()` fork (see
-`FactorChart`); at 240px inside a bubble that costs more than the drawing is
-worth. A presentation attribute is parsed as CSS, so `fill="var(--color-coral)"`
-resolves per theme with no JS at all. Geometry is fixed 1:1 (240px wide, viewBox
-240) on purpose: a scaling viewBox would quietly print 9px axis labels, below the
-design law's 14px floor.
+`FactorChart`); inside a chat turn that costs more than the drawing is worth. A
+presentation attribute is parsed as CSS, so `fill="var(--color-coral)"` resolves
+per theme with no JS at all. The drawing is RESPONSIVE — `w-full` over an intact
+viewBox — with a 420-wide base chosen from the dock's real inner column (30rem
+minus the body padding, the scroller gutter and the block frame ≈ 426 CSS px), so
+SVG `<text>` lands at a true 14px, the design law's floor. A wider container
+scales it up; `min-w-[420px]` stops a narrow one from scaling it down and hands
+the overflow to the block's own horizontal scroller instead. Category ticks
+anchor `middle` when every tick is drawn and inward only when they have been
+thinned to first/middle/last — pulling the first tick rightward beside its
+neighbour is what made "Screened" sit on top of "Accepted".
 
 ### The tone contract
 
@@ -323,7 +380,10 @@ and is unit-tested without a database or `next/server`.
 
 The assistant turn's `meta_json` carries its provenance AND its blocks: one
 answer has two halves now, and a transcript reload has to repaint the same thing
-it painted live.
+it painted live. It does — `GET /api/companion/threads` and the message route
+both return `listTurns(...)`, the same rows through the same mapper, so a
+hydrated turn renders exactly like a live one (verified end to end in round 5,
+including `meta.blocks` and the `meta.proposalIds` join).
 
 **Write order: the operator's words land first**, before the model is called —
 the same contract `companion_cli.py` keeps for episodes, and the reason a provider
@@ -366,7 +426,7 @@ second request" and "coalesce what arrived while busy", with tests for both.
 ### The header toolbar
 
 A slim band: the `Companion` eyebrow on the left, icon-only actions on the right
-(icon-only because the toolbar competes with a conversation for a 26rem column —
+(icon-only because the toolbar competes with a conversation for a 30rem column —
 it wins on height and loses on ink).
 
 | Action | Does |
@@ -386,11 +446,15 @@ NAME in the display face and one honest line about what she is holding right now
 use. The transcript is a conversation, not a log: roomy bubbles, no timestamps, no
 provenance chrome in the reading path.
 
-Under one assistant turn, in reading order: **what she drew** (the blocks), then
-**what she offered** (the proposal cards), then **what she stood on** — quiet
-marginalia chips, the way a colleague says "you told me last week…" rather than
-citing a source id. A degraded turn says so in the same quiet voice, and a dropped
-block or proposal is admitted rather than hidden.
+Under one assistant turn, in reading order: **what she drew** (the blocks, at the
+transcript's FULL width — they escape the bubble's 85 % cap because a drawing
+needs the column a paragraph can give away), then **what she offered** (the
+proposal cards), then **what she stood on** — at most two quiet marginalia chips,
+each one short sentence of insight and never a raw excerpt, the way a colleague
+says "you told me last week…" rather than citing a source id. When nothing she
+recalled carried an insight the strip is empty, which is the honest rendering.
+A degraded turn says so in the same quiet voice, and a dropped block or proposal
+is admitted rather than hidden.
 
 The proposals sit between the drawing and the marginalia deliberately: they are
 the only part of a turn the operator has to answer, so they belong where the eye
@@ -453,12 +517,23 @@ surface changed.
 
 ## Known gaps
 
-- **No block or proposal has been drawn by a real model yet.** The parsers, the
-  renderers, the catalog derivation and every schema are unit-tested end to end,
-  but whether the prompt actually makes a model reach for `kp:table` instead of a
-  numbered list, or for `kp:action` instead of describing the action in prose, is
-  an empirical question no unit test can answer (see "Not verified in a running
-  app").
+- **Blocks and proposals HAVE now been drawn by a real model** (round 5's
+  operator click-through: two turns in `companion_turns` carry a `kp:chart` plus
+  a `kp:table`, and one carries a `generate_digest` proposal that was accepted
+  and executed). What is still unmeasured is the RATE — how often the prompt
+  makes a model reach for `kp:table` instead of a numbered list, or for
+  `kp:action` instead of describing the action in prose.
+- **A long-running `next dev` server can serve a STALE message catalog.** Round
+  5's "I can only see labels, not the rendered components" traced to exactly
+  this: the dev server on :3000 had been up since 2026-08-22, WP3 added
+  `companion.action` / `.proposal` / `.outcome` to `messages/en.json` on
+  2026-08-24, and Next hot-reloaded the TSX but kept the JSON that
+  `i18n/request.ts` imports in its module cache. `CompanionProposalCard` then
+  painted next-intl's MISSING_MESSAGE fallback — the literal key paths
+  `companion.proposal.eyebrow`, `companion.action.unknown` — as its copy. The
+  catalog on disk was complete and all four locales were in parity the whole
+  time. **Restart the dev server after any `messages/*.json` change**; nothing
+  detects this, and it looks exactly like a broken component.
 - **`draft_outreach` inherits the deploy's relay setting.** It reuses the board's
   own drafter, so on a deploy with `COMMS_WEBHOOK_URL` configured an accepted
   proposal relays exactly as pressing "Draft outreach" on the board does. See the

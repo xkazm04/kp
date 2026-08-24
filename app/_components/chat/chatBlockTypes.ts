@@ -8,9 +8,11 @@
 // boundary: app/_lib/companion-blocks.ts.
 //
 // THE CAPS ARE THE RENDERERS' REAL LIMITS, mirrored in
-// pipeline/jobfit/companion_blocks.py. The dock is a 26rem column and the chart
-// is 240px of hand-rolled SVG; a fifth column or a ninth bar does not degrade,
-// it stops being readable. Change one side and you must change the other.
+// pipeline/jobfit/companion_blocks.py. Blocks render FULL-BLEED under the bubble
+// (ChatBlocks) across a 30rem dock, so the drawing gets the whole column rather
+// than the 85 % the prose keeps — but a fifth column or a ninth bar still does
+// not degrade, it stops being readable. Change one side and you must change the
+// other.
 
 /** How many blocks one turn may carry. Two is a comparison; five is a report,
  *  and a report does not belong inside a chat bubble. */

@@ -36,6 +36,11 @@ Three index lanes, in decreasing optionality:
      effort, so a kp episode joins Athena's recall and sleep cycle when the app
      is installed. Locked or absent is a normal outcome, not an error.
 
+``recall()`` is the raw BM25 door; ``surface_recall()`` sits in front of it and
+decides which hits GROUND anything (see "Surfacing" below). Storage is never
+filtered — every episode is written and indexed, because episodes are the
+consolidation substrate. Only what a turn stands on and shows is narrowed.
+
 Zero dependencies (stdlib only), so this module is importable from a spawned
 CLI with nothing installed.
 """
@@ -44,6 +49,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
@@ -235,6 +241,184 @@ def recall(query: str, limit: int = 6) -> list[dict]:
     finally:
         con.close()
     return [{"nodeId": n, "path": p, "excerpt": e, "createdAt": c} for n, p, e, c in rows]
+
+
+# ---------------------------------------------------------------------------
+# Surfacing — which recalled episodes GROUND anything
+# ---------------------------------------------------------------------------
+#
+# BM25 answers "what is textually closest to this query", and the closest thing
+# to a question is almost always THE QUESTION ITSELF: ``run_turn`` appends the
+# operator's message as an episode before it recalls, so the top hit for
+# "Please prepare a digest of the workspace for me" is that same sentence, one
+# second old. Surfacing it back as "remembered: …" is not memory, it is an echo,
+# and it made the whole recall strip read as noise (round-5 operator finding).
+#
+# So RECALL stays the raw BM25 door — it is the index's contract and its tests
+# pin it — and this pass decides what a turn may STAND ON and what it may SHOW:
+#
+#   drop    a near-echo — the hit adds nothing the query did not already say
+#   drop    a bare COMMAND the operator typed today (an instruction grounds
+#           nothing; it is a thing asked, not a thing learned)
+#   keep    everything else, and mark the insight-like ones with a one-sentence
+#           `insight` the dock can print instead of a raw excerpt
+#
+# Storage is untouched: every episode is still written and still indexed. This
+# is a display and grounding decision, made where both consumers meet it.
+
+ECHO_OVERLAP = 0.6
+INSIGHT_CHARS = 90
+
+# Openers that make a first sentence an instruction or a question rather than a
+# statement. Matched on the FIRST normalized word only, so "Show me the queue"
+# is a command while "Showing up late is the pattern I keep seeing" is not.
+COMMAND_OPENERS = frozenset(
+    """please prepare give show list make write draft compare tell find run generate summarize
+    summarise create send check open update add remove delete set put pull fetch explain help
+    can could would should what who whom whose when where which how why do does did is are was
+    were""".split()
+)
+
+# What keeps a sentence out of the command bucket even when it opens like one:
+# "Can you always put Czech roles first" is a standing preference, not a one-off
+# instruction, and a standing preference is exactly the kind of thing worth
+# remembering. Matched against the normalized sentence padded with spaces, so
+# every entry is a whole-word phrase.
+INSIGHT_MARKERS = (
+    " i prefer ",
+    " i think ",
+    " i want ",
+    " i like ",
+    " i hate ",
+    " my rule ",
+    " our rule ",
+    " we usually ",
+    " remember that ",
+    " note that ",
+    " from now on ",
+    " always ",
+    " never ",
+)
+
+_ROLE_PREFIX = re.compile(r"^\s*(?:operator|user|assistant|candi|me)\s*:\s*", re.IGNORECASE)
+_LEADING_MARKUP = re.compile(r"^[\s>*\-#`]+")
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+_WORD = re.compile(r"[^0-9a-z]+")
+
+
+def _normalize(text: str) -> str:
+    """Lowercase, punctuation-free, single-spaced. The comparison surface for
+    every rule below — an echo differs from its source by capitalisation and a
+    question mark far more often than by a word."""
+    return _WORD.sub(" ", (text or "").lower()).strip()
+
+
+def _tokens(text: str) -> set[str]:
+    return {t for t in _normalize(text).split() if t}
+
+
+def is_echo(query: str, text: str) -> bool:
+    """The hit is the query wearing a different hat — it adds nothing.
+
+    The measure is DIRECTIONAL: how much of the HIT the query already said,
+    ``|hit ∩ query| / |hit|``. A symmetric ratio would be wrong on the digest
+    leg, whose query is a dozen words assembled from the board's own role names —
+    a long episode that happens to contain most of them is the most grounding
+    thing in the index, not an echo of the question. Coverage answers the
+    question that actually matters: is there anything in this episode the turn
+    did not already have?"""
+    a, b = _normalize(query), _normalize(text)
+    if not a or not b:
+        return False
+    if b in a:
+        # The stored episode IS the message (the user episode this turn just
+        # wrote), or a line the message quotes back verbatim.
+        return True
+    ta, tb = _tokens(a), _tokens(b)
+    if not ta or not tb:
+        return False
+    return len(ta & tb) / len(tb) >= ECHO_OVERLAP
+
+
+def episode_role(path: str) -> str:
+    """``episodes/2026/08/24/ep_a4710ced_user.md`` -> ``user``. The index row
+    carries no role column, and the filename has encoded it since the format was
+    pinned — so this reads the record rather than adding a column to the mirror."""
+    name = str(path or "").rsplit("/", 1)[-1]
+    for role in ROLES:
+        if name.endswith(f"_{role}.md"):
+            return role
+    return ""
+
+
+def first_sentence(text: str) -> str:
+    """The first sentence, with role prefixes and markdown scaffolding stripped.
+    Mechanical: no model is asked what an episode was about."""
+    body = _ROLE_PREFIX.sub("", _LEADING_MARKUP.sub("", str(text or "")))
+    body = re.sub(r"\s+", " ", body).strip()
+    if not body:
+        return ""
+    return _SENTENCE_END.split(body)[0].strip()
+
+
+def is_command(text: str) -> bool:
+    """A bare instruction or question — something the operator ASKED, which
+    grounds nothing when it comes back a minute later."""
+    sentence = _normalize(first_sentence(text))
+    if not sentence:
+        return False
+    if any(marker in f" {sentence} " for marker in INSIGHT_MARKERS):
+        return False
+    if first_sentence(text).endswith("?"):
+        return True
+    head = sentence.split(" ", 1)[0]
+    return head in COMMAND_OPENERS
+
+
+def insight_sentence(text: str, limit: int = INSIGHT_CHARS) -> str:
+    """One short sentence of what was learned, at most ``limit`` characters.
+
+    Derived mechanically inside the same turn — no second model leg — because a
+    chip that costs a completion is a chip that will be turned off."""
+    sentence = first_sentence(text)
+    if len(sentence) <= limit:
+        return sentence
+    cut = sentence[:limit].rsplit(" ", 1)[0].rstrip(" ,;:.-")
+    return (cut or sentence[:limit].rstrip()) + "…"
+
+
+def _day(stamp) -> str:
+    return str(stamp or "")[:10]
+
+
+def _today() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def surface_recall(query: str, hits: list[dict], today: str | None = None) -> list[dict]:
+    """Filter raw recall down to what a turn may stand on, and mark what it may
+    show. Returns the surviving hits, each with an ``insight`` key: a short
+    sentence when the episode carries one, ``""`` when it does not (an operator
+    command from another day still grounds the answer; it is just not worth a
+    chip). Absence is honest — the dock shows nothing rather than an excerpt."""
+    day = today or _today()
+    surfaced: list[dict] = []
+    for hit in hits:
+        text = str(hit.get("excerpt") or "")
+        if not text.strip():
+            continue
+        if is_echo(query, text):
+            continue
+        role = episode_role(str(hit.get("path") or ""))
+        command = is_command(text)
+        if role == "user" and command and _day(hit.get("createdAt")) == day:
+            continue
+        out = dict(hit)
+        # An assistant episode is an observation she made; a user episode counts
+        # only when it states something rather than asking for something.
+        out["insight"] = "" if command else insight_sentence(text)
+        surfaced.append(out)
+    return surfaced
 
 
 # ---------------------------------------------------------------------------

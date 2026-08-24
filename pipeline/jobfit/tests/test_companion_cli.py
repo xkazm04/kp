@@ -107,6 +107,36 @@ class CompanionCliTestCase(unittest.TestCase):
         self.assertTrue(payload["recallUsed"])
         self.assertIn("rubric", provider.prompt or "")
 
+    def test_the_operators_own_message_never_comes_back_as_a_memory(self):
+        """The round-5 finding, end to end. ``run_turn`` appends the message as
+        an episode BEFORE it recalls, so raw BM25 hands that sentence straight
+        back as its own top hit. Nothing in `recallUsed` may be the message."""
+        provider = _Provider()
+        message = "Please prepare a digest of the workspace for me"
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=provider):
+            payload = companion_cli.run_turn(dict(TURN, message=message))
+        self.assertNotIn(message, [h["excerpt"] for h in payload["recallUsed"]])
+        self.assertNotIn(message, (provider.prompt or "").split("<<<OPERATOR_MESSAGE>>>")[0])
+
+    def test_recall_ships_a_short_insight_beside_the_excerpt(self):
+        brain.append_episode(
+            "assistant",
+            "Sixteen decisions were waiting on you. Channels hold 17 open items and 5 jobs need a look.",
+            "kp-workspace",
+        )
+        provider = _Provider()
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=provider):
+            payload = companion_cli.run_turn(dict(TURN, message="how many decisions are waiting"))
+        hit = next(h for h in payload["recallUsed"] if "Sixteen decisions" in h["excerpt"])
+        self.assertEqual(hit["insight"], "Sixteen decisions were waiting on you.")
+        self.assertLessEqual(len(hit["insight"]), 90)
+
+    def test_the_prompt_asks_her_to_weave_memory_in_rather_than_quote_it(self):
+        provider = _Provider()
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=provider):
+            companion_cli.run_turn(dict(TURN))
+        self.assertIn("Never block-quote the past back", provider.system or "")
+
     def test_a_reply_carrying_blocks_ships_them_beside_clean_prose(self):
         completion = (
             "Two roles carry the load.\n\n"

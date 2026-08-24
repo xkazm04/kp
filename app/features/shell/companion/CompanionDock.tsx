@@ -32,7 +32,7 @@ import { CompanionBody, CompanionRest } from "./CompanionDockBody";
  */
 
 const DOCK_SHELL =
-  "animate-slide-in motion-reduce:animate-none fixed bottom-[calc(var(--sim-bar-h)_+_8px)] left-3 z-[var(--z-sim-drawer)] flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-paper shadow-overlay max-sm:inset-x-3 max-sm:max-h-[70dvh] sm:top-[25dvh] sm:w-[min(92vw,26rem)]";
+  "animate-slide-in motion-reduce:animate-none fixed bottom-[calc(var(--sim-bar-h)_+_8px)] left-3 z-[var(--z-sim-drawer)] flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-paper shadow-overlay max-sm:inset-x-3 max-sm:max-h-[70dvh] sm:top-[25dvh] sm:w-[min(92vw,30rem)]";
 
 export function CompanionDock() {
   const dock = useOptionalCompanionDock();

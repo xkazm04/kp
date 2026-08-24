@@ -34,7 +34,11 @@ const STATUSES: readonly ProposalStatus[] = ["open", "accepted", "declined"];
 export type CompanionTurnMeta = {
   source?: "llm" | "deterministic";
   fallbackReason?: string;
-  recallUsed?: { path: string; excerpt: string }[];
+  /** What the turn stood on. `insight` is the one-sentence short form the dock
+   *  prints (<= 90 chars, derived mechanically by companion_brain's
+   *  `surface_recall`); it is optional because turns stored before round 5 carry
+   *  only the raw excerpt, and those render no chip rather than an echo. */
+  recallUsed?: { path: string; excerpt: string; insight?: string }[];
   episodePaths?: string[];
   indexSkipped?: string[];
   blocks?: ChatBlock[];

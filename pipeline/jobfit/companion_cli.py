@@ -40,6 +40,13 @@ names no action of its own, so the teaching in the prompt and the validation of
 the reply can never disagree. Nothing here executes anything: the route stores a
 proposal row and the operator accepts or declines it.
 
+``recallUsed`` is what the turn actually STOOD ON, already narrowed by
+``companion_brain.surface_recall``: near-echoes of the current message and the
+operator's own same-day commands are dropped (they ground nothing), and each
+survivor carries a mechanically derived ``insight`` — one sentence of at most 90
+characters — which is what the dock prints instead of a raw excerpt. Storage is
+untouched; every episode is still written and indexed.
+
 Both sides of the exchange are appended to the companion brain as episodes —
 the user's message BEFORE the model is called, so a provider failure can never
 cost the operator their own words.
@@ -70,6 +77,7 @@ from .companion_brain import (
     read_identity,
     recall,
     session_tag,
+    surface_recall,
 )
 from .i18n import language_directive, normalize_lang
 from .llm.registry import resolve_provider
@@ -119,6 +127,8 @@ beside the operator's work. Write like a modern web app, not like a book:
 - Every number carries its unit or its noun ("4 candidates", "12 days", "68 %").
 - No markdown headings, no preamble, no sign-off, no commentary about answering.
 - Say what you do not know in one clause, then move on.
+- When something you remember informs the answer, WEAVE IT IN as a short natural
+  sentence ("Yesterday this queue was 16"). Never block-quote the past back.
 Prose ceiling: {MAX_REPLY_WITH_BLOCKS_CHARS} characters when you emit a block below,
 {MAX_REPLY_CHARS} characters otherwise."""
 
@@ -312,7 +322,13 @@ def _payload(reply, blocks, blockErrors, actions, actionErrors, hits, episodes, 
         "blockErrors": blockErrors,
         "actions": actions,
         "actionErrors": actionErrors,
-        "recallUsed": [{"path": h["path"], "excerpt": h["excerpt"]} for h in hits],
+        # `insight` is the SHORT form the dock prints - one mechanically derived
+        # sentence, never the raw excerpt (round 5: the strip was echoing the
+        # operator's own commands back at them). Empty when the hit grounded the
+        # answer without carrying anything worth a chip.
+        "recallUsed": [
+            {"path": h["path"], "excerpt": h["excerpt"], "insight": h.get("insight", "")} for h in hits
+        ],
         "episodePaths": [e["path"] for e in episodes],
         "source": source,
         "indexSkipped": [note for e in episodes for note in e["skipped"]],
@@ -334,7 +350,11 @@ def run_turn(turn: dict) -> dict:
 
     ensure_brain()
     episodes = [append_episode("user", message, session)]
-    hits = recall(message, RECALL_LIMIT)
+    # The user episode above is now the closest text in the index to this very
+    # query, so raw recall would hand the message straight back. surface_recall
+    # drops that echo and the operator's same-day commands before either the
+    # prompt or the dock ever sees them.
+    hits = surface_recall(message, recall(message, RECALL_LIMIT))
     raw, source, fallbackReason = _complete(
         _build_prompt(message, hits, turn.get("grounding"), turns), locale, catalog
     )
@@ -376,7 +396,8 @@ def run_digest(turn: dict) -> dict:
     grounding = turn.get("grounding")
 
     ensure_brain()
-    hits = recall(_digest_query(grounding), RECALL_LIMIT)
+    query = _digest_query(grounding)
+    hits = surface_recall(query, recall(query, RECALL_LIMIT))
     prompt = (
         "WHAT THE STUDIO LOOKS LIKE RIGHT NOW (the only facts you may state as facts):\n"
         f"{json.dumps(grounding, ensure_ascii=False, indent=1) if grounding else '(no grounding was provided)'}\n\n"

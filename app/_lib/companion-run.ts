@@ -25,7 +25,12 @@ import {
 // pipeline/jobfit/companion_cli.py; this module only decides WHAT THE COMPANION
 // MAY SEE and moves JSON across the process boundary.
 
-export type CompanionRecall = { path: string; excerpt: string };
+/** One episode the turn stood on. `insight` is the SHORT form the dock prints —
+ *  one mechanically derived sentence (<= 90 chars) from companion_brain's
+ *  `surface_recall`, never a raw excerpt. Empty when the hit grounded the answer
+ *  without carrying anything worth showing: the strip then shows nothing, which
+ *  is the honest outcome and the whole point of round 5's memory fix. */
+export type CompanionRecall = { path: string; excerpt: string; insight: string };
 
 /** One action the companion PROPOSED this turn. Already validated against the
  *  catalog (companion-actions.ts) on both sides of the process boundary; the
@@ -73,7 +78,13 @@ function coerceRecall(raw: unknown): CompanionRecall[] {
   return raw
     .filter((e): e is Record<string, unknown> => !!e && typeof e === "object")
     .filter((e) => typeof e.path === "string" && typeof e.excerpt === "string")
-    .map((e) => ({ path: String(e.path), excerpt: String(e.excerpt) }));
+    // `insight` is defaulted rather than required: a turn stored by an older
+    // build carries none, and an absent chip is the correct rendering for it.
+    .map((e) => ({
+      path: String(e.path),
+      excerpt: String(e.excerpt),
+      insight: typeof e.insight === "string" ? e.insight : "",
+    }));
 }
 
 function coerceStrings(raw: unknown): string[] {

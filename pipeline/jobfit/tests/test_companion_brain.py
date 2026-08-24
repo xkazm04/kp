@@ -173,6 +173,105 @@ class CompanionBrainTestCase(unittest.TestCase):
         self.assertEqual(brain.recall("   ", limit=6), [])
         self.assertEqual(brain.recall("zzzznotpresent", limit=6), [])
 
+    # -- surfacing -----------------------------------------------------------
+    #
+    # The round-5 operator finding: the recall strip printed "remembered: Please
+    # prepare a digest of the workspace for me" — their own command, one second
+    # old, handed back as a memory. These pin the two drops and the short form.
+
+    def test_an_echo_of_the_current_query_is_not_a_memory(self):
+        query = "Please prepare a digest of the workspace for me"
+        self.assertTrue(brain.is_echo(query, query))
+        self.assertTrue(brain.is_echo(query, "please prepare a digest of the workspace for me?"))
+        # Containment the other way: a long question that reproduces a short note.
+        self.assertTrue(brain.is_echo("So what about the rubric, is the rubric ready", "the rubric"))
+        # A genuinely different sentence that happens to share a word is not.
+        self.assertFalse(brain.is_echo(query, "You prefer Czech-market roles listed first."))
+
+    def test_a_long_episode_survives_the_digests_many_word_query(self):
+        """The digest leg assembles its query from the board's own role names, so
+        a SYMMETRIC overlap ratio would call the most grounding episode in the
+        index an echo of the question. Coverage is measured against the hit."""
+        query = "Senior Java Backend Engineer Junior Mobile QA Junior Risk Data Analyst decisions pipeline"
+        episode = (
+            "Today's load is front-heavy on decisions and channels. Sixteen decisions are waiting on you, "
+            "17 channel items are open, and five jobs need a look. The pipeline carries 11 attention items "
+            "across 58 active entries, with the Senior Java Backend Engineer and Junior Risk Data Analyst "
+            "roles holding the most."
+        )
+        self.assertFalse(brain.is_echo(query, episode))
+
+    def test_a_command_is_recognised_by_its_opening_and_a_preference_is_not(self):
+        self.assertTrue(brain.is_command("Please prepare a digest of the workspace for me"))
+        self.assertTrue(brain.is_command("What needs my attention today?"))
+        self.assertTrue(brain.is_command("Show me the top candidates"))
+        self.assertFalse(brain.is_command("I prefer candidates who ship before they talk."))
+        self.assertFalse(brain.is_command("The platform devcase needs a rubric."))
+        # Opens like a command, states a standing rule: kept.
+        self.assertFalse(brain.is_command("Can you always put Czech roles first"))
+
+    def test_the_role_comes_from_the_episode_filename(self):
+        self.assertEqual(brain.episode_role("episodes/2026/08/24/ep_a4710ced_user.md"), "user")
+        self.assertEqual(brain.episode_role("episodes/2026/08/24/ep_c502cae4_assistant.md"), "assistant")
+        self.assertEqual(brain.episode_role("index.sqlite"), "")
+
+    def test_an_insight_is_one_short_sentence_without_the_role_prefix(self):
+        self.assertEqual(
+            brain.insight_sentence("ME: Decisions are the choke point. Channels hold 17 open items."),
+            "Decisions are the choke point.",
+        )
+        long_one = "Today's load is front-heavy on decisions and channels across every open role in the studio right now"
+        short = brain.insight_sentence(long_one)
+        self.assertLessEqual(len(short), brain.INSIGHT_CHARS + 1)
+        self.assertTrue(short.endswith("…"))
+        self.assertTrue(long_one.startswith(short[:-1]))
+        self.assertEqual(brain.insight_sentence("   "), "")
+
+    def test_surfacing_drops_the_echo_and_todays_command_and_shortens_the_rest(self):
+        today = "2026-08-24"
+        hits = [
+            {
+                "path": "episodes/2026/08/24/ep_1_user.md",
+                "excerpt": "Please prepare a digest of the workspace for me",
+                "createdAt": f"{today}T13:50:41+00:00",
+            },
+            {
+                "path": "episodes/2026/08/24/ep_2_user.md",
+                "excerpt": "Show me the top candidates",
+                "createdAt": f"{today}T09:02:00+00:00",
+            },
+            {
+                "path": "episodes/2026/08/23/ep_3_assistant.md",
+                "excerpt": "Sixteen decisions were waiting on you. The board leans early-stage.",
+                "createdAt": "2026-08-23T18:11:22+00:00",
+            },
+            {
+                "path": "episodes/2026/08/20/ep_4_user.md",
+                "excerpt": "What needs my attention today?",
+                "createdAt": "2026-08-20T08:00:00+00:00",
+            },
+        ]
+        out = brain.surface_recall("Please prepare a digest of the workspace for me", hits, today=today)
+        paths = [h["path"] for h in out]
+        # The echo and today's bare command are gone; the cross-day command
+        # survives as GROUNDING but earns no chip.
+        self.assertEqual(paths, ["episodes/2026/08/23/ep_3_assistant.md", "episodes/2026/08/20/ep_4_user.md"])
+        self.assertEqual(out[0]["insight"], "Sixteen decisions were waiting on you.")
+        self.assertEqual(out[1]["insight"], "")
+
+    def test_surfacing_keeps_a_preference_the_operator_stated_today(self):
+        today = "2026-08-24"
+        hits = [
+            {
+                "path": "episodes/2026/08/24/ep_5_user.md",
+                "excerpt": "I prefer Czech-market roles listed before the remote ones.",
+                "createdAt": f"{today}T07:00:00+00:00",
+            }
+        ]
+        out = brain.surface_recall("which roles should I look at", hits, today=today)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["insight"], "I prefer Czech-market roles listed before the remote ones.")
+
 
 if __name__ == "__main__":
     unittest.main()

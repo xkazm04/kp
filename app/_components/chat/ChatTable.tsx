@@ -8,11 +8,13 @@ import type { ChatBlockLabels, ChatTableBlock } from "./chatBlockTypes";
  * comparison as a real <table> — scannable down a column, announced as a table
  * by a screen reader — instead of a numbered list of sentences.
  *
- * It is built for a NARROW column (the companion dock is ~26rem), which decides
- * every choice here: at most four columns by contract, hairline rules instead of
- * fills, `text-sm` cells, and its own horizontal scroller so a long value
- * scrolls the table rather than the page. No sorting, no selection, no row
- * actions — it is a rendered sentence, not a data grid.
+ * It is built for a NARROW column — the companion dock is ~30rem, and since
+ * round 5 the table takes all of it (ChatBlocks renders blocks full-bleed under
+ * the bubble instead of inside its 85 % cap). That still decides every choice
+ * here: at most four columns by contract, hairline rules instead of fills,
+ * `text-sm` cells, and its own horizontal scroller so a long value scrolls the
+ * table rather than the page. No sorting, no selection, no row actions — it is a
+ * rendered sentence, not a data grid.
  */
 export function ChatTable({ block, labels }: { block: ChatTableBlock; labels: ChatBlockLabels }) {
   const { columns, rows, title } = block;

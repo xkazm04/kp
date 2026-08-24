@@ -11,20 +11,28 @@ import type { ChatBlockLabels, ChatChartBlock } from "./chatBlockTypes";
  * worth. A presentation attribute is parsed as CSS, so `fill="var(--color-coral)"`
  * resolves per theme with no JS at all — the same mechanism MotionizedGlyph uses.
  *
- * Geometry is fixed at 1:1 (width 240, viewBox 240) on purpose: it keeps SVG
- * <text> at a true 14px, the floor the design law sets for anything rendered.
- * A viewBox that scaled would quietly print 9px axis labels on a narrow dock.
+ * Geometry (round 5): the drawing is now FULL-BLEED under the bubble rather than
+ * a 240px thumbnail inside it, so the base width is the dock's real inner column
+ * and the SVG scales with its container (`w-full`, viewBox intact). The floor the
+ * design law sets — a true 14px for anything rendered — is what decides the base
+ * number rather than a round one: at WIDTH the labels land at exactly 14px, a
+ * wider container scales them UP, and `min-w` keeps a narrow one from scaling
+ * them down, handing the block's own scroller the overflow instead. A viewBox
+ * that could shrink freely would quietly print 9px axis labels on a phone.
  *
  * Austerity: one entry fade, gated centrally by `animate-fade-in` (globals.css
  * kills it under prefers-reduced-motion). Nothing loops, nothing hovers.
  */
 
-const WIDTH = 240;
-const PAD_L = 30; // room for the value ticks
+// The dock is a 30rem column: 480 - 32 (body padding) - 4 (scroller gutter) - 18
+// (the block frame's border + padding) leaves ~426 CSS px, so a 420 base draws
+// at ~1.0 and the 14px type below is 14px on screen.
+const WIDTH = 420;
+const PAD_L = 34; // room for the value ticks
 const PAD_R = 6;
 const PAD_T = 8;
-const PLOT_H = 96;
-const PAD_B = 24; // room for the category ticks
+const PLOT_H = 120;
+const PAD_B = 26; // room for the category ticks
 const HEIGHT = PAD_T + PLOT_H + PAD_B;
 const PLOT_W = WIDTH - PAD_L - PAD_R;
 const BASE_Y = PAD_T + PLOT_H;
@@ -37,9 +45,11 @@ const TICK_TEXT = "var(--color-steel)";
 
 /** How many category ticks fit at 14px without colliding. Beyond that the ticks
  *  thin out to first / middle / last — a label you cannot read is worse than an
- *  absent one, and the bars still carry the shape. */
+ *  absent one, and the bars still carry the shape. Five rather than four since
+ *  the drawing went full-bleed: a 420-wide plot gives each of five slots ~76px,
+ *  which holds a one-word stage name at 14px. */
 function tickIndexes(count: number): number[] {
-  if (count <= 4) return Array.from({ length: count }, (_, i) => i);
+  if (count <= 5) return Array.from({ length: count }, (_, i) => i);
   const last = count - 1;
   return [...new Set([0, Math.round(last / 2), last])];
 }
@@ -61,6 +71,13 @@ function formatTick(value: number): string {
 export function ChatMiniChart({ block, labels }: { block: ChatChartBlock; labels: ChatBlockLabels }) {
   const { series, x, y, kind, title } = block;
   const count = x.values.length;
+  const ticks = tickIndexes(count);
+  // Anchoring depends on whether the ticks were THINNED. Three ticks spread
+  // across the whole plot anchor inward so a long category cannot run off the
+  // drawing; every tick shown means neighbours are one slot apart, and pulling
+  // the first one rightward is what makes it collide with the second (it did —
+  // "Screened" sat on top of "Accepted" the first time this went full-bleed).
+  const thinned = ticks.length < count;
   const max = niceMax(Math.max(0, ...series.flatMap((s) => s.values)));
   const slot = PLOT_W / Math.max(count, 1);
   const valueY = (value: number) => BASE_Y - (Math.max(0, value) / max) * PLOT_H;
@@ -74,13 +91,16 @@ export function ChatMiniChart({ block, labels }: { block: ChatChartBlock; labels
             rotated 14px in a 240px drawing is unreadable, and real text is
             selectable and translatable. */}
         <p className="pb-0.5 text-meta uppercase text-steel">{y.label}</p>
+        {/* width/height stay as presentation attributes (a no-CSS fallback);
+            the classes win, because an author stylesheet outranks them. */}
         <svg
           width={WIDTH}
           height={HEIGHT}
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label={title ?? labels.chart}
-          className="max-w-full text-meta"
+          className="block h-auto w-full min-w-[420px] text-meta"
         >
           {/* Two value ticks — zero and the scale top. A grid of five lines in
               96px is texture, not information. */}
@@ -129,14 +149,12 @@ export function ChatMiniChart({ block, labels }: { block: ChatChartBlock; labels
                 </g>
               ))}
 
-          {tickIndexes(count).map((index) => (
+          {ticks.map((index) => (
             <text
               key={index}
               x={centerX(index)}
               y={BASE_Y + 18}
-              // The end ticks anchor inward so a long category cannot run off
-              // the drawing.
-              textAnchor={index === 0 ? "start" : index === count - 1 ? "end" : "middle"}
+              textAnchor={thinned && index === 0 ? "start" : thinned && index === count - 1 ? "end" : "middle"}
               fill={TICK_TEXT}
               fontSize={14}
             >
