@@ -29,6 +29,12 @@ Three properties this module exists for, in order:
 
 Nothing here talks to a model, a database, or the filesystem — it is pure text
 in, structures out, which is why it is tested directly (tests/test_companion_blocks.py).
+
+WP3 adds a THIRD fence, ``kp:action``, handled by ``split_reply_actions`` in its
+own pass ahead of the block pass. It is not a rendering: it is a PROPOSAL the
+operator will be asked to accept, and it is validated against the action catalog
+the caller was shipped in ``turn.json`` — never against a list written here, which
+would be a second source of truth (app/_lib/companion-actions.ts is the first).
 """
 
 from __future__ import annotations
@@ -51,6 +57,12 @@ MAX_TITLE_CHARS = 80
 MAX_LABEL_CHARS = 40
 MAX_CELL_CHARS = 60
 CHART_KINDS = ("bar", "line")
+
+# The action half (WP3). An action is a PROPOSAL — a row the operator accepts or
+# declines — so the cap is tighter than the block cap: a reply that is mostly
+# buttons has stopped being a conversation.
+MAX_ACTIONS = 2
+MAX_PARAM_CHARS = 2000
 
 # A terminated fence: ```kp:table … ``` — the JSON may sit on the info line or on
 # its own lines, because both shapes come back from real completions.
@@ -197,6 +209,96 @@ def _clean_prose(text: str) -> str:
     paragraph break, and trailing whitespace on a line goes."""
     lines = [line.rstrip() for line in text.replace("\r\n", "\n").split("\n")]
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
+
+
+# A kp:action fence, and the unterminated form of one. Kept separate from the
+# block fences because actions are stripped in their OWN pass, before the blocks:
+# an action is not a rendering, it is a row the operator will be asked to accept,
+# and mixing the two into one regex would make "how many blocks were dropped" and
+# "how many actions were dropped" the same number.
+_ACTION_FENCE_RE = re.compile(r"```[ \t]*kp:action[ \t]*\r?\n?(.*?)```", re.DOTALL)
+_DANGLING_ACTION_RE = re.compile(r"```[ \t]*kp:action\b(?:(?!```).)*$", re.DOTALL)
+
+
+def _action(raw: dict, catalog: dict[str, dict]) -> dict | None:
+    """One validated action, or None.
+
+    Validated against the catalog THE CALLER WAS SHIPPED (companion_cli reads it
+    out of turn.json, which the TS side serialized from app/_lib/companion-actions.ts).
+    Nothing in this file names an action: a list here would be a second source of
+    truth, and the two would drift the first time an action gained a parameter.
+
+    Undeclared parameters are DROPPED rather than carried through — a parameter
+    nothing declared is a parameter nothing can validate.
+    """
+    action_id = _text(raw.get("id"), MAX_LABEL_CHARS)
+    spec = catalog.get(action_id) if action_id else None
+    if spec is None:
+        return None
+    params_raw = raw.get("params")
+    if params_raw is not None and not isinstance(params_raw, dict):
+        return None
+    params_raw = params_raw or {}
+    params: dict[str, str] = {}
+    for declared in spec.get("params", []):
+        if not isinstance(declared, dict):
+            continue
+        name = declared.get("name")
+        if not isinstance(name, str) or not name:
+            continue
+        value = _text(params_raw.get(name), MAX_PARAM_CHARS)
+        if not value:
+            if declared.get("required"):
+                return None
+            continue
+        params[name] = value
+    return {"id": action_id, "params": params}
+
+
+def _catalog_by_id(actions: Any) -> dict[str, dict]:
+    """The shipped catalog, keyed by id. An absent or malformed catalog yields an
+    EMPTY map, which makes every action fence invalid — the right default for a
+    caller that did not ask for an actor."""
+    if not isinstance(actions, list):
+        return {}
+    catalog: dict[str, dict] = {}
+    for entry in actions:
+        if isinstance(entry, dict) and isinstance(entry.get("id"), str) and entry["id"]:
+            catalog[entry["id"]] = entry
+    return catalog
+
+
+def split_reply_actions(completion: str, actions: Any) -> tuple[str, list[dict], int]:
+    """(prose, actions, dropped). Run BEFORE ``split_reply_blocks`` so the block
+    pass never sees an action fence.
+
+    ``dropped`` counts every action fence that could not be turned into a
+    proposal — bad JSON, an id the shipped catalog does not carry, a missing
+    required parameter, an unterminated fence, or one past ``MAX_ACTIONS``. Never
+    an exception: the same rule the block half keeps, because a reply that
+    reaches the operator beats a reply that was right.
+    """
+    catalog = _catalog_by_id(actions)
+    found: list[dict] = []
+    dropped = 0
+
+    def take(match: re.Match[str]) -> str:
+        nonlocal dropped
+        try:
+            raw = json.loads(match.group(1).strip())
+        except (ValueError, TypeError):
+            raw = None
+        action = _action(raw, catalog) if isinstance(raw, dict) else None
+        if action is None or len(found) >= MAX_ACTIONS:
+            dropped += 1
+            return "\n"
+        found.append(action)
+        return "\n"
+
+    prose = _ACTION_FENCE_RE.sub(take, completion or "")
+    prose, dangling = _DANGLING_ACTION_RE.subn("\n", prose)
+    dropped += dangling
+    return prose, found, dropped
 
 
 def split_reply_blocks(completion: str) -> tuple[str, list[dict], int]:

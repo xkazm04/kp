@@ -15,6 +15,7 @@
 // pay for the entire data layer on its first hit. This one line took /api/attention
 // from 68 modules to 43. See "Dev compile cost" in docs/architecture/app-structure.md.
 import { listPipeline } from "./db/pipeline";
+import { countOpenProposals } from "./db/companion";
 import { countFutureConfirmedInvites } from "./schedule-store";
 import { listJobStatuses } from "./job-ingest";
 import { needsHumanDecision } from "./approval-kinds";
@@ -39,6 +40,16 @@ export type AttentionCounts = {
   // Channels. Same cohort ChannelsTab counts as "received in Accepted", so the
   // nav signals new arrivals without the recruiter camping on the tab.
   channels: number;
+  // Proposals the companion made that the operator has not answered (WP3).
+  //
+  // The ONLY key here with no `badgeKey` on any tab, deliberately: Candi lives in
+  // a dock, not a tab, so there is no nav item that could carry it. It is read by
+  // the dock's own state line, where Accept and Decline are one scroll away. It is
+  // also deliberately NOT folded into `decisions` — that count beacons the
+  // ControlDock orb and its one click routes to the Decisions tab, which has no
+  // affordance that can resolve a companion proposal. A number whose only
+  // affordance clears nothing is the failure approval-kinds.ts warns about.
+  companion: number;
 };
 
 /** The badge counts for ONE tenant. Every read below is workspace-scoped; the
@@ -79,5 +90,6 @@ export function attentionCounts(workspaceId?: string): AttentionCounts {
   const schedule = countFutureConfirmedInvites(workspaceId);
   const jobs = Object.values(listJobStatuses(workspaceId)).filter((s) => s === "draft").length;
   const channels = entries.filter((e) => e.status === "active" && stageHasRole(e.stage, "entry", axis)).length;
-  return { decisions, pipeline: stale, schedule, jobs, channels };
+  const companion = countOpenProposals(workspaceId);
+  return { decisions, pipeline: stale, schedule, jobs, channels, companion };
 }

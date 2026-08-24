@@ -24,6 +24,7 @@ import { runAgentFit } from "./agent-hire/transform-run";
 import { runRepoScan } from "./repo-scan-run";
 import { runCampaign, type CampaignParams } from "./campaign-run";
 import { runProfileDraft, type ProfileDraftParams } from "./profile-draft-run";
+import { runCompanionDigestTask } from "./companion-digest-run";
 import { randomId } from "./random-id";
 import { buildDedupeKey } from "./task-dedupe";
 import { encodeTaskLabel } from "./task-label";
@@ -262,6 +263,15 @@ const HANDLERS: Record<string, Spec> = {
   profile_draft: {
     run: (ctx) => runProfileDraft(ctx.params as unknown as ProfileDraftParams, ctx.signal),
     label: () => encodeTaskLabel("profileDraft"),
+  },
+  // The operator companion's digest (WP3): one metered `assistant` call that
+  // files a message into the newest companion thread, plus whatever proposals it
+  // offered. Backgrounded because it is a model call the operator did not ask for
+  // synchronously — they accepted a proposal and moved on, and the durable result
+  // is the turn row, so navigating away loses nothing. It never acts on the board.
+  companion_digest: {
+    run: runCompanionDigestTask,
+    label: () => encodeTaskLabel("companionDigest"),
   },
 };
 

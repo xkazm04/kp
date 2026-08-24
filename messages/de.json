@@ -1302,7 +1302,10 @@
     "INTAKE_COMPOSE_APP_MASTER_FAILED": "Die App-Master-Spezifikation konnte nicht erstellt werden. Bitte erneut versuchen.",
     "COMPANION_THREADS_FAILED": "Ihre Gespräche mit Candi konnten nicht geladen werden.",
     "COMPANION_THREAD_CREATE_FAILED": "Ein neues Gespräch mit Candi konnte nicht gestartet werden.",
-    "COMPANION_MESSAGE_FAILED": "Candi konnte diese Nachricht nicht beantworten. Ihre Worte sind gespeichert."
+    "COMPANION_MESSAGE_FAILED": "Candi konnte diese Nachricht nicht beantworten. Ihre Worte sind gespeichert.",
+    "COMPANION_PROPOSAL_NOT_FOUND": "Dieser Vorschlag ist nicht mehr verfügbar.",
+    "COMPANION_PROPOSAL_RESOLVED": "Dieser Vorschlag wurde bereits beantwortet.",
+    "COMPANION_PROPOSAL_FAILED": "Der Vorschlag konnte nicht ausgeführt werden. Es wurde nichts geändert."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8151,7 +8154,8 @@
       "interviewPrep": "Interview-Vorbereitung · {candidate}",
       "agentFit": "Agent-Eignung · {job}",
       "campaign": "Kampagnenpaket · {job}",
-      "profileDraft": "KI-Profilentwurf"
+      "profileDraft": "KI-Profilentwurf",
+      "companionDigest": "Studio-Übersicht"
     },
     "filter": {
       "clear": "Zurücksetzen"
@@ -8703,7 +8707,8 @@
       "clear": "Im Moment wartet nichts auf Sie.",
       "thinking": "Sieht sich das Studio an…",
       "thinkingAbout": "Denkt über {count, plural, one {# Entscheidung} other {# Entscheidungen}} nach…",
-      "watching": "Behält {count, plural, one {# Sache} other {# Sachen}} im Blick, die Sie brauchen."
+      "watching": "Behält {count, plural, one {# Sache} other {# Sachen}} im Blick, die Sie brauchen.",
+      "proposals": "{count, plural, one {# Vorschlag wartet auf Sie} other {# Vorschläge warten auf Sie}}"
     },
     "meta": {
       "remembered": "erinnert:",
@@ -8719,6 +8724,34 @@
       "chart": "Diagramm",
       "emptyCell": "·",
       "dropped": "{count, plural, one {# Block verworfen} other {# Blöcke verworfen}}"
+    },
+    "action": {
+      "runAnalysis": "KI-Screening für {candidate} erneut ausführen",
+      "generateDigest": "Die heutige Studio-Übersicht zusammenstellen",
+      "draftJd": "Einen Stellenanzeigen-Entwurf für {title} schreiben",
+      "draftOutreach": "Eine Ansprache an {candidate} entwerfen",
+      "unknown": "Ein Vorschlag, den ich nicht mehr beschreiben kann"
+    },
+    "proposal": {
+      "eyebrow": "Das könnte ich tun",
+      "accept": "Annehmen",
+      "decline": "Ablehnen",
+      "working": "Arbeite",
+      "accepted": "Angenommen",
+      "declined": "Abgelehnt",
+      "dropped": "{count, plural, one {# Vorschlag wurde verworfen} other {# Vorschläge wurden verworfen}}"
+    },
+    "outcome": {
+      "analysisQueued": "Screening für {candidate} läuft im Hintergrund",
+      "digestQueued": "Übersicht ist eingereiht",
+      "jdDrafting": "Entwerfe {title} in der Anzeigenbibliothek",
+      "outreachQueued": "Entwurf liegt im Outbox, das Senden bleibt bei Ihnen",
+      "noSuchCandidate": "{candidate} ist nicht mehr auf dem Board",
+      "ambiguousCandidate": "{candidate} steht bei mehreren Rollen, also habe ich nicht geraten",
+      "jdNeedsMore": "Der Bedarf war zu knapp, um daraus zu bauen",
+      "declined": "Sie haben nein gesagt",
+      "retired": "Dieser Vorschlag hat überlebt, was er tun konnte",
+      "unknown": "Beantwortet"
     }
   }
 }

@@ -1302,7 +1302,10 @@
     "INTAKE_COMPOSE_APP_MASTER_FAILED": "Impossible de composer la spécification du maître d'application. Veuillez réessayer.",
     "COMPANION_THREADS_FAILED": "Impossible de charger vos conversations avec Candi.",
     "COMPANION_THREAD_CREATE_FAILED": "Impossible de démarrer une nouvelle conversation avec Candi.",
-    "COMPANION_MESSAGE_FAILED": "Candi n'a pas pu répondre à ce message. Vos mots sont enregistrés."
+    "COMPANION_MESSAGE_FAILED": "Candi n'a pas pu répondre à ce message. Vos mots sont enregistrés.",
+    "COMPANION_PROPOSAL_NOT_FOUND": "Cette proposition n'est plus disponible.",
+    "COMPANION_PROPOSAL_RESOLVED": "Cette proposition a déjà été traitée.",
+    "COMPANION_PROPOSAL_FAILED": "Impossible d'exécuter cette proposition. Rien n'a été modifié."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8151,7 +8154,8 @@
       "interviewPrep": "Préparation d’entretien · {candidate}",
       "agentFit": "Adéquation de l’agent · {job}",
       "campaign": "Pack de campagne · {job}",
-      "profileDraft": "Brouillon de profil IA"
+      "profileDraft": "Brouillon de profil IA",
+      "companionDigest": "Récapitulatif du studio"
     },
     "filter": {
       "clear": "Effacer"
@@ -8703,7 +8707,8 @@
       "clear": "Rien ne vous attend pour le moment.",
       "thinking": "Lecture de l'état du studio…",
       "thinkingAbout": "Réfléchit à {count, plural, one {# décision} other {# décisions}}…",
-      "watching": "Surveille {count, plural, one {# élément} other {# éléments}} qui vous attendent."
+      "watching": "Surveille {count, plural, one {# élément} other {# éléments}} qui vous attendent.",
+      "proposals": "{count, plural, one {# proposition vous attend} other {# propositions vous attendent}}"
     },
     "meta": {
       "remembered": "se souvient :",
@@ -8719,6 +8724,34 @@
       "chart": "Graphique",
       "emptyCell": "·",
       "dropped": "{count, plural, one {# bloc ignoré} other {# blocs ignorés}}"
+    },
+    "action": {
+      "runAnalysis": "Relancer le screening IA pour {candidate}",
+      "generateDigest": "Préparer le récapitulatif du studio d'aujourd'hui",
+      "draftJd": "Rédiger un projet d'offre pour {title}",
+      "draftOutreach": "Rédiger une prise de contact pour {candidate}",
+      "unknown": "Une proposition que je ne sais plus décrire"
+    },
+    "proposal": {
+      "eyebrow": "Je pourrais faire ceci",
+      "accept": "Accepter",
+      "decline": "Refuser",
+      "working": "Je m'en occupe",
+      "accepted": "Acceptée",
+      "declined": "Refusée",
+      "dropped": "{count, plural, one {# proposition a été écartée} other {# propositions ont été écartées}}"
+    },
+    "outcome": {
+      "analysisQueued": "Screening de {candidate} en cours en arrière-plan",
+      "digestQueued": "Récapitulatif mis en file",
+      "jdDrafting": "Rédaction de {title} dans la bibliothèque d'offres",
+      "outreachQueued": "Brouillon déposé dans l'Outbox, l'envoi reste le vôtre",
+      "noSuchCandidate": "{candidate} n'est plus sur le tableau",
+      "ambiguousCandidate": "{candidate} figure sur plusieurs postes, je n'ai donc pas deviné",
+      "jdNeedsMore": "Le besoin était trop court pour construire dessus",
+      "declined": "Vous avez dit non",
+      "retired": "Cette proposition a survécu à ce qu'elle pouvait faire",
+      "unknown": "Traitée"
     }
   }
 }

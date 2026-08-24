@@ -81,7 +81,12 @@ export function navLabel<T extends NavTranslator>(t: T, key: string, fallback: s
 // SHELL2 — the attention-count buckets /api/attention serves. A nav item opts
 // into a badge by declaring which bucket it renders (`badgeKey` below); the
 // mapping is declarative here, never positional in the renderers.
-export type AttentionKey = "decisions" | "pipeline" | "schedule" | "jobs" | "channels";
+// `companion` is the one bucket no tab declares (and none should): the operator
+// companion lives in a dock, not a tab, so its count is read by the dock's own
+// state line rather than by a nav badge. It rides this union anyway so
+// /api/attention stays ONE payload with ONE shape — see the note beside it in
+// app/_lib/attention.ts.
+export type AttentionKey = "decisions" | "pipeline" | "schedule" | "jobs" | "channels" | "companion";
 
 export type WorkspaceTabDef = {
   id: WorkspaceTabId;

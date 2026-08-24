@@ -42,6 +42,19 @@ export type CompanionTurnMeta = {
    *  "she showed me nothing" and "she tried and it was malformed" are different
    *  facts, and only one of them is worth telling the operator about. */
   blockErrors?: number;
+  /** The proposals THIS turn offered (WP3). Ids rather than rows: a proposal's
+   *  status changes after the turn is written, so the turn stores the pointer and
+   *  the dock joins against the live rows. Written in the SAME transaction as the
+   *  turn, so a reply can never claim a proposal that does not exist. */
+  proposalIds?: string[];
+  /** How many `kp:action` fences were dropped — unknown id, missing required
+   *  param, past the per-reply cap. Same honesty contract as `blockErrors`. */
+  actionErrors?: number;
+  /** This assistant turn is a generated digest, not an answer to a message. */
+  digest?: boolean;
+  /** Open proposals the digest was SHOWN and therefore may refer to. The digest
+   *  resolves nothing; this is the record of what it was looking at. */
+  proposalsSeen?: string[];
 };
 
 export type CompanionThread = {
@@ -246,6 +259,83 @@ export function appendTurn(
   return run.immediate();
 }
 
+/** One assistant turn AND the proposals it offered, atomically.
+ *
+ *  Two rows that must not exist without each other: a proposal whose turn was
+ *  never written is an Accept button under nothing, and a turn whose
+ *  `meta.proposalIds` point at rows that were never inserted is a card the dock
+ *  renders empty. The ids are minted INSIDE the transaction and written into the
+ *  turn's own meta in the same INSERT, so the pointer and its target land
+ *  together or neither lands. IMMEDIATE for the same reason `appendTurn` is: the
+ *  thread row is read and then written.
+ *
+ *  `appendTurn` stays the door for a turn with nothing attached (the operator's
+ *  own message), so the common path pays for none of this. */
+export function appendTurnWithProposals(
+  input: {
+    threadId: string;
+    role: CompanionRole;
+    content: string;
+    meta?: CompanionTurnMeta | null;
+    proposals: readonly { kind: string; payload: unknown }[];
+  },
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): { turn: CompanionTurn; proposals: CompanionProposal[] } | null {
+  const db = ensureDb();
+  const run = db.transaction(() => {
+    const thread = db
+      .prepare(`SELECT id FROM companion_threads WHERE id = ? AND workspace_id = ?`)
+      .get(input.threadId, workspaceId) as { id: string } | undefined;
+    if (!thread) return null;
+    const now = new Date().toISOString();
+    const proposals: CompanionProposal[] = [];
+    const insertProposal = db.prepare(
+      `INSERT INTO companion_proposals (id, workspace_id, kind, payload_json, status, thread_id, created_at)
+       VALUES (?, ?, ?, ?, 'open', ?, ?)`
+    );
+    for (const proposal of input.proposals) {
+      const proposalId = randomId("cprop");
+      const kind = proposal.kind.slice(0, 80);
+      insertProposal.run(proposalId, workspaceId, kind, JSON.stringify(proposal.payload ?? null), input.threadId, now);
+      proposals.push({
+        id: proposalId,
+        workspaceId,
+        kind,
+        payload: proposal.payload ?? null,
+        status: "open",
+        threadId: input.threadId,
+        createdAt: now,
+        resolvedAt: null,
+      });
+    }
+    const meta: CompanionTurnMeta | null =
+      proposals.length > 0 ? { ...(input.meta ?? {}), proposalIds: proposals.map((p) => p.id) } : input.meta ?? null;
+    const id = randomId("cturn");
+    db.prepare(
+      `INSERT INTO companion_turns (id, thread_id, workspace_id, role, content, meta_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, input.threadId, workspaceId, input.role, input.content, meta ? JSON.stringify(meta) : null, now);
+    db.prepare(`UPDATE companion_threads SET updated_at = ? WHERE id = ? AND workspace_id = ?`).run(
+      now,
+      input.threadId,
+      workspaceId
+    );
+    return {
+      turn: {
+        id,
+        threadId: input.threadId,
+        workspaceId,
+        role: input.role,
+        content: input.content,
+        meta,
+        createdAt: now,
+      },
+      proposals,
+    };
+  });
+  return run.immediate();
+}
+
 export function listTurns(
   threadId: string,
   workspaceId: string = DEFAULT_WORKSPACE_ID,
@@ -311,6 +401,45 @@ export function listProposals(
   return rows.map(proposalFromRow);
 }
 
+export function getProposal(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): CompanionProposal | null {
+  const row = ensureDb()
+    .prepare(
+      `SELECT id, workspace_id, kind, payload_json, status, thread_id, created_at, resolved_at
+       FROM companion_proposals WHERE id = ? AND workspace_id = ?`
+    )
+    .get(id, workspaceId) as ProposalRow | undefined;
+  return row ? proposalFromRow(row) : null;
+}
+
+/** Every proposal this conversation produced, oldest first — the dock joins them
+ *  onto the turns that offered them (`meta.proposalIds`), so a re-opened thread
+ *  paints an already-resolved proposal as resolved rather than as a live Accept. */
+export function listProposalsForThread(
+  threadId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID,
+  limit = 200
+): CompanionProposal[] {
+  const rows = ensureDb()
+    .prepare(
+      `SELECT id, workspace_id, kind, payload_json, status, thread_id, created_at, resolved_at
+       FROM companion_proposals WHERE thread_id = ? AND workspace_id = ?
+       ORDER BY created_at ASC LIMIT ?`
+    )
+    .all(threadId, workspaceId, limit) as ProposalRow[];
+  return rows.map(proposalFromRow);
+}
+
+/** How many proposals are still waiting on the operator — the companion's own
+ *  attention bucket (attention.ts). A COUNT rather than a list: the number is all
+ *  the badge needs, and loading 200 payloads to call `.length` on them would make
+ *  a 60-second poll read the whole table. */
+export function countOpenProposals(workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const row = ensureDb()
+    .prepare(`SELECT COUNT(*) AS n FROM companion_proposals WHERE workspace_id = ? AND status = 'open'`)
+    .get(workspaceId) as { n: number } | undefined;
+  return row?.n ?? 0;
+}
+
 /** The operator's answer to a proposal. Only an OPEN proposal can be resolved:
  *  the companion may not re-open its own declined suggestion, and a double-click
  *  cannot flip an accepted one to declined. */
@@ -325,6 +454,68 @@ export function resolveProposal(
        WHERE id = ? AND workspace_id = ? AND status = 'open'`
     )
     .run(status, new Date().toISOString(), id, workspaceId);
+  return res.changes > 0;
+}
+
+// ---- accepting is three steps, not one -------------------------------------
+//
+// An accept RUNS something, and running it can fail. Doing the write first and
+// the work second means a failed accept leaves a proposal marked accepted that
+// nothing ever did; doing the work first and the write second means a
+// double-click runs it twice. So the row is CLAIMED (an atomic conditional
+// UPDATE that only one caller can win), the work runs, and the outcome is
+// stamped — with a release path for the failure, guarded on `resolved_at IS
+// NULL` so a fully-resolved acceptance can never be re-opened by anything.
+
+/** Win the right to execute this proposal. Returns false if another request (or
+ *  a double-click) already claimed it, or if it was declined. */
+export function claimProposal(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const res = ensureDb()
+    .prepare(
+      `UPDATE companion_proposals SET status = 'accepted'
+       WHERE id = ? AND workspace_id = ? AND status = 'open'`
+    )
+    .run(id, workspaceId);
+  return res.changes > 0;
+}
+
+/** The execution finished. Stamps the answer time and merges the outcome into
+ *  the payload — the payload is where a proposal's whole story lives, so the
+ *  outcome joins it rather than needing a column this table does not have. */
+export function stampProposalOutcome(
+  id: string,
+  outcome: unknown,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): boolean {
+  const db = ensureDb();
+  const run = db.transaction(() => {
+    const row = db
+      .prepare(`SELECT payload_json FROM companion_proposals WHERE id = ? AND workspace_id = ?`)
+      .get(id, workspaceId) as { payload_json: string | null } | undefined;
+    if (!row) return false;
+    const payload = safeRowParse<Record<string, unknown>>(row.payload_json, "companionProposal.payload", id);
+    const merged = { ...(payload && typeof payload === "object" ? payload : {}), outcome };
+    const res = db
+      .prepare(
+        `UPDATE companion_proposals SET payload_json = ?, resolved_at = ?
+         WHERE id = ? AND workspace_id = ? AND resolved_at IS NULL`
+      )
+      .run(JSON.stringify(merged), new Date().toISOString(), id, workspaceId);
+    return res.changes > 0;
+  });
+  return run.immediate();
+}
+
+/** The execution failed. Put the proposal back so the operator can try again —
+ *  an accept that ran nothing must not read as done. Guarded on `resolved_at IS
+ *  NULL`, so this can only ever undo a claim it is racing, never a completed one. */
+export function releaseProposal(id: string, workspaceId: string = DEFAULT_WORKSPACE_ID): boolean {
+  const res = ensureDb()
+    .prepare(
+      `UPDATE companion_proposals SET status = 'open'
+       WHERE id = ? AND workspace_id = ? AND status = 'accepted' AND resolved_at IS NULL`
+    )
+    .run(id, workspaceId);
   return res.changes > 0;
 }
 

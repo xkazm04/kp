@@ -1302,7 +1302,10 @@
     "INTAKE_COMPOSE_APP_MASTER_FAILED": "Specifikaci správce aplikace se nepodařilo sestavit. Zkuste to prosím znovu.",
     "COMPANION_THREADS_FAILED": "Konverzace s Candi se nepodařilo načíst.",
     "COMPANION_THREAD_CREATE_FAILED": "Novou konverzaci s Candi se nepodařilo založit.",
-    "COMPANION_MESSAGE_FAILED": "Candi na tuto zprávu neodpověděla. Vaše slova jsou uložená."
+    "COMPANION_MESSAGE_FAILED": "Candi na tuto zprávu neodpověděla. Vaše slova jsou uložená.",
+    "COMPANION_PROPOSAL_NOT_FOUND": "Tento návrh už není k dispozici.",
+    "COMPANION_PROPOSAL_RESOLVED": "Na tento návrh už bylo odpovězeno.",
+    "COMPANION_PROPOSAL_FAILED": "Návrh se nepodařilo provést. Nic se nezměnilo."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8151,7 +8154,8 @@
       "interviewPrep": "Příprava na pohovor · {candidate}",
       "agentFit": "Vhodnost agenta · {job}",
       "campaign": "Kampaňový balíček · {job}",
-      "profileDraft": "AI návrh profilu"
+      "profileDraft": "AI návrh profilu",
+      "companionDigest": "Přehled studia"
     },
     "filter": {
       "clear": "Zrušit filtry"
@@ -8703,7 +8707,8 @@
       "clear": "Právě teď na vás nic nečeká.",
       "thinking": "Prochází stav studia…",
       "thinkingAbout": "Přemýšlí o {count, plural, one {# rozhodnutí} few {# rozhodnutích} other {# rozhodnutích}}…",
-      "watching": "Sleduje {count, plural, one {# věc} few {# věci} other {# věcí}}, které vás potřebují."
+      "watching": "Sleduje {count, plural, one {# věc} few {# věci} other {# věcí}}, které vás potřebují.",
+      "proposals": "{count, plural, one {# návrh čeká na vás} few {# návrhy čekají na vás} other {# návrhů čeká na vás}}"
     },
     "meta": {
       "remembered": "pamatuje si:",
@@ -8719,6 +8724,34 @@
       "chart": "Graf",
       "emptyCell": "·",
       "dropped": "{count, plural, one {# blok vynechán} few {# bloky vynechány} other {# bloků vynecháno}}"
+    },
+    "action": {
+      "runAnalysis": "Znovu spustit AI screening pro: {candidate}",
+      "generateDigest": "Sestavit dnešní přehled studia",
+      "draftJd": "Připravit návrh inzerátu na pozici {title}",
+      "draftOutreach": "Připravit oslovení pro: {candidate}",
+      "unknown": "Návrh, který už neumím popsat"
+    },
+    "proposal": {
+      "eyebrow": "Mohla bych udělat tohle",
+      "accept": "Přijmout",
+      "decline": "Odmítnout",
+      "working": "Pracuji",
+      "accepted": "Přijato",
+      "declined": "Odmítnuto",
+      "dropped": "{count, plural, one {# návrh byl zahozen} few {# návrhy byly zahozeny} other {# návrhů bylo zahozeno}}"
+    },
+    "outcome": {
+      "analysisQueued": "Screening pro: {candidate} běží na pozadí",
+      "digestQueued": "Přehled je ve frontě",
+      "jdDrafting": "Připravuji {title} do knihovny inzerátů",
+      "outreachQueued": "Píšu do Outboxu, odeslání necháváme na vás",
+      "noSuchCandidate": "{candidate} už není na nástěnce",
+      "ambiguousCandidate": "{candidate} je u více pozic, takže jsem nehádala",
+      "jdNeedsMore": "Zadání bylo příliš stručné na to, abych z něj stavěla",
+      "declined": "Řekli jste ne",
+      "retired": "Tento návrh přežil to, co uměl udělat",
+      "unknown": "Zodpovězeno"
     }
   }
 }

@@ -426,8 +426,12 @@
       "sourceGlobs": [
         "pipeline/jobfit/companion_brain.py",
         "pipeline/jobfit/companion_cli.py",
+        "pipeline/jobfit/companion_blocks.py",
         "pipeline/jobfit/companion_constitution.md",
-        "app/_lib/db/companion.ts"
+        "app/_lib/db/companion.ts",
+        "app/_lib/companion-*.ts",
+        "app/api/companion/**",
+        "app/features/shell/companion/**"
       ]
     }
   ]

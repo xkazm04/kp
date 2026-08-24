@@ -141,6 +141,15 @@ export const DEDUPE_BUILDERS: Record<string, (p: Record<string, unknown>) => str
   campaign: (p) => stableKey("campaign", p.jobId, p.lang),
   // profile_draft has NO builder on purpose: each draft is a fresh creative pass
   // over free-text notes — no stable identity, so every run gets a unique key.
+  //
+  // ONE digest per tenant per DAY. The day is the identity: accepting the same
+  // "write today's digest" proposal twice, or two operators on one team accepting
+  // it within a minute of each other, must coalesce onto the run already in
+  // flight rather than paying for a second model call that says the same thing.
+  // The workspace is in the key explicitly — a builder only ever sees `params`,
+  // so without it the day alone would be the identity and two tenants would share
+  // one digest, the exact collapse this module's header describes.
+  companion_digest: (p) => stableKey("companion_digest", p.workspaceId, p.dayIso),
 };
 
 /**

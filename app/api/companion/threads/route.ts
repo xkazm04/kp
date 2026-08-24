@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createThread, listThreads, listTurns } from "@/app/_lib/db/companion";
+import { createThread, listProposalsForThread, listThreads, listTurns } from "@/app/_lib/db/companion";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
@@ -24,7 +24,11 @@ export async function GET() {
     const ws = await currentWorkspace();
     const threads = listThreads(ws);
     const turns = threads.length > 0 ? listTurns(threads[0].id, ws) : [];
-    return NextResponse.json({ threads, turns });
+    // The newest thread's PROPOSALS ride along for the same reason its turns do:
+    // the dock opens on that conversation and would otherwise paint an Accept
+    // button for something the operator already answered, one round trip ago.
+    const proposals = threads.length > 0 ? listProposalsForThread(threads[0].id, ws) : [];
+    return NextResponse.json({ threads, turns, proposals });
   } catch (error) {
     return safeJsonError(error, "api:companion/threads", "COMPANION_THREADS_FAILED");
   }

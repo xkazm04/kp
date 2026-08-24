@@ -191,6 +191,25 @@ const ROUTES: RouteSpec[] = [
     servedBefore: "if (!thread) return NextResponse.json",
   },
   {
+    // ADDED with the route (operator companion WP3). Per-IP. 60/10min: accepting
+    // a proposal DISPATCHES — a screening call, a JD build, an outreach letter, a
+    // digest — so an unlimited accept endpoint is an unlimited spend endpoint.
+    // Operator-gated, but open mode makes that a no-op for the whole API. The
+    // budget sits far above a human reading cards and clicking Accept.
+    rel: "./companion/proposals/[id]/resolve/route.ts",
+    key: "`companion-resolve:${clientIpFrom(request.headers)}`",
+    limit: 60,
+    // The CALL SITE. `claimProposal(` also appears in this route's import, which
+    // precedes the limiter, so the generic marker would fail on ordering rather
+    // than on a real regression.
+    expensive: "spec.execute(revalidated.params, {",
+    // The 404 (unknown / other-tenant proposal), the 400 (a decision that is
+    // neither accept nor decline) and the 409 (already answered) all keep their
+    // semantics ahead of the throttle, so a rejected call never consumes budget —
+    // and a second dock racing the first is the ordinary case here, not abuse.
+    servedBefore: 'if (proposal.status !== "open")',
+  },
+  {
     rel: "./extract-text/route.ts",
     // Per-IP. 20/10min: one extract per JD/CV file in every real flow.
     key: "`extract-text:${clientIpFrom(request.headers)}`",

@@ -8,8 +8,9 @@ import { ChatBlocks } from "@/app/_components/chat/ChatBlocks";
 import type { ChatBlockLabels } from "@/app/_components/chat/chatBlockTypes";
 import { CHIP_QUIET } from "@/app/_components/ui/recipes";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
-import type { CompanionTurn, CompanionTurnMeta } from "@/app/_lib/db/companion";
+import type { CompanionProposal, CompanionTurn, CompanionTurnMeta } from "@/app/_lib/db/companion";
 import type { AttentionCounts } from "@/app/features/shell/useAttention";
+import { CompanionProposalCard } from "./CompanionProposalCard";
 
 /*
  * The dock's body — the round-1 "Colleague" direction, promoted to the only one.
@@ -35,12 +36,15 @@ const EXCERPT_CHARS = 80;
 
 export type CompanionBodyProps = {
   turns: CompanionTurn[];
+  /** Every proposal this conversation produced, live from the server. */
+  proposals: CompanionProposal[];
   busy: boolean;
   /** Machine error code from the route, resolved to a message at the door. */
   error: string | null;
   /** Live studio facts — the same counts behind the sidebar badges. */
   attention: AttentionCounts | null;
   onSend: (message: string) => Promise<boolean>;
+  onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
 };
 
 /** Turn provenance, read from the stored meta without asserting past it: an
@@ -84,10 +88,22 @@ export function CompanionRest({
   );
 }
 
-export function CompanionBody({ turns, busy, error, attention, onSend }: CompanionBodyProps) {
+export function CompanionBody({
+  turns,
+  proposals,
+  busy,
+  error,
+  attention,
+  onSend,
+  onResolveProposal,
+}: CompanionBodyProps) {
   const t = useTranslations("companion");
   const resolveError = useErrorMessage();
   const metaById = useMemo(() => new Map(turns.map((turn) => [turn.id, turnMeta(turn)])), [turns]);
+  // Proposals are joined onto their turn by ID, never by position or timestamp:
+  // one exchange can carry two, a thread carries many, and the row the operator
+  // is answering must be the one the sentence above it offered.
+  const proposalById = useMemo(() => new Map(proposals.map((p) => [p.id, p])), [proposals]);
   const chatTurns = useMemo<ChatTurn[]>(
     () => turns.map((turn) => ({ id: turn.id, role: turn.role, content: turn.content })),
     [turns]
@@ -125,7 +141,13 @@ export function CompanionBody({ turns, busy, error, attention, onSend }: Compani
         emptyState={<Greeting text={t("greeting")} />}
         renderTurnExtras={(turn) =>
           turn.role === "assistant" ? (
-            <TurnExtras t={t} meta={metaById.get(turn.id)} blockLabels={blockLabels} />
+            <TurnExtras
+              t={t}
+              meta={metaById.get(turn.id)}
+              blockLabels={blockLabels}
+              proposalById={proposalById}
+              onResolveProposal={onResolveProposal}
+            />
           ) : null
         }
       />
@@ -145,28 +167,60 @@ function Greeting({ text }: { text: string }) {
 }
 
 /** Everything under one answer, in reading order: what she DREW, then what she
- *  stood on. A dropped block is admitted rather than hidden — the operator is
- *  entitled to know a comparison was attempted and did not survive. */
+ *  OFFERED, then what she stood on.
+ *
+ *  The proposals sit between the drawing and the marginalia deliberately. They
+ *  are the only part of a turn the operator has to answer, so they belong where
+ *  the eye lands after the content and before the provenance — a card under the
+ *  recall chips would read as a footnote to a citation. A dropped block or a
+ *  dropped proposal is admitted rather than hidden: the operator is entitled to
+ *  know something was attempted and did not survive. */
 function TurnExtras({
   t,
   meta,
   blockLabels,
+  proposalById,
+  onResolveProposal,
 }: {
   t: ReturnType<typeof useTranslations<"companion">>;
   meta: CompanionTurnMeta | undefined;
   blockLabels: ChatBlockLabels;
+  proposalById: Map<string, CompanionProposal>;
+  onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
 }) {
   const blocks = meta?.blocks ?? [];
   const dropped = meta?.blockErrors ?? 0;
+  const droppedActions = meta?.actionErrors ?? 0;
   const recall = meta?.recallUsed ?? [];
   const isDegraded = meta?.source === "deterministic";
-  if (blocks.length === 0 && dropped === 0 && recall.length === 0 && !isDegraded) return null;
+  // Ids the turn CLAIMS, resolved against the live rows: a proposal id that no
+  // longer resolves (a restored database, a hand-deleted row) renders nothing
+  // rather than a card with no content.
+  const proposals = (meta?.proposalIds ?? [])
+    .map((id) => proposalById.get(id))
+    .filter((p): p is CompanionProposal => p !== undefined);
+  if (
+    blocks.length === 0 &&
+    dropped === 0 &&
+    droppedActions === 0 &&
+    proposals.length === 0 &&
+    recall.length === 0 &&
+    !isDegraded
+  ) {
+    return null;
+  }
   return (
     <>
       <ChatBlocks blocks={blocks} labels={blockLabels} />
+      {proposals.map((proposal) => (
+        <CompanionProposalCard key={proposal.id} proposal={proposal} onResolve={onResolveProposal} />
+      ))}
       <div className="mt-1.5 flex max-w-[85%] flex-wrap items-center gap-1.5">
         {isDegraded ? <span className={`${CHIP_QUIET} text-coral`}>{t("meta.degraded")}</span> : null}
         {dropped > 0 ? <span className={CHIP_QUIET}>{t("blocks.dropped", { count: dropped })}</span> : null}
+        {droppedActions > 0 ? (
+          <span className={CHIP_QUIET}>{t("proposal.dropped", { count: droppedActions })}</span>
+        ) : null}
         {recall.slice(0, RECALL_CHIPS).map((hit) => (
           <span key={hit.path} className={CHIP_QUIET}>
             {t("meta.remembered")} {hit.excerpt.slice(0, EXCERPT_CHARS)}
@@ -186,6 +240,13 @@ function stateLine(
   const decisions = attention?.decisions ?? 0;
   if (busy) return decisions > 0 ? t("state.thinkingAbout", { count: decisions }) : t("state.thinking");
   if (!attention) return t("state.here");
+  // Her OWN queue comes first. Every other count here is something the studio is
+  // waiting on; open proposals are something SHE is waiting on, and the answer is
+  // one scroll up in this same column. That is also the whole reason this count
+  // exists as its own attention key rather than being folded into `decisions`:
+  // the nav badge and the ControlDock beacon both route to the Decisions tab,
+  // which has no affordance that can resolve a proposal.
+  if (attention.companion > 0) return t("state.proposals", { count: attention.companion });
   const waiting = decisions + attention.pipeline;
   return waiting > 0 ? t("state.watching", { count: waiting }) : t("state.clear");
 }

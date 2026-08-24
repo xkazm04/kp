@@ -1302,7 +1302,10 @@
     "INTAKE_COMPOSE_APP_MASTER_FAILED": "Could not compose the App master spec. Please try again.",
     "COMPANION_THREADS_FAILED": "Could not load your conversations with Candi.",
     "COMPANION_THREAD_CREATE_FAILED": "Could not start a new conversation with Candi.",
-    "COMPANION_MESSAGE_FAILED": "Candi could not answer that message. Your words are saved."
+    "COMPANION_MESSAGE_FAILED": "Candi could not answer that message. Your words are saved.",
+    "COMPANION_PROPOSAL_NOT_FOUND": "That proposal is no longer available.",
+    "COMPANION_PROPOSAL_RESOLVED": "That proposal was already answered.",
+    "COMPANION_PROPOSAL_FAILED": "Could not run that proposal. Nothing was changed."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -8151,7 +8154,8 @@
       "interviewPrep": "Interview prep · {candidate}",
       "agentFit": "Agent fit · {job}",
       "campaign": "Campaign pack · {job}",
-      "profileDraft": "AI profile draft"
+      "profileDraft": "AI profile draft",
+      "companionDigest": "Studio digest"
     },
     "filter": {
       "clear": "Clear"
@@ -8703,7 +8707,8 @@
       "clear": "Nothing is waiting on you right now.",
       "thinking": "Reading the studio…",
       "thinkingAbout": "Thinking about {count, plural, one {# decision} other {# decisions}}…",
-      "watching": "Watching {count, plural, one {# thing} other {# things}} that need you."
+      "watching": "Watching {count, plural, one {# thing} other {# things}} that need you.",
+      "proposals": "{count, plural, one {# proposal is waiting on you} other {# proposals are waiting on you}}"
     },
     "meta": {
       "remembered": "remembered:",
@@ -8719,6 +8724,34 @@
       "chart": "Chart",
       "emptyCell": "·",
       "dropped": "{count, plural, one {# block was dropped} other {# blocks were dropped}}"
+    },
+    "action": {
+      "runAnalysis": "Re-run the AI screening for {candidate}",
+      "generateDigest": "Put together today's studio digest",
+      "draftJd": "Draft a job description for {title}",
+      "draftOutreach": "Draft outreach to {candidate}",
+      "unknown": "A proposal I can no longer describe"
+    },
+    "proposal": {
+      "eyebrow": "I could do this",
+      "accept": "Accept",
+      "decline": "Decline",
+      "working": "Working",
+      "accepted": "Accepted",
+      "declined": "Declined",
+      "dropped": "{count, plural, one {# proposal was dropped} other {# proposals were dropped}}"
+    },
+    "outcome": {
+      "analysisQueued": "Screening {candidate} in the background",
+      "digestQueued": "Digest queued",
+      "jdDrafting": "Drafting {title} into the JD library",
+      "outreachQueued": "Drafting to the Outbox for you to release",
+      "noSuchCandidate": "{candidate} is not on the board any more",
+      "ambiguousCandidate": "{candidate} sits on more than one role, so I did not guess",
+      "jdNeedsMore": "There was not enough of a need to build from",
+      "declined": "You said no",
+      "retired": "This proposal outlived what it could do",
+      "unknown": "Answered"
     }
   }
 }

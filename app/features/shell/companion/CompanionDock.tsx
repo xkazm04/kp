@@ -75,10 +75,12 @@ export function CompanionDock() {
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3">
         <CompanionBody
           turns={thread.turns}
+          proposals={thread.proposals}
           busy={thread.busy}
           error={thread.error}
           attention={attention}
           onSend={thread.send}
+          onResolveProposal={thread.resolveProposal}
         />
       </div>
     </aside>

@@ -17,6 +17,7 @@ import { attentionCounts } from "./attention.ts";
 import { createPipelineEntry } from "./db/pipeline.ts";
 import { setDecisionConfig } from "./decision-config-store.ts";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
+import { appendTurnWithProposals, createThread, resolveProposal } from "./db/companion.ts";
 
 after(() => cleanupUnitDb());
 
@@ -125,4 +126,49 @@ test("a genuinely aging entry is still counted (the badge is not simply switched
   );
   d.close();
   assert.equal(attentionCounts(WS_MIGRATED).pipeline, before + 1, "9 days at Offer is past its 3-day SLA");
+});
+
+// ---- the companion bucket (WP3) --------------------------------------------
+//
+// The sixth key, and the only one no tab declares: Candi lives in a dock, not a
+// tab, so the count is read by the dock's own state line. It is deliberately NOT
+// folded into `decisions` — that count beacons the ControlDock orb and its one
+// click routes to the Decisions tab, which has no affordance that can resolve a
+// companion proposal. Both halves are asserted here: the bucket counts, and it
+// does not leak into the bucket whose affordance cannot clear it.
+const WS_PROPOSALS = "team-attention-proposals";
+
+function openProposalIn(workspaceId: string) {
+  const thread = createThread("", workspaceId);
+  const written = appendTurnWithProposals(
+    {
+      threadId: thread.id,
+      role: "assistant",
+      content: "I could re-screen her.",
+      proposals: [
+        { kind: "run_analysis", payload: { actionId: "run_analysis", params: {}, summary: { key: "runAnalysis" } } },
+      ],
+    },
+    workspaceId
+  );
+  assert.ok(written);
+  return written.proposals[0].id;
+}
+
+test("an unresolved companion proposal is counted, scoped to its own tenant", () => {
+  const before = attentionCounts(WS_PROPOSALS);
+  const otherBefore = attentionCounts(WS_B).companion;
+  openProposalIn(WS_PROPOSALS);
+  const after = attentionCounts(WS_PROPOSALS);
+  assert.equal(after.companion, before.companion + 1);
+  assert.equal(attentionCounts(WS_B).companion, otherBefore, "another team's dock must not see it");
+  // It stays out of the bucket that beacons the orb and routes to Decisions.
+  assert.equal(after.decisions, before.decisions, "a proposal is not a pipeline approval gate");
+});
+
+test("answering a proposal clears it from the count", () => {
+  const id = openProposalIn(WS_PROPOSALS);
+  const before = attentionCounts(WS_PROPOSALS).companion;
+  assert.equal(resolveProposal(id, "declined", WS_PROPOSALS), true);
+  assert.equal(attentionCounts(WS_PROPOSALS).companion, before - 1);
 });

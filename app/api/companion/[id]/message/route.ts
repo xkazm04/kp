@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { appendTurn, getThread, listTurns, renameThread } from "@/app/_lib/db/companion";
+import {
+  appendTurn,
+  appendTurnWithProposals,
+  getThread,
+  listProposalsForThread,
+  listTurns,
+  renameThread,
+} from "@/app/_lib/db/companion";
 import { runCompanionTurn } from "@/app/_lib/companion-run";
 import { clampCompanionMessage, deriveThreadTitle } from "@/app/_lib/companion-turn";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -65,7 +72,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       locale: await getServerLocale(),
     });
 
-    appendTurn(
+    // The reply and the proposals it offered are ONE write (WP3). A proposal row
+    // whose turn was never stored is an Accept button under nothing, and a turn
+    // whose meta points at proposals that were never inserted is a card the dock
+    // paints empty — so they land together or neither lands.
+    appendTurnWithProposals(
       {
         threadId: id,
         role: "assistant",
@@ -76,17 +87,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           // transcript reload repaints the same answer it painted live.
           ...(turn.blocks.length > 0 ? { blocks: turn.blocks } : {}),
           ...(turn.blockErrors > 0 ? { blockErrors: turn.blockErrors } : {}),
+          ...(turn.actionErrors > 0 ? { actionErrors: turn.actionErrors } : {}),
           recallUsed: turn.recallUsed,
           episodePaths: turn.episodePaths,
           indexSkipped: turn.indexSkipped,
           ...(turn.fallbackReason ? { fallbackReason: turn.fallbackReason } : {}),
         },
+        // `kind` is the action id, so a proposal row is legible without parsing
+        // its payload. Nothing here has RUN — the row is a question.
+        proposals: turn.actions.map((action) => ({
+          kind: action.actionId,
+          payload: { actionId: action.actionId, params: action.params, summary: action.summary },
+        })),
       },
       ws
     );
 
     return NextResponse.json({
       turns: listTurns(id, ws),
+      // The conversation's proposals, live — not the ones this exchange made.
+      // Status changes after a turn is written, so the dock joins the turn's
+      // `meta.proposalIds` against these rows and an already-resolved proposal
+      // repaints as resolved instead of offering Accept a second time.
+      proposals: listProposalsForThread(id, ws),
       source: turn.source,
       ...(turn.fallbackReason ? { fallbackReason: turn.fallbackReason } : {}),
     });

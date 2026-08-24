@@ -151,6 +151,13 @@ export const STORE_ERRORS = {
   COMPANION_THREADS_FAILED: "Could not load your conversations with Candi. Please try again.",
   COMPANION_THREAD_CREATE_FAILED: "Could not start a new conversation with Candi. Please try again.",
   COMPANION_MESSAGE_FAILED: "Could not process that message. Please try again.",
+  // Proposal resolution (WP3). NOT_FOUND and RESOLVED are deliberate, distinct
+  // codes rather than one generic failure: "that proposal is gone" and "someone
+  // already answered it" are different facts, and the second is the ordinary
+  // outcome of two open docks rather than an error.
+  COMPANION_PROPOSAL_NOT_FOUND: "That proposal is no longer available.",
+  COMPANION_PROPOSAL_RESOLVED: "That proposal was already answered.",
+  COMPANION_PROPOSAL_FAILED: "Could not run that proposal. Nothing was changed.",
 } as const;
 
 export type StoreErrorCode = keyof typeof STORE_ERRORS;

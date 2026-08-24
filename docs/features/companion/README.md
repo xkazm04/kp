@@ -4,12 +4,16 @@ The companion is the studio-side chat the operator talks to about their own
 workspace. It has continuity across sessions, it is grounded in what the studio
 actually holds, and it **never acts** — it proposes, and the operator accepts.
 
-> **Status: WP1 + WP2 (dock round 2).** The brain, the turn CLI, the model use
-> case and the persistence layer landed in WP1. WP2 added the transport (two
-> routes) and the client state. Round 1 prototyped two directional docks;
-> **Colleague won, Desk was deleted**, and round 2 moved the window to the LEFT,
-> gave it a header toolbar, and made **rich turn components** (tables and small
-> charts) part of the reply contract — see "Rich turn components" below.
+> **Status: WP1 + WP2 (dock round 2) + WP3 (actor rails).** The brain, the turn
+> CLI, the model use case and the persistence layer landed in WP1. WP2 added the
+> transport (two routes) and the client state. Round 1 prototyped two directional
+> docks; **Colleague won, Desk was deleted**, and round 2 moved the window to the
+> LEFT, gave it a header toolbar, and made **rich turn components** (tables and
+> small charts) part of the reply contract — see "Rich turn components" below.
+> WP3 made her an **actor on existing rails**: she can now propose four concrete
+> actions, each of which lands as a `companion_proposals` row the operator accepts
+> or declines, plus a scheduled-by-acceptance **digest**. She still never acts —
+> see "The action catalog" and "The proposal lifecycle" below.
 
 ## Where the companion's self lives
 
@@ -61,14 +65,15 @@ python -m pipeline.jobfit.companion_cli --workdir <dir>   # reads <dir>/turn.jso
 locale}`. The CLI never queries kp — the caller decides what the companion may
 see, and hands it over as `grounding`.
 
-Composition: constitution + identity + the **tone contract** and the **block
+Composition: constitution + identity + the **tone contract**, the **block
+contract** and — when the caller shipped an action catalog — the **action
 contract** (the system prompt) → recall of the six best-matching episodes + the
 grounding blob + the last 12 turns (the user prompt) → one completion under the
 **`assistant`** use case, answered in the operator's UI locale.
 
-Output is one JSON line: `{reply, blocks, blockErrors, recallUsed, episodePaths,
-source, indexSkipped[, fallbackReason]}`. Both halves of the exchange are appended as
-episodes — the operator's message *before* the model is called, so a provider
+Output is one JSON line: `{reply, blocks, blockErrors, actions, actionErrors,
+recallUsed, episodePaths, source, indexSkipped[, fallbackReason]}`. Both halves of
+the exchange are appended as episodes — the operator's message *before* the model is called, so a provider
 timeout can never cost them their own words. Keyless or unreachable, the reply
 says so in the operator's language rather than inventing an answer.
 
@@ -138,6 +143,132 @@ three sentences, bullets over walls, every number carries its unit or noun, no
 headings and no sign-off, and **prefer a block to any enumeration of three or
 more comparable items**. It applies to every reply, not only the ones that draw.
 
+## The action catalog (WP3)
+
+Candi is an **actor on rails that already exist**. She invents no operation: every
+action below dispatches machinery the operator already has a button for, and every
+one lands as a proposal they resolve. Nothing sends, publishes or decides on its
+own.
+
+**One array is the source of truth.** `app/_lib/companion-actions.ts` holds the
+whole catalog, and three things derive from it:
+
+| Derivation | Where | How |
+| --- | --- | --- |
+| the PROMPT that teaches the model to emit `kp:action` | `companion_cli.py` `_action_contract` | built from `turn.json`'s `actions`, which is `companionActionWire()` |
+| the VALIDATOR that decides whether a fence is real | `companion_blocks.py` `split_reply_actions`, then `coerceCompanionAction` at the TS boundary | validated against the same shipped `actions` array |
+| the EXECUTOR that runs an accepted proposal | the resolve route → `spec.execute` | looked up by id in the same array |
+
+**No Python file names an action.** The catalog crosses the process boundary in
+`turn.json`; a caller that ships no catalog teaches nothing and the model never
+proposes, which is the correct default. `app/_lib/companion-actions.test.ts` pins
+the derivation as a set-equality (catalog ids == wire ids == validator-accepted ids
+== executor-resolvable ids), so the moment someone writes a second list one of them
+goes red. The anti-pattern is the cockpit post-mortem: a prompt listing one set of
+verbs, a parser accepting a second, a dispatcher implementing a third.
+
+The v1 actions:
+
+| id | Params | Accepting it dispatches |
+| --- | --- | --- |
+| `run_analysis` | `candidate` *(req)* · `role` | the board's own per-entry AI screening (`automation` task, `task: "screen"`) |
+| `generate_digest` | — | the `companion_digest` task (below) |
+| `draft_jd` | `title` *(req)* · `need` *(req)* · `seniority` | the Generate flow byte for byte: `insertAnalyzingJd` + the `jd_build` task. The JD appears in the library **unpublished**; publishing stays a separate act |
+| `draft_outreach` | `candidate` *(req)* · `role` | the board's cohort drafter with a cohort of one (`batch_outreach`), whose output lands in the Outbox |
+
+**Candidates are addressed by NAME, not by id** — the grounding hands the model
+labels and no ids at all, so an id-keyed action would be one it cannot address.
+`resolveEntryByLabel` resolves against `listPipeline(workspaceId)`: a label that
+matches nothing refuses, and a label matching two people (or one person on two
+roles) refuses as *ambiguous* rather than guessing which human was meant.
+
+> **The Outbox note.** `draft_outreach` reuses `batch_outreach` rather than
+> reimplementing the letter, so Candi adds **no send path of her own**. That means
+> it inherits `dispatchOutreach`'s behaviour exactly: `queued` in the local outbox
+> by default, and **relayed if the deploy has `COMMS_WEBHOOK_URL` configured** —
+> identical to pressing "Draft outreach" on the board. The companion introduces no
+> new relay and no new bypass; it also does not introduce a second, stricter rule
+> for the same action, which would have been the more surprising outcome. If a
+> deploy wants "the companion may never relay", that is a change to
+> `dispatchOutreach`'s contract, not to this path.
+
+## The proposal lifecycle
+
+A `kp:action` fence becomes a `companion_proposals` row **in the same transaction
+as the assistant turn that offered it** (`appendTurnWithProposals`). Two rows that
+must not exist without each other: a proposal whose turn was never written is an
+Accept button under nothing, and a turn whose `meta.proposalIds` point at rows that
+were never inserted is a card the dock paints empty.
+
+```
+model emits ```kp:action``` → validated against the shipped catalog (Python)
+   → re-validated at the TS boundary (coerceCompanionAction)
+   → companion_proposals row, status "open", kind = the action id
+   → the dock renders a card under the bubble that offered it
+   → POST /api/companion/proposals/[id]/resolve  {decision: accept|decline}
+```
+
+**The resolve route is the ONE DOOR.** Nothing Candi says executes until a request
+arrives there, and that handler re-validates from scratch: the proposal is still
+open, its stored payload still parses, its action still exists in the catalog, its
+parameters still satisfy the declared shape, and — inside `execute` — the thing it
+names still exists in this tenant. A proposal-time check is a claim; an
+execution-time check is the guarantee, because everything interesting about a
+proposal (a candidate is hired, a role is closed, an action is retired) can change
+between the reply and the click. A proposal whose action this build no longer
+carries is declined on the operator's behalf with the `retired` outcome, rather
+than left as an Accept button that can never succeed.
+
+**Accepting is three steps, not one.** Write-then-work leaves a failed accept
+marked done; work-then-write runs a double-click twice. So:
+
+| Step | Store fn | Guard |
+| --- | --- | --- |
+| claim | `claimProposal` | `status = 'open'` — one caller wins, a second gets 409 |
+| run | `spec.execute` | refusals return an outcome, they do not throw |
+| stamp | `stampProposalOutcome` | `resolved_at IS NULL` — merges the outcome into the payload |
+| (on failure) release | `releaseProposal` | `status = 'accepted' AND resolved_at IS NULL` — can only ever undo a claim |
+
+A **resolved** proposal can never be re-opened, re-stamped or flipped by anything,
+which is what makes the dock re-open safe: `status` comes from the live row, not
+from the turn that produced it, so a reloaded conversation paints an outcome chip
+and no buttons.
+
+**The outcome lives in `payload_json`, not in a column.** `companion_proposals` has
+`status` and `resolved_at` and no free field, and adding one means a DDL migration
+in `db/core.ts` — a file this work package does not own and that concurrent
+sessions share. The payload is already the proposal's whole story (what was
+offered, in what parameters), so the outcome joins it there. Like the summary it is
+a **catalog reference** (`{key, values}` under `companion.outcome.*`), never a
+sentence: the row is written by a server with no reader attached and read later by
+whoever has the dock open, in their language — the same contract `task-label.ts`
+keeps for a task row.
+
+## The digest
+
+`companion_digest` is a background task (`tasks.ts`) — one metered `assistant` call
+through the same brain door, appended as an episode like anything else Candi said,
+that files a message into the newest companion thread plus whatever it proposed.
+It is the companion **speaking first**, made safe by the fact that its whole output
+is a message the operator can ignore and proposals they resolve.
+
+- `companion_cli.py --digest` is the same CLI with nobody on the other side of it:
+  no `message`, a `_DIGEST_CONTRACT` in the system prompt, and recall keyed off the
+  board's own busiest roles rather than a fixed phrase.
+- It writes **one** episode, and it is Candi's. Writing a user episode would put
+  words in the operator's mouth in a store their own recall reads back.
+- Grounding is `companionGrounding()` plus the **open proposals**, so "what is
+  still waiting on your answer" is answerable. The digest resolves nothing; the ids
+  it was shown are recorded on the turn as `meta.proposalsSeen`.
+- Dedupe is `stableKey("companion_digest", workspaceId, dayIso)` — one digest per
+  tenant per day, so a second accept coalesces onto the run already in flight. The
+  workspace is in the params explicitly: a dedupe builder only ever sees `params`,
+  so without it the day alone would be the identity and two tenants would share one
+  digest.
+- Where it lands is decided **before** the model call, so a completion is never
+  spent on a message with nowhere to go. With no thread at all one is minted and
+  named from the digest's own first line — titles stay derived.
+
 ## Model routing
 
 `assistant` is a full BYOM use case: it appears in `LLM_USE_CASES`
@@ -156,7 +287,7 @@ All four tables are workspace-scoped with no by-id exemptions
 | --- | --- |
 | `companion_threads` | one conversation; titles are derived, never typed |
 | `companion_turns` | the transcript, plus per-turn provenance in `meta_json` |
-| `companion_proposals` | what the companion offered — `open` until the operator accepts or declines |
+| `companion_proposals` | what the companion offered — `kind` is the action id, `payload_json` carries `{actionId, params, summary}` and (once answered) `outcome`; `open` until the operator accepts or declines |
 | `companion_brain_index` | the pointer mirror of the markdown brain |
 
 `companion_brain_index` is classed **not portable** in the org export
@@ -164,15 +295,16 @@ All four tables are workspace-scoped with no by-id exemptions
 and the excerpts beside them are private conversation, not the org's hiring
 record. Threads and proposals carry normally.
 
-## Transport (WP2)
+## Transport
 
-Two operator-gated routes, both workspace-scoped through the store's own tenancy.
+Operator-gated routes, all workspace-scoped through the store's own tenancy.
 
 | Route | Does |
 | --- | --- |
-| `GET /api/companion/threads` | the ledger, PLUS the newest thread's turns — the dock always opens on the most recent conversation, so a second request for what was just listed would be a wasted hop |
+| `GET /api/companion/threads` | the ledger, PLUS the newest thread's turns AND its proposals — the dock always opens on the most recent conversation, so a second request for what was just listed would be a wasted hop, and without the proposals it would paint an Accept button for something answered one round trip ago |
 | `POST /api/companion/threads` | start a conversation. No opener, no LLM call: unlike JD intake, Candi does not speak first. The dock renders a static greeting from the catalog and the first spend happens when the operator actually says something |
-| `POST /api/companion/[id]/message` | one exchange |
+| `POST /api/companion/[id]/message` | one exchange. Returns the thread's full turn list AND its live proposals |
+| `POST /api/companion/proposals/[id]/resolve` | **WP3.** `{decision: "accept" \| "decline"}`. The one door that executes anything — see "The proposal lifecycle". Per-IP 60/10min, pinned in `app/api/rate-limit-contract.test.ts`, after the 404/400/409 refusals so a rejected call never consumes budget |
 
 `app/_lib/companion-run.ts` spawns `companion_cli` with the whole turn in
 `turn.json` (nothing about the studio travels on argv, where it would land in a
@@ -183,8 +315,9 @@ anonymous ledger row.
 **Grounding is assembled in exactly one function** — `companionGrounding()` —
 which is the whole blast radius of "what Candi may see": the sidebar's own
 attention counts plus a compact board summary (active entries, a stage histogram,
-the five busiest roles, the mean match score). Candidate labels are deliberately
-absent; a stage histogram is not a candidate record. The pure half lives in
+the five busiest roles with their top candidates, the mean match score). On the
+digest leg it additionally carries the OPEN PROPOSALS, because "what is still
+waiting on your answer" is half of what a digest is for. The pure half lives in
 `app/_lib/companion-turn.ts` (clamp, derived title, transcript window, summary)
 and is unit-tested without a database or `next/server`.
 
@@ -254,9 +387,26 @@ use. The transcript is a conversation, not a log: roomy bubbles, no timestamps, 
 provenance chrome in the reading path.
 
 Under one assistant turn, in reading order: **what she drew** (the blocks), then
-**what she stood on** — quiet marginalia chips, the way a colleague says "you told
-me last week…" rather than citing a source id. A degraded turn says so in the same
-quiet voice, and a dropped block is admitted rather than hidden.
+**what she offered** (the proposal cards), then **what she stood on** — quiet
+marginalia chips, the way a colleague says "you told me last week…" rather than
+citing a source id. A degraded turn says so in the same quiet voice, and a dropped
+block or proposal is admitted rather than hidden.
+
+The proposals sit between the drawing and the marginalia deliberately: they are
+the only part of a turn the operator has to answer, so they belong where the eye
+lands after the content and before the provenance. A card under the recall chips
+would read as a footnote to a citation. The card itself is quiet — a hairline
+panel, an eyebrow, one line of what would happen, and the two answers. No icon, no
+severity color, no urgency: a proposal is a question, and dressing a question as
+an alert would make declining feel like a failure. Its copy is a catalog reference
+resolved at render time (`companion.action.*` / `companion.outcome.*`), and its
+`status` comes from the live proposal row rather than from the turn, which is what
+makes a re-opened conversation paint an outcome chip instead of a second Accept.
+
+The card imports `app/_lib/companion-proposal-view.ts`, never
+`companion-actions.ts` — the catalog's executors reach better-sqlite3, and a lazy
+`import()` is still a bundled chunk, not an escape hatch. The split is by
+AUDIENCE, not a second list: the view module names no action and decides nothing.
 
 Rest state is a small pill with the Kandidate mark and the unread dot. It sits at
 the bottom of the nav panel (clear of the 4.75rem icon rail, so it can never cover
@@ -303,18 +453,39 @@ surface changed.
 
 ## Known gaps
 
-- **No block has been drawn by a real model yet.** The parser, the renderers and
-  both schemas are unit-tested end to end, but whether the prompt actually makes
-  the model reach for `kp:table` instead of a numbered list is an empirical
-  question this worktree cannot answer (see "Not verified in a running app").
-- The dock does not yet surface `companion_proposals`. Candi can say what she
-  would do; there is no accept/decline affordance for it (WP3).
+- **No block or proposal has been drawn by a real model yet.** The parsers, the
+  renderers, the catalog derivation and every schema are unit-tested end to end,
+  but whether the prompt actually makes a model reach for `kp:table` instead of a
+  numbered list, or for `kp:action` instead of describing the action in prose, is
+  an empirical question no unit test can answer (see "Not verified in a running
+  app").
+- **`draft_outreach` inherits the deploy's relay setting.** It reuses the board's
+  own drafter, so on a deploy with `COMMS_WEBHOOK_URL` configured an accepted
+  proposal relays exactly as pressing "Draft outreach" on the board does. See the
+  Outbox note under "The action catalog" for why that was chosen over a second,
+  stricter rule for the same action.
+- **A proposal's outcome is stamped, not watched.** `outcome` records what was
+  DISPATCHED (a task id, a JD slug), not whether that task later succeeded — the
+  Background-tasks view is where a dispatched run's fate lives, and nothing links
+  a proposal row back to it beyond `outcome.ref`.
+- **No approval kind.** `companion_proposal` was considered for `APPROVAL_KINDS`
+  and deliberately not added: `approvalKind` marks a PIPELINE ENTRY as waiting on
+  a human, feeds the `decisions` count and the Decisions tab, and is cleared by a
+  branch in `actOnPipelineEntry`. A companion proposal lives in its own table with
+  its own status lifecycle and its own resolution route, so adding the kind would
+  have created a gate with no branch that can clear it — exactly what the registry
+  in `app/_lib/approval-kinds.ts` warns against.
+- **The companion attention count reaches no badge.** `attentionCounts().companion`
+  is the sixth key and the only one no tab declares, because Candi lives in a dock.
+  It is read by the dock's own state line. It is deliberately kept out of
+  `decisions`, whose count beacons the ControlDock orb and whose one click routes
+  to the Decisions tab — a tab with no affordance that can resolve a proposal.
 - No thread switcher. The toolbar can START a conversation, but the dock always
   opens the most recent one and there is no way back to an older thread — the
   ledger keeps them, nothing lists them.
-- Not verified in a running app. This worktree has no `node_modules` of its own
-  (it resolves upward to the main checkout), which Turbopack refuses, so the dock
-  has been type-checked and linted but never painted.
+- Not verified in a running app. The dock, the proposal card and the resolve
+  route have been type-checked, linted and unit-tested, but no browser has painted
+  a proposal card and no accept has dispatched a real task.
 - The kp thread id does not reach the brain. Episodes carry the workspace
   session tag (`kp-<workspace>`) only, matching the shared format; linking a
   turn back to its episode is done through `episodePaths` on the CLI's output.

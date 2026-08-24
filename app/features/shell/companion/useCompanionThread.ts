@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CompanionTurn } from "@/app/_lib/db/companion";
+import type { CompanionProposal, CompanionTurn } from "@/app/_lib/db/companion";
 import {
   completeTurn,
   enqueueUtterance,
@@ -30,6 +30,10 @@ import {
 
 export type CompanionThreadState = {
   turns: CompanionTurn[];
+  /** Every proposal this conversation produced, live. Joined onto the turn that
+   *  offered it through `meta.proposalIds`, so a reloaded transcript paints an
+   *  already-answered proposal as answered instead of offering Accept again. */
+  proposals: CompanionProposal[];
   busy: boolean;
   /** Machine error code from the route ("RATE_LIMITED" …) or a transport failure. */
   error: string | null;
@@ -39,6 +43,9 @@ export type CompanionThreadState = {
   /** Start a fresh conversation and swap to it. The old one is not deleted —
    *  it stays in the ledger, which is what makes this a cheap, undoable act. */
   newThread: () => Promise<boolean>;
+  /** Answer one proposal. Resolves false when the answer did not land, so the
+   *  card re-arms rather than sitting disabled on a request that failed. */
+  resolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
 };
 
 type Pending = { resolve: (ok: boolean) => void };
@@ -55,6 +62,7 @@ type ExchangeCtx = {
   visible: { current: boolean };
   onReplyWhileClosed: { current: (() => void) | undefined };
   setTurns: (turns: CompanionTurn[]) => void;
+  setProposals: (proposals: CompanionProposal[]) => void;
   setBusy: (busy: boolean) => void;
   setError: (code: string | null) => void;
 };
@@ -75,7 +83,7 @@ async function runExchange(ctx: ExchangeCtx, id: string, message: string): Promi
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ message }),
     });
-    const body = (await res.json()) as { turns?: CompanionTurn[]; code?: string };
+    const body = (await res.json()) as { turns?: CompanionTurn[]; proposals?: CompanionProposal[]; code?: string };
     if (ctx.activeThread.current !== id) {
       // The operator started a new conversation while this one was in flight.
       // The turn landed in the database either way; it just is not this screen.
@@ -84,6 +92,7 @@ async function runExchange(ctx: ExchangeCtx, id: string, message: string): Promi
     }
     if (res.ok && body.turns) {
       ctx.setTurns(body.turns);
+      ctx.setProposals(body.proposals ?? []);
       ctx.setError(null);
       ok = true;
       // An answer arrived at a dock nobody is looking at: that is the ONLY
@@ -109,6 +118,7 @@ async function runExchange(ctx: ExchangeCtx, id: string, message: string): Promi
 
 export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => void): CompanionThreadState {
   const [turns, setTurns] = useState<CompanionTurn[]>([]);
+  const [proposals, setProposals] = useState<CompanionProposal[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | null>(null);
@@ -131,11 +141,17 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
     void (async () => {
       try {
         const res = await fetch("/api/companion/threads");
-        const body = (await res.json()) as { threads?: { id: string }[]; turns?: CompanionTurn[]; code?: string };
+        const body = (await res.json()) as {
+          threads?: { id: string }[];
+          turns?: CompanionTurn[];
+          proposals?: CompanionProposal[];
+          code?: string;
+        };
         if (res.ok && body.threads && body.threads.length > 0) {
           activeThread.current = body.threads[0].id;
           setThreadId(body.threads[0].id);
           setTurns(body.turns ?? []);
+          setProposals(body.proposals ?? []);
           return;
         }
         if (!res.ok) throw new Error(body.code ?? "COMPANION_THREADS_FAILED");
@@ -156,7 +172,17 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
   // not a hook reading a binding it is still declaring. Every piece it needs is
   // stable: React setters never change identity, and refs are refs.
   const ctx = useMemo<ExchangeCtx>(
-    () => ({ machine, waiting, activeThread, visible, onReplyWhileClosed: unreadCb, setTurns, setBusy, setError }),
+    () => ({
+      machine,
+      waiting,
+      activeThread,
+      visible,
+      onReplyWhileClosed: unreadCb,
+      setTurns,
+      setProposals,
+      setBusy,
+      setError,
+    }),
     []
   );
   const dispatch = useCallback((id: string, message: string) => runExchange(ctx, id, message), [ctx]);
@@ -205,6 +231,7 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
       activeThread.current = thread.id;
       setThreadId(thread.id);
       setTurns([]);
+      setProposals([]);
       setBusy(false);
       setError(null);
       return true;
@@ -214,5 +241,47 @@ export function useCompanionThread(active: boolean, onReplyWhileClosed?: () => v
     }
   }, []);
 
-  return { turns, busy, error, ready: threadId !== null, send, newThread };
+  /** Answer one proposal. The route is the ONE door that executes anything, so
+   *  this is a thin call: the server's updated row replaces the local one, which
+   *  is what makes an outcome chip the server's fact rather than the client's
+   *  guess about what accepting probably did.
+   *
+   *  A 409 (a sibling dock already answered it) is NOT surfaced as an error — the
+   *  server's row is authoritative and the card simply repaints as resolved, so
+   *  the response's proposal is taken whatever the status was. */
+  const resolveProposalById = useCallback(
+    async (id: string, decision: "accept" | "decline"): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/companion/proposals/${encodeURIComponent(id)}/resolve`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ decision }),
+        });
+        const body = (await res.json()) as { proposal?: CompanionProposal; code?: string };
+        if (body.proposal) {
+          const updated = body.proposal;
+          setProposals((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+          setError(null);
+          return true;
+        }
+        setError(body.code ?? "COMPANION_PROPOSAL_FAILED");
+        return false;
+      } catch {
+        setError("COMPANION_PROPOSAL_FAILED");
+        return false;
+      }
+    },
+    []
+  );
+
+  return {
+    turns,
+    proposals,
+    busy,
+    error,
+    ready: threadId !== null,
+    send,
+    newThread,
+    resolveProposal: resolveProposalById,
+  };
 }
