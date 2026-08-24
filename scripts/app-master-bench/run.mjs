@@ -585,7 +585,11 @@ async function main() {
     // A stub run never writes the cache: its key dies with the process.
     keyCacheFile: stub ? null : keyCacheFile,
     scanTimeoutMs: Number(args["scan-timeout"] || 20 * 60_000),
-    activateTimeoutMs: Number(args["activate-timeout"] || 5 * 60_000),
+    // A real headless hire runs a full one-shot BUILD SESSION (a live Claude
+    // Code session: design pass + build) before the request can reach `active`
+    // — sweep #6 measured >5 min, so 5 min timed out on a healthy hire. 20 min
+    // holds a slow session; override with --activate-timeout (ms).
+    activateTimeoutMs: Number(args["activate-timeout"] || 20 * 60_000),
     // How long to sit out a 429 before retrying. kp's windows are fixed
     // 10-minute buckets, so 65s × 12 attempts crosses one from anywhere inside it.
     throttleWaitMs: Number(args["throttle-wait"] || 65_000),
