@@ -119,10 +119,20 @@ export async function claimPairing(nonce: string): Promise<PairClaimResult> {
     if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
     if (r.status === 404 || r.status === 202) return { ok: true, paired: false, state: "pending" };
     if (!r.ok) return { ok: false, error: `Personas responded ${r.status} to the pairing claim.` };
-    const body = (await r.json().catch(() => null)) as { apiKey?: unknown; key?: unknown; status?: unknown } | null;
+    // The REAL bridge answers { token } (probed 2026-08-24); apiKey/key are
+    // kept for older builds. The mock now emits { token } so the e2e pins the
+    // real shape.
+    const body = (await r.json().catch(() => null)) as {
+      apiKey?: unknown;
+      key?: unknown;
+      token?: unknown;
+      status?: unknown;
+    } | null;
     const key =
-      typeof body?.apiKey === "string" && body.apiKey
-        ? body.apiKey
+      typeof body?.token === "string" && body.token
+        ? body.token
+        : typeof body?.apiKey === "string" && body.apiKey
+          ? body.apiKey
         : typeof body?.key === "string" && body.key
           ? body.key
           : null;

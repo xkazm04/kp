@@ -220,7 +220,8 @@ async function runScenario(scenario, opts) {
         const claimed = await poll(
           async () => {
             const res = await personas.get(`/pair/claim?nonce=${encodeURIComponent(nonce)}`, { timeoutMs: 30_000 });
-            return typeof res.json?.apiKey === "string" ? res.json.apiKey : null;
+            const k = res.json?.token ?? res.json?.apiKey ?? res.json?.key;
+            return typeof k === "string" && k ? k : null;
           },
           { maxMs: 120_000, everyMs: 2_000, label: "the driver's pairing claim (headless mode auto-approves)" }
         );

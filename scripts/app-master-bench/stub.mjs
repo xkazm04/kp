@@ -204,7 +204,8 @@ export async function startStubPersonas({ kpBaseUrl = null } = {}) {
         }
         nonces.delete(nonce); // single-use, as the real claim is
         // Headless bridge mode: NO human beat. The first claim hands the key over.
-        json(res, 200, { apiKey, scopes: ["personas:read", "personas:build", "personas:test"] });
+        // The real bridge's claim shape (probed 2026-08-24): { token }.
+        json(res, 200, { token: apiKey });
         return;
       }
 

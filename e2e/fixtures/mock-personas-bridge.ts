@@ -13,7 +13,7 @@ import { AddressInfo } from "node:net";
 //
 //   POST /pair/request                    {nonce, scopes, client} → 200 {ok:true}
 //   GET  /pair/claim?nonce=…              1st call → 200 {status:"pending"}
-//                                         2nd call → 200 {apiKey:"pk_mock…"} (single-use)
+//                                         2nd call → 200 {token:"pk_mock…"} (single-use)
 //   GET  /api/kp/connector-catalog        → {success:true, data:{connectors:[…]}}
 //   POST /api/kp/persona-requests         Bearer-gated; records the body
 //                                         (including the P4 `appMaster` block)
@@ -200,7 +200,9 @@ export async function startMockPersonasBridge(): Promise<MockPersonasBridge> {
           return;
         }
         claims.delete(nonce); // spent
-        json(res, 200, { apiKey, scopes: ["personas:read", "personas:build"] });
+        // The REAL bridge answers { token } (probed 2026-08-24) — the mock pins
+        // the real shape so a reader expecting apiKey/key fails HERE first.
+        json(res, 200, { token: apiKey });
         return;
       }
 
