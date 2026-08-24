@@ -228,6 +228,14 @@ export function collectResults(benchRoot) {
   return out;
 }
 
+/** Collect + render + write in one call — the run.mjs --report entry point. */
+export function writeReport(benchRoot) {
+  const results = collectResults(benchRoot);
+  const dest = path.join(benchRoot, "REPORT.md");
+  writeFileSync(dest, renderReport(results), "utf8");
+  return { dest, runs: results.length };
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const benchRoot = args.out ? path.resolve(args.out) : DEFAULT_BENCH_ROOT;
