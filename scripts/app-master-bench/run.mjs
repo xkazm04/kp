@@ -381,6 +381,11 @@ async function runScenario(scenario, opts) {
           const res = await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`);
           const status = res.json?.agent?.status ?? null;
           if (status && seen[seen.length - 1] !== status) seen.push(status);
+          // A terminal non-active status is an ANSWER, not something to wait
+          // out — a held/failed build now maps to `failed` on the wire.
+          if (status === "failed" || status === "rejected" || status === "retired") {
+            throw new PhaseError("activate", `the hire reached terminal status \`${status}\` (ladder: ${seen.join(" → ")})`);
+          }
           return status === "active" ? res.json.agent : null;
         },
         { maxMs: opts.activateTimeoutMs, everyMs: 3_000, label: "the hire to reach `active` in Personas (headless mode auto-approves)" }
@@ -587,9 +592,10 @@ async function main() {
     scanTimeoutMs: Number(args["scan-timeout"] || 20 * 60_000),
     // A real headless hire runs a full one-shot BUILD SESSION (a live Claude
     // Code session: design pass + build) before the request can reach `active`
-    // — sweep #6 measured >5 min, so 5 min timed out on a healthy hire. 20 min
+    // — sweep #6 MEASURED 32 min end to end (13:55→14:27), and 20 min still timed
+    // out on a healthy build (sweep #7). 45 min
     // holds a slow session; override with --activate-timeout (ms).
-    activateTimeoutMs: Number(args["activate-timeout"] || 20 * 60_000),
+    activateTimeoutMs: Number(args["activate-timeout"] || 45 * 60_000),
     // How long to sit out a 429 before retrying. kp's windows are fixed
     // 10-minute buckets, so 65s × 12 attempts crosses one from anywhere inside it.
     throttleWaitMs: Number(args["throttle-wait"] || 65_000),
