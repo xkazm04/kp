@@ -20,21 +20,14 @@ import { Play } from "lucide-react";
 import { CandiSwitch } from "./SimControlDockTiles";
 import { DOCK_PANEL_DOM_ID, dockTabDomId } from "./simControlDockLayers";
 
-/** OUTSIDE-LEFT — the identity block, lifted out of layer 1. The logo is not
- *  decoration: it is the same CandiSwitch that lowers the deck, so the brand and
- *  the power switch are one control, and it keeps the aiBusy pulse it carried in
- *  the row. The mode subtitle comes WITH the brand (it says what the deck is,
- *  which is identity); the "N need you" chip deliberately did NOT — that is live
- *  operational state and stays inside the panel with the controls. */
-export function DockBrand({ mode, aiBusy, onCollapse }: { mode: "sim" | "ops"; aiBusy: boolean; onCollapse: () => void }) {
-  const t = useTranslations("pipeline.controlCenter");
+/** OUTSIDE-LEFT — just the power switch now. Round 4 removed the logo + brand
+ *  text ("it does not bring value" — operator, 2026-08-24); what must survive is
+ *  the CandiSwitch itself, the only control that lowers the deck, still carrying
+ *  the aiBusy pulse. Icon-only at every width. */
+export function DockBrand({ aiBusy, onCollapse }: { aiBusy: boolean; onCollapse: () => void }) {
   return (
-    <div className="pointer-events-auto flex shrink-0 items-center gap-2.5 pb-3">
+    <div className="pointer-events-auto flex shrink-0 items-center pb-3">
       <CandiSwitch open onClick={onCollapse} busy={aiBusy} />
-      <div className="hidden flex-col leading-tight lg:flex">
-        <span className="text-meta font-semibold uppercase tracking-wide text-coral">{t("title")}</span>
-        <span className="text-sm font-medium text-steel">{mode === "sim" ? t("guidedDemo") : t("modeOps")}</span>
-      </div>
     </div>
   );
 }

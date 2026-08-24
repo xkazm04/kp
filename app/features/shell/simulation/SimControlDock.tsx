@@ -143,7 +143,7 @@ export function ControlDock() {
             elements on the toolbar's baseline while the panel grows upward, and
             `min-w-0 flex-1` is what stops the box colliding with them. */}
         <div className="mx-auto flex max-w-[1600px] items-end gap-3">
-          <DockBrand mode={mode} aiBusy={aiBusy} onCollapse={() => setCollapsed(true)} />
+          <DockBrand aiBusy={aiBusy} onCollapse={() => setCollapsed(true)} />
           <div className="pointer-events-auto min-w-0 flex-1 rounded-xl border-2 border-stone-300 bg-white/95 px-4 py-3 shadow-panel backdrop-blur dark:rounded-2xl">
             {/* ── LAYER 2 — the one exclusive panel, above the row that opened it ── */}
             {panel ? (
