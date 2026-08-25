@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import KandidateMark from "@/app/landing/_components/KandidateMark";
 import { ChatTranscript, type ChatSide, type ChatTurn } from "@/app/_components/chat/ChatTranscript";
@@ -11,6 +11,8 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { CompanionProposal, CompanionTurn, CompanionTurnMeta } from "@/app/_lib/db/companion";
 import type { AttentionCounts } from "@/app/features/shell/useAttention";
 import { CompanionProposalCard } from "./CompanionProposalCard";
+import { CompanionSpeakButton } from "./CompanionSpeakButton";
+import { useCompanionSpeech, voiceTextForTurn } from "./useCompanionSpeech";
 
 /*
  * The dock's body — the round-1 "Colleague" direction, promoted to the only one.
@@ -28,6 +30,11 @@ import { CompanionProposalCard } from "./CompanionProposalCard";
  * them in prose, and it renders under her bubble as a real rendered artifact.
  * That is why the marginalia sits BELOW the blocks — the recall chips annotate
  * the whole answer, and the answer now has two halves.
+ *
+ * V1 adds a third: every reply also carries a SPOKEN form (`meta.voiceReply`),
+ * and the marginalia carries the control that plays it. A colleague you can ask
+ * to say it out loud, in the same quiet register as the rest of the strip — not
+ * a media player bolted to the dock.
  */
 
 const companionSide = (role: string): ChatSide => (role === "user" ? "right" : "left");
@@ -104,6 +111,10 @@ export function CompanionBody({
 }: CompanionBodyProps) {
   const t = useTranslations("companion");
   const resolveError = useErrorMessage();
+  // One spoken channel for the whole transcript, not one per bubble: at most one
+  // utterance is audible at a time, and the hook is what makes that true rather
+  // than each button hoping the others behave.
+  const speech = useCompanionSpeech();
   const metaById = useMemo(() => new Map(turns.map((turn) => [turn.id, turnMeta(turn)])), [turns]);
   // Proposals are joined onto their turn by ID, never by position or timestamp:
   // one exchange can carry two, a thread carries many, and the row the operator
@@ -150,17 +161,25 @@ export function CompanionBody({
         busy={busy}
         onSend={onSend}
         emptyState={<Greeting text={t("greeting")} />}
-        renderTurnExtras={(turn) =>
-          turn.role === "assistant" ? (
+        renderTurnExtras={(turn) => {
+          if (turn.role !== "assistant") return null;
+          const speakable = { id: turn.id, content: turn.content, meta: metaById.get(turn.id) };
+          return (
             <TurnExtras
               t={t}
               meta={metaById.get(turn.id)}
               blockLabels={blockLabels}
               proposalById={proposalById}
               onResolveProposal={onResolveProposal}
+              // Offered only when there is genuinely something to say: the door
+              // has already run over this turn, so an empty answer means an empty
+              // utterance, and a control that would do nothing is not drawn.
+              speakSlot={
+                voiceTextForTurn(speakable) ? <CompanionSpeakButton turn={speakable} speech={speech} /> : null
+              }
             />
-          ) : null
-        }
+          );
+        }}
       />
     </>
   );
@@ -192,12 +211,17 @@ function TurnExtras({
   blockLabels,
   proposalById,
   onResolveProposal,
+  speakSlot,
 }: {
   t: ReturnType<typeof useTranslations<"companion">>;
   meta: CompanionTurnMeta | undefined;
   blockLabels: ChatBlockLabels;
   proposalById: Map<string, CompanionProposal>;
   onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
+  /** The play control for this reply's spoken form, or null when there is
+   *  nothing speakable. It rides in the chip row rather than beside the bubble
+   *  so the whole strip stays one line of marginalia. */
+  speakSlot?: ReactNode;
 }) {
   const blocks = meta?.blocks ?? [];
   const dropped = meta?.blockErrors ?? 0;
@@ -222,7 +246,8 @@ function TurnExtras({
     droppedActions === 0 &&
     proposals.length === 0 &&
     recall.length === 0 &&
-    !isDegraded
+    !isDegraded &&
+    !speakSlot
   ) {
     return null;
   }
@@ -233,6 +258,7 @@ function TurnExtras({
         <CompanionProposalCard key={proposal.id} proposal={proposal} onResolve={onResolveProposal} />
       ))}
       <div className="mt-1.5 flex max-w-[85%] flex-wrap items-center gap-1.5">
+        {speakSlot}
         {isDegraded ? <span className={`${CHIP_QUIET} text-coral`}>{t("meta.degraded")}</span> : null}
         {dropped > 0 ? <span className={CHIP_QUIET}>{t("blocks.dropped", { count: dropped })}</span> : null}
         {droppedActions > 0 ? (

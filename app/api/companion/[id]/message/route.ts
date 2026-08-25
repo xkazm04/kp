@@ -86,6 +86,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           // Blocks ride in meta with the rest of the turn's provenance, so a
           // transcript reload repaints the same answer it painted live.
           ...(turn.blocks.length > 0 ? { blocks: turn.blocks } : {}),
+          // The spoken half rides with the written one, for the same reason:
+          // the answer has two channels and a reloaded transcript must be able
+          // to offer both without a second model call.
+          ...(turn.voiceReply ? { voiceReply: turn.voiceReply } : {}),
           ...(turn.blockErrors > 0 ? { blockErrors: turn.blockErrors } : {}),
           ...(turn.actionErrors > 0 ? { actionErrors: turn.actionErrors } : {}),
           recallUsed: turn.recallUsed,

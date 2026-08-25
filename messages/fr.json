@@ -8754,6 +8754,12 @@
       "emptyCell": "·",
       "dropped": "{count, plural, one {# bloc ignoré} other {# blocs ignorés}}"
     },
+    "voice": {
+      "speak": "Lire à voix haute",
+      "stop": "Arrêter la lecture",
+      "resume": "Lire",
+      "failed": "Impossible de lire ce texte à voix haute."
+    },
     "action": {
       "runAnalysis": "Relancer le screening IA pour {candidate}",
       "generateDigest": "Préparer le récapitulatif du studio d'aujourd'hui",

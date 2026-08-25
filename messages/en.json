@@ -8754,6 +8754,12 @@
       "emptyCell": "·",
       "dropped": "{count, plural, one {# block was dropped} other {# blocks were dropped}}"
     },
+    "voice": {
+      "speak": "Read this aloud",
+      "stop": "Stop reading",
+      "resume": "Play",
+      "failed": "That could not be spoken."
+    },
     "action": {
       "runAnalysis": "Re-run the AI screening for {candidate}",
       "generateDigest": "Put together today's studio digest",

@@ -31,6 +31,40 @@ export function deriveThreadTitle(message: string): string {
   return (lastSpace > 24 ? cut.slice(0, lastSpace) : cut).trim();
 }
 
+// ---- the spoken channel (V1) ----------------------------------------------
+
+/** Where a spoken reply came from. Two values because one question is asked of
+ *  it: did she compose this for the ear (`model`), or did the pipeline cut it
+ *  out of prose written for the eye (`derived`)? A surface that wants to say
+ *  "spoken form" versus "read from the answer" branches here; nothing else does. */
+export type CompanionVoiceSource = "model" | "derived";
+
+/** The SPOKEN half of one reply. Not a summary and not a shorter report: the
+ *  one-sentence answer plus at most one supporting fact, with no enumeration and
+ *  no reference to anything on screen (the voice contract in companion_cli.py).
+ *  Bounded to one synthesis chunk, so speaking it is a single request. */
+export type CompanionVoiceReply = { text: string; source: CompanionVoiceSource };
+
+/** Matches MAX_VOICE_CHARS in companion_blocks.py, which is itself the TTS
+ *  chunker's default clip size (packages/voice-tts/src/text/segment.ts). Three
+ *  places, one number: a voice reply that outgrew it would silently become two
+ *  synthesis requests and lose the time-to-first-audio the bound exists to buy. */
+export const MAX_COMPANION_VOICE_CHARS = 280;
+
+/** Shape an untrusted `voiceReply` at the boundary, or null.
+ *
+ *  Null is a legitimate answer, not a failure: a turn stored before V1 carries
+ *  no spoken form at all, and a dock that asserted one would hand the engine
+ *  `undefined`. The caller falls back to the turn's own prose, which the
+ *  package's `speechReady` will clean before any engine sees it. */
+export function coerceVoiceReply(raw: unknown): CompanionVoiceReply | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const entry = raw as Record<string, unknown>;
+  const text = typeof entry.text === "string" ? entry.text.trim().slice(0, MAX_COMPANION_VOICE_CHARS) : "";
+  if (!text) return null;
+  return { text, source: entry.source === "model" ? "model" : "derived" };
+}
+
 export type CompanionWireTurn = { role: string; content: string };
 
 /** The last N turns, oldest-first, in the shape companion_cli.py reads. */

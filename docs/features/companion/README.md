@@ -196,12 +196,13 @@ companion may see, and hands it over as `grounding`. `memory` is the consent fla
 brain files.
 
 Composition: constitution + identity + the **tone contract**, the **block
-contract** and — when the caller shipped an action catalog — the **action
-contract** (the system prompt) → recall of the six best-matching episodes + the
-grounding blob + the last 12 turns (the user prompt) → one completion under the
-**`assistant`** use case, answered in the operator's UI locale.
+contract**, the **voice contract** and — when the caller shipped an action
+catalog — the **action contract** (the system prompt) → recall of the six
+best-matching episodes + the grounding blob + the last 12 turns (the user
+prompt) → one completion under the **`assistant`** use case, answered in the
+operator's UI locale.
 
-Output is one JSON line: `{reply, blocks, blockErrors, actions, actionErrors,
+Output is one JSON line: `{reply, voiceReply, blocks, blockErrors, actions, actionErrors,
 recallUsed, episodePaths, memoryEnabled, source, indexSkipped[, fallbackReason]}`, where each
 `recallUsed` entry is `{path, excerpt, insight}` (see **What she is allowed to
 remember at you** below). Both halves of
@@ -329,6 +330,71 @@ answer in one or two sentences, never restate the question, paragraphs of at mos
 three sentences, bullets over walls, every number carries its unit or noun, no
 headings and no sign-off, and **prefer a block to any enumeration of three or
 more comparable items**. It applies to every reply, not only the ones that draw.
+
+## The spoken channel (V1)
+
+**Every reply is dual-channel.** `reply` is written for a 30rem column and may
+hand the comparable part to a table; `voiceReply` is *the same answer composed
+for the ear*. It is a different composition, not a shorter one — the failure this
+exists to prevent is a voice that reads the report aloud, enumerates six
+candidates nobody can hold in their head, and finishes with "as the table above
+shows" at a listener who is not looking at a table.
+
+The model is asked for it in a **sentinel section**, emitted after the prose and
+after any fence:
+
+```
+<<<VOICE>>>
+29 decisions are waiting - twelve more than yesterday. Clear the offer-stage two first.
+<<<END_VOICE>>>
+```
+
+**Why sentinels and not a ```` ```kp:voice ```` fence**, when everything else in
+this reply is a fence. Two reasons, and both are specific to this component. Its
+payload is a plain sentence, not JSON, so a fence buys none of the parsing it
+exists for. And it is emitted **last**, which is exactly where a completion cut at
+its token ceiling loses its terminator: a dangling fence is *dropped* by the block
+rules above (correct for a half-written table, which cannot be half-rendered),
+while a dangling `<<<VOICE>>>` is *recovered* by reading to the end of the text —
+precisely right for a trailing section. Sentinels also cannot collide with a code
+fence the model emits for its own reasons, and this prompt already speaks that
+dialect (`<<<OPERATOR_MESSAGE>>>`).
+
+`split_reply_voice` runs **before** both fence passes, so neither parser can eat
+the other's delimiter, and it strips every marker — including an orphan
+`<<<END_VOICE>>>` — because a raw sentinel in the dock is the same class of defect
+as a raw JSON block. The operator is never shown the section: they are shown the
+prose, and offered the button that speaks it.
+
+| | |
+| --- | --- |
+| Cap | **280 characters** (`MAX_VOICE_CHARS`), which is also the TTS chunker's default clip size — a voice reply is therefore ONE synthesis request, so no chunk boundary, no prosody reset, no lookahead, and the fastest time-to-first-audio available |
+| Register | first sentence IS the answer; at most one supporting fact after it; no list, no second topic; never points at the screen; plain ASCII, present tense, every number keeps its noun; same language as the reply |
+| `source: "model"` | the completion carried a section |
+| `source: "derived"` | it did not, so the spoken form is cut **mechanically** from the reply's own first two sentences (`derive_voice`). Never a second model call: a paraphrase of what was just said is not worth doubling the cost of every turn |
+| Degraded leg | the keyless/unreachable reply carries a **hand-written** spoken line per locale (`UNREACHABLE_VOICE`), because the one reply that is about the product failing should not be read aloud through a derivation |
+
+So `voiceReply` is **always present** from a current CLI, and the dock never has
+to decide whether a turn is speakable before offering to speak it.
+
+**This is not a second speech normalizer.** The one door before any engine stays
+`speechReady` in `packages/voice-tts/src/text/normalize.ts` — one pure isomorphic
+function, per the AI registry's *speech-ready-text* technique, whose named defect
+is a divergent second copy. `companion_blocks.py`'s flatten chooses the **words**
+and bounds the **length**; anything it leaves behind is caught downstream, which
+is why it is deliberately shallow.
+
+It crosses the boundary in `meta.voiceReply` (`{text, source}`), coerced by
+`coerceVoiceReply` in `app/_lib/companion-turn.ts` for the same reason blocks are:
+a `meta_json` row written by an older build is untrusted input, and a turn stored
+before V1 carries none at all — which reads as `null`, and the dock then speaks
+the prose.
+
+**Three files hold the 280.** `companion_blocks.py` (`MAX_VOICE_CHARS`),
+`app/_lib/companion-turn.ts` (`MAX_COMPANION_VOICE_CHARS`) and the chunker's own
+default in `packages/voice-tts/src/text/segment.ts`. They must move together: a
+voice reply that outgrew the chunk size would silently become two synthesis
+requests and lose the property the bound was chosen for.
 
 ## The action catalog (WP3)
 
@@ -515,9 +581,10 @@ waiting on your answer" is half of what a digest is for. The pure half lives in
 `app/_lib/companion-turn.ts` (clamp, derived title, transcript window, summary)
 and is unit-tested without a database or `next/server`.
 
-The assistant turn's `meta_json` carries its provenance AND its blocks: one
-answer has two halves now, and a transcript reload has to repaint the same thing
-it painted live. It does — `GET /api/companion/threads` and the message route
+The assistant turn's `meta_json` carries its provenance, its blocks AND its
+spoken form: one answer has several halves now, and a transcript reload has to
+repaint — and be able to re-speak — the same thing it painted live, without
+paying for a model call to re-say it. It does — `GET /api/companion/threads` and the message route
 both return `listTurns(...)`, the same rows through the same mapper, so a
 hydrated turn renders exactly like a live one (verified end to end in round 5,
 including `meta.blocks` and the `meta.proposalIds` join).
@@ -592,6 +659,34 @@ says "you told me last week…" rather than citing a source id. When nothing she
 recalled carried an insight the strip is empty, which is the honest rendering.
 A degraded turn says so in the same quiet voice, and a dropped block or proposal
 is admitted rather than hidden.
+
+**The speak control lives in that marginalia strip** (`CompanionSpeakButton`),
+first in the chip row. It acts on THIS answer, which is why it is not in the
+header: a global "read the last reply" control cannot say which reply it means
+once the operator has scrolled. One button, three meanings and never a fourth —
+start this reply, stop the one that is playing, or unblock a playback the browser
+refused (rare from a click, since a user gesture is exactly what browsers want,
+and expected from V2's auto-speak). It is drawn only when the turn has something
+speakable: `voiceTextForTurn` has already run the one normalizer over it, so an
+empty answer means an empty utterance and no control at all.
+
+`useCompanionSpeech` is the single seam between a turn and the portable TTS
+package. It owns three decisions that would otherwise be made inconsistently per
+button: **what** gets spoken (`meta.voiceReply.text`, falling back to the prose
+for turns stored before V1), **which** turn owns the current utterance
+(`speakingId`, derived from playback rather than stored, so a finished utterance
+leaves no control lit), and **stop means now** — including on unmount, which is a
+live risk here because the dock unmounts its body when collapsed. That last one
+is not re-implemented: `useTts` registers its own teardown, and the hook never
+hands a caller the raw playback resource.
+
+**No availability probe on mount.** `GET /api/tts` probes every configured
+provider and for a cloud engine that is a network round trip; the dock is mounted
+whenever it is open and most sessions never press play. So availability is learned
+by ATTEMPTING — the route answers 503 with a typed reason when nothing can speak,
+and that reason is surfaced on the control. Never a silent no-op, and never a
+probe nobody asked for. The button is not latched off afterwards either: an
+operator who just pasted an API key is one click from it working.
 
 The proposals sit between the drawing and the marginalia deliberately: they are
 the only part of a turn the operator has to answer, so they belong where the eye

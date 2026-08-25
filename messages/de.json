@@ -8754,6 +8754,12 @@
       "emptyCell": "·",
       "dropped": "{count, plural, one {# Block verworfen} other {# Blöcke verworfen}}"
     },
+    "voice": {
+      "speak": "Vorlesen lassen",
+      "stop": "Vorlesen stoppen",
+      "resume": "Abspielen",
+      "failed": "Das konnte nicht vorgelesen werden."
+    },
     "action": {
       "runAnalysis": "KI-Screening für {candidate} erneut ausführen",
       "generateDigest": "Die heutige Studio-Übersicht zusammenstellen",

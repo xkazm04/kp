@@ -29,6 +29,13 @@ import {
  */
 
 export type CompanionThreadState = {
+  /** The conversation as the server stored it. Each assistant turn carries its
+   *  provenance in `meta` — and, since V1, the SPOKEN form of its own answer at
+   *  `meta.voiceReply` (`{text, source}`). Nothing new is fetched for it: the
+   *  message route and the boot request both already return whole turns, so the
+   *  spoken channel arrives with the written one and a reloaded thread can be
+   *  read aloud without paying for a model call. `useCompanionSpeech` is what
+   *  turns one of these into an utterance. */
   turns: CompanionTurn[];
   /** Every proposal this conversation produced, live. Joined onto the turn that
    *  offered it through `meta.proposalIds`, so a reloaded transcript paints an

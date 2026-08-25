@@ -8754,6 +8754,12 @@
       "emptyCell": "·",
       "dropped": "{count, plural, one {# blok vynechán} few {# bloky vynechány} other {# bloků vynecháno}}"
     },
+    "voice": {
+      "speak": "Přečíst nahlas",
+      "stop": "Zastavit čtení",
+      "resume": "Přehrát",
+      "failed": "Tohle se nepodařilo přečíst nahlas."
+    },
     "action": {
       "runAnalysis": "Znovu spustit AI screening pro: {candidate}",
       "generateDigest": "Sestavit dnešní přehled studia",
