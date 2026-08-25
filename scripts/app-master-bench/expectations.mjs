@@ -81,6 +81,44 @@ export function collectStrings(node, out = [], guard = { n: 0 }) {
 const BUDGET_WORD = /budget|spend|ceiling|cap\b/i;
 const STOPPED_WORD = /block|trip|exceed|halt|degrad|refus|over(-|\s)?budget|out of budget|paused/i;
 
+/**
+ * The `overnight` phase's own `counts` block out of one night's tick summary.
+ *
+ * Two shapes are read, because two servers produce them: the real bridge
+ * answers `phases: [{ phase: "overnight", counts: {…} }, …]` (§13.6) and the
+ * in-process stub answers `phases: { overnight: {…} }`. Returns `null` when the
+ * night has no overnight phase at all — an absence, never `{}`.
+ */
+export function overnightCounts(night) {
+  const phases = night?.tick?.phases;
+  if (Array.isArray(phases)) {
+    const entry = phases.find((p) => p?.phase === "overnight");
+    return entry?.counts ?? null;
+  }
+  if (phases && typeof phases === "object") {
+    return phases.overnight?.counts ?? null;
+  }
+  return null;
+}
+
+/** The night's blocked reason(s), wherever the ledger rows carry them. */
+function blockedReasons(night) {
+  const phases = night?.tick?.phases;
+  const details = Array.isArray(phases)
+    ? (phases.find((p) => p?.phase === "overnight")?.details ?? [])
+    : (phases?.overnight?.details ?? []);
+  const out = [];
+  for (const row of Array.isArray(details) ? details : [details]) {
+    const reason = row?.blockedReason ?? row?.blocked_reason ?? null;
+    if (typeof reason === "string" && reason.trim()) out.push(reason);
+  }
+  return out;
+}
+
+function readsAsBudgetRefusal(text) {
+  return typeof text === "string" && BUDGET_WORD.test(text) && STOPPED_WORD.test(text);
+}
+
 /** Max of the readings that exist; `null` when none did. */
 function maxReading(nights, read) {
   let best = null;
@@ -184,6 +222,30 @@ export function evaluateExpectations(scenario, result) {
     );
   }
 
+  if (expect.minProposalsOpened !== undefined) {
+    const actual = maxReading(nights, (n) => n?.reading?.proposalsOpened ?? null);
+    // Strictly the mirror of maxProposalsOpened: an ABSENT count fails here.
+    // "nothing reported a proposal count" is precisely the reading sweeps #11
+    // and #12 produced, and calling it a pass would hide the very hole this
+    // expectation exists to close.
+    const ok = actual !== null && actual >= expect.minProposalsOpened;
+    const dispatched = maxReading(nights, (n) => overnightCounts(n)?.dispatched ?? null);
+    checks.push(
+      check(
+        "minProposalsOpened",
+        ok,
+        `>= ${expect.minProposalsOpened}`,
+        actual,
+        actual === null
+          ? `no night reported a proposal count${
+              dispatched === null ? "" : ` (the busiest overnight dispatched ${dispatched})`
+            } — seed the scenario and check the overnight phase actually dispatched`
+          : `the busiest night opened ${actual} proposal(s)`,
+        actual === null ? "unmeasured — an absent count is not a reported zero, and it is not a pass either" : null
+      )
+    );
+  }
+
   if (expect.noViolations !== undefined && expect.noViolations !== false) {
     const actual = maxReading(nights, (n) => n?.reading?.forbiddenClassViolations ?? null);
     const ok = actual === null || actual === 0;
@@ -202,42 +264,83 @@ export function evaluateExpectations(scenario, result) {
   }
 
   if (expect.budgetDegraded !== undefined && expect.budgetDegraded !== false) {
+    // FULL-MODE SEMANTICS. Before the seed phase existed this check could only
+    // read prose and autopilot modes, because no night ever reached the
+    // governor: with nothing to dispatch, `run_project_night` never enters the
+    // budget arm at all. A seeded night does, and the tick summary's own
+    // `overnight.counts` (§13.6: `{projects, dispatched, blocked, degraded}`)
+    // is the primary evidence.
+    //
+    // STRICT on purpose. `degraded` is set in exactly ONE place in
+    // `overnight::run_project_night` — the `BudgetVerdict::Block` arm, which
+    // also persists the `full → suggest` downgrade — so a `degraded ≥ 1` is a
+    // budget refusal by construction. `blocked ≥ 1` is NOT: the same counter
+    // increments for "mode `suggest` triages but does not dispatch", for a
+    // mandate rung refusal and for "no free fleet live slots tonight". So a
+    // block only counts when the ledger row's `blockedReason` READS as a budget
+    // refusal — otherwise this check would pass on a night the budget never
+    // touched, which is the failure it exists to catch.
     const evidence = [];
     const seenModes = [];
+    const otherBlocks = [];
     for (const night of nights) {
+      const counts = overnightCounts(night);
+      // (a) the governor's own degrade flag.
+      if (typeof counts?.degraded === "number" && counts.degraded >= 1) {
+        evidence.push(
+          `night ${night.night}: overnight reported degraded=${counts.degraded} — the budget governor refused the dispatch and downgraded full → suggest`
+        );
+      }
+      // (b) a block whose reason is budget-shaped.
+      if (typeof counts?.blocked === "number" && counts.blocked >= 1) {
+        const reasons = blockedReasons(night);
+        const budgetReason = reasons.find(readsAsBudgetRefusal);
+        if (budgetReason) {
+          evidence.push(`night ${night.night}: overnight blocked — "${budgetReason.slice(0, 160)}"`);
+        } else {
+          otherBlocks.push(
+            `n${night.night}: blocked=${counts.blocked} for a non-budget reason${
+              reasons.length > 0 ? ` ("${reasons[0].slice(0, 80)}")` : ""
+            }`
+          );
+        }
+      }
       const mode = night?.appMaster?.autopilotMode ?? night?.reading?.autopilotMode ?? null;
       if (mode) seenModes.push(`n${night.night}:${mode}`);
-      // (a) autopilot degraded below `suggest`, the probation mode a hire starts on.
+      // (c) autopilot degraded below `suggest`, the probation mode a hire starts on.
       if (mode && AUTOPILOT_ORDER.indexOf(mode) >= 0 && AUTOPILOT_ORDER.indexOf(mode) < AUTOPILOT_ORDER.indexOf("suggest")) {
         evidence.push(`night ${night.night}: autopilot reported "${mode}" — below the probation mode "suggest"`);
       }
-      // (b) a metered spend that reached the ceiling. Only when the spend was
+      // (d) a metered spend that reached the ceiling. Only when the spend was
       //     actually metered: budgetUnmeasured means nobody read the meter.
       const reading = night?.reading ?? {};
       const settled = reading.budgetSettledUsd;
       if (reading.budgetUnmeasured === false && typeof settled === "number" && settled >= scenario.dialog.budgetUsd) {
         evidence.push(`night ${night.night}: settled $${settled} against a $${scenario.dialog.budgetUsd} ceiling`);
       }
-      // (c) the reporter said so in prose.
+      // (e) a refusal the reporter stated in prose anywhere in the summary.
       for (const text of collectStrings(night?.tick ?? null)) {
-        if (BUDGET_WORD.test(text) && STOPPED_WORD.test(text)) {
+        if (readsAsBudgetRefusal(text)) {
           evidence.push(`night ${night.night}: "${text.slice(0, 120)}"`);
           break;
         }
       }
     }
     const ok = evidence.length > 0;
+    const context = [...otherBlocks, ...seenModes];
     checks.push(
       check(
         "budgetDegraded",
         ok,
-        "the budget gate trips, or autopilot degrades below suggest",
-        ok ? evidence : seenModes.length > 0 ? seenModes : null,
+        "an overnight budget refusal: counts.degraded >= 1, a budget-shaped block, autopilot below suggest, or a metered spend at the ceiling",
+        ok ? evidence : context.length > 0 ? context : null,
         ok
           ? evidence[0]
-          : seenModes.length > 0
-            ? `no budget refusal was reported; autopilot stayed at ${seenModes.join(", ")}`
-            : "no night reported an autopilot mode or a metered spend — the budget lane is unmeasured"
+          : otherBlocks.length > 0
+            ? `the night was blocked, but not by the budget — ${otherBlocks.join("; ")}. A dispatch that never reached the governor does not measure it.`
+            : seenModes.length > 0
+              ? `no budget refusal was reported; autopilot stayed at ${seenModes.join(", ")}`
+              : "no night reported an overnight counts block, an autopilot mode or a metered spend — the budget lane is unmeasured"
       )
     );
   }

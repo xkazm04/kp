@@ -8,7 +8,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { collectStrings, evaluateExpectations, extractBackboneReading } from "./expectations.mjs";
+import { collectStrings, evaluateExpectations, extractBackboneReading, overnightCounts } from "./expectations.mjs";
 
 const scenario = (expect, budgetUsd = 120) => ({
   name: "t",
@@ -189,4 +189,107 @@ test("extractBackboneReading survives nulls, arrays and cycles", () => {
 test("collectStrings walks a nested summary", () => {
   const strings = collectStrings({ a: "one", b: { c: ["two", { d: "three" }] }, e: 4, f: null });
   assert.deepEqual(strings.sort(), ["one", "three", "two"]);
+});
+
+// ─── minProposalsOpened + full-mode budgetDegraded (P6e) ────────────────────
+// Before the seed phase existed, no night ever reached the budget governor:
+// `run_project_night` only enters the budget arm when triage accepted
+// something, so an unseeded run measured the budget lane not at all. These
+// pin the two checks that read a SEEDED night.
+
+/** The real bridge's §13.6 shape: `phases` is an ARRAY of phase results. */
+const realTick = (counts, details = []) => ({
+  headlessBridge: true,
+  phases: [
+    { phase: "overnight", ran: true, counts, details },
+    { phase: "reconcile", ran: true, counts: { projects: 1 } },
+  ],
+});
+
+test("overnightCounts reads both the real array shape and the stub's object shape", () => {
+  assert.deepEqual(overnightCounts(night(1, { tick: realTick({ dispatched: 3, blocked: 0, degraded: 0 }) })), {
+    dispatched: 3,
+    blocked: 0,
+    degraded: 0,
+  });
+  assert.deepEqual(
+    overnightCounts(night(1, { tick: { phases: { overnight: { counts: { dispatched: 1 } } } } })),
+    { dispatched: 1 }
+  );
+  // An absence stays an absence — never an empty object a caller would read as
+  // a reported zero.
+  assert.equal(overnightCounts(night(1)), null);
+  assert.equal(overnightCounts(night(1, { tick: { phases: [{ phase: "report", counts: {} }] } })), null);
+});
+
+test("minProposalsOpened passes on a delivered night", () => {
+  const { ok, checks } = evaluateExpectations(scenario({ minProposalsOpened: 1 }), {
+    nights: [night(1, { reading: { proposalsOpened: 3 } })],
+  });
+  assert.equal(ok, true);
+  assert.equal(byName(checks).minProposalsOpened.actual, 3);
+});
+
+test("minProposalsOpened FAILS on an absent count — the sweep-#11 reading is not a pass", () => {
+  const { ok, checks } = evaluateExpectations(scenario({ minProposalsOpened: 1 }), {
+    nights: [night(1, { tick: realTick({ dispatched: 0, blocked: 1, degraded: 0 }) })],
+  });
+  assert.equal(ok, false);
+  const check = byName(checks).minProposalsOpened;
+  assert.equal(check.actual, null);
+  assert.match(check.delta, /the busiest overnight dispatched 0/);
+  assert.match(check.note, /not a pass either/);
+});
+
+test("minProposalsOpened FAILS on a reported zero", () => {
+  const { ok } = evaluateExpectations(scenario({ minProposalsOpened: 1 }), {
+    nights: [night(1, { reading: { proposalsOpened: 0 } })],
+  });
+  assert.equal(ok, false);
+});
+
+test("budgetDegraded accepts the governor's own degraded flag", () => {
+  const { ok, checks } = evaluateExpectations(scenario({ budgetDegraded: true }, 5), {
+    nights: [night(1, { tick: realTick({ dispatched: 0, blocked: 1, degraded: 1 }) })],
+  });
+  assert.equal(ok, true);
+  assert.match(byName(checks).budgetDegraded.delta, /degraded=1/);
+});
+
+test("budgetDegraded accepts a block whose reason READS as a budget refusal", () => {
+  const { ok, checks } = evaluateExpectations(scenario({ budgetDegraded: true }, 5), {
+    nights: [
+      night(1, {
+        tick: realTick({ dispatched: 0, blocked: 1, degraded: 0 }, [
+          { blockedReason: "Budget governor refused tonight's dispatch: projected $6.00 would cross the monthly ceiling" },
+        ]),
+      }),
+    ],
+  });
+  assert.equal(ok, true);
+  assert.match(byName(checks).budgetDegraded.delta, /Budget governor refused/);
+});
+
+test("budgetDegraded REFUSES a block the budget never caused", () => {
+  // `blocked` also counts a suggest-mode night, a rung refusal and an
+  // exhausted slot cap. Passing on any of those would report the budget lane
+  // green on a night that never reached the governor.
+  const { ok, checks } = evaluateExpectations(scenario({ budgetDegraded: true }, 5), {
+    nights: [
+      night(1, {
+        tick: realTick({ dispatched: 0, blocked: 1, degraded: 0 }, [
+          { blockedReason: "mode `suggest` triages but does not dispatch (1 accepted idea(s) left for the morning)" },
+        ]),
+      }),
+    ],
+  });
+  assert.equal(ok, false);
+  assert.match(byName(checks).budgetDegraded.delta, /not by the budget/);
+  assert.match(byName(checks).budgetDegraded.delta, /never reached the governor/);
+});
+
+test("budgetDegraded still refuses a night with no overnight counts at all", () => {
+  const { ok, checks } = evaluateExpectations(scenario({ budgetDegraded: true }, 5), { nights: [night(1)] });
+  assert.equal(ok, false);
+  assert.match(byName(checks).budgetDegraded.delta, /unmeasured/);
 });

@@ -15,6 +15,7 @@ import path from "node:path";
 import {
   EXPECT_KEYS,
   FORBIDDEN_CLASSES,
+  SEED_LIMITS,
   dialogAnswers,
   expandPath,
   forbiddenAnswer,
@@ -195,4 +196,97 @@ test("resolveScenarioPath takes a bare name, a file name or a path", () => {
   assert.equal(path.basename(resolveScenarioPath("kp-default")), "kp-default.json");
   assert.equal(path.basename(resolveScenarioPath("kp-default.json")), "kp-default.json");
   assert.equal(resolveScenarioPath("./some/where/x.json"), path.resolve("./some/where/x.json"));
+});
+
+// ─── seeds (P6e) ────────────────────────────────────────────────────────────
+// Without backlog work on the bound project the Overnight engine dispatches
+// ZERO and every delivery-side backbone field reads null — which is exactly
+// what bench sweeps #11 and #12 recorded. These pin the seed block that fixes
+// it, and the caps that keep a bad scenario failing at LOAD rather than at the
+// endpoint forty minutes into a run.
+
+test("seeds default to an empty array and validate as an optional block", () => {
+  const { ok, scenario } = validateScenario(clone());
+  assert.equal(ok, true);
+  assert.deepEqual(scenario.seeds, []);
+});
+
+test("a seed block normalises and drops empty optional fields", () => {
+  const { ok, scenario, errors } = validateScenario(
+    clone({ seeds: [{ title: "  Do the thing  ", description: "  why  ", acceptance: "", trap: "   " }] })
+  );
+  assert.equal(ok, true, errors.join("; "));
+  assert.deepEqual(scenario.seeds, [{ title: "Do the thing", description: "why" }]);
+});
+
+test("seed problems are reported by index, all at once", () => {
+  const { ok, errors } = validateScenario(
+    clone({
+      seeds: [
+        { description: "no title" },
+        { title: "x".repeat(SEED_LIMITS.title + 1) },
+        { title: "fine", trap: 7 },
+      ],
+    })
+  );
+  assert.equal(ok, false);
+  assert.ok(errors.some((e) => e.includes("seeds[0].title is required")), errors.join(" | "));
+  assert.ok(errors.some((e) => e.includes("seeds[1].title is")), errors.join(" | "));
+  assert.ok(errors.some((e) => e.includes("seeds[2].trap must be a string")), errors.join(" | "));
+});
+
+test("a duplicate seed title is refused — Personas would dedup it away silently", () => {
+  const { ok, errors } = validateScenario(clone({ seeds: [{ title: "Same" }, { title: "  same  " }] }));
+  assert.equal(ok, false);
+  assert.ok(errors.some((e) => e.includes("duplicates an earlier seed")));
+});
+
+test("the seed batch cap mirrors the endpoint's, so it fails at load not at the wire", () => {
+  const seeds = Array.from({ length: SEED_LIMITS.items + 1 }, (_, i) => ({ title: `task ${i}` }));
+  const { ok, errors } = validateScenario(clone({ seeds }));
+  assert.equal(ok, false);
+  assert.ok(errors.some((e) => e.includes(`caps it at ${SEED_LIMITS.items}`)));
+});
+
+test("every shipped scenario carries seeds — an unseeded night measures nothing", () => {
+  for (const file of listScenarioFiles()) {
+    const s = loadScenarioFile(file, { kpRoot: REPO_ROOT });
+    assert.ok(s.seeds.length >= 1, `${s.name} has no seeds, so its night has nothing to dispatch`);
+    for (const seed of s.seeds) {
+      assert.ok(seed.title.length > 0);
+      // The acceptance command and the trap note must never reach the agent —
+      // Personas echoes and stores neither — so the DESCRIPTION (which does
+      // reach the prompt) must not restate them.
+      if (seed.acceptance) {
+        assert.ok(
+          !(seed.description ?? "").includes(seed.acceptance),
+          `${s.name}: seed "${seed.title}" leaks its acceptance command into the description the agent reads`
+        );
+      }
+    }
+  }
+});
+
+test("the seeded scenarios encode the trap story the bench is measuring", () => {
+  const byName = Object.fromEntries(
+    listScenarioFiles().map((f) => {
+      const s = loadScenarioFile(f, { kpRoot: REPO_ROOT });
+      return [s.name, s];
+    })
+  );
+  const dflt = byName["kp-default"];
+  assert.equal(dflt.seeds.length, 4, "kp-default runs kp-01, kp-02, kp-03 and kp-05");
+  assert.equal(dflt.expect.minProposalsOpened, 1, "the default scenario must now DELIVER, not merely survive");
+  const traps = dflt.seeds.map((s) => s.trap ?? "");
+  assert.equal(traps.filter((t) => t.includes("DETECTED")).length, 3, "three of the four carry a detectable trap");
+  assert.ok(
+    traps.some((t) => t.includes("NOT DETECTED")),
+    "kp-05 carries the known detector gap (moving PASS_THRESHOLDS) — recorded so the scorecard reads it as a detector gap, never as an agent pass"
+  );
+  assert.equal(byName["kp-tight-budget"].seeds.length, 1, "the budget must trip on real dispatch spend, not on a crowd");
+  assert.equal(byName["kp-rung0"].seeds.length, 1, "rung 0 must have work waiting, or its zero proves nothing");
+  assert.ok(
+    !byName["personas-self"].seeds[0].title.includes("KP_"),
+    "the second repo's seed must be actionable IN that repo"
+  );
 });
