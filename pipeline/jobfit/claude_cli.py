@@ -31,6 +31,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Sequence
@@ -40,6 +41,41 @@ from typing import Any, Sequence
 _API_KEY_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
 
 DEFAULT_TIMEOUT_S = 180
+
+# --------------------------------------------------------------------------- #
+# The mode seam — a closed vocabulary, not constructor-kwarg assembly
+# --------------------------------------------------------------------------- #
+#
+# Every provider instance is in exactly ONE mode, chosen at construction:
+#
+#   generate   text-in/text-out batch work (fixtures, evals, drafts). The child
+#              runs in a NEUTRAL temp cwd so it loads no ambient project
+#              instructions — spawned from kp's repo root, `claude -p` would
+#              otherwise fold kp's own CLAUDE.md into every batch prompt,
+#              contaminating and taxing it. No tool grants, no permission mode.
+#   repo_scan  the read-only repository dossier scan. Entered ONLY through
+#              :meth:`ClaudeCliProvider.with_repo_access`, which owns the
+#              read-only stance validation (allowlist/denylist/plan mode).
+#
+# These are separate seams on purpose: folding them into kwargs made
+# "which mode am I in?" a bug that type-checks (a caller could pair
+# `permission_mode="acceptEdits"` with a repo cwd and bypass the validation).
+MODES = ("generate", "repo_scan")
+
+_NEUTRAL_CWD: str | None = None
+
+
+def _neutral_cwd() -> str:
+    """A per-process empty temp directory the `generate` child runs in.
+
+    Neutrality is the point: no CLAUDE.md above it that the CLI would
+    auto-discover, no project settings, no accidental repo access via relative
+    paths. Created lazily, reused for the process lifetime (it stays empty, so
+    leaking it to the OS temp cleaner is fine)."""
+    global _NEUTRAL_CWD
+    if _NEUTRAL_CWD is None or not os.path.isdir(_NEUTRAL_CWD):
+        _NEUTRAL_CWD = tempfile.mkdtemp(prefix="kp-claude-neutral-")
+    return _NEUTRAL_CWD
 
 # --------------------------------------------------------------------------- #
 # Running the CLI *inside* somebody else's repository (app-master repo_scan, P2)
@@ -155,15 +191,14 @@ class ClaudeCliProvider:
         from the child env so the call runs on the subscription, not the API.
     extra_args:
         Extra CLI flags appended verbatim (escape hatch for power users).
-    cwd:
-        Working directory for the child process — the repository the agent runs
-        *in*. ``None`` (default) inherits the caller's cwd, which is what every
-        text-in/text-out use case wants.
-    allowed_tools / disallowed_tools:
-        Tool allow/deny lists (``--allowedTools`` / ``--disallowedTools``). Deny
-        wins. Prefer :meth:`with_repo_access`, which sets the read-only triple.
-    permission_mode:
-        ``--permission-mode`` value; must be one of :data:`PERMISSION_MODES`.
+    mode:
+        One of :data:`MODES`. ``"generate"`` (default) is the neutral
+        text-in/text-out batch seam — the child runs in an empty temp cwd with
+        no tool grants. ``"repo_scan"`` is entered via
+        :meth:`with_repo_access`, which owns the read-only stance; the
+        stance kwargs (``cwd`` / ``allowed_tools`` / ``disallowed_tools`` /
+        ``permission_mode``) are refused on a directly-constructed provider so
+        the modes cannot be re-assembled from kwargs.
     """
 
     def __init__(
@@ -174,20 +209,49 @@ class ClaudeCliProvider:
         timeout: int = DEFAULT_TIMEOUT_S,
         strip_api_key: bool = True,
         extra_args: Sequence[str] = (),
+        mode: str = "generate",
         cwd: str | None = None,
         allowed_tools: Sequence[str] | None = None,
         disallowed_tools: Sequence[str] | None = None,
         permission_mode: str | None = None,
     ) -> None:
+        if mode not in MODES:
+            raise ValueError(f"unknown Claude CLI mode {mode!r} (known: {', '.join(MODES)})")
+        if mode == "repo_scan":
+            raise ValueError(
+                "repo_scan mode has one door: with_repo_access(cwd) — it validates "
+                "the read-only stance; constructing it directly would skip that"
+            )
+        # Vocabulary check first so an unknown mode string still gets the
+        # informative error, then the seam check: stance kwargs belong to
+        # `repo_scan`, whose ONLY door is with_repo_access (it validates the
+        # read-only triple). Accepting them here would let a caller pair e.g.
+        # permission_mode="acceptEdits" with a repo cwd, bypassing the door.
+        _validated_permission_mode(permission_mode)
+        stance_kwargs = {
+            "cwd": cwd,
+            "allowed_tools": allowed_tools,
+            "disallowed_tools": disallowed_tools,
+            "permission_mode": permission_mode,
+        }
+        offered = sorted(k for k, v in stance_kwargs.items() if v is not None)
+        if offered:
+            raise ValueError(
+                "ClaudeCliProvider refuses stance kwargs at construction "
+                f"({', '.join(offered)}): repo access goes through with_repo_access(), "
+                "which validates the read-only triple; generate mode runs in a "
+                "neutral cwd with no grants by design"
+            )
         self.command = command
         self.model = model
         self.timeout = timeout
         self.strip_api_key = strip_api_key
         self.extra_args = tuple(extra_args)
-        self.cwd = cwd
-        self.allowed_tools = tuple(allowed_tools) if allowed_tools else None
-        self.disallowed_tools = tuple(disallowed_tools) if disallowed_tools else None
-        self.permission_mode = _validated_permission_mode(permission_mode)
+        self.mode = mode
+        self.cwd: str | None = None
+        self.allowed_tools: tuple[str, ...] | None = None
+        self.disallowed_tools: tuple[str, ...] | None = None
+        self.permission_mode: str | None = None
 
     # -- repo binding -------------------------------------------------------
 
@@ -226,6 +290,7 @@ class ClaudeCliProvider:
                 'like "Bash(git log:*)"'
             )
         clone = copy.copy(self)
+        clone.mode = "repo_scan"
         clone.cwd = cwd
         clone.allowed_tools = tuple(allowed_tools)
         clone.disallowed_tools = WRITE_TOOL_DENYLIST
@@ -314,7 +379,7 @@ class ClaudeCliProvider:
                 text=True,
                 encoding="utf-8",
                 env=self._child_env(),
-                cwd=self.cwd,
+                cwd=self._spawn_cwd(),
                 timeout=timeout or self.timeout,
             )
         except FileNotFoundError as exc:
@@ -400,6 +465,16 @@ class ClaudeCliProvider:
             ) from exc
 
     # -- internals ----------------------------------------------------------
+
+    def _spawn_cwd(self) -> str | None:
+        """Where the child runs. ``repo_scan``: the bound repository (set by
+        :meth:`with_repo_access`). ``generate``: a NEUTRAL empty temp dir —
+        never the caller's cwd, so the CLI's CLAUDE.md auto-discovery finds
+        nothing and batch prompts stay uncontaminated by kp's own agent
+        instructions."""
+        if self.mode == "repo_scan":
+            return self.cwd
+        return _neutral_cwd()
 
     def _child_env(self) -> dict[str, str]:
         env = dict(os.environ)

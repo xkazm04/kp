@@ -6,6 +6,7 @@ import unittest
 from contextlib import contextmanager
 from unittest import mock
 
+from pipeline.jobfit import claude_cli
 from pipeline.jobfit.claude_cli import (
     ClaudeCliError,
     ClaudeCliProvider,
@@ -105,6 +106,56 @@ class CompleteTest(unittest.TestCase):
         ):
             with self.assertRaises(ClaudeCliError):
                 ClaudeCliProvider().complete("x")
+
+
+class ModeSeamTest(unittest.TestCase):
+    """R1: mode is a closed vocabulary; generate runs in a neutral temp cwd."""
+
+    def test_generate_spawns_in_neutral_temp_cwd_not_callers(self) -> None:
+        # The regression this pins: spawned from kp's repo root, the CLI's
+        # CLAUDE.md auto-discovery folded kp's own agent instructions into
+        # every batch prompt. Generate mode must therefore NEVER inherit the
+        # caller's cwd.
+        with patched_cli(SUCCESS_ENVELOPE) as calls:
+            ClaudeCliProvider().complete("x")
+        spawn_cwd = calls["kwargs"]["cwd"]
+        self.assertIsNotNone(spawn_cwd)
+        self.assertNotEqual(os.path.abspath(spawn_cwd), os.path.abspath(os.getcwd()))
+        self.assertTrue(os.path.isdir(spawn_cwd))
+        self.assertEqual(os.listdir(spawn_cwd), [])  # neutral = empty
+        self.assertEqual(spawn_cwd, claude_cli._neutral_cwd())  # per-process, reused
+
+    def test_repo_scan_mode_spawns_in_the_bound_repo(self) -> None:
+        with patched_cli(SUCCESS_ENVELOPE) as calls:
+            ClaudeCliProvider().with_repo_access("/repo").complete("x")
+        self.assertEqual(calls["kwargs"]["cwd"], "/repo")
+
+    def test_with_repo_access_flips_the_mode(self) -> None:
+        provider = ClaudeCliProvider()
+        bound = provider.with_repo_access("/repo")
+        self.assertEqual(provider.mode, "generate")  # original untouched
+        self.assertEqual(bound.mode, "repo_scan")
+
+    def test_unknown_mode_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            ClaudeCliProvider(mode="yolo-mode")
+
+    def test_repo_scan_mode_not_constructible_directly(self) -> None:
+        # with_repo_access is the one door — it validates the read-only triple.
+        with self.assertRaises(ValueError):
+            ClaudeCliProvider(mode="repo_scan")
+
+    def test_stance_kwargs_refused_at_construction(self) -> None:
+        # The constructor-bypass hole the mode seam closes: pairing a repo cwd
+        # with a write-capable permission mode without with_repo_access.
+        for kwargs in (
+            {"cwd": "/repo"},
+            {"permission_mode": "acceptEdits"},
+            {"allowed_tools": ("Read",)},
+            {"disallowed_tools": ("Write",)},
+        ):
+            with self.assertRaises(ValueError, msg=f"kwargs={kwargs}"):
+                ClaudeCliProvider(**kwargs)
 
 
 class ApiKeyEnvTest(unittest.TestCase):
