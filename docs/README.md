@@ -8,10 +8,10 @@ still proposed.
 | Need | Start here |
 | --- | --- |
 | What the product does today | [features/](features/README.md) |
-| Cross-cutting implementation contracts | [architecture/](architecture/) |
+| Cross-cutting implementation contracts | [architecture/README.md](architecture/README.md) — runtime shape, source tree, engines, pipeline stages, and the per-concern docs |
 | Design system, tokens, both themes | [design/README.md](design/README.md) |
-| How to build, test, evaluate, calibrate | [development/](development/) |
-| Market position, roadmap, enterprise track | [product/](product/) |
+| How to build, test, evaluate, calibrate | [development/README.md](development/README.md) — verification commands, eval harness, model benchmarks, CLI reference, DevInspector, logging |
+| Market position, roadmap, enterprise track | [product/](product/) — including the [salary data sources](product/salary-data-sources.md) the anchor bands were calibrated against |
 | Proposals not yet implemented | [concepts/](concepts/) |
 | Superseded material, kept for context | [_archive/](_archive/) |
 | Known doc gaps and follow-ups | [BACKLOG.md](BACKLOG.md) |
@@ -23,7 +23,9 @@ still proposed.
 - **`docs/features`** describes what is implemented in the current app, one folder per
   feature area. Every claim should be checkable against a real file path.
 - **`docs/architecture`** documents cross-cutting contracts — the LLM provider layer, the
-  persistence backend, the self-hosting story, the app's folder structure, and
+  persistence backend and [workspace data](architecture/workspace-data.md) (seeding,
+  dump & restore), [result caching](architecture/result-caching.md), the self-hosting
+  story, [engine setup](architecture/engine-setup.md), the app's folder structure, and
   [localization](architecture/localization.md) (the four-locale contract: where English is
   allowed, how API errors resolve, number/date formatting, and what the lint cannot see).
 - **`docs/design`** is the dual-theme design system (Studio Light + Spark Dark). Read it
