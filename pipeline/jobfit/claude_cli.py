@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import copy
 import json
+import logging
 import os
 import re
 import shutil
@@ -115,14 +116,52 @@ def _neutral_cwd() -> str:
 # `--permission-mode plan` (which refuses edits at the session level) — rather
 # than by trusting the prompt to ask nicely.
 #
-# Flags verified against `claude --help` on 2026-08-23:
+# Flags verified against `claude --help` on 2026-08-23, re-verified 2026-08-25
+# against CLI :data:`VERIFIED_CLI_VERSION`:
 #   --allowedTools <tools...>       comma- or space-separated; passed as ONE
 #                                   comma-joined argument so the variadic option
 #                                   cannot swallow the flags that follow it
 #   --disallowedTools <tools...>    same grammar; deny wins over allow
 #   --permission-mode <mode>        acceptEdits | auto | bypassPermissions |
 #                                   manual | dontAsk | plan
+#   --setting-sources <sources>     comma-separated (user, project, local)
+#   --version / auth status --json  the probe pair (see probe())
 # `--add-dir` is deliberately NOT used: the scan is confined to `cwd`.
+
+# The CLI version the dated flag/probe rows above and below were verified
+# against. These tools ship weekly, so the pins rot silently otherwise: at
+# runtime the version is probed once per process and a DRIFT WARNING is logged
+# (never a failure — the old data usually still holds) when the installed CLI
+# has moved past this, so an argument error points first at the matrix rows,
+# not at the model. Recompute: re-run `claude --help` / `claude auth status
+# --json` / a live `--setting-sources project` smoke, refresh the dated
+# comments, and bump this constant.
+VERIFIED_CLI_VERSION = "2.1.245"
+
+_log = logging.getLogger(__name__)
+_VERSION_DRIFT_CHECKED = False
+
+
+def _warn_on_version_drift(executable: str) -> None:
+    """Once per process, compare the installed CLI to the verified pin (R5).
+
+    Cheap by construction: one `--version` subprocess on the first real call
+    (cached by :func:`_cli_version`), nothing afterwards. Log-only — serving
+    on stale rows is allowed, but the staleness must be visible."""
+    global _VERSION_DRIFT_CHECKED
+    if _VERSION_DRIFT_CHECKED:
+        return
+    _VERSION_DRIFT_CHECKED = True
+    version = _cli_version(executable)
+    if version and version != VERIFIED_CLI_VERSION:
+        _log.warning(
+            "Claude CLI %s differs from the version this module's flag/probe "
+            "contract was verified against (%s). If a call fails on an argument "
+            "error, suspect the dated capability rows in claude_cli.py first — "
+            "re-verify against `claude --help` and bump VERIFIED_CLI_VERSION.",
+            version,
+            VERIFIED_CLI_VERSION,
+        )
 
 PERMISSION_MODES = ("acceptEdits", "auto", "bypassPermissions", "manual", "dontAsk", "plan")
 
@@ -544,6 +583,7 @@ class ClaudeCliProvider:
             full_prompt = f"<system>\n{system.strip()}\n</system>\n\n{prompt}"
 
         args = self.cli_args()
+        _warn_on_version_drift(args[0])  # once per process; log-only (R5)
 
         try:
             completed = subprocess.run(

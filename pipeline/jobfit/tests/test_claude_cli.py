@@ -258,6 +258,37 @@ class ApiKeyEnvTest(unittest.TestCase):
             self.assertNotIn(key, child_env, key)
 
 
+class VersionDriftTest(unittest.TestCase):
+    """R5: the dated flag pins are re-verification-triggered by version drift."""
+
+    def setUp(self) -> None:
+        claude_cli._VERSION_CACHE.clear()
+        claude_cli._VERSION_DRIFT_CHECKED = False
+
+        def restore() -> None:
+            claude_cli._VERSION_CACHE.clear()
+            claude_cli._VERSION_DRIFT_CHECKED = True  # keep other tests quiet
+
+        self.addCleanup(restore)
+
+    def test_drifted_version_logs_once_and_never_fails(self) -> None:
+        with patched_probe(SUCCESS_ENVELOPE, version_stdout="9.9.9 (Claude Code)"):
+            provider = ClaudeCliProvider()
+            with self.assertLogs("pipeline.jobfit.claude_cli", level="WARNING") as logs:
+                res = provider.complete("x")  # runs fine — warn, don't fail
+                provider.complete("x")  # second call: no second warning
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn("9.9.9", logs.output[0])
+        self.assertIn(claude_cli.VERIFIED_CLI_VERSION, logs.output[0])
+        self.assertEqual(res.text, "pong")
+
+    def test_matching_version_stays_silent(self) -> None:
+        version = f"{claude_cli.VERIFIED_CLI_VERSION} (Claude Code)"
+        with patched_probe(SUCCESS_ENVELOPE, version_stdout=version):
+            with self.assertNoLogs("pipeline.jobfit.claude_cli", level="WARNING"):
+                ClaudeCliProvider().complete("x")
+
+
 class StdoutCapTest(unittest.TestCase):
     def test_runaway_stdout_is_a_named_failure(self) -> None:
         # R4: a normal envelope is kilobytes; anything past the 4 MB cap is a
