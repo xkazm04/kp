@@ -509,18 +509,19 @@ clean arm stays empty until ≈500 would-be auto-rejects accrue
 by default) — so its recertify verifies the *handle and the disclosure*, and the
 accrual horizon copy, not a populated curve.
 
-## Registry conformance — agent-cli-transport (2026-08-25)
+## Registry conformance — agent-cli-transport (2026-08-25) — DONE 2026-08-25
 
 Actionable deviations from the conformance audit of `pipeline/jobfit/claude_cli.py`
-against the registry's `agent-cli-transport` subject. Full per-technique verdicts with
-file:line evidence: `.ai/registry-conformance.md`. The read-only-scan hardening and the
-subscription env-strip audited **followed/strong** — these items are the residue.
+against the registry's `agent-cli-transport` subject. All six implemented the same
+day (commits `b249e220`, `bcf840f7`, `99b4fa81` [R3+R4], `5743d7fb`, `f22ff019`);
+post-hardening per-technique verdicts with fresh file:line evidence — all
+**followed**, with the accepted residue named — in `.ai/registry-conformance.md`.
 
-| # | Item | Effort |
-| --- | --- | --- |
-| R1 | **Typed mode seam + neutral generate cwd.** ClaudeCliProvider has no closed `mode` vocabulary; stance comes from constructor kwargs, so a caller can pair `permission_mode="acceptEdits"` with a repo `cwd` without `with_repo_access`'s validation. Worse for quality: the default (generate) path inherits the caller's cwd, so `claude -p` loads ambient project instructions — kp's own CLAUDE.md when the pipeline runs from repo root — into every batch/fixture/eval prompt, contaminating and taxing them. Add `mode: generate \| readonly-scan`, generate in a neutral temp cwd. | M |
-| R2 | **Zero-token auth probe.** `available()` proves install (shutil.which) but never authorization: a logged-out CLI reports available and fails on the first paid call. Add a `probe()` using the CLI's auth-status command where the installed version offers one; result is authorized / unauthorized / unknown, never inferred from a credential file. | S |
-| R3 | **Strip session-nesting markers.** `_child_env` strips the billing keys but not the vendor session markers (`CLAUDECODE` et al.), and kp batch runs are routinely launched from inside agent sessions; the child may detect a nested session. Pop them beside the keys; pin in the child-env test. | S |
-| R4 | **Stdout cap + user-config isolation.** Captured stdout is unbounded, and no isolation flag shields the parse from user hooks that print after the envelope (the strict whole-string `json.loads` then fails). Cap the buffer; pass the strongest settings-isolation flag that keeps seat auth working (verify against `--help`, date the comment). | S |
-| R5 | **Version-triggered re-verification.** The permission/tool flags are pinned by a comment dated 2026-08-23, but nothing records the CLI version, so a CLI update rots the pin silently and argument errors read as model failures. Record the version per process; log staleness when it moves past the verified date. | M |
-| R6 | **Named descent reasons.** `available()` returns a bare False, so KP_OFFLINE (policy) and not-installed look identical downstream and `emit_deterministic` cannot say why the floor served. Adopt the voice modules' `(bool, reason)` shape and thread the reason into the ledger. | S |
+| # | Item | Effort | Status |
+| --- | --- | --- | --- |
+| R1 | **Typed mode seam + neutral generate cwd.** Closed `mode` vocabulary (`generate \| repo_scan`); stance kwargs refused at construction, `with_repo_access` is repo_scan's one door; generate spawns in a per-process empty temp cwd so kp's own CLAUDE.md stops contaminating batch prompts. | M | done — `b249e220` |
+| R2 | **Zero-token auth probe.** `probe()` runs `claude auth status --json` (verified live, CLI 2.1.245) under the real child env; record result with ready / installed_unauthed / not_installed / policy_forbidden / unknown, version, auth method, plan tier. | S | done — `bcf840f7` |
+| R3 | **Strip session-nesting markers.** `CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT`, `CLAUDE_CODE_SSE_PORT`, `CLAUDE_CODE_SIMPLE` popped unconditionally beside the billing keys; test-pinned. | S | done — `99b4fa81` |
+| R4 | **Stdout cap + user-config isolation.** 4MB cap (retention-bound; kill-on-breach recorded as accepted residue) + `--setting-sources project` for generate (`--bare` rejected: it flips auth to API-key-only). | S | done — `99b4fa81` |
+| R5 | **Version-triggered re-verification.** `VERIFIED_CLI_VERSION = "2.1.245"` beside the dated flag rows; one cached `--version` probe per process warns (never fails) on drift. | M | done — `5743d7fb` |
+| R6 | **Named descent reasons.** `availability()` → `(bool, reason)` (`offline_policy` vs `not_installed`), shared `provider_availability` predicate, reason (+ `disabled` for `--no-llm`) threaded into `emit_deterministic`'s ledger line across all seven CLI seats. | S | done — `f22ff019` |

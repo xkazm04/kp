@@ -1,5 +1,5 @@
 # Registry conformance — software-engineering
-contributor: kazda-dev-box · audited: 2026-08-25
+contributor: kazda-dev-box · audited: 2026-08-25 · re-verified after hardening: 2026-08-25
 
 Scope of this audit: subject `agent-cli-transport` (bundle digest
 `sha256:f397e66be7bcad4f`) against context `py-llm-runtime` —
@@ -10,44 +10,35 @@ Earlier verdicts (2026-08-23, three UI/recruiting pairs) live as pair states in
 cannot. The borrowed `spawn-contract` / `termination-and-reaping` techniques
 were not judged here (subprocess-lifecycle is its own subject).
 
+The R1–R6 deviations recorded in the first pass were implemented the same day
+(commits `b249e220`, `bcf840f7`, `99b4fa81`, `5743d7fb`, `f22ff019`); the table
+below is the post-hardening state, evidence lines against that tree.
+
 | subject | technique | status | evidence |
 |---|---|---|---|
-| agent-cli-transport | (golden-path transport contract) | deviation | No typed closed `mode`: stance is assembled from constructor kwargs (claude_cli.py:169-190), so a caller can pair `permission_mode="acceptEdits"` with a repo `cwd` without `with_repo_access`'s validation; and the generate path inherits the caller's cwd by design (claude_cli.py:157-161), so the child loads ambient project instructions (kp's own CLAUDE.md when run from repo root) into every batch prompt — the contract requires a neutral working directory for `generate`. |
-| agent-cli-transport | availability-probe | partial | available() (claude_cli.py:256-266) proves install via shutil.which — the same resolution the spawn uses (_executable:277, the Windows .CMD shim case handled) — and enforces the KP_OFFLINE policy veto before any filesystem lookup (:260-266, llm/offline.py:35). But it never proves authorization: a logged-out CLI reports available and fails only on the first paid call; no version capture, no three-valued result, no probe record. |
-| agent-cli-transport | subscription-auth-selection | partial | Strip of ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN at the single spawn door, applied after env construction (claude_cli.py:40, :404-409), default-on with the metered path an explicit constructor choice, pinned by a test that reads the child env (tests/test_claude_cli.py:111-121). Missing only the session-nesting hygiene: vendor session markers (CLAUDECODE etc.) ride into the child, and kp batch runs are routinely launched from inside agent sessions. |
-| agent-cli-transport | output-normalization | partial | Single-result-object dialect parsed once (claude_cli.py:411-445); stderr kept separate and carried on errors (capture_output, ClaudeCliError.stderr:118-121); stdin fed and closed (input=, :312); envelope error state authoritative with the tool's subtype surfaced as a value (:427-434); bounded raw prefix on unparseable output (:420-422); empty output is a named failure (:413); last-value extraction ladder with fenced-block preference and expected_keys pinning (:472-500). Missing: no byte cap on accumulated stdout; no user-config isolation flag, so a user hook printing after the envelope breaks the strict whole-string parse; no rung telemetry on the extraction ladder. |
-| agent-cli-transport | permission-stance-enforcement | followed | Three layers worn together: `--permission-mode plan` (claude_cli.py:69), scoped allowlist with git-subcommand scoping and a bare-Bash refusal (:74-81, :222-227), write-tool denylist where deny beats allow (:85-91) — all behind one door (`with_repo_access`:194-235) that raises on write-capable requests; mode vocabulary validated pre-spawn (:99-112); variadic lists comma-joined (:247-250); argv assertable without spawning (cli_args:237). Edit stance n/a — kp never runs the CLI in edit mode. |
-| agent-cli-transport | dated-capability-matrix | partial | The miniature discipline the technique endorses is present — flags pinned with "verified against `claude --help` on 2026-08-23" (claude_cli.py:56-63) — and features declare required capabilities against a provider matrix that gates routing at resolve time (llm/capabilities.py:24-85, unsupported_caps:161-164). But no version probe exists anywhere, so nothing marks the dated rows stale when the CLI updates; the comment rots silently. |
-| agent-cli-transport | fallback-ladder | partial | The ladder is realized and labeled: CLI seat → metered API adapters behind the same surface (llm/registry.py, llm/base.py) → deterministic floor as a stated product property (automation.py:4, campaign.py:19, match_reasoning.py:5), with floor serves ledger-recorded (emit_deterministic, llm/monitor.py:165-184) and dossier `source` kept honest (llm/capabilities.py:65-70); `available()` is the one shared predicate, offline policy centralized (llm/offline.py). Missing: descent reason — available() returns a bare False, so policy-forbidden (KP_OFFLINE) and binary-missing are indistinguishable downstream, exactly the confusion the technique warns repairs the wrong cause. |
+| agent-cli-transport | (golden-path transport contract) | followed | Typed closed `mode` vocabulary (MODES, claude_cli.py:90) as separate seams, not one parameterized function: stance kwargs are refused at construction (:344-370) so `permission_mode="acceptEdits"` can no longer be paired with a repo cwd outside the door; `repo_scan` is constructible ONLY via `with_repo_access` (:346-350, :384-427), which validates the read-only triple and flips the mode (:421); `generate` spawns in a per-process empty temp cwd (`_spawn_cwd`:706-715, `_neutral_cwd`:95-105) so the CLI's CLAUDE.md auto-discovery finds nothing — pinned by a test asserting the spawn cwd is neutral, empty, and not the caller's (tests/test_claude_cli.py ModeSeamTest). |
+| agent-cli-transport | availability-probe | followed | `probe()` (claude_cli.py:487-568) answers install and authorization separately, zero-token: `claude auth status --json` verified live 2026-08-25 against CLI 2.1.245, run under the same stripped child env the real spawn gets; result is a record (ClaudeCliProbe:268 — status/path/version/auth_method/subscription_type/detail) with a closed status vocabulary (:228-232) in which `unknown` renders as unknown, never a neighbor (:540-550); version captured leniently and cached per executable (`_cli_version`:240-263); the KP_OFFLINE policy veto comes first, before any filesystem lookup, and names itself `policy_forbidden` (:505-510). `available()` stays the cheap shared predicate (:478). |
+| agent-cli-transport | subscription-auth-selection | followed | Billing-key strip at the single spawn door, applied after env construction (claude_cli.py:41, :716-726), default-on with metered an explicit constructor choice, test-pinned on the child's real env (tests/test_claude_cli.py ApiKeyEnvTest). Session-nesting hygiene now included: `_SESSION_MARKER_ENV` (:52-58 — CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, CLAUDE_CODE_SSE_PORT, CLAUDE_CODE_SIMPLE) popped unconditionally (:723-724), not gated on strip_api_key — an inherited CLAUDE_CODE_SIMPLE would flip the child into `--bare`'s API-key-only auth. Pinned by test_session_markers_stripped_unconditionally. |
+| agent-cli-transport | output-normalization | followed | Single-result-object dialect parsed once (_parse_envelope, claude_cli.py:727-761); stderr kept separate and carried on errors; stdin fed and closed; envelope error state authoritative with subtype surfaced (:743-750); bounded raw prefix on unparseable output; empty output a named failure; last-value extraction with fenced-block preference and expected_keys pinning (`_extract_json`:788+). New: 4MB stdout cap (MAX_STDOUT_BYTES:70, enforced :626-632) — honest residue: subprocess.run buffers fully, so the cap bounds retention/parse, not the child's peak accumulation (kill-on-breach would replace the run seam with a Popen read loop; recorded, accepted); user-config isolation for generate via `--setting-sources project` (:435-443, verified live 2026-08-25, seat auth intact; `--bare` rejected because its help pins auth to ANTHROPIC_API_KEY — the billing flip the strip prevents). Remaining nice-to-have, not load-bearing: no rung telemetry on the extraction ladder. |
+| agent-cli-transport | permission-stance-enforcement | followed | Unchanged three layers (`--permission-mode plan`, scoped allowlist with bare-Bash refusal, write-tool denylist where deny beats allow) behind one door (`with_repo_access`:384-427), now STRENGTHENED by the mode seam: the stance can no longer be assembled from constructor kwargs at all (:344-370), and mode vocabulary is validated pre-spawn (:341-345). Argv assertable without spawning (cli_args:428). |
+| agent-cli-transport | dated-capability-matrix | followed | Flag rows carry dates and the version they were verified against (claude_cli.py:117-127, re-verified 2026-08-25 against `claude --help`), `VERIFIED_CLI_VERSION = "2.1.245"` (:139) names the pin, the comment names its own recomputation (:130-138), and drift is version-TRIGGERED at runtime: `_warn_on_version_drift` (:145-163) probes once per process (cached `--version` subprocess on the first real call, complete():608) and logs a warning pointing argument errors at the matrix rows first — log-only, never a failure, per the technique ("may keep serving on the old data, but the staleness is visible"). Feature capability gating unchanged (llm/capabilities.py). |
+| agent-cli-transport | fallback-ladder | followed | Ladder unchanged (CLI seat → metered adapters → deterministic floor, ledger-recorded, `source` honest). Descent now carries its reason: `availability()` returns `(bool, reason)` with `offline_policy` distinguished from `not_installed` (claude_cli.py:459-477 — the voice modules' shape), the shared predicate `provider_availability` covers every adapter (llm/registry.py:116-135; bare-bool adapters collapse to generic `unavailable`), and all seven Python CLI seats thread it — plus `disabled` for `--no-llm` — into `emit_deterministic(use_case, reason=…)`, which writes an optional `reason` key on the deterministic sidecar line (llm/monitor.py:165-210). Policy-forbidden reads as forbidden-by-policy in the descent record, not as binary-missing. |
 
 ## Deviations backlog
 
-Ranked by value; effort in brackets. Mirrored in `docs/BACKLOG.md` § Registry
-conformance — agent-cli-transport.
+The 2026-08-25 backlog (R1–R6, mirrored in `docs/BACKLOG.md` § Registry
+conformance — agent-cli-transport) is fully implemented and the items are
+marked done there. Accepted residue, recorded rather than hidden:
 
-1. [M] **Typed mode seam with a neutral generate cwd.** Introduce a closed
-   `mode` vocabulary (`generate` | `readonly-scan`) on ClaudeCliProvider;
-   `generate` spawns in a neutral temp cwd so ambient project instructions
-   (kp's own CLAUDE.md) stop contaminating and taxing every batch prompt;
-   `with_repo_access` becomes the `readonly-scan` constructor. Closes the
-   golden-path deviation and the constructor-bypass hole.
-2. [S] **Zero-token authorization probe.** Beside `available()`, a `probe()`
-   that runs the installed CLI's auth-status command where the version offers
-   one (verify against `--help`; record as a dated matrix row) and returns
-   authorized / unauthorized / unknown — never inferring authorized from a
-   credential file or a which() hit.
-3. [S] **Session-nesting marker strip.** Pop the vendor session markers
-   (CLAUDECODE and companions) in `_child_env` alongside the billing keys, and
-   extend the child-env test to pin it.
-4. [S] **Stdout cap + user-config isolation.** Bound the captured stdout with
-   the child killed on breach; pass the strongest user-settings isolation flag
-   that does not break seat auth (verify against `--help`, date the comment) so
-   user hooks cannot append noise after the envelope.
-5. [M] **Version-triggered re-verification.** Record the CLI version on first
-   use per process (or in the probe record); when it differs from the version
-   the dated flag comments were verified against, log the staleness so argument
-   errors point first at the matrix, not the model.
-6. [S] **Named descent reasons.** Let availability carry its reason (offline
-   policy vs not installed) — the sibling voice modules' `(bool, reason)` shape
-   already models this — and thread it into `emit_deterministic` so a fleet
-   living on the floor is diagnosable.
+- **Cap is retention-bound, not accumulation-bound** (output-normalization):
+  `subprocess.run` buffers the whole stream before the 4MB check; killing the
+  child mid-stream on breach would mean a Popen read loop with its own
+  timeout/stderr threading, which the mocked-`subprocess.run` test harness and
+  the Windows `.CMD` shim handling both pin. Revisit only if a real runaway is
+  ever observed.
+- **No rung telemetry on the JSON-extraction ladder** (output-normalization):
+  the ladder itself (direct → fenced → scan, last-value, expected_keys) is
+  present; which rung fired is not recorded. Enhancement, not a contract rule.
+- **Non-CLI adapters still answer a bare bool** (fallback-ladder): their
+  descent reason collapses to generic `"unavailable"` until `availability()`
+  is modeled on each adapter (missing-key vs missing-SDK).

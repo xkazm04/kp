@@ -1832,8 +1832,8 @@
           "bundle": "software-engineering",
           "source": "conform",
           "confidence": "strong",
-          "state": "deviation",
-          "evidence": "claude_cli.py: the readonly-scan stance (with_repo_access:194) and seat strip (_child_env:404, test-pinned) are the standard's own pattern, but there is no typed mode - generate inherits the caller's cwd (:160) so the child loads ambient project instructions - available():256 proves install, never authorization, and the 2026-08-23 dated flags (:57) have no version trigger for re-verification. Per-technique table: .ai/registry-conformance.md",
+          "state": "conformant",
+          "evidence": "claude_cli.py after the R1-R6 hardening (commits b249e220..f22ff019): typed closed mode (MODES:90) with generate in a neutral temp cwd (_spawn_cwd:706, _neutral_cwd:95) and with_repo_access as repo_scan's one door (:384); zero-token probe via `claude auth status --json` (probe:487) with version capture (_cli_version:240); session-marker strip beside the billing keys (_SESSION_MARKER_ENV:52, _child_env:716, test-pinned); 4MB stdout cap (:70, enforced :627 - retention-bound, kill-on-breach accepted residue) + --setting-sources project isolation (:443, --bare rejected as an auth flip); version-drift warning against VERIFIED_CLI_VERSION 2.1.245 (:139, _warn_on_version_drift:145); availability carries descent reasons threaded into emit_deterministic (availability:459, llm/registry.py provider_availability, llm/monitor.py reason key). Per-technique table: .ai/registry-conformance.md",
           "evaluatedAt": "2026-08-25",
           "evaluatedAgainst": "sha256:f397e66be7bcad4f"
         }
