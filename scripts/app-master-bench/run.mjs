@@ -17,7 +17,8 @@
 //   dispatch    POST /api/agents/dispatch {intakeId} →  POST /api/kp/persona-requests
 //   activate    POST /api/agents/[id]/refresh until active
 //   seed        POST /api/kp/test/seed-work  (the scenario's bench-protocol tasks)
-//   nights      N × (POST /api/kp/test/tick → GET /api/agents, record the backbone)
+//   nights      N × (tick overnight → SETTLE on reconcile polls → tick report
+//                    → GET /api/agents, record the backbone)
 //   probation   POST /api/kp/test/tick {phases:["probation"]} → record the decision
 //
 // Everything lands in bench/app-master/runs/<stamp>-<scenario>/ as journal.jsonl
@@ -31,7 +32,7 @@
 // tick is a call the driver makes, not one kp makes. The driver's key is cached
 // in the bench root so a second run does not re-pair.
 
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -45,10 +46,18 @@ import {
   personasClient,
   poll,
   runStamp,
+  sleep,
   verdictBanner,
 } from "./lib.mjs";
 import { dialogAnswers, listScenarioFiles, loadScenarioFile, resolveScenarioPath } from "./scenarios.mjs";
-import { evaluateExpectations, extractBackboneReading } from "./expectations.mjs";
+import {
+  evaluateExpectations,
+  extractBackboneReading,
+  mergeReadings,
+  phaseCounts,
+  phaseEntry,
+  readingFromRoster,
+} from "./expectations.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const DEFAULT_BENCH_ROOT = path.join(REPO_ROOT, "bench", "app-master");
@@ -63,6 +72,168 @@ function findFirst(node, key, guard = { n: 0 }) {
     if (hit !== undefined) return hit;
   }
   return undefined;
+}
+
+// ─── the night: overnight → settle → report ─────────────────────────────────
+//
+// One tick per PHASE, not one tick for the lot, and that is the whole point.
+// `overnight` DISPATCHES fleet sessions — live Claude Code sessions that go on
+// to author branches asynchronously — and then returns. `reconcile` is what
+// walks those branches into proposals and records their gate outcomes. Calling
+// both in one tick reconciles a fleet that has not written anything yet: the
+// 2026-08-25 sweep dispatched 3 and reconciled 173 ms later, saw
+// `branchesSeen: 0`, and the delivery/gate lanes stayed structurally unmeasured
+// for the rest of the run.
+//
+// So a night now: tick `overnight`, and if it dispatched anything, SETTLE —
+// re-tick `reconcile` on a poll interval until the dispatch is accounted for,
+// the counts stop moving, or the settle budget runs out — and only then tick
+// `report`, which is what pushes the rollup kp scores the roster row from.
+
+/** How many sessions an overnight tick says it dispatched. `null` = it did not
+ *  say, which is NOT zero: a driver that read an absence as zero would skip the
+ *  settle wait exactly when the summary shape moved. */
+export function dispatchedCount(summary) {
+  const counts = phaseCounts(summary, "overnight");
+  if (typeof counts?.dispatched === "number") return counts.dispatched;
+  const entry = phaseEntry(summary, "overnight");
+  if (typeof entry?.dispatchedCount === "number") return entry.dispatchedCount;
+  return null;
+}
+
+/**
+ * How much of a dispatch ONE reconcile answer accounts for: the branches it
+ * saw, or the proposals it newly recorded plus the ones it gated. `null` when
+ * the answer carried none of the three — an unreported reconcile is not a
+ * reconcile that found nothing.
+ */
+export function accountedBy(counts) {
+  if (!counts || typeof counts !== "object") return null;
+  const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const seen = num(counts.branchesSeen);
+  const recorded = num(counts.newlyRecorded);
+  const gated = num(counts.gated);
+  if (seen === null && recorded === null && gated === null) return null;
+  return Math.max(seen ?? 0, (recorded ?? 0) + (gated ?? 0));
+}
+
+/** Merge the per-phase tick summaries of one night into the single summary the
+ *  night record carries. Both wire shapes survive: an array of phase results
+ *  (the real bridge, §13.6) concatenates, an object map (the stub) merges, and
+ *  a run that somehow saw both keeps every entry. */
+export function mergeTickSummaries(summaries) {
+  const kept = (summaries ?? []).filter((s) => s && typeof s === "object" && !Array.isArray(s));
+  if (kept.length === 0) return null;
+  const merged = {};
+  let asArray = null;
+  let asObject = null;
+  for (const summary of kept) {
+    for (const [key, value] of Object.entries(summary)) {
+      if (key !== "phases") merged[key] = value;
+    }
+    const phases = summary.phases;
+    if (Array.isArray(phases)) asArray = (asArray ?? []).concat(phases);
+    else if (phases && typeof phases === "object") asObject = { ...(asObject ?? {}), ...phases };
+  }
+  if (asArray && asObject) {
+    merged.phases = asArray.concat(Object.entries(asObject).map(([phase, body]) => ({ phase, ...body })));
+  } else if (asArray) merged.phases = asArray;
+  else if (asObject) merged.phases = asObject;
+  return merged;
+}
+
+/**
+ * Wait out the dispatched fleet, one `reconcile` tick per poll.
+ *
+ * Stops on the FIRST of: the dispatch is accounted for; the counts have not
+ * moved across three consecutive polls (the fleet failed, or authored nothing);
+ * the settle budget elapsed. Every poll is journalled as it happens, so a night
+ * that never settled is readable evidence rather than a silent wait.
+ */
+export async function settleDispatch({
+  tickReconcile,
+  journal,
+  night,
+  dispatched,
+  pollMs,
+  timeoutMs,
+  now = () => Date.now(),
+  wait = sleep,
+  stallPolls = 3,
+}) {
+  const startedAt = now();
+  const record = {
+    dispatched,
+    pollMs,
+    timeoutMs,
+    polls: [],
+    accounted: null,
+    stoppedBy: null,
+    ms: 0,
+    lastSummary: null,
+  };
+  if (!(typeof dispatched === "number" && dispatched > 0)) {
+    record.stoppedBy = dispatched === null ? "dispatch-unreported" : "nothing-dispatched";
+    journal?.write("settle-skip", {
+      night,
+      dispatched,
+      reason:
+        dispatched === null
+          ? "the overnight tick reported no dispatch count — nothing to wait for, and nothing to claim was waited for"
+          : "overnight dispatched nothing: no fleet session is authoring a branch tonight",
+    });
+    return record;
+  }
+
+  const totals = { branchesSeen: 0, newlyRecorded: 0, gated: 0 };
+  let accounted = 0;
+  let flat = 0;
+  for (let pollNo = 1; ; pollNo++) {
+    const answer = await tickReconcile();
+    const summary = answer?.summary ?? null;
+    if (summary) record.lastSummary = summary;
+    const counts = phaseCounts(summary, "reconcile");
+    const step = accountedBy(counts);
+    if (counts) {
+      for (const key of Object.keys(totals)) {
+        if (typeof counts[key] === "number" && Number.isFinite(counts[key])) totals[key] += counts[key];
+      }
+    }
+    const before = accounted;
+    accounted = Math.max(totals.branchesSeen, totals.newlyRecorded + totals.gated);
+    const entry = {
+      night,
+      poll: pollNo,
+      atMs: now() - startedAt,
+      ok: answer?.ok !== false,
+      counts: counts ?? null,
+      step,
+      accounted,
+      dispatched,
+      ...(answer?.error ? { error: answer.error } : {}),
+    };
+    record.polls.push(entry);
+    journal?.write("settle-poll", entry);
+
+    if (accounted >= dispatched) {
+      record.stoppedBy = "accounted";
+      break;
+    }
+    flat = accounted > before ? 0 : flat + 1;
+    if (flat >= stallPolls) {
+      record.stoppedBy = "stalled";
+      break;
+    }
+    const elapsed = now() - startedAt;
+    if (elapsed >= timeoutMs || elapsed + pollMs > timeoutMs) {
+      record.stoppedBy = "timeout";
+      break;
+    }
+    await wait(pollMs);
+  }
+  record.accounted = accounted;
+  record.ms = now() - startedAt;
+  return record;
 }
 
 /** Status → the probation decision it implies, when the reporter named none.
@@ -124,7 +295,155 @@ async function runScenario(scenario, opts) {
       journal.write("throttled", { route, attempt, waitMs, note: "kp rate-limited this route; waiting out its fixed window" });
     },
   });
-  const personas = personasClient(opts.personasUrl, opts.personasKey ?? null);
+  // ── pairing, and re-pairing ───────────────────────────────────────────────
+  //
+  // BOTH keys in this loop EXPIRE. Personas' headless auto-pair mints 24-hour
+  // keys, and sweep #15 (2026-08-25) ran across that boundary: the driver's
+  // cached key answered `401 invalid api key` on `POST /api/kp/test/seed-work`,
+  // and kp's own bridge key answered 401 too, surfacing as
+  // `502 Personas responded 401` on `POST /api/agents/dispatch`. Neither is a
+  // broken server and neither should end a 40-minute run — but neither may be
+  // papered over either, so each repair is JOURNALLED with the route that
+  // exposed it, and each is attempted exactly once per call.
+  let repairedDriverKeys = 0;
+  let repairedKpKeys = 0;
+
+  /** Mint a fresh `personas:test` key for the driver and cache it. */
+  const pairDriverKey = async () => {
+    const nonce = randomBytes(24).toString("hex");
+    const asked = await personas.post(
+      "/pair/request",
+      { nonce, scopes: ["personas:read", "personas:test"], client: { name: "kp app-master bench", kind: "cli" } },
+      { timeoutMs: 30_000 }
+    );
+    if (!asked.ok) throw new PhaseError("pair", `POST /pair/request refused the driver: ${asked.status} ${asked.text.slice(0, 200)}`);
+    const claimed = await poll(
+      async () => {
+        const res = await personas.get(`/pair/claim?nonce=${encodeURIComponent(nonce)}`, { timeoutMs: 30_000 });
+        const k = res.json?.token ?? res.json?.apiKey ?? res.json?.key;
+        return typeof k === "string" && k ? k : null;
+      },
+      { maxMs: 120_000, everyMs: 2_000, label: "the driver's pairing claim (headless mode auto-approves)" }
+    );
+    personas.setKey(claimed);
+    if (opts.keyCacheFile) {
+      mkdirSync(path.dirname(opts.keyCacheFile), { recursive: true });
+      writeFileSync(
+        opts.keyCacheFile,
+        `${JSON.stringify({ baseUrl: personas.base, apiKey: claimed, pairedAt: new Date().toISOString() }, null, 2)}\n`,
+        "utf8"
+      );
+    }
+    return claimed;
+  };
+
+  /** Re-pair KP's own bridge: disconnect the dead key, then run the pairing
+   *  handshake again. `DELETE /api/agents/bridge` clears the stored pk_ while
+   *  keeping the base URL — an env-configured bridge refuses (409), which is
+   *  correct and is reported rather than worked around. */
+  const pairKpBridge = async () => {
+    const started = must(
+      "POST /api/agents/pair (start)",
+      await kp.post("/api/agents/pair", { phase: "start", baseUrl: personas.base }),
+      "kp needs KP_SECRET (or KP_ATS_SECRET_KEY) set to store the pk_ key encrypted"
+    );
+    const nonce = started.nonce;
+    if (!nonce) throw new PhaseError("pair", "kp's pairing start returned no nonce");
+    await poll(
+      async () => {
+        const res = await kp.post("/api/agents/pair", { phase: "claim", nonce });
+        if (!res.ok) throw new PhaseError("pair", `kp's pairing claim failed: ${res.status} ${JSON.stringify(res.json)}`);
+        return res.json?.paired === true;
+      },
+      { maxMs: 120_000, everyMs: 2_000, label: "kp's pairing claim" }
+    );
+  };
+
+  /** The 401 hook the Personas client calls: discard the cached key, re-pair,
+   *  and let the client retry the call once. Returns false when re-pairing
+   *  failed, so the original 401 reaches the caller as data. */
+  const repairDriverKey = async ({ route, status }) => {
+    if (repairedDriverKeys >= 3) return false;
+    repairedDriverKeys += 1;
+    const stalePrefix = personas.key ? personas.key.slice(0, 6) : null;
+    personas.setKey(null);
+    if (opts.keyCacheFile) {
+      try {
+        rmSync(opts.keyCacheFile, { force: true });
+      } catch {
+        /* a cache we cannot delete is one the re-pair overwrites anyway */
+      }
+    }
+    try {
+      const key = await pairDriverKey();
+      journal.write("repaired-driver-key", {
+        route,
+        status,
+        stalePrefix,
+        keyPrefix: key.slice(0, 6),
+        attempt: repairedDriverKeys,
+        note: "the driver's cached personas:test key was rejected (headless auto-pair keys live 24h) — discarded the cache, re-paired, retrying the call once",
+      });
+      result.warnings.push(
+        `the driver's Personas key had expired (401 on ${route}) — re-paired mid-run and retried; the cached key at ${opts.keyCacheFile ?? "(uncached)"} was replaced.`
+      );
+      return true;
+    } catch (error) {
+      journal.write("repair-driver-key-failed", { route, status, error: String(error?.message || error) });
+      return false;
+    }
+  };
+  const personas = personasClient(opts.personasUrl, opts.personasKey ?? null, { onUnauthorized: repairDriverKey });
+
+  /** Does this kp answer read as "Personas rejected OUR key"? kp maps an
+   *  upstream 401 to `AGENT_BRIDGE_KEY_INVALID` (bridge-client.ts) and still
+   *  answers 502; an older build only says it in the message. Both are read. */
+  const readsAsBridgeKeyFailure = (res) => {
+    const body = res?.json ?? {};
+    if (body.code === "AGENT_BRIDGE_KEY_INVALID") return true;
+    const text = `${body.error ?? ""} ${body.reason ?? ""} ${res?.text ?? ""}`;
+    return /Personas responded 401|invalid api key|pairing key has expired/i.test(text);
+  };
+
+  /** Re-pair KP's bridge after Personas rejected its stored key. */
+  const repairKpKey = async (route, res) => {
+    if (repairedKpKeys >= 2) return false;
+    repairedKpKeys += 1;
+    const disconnect = await kp.del("/api/agents/bridge");
+    if (!disconnect.ok && disconnect.status !== 409) {
+      journal.write("repair-kp-key-failed", { route, step: "disconnect", status: disconnect.status });
+      return false;
+    }
+    if (disconnect.status === 409) {
+      // An env-configured bridge (PERSONAS_BRIDGE_URL/KEY) cannot be re-paired
+      // through the API — env beats the stored row by design. Say so; do not
+      // pretend the retry will help.
+      journal.write("repair-kp-key-failed", {
+        route,
+        step: "disconnect",
+        status: 409,
+        note: "kp's bridge is configured from the environment (PERSONAS_BRIDGE_URL/KEY) — the expired key has to be replaced in the deployment env, not by re-pairing",
+      });
+      return false;
+    }
+    try {
+      await pairKpBridge();
+    } catch (error) {
+      journal.write("repair-kp-key-failed", { route, step: "pair", error: String(error?.message || error) });
+      return false;
+    }
+    journal.write("repaired-kp-key", {
+      route,
+      status: res?.status ?? null,
+      code: res?.json?.code ?? null,
+      attempt: repairedKpKeys,
+      note: "Personas rejected kp's stored pk_ key (headless auto-pair keys live 24h) — disconnected the bridge, re-paired kp, retrying the call once",
+    });
+    result.warnings.push(
+      `kp's Personas bridge key had expired (${route} → ${res?.status ?? "?"}) — kp was re-paired mid-run and the call retried.`
+    );
+    return true;
+  };
 
   const result = {
     schemaVersion: 1,
@@ -212,31 +531,7 @@ async function runScenario(scenario, opts) {
         }
       }
       if (!key) {
-        const nonce = randomBytes(24).toString("hex");
-        const asked = await personas.post(
-          "/pair/request",
-          { nonce, scopes: ["personas:read", "personas:test"], client: { name: "kp app-master bench", kind: "cli" } },
-          { timeoutMs: 30_000 }
-        );
-        if (!asked.ok) throw new PhaseError("pair", `POST /pair/request refused the driver: ${asked.status} ${asked.text.slice(0, 200)}`);
-        const claimed = await poll(
-          async () => {
-            const res = await personas.get(`/pair/claim?nonce=${encodeURIComponent(nonce)}`, { timeoutMs: 30_000 });
-            const k = res.json?.token ?? res.json?.apiKey ?? res.json?.key;
-            return typeof k === "string" && k ? k : null;
-          },
-          { maxMs: 120_000, everyMs: 2_000, label: "the driver's pairing claim (headless mode auto-approves)" }
-        );
-        personas.setKey(claimed);
-        key = claimed;
-        if (opts.keyCacheFile) {
-          mkdirSync(path.dirname(opts.keyCacheFile), { recursive: true });
-          writeFileSync(
-            opts.keyCacheFile,
-            `${JSON.stringify({ baseUrl: personas.base, apiKey: key, pairedAt: new Date().toISOString() }, null, 2)}\n`,
-            "utf8"
-          );
-        }
+        key = await pairDriverKey();
         journal.write("pair-driver", { keyPrefix: key.slice(0, 6), cached: !!opts.keyCacheFile });
       } else {
         journal.write("pair-driver", { keyPrefix: key.slice(0, 6), reused: true });
@@ -250,21 +545,7 @@ async function runScenario(scenario, opts) {
         journal.write("pair-kp", { reused: true, baseUrl: bridge.bridge.baseUrl });
         return;
       }
-      const started = must(
-        "POST /api/agents/pair (start)",
-        await kp.post("/api/agents/pair", { phase: "start", baseUrl: personas.base }),
-        "kp needs KP_SECRET (or KP_ATS_SECRET_KEY) set to store the pk_ key encrypted"
-      );
-      const nonce = started.nonce;
-      if (!nonce) throw new PhaseError("pair", "kp's pairing start returned no nonce");
-      await poll(
-        async () => {
-          const res = await kp.post("/api/agents/pair", { phase: "claim", nonce });
-          if (!res.ok) throw new PhaseError("pair", `kp's pairing claim failed: ${res.status} ${JSON.stringify(res.json)}`);
-          return res.json?.paired === true;
-        },
-        { maxMs: 120_000, everyMs: 2_000, label: "kp's pairing claim" }
-      );
+      await pairKpBridge();
       journal.write("pair-kp", { paired: true, baseUrl: personas.base });
     });
 
@@ -365,7 +646,13 @@ async function runScenario(scenario, opts) {
 
     // ── dispatch ────────────────────────────────────────────────────────────
     await phase(result, journal, "dispatch", async () => {
-      const res = await kp.post("/api/agents/dispatch", { intakeId: result.intakeId });
+      let res = await kp.post("/api/agents/dispatch", { intakeId: result.intakeId });
+      // kp's OWN bridge key expires too (24h, headless auto-pair), and it
+      // surfaces here as a 502 whose code is AGENT_BRIDGE_KEY_INVALID. Re-pair
+      // kp and retry ONCE: a dead credential must not read as a failed hire.
+      if (!res.ok && readsAsBridgeKeyFailure(res) && (await repairKpKey("POST /api/agents/dispatch", res))) {
+        res = await kp.post("/api/agents/dispatch", { intakeId: result.intakeId });
+      }
       const body = must("POST /api/agents/dispatch", res);
       result.hire = { hiredAgentId: body.hiredAgentId, requestId: body.requestId, status: body.status };
       journal.write("dispatched", result.hire);
@@ -378,20 +665,56 @@ async function runScenario(scenario, opts) {
     };
     await phase(result, journal, "activate", async () => {
       const seen = [];
+      let terminal = null;
       const row = await poll(
         async () => {
           const res = await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`);
+          // The pull fallback answers 200 with `refreshed:false` when the poll
+          // itself failed — including when Personas rejected kp's key. Repair
+          // and let the next tick re-read rather than waiting out the timeout
+          // against a credential that will never work.
+          if (res.json?.refreshed === false && readsAsBridgeKeyFailure(res)) {
+            await repairKpKey("POST /api/agents/[id]/refresh", res);
+            return null;
+          }
           const status = res.json?.agent?.status ?? null;
           if (status && seen[seen.length - 1] !== status) seen.push(status);
           // A terminal non-active status is an ANSWER, not something to wait
-          // out — a held/failed build now maps to `failed` on the wire.
+          // out — a held/failed build now maps to `failed` on the wire. Returned
+          // rather than thrown: `poll` swallows a thrown predicate error and
+          // would keep waiting for the full timeout, which would then be
+          // reported as an orphaned build that is in fact already dead.
           if (status === "failed" || status === "rejected" || status === "retired") {
-            throw new PhaseError("activate", `the hire reached terminal status \`${status}\` (ladder: ${seen.join(" → ")})`);
+            terminal = status;
+            return { terminal: status };
           }
           return status === "active" ? res.json.agent : null;
         },
         { maxMs: scenario.activateTimeoutMs ?? opts.activateTimeoutMs, everyMs: 3_000, label: "the hire to reach `active` in Personas (headless mode auto-approves)" }
-      );
+      ).catch((error) => {
+        // A TIMED-OUT activate leaves the dispatched build session RUNNING on
+        // the Personas side: the request was accepted, the one-shot Claude Code
+        // build is under way, and there is no cancel endpoint on the bridge to
+        // stop it. The driver cannot clean it up, so it names what it left
+        // behind — the next sweep's operator needs to know which request is
+        // still burning a session and may yet push a report.
+        journal.write("orphan-build", {
+          requestId: result.hire.requestId ?? null,
+          hiredAgentId: result.hire.hiredAgentId,
+          personaId: result.hire.personaId ?? null,
+          lastStatus: seen[seen.length - 1] ?? null,
+          ladder: seen,
+          waitedMs: scenario.activateTimeoutMs ?? opts.activateTimeoutMs,
+          note: "activate timed out; the Personas build session for this request is still running and nothing cancels it (the bridge has no cancel endpoint). It may still reach `active` and push a report after this run ends.",
+        });
+        result.warnings.push(
+          `orphan build: request ${result.hire.requestId ?? "?"} was still building when activate timed out — it is left running (no cancel endpoint) and may push a report after this run.`
+        );
+        throw error;
+      });
+      if (terminal) {
+        throw new PhaseError("activate", `the hire reached terminal status \`${terminal}\` (ladder: ${seen.join(" → ")})`);
+      }
       result.hire.statusLadder = seen;
       result.hire.personaId = row.personaId ?? null;
       result.hire.personaName = row.personaName ?? null;
@@ -489,23 +812,75 @@ async function runScenario(scenario, opts) {
 
     // ── nights ──────────────────────────────────────────────────────────────
     await phase(result, journal, "nights", async () => {
+      const settleTimeoutMs = scenario.settleTimeoutMs ?? opts.settleTimeoutMs;
       for (let n = 1; n <= scenario.nights; n++) {
         const t = Date.now();
-        const tick = await personas.post("/api/kp/test/tick", {
-          personaId: result.hire.personaId,
-          phases: ["overnight", "reconcile", "report"],
+        const tickPhase = async (phases) => {
+          const res = await personas.post("/api/kp/test/tick", { personaId: result.hire.personaId, phases });
+          return {
+            ok: res.ok,
+            summary: res.json?.data ?? res.json ?? null,
+            error: res.ok ? null : (res.error ?? `${res.status} ${res.text.slice(0, 200)}`),
+            status: res.status,
+          };
+        };
+
+        // (a) dispatch the fleet.
+        const overnight = await tickPhase(["overnight"]);
+        const dispatched = dispatchedCount(overnight.summary);
+        journal.write("night-overnight", {
+          night: n,
+          ok: overnight.ok,
+          dispatched,
+          counts: phaseCounts(overnight.summary, "overnight") ?? null,
+          ...(overnight.error ? { error: overnight.error } : {}),
         });
-        const summary = tick.json?.data ?? tick.json ?? null;
-        const night = { night: n, ms: Date.now() - t, tick: summary, tickOk: tick.ok, reading: {}, backbone: null, appMaster: null };
-        if (!tick.ok) {
-          // DEGRADE HONESTLY: a missing or refusing tick route is recorded as an
-          // unmeasured night, not a driver crash. The expectation checks then
-          // fail on the absence, which is the correct reading.
-          night.error = tick.error ?? `${tick.status} ${tick.text.slice(0, 200)}`;
-          result.unmeasured.push(`night ${n}: POST /api/kp/test/tick answered ${tick.status || "nothing"}`);
-        } else {
-          night.reading = extractBackboneReading(summary);
+
+        // (b) let the dispatched sessions author their branches, reconciling on
+        //     a poll until the dispatch is accounted for.
+        const settle = await settleDispatch({
+          tickReconcile: () => tickPhase(["reconcile"]),
+          journal,
+          night: n,
+          dispatched,
+          pollMs: opts.settlePollMs,
+          timeoutMs: settleTimeoutMs,
+        });
+
+        // (c) only now report: the rollup pushed here is what kp scores.
+        const report = await tickPhase(["report"]);
+
+        const ticks = [overnight, settle.polls.length > 0 ? { ok: true, summary: settle.lastSummary } : null, report];
+        const summary = mergeTickSummaries(ticks.map((x) => x?.summary));
+        const tickOk = overnight.ok && report.ok;
+        const night = {
+          night: n,
+          ms: Date.now() - t,
+          tick: summary,
+          tickOk,
+          settle,
+          reading: {},
+          readingSource: {},
+          backbone: null,
+          appMaster: null,
+        };
+        // DEGRADE HONESTLY: a missing or refusing tick route is recorded as an
+        // unmeasured night, not a driver crash. The expectation checks then
+        // fail on the absence, which is the correct reading.
+        const failures = [
+          ...(overnight.ok ? [] : [`overnight → ${overnight.status || "nothing"}`]),
+          ...(report.ok ? [] : [`report → ${report.status || "nothing"}`]),
+        ];
+        if (failures.length > 0) {
+          night.error = [overnight.error, report.error].filter(Boolean).join(" · ");
+          result.unmeasured.push(`night ${n}: POST /api/kp/test/tick answered ${failures.join(", ")}`);
         }
+        if (settle.stoppedBy === "timeout" || settle.stoppedBy === "stalled") {
+          result.unmeasured.push(
+            `night ${n}: the settle loop stopped \`${settle.stoppedBy}\` — ${settle.accounted ?? 0} of ${dispatched} dispatched session(s) were accounted for after ${settle.polls.length} reconcile poll(s), so the gate and merge lanes may be reported before the fleet finished`
+          );
+        }
+
         // The push report lands asynchronously; refresh, then read the roster.
         await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`).catch(() => null);
         const row = await rosterRow();
@@ -513,16 +888,24 @@ async function runScenario(scenario, opts) {
         night.appMaster = row?.appMaster ?? null;
         night.agentStatus = row?.status ?? null;
         night.kpiDeltas = row?.kpiDeltas ?? null;
+        // The reading is the ROSTER's scored backbone folded over whatever the
+        // tick summary reported inline — see mergeReadings() for which wins.
+        const merged = mergeReadings(tickOk ? extractBackboneReading(summary) : {}, readingFromRoster(row));
+        night.reading = merged.reading;
+        night.readingSource = merged.source;
         if (typeof row?.aggregates?.costUsd === "number") result.costReportedUsd = row.aggregates.costUsd;
         if (!night.backbone) result.unmeasured.push(`night ${n}: no backbone was scored — nothing reported one`);
         result.nights.push(night);
         journal.write("night", {
           night: n,
           ms: night.ms,
-          tickOk: tick.ok,
+          tickOk,
+          dispatched,
+          settled: { stoppedBy: settle.stoppedBy, polls: settle.polls.length, accounted: settle.accounted, ms: settle.ms },
           verdict: night.backbone?.verdict ?? null,
           coverage: night.backbone?.coverage ?? null,
           reading: night.reading,
+          readingSource: night.readingSource,
         });
       }
     });
@@ -627,6 +1010,11 @@ async function main() {
         "  --nights N               override every scenario's night count",
         "  --throttle-wait <ms>     how long to sit out a kp 429 (default 65000; kp's",
         "                           per-IP windows are fixed 10-minute buckets)",
+        "  --settle-poll <ms>       gap between the reconcile polls that wait out a",
+        "                           night's dispatched fleet sessions (default 90000)",
+        "  --settle-timeout <ms>    how long a night may settle before it reports",
+        "                           anyway, unmeasured lanes and all (default 1800000;",
+        "                           a scenario's `settleTimeoutMs` overrides it)",
         "  --out <dir>              bench root (default bench/app-master)",
         "  --report                 also write bench/app-master/REPORT.md when done,",
         "                           pass or fail (what `npm run bench:app-master` does)",
@@ -698,6 +1086,13 @@ async function main() {
     // How long to sit out a 429 before retrying. kp's windows are fixed
     // 10-minute buckets, so 65s × 12 attempts crosses one from anywhere inside it.
     throttleWaitMs: Number(args["throttle-wait"] || 65_000),
+    // The settle wait between `overnight` and `report`. 90s between reconcile
+    // polls because a fleet session writes a branch in minutes, not seconds, and
+    // each poll is a real bridge call; 30 min total because a night that has not
+    // produced a branch by then produced nothing this run can measure — and
+    // reporting an unmeasured lane on time beats waiting for one forever.
+    settlePollMs: Number(args["settle-poll"] || 90_000),
+    settleTimeoutMs: Number(args["settle-timeout"] || 30 * 60_000),
   };
 
   const results = [];
@@ -748,3 +1143,4 @@ if (invokedDirectly) {
 }
 
 export { runScenario, findFirst };
+

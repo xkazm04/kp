@@ -24,11 +24,33 @@ import { markBridgeOk, resolveBridge } from "./bridge-store";
 
 const TIMEOUT_MS = 5_000;
 
-export type BridgeFailure = { ok: false; error: string; status?: number };
+export type BridgeFailure = { ok: false; error: string; status?: number; code?: string };
 
 function failure(e: unknown): BridgeFailure {
   if (e instanceof Error && e.name === "TimeoutError") return { ok: false, error: "Personas did not respond within 5s." };
   return { ok: false, error: e instanceof Error ? e.message : "Personas request failed." };
+}
+
+/** A dead pairing key, told apart from every other bridge failure.
+ *
+ *  Personas' headless auto-pair mints keys that LIVE 24 HOURS, and an expired
+ *  one answers 401 to every call. That is not "Personas is down" and not "the
+ *  request was wrong": nothing is broken except the credential, and the fix is
+ *  one re-pair in Settings → Integrations. Reporting it as a generic
+ *  `AGENT_DISPATCH_BRIDGE_FAILED` (which is what the 2026-08-25 sweep saw —
+ *  `502 Personas responded 401` — and what an operator would read as an outage)
+ *  sends the reader looking for a server that is in fact running fine. */
+export const AGENT_BRIDGE_KEY_INVALID = "AGENT_BRIDGE_KEY_INVALID";
+
+export const BRIDGE_KEY_INVALID_MESSAGE =
+  "Personas rejected kp's API key (401) — the pairing key has expired or been revoked. Re-pair in Settings → Integrations.";
+
+/** Turn a non-2xx from Personas into a failure, naming a dead key as one. */
+function upstreamFailure(status: number): BridgeFailure {
+  if (status === 401) {
+    return { ok: false, status, code: AGENT_BRIDGE_KEY_INVALID, error: BRIDGE_KEY_INVALID_MESSAGE };
+  }
+  return { ok: false, status, error: `Personas responded ${status}.` };
 }
 
 /** A `redirect:"manual"` 3xx surfaces as an opaque-redirect response (fetch spec:
@@ -179,7 +201,7 @@ export async function dispatchPersonaRequest(
     // Checked BEFORE `!r.ok`: a redirect is not an HTTP status to report back
     // (status 0), and it must never read as an acceptance of the hire.
     if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
-    if (!r.ok) return { ok: false, status: r.status, error: `Personas responded ${r.status}.` };
+    if (!r.ok) return upstreamFailure(r.status);
     const body = unwrapEnvelope(await r.json().catch(() => null)) as { requestId?: unknown } | null;
     const requestId = typeof body?.requestId === "string" ? body.requestId : "";
     if (!requestId) return { ok: false, error: "Personas accepted the request but returned no requestId." };
@@ -205,7 +227,7 @@ export async function fetchRequestStatus(requestId: string): Promise<RequestStat
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (isRedirectResponse(r)) return { ok: false, error: REDIRECT_ERROR };
-    if (!r.ok) return { ok: false, status: r.status, error: `Personas responded ${r.status}.` };
+    if (!r.ok) return upstreamFailure(r.status);
     const body = unwrapEnvelope(await r.json().catch(() => null)) as
       | { status?: unknown; personaId?: unknown; personaName?: unknown }
       | null;

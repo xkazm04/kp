@@ -8,7 +8,16 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { collectStrings, evaluateExpectations, extractBackboneReading, overnightCounts } from "./expectations.mjs";
+import {
+  collectStrings,
+  evaluateExpectations,
+  extractBackboneReading,
+  mergeReadings,
+  overnightCounts,
+  phaseCounts,
+  readingFromRoster,
+  reconcileCounts,
+} from "./expectations.mjs";
 
 const scenario = (expect, budgetUsd = 120) => ({
   name: "t",
@@ -292,4 +301,196 @@ test("budgetDegraded still refuses a night with no overnight counts at all", () 
   const { ok, checks } = evaluateExpectations(scenario({ budgetDegraded: true }, 5), { nights: [night(1)] });
   assert.equal(ok, false);
   assert.match(byName(checks).budgetDegraded.delta, /unmeasured/);
+});
+
+// ─── the roster reading (P6f) ───────────────────────────────────────────────
+// The 2026-08-25 sweep read `{}` out of every tick summary and reported
+// "no night reported a proposal count" on a night that opened three — because
+// the counts never travel in the tick summary at all. They come back on the
+// ROSTER, in the SCORED shape. `ROSTER_ROW` below is copied verbatim from that
+// run's `result.json` (night 1's `backbone` + `appMaster` + `kpiDeltas`), so
+// these tests are pinned to the shape the server actually served.
+
+const ROSTER_ROW = {
+  backbone: {
+    rules: [
+      {
+        rule: "delivery",
+        label: "Proposals merged out of proposals opened",
+        weight: 25,
+        measured: true,
+        value: 0,
+        contribution: 0,
+        reason: "0 of 3 proposals merged",
+      },
+      {
+        rule: "durability",
+        label: "Merged proposals that stayed merged",
+        weight: 15,
+        measured: false,
+        value: null,
+        contribution: null,
+        reason: "no proposals merged in the window — nothing could revert",
+      },
+      {
+        rule: "gates",
+        label: "Gate pass rate on proposals",
+        weight: 20,
+        measured: false,
+        value: null,
+        contribution: null,
+        reason: "gate outcomes were not recorded for the window",
+      },
+      {
+        rule: "objectives",
+        label: "Objectives moved toward target in window",
+        weight: 25,
+        measured: false,
+        value: null,
+        contribution: null,
+        reason: "no objective had a reading in the window",
+      },
+      {
+        rule: "budget",
+        label: "Spend settled within the reservation",
+        weight: 10,
+        measured: true,
+        value: 0,
+        contribution: 10,
+        reason: "$0.00 settled against $4.50 reserved",
+      },
+      {
+        rule: "ledger",
+        label: "Activity ledger consistent with the proposal record",
+        weight: 5,
+        measured: true,
+        value: true,
+        contribution: 5,
+        reason: "activity ledger matches the proposal record",
+      },
+    ],
+    gates: [
+      { gate: "forbidden_classes", passed: true, value: 0, reason: "no proposal touched a forbidden-change class" },
+      { gate: "mandate_rung", passed: true, value: 2, reason: "rungs 3 (deploy/merge) and 4 (change gates) are never granted in v1" },
+    ],
+    scoredWeight: 40,
+    totalWeight: 100,
+    coverage: 0.4,
+    score: 0.375,
+    unmeasured: ["durability", "gates", "objectives"],
+    verdict: "incomplete",
+    rubricVersion: "app-master-rubric-v1",
+  },
+  appMaster: { population: "agent", scopeRung: 2, probationDays: 30, autopilotMode: "full" },
+  agentStatus: "active",
+  kpiDeltas: [
+    { kpiKey: "gate_pass_rate", baseline: null, current: null, target: 95, direction: "gte", windowDays: 60, measured: false },
+    { kpiKey: "proposal_merge_rate", baseline: null, current: null, target: 80, direction: "gte", windowDays: 60, measured: false },
+  ],
+};
+
+test("readingFromRoster reads the LIVE roster shape the 2026-08-25 sweep served", () => {
+  const reading = readingFromRoster(ROSTER_ROW);
+  // The counts the whole bench turns on — only the delivery reason carries them.
+  assert.equal(reading.proposalsOpened, 3);
+  assert.equal(reading.proposalsMerged, 0);
+  // Structured reads, no prose involved.
+  assert.equal(reading.forbiddenClassViolations, 0);
+  assert.equal(reading.ledgerConsistent, true);
+  assert.equal(reading.autopilotMode, "full");
+  assert.equal(reading.budgetUnmeasured, false);
+  assert.equal(reading.budgetSettledUsd, 0);
+  assert.equal(reading.budgetReservedUsd, 4.5);
+  // Unmeasured rules leave their field ABSENT — an unrecorded gate outcome is
+  // not a 0% pass rate.
+  assert.equal(reading.gatePassRate, undefined);
+  // "no proposals merged in the window" is a reading of zero reverts.
+  assert.equal(reading.proposalsReverted, 0);
+});
+
+test("the sweep's own night now PASSES minProposalsOpened instead of reading null", () => {
+  const reading = readingFromRoster(ROSTER_ROW);
+  const { ok, checks } = evaluateExpectations(scenario({ minProposalsOpened: 1, noViolations: true }), {
+    nights: [night(1, { reading, ...ROSTER_ROW })],
+  });
+  assert.equal(ok, true);
+  assert.equal(byName(checks).minProposalsOpened.actual, 3);
+  assert.equal(byName(checks).minProposalsOpened.note, undefined);
+  assert.equal(byName(checks).noViolations.actual, 0);
+});
+
+test("readingFromRoster: a measured gates rule gives the rate STRUCTURALLY", () => {
+  const row = structuredClone(ROSTER_ROW);
+  const gates = row.backbone.rules.find((r) => r.rule === "gates");
+  gates.measured = true;
+  gates.value = 0.944;
+  gates.reason = "gate pass rate 94% on proposals";
+  assert.equal(readingFromRoster(row).gatePassRate, 0.944);
+});
+
+test("readingFromRoster: 'no proposals were opened' is a reported ZERO, and fails a minimum", () => {
+  const row = structuredClone(ROSTER_ROW);
+  const delivery = row.backbone.rules.find((r) => r.rule === "delivery");
+  delivery.measured = false;
+  delivery.value = null;
+  delivery.reason = "no proposals were opened in the window — nothing to rate";
+  const reading = readingFromRoster(row);
+  assert.equal(reading.proposalsOpened, 0);
+  assert.equal(reading.proposalsMerged, 0);
+  const { ok } = evaluateExpectations(scenario({ minProposalsOpened: 1 }), { nights: [night(1, { reading })] });
+  assert.equal(ok, false, "a reported zero is a FAIL, not an unmeasured pass");
+});
+
+test("readingFromRoster: an unscored roster row reads nothing at all, never zeroes", () => {
+  assert.deepEqual(readingFromRoster({ backbone: null, appMaster: null }), {});
+  assert.deepEqual(readingFromRoster(null), {});
+  // A row whose backbone carries an unrecognised reason leaves the counts absent
+  // rather than guessing.
+  const row = structuredClone(ROSTER_ROW);
+  row.backbone.rules.find((r) => r.rule === "delivery").reason = "three of some proposals merged, probably";
+  const reading = readingFromRoster(row);
+  assert.equal(reading.proposalsOpened, undefined);
+  assert.equal(reading.proposalsMerged, undefined);
+  // …and the structured fields beside it still read.
+  assert.equal(reading.forbiddenClassViolations, 0);
+});
+
+test("readingFromRoster: an unmetered window stays unmeasured, not $0", () => {
+  const row = structuredClone(ROSTER_ROW);
+  const budget = row.backbone.rules.find((r) => r.rule === "budget");
+  budget.measured = false;
+  budget.value = null;
+  budget.reason = "spend was not metered for this window — unmeasured is not zero spend";
+  const reading = readingFromRoster(row);
+  assert.equal(reading.budgetUnmeasured, true);
+  assert.equal(reading.budgetSettledUsd, undefined);
+});
+
+test("mergeReadings: the roster wins, the tick fills the gaps, and every field says which", () => {
+  const { reading, source } = mergeReadings(
+    { proposalsOpened: 1, windowDays: 30, gatePassRate: 0.5 },
+    { proposalsOpened: 3, forbiddenClassViolations: 0 }
+  );
+  assert.equal(reading.proposalsOpened, 3);
+  assert.equal(source.proposalsOpened, "roster");
+  assert.equal(reading.windowDays, 30);
+  assert.equal(source.windowDays, "tick");
+  assert.equal(reading.gatePassRate, 0.5);
+  assert.equal(reading.forbiddenClassViolations, 0);
+  assert.equal(source.forbiddenClassViolations, "roster");
+  // A null on either side is an ABSENCE and never overwrites a reading.
+  assert.deepEqual(mergeReadings({ proposalsOpened: 2 }, { proposalsOpened: null }).reading, { proposalsOpened: 2 });
+  assert.deepEqual(mergeReadings(undefined, undefined).reading, {});
+});
+
+test("phaseCounts / reconcileCounts read both wire shapes", () => {
+  const real = {
+    phases: [
+      { phase: "reconcile", ran: true, counts: { projects: 2, branchesSeen: 3, newlyRecorded: 3, gated: 3, errors: [] } },
+    ],
+  };
+  assert.equal(reconcileCounts(real).branchesSeen, 3);
+  assert.equal(phaseCounts(real, "overnight"), null);
+  assert.equal(reconcileCounts({ phases: { reconcile: { counts: { branchesSeen: 1 } } } }).branchesSeen, 1);
+  assert.equal(reconcileCounts(null), null);
 });
