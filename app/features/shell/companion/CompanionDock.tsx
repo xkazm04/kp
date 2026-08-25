@@ -6,10 +6,6 @@ import { useTranslations } from "next-intl";
 import { railIconBtn } from "@/app/_components/ui/recipes";
 import { useAttention } from "@/app/features/shell/useAttention";
 import { useOptionalCompanionDock } from "./CompanionDockProvider";
-import { useCompanionThread } from "./useCompanionThread";
-import { useCompanionSpeech } from "./useCompanionSpeech";
-import { useCompanionAutoSpeak } from "./useCompanionAutoSpeak";
-import { useCompanionPrefs } from "./useCompanionPrefs";
 import { CompanionSettingsMenu } from "./CompanionSettingsMenu";
 import { CompanionVoiceMode } from "./voice/CompanionVoiceMode";
 import { CompanionBody, CompanionRest } from "./CompanionDockBody";
@@ -35,18 +31,18 @@ import { CompanionBody, CompanionRest } from "./CompanionDockBody";
  * Desk was deleted; what survives of Desk is nothing — its provenance-in-the-
  * reading-path premise lost to marginalia on purpose.
  *
- * ROUND V2 gives her a second SHAPE. `prefs.mode` picks between this window and
- * the top/bottom voice pair (voice/CompanionVoiceMode.tsx), and the branch is
- * the LAST thing that happens: the thread, the speech seam, the attention counts
- * and the seed handoff are all resolved above it and handed to whichever shape
- * is on. So a mode flip mid-conversation drops nothing — not a turn in flight,
- * not an utterance, not the operator's place — because there is exactly one of
- * each and the mode only decides who draws it.
+ * ROUND V2 gave her a second SHAPE and ROUND V3 settled it. `prefs.mode` picks
+ * between this window and the voice strip (voice/CompanionVoiceMode.tsx), and
+ * the branch is the LAST thing that happens: the thread, the utterance, the
+ * preferences and the seed handoff are all resolved ABOVE this file now, in
+ * `CompanionDockProvider`, and handed to whichever shape is on. So a mode flip
+ * mid-conversation drops nothing — not a turn in flight, not an utterance, not
+ * the operator's place — because there is exactly one of each and the mode only
+ * decides who draws it.
  *
- * That is also why the SPEECH SEAM moved up here from the body. Auto-speak is a
- * setting, not a shape, and a hook mounted inside each presentation would have
- * been two of them: one that speaks the reply and one that speaks it again when
- * the operator switches windows.
+ * WHY THE SEAM LEFT THIS FILE. Voice mode's input is no longer here at all: it
+ * is a layer-2 panel of the footer control dock, in another feature's tree. Two
+ * surfaces, one conversation — see useCompanionRuntime.ts.
  */
 
 const DOCK_SHELL =
@@ -56,43 +52,36 @@ export function CompanionDock() {
   const dock = useOptionalCompanionDock();
   const t = useTranslations("companion");
   const attention = useAttention();
-  const open = dock?.open ?? false;
-  const thread = useCompanionThread(open, dock?.markUnread);
-  const prefs = useCompanionPrefs();
-  // ONE utterance for the whole companion, whichever shape is on screen. It is
-  // created here rather than in a body so switching modes cannot orphan audio,
-  // and so `useTts`'s unmount teardown still fires when the dock collapses.
-  const speech = useCompanionSpeech();
-  useCompanionAutoSpeak(prefs.autoSpeak, thread.turns, speech.speak);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // The palette hands over a query; send it once the thread exists, then clear
-  // it so re-opening the dock does not re-ask the same question.
-  const seed = dock?.seed ?? null;
-  const consumeSeed = dock?.consumeSeed;
+  const open = dock?.open ?? false;
+  const voice = dock?.prefs.mode === "voice";
+  // Voice mode keeps the strip up while an utterance is still in flight, because
+  // closing her is not a request to be cut off mid-sentence — and the strip
+  // carries the only stop control there is. In WINDOW mode the equivalent
+  // courtesy is impossible (the rest pill has no transport), so closing the
+  // window stops the audio, which is V1's contract unchanged.
+  const speaking = dock?.speech.speakingId !== null && dock?.speech.speakingId !== undefined;
+  const showVoice = voice && (open || speaking);
+  const stop = dock?.speech.stop;
   useEffect(() => {
-    if (!open || !seed || !thread.ready || !consumeSeed) return;
-    consumeSeed();
-    void thread.send(seed);
-  }, [open, seed, thread, consumeSeed]);
+    if (open || voice || !stop) return;
+    stop();
+  }, [open, voice, stop]);
 
   if (!dock) return null;
-  if (!open) {
+  if (showVoice) {
     return (
-      <CompanionRest onOpen={() => dock.openDock()} busy={thread.busy} unread={dock.unread} label={t("dock.open")} />
+      <CompanionVoiceMode thread={dock.thread} speech={dock.speech} prefs={dock.prefs} onClose={dock.closeDock} />
     );
   }
-
-  // The mode branch, deliberately the last decision. Everything above it is the
-  // conversation; everything below is only how it is drawn.
-  if (prefs.mode === "voice") {
+  if (!open) {
     return (
-      <CompanionVoiceMode
-        thread={thread}
-        speech={speech}
-        attention={attention}
-        prefs={prefs}
-        onClose={dock.closeDock}
+      <CompanionRest
+        onOpen={() => dock.openDock()}
+        busy={dock.thread.busy}
+        unread={dock.unread}
+        label={t("dock.open")}
       />
     );
   }
@@ -112,7 +101,7 @@ export function CompanionDock() {
         // the operator is about to change the shape of anyway.
         extra={
           <CompanionSettingsMenu
-            prefs={prefs}
+            prefs={dock.prefs}
             open={settingsOpen}
             onOpenChange={setSettingsOpen}
             side="bottom"
@@ -122,21 +111,21 @@ export function CompanionDock() {
         // A new conversation is refused mid-turn rather than racing it: the
         // reply is already paid for, and dropping it on the floor to paint an
         // empty thread is the one outcome nobody asked for.
-        canStartNew={thread.ready && !thread.busy}
-        onNew={() => void thread.newThread()}
+        canStartNew={dock.thread.ready && !dock.thread.busy}
+        onNew={() => void dock.thread.newThread()}
         onClose={dock.closeDock}
       />
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3">
         <CompanionBody
-          turns={thread.turns}
-          proposals={thread.proposals}
-          busy={thread.busy}
-          error={thread.error}
+          turns={dock.thread.turns}
+          proposals={dock.thread.proposals}
+          busy={dock.thread.busy}
+          error={dock.thread.error}
           attention={attention}
-          memoryEnabled={thread.memoryEnabled}
-          speech={speech}
-          onSend={thread.send}
-          onResolveProposal={thread.resolveProposal}
+          memoryEnabled={dock.thread.memoryEnabled}
+          speech={dock.speech}
+          onSend={dock.thread.send}
+          onResolveProposal={dock.thread.resolveProposal}
         />
       </div>
     </aside>

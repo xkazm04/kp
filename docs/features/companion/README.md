@@ -747,11 +747,12 @@ under `app/_components`, where `i18n:check` forbids a literal accessible name.
 `JdsIntakeChat` is now the intake ADAPTER; nothing about the rendered intake
 surface changed.
 
-## Voice mode (prototype round V2)
+## Voice mode (settled in round V3)
 
 Candi wears two shapes. The **window** is the left dock described above. **Voice
-mode** is a top/bottom pair: her last answer pinned to the top edge of the
-screen, a slim input bar pinned to the bottom, and the whole middle left alone.
+mode** is a centred strip near the top of the screen carrying her last answer,
+with typing to her living in the footer control dock as a layer-2 panel - and the
+whole middle of the display left alone.
 
 It exists because a spoken companion and a conversation column want opposite
 things. A column is the right shape for reading a transcript; it is the wrong
@@ -763,11 +764,29 @@ longer on screen.
 
 **PRESENTATION ONLY.** Same `CompanionDockProvider`, same open/close, same
 `useCompanionThread`, same routes, same proposals, same speech seam. The mode
-branch is the LAST decision `CompanionDock` makes — everything above it (the
-thread, the seed handoff from the palette, the attention counts, the one
-`useCompanionSpeech`) is resolved first and handed to whichever shape is on. A
-flip mid-conversation therefore drops nothing: not a turn in flight, not an
-utterance, not the operator's place.
+branch is the LAST decision `CompanionDock` makes — everything above it is
+resolved first and handed to whichever shape is on. A flip mid-conversation
+therefore drops nothing: not a turn in flight, not an utterance, not the
+operator's place.
+
+**Round V3 moved that "everything above it" one level UP**, into
+`useCompanionRuntime` (called by `CompanionDockProvider`). The one thread, the
+one utterance, the one preference set, the auto-speak and the palette's seed
+handoff are assembled there now. The reason is that voice mode splits her across
+two React trees: the strip is `CompanionDock`'s, and the INPUT is a panel of the
+footer control dock in `shell/simulation`. Two surfaces that send into the same
+conversation cannot each own a thread, and both alternatives were worse — a
+portal from the dock into the footer's panel slot makes the input's existence
+depend on the render order of two independent trees, and a "register your
+composer upward" callback is the same hoist with an effect in the middle of it.
+
+What that costs, stated rather than discovered: those four hooks now load with
+the shell rather than with the deferred `CompanionDock` chunk. They are hooks -
+`fetch`, a state machine, a localStorage read, the TTS package's headless half -
+and every heavy piece of her (the transcript, chat blocks, charts, the strip) is
+still behind the same `dynamic()` boundary it always was. `active` still gates
+the thread's boot request, so a workspace where nobody opens her makes no
+companion call at all.
 
 ### Switching, and where the preference lives
 
@@ -836,52 +855,104 @@ document — a global arrow handler would steal the keys from the page this mode
 exists to leave usable — and the handler ignores events from inside an input,
 select or radiogroup, because the direction switcher owns those keys itself.
 
-### The three directions (this round only)
+### The presentation, and what the prototype round settled
 
-Three variants ride behind a `SegmentedControl` in the voice header. All three
-render against one contract (`voiceTypes.ts`), so promoting the winner is
-deleting two files and a rail, with no state to unpick.
+Round V2 shipped three directions behind a `SegmentedControl` — **Ticker** (a
+newsroom crawl frozen on its last item), **Stage** (a lit stage carrying the
+SPOKEN answer as the headline) and **HUD** (a head-up display with a jump
+timeline and a studio-state band). Round V3 picked **Ticker**. The other two, the
+rail, the `variant` preference field and the `voiceTypes.ts` contract that let
+all three render interchangeably are deleted; `CompanionVoiceTicker` is now the
+only voice presentation, hosted by `CompanionVoiceMode`.
 
-| | Metaphor | The bet | What it gives up |
-| --- | --- | --- | --- |
-| **A · Ticker** (default) | A newsroom crawl frozen on its last item | Maximum screen given back: one full-width strip, two clamped lines, everything with height behind "show details" | Two lines is a glance, not a read. If the disclosure is always pressed, that is the finding |
-| **B · Stage** | A lit stage with one speaker | The SPOKEN answer is the headline (`meta.voiceReply`, in the display face) and the written reply is the quieter expandable thing. The only direction that takes "I want to listen to my studio" literally | Twice the height, not full-bleed; a turn with no voice composition falls back to the prose, which is the direction at its least distinctive |
-| **C · HUD** | A head-up display | Nothing is one press away: the answer scrolls in its own pane and a context band carries a jump-timeline, the question echoed, her provenance, and what the studio is waiting on | A permanent band of studio state is the thing most likely to read as noise after twenty minutes |
+**One thing came across from a rejected direction: Stage's WIDTH.** Full-bleed,
+the strip read as a system banner — something the app had put at the top of the
+screen, not something the operator had opened. Capped at Stage's reading measure
+(`max-w-[40rem]`) and centred, the identical content reads as a window. The
+register is otherwise unchanged: one to two lines of prose, everything with
+height behind "show details", arrows and a `3 of 17` counter, one play control,
+proposals resolvable in place, and no motion at all.
 
-Shared bones, extracted the moment the second variant needed them:
-`VoiceInputBar`, `VoiceNav` / `VoiceDots`, `VoicePlaybackButton` /
-`VoicePlaybackRow`, and `VoiceParts` (prose, blocks, proposals, meta chips,
-prompt echo, empty and busy notes).
+**The strip never truncates.** It shows her full prose — `line-clamp-2` hides
+overflow, it does not cut text — and the expander is offered whenever there is
+more than the clamp can show. That threshold (`CLAMP_SAFE_CHARS = 100`) sits
+deliberately BELOW the two-line measure it protects: at 40rem two lines is
+roughly 160 characters, and V2's 140 sat close enough underneath to be a coin
+toss on font, locale and zoom. A reply that lost its tail with no expander beside
+it would be content the operator cannot know is missing. Erring low costs an
+expander over a reply that did fit; erring high costs a sentence nobody can
+reach.
 
-Two rules hold across all three:
+Note that the strip carries the WRITTEN reply, never `meta.voiceReply` — the
+composed-for-the-ear form is what the play button speaks. So a turn with no voice
+composition has nothing to fall back *from*: the strip was already showing every
+character she wrote.
+
+The shared bones are `VoiceNav`, `VoicePlaybackButton` and `VoiceParts` (prose,
+blocks, proposals, meta chips, empty and busy notes). `VoiceDots`,
+`VoicePlaybackRow` and `VoicePromptEcho` served only the deleted directions and
+went with them, along with their message keys.
+
+Two rules the strip keeps:
 
 - **Proposals are never behind a disclosure.** A proposal is the only part of an
   answer the operator has to answer; a minimal strip that hid the one actionable
   thing would be minimal about the wrong half.
-- **Blocks scroll inside the window, never the page.** The header is a fixed
-  pane; a table that pushed the input bar off screen would defeat the mode.
+- **Blocks scroll inside the window, never the page.** The strip is a fixed pane;
+  a table that pushed the page down would defeat the mode.
 
-Motion is one crossfade on Stage when the answer changes, reduced-motion gated,
-and nothing anywhere else — a surface that is on screen permanently must not
-move on its own.
+### Typing to her: the `candi` panel
+
+V2 hung a free-floating input pill above the control bar. That was two floating
+chromes stacked at the same edge, one of which was the app's actual footer, and
+it left "Ask Candi" as the one control in the console that opened something the
+console did not own. **V3 puts the input in the control dock's single layer-2
+slot** as panel id `candi` (`CompanionInputPanel`), which buys three things at
+once: the dock's exclusivity rule covers her (opening Automations closes Candi
+and the reverse), the roving toolbar reaches her the way it reaches every other
+panel, and the input sits at the width the footer already establishes.
+
+The row's Candi control is therefore whichever of two things the interface mode
+makes it — `candiControl()` in `shell/simulation/simControlDockLayers.ts`:
+
+| Interface mode | The control is | Announced as |
+| --- | --- | --- |
+| **Voice** | a PANEL toggle for `candi`; opening it raises the strip, closing it lowers her | `aria-expanded` + `aria-controls` |
+| **Window** | the round-3 ACTION: it empties the slot and raises the left dock, the competing surface | `aria-pressed` |
+| no companion (deep-link pages) | not rendered at all | — |
+
+**Her panel's openness is `companion.open` itself**, never a second copy in the
+dock's `panel` state — joined during render by `effectiveDockPanel()`. That is
+what keeps the command palette's "Ask Candi" (which knows nothing about the
+footer) consistent with the row, with no effect keeping two states in step.
+Sending from the panel keeps it open: her answer lands in the strip and the next
+question is typed in the same place, so a panel that closed itself on send would
+make every second message a two-click act.
+
+**Closing her never cuts audio.** `CompanionDock` keeps the strip mounted while
+`speech.speakingId` is set even after `open` goes false, because the strip
+carries the only stop control there is. In WINDOW mode that courtesy is
+impossible — the rest pill has no transport — so closing the window stops the
+utterance, which is V1's contract unchanged.
 
 ### Geometry
 
-Both halves are fixed on `--z-sim-drawer`, the dock's own layer: above the
-sidebar, below the Modal, because a dialog the operator opened is the more
-recent intent. The bottom bar clears the live control bar (`--sim-bar-h`) the
-same way every other floating surface does. Nothing traps focus and nothing is
-inert — the page behind is the entire reason this mode exists. The rest pill is
-unchanged and shared: the mode changes the OPEN state only.
+The strip is fixed on `--z-sim-drawer`, the dock's own layer: above the sidebar,
+below the Modal, because a dialog the operator opened is the more recent intent.
+Nothing traps focus and nothing is inert — the page behind is the entire reason
+this mode exists. The rest pill is unchanged and shared: the mode changes the
+OPEN state only, so a voice-mode operator whose deck is collapsed still has the
+pill as a door.
 
-The input bar is one line (`<input>`, not a textarea): the operator gave up the
+The input is one line (`<input>`, not a textarea): the operator gave up the
 column to keep the page visible, so the composer cannot claim it back, Enter has
 exactly one meaning and there is no Shift+Enter to explain. It reproduces
 `ChatComposer`'s draft contract (cleared optimistically, restored when the
 exchange resolves false) rather than sharing it — about eight lines, against
 adding a `compact` prop to a primitive another workstream owns. It is disabled
 until the thread is `ready`, because a message sent into no thread resolves false
-and silently restores itself, which reads as the app ignoring you. The mic is
+and silently restores itself, which reads as the app ignoring you. It takes focus
+on open: the operator pressed a control that makes a place to type. The mic is
 drawn disabled with a title naming what it waits for: a voice mode with no
 microphone reads as an oversight, one with a live-looking icon that does nothing
 is worse, and a control that is visibly not ready yet is the honest third option.

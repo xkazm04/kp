@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildUrl } from "@/app/features/shell/tabs";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
@@ -15,7 +15,14 @@ import { SimControlDockPanelBody } from "./SimControlDockPanelBody";
 import { DockBrand, DockGuide } from "./SimControlDockRail";
 import { SimControlDockToolbar } from "./SimControlDockToolbar";
 import { dockPanelSlot } from "./dockPanelSlot";
-import { DOCK_PANEL_DOM_ID, dockTabDomId, type DockPanelId } from "./simControlDockLayers";
+import { useDockPanelEffects } from "./useDockPanelEffects";
+import {
+  DOCK_PANEL_DOM_ID,
+  candiControl,
+  dockTabDomId,
+  effectiveDockPanel,
+  type DockPanelId,
+} from "./simControlDockLayers";
 
 /*
  * "Flight Deck", round 3 — a two-layer toolbar with a rail beside it.
@@ -31,9 +38,17 @@ import { DOCK_PANEL_DOM_ID, dockTabDomId, type DockPanelId } from "./simControlD
  * surface at a time holds inside the panel too — and spends the footer's spare
  * width on a RAIL: the identity block outside the box's left border, the guided
  * demo's single entry outside its right (SimControlDockRail.tsx). The demo had
- * two doors to the same `sim.start()`; it now has one. "Ask Candi" stays the
- * deliberate exception — an ACTION raising the companion dock, the competing
- * surface, so the two close each other rather than sharing the slot.
+ * two doors to the same `sim.start()`; it now has one.
+ *
+ * Round V3 finishes it in the other direction. "Ask Candi" was the deliberate
+ * exception — an ACTION raising a competing floating window — and in the VOICE
+ * interface mode there is no longer a competing window to raise: her answer is a
+ * strip at the top of the screen, so the thing the footer should own is the
+ * INPUT. In that mode she becomes the `candi` layer-2 panel and inherits the
+ * exclusivity for free; in window mode she is still the action she was. The
+ * whole of that difference is `candiControl()`, and her panel's openness is
+ * `companion.open` itself rather than a second copy in this file's `panel`
+ * state — joined during render by `effectiveDockPanel()`, never by an effect.
  */
 
 export function ControlDock() {
@@ -52,37 +67,25 @@ export function ControlDock() {
   // effect below handles the live ops → sim transition. Ops rest state is collapsed.
   const [collapsed, setCollapsed] = useState(mode !== "sim");
   // THE single layer-2 slot. Its initial value is the face the old dock would have
-  // shown, so raising the deck lands on the same content it always did.
+  // shown, so raising the deck lands on the same content it always did. It never
+  // holds "candi": that panel's state is the companion's own `open`, joined below.
   const [panel, setPanel] = useState<DockPanelId | null>(mode === "sim" ? "sim" : "ops");
+  const candi = candiControl(companion !== null, companion?.prefs.mode ?? "dock");
+  const shown = effectiveDockPanel(panel, candi, companion?.open ?? false);
   const railRef = useRef<HTMLDivElement>(null);
   // ResizeObserver-backed on the whole footer ROW (panel + both rail elements), so
   // a layer-2 open/close republishes the height the sim overlays anchor above.
   usePublishBarHeight(railRef, !collapsed);
 
-  // Raise the deck automatically the moment a demo begins (ops → sim), so the tour
-  // is visible without hunting for the switch. Fires on the transition only — the
-  // viewer can still lower it mid-run, and it is what makes the guide button's
-  // `start` branch reveal the console: pressing it flips the mode, and this lands.
-  const prevMode = useRef(mode);
-  useEffect(() => {
-    if (mode === "sim" && prevMode.current !== "sim") {
-      setCollapsed(false);
-      setPanel("sim");
-    }
-    prevMode.current = mode;
-  }, [mode]);
-
-  // Escape closes the OPEN PANEL, not the deck — the layer-1 row stays put, which
-  // is the affordance that says how to get the panel back. Suspended while the
-  // dock's own dry-run modal is up so Escape reaches the dialog first.
-  useEffect(() => {
-    if (collapsed || panel === null || pass.preview) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPanel(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [collapsed, panel, pass.preview]);
+  useDockPanelEffects({
+    mode,
+    collapsed,
+    setCollapsed,
+    shown,
+    setPanel,
+    modalUp: Boolean(pass.preview),
+    closeDock: companion?.closeDock,
+  });
 
   const batch = findActive((t) => t.kind === "batch_screen");
   const aiBusy = sim.running || pass.busy || !!batch;
@@ -127,7 +130,14 @@ export function ControlDock() {
     );
   }
 
-  const { selectPanel, askCandi, onGuide } = dockPanelSlot({ panel, setPanel, mode, companion, startSim: sim.start });
+  const { selectPanel, askCandi, onGuide } = dockPanelSlot({
+    panel: shown,
+    setPanel,
+    mode,
+    companion,
+    candi,
+    startSim: sim.start,
+  });
 
   return (
     <>
@@ -146,16 +156,16 @@ export function ControlDock() {
           <DockBrand aiBusy={aiBusy} onCollapse={() => setCollapsed(true)} />
           <div className="pointer-events-auto min-w-0 flex-1 rounded-xl border-2 border-stone-300 bg-white/95 px-4 py-3 shadow-panel backdrop-blur dark:rounded-2xl">
             {/* ── LAYER 2 — the one exclusive panel, above the row that opened it ── */}
-            {panel ? (
+            {shown ? (
               <div
-                key={panel}
+                key={shown}
                 id={DOCK_PANEL_DOM_ID}
                 role="region"
-                aria-labelledby={dockTabDomId(panel)}
+                aria-labelledby={dockTabDomId(shown)}
                 className="animate-fade-in mb-3 border-b border-stone-200 pb-3"
               >
                 <SimControlDockPanelBody
-                  panel={panel}
+                  panel={shown}
                   sim={sim}
                   router={router}
                   searchParams={searchParams}
@@ -171,15 +181,16 @@ export function ControlDock() {
 
             {/* ── LAYER 1 — always visible; the way into every panel but the demo ── */}
             <SimControlDockToolbar
-              panel={panel}
+              panel={shown}
               awaiting={awaiting}
               openDecisions={openDecisions}
               onSelectPanel={selectPanel}
               onAskCandi={askCandi}
+              candi={candi}
               companionOpen={companion?.open ?? false}
             />
           </div>
-          <DockGuide open={panel === "sim"} onClick={onGuide} />
+          <DockGuide open={shown === "sim"} onClick={onGuide} />
         </div>
       </div>
     </>

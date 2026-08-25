@@ -8811,23 +8811,8 @@
       "older": "Réponse précédente",
       "newer": "Réponse suivante",
       "position": "{index} sur {total}",
-      "timeline": "Aller à une réponse",
       "details": "Afficher les détails",
-      "detailsHide": "Masquer les détails",
-      "written": "Lire la réponse écrite",
-      "writtenHide": "Masquer la réponse écrite",
-      "prompt": "Vous avez demandé",
-      "replay": "Rejouer",
-      "playbackReady": "Prêt à jouer",
-      "playbackPreparing": "Préparation de l'audio",
-      "playbackPlaying": "Lecture en cours",
-      "playbackBlocked": "Appuyez sur lecture pour autoriser le son",
-      "playbackError": "Impossible de le prononcer",
-      "attention": "{count, plural, one {# chose vous attend} other {# choses vous attendent}}",
-      "variant": "Direction",
-      "variantTicker": "Ticker",
-      "variantStage": "Stage",
-      "variantHud": "HUD"
+      "detailsHide": "Masquer les détails"
     }
   }
 }

@@ -7,7 +7,6 @@ import {
   storePrefs,
   type CompanionPrefs,
   type CompanionUiMode,
-  type CompanionVoiceVariant,
 } from "./companionPrefs";
 
 /*
@@ -35,7 +34,6 @@ import {
 export type CompanionPrefsState = CompanionPrefs & {
   setMode: (mode: CompanionUiMode) => void;
   setAutoSpeak: (autoSpeak: boolean) => void;
-  setVariant: (variant: CompanionVoiceVariant) => void;
   /** False until the mount read has landed. Consumers that would FLASH on the
    *  wrong answer (a header that paints a mode label) can wait for it; the dock
    *  itself does not, because both modes render the same closed pill. */
@@ -69,7 +67,6 @@ export function useCompanionPrefs(): CompanionPrefsState {
 
   const setMode = useCallback((mode: CompanionUiMode) => update({ mode }), [update]);
   const setAutoSpeak = useCallback((autoSpeak: boolean) => update({ autoSpeak }), [update]);
-  const setVariant = useCallback((variant: CompanionVoiceVariant) => update({ variant }), [update]);
 
-  return { ...prefs, setMode, setAutoSpeak, setVariant, hydrated };
+  return { ...prefs, setMode, setAutoSpeak, hydrated };
 }

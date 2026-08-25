@@ -8811,23 +8811,8 @@
       "older": "Starší odpověď",
       "newer": "Novější odpověď",
       "position": "{index} z {total}",
-      "timeline": "Přejít na odpověď",
       "details": "Zobrazit detaily",
-      "detailsHide": "Skrýt detaily",
-      "written": "Přečíst psanou odpověď",
-      "writtenHide": "Skrýt psanou odpověď",
-      "prompt": "Ptali jste se",
-      "replay": "Přehrát znovu",
-      "playbackReady": "Připraveno k přehrání",
-      "playbackPreparing": "Připravuji zvuk",
-      "playbackPlaying": "Přehrává se",
-      "playbackBlocked": "Stiskněte přehrát a povolte zvuk",
-      "playbackError": "Tohle nešlo vyslovit",
-      "attention": "{count, plural, one {# věc vás potřebuje} few {# věci vás potřebují} other {# věcí vás potřebuje}}",
-      "variant": "Směr",
-      "variantTicker": "Ticker",
-      "variantStage": "Stage",
-      "variantHud": "HUD"
+      "detailsHide": "Skrýt detaily"
     }
   }
 }

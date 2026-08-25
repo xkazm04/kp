@@ -259,13 +259,16 @@ outside each of its borders.
   "N need you" route into the decisions queue, and a compact `role="toolbar"` icon
   row of four controls. Roving tabindex: one tab stop, arrows/Home/End move FOCUS
   (never activation — half the row fires side effects), Enter/Space activates. The
-  math is `nextToolbarIndex()` in `shell/simulation/simControlDockLayers.ts`,
-  unit-tested beside it. The guide button is NOT a member of the toolbar — it is
-  outside the box across a visual gap, so it owns its own tab stop.
+  math is `nextToolbarIndex()` + `toolbarMemberCount()` in
+  `shell/simulation/simControlDockLayers.ts`, unit-tested beside it. The Candi
+  member is the only CONDITIONAL one and it is LAST (`CANDI_TOOLBAR_INDEX`), so
+  its presence never renumbers the three fixed panels under an index the operator
+  is standing on. The guide button is NOT a member of the toolbar — it is outside
+  the box across a visual gap, so it owns its own tab stop.
 - **Layer 2** (`SimControlDockPanelBody.tsx`) — ONE panel rendered above the row,
   keyed by a single `panel` state (`DockPanelId = "sim" | "ops" | "command" |
-  "schedule"`). Re-selecting the active control closes it (`toggleDockPanel()`);
-  Escape closes it too, leaving the row in place.
+  "schedule" | "candi"`). Re-selecting the active control closes it
+  (`toggleDockPanel()`); Escape closes it too, leaving the row in place.
 
 | Control | Where | Opens |
 | --- | --- | --- |
@@ -273,7 +276,7 @@ outside each of its borders.
 | Automations | layer 1 | `SimControlDockOpsFace` — AI screen + automation pass tiles, pass strip |
 | Command | layer 1 | `hiring/pipeline/CommandBar` — the free-text pipeline command line, imported, not forked |
 | Schedule | layer 1 | `hiring/pipeline/SchedulerControl` — the automation clock, imported, not forked |
-| Ask Candi | layer 1 | nothing — it is an **action**: it calls `openDock()` on `CompanionDockProvider` and closes the open panel |
+| Candi | layer 1 | **depends on the companion's interface mode** (`candiControl()`). In VOICE mode it toggles the `candi` panel — `companion/CompanionInputPanel`, the one-line composer, with her answer showing in the voice strip at the top of the screen. In WINDOW mode it is round 3's **action**: it calls `openDock()` on `CompanionDockProvider` and empties the slot. With no companion in the tree it is not rendered |
 
 The `ops` panel's LABEL is "Automations"; its panel id and its i18n key both stay
 `operations`, because an identifier is not a caption. The row's transitions all
@@ -293,12 +296,24 @@ are `guideAction()`: close the console, show it, or begin a run — after which 
 ops → sim effect below reveals the console itself.
 
 Mutual exclusion is structural, not an effect: there is one `panel` slot, so a
-second panel cannot exist, and "Ask Candi" is deliberately not a member of
-`DOCK_PANEL_IDS` so it can never occupy that slot. It closes the open panel when
-raising the companion dock, and opening a panel calls `closeDock()` in return —
-the chat window counts as the competing surface in both directions. The control is
-omitted entirely when `useOptionalCompanionDock()` is null (the deep-link pages
-render no dock), rather than shown as a button that cannot work.
+second panel cannot exist. Opening any panel calls `closeDock()`, and in WINDOW
+mode raising the companion empties the slot in return — the chat window counts as
+the competing surface in both directions. The control is omitted entirely when
+`useOptionalCompanionDock()` is null (the deep-link pages render no dock), rather
+than shown as a button that cannot work.
+
+**Round V3 folded the companion INTO that rule for voice mode.** "Ask Candi" was
+the deliberate exception — an action raising a competing floating window — and in
+voice mode there is no competing window to raise: her answer is a strip at the top
+of the screen, so the thing the footer should own is the INPUT. `candi` is
+therefore a real member of `DOCK_PANEL_IDS`, and the one subtlety is that its
+openness is **not stored in the `panel` state**. `companion.open` already is that
+state: the strip reads it, and the command palette sets it from a surface that has
+never heard of this dock. `effectiveDockPanel(stored, candi, companionOpen)` joins
+the two during render — one line, no effect, and the companion wins the tie so
+something that raised her from outside the row puts her input on screen with her
+answer. The two effects that move the slot without a click (a guided run
+beginning, and Escape) live in `useDockPanelEffects.ts`.
 
 `useControlMode()` in `shell/simulation/simControlCenterKit.ts` no longer picks a
 whole face — it picks the DEFAULT layer-2 panel on raise, auto-raises the deck onto

@@ -78,11 +78,12 @@ export function useVoiceHistory(turns: readonly VoiceSourceTurn[]): VoiceHistory
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      // The header region contains controls that OWN the arrow keys — the
-      // direction switcher is a radiogroup with roving tabindex, and the round
-      // may yet put a select in here. They preventDefault but do not stop the
-      // event, so without this guard pressing Right inside the switcher would
-      // both change direction and jump the reader forward a turn.
+      // The window region can contain controls that OWN the arrow keys — round
+      // V2's direction switcher was a radiogroup with roving tabindex, and the
+      // settings popover anchored in the chrome can hold a segmented control or
+      // a select. They preventDefault but do not stop the event, so without this
+      // guard pressing Right inside one would both move that control and jump
+      // the reader forward a turn.
       const target = event.target as HTMLElement | null;
       if (target?.closest?.("input, textarea, select, [role='radiogroup'], [contenteditable='true']")) return;
       if (event.key === "ArrowLeft") {

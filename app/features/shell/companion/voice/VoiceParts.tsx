@@ -9,13 +9,13 @@ import { CompanionProposalCard } from "../CompanionProposalCard";
 import type { VoiceEntry } from "./voiceHistory";
 
 /*
- * The pieces one answer is made of, shared by all three directions.
+ * The pieces one answer is made of.
  *
- * They were extracted the moment the second variant needed the second one — the
- * prototype rule about hoisting mid-round rather than at refactor time. What a
- * direction actually differs in is WHERE these sit and which are behind a
- * disclosure; none of them differs in what a proposal card is or how a dropped
- * block is admitted, and three copies of that would drift within a round.
+ * They were extracted mid-prototype, when the second of three directions needed
+ * the second one. Round V3 kept the Ticker and deleted the other two; these
+ * stayed, because they are what an ANSWER is made of rather than what a
+ * direction was — and the round-V2 variants that only they served (the prompt
+ * echo, the non-compact register) went with the files that used them.
  *
  * The reading order is the dock's, unchanged: what she DREW, what she OFFERED,
  * what she STOOD ON. Voice mode compresses the geometry, not the honesty.
@@ -111,33 +111,20 @@ export function VoiceMetaChips({ entry, recallLimit = 1 }: { entry: VoiceEntry; 
   );
 }
 
-/** The question this answer answered, echoed small. Voice mode shows ONE reply
- *  with no transcript above it, so without this an operator arriving after a
- *  minute away has her answer and no idea what it was to. */
-export function VoicePromptEcho({ entry, className = "" }: { entry: VoiceEntry; className?: string }) {
-  const t = useTranslations("companion");
-  if (!entry.prompt) return null;
-  return (
-    <p className={`truncate text-sm text-steel ${className}`}>
-      <span className={CHIP_QUIET}>{t("voiceMode.prompt")}</span> {entry.prompt}
-    </p>
-  );
-}
-
 /** Nothing said yet. Not a spinner and not an apology — an instruction, because
  *  the one thing an empty voice mode needs to convey is that the bar at the
  *  bottom of the screen is where you start. */
-export function VoiceEmpty({ compact = false }: { compact?: boolean }) {
+export function VoiceEmpty() {
   const t = useTranslations("companion");
-  return <p className={`text-steel ${compact ? "text-sm" : "text-body"}`}>{t("voiceMode.empty")}</p>;
+  return <p className="text-sm text-steel">{t("voiceMode.empty")}</p>;
 }
 
 /** A turn is in flight. A line of text rather than a spinner, matching the
  *  dock's thinking bubble: the wait is 2-10s and honest words beat motion. */
-export function VoiceBusyNote({ compact = false }: { compact?: boolean }) {
+export function VoiceBusyNote() {
   const t = useTranslations("companion");
   return (
-    <span className={`${compact ? "text-sm" : "text-body"} text-steel`} role="status">
+    <span className="text-sm text-steel" role="status">
       {t("chat.thinking")}
     </span>
   );

@@ -8811,23 +8811,8 @@
       "older": "Ältere Antwort",
       "newer": "Neuere Antwort",
       "position": "{index} von {total}",
-      "timeline": "Zu einer Antwort springen",
       "details": "Details anzeigen",
-      "detailsHide": "Details ausblenden",
-      "written": "Geschriebene Antwort lesen",
-      "writtenHide": "Geschriebene Antwort ausblenden",
-      "prompt": "Sie fragten",
-      "replay": "Erneut abspielen",
-      "playbackReady": "Bereit zum Abspielen",
-      "playbackPreparing": "Audio wird vorbereitet",
-      "playbackPlaying": "Wird abgespielt",
-      "playbackBlocked": "Auf Abspielen drücken, um Ton zu erlauben",
-      "playbackError": "Das konnte nicht gesprochen werden",
-      "attention": "{count, plural, one {# Sache braucht Sie} other {# Sachen brauchen Sie}}",
-      "variant": "Richtung",
-      "variantTicker": "Ticker",
-      "variantStage": "Stage",
-      "variantHud": "HUD"
+      "detailsHide": "Details ausblenden"
     }
   }
 }

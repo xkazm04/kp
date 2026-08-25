@@ -1,8 +1,8 @@
 "use client";
 
-import { Play, RotateCcw, Square } from "lucide-react";
+import { Play, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { BTN_SECONDARY, railIconBtn } from "@/app/_components/ui/recipes";
+import { railIconBtn } from "@/app/_components/ui/recipes";
 import { voiceTextForTurn, type CompanionSpeech } from "../useCompanionSpeech";
 import type { VoiceEntry } from "./voiceHistory";
 
@@ -32,8 +32,6 @@ type PlaybackState = {
   failed: boolean;
   /** Verb for what pressing the control does right now. */
   label: string;
-  /** What playback is doing, in words. */
-  stateText: string;
   press: () => void;
 };
 
@@ -50,15 +48,6 @@ function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): Playbac
     blocked,
     failed,
     label: blocked ? t("voice.resume") : active && !failed ? t("voice.stop") : t("voice.speak"),
-    stateText: blocked
-      ? t("voiceMode.playbackBlocked")
-      : failed
-        ? t("voiceMode.playbackError")
-        : active && speech.playback === "synthesizing"
-          ? t("voiceMode.playbackPreparing")
-          : active
-            ? t("voiceMode.playbackPlaying")
-            : t("voiceMode.playbackReady"),
     press: () => {
       if (blocked) speech.resume();
       else if (active && !failed) speech.stop();
@@ -67,8 +56,15 @@ function usePlayback(entry: VoiceEntry | null, speech: CompanionSpeech): Playbac
   };
 }
 
-/** Icon-only transport — the strips, where every millimetre of height is screen
- *  the operator asked to keep. */
+/** Icon-only transport — the strip, where every millimetre of height is screen
+ *  the operator asked to keep.
+ *
+ *  THREE meanings on one control and never a fourth: start the shown answer,
+ *  stop the one playing, unblock a playback the browser refused. Replay is the
+ *  same press once playback has settled — the button is a Play again the moment
+ *  it stops being a Stop, which is why V3 did not carry Stage's separate replay
+ *  control across: on a one-line strip a second transport button would cost
+ *  height to say what the first one already does. */
 export function VoicePlaybackButton({ entry, speech }: { entry: VoiceEntry | null; speech: CompanionSpeech }) {
   const t = useTranslations("companion");
   const state = usePlayback(entry, speech);
@@ -96,53 +92,5 @@ export function VoicePlaybackButton({ entry, speech }: { entry: VoiceEntry | nul
         </span>
       ) : null}
     </span>
-  );
-}
-
-/** The labelled transport row — the voice-forward direction, where the playback
- *  IS the content and deserves to say what it is doing in words. */
-export function VoicePlaybackRow({ entry, speech }: { entry: VoiceEntry | null; speech: CompanionSpeech }) {
-  const t = useTranslations("companion");
-  const state = usePlayback(entry, speech);
-  if (!state || !entry) return null;
-  const speakable = { id: entry.id, content: entry.content, meta: entry.meta };
-  const stopping = state.active && !state.failed && !state.blocked;
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        aria-pressed={state.active && !state.failed}
-        onClick={state.press}
-        title={state.failed && speech.error ? speech.error : state.label}
-        className={`${BTN_SECONDARY} h-10 px-3.5 text-sm ${state.active && !state.failed ? "border-coral/40 text-coral" : ""}`}
-      >
-        {stopping ? (
-          <Square size={15} aria-hidden fill="currentColor" />
-        ) : (
-          <Play size={15} aria-hidden fill="currentColor" />
-        )}
-        {state.label}
-      </button>
-      {/* Replay is a SECOND control, not a third meaning on the first: restarting
-          an utterance while it plays is a different intent from stopping it, and
-          folding them together is how a stop button becomes unpredictable. It is
-          drawn only while something is actually playing — over silence, the play
-          button already IS the replay. */}
-      {stopping ? (
-        <button
-          type="button"
-          aria-label={t("voiceMode.replay")}
-          title={t("voiceMode.replay")}
-          onClick={() => speech.speak(speakable)}
-          className={railIconBtn(false)}
-        >
-          <RotateCcw size={16} aria-hidden />
-        </button>
-      ) : null}
-      <span className={`text-sm ${state.failed || state.blocked ? "text-coral" : "text-steel"}`} role="status">
-        {state.stateText}
-      </span>
-      {state.failed && speech.error ? <span className="text-sm text-steel">{speech.error}</span> : null}
-    </div>
   );
 }

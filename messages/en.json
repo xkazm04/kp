@@ -8811,23 +8811,8 @@
       "older": "Older answer",
       "newer": "Newer answer",
       "position": "{index} of {total}",
-      "timeline": "Jump to an answer",
       "details": "Show details",
-      "detailsHide": "Hide details",
-      "written": "Read the written reply",
-      "writtenHide": "Hide the written reply",
-      "prompt": "You asked",
-      "replay": "Play again",
-      "playbackReady": "Ready to play",
-      "playbackPreparing": "Preparing the audio",
-      "playbackPlaying": "Playing",
-      "playbackBlocked": "Press play to allow sound",
-      "playbackError": "That could not be spoken",
-      "attention": "{count, plural, one {# thing needs you} other {# things need you}}",
-      "variant": "Direction",
-      "variantTicker": "Ticker",
-      "variantStage": "Stage",
-      "variantHud": "HUD"
+      "detailsHide": "Hide details"
     }
   }
 }

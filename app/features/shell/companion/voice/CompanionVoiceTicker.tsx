@@ -1,43 +1,72 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { ChatBlockLabels } from "@/app/_components/chat/chatBlockTypes";
 import { PANEL } from "@/app/_components/ui/recipes";
+import type { CompanionProposal } from "@/app/_lib/db/companion";
+import type { CompanionSpeech } from "../useCompanionSpeech";
 import { VoiceNav } from "./VoiceNav";
 import { VoicePlaybackButton } from "./VoicePlayback";
 import { VoiceBlocks, VoiceBusyNote, VoiceEmpty, VoiceMetaChips, VoiceProposals, VoiceProse } from "./VoiceParts";
-import type { VoiceVariantProps } from "./voiceTypes";
+import type { VoiceHistory } from "./useVoiceHistory";
 
 /*
- * DIRECTION A — "Ticker". The CALM direction.
+ * THE VOICE-MODE PRESENTATION — "the Ticker". Round V3 promoted it from one of
+ * three directions to the only one; Stage and HUD are deleted.
  *
- * METAPHOR: a newsroom crawl frozen on its last item. One strip across the top
- * of the screen, one to two lines of prose, and the rest of the display is the
+ * METAPHOR: a newsroom crawl frozen on its last item. One strip near the top of
+ * the screen, one to two lines of prose, and the rest of the display is the
  * operator's work — which is the entire reason they asked for this mode. The
- * strip is a HEADLINE, not a window: it tells you what she said and gives you
- * one control to hear it, and everything with height to it (a table, a chart,
- * her provenance) is one press away behind "show details" rather than pushing
- * the page down.
+ * strip is a HEADLINE: it tells you what she said and gives you one control to
+ * hear it, and everything with height to it (a table, a chart, her provenance)
+ * is one press away behind "show details" rather than pushing the page down.
  *
- * HOW IT DIFFERS from the dock: the dock spends a 30rem column to make a
- * conversation legible; the Ticker spends ~5rem of height to make ONE answer
- * legible and gives the column back. It is the direction that wins if the
- * operator's real complaint was "the chat is in the way".
+ * WHAT V3 TOOK FROM STAGE, and only this: the WIDTH. A strip that spanned the
+ * viewport read as a system banner — a notification bar the app had put there —
+ * rather than as Candi's window. The host caps it at Stage's reading measure
+ * (~40rem) and centres it, so the same content reads as a thing you opened. The
+ * register is unchanged: still one to two lines, still no motion, still the
+ * disclosure for anything taller.
  *
- * WHAT IT GIVES UP, stated rather than discovered: two lines is a glance, not a
- * read. An answer with real substance is a click away in every case, and if the
- * round finds that the click is always pressed, that is the finding — Ticker
- * loses to Stage and the disclosure was the tell.
+ * WHERE THE INPUT WENT. There is no bar under this any more. Typing to her is a
+ * layer-2 panel in the footer control dock (`CompanionInputPanel`, panel id
+ * `candi`), which is what makes the two competing surfaces one surface: opening
+ * Automations closes Candi, opening Candi closes Automations, and the strip
+ * follows the panel. This component knows none of that — it renders an answer.
  *
- * PROPOSALS ARE NOT BEHIND THE DISCLOSURE, in this direction least of all. It is
- * the one thing in an answer the operator must respond to, and a minimal strip
- * that hides the only actionable thing would be minimal about the wrong half.
+ * PROPOSALS ARE NOT BEHIND THE DISCLOSURE. It is the one thing in an answer the
+ * operator must respond to, and a minimal strip that hid the only actionable
+ * thing would be minimal about the wrong half.
  *
- * NO MOTION. The calm direction earns its name by having none: colours and
- * borders transition on hover, the disclosure snaps, and a strip that is on
- * screen permanently must never move on its own.
+ * NO MOTION. The strip is on screen permanently; colours and borders transition
+ * on hover, the disclosure snaps, and nothing moves on its own.
  */
+
+/**
+ * The prose length above which the strip offers its expander.
+ *
+ * DELIBERATELY BELOW the two-line measure it is protecting. At the ~40rem cap a
+ * clamped line holds roughly 80 characters, so two lines is ~160 — and the
+ * V2 threshold of 140 sat close enough underneath that to be a coin toss on
+ * fonts, locale and zoom. A reply that lost its tail to `line-clamp-2` with no
+ * expander beside it would be CONTENT CUT, which is the one thing this surface
+ * may not do: an operator cannot know that what they are reading is not all of
+ * it. Erring low costs an expander over a reply that did fit; erring high costs
+ * a sentence nobody can reach.
+ */
+const CLAMP_SAFE_CHARS = 100;
+
+/** Her full prose is ALWAYS what the strip carries — never `meta.voiceReply`,
+ *  which is the composition for the ear and is what the play button speaks. So a
+ *  turn with no voice composition has nothing to fall back FROM: the strip is
+ *  already showing every character she wrote, clamped visually and expandable in
+ *  place. `line-clamp` hides overflow; it never truncates the text. */
+function hasMoreToShow(content: string, blocks: number): boolean {
+  return blocks > 0 || content.includes("\n") || content.length > CLAMP_SAFE_CHARS;
+}
+
 export function CompanionVoiceTicker({
   history,
   speech,
@@ -47,7 +76,24 @@ export function CompanionVoiceTicker({
   onResolveProposal,
   blockLabels,
   chrome,
-}: VoiceVariantProps) {
+}: {
+  /** Where in her answers the operator is, and how to move. */
+  history: VoiceHistory;
+  speech: CompanionSpeech;
+  /** A turn is in flight. The shown answer is still the last one she gave —
+   *  a fetch never blanks what is already on screen. */
+  busy: boolean;
+  /** Already resolved to a sentence by the host; null when nothing failed. */
+  error: string | null;
+  /** Live proposal rows, keyed by id — the turn's `meta.proposalIds` is what
+   *  joins them, never position. */
+  proposalById: Map<string, CompanionProposal>;
+  onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
+  blockLabels: ChatBlockLabels;
+  /** The strip's own controls (settings, close). A slot rather than a fixed row
+   *  because the host owns what the window can DO and this owns what it says. */
+  chrome: ReactNode;
+}) {
   const t = useTranslations("companion");
   // Keyed by entry id rather than a boolean, so arrowing to another answer
   // collapses back to the headline with no effect to run and no stale open
@@ -55,20 +101,14 @@ export function CompanionVoiceTicker({
   const [openId, setOpenId] = useState<string | null>(null);
   const entry = history.entry;
   const open = entry !== null && openId === entry.id;
-  const hasDetails = entry !== null && ((entry.meta?.blocks ?? []).length > 0 || entry.content.length > 140);
+  const hasDetails = entry !== null && hasMoreToShow(entry.content, (entry.meta?.blocks ?? []).length);
 
   return (
     <div className={`${PANEL} px-3 py-2`}>
       <div className="flex items-center gap-2.5">
         <VoicePlaybackButton entry={entry} speech={speech} />
         <div className="min-w-0 flex-1">
-          {entry ? (
-            <VoiceProse entry={entry} clamp={!open} />
-          ) : busy ? (
-            <VoiceBusyNote compact />
-          ) : (
-            <VoiceEmpty compact />
-          )}
+          {entry ? <VoiceProse entry={entry} clamp={!open} /> : busy ? <VoiceBusyNote /> : <VoiceEmpty />}
           {entry && busy ? (
             <span className="text-sm text-steel" role="status">
               {t("chat.thinking")}
