@@ -158,6 +158,73 @@ class ModeSeamTest(unittest.TestCase):
                 ClaudeCliProvider(**kwargs)
 
 
+@contextmanager
+def patched_probe(auth_stdout: str, *, version_stdout: str = "2.1.245 (Claude Code)", which: str | None = "claude"):
+    """Patch subprocess.run to serve `--version` and `auth status --json` separately."""
+    calls: list[tuple[list, dict]] = []
+
+    def runner(args, **kwargs):
+        calls.append((list(args), kwargs))
+        if args[-1] == "--version":
+            return subprocess.CompletedProcess(args, 0, stdout=version_stdout, stderr="")
+        return subprocess.CompletedProcess(args, 0, stdout=auth_stdout, stderr="")
+
+    with mock.patch("pipeline.jobfit.claude_cli.subprocess.run", runner), mock.patch(
+        "pipeline.jobfit.claude_cli.shutil.which", return_value=which
+    ):
+        yield calls
+
+
+class ProbeTest(unittest.TestCase):
+    """R2: zero-token install + authorization probe (`claude auth status --json`)."""
+
+    def setUp(self) -> None:
+        claude_cli._VERSION_CACHE.clear()
+        self.addCleanup(claude_cli._VERSION_CACHE.clear)
+
+    def test_logged_in_probes_ready_with_version_and_plan(self) -> None:
+        auth = '{"loggedIn": true, "authMethod": "claude.ai", "subscriptionType": "max"}'
+        with patched_probe(auth) as calls:
+            probe = ClaudeCliProvider().probe()
+        self.assertEqual(probe.status, claude_cli.PROBE_READY)
+        self.assertTrue(probe.installed)
+        self.assertEqual(probe.version, "2.1.245")
+        self.assertEqual(probe.auth_method, "claude.ai")
+        self.assertEqual(probe.subscription_type, "max")
+        auth_call = calls[-1]
+        self.assertEqual(auth_call[0][1:], ["auth", "status", "--json"])
+        # Probed under the SAME env the real run gets: seat auth, key stripped.
+        self.assertNotIn("ANTHROPIC_API_KEY", auth_call[1]["env"])
+
+    def test_logged_out_probes_installed_unauthed(self) -> None:
+        with patched_probe('{"loggedIn": false}'):
+            probe = ClaudeCliProvider().probe()
+        self.assertEqual(probe.status, claude_cli.PROBE_UNAUTHED)
+        self.assertTrue(probe.installed)
+        self.assertIn("not logged in", probe.detail)
+
+    def test_junk_output_probes_unknown_never_a_neighbor(self) -> None:
+        with patched_probe("Unknown command: auth"):
+            probe = ClaudeCliProvider().probe()
+        self.assertEqual(probe.status, claude_cli.PROBE_UNKNOWN)
+        self.assertIn("Unknown command", probe.detail)
+
+    def test_not_installed_probes_without_spawning(self) -> None:
+        with patched_probe("", which=None) as calls:
+            probe = ClaudeCliProvider(command="nope-claude").probe()
+        self.assertEqual(probe.status, claude_cli.PROBE_NOT_INSTALLED)
+        self.assertFalse(probe.installed)
+        self.assertEqual(calls, [])  # nothing to run — no subprocess at all
+
+    def test_offline_policy_vetoes_first_named_as_policy(self) -> None:
+        with mock.patch.dict(os.environ, {"KP_OFFLINE": "1"}, clear=False):
+            with patched_probe('{"loggedIn": true}') as calls:
+                probe = ClaudeCliProvider().probe()
+        self.assertEqual(probe.status, claude_cli.PROBE_POLICY_FORBIDDEN)
+        self.assertIn("KP_OFFLINE", probe.detail)
+        self.assertEqual(calls, [])  # veto precedes any lookup or spawn
+
+
 class ApiKeyEnvTest(unittest.TestCase):
     def test_api_key_stripped_by_default(self) -> None:
         with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-live-xxx"}, clear=False):

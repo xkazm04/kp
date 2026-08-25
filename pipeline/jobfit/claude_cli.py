@@ -157,6 +157,67 @@ class ClaudeCliError(RuntimeError):
         self.subtype = subtype
 
 
+# Probe statuses — a closed vocabulary, three-valued at minimum (registry
+# availability-probe: install and authorization fail differently and are
+# repaired differently; `unknown` renders as unknown, never as a neighbor).
+PROBE_READY = "ready"
+PROBE_UNAUTHED = "installed_unauthed"
+PROBE_NOT_INSTALLED = "not_installed"
+PROBE_POLICY_FORBIDDEN = "policy_forbidden"
+PROBE_UNKNOWN = "unknown"
+
+# `claude --version` prints e.g. "2.1.245 (Claude Code)"; parse leniently,
+# keep only the semantic version.
+_VERSION_RE = re.compile(r"(\d+\.\d+\.\d+)")
+_VERSION_CACHE: dict[str, str | None] = {}
+
+
+def _cli_version(executable: str, *, timeout: int = 15) -> str | None:
+    """The installed CLI's semantic version, or None when undeterminable.
+
+    Cached per resolved executable for the process lifetime — the binary does
+    not change mid-run, and the probe should stay cheap enough to run before
+    every batch. Flag verified against `claude --help` on 2026-08-25
+    (CLI 2.1.245): `-v, --version  Output the version number`.
+    """
+    if executable in _VERSION_CACHE:
+        return _VERSION_CACHE[executable]
+    version: str | None = None
+    try:
+        completed = subprocess.run(
+            [executable, "--version"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=timeout,
+        )
+        match = _VERSION_RE.search(completed.stdout or "")
+        version = match.group(1) if match else None
+    except Exception:
+        version = None
+    _VERSION_CACHE[executable] = version
+    return version
+
+
+@dataclass(frozen=True)
+class ClaudeCliProbe:
+    """One :meth:`ClaudeCliProvider.probe` answer — a record, not a boolean.
+
+    ``status`` is the headline (one of the ``PROBE_*`` values); the rest is the
+    capability data behind it. ``detail`` carries a bounded diagnostic prefix
+    when the answer is not ``ready`` (a login prompt, a policy veto, raw output
+    that failed to parse) — the repair differs per cause, so the cause travels.
+    """
+
+    status: str
+    installed: bool
+    path: str | None = None
+    version: str | None = None
+    auth_method: str | None = None
+    subscription_type: str | None = None
+    detail: str | None = None
+
+
 @dataclass(frozen=True)
 class ClaudeResult:
     """One ``claude -p`` invocation: the answer text plus the envelope metadata."""
@@ -329,6 +390,81 @@ class ClaudeCliProvider:
         if is_offline():
             return False
         return shutil.which(self.command) is not None or os.path.isfile(self.command)
+
+    def probe(self, *, timeout: int = 15) -> ClaudeCliProbe:
+        """Install + authorization probe, proven WITHOUT spending tokens.
+
+        :meth:`available` answers "is the binary reachable" (cheap, no
+        subprocess); a logged-out CLI still passes it and fails only on the
+        first paid call. This probe closes that gap using the CLI's own
+        auth-status command — verified live on 2026-08-25 against CLI 2.1.245:
+        ``claude auth status --json`` is a local check printing
+        ``{"loggedIn": bool, "authMethod": ..., "subscriptionType": ...}``,
+        exits without any model call, and spends no tokens.
+
+        The KP_OFFLINE policy veto comes FIRST, before any filesystem lookup,
+        and names itself (``policy_forbidden``) — a policy refusal repaired as
+        "install the binary" is the wrong fix twice over. Auth state that
+        cannot be determined (old CLI without the subcommand, junk output) is
+        ``unknown`` — never inferred ready, never inferred unauthed.
+        """
+        from .llm.offline import is_offline
+
+        if is_offline():
+            return ClaudeCliProbe(
+                status=PROBE_POLICY_FORBIDDEN,
+                installed=False,
+                detail="KP_OFFLINE forbids cloud egress; the CLI reaches Anthropic's cloud",
+            )
+        resolved = shutil.which(self.command) or (
+            self.command if os.path.isfile(self.command) else None
+        )
+        if not resolved:
+            return ClaudeCliProbe(status=PROBE_NOT_INSTALLED, installed=False)
+
+        version = _cli_version(resolved, timeout=timeout)
+        try:
+            completed = subprocess.run(
+                [resolved, "auth", "status", "--json"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                env=self._child_env(),  # same env the real run gets: seat, not key
+                timeout=timeout,
+            )
+        except Exception as exc:
+            return ClaudeCliProbe(
+                status=PROBE_UNKNOWN,
+                installed=True,
+                path=resolved,
+                version=version,
+                detail=f"auth status probe failed: {type(exc).__name__}: {exc}"[:300],
+            )
+
+        try:
+            payload = json.loads((completed.stdout or "").strip())
+            logged_in = payload.get("loggedIn")
+        except (json.JSONDecodeError, AttributeError):
+            payload, logged_in = {}, None
+        if not isinstance(logged_in, bool):
+            # Junk / missing field / pre-`auth status` CLI: unknown stays unknown.
+            raw = (completed.stdout or completed.stderr or "").strip()
+            return ClaudeCliProbe(
+                status=PROBE_UNKNOWN,
+                installed=True,
+                path=resolved,
+                version=version,
+                detail=f"unrecognized auth status output: {raw[:200]!r}",
+            )
+        return ClaudeCliProbe(
+            status=PROBE_READY if logged_in else PROBE_UNAUTHED,
+            installed=True,
+            path=resolved,
+            version=version,
+            auth_method=payload.get("authMethod"),
+            subscription_type=payload.get("subscriptionType"),
+            detail=None if logged_in else "CLI installed but not logged in (run: claude login)",
+        )
 
     def _executable(self) -> str:
         """Resolve ``command`` to a launchable path.
