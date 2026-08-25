@@ -127,6 +127,66 @@ test("no runs at all is said out loud, not rendered as an empty pass", () => {
   assert.match(md, /No runs found/);
 });
 
+// ─── build reliability (P6h) ────────────────────────────────────────────────
+
+/** A run whose hire only stands because the build was re-dispatched once. */
+const retriedRun = {
+  ...brokenRun,
+  scenario: { name: "kp-retried" },
+  ok: true,
+  failedPhase: null,
+  errors: [],
+  expectations: [],
+  hire: {
+    hiredAgentId: "agent-2",
+    requestId: "req-2",
+    buildAttempts: 2,
+    buildFailures: [
+      { attempt: 1, requestId: "req-1", hiredAgentId: "agent-1", terminal: "failed", ladder: ["onboarding", "failed"], reason: "promotion held: tools never called" },
+    ],
+  },
+};
+
+test("summarizeRun carries the build attempts, and an absent one is null — not one clean build", () => {
+  assert.deepEqual(summarizeRun(retriedRun).buildAttempts, 2);
+  assert.equal(summarizeRun(retriedRun).buildFailures.length, 1);
+  assert.equal(summarizeRun(brokenRun).buildAttempts, null, "a run that never dispatched reports no attempts");
+});
+
+test("the banner reports build reliability, so a sweep cannot hide its flake rate", () => {
+  const md = renderReport([retriedRun], { generatedAt: "x" });
+  const banner = md.split("\n").find((l) => l.startsWith("▌"));
+  assert.match(banner, /builds 1\/2 OK \(50% build reliability\)/);
+
+  // Two runs, three builds, one dead → 2/3.
+  const clean = { ...retriedRun, scenario: { name: "kp-clean" }, hire: { hiredAgentId: "a", requestId: "r", buildAttempts: 1, buildFailures: [] } };
+  const both = renderReport([retriedRun, clean], { generatedAt: "x" }).split("\n").find((l) => l.startsWith("▌"));
+  assert.match(both, /builds 2\/3 OK \(67% build reliability\)/);
+});
+
+test("a sweep where nothing reached a dispatch says so instead of claiming 100%", () => {
+  const banner = renderReport([brokenRun], { generatedAt: "x" }).split("\n").find((l) => l.startsWith("▌"));
+  assert.match(banner, new RegExp(`builds ${GLYPH_NA} \\(no run reached a dispatch\\)`));
+});
+
+test("the Builds column is attempts/failures, and the dead build keeps its reason", () => {
+  const md = renderReport([retriedRun], { generatedAt: "x" });
+  const row = md.split("\n").find((l) => l.startsWith("| ✓ | kp-retried"));
+  assert.ok(row, "the retried run has a row");
+  assert.ok(row.includes("| 2/1 |"), `the Builds cell reads attempts/failures: ${row}`);
+  // The header carries the column, in the same position as the cell.
+  const header = md.split("\n").find((l) => l.startsWith("| | Scenario |"));
+  assert.equal(header.split("|").indexOf(" Builds "), row.split("|").findIndex((c) => c.trim() === "2/1"));
+  // …and the failure itself is readable, not just counted.
+  assert.match(md, /attempt 1 \(`req-1`\) ended `failed` — promotion held: tools never called/);
+});
+
+test("a run that never dispatched renders a dash in Builds", () => {
+  const md = renderReport([brokenRun], { generatedAt: "x" });
+  const row = md.split("\n").find((l) => l.startsWith("| ✗ | kp-rung0"));
+  assert.ok(row.includes(`| ${GLYPH_NA} |`), "no attempt reported ⇒ a dash, never 0/0");
+});
+
 test("the report renders every recorded run, in the order given", () => {
   const md = renderReport([recorded, brokenRun], { generatedAt: "x" });
   assert.ok(md.indexOf("## kp-default") < md.indexOf("## kp-rung0"));

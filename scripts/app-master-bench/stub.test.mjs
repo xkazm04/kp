@@ -11,8 +11,8 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cannedNight, cannedProbation, cannedReconcile, startStubPersonas } from "./stub.mjs";
-import { accountedBy, dispatchedCount, settleDispatch } from "./run.mjs";
+import { STUB_BUILD_FAILURE, cannedNight, cannedProbation, cannedReconcile, startStubPersonas } from "./stub.mjs";
+import { accountedBy, buildFailureReason, dispatchedCount, settleDispatch } from "./run.mjs";
 import { phaseCounts } from "./expectations.mjs";
 import { DRIVER_ORIGIN, personasClient } from "./lib.mjs";
 
@@ -204,6 +204,53 @@ test("an expired key gets ONE re-pair and ONE retry, then the 401 is returned as
   const failed = await doomed.get("/api/kp/connector-catalog");
   assert.equal(failed.status, 401);
   assert.equal(futile, 1, "exactly one repair attempt per call");
+});
+
+test("--stub-build-fail-once kills the FIRST build only, the way a real one dies", async (t) => {
+  // The knob that puts the driver's build retry under test without a live
+  // Personas: request 1 answers `failed` with a reason, and the re-dispatch
+  // (request 2 — kp mints a new hire because a `failed` row is not "live")
+  // builds cleanly.
+  const stub = await startStubPersonas({ buildFailsOnce: true });
+  t.after(() => stub.close());
+  const dispatch = async () => {
+    const res = await fetch(`${stub.url}/api/kp/persona-requests`, {
+      method: "POST",
+      headers: { origin: DRIVER_ORIGIN, authorization: `Bearer ${stub.apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ spec: { name: "App master" }, appMaster: APP_MASTER, reportToken: "", kp: {} }),
+    });
+    return (await res.json()).data.requestId;
+  };
+  const status = async (requestId) => {
+    const res = await fetch(`${stub.url}/api/kp/persona-requests/${requestId}`, {
+      headers: { origin: DRIVER_ORIGIN, authorization: `Bearer ${stub.apiKey}` },
+    });
+    return (await res.json()).data;
+  };
+
+  const first = await dispatch();
+  const dead = await status(first);
+  assert.equal(dead.status, "failed", "kp maps this to the terminal `failed` the activate phase fails fast on");
+  assert.equal(buildFailureReason({ data: dead }), `${STUB_BUILD_FAILURE.phase}: ${STUB_BUILD_FAILURE.reason}`);
+  assert.equal((await status(first)).status, "failed", "a dead build stays dead however often it is polled");
+
+  const second = await dispatch();
+  assert.notEqual(second, first, "the retry is a NEW request, not the dead one handed back");
+  assert.equal((await status(second)).status, "active", "…and only the first build was rigged to fail");
+
+  // Without the knob, nothing fails — the default stub run stays green.
+  const plain = await startStubPersonas();
+  t.after(() => plain.close());
+  const res = await fetch(`${plain.url}/api/kp/persona-requests`, {
+    method: "POST",
+    headers: { origin: DRIVER_ORIGIN, authorization: `Bearer ${plain.apiKey}`, "content-type": "application/json" },
+    body: JSON.stringify({ spec: { name: "App master" }, reportToken: "", kp: {} }),
+  });
+  const id = (await res.json()).data.requestId;
+  const ok = await fetch(`${plain.url}/api/kp/persona-requests/${id}`, {
+    headers: { origin: DRIVER_ORIGIN, authorization: `Bearer ${plain.apiKey}` },
+  });
+  assert.equal((await ok.json()).data.status, "active");
 });
 
 test("the stub still refuses an unauthorized call and an unknown route", async (t) => {

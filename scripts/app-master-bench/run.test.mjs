@@ -10,10 +10,15 @@
 // wait that closes that hole, and these pin its three exits: accounted,
 // stalled, timed out — plus the rule that it never claims to have waited for a
 // dispatch nobody reported.
+//
+// The second half of the file pins `buildWithRetry` (P6h): Personas' one-shot
+// build fails a meaningful fraction of hires for reasons unrelated to the role,
+// so a `failed` build is re-dispatched ONCE — but a timeout never is, and every
+// attempt is recorded either way.
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { accountedBy, dispatchedCount, mergeTickSummaries, settleDispatch } from "./run.mjs";
+import { MAX_BUILD_ATTEMPTS, accountedBy, buildFailureReason, buildWithRetry, dispatchedCount, mergeTickSummaries, settleDispatch } from "./run.mjs";
 
 /** A journal that records instead of writing, so a test reads what a run would. */
 const recorder = () => {
@@ -203,4 +208,150 @@ test("mergeTickSummaries folds one night's three ticks into one summary", () => 
   ]);
   assert.deepEqual(Object.keys(stub.phases), ["overnight", "report"]);
   assert.equal(mergeTickSummaries([null, undefined]), null);
+});
+
+// ─── the build retry (P6h) ──────────────────────────────────────────────────
+//
+// Personas' one-shot build fails a meaningful fraction of hires for reasons
+// that have nothing to do with the role under test, and each failure used to
+// cost a whole scenario. `buildWithRetry` re-dispatches a FAILED build once —
+// and these pin the three lines it must not cross: a timeout is never retried
+// (it left an orphan build running), a decision is never retried, and every
+// attempt is recorded whether the retry saved the run or not.
+
+/** An `activate` scripted from a list of outcomes, counting its calls. */
+const activations = (outcomes) => {
+  const calls = [];
+  const fn = async (attempt) => {
+    calls.push(attempt);
+    const next = outcomes[Math.min(calls.length - 1, outcomes.length - 1)];
+    if (next instanceof Error) throw next;
+    return next;
+  };
+  fn.calls = calls;
+  return fn;
+};
+
+const FAILED = { ok: false, terminal: "failed", ladder: ["onboarding", "failed"], requestId: "req-1", hiredAgentId: "agent-1" };
+const ACTIVE = { ok: true, row: { personaId: "persona-2" }, ladder: ["onboarding", "active"] };
+
+test("a build that ends `failed` is dispatched once more, and BOTH attempts are recorded", async () => {
+  const journal = recorder();
+  const dispatched = [];
+  const activate = activations([FAILED, ACTIVE]);
+  const build = await buildWithRetry({
+    activate,
+    dispatch: async (attempt) => dispatched.push(attempt),
+    journal,
+    reasonFor: async (requestId) => (requestId === "req-1" ? "promotion held: tools never called" : null),
+  });
+
+  assert.equal(build.ok, true, "the retry stood the hire up");
+  assert.equal(build.attempts, 2);
+  assert.deepEqual(dispatched, [2], "exactly one re-dispatch, for the SAME intake");
+  assert.equal(activate.calls.length, 2);
+  assert.equal(build.row.personaId, "persona-2", "the SECOND build's persona is the one that was hired");
+
+  // The dead build is still in the record — a run that passed on the retry must
+  // not read like a clean first-try hire.
+  assert.equal(build.failures.length, 1);
+  assert.deepEqual(build.failures[0], {
+    attempt: 1,
+    requestId: "req-1",
+    hiredAgentId: "agent-1",
+    terminal: "failed",
+    ladder: ["onboarding", "failed"],
+    reason: "promotion held: tools never called",
+  });
+  const retry = journal.lines.find((l) => l.kind === "build-retry");
+  assert.ok(retry, "the retry is journalled as it happens");
+  assert.equal(retry.attempt, 2);
+  assert.equal(retry.previousRequestId, "req-1");
+  assert.match(retry.reason, /tools never called/);
+});
+
+test("a TIMED-OUT activate is never retried — its build is still running", async () => {
+  // A timeout leaves an orphan Personas build session with no cancel endpoint.
+  // A second dispatch would race two live builds for one intake and burn two
+  // subscription seats to measure one hire, so the throw goes straight through.
+  const journal = recorder();
+  let dispatches = 0;
+  const timeout = new Error('poll("the hire to reach `active`") timed out after 5400000ms');
+  await assert.rejects(
+    buildWithRetry({
+      activate: activations([timeout, ACTIVE]),
+      dispatch: async () => { dispatches += 1; },
+      journal,
+    }),
+    /timed out/
+  );
+  assert.equal(dispatches, 0, "a timeout must not re-dispatch");
+  assert.deepEqual(journal.lines, [], "…and must not claim a retry it never made");
+});
+
+test("a terminal decision is not a flake: `rejected` and `retired` are never retried", async () => {
+  for (const terminal of ["rejected", "retired"]) {
+    let dispatches = 0;
+    const build = await buildWithRetry({
+      activate: activations([{ ok: false, terminal, ladder: ["onboarding", terminal], requestId: "req-9" }]),
+      dispatch: async () => { dispatches += 1; },
+      journal: recorder(),
+    });
+    assert.equal(build.ok, false);
+    assert.equal(build.terminal, terminal);
+    assert.equal(build.attempts, 1, `${terminal} is a decision about the hire, not a build flake`);
+    assert.equal(dispatches, 0);
+    assert.equal(build.failures.length, 1, "…and it is still recorded as a build that did not stand");
+  }
+});
+
+test("the retry is ONE retry: a second failed build ends the run, with both failures recorded", async () => {
+  const journal = recorder();
+  let dispatches = 0;
+  const build = await buildWithRetry({
+    activate: activations([FAILED, { ...FAILED, requestId: "req-2", hiredAgentId: "agent-2" }]),
+    dispatch: async () => { dispatches += 1; },
+    journal,
+    reasonFor: async (requestId) => `died in ${requestId}`,
+  });
+  assert.equal(build.ok, false);
+  assert.equal(build.attempts, MAX_BUILD_ATTEMPTS);
+  assert.equal(dispatches, 1, "one retry, never a third attempt");
+  assert.deepEqual(build.failures.map((f) => f.requestId), ["req-1", "req-2"]);
+  assert.deepEqual(build.failures.map((f) => f.reason), ["died in req-1", "died in req-2"]);
+});
+
+test("the caller's accumulator survives a throw on the retry", async () => {
+  // `result.hire.buildFailures` is the array passed in, so a timeout on the
+  // SECOND attempt still leaves the first failure in the run record.
+  const failures = [];
+  await assert.rejects(
+    buildWithRetry({
+      activate: activations([FAILED, new Error("poll timed out")]),
+      dispatch: async () => undefined,
+      journal: recorder(),
+      failures,
+    }),
+    /timed out/
+  );
+  assert.equal(failures.length, 1);
+  assert.equal(failures[0].requestId, "req-1");
+  assert.equal(failures[0].reason, null, "no reason was read, and none was invented");
+});
+
+test("buildFailureReason reads Personas' buildPhase, and never invents one", () => {
+  assert.equal(buildFailureReason({ success: true, data: { status: "failed", buildPhase: "design pass wrote a literal {{param}}" } }), "design pass wrote a literal {{param}}");
+  assert.equal(
+    buildFailureReason({ data: { buildPhase: { phase: "design", status: "failed", reason: "promotion held: tools never called" } } }),
+    "design: promotion held: tools never called"
+  );
+  assert.equal(buildFailureReason({ data: { buildPhase: { phase: "build", status: "failed" } } }), "build phase build (failed)");
+  assert.equal(buildFailureReason({ data: { failureReason: "executor could not create the persona" } }), "executor could not create the persona");
+  // An unenveloped body reads the same as an enveloped one.
+  assert.equal(buildFailureReason({ status: "failed", error: "boom" }), "boom");
+  // Nothing reported stays null — an absent reason is not a reason.
+  assert.equal(buildFailureReason({ data: { status: "failed" } }), null);
+  assert.equal(buildFailureReason({ data: { buildPhase: {} } }), null);
+  assert.equal(buildFailureReason(null), null);
+  assert.equal(buildFailureReason({ data: "failed" }), null);
 });

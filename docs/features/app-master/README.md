@@ -763,6 +763,7 @@ dialog     9 × POST /api/intake/[id]/message   (the app_master slot script, IN 
 compose    POST /api/intake/[id]/compose-app-master
 dispatch   POST /api/agents/dispatch {intakeId}
 activate   POST /api/agents/[id]/refresh until `active`
+             …a build that ends `failed` is re-dispatched ONCE (P6h, below)
 seed       POST /api/kp/test/seed-work {personaId, items} → the scenario's tasks
 nights     N × ( tick {phases:["overnight"]}          → dispatch the fleet
                  SETTLE: tick {phases:["reconcile"]}  → every --settle-poll,
@@ -806,6 +807,9 @@ dialog turn must come back `source: "deterministic"` and the scan must report
 npm run bench:app-master                     # = run.mjs --all --report
 node scripts/app-master-bench/run.mjs --scenario kp-rung0 --kp http://localhost:3103
 node scripts/app-master-bench/run.mjs --all --stub-personas   # no Personas at all (canned)
+node scripts/app-master-bench/run.mjs --scenario kp-default --stub-personas --stub-build-fail-once
+                                             # …with the first hire build rigged to fail: the run
+                                             # must retry it once and report the flake
 node scripts/app-master-bench/report.mjs     # re-render REPORT.md from what is on disk
 ```
 
@@ -965,6 +969,64 @@ status ladder it saw and how long it waited, plus a run warning. The next
 sweep's operator needs to know which request is still burning a session and may
 yet push a report after the run ended.
 
+### A failed build is retried once — and counted (P6h)
+
+Personas' one-shot hire build is **nondeterministic**, and it fails a meaningful
+fraction of hires for reasons that have nothing to do with the role under test:
+*"promotion held: tools never called"* (since fixed structurally) and a design
+pass writing a literal `{{param.daily_audit_hour}}` into a cron were both read
+off live sweeps. `activate` fails fast on the terminal status (`onboarding →
+failed`), so each one used to cost a whole scenario — the bench was being
+*defeated* by build flake instead of **measuring** it.
+
+So a `failed` build is now re-dispatched **once** against the same intake and the
+same composed spec (`buildWithRetry` in `run.mjs`, `MAX_BUILD_ATTEMPTS = 2`),
+and every attempt is written down:
+
+- `build-retry` journal line — `{attempt, previousRequestId, reason}`;
+- `hire.buildAttempts` and `hire.buildFailures[]` in `result.json` — one entry
+  per dead build with its `requestId`, status ladder and the reason Personas
+  reported, read from `GET /api/kp/persona-requests/{id}` (`buildPhase`, a
+  string on some builds and `{phase, status, reason}` on others). **No reading
+  means `reason: null`** — a retry that invented a cause would be worse than one
+  that admits it has none;
+- a run warning, even when the retry succeeded: a hire that only stands because
+  the second build worked is a finding about Personas, not a detail to swallow.
+
+The retry is scoped as tightly as honesty allows:
+
+- **Only a terminal `failed`.** `rejected` and `retired` are *decisions* about
+  the hire; re-dispatching over one would be the driver overruling the very
+  thing it is measuring.
+- **Never a timeout.** A timed-out activate leaves an orphan build session
+  running with no cancel endpoint (previous section), so a second dispatch would
+  race two live builds for one intake and burn two subscription seats to measure
+  one hire. A timeout throws straight through the retry loop, orphan warning and
+  all.
+
+**No kp-side change was needed for the re-dispatch, and that is a property worth
+keeping.** `getActiveHiredAgentForIntake` (`app/_lib/db/agents.ts`) allowlists
+`dispatched | pending_approval | onboarding | active`, so the `failed` row the
+refresh poll just wrote is already out of the one-live-agent-per-intake read and
+the second dispatch mints a second hire against a second Personas request. Both
+rows stay in the roster — the dead one is the evidence the reliability line is
+computed from. `agents-bridge.test.ts` pins it (*"a FAILED App-master build does
+not block a re-dispatch for the same intake"*), because widening that allowlist
+would silently turn every bench retry into a re-read of the dead hire. If a
+re-dispatch ever *does* answer `existing: true`, the driver refuses out loud
+rather than pretending it retried.
+
+The aggregate report carries the flake rate rather than absorbing it: the
+verdict banner leads with `builds 1/2 OK (50% build reliability)` across the
+sweep, each run's row has a **Builds** column reading `attempts/failures`
+(`1/0` = a clean first-try hire, `2/1` = a hire that only stands because the
+retry ran, `–` = a run that never reached a dispatch), and every dead build is
+listed with its reason in the run's own section.
+
+`--stub-build-fail-once` (with `--stub-personas`) rigs the first build to die
+exactly that way, so `npm run test:bench-driver` covers the retry path with no
+Personas at all.
+
 ### The seed phase — what makes a night measurable (P6e)
 
 Bench sweeps #11 and #12 (2026-08-24) drove the whole loop and every night
@@ -1087,8 +1149,10 @@ run.
 - **Unit-tested without a server.** The pure parts — scenario loader and
   validator, the expectation evaluator (including `readingFromRoster` over a
   roster row copied verbatim from a live `result.json`), the night's settle loop
-  over a fake clock, the stub bridge over its own socket, and the report renderer
-  over a recorded fixture — run as `npm run test:bench-driver`
+  over a fake clock, the build retry over a scripted activate (retry on `failed`,
+  never on a timeout, every attempt recorded), the stub bridge over its own
+  socket, and the report renderer over a recorded fixture — run as
+  `npm run test:bench-driver`
   (`node --test "scripts/app-master-bench/*.test.mjs"`).
 
 ---

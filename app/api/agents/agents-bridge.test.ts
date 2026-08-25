@@ -413,6 +413,51 @@ test("dispatch route: an App-master intake dispatches by intakeId, sends `appMas
   assert.equal(calls, 1, "Personas is NOT re-POSTed on the idempotent path");
 });
 
+test("dispatch route: a FAILED App-master build does not block a re-dispatch for the same intake", async () => {
+  // Personas' one-shot hire build is nondeterministic: a build can die after the
+  // request was accepted (`onboarding → failed` on the refresh poll), and the
+  // App-master bench re-dispatches it ONCE to measure the flake rate instead of
+  // losing a scenario to it (scripts/app-master-bench/run.mjs, P6h).
+  //
+  // That retry rests entirely on this: `failed` is TERMINAL and must never count
+  // as the one live agent per intake. Nothing in the dispatch route special-cases
+  // it — `getActiveHiredAgentForIntake` allowlists dispatched/pending_approval/
+  // onboarding/active — and this test is what keeps it that way, because a
+  // "helpful" widening of that list would silently turn every bench retry into a
+  // re-read of the dead hire.
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ requestId: `pr-am-retry-${calls}` }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as unknown as typeof fetch;
+
+  const intakeId = appMasterIntake();
+  const first = await dispatchPost(intakeDispatchReq(intakeId));
+  assert.equal(first.status, 200);
+  const firstBody = (await first.json()) as { hiredAgentId: string; requestId: string };
+  assert.ok(getActiveHiredAgentForIntake(intakeId), "the in-flight hire is live while it builds");
+
+  // What the refresh poll writes when Personas reports the build dead.
+  updateHiredAgentStatus(firstBody.hiredAgentId, "failed", {});
+  assert.equal(getActiveHiredAgentForIntake(intakeId), null, "a dead build is not a live agent");
+
+  const retry = await dispatchPost(intakeDispatchReq(intakeId));
+  assert.equal(retry.status, 200);
+  const retryBody = (await retry.json()) as { hiredAgentId: string; requestId: string; existing?: boolean };
+  assert.equal(retryBody.existing, undefined, "the retry is a NEW hire, not the failed row handed back");
+  assert.notEqual(retryBody.hiredAgentId, firstBody.hiredAgentId);
+  assert.equal(retryBody.requestId, "pr-am-retry-2", "…against a second Personas request for the SAME intake");
+  assert.equal(calls, 2, "Personas is re-POSTed exactly once more");
+
+  // Both attempts survive in the roster — the failed one is the evidence the
+  // bench's build-reliability line is computed from, so it must not be erased.
+  assert.equal(getHiredAgent(firstBody.hiredAgentId)?.status, "failed");
+  assert.equal(getHiredAgent(retryBody.hiredAgentId)?.status, "pending_approval");
+  assert.equal(getHiredAgent(retryBody.hiredAgentId)?.intakeId, intakeId);
+});
+
 test("dispatch route: a human-population App master is refused 400 before a byte leaves the process", async () => {
   process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
   process.env.PERSONAS_BRIDGE_KEY = "pk_unit_test";
