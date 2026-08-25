@@ -25,6 +25,9 @@
 //                                                          /api/kp/test/seed-work
 //                                                          between activate and nights
 //     "nights": 1,
+//     "activateTimeoutMs": 5400000,   ← optional per-scenario timeout overrides
+//     "settleTimeoutMs":   1800000,     (how long a night waits for its
+//                                        dispatched fleet before it reports)
 //     "expect": { … }          ← asserted by run.mjs, see expectations.mjs
 //   }
 //
@@ -181,6 +184,20 @@ export function validateScenario(raw, { name = "" } = {}) {
     push("nights must be an integer 0..30 (one tick = one compressed night)");
   }
 
+  // Per-scenario timeout overrides. Both are read by run.mjs and BOTH have to
+  // survive validation to reach it — a scenario field the validator drops on
+  // the floor is a knob that silently does nothing.
+  const timeouts = {};
+  for (const key of ["activateTimeoutMs", "settleTimeoutMs"]) {
+    const value = raw[key];
+    if (value === undefined || value === null) continue;
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      push(`${key} must be a positive number of milliseconds`);
+    } else {
+      timeouts[key] = value;
+    }
+  }
+
   const seeds = raw.seeds ?? [];
   if (!Array.isArray(seeds)) {
     push("seeds must be an array of { title, description?, acceptance?, trap? }");
@@ -256,6 +273,7 @@ export function validateScenario(raw, { name = "" } = {}) {
         ...(isNonEmptyString(seed.trap) ? { trap: seed.trap.trim() } : {}),
       })),
       nights,
+      ...timeouts,
       expect: raw.expect ?? {},
     },
   };

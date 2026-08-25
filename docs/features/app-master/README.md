@@ -764,7 +764,12 @@ compose    POST /api/intake/[id]/compose-app-master
 dispatch   POST /api/agents/dispatch {intakeId}
 activate   POST /api/agents/[id]/refresh until `active`
 seed       POST /api/kp/test/seed-work {personaId, items} → the scenario's tasks
-nights     N × (POST /api/kp/test/tick → GET /api/agents, record the backbone)
+nights     N × ( tick {phases:["overnight"]}          → dispatch the fleet
+                 SETTLE: tick {phases:["reconcile"]}  → every --settle-poll,
+                                                        until the dispatch is
+                                                        accounted for
+                 tick {phases:["report"]}             → push the rollup
+                 GET /api/agents                      → record the backbone )
 probation  POST /api/kp/test/tick {phases:["probation"]} → record the decision
 ```
 
@@ -848,6 +853,117 @@ fleet slot cap — none of which touched the budget — so a block only counts a
 evidence when the ledger row's `blockedReason` names one. `degraded` needs no
 such qualification: Personas sets it in exactly one place, the budget governor's
 `Block` arm, which is also what persists the `full → suggest` downgrade.
+
+### Where the numbers actually come from (P6f)
+
+`GET /api/agents` does **not** serve the raw rollup counters. It serves the
+**scored** backbone — `backbone.rules[]` (one row per rule with `measured`,
+`value`, `reason`), `backbone.gates[]`, `kpiDeltas` and
+`appMaster.autopilotMode`. The 2026-08-25 sweep read the *tick summary* for
+`proposalsOpened`, found nothing (the live bridge never carries those names),
+and reported *"no night reported a proposal count"* about a night whose own
+rollup said `0 of 3 proposals merged`. `expectations.mjs::readingFromRoster()`
+now reads the roster instead, structured fields first:
+
+| Night reading | Read from | Kind |
+| --- | --- | --- |
+| `gatePassRate` | `rules[gates].value` (when `measured`) | structured |
+| `forbiddenClassViolations` | `gates[forbidden_classes].value` | structured |
+| `ledgerConsistent` | `rules[ledger].value` | structured |
+| `budgetUnmeasured` / `budgetSettledUsd` / `budgetReservedUsd` | `rules[budget].measured` + its reason | structured flag, parsed amounts |
+| `proposalsOpened` / `proposalsMerged` | `rules[delivery].reason` — `"0 of 3 proposals merged"` | **parsed, last resort** |
+| `proposalsReverted` | `rules[durability].reason` | **parsed, last resort** |
+| `autopilotMode` | `appMaster.autopilotMode` | structured |
+
+The two count pairs have no structured carrier — the delivery rule's `value` is
+the merged/opened *ratio* — so they are parsed out of the reason string, which
+is written character-for-character by both `app/_lib/app-master/backbone.ts` and
+`pipeline/jobfit/appmaster.py` and pinned by fixtures on both sides. A reason
+that does **not** match leaves the field absent rather than guessing, and a rule
+the roster never carried stays absent too. The tick summary is still deep-scanned
+and folded in underneath (`mergeReadings()`, roster wins), and `result.json`
+records a `readingSource` map saying which side each field came from.
+
+`– null` semantics are unchanged: absent is absent. The one thing that IS read as
+a zero is a *present* rule that says so — `"no proposals were opened in the
+window"` is a reported zero (kp scores no backbone at all until a v2 rollup
+arrives), so `minProposalsOpened` fails on it instead of calling it unmeasured.
+
+### The settle wait — a dispatch is not a branch (P6f)
+
+`overnight` **dispatches** fleet sessions — live Claude Code sessions — and
+returns. Those sessions author their branches minutes later, and `reconcile` is
+what walks a branch into a recorded proposal with gate outcomes. The 2026-08-25
+sweep ticked `overnight → reconcile → report` in ONE call: reconcile ran **173 ms**
+after a three-session dispatch, saw `branchesSeen: 0`, and every delivery and
+gate lane in the run stayed structurally unmeasured.
+
+A night is now three ticks with a wait in the middle:
+
+1. tick `{phases:["overnight"]}` — read `counts.dispatched`;
+2. if it dispatched > 0, **settle**: tick `{phases:["reconcile"]}` every
+   `--settle-poll`, stopping on the first of —
+   - the dispatch is **accounted for** (`branchesSeen`, or
+     `newlyRecorded + gated`, summed across polls, reaches the dispatched count),
+   - the account has **not moved for three consecutive polls** (the fleet failed,
+     or authored nothing),
+   - the **settle budget** elapsed;
+3. tick `{phases:["report"]}` — the push kp scores the roster row from;
+4. refresh + `GET /api/agents`.
+
+`probation` is unchanged, still a forced fourth tick at the end.
+
+| Knob | Default | Notes |
+| --- | --- | --- |
+| `--settle-poll <ms>` | 90 000 | a fleet session writes a branch in minutes, and each poll is a real bridge call |
+| `--settle-timeout <ms>` | 1 800 000 (30 min) | a night with no branch by then produced nothing this run can measure |
+| `settleTimeoutMs` (scenario) | — | per-scenario override of the budget; the flag beats neither, it *is* the default the scenario overrides |
+
+Every poll is journalled as `settle-poll` the moment it happens, with its counts
+and the running account, and the night record carries the whole `settle` block
+(`dispatched`, `polls[]`, `accounted`, `stoppedBy`, `ms`). A settle that ended
+`stalled` or `timeout` adds an `unmeasured` line naming how much of the dispatch
+was accounted for — reporting an unmeasured lane on time beats waiting for one
+forever, but it is never reported as a clean night.
+
+`stub.mjs` models the delay rather than hiding it: a dispatched night's branches
+appear only on the **second** reconcile (`STUB_BRANCH_DELAY_RECONCILES`,
+configurable), and the rollup is computed when `report` runs, not snapshotted at
+dispatch. So `--stub-personas` reproduces the sweep's zero-measurement night
+exactly when a driver skips the wait — `stub.test.mjs` asserts both halves.
+
+### Expiring keys, and the orphan a timeout leaves (P6f)
+
+**Headless auto-pair keys live 24 hours.** Sweep #15 crossed that boundary
+mid-run and lost two phases to it, so both sides now repair themselves once:
+
+- **The driver's own key.** Any 401 from the Personas client discards the cached
+  key (`bench/app-master/personas-key.json`), re-pairs, and retries the call
+  exactly once — journalled `repaired-driver-key` with the route that exposed it,
+  plus a run warning. A second 401 is returned as data: at that point the key is
+  not the problem.
+- **kp's bridge key.** Personas rejecting *kp's* stored `pk_` surfaces as a 502
+  on `POST /api/agents/dispatch` (and as `refreshed:false` on the refresh poll).
+  The driver `DELETE /api/agents/bridge`s, re-runs kp's pairing handshake, and
+  retries once — journalled `repaired-kp-key`. An **env-configured** bridge
+  (`PERSONAS_BRIDGE_URL/KEY`) answers 409 to the disconnect and is reported as
+  such rather than retried: env beats the stored row by design, so the expired
+  key has to be replaced in the deployment env.
+
+kp tells that failure apart from an outage on its own side: an upstream 401 maps
+to the code **`AGENT_BRIDGE_KEY_INVALID`** (still a 502 — the house convention
+for a bridge failure) with a message naming the fix, *"Re-pair in Settings →
+Integrations"*. Pinned by `app/api/agents/agents-bridge.test.ts`, which also
+pins that a non-401 upstream keeps the generic `AGENT_DISPATCH_BRIDGE_FAILED` —
+a distinction handed to every failure would mean nothing.
+
+**An activate timeout leaves a build running.** The hire's one-shot Claude Code
+build session is already under way when the driver gives up waiting, and the
+bridge has **no cancel endpoint**. The driver cannot clean it up, so it records
+what it left behind — an `orphan-build` journal line naming the `requestId`, the
+status ladder it saw and how long it waited, plus a run warning. The next
+sweep's operator needs to know which request is still burning a session and may
+yet push a report after the run ended.
 
 ### The seed phase — what makes a night measurable (P6e)
 
@@ -969,8 +1085,10 @@ run.
   `onboarding` row can be an extension or an un-started hire), so the report
   marks those cells `*(derived)*`.
 - **Unit-tested without a server.** The pure parts — scenario loader and
-  validator, the expectation evaluator, the report renderer over a recorded
-  fixture — run as `npm run test:bench-driver`
+  validator, the expectation evaluator (including `readingFromRoster` over a
+  roster row copied verbatim from a live `result.json`), the night's settle loop
+  over a fake clock, the stub bridge over its own socket, and the report renderer
+  over a recorded fixture — run as `npm run test:bench-driver`
   (`node --test "scripts/app-master-bench/*.test.mjs"`).
 
 ---

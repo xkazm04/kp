@@ -162,16 +162,47 @@ export function kpClient(baseUrl, { timeoutMs = 300_000, throttleWaitMs = 65_000
   };
 }
 
-/** The Personas management API, bearer-gated once a pk_ key is in hand. */
 // The driver's own client identity. Personas reads the pairing origin from the
 // Origin HEADER (never the body) and binds the minted key + CORS entry to it —
 // a Node fetch sends none on its own, so every /pair/* call carries this one.
 // Constant on purpose: the cached key stays claimable across sweeps.
 export const DRIVER_ORIGIN = "http://kp-app-master-bench.localhost";
 
-export function personasClient(baseUrl, apiKey = null, { timeoutMs = 600_000 } = {}) {
+/**
+ * The Personas management API, bearer-gated once a pk_ key is in hand.
+ *
+ * 401-AWARE, for the same reason `kpClient` is 429-aware: the failure is a
+ * PROPERTY of the thing being driven, not an accident. Personas' headless
+ * auto-pair mints keys that live **24 hours**, and sweep #15 (2026-08-25)
+ * crossed that boundary mid-run — the driver's cached key answered
+ * `401 invalid api key` on `POST /api/kp/test/seed-work` and the scenario failed
+ * a phase for a credential that expired between two sweeps. `onUnauthorized` is
+ * given one chance to mint a new key; the call is then retried exactly ONCE.
+ * A second 401 is returned as data, because at that point the key is not the
+ * problem.
+ */
+export function personasClient(baseUrl, apiKey = null, { timeoutMs = 600_000, onUnauthorized = null } = {}) {
   const base = baseUrl.replace(/\/$/, "");
   const auth = () => ({ origin: DRIVER_ORIGIN, ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) });
+  // Re-entrancy guard: the repair itself calls /pair/request + /pair/claim
+  // through this client, and those are unauthenticated — a 401 from one of them
+  // must not start a second repair on top of the first.
+  let repairing = false;
+  const send = (route, init) => fetchJson(base + route, { ...init, headers: auth(), timeoutMs });
+  const withRepair = async (route, init) => {
+    const res = await send(route, init);
+    if (res.status !== 401 || !onUnauthorized || repairing) return res;
+    repairing = true;
+    let repaired = false;
+    try {
+      repaired = await onUnauthorized({ route, status: res.status, body: res.json });
+    } finally {
+      repairing = false;
+    }
+    if (!repaired) return res;
+    const retry = await send(route, init);
+    return { ...retry, repaired: true };
+  };
   return {
     base,
     get key() {
@@ -180,9 +211,8 @@ export function personasClient(baseUrl, apiKey = null, { timeoutMs = 600_000 } =
     setKey(k) {
       apiKey = k;
     },
-    get: (route, opts = {}) => fetchJson(base + route, { headers: auth(), timeoutMs, ...opts }),
-    post: (route, body, opts = {}) =>
-      fetchJson(base + route, { method: "POST", body, headers: auth(), timeoutMs, ...opts }),
+    get: (route, opts = {}) => withRepair(route, { ...opts }),
+    post: (route, body, opts = {}) => withRepair(route, { method: "POST", body, ...opts }),
   };
 }
 

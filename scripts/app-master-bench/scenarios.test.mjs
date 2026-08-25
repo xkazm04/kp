@@ -98,6 +98,21 @@ test("relaxing every forbidden class is refused — the composer would not apply
   assert.ok(errors.some((e) => e.includes("not grantable")));
 });
 
+test("the per-scenario timeout overrides SURVIVE validation — a dropped knob does nothing", () => {
+  // `activateTimeoutMs` was read by run.mjs and silently dropped by the
+  // validator, so the only scenario that set it never actually got it.
+  const { ok, scenario } = validateScenario(clone({ activateTimeoutMs: 5_400_000, settleTimeoutMs: 600_000 }));
+  assert.equal(ok, true);
+  assert.equal(scenario.activateTimeoutMs, 5_400_000);
+  assert.equal(scenario.settleTimeoutMs, 600_000);
+  // Omitted stays omitted, so run.mjs's `?? opts.…` default applies.
+  assert.equal(validateScenario(clone()).scenario.settleTimeoutMs, undefined);
+  // A nonsense budget is refused at load, not forty minutes into a run.
+  const bad = validateScenario(clone({ settleTimeoutMs: -1 }));
+  assert.equal(bad.ok, false);
+  assert.ok(bad.errors.some((e) => e.includes("settleTimeoutMs")));
+});
+
 test("an unknown expect key is refused — it would assert nothing", () => {
   const raw = clone({ expect: { probaton: "activated" } });
   const { ok, errors } = validateScenario(raw);

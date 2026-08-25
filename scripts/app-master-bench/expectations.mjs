@@ -20,7 +20,13 @@ export const AUTOPILOT_ORDER = ["off", "measure", "suggest", "full"];
 /** The PerformanceBackbone fields a tick summary may carry, wherever it carries
  *  them. Deep-scanned rather than read at a fixed path because the per-phase
  *  summary shape is Personas' to define — a driver that hard-codes one nesting
- *  reports `null` the day that shape gains a wrapper. */
+ *  reports `null` the day that shape gains a wrapper.
+ *
+ *  This is HALF the reading. A live bridge's tick summary carries none of these
+ *  names (sweep 2026-08-25 read `{}` from a night that genuinely opened three
+ *  proposals); the numbers reach kp through the report push and come back on the
+ *  ROSTER, in the scored shape `readingFromRoster()` below reads. The two are
+ *  folded together by `mergeReadings()`. */
 export const BACKBONE_FIELDS = [
   "windowDays",
   "proposalsOpened",
@@ -82,31 +88,193 @@ const BUDGET_WORD = /budget|spend|ceiling|cap\b/i;
 const STOPPED_WORD = /block|trip|exceed|halt|degrad|refus|over(-|\s)?budget|out of budget|paused/i;
 
 /**
- * The `overnight` phase's own `counts` block out of one night's tick summary.
+ * One phase's own result block out of a tick summary.
  *
  * Two shapes are read, because two servers produce them: the real bridge
  * answers `phases: [{ phase: "overnight", counts: {…} }, …]` (§13.6) and the
  * in-process stub answers `phases: { overnight: {…} }`. Returns `null` when the
- * night has no overnight phase at all — an absence, never `{}`.
+ * summary has no such phase at all — an absence, never `{}`.
  */
-export function overnightCounts(night) {
-  const phases = night?.tick?.phases;
-  if (Array.isArray(phases)) {
-    const entry = phases.find((p) => p?.phase === "overnight");
-    return entry?.counts ?? null;
-  }
-  if (phases && typeof phases === "object") {
-    return phases.overnight?.counts ?? null;
-  }
+export function phaseEntry(summary, phaseName) {
+  const phases = summary?.phases;
+  if (Array.isArray(phases)) return phases.find((p) => p?.phase === phaseName) ?? null;
+  if (phases && typeof phases === "object") return phases[phaseName] ?? null;
   return null;
+}
+
+/** A phase's `counts` block, or `null` when the phase or the block is absent. */
+export function phaseCounts(summary, phaseName) {
+  return phaseEntry(summary, phaseName)?.counts ?? null;
+}
+
+/** The `overnight` phase's own `counts` block out of one NIGHT record. */
+export function overnightCounts(night) {
+  return phaseCounts(night?.tick, "overnight");
+}
+
+/** The `reconcile` phase's own `counts` block out of a tick summary — what the
+ *  settle loop watches: `{ projects, branchesSeen, newlyRecorded, gated, errors }`. */
+export function reconcileCounts(summary) {
+  return phaseCounts(summary, "reconcile");
+}
+
+// ─── the roster reading ─────────────────────────────────────────────────────
+//
+// `GET /api/agents` does NOT serve the raw rollup counters. It serves the
+// SCORED backbone (`app/_lib/app-master/backbone.ts::backboneScore`) — one row
+// per rule with `measured` / `value` / `reason`, plus the `gates` array, plus
+// `kpiDeltas` and `appMaster.autopilotMode`. So the night's reading is
+// reconstructed from the scored shape, structured fields first:
+//
+//   gatePassRate             ← rules.gates.value          (the rate itself, 0..1)
+//   forbiddenClassViolations ← gates.forbidden_classes.value
+//   ledgerConsistent         ← rules.ledger.value          (boolean)
+//   budget*                  ← rules.budget                (measured flag + reason)
+//   proposalsOpened/Merged   ← rules.delivery.reason       ← LAST RESORT
+//   proposalsReverted        ← rules.durability.reason     ← LAST RESORT
+//
+// The two count pairs are the only fields with no structured carrier: the
+// delivery rule's `value` is the merged/opened RATIO, and the counts behind it
+// survive only in the reason string the scorer writes. That string is pinned on
+// both sides (`backbone.ts` and `pipeline/jobfit/appmaster.py` write it
+// character-for-character, fixture-tested against each other), so parsing it is
+// a narrow, checked read rather than prose mining — and a reason that does NOT
+// match leaves the field ABSENT rather than guessing a zero.
+
+/** `"0 of 3 proposals merged"` — backbone.ts delivery, measured arm. */
+const DELIVERY_REASON = /^(\d+) of (\d+) proposals merged$/;
+/** `"1 of 4 merged proposals reverted"` — backbone.ts durability, measured arm. */
+const DURABILITY_REASON = /^(\d+) of (\d+) merged proposals reverted$/;
+/** `"$0.00 settled against $4.50 reserved"` — backbone.ts budget, measured arm. */
+const BUDGET_REASON = /^\$(\d+(?:\.\d+)?) settled against \$(\d+(?:\.\d+)?) reserved$/;
+/** `"$1.85 settled against no reservation"` — same rule, reserved <= 0 arm. */
+const BUDGET_NO_RESERVATION = /^\$(\d+(?:\.\d+)?) settled against no reservation$/;
+
+function ruleOf(backbone, key) {
+  return Array.isArray(backbone?.rules) ? (backbone.rules.find((r) => r?.rule === key) ?? null) : null;
+}
+
+function gateOf(backbone, key) {
+  return Array.isArray(backbone?.gates) ? (backbone.gates.find((g) => g?.gate === key) ?? null) : null;
+}
+
+/**
+ * The backbone reading a ROSTER ROW carries — the record kp stored and scored,
+ * which is the only place a live night's delivery numbers actually surface.
+ *
+ * Absence stays absence. A rule the roster did not carry, or one whose reason
+ * does not match the pinned string, leaves its field out of the object entirely
+ * — the caller's `null` semantics then read "nobody reported this", never zero.
+ * A rule that IS present and says a count was zero is a reported zero and is
+ * recorded as one: kp scores no backbone at all until a v2 rollup arrives
+ * (`hasBackboneFields`), so a present rule is a sender's reading, not a default.
+ */
+export function readingFromRoster(row) {
+  const out = {};
+  const mode = row?.appMaster?.autopilotMode;
+  if (typeof mode === "string" && mode) out.autopilotMode = mode;
+
+  const backbone = row?.backbone;
+  if (!backbone || typeof backbone !== "object") return out;
+
+  const gates = ruleOf(backbone, "gates");
+  if (gates?.measured === true && typeof gates.value === "number") out.gatePassRate = gates.value;
+
+  const forbidden = gateOf(backbone, "forbidden_classes");
+  if (typeof forbidden?.value === "number") out.forbiddenClassViolations = forbidden.value;
+
+  const ledger = ruleOf(backbone, "ledger");
+  if (typeof ledger?.value === "boolean") out.ledgerConsistent = ledger.value;
+
+  const delivery = ruleOf(backbone, "delivery");
+  if (delivery) {
+    const reason = String(delivery.reason ?? "");
+    const matched = DELIVERY_REASON.exec(reason);
+    if (delivery.measured === true && matched) {
+      out.proposalsMerged = Number(matched[1]);
+      out.proposalsOpened = Number(matched[2]);
+    } else if (delivery.measured === false && /^no proposals were opened in the window/.test(reason)) {
+      // The scorer only writes this when `proposalsOpened === 0`. Nothing opened
+      // ⇒ nothing merged; both are readings, and `minProposalsOpened` is
+      // supposed to FAIL on them rather than call them unmeasured.
+      out.proposalsOpened = 0;
+      out.proposalsMerged = 0;
+    }
+  }
+
+  const durability = ruleOf(backbone, "durability");
+  if (durability) {
+    const reason = String(durability.reason ?? "");
+    const matched = DURABILITY_REASON.exec(reason);
+    if (durability.measured === true && matched) {
+      out.proposalsReverted = Number(matched[1]);
+      if (out.proposalsMerged === undefined) out.proposalsMerged = Number(matched[2]);
+    } else if (durability.measured === false && /^no proposals merged in the window/.test(reason)) {
+      out.proposalsReverted = 0;
+    }
+  }
+
+  const budget = ruleOf(backbone, "budget");
+  if (budget) {
+    const reason = String(budget.reason ?? "");
+    if (budget.measured === false) {
+      // "spend was not metered for this window" is the ONE reason that means the
+      // meter was never read; "nothing reserved and nothing spent" is a metered
+      // pair of zeroes the scorer simply had nothing to rate.
+      if (/not metered/.test(reason)) out.budgetUnmeasured = true;
+      else if (/^nothing was reserved and nothing was spent/.test(reason)) {
+        out.budgetUnmeasured = false;
+        out.budgetReservedUsd = 0;
+        out.budgetSettledUsd = 0;
+      }
+    } else {
+      const paired = BUDGET_REASON.exec(reason);
+      const unreserved = paired ? null : BUDGET_NO_RESERVATION.exec(reason);
+      if (paired) {
+        out.budgetUnmeasured = false;
+        out.budgetSettledUsd = Number(paired[1]);
+        out.budgetReservedUsd = Number(paired[2]);
+      } else if (unreserved) {
+        out.budgetUnmeasured = false;
+        out.budgetSettledUsd = Number(unreserved[1]);
+        out.budgetReservedUsd = 0;
+      }
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Fold the tick-summary reading and the roster reading into ONE night reading,
+ * plus a per-field provenance map.
+ *
+ * The ROSTER WINS every field it carries. The tick summary is Personas' own
+ * live shape and may echo a rollup, a stale one, or nothing at all; the roster
+ * row is what kp received, stored and scored, and it is the record every other
+ * surface (the workforce table, the report) reads. Where the roster is silent
+ * the tick reading stands, so a Personas build that reports counters inline is
+ * still read.
+ */
+export function mergeReadings(tickReading = {}, rosterReading = {}) {
+  const reading = {};
+  const source = {};
+  for (const [key, value] of Object.entries(tickReading ?? {})) {
+    if (value === undefined || value === null) continue;
+    reading[key] = value;
+    source[key] = "tick";
+  }
+  for (const [key, value] of Object.entries(rosterReading ?? {})) {
+    if (value === undefined || value === null) continue;
+    reading[key] = value;
+    source[key] = "roster";
+  }
+  return { reading, source };
 }
 
 /** The night's blocked reason(s), wherever the ledger rows carry them. */
 function blockedReasons(night) {
-  const phases = night?.tick?.phases;
-  const details = Array.isArray(phases)
-    ? (phases.find((p) => p?.phase === "overnight")?.details ?? [])
-    : (phases?.overnight?.details ?? []);
+  const details = phaseEntry(night?.tick, "overnight")?.details ?? [];
   const out = [];
   for (const row of Array.isArray(details) ? details : [details]) {
     const reason = row?.blockedReason ?? row?.blocked_reason ?? null;

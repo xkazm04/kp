@@ -16,6 +16,7 @@ import { cleanupUnitDb } from "../../_lib/testing/unit-db.ts";
 import { POST as reportPost } from "./report/[token]/route.ts";
 import { POST as dispatchPost } from "./dispatch/route.ts";
 import { POST as refreshPost } from "./[id]/refresh/route.ts";
+import { AGENT_BRIDGE_KEY_INVALID } from "../../_lib/agent-hire/bridge-client.ts";
 import {
   createHiredAgent,
   createPipelineEntry,
@@ -26,6 +27,7 @@ import {
   getLatestAgentRollupRaw,
   getPipelineEntry,
   saveAgentFitSpec,
+  setHiredAgentRequest,
   updateHiredAgentStatus,
 } from "../../_lib/db.ts";
 import { createIntake, updateIntakeAppMaster } from "../../_lib/db/intakes.ts";
@@ -191,6 +193,54 @@ test("dispatch route: a Personas failure marks the hire failed (and frees the jo
   // Offer column — and each retry minted a fresh agent id, so they accumulated.
   const entryId = `m-agent-${body.hiredAgentId}-job-d2`.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 90);
   assert.equal(getPipelineEntry(entryId), null, "a failed dispatch must not leave a phantom Offer-stage card");
+});
+
+test("dispatch route: an EXPIRED pairing key is its own code, not a generic bridge outage", async () => {
+  // Personas' headless auto-pair mints 24-hour keys. Bench sweep #15 crossed
+  // that boundary mid-run and got `502 Dispatch to Personas failed: Personas
+  // responded 401.` — which reads as "Personas is broken" when in fact the
+  // server is healthy and the operator simply has to re-pair. The status stays
+  // 502 (the house convention for a bridge failure); the CODE is what tells the
+  // two apart, and the message says where to fix it.
+  insertJob(job("job-d401", "Expired Key Role"), undefined, "published");
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_expired_yesterday";
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify({ success: false, error: "invalid api key" }), { status: 401 })) as typeof fetch;
+
+  saveAgentFitSpec({ jobId: "job-d401", fit: { verdict: "temporary", coverage: [], coverageRatio: 0.5 }, spec: SPEC, budget: { suggestedMonthlyUsd: null, rule: "2% of salary-band midpoint", salaryBandRef: "none" }, metrics: [], source: "deterministic" });
+
+  const r = await dispatchPost(dispatchReq("job-d401"));
+  assert.equal(r.status, 502, "still a 502 — the house convention for a bridge failure");
+  const body = (await r.json()) as { hiredAgentId: string; code?: string; error?: string };
+  assert.equal(body.code, AGENT_BRIDGE_KEY_INVALID);
+  assert.match(body.error ?? "", /Re-pair in Settings/, "the message names the fix, not just the symptom");
+  assert.equal(getHiredAgent(body.hiredAgentId)?.status, "failed");
+
+  // A non-401 upstream stays the generic code — the distinction has to MEAN
+  // something, so it cannot be handed out to every failure.
+  insertJob(job("job-d500", "Server Error Role"), undefined, "published");
+  globalThis.fetch = (async () => new Response("boom", { status: 500 })) as typeof fetch;
+  saveAgentFitSpec({ jobId: "job-d500", fit: { verdict: "temporary", coverage: [], coverageRatio: 0.5 }, spec: SPEC, budget: { suggestedMonthlyUsd: null, rule: "2% of salary-band midpoint", salaryBandRef: "none" }, metrics: [], source: "deterministic" });
+  const other = await dispatchPost(dispatchReq("job-d500"));
+  assert.equal(((await other.json()) as { code?: string }).code, "AGENT_DISPATCH_BRIDGE_FAILED");
+});
+
+test("refresh route: a 401 poll surfaces the re-pair code instead of a bare reason", async () => {
+  const agent = createHiredAgent({ jobId: "job-rf401", jobTitle: "Refresh Role", spec: SPEC });
+  setHiredAgentRequest(agent.id, "req-401");
+  process.env.PERSONAS_BRIDGE_URL = "http://127.0.0.1:9420";
+  process.env.PERSONAS_BRIDGE_KEY = "pk_expired_yesterday";
+  globalThis.fetch = (async () => new Response("{}", { status: 401 })) as typeof fetch;
+
+  const res = await refreshPost(
+    new NextRequest(`http://localhost/api/agents/${agent.id}/refresh`, { method: "POST" }),
+    { params: Promise.resolve({ id: agent.id }) }
+  );
+  assert.equal(res.status, 200, "a poll failure is not a route failure — the push path is the primary contract");
+  const body = (await res.json()) as { refreshed: boolean; code?: string; reason?: string };
+  assert.equal(body.refreshed, false);
+  assert.equal(body.code, AGENT_BRIDGE_KEY_INVALID);
 });
 
 test("dispatch route: a present-but-unusable budget is refused, never swapped for the suggestion", async () => {

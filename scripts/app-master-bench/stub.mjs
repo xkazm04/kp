@@ -20,8 +20,13 @@
 // a run against it is stamped `personas.stub: true` in result.json and the
 // aggregate report marks the row, so a stub number is never read as a measurement.
 // The one thing it models faithfully is the SHAPE of what P6a returns, and the
-// two mandate facts a night's outcome genuinely depends on: the scope rung and
-// the monthly ceiling.
+// three facts a night's outcome genuinely depends on: the scope rung, the
+// monthly ceiling, and — since P6f — that a DISPATCH IS NOT A BRANCH. An
+// overnight tick launches sessions and returns; their branches only become
+// visible to `reconcile` some polls later (`STUB_BRANCH_DELAY_RECONCILES`), so a
+// driver that reconciles and reports in the same breath measures nothing here
+// either. That is not stub pessimism: it is the 2026-08-25 sweep's reading,
+// where reconcile ran 173 ms after a 3-session dispatch and saw `branchesSeen: 0`.
 
 import { createServer } from "node:http";
 
@@ -67,7 +72,6 @@ const STUB_SLOT_CAP = 3;
 export function cannedNight(state, appMaster) {
   const rung = appMaster?.mandate?.scopeRung ?? 2;
   const ceiling = Number(appMaster?.budget?.monthlyUsd ?? 0) || 0;
-  const objectives = Array.isArray(appMaster?.objectives) ? appMaster.objectives : [];
   const tight = ceiling > 0 && ceiling <= 10;
   const pending = Math.max(0, state.pendingSeeds ?? 0);
 
@@ -90,19 +94,32 @@ export function cannedNight(state, appMaster) {
     notes.push(`overnight dispatched ${opened} session(s) and authored ${opened} proposal branch(es).`);
   }
 
-  state.opened += opened;
-  state.merged += rung === 0 ? 0 : Math.max(0, opened - 1);
+  // A dispatch does not open a proposal — it launches a session that will
+  // author a branch some minutes later, and RECONCILE is what turns that branch
+  // into a recorded proposal. So the counters move in `cannedReconcile`, and
+  // this night only records how many sessions are now out there authoring.
+  state.awaitingBranches = opened;
+  state.pendingMerges = rung === 0 ? 0 : Math.max(0, opened - 1);
+  if (opened > 0) state.reconcilesSinceDispatch = 0;
   // Spend follows the sessions that actually ran, and the stub deliberately
   // overruns a tight ceiling on the first night so the degrade path is exercised.
   state.settledUsd = Math.min(ceiling || Infinity, state.settledUsd + (opened > 0 ? (tight ? ceiling : 1.85) : 0));
-  state.gatesRun += opened * 6;
-  state.gatesPassed += opened * 6 - (opened > 0 ? 1 : 0);
 
   const budgetExhausted = tight && ceiling > 0 && state.settledUsd >= ceiling;
   const autopilotMode = rung === 0 ? "measure" : budgetExhausted ? "off" : "suggest";
   if (budgetExhausted) notes.push(`autopilot degraded to "off": the $${ceiling} monthly ceiling is spent.`);
 
-  const backbone = {
+  return { opened, notes, autopilotMode, blockedReason, degraded, pendingAfter: state.pendingSeeds ?? 0 };
+}
+
+/** The rollup the report phase pushes — read from the state as it stands WHEN
+ *  THE REPORT RUNS, never snapshotted at dispatch time. A night that reported
+ *  before its branches reconciled therefore reports zero proposals opened,
+ *  which is precisely the reading a driver without a settle wait produced. */
+export function cannedBackbone(state, appMaster) {
+  const ceiling = Number(appMaster?.budget?.monthlyUsd ?? 0) || 0;
+  const objectives = Array.isArray(appMaster?.objectives) ? appMaster.objectives : [];
+  return {
     windowDays: 30,
     proposalsOpened: state.opened,
     proposalsMerged: state.merged,
@@ -125,8 +142,6 @@ export function cannedNight(state, appMaster) {
     budgetUnmeasured: false,
     ledgerConsistent: true,
   };
-
-  return { opened, notes, autopilotMode, backbone, blockedReason, degraded, pendingAfter: state.pendingSeeds ?? 0 };
 }
 
 /** The canned day-N verdict: nothing delivered ⇒ more probation, never a pass. */
@@ -141,11 +156,59 @@ export function cannedProbation(state, appMaster) {
   return { decision: "activated", rationale: `${state.merged} of ${state.opened} proposals merged and stayed merged.` };
 }
 
+/** How many reconcile calls after a dispatch before the fleet's branches are
+ *  visible. TWO by default, and that default is the point: a real overnight
+ *  DISPATCHES and returns, and the Claude sessions it launched go on authoring
+ *  branches for minutes afterwards — the 2026-08-25 sweep reconciled 173 ms
+ *  after a 3-session dispatch and saw `branchesSeen: 0`. A stub whose branches
+ *  appear on the first reconcile would let a driver with no settle wait pass. */
+export const STUB_BRANCH_DELAY_RECONCILES = 2;
+
+/**
+ * The canned outcome of ONE reconcile call. Branches appear only once
+ * `reconcilesSinceDispatch` reaches `delay`; before that the phase runs and
+ * honestly reports zero, which is exactly the shape the live bridge returned.
+ */
+export function cannedReconcile(state, delay = STUB_BRANCH_DELAY_RECONCILES) {
+  state.reconcilesSinceDispatch = (state.reconcilesSinceDispatch ?? 0) + 1;
+  const awaiting = Math.max(0, state.awaitingBranches ?? 0);
+  const ready = awaiting > 0 && state.reconcilesSinceDispatch >= delay;
+  const seen = ready ? awaiting : 0;
+  if (ready) {
+    state.awaitingBranches = 0;
+    state.branchesRecorded = (state.branchesRecorded ?? 0) + seen;
+    // A recorded branch IS the opened proposal, and its gate outcomes are
+    // recorded in the same pass — this is where the delivery and gate lanes
+    // become measurable at all.
+    state.opened += seen;
+    state.merged += Math.min(seen, state.pendingMerges ?? 0);
+    state.pendingMerges = 0;
+    state.gatesRun += seen * 6;
+    state.gatesPassed += seen * 6 - 1;
+  }
+  return {
+    counts: {
+      projects: 1,
+      branchesSeen: seen,
+      newlyRecorded: seen,
+      gated: seen,
+      errors: [],
+    },
+    reconcilesSinceDispatch: state.reconcilesSinceDispatch,
+    awaiting: state.awaitingBranches ?? 0,
+    proposalsRecorded: state.branchesRecorded ?? 0,
+    gateRuns: state.gatesRun,
+    gatesPassed: state.gatesPassed,
+    gatesDidNotRun: 0,
+  };
+}
+
 /**
  * Start the stub. `kpBaseUrl` is where report pushes go when the dispatch body
- * carries no reachable `kp.baseUrl` of its own.
+ * carries no reachable `kp.baseUrl` of its own. `branchesAfterReconciles` is how
+ * many reconcile calls a dispatched night takes to show its branches.
  */
-export async function startStubPersonas({ kpBaseUrl = null } = {}) {
+export async function startStubPersonas({ kpBaseUrl = null, branchesAfterReconciles = STUB_BRANCH_DELAY_RECONCILES } = {}) {
   const apiKey = `pk_stub_${Math.random().toString(36).slice(2, 10)}`;
   const nonces = new Set();
   const dispatches = [];
@@ -271,6 +334,12 @@ export async function startStubPersonas({ kpBaseUrl = null } = {}) {
           pendingSeeds: 0,
           seededKeys: new Map(),
           seedRuleId: null,
+          // The fleet in flight: sessions dispatched whose branches have not
+          // been reconciled yet, and how many reconciles have run since.
+          awaitingBranches: 0,
+          pendingMerges: 0,
+          branchesRecorded: 0,
+          reconcilesSinceDispatch: 0,
         });
         json(res, 200, { success: true, data: { requestId } });
         return;
@@ -427,15 +496,11 @@ export async function startStubPersonas({ kpBaseUrl = null } = {}) {
           };
         }
         if (phases.includes("reconcile")) {
-          summary.phases.reconcile = {
-            proposalsRecorded: running.opened,
-            gateRuns: running.gatesRun,
-            gatesPassed: running.gatesPassed,
-            gatesDidNotRun: 0,
-          };
+          summary.phases.reconcile = cannedReconcile(running, branchesAfterReconciles);
         }
         if (phases.includes("report")) {
-          const night = running.lastNight ?? cannedNight(running, dispatch.appMaster);
+          const backbone = cannedBackbone(running, dispatch.appMaster);
+          const autopilotMode = running.lastNight?.autopilotMode ?? "suggest";
           const period = new Date().toISOString().slice(0, 7);
           const pushed = await push(dispatch, {
             kind: "rollup",
@@ -443,14 +508,14 @@ export async function startStubPersonas({ kpBaseUrl = null } = {}) {
             runs: running.opened,
             successes: running.merged,
             failures: Math.max(0, running.opened - running.merged),
-            costUsd: night.backbone.budgetSettledUsd,
+            costUsd: backbone.budgetSettledUsd,
             tokensIn: 214_000,
             tokensOut: 38_000,
             connectorUses: [{ connector: "github", calls: 37 }],
-            ...night.backbone,
-            autopilotMode: night.autopilotMode,
+            ...backbone,
+            autopilotMode,
           });
-          summary.phases.report = { delivered: pushed.ok, status: pushed.status, backbone: night.backbone };
+          summary.phases.report = { delivered: pushed.ok, status: pushed.status, backbone };
         }
         if (phases.includes("probation")) {
           const verdict = cannedProbation(running, dispatch.appMaster);

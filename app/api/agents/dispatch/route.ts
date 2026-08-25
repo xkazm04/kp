@@ -135,8 +135,16 @@ async function mintAndDispatch(
   if (!dispatched.ok) {
     updateHiredAgentStatus(agent.id, "failed", {}, ws);
     recordAgentLifecycle(agent.id, { event: "dispatch_failed", reason: dispatched.error }, ws);
+    // The status stays 502 (the house convention for "the bridge did not carry
+    // this"), but a DEAD PAIRING KEY gets its own code: an expired headless
+    // auto-pair key (they live 24h) is an operator action — re-pair — not an
+    // outage, and `AGENT_DISPATCH_BRIDGE_FAILED` reads like the latter.
     return NextResponse.json(
-      { error: `Dispatch to Personas failed: ${dispatched.error}`, code: "AGENT_DISPATCH_BRIDGE_FAILED", hiredAgentId: agent.id },
+      {
+        error: `Dispatch to Personas failed: ${dispatched.error}`,
+        code: dispatched.code ?? "AGENT_DISPATCH_BRIDGE_FAILED",
+        hiredAgentId: agent.id,
+      },
       { status: 502 }
     );
   }

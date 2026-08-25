@@ -65,6 +65,17 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    **unpaired** kp fails every dispatch before a byte leaves the process. A 502 now
    leaves the roster row marked `failed` and the board untouched
    (`agents-bridge.test.ts`).
+   **An expired pairing key is its own answer.** Personas rejecting kp's stored `pk_`
+   (a 401 upstream) comes back as a 502 whose code is **`AGENT_BRIDGE_KEY_INVALID`**,
+   with the message *"Personas rejected kp's API key (401) — the pairing key has expired
+   or been revoked. Re-pair in Settings → Integrations."* The status stays 502 (the house
+   convention for a bridge failure) but the code separates a dead credential from an
+   outage: nothing is broken except the key, and the fix is one re-pair — reading it as
+   `AGENT_DISPATCH_BRIDGE_FAILED` sends the operator looking for a server that is running
+   fine. Personas' **headless auto-pair keys live 24 hours**, so this is a routine
+   morning-after state, not an exotic one. The refresh poll surfaces the same code beside
+   its `refreshed:false` reason. A non-401 upstream keeps the generic code — both halves
+   pinned by `agents-bridge.test.ts`.
 4. **Approve in Personas**: the status ladder is
    `dispatched → pending_approval → onboarding → active` (terminal: `rejected`,
    `failed`, `retired`). The push path is the token-authed public report route; the

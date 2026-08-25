@@ -55,7 +55,16 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     }
     const polled = await fetchRequestStatus(agent.requestId);
     if (!polled.ok) {
-      return NextResponse.json({ agent: safeAgent(agent), refreshed: false, reason: polled.error });
+      // A poll failure is not a route failure (the push path is the primary
+      // contract), but the REASON matters: `AGENT_BRIDGE_KEY_INVALID` says the
+      // pairing key is dead — a 24h headless auto-pair key expired — which the
+      // operator fixes by re-pairing rather than by waiting for Personas.
+      return NextResponse.json({
+        agent: safeAgent(agent),
+        refreshed: false,
+        reason: polled.error,
+        ...(polled.code ? { code: polled.code } : {}),
+      });
     }
     const mapped = STATUS_MAP[polled.status.toLowerCase()];
     if (!mapped || mapped === agent.status) {
