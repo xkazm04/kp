@@ -743,8 +743,13 @@ async function runScenario(scenario, opts) {
 
       const res = await personas.post("/api/kp/test/seed-work", {
         personaId: result.hire.personaId,
+        // Run-unique titles: the ideas store dedupes by normalized title and
+        // never re-offers an already-triaged idea, so the same seed on the same
+        // project dispatches exactly once EVER. Sweep #16 (2026-08-25) seeded
+        // 0/4 because sweep #15 had written the identical four. The stamp keeps
+        // every run's seeds — and the branches named after them — its own.
         items: seeds.map(({ title, description, acceptance, trap }) => ({
-          title,
+          title: `${title} [bench ${stamp}]`,
           ...(description ? { description } : {}),
           ...(acceptance ? { acceptance } : {}),
           ...(trap ? { trap } : {}),
