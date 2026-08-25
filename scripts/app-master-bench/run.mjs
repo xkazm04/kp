@@ -908,6 +908,10 @@ async function runScenario(scenario, opts) {
 
       const res = await personas.post("/api/kp/test/seed-work", {
         personaId: result.hire.personaId,
+        // The run stamp rides in the DEDUP KEY (server-side salt), not only in
+        // the title: the ideas normalizer strips bracketed stamps, so titles
+        // alone deduped a later run's seeds to nothing (sweep #18).
+        dedupeSalt: stamp,
         // Run-unique titles: the ideas store dedupes by normalized title and
         // never re-offers an already-triaged idea, so the same seed on the same
         // project dispatches exactly once EVER. Sweep #16 (2026-08-25) seeded
