@@ -226,17 +226,25 @@ over-specifier, solution jumper, …) driven against the real
 `run_intake_turn`. Offline mode (`--no-llm`: deterministic agent + golden
 requestor answers) certifies the keyless path and the reliability invariants
 (completed, one-question-per-turn, no premature `<<END>>`, grounded read-back,
-brief completeness, shape triage + power-unit turn budget) — gated by
-`tests/test_intake_eval.py`. Live mode runs both sides on the `role_intake`
+brief completeness, shape triage + power-unit turn budget, role-family
+classification, dealbreaker→requirements capture) — gated by
+`tests/test_intake_eval.py`. Every scenario declares its role `family` and its
+stated `dealbreakers`: the `role_family` check asserts the classified family
+matches with non-default spine provenance (the software_engineering schema
+default cannot vacuously pass its own family), and `requirements_captured`
+asserts a transcript that stated a hard dealbreaker produced a non-empty
+`requirements[]` (the UAT L2-NEW-2 / L1-HRBP-17 regressions, standing since
+2026-08-25). Live mode runs both sides on the `role_intake`
 provider; live runs are single-sample probes (shape/turn-budget expectations
-go soft), the offline mode is the gate.
+go soft, the family/requirements checks stay hard), the offline mode is the
+gate.
 
 **Market-breadth bank**: `intake_scenarios_gen.py` generates a deterministic
 100-scenario bank spanning ALL 16 taxonomy role families × seniority ×
 need shape (backfill vs first-ever-role story) with concrete per-family
 content (licensure-bound nurses, shift-planning frontline leads, month-end
 accountants, …). `--generated 100` runs it; the full hundred is gated
-offline in `test_intake_eval.py` (648 checks).
+offline in `test_intake_eval.py` (848 checks).
 
 ## Brief as reference (Phase 3)
 
@@ -403,7 +411,15 @@ as THIRD-PARTY reference data — the agent may mine it, but values proposed
 from it enter the brief as `inferred` (rationale citing the attachment) and
 only become `stated` once the requestor confirms them in dialog/read-back;
 where the material contradicts the live requestor, the requestor wins. The
-voice fast thread sees attachment TITLES only (latency budget). **Keyless the
+fence survives its own payload: attachment text is third-party-authored, so
+every maximal run of 3+ angle brackets in it is spaced out before
+interpolation (`_defuse_fence_markers`) — a body carrying the literal
+`<<<END_ATTACHED_MATERIAL>>>` marker can no longer close the fence early and
+have its remainder read as prompt instructions. The
+voice fast thread sees attachment TITLES only (latency budget); the periodic
+extraction thread (`extract_transcript`, via `/voice-complete`) carries the
+same fenced block with full bodies — it is where a voice session's materials
+actually get mined into the brief. **Keyless the
 attachments are stored and acknowledged once but never mined** — the scripted
 path cannot read prose without a model, so nothing is silently invented; the
 acknowledgement invites pasting key points as answers instead. That

@@ -21,8 +21,8 @@ Input files keep the arg list short and unambiguous on Windows:
   --extract-transcript  the PERIODIC extraction thread: RoleBrief extraction
                      over the stored transcript (--transcript-json)
   --attachments-json reference material attached to the session (list of
-                     {kind,title,text}) — fenced into the dialog prompt; the
-                     voice fast thread sees titles only
+                     {kind,title,text}) — fenced into the dialog and
+                     extraction prompts; the voice fast thread sees titles only
   --lang             en|cs (normalized)
   --no-llm           force the deterministic scripted path
 
@@ -124,7 +124,7 @@ def main() -> int:
                 provider = resolve_provider("role_intake", timeout=180)
                 if provider is not None and not provider.available():
                     provider = None  # documented dance → honest unextracted fallback
-            payload = extract_transcript(provider, turns, brief, lang=args.lang)
+            payload = extract_transcript(provider, turns, brief, lang=args.lang, attachments=attachments)
         elif args.opening:
             payload = opening_turn(args.lang, shape=args.shape or None)
         else:

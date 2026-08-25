@@ -71,7 +71,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const lang = intake.lang === "cs" ? "cs" : "en";
     const transcript = [...intake.transcript, ...turns];
-    const result = await runIntakeTranscriptExtract({ transcript, brief: intake.brief, lang });
+    // Attachments ride along: the fast voice thread sees titles only, so this
+    // extraction sweep is where attached bodies actually reach the model.
+    const result = await runIntakeTranscriptExtract({ transcript, brief: intake.brief, lang, attachments: intake.attachments });
     const briefTitle = typeof result.brief?.title === "string" ? result.brief.title : "";
     updateIntakeDialog(
       id,
