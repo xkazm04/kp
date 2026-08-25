@@ -34,6 +34,16 @@ Reliability invariants (all deterministic, all must hold):
 * ``shape``                — the session-shape triage matches the persona's
                              expected shape; power-unit sessions respect the
                              short-path agent-turn budget.
+* ``role_family``          — the family the pipeline actually CLASSIFIED
+                             matches the scenario's declared family, and its
+                             spine provenance is not "default" (the bank is
+                             organised by family; the software_engineering
+                             schema default must not vacuously pass its own
+                             family — UAT 2026-08-10 L1-HRBP-17 / B11).
+* ``requirements_captured``— a transcript that stated a hard dealbreaker
+                             produced a non-empty requirements[] (L2-NEW-2:
+                             live sessions filed hard conditions as facet
+                             prose and starved the requirements list).
 
 Run: ``python -m pipeline.jobfit.eval.intake_eval --no-llm`` (offline) or
 without the flag for the live pass.
@@ -165,6 +175,21 @@ def check_dialog(
         checks["shape"] = shape == expect["shape"]
     if expect.get("max_agent_turns") and strict_shape:
         checks["turn_budget"] = len(agent_turns) <= int(expect["max_agent_turns"])
+    # The two standing regressions from the 2026-08-10 UAT drain (B11). Both
+    # hold live too: the extraction contract demands the classification and the
+    # dealbreaker→requirements routing regardless of provider.
+    family = scenario.get("family") or expect.get("role_family")
+    if family:
+        # Value match alone is not "actually classified" — the schema default
+        # is software_engineering, so a software scenario would vacuously pass
+        # on a brief nothing ever touched. Provenance must say the family was
+        # captured (classified/inferred/stated), not defaulted.
+        checks["role_family"] = (
+            brief.role_family == family
+            and brief.spine_provenance.get("role_family", "default") != "default"
+        )
+    if scenario.get("dealbreakers"):
+        checks["requirements_captured"] = len(brief.requirements) >= 1
     return checks
 
 

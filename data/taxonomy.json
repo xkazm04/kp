@@ -548,7 +548,8 @@
         "skill"
       ],
       "role_family_votes": {
-        "software_engineering": 1
+        "software_engineering": 1,
+        "data_ai": 1
       },
       "bilingual_exempt": true
     },
@@ -1548,6 +1549,19 @@
       }
     },
     {
+      "id": "analytics_engineer",
+      "match": [
+        "analytics engineer",
+        "analytický inženýr"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "data_ai": 3
+      }
+    },
+    {
       "id": "data_analyst",
       "match": [
         "data analyst",
@@ -2507,6 +2521,8 @@
       "match": [
         "research scientist",
         "principal scientist",
+        "senior scientist",
+        "research associate",
         "postdoctoral",
         "postdoc",
         "laboratory technician",
@@ -2873,6 +2889,7 @@
         "product designer",
         "art director",
         "creative director",
+        "creative lead",
         "illustrator",
         "grafik"
       ],
@@ -2904,10 +2921,32 @@
       }
     },
     {
+      "id": "role_developer",
+      "match": [
+        "software developer",
+        "software engineer",
+        "junior developer",
+        "backend developer",
+        "frontend developer",
+        "full-stack developer",
+        "fullstack developer",
+        "mobile developer",
+        "vývojář softwaru"
+      ],
+      "categories": [
+        "role_title"
+      ],
+      "role_family_votes": {
+        "software_engineering": 3
+      }
+    },
+    {
       "id": "role_support",
       "match": [
         "customer support",
         "support agent",
+        "support specialist",
+        "head of support",
         "customer service representative",
         "help desk",
         "service desk",
@@ -3756,6 +3795,8 @@
       "match": [
         "ticketing",
         "ticketing system",
+        "ticket triage",
+        "třídění tiketů",
         "ticketovací systém",
         "evidence požadavků"
       ],
@@ -5429,6 +5470,38 @@
       "role_family_votes": {
         "operations_logistics": 1
       }
+    },
+    {
+      "id": "travel_management",
+      "match": [
+        "travel management",
+        "organizace služebních cest"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 1
+      },
+      "parents": [
+        "office_administration"
+      ]
+    },
+    {
+      "id": "vendor_coordination",
+      "match": [
+        "vendor coordination",
+        "koordinace dodavatelů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "general_professional": 1
+      },
+      "parents": [
+        "office_administration"
+      ]
     },
     {
       "id": "office_administration",
@@ -9992,6 +10065,39 @@
       "role_family_votes": {
         "life_sciences_research": 1
       }
+    },
+    {
+      "id": "wet_lab",
+      "match": [
+        "wet-lab",
+        "wet lab",
+        "práce v mokré laboratoři"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
+    },
+    {
+      "id": "protocol_documentation",
+      "match": [
+        "protocol documentation",
+        "dokumentace protokolů"
+      ],
+      "categories": [
+        "skill"
+      ],
+      "role_family_votes": {
+        "life_sciences_research": 1
+      },
+      "parents": [
+        "laboratory_techniques"
+      ]
     },
     {
       "id": "sample_preparation",

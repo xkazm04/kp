@@ -172,10 +172,14 @@ id at the fix site.
     interpolates raw text between `<<<ATTACHED_MATERIAL>>>` markers, unlike
     `fenced_untrusted` which json-escapes. Strip/escape + unit test.
     (`L1-TOM-4`; §2.10)
-11. **Eval bank asserts `role_family`** (and `requirements[]` non-emptiness for
-    confirmed dealbreakers) — `grep role_family intake_eval.py` → zero matches
-    while the bank is organised by family. One assertion per scenario turns two
-    findings into standing regression coverage. (`L1-HRBP-17`; §2.11)
+11. ~~**Eval bank asserts `role_family`** (and `requirements[]` non-emptiness for
+    confirmed dealbreakers)~~ — SHIPPED 2026-08-25: `role_family` (value + non-default
+    spine provenance) and `requirements_captured` checks in `check_dialog`, armed
+    per scenario by declared `family`/`dealbreakers` in both banks; the 8
+    misclassifications the new assertion surfaced were fixed at the taxonomy
+    layer (analytics engineer, wet-lab/protocol terms, creative lead, support
+    specialist/head of support + ticket triage, travel/vendor office-admin
+    terms). (`L1-HRBP-17`; §2.11)
 12. **Delete the dead duplicate `submit` handler** in `JdsIntakeChat.tsx:86-91`
     (duplicates `submitDraft` at `:198-203`, no callers). (`L1-EVA-12` ·
     `L1-TOM-9`; §2.12)
