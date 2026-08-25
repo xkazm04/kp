@@ -21,10 +21,13 @@
     "medianTopScore": 533.8,
     "carriedVerdicts": 0,
     "restoredPairs": 0,
-    "judged": 3,
-    "deviations": 3
+    "judged": 4,
+    "deviations": 4
   },
   "subjectIndex": {
+    "agent-cli-transport": [
+      "aa150c52-ee96-4fae-a742-4bfc220be293"
+    ],
     "machine-paced-delivery": [
       "f7f717fe-4960-4087-a8e9-bd465d7d127a",
       "ff89f196-eb86-48e4-a038-af807346c3ae",
@@ -1823,6 +1826,16 @@
           ],
           "confidence": "probable",
           "state": "unknown"
+        },
+        {
+          "subject": "agent-cli-transport",
+          "bundle": "software-engineering",
+          "source": "conform",
+          "confidence": "strong",
+          "state": "deviation",
+          "evidence": "claude_cli.py: the readonly-scan stance (with_repo_access:194) and seat strip (_child_env:404, test-pinned) are the standard's own pattern, but there is no typed mode - generate inherits the caller's cwd (:160) so the child loads ambient project instructions - available():256 proves install, never authorization, and the 2026-08-23 dated flags (:57) have no version trigger for re-verification. Per-technique table: .ai/registry-conformance.md",
+          "evaluatedAt": "2026-08-25",
+          "evaluatedAgainst": "sha256:f397e66be7bcad4f"
         }
       ],
       "governance": "governed"
