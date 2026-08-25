@@ -491,6 +491,16 @@ Rungs 3 and 4 are refused by the schema itself (`Mandate.scopeRung` validates to
 is absolute for both populations for the same reason: gates are the instrument
 the work is judged by, and a holder who can edit them is grading their own exam.
 
+**Rung 0 is an observation role, not a smaller author role.** The first live
+rung-0 agent hire (2026-08-25) looped its build unresolved for 12 turns because
+the builder kept designing fix-proposal capabilities the mandate forbids — the
+role has to be *designed* around reading, measuring and reporting (the Personas
+hire intent now says so explicitly). Consequence for the backbone: a rung-0
+holder's `delivery`/`durability`/`gates` rules are structurally unmeasurable,
+so their probation can only be judged on the observation lanes (objectives
+measured, budget, ledger) — expect `incomplete → extended` unless the review
+window is long enough for KPI movement the holder merely *informed*.
+
 **Forbidden-change classes** — a closed vocabulary of moves that turn a red
 signal green without making the underlying thing true:
 
