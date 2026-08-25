@@ -1,0 +1,25 @@
+# Review ownership for the files where a wrong merge is expensive.
+# Solo-maintained: every entry resolves to @xkazm04. The value of this file is
+# the list itself — these are the paths where review is never optional.
+
+# Billing and monetization
+/app/_lib/billing/            @xkazm04
+/app/api/billing/             @xkazm04
+
+# Tenancy manifest (fail-closed allowlist)
+/app/_lib/tenancy.ts          @xkazm04
+
+# LLM chokepoint (multi-provider layer, TS + Python)
+/app/_lib/llm-config.ts       @xkazm04
+/pipeline/jobfit/llm/         @xkazm04
+/pipeline/jobfit/claude_cli.py @xkazm04
+
+# Agent law and automation
+/.claude/                     @xkazm04
+/CLAUDE.md                    @xkazm04
+/AGENTS.md                    @xkazm04
+/.github/workflows/           @xkazm04
+
+# Licensing
+/LICENSE                      @xkazm04
+/CLA.md                       @xkazm04
