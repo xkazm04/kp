@@ -225,6 +225,34 @@ class ProbeTest(unittest.TestCase):
         self.assertEqual(calls, [])  # veto precedes any lookup or spawn
 
 
+class AvailabilityReasonTest(unittest.TestCase):
+    """R6: availability carries its descent reason — policy and missing-binary
+    are repaired differently, so they must not collapse into one bare False."""
+
+    def test_offline_policy_named_first(self) -> None:
+        with mock.patch.dict(os.environ, {"KP_OFFLINE": "1"}, clear=False):
+            with mock.patch("pipeline.jobfit.claude_cli.shutil.which", return_value="claude"):
+                ok, reason = ClaudeCliProvider().availability()
+        self.assertFalse(ok)
+        self.assertEqual(reason, "offline_policy")  # NOT "not_installed"
+
+    def test_missing_binary_named(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("KP_OFFLINE", None)
+            with mock.patch("pipeline.jobfit.claude_cli.shutil.which", return_value=None):
+                ok, reason = ClaudeCliProvider(command="nope-claude").availability()
+        self.assertFalse(ok)
+        self.assertEqual(reason, "not_installed")
+
+    def test_usable_has_no_reason_and_available_agrees(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("KP_OFFLINE", None)
+            with mock.patch("pipeline.jobfit.claude_cli.shutil.which", return_value="claude"):
+                provider = ClaudeCliProvider()
+                self.assertEqual(provider.availability(), (True, None))
+                self.assertTrue(provider.available())
+
+
 class ApiKeyEnvTest(unittest.TestCase):
     def test_api_key_stripped_by_default(self) -> None:
         with mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-live-xxx"}, clear=False):

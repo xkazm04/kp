@@ -24,7 +24,7 @@ import json
 import sys
 from pathlib import Path
 
-from .llm import emit_deterministic, resolve_provider
+from .llm import emit_deterministic, provider_availability, resolve_provider
 from .group_compare import GROUP_COMPARE_PROMPT_VERSION, generate
 
 
@@ -51,13 +51,17 @@ def main(argv: list[str] | None = None) -> int:
         if not isinstance(context, dict):
             raise ValueError("input must be a JSON object")
         provider = None if args.no_llm else resolve_provider("group_compare", timeout=120)
-        if provider is not None and not provider.available():
-            provider = None
+        descent = "disabled" if args.no_llm else None
+        if provider is not None:
+            ok, descent = provider_availability(provider)
+            if not ok:
+                provider = None
         comparison, source = generate(context, lang=args.lang, provider=provider)
         if source == "deterministic":
             # Keyless/failed fallback served — record it in the usage ledger so
-            # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG).
-            emit_deterministic("group_compare")
+            # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG),
+            # with the descent reason naming WHY the floor served (R6).
+            emit_deterministic("group_compare", reason=descent)
     except Exception as exc:
         print(json.dumps({"error": str(exc), "status": 500}, ensure_ascii=False), file=sys.stderr)
         return 1

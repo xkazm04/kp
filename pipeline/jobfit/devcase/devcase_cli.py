@@ -43,7 +43,7 @@ import sys
 from pathlib import Path
 
 from .._cli import configure_stdio
-from ..llm import emit_deterministic, resolve_provider
+from ..llm import emit_deterministic, provider_availability, resolve_provider
 from . import analyze as _analyze
 from . import design as _design
 from . import evaluate as _evaluate
@@ -133,6 +133,7 @@ def _emit(
     confidences: dict[str, float] | None = None,
     fallback_reasons: dict[str, str] | None = None,
     use_case: str | None = None,
+    descent_reason: str | None = None,
 ) -> None:
     """Print the uniform provenance envelope every command shares.
 
@@ -169,7 +170,7 @@ def _emit(
     if use_case:
         for step_source in per_step.values():
             if step_source == "deterministic":
-                emit_deterministic(use_case)
+                emit_deterministic(use_case, reason=descent_reason)
     envelope: dict[str, object] = {
         "result": result,
         "source": combine_source(*per_step.values()),
@@ -314,8 +315,11 @@ def main(argv: list[str] | None = None) -> int:
         # return before this line never construct a provider.
         use_case = _USE_CASE_BY_COMMAND.get(args.command, "devcase_case_design")
         provider = None if args.no_llm else resolve_provider(use_case, timeout=120)
-        if provider is not None and not provider.available():
-            provider = None
+        descent = "disabled" if args.no_llm else None
+        if provider is not None:
+            ok, descent = provider_availability(provider)
+            if not ok:
+                provider = None
 
         # In-session chat (LLM-era controls #2/#5): one assistant/stakeholder reply.
         if args.command == "session-chat":
@@ -339,7 +343,7 @@ def main(argv: list[str] | None = None) -> int:
             reply, src = _chat.chat_reply(
                 channel, case_obj, role_obj, transcript, args.message, current_file=current_file, lang=lang, provider=provider
             )
-            _emit({"reply": reply}, {"chat": src}, fallback_reasons=_fallback_reasons(chat=reply), use_case=use_case)
+            _emit({"reply": reply}, {"chat": src}, fallback_reasons=_fallback_reasons(chat=reply), use_case=use_case, descent_reason=descent)
             return 0
 
         # One-shot naive-LLM baseline solve (LLM-era controls #6): frozen per case at
@@ -354,7 +358,7 @@ def main(argv: list[str] | None = None) -> int:
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             seed_obj = _require_object(json.loads(args.seed_json.read_text(encoding="utf-8")), "--seed-json") if args.seed_json else None
             result, src = _baseline.solve_baseline(case, role, seed_obj, provider=provider)
-            _emit({"baseline": result}, {"baseline": src}, fallback_reasons=_fallback_reasons(baseline=result), use_case=use_case)
+            _emit({"baseline": result}, {"baseline": src}, fallback_reasons=_fallback_reasons(baseline=result), use_case=use_case, descent_reason=descent)
             return 0
 
         # Case -> AI-interview scenario (one per role; reused for every candidate).
@@ -367,7 +371,7 @@ def main(argv: list[str] | None = None) -> int:
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             scenario, src = _scenario.scenario_from_case(case, role, lang=lang, provider=provider)
-            _emit({"scenario": scenario}, {"scenario": src}, fallback_reasons=_fallback_reasons(scenario=scenario), use_case=use_case)
+            _emit({"scenario": scenario}, {"scenario": src}, fallback_reasons=_fallback_reasons(scenario=scenario), use_case=use_case, descent_reason=descent)
             return 0
 
         # Case -> materialized seed (real starter files; one per case, shared by
@@ -381,7 +385,7 @@ def main(argv: list[str] | None = None) -> int:
             case = CaseScenario.model_validate(json.loads(args.case_json.read_text(encoding="utf-8")))
             role = RoleSpec.model_validate(json.loads(args.role_json.read_text(encoding="utf-8")))
             seed, src = _seed.materialize_seed(case, role, lang=lang, provider=provider)
-            _emit({"seed": seed}, {"seed": src}, fallback_reasons=_fallback_reasons(seed=seed), use_case=use_case)
+            _emit({"seed": seed}, {"seed": src}, fallback_reasons=_fallback_reasons(seed=seed), use_case=use_case, descent_reason=descent)
             return 0
 
         if args.command in ("reflect-commits", "evaluate-submission"):
@@ -428,6 +432,7 @@ def main(argv: list[str] | None = None) -> int:
                     _confidences(reflect=reflection, tooling=tooling),
                     _fallback_reasons(reflect=reflection, tooling=tooling),
                     use_case=use_case,
+                    descent_reason=descent,
                 )
                 return 0
             # evaluate-submission continues the chain — case/role are required (guarded above).
@@ -472,6 +477,7 @@ def main(argv: list[str] | None = None) -> int:
                 _confidences(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer),
                 _fallback_reasons(reflect=reflection, tooling=tooling, evaluate=evaluation, transfer=transfer, followups=followups),
                 use_case=use_case,
+                descent_reason=descent,
             )
             return 0
 
@@ -488,7 +494,7 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 snapshot = None
             result, source = _analyze.analyze_need(need, snapshot, provider=provider, lang=lang)
-            _emit(result, {"analyze": source}, _confidences(analyze=result), _fallback_reasons(analyze=result), use_case=use_case)
+            _emit(result, {"analyze": source}, _confidences(analyze=result), _fallback_reasons(analyze=result), use_case=use_case, descent_reason=descent)
             return 0
 
         if args.command == "design-artifacts":
@@ -504,6 +510,7 @@ def main(argv: list[str] | None = None) -> int:
                     {"role": role_src},
                     fallback_reasons=_fallback_reasons(role=role),
                     use_case=use_case,
+                    descent_reason=descent,
                 )
                 return 0
             case, case_src = _design.design_case(need, analysis, role, provider=provider, feedback=args.feedback, lang=lang)
@@ -512,6 +519,7 @@ def main(argv: list[str] | None = None) -> int:
                 {"role": role_src, "case": case_src},
                 fallback_reasons=_fallback_reasons(role=role, case=case),
                 use_case=use_case,
+                descent_reason=descent,
             )
             return 0
 

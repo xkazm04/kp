@@ -127,6 +127,7 @@ def _append_ledger(
     cached_tokens: int | None,
     cost_usd: float | None,
     source: str = "llm",
+    reason: str | None = None,
 ) -> None:
     """Append one NDJSON line per metered call to the usage-ledger sidecar named
     by ``KP_LLM_USAGE_LOG`` (set per spawn by the TS spawnPython seam, which folds
@@ -142,27 +143,32 @@ def _append_ledger(
     if not path:
         return
     try:
-        line = json.dumps(
-            {
-                "use_case": use_case,
-                "provider": provider,
-                "model": model,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "cached_tokens": cached_tokens,
-                "cost_usd": cost_usd,
-                "source": source,
-                "request_id": _request_id(),
-            },
-            ensure_ascii=False,
-        )
+        payload: dict[str, Any] = {
+            "use_case": use_case,
+            "provider": provider,
+            "model": model,
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "cached_tokens": cached_tokens,
+            "cost_usd": cost_usd,
+            "source": source,
+            "request_id": _request_id(),
+        }
+        if reason is not None:
+            # Descent reason for deterministic serves ("offline_policy",
+            # "not_installed", "disabled", generic "unavailable") — WHY the
+            # floor served, not just that it did. Extra keys are ignored by the
+            # TS parseLedgerLine, so llm lines stay byte-compatible; the NDJSON
+            # sidecar keeps the diagnosis.
+            payload["reason"] = reason
+        line = json.dumps(payload, ensure_ascii=False)
         with _ledger_lock, open(path, "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
     except Exception:
         pass  # ledger I/O must never break the host call
 
 
-def emit_deterministic(use_case: str | None) -> None:
+def emit_deterministic(use_case: str | None, *, reason: str | None = None) -> None:
     """Ledger-record a request the DETERMINISTIC template path served — the
     keyless (`provider.available()` false → provider=None) or failed-LLM
     fallback that used to be invisible to the usage ledger (parseLedgerLine has
@@ -171,7 +177,13 @@ def emit_deterministic(use_case: str | None) -> None:
     row in aggregateLlmUsage's provider grouping), zero tokens, zero cost.
     Gated on KP_LLM_USAGE_LOG exactly like emit_result — a direct CLI run
     without the spawnPython sidecar writes nothing. Ledger-only by design:
-    LightTrack tracks real provider calls, not template serves."""
+    LightTrack tracks real provider calls, not template serves.
+
+    ``reason`` names WHY the floor served when the descent happened at the
+    availability gate (registry.provider_availability: "offline_policy" /
+    "not_installed" / "unavailable", or the caller's "disabled" for --no-llm).
+    None when unknown — e.g. an LLM call that failed mid-flight — and unknown
+    stays unrecorded rather than guessed."""
     _append_ledger(
         provider="deterministic",
         model=None,
@@ -181,6 +193,7 @@ def emit_deterministic(use_case: str | None) -> None:
         cached_tokens=None,
         cost_usd=0.0,
         source="deterministic",
+        reason=reason,
     )
 
 

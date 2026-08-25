@@ -28,7 +28,7 @@ from pathlib import Path
 from . import agentfit
 from .devcase.provenance import collect_fallback_reasons
 from .jobs import Job
-from .llm import emit_deterministic, resolve_provider
+from .llm import emit_deterministic, provider_availability, resolve_provider
 
 ERR_INVALID_INPUT = "invalid_input"
 ERR_ENGINE = "engine_error"
@@ -59,14 +59,18 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--catalog-json must hold a JSON array of {name, description} connectors")
 
         provider = None if args.no_llm else resolve_provider("agent_fit", timeout=120)
-        if provider is not None and not provider.available():
-            provider = None
+        descent = "disabled" if args.no_llm else None
+        if provider is not None:
+            ok, descent = provider_availability(provider)
+            if not ok:
+                provider = None
 
         result, source = agentfit.analyze_agent_fit(job, catalog, provider=provider, lang=args.lang)
         if source == "deterministic":
             # Keyless/failed fallback served — record it in the usage ledger so
-            # template traffic stays visible (no-op without KP_LLM_USAGE_LOG).
-            emit_deterministic("agent_fit")
+            # template traffic stays visible (no-op without KP_LLM_USAGE_LOG),
+            # with the descent reason naming WHY the floor served (R6).
+            emit_deterministic("agent_fit", reason=descent)
         envelope: dict[str, object] = {
             "result": result,
             "source": source,

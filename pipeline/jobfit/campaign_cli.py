@@ -22,7 +22,7 @@ import sys
 from pathlib import Path
 
 from . import campaign
-from .llm import emit_deterministic, resolve_provider
+from .llm import emit_deterministic, provider_availability, resolve_provider
 from .jobs import Job
 
 ERR_INVALID_INPUT = "invalid_input"
@@ -52,16 +52,20 @@ def main(argv: list[str] | None = None) -> int:
         job = Job.model_validate(raw)
 
         provider = None if args.no_llm else resolve_provider("campaign_pack", timeout=120)
-        if provider is not None and not provider.available():
-            provider = None
+        descent = "disabled" if args.no_llm else None
+        if provider is not None:
+            ok, descent = provider_availability(provider)
+            if not ok:
+                provider = None
 
         result, source = campaign.draft_campaign_pack(
             job, lang=args.lang, apply_url=args.apply_url, provider=provider
         )
         if source == "deterministic":
             # Keyless/failed fallback served — record it in the usage ledger so
-            # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG).
-            emit_deterministic("campaign_pack")
+            # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG),
+            # with the descent reason naming WHY the floor served (R6).
+            emit_deterministic("campaign_pack", reason=descent)
         print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
         return 0
     except ValueError as exc:

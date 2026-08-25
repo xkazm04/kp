@@ -260,6 +260,19 @@ now the background-task id, stamped along this chain:
 called from ~20 modules, most several frames below the runner: the plumbing stays
 at the two ends that care, and no intermediate call site can forget to forward it.
 
+**Deterministic serves carry a descent reason.** A `source:"deterministic"`
+sidecar line may now name WHY the floor served: `emit_deterministic(use_case,
+reason=...)` writes an optional `reason` key — `"offline_policy"` (KP_OFFLINE
+veto), `"not_installed"` (no CLI binary), `"unavailable"` (a bare-bool adapter:
+missing key/SDK), or `"disabled"` (`--no-llm`) — fed by the shared
+`provider_availability(provider)` predicate in `pipeline/jobfit/llm/registry.py`
+(`ClaudeCliProvider.availability()` supplies the discriminated reasons; other
+adapters still collapse to the generic one). The key is omitted when the cause
+is unknown (an LLM call that failed mid-flight), and `parseLedgerLine` ignores
+it, so ingestion into `llm_usage` is unchanged — the diagnosis lives in the
+NDJSON sidecar. The Python CLI seats (`reasoning`, `automation`, `campaign`,
+`agentfit`, `group_compare`, `devcase`, `repo_scan`) all thread it.
+
 Clicking a row opens `ActivityDetailModal.tsx` — the ledger facts (including
 cached tokens, which the table has no room for), then the linked run's output
 fetched from `GET /api/tasks/[id]`, the one endpoint serving the full `result`

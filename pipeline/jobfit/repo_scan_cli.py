@@ -32,7 +32,7 @@ from pathlib import Path
 
 from . import repo_scan
 from .devcase.provenance import collect_fallback_reasons
-from .llm import emit_deterministic, resolve_provider
+from .llm import emit_deterministic, provider_availability, resolve_provider
 
 ERR_INVALID_INPUT = "invalid_input"
 ERR_ENGINE = "engine_error"
@@ -61,8 +61,11 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError(f"--root is not a readable directory: {root}")
 
         provider = None if args.no_llm else resolve_provider("repo_scan", timeout=repo_scan.LLM_TIMEOUT_S)
-        if provider is not None and not provider.available():
-            provider = None
+        descent = "disabled" if args.no_llm else None
+        if provider is not None:
+            ok, descent = provider_availability(provider)
+            if not ok:
+                provider = None
 
         result, source = repo_scan.scan_repo(
             root,
@@ -76,8 +79,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         if source == repo_scan.SOURCE_HEURISTIC:
             # Keyless / failed-fallback served — record it in the usage ledger so
-            # the heuristic traffic stays visible (no-op without KP_LLM_USAGE_LOG).
-            emit_deterministic("repo_scan")
+            # the heuristic traffic stays visible (no-op without KP_LLM_USAGE_LOG),
+            # with the descent reason naming WHY the floor served (R6).
+            emit_deterministic("repo_scan", reason=descent)
         envelope: dict[str, object] = {
             "result": result,
             "source": source,

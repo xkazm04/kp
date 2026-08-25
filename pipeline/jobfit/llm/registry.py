@@ -113,6 +113,28 @@ def probe_provider(provider_name: str, *, model: str | None = None, timeout: int
     return ADAPTERS[provider_name](**kwargs)
 
 
+def provider_availability(provider: Any) -> tuple[bool, str | None]:
+    """``(usable, descent_reason)`` for ANY provider this registry hands out.
+
+    Providers that model their descent reasons answer themselves
+    (``ClaudeCliProvider.availability``: "offline_policy" vs "not_installed");
+    for adapters that still expose only the bare ``available()`` bool the
+    reason collapses to a generic ``"unavailable"`` (missing key/SDK — their
+    predicate does not discriminate yet). Call-site pattern::
+
+        ok, descent = provider_availability(provider)
+        if not ok:
+            provider = None            # → deterministic fallback
+        ...
+        emit_deterministic(use_case, reason=descent)
+    """
+    fn = getattr(provider, "availability", None)
+    if callable(fn):
+        return fn()
+    ok = bool(provider.available())
+    return ok, (None if ok else "unavailable")
+
+
 def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
     """Provider instance for ``use_case`` (ClaudeCliProvider-compatible)."""
     cfg = load_config()

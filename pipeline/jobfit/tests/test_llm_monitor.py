@@ -311,6 +311,26 @@ class LedgerSidecarTest(unittest.TestCase):
         self.assertEqual(row["input_tokens"], 0)
         self.assertEqual(row["output_tokens"], 0)
         self.assertEqual(row["cost_usd"], 0.0)
+        # No reason given → no reason key: unknown stays unrecorded, and lines
+        # emitted by pre-R6 callers stay byte-compatible.
+        self.assertNotIn("reason", row)
+
+    def test_emit_deterministic_records_the_descent_reason(self) -> None:
+        """R6: a floor serve says WHY — offline policy, missing binary, --no-llm
+        — so a fleet quietly living on the deterministic floor is diagnosable
+        from its ledger, not from a hunch."""
+        monitor.reset()
+        self.addCleanup(monitor.reset)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "usage.ndjson")
+            with mock.patch.dict(os.environ, {"KP_LLM_USAGE_LOG": path}, clear=False):
+                os.environ.pop("LIGHTTRACK_URL", None)
+                monitor.emit_deterministic("repo_scan", reason="offline_policy")
+            with open(path, encoding="utf-8") as fh:
+                rows = [json.loads(l) for l in fh.read().splitlines() if l.strip()]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["source"], "deterministic")
+        self.assertEqual(rows[0]["reason"], "offline_policy")
 
     def test_emit_deterministic_is_a_noop_without_the_sidecar_env(self) -> None:
         monitor.reset()

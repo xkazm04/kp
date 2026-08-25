@@ -25,7 +25,7 @@ import sys
 from pathlib import Path
 
 from . import automation
-from .llm import emit_deterministic, resolve_provider
+from .llm import emit_deterministic, provider_availability, resolve_provider
 from .matching import MatchCandidate, load_corpus, score_job
 
 # Most sub-commands are the "automation" umbrella use_case, but `scorecard` has
@@ -123,8 +123,11 @@ def main(argv: list[str] | None = None) -> int:
 
         use_case = _use_case_for(args.command)
         provider = None if args.no_llm else resolve_provider(use_case, timeout=120)
-        if provider is not None and not provider.available():
-            provider = None
+        descent = "disabled" if args.no_llm else None
+        if provider is not None:
+            ok, descent = provider_availability(provider)
+            if not ok:
+                provider = None
 
         candidate = _load_candidate(args)
         jobs = load_corpus(args.jobs)
@@ -138,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
             if source == "deterministic":
                 # Keyless/failed fallback served — make it ledger-visible (see
                 # monitor.emit_deterministic; no-op without KP_LLM_USAGE_LOG).
-                emit_deterministic(use_case)
+                emit_deterministic(use_case, reason=descent)
             print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
             return 0
 
@@ -168,8 +171,9 @@ def main(argv: list[str] | None = None) -> int:
         if source == "deterministic":
             # The deterministic template served in place of the LLM (--no-llm,
             # missing key, or a failed call that fell back) — record it in the
-            # usage ledger so keyless traffic stops being invisible (item 22).
-            emit_deterministic(use_case)
+            # usage ledger so keyless traffic stops being invisible (item 22),
+            # with the descent reason naming WHY where known (R6).
+            emit_deterministic(use_case, reason=descent)
         print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
         return 0
     except NotFoundError as exc:

@@ -9,6 +9,13 @@ unchanged.
 
 from .base import LLMError, LLMResult, TextProvider
 from .monitor import emit_deterministic
-from .registry import resolve_provider
+from .registry import provider_availability, resolve_provider
 
-__all__ = ["LLMError", "LLMResult", "TextProvider", "emit_deterministic", "resolve_provider"]
+__all__ = [
+    "LLMError",
+    "LLMResult",
+    "TextProvider",
+    "emit_deterministic",
+    "provider_availability",
+    "resolve_provider",
+]

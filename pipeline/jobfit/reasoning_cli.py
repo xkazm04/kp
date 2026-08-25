@@ -15,7 +15,7 @@ import json
 from pathlib import Path
 
 from ._cli import configure_stdio, emit_error, load_candidate_arg, load_jobs_arg
-from .llm import emit_deterministic, resolve_provider
+from .llm import emit_deterministic, provider_availability, resolve_provider
 from .match_reasoning import REASONING_PROMPT_VERSION, generate
 from .matching import score_job
 
@@ -58,13 +58,17 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError(f"job not found: {args.job_id}")
         m = score_job(candidate, job)
         provider = None if args.no_llm else resolve_provider("match_reasoning", timeout=120)
-        if provider is not None and not provider.available():
-            provider = None
+        descent = "disabled" if args.no_llm else None
+        if provider is not None:
+            ok, descent = provider_availability(provider)
+            if not ok:
+                provider = None
         reasoning, source = generate(candidate, job, m, lang=lang, provider=provider)
         if source == "deterministic":
             # Keyless/failed fallback served — record it in the usage ledger so
-            # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG).
-            emit_deterministic("match_reasoning")
+            # template traffic stops being invisible (no-op without KP_LLM_USAGE_LOG),
+            # with the descent reason naming WHY the floor served (R6).
+            emit_deterministic("match_reasoning", reason=descent)
     except Exception as exc:
         return emit_error(exc)
 

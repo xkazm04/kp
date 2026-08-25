@@ -421,5 +421,31 @@ class ProbeProviderTest(unittest.TestCase):
         self.assertEqual(provider.max_tokens, DEFAULT_MAX_TOKENS)
 
 
+class ProviderAvailabilityTest(unittest.TestCase):
+    """R6: the shared (usable, descent_reason) predicate over any provider."""
+
+    def test_claude_cli_reasons_pass_through(self) -> None:
+        from pipeline.jobfit.llm.registry import provider_availability
+
+        with mock.patch.dict(os.environ, {"KP_OFFLINE": "1"}, clear=False):
+            self.assertEqual(
+                provider_availability(ClaudeCliProvider()), (False, "offline_policy")
+            )
+
+    def test_bare_bool_adapters_collapse_to_generic_unavailable(self) -> None:
+        from pipeline.jobfit.llm.registry import provider_availability
+
+        class BoolOnly:
+            def available(self) -> bool:
+                return False
+
+        class BoolOnlyUp:
+            def available(self) -> bool:
+                return True
+
+        self.assertEqual(provider_availability(BoolOnly()), (False, "unavailable"))
+        self.assertEqual(provider_availability(BoolOnlyUp()), (True, None))
+
+
 if __name__ == "__main__":
     unittest.main()

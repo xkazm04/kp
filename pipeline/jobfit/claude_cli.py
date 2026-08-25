@@ -456,17 +456,33 @@ class ClaudeCliProvider:
 
     # -- discovery ----------------------------------------------------------
 
+    def availability(self) -> tuple[bool, str | None]:
+        """``(usable, descent_reason)`` — the voice modules' shape, adopted here.
+
+        The bool is exactly :meth:`available`; the reason is a closed set —
+        ``"offline_policy"`` (the KP_OFFLINE veto, checked FIRST, before any
+        filesystem lookup) or ``"not_installed"`` — so a fleet living on the
+        deterministic floor is diagnosable: policy-forbidden and binary-missing
+        are repaired differently, and collapsing them into one bare False is
+        how offline flags get "fixed" by reinstalling a binary that was never
+        the problem. Callers thread the reason into
+        ``emit_deterministic(use_case, reason=...)`` so floor serves say why."""
+        from .llm.offline import is_offline
+
+        if is_offline():
+            return False, "offline_policy"
+        if shutil.which(self.command) is not None or os.path.isfile(self.command):
+            return True, None
+        return False, "not_installed"
+
     def available(self) -> bool:
         """True if the CLI is resolvable on PATH (or ``command`` is an abs path).
 
         Refuses under KP_OFFLINE: the CLI reaches Anthropic's cloud via a subprocess
         (not ``fetch``, so the TS egress guard can't see it), so the no-egress flag
-        must block it here → the caller falls back to deterministic (offline.py)."""
-        from .llm.offline import is_offline
-
-        if is_offline():
-            return False
-        return shutil.which(self.command) is not None or os.path.isfile(self.command)
+        must block it here → the caller falls back to deterministic (offline.py).
+        The one shared predicate; :meth:`availability` carries its reason."""
+        return self.availability()[0]
 
     def probe(self, *, timeout: int = 15) -> ClaudeCliProbe:
         """Install + authorization probe, proven WITHOUT spending tokens.
