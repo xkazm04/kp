@@ -221,6 +221,25 @@ body and attachments are never written. If that residual is unacceptable, do not
 pair an edge: pull sources alone need no third party, and running the same image
 on an always-on host inside your network removes the problem entirely.
 
+**Which option, in one table.** Your machine is off most of the day, and three
+things cannot wait for it: an inbound webhook (the sender retries a few times, then
+gives up), a candidate email, and a delivery receipt for a bounce. You do not need a
+SaaS for that — you need an answering machine.
+
+| You want | What to do | Cost |
+| --- | --- | --- |
+| **Nothing online** | Nothing. Inbound events reach kp only while it runs, and every surface says so rather than implying otherwise. Outbound messages queue honestly. | free |
+| **A source you can poll** (a board API, a mail-to-JSON bridge) | Point a receiver at it: `PATCH /api/channels/webhooks {token, pullUrl}`. The clock asks it what arrived while you were away, on every tick. No cloud, no account. | free |
+| **Webhooks + email + "you have mail"** | Deploy the ~250-line Worker in [`edge/`](../../edge/README.md) to **your own** Cloudflare account (`wrangler deploy`), put `KP_EDGE_URL` + `KP_EDGE_SECRET` in `.env.local`, point your sources at it. Candidate mail arrives through Cloudflare Email Routing; a cron nudges you (ntfy, web push, mail) when events are waiting and kp has been quiet. | free on Cloudflare's free plan — Workers, D1, cron and Email Routing all included |
+| **Candidate pages up 24/7** | Not yet. See [the concept doc](../concepts/local-first-edge.md) — the edge serving a signed projection is designed and unbuilt. | — |
+
+One shared HMAC secret whose whole power is "may talk to this queue", and an
+append-only log that is *deleted* as your install drains it. Publish a sealing key
+(Channels → Edge → Enable sealing) and it cannot read what it holds either. It runs
+in your Cloudflare account; KP neither hosts it, sees it, nor bills it. Every
+decision — eligibility, scoring, replies — still happens on your machine, on your
+models.
+
 **Air-gap interaction:** `KP_OFFLINE=1` disables the edge client outright, ahead
 of any stored or env configuration (`resolveEdge`). An air-gapped install is
 therefore unaffected by anything in this section.
@@ -245,7 +264,6 @@ your host remain wherever `KP_DB_PATH` lives (§4).
       of legitimate applicants behind different IPs can collide on the shared cap.
       Residual: never set it **larger** than the real hop count, or an attacker
       can inject extra `X-Forwarded-For` entries and forge the trusted position.
-      (Not yet listed in `.env.example` — see the doc-drift note below.)
 - [ ] `NEXT_PUBLIC_APP_BASE_URL` (+ `NEXT_PUBLIC_SITE_URL`) set to your public
       origin so candidate-facing links and OG metadata resolve correctly.
 - [ ] Only the provider keys you actually use are set (§6).
@@ -253,11 +271,6 @@ your host remain wherever `KP_DB_PATH` lives (§4).
 - [ ] Runs as non-root (built in, uid 10001); writes only to `/data` and `/tmp`.
 - [ ] Health check green (`docker compose ps`).
 - [ ] Backups scheduled; upgrade path rehearsed (§10).
-
-> **Doc-drift note.** `app/_lib/rate-limit.test.ts` proves `KP_TRUSTED_PROXY` gates
-> real behavior today, but it is not documented in `.env.example` — add it there
-> alongside `KP_DB_BACKEND`/`KP_OFFLINE` (tracked as a backlog item, not fixed in
-> this pass since `.env.example` is outside this doc-restructure's scope).
 
 ## 8b. Custom domain & white-label branding (E-BRD-3/4)
 
