@@ -8787,6 +8787,47 @@
       "declined": "You said no",
       "retired": "This proposal outlived what it could do",
       "unknown": "Answered"
+    },
+    "settings": {
+      "open": "Companion settings",
+      "eyebrow": "Candi",
+      "title": "How she shows up",
+      "intro": "Saved on this browser only. Nobody else in the workspace sees these.",
+      "interface": "Interface",
+      "interfaceHint": "The window keeps the conversation in a column beside your work. Voice mode frees the screen: her last answer on top, a slim bar below.",
+      "modeLabel": "Companion interface",
+      "modeDock": "Window",
+      "modeVoice": "Voice",
+      "speech": "Speech",
+      "autoSpeak": "Read new replies aloud",
+      "autoSpeakHint": "Your browser will refuse the first one until you press play once."
+    },
+    "voiceMode": {
+      "label": "Candi, voice mode",
+      "close": "Leave voice mode",
+      "empty": "Ask her something below. Her answer lands here, and you can play it.",
+      "placeholder": "Ask Candi",
+      "mic": "Speaking to her comes with the relay",
+      "older": "Older answer",
+      "newer": "Newer answer",
+      "position": "{index} of {total}",
+      "timeline": "Jump to an answer",
+      "details": "Show details",
+      "detailsHide": "Hide details",
+      "written": "Read the written reply",
+      "writtenHide": "Hide the written reply",
+      "prompt": "You asked",
+      "replay": "Play again",
+      "playbackReady": "Ready to play",
+      "playbackPreparing": "Preparing the audio",
+      "playbackPlaying": "Playing",
+      "playbackBlocked": "Press play to allow sound",
+      "playbackError": "That could not be spoken",
+      "attention": "{count, plural, one {# thing needs you} other {# things need you}}",
+      "variant": "Direction",
+      "variantTicker": "Ticker",
+      "variantStage": "Stage",
+      "variantHud": "HUD"
     }
   }
 }

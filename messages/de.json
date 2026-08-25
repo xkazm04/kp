@@ -8787,6 +8787,47 @@
       "declined": "Sie haben nein gesagt",
       "retired": "Dieser Vorschlag hat überlebt, was er tun konnte",
       "unknown": "Beantwortet"
+    },
+    "settings": {
+      "open": "Begleiter-Einstellungen",
+      "eyebrow": "Candi",
+      "title": "Wie sie erscheint",
+      "intro": "Nur in diesem Browser gespeichert. Niemand sonst im Workspace sieht das.",
+      "interface": "Oberfläche",
+      "interfaceHint": "Das Fenster hält das Gespräch in einer Spalte neben Ihrer Arbeit. Der Sprachmodus gibt den Bildschirm frei: ihre letzte Antwort oben, eine schmale Leiste unten.",
+      "modeLabel": "Begleiter-Oberfläche",
+      "modeDock": "Fenster",
+      "modeVoice": "Stimme",
+      "speech": "Sprache",
+      "autoSpeak": "Neue Antworten vorlesen",
+      "autoSpeakHint": "Ihr Browser verweigert die erste, bis Sie einmal auf Abspielen drücken."
+    },
+    "voiceMode": {
+      "label": "Candi, Sprachmodus",
+      "close": "Sprachmodus verlassen",
+      "empty": "Fragen Sie sie unten etwas. Ihre Antwort landet hier, und Sie können sie abspielen.",
+      "placeholder": "Candi fragen",
+      "mic": "Mit ihr sprechen kommt mit dem Relay",
+      "older": "Ältere Antwort",
+      "newer": "Neuere Antwort",
+      "position": "{index} von {total}",
+      "timeline": "Zu einer Antwort springen",
+      "details": "Details anzeigen",
+      "detailsHide": "Details ausblenden",
+      "written": "Geschriebene Antwort lesen",
+      "writtenHide": "Geschriebene Antwort ausblenden",
+      "prompt": "Sie fragten",
+      "replay": "Erneut abspielen",
+      "playbackReady": "Bereit zum Abspielen",
+      "playbackPreparing": "Audio wird vorbereitet",
+      "playbackPlaying": "Wird abgespielt",
+      "playbackBlocked": "Auf Abspielen drücken, um Ton zu erlauben",
+      "playbackError": "Das konnte nicht gesprochen werden",
+      "attention": "{count, plural, one {# Sache braucht Sie} other {# Sachen brauchen Sie}}",
+      "variant": "Richtung",
+      "variantTicker": "Ticker",
+      "variantStage": "Stage",
+      "variantHud": "HUD"
     }
   }
 }

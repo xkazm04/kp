@@ -8787,6 +8787,47 @@
       "declined": "Řekli jste ne",
       "retired": "Tento návrh přežil to, co uměl udělat",
       "unknown": "Zodpovězeno"
+    },
+    "settings": {
+      "open": "Nastavení společnice",
+      "eyebrow": "Candi",
+      "title": "Jak se ukazuje",
+      "intro": "Uloženo jen v tomto prohlížeči. Nikdo další v pracovním prostoru to nevidí.",
+      "interface": "Rozhraní",
+      "interfaceHint": "Okno drží konverzaci ve sloupci vedle vaší práce. Hlasový režim uvolní obrazovku: její poslední odpověď nahoře, úzký pruh dole.",
+      "modeLabel": "Rozhraní společnice",
+      "modeDock": "Okno",
+      "modeVoice": "Hlas",
+      "speech": "Řeč",
+      "autoSpeak": "Číst nové odpovědi nahlas",
+      "autoSpeakHint": "Prohlížeč tu první odmítne, dokud jednou nestisknete přehrát."
+    },
+    "voiceMode": {
+      "label": "Candi, hlasový režim",
+      "close": "Opustit hlasový režim",
+      "empty": "Zeptejte se jí níže. Odpověď přistane tady a můžete si ji pustit.",
+      "placeholder": "Zeptejte se Candi",
+      "mic": "Mluvení na ni přijde s relay",
+      "older": "Starší odpověď",
+      "newer": "Novější odpověď",
+      "position": "{index} z {total}",
+      "timeline": "Přejít na odpověď",
+      "details": "Zobrazit detaily",
+      "detailsHide": "Skrýt detaily",
+      "written": "Přečíst psanou odpověď",
+      "writtenHide": "Skrýt psanou odpověď",
+      "prompt": "Ptali jste se",
+      "replay": "Přehrát znovu",
+      "playbackReady": "Připraveno k přehrání",
+      "playbackPreparing": "Připravuji zvuk",
+      "playbackPlaying": "Přehrává se",
+      "playbackBlocked": "Stiskněte přehrát a povolte zvuk",
+      "playbackError": "Tohle nešlo vyslovit",
+      "attention": "{count, plural, one {# věc vás potřebuje} few {# věci vás potřebují} other {# věcí vás potřebuje}}",
+      "variant": "Směr",
+      "variantTicker": "Ticker",
+      "variantStage": "Stage",
+      "variantHud": "HUD"
     }
   }
 }

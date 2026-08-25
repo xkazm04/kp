@@ -8787,6 +8787,47 @@
       "declined": "Vous avez dit non",
       "retired": "Cette proposition a survécu à ce qu'elle pouvait faire",
       "unknown": "Traitée"
+    },
+    "settings": {
+      "open": "Réglages de la compagne",
+      "eyebrow": "Candi",
+      "title": "Comment elle apparaît",
+      "intro": "Enregistré uniquement sur ce navigateur. Personne d'autre dans l'espace de travail ne le voit.",
+      "interface": "Interface",
+      "interfaceHint": "La fenêtre garde la conversation dans une colonne à côté de votre travail. Le mode vocal libère l'écran : sa dernière réponse en haut, une barre fine en bas.",
+      "modeLabel": "Interface de la compagne",
+      "modeDock": "Fenêtre",
+      "modeVoice": "Voix",
+      "speech": "Parole",
+      "autoSpeak": "Lire les nouvelles réponses à voix haute",
+      "autoSpeakHint": "Votre navigateur refusera la première tant que vous n'aurez pas appuyé une fois sur lecture."
+    },
+    "voiceMode": {
+      "label": "Candi, mode vocal",
+      "close": "Quitter le mode vocal",
+      "empty": "Posez-lui une question ci-dessous. Sa réponse arrive ici, et vous pouvez l'écouter.",
+      "placeholder": "Demander à Candi",
+      "mic": "Lui parler arrivera avec le relais",
+      "older": "Réponse précédente",
+      "newer": "Réponse suivante",
+      "position": "{index} sur {total}",
+      "timeline": "Aller à une réponse",
+      "details": "Afficher les détails",
+      "detailsHide": "Masquer les détails",
+      "written": "Lire la réponse écrite",
+      "writtenHide": "Masquer la réponse écrite",
+      "prompt": "Vous avez demandé",
+      "replay": "Rejouer",
+      "playbackReady": "Prêt à jouer",
+      "playbackPreparing": "Préparation de l'audio",
+      "playbackPlaying": "Lecture en cours",
+      "playbackBlocked": "Appuyez sur lecture pour autoriser le son",
+      "playbackError": "Impossible de le prononcer",
+      "attention": "{count, plural, one {# chose vous attend} other {# choses vous attendent}}",
+      "variant": "Direction",
+      "variantTicker": "Ticker",
+      "variantStage": "Stage",
+      "variantHud": "HUD"
     }
   }
 }

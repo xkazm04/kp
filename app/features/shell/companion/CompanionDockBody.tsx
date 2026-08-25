@@ -12,7 +12,7 @@ import type { CompanionProposal, CompanionTurn, CompanionTurnMeta } from "@/app/
 import type { AttentionCounts } from "@/app/features/shell/useAttention";
 import { CompanionProposalCard } from "./CompanionProposalCard";
 import { CompanionSpeakButton } from "./CompanionSpeakButton";
-import { useCompanionSpeech, voiceTextForTurn } from "./useCompanionSpeech";
+import { voiceTextForTurn, type CompanionSpeech } from "./useCompanionSpeech";
 
 /*
  * The dock's body — the round-1 "Colleague" direction, promoted to the only one.
@@ -35,6 +35,12 @@ import { useCompanionSpeech, voiceTextForTurn } from "./useCompanionSpeech";
  * and the marginalia carries the control that plays it. A colleague you can ask
  * to say it out loud, in the same quiet register as the rest of the strip — not
  * a media player bolted to the dock.
+ *
+ * Round V2 HANDS the speech seam in rather than making one. There is now a
+ * second shape (voice mode) and a setting that speaks a reply the moment it
+ * lands, and both are the same utterance: a hook mounted per presentation would
+ * have been two of them, and "at most one thing is audible" is the one promise
+ * `useCompanionSpeech` exists to keep. The owner is `CompanionDock`.
  */
 
 const companionSide = (role: string): ChatSide => (role === "user" ? "right" : "left");
@@ -54,6 +60,10 @@ export type CompanionBodyProps = {
    *  does not recall or record — and it is SAID rather than left to be inferred
    *  from an answer that keeps forgetting last week. */
   memoryEnabled: boolean;
+  /** The companion's ONE spoken channel, owned by CompanionDock and shared with
+   *  voice mode. Not created here: at most one utterance is audible at a time,
+   *  and that is only true while there is one hook. */
+  speech: CompanionSpeech;
   onSend: (message: string) => Promise<boolean>;
   onResolveProposal: (id: string, decision: "accept" | "decline") => Promise<boolean>;
 };
@@ -106,15 +116,12 @@ export function CompanionBody({
   error,
   attention,
   memoryEnabled,
+  speech,
   onSend,
   onResolveProposal,
 }: CompanionBodyProps) {
   const t = useTranslations("companion");
   const resolveError = useErrorMessage();
-  // One spoken channel for the whole transcript, not one per bubble: at most one
-  // utterance is audible at a time, and the hook is what makes that true rather
-  // than each button hoping the others behave.
-  const speech = useCompanionSpeech();
   const metaById = useMemo(() => new Map(turns.map((turn) => [turn.id, turnMeta(turn)])), [turns]);
   // Proposals are joined onto their turn by ID, never by position or timestamp:
   // one exchange can carry two, a thread carries many, and the row the operator

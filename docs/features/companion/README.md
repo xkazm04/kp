@@ -747,6 +747,153 @@ under `app/_components`, where `i18n:check` forbids a literal accessible name.
 `JdsIntakeChat` is now the intake ADAPTER; nothing about the rendered intake
 surface changed.
 
+## Voice mode (prototype round V2)
+
+Candi wears two shapes. The **window** is the left dock described above. **Voice
+mode** is a top/bottom pair: her last answer pinned to the top edge of the
+screen, a slim input bar pinned to the bottom, and the whole middle left alone.
+
+It exists because a spoken companion and a conversation column want opposite
+things. A column is the right shape for reading a transcript; it is the wrong
+shape for *listening* while working, where the operator wants the page visible
+and one answer at a time. Voice mode also replaces scrolling with **stepping**:
+two arrows and a `3 of 17` counter walk her answers, so "what did she say three
+answers ago" is a countable act rather than a search through a column that is no
+longer on screen.
+
+**PRESENTATION ONLY.** Same `CompanionDockProvider`, same open/close, same
+`useCompanionThread`, same routes, same proposals, same speech seam. The mode
+branch is the LAST decision `CompanionDock` makes — everything above it (the
+thread, the seed handoff from the palette, the attention counts, the one
+`useCompanionSpeech`) is resolved first and handed to whichever shape is on. A
+flip mid-conversation therefore drops nothing: not a turn in flight, not an
+utterance, not the operator's place.
+
+### Switching, and where the preference lives
+
+A gear in Candi's chrome — in **both** shapes — opens `CompanionSettingsMenu`.
+Two controls today:
+
+| Control | Does |
+| --- | --- |
+| Interface (`Window` / `Voice`) | Picks the shape. |
+| Read new replies aloud | Speaks a reply as it lands. Default **off**. |
+
+The preferences are per-BROWSER, one localStorage key (`kp-companion-prefs`,
+`companionPrefs.ts` + `useCompanionPrefs`), the same call the pipeline's saved
+views and the intake layout already made. They describe how *this screen* is
+being used; they carry nothing a teammate needs to see, and putting them on the
+server would mean a schema, a route and a round trip to answer "which window am
+I in". The panel says so in its intro rather than leaving it to be assumed.
+
+The hook seeds the defaults and corrects itself in a mount effect (SSR parity),
+and the write-back effect is gated on `hydrated` so the first render can never
+persist the defaults over a real stored choice. `coerceCompanionPrefs` is total
+and works **field by field**: a store with one good field and one garbage field
+keeps the good one, because dropping the object would silently move an operator
+back to the window they had left.
+
+The panel is deliberately built as the *seed of the owed policy surface* — a
+titled dialog of `SettingsGroup` sections, not two toggles in a popup — so a
+third group (model routing, memory scope, whether a proposal may execute without
+a second confirmation) is an insertion. The moment a group's effect is NOT
+visible from where the panel opens, that group belongs in Setup and this panel
+should link to it instead of growing it.
+
+**Auto-speak is primed, not fired, on arrival.** `useCompanionAutoSpeak` records
+the newest reply id on its first pass and says nothing — opening the dock
+hydrates a stored thread whose last answer may be a week old, and speaking it
+would be the app talking at someone who just arrived. Only a *change* after that
+is an arrival. The same rule makes turning the setting on silent. A new
+conversation is deliberately not re-primed: the list empties, the newest id
+becomes null, and the next real answer is a genuine change from null.
+
+**Expect `blocked`.** Browsers refuse audio no gesture asked for, and an
+auto-speak is by construction the case with no gesture behind it. That is not
+handled in the hook, because it cannot be — unblocking must run *from* a
+gesture. It is handled where the gesture is: the playback control renders
+`blocked` as a resume affordance, V1's contract.
+
+### The reading model
+
+`voiceHistory.ts` (pure, unit-tested) projects the transcript into the thing the
+header paginates: her ANSWERS, oldest first, each carrying the question it
+answered — the nearest user turn *before* it, which is the only join available
+(turns carry no reply-to id, and pairing by position breaks on a greeting or on
+two consecutive assistant turns).
+
+`useVoiceHistory` derives the position every render and runs **no effect**. What
+is state is the *intent* — which answer the operator asked for, and whether they
+are still at the end. `pinned` is not `index === last`: the two agree until a
+reply lands, and the whole point is that a pinned reader moves with it while a
+reader who has arrowed back does not. An unpinned reader keeps their place **by
+id**, because a server reconcile renumbers optimistic rows underneath them.
+Every earlier shape of this hook set the index in an effect, and every one
+flashed the old answer's text under the new answer's counter for one frame.
+
+Arrow keys are bound to the header REGION (`tabIndex=0`, labelled), never the
+document — a global arrow handler would steal the keys from the page this mode
+exists to leave usable — and the handler ignores events from inside an input,
+select or radiogroup, because the direction switcher owns those keys itself.
+
+### The three directions (this round only)
+
+Three variants ride behind a `SegmentedControl` in the voice header. All three
+render against one contract (`voiceTypes.ts`), so promoting the winner is
+deleting two files and a rail, with no state to unpick.
+
+| | Metaphor | The bet | What it gives up |
+| --- | --- | --- | --- |
+| **A · Ticker** (default) | A newsroom crawl frozen on its last item | Maximum screen given back: one full-width strip, two clamped lines, everything with height behind "show details" | Two lines is a glance, not a read. If the disclosure is always pressed, that is the finding |
+| **B · Stage** | A lit stage with one speaker | The SPOKEN answer is the headline (`meta.voiceReply`, in the display face) and the written reply is the quieter expandable thing. The only direction that takes "I want to listen to my studio" literally | Twice the height, not full-bleed; a turn with no voice composition falls back to the prose, which is the direction at its least distinctive |
+| **C · HUD** | A head-up display | Nothing is one press away: the answer scrolls in its own pane and a context band carries a jump-timeline, the question echoed, her provenance, and what the studio is waiting on | A permanent band of studio state is the thing most likely to read as noise after twenty minutes |
+
+Shared bones, extracted the moment the second variant needed them:
+`VoiceInputBar`, `VoiceNav` / `VoiceDots`, `VoicePlaybackButton` /
+`VoicePlaybackRow`, and `VoiceParts` (prose, blocks, proposals, meta chips,
+prompt echo, empty and busy notes).
+
+Two rules hold across all three:
+
+- **Proposals are never behind a disclosure.** A proposal is the only part of an
+  answer the operator has to answer; a minimal strip that hid the one actionable
+  thing would be minimal about the wrong half.
+- **Blocks scroll inside the window, never the page.** The header is a fixed
+  pane; a table that pushed the input bar off screen would defeat the mode.
+
+Motion is one crossfade on Stage when the answer changes, reduced-motion gated,
+and nothing anywhere else — a surface that is on screen permanently must not
+move on its own.
+
+### Geometry
+
+Both halves are fixed on `--z-sim-drawer`, the dock's own layer: above the
+sidebar, below the Modal, because a dialog the operator opened is the more
+recent intent. The bottom bar clears the live control bar (`--sim-bar-h`) the
+same way every other floating surface does. Nothing traps focus and nothing is
+inert — the page behind is the entire reason this mode exists. The rest pill is
+unchanged and shared: the mode changes the OPEN state only.
+
+The input bar is one line (`<input>`, not a textarea): the operator gave up the
+column to keep the page visible, so the composer cannot claim it back, Enter has
+exactly one meaning and there is no Shift+Enter to explain. It reproduces
+`ChatComposer`'s draft contract (cleared optimistically, restored when the
+exchange resolves false) rather than sharing it — about eight lines, against
+adding a `compact` prop to a primitive another workstream owns. It is disabled
+until the thread is `ready`, because a message sent into no thread resolves false
+and silently restores itself, which reads as the app ignoring you. The mic is
+drawn disabled with a title naming what it waits for: a voice mode with no
+microphone reads as an oversight, one with a live-looking icon that does nothing
+is worse, and a control that is visibly not ready yet is the honest third option.
+
+> **Found by painting it, not by a gate.** The dock header's `backdrop-blur`
+> gives it its own stacking context, which confined the settings panel's `z-50`
+> to the header's level while the body — a later sibling — swallowed every click
+> on it. The popover rendered perfectly and could not be pressed. The header now
+> carries `relative z-10`; anything anchored in the toolbar's `extra` slot that
+> opens over the body depends on it.
+
+
 ## Known gaps
 
 - **Blocks and proposals HAVE now been drawn by a real model** (round 5's
