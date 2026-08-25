@@ -241,6 +241,101 @@ export async function settleDispatch({
  *  un-started hire), so the result records that it was DERIVED. */
 const STATUS_TO_DECISION = { active: "activated", onboarding: "extended", retired: "retired", rejected: "retired" };
 
+// ─── the build, and its one retry ───────────────────────────────────────────
+//
+// Personas' one-shot hire build is NONDETERMINISTIC and fails a meaningful
+// fraction of hires for reasons that have nothing to do with the role under
+// test — "promotion held: tools never called" (since fixed structurally) and a
+// design pass writing a literal `{{param.daily_audit_hour}}` into a cron were
+// both read off live sweeps. Each one used to cost a whole scenario: the
+// `activate` phase fails fast on the terminal `failed` status (ladder
+// `onboarding → failed`) and the run ends there.
+//
+// A bench whose job is to measure the ROLE must MEASURE that flake rate instead
+// of being defeated by it. So a failed build is re-dispatched ONCE against the
+// same intake and the same composed spec, and every attempt is recorded —
+// `hire.buildAttempts` plus one `hire.buildFailures[]` entry per dead build, so
+// the sweep reports build reliability rather than hiding it inside a pass.
+//
+// The retry is scoped as tightly as honesty allows:
+//
+//   * only a TERMINAL `failed`. `rejected` and `retired` are DECISIONS about
+//     the hire; re-dispatching over one would be the driver overruling the very
+//     thing it is measuring.
+//   * NEVER a timeout. A timed-out activate leaves an orphan build session
+//     running (the bridge has no cancel endpoint), so a second dispatch would
+//     race two live builds for one intake and burn two subscription seats to
+//     measure one. A timeout throws straight through this loop, orphan warning
+//     and all.
+export const MAX_BUILD_ATTEMPTS = 2;
+
+/**
+ * What Personas says killed a build, if it says anything at all.
+ *
+ * `GET /api/kp/persona-requests/{id}` answers the management envelope
+ * (`{success, data}`) and carries the build's own state in `buildPhase` — a
+ * string on some builds, an object (`{phase, status, reason}`) on others. An
+ * ABSENT reading stays `null`: a retry that invented a reason would be worse
+ * than one that admits it has none.
+ */
+export function buildFailureReason(payload) {
+  const data = payload?.data ?? payload ?? null;
+  if (!data || typeof data !== "object") return null;
+  const text = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const phase = data.buildPhase;
+  if (text(phase)) return text(phase);
+  if (phase && typeof phase === "object" && !Array.isArray(phase)) {
+    const named = text(phase.reason) ?? text(phase.error) ?? text(phase.detail);
+    if (named) return text(phase.phase) ? `${text(phase.phase)}: ${named}` : named;
+    if (text(phase.phase)) return `build phase ${text(phase.phase)}${text(phase.status) ? ` (${text(phase.status)})` : ""}`;
+  }
+  return text(data.failureReason) ?? text(data.error) ?? text(data.statusReason) ?? null;
+}
+
+/**
+ * Run the hire's build, retrying a FAILED one once.
+ *
+ * `activate(attempt)` resolves `{ok:true, row, ladder}` when the hire reached
+ * `active`, `{ok:false, terminal, ladder, requestId, hiredAgentId}` when it
+ * reached a terminal non-active status — and THROWS when it timed out, which is
+ * the case that must not be retried (see above). `dispatch(attempt)` re-runs
+ * `POST /api/agents/dispatch` for the same intake.
+ *
+ * `failures` is the caller's accumulator ON PURPOSE: a throw from a later
+ * attempt (a timeout on the retry, say) must not lose the record of the failure
+ * that caused the retry in the first place.
+ */
+export async function buildWithRetry({
+  activate,
+  dispatch,
+  journal = null,
+  reasonFor = async () => null,
+  maxAttempts = MAX_BUILD_ATTEMPTS,
+  failures = [],
+}) {
+  for (let attempt = 1; ; attempt++) {
+    const outcome = await activate(attempt);
+    if (outcome?.ok) {
+      return { ok: true, attempts: attempt, failures, row: outcome.row ?? null, ladder: outcome.ladder ?? [] };
+    }
+    const requestId = outcome?.requestId ?? null;
+    const reason = (await reasonFor(requestId, attempt)) ?? null;
+    failures.push({
+      attempt,
+      requestId,
+      hiredAgentId: outcome?.hiredAgentId ?? null,
+      terminal: outcome?.terminal ?? null,
+      ladder: outcome?.ladder ?? [],
+      reason,
+    });
+    if (outcome?.terminal !== "failed" || attempt >= maxAttempts) {
+      return { ok: false, attempts: attempt, failures, terminal: outcome?.terminal ?? null, ladder: outcome?.ladder ?? [] };
+    }
+    journal?.write("build-retry", { attempt: attempt + 1, previousRequestId: requestId, reason });
+    await dispatch(attempt + 1);
+  }
+}
+
 // ─── phase helpers ──────────────────────────────────────────────────────────
 
 async function phase(result, journal, name, body) {
@@ -645,7 +740,11 @@ async function runScenario(scenario, opts) {
     });
 
     // ── dispatch ────────────────────────────────────────────────────────────
-    await phase(result, journal, "dispatch", async () => {
+    //
+    // Callable more than once: a build that dies in Personas is re-dispatched
+    // against the SAME intake and the same composed spec (see MAX_BUILD_ATTEMPTS).
+    const buildFailures = [];
+    const dispatchHire = async (attempt) => {
       let res = await kp.post("/api/agents/dispatch", { intakeId: result.intakeId });
       // kp's OWN bridge key expires too (24h, headless auto-pair), and it
       // surfaces here as a 502 whose code is AGENT_BRIDGE_KEY_INVALID. Re-pair
@@ -654,16 +753,39 @@ async function runScenario(scenario, opts) {
         res = await kp.post("/api/agents/dispatch", { intakeId: result.intakeId });
       }
       const body = must("POST /api/agents/dispatch", res);
-      result.hire = { hiredAgentId: body.hiredAgentId, requestId: body.requestId, status: body.status };
-      journal.write("dispatched", result.hire);
-    });
+      // A RE-dispatch has to mint a SECOND hire, never hand the dead one back.
+      // kp's one-live-agent-per-intake read (`getActiveHiredAgentForIntake`)
+      // counts only `dispatched|pending_approval|onboarding|active`, so the
+      // `failed` row the refresh poll just wrote is already out of the way —
+      // which is why this retry needs no kp-side change. `existing: true` here
+      // would mean kp still counts a dead build as live, and a "retry" against
+      // it would measure nothing; it is refused out loud rather than papered over.
+      if (attempt > 1 && body.existing) {
+        throw new PhaseError(
+          "activate",
+          `re-dispatch after a failed build returned the EXISTING hire ${body.hiredAgentId} (status \`${body.status}\`) — kp still counts that build live, so this scenario cannot be retried`,
+          { hiredAgentId: body.hiredAgentId, status: body.status }
+        );
+      }
+      result.hire = {
+        hiredAgentId: body.hiredAgentId,
+        requestId: body.requestId,
+        status: body.status,
+        buildAttempts: attempt,
+        buildFailures,
+      };
+      journal.write("dispatched", { ...result.hire, buildFailures: buildFailures.length });
+      return result.hire;
+    };
+    await phase(result, journal, "dispatch", () => dispatchHire(1));
 
     // ── activate ────────────────────────────────────────────────────────────
     const rosterRow = async () => {
       const roster = must("GET /api/agents", await kp.get("/api/agents"));
       return (roster.agents ?? []).find((a) => a.id === result.hire.hiredAgentId) ?? null;
     };
-    await phase(result, journal, "activate", async () => {
+    /** ONE build's wait. Resolves active/terminal; a timeout throws (orphan). */
+    const attemptActivate = async () => {
       const seen = [];
       let terminal = null;
       const row = await poll(
@@ -713,12 +835,55 @@ async function runScenario(scenario, opts) {
         throw error;
       });
       if (terminal) {
-        throw new PhaseError("activate", `the hire reached terminal status \`${terminal}\` (ladder: ${seen.join(" → ")})`);
+        return {
+          ok: false,
+          terminal,
+          ladder: seen,
+          requestId: result.hire.requestId ?? null,
+          hiredAgentId: result.hire.hiredAgentId,
+        };
       }
-      result.hire.statusLadder = seen;
-      result.hire.personaId = row.personaId ?? null;
-      result.hire.personaName = row.personaName ?? null;
-      journal.write("activated", { ladder: seen, personaId: result.hire.personaId });
+      return { ok: true, row, ladder: seen };
+    };
+    await phase(result, journal, "activate", async () => {
+      const build = await buildWithRetry({
+        activate: attemptActivate,
+        dispatch: dispatchHire,
+        journal,
+        failures: buildFailures,
+        // Personas' own reading of what killed the build, when it has one. A
+        // refused or silent status read is NOT a reason — it stays null.
+        reasonFor: async (requestId) => {
+          if (!requestId) return null;
+          const res = await personas.get(`/api/kp/persona-requests/${encodeURIComponent(requestId)}`).catch(() => null);
+          return res?.ok ? buildFailureReason(res.json) : null;
+        },
+      });
+      result.hire.buildAttempts = build.attempts;
+      if (build.failures.length > 0) {
+        // A flaky build is a FINDING about Personas, not a detail to swallow:
+        // it rides the run's warnings even when the retry succeeded.
+        result.warnings.push(
+          `build reliability: ${build.failures.length} of ${build.attempts} build(s) for this hire ended \`failed\` in Personas — ${build.failures
+            .map((f) => `attempt ${f.attempt} (${f.requestId ?? "no request id"}): ${f.reason ?? "no reason reported"}`)
+            .join("; ")}`
+        );
+      }
+      if (!build.ok) {
+        throw new PhaseError(
+          "activate",
+          `the hire reached terminal status \`${build.terminal}\` (ladder: ${build.ladder.join(" → ")}) on build attempt ${build.attempts} of ${MAX_BUILD_ATTEMPTS}`
+        );
+      }
+      result.hire.statusLadder = build.ladder;
+      result.hire.personaId = build.row.personaId ?? null;
+      result.hire.personaName = build.row.personaName ?? null;
+      journal.write("activated", {
+        ladder: build.ladder,
+        personaId: result.hire.personaId,
+        buildAttempts: build.attempts,
+        buildFailures: build.failures.length,
+      });
     });
 
     // ── seed ────────────────────────────────────────────────────────────────
@@ -1011,6 +1176,8 @@ async function main() {
         "  --personas <url>         Personas base url      (default http://127.0.0.1:9420)",
         "  --personas-key pk_…      skip the driver's own pairing",
         "  --stub-personas          run an in-process stub Personas instead (canned numbers)",
+        "  --stub-build-fail-once   with --stub-personas: the FIRST hire build fails the",
+        "                           way a real one does, so the build retry runs",
         "  --mode keyless|keyed     override every scenario's mode",
         "  --nights N               override every scenario's night count",
         "  --throttle-wait <ms>     how long to sit out a kp 429 (default 65000; kp's",
@@ -1064,10 +1231,13 @@ async function main() {
 
   if (args["stub-personas"]) {
     const { startStubPersonas } = await import("./stub.mjs");
-    stub = await startStubPersonas({ kpBaseUrl: kpUrl });
+    stub = await startStubPersonas({ kpBaseUrl: kpUrl, buildFailsOnce: !!args["stub-build-fail-once"] });
     personasUrl = stub.url;
     personasKey = null; // the stub mints its own; pair against it for real
     process.stderr.write(`stub Personas (headless bridge, CANNED numbers) at ${personasUrl}\n`);
+    if (args["stub-build-fail-once"]) {
+      process.stderr.write("  …with the first hire build FAILING on purpose — the run must retry it once and say so\n");
+    }
   }
 
   const opts = {

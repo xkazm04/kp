@@ -203,12 +203,28 @@ export function cannedReconcile(state, delay = STUB_BRANCH_DELAY_RECONCILES) {
   };
 }
 
+/** The canned reason a `--stub-build-fail-once` build dies with. Copied from a
+ *  live sweep rather than invented: this is what a real held promotion read as
+ *  on the wire, and the driver's failure record has to survive that exact shape. */
+export const STUB_BUILD_FAILURE = { phase: "design", status: "failed", reason: "promotion held: tools never called" };
+
 /**
  * Start the stub. `kpBaseUrl` is where report pushes go when the dispatch body
  * carries no reachable `kp.baseUrl` of its own. `branchesAfterReconciles` is how
  * many reconcile calls a dispatched night takes to show its branches.
+ *
+ * `buildFailsOnce` makes the FIRST persona request's build die the way a real
+ * one does — the status read answers `failed` with a `buildPhase` reason
+ * instead of `active`. Personas' one-shot build is nondeterministic and a
+ * meaningful fraction of hires fail for reasons unrelated to the role; this is
+ * the knob that puts the driver's build retry under test without one.
  */
-export async function startStubPersonas({ kpBaseUrl = null, branchesAfterReconciles = STUB_BRANCH_DELAY_RECONCILES } = {}) {
+export async function startStubPersonas({
+  kpBaseUrl = null,
+  branchesAfterReconciles = STUB_BRANCH_DELAY_RECONCILES,
+  buildFailsOnce = false,
+} = {}) {
+  let buildsLeftToFail = buildFailsOnce ? 1 : 0;
   const apiKey = `pk_stub_${Math.random().toString(36).slice(2, 10)}`;
   const nonces = new Set();
   const dispatches = [];
@@ -311,8 +327,14 @@ export async function startStubPersonas({ kpBaseUrl = null, branchesAfterReconci
         }
         const body = await readJson(req);
         const requestId = `req-stub-${++seq}`;
+        // Decided AT DISPATCH, not at read time: a request whose build died
+        // stays dead however often it is polled, and the NEXT dispatch (the
+        // driver's retry) gets a healthy build.
+        const buildFails = buildsLeftToFail > 0;
+        if (buildFails) buildsLeftToFail -= 1;
         const dispatch = {
           requestId,
+          buildFails,
           personaId: `persona-stub-${seq}`,
           personaName: body.spec?.name || body.appMaster?.role?.title || "App master",
           kp: body.kp ?? {},
@@ -359,7 +381,14 @@ export async function startStubPersonas({ kpBaseUrl = null, branchesAfterReconci
         }
         json(res, 200, {
           success: true,
-          data: { status: "active", personaId: dispatch.personaId, personaName: dispatch.personaName },
+          data: dispatch.buildFails
+            ? {
+                status: "failed",
+                personaId: dispatch.personaId,
+                personaName: dispatch.personaName,
+                buildPhase: { ...STUB_BUILD_FAILURE },
+              }
+            : { status: "active", personaId: dispatch.personaId, personaName: dispatch.personaName },
         });
         return;
       }

@@ -57,7 +57,14 @@ export function summarizeRun(result) {
   const violations = maxOf(nights, (n) => n.reading?.forbiddenClassViolations ?? null);
   const proposals = maxOf(nights, (n) => n.reading?.proposalsOpened ?? null);
   const h = result.specHighlights ?? {};
+  // Build reliability. `null` attempts = this run never got as far as a
+  // dispatch, which is NOT "one clean build" — it renders as a dash like every
+  // other absent reading.
+  const buildAttempts = typeof result.hire?.buildAttempts === "number" ? result.hire.buildAttempts : null;
+  const buildFailures = Array.isArray(result.hire?.buildFailures) ? result.hire.buildFailures : [];
   return {
+    buildAttempts,
+    buildFailures,
     name: result.scenario?.name ?? "(unnamed)",
     runDir: result.runDir ? path.basename(result.runDir) : "",
     mode: result.mode ?? result.scenario?.mode ?? null,
@@ -106,6 +113,19 @@ export function renderReport(results, { generatedAt = new Date().toISOString() }
   const nightCount = rows.reduce((sum, r) => sum + r.nights.length, 0);
   const unmeasuredLanes = rows.reduce((sum, r) => sum + r.unmeasured.length, 0);
   const stubRuns = rows.filter((r) => r.stub).length;
+  // Build reliability across the sweep. Personas' one-shot build fails a
+  // meaningful fraction of hires for reasons unrelated to the role under test;
+  // the driver retries a failed one ONCE, and the flake rate that retry absorbs
+  // has to be REPORTED — a sweep that quietly re-hired until it passed would be
+  // measuring its own persistence.
+  const buildRows = rows.filter((r) => r.buildAttempts !== null);
+  const buildAttempts = buildRows.reduce((sum, r) => sum + r.buildAttempts, 0);
+  const buildFailures = buildRows.reduce((sum, r) => sum + r.buildFailures.length, 0);
+  const buildsOk = buildAttempts - buildFailures;
+  const buildLine =
+    buildAttempts === 0
+      ? `builds ${GLYPH_NA} (no run reached a dispatch)`
+      : `builds ${buildsOk}/${buildAttempts} OK (${Math.round((buildsOk / buildAttempts) * 100)}% build reliability)`;
 
   const lines = [];
   lines.push("# App master bench — aggregate report");
@@ -117,6 +137,7 @@ export function renderReport(results, { generatedAt = new Date().toISOString() }
     verdictBanner([
       `${passed}/${rows.length} runs PASS`,
       `${nightCount} night(s)`,
+      buildLine,
       unmeasuredLanes > 0 ? `${unmeasuredLanes} unmeasured lane(s)` : "nothing unmeasured",
       stubRuns > 0 ? `${stubRuns} against a STUB Personas` : "",
     ])
@@ -135,18 +156,23 @@ export function renderReport(results, { generatedAt = new Date().toISOString() }
   lines.push("## Runs");
   lines.push("");
   lines.push(
-    "| | Scenario | Mode | Spec | Fit | Nights | Best score | Coverage | Proposals | Violations | Probation | Wall | $ | Unmeasured |"
+    "| | Scenario | Mode | Spec | Fit | Builds | Nights | Best score | Coverage | Proposals | Violations | Probation | Wall | $ | Unmeasured |"
   );
-  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const r of rows) {
     const nightCells = r.nights.length > 0 ? r.nights.map((n) => nightGlyph(n.verdict)).join(" ") : GLYPH_NA;
+    const builds = r.buildAttempts === null ? GLYPH_NA : `${r.buildAttempts}/${r.buildFailures.length}`;
     lines.push(
-      `| ${glyph(r.ok)} | ${cell(r.name)}${r.stub ? " *(stub)*" : ""} | ${cell(r.mode)} | ${cell(r.spec)} | ${cell(r.fit)} | ${nightCells} | ${cell(r.bestScore)} | ${cell(r.bestCoverage)} | ${cell(r.proposals)} | ${cell(r.violations)} | ${cell(r.probation)}${r.probationSource === "derived-from-status" ? " *(derived)*" : ""} | ${humanMs(r.wallMs)} | ${cell(r.costUsd)} | ${r.unmeasured.length || GLYPH_NA} |`
+      `| ${glyph(r.ok)} | ${cell(r.name)}${r.stub ? " *(stub)*" : ""} | ${cell(r.mode)} | ${cell(r.spec)} | ${cell(r.fit)} | ${builds} | ${nightCells} | ${cell(r.bestScore)} | ${cell(r.bestCoverage)} | ${cell(r.proposals)} | ${cell(r.violations)} | ${cell(r.probation)}${r.probationSource === "derived-from-status" ? " *(derived)*" : ""} | ${humanMs(r.wallMs)} | ${cell(r.costUsd)} | ${r.unmeasured.length || GLYPH_NA} |`
     );
   }
   lines.push("");
   lines.push(
     `A ${GLYPH_NA} in **Proposals**, **Violations** or **$** is an *absence of a reading*, not a zero: nothing on the Personas side reported that counter for the window. The **Unmeasured** column counts the lanes this run could not read at all; each is named in the run's section below.`
+  );
+  lines.push("");
+  lines.push(
+    `**Builds** is \`attempts/failures\` for this run's hire — Personas' one-shot build is nondeterministic, so a failed build is re-dispatched once against the same intake and BOTH attempts are counted here. \`1/0\` is a clean first-try hire; \`2/1\` is a hire that only stands because the retry ran; ${GLYPH_NA} is a run that never reached a dispatch.`
   );
   lines.push("");
 
@@ -169,6 +195,19 @@ export function renderReport(results, { generatedAt = new Date().toISOString() }
       lines.push("");
     } else {
       lines.push("_No night ran._");
+      lines.push("");
+    }
+
+    if (r.buildFailures.length > 0) {
+      lines.push(
+        `**Builds** — ${r.buildAttempts} attempt(s), ${r.buildFailures.length} failed in Personas before the hire ${r.ok ? "stood" : "gave up"}:`
+      );
+      lines.push("");
+      for (const f of r.buildFailures) {
+        lines.push(
+          `- ${glyph(false)} attempt ${f.attempt} (\`${cell(f.requestId ?? GLYPH_NA)}\`) ended \`${cell(f.terminal ?? GLYPH_NA)}\` — ${f.reason ? cell(f.reason) : "*Personas reported no reason*"}`
+        );
+      }
       lines.push("");
     }
 
