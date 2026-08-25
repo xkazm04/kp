@@ -40,7 +40,33 @@ from typing import Any, Sequence
 # (interactive auth) instead of falling back to metered API billing.
 _API_KEY_ENV = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
 
+# Vendor session-nesting markers, stripped UNCONDITIONALLY (session hygiene is
+# not a billing choice, so this is not gated on strip_api_key): kp batch runs
+# are routinely launched from inside an agent session, and these riding into
+# the child make it start as a nested invocation instead of a fresh top-level
+# session. CLAUDE_CODE_SIMPLE is the worst leak of the set — it is what
+# `--bare` sets, and an inherited value would flip the child into bare mode's
+# API-key-only auth, silently defeating the seat selection above.
+# List verified against CLI 2.1.245 on 2026-08-25.
+_SESSION_MARKER_ENV = (
+    "CLAUDECODE",
+    "CLAUDE_CODE_ENTRYPOINT",
+    "CLAUDE_CODE_SSE_PORT",
+    "CLAUDE_CODE_SIMPLE",
+)
+
 DEFAULT_TIMEOUT_S = 180
+
+# Hard cap on the captured stdout (mirrors the 4 MB runaway-subprocess cap the
+# sibling ascent transport uses). A normal envelope is kilobytes; anything near
+# this size is a runaway child, and an unbounded capture is host memory spent
+# before the parser ever sees a byte. NOTE the honest limit of this
+# implementation: subprocess.run buffers the whole stream before returning, so
+# the cap bounds what kp retains and parses, not the child's peak accumulation
+# — kill-on-breach would require replacing the run seam with a Popen read
+# loop, which the mocked-subprocess test harness and the timeout handling both
+# pin; recorded as accepted residue in .ai/registry-conformance.md.
+MAX_STDOUT_BYTES = 4 * 1024 * 1024
 
 # --------------------------------------------------------------------------- #
 # The mode seam — a closed vocabulary, not constructor-kwarg assembly
@@ -364,6 +390,18 @@ class ClaudeCliProvider:
         """The argv this provider would run (executable resolved). Exported so the
         read-only contract is assertable without spawning a subprocess."""
         args = [self._executable(), "-p", "--output-format", "json"]
+        if self.mode == "generate":
+            # User-config isolation: the operator's own hooks can print AFTER
+            # the envelope on stdout and break the strict whole-string parse.
+            # `--setting-sources project` loads only project-level settings —
+            # and generate's neutral temp cwd has none, so the child runs with
+            # no user hooks/settings noise at all. Verified live 2026-08-25
+            # against CLI 2.1.245 (seat auth intact: authMethod claude.ai,
+            # firstParty). `--bare` was deliberately REJECTED for this job:
+            # its help states auth becomes "strictly ANTHROPIC_API_KEY or
+            # apiKeyHelper" — the exact billing flip the env strip exists to
+            # prevent. repo_scan keeps default sources (behavior parity).
+            args += ["--setting-sources", "project"]
         if self.model:
             args += ["--model", self.model]
         if self.permission_mode:
@@ -527,7 +565,14 @@ class ClaudeCliProvider:
                 f"Claude CLI timed out after {timeout or self.timeout}s"
             ) from exc
 
-        return self._parse_envelope(completed.stdout or "", completed.stderr or "", completed.returncode)
+        stdout = completed.stdout or ""
+        if len(stdout.encode("utf-8", errors="ignore")) > MAX_STDOUT_BYTES:
+            raise ClaudeCliError(
+                f"Claude CLI stdout exceeded the {MAX_STDOUT_BYTES} byte cap "
+                "(runaway output; a normal envelope is kilobytes)",
+                stderr=(completed.stderr or "")[:2000],
+            )
+        return self._parse_envelope(stdout, completed.stderr or "", completed.returncode)
 
     # -- batch / mass execution --------------------------------------------
 
@@ -613,10 +658,14 @@ class ClaudeCliProvider:
         return _neutral_cwd()
 
     def _child_env(self) -> dict[str, str]:
+        # Strips applied AFTER env construction, at this single spawn door, so
+        # nothing can re-introduce a stripped variable behind them.
         env = dict(os.environ)
         if self.strip_api_key:
             for key in _API_KEY_ENV:
                 env.pop(key, None)
+        for key in _SESSION_MARKER_ENV:  # always: the child is a fresh top-level session
+            env.pop(key, None)
         return env
 
     def _parse_envelope(self, stdout: str, stderr: str, returncode: int) -> ClaudeResult:

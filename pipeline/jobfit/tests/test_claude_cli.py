@@ -238,6 +238,50 @@ class ApiKeyEnvTest(unittest.TestCase):
                 ClaudeCliProvider(strip_api_key=False).complete("x")
         self.assertEqual(calls["kwargs"]["env"].get("ANTHROPIC_API_KEY"), "sk-live-xxx")
 
+    def test_session_markers_stripped_unconditionally(self) -> None:
+        # R3: kp batch runs launch from inside agent sessions; the vendor's
+        # session markers must never ride into the child (it would start as a
+        # nested invocation — and an inherited CLAUDE_CODE_SIMPLE would flip it
+        # into bare mode's API-key-only auth). Not gated on strip_api_key:
+        # session hygiene is not a billing choice.
+        markers = {
+            "CLAUDECODE": "1",
+            "CLAUDE_CODE_ENTRYPOINT": "cli",
+            "CLAUDE_CODE_SSE_PORT": "12345",
+            "CLAUDE_CODE_SIMPLE": "1",
+        }
+        with mock.patch.dict(os.environ, markers, clear=False):
+            with patched_cli(SUCCESS_ENVELOPE) as calls:
+                ClaudeCliProvider(strip_api_key=False).complete("x")
+        child_env = calls["kwargs"]["env"]
+        for key in markers:
+            self.assertNotIn(key, child_env, key)
+
+
+class StdoutCapTest(unittest.TestCase):
+    def test_runaway_stdout_is_a_named_failure(self) -> None:
+        # R4: a normal envelope is kilobytes; anything past the 4 MB cap is a
+        # runaway child and must fail with the cap named, not reach the parser.
+        runaway = '{"result": "' + "x" * (claude_cli.MAX_STDOUT_BYTES + 16) + '"}'
+        with patched_cli(runaway):
+            with self.assertRaises(ClaudeCliError) as ctx:
+                ClaudeCliProvider().complete("x")
+        self.assertIn("byte cap", str(ctx.exception))
+
+
+class SettingSourcesTest(unittest.TestCase):
+    def test_generate_isolates_user_settings(self) -> None:
+        # R4: user hooks can print after the envelope; generate runs with
+        # project-only setting sources (none exist in the neutral cwd).
+        args = ClaudeCliProvider(command=__file__).cli_args()
+        idx = args.index("--setting-sources")
+        self.assertEqual(args[idx + 1], "project")
+
+    def test_repo_scan_keeps_default_setting_sources(self) -> None:
+        # Behavior parity for the scan path — no isolation flag added there.
+        args = ClaudeCliProvider(command=__file__).with_repo_access("/repo").cli_args()
+        self.assertNotIn("--setting-sources", args)
+
 
 class JsonTest(unittest.TestCase):
     def test_complete_json_parses_fenced(self) -> None:
