@@ -12,8 +12,8 @@ export type RadioProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "type
   label?: React.ReactNode;
   hint?: React.ReactNode;
   wrapperClassName?: string;
-  /** Mark the control invalid — the family-wide `invalid` prop (sets aria-invalid
-   *  and an error-tone accent). */
+  /** Mark the control invalid — the family-wide `invalid` prop (error-tone accent;
+   *  aria-invalid is omitted because ARIA does not support it on the radio role). */
   invalid?: boolean;
 };
 
@@ -26,7 +26,6 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(function Radio(
       ref={ref}
       type="radio"
       disabled={disabled}
-      aria-invalid={invalid || undefined}
       className={`focus-ring h-4 w-4 shrink-0 disabled:opacity-60 ${invalid ? "accent-red-500" : "accent-coral"} ${label ? "mt-0.5" : ""} ${className}`}
       {...rest}
     />
