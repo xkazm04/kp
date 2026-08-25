@@ -645,6 +645,8 @@
       "badge": "Recrutement automatisé, validé par un humain",
       "title": "Votre recrutement,<br></br>en <emph>pilote automatique</emph>",
       "subtitle": "KandiDate prend en charge tout l’entonnoir : chaque CV lu et noté face au poste, les candidats prometteurs reçus en entretien le jour même, les créneaux réservés, l’offre rédigée, l’intégration lancée. Vous ne tranchez que là où ça compte. La paperasse n’arrive jamais jusqu’à vous.",
+      "proof": "Open source, AGPL-3.0. Tourne sur votre machine, avec vos modèles : tout le produit, gratuit et sans aucune limite. Les offres payantes achètent les serveurs de quelqu'un d'autre.",
+      "proofCta": "Hébergez-le vous-même",
       "ctaPrimary": "Recruter gratuitement",
       "ctaDemo": "Voir la démo en direct",
       "pileHint": "essayez : survolez la pile ↓",

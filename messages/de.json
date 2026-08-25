@@ -645,6 +645,8 @@
       "badge": "Automatisiertes Recruiting, vom Menschen freigegeben",
       "title": "Ihr Recruiting,<br></br>auf <emph>Autopilot</emph>",
       "subtitle": "KandiDate übernimmt den gesamten Funnel: jeder Lebenslauf wird gelesen und anhand der Position bewertet, vielversprechende Kandidaten noch am selben Tag interviewt, Termine gebucht, Angebote entworfen, das Onboarding gestartet. Sie entscheiden nur dort, wo es zählt. Die Fleißarbeit erreicht Ihren Schreibtisch gar nicht erst.",
+      "proof": "Open Source, AGPL-3.0. Läuft auf Ihrer Maschine, mit Ihren Modellen: das ganze Produkt, kostenlos und ohne Limits. Die bezahlten Pläne kaufen fremde Server.",
+      "proofCta": "Selbst betreiben",
       "ctaPrimary": "Kostenlos loslegen",
       "ctaDemo": "Live-Demo ansehen",
       "pileHint": "Probieren Sie’s: über den Stapel fahren ↓",

@@ -645,6 +645,8 @@
       "badge": "Automatizovaný nábor, schvaluje člověk",
       "title": "Váš nábor<br></br>na <emph>autopilota</emph>",
       "subtitle": "KandiDate vede celý nábor za vás: každé CV přečte a porovná s pozicí, slibné kandidáty pozve na pohovor ještě týž den, domluví termíny, připraví nabídku a spustí onboarding. Vy rozhodujete jen tam, kde na tom záleží. Rutina se k vám vůbec nedostane.",
+      "proof": "Otevřený kód, AGPL-3.0. Běží na vašem stroji, na vašich modelech: celý produkt, zdarma a bez limitů. Placené plány kupují cizí servery.",
+      "proofCta": "Rozjeďte si to sami",
       "ctaPrimary": "Začít nabírat zdarma",
       "ctaDemo": "Spustit živou ukázku",
       "pileHint": "vyzkoušejte to: najeďte na hromadu ↓",

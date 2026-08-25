@@ -645,6 +645,8 @@
       "badge": "Automated hiring, human-approved",
       "title": "Your hiring,<br></br>on <emph>autopilot</emph>",
       "subtitle": "KandiDate runs the whole funnel: every CV read and scored against the role, promising candidates interviewed the same day, slots booked, offers drafted, onboarding started. You review the calls that matter. The busywork never reaches your desk.",
+      "proof": "Open source, AGPL-3.0. Runs on your machine, on your models: the full product, free and unmetered. The paid plans buy someone else's servers.",
+      "proofCta": "Run it yourself",
       "ctaPrimary": "Start hiring free",
       "ctaDemo": "Watch the live demo",
       "pileHint": "try it: hover the pile ↓",
