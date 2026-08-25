@@ -9,7 +9,13 @@ import { attentionCounts } from "./attention";
 // tree-shaking (see the same note at the top of attention.ts).
 import { listPipeline } from "./db/pipeline";
 import { companionMemoryEnabled } from "./companion-brain";
-import { pipelineSummary, transcriptWindow, type CompanionWireTurn } from "./companion-turn";
+import {
+  coerceVoiceReply,
+  pipelineSummary,
+  transcriptWindow,
+  type CompanionVoiceReply,
+  type CompanionWireTurn,
+} from "./companion-turn";
 import { coerceChatBlocks, type ChatBlock } from "./companion-blocks";
 import {
   coerceCompanionAction,
@@ -45,6 +51,12 @@ export type CompanionProposedAction = {
 
 export type CompanionTurnResult = {
   reply: string;
+  /** The same answer composed for the EAR (V1). Always present from a current
+   *  CLI — the model writes it, or the pipeline derives it from the reply's own
+   *  first sentences at no extra cost — so the dock never has to decide whether
+   *  a turn is speakable. Null only from a build that predates the channel, and
+   *  the caller then speaks the prose. */
+  voiceReply: CompanionVoiceReply | null;
   /** The rendered half of the answer: a table or a small chart the companion
    *  composed instead of enumerating three or more comparable things in prose. */
   blocks: ChatBlock[];
@@ -136,6 +148,7 @@ function coerceTurn(payload: unknown): CompanionTurnResult {
     typeof raw.actionErrors === "number" && raw.actionErrors > 0 ? Math.floor(raw.actionErrors) : 0;
   return {
     reply,
+    voiceReply: coerceVoiceReply(raw.voiceReply),
     blocks: coerceChatBlocks(raw.blocks),
     blockErrors: typeof raw.blockErrors === "number" && raw.blockErrors > 0 ? Math.floor(raw.blockErrors) : 0,
     actions,

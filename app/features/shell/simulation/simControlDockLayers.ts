@@ -2,21 +2,28 @@
 // the pure interaction math behind the icon row. Side-effect-free `.ts` so both
 // are unit-testable without rendering the dock (the bare `node --test` runner
 // strips `.ts` types but cannot load a `.tsx`).
+//
+// The one import is TYPE-ONLY and therefore erased before the test runner sees
+// it: which shape the companion wears is the companion's taxonomy, and copying
+// its union in here would be a second place for it to be wrong.
+import type { CompanionUiMode } from "@/app/features/shell/companion/companionPrefs";
 
 /** Every panel that can occupy the dock's ONE layer-2 slot.
- *
- *  "Ask Candi" is deliberately ABSENT. It is an action, not a panel — it opens
- *  the companion dock, which is the competing surface — so it can never be the
- *  value of the dock's single `panel` state. That is what makes the operator's
- *  rule (b) ("no two options active at the same time") structural: there is one
- *  slot, so a second panel cannot exist, and no cleanup effect has to enforce it.
  *
  *  Round 3 added "schedule": the automation clock used to be a DeckTile inside
  *  the ops panel that unrolled `SchedulerControl` under the other tiles, on an
  *  independent `scheduleOpen` boolean. That was the last surface in the dock
  *  that could be open beside another one, so promoting it to a first-class
- *  panel is what makes strict one-surface-at-a-time hold INSIDE the panel too. */
-export const DOCK_PANEL_IDS = ["sim", "ops", "command", "schedule"] as const;
+ *  panel is what makes strict one-surface-at-a-time hold INSIDE the panel too.
+ *
+ *  Round V3 added "candi", and it is the interesting one: until V3 "Ask Candi"
+ *  was deliberately NOT a panel — it was an action that raised a competing
+ *  floating window, so the two closed each other by hand. In VOICE mode there is
+ *  no competing window any more: her answer is a strip at the top of the screen
+ *  and typing to her is an input the footer should own, so the input becomes a
+ *  panel and the exclusivity rule covers it for free. In WINDOW mode nothing
+ *  changed — see `candiControl()`, which is the whole of the difference. */
+export const DOCK_PANEL_IDS = ["sim", "ops", "command", "schedule", "candi"] as const;
 export type DockPanelId = (typeof DOCK_PANEL_IDS)[number];
 
 /** The subset of those panels the layer-1 icon row itself offers.
@@ -28,6 +35,34 @@ export type DockPanelId = (typeof DOCK_PANEL_IDS)[number];
  *  it is just no longer reachable from the row. */
 export const DOCK_TOOLBAR_PANEL_IDS = ["ops", "command", "schedule"] as const;
 
+/** What the row's Candi control IS right now.
+ *
+ *  Three answers, and the mode is the only thing that decides between the first
+ *  two. In `voice` the companion has no window to raise — her answer is a strip
+ *  at the top of the screen — so the control TOGGLES the `candi` panel like any
+ *  other layer-1 option, with the same exclusivity and the same `aria-expanded`.
+ *  In `dock` it stays the round-3 ACTION: it empties the slot and raises the
+ *  left window, which is the competing surface, so the two close each other.
+ *  `absent` is the deep-link pages, which render no companion at all — the
+ *  control is omitted rather than drawn as a button that cannot work, in EITHER
+ *  mode, so the row never carries a dead member.
+ *
+ *  Pure and unit-tested because it is what makes the panel id conditional, and a
+ *  conditional member is what the roving-focus count has to agree with. */
+export type CandiControl = "panel" | "action" | "absent";
+export function candiControl(hasCompanion: boolean, mode: CompanionUiMode): CandiControl {
+  if (!hasCompanion) return "absent";
+  return mode === "voice" ? "panel" : "action";
+}
+
+/** How many members the roving-focus row has. The Candi control is the only
+ *  conditional one, and it is LAST — so its presence or absence never renumbers
+ *  the three fixed panels under an index the operator is standing on. */
+export const CANDI_TOOLBAR_INDEX = DOCK_TOOLBAR_PANEL_IDS.length;
+export function toolbarMemberCount(candi: CandiControl): number {
+  return DOCK_TOOLBAR_PANEL_IDS.length + (candi === "absent" ? 0 : 1);
+}
+
 /** Stable DOM ids for the layer-1 button ↔ layer-2 region association. Exactly
  *  one dock mounts per document (SimBar in Workspace), so this needs no useId
  *  plumbing — and living here rather than in the toolbar lets the guide button
@@ -35,6 +70,29 @@ export const DOCK_TOOLBAR_PANEL_IDS = ["ops", "command", "schedule"] as const;
  *  it is no longer part of. */
 export const DOCK_PANEL_DOM_ID = "sim-dock-layer2";
 export const dockTabDomId = (id: DockPanelId): string => `sim-dock-tab-${id}`;
+
+/** The panel the operator can actually SEE, joining the stored slot with the
+ *  companion's own open state.
+ *
+ *  The candi panel is not stored — `companion.open` is its state, and it already
+ *  had to exist (the strip reads it, and the command palette sets it from a
+ *  surface that has never heard of this dock). So the join is a one-line render
+ *  derivation instead of a second copy kept in step by an effect, and every
+ *  transition in `dockPanelSlot` reasons about the answer this returns rather
+ *  than about what happens to be in the useState.
+ *
+ *  SHE WINS the tie deliberately. When something outside the row raises her —
+ *  the palette's "Ask Candi", a deep link — her input must be on screen with her
+ *  answer, so it covers whatever the row had open. Selecting any other option
+ *  lowers her in the same transition, which is what makes the cover temporary
+ *  rather than a stuck state. */
+export function effectiveDockPanel(
+  stored: DockPanelId | null,
+  candi: CandiControl,
+  companionOpen: boolean
+): DockPanelId | null {
+  return candi === "panel" && companionOpen ? "candi" : stored;
+}
 
 /** Toggle semantics for the icon row: re-selecting the ACTIVE layer-1 option
  *  closes its panel, any other selection switches to it. One transition, so

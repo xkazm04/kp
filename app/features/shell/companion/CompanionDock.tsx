@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { MessageSquarePlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { railIconBtn } from "@/app/_components/ui/recipes";
 import { useAttention } from "@/app/features/shell/useAttention";
 import { useOptionalCompanionDock } from "./CompanionDockProvider";
-import { useCompanionThread } from "./useCompanionThread";
+import { CompanionSettingsMenu } from "./CompanionSettingsMenu";
+import { CompanionVoiceMode } from "./voice/CompanionVoiceMode";
 import { CompanionBody, CompanionRest } from "./CompanionDockBody";
 
 /*
@@ -29,6 +30,19 @@ import { CompanionBody, CompanionRest } from "./CompanionDockBody";
  * Round 1 shipped two directional variants behind a switcher. Colleague won and
  * Desk was deleted; what survives of Desk is nothing — its provenance-in-the-
  * reading-path premise lost to marginalia on purpose.
+ *
+ * ROUND V2 gave her a second SHAPE and ROUND V3 settled it. `prefs.mode` picks
+ * between this window and the voice strip (voice/CompanionVoiceMode.tsx), and
+ * the branch is the LAST thing that happens: the thread, the utterance, the
+ * preferences and the seed handoff are all resolved ABOVE this file now, in
+ * `CompanionDockProvider`, and handed to whichever shape is on. So a mode flip
+ * mid-conversation drops nothing — not a turn in flight, not an utterance, not
+ * the operator's place — because there is exactly one of each and the mode only
+ * decides who draws it.
+ *
+ * WHY THE SEAM LEFT THIS FILE. Voice mode's input is no longer here at all: it
+ * is a layer-2 panel of the footer control dock, in another feature's tree. Two
+ * surfaces, one conversation — see useCompanionRuntime.ts.
  */
 
 const DOCK_SHELL =
@@ -38,23 +52,37 @@ export function CompanionDock() {
   const dock = useOptionalCompanionDock();
   const t = useTranslations("companion");
   const attention = useAttention();
-  const open = dock?.open ?? false;
-  const thread = useCompanionThread(open, dock?.markUnread);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // The palette hands over a query; send it once the thread exists, then clear
-  // it so re-opening the dock does not re-ask the same question.
-  const seed = dock?.seed ?? null;
-  const consumeSeed = dock?.consumeSeed;
+  const open = dock?.open ?? false;
+  const voice = dock?.prefs.mode === "voice";
+  // Voice mode keeps the strip up while an utterance is still in flight, because
+  // closing her is not a request to be cut off mid-sentence — and the strip
+  // carries the only stop control there is. In WINDOW mode the equivalent
+  // courtesy is impossible (the rest pill has no transport), so closing the
+  // window stops the audio, which is V1's contract unchanged.
+  const speaking = dock?.speech.speakingId !== null && dock?.speech.speakingId !== undefined;
+  const showVoice = voice && (open || speaking);
+  const stop = dock?.speech.stop;
   useEffect(() => {
-    if (!open || !seed || !thread.ready || !consumeSeed) return;
-    consumeSeed();
-    void thread.send(seed);
-  }, [open, seed, thread, consumeSeed]);
+    if (open || voice || !stop) return;
+    stop();
+  }, [open, voice, stop]);
 
   if (!dock) return null;
+  if (showVoice) {
+    return (
+      <CompanionVoiceMode thread={dock.thread} speech={dock.speech} prefs={dock.prefs} onClose={dock.closeDock} />
+    );
+  }
   if (!open) {
     return (
-      <CompanionRest onOpen={() => dock.openDock()} busy={thread.busy} unread={dock.unread} label={t("dock.open")} />
+      <CompanionRest
+        onOpen={() => dock.openDock()}
+        busy={dock.thread.busy}
+        unread={dock.unread}
+        label={t("dock.open")}
+      />
     );
   }
 
@@ -65,23 +93,39 @@ export function CompanionDock() {
         label={t("dock.actions")}
         newLabel={t("dock.newThread")}
         closeLabel={t("dock.close")}
+        // The settings gear rides the extension point the toolbar already had:
+        // ahead of the two window controls, so Close never moves out from under
+        // the operator's cursor. It hangs DOWN from the toolbar and right-aligns
+        // to it: the dock's header is its top edge, so downward is the only
+        // direction with room, and the transcript it briefly covers is the thing
+        // the operator is about to change the shape of anyway.
+        extra={
+          <CompanionSettingsMenu
+            prefs={dock.prefs}
+            open={settingsOpen}
+            onOpenChange={setSettingsOpen}
+            side="bottom"
+            align="end"
+          />
+        }
         // A new conversation is refused mid-turn rather than racing it: the
         // reply is already paid for, and dropping it on the floor to paint an
         // empty thread is the one outcome nobody asked for.
-        canStartNew={thread.ready && !thread.busy}
-        onNew={() => void thread.newThread()}
+        canStartNew={dock.thread.ready && !dock.thread.busy}
+        onNew={() => void dock.thread.newThread()}
         onClose={dock.closeDock}
       />
       <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3">
         <CompanionBody
-          turns={thread.turns}
-          proposals={thread.proposals}
-          busy={thread.busy}
-          error={thread.error}
+          turns={dock.thread.turns}
+          proposals={dock.thread.proposals}
+          busy={dock.thread.busy}
+          error={dock.thread.error}
           attention={attention}
-          memoryEnabled={thread.memoryEnabled}
-          onSend={thread.send}
-          onResolveProposal={thread.resolveProposal}
+          memoryEnabled={dock.thread.memoryEnabled}
+          speech={dock.speech}
+          onSend={dock.thread.send}
+          onResolveProposal={dock.thread.resolveProposal}
         />
       </div>
     </aside>
@@ -96,6 +140,14 @@ export function CompanionDock() {
  * `extra` is the EXTENSION POINT. Future actions (a thread switcher, pin,
  * export) render there, ahead of the two that manage the window itself, so the
  * close control never moves out from under the operator's cursor.
+ *
+ * `relative z-10` on the band is LOAD-BEARING, not decoration, and round V2 is
+ * what found it. `backdrop-blur` gives this header its own stacking context,
+ * which confines everything inside it — including the settings panel's `z-50` —
+ * to the header's own level, and the body is a later sibling. Measured live: the
+ * popover painted correctly and the transcript's chart swallowed every click on
+ * it. Anything anchored in `extra` that opens over the body needs the header to
+ * out-rank the body, or it is a control that can be seen and not pressed.
  */
 function CompanionToolbar({
   eyebrow,
@@ -117,7 +169,7 @@ function CompanionToolbar({
   extra?: ReactNode;
 }) {
   return (
-    <header className="flex items-center justify-between gap-2 border-b border-stone-200 bg-paper/95 px-3 py-2 backdrop-blur">
+    <header className="relative z-10 flex items-center justify-between gap-2 border-b border-stone-200 bg-paper/95 px-3 py-2 backdrop-blur">
       <p className="text-meta uppercase tracking-wide text-coral">{eyebrow}</p>
       <div role="group" aria-label={label} className="flex items-center gap-0.5">
         {extra}

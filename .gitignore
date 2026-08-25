@@ -99,6 +99,7 @@ data/piper/
 /.claude/skills/conform
 /.claude/skills/consult
 /.claude/skills/i18n-translate
+/.claude/skills/onboarding
 /.claude/skills/perfect
 /.claude/skills/project-populate
 /.claude/skills/scan-sweep

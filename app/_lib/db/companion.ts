@@ -1,4 +1,5 @@
 import type { ChatBlock } from "@/app/_components/chat/chatBlockTypes";
+import type { CompanionVoiceReply } from "../companion-turn";
 import { randomId } from "../random-id";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
@@ -42,6 +43,12 @@ export type CompanionTurnMeta = {
   episodePaths?: string[];
   indexSkipped?: string[];
   blocks?: ChatBlock[];
+  /** The SPOKEN form of this reply (V1) — the same answer composed for the ear
+   *  instead of the eye. It lives in meta for the same reason `blocks` does: it
+   *  is part of ONE turn, so a reloaded transcript can offer to speak an answer
+   *  from last week without paying for a model call to re-say it. Absent on
+   *  turns stored before V1, and on those the dock speaks the prose instead. */
+  voiceReply?: CompanionVoiceReply;
   /** How many blocks the model emitted that could not be rendered. Kept because
    *  "she showed me nothing" and "she tried and it was malformed" are different
    *  facts, and only one of them is worth telling the operator about. */

@@ -130,7 +130,15 @@ FAMILY_CONTENT: dict[str, dict[str, Any]] = {
     },
 }
 
-_BASE_MUST_HOLD = ["completed", "one_question_per_turn", "no_premature_end", "grounded_readback", "brief_core"]
+_BASE_MUST_HOLD = [
+    "completed",
+    "one_question_per_turn",
+    "no_premature_end",
+    "grounded_readback",
+    "brief_core",
+    "role_family",
+    "requirements_captured",
+]
 
 
 def _golden_answers(shape: str, seniority: str, content: dict[str, Any]) -> list[str]:
@@ -198,6 +206,9 @@ def build_pool() -> list[dict]:
                         "lang": "en",
                         "requestor_prompt": _requestor_prompt(shape, seniority, label, content),
                         "golden_answers": _golden_answers(shape, seniority, content),
+                        # The hard dealbreakers the persona STATES in-dialog —
+                        # their presence arms the requirements_captured check.
+                        "dealbreakers": list(content["musts"]),
                         "expect": expect,
                     }
                 )
@@ -231,6 +242,7 @@ def fixed_bank(n: int = 100) -> list[dict]:
                 "lang": "en",
                 "requestor_prompt": _requestor_prompt("story", "senior", label, lead),
                 "golden_answers": _golden_answers("story", "senior", lead),
+                "dealbreakers": list(content["musts"]),
                 "expect": {"shape": "story", "must_hold": list(_BASE_MUST_HOLD)},
             }
         )

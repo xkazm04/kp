@@ -645,6 +645,8 @@
       "badge": "Automated hiring, human-approved",
       "title": "Your hiring,<br></br>on <emph>autopilot</emph>",
       "subtitle": "KandiDate runs the whole funnel: every CV read and scored against the role, promising candidates interviewed the same day, slots booked, offers drafted, onboarding started. You review the calls that matter. The busywork never reaches your desk.",
+      "proof": "Open source, AGPL-3.0. Runs on your machine, on your models: the full product, free and unmetered. The paid plans buy someone else's servers.",
+      "proofCta": "Run it yourself",
       "ctaPrimary": "Start hiring free",
       "ctaDemo": "Watch the live demo",
       "pileHint": "try it: hover the pile ↓",
@@ -8754,6 +8756,12 @@
       "emptyCell": "·",
       "dropped": "{count, plural, one {# block was dropped} other {# blocks were dropped}}"
     },
+    "voice": {
+      "speak": "Read this aloud",
+      "stop": "Stop reading",
+      "resume": "Play",
+      "failed": "That could not be spoken."
+    },
     "action": {
       "runAnalysis": "Re-run the AI screening for {candidate}",
       "generateDigest": "Put together today's studio digest",
@@ -8781,6 +8789,32 @@
       "declined": "You said no",
       "retired": "This proposal outlived what it could do",
       "unknown": "Answered"
+    },
+    "settings": {
+      "open": "Companion settings",
+      "eyebrow": "Candi",
+      "title": "How she shows up",
+      "intro": "Saved on this browser only. Nobody else in the workspace sees these.",
+      "interface": "Interface",
+      "interfaceHint": "The window keeps the conversation in a column beside your work. Voice mode frees the screen: her last answer on top, a slim bar below.",
+      "modeLabel": "Companion interface",
+      "modeDock": "Window",
+      "modeVoice": "Voice",
+      "speech": "Speech",
+      "autoSpeak": "Read new replies aloud",
+      "autoSpeakHint": "Your browser will refuse the first one until you press play once."
+    },
+    "voiceMode": {
+      "label": "Candi, voice mode",
+      "close": "Leave voice mode",
+      "empty": "Ask her something below. Her answer lands here, and you can play it.",
+      "placeholder": "Ask Candi",
+      "mic": "Speaking to her comes with the relay",
+      "older": "Older answer",
+      "newer": "Newer answer",
+      "position": "{index} of {total}",
+      "details": "Show details",
+      "detailsHide": "Hide details"
     }
   }
 }

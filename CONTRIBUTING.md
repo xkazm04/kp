@@ -5,9 +5,19 @@ bar is "would I want to maintain this in three years", not "does it work on my
 machine". That cuts both ways: the conventions below exist so your patch gets
 merged rather than bikeshedded.
 
+Honest expectations first: this project is maintained by one person plus agents,
+and issues are triaged weekly. A clear report or a focused PR moves fast; an
+open-ended one waits. Community standards are in
+[`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md).
+
 ## Before you write code
 
 - **Small fix, obvious bug, typo, missing translation** — just open a PR.
+- **Bugs and feature requests** — use the issue templates
+  ([bug report](./.github/ISSUE_TEMPLATE/bug_report.md),
+  [feature request](./.github/ISSUE_TEMPLATE/feature_request.md)). The short
+  version: bugs state the deploy mode and your install's capabilities and come
+  with a repro; feature requests state the job, not the solution.
 - **Anything that changes behaviour, adds a dependency, or touches the pipeline,
   the LLM layer, or billing** — open an issue first and let's agree on the shape.
   A rejected 800-line PR is a bad day for both of us.
@@ -88,6 +98,28 @@ Deeper guidance for automated agents and humans alike lives in
 - One logical change per PR. If your PR needs a "and also" in the description,
   it's probably two PRs.
 - Explain **why** in the body. The what is in the diff.
+- Stage with pathspecs (`git add <path> <path>`), never `git add -A`. This
+  checkout hosts parallel agent sessions and blanket staging picks up work that
+  isn't yours.
+- Tests are **mandatory** for changes to auth, billing, tenancy, rate limits, or
+  the LLM chokepoint (`app/_lib/llm-config.ts` / `pipeline/jobfit/llm/`).
+  Elsewhere they're merely a very good idea.
+- The [PR template](./.github/PULL_REQUEST_TEMPLATE.md) is the checklist form of
+  everything above — gate, docs sync, locale parity, CLA. Fill it honestly.
+
+## AI-assisted contributions
+
+Welcome — half this codebase was built with agents, so there is no purity test
+here. The rules are about ownership, not tooling:
+
+- **You own what you submit.** You ran the verification gate yourself and you
+  can explain every line of the diff. "The agent wrote it" is not an answer in
+  review.
+- **Disclose substantially agent-generated PRs** in the template's AI-assistance
+  section. Disclosure costs you nothing; discovering it later costs trust.
+- **Drive-by bulk agent PRs are closed without review** — mass refactors,
+  dependency churn, style-only sweeps. If an agent found something real, distill
+  it into one focused change like anyone else would.
 
 ## What is unlikely to be merged
 
@@ -96,4 +128,8 @@ Deeper guidance for automated agents and humans alike lives in
 - Reformatting passes bundled with logic changes.
 - Features that only make sense for the hosted deployment. The hosted product is
   this software plus operations, not this software plus extras; if it can't be
-  useful to a self-hoster, it probably belongs in the ops layer.
+  useful to a self-hoster, it probably belongs in the ops layer. Corollary: if
+  the hosted version is ever better than this repository, that is a bug.
+- Anything that phones home by default — telemetry, update checks, "anonymous"
+  usage pings. A fresh install makes no outbound call the operator didn't
+  configure.

@@ -243,6 +243,99 @@ class CompanionCliTestCase(unittest.TestCase):
         self.assertIn("```kp:chart", system)
         self.assertIn("Never restate the question", system)
 
+    # -- the spoken channel (V1) ---------------------------------------------
+    #
+    # Every reply is dual-channel, so the property under test is that
+    # `voiceReply` is ALWAYS there and always speakable — whatever the model did
+    # or failed to do. A dock that has to check whether a turn can be spoken
+    # before offering to speak it is a dock with two states too many.
+
+    def test_a_model_written_voice_section_is_used_and_never_shown(self):
+        completion = (
+            "Twenty nine decisions are waiting on you, twelve more than yesterday. "
+            "Two of them sit at the offer stage.\n\n"
+            "<<<VOICE>>>\n29 decisions are waiting - twelve more than yesterday. "
+            "Clear the offer-stage two first.\n<<<END_VOICE>>>"
+        )
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=_Provider(completion)):
+            payload = companion_cli.run_turn(dict(TURN))
+        self.assertEqual(payload["voiceReply"]["source"], "model")
+        self.assertEqual(
+            payload["voiceReply"]["text"],
+            "29 decisions are waiting - twelve more than yesterday. Clear the offer-stage two first.",
+        )
+        # The markers and the section never reach the transcript, the episode, or
+        # the eye — the operator reads prose and is offered a button.
+        self.assertNotIn("VOICE", payload["reply"])
+        self.assertTrue(payload["reply"].startswith("Twenty nine decisions"))
+        assistant = (brain.brain_root() / payload["episodePaths"][1]).read_text(encoding="utf-8")
+        self.assertNotIn("<<<", assistant)
+
+    def test_a_reply_with_no_voice_section_derives_one_without_a_second_call(self):
+        completion = (
+            "Four candidates are waiting on you. Two of them sit at the offer stage. "
+            "The rest are screening and can wait until Friday."
+        )
+        provider = _Provider(completion)
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=provider) as resolve:
+            payload = companion_cli.run_turn(dict(TURN))
+        self.assertEqual(payload["voiceReply"]["source"], "derived")
+        self.assertEqual(
+            payload["voiceReply"]["text"],
+            "Four candidates are waiting on you. Two of them sit at the offer stage.",
+        )
+        # One completion, not two: the derivation is mechanical by design.
+        resolve.assert_called_once()
+
+    def test_a_spoken_line_always_fits_one_synthesis_chunk(self):
+        spoken = "The platform role is the one that needs you first. " * 12
+        completion = f"Short prose.\n<<<VOICE>>>{spoken}<<<END_VOICE>>>"
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=_Provider(completion)):
+            payload = companion_cli.run_turn(dict(TURN))
+        self.assertLessEqual(len(payload["voiceReply"]["text"]), companion_cli.MAX_VOICE_CHARS)
+
+    def test_a_blocks_only_reply_still_has_something_to_say_out_loud(self):
+        completion = (
+            '```kp:table\n{"columns": [{"key": "role", "label": "Role"}], "rows": [{"role": "Platform"}]}\n```'
+        )
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=_Provider(completion)):
+            payload = companion_cli.run_turn(dict(TURN))
+        self.assertEqual(payload["voiceReply"]["text"], companion_cli.BLOCKS_ONLY_LEAD["en"])
+        self.assertEqual(payload["voiceReply"]["source"], "derived")
+
+    def test_a_dead_provider_speaks_the_hand_written_degraded_line(self):
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=_DeadProvider()):
+            payload = companion_cli.run_turn(dict(TURN, locale="cs"))
+        self.assertEqual(payload["voiceReply"]["text"], companion_cli.UNREACHABLE_VOICE["cs"])
+        self.assertEqual(payload["voiceReply"]["source"], "derived")
+
+    def test_the_prompt_teaches_the_voice_section_as_a_separate_composition(self):
+        provider = _Provider()
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=provider):
+            companion_cli.run_turn(dict(TURN))
+        system = provider.system or ""
+        self.assertIn("<<<VOICE>>>", system)
+        self.assertIn("<<<END_VOICE>>>", system)
+        self.assertIn("never point at the screen", system.lower())
+
+    def test_the_digest_carries_the_same_spoken_channel(self):
+        completion = "Two roles need you today.\n\n<<<VOICE>>>\nTwo roles need you today.\n<<<END_VOICE>>>"
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=_Provider(completion)):
+            payload = companion_cli.run_digest(dict(TURN))
+        self.assertEqual(payload["voiceReply"], {"text": "Two roles need you today.", "source": "model"})
+        self.assertEqual(payload["reply"], "Two roles need you today.")
+
+    def test_the_digest_derives_a_spoken_line_when_the_model_omits_one(self):
+        provider = _Provider("Two roles need you today. The platform role has been open for 31 days.")
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=provider):
+            payload = companion_cli.run_digest(dict(TURN))
+        self.assertEqual(payload["voiceReply"]["source"], "derived")
+        self.assertEqual(
+            payload["voiceReply"]["text"],
+            "Two roles need you today. The platform role has been open for 31 days.",
+        )
+        self.assertIn("voice section", provider.prompt or "")
+
     def test_an_empty_message_is_a_400_not_a_turn(self):
         with self.assertRaises(ValueError):
             companion_cli.run_turn(dict(TURN, message="   "))

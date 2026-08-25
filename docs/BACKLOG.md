@@ -57,7 +57,6 @@ design). Still open:
 - P7 hostile-candidate tone softening is a **deliberate** non-fix — every wording attempt caused language drift.
 
 **Platform**
-- `KP_TRUSTED_PROXY` is real, tested (`app/_lib/rate-limit.test.ts`), and required by the self-hosting production checklist — but **missing from `.env.example`**.
 - `cv_analysis` is Gemini-only; no per-tenant `llm_usage` attribution.
 - Tenancy last mile: per-session revocation. (Entry-id workspace component, tasks dedup index and per-tenant export/import have shipped — see `docs/features/organization/README.md`.)
 - Enterprise track still open: E-SSO-2/3/5, E-AUD-2/3/4, E-SH-1 (license decision), E-SH-3 (Postgres build), E-SH-6, E5 (SOC 2), E-GDPR-1/3/4/5, E6 (org-level billing/seats). BYOM tier enforcement unbuilt.
@@ -172,10 +171,14 @@ id at the fix site.
     interpolates raw text between `<<<ATTACHED_MATERIAL>>>` markers, unlike
     `fenced_untrusted` which json-escapes. Strip/escape + unit test.
     (`L1-TOM-4`; §2.10)
-11. **Eval bank asserts `role_family`** (and `requirements[]` non-emptiness for
-    confirmed dealbreakers) — `grep role_family intake_eval.py` → zero matches
-    while the bank is organised by family. One assertion per scenario turns two
-    findings into standing regression coverage. (`L1-HRBP-17`; §2.11)
+11. ~~**Eval bank asserts `role_family`** (and `requirements[]` non-emptiness for
+    confirmed dealbreakers)~~ — SHIPPED 2026-08-25: `role_family` (value + non-default
+    spine provenance) and `requirements_captured` checks in `check_dialog`, armed
+    per scenario by declared `family`/`dealbreakers` in both banks; the 8
+    misclassifications the new assertion surfaced were fixed at the taxonomy
+    layer (analytics engineer, wet-lab/protocol terms, creative lead, support
+    specialist/head of support + ticket triage, travel/vendor office-admin
+    terms). (`L1-HRBP-17`; §2.11)
 12. **Delete the dead duplicate `submit` handler** in `JdsIntakeChat.tsx:86-91`
     (duplicates `submitDraft` at `:198-203`, no callers). (`L1-EVA-12` ·
     `L1-TOM-9`; §2.12)
@@ -505,3 +508,19 @@ clean arm stays empty until ≈500 would-be auto-rejects accrue
 (`DEFAULT_HOLDOUT_PERCENT = 5`, `MIN_CALIBRATION_OUTCOMES = 20`, auto-reject off
 by default) — so its recertify verifies the *handle and the disclosure*, and the
 accrual horizon copy, not a populated curve.
+
+## Registry conformance — agent-cli-transport (2026-08-25)
+
+Actionable deviations from the conformance audit of `pipeline/jobfit/claude_cli.py`
+against the registry's `agent-cli-transport` subject. Full per-technique verdicts with
+file:line evidence: `.ai/registry-conformance.md`. The read-only-scan hardening and the
+subscription env-strip audited **followed/strong** — these items are the residue.
+
+| # | Item | Effort |
+| --- | --- | --- |
+| R1 | **Typed mode seam + neutral generate cwd.** ClaudeCliProvider has no closed `mode` vocabulary; stance comes from constructor kwargs, so a caller can pair `permission_mode="acceptEdits"` with a repo `cwd` without `with_repo_access`'s validation. Worse for quality: the default (generate) path inherits the caller's cwd, so `claude -p` loads ambient project instructions — kp's own CLAUDE.md when the pipeline runs from repo root — into every batch/fixture/eval prompt, contaminating and taxing them. Add `mode: generate \| readonly-scan`, generate in a neutral temp cwd. | M |
+| R2 | **Zero-token auth probe.** `available()` proves install (shutil.which) but never authorization: a logged-out CLI reports available and fails on the first paid call. Add a `probe()` using the CLI's auth-status command where the installed version offers one; result is authorized / unauthorized / unknown, never inferred from a credential file. | S |
+| R3 | **Strip session-nesting markers.** `_child_env` strips the billing keys but not the vendor session markers (`CLAUDECODE` et al.), and kp batch runs are routinely launched from inside agent sessions; the child may detect a nested session. Pop them beside the keys; pin in the child-env test. | S |
+| R4 | **Stdout cap + user-config isolation.** Captured stdout is unbounded, and no isolation flag shields the parse from user hooks that print after the envelope (the strict whole-string `json.loads` then fails). Cap the buffer; pass the strongest settings-isolation flag that keeps seat auth working (verify against `--help`, date the comment). | S |
+| R5 | **Version-triggered re-verification.** The permission/tool flags are pinned by a comment dated 2026-08-23, but nothing records the CLI version, so a CLI update rots the pin silently and argument errors read as model failures. Record the version per process; log staleness when it moves past the verified date. | M |
+| R6 | **Named descent reasons.** `available()` returns a bare False, so KP_OFFLINE (policy) and not-installed look identical downstream and `emit_deterministic` cannot say why the floor served. Adopt the voice modules' `(bool, reason)` shape and thread the reason into the ledger. | S |

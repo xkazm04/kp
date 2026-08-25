@@ -17,7 +17,10 @@ from pipeline.jobfit.companion_blocks import (
     MAX_CHART_POINTS,
     MAX_TABLE_COLUMNS,
     MAX_TABLE_ROWS,
+    MAX_VOICE_CHARS,
+    derive_voice,
     split_reply_blocks,
+    split_reply_voice,
 )
 
 TABLE_JSON = (
@@ -164,6 +167,92 @@ class SplitReplyBlocksTestCase(unittest.TestCase):
 
     def test_empty_input_is_answered_not_raised(self):
         self.assertEqual(split_reply_blocks(""), ("", [], 0))
+
+
+class SplitReplyVoiceTestCase(unittest.TestCase):
+    """The spoken channel's parser (V1). The properties that matter to a
+    listener: the section never reaches the eye, an interrupted completion still
+    yields a spoken line, and nothing unspeakable survives the extraction."""
+
+    def test_a_voice_section_is_lifted_out_and_the_prose_never_carries_it(self):
+        completion = (
+            "Twenty nine decisions are waiting, twelve more than yesterday.\n\n"
+            "<<<VOICE>>>\n29 decisions are waiting - twelve more than yesterday.\n<<<END_VOICE>>>"
+        )
+        prose, voice = split_reply_voice(completion)
+        self.assertEqual(voice, "29 decisions are waiting - twelve more than yesterday.")
+        self.assertNotIn("VOICE", prose)
+        self.assertIn("Twenty nine decisions", prose)
+
+    def test_a_completion_cut_mid_section_still_yields_the_spoken_line(self):
+        """The section is emitted LAST, so a token ceiling takes the terminator
+        before it takes the sentence. Recovering to end-of-text is the whole
+        reason this is a sentinel and not a fence — a dangling fence is dropped."""
+        prose, voice = split_reply_voice(
+            "The offer stage is the blocker.\n\n<<<VOICE>>>\nTwo offers are stalled."
+        )
+        self.assertEqual(voice, "Two offers are stalled.")
+        self.assertNotIn("<<<", prose)
+
+    def test_an_orphan_end_marker_is_never_left_in_the_prose(self):
+        prose, voice = split_reply_voice("Everything is clear.<<<END_VOICE>>>")
+        self.assertIsNone(voice)
+        self.assertNotIn("VOICE", prose)
+
+    def test_markup_inside_the_section_does_not_reach_the_engine(self):
+        _, voice = split_reply_voice(
+            "See below.\n<<<VOICE>>>**Four** roles carry it, see https://example.com/x for more.<<<END_VOICE>>>"
+        )
+        self.assertEqual(voice, "Four roles carry it, see for more.")
+
+    def test_an_empty_section_reads_as_no_section_at_all(self):
+        prose, voice = split_reply_voice("An answer.\n<<<VOICE>>>\n\n<<<END_VOICE>>>")
+        self.assertIsNone(voice)
+        self.assertEqual(prose.strip(), "An answer.")
+
+    def test_the_section_is_capped_at_one_synthesis_chunk(self):
+        long_line = "The platform role is the one that needs you first. " * 12
+        _, voice = split_reply_voice("x\n<<<VOICE>>>" + long_line + "<<<END_VOICE>>>")
+        self.assertLessEqual(len(voice or ""), MAX_VOICE_CHARS)
+        self.assertTrue((voice or "").endswith("."))
+
+    def test_a_reply_with_no_section_says_so_rather_than_guessing(self):
+        prose, voice = split_reply_voice("Nothing is waiting on you.")
+        self.assertIsNone(voice)
+        self.assertEqual(prose, "Nothing is waiting on you.")
+
+    def test_empty_input_is_answered_not_raised(self):
+        self.assertEqual(split_reply_voice(""), ("", None))
+
+
+class DeriveVoiceTestCase(unittest.TestCase):
+    """The free fallback. Mechanical on purpose: a second model call to
+    paraphrase what was just said would double the cost of every turn."""
+
+    def test_the_first_two_sentences_are_the_spoken_answer(self):
+        prose = (
+            "Four candidates are waiting on you. Two of them sit at the offer stage. "
+            "The rest are screening and can wait until Friday."
+        )
+        self.assertEqual(
+            derive_voice(prose),
+            "Four candidates are waiting on you. Two of them sit at the offer stage.",
+        )
+
+    def test_bullets_and_emphasis_become_plain_spoken_sentences(self):
+        prose = "## Today\n\n- **Two** offers are stalled\n- One role reopened"
+        self.assertEqual(derive_voice(prose), "Today. Two offers are stalled.")
+
+    def test_a_single_long_sentence_is_capped_on_a_word_boundary(self):
+        prose = "The platform role has " + ("many " * 80) + "candidates waiting."
+        spoken = derive_voice(prose)
+        self.assertLessEqual(len(spoken), MAX_VOICE_CHARS)
+        self.assertTrue(spoken.endswith("."))
+        # A word is never cut in half: every token but the terminator is intact.
+        self.assertTrue(all(word in {"The", "platform", "role", "has", "many", "many."} for word in spoken.split()))
+
+    def test_prose_with_nothing_speakable_derives_nothing(self):
+        self.assertEqual(derive_voice("   \n\n   "), "")
 
 
 if __name__ == "__main__":

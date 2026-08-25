@@ -105,10 +105,10 @@ KNOWN_CATEGORIES: frozenset[str] = frozenset(
 #     phase4 all 16 families are built out, so every floor is now a nonzero exact pin.
 SKILL_COVERAGE_FLOORS: dict[str, int] = {
     "software_engineering": 83,
-    "data_ai": 38,  # ml merged into machine_learning (one-side-resolves honesty) — one fewer skill term
+    "data_ai": 40,  # +analytics_engineer, +sql data_ai vote (intake-eval role_family regressions)
     "product_project": 28,
     "healthcare_clinical": 44,
-    "life_sciences_research": 38,  # phase4 last-families — modelled from zero
+    "life_sciences_research": 40,  # +wet_lab, +protocol_documentation (intake-eval role_family regressions)
     "skilled_trades": 40,
     "operations_logistics": 40,
     "frontline_service": 33,
@@ -119,7 +119,7 @@ SKILL_COVERAGE_FLOORS: dict[str, int] = {
     "education_academic": 37,
     "creative_design": 41,  # phase4 last-families — modelled from zero
     "customer_support": 37,
-    "general_professional": 29,  # phase4 last-families — meta-skills at LOW vote weight (0.15)
+    "general_professional": 31,  # +travel_management, +vendor_coordination (intake-eval role_family regressions)
 }
 
 
@@ -142,7 +142,7 @@ PARENT_COVERAGE_FLOORS: dict[str, int] = {
     "data_ai": 28,  # 74% — tech-hierarchy-parity (was 7 / 18%)
     "product_project": 16,  # 55% — tech-hierarchy-parity (was 2 / 7%)
     "healthcare_clinical": 40,
-    "life_sciences_research": 20,
+    "life_sciences_research": 22,  # wet_lab + protocol_documentation parent to laboratory_techniques
     "skilled_trades": 31,
     "operations_logistics": 19,
     "frontline_service": 27,
@@ -153,7 +153,7 @@ PARENT_COVERAGE_FLOORS: dict[str, int] = {
     "education_academic": 31,
     "creative_design": 23,
     "customer_support": 14,
-    "general_professional": 7,
+    "general_professional": 9,  # travel_management + vendor_coordination parent to office_administration
 }
 
 

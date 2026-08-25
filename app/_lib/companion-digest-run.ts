@@ -68,6 +68,10 @@ export async function runCompanionDigestTask(ctx: TaskCtx): Promise<unknown> {
         source: result.source,
         digest: true,
         ...(result.blocks.length > 0 ? { blocks: result.blocks } : {}),
+        // A digest is the one turn nobody asked for, which makes it the one most
+        // likely to be listened to rather than read. It carries the same spoken
+        // channel as every other reply.
+        ...(result.voiceReply ? { voiceReply: result.voiceReply } : {}),
         ...(result.blockErrors > 0 ? { blockErrors: result.blockErrors } : {}),
         ...(result.actionErrors > 0 ? { actionErrors: result.actionErrors } : {}),
         // What it was LOOKING AT. The digest resolves nothing — marking the

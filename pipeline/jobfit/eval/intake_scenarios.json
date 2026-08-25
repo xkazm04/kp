@@ -1,11 +1,13 @@
 {
   "version": 1,
-  "_note": "Requestor-persona bank for the role-intake dialog eval (intake_eval.py) — the behavioral coverage table from docs/development/role-intake-research.md §4. Each persona plays the HIRING REQUESTOR (team lead / HR). golden_answers drive the OFFLINE (--no-llm) mode against the deterministic agent script, in the script's ask order; requestor_prompt drives the live persona LLM. expect.shape pins the session-shape triage; expect.must_hold names the reliability invariants checked deterministically. Each golden list ends with a confirm turn ('ok') answering the read-back — the close is a separate turn by contract (UAT L1-CONV-2).",
+  "_note": "Requestor-persona bank for the role-intake dialog eval (intake_eval.py) — the behavioral coverage table from docs/development/role-intake-research.md §4. Each persona plays the HIRING REQUESTOR (team lead / HR). golden_answers drive the OFFLINE (--no-llm) mode against the deterministic agent script, in the script's ask order; requestor_prompt drives the live persona LLM. expect.shape pins the session-shape triage; expect.must_hold names the reliability invariants checked deterministically. Each golden list ends with a confirm turn ('ok') answering the read-back — the close is a separate turn by contract (UAT L1-CONV-2). Each scenario also declares its role `family` (the family the pipeline must actually classify — asserted with non-default spine provenance) and its `dealbreakers` (the hard requirements the persona states in-dialog, arming the non-empty-requirements[] assertion) — the two standing regressions from the 2026-08-10 UAT drain (L1-HRBP-17 / B11).",
   "scenarios": [
     {
       "name": "power_unit_backfill",
       "behavior": "concrete backfill; wants the old JD again",
       "lang": "en",
+      "family": "software_engineering",
+      "dealbreakers": ["Java", "Spring", "Kafka"],
       "requestor_prompt": "You are a busy engineering manager. Jarda, a senior Java developer on the payments squad, quit. You want the same profile again — you'd happily just repost the old JD. Answer concretely and briefly (1-2 sentences); you know exactly what you need.",
       "golden_answers": [
         "It's a backfill — Jarda left the payments squad, we need the same again",
@@ -24,7 +26,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -32,6 +36,8 @@
       "name": "power_unit_scaling",
       "behavior": "second hire for a known seat",
       "lang": "en",
+      "family": "software_engineering",
+      "dealbreakers": ["React", "TypeScript"],
       "requestor_prompt": "You are a product-team lead adding a second React developer to the same squad — same as the one you hired last year. Concrete, brief answers; slight impatience with process.",
       "golden_answers": [
         "We're scaling — basically another one of our React devs for the same squad",
@@ -50,7 +56,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -58,6 +66,8 @@
       "name": "vague_requester",
       "behavior": "genuinely unsure what the role is",
       "lang": "en",
+      "family": "data_ai",
+      "dealbreakers": ["SQL", "reporting tool experience"],
       "requestor_prompt": "You are an operations lead who only knows that 'the data side keeps slipping'. You genuinely don't know what role you need, hedge a lot ('not sure', 'maybe'), and only get concrete when the interviewer reflects your words back and asks about specific incidents. Never state a title unless asked directly, then say 'maybe a data analyst?'.",
       "golden_answers": [
         "Honestly not sure — we think we need someone for the data side, reporting keeps slipping",
@@ -79,7 +89,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -87,6 +99,8 @@
       "name": "over_specifier",
       "behavior": "12 must-haves incl. 3 clouds and a PhD",
       "lang": "en",
+      "family": "software_engineering",
+      "dealbreakers": ["AWS", "Kubernetes", "Terraform"],
       "requestor_prompt": "You are a CTO with an unrealistic wish list: you open with twelve must-haves (AWS, Azure, GCP, Kubernetes, Terraform, Java, Go, Python, React, ML experience, PhD, fintech background). You resist dropping any until the interviewer ladders a requirement to a 90-day outcome or asks you to rank — then you concede reasonably.",
       "golden_answers": [
         "We're hiring a platform engineer, and I have a very clear list of what they must have",
@@ -108,7 +122,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -116,6 +132,8 @@
       "name": "solution_jumper",
       "behavior": "opens with a solution; real problem is unowned deploys",
       "lang": "en",
+      "family": "software_engineering",
+      "dealbreakers": ["CI/CD ownership", "React familiarity"],
       "requestor_prompt": "You are a team lead who opens with 'I need a senior React dev'. The REAL problem (which you only reveal when asked what goes wrong day to day) is that nobody owns the deploy pipeline and releases keep breaking. If the interviewer just accepts the React framing, play along; if they explore the problem, admit the deploy issue.",
       "golden_answers": [
         "I need a senior React dev, we think that's the fix — though honestly releases keep breaking",
@@ -137,7 +155,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -145,6 +165,8 @@
       "name": "contradicts_self",
       "behavior": "junior-we-can-shape + owns-architecture-day-1",
       "lang": "en",
+      "family": "software_engineering",
+      "dealbreakers": ["Java basics", "willingness to learn our stack"],
       "requestor_prompt": "You are an HR partner relaying a manager's wish: 'a junior we can shape' who also 'owns the architecture from day one'. You don't notice the contradiction unless the interviewer names it aloud — then you laugh and settle on 'medior with growth room, architecture with mentoring'.",
       "golden_answers": [
         "We want a junior we can shape, someone who owns our architecture from day one — maybe that's odd, not sure",
@@ -166,7 +188,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -174,6 +198,8 @@
       "name": "leaver_template",
       "behavior": "describes the person who quit, not the role",
       "lang": "en",
+      "family": "sales_marketing",
+      "dealbreakers": ["campaign management", "copywriting"],
       "requestor_prompt": "You are a manager describing your departed employee Marketa instead of the role: 'like Marketa — she did everything'. Only outcome-focused questions ('what should be DONE in 90 days') pull you off the person and onto the work.",
       "golden_answers": [
         "We lost Marketa and honestly we just need another Marketa, she did everything around our campaigns",
@@ -195,7 +221,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -203,6 +231,8 @@
       "name": "cant_articulate_level",
       "behavior": "cannot name seniority; needs disposable contrasts",
       "lang": "en",
+      "family": "software_engineering",
+      "dealbreakers": ["Flutter or React Native", "app-store release experience"],
       "requestor_prompt": "You are a founder who cannot articulate seniority: 'good, but not expensive-good?'. You respond well to either-or contrasts ('closer to X or Y?') and badly to open abstract questions about level.",
       "golden_answers": [
         "We need our first proper mobile developer, the agency thing isn't working anymore",
@@ -224,7 +254,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -232,6 +264,8 @@
       "name": "evaluation_anxious",
       "behavior": "embarrassed not to know; short answers until non-judgment lands",
       "lang": "en",
+      "family": "software_engineering",
+      "dealbreakers": ["test automation basics"],
       "requestor_prompt": "You are a first-time team lead embarrassed that you don't know how hiring works. You give very short answers and apologize ('sorry, I don't really know how this goes') until the interviewer explicitly says there are no wrong answers — then you open up.",
       "golden_answers": [
         "Sorry, I don't really know how this works — we maybe need a tester?",
@@ -253,7 +287,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -261,6 +297,8 @@
       "name": "budget_evader",
       "behavior": "deflects compensation twice",
       "lang": "en",
+      "family": "creative_design",
+      "dealbreakers": ["Figma", "prototyping", "user research basics"],
       "requestor_prompt": "You are a manager who deflects every compensation question ('let's not go there yet', 'finance owns that'). Everything else you answer normally and concretely. The interviewer should capture the deflection as context, not push a third time.",
       "golden_answers": [
         "We're adding a designer to the product team, that part is clear",
@@ -282,7 +320,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -290,6 +330,8 @@
       "name": "derailer",
       "behavior": "drifts into reorg politics",
       "lang": "en",
+      "family": "data_ai",
+      "dealbreakers": ["dbt", "SQL", "our BI stack"],
       "requestor_prompt": "You are a department head who keeps drifting into reorg politics (who reports to whom, the frozen headcount fight). You contain real signal inside the drift. You respond to gentle agenda pull-backs without offense.",
       "golden_answers": [
         "Well it all started with the reorg — half the analytics team went to the new division and we kept the dashboards nobody understands",
@@ -311,7 +353,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     },
@@ -319,6 +363,8 @@
       "name": "llm_era_confused",
       "behavior": "does the role even exist now that we have AI tools?",
       "lang": "en",
+      "family": "software_engineering",
+      "dealbreakers": ["solid fundamentals", "judgment about AI output"],
       "requestor_prompt": "You are a pragmatic engineering director genuinely unsure whether you still need a junior developer now that the team uses AI coding tools heavily. You want the interviewer to help you think it through; you respond well to proposed archetypes offered as disposable options and you push back on anything that sounds like a sales pitch.",
       "golden_answers": [
         "Honestly not sure this role should even exist — do we still hire juniors now that the team runs on AI tools? We've never had this question before",
@@ -340,7 +386,9 @@
           "one_question_per_turn",
           "no_premature_end",
           "grounded_readback",
-          "brief_core"
+          "brief_core",
+          "role_family",
+          "requirements_captured"
         ]
       }
     }

@@ -35,6 +35,59 @@ Cross-cutting contracts (LLM provider layer, persistence backend, self-hosting, 
 structure) are in [../architecture/](../architecture/). The design system is in
 [../design/](../design/).
 
+## Workspace tour
+
+The studio sidebar groups the tabs (tab ids live once in `app/features/shell/tabs.ts`):
+
+| Group | Tab | What it does |
+| --- | --- | --- |
+| Hiring | Overview / Pipeline | Kanban board of candidates across hiring stages, scheduler control, candidate drawer; the overview surfaces what needs a human decision first |
+| Hiring | Channels | Sourcing channels feeding the pipeline |
+| Hiring | Decisions | AI screening recommendations, group eval, decision rules — all behind human review |
+| Hiring | Schedule | Interview calendar, transcripts, prep kits |
+| Hiring | Agents | The agent-candidate bridge ([agents/README.md](agents/README.md)) |
+| Library | Jobs | Job postings table, ingest, publish, per-job candidates |
+| Library | Job descriptions | JD library + template-driven JD builder |
+| Tools | Profile | Candidate profile builder (archetype routing + completeness scoring) |
+| Tools | Match | Rank the candidate pool against a job (KO filters + scoring + LLM reasoning) — now the candidate-focus mode of the Matrix |
+| Tools | Analyze | The original CV/job-fit/salary analysis (multi-variant compare, history) |
+| Tools | Interview sim | End-to-end pipeline simulation (Design JD → Source → Intake → Screen → Interview → Offer → Hired) with synthetic candidates |
+| Tools | Dev cases | Case-scenario hiring for developers (below) |
+| Insights | Analytics / Matrix / About | Decision log, candidate × JD pivot, methodology docs |
+| Settings | Models, Billing, Branding, Integrations, Organization, Workspace | Provider keys, plans, white-label, calendar/ATS connections, members, workspace data |
+
+Standalone pages outside the workspace shell:
+
+- `/apply/[id]` — public, formless conversational apply portal (chat-based knockout questions).
+- `/interview/[token]` — candidate-facing voice screening interview (consent, transcription notice, fixed provider per session).
+- `/schedule/[token]` — candidate self-scheduling (pick a slot, get confirmation).
+- `/offer/[token]` — candidate-facing offer accept/decline.
+- `/status/[token]`, `/data/[token]` — candidate status transparency and data-held views ([compliance/README.md](compliance/README.md)).
+- `/control` — autonomy control room: automation kill switch, pending human gates, lifecycle tracking, immutable audit trail, outcomes & calibration.
+- `/interview-lab` — internal A/B harness comparing voice providers (ElevenLabs vs OpenAI Realtime) in Czech/English.
+- `/diagrams` — live-rendered PlantUML architecture diagrams from `docs/diagrams/`.
+
+**Dev-case hiring extension.** `pipeline/jobfit/devcase/` implements case-scenario
+hiring that assumes 100% of candidate code is LLM-generated, so it grades durable
+capabilities instead of lines of code: problem framing, tooling fluency,
+judgment/verification, architecture, transfer. The lifecycle runs Need analysis →
+Role + case design (with covert probes: ambiguity, legacy trap, verification trap,
+underspecification) → Publish to channels → Submission intake (repo + commit
+reflection) → Evaluation (reflection + tooling signal + rubric → transfer score) →
+case-grounded interview brief. Design and evaluation use the Claude CLI with
+deterministic fallbacks; an LLM-free policy pass auto-advances/rejects on rules with
+fairness gates — early-career candidates are never silently auto-advanced or
+auto-rejected. Full doc: [dev-case/README.md](dev-case/README.md).
+
+**Voice interviews.** A recruiter (or the automation) creates an interview session;
+the candidate opens `/interview/[token]`, consents, and talks to the agent.
+Server-side, `app/_lib/voice/elevenlabs.ts` mints a signed URL for the
+dashboard-free agent (browser connects via `@elevenlabs/react`); the OpenAI provider
+mints ephemeral Realtime secrets instead. The interviewer asks 3–4 grounded questions
+(per-candidate prompt overrides), the transcript is stored in `interview_sessions`,
+and a scorecard is generated on completion. No feedback or decisions are given to
+the candidate. Full doc: [interviews/README.md](interviews/README.md).
+
 ## Writing rules
 
 - Name the **UI entry point**, the primary **user flows**, the **API/lib surface**, the

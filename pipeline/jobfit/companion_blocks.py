@@ -30,6 +30,18 @@ Three properties this module exists for, in order:
 Nothing here talks to a model, a database, or the filesystem — it is pure text
 in, structures out, which is why it is tested directly (tests/test_companion_blocks.py).
 
+V1 adds a fourth component that is NOT a fence: the voice section, marked with
+``<<<VOICE>>> … <<<END_VOICE>>>`` and handled by ``split_reply_voice`` in the
+first pass of all. Sentinels rather than a ```` ```kp:voice ```` fence for two
+reasons that only apply to this component. Its payload is a plain sentence, not
+JSON, so a fence would buy no parsing it needs; and it is emitted LAST, which is
+exactly where a completion cut at its token ceiling loses its terminator — a
+dangling fence is DROPPED by the rules above (correct for a half-written table),
+while a dangling ``<<<VOICE>>>`` is recovered by reading to the end of the text,
+which is precisely right for a trailing section. Sentinels also cannot collide
+with a code fence the model emits for unrelated reasons, and this prompt already
+speaks that dialect (``<<<OPERATOR_MESSAGE>>>`` in companion_cli).
+
 WP3 adds a THIRD fence, ``kp:action``, handled by ``split_reply_actions`` in its
 own pass ahead of the block pass. It is not a rendering: it is a PROPOSAL the
 operator will be asked to accept, and it is validated against the action catalog
@@ -63,6 +75,18 @@ CHART_KINDS = ("bar", "line")
 # buttons has stopped being a conversation.
 MAX_ACTIONS = 2
 MAX_PARAM_CHARS = 2000
+
+# The voice half (V1). One reply, two channels: the prose above is written for the
+# eye and may carry a table; this is the SPOKEN form of the same answer, and it is
+# a different composition rather than a shorter one. 280 characters is the
+# streaming chunker's default clip size (packages/voice-tts/src/text/segment.ts),
+# so a voice reply is one synthesis request and therefore the fastest possible
+# time-to-first-audio: no chunk boundary, no prosody reset, no lookahead.
+MAX_VOICE_CHARS = 280
+# How much of the prose the mechanical derivation is allowed to read. Two
+# sentences, because the tone contract already puts the answer in the first one
+# or two — deriving more would voice the elaboration the spoken form exists to cut.
+DERIVED_VOICE_SENTENCES = 2
 
 # A terminated fence: ```kp:table … ``` — the JSON may sit on the info line or on
 # its own lines, because both shapes come back from real completions.
@@ -322,3 +346,133 @@ def split_reply_blocks(completion: str) -> tuple[str, list[dict], int]:
     prose, dangling = _DANGLING_RE.subn("\n", prose)
     dropped += dangling
     return _clean_prose(prose), blocks, dropped
+
+
+# ---------------------------------------------------------------------------
+# The voice half (V1)
+# ---------------------------------------------------------------------------
+#
+# Every reply is DUAL-CHANNEL: the prose above, written for a 30rem column and
+# allowed to draw a table, and one spoken sentence-or-two that answers the same
+# question out loud. They are different compositions, not two lengths of one —
+# a spoken reply that says "see the table" is a reply about a screen the listener
+# is not looking at.
+#
+# WHAT THIS MODULE IS NOT. It is not a second `speechReady`. The ONE door before
+# any synthesis engine stays `speechReady` in packages/voice-tts/src/text/normalize.ts
+# (the registry's speech-ready-text technique: one pure isomorphic function, and
+# a divergent copy is the defect it names), and the browser runs it on this text
+# at speak time with `format: "chat"`. What the flatten below does is choose the
+# WORDS and bound the LENGTH — a composition step whose leftovers are caught
+# downstream — which is why it is deliberately shallow and stops at the markup
+# the block passes above have already thinned out.
+
+_VOICE_RE = re.compile(r"<<<VOICE>>>(.*?)<<<END_VOICE>>>", re.DOTALL)
+# The completion was cut at its token ceiling mid-section. The voice section is
+# the LAST thing emitted, so everything after the opener is the section.
+_VOICE_TAIL_RE = re.compile(r"<<<VOICE>>>(.*)$", re.DOTALL)
+# A marker with no partner. Never left in the prose: read aloud or on screen,
+# "less less less VOICE greater greater greater" is the worst defect available.
+_VOICE_STRAY_RE = re.compile(r"<<<(?:END_)?VOICE>>>")
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?…])\s+")
+_TERMINALS = ".!?…:;"
+
+
+def _terminate(line: str) -> str:
+    """Close a phrase the eye closed with layout. An unterminated line runs into
+    the next one as a single breathless clause — the cheapest prosody fix there
+    is, and the same rule ``speechReady`` keeps."""
+    flat = line.strip()
+    if not flat:
+        return ""
+    return flat if flat[-1] in _TERMINALS else f"{flat}."
+
+
+def _flatten_for_speech(text: str) -> str:
+    """Prose to one spoken line. Shallow by design (see the header): the fence
+    passes have already removed tables, charts and proposals, so what is left to
+    take out is inline decoration and the line structure itself."""
+    s = (text or "").replace("\r\n", "\n")
+    s = re.sub(r"```[\s\S]*?```", " ", s)
+    s = re.sub(r"!\[[^\]]*\]\([^)]*\)", " ", s)
+    s = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", s)
+    s = re.sub(r"\bhttps?://\S+", " ", s, flags=re.IGNORECASE)
+    s = re.sub(r"`([^`\n]*)`", r"\1", s)
+    s = re.sub(r"(\*\*|__)(.*?)\1", r"\2", s)
+    s = re.sub(r"~~(.*?)~~", r"\1", s)
+    s = re.sub(r"(?<![\w*])\*(?!\s)([^*\n]+?)(?<!\s)\*(?![\w*])", r"\1", s)
+    lines: list[str] = []
+    for raw_line in s.split("\n"):
+        line = re.sub(r"^\s*>+\s?", "", raw_line)
+        line = re.sub(r"^\s*#{1,6}\s+", "", line)
+        line = re.sub(r"^\s*(?:[-*+•]|\d{1,3}[.)])\s+", "", line)
+        line = re.sub(r"[ \t]+", " ", line).strip()
+        if line:
+            lines.append(_terminate(line))
+    return re.sub(r"\s{2,}", " ", " ".join(lines)).strip()
+
+
+def _cap_speech(text: str, limit: int) -> str:
+    """Bound a spoken line WITHOUT cutting a word in half. A sentence end inside
+    the window wins; otherwise the last word boundary, terminated so the engine
+    closes the phrase instead of trailing off mid-breath."""
+    if len(text) <= limit:
+        return text
+    window = text[: limit + 1]
+    cut = max(window.rfind(f"{mark} ") for mark in ".!?…;")
+    if cut > limit * 0.4:
+        return window[: cut + 1].strip()
+    space = window.rfind(" ")
+    return _terminate(window[: space if space > 0 else limit].strip())
+
+
+def voice_form(raw: str | None, limit: int = MAX_VOICE_CHARS) -> str:
+    """One spoken line from whatever the model put between the markers, or "".
+
+    The model is TAUGHT the register (companion_cli's voice contract) and this
+    only enforces the two properties a listener notices when it is broken:
+    nothing unspeakable survives, and it fits one synthesis chunk."""
+    return _cap_speech(_flatten_for_speech(raw or ""), limit)
+
+
+def derive_voice(prose: str, limit: int = MAX_VOICE_CHARS) -> str:
+    """The spoken form when the model emitted none — mechanical, never a second
+    model call. The tone contract already puts the answer in the first sentence
+    or two, so those ARE the spoken answer; everything after them is the
+    elaboration a voice reply exists to leave on screen."""
+    flat = _flatten_for_speech(prose)
+    if not flat:
+        return ""
+    sentences = [part for part in _SENTENCE_SPLIT_RE.split(flat) if part.strip()]
+    return _cap_speech(" ".join(sentences[:DERIVED_VOICE_SENTENCES]).strip(), limit)
+
+
+def split_reply_voice(completion: str) -> tuple[str, str | None]:
+    """(prose, voice or None). Run BEFORE the action and block passes.
+
+    First, so the fence regexes never see the markers and the markers never see a
+    fence: the two components are extracted by different machinery and neither
+    can eat the other's delimiter. The prose comes back with every marker gone —
+    including an orphan one — because a stray ``<<<END_VOICE>>>`` in the dock is
+    the same class of defect as a raw JSON block, and the operator is never shown
+    the section: they are shown the prose and offered the button that speaks it.
+    """
+    found: list[str] = []
+
+    def take(match: re.Match[str]) -> str:
+        found.append(match.group(1))
+        return "\n"
+
+    prose = _VOICE_RE.sub(take, completion or "")
+    if not found:
+        dangling = _VOICE_TAIL_RE.search(prose)
+        if dangling:
+            found.append(dangling.group(1))
+            prose = f"{prose[: dangling.start()]}\n"
+    prose = _VOICE_STRAY_RE.sub(" ", prose)
+    for candidate in found:
+        spoken = voice_form(candidate)
+        if spoken:
+            return prose, spoken
+    return prose, None

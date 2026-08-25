@@ -13,11 +13,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  CANDI_TOOLBAR_INDEX,
   DOCK_PANEL_IDS,
   DOCK_TOOLBAR_PANEL_IDS,
+  candiControl,
+  effectiveDockPanel,
   guideAction,
   nextToolbarIndex,
   toggleDockPanel,
+  toolbarMemberCount,
 } from "./simControlDockLayers.ts";
 
 test("selecting a different layer-1 option replaces the open panel (mutual exclusion)", () => {
@@ -36,9 +40,47 @@ test("selecting from a closed dock opens that panel", () => {
   assert.equal(toggleDockPanel(null, "schedule"), "schedule");
 });
 
-test("'askCandi' is not a panel id — it is an action, so it cannot occupy the slot", () => {
+test("the slot's taxonomy is the five panels, and 'askCandi' was never one of them", () => {
+  assert.deepEqual([...DOCK_PANEL_IDS], ["sim", "ops", "command", "schedule", "candi"]);
+  // Round 3's name for the ACTION is not, and never becomes, a panel id — round
+  // V3 added "candi" (the input panel), not a second name for raising a window.
   assert.ok(!(DOCK_PANEL_IDS as readonly string[]).includes("askCandi"));
-  assert.deepEqual([...DOCK_PANEL_IDS], ["sim", "ops", "command", "schedule"]);
+});
+
+test("Candi is a panel in VOICE mode, an action in WINDOW mode, and absent with no companion", () => {
+  // The whole of the round-V3 difference. In voice there is no competing window
+  // to raise — her answer is a strip — so the input becomes a layer-2 panel and
+  // inherits the exclusivity rule; in dock she stays round 3's action.
+  assert.equal(candiControl(true, "voice"), "panel");
+  assert.equal(candiControl(true, "dock"), "action");
+  // The deep-link pages render no companion at all: the row omits the member in
+  // EITHER mode rather than drawing a button that cannot work.
+  assert.equal(candiControl(false, "voice"), "absent");
+  assert.equal(candiControl(false, "dock"), "absent");
+});
+
+test("as a panel she obeys the same one-slot exclusivity as the rest", () => {
+  assert.equal(toggleDockPanel("candi", "command"), "command");
+  assert.equal(toggleDockPanel("ops", "candi"), "candi");
+  assert.equal(toggleDockPanel("candi", "candi"), null);
+  assert.equal(toggleDockPanel(null, "candi"), "candi");
+});
+
+test("the candi panel's openness is the companion's own `open`, joined during render", () => {
+  // It is never stored in the dock's `panel` state — a second copy would need an
+  // effect to stay in step, and an effect that re-derives exclusivity is what
+  // this dock was built without.
+  assert.equal(effectiveDockPanel(null, "panel", true), "candi");
+  assert.equal(effectiveDockPanel(null, "panel", false), null);
+  // She WINS the tie: something outside the row raised her (the command palette,
+  // a deep link), so her input belongs on screen with her answer.
+  assert.equal(effectiveDockPanel("ops", "panel", true), "candi");
+  assert.equal(effectiveDockPanel("ops", "panel", false), "ops");
+  // In window mode an open companion is the competing WINDOW, not a panel — the
+  // slot keeps whatever the row had, and the two close each other by hand.
+  assert.equal(effectiveDockPanel("ops", "action", true), "ops");
+  assert.equal(effectiveDockPanel("sim", "absent", true), "sim");
+  assert.equal(effectiveDockPanel(null, "action", true), null);
 });
 
 test("Schedule is a first-class layer-2 panel, not a drawer inside the ops panel", () => {
@@ -49,11 +91,14 @@ test("Schedule is a first-class layer-2 panel, not a drawer inside the ops panel
   assert.equal(toggleDockPanel("ops", "schedule"), "schedule");
 });
 
-test("the layer-1 row offers every panel EXCEPT the guided demo", () => {
+test("the layer-1 row's UNCONDITIONAL members are the three panels — not the demo, not Candi", () => {
   // Round 3: the console is reached from the ONE guide button outside the
-  // panel's right border, so the row lost its 'Guided demo' slot.
+  // panel's right border, so the row lost its 'Guided demo' slot. Round V3: the
+  // candi panel is conditional on the interface mode, so it is not in this list
+  // either — `candiControl()` decides it per render and it is appended last.
   assert.deepEqual([...DOCK_TOOLBAR_PANEL_IDS], ["ops", "command", "schedule"]);
   assert.ok(!(DOCK_TOOLBAR_PANEL_IDS as readonly string[]).includes("sim"));
+  assert.ok(!(DOCK_TOOLBAR_PANEL_IDS as readonly string[]).includes("candi"));
   // …and every row option is still a real panel id.
   for (const id of DOCK_TOOLBAR_PANEL_IDS) assert.ok((DOCK_PANEL_IDS as readonly string[]).includes(id));
 });
@@ -77,13 +122,20 @@ test("arrow keys move focus along the row and wrap at both ends", () => {
   assert.equal(nextToolbarIndex(2, "ArrowLeft", 4), 1);
 });
 
-test("the round-3 row composition roves over exactly its own controls", () => {
-  // [Automations][Command][Schedule][Ask Candi] — four, and three on the
-  // deep-link pages where there is no companion dock to ask.
-  const withCandi = DOCK_TOOLBAR_PANEL_IDS.length + 1;
-  const withoutCandi = DOCK_TOOLBAR_PANEL_IDS.length;
+test("the row composition roves over exactly its own controls", () => {
+  // [Automations][Command][Schedule][Candi] — four, and three on the deep-link
+  // pages where there is no companion to ask. Her member is the only conditional
+  // one, and it is LAST, so its presence never renumbers the three fixed panels
+  // under an index the operator is standing on.
+  const withCandi = toolbarMemberCount("panel");
+  const withoutCandi = toolbarMemberCount("absent");
   assert.equal(withCandi, 4);
   assert.equal(withoutCandi, 3);
+  // A panel toggle and an action are both MEMBERS — the mode changes what the
+  // control does, never whether the row can reach it.
+  assert.equal(toolbarMemberCount("action"), withCandi);
+  assert.equal(CANDI_TOOLBAR_INDEX, DOCK_TOOLBAR_PANEL_IDS.length);
+  assert.equal(CANDI_TOOLBAR_INDEX, withCandi - 1);
   assert.equal(nextToolbarIndex(2, "ArrowRight", withCandi), 3); // Schedule → Ask Candi
   assert.equal(nextToolbarIndex(3, "ArrowRight", withCandi), 0); // Ask Candi → Automations
   assert.equal(nextToolbarIndex(0, "ArrowLeft", withCandi), 3);

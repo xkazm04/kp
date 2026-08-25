@@ -196,12 +196,13 @@ companion may see, and hands it over as `grounding`. `memory` is the consent fla
 brain files.
 
 Composition: constitution + identity + the **tone contract**, the **block
-contract** and — when the caller shipped an action catalog — the **action
-contract** (the system prompt) → recall of the six best-matching episodes + the
-grounding blob + the last 12 turns (the user prompt) → one completion under the
-**`assistant`** use case, answered in the operator's UI locale.
+contract**, the **voice contract** and — when the caller shipped an action
+catalog — the **action contract** (the system prompt) → recall of the six
+best-matching episodes + the grounding blob + the last 12 turns (the user
+prompt) → one completion under the **`assistant`** use case, answered in the
+operator's UI locale.
 
-Output is one JSON line: `{reply, blocks, blockErrors, actions, actionErrors,
+Output is one JSON line: `{reply, voiceReply, blocks, blockErrors, actions, actionErrors,
 recallUsed, episodePaths, memoryEnabled, source, indexSkipped[, fallbackReason]}`, where each
 `recallUsed` entry is `{path, excerpt, insight}` (see **What she is allowed to
 remember at you** below). Both halves of
@@ -329,6 +330,71 @@ answer in one or two sentences, never restate the question, paragraphs of at mos
 three sentences, bullets over walls, every number carries its unit or noun, no
 headings and no sign-off, and **prefer a block to any enumeration of three or
 more comparable items**. It applies to every reply, not only the ones that draw.
+
+## The spoken channel (V1)
+
+**Every reply is dual-channel.** `reply` is written for a 30rem column and may
+hand the comparable part to a table; `voiceReply` is *the same answer composed
+for the ear*. It is a different composition, not a shorter one — the failure this
+exists to prevent is a voice that reads the report aloud, enumerates six
+candidates nobody can hold in their head, and finishes with "as the table above
+shows" at a listener who is not looking at a table.
+
+The model is asked for it in a **sentinel section**, emitted after the prose and
+after any fence:
+
+```
+<<<VOICE>>>
+29 decisions are waiting - twelve more than yesterday. Clear the offer-stage two first.
+<<<END_VOICE>>>
+```
+
+**Why sentinels and not a ```` ```kp:voice ```` fence**, when everything else in
+this reply is a fence. Two reasons, and both are specific to this component. Its
+payload is a plain sentence, not JSON, so a fence buys none of the parsing it
+exists for. And it is emitted **last**, which is exactly where a completion cut at
+its token ceiling loses its terminator: a dangling fence is *dropped* by the block
+rules above (correct for a half-written table, which cannot be half-rendered),
+while a dangling `<<<VOICE>>>` is *recovered* by reading to the end of the text —
+precisely right for a trailing section. Sentinels also cannot collide with a code
+fence the model emits for its own reasons, and this prompt already speaks that
+dialect (`<<<OPERATOR_MESSAGE>>>`).
+
+`split_reply_voice` runs **before** both fence passes, so neither parser can eat
+the other's delimiter, and it strips every marker — including an orphan
+`<<<END_VOICE>>>` — because a raw sentinel in the dock is the same class of defect
+as a raw JSON block. The operator is never shown the section: they are shown the
+prose, and offered the button that speaks it.
+
+| | |
+| --- | --- |
+| Cap | **280 characters** (`MAX_VOICE_CHARS`), which is also the TTS chunker's default clip size — a voice reply is therefore ONE synthesis request, so no chunk boundary, no prosody reset, no lookahead, and the fastest time-to-first-audio available |
+| Register | first sentence IS the answer; at most one supporting fact after it; no list, no second topic; never points at the screen; plain ASCII, present tense, every number keeps its noun; same language as the reply |
+| `source: "model"` | the completion carried a section |
+| `source: "derived"` | it did not, so the spoken form is cut **mechanically** from the reply's own first two sentences (`derive_voice`). Never a second model call: a paraphrase of what was just said is not worth doubling the cost of every turn |
+| Degraded leg | the keyless/unreachable reply carries a **hand-written** spoken line per locale (`UNREACHABLE_VOICE`), because the one reply that is about the product failing should not be read aloud through a derivation |
+
+So `voiceReply` is **always present** from a current CLI, and the dock never has
+to decide whether a turn is speakable before offering to speak it.
+
+**This is not a second speech normalizer.** The one door before any engine stays
+`speechReady` in `packages/voice-tts/src/text/normalize.ts` — one pure isomorphic
+function, per the AI registry's *speech-ready-text* technique, whose named defect
+is a divergent second copy. `companion_blocks.py`'s flatten chooses the **words**
+and bounds the **length**; anything it leaves behind is caught downstream, which
+is why it is deliberately shallow.
+
+It crosses the boundary in `meta.voiceReply` (`{text, source}`), coerced by
+`coerceVoiceReply` in `app/_lib/companion-turn.ts` for the same reason blocks are:
+a `meta_json` row written by an older build is untrusted input, and a turn stored
+before V1 carries none at all — which reads as `null`, and the dock then speaks
+the prose.
+
+**Three files hold the 280.** `companion_blocks.py` (`MAX_VOICE_CHARS`),
+`app/_lib/companion-turn.ts` (`MAX_COMPANION_VOICE_CHARS`) and the chunker's own
+default in `packages/voice-tts/src/text/segment.ts`. They must move together: a
+voice reply that outgrew the chunk size would silently become two synthesis
+requests and lose the property the bound was chosen for.
 
 ## The action catalog (WP3)
 
@@ -515,9 +581,10 @@ waiting on your answer" is half of what a digest is for. The pure half lives in
 `app/_lib/companion-turn.ts` (clamp, derived title, transcript window, summary)
 and is unit-tested without a database or `next/server`.
 
-The assistant turn's `meta_json` carries its provenance AND its blocks: one
-answer has two halves now, and a transcript reload has to repaint the same thing
-it painted live. It does — `GET /api/companion/threads` and the message route
+The assistant turn's `meta_json` carries its provenance, its blocks AND its
+spoken form: one answer has several halves now, and a transcript reload has to
+repaint — and be able to re-speak — the same thing it painted live, without
+paying for a model call to re-say it. It does — `GET /api/companion/threads` and the message route
 both return `listTurns(...)`, the same rows through the same mapper, so a
 hydrated turn renders exactly like a live one (verified end to end in round 5,
 including `meta.blocks` and the `meta.proposalIds` join).
@@ -593,6 +660,34 @@ recalled carried an insight the strip is empty, which is the honest rendering.
 A degraded turn says so in the same quiet voice, and a dropped block or proposal
 is admitted rather than hidden.
 
+**The speak control lives in that marginalia strip** (`CompanionSpeakButton`),
+first in the chip row. It acts on THIS answer, which is why it is not in the
+header: a global "read the last reply" control cannot say which reply it means
+once the operator has scrolled. One button, three meanings and never a fourth —
+start this reply, stop the one that is playing, or unblock a playback the browser
+refused (rare from a click, since a user gesture is exactly what browsers want,
+and expected from V2's auto-speak). It is drawn only when the turn has something
+speakable: `voiceTextForTurn` has already run the one normalizer over it, so an
+empty answer means an empty utterance and no control at all.
+
+`useCompanionSpeech` is the single seam between a turn and the portable TTS
+package. It owns three decisions that would otherwise be made inconsistently per
+button: **what** gets spoken (`meta.voiceReply.text`, falling back to the prose
+for turns stored before V1), **which** turn owns the current utterance
+(`speakingId`, derived from playback rather than stored, so a finished utterance
+leaves no control lit), and **stop means now** — including on unmount, which is a
+live risk here because the dock unmounts its body when collapsed. That last one
+is not re-implemented: `useTts` registers its own teardown, and the hook never
+hands a caller the raw playback resource.
+
+**No availability probe on mount.** `GET /api/tts` probes every configured
+provider and for a cloud engine that is a network round trip; the dock is mounted
+whenever it is open and most sessions never press play. So availability is learned
+by ATTEMPTING — the route answers 503 with a typed reason when nothing can speak,
+and that reason is surfaced on the control. Never a silent no-op, and never a
+probe nobody asked for. The button is not latched off afterwards either: an
+operator who just pasted an API key is one click from it working.
+
 The proposals sit between the drawing and the marginalia deliberately: they are
 the only part of a turn the operator has to answer, so they belong where the eye
 lands after the content and before the provenance. A card under the recall chips
@@ -651,6 +746,224 @@ without the primitive knowing either vocabulary. Every string is a prop — it l
 under `app/_components`, where `i18n:check` forbids a literal accessible name.
 `JdsIntakeChat` is now the intake ADAPTER; nothing about the rendered intake
 surface changed.
+
+## Voice mode (settled in round V3)
+
+Candi wears two shapes. The **window** is the left dock described above. **Voice
+mode** is a centred strip near the top of the screen carrying her last answer,
+with typing to her living in the footer control dock as a layer-2 panel - and the
+whole middle of the display left alone.
+
+It exists because a spoken companion and a conversation column want opposite
+things. A column is the right shape for reading a transcript; it is the wrong
+shape for *listening* while working, where the operator wants the page visible
+and one answer at a time. Voice mode also replaces scrolling with **stepping**:
+two arrows and a `3 of 17` counter walk her answers, so "what did she say three
+answers ago" is a countable act rather than a search through a column that is no
+longer on screen.
+
+**PRESENTATION ONLY.** Same `CompanionDockProvider`, same open/close, same
+`useCompanionThread`, same routes, same proposals, same speech seam. The mode
+branch is the LAST decision `CompanionDock` makes — everything above it is
+resolved first and handed to whichever shape is on. A flip mid-conversation
+therefore drops nothing: not a turn in flight, not an utterance, not the
+operator's place.
+
+**Round V3 moved that "everything above it" one level UP**, into
+`useCompanionRuntime` (called by `CompanionDockProvider`). The one thread, the
+one utterance, the one preference set, the auto-speak and the palette's seed
+handoff are assembled there now. The reason is that voice mode splits her across
+two React trees: the strip is `CompanionDock`'s, and the INPUT is a panel of the
+footer control dock in `shell/simulation`. Two surfaces that send into the same
+conversation cannot each own a thread, and both alternatives were worse — a
+portal from the dock into the footer's panel slot makes the input's existence
+depend on the render order of two independent trees, and a "register your
+composer upward" callback is the same hoist with an effect in the middle of it.
+
+What that costs, stated rather than discovered: those four hooks now load with
+the shell rather than with the deferred `CompanionDock` chunk. They are hooks -
+`fetch`, a state machine, a localStorage read, the TTS package's headless half -
+and every heavy piece of her (the transcript, chat blocks, charts, the strip) is
+still behind the same `dynamic()` boundary it always was. `active` still gates
+the thread's boot request, so a workspace where nobody opens her makes no
+companion call at all.
+
+### Switching, and where the preference lives
+
+A gear in Candi's chrome — in **both** shapes — opens `CompanionSettingsMenu`.
+Two controls today:
+
+| Control | Does |
+| --- | --- |
+| Interface (`Window` / `Voice`) | Picks the shape. |
+| Read new replies aloud | Speaks a reply as it lands. Default **off**. |
+
+The preferences are per-BROWSER, one localStorage key (`kp-companion-prefs`,
+`companionPrefs.ts` + `useCompanionPrefs`), the same call the pipeline's saved
+views and the intake layout already made. They describe how *this screen* is
+being used; they carry nothing a teammate needs to see, and putting them on the
+server would mean a schema, a route and a round trip to answer "which window am
+I in". The panel says so in its intro rather than leaving it to be assumed.
+
+The hook seeds the defaults and corrects itself in a mount effect (SSR parity),
+and the write-back effect is gated on `hydrated` so the first render can never
+persist the defaults over a real stored choice. `coerceCompanionPrefs` is total
+and works **field by field**: a store with one good field and one garbage field
+keeps the good one, because dropping the object would silently move an operator
+back to the window they had left.
+
+The panel is deliberately built as the *seed of the owed policy surface* — a
+titled dialog of `SettingsGroup` sections, not two toggles in a popup — so a
+third group (model routing, memory scope, whether a proposal may execute without
+a second confirmation) is an insertion. The moment a group's effect is NOT
+visible from where the panel opens, that group belongs in Setup and this panel
+should link to it instead of growing it.
+
+**Auto-speak is primed, not fired, on arrival.** `useCompanionAutoSpeak` records
+the newest reply id on its first pass and says nothing — opening the dock
+hydrates a stored thread whose last answer may be a week old, and speaking it
+would be the app talking at someone who just arrived. Only a *change* after that
+is an arrival. The same rule makes turning the setting on silent. A new
+conversation is deliberately not re-primed: the list empties, the newest id
+becomes null, and the next real answer is a genuine change from null.
+
+**Expect `blocked`.** Browsers refuse audio no gesture asked for, and an
+auto-speak is by construction the case with no gesture behind it. That is not
+handled in the hook, because it cannot be — unblocking must run *from* a
+gesture. It is handled where the gesture is: the playback control renders
+`blocked` as a resume affordance, V1's contract.
+
+### The reading model
+
+`voiceHistory.ts` (pure, unit-tested) projects the transcript into the thing the
+header paginates: her ANSWERS, oldest first, each carrying the question it
+answered — the nearest user turn *before* it, which is the only join available
+(turns carry no reply-to id, and pairing by position breaks on a greeting or on
+two consecutive assistant turns).
+
+`useVoiceHistory` derives the position every render and runs **no effect**. What
+is state is the *intent* — which answer the operator asked for, and whether they
+are still at the end. `pinned` is not `index === last`: the two agree until a
+reply lands, and the whole point is that a pinned reader moves with it while a
+reader who has arrowed back does not. An unpinned reader keeps their place **by
+id**, because a server reconcile renumbers optimistic rows underneath them.
+Every earlier shape of this hook set the index in an effect, and every one
+flashed the old answer's text under the new answer's counter for one frame.
+
+Arrow keys are bound to the header REGION (`tabIndex=0`, labelled), never the
+document — a global arrow handler would steal the keys from the page this mode
+exists to leave usable — and the handler ignores events from inside an input,
+select or radiogroup, because the direction switcher owns those keys itself.
+
+### The presentation, and what the prototype round settled
+
+Round V2 shipped three directions behind a `SegmentedControl` — **Ticker** (a
+newsroom crawl frozen on its last item), **Stage** (a lit stage carrying the
+SPOKEN answer as the headline) and **HUD** (a head-up display with a jump
+timeline and a studio-state band). Round V3 picked **Ticker**. The other two, the
+rail, the `variant` preference field and the `voiceTypes.ts` contract that let
+all three render interchangeably are deleted; `CompanionVoiceTicker` is now the
+only voice presentation, hosted by `CompanionVoiceMode`.
+
+**One thing came across from a rejected direction: Stage's WIDTH.** Full-bleed,
+the strip read as a system banner — something the app had put at the top of the
+screen, not something the operator had opened. Capped at Stage's reading measure
+(`max-w-[40rem]`) and centred, the identical content reads as a window. The
+register is otherwise unchanged: one to two lines of prose, everything with
+height behind "show details", arrows and a `3 of 17` counter, one play control,
+proposals resolvable in place, and no motion at all.
+
+**The strip never truncates.** It shows her full prose — `line-clamp-2` hides
+overflow, it does not cut text — and the expander is offered whenever there is
+more than the clamp can show. That threshold (`CLAMP_SAFE_CHARS = 100`) sits
+deliberately BELOW the two-line measure it protects: at 40rem two lines is
+roughly 160 characters, and V2's 140 sat close enough underneath to be a coin
+toss on font, locale and zoom. A reply that lost its tail with no expander beside
+it would be content the operator cannot know is missing. Erring low costs an
+expander over a reply that did fit; erring high costs a sentence nobody can
+reach.
+
+Note that the strip carries the WRITTEN reply, never `meta.voiceReply` — the
+composed-for-the-ear form is what the play button speaks. So a turn with no voice
+composition has nothing to fall back *from*: the strip was already showing every
+character she wrote.
+
+The shared bones are `VoiceNav`, `VoicePlaybackButton` and `VoiceParts` (prose,
+blocks, proposals, meta chips, empty and busy notes). `VoiceDots`,
+`VoicePlaybackRow` and `VoicePromptEcho` served only the deleted directions and
+went with them, along with their message keys.
+
+Two rules the strip keeps:
+
+- **Proposals are never behind a disclosure.** A proposal is the only part of an
+  answer the operator has to answer; a minimal strip that hid the one actionable
+  thing would be minimal about the wrong half.
+- **Blocks scroll inside the window, never the page.** The strip is a fixed pane;
+  a table that pushed the page down would defeat the mode.
+
+### Typing to her: the `candi` panel
+
+V2 hung a free-floating input pill above the control bar. That was two floating
+chromes stacked at the same edge, one of which was the app's actual footer, and
+it left "Ask Candi" as the one control in the console that opened something the
+console did not own. **V3 puts the input in the control dock's single layer-2
+slot** as panel id `candi` (`CompanionInputPanel`), which buys three things at
+once: the dock's exclusivity rule covers her (opening Automations closes Candi
+and the reverse), the roving toolbar reaches her the way it reaches every other
+panel, and the input sits at the width the footer already establishes.
+
+The row's Candi control is therefore whichever of two things the interface mode
+makes it — `candiControl()` in `shell/simulation/simControlDockLayers.ts`:
+
+| Interface mode | The control is | Announced as |
+| --- | --- | --- |
+| **Voice** | a PANEL toggle for `candi`; opening it raises the strip, closing it lowers her | `aria-expanded` + `aria-controls` |
+| **Window** | the round-3 ACTION: it empties the slot and raises the left dock, the competing surface | `aria-pressed` |
+| no companion (deep-link pages) | not rendered at all | — |
+
+**Her panel's openness is `companion.open` itself**, never a second copy in the
+dock's `panel` state — joined during render by `effectiveDockPanel()`. That is
+what keeps the command palette's "Ask Candi" (which knows nothing about the
+footer) consistent with the row, with no effect keeping two states in step.
+Sending from the panel keeps it open: her answer lands in the strip and the next
+question is typed in the same place, so a panel that closed itself on send would
+make every second message a two-click act.
+
+**Closing her never cuts audio.** `CompanionDock` keeps the strip mounted while
+`speech.speakingId` is set even after `open` goes false, because the strip
+carries the only stop control there is. In WINDOW mode that courtesy is
+impossible — the rest pill has no transport — so closing the window stops the
+utterance, which is V1's contract unchanged.
+
+### Geometry
+
+The strip is fixed on `--z-sim-drawer`, the dock's own layer: above the sidebar,
+below the Modal, because a dialog the operator opened is the more recent intent.
+Nothing traps focus and nothing is inert — the page behind is the entire reason
+this mode exists. The rest pill is unchanged and shared: the mode changes the
+OPEN state only, so a voice-mode operator whose deck is collapsed still has the
+pill as a door.
+
+The input is one line (`<input>`, not a textarea): the operator gave up the
+column to keep the page visible, so the composer cannot claim it back, Enter has
+exactly one meaning and there is no Shift+Enter to explain. It reproduces
+`ChatComposer`'s draft contract (cleared optimistically, restored when the
+exchange resolves false) rather than sharing it — about eight lines, against
+adding a `compact` prop to a primitive another workstream owns. It is disabled
+until the thread is `ready`, because a message sent into no thread resolves false
+and silently restores itself, which reads as the app ignoring you. It takes focus
+on open: the operator pressed a control that makes a place to type. The mic is
+drawn disabled with a title naming what it waits for: a voice mode with no
+microphone reads as an oversight, one with a live-looking icon that does nothing
+is worse, and a control that is visibly not ready yet is the honest third option.
+
+> **Found by painting it, not by a gate.** The dock header's `backdrop-blur`
+> gives it its own stacking context, which confined the settings panel's `z-50`
+> to the header's level while the body — a later sibling — swallowed every click
+> on it. The popover rendered perfectly and could not be pressed. The header now
+> carries `relative z-10`; anything anchored in the toolbar's `extra` slot that
+> opens over the body depends on it.
+
 
 ## Known gaps
 

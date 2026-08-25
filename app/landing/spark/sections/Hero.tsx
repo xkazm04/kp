@@ -22,7 +22,11 @@ import { useStillMotion } from "../useStillMotion";
  *
  * Two CTAs, not three: the third ("hear it interview") was an in-page jump to
  * #voice competing with the two that actually start something, and the scroll
- * rail already navigates the page.
+ * rail already navigates the page. The local-first identity ("open source, runs
+ * on your machine") therefore lives in the proof line under the subtitle, with
+ * "Run it yourself" as an inline link to #pricing (the self-hosted card leads
+ * that section) — not as a third button, and not at the demo CTA's expense:
+ * the hero is the page's only entry to /api/demo.
  *
  * Structural data only below; every visible string resolves through the
  * `landing` namespace.
@@ -137,6 +141,23 @@ export default function Hero() {
           className="mt-6 max-w-2xl text-lg leading-relaxed text-[#42606f]"
         >
           {t("hero.subtitle")}
+        </motion.p>
+
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.27 }}
+          className="mt-4 max-w-2xl text-[15px] font-semibold leading-relaxed text-[#526b4f]"
+        >
+          {t("hero.proof")}{" "}
+          <a
+            href="#pricing"
+            onClick={() => track("landing_cta_click", { placement: "hero_proof" })}
+            className="focus-ring whitespace-nowrap font-bold text-[#17202a] underline decoration-[#caa54c] decoration-[3px] underline-offset-4 hover:text-[#d65a4a]"
+          >
+            {t("hero.proofCta")}
+            <ArrowRight className="ml-1 inline h-4 w-4 align-[-2px]" aria-hidden />
+          </a>
         </motion.p>
 
         <motion.div

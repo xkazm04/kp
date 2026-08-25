@@ -2,9 +2,17 @@
 
 // LAYER 1 of the two-layer control dock — one compact icon row that is the only
 // way into a layer-2 panel from INSIDE the panel's border. Three of its four
-// controls TOGGLE a panel (automations, command, schedule); "Ask Candi" is the
-// odd one out on purpose: it is an action that raises the companion dock, so it
-// closes whatever panel is open rather than becoming one.
+// controls always TOGGLE a panel (automations, command, schedule); the fourth,
+// Candi, is whichever of the two the interface mode makes her (`candiControl`):
+//
+//   voice  → a PANEL toggle like the other three. Her answer is a strip at the
+//            top of the screen and typing to her is this dock's `candi` panel,
+//            so she is one of the console's surfaces and the exclusivity rule
+//            covers her: opening Automations closes her, and the reverse.
+//   dock   → the round-3 ACTION. It raises the left companion WINDOW, which is
+//            the competing surface, so it empties the slot instead of filling it.
+//   absent → no companion in this tree (the deep-link pages). The member is not
+//            rendered at all, so the row never carries a dead button.
 //
 // Round 3 moved two things OUT of this row, into the footer beside the panel:
 // the identity block (logo + "Control center" + the mode subtitle) now sits
@@ -23,10 +31,13 @@ import { Clock, MessagesSquare, SlidersHorizontal, Terminal, type LucideIcon } f
 import { useTranslations } from "next-intl";
 import { dockToolbarBtn } from "./simControlDockStyles";
 import {
+  CANDI_TOOLBAR_INDEX,
   DOCK_PANEL_DOM_ID,
   DOCK_TOOLBAR_PANEL_IDS,
   dockTabDomId,
   nextToolbarIndex,
+  toolbarMemberCount,
+  type CandiControl,
   type DockPanelId,
 } from "./simControlDockLayers";
 
@@ -42,15 +53,17 @@ export function SimControlDockToolbar({
   openDecisions,
   onSelectPanel,
   onAskCandi,
+  candi,
   companionOpen,
 }: {
   panel: DockPanelId | null;
   awaiting: number;
   openDecisions: () => void;
   onSelectPanel: (id: DockPanelId) => void;
-  /** Null on the deep-link pages, which render no companion dock — the control is
-   *  then omitted rather than rendered as a button that does nothing. */
+  /** Non-null only when `candi === "action"` — the window mode's raise. */
   onAskCandi: (() => void) | null;
+  /** What her control IS this render: a panel toggle, an action, or nothing. */
+  candi: CandiControl;
   companionOpen: boolean;
 }) {
   const t = useTranslations("pipeline.controlCenter");
@@ -64,7 +77,10 @@ export function SimControlDockToolbar({
     command: t("commandInput"),
     schedule: t("schedule"),
   };
-  const count = DOCK_TOOLBAR_PANEL_IDS.length + (onAskCandi ? 1 : 0);
+  // Her member is the only conditional one and it is LAST, so its presence never
+  // renumbers the three fixed panels under an index the operator is standing on.
+  const count = toolbarMemberCount(candi);
+  const candiOn = candi === "panel" ? panel === "candi" : companionOpen;
 
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const [focusIndex, setFocusIndex] = useState(0);
@@ -126,21 +142,30 @@ export function SimControlDockToolbar({
             </button>
           );
         })}
-        {onAskCandi ? (
+        {candi !== "absent" ? (
           <button
+            // A panel toggle carries the id its region points back at; an action
+            // has no region to label, and a dangling `aria-labelledby` target is
+            // worse than none.
+            id={candi === "panel" ? dockTabDomId("candi") : undefined}
             ref={(el) => {
-              refs.current[DOCK_TOOLBAR_PANEL_IDS.length] = el;
+              refs.current[CANDI_TOOLBAR_INDEX] = el;
             }}
             type="button"
-            tabIndex={DOCK_TOOLBAR_PANEL_IDS.length === tabStop ? 0 : -1}
+            tabIndex={CANDI_TOOLBAR_INDEX === tabStop ? 0 : -1}
             onClick={() => {
-              setFocusIndex(DOCK_TOOLBAR_PANEL_IDS.length);
-              onAskCandi();
+              setFocusIndex(CANDI_TOOLBAR_INDEX);
+              if (candi === "panel") onSelectPanel("candi");
+              else onAskCandi?.();
             }}
-            onKeyDown={(event) => onKeyDown(event, DOCK_TOOLBAR_PANEL_IDS.length)}
-            aria-pressed={companionOpen}
+            onKeyDown={(event) => onKeyDown(event, CANDI_TOOLBAR_INDEX)}
+            // The two states are announced with the two different words for what
+            // they are: a panel EXPANDS in place, a window is PRESSED into view.
+            aria-expanded={candi === "panel" ? candiOn : undefined}
+            aria-controls={candi === "panel" && candiOn ? DOCK_PANEL_DOM_ID : undefined}
+            aria-pressed={candi === "action" ? companionOpen : undefined}
             title={tc("dock.askCandi")}
-            className={dockToolbarBtn(companionOpen)}
+            className={dockToolbarBtn(candiOn)}
           >
             <MessagesSquare size={16} aria-hidden />
             <span className="hidden sm:inline">{tc("dock.askCandi")}</span>

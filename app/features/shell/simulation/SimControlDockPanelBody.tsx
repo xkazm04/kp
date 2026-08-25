@@ -5,12 +5,19 @@
 // the dock file was at the 200-line cap, and this switch is the part of it that
 // grows every time a panel is added, so it is the piece that had to leave.
 //
-// The four bodies are deliberately unlike each other — a console, an automations
-// deck, an imported command line, an imported scheduler. What they share is the
-// slot, which is why the exclusivity lives in the caller's state and not here.
+// The five bodies are deliberately unlike each other — a console, an automations
+// deck, an imported command line, an imported scheduler, and (round V3) the
+// companion's own input. What they share is the slot, which is why the
+// exclusivity lives in the caller's state and not here.
+//
+// `candi` takes no props at all: the conversation lives in `CompanionDockProvider`
+// above both this dock and the voice strip, and the panel reads it from there.
+// Threading `send` down through this switch would make five simulation files
+// carry something only one of them looks at.
 import type { ReadonlyURLSearchParams, useRouter } from "next/navigation";
 import { CommandBar } from "@/app/features/hiring/pipeline/CommandBar";
 import { SchedulerControl } from "@/app/features/hiring/pipeline/SchedulerControl";
+import { CompanionInputPanel } from "@/app/features/shell/companion/CompanionInputPanel";
 import { notifyDataChanged } from "@/app/features/shell/live-refresh";
 import type { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import type { useAutomationPass } from "./simControlCenterKit";
@@ -63,5 +70,10 @@ export function SimControlDockPanelBody({
       return <SchedulerControl onRan={() => notifyDataChanged()} />;
     case "command":
       return <CommandBar onExecuted={() => notifyDataChanged()} />;
+    case "candi":
+      // Offered only in the VOICE interface mode — see `candiControl()`. In
+      // window mode this id is never selected, because the row's Candi control
+      // is an action that raises the left dock instead.
+      return <CompanionInputPanel />;
   }
 }

@@ -6,11 +6,11 @@ Per-role-family coverage of `data/taxonomy.json`. A term counts toward every fam
 
 | Role family | Skill terms | Total terms | % with parents | Bilingual (>=2 forms) | Bilingual parity |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| `software_engineering` | 83 (floor 83) | 83 | 60% | 47 (57%) | 83 +36 exempt (100%) |
-| `data_ai` | 38 (floor 38) | 38 | 74% | 21 (55%) | 38 +17 exempt (100%) |
+| `software_engineering` | 83 (floor 83) | 84 | 60% | 48 (57%) | 84 +36 exempt (100%) |
+| `data_ai` | 40 (floor 40) | 40 | 70% | 22 (55%) | 40 +18 exempt (100%) |
 | `product_project` | 28 (floor 28) | 29 | 55% | 25 (86%) | 29 +4 exempt (100%) |
 | `healthcare_clinical` | 44 (floor 44) | 47 | 85% | 47 (100%) | 47 (100%) |
-| `life_sciences_research` | 38 (floor 38) | 39 | 51% | 39 (100%) | 39 (100%) |
+| `life_sciences_research` | 40 (floor 40) | 41 | 54% | 41 (100%) | 41 (100%) |
 | `skilled_trades` | 40 (floor 40) | 43 | 72% | 43 (100%) | 43 (100%) |
 | `operations_logistics` | 40 (floor 40) | 45 | 42% | 45 (100%) | 45 (100%) |
 | `frontline_service` | 33 (floor 33) | 37 | 73% | 37 (100%) | 37 (100%) |
@@ -21,6 +21,6 @@ Per-role-family coverage of `data/taxonomy.json`. A term counts toward every fam
 | `education_academic` | 37 (floor 37) | 38 | 82% | 38 (100%) | 38 (100%) |
 | `creative_design` | 41 (floor 41) | 43 | 53% | 38 (88%) | 43 +5 exempt (100%) |
 | `customer_support` | 37 (floor 37) | 38 | 37% | 38 (100%) | 38 (100%) |
-| `general_professional` | 29 (floor 29) | 32 | 22% | 32 (100%) | 32 (100%) |
+| `general_professional` | 31 (floor 31) | 34 | 26% | 34 (100%) | 34 (100%) |
 
-_Total terms: 676._
+_Total terms: 682._

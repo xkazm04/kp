@@ -645,6 +645,8 @@
       "badge": "Automatizovaný nábor, schvaluje člověk",
       "title": "Váš nábor<br></br>na <emph>autopilota</emph>",
       "subtitle": "KandiDate vede celý nábor za vás: každé CV přečte a porovná s pozicí, slibné kandidáty pozve na pohovor ještě týž den, domluví termíny, připraví nabídku a spustí onboarding. Vy rozhodujete jen tam, kde na tom záleží. Rutina se k vám vůbec nedostane.",
+      "proof": "Otevřený kód, AGPL-3.0. Běží na vašem stroji, na vašich modelech: celý produkt, zdarma a bez limitů. Placené plány kupují cizí servery.",
+      "proofCta": "Rozjeďte si to sami",
       "ctaPrimary": "Začít nabírat zdarma",
       "ctaDemo": "Spustit živou ukázku",
       "pileHint": "vyzkoušejte to: najeďte na hromadu ↓",
@@ -8754,6 +8756,12 @@
       "emptyCell": "·",
       "dropped": "{count, plural, one {# blok vynechán} few {# bloky vynechány} other {# bloků vynecháno}}"
     },
+    "voice": {
+      "speak": "Přečíst nahlas",
+      "stop": "Zastavit čtení",
+      "resume": "Přehrát",
+      "failed": "Tohle se nepodařilo přečíst nahlas."
+    },
     "action": {
       "runAnalysis": "Znovu spustit AI screening pro: {candidate}",
       "generateDigest": "Sestavit dnešní přehled studia",
@@ -8781,6 +8789,32 @@
       "declined": "Řekli jste ne",
       "retired": "Tento návrh přežil to, co uměl udělat",
       "unknown": "Zodpovězeno"
+    },
+    "settings": {
+      "open": "Nastavení společnice",
+      "eyebrow": "Candi",
+      "title": "Jak se ukazuje",
+      "intro": "Uloženo jen v tomto prohlížeči. Nikdo další v pracovním prostoru to nevidí.",
+      "interface": "Rozhraní",
+      "interfaceHint": "Okno drží konverzaci ve sloupci vedle vaší práce. Hlasový režim uvolní obrazovku: její poslední odpověď nahoře, úzký pruh dole.",
+      "modeLabel": "Rozhraní společnice",
+      "modeDock": "Okno",
+      "modeVoice": "Hlas",
+      "speech": "Řeč",
+      "autoSpeak": "Číst nové odpovědi nahlas",
+      "autoSpeakHint": "Prohlížeč tu první odmítne, dokud jednou nestisknete přehrát."
+    },
+    "voiceMode": {
+      "label": "Candi, hlasový režim",
+      "close": "Opustit hlasový režim",
+      "empty": "Zeptejte se jí níže. Odpověď přistane tady a můžete si ji pustit.",
+      "placeholder": "Zeptejte se Candi",
+      "mic": "Mluvení na ni přijde s relay",
+      "older": "Starší odpověď",
+      "newer": "Novější odpověď",
+      "position": "{index} z {total}",
+      "details": "Zobrazit detaily",
+      "detailsHide": "Skrýt detaily"
     }
   }
 }

@@ -6,8 +6,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   clampCompanionMessage,
+  coerceVoiceReply,
   deriveThreadTitle,
   MAX_COMPANION_MESSAGE_CHARS,
+  MAX_COMPANION_VOICE_CHARS,
   pipelineSummary,
   transcriptWindow,
 } from "./companion-turn.ts";
@@ -70,6 +72,37 @@ test("the grounding summary counts only ACTIVE entries and carries their top can
   assert.equal(summary.meanMatchScore, 70);
   assert.ok(!JSON.stringify(summary).includes("99"), "a rejected entry must not reach the model");
   assert.ok(!JSON.stringify(summary).includes("Zed"), "a rejected candidate must not reach the model");
+});
+
+// The spoken channel's boundary (V1). It crosses the same two frontiers `blocks`
+// does — a spawned process's stdout and a `meta_json` column written by an older
+// build — so it is shaped here rather than trusted.
+
+test("a well-formed spoken reply survives the boundary with its provenance", () => {
+  assert.deepEqual(coerceVoiceReply({ text: "  Four are waiting.  ", source: "model" }), {
+    text: "Four are waiting.",
+    source: "model",
+  });
+});
+
+test("an unknown provenance reads as derived rather than as a composition for the ear", () => {
+  // "model" is a claim about how the text was written, and only the CLI can make
+  // it. Anything else — absent, misspelled, injected — is the humbler answer.
+  assert.equal(coerceVoiceReply({ text: "x.", source: "handwritten" })?.source, "derived");
+  assert.equal(coerceVoiceReply({ text: "x." })?.source, "derived");
+});
+
+test("a spoken reply is bounded to one synthesis chunk at the boundary too", () => {
+  const long = "a".repeat(MAX_COMPANION_VOICE_CHARS + 200);
+  assert.equal(coerceVoiceReply({ text: long, source: "model" })?.text.length, MAX_COMPANION_VOICE_CHARS);
+});
+
+test("no spoken reply is null, not an empty utterance", () => {
+  // A turn stored before V1 carries none. Null is what lets the dock fall back
+  // to the prose; an empty string would be an utterance with nothing in it.
+  for (const raw of [undefined, null, {}, { text: "   " }, { text: 4 }, [], "text", { text: "", source: "model" }]) {
+    assert.equal(coerceVoiceReply(raw), null, `expected null for ${JSON.stringify(raw)}`);
+  }
 });
 
 test("an empty board summarises to nothing rather than to zeros that read as facts", () => {

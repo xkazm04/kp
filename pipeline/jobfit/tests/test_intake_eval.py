@@ -53,6 +53,31 @@ class IntakeEvalOfflineTest(unittest.TestCase):
         checks = check_dialog(scenario, sabotaged, brief, shape, done)
         self.assertFalse(checks["grounded_readback"])
 
+    def test_misclassified_family_is_caught(self) -> None:
+        # A brief carrying the WRONG family — or the right value with default
+        # spine provenance (the schema default nothing ever classified) — must
+        # fail the role_family assertion (UAT 2026-08-10 L1-HRBP-17 / B11).
+        scenario = load_scenarios(["power_unit_backfill"])[0]
+        turns, brief, shape, done = simulate(None, None, scenario)
+        wrong = dict(brief)
+        wrong["roleFamily"] = "healthcare_clinical"
+        self.assertFalse(check_dialog(scenario, turns, wrong, shape, done)["role_family"])
+        defaulted = dict(brief)
+        defaulted["spineProvenance"] = {
+            k: v for k, v in dict(brief.get("spineProvenance") or {}).items() if k != "role_family"
+        }
+        self.assertFalse(check_dialog(scenario, turns, defaulted, shape, done)["role_family"])
+
+    def test_starved_requirements_are_caught(self) -> None:
+        # The persona stated hard dealbreakers in-dialog; a brief whose
+        # requirements[] ended up empty (the L2-NEW-2 failure: hard conditions
+        # filed as facet prose) must fail requirements_captured.
+        scenario = load_scenarios(["power_unit_backfill"])[0]
+        turns, brief, shape, done = simulate(None, None, scenario)
+        starved = dict(brief)
+        starved["requirements"] = []
+        self.assertFalse(check_dialog(scenario, turns, starved, shape, done)["requirements_captured"])
+
 
 if __name__ == "__main__":
     unittest.main()
