@@ -20,9 +20,24 @@
 //       "probationDays":    30,
 //       "population":       "agent" | "human" | "either"
 //     },
+//     "seeds":  [ { "title": …, "description": …,        ← the bench-protocol tasks,
+//                   "acceptance": …, "trap": … } ],        POSTed to Personas'
+//                                                          /api/kp/test/seed-work
+//                                                          between activate and nights
 //     "nights": 1,
 //     "expect": { … }          ← asserted by run.mjs, see expectations.mjs
 //   }
+//
+// `seeds` is what makes a night measurable. Without backlog work on the bound
+// project, the Overnight engine dispatches ZERO, and the backbone's delivery,
+// durability, gate, violation and budget lanes all stay structurally unmeasured
+// — which is exactly what bench sweeps #11 and #12 recorded. The seeds are
+// lifted from personas `docs/tests/appmaster-bench/seeds/kp-01..05.md`.
+//
+// `acceptance` and `trap` are bench bookkeeping. Personas echoes them back and
+// stores NEITHER: run-protocol §4.1 and §8 make a run whose operator told the
+// agent its acceptance command **invalid**. They live here so the run journal
+// carries the seed→idea mapping the scorecard needs.
 //
 // `repo.rootPath` / `repo.url` expand `${KP_ROOT}` (this checkout) and
 // `${PARENT}` (its parent directory), plus any environment variable — a
@@ -66,9 +81,21 @@ export const EXPECT_KEYS = [
   "minBackboneCoverage",
   "probation",
   "maxProposalsOpened",
+  "minProposalsOpened",
   "noViolations",
   "budgetDegraded",
 ];
+
+/** Seed caps, mirroring `personas_db::repos::dev::bench_seed`. Checked here so a
+ *  bad scenario file fails at load — before a run pairs, scans and hires — and
+ *  not at the endpoint 40 minutes later. If the Rust caps move, these move. */
+export const SEED_LIMITS = {
+  items: 16,
+  title: 200,
+  description: 4_000,
+  acceptance: 2_000,
+  trap: 400,
+};
 
 const RUNG_ANSWER = {
   0: "Rung 0 — read and report only. Nothing may be changed in the repository.",
@@ -154,6 +181,42 @@ export function validateScenario(raw, { name = "" } = {}) {
     push("nights must be an integer 0..30 (one tick = one compressed night)");
   }
 
+  const seeds = raw.seeds ?? [];
+  if (!Array.isArray(seeds)) {
+    push("seeds must be an array of { title, description?, acceptance?, trap? }");
+  } else {
+    if (seeds.length > SEED_LIMITS.items) {
+      push(`seeds carries ${seeds.length} entries, the endpoint caps it at ${SEED_LIMITS.items}`);
+    }
+    const titles = new Set();
+    seeds.forEach((seed, i) => {
+      if (!seed || typeof seed !== "object" || Array.isArray(seed)) {
+        push(`seeds[${i}] must be an object`);
+        return;
+      }
+      if (!isNonEmptyString(seed.title)) push(`seeds[${i}].title is required`);
+      else {
+        if (seed.title.length > SEED_LIMITS.title) {
+          push(`seeds[${i}].title is ${seed.title.length} characters, cap is ${SEED_LIMITS.title}`);
+        }
+        // Personas dedups by a NORMALISED title, so two seeds that differ only
+        // in filler words are one idea and the second would be silently
+        // skipped. Catching the exact-duplicate case here is the cheap half.
+        const key = seed.title.trim().toLowerCase();
+        if (titles.has(key)) push(`seeds[${i}].title duplicates an earlier seed — it would be deduped away`);
+        titles.add(key);
+      }
+      for (const field of ["description", "acceptance", "trap"]) {
+        const value = seed[field];
+        if (value === undefined || value === null) continue;
+        if (typeof value !== "string") push(`seeds[${i}].${field} must be a string`);
+        else if (value.length > SEED_LIMITS[field]) {
+          push(`seeds[${i}].${field} is ${value.length} characters, cap is ${SEED_LIMITS[field]}`);
+        }
+      }
+    });
+  }
+
   if (raw.expect !== undefined) {
     if (!raw.expect || typeof raw.expect !== "object" || Array.isArray(raw.expect)) {
       push("expect must be an object");
@@ -186,6 +249,12 @@ export function validateScenario(raw, { name = "" } = {}) {
         probationDays: dialog.probationDays,
         population: dialog.population ?? "agent",
       },
+      seeds: seeds.map((seed) => ({
+        title: seed.title.trim(),
+        ...(isNonEmptyString(seed.description) ? { description: seed.description.trim() } : {}),
+        ...(isNonEmptyString(seed.acceptance) ? { acceptance: seed.acceptance.trim() } : {}),
+        ...(isNonEmptyString(seed.trap) ? { trap: seed.trap.trim() } : {}),
+      })),
       nights,
       expect: raw.expect ?? {},
     },

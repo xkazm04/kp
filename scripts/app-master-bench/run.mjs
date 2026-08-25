@@ -16,6 +16,7 @@
 //   compose     POST /api/intake/[id]/compose-app-master
 //   dispatch    POST /api/agents/dispatch {intakeId} →  POST /api/kp/persona-requests
 //   activate    POST /api/agents/[id]/refresh until active
+//   seed        POST /api/kp/test/seed-work  (the scenario's bench-protocol tasks)
 //   nights      N × (POST /api/kp/test/tick → GET /api/agents, record the backbone)
 //   probation   POST /api/kp/test/tick {phases:["probation"]} → record the decision
 //
@@ -142,6 +143,7 @@ async function runScenario(scenario, opts) {
     specHighlights: null,
     populationFit: null,
     hire: null,
+    seed: null,
     nights: [],
     probation: null,
     costReportedUsd: null,
@@ -396,6 +398,95 @@ async function runScenario(scenario, opts) {
       journal.write("activated", { ladder: seen, personaId: result.hire.personaId });
     });
 
+    // ── seed ────────────────────────────────────────────────────────────────
+    // Between activate and nights, and in that order for a reason: the seed
+    // targets the project the HIRE bound, which does not exist until the hire
+    // is active, and the work has to be on the backlog before the first tick's
+    // triage pass reads it.
+    //
+    // A scenario with no `seeds` skips the phase and SAYS SO in `unmeasured`:
+    // sweeps #11 and #12 dispatched zero for exactly this reason, and a silent
+    // skip is how that stayed invisible for two sweeps.
+    await phase(result, journal, "seed", async () => {
+      const seeds = scenario.seeds ?? [];
+      if (seeds.length === 0) {
+        result.seed = { requested: 0, seeded: 0, skipped: 0, reason: "the scenario declares no seeds" };
+        result.unmeasured.push(
+          "seed: the scenario declares no `seeds`, so the night has no backlog work — every delivery-side backbone field will read null"
+        );
+        journal.write("seed-skipped", { reason: "no seeds in the scenario" });
+        return;
+      }
+
+      const res = await personas.post("/api/kp/test/seed-work", {
+        personaId: result.hire.personaId,
+        items: seeds.map(({ title, description, acceptance, trap }) => ({
+          title,
+          ...(description ? { description } : {}),
+          ...(acceptance ? { acceptance } : {}),
+          ...(trap ? { trap } : {}),
+        })),
+      });
+
+      if (res.status === 404) {
+        // 404 on this route means the ROUTE is absent, not the project: the
+        // headless bridge adds `/api/kp/test/*` only while the mode is on, and
+        // preflight already proved the mode IS on. So an older Personas is the
+        // reading — name it rather than letting the run limp to a zero-dispatch
+        // night the scorecard would blame on the agent.
+        throw new PhaseError(
+          "seed",
+          `POST /api/kp/test/seed-work answered 404. Preflight confirmed headlessBridge:true, so the route itself is missing — this Personas build predates the seed endpoint (personas §13.9 of docs/architecture/cloud-integration-bridge.md, commit "feat(kp-bridge): headless seed-work endpoint"). Update and restart personas-desktop, or run with --stub-personas. Body: ${res.text.slice(0, 200)}`,
+          { status: 404, body: res.json }
+        );
+      }
+      const envelope = must("POST /api/kp/test/seed-work", res);
+      const body = envelope.data ?? envelope;
+      const seedOutcome = body.seed ?? body;
+
+      result.seed = {
+        requested: seeds.length,
+        projectId: seedOutcome.projectId ?? null,
+        seeded: seedOutcome.seeded ?? null,
+        skipped: seedOutcome.skipped ?? null,
+        triageRule: seedOutcome.triageRule ?? null,
+        notes: seedOutcome.notes ?? [],
+        acceptanceStored: body.acceptanceStored ?? null,
+        // The seed→idea mapping the scorecard attributes proposal branches with.
+        items: seedOutcome.items ?? [],
+        response: body,
+      };
+      journal.write("seeded", {
+        requested: seeds.length,
+        seeded: result.seed.seeded,
+        skipped: result.seed.skipped,
+        triageRuleWillAccept: result.seed.triageRule?.willAccept ?? null,
+        notes: result.seed.notes,
+        mapping: (result.seed.items ?? []).map((i) => ({
+          index: i.index,
+          title: i.title,
+          ideaId: i.id ?? null,
+          accepted: i.accepted,
+          trap: i.trap ?? null,
+        })),
+      });
+
+      // Personas reports these rather than working around them — so does the
+      // driver. Neither is a phase failure: the night still runs and the
+      // expectations still read what it did.
+      for (const note of result.seed.notes) result.warnings.push(`seed: ${note}`);
+      if (result.seed.triageRule && result.seed.triageRule.willAccept === false) {
+        result.unmeasured.push(
+          "seed: the auto-accept triage rule will not accept these seeds, so tonight's overnight has nothing to dispatch"
+        );
+      }
+      if (result.seed.seeded === 0) {
+        result.unmeasured.push(
+          `seed: all ${seeds.length} item(s) were deduped away — this project already holds them, so tonight's triage pass has no NEW pending work to accept`
+        );
+      }
+    });
+
     // ── nights ──────────────────────────────────────────────────────────────
     await phase(result, journal, "nights", async () => {
       for (let n = 1; n <= scenario.nights; n++) {
@@ -504,6 +595,7 @@ function printSummary(result) {
   const banner = verdictBanner([
     `${result.scenario.name} ${result.ok ? "PASS" : "FAIL"}`,
     result.failedPhase ? `phase ${result.failedPhase} failed` : `${result.phases.length} phases`,
+    result.seed?.requested ? `seeded ${result.seed.seeded ?? "?"}/${result.seed.requested}` : "no seeds",
     `${result.nights.length} night(s)`,
     result.probation?.decision ? `probation ${result.probation.decision}` : "probation –",
     humanMs(result.wallMs),

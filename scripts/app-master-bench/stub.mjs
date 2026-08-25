@@ -11,6 +11,8 @@
 //                                     "pending then key" ladder is the human one)
 //   POST /api/kp/persona-requests   → auto-executes: the request reaches `active`
 //                                     with no human, so /refresh sees it live
+//   POST /api/kp/test/seed-work     → backlog work for the night to dispatch
+//                                     (P6e; §13.9 of the bridge doc)
 //   POST /api/kp/test/tick          → one compressed night per call
 //
 // ⚠ EVERYTHING IT REPORTS IS CANNED. The stub does not run an agent, gate a
@@ -49,21 +51,42 @@ async function readJson(req) {
   }
 }
 
-/** The canned outcome of ONE night, from the two mandate facts that decide it. */
+/** How many proposals one night could open if nothing stopped it. The real
+ *  engine's cap is the fleet live-slot count; three is the stub's stand-in. */
+const STUB_SLOT_CAP = 3;
+
+/**
+ * The canned outcome of ONE night, from the mandate facts that decide it — and,
+ * since P6e, from the BACKLOG. `state.pendingSeeds` is how much unaccepted work
+ * the project holds; a night with none dispatches nothing, which is not a
+ * pessimistic stub choice but the behaviour bench sweeps #11 and #12 recorded
+ * against the real engine. `blockedReason` mirrors `NightRun.blocked_reason`
+ * and `degraded` mirrors the budget governor's `full → suggest` flag, so the
+ * driver's budget check reads the same evidence here as against Personas.
+ */
 export function cannedNight(state, appMaster) {
   const rung = appMaster?.mandate?.scopeRung ?? 2;
   const ceiling = Number(appMaster?.budget?.monthlyUsd ?? 0) || 0;
   const objectives = Array.isArray(appMaster?.objectives) ? appMaster.objectives : [];
   const tight = ceiling > 0 && ceiling <= 10;
+  const pending = Math.max(0, state.pendingSeeds ?? 0);
 
   const notes = [];
   let opened = 0;
-  if (rung === 0) {
+  let blockedReason = null;
+  let degraded = false;
+  if (pending === 0) {
+    notes.push("overnight dispatched nothing: the project holds no accepted idea. Seed the project first.");
+  } else if (rung === 0) {
+    blockedReason = `App master mandate rung 0 may not author a change (${pending} accepted idea(s) left for the morning)`;
     notes.push("overnight produced no proposal: the mandate is rung 0 — read and report only.");
   } else if (tight && state.settledUsd >= ceiling) {
+    degraded = true;
+    blockedReason = `Budget governor refused tonight's dispatch: the monthly ceiling of $${ceiling} is spent. Autopilot degraded full → suggest.`;
     notes.push(`overnight halted: the monthly budget ceiling of $${ceiling} was reached — no session was dispatched.`);
   } else {
-    opened = tight ? 1 : 3;
+    opened = Math.min(pending, tight ? 1 : STUB_SLOT_CAP);
+    state.pendingSeeds = pending - opened;
     notes.push(`overnight dispatched ${opened} session(s) and authored ${opened} proposal branch(es).`);
   }
 
@@ -103,7 +126,7 @@ export function cannedNight(state, appMaster) {
     ledgerConsistent: true,
   };
 
-  return { opened, notes, autopilotMode, backbone };
+  return { opened, notes, autopilotMode, backbone, blockedReason, degraded, pendingAfter: state.pendingSeeds ?? 0 };
 }
 
 /** The canned day-N verdict: nothing delivered ⇒ more probation, never a pass. */
@@ -237,7 +260,18 @@ export async function startStubPersonas({ kpBaseUrl = null } = {}) {
         dispatches.push(dispatch);
         // Auto-execute: headless mode approves and builds without a human, so
         // the request is `active` by the time kp polls it.
-        state.set(requestId, { opened: 0, merged: 0, settledUsd: 0, gatesRun: 0, gatesPassed: 0, nights: 0 });
+        state.set(requestId, {
+          opened: 0,
+          merged: 0,
+          settledUsd: 0,
+          gatesRun: 0,
+          gatesPassed: 0,
+          nights: 0,
+          // The backlog. A night can only dispatch what seeding put here.
+          pendingSeeds: 0,
+          seededKeys: new Map(),
+          seedRuleId: null,
+        });
         json(res, 200, { success: true, data: { requestId } });
         return;
       }
@@ -257,6 +291,88 @@ export async function startStubPersonas({ kpBaseUrl = null } = {}) {
         json(res, 200, {
           success: true,
           data: { status: "active", personaId: dispatch.personaId, personaName: dispatch.personaName },
+        });
+        return;
+      }
+
+      if (method === "POST" && p === "/api/kp/test/seed-work") {
+        if (!authorized(req)) {
+          json(res, 401, { success: false, error: "missing or invalid bearer token" });
+          return;
+        }
+        const body = await readJson(req);
+        const dispatch =
+          dispatches.find((d) => d.personaId === body.personaId) ??
+          dispatches.find((d) => d.requestId === body.projectId) ??
+          null;
+        if (!dispatch) {
+          json(res, 404, {
+            success: false,
+            error: "no hire on this stub matches that personaId / projectId",
+          });
+          return;
+        }
+        const items = Array.isArray(body.items) ? body.items : [];
+        if (items.length === 0 || items.length > 16) {
+          json(res, 400, { success: false, error: "items must carry 1..16 entries" });
+          return;
+        }
+        const running = state.get(dispatch.requestId);
+        // Dedup on the normalised title, the way `scan_dedup_key` does — the
+        // stub's cheap version of the same identity, so a repeated seed is a
+        // skip here too rather than a second idea.
+        const answers = items.map((item, index) => {
+          const title = String(item?.title ?? "").trim();
+          const key = `scan:headless_bench_seed:bench:${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
+          const already = running.seededKeys.has(key);
+          if (!already) {
+            running.seededKeys.set(key, `idea-stub-${running.seededKeys.size + 1}`);
+            running.pendingSeeds += 1;
+          }
+          return {
+            index,
+            title,
+            id: running.seededKeys.get(key),
+            accepted: !already,
+            dedupKey: key,
+            ideaStatus: "pending",
+            ...(already
+              ? { skippedReason: "this project already holds an idea with this dedup key" }
+              : {}),
+            // Echoed, stored nowhere — exactly as the real endpoint answers.
+            ...(item?.acceptance ? { acceptance: item.acceptance } : {}),
+            ...(item?.trap ? { trap: item.trap } : {}),
+          };
+        });
+        const created = !running.seedRuleId;
+        if (created) running.seedRuleId = `rule-stub-${dispatch.requestId}`;
+        json(res, 200, {
+          success: true,
+          data: {
+            headlessBridge: true,
+            actor: "headless_bridge",
+            acceptanceStored: false,
+            note: "items are written `pending`; the next tick's overnight triage pass is what accepts and dispatches them",
+            seed: {
+              projectId: dispatch.requestId,
+              projectName: dispatch.personaName,
+              scanType: "headless_bench_seed",
+              seeded: answers.filter((a) => a.accepted).length,
+              skipped: answers.filter((a) => !a.accepted).length,
+              items: answers,
+              triageRule: {
+                id: running.seedRuleId,
+                name: "Headless bench seed — auto-accept",
+                conditions: '[{"field":"scan_type","op":"eq","value":"headless_bench_seed"}]',
+                action: "accept",
+                enabled: true,
+                created,
+                rulesAhead: 0,
+                willAccept: true,
+              },
+              notes: [],
+            },
+          },
         });
         return;
       }
@@ -290,6 +406,24 @@ export async function startStubPersonas({ kpBaseUrl = null } = {}) {
             dispatchedCount: night.opened,
             notes: night.notes,
             autopilotMode: night.autopilotMode,
+            // The real bridge's §13.6 counts block + the NightRun ledger row it
+            // itemises. The driver's budgetDegraded check reads exactly these,
+            // so a stub that omitted them would exercise a different code path
+            // than the one a live sweep takes.
+            counts: {
+              projects: 1,
+              dispatched: night.opened,
+              blocked: night.blockedReason ? 1 : 0,
+              degraded: night.degraded ? 1 : 0,
+            },
+            details: [
+              {
+                nightRunId: `night-stub-${dispatch.requestId}-${running.nights}`,
+                dispatchedCount: night.opened,
+                blockedReason: night.blockedReason,
+                degraded: night.degraded,
+              },
+            ],
           };
         }
         if (phases.includes("reconcile")) {
