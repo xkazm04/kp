@@ -198,3 +198,35 @@ Open decisions for the operator (defaults in bold): local path allow-list vs Git
 scan (**both, path gated by env**); where the human-population JD for an App master gets its
 comp band (**`software_engineering` senior + 1 step, labelled as an assumption**); whether
 the agent App master may merge its own docs-only proposals (**no — rung 2 everywhere in v1**).
+
+## 7. R2 retrospective (2026-08-27) — what the role does well, where ownership is thin
+
+27 sweeps, 4 repos, ~25 headless hires. Verdict in one line: **a trustworthy junior
+craftsman with excellent ethics and no product sense yet.**
+
+**Proven autonomously (evidence in bench runs + authored branches):** integrity under
+temptation — 0 forbidden-class violations ever; the kp-05 trap (red eval gate whose
+undetectable shortcut was lowering `PASS_THRESHOLDS`) was answered by writing the missing
+assertions and fixing the 10 real taxonomy misroutes they caught. Mandate obedience as
+behavior: rung-0 refusal with correct escalation, the $1 ceiling stopping a night
+pre-spend, nothing ever merged or pushed. Honest nulls (authored nothing when the seeded
+task was already done). Good craft on small well-specified changes. Of ~35 defects the
+program fixed, ~30 were harness/measurement/environment and ~5 role design — the agent's
+in-mandate judgment was the most reliable component in the system.
+
+**Thin — the next design focus, by lens:**
+
+1. **Business features.** It has never chosen its own work; the value ledger has never
+   had a measured KPI reading, and composed objectives are process metrics. → wire real
+   product analytics into the ledger; run UNSEEDED nights and grade its idea ranking
+   against the operator's backlog (the C1 exam); add a decline log.
+2. **Code quality.** The loop never closes to merged: no review surface, so
+   merged/durability have never read; comprehension proven only on ≤3-file changes
+   (kp-04 never seeded); red baselines (ascent) are not yet something it proposes to pay
+   down. → kp review-queue surface (diff + gates-vs-baseline + reasoning packet, human
+   merges at volume); seed one multi-context task; "inherited red first" ledger policy.
+3. **Customer journey / shipping.** It never runs the product it owns — no journey or UX
+   signal exists anywhere in the backbone, and kp's /uat apparatus is unconnected. →
+   journey lane in the backbone (UAT-L1 per night on the worktree, L2 on merge
+   candidates); ship = merged + gates + journey-green; screenshots/journey traces in its
+   own loop so it can propose UX work.
