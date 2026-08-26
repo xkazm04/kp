@@ -245,7 +245,13 @@ export async function settleDispatch({
     // counts as progress from that point on.
     const progressed = confirmOpened && accounted >= dispatched ? confirmMoved : accounted > before || confirmMoved;
     flat = progressed ? 0 : flat + 1;
-    if (flat >= stallPolls) {
+    // While a confirmer is active, the wait IS the point: a real authoring
+    // session runs 5–15+ min, and 3 flat polls (~4.5 min) declared a healthy
+    // worker stalled (sweep #26, night 1, polls 2–5). With confirm in play the
+    // flat leash stretches ×4 (≈18 min at the default poll); the settle budget
+    // stays the hard bound.
+    const flatLimit = confirmOpened && accounted >= dispatched ? stallPolls * 4 : stallPolls;
+    if (flat >= flatLimit) {
       record.stoppedBy = "stalled";
       break;
     }
