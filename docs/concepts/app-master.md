@@ -1,6 +1,6 @@
 # App master — a role that a human or an AI agent can hold
 
-> Concept + execution plan, 2026-08-23. Status: **P0–P4 shipped, P5 in progress (2026-08-23)** — see the phase
+> Concept + execution plan, 2026-08-23. Status: **P0–P6 shipped; bench GREEN 4/4 (sweep #22, 2026-08-26)** — Ring 1 (kp) and the first Ring-2 repo (personas) pass the full headless loop — see the phase
 > table at the end for commit hashes; `docs/features/app-master/README.md` is the
 > implemented standard.
 > Registry consult logged (`.ai/consults.jsonl`): machine-paced-delivery
