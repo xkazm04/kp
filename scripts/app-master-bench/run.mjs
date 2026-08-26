@@ -160,6 +160,15 @@ export async function settleDispatch({
   now = () => Date.now(),
   wait = sleep,
   stallPolls = 3,
+  // Confirms the dispatch produced a COMMITTED proposal (the roster's
+  // tenure-scoped proposalsOpened, which requires commits since P6o). Sweep
+  // #25: 16 stale branches satisfied the raw \"accounted\" arithmetic three
+  // minutes into a night whose worker was still authoring — counts alone
+  // cannot distinguish old branches from this dispatch's work. When given,
+  // \"accounted\" is only a milestone; the loop stops on confirmation, on the
+  // flat guard (worker authored nothing — a legitimate outcome), or on the
+  // budget.
+  confirmOpened = null,
 }) {
   const startedAt = now();
   const record = {
@@ -215,11 +224,27 @@ export async function settleDispatch({
     record.polls.push(entry);
     journal?.write("settle-poll", entry);
 
-    if (accounted >= dispatched) {
+    let opened = null;
+    if (confirmOpened && accounted >= dispatched) {
+      opened = await confirmOpened().catch(() => null);
+      entry.opened = opened;
+      journal?.write("settle-confirm", { night, poll: pollNo, opened, dispatched });
+      if (typeof opened === "number" && opened >= 1) {
+        record.stoppedBy = "opened-confirmed";
+        record.opened = opened;
+        break;
+      }
+    } else if (accounted >= dispatched) {
       record.stoppedBy = "accounted";
       break;
     }
-    flat = accounted > before ? 0 : flat + 1;
+    const confirmMoved = typeof opened === "number" && opened !== record.lastOpened;
+    if (typeof opened === "number") record.lastOpened = opened;
+    // Once the raw arithmetic is satisfied and a confirmer is in play, stale
+    // branches keep the counts "growing" forever — only the confirmed reading
+    // counts as progress from that point on.
+    const progressed = confirmOpened && accounted >= dispatched ? confirmMoved : accounted > before || confirmMoved;
+    flat = progressed ? 0 : flat + 1;
     if (flat >= stallPolls) {
       record.stoppedBy = "stalled";
       break;
@@ -1019,6 +1044,14 @@ async function runScenario(scenario, opts) {
           dispatched,
           pollMs: opts.settlePollMs,
           timeoutMs: settleTimeoutMs,
+          // A committed proposal, per the roster's tenure-scoped reading (P6o):
+          // push a rollup, read the row, take proposalsOpened.
+          confirmOpened: async () => {
+            await tickPhase(["report"]);
+            const row = await rosterRow();
+            const n = row ? readingFromRoster(row).proposalsOpened : null;
+            return typeof n === "number" ? n : null;
+          },
         });
 
         // (c) only now report: the rollup pushed here is what kp scores.

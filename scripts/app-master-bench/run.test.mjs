@@ -355,3 +355,35 @@ test("buildFailureReason reads Personas' buildPhase, and never invents one", () 
   assert.equal(buildFailureReason(null), null);
   assert.equal(buildFailureReason({ data: "failed" }), null);
 });
+
+test("settle keeps polling past raw 'accounted' until the roster confirms a committed proposal", async () => {
+  const { settleDispatch } = await import("./run.mjs");
+  // Every reconcile claims plenty of branches (stale ones — sweep #25's 16),
+  // but the roster's tenure-scoped opened stays 0 until the third poll.
+  let confirms = 0;
+  const record = await settleDispatch({
+    tickReconcile: async () => ({ ok: true, summary: { phases: [{ phase: "reconcile", ran: true, counts: { branchesSeen: 16, newlyRecorded: 1, gated: 0 } }] } }),
+    journal: null,
+    night: 1,
+    dispatched: 1,
+    pollMs: 1,
+    timeoutMs: 5_000,
+    wait: async () => {},
+    confirmOpened: async () => (++confirms >= 3 ? 1 : 0),
+  });
+  assert.equal(record.stoppedBy, "opened-confirmed");
+  assert.equal(record.opened, 1);
+  assert.equal(confirms, 3, "the raw accounted arithmetic alone must not stop the loop");
+  // And a worker that authors nothing ends on the flat guard, not forever.
+  const flat = await settleDispatch({
+    tickReconcile: async () => ({ ok: true, summary: { phases: [{ phase: "reconcile", ran: true, counts: { branchesSeen: 16, newlyRecorded: 0, gated: 0 } }] } }),
+    journal: null,
+    night: 1,
+    dispatched: 1,
+    pollMs: 1,
+    timeoutMs: 5_000,
+    wait: async () => {},
+    confirmOpened: async () => 0,
+  });
+  assert.equal(flat.stoppedBy, "stalled");
+});
