@@ -175,7 +175,7 @@ test("path tokens expand, and an unknown one is left visibly unresolved", () => 
 
 test("every shipped scenario loads, validates and names a real repo target", () => {
   const files = listScenarioFiles();
-  assert.ok(files.length >= 4, "the four shipped scenarios should be there");
+  assert.ok(files.length >= 6, "the six shipped scenarios should be there (4 Ring-1/2 + ascent + systedo-case)");
   const names = new Set();
   for (const file of files) {
     const scenario = loadScenarioFile(file, { kpRoot: REPO_ROOT });
@@ -205,6 +205,12 @@ test("the shipped scenarios encode what each one is FOR", () => {
   assert.equal(byName["kp-tight-budget"].dialog.budgetUsd, 1, "the tight-budget scenario runs on $1 - below one session's ~$1.50 projection, so the tenure-scoped governor must refuse night 1");
   assert.equal(byName["kp-tight-budget"].expect.budgetDegraded, true);
   assert.ok(byName["personas-self"].repo.rootPath.endsWith("personas"), "R2's first repo is the Personas checkout");
+  assert.ok(byName["ascent"].repo.rootPath.endsWith("ascent"), "R2 spreads to the Ascent checkout");
+  assert.ok(byName["systedo-case"].repo.rootPath.endsWith("systedo-case"), "R2 spreads to the systedo-case checkout");
+  for (const r2 of ["ascent", "systedo-case"]) {
+    assert.equal(byName[r2].seeds[0].title, "Document ALERT_WEBHOOK_URL in .env.example", `${r2}'s control seed is the scouted ALERT_WEBHOOK_URL gap`);
+    assert.equal(byName[r2].expect.minProposalsOpened, 1, `${r2} must dispatch its seed`);
+  }
 });
 
 test("resolveScenarioPath takes a bare name, a file name or a path", () => {
