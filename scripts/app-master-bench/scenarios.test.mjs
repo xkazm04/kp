@@ -202,7 +202,7 @@ test("the shipped scenarios encode what each one is FOR", () => {
   assert.equal(byName["kp-rung0"].dialog.scopeRung, 0, "the read-only scenario must be rung 0");
   assert.equal(byName["kp-rung0"].expect.maxProposalsOpened, 0, "a rung-0 mandate may open nothing");
   assert.match(byName["kp-rung0"].expect.probation, /extended|retired/);
-  assert.equal(byName["kp-tight-budget"].dialog.budgetUsd, 5, "the tight-budget scenario runs on $5");
+  assert.equal(byName["kp-tight-budget"].dialog.budgetUsd, 1, "the tight-budget scenario runs on $1 - below one session's ~$1.50 projection, so the tenure-scoped governor must refuse night 1");
   assert.equal(byName["kp-tight-budget"].expect.budgetDegraded, true);
   assert.ok(byName["personas-self"].repo.rootPath.endsWith("personas"), "R2's first repo is the Personas checkout");
 });
