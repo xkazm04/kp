@@ -49,6 +49,7 @@ registerHooks({
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "kp-resolve-candidate-"));
 const TMP = path.join(TMP_DIR, "kp.sqlite");
 process.env.KP_DB_PATH = TMP;
+delete process.env.DATABASE_URL;
 
 const { saveAnalysis } = await import("./db.ts");
 const { resolveCandidate, candidateSignature } = await import("./match-candidate.ts");
