@@ -88,6 +88,34 @@ class IntakeEvalOfflineTest(unittest.TestCase):
         checks = check_dialog(scenario, sabotaged, brief, shape, done)
         self.assertFalse(checks["grounded_readback"])
 
+    def test_every_scenario_carries_both_standing_assertions(self) -> None:
+        # role_family and requirements_captured are CONDITIONAL in check_dialog
+        # (a scenario that declares neither field simply skips them, and the
+        # bank still reports PASS). That makes the coverage silently erodable:
+        # a persona added without `family`/`dealbreakers` would quietly drop the
+        # two UAT regressions it was supposed to carry. Pin the declaration in
+        # BOTH banks so the skip can never happen unnoticed.
+        from pipeline.jobfit.eval.intake_scenarios_gen import fixed_bank
+
+        for label, bank in (("curated", load_scenarios()), ("generated", fixed_bank(100))):
+            for scenario in bank:
+                name = f"{label}/{scenario['name']}"
+                with self.subTest(scenario=name):
+                    family = scenario.get("family") or (scenario.get("expect") or {}).get("role_family")
+                    self.assertTrue(family, f"{name} declares no role family — role_family would be skipped")
+                    self.assertTrue(
+                        scenario.get("dealbreakers"),
+                        f"{name} states no dealbreaker — requirements_captured would be skipped",
+                    )
+
+        # …and prove the declaration actually materialises as a check, rather
+        # than merely being present in the JSON.
+        scenario = load_scenarios(["power_unit_backfill"])[0]
+        turns, brief, shape, done = simulate(None, None, scenario)
+        checks = check_dialog(scenario, turns, brief, shape, done)
+        self.assertIn("role_family", checks)
+        self.assertIn("requirements_captured", checks)
+
     def test_misclassified_family_is_caught(self) -> None:
         # A brief carrying the WRONG family — or the right value with default
         # spine provenance (the schema default nothing ever classified) — must
