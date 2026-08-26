@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { backboneFromRollup, backboneScore, hasBackboneFields } from "./backbone.ts";
+import { backboneFromRollup, backboneScore, hasBackboneFields, kpiMoved } from "./backbone.ts";
 import type { PerformanceBackbone } from "../schemas.generated.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -77,6 +77,70 @@ test("backbone: a forbidden-class violation fails the verdict, it is not average
   assert.equal(violated.verdict, "fail");
   assert.equal(violated.score, backboneScore(backbone).score, "the weighted score is untouched — the GATE failed");
   assert.equal(violated.gates.find((g) => g.gate === "forbidden_classes")?.passed, false);
+});
+
+// kpiMoved is exported because the roster renders the SAME judgment per objective
+// that backboneScore computes — two answers to "did this KPI move" on one screen
+// is one too many. These tests pin its branch-by-branch contract directly.
+
+const delta = (
+  overrides: Partial<{ measured: boolean; current: number | null; target: number | null; baseline: number | null; direction: "gte" | "lte" }>
+) => ({
+  kpiKey: "gate_pass_rate",
+  windowDays: 60,
+  measured: true,
+  current: 80,
+  target: 95,
+  baseline: 70,
+  direction: "gte" as const,
+  ...overrides,
+});
+
+test("kpiMoved: unmeasured delta is always null", () => {
+  assert.equal(kpiMoved(delta({ measured: false })), null);
+});
+
+test("kpiMoved: null current or null target yields null", () => {
+  assert.equal(kpiMoved(delta({ current: null })), null);
+  assert.equal(kpiMoved(delta({ target: null })), null);
+});
+
+test("kpiMoved: gte — current at or above target", () => {
+  assert.equal(kpiMoved(delta({ current: 95, target: 95 })), true, "at target");
+  assert.equal(kpiMoved(delta({ current: 100, target: 95 })), true, "above target");
+});
+
+test("kpiMoved: gte — below target, no baseline → false (cannot confirm movement)", () => {
+  assert.equal(kpiMoved(delta({ current: 80, target: 95, baseline: null })), false);
+});
+
+test("kpiMoved: gte — below target, current higher than baseline → true (moving right)", () => {
+  assert.equal(kpiMoved(delta({ current: 85, target: 95, baseline: 80 })), true);
+});
+
+test("kpiMoved: gte — below target, current equal to baseline → false (stalled)", () => {
+  assert.equal(kpiMoved(delta({ current: 80, target: 95, baseline: 80 })), false);
+});
+
+test("kpiMoved: gte — below target, current lower than baseline → false (regressed)", () => {
+  assert.equal(kpiMoved(delta({ current: 75, target: 95, baseline: 80 })), false);
+});
+
+test("kpiMoved: lte — current at or below target", () => {
+  assert.equal(kpiMoved(delta({ direction: "lte", current: 5, target: 10, baseline: null })), true, "below target");
+  assert.equal(kpiMoved(delta({ direction: "lte", current: 10, target: 10, baseline: null })), true, "at target");
+});
+
+test("kpiMoved: lte — above target, no baseline → false", () => {
+  assert.equal(kpiMoved(delta({ direction: "lte", current: 15, target: 10, baseline: null })), false);
+});
+
+test("kpiMoved: lte — above target, current lower than baseline → true (improving)", () => {
+  assert.equal(kpiMoved(delta({ direction: "lte", current: 12, target: 10, baseline: 15 })), true);
+});
+
+test("kpiMoved: lte — above target, current higher than baseline → false (regressed)", () => {
+  assert.equal(kpiMoved(delta({ direction: "lte", current: 18, target: 10, baseline: 15 })), false);
 });
 
 test("backboneFromRollup: a pre-v2 rollup is not a perfect $0 window", () => {
