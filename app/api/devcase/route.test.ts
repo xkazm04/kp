@@ -14,6 +14,7 @@ import { mkdtempSync } from "node:fs";
 // top-level statement, so the route + dev-control are pulled in via dynamic import in
 // `before()` — after this assignment — so `npm run test:unit` never touches the real DB.
 process.env.KP_DB_PATH = path.join(mkdtempSync(path.join(os.tmpdir(), "kp-devcase-")), "kp.sqlite");
+delete process.env.DATABASE_URL;
 
 let POST: (typeof import("./route.ts"))["POST"];
 let listAudit: (typeof import("@/app/_lib/dev-control"))["listAudit"];

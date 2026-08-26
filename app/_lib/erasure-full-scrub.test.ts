@@ -50,6 +50,7 @@ registerHooks({
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "kp-erasure-full-scrub-"));
 const TMP = path.join(TMP_DIR, "kp.sqlite");
 process.env.KP_DB_PATH = TMP;
+delete process.env.DATABASE_URL;
 
 // Import AFTER KP_DB_PATH is set so every connection (db.ts + each isolated store) opens the
 // throwaway file. The stores each open their own connection on the SAME file (db-path.ts).
