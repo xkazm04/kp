@@ -1098,7 +1098,15 @@ async function runScenario(scenario, opts) {
       const summary = tick.json?.data ?? tick.json ?? null;
       await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`).catch(() => null);
       const after = await rosterRow();
-      const reported = findFirst(summary, "decision");
+      // Only THIS hire's decision counts: a forced probation used to decide
+      // every undecided mandate in the app, and the generic findFirst read
+      // another project's `retired` as ours (sweeps #18/#21). The tick is now
+      // scoped server-side too; the filter here is the driver's own guarantee.
+      const details = Array.isArray(summary?.phases)
+        ? summary.phases.flatMap((p) => (Array.isArray(p?.details) ? p.details : []))
+        : [];
+      const mine = details.find((d) => d && d.personaId === result.hire.personaId && d.decision);
+      const reported = mine ? mine.decision : undefined;
       const decision =
         typeof reported === "string"
           ? reported
