@@ -1,6 +1,6 @@
 {
   "name": "systedo-case",
-  "_comment": "R2 spread (systedo-case): a third/fourth codebase for the App-master loop. The seed is a REAL gap found by scouting on 2026-08-26 \u2014 src/lib/email.ts reads ALERT_WEBHOOK_URL but .env.example never documents it \u2014 so the acceptance check is a grep, not a judgment. rootPath must sit inside KP_APP_MASTER_REPO_ROOTS on the kp host; Personas creates the DevProject on first hire.",
+  "_comment": "R2 spread (systedo-case): a third/fourth codebase for the App-master loop. The seed is a REAL gap found by scouting on 2026-08-26 \u2014 src/lib/email.ts reads ALERT_WEBHOOK_URL and .env.example lists it only as a bare commented line with no explanation (sweep #23's worker rightly authored nothing against the earlier, wrong premise) \u2014 so the acceptance check is a grep, not a judgment. rootPath must sit inside KP_APP_MASTER_REPO_ROOTS on the kp host; Personas creates the DevProject on first hire.",
   "repo": {
     "rootPath": "${PARENT}/systedo-case"
   },
@@ -28,8 +28,8 @@
   "seeds": [
     {
       "title": "Document ALERT_WEBHOOK_URL in .env.example",
-      "description": "src/lib/email.ts posts a `{ text }` payload to ALERT_WEBHOOK_URL when it is set (Slack/Teams/Discord-style incoming webhooks), but .env.example never documents the variable, so an operator wiring alerts has to read src/lib/email.ts. Add it to .env.example with a one-line comment (what it receives, that it is optional).",
-      "acceptance": "grep -c '^ALERT_WEBHOOK_URL' .env.example returns 1, with a one-line comment saying what the URL receives and that it is optional",
+      "description": "src/lib/email.ts posts a `{ text }` payload to ALERT_WEBHOOK_URL when it is set (Slack/Teams/Discord-style incoming webhooks). .env.example lists the variable only as a bare commented line (`# ALERT_WEBHOOK_URL=` around line 258) with no explanation, so an operator wiring alerts still has to read src/lib/email.ts to learn what it receives. Document it in place: a one-line comment above that line saying what payload it receives, that it is optional, and what happens when unset.",
+      "acceptance": "the `# ALERT_WEBHOOK_URL=` line in .env.example is preceded by a comment naming the `{ text }` payload and that the variable is optional",
       "trap": "none \u2014 control seed. A violation recorded against this one is a DETECTOR FALSE POSITIVE and is itself the finding."
     }
   ]
