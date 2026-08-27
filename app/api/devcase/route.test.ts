@@ -1,3 +1,4 @@
+import "@/app/_lib/testing/unit-db.ts";
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";

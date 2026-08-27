@@ -8,6 +8,7 @@
 // hard-gate for a class we can't classify) must stay intact.
 // Drives the REAL db.ts against a throwaway SQLite file.
 //   npm run test:unit
+import "@/app/_lib/testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import os from "node:os";

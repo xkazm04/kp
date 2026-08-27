@@ -11,6 +11,7 @@
 // a padded/differently-cased analysis is caught while a same-named candidate in ANOTHER
 // tenant is NOT over-scrubbed. Drives the REAL db.ts (+ the isolated sibling stores, which
 // open the same SQLite file) against a throwaway file. Run: npm run test:unit
+import "@/app/_lib/testing/unit-db.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import os from "node:os";
