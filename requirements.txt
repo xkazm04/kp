@@ -2,7 +2,7 @@
 # 2026-08-05) so CI and the Docker image resolve the SAME tree the gate was
 # certified against — a floating >= range let any upstream release land untested.
 # Upgrade deliberately: bump the pin, run the full gate, commit both together.
-pypdf==5.4.0
+pypdf==6.16.2
 # Voice eval plane (pipeline/jobfit/eval/voice): PCM resampling in tts.py imports
 # numpy at module level, and test_voice_harness pins that contract in CI.
 numpy==2.2.4
