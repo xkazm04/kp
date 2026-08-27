@@ -218,6 +218,22 @@ unfenced. It is the step the module leans on hardest when the artifact itself pr
 nothing ("the scores above are HYPOTHESES"), so steering it blunts the very interview that
 verifies them. Pinned by `TestFollowupContextIsFenced` in `test_devcase_evaluate.py`.
 
+`provenance.py` also owns the *other* half of that contract, used outside this module:
+**`defuse_fence_markers`**. `fenced_untrusted` neutralizes its payload by JSON-encoding it
+(`json.dumps` turns the newlines a standalone marker needs into `\n` escapes), which is
+only available to blocks that may be JSON. Some prompt blocks must stay PROSE so the model
+can mine them — a redacted CV, an attached legacy JD, a machine reading of a repo — and for
+those the marker SIGIL is broken instead: every maximal run of 3+ angle brackets is spaced
+out, so the body can neither close its own fence, re-open it, nor forge another block's.
+Matching *maximal* runs is the load-bearing detail (a substitution over partial runs
+re-forms `<<<` from replacement boundaries). Callers: `intake._attachments_block`,
+`intake._dossier_block`, and the blind CV block in `gemini.py`; all three are pinned by
+`pipeline/jobfit/tests/test_prompt_fences.py`, which drives each real prompt builder with a
+break-out payload and proves each assertion non-vacuous by re-running it with the defusing
+neutralised. Note `json.dumps` is *not* sigil-proof on its own — it escapes quotes and
+newlines but leaves angle brackets alone — so a JSON fragment interpolated into a prose
+fence still needs defusing.
+
 **The keyword sets that grade observed evidence speak all four locales.** A case is
 delivered in the posting's language — brief, tasks, the seed's README + DECISIONS
 scaffolding and both chat personas all render in `devcase_cli --lang` — so the candidate

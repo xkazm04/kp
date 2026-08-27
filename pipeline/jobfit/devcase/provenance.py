@@ -22,7 +22,34 @@ from __future__ import annotations
 import inspect
 import json
 import logging
+import re
 from typing import Any, Callable, Iterable, Sequence
+
+
+# Every maximal run of 3+ angle brackets — the SIGIL every `<<<FENCE>>>` marker
+# in this codebase is built from. Maximal-run matching is the load-bearing part:
+# a non-overlapping substitution over PARTIAL runs can re-form the sigil from
+# replacement boundaries ("<<<<<<" -> "<< <" + "<< <" carries a fresh "<<<"), so
+# matching the whole run is what makes "no sigil survives" actually true.
+_FENCE_SIGIL = re.compile(r"<{3,}|>{3,}")
+
+
+def defuse_fence_markers(text: str) -> str:
+    """Neutralize fence markers in text that will be interpolated AS PROSE
+    between ``<<<FENCE>>>`` markers.
+
+    :func:`fenced_untrusted` answers the same threat by JSON-encoding its body
+    (``json.dumps`` turns the newlines a standalone marker needs into ``\\n``
+    escapes), but some blocks must stay prose so the model can mine them — a
+    redacted CV, an attached JD, a machine reading of a repo. For those the
+    marker SIGIL is broken instead: every maximal run of 3+ angle brackets is
+    spaced out, so third-party text can neither close its own fence early nor
+    forge a re-open or a DIFFERENT block's fence. The prose stays readable
+    (``<<<END_X>>>`` becomes ``< < <END_X> > >``); only the sigil dies.
+
+    Text with no angle-bracket run passes through byte-identical.
+    """
+    return _FENCE_SIGIL.sub(lambda m: " ".join(m.group()), text)
 
 
 def fenced_untrusted(label: str, obj: Any) -> str:

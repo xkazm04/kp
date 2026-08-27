@@ -57,6 +57,18 @@ design). Still open:
 - P7 hostile-candidate tone softening is a **deliberate** non-fix — every wording attempt caused language drift.
 
 **Platform**
+- **Deferred owner decision — retire analyses cached under the breakable CV
+  fence.** The blind CV block is now sigil-defused (2026-08-27), but
+  `PROMPT_VERSION` in `app/_lib/cache-key.ts` was deliberately NOT bumped: for
+  a CV with no angle-bracket run the prompt is byte-identical, so a wholesale
+  bump would re-spend Gemini on every cached candidate to retire a subset that
+  only exists if a marker-bearing CV was actually uploaded before that date. The
+  residual is real though — such a CV's analysis was produced under an open
+  fence and is still served from cache against its `cvBytes`. One-line fix
+  (bump `PROMPT_VERSION` + `EXPECTED_PROMPT_VERSION` in
+  `pipeline/jobfit/tests/test_analysis_prompt_version_sync.py`, where the full
+  reasoning is recorded). **Bump it if this deployment has ever taken CV uploads
+  from a public surface.**
 - `cv_analysis` is Gemini-only; no per-tenant `llm_usage` attribution.
 - Tenancy last mile: per-session revocation. (Entry-id workspace component, tasks dedup index and per-tenant export/import have shipped — see `docs/features/organization/README.md`.)
 - Enterprise track still open: E-SSO-2/3/5, E-AUD-2/3/4, E-SH-1 (license decision), E-SH-3 (Postgres build), E-SH-6, E5 (SOC 2), E-GDPR-1/3/4/5, E6 (org-level billing/seats). BYOM tier enforcement unbuilt.
@@ -167,10 +179,16 @@ id at the fix site.
 9. **Keyless materials copy discloses before the ack** — the empty state promises
    mining unconditionally; offline the truth arrives only after attach+send.
    Keyless-conditional copy (G5: earlier, not softer). (`L1-HRBP-16`; §2.9)
-10. **Escape fence markers in attachment text** — `_attachments_block`
-    interpolates raw text between `<<<ATTACHED_MATERIAL>>>` markers, unlike
-    `fenced_untrusted` which json-escapes. Strip/escape + unit test.
-    (`L1-TOM-4`; §2.10)
+10. ~~**Escape fence markers in attachment text**~~ — SHIPPED: `_attachments_block`
+    on 2026-08-25 (`2b66693a`), then extended 2026-08-27 to every PROSE fence in
+    the codebase. `defuse_fence_markers` (now shared from
+    `devcase/provenance.py`, beside `fenced_untrusted`) spaces out every maximal
+    run of 3+ angle brackets, so an untrusted body can neither close its fence,
+    re-open it, nor forge another one. Applied at `ATTACHED_MATERIAL`,
+    `CODEBASE_DOSSIER` (App-master repo scan) and `CV_TEXT_BEGIN` (blind CV).
+    Pinned by `pipeline/jobfit/tests/test_prompt_fences.py`, which drives each
+    real prompt builder and proves each assertion non-vacuous by re-running it
+    with the defusing neutralised. (`L1-TOM-4`; §2.10)
 11. ~~**Eval bank asserts `role_family`** (and `requirements[]` non-emptiness for
     confirmed dealbreakers)~~ — SHIPPED 2026-08-25: `role_family` (value + non-default
     spine provenance) and `requirements_captured` checks in `check_dialog`, armed

@@ -128,8 +128,15 @@ JD has ever had.
 - **The dialog asks only what the scan cannot know.** A persona overlay
   (`_PERSONA_APP_MASTER`) replaces the power-unit/story triage rules, and the
   dossier rides the prompt in a fenced `CODEBASE_DOSSIER` block framed as a
-  MACHINE READING (never the requestor, never instructions). Six answers, each
-  landing as a `stated` facet under a **closed key contract**:
+  MACHINE READING (never the requestor, never instructions). That body is no
+  more trusted than an attachment — every line comes from a repository the
+  requestor merely pointed at (paths, context names, hot-spot and risk notes,
+  and under `source: "llm"` prose Claude Code wrote about somebody else's
+  code) — so it goes through the same `defuse_fence_markers` the
+  `ATTACHED_MATERIAL` fence uses, over the **whole** assembled body including
+  the candidate-objectives JSON (`json.dumps` escapes quotes and newlines but
+  leaves angle brackets alone, so it is not sigil-proof by itself). Six
+  answers, each landing as a `stated` facet under a **closed key contract**:
 
   | Question | Facet key |
   | --- | --- |
@@ -413,9 +420,14 @@ only become `stated` once the requestor confirms them in dialog/read-back;
 where the material contradicts the live requestor, the requestor wins. The
 fence survives its own payload: attachment text is third-party-authored, so
 every maximal run of 3+ angle brackets in it is spaced out before
-interpolation (`_defuse_fence_markers`) — a body carrying the literal
-`<<<END_ATTACHED_MATERIAL>>>` marker can no longer close the fence early and
-have its remainder read as prompt instructions. The
+interpolation (`defuse_fence_markers`, shared from
+`devcase/provenance.py` beside `fenced_untrusted`) — a body carrying the
+literal `<<<END_ATTACHED_MATERIAL>>>` marker can no longer close the fence
+early and have its remainder read as prompt instructions. The same defusing
+runs over the App-master `CODEBASE_DOSSIER` body. Both fences are pinned by
+`pipeline/jobfit/tests/test_prompt_fences.py`, which drives each real prompt
+builder with a break-out payload and proves the assertion non-vacuous by
+re-running it with the defusing neutralised. The
 voice fast thread sees attachment TITLES only (latency budget); the periodic
 extraction thread (`extract_transcript`, via `/voice-complete`) carries the
 same fenced block with full bodies — it is where a voice session's materials

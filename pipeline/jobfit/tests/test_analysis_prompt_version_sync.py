@@ -126,8 +126,28 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # temperature/max_output_tokens, and the default engine (the same Gemini model on
 # the same key) are unchanged; only WHERE the provider choice is made moved. No
 # cached analysis output changed, so PROMPT_VERSION is intentionally NOT bumped.
+# NOTE (2026-08-30 — CV text cannot close its own prompt fence): re-recorded when
+# the blind CV block gained `defuse_fence_markers` (see docs/features/candidates
+# §7). Unlike every note above, this one is NOT a "no output changed" case, so it
+# is spelled out:
+#   * For any CV WITHOUT a run of 3+ angle brackets — effectively all of them —
+#     the assembled prompt is BYTE-IDENTICAL to before, so the cached analysis is
+#     exactly what the new code would produce. Nothing to invalidate.
+#   * For a CV that DOES carry such a run the prompt now differs, so its cached
+#     entry was produced under the OLD, breakable fence. That is the security-
+#     relevant subset: a CV that carried a break-out payload has a possibly
+#     poisoned analysis cached against its `cvBytes`, and re-analysis of the same
+#     bytes keeps serving it.
+# PROMPT_VERSION is deliberately NOT bumped here, and that is a DEFERRED OWNER
+# DECISION rather than a claim of safety. Bumping retires every cached analysis
+# for every candidate — a real, unbudgeted Gemini re-spend for self-hosted
+# operators — to retire a subset that only exists if someone actually uploaded a
+# marker-bearing CV before today. Closing the residual is a one-line bump of
+# PROMPT_VERSION in app/_lib/cache-key.ts plus EXPECTED_PROMPT_VERSION here;
+# tracked in docs/BACKLOG.md. If this repo has ever served untrusted CV uploads
+# from a public surface, bump it.
 EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "ebb1ace02265689527f1e14bf76a5fc16bc471dc5fecc47c56df704df6d2c3ab"
+EXPECTED_ANALYSIS_FINGERPRINT = "aaec637476830c73808554117d78c2967f55358f786ef20e2c6cd64fc669fa81"
 
 
 def _strip_ts_comments(text: str) -> str:
