@@ -97,6 +97,17 @@ const SECRET_EXEMPT = [/^\.env\.example$/, /^docs\//, /(^|\/)README\.md$/];
 // signal that actually matters here.
 const SELF_RE = /^scripts\/review\//;
 
+// …and the same reasoning covers PROSE. `docs/development/change-review.md` is the
+// rule table written out in words, so the row explaining `test-skip` contains the
+// literal `@unittest.skip` and the row explaining `suppression` contains
+// `eslint-disable`. On its first run this check blocked the very commit that
+// introduced its own documentation. A markdown file cannot hold a skipped test or
+// a live suppression — only a description of one — so the two CONTENT rules that
+// match on tokens alone skip prose. The secret rule deliberately does NOT: a key
+// pasted into a doc is still a leaked key, and it has SECRET_EXEMPT for the paths
+// where an example belongs.
+const PROSE_RE = /\.(md|mdx)$/i;
+
 // `CREATE TABLE` only means "a new persistent app table" inside the app's own
 // source. A temp table in a fixture, or the Worker's own D1 schema in edge/,
 // is not what the tenancy manifest governs.
@@ -158,7 +169,7 @@ export function runRules(files, context = {}) {
       }
 
       // --- 3. Skipped tests --------------------------------------------------
-      for (const marker of SKIP_MARKERS) {
+      for (const marker of PROSE_RE.test(p) ? [] : SKIP_MARKERS) {
         if (marker.re.test(text)) {
           out.push(
             finding(
@@ -176,7 +187,7 @@ export function runRules(files, context = {}) {
       }
 
       // --- 4. Suppression directives ----------------------------------------
-      for (const s of SUPPRESSIONS) {
+      for (const s of PROSE_RE.test(p) ? [] : SUPPRESSIONS) {
         if (s.re.test(text)) {
           out.push(
             finding(

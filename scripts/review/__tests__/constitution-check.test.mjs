@@ -94,6 +94,26 @@ check('a newly skipped Python test blocks', () => {
   assert.equal(sev(f, 'test-skip'), 'blocking');
 });
 
+// Prose describing the rules is not a violation of them. docs/development/change-review.md
+// is the rule table in words: its `test-skip` row contains a literal `@unittest.skip` and its
+// `suppression` row contains `eslint-disable`. On its first run this check blocked the very
+// commit that introduced its own documentation — the same self-reference SELF_RE already
+// guards for scripts/review/.
+check('a markdown file DESCRIBING a skipped test does not block', () => {
+  const f = rules(diff({ path: 'docs/development/change-review.md', added: ['| `test-skip` | blocking | a new `@unittest.skip` |'] }));
+  assert.ok(!has(f, 'test-skip'));
+});
+
+check('a markdown file DESCRIBING a suppression does not note', () => {
+  const f = rules(diff({ path: 'docs/x.md', added: ['A new `eslint-disable` is a note, never a block.'] }));
+  assert.ok(!has(f, 'suppression'));
+});
+
+check('a real skip in code still blocks after the prose carve-out', () => {
+  const f = rules(diff({ path: 'pipeline/jobfit/tests/test_y.py', added: ['@unittest.skip("flaky")'] }));
+  assert.equal(sev(f, 'test-skip'), 'blocking');
+});
+
 check('deleting a test file blocks', () => {
   const f = rules(diff({ path: 'app/_lib/a.test.ts', removed: ['it("x", () => {});'], isDeleted: true }));
   assert.equal(sev(f, 'test-deletion'), 'blocking');
