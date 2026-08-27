@@ -240,6 +240,8 @@ test("a build that ends `failed` is dispatched once more, and BOTH attempts are 
   const dispatched = [];
   const activate = activations([FAILED, ACTIVE]);
   const build = await buildWithRetry({
+    limitWaitMs: 1,
+    wait: async () => {},
     activate,
     dispatch: async (attempt) => dispatched.push(attempt),
     journal,
@@ -255,7 +257,9 @@ test("a build that ends `failed` is dispatched once more, and BOTH attempts are 
   // The dead build is still in the record — a run that passed on the retry must
   // not read like a clean first-try hire.
   assert.equal(build.failures.length, 1);
-  assert.deepEqual(build.failures[0], {
+  const { buildMs, ...failure } = build.failures[0];
+  assert.ok(typeof buildMs === "number" && buildMs >= 0, "each failure records how long the build ran — instant vs real deaths differ");
+  assert.deepEqual(failure, {
     attempt: 1,
     requestId: "req-1",
     hiredAgentId: "agent-1",
@@ -279,6 +283,8 @@ test("a TIMED-OUT activate is never retried — its build is still running", asy
   const timeout = new Error('poll("the hire to reach `active`") timed out after 5400000ms');
   await assert.rejects(
     buildWithRetry({
+    limitWaitMs: 1,
+    wait: async () => {},
       activate: activations([timeout, ACTIVE]),
       dispatch: async () => { dispatches += 1; },
       journal,
@@ -293,6 +299,8 @@ test("a terminal decision is not a flake: `rejected` and `retired` are never ret
   for (const terminal of ["rejected", "retired"]) {
     let dispatches = 0;
     const build = await buildWithRetry({
+    limitWaitMs: 1,
+    wait: async () => {},
       activate: activations([{ ok: false, terminal, ladder: ["onboarding", terminal], requestId: "req-9" }]),
       dispatch: async () => { dispatches += 1; },
       journal: recorder(),
@@ -309,6 +317,11 @@ test("the retry is ONE retry: a second failed build ends the run, with both fail
   const journal = recorder();
   let dispatches = 0;
   const build = await buildWithRetry({
+    limitWaitMs: 1,
+    wait: async () => {},
+    // These are REAL build deaths, not limit-window refusals — nothing here is
+    // "instant", so the wait-it-out third attempt must not fire.
+    instantFailureMs: 0,
     activate: activations([FAILED, { ...FAILED, requestId: "req-2", hiredAgentId: "agent-2" }]),
     dispatch: async () => { dispatches += 1; },
     journal,
@@ -327,6 +340,8 @@ test("the caller's accumulator survives a throw on the retry", async () => {
   const failures = [];
   await assert.rejects(
     buildWithRetry({
+    limitWaitMs: 1,
+    wait: async () => {},
       activate: activations([FAILED, new Error("poll timed out")]),
       dispatch: async () => undefined,
       journal: recorder(),
@@ -386,4 +401,34 @@ test("settle keeps polling past raw 'accounted' until the roster confirms a comm
     confirmOpened: async () => 0,
   });
   assert.equal(flat.stoppedBy, "stalled");
+});
+
+test("an instant double-failure earns exactly one waited-out extra attempt; a real build death does not", async () => {
+  const { buildWithRetry } = await import("./run.mjs");
+  // Instant failures (mock activate returns immediately) → after both regular
+  // attempts, one limit-window wait + attempt 3, which succeeds.
+  let dispatches = 0;
+  let waited = 0;
+  const b = await buildWithRetry({
+    activate: async (attempt) => (attempt >= 3 ? { ok: true, row: {}, ladder: [] } : { ok: false, terminal: "failed", requestId: `r${attempt}` }),
+    dispatch: async () => { dispatches++; },
+    wait: async (ms) => { waited = ms; },
+    limitWaitMs: 1234,
+  });
+  assert.equal(b.ok, true);
+  assert.equal(b.attempts, 3);
+  assert.equal(waited, 1234, "the extra attempt must wait out the window first");
+  // A slow (real) final failure gets no third attempt: simulate by faking a
+  // long buildMs via a delayed activate is impractical here, so assert the
+  // guard directly — instant flag requires buildMs < INSTANT_FAILURE_MS, and a
+  // second instant double-failure would not wait twice:
+  let waits = 0;
+  const c = await buildWithRetry({
+    activate: async () => ({ ok: false, terminal: "failed", requestId: "x" }),
+    dispatch: async () => {},
+    wait: async () => { waits++; },
+    limitWaitMs: 1,
+  });
+  assert.equal(c.ok, false);
+  assert.equal(waits, 1, "the limit-window wait is spent once per scenario, never looped");
 });

@@ -336,6 +336,14 @@ export function buildFailureReason(payload) {
  * attempt (a timeout on the retry, say) must not lose the record of the failure
  * that caused the retry in the first place.
  */
+/** A build that dies terminally within this window never really ran — a
+ *  session-limit refusal, not a design failure. Sweep #30: four scenarios'
+ *  builds died in ~25s BOTH attempts during a limit window and the sweep
+ *  burned itself out in two minutes. */
+export const INSTANT_FAILURE_MS = 90_000;
+/** How long to wait out a suspected limit window before the extra attempt. */
+export const LIMIT_WINDOW_WAIT_MS = 20 * 60_000;
+
 export async function buildWithRetry({
   activate,
   dispatch,
@@ -343,9 +351,15 @@ export async function buildWithRetry({
   reasonFor = async () => null,
   maxAttempts = MAX_BUILD_ATTEMPTS,
   failures = [],
+  wait = sleep,
+  limitWaitMs = LIMIT_WINDOW_WAIT_MS,
+  instantFailureMs = INSTANT_FAILURE_MS,
 }) {
+  let limitWaitSpent = false;
   for (let attempt = 1; ; attempt++) {
+    const startedAt = Date.now();
     const outcome = await activate(attempt);
+    const buildMs = Date.now() - startedAt;
     if (outcome?.ok) {
       return { ok: true, attempts: attempt, failures, row: outcome.row ?? null, ladder: outcome.ladder ?? [] };
     }
@@ -358,8 +372,23 @@ export async function buildWithRetry({
       terminal: outcome?.terminal ?? null,
       ladder: outcome?.ladder ?? [],
       reason,
+      buildMs,
     });
-    if (outcome?.terminal !== "failed" || attempt >= maxAttempts) {
+    const instant = outcome?.terminal === "failed" && buildMs < instantFailureMs;
+    if (outcome?.terminal !== "failed") {
+      return { ok: false, attempts: attempt, failures, terminal: outcome?.terminal ?? null, ladder: outcome?.ladder ?? [] };
+    }
+    if (attempt >= maxAttempts) {
+      // Both regular attempts spent. An INSTANT final failure earns one
+      // wait-it-out attempt — once per scenario, never for a real build death.
+      if (instant && !limitWaitSpent) {
+        limitWaitSpent = true;
+        journal?.write("limit-window-wait", { waitMs: limitWaitMs, attempt: attempt + 1, previousRequestId: requestId });
+        await wait(limitWaitMs);
+        journal?.write("build-retry", { attempt: attempt + 1, previousRequestId: requestId, reason: "instant terminal failure — suspected session-limit window, waited it out" });
+        await dispatch(attempt + 1);
+        continue;
+      }
       return { ok: false, attempts: attempt, failures, terminal: outcome?.terminal ?? null, ladder: outcome?.ladder ?? [] };
     }
     journal?.write("build-retry", { attempt: attempt + 1, previousRequestId: requestId, reason });
