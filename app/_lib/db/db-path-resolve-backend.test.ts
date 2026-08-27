@@ -12,6 +12,6 @@ test("resolveDbBackend returns 'sqlite' in a test run even when DATABASE_URL is 
   const result = resolveDbBackend({
     NODE_TEST_CONTEXT: "child-v8",
     DATABASE_URL: "postgresql://user:pass@host:5432/db",
-  });
+  } as NodeJS.ProcessEnv);
   assert.equal(result, "sqlite");
 });
