@@ -171,10 +171,16 @@ id at the fix site.
    byte-identical title. Persist the attached `jdSlug` as a `supersedes` pointer
    (attachments already carry it) and badge both rows. Do **not** block on the
    lineage concept-doc. (`L1-EVA-9` · `L1-TOM-6` convergent ×2, worse live; §2.7)
-8. **Voice extraction thread receives its attachments** — `--attachments-json` is
-   shipped and loaded, then dropped at `intake_cli.py:85`; `extract_transcript`
-   has no attachments parameter. One-line fix plus a prompt block. **Cannot be
-   `resolved-verified` until a keyed (OpenAI) host runs the recertify.**
+8. ~~**Voice extraction thread receives its attachments**~~ — SHIPPED 2026-08-25
+   (`8657b106`): `extract_transcript` takes `attachments` and fences them through
+   the same `_attachments_block` the text dialog uses, placed brief →
+   attachments → transcript; `intake_cli.py` forwards the parsed list and
+   `/voice-complete` forwards `intake.attachments` into
+   `runIntakeTranscriptExtract`. Covered by
+   `test_extraction_thread_carries_the_fence` (full bodies, `inferred` framing)
+   and `test_extraction_thread_without_attachments_has_no_fence`. Still **not
+   `resolved-verified`**: that needs a keyed (OpenAI) host to run the recertify —
+   the tests pin the prompt, not a live voice session.
    (`L1-EVA-8` · `L1-HRBP-14` convergent ×2; §2.8)
 9. **Keyless materials copy discloses before the ack** — the empty state promises
    mining unconditionally; offline the truth arrives only after attach+send.
