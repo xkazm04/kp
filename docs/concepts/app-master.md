@@ -230,3 +230,44 @@ in-mandate judgment was the most reliable component in the system.
    journey lane in the backbone (UAT-L1 per night on the worktree, L2 on merge
    candidates); ship = merged + gates + journey-green; screenshots/journey traces in its
    own loop so it can propose UX work.
+
+## 8. Memory — longevity via the Athena-hardened stores (2026-08-27)
+
+Registry consult: `agent-memory` (memory-governance, recall-injection, episodic-capture,
+consolidation). Personas already carries the hardened machinery (per-persona
+`persona_memories` with tiers core/active/working/archive, decay, supersedence, claims,
+proposal lane, operator UI; per-project `dev_memories` with idempotent writers and prompt
+renderers). The App master REUSES both — no new store. Today's gaps, verified: the
+unattended fleet worker's prompt carries **no recall of any kind**, and the App-master
+persona **accumulates nothing** across nights.
+
+Design (three integration points, all reuse):
+
+1. **Recall into the night** — the dispatch prompt gains two budgeted blocks:
+   project memory (`dev_memories::get_for_injection(project, 12)` → `render_for_prompt`
+   ≤1500 chars — parity with the runner arm) for every unattended dispatch, and, for
+   App-master projects, persona memory (`get_for_injection_v2(persona, 6 core, 60 active)`
+   → `pack_by_budget` ≤2000 chars, then `increment_access_batch`). Registry tiering:
+   core = always-include (kept tiny), active = relevance/recency workhorse.
+2. **Episodic write-back (auto-commit lane)** — reconcile events (branch recorded /
+   gated / merged / reverted) → idempotent `dev_memories::record`
+   (`source_kind="app_master_proposal"`); night outcomes and build-failure reasons →
+   persona `learned`/`constraint` (importance 2–3, tags `["night", <project>]`);
+   probation decisions incl. the anchorless path → `learned` importance 4. Nothing
+   self-writes `core`; agent-inferred claims about the OWNER go through the existing
+   proposal lane, never auto-commit (memory-governance).
+3. **Hire-time seeding + visibility (the kp connection)** — `execute_kp_hire_request`
+   seeds: one `core` identity memory (mission, rung, owner, budget — operator-stated via
+   the composed spec, provenance `kp_hire`); dossier facts (declared gates, hot spots,
+   risk areas) as `fact` rows in both stores (idempotent, tags `["dossier"]`);
+   objectives as `instruction`. The reporter rollup gains
+   `memory: {core, active, working, archived}` counts so kp's roster shows accumulated
+   experience — tenure made visible. The Personas memories UI works for the App-master
+   persona with zero new UI.
+
+What this buys the three thin lenses indirectly: declined ideas and review feedback
+persist (business judgment compounds), failed approaches persist (quality: no re-trying
+what already failed), repo/journey facts persist across hires on the same project
+(`dev_memories` outlives any one tenure). Known limits carried, not hidden:
+`dev_memories` has no tier/decay/UI; tag-filtered recall does not exist (client-side
+filter of the candidate pool for now).
