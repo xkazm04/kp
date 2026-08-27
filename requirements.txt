@@ -9,7 +9,7 @@ numpy==2.2.4
 # el_ws.py — the headless realtime driver — imports this at module level, so a
 # spoken-interview eval run fails at import without it. It was previously only
 # ever present transitively.
-websockets==15.0.1
+websockets==17.0.1
 
 pydantic==2.12.5
 google-genai==1.64.0
