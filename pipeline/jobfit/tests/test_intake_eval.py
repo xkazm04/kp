@@ -34,6 +34,41 @@ class IntakeEvalOfflineTest(unittest.TestCase):
         report, ok = run_eval(bank, no_llm=True, cap=30, color=False)
         self.assertTrue(ok, f"market-breadth intake eval failed:\n{report}")
 
+    def test_every_scenario_carries_both_standing_assertions(self) -> None:
+        # role_family and requirements_captured are CONDITIONAL in check_dialog:
+        # it emits them only when the scenario declares a family / dealbreakers,
+        # and run_eval's all(checks.values()) then passes over the smaller set.
+        # So a scenario added without those keys loses both assertions silently
+        # and still reports PASS. Both are meant to be STANDING coverage (B11,
+        # L2-NEW-2) — pin the declaration for every scenario in BOTH banks so
+        # the coverage cannot be dropped by omitting a key.
+        from pipeline.jobfit.eval.intake_scenarios_gen import fixed_bank
+
+        for label, bank in (("curated", load_scenarios()), ("generated", fixed_bank(100))):
+            for scenario in bank:
+                name = f"{label}:{scenario['name']}"
+                family = scenario.get("family") or (scenario.get("expect") or {}).get("role_family")
+                self.assertTrue(family, f"{name} declares no family — role_family would not be asserted")
+                self.assertTrue(
+                    scenario.get("dealbreakers"),
+                    f"{name} declares no dealbreakers — requirements_captured would not be asserted",
+                )
+
+    def test_undeclared_scenario_would_lose_both_assertions(self) -> None:
+        # Proves the guard above is load-bearing rather than decorative: strip
+        # the two declaring keys and check_dialog stops emitting both checks —
+        # a vacuous PASS. This is the failure the guard exists to prevent.
+        scenario = load_scenarios(["power_unit_backfill"])[0]
+        turns, brief, shape, done = simulate(None, None, scenario)
+        undeclared = {k: v for k, v in scenario.items() if k not in ("family", "dealbreakers")}
+        undeclared["expect"] = {k: v for k, v in (scenario.get("expect") or {}).items() if k != "role_family"}
+        checks = check_dialog(undeclared, turns, brief, shape, done)
+        self.assertNotIn("role_family", checks)
+        self.assertNotIn("requirements_captured", checks)
+        # …and the stripped scenario still "passes", which is exactly the hazard.
+        _, ok = run_eval([undeclared], no_llm=True, cap=30, color=False)
+        self.assertTrue(ok)
+
     def test_premature_end_is_caught(self) -> None:
         # A dialog whose agent emitted <<END>> mid-conversation must fail the
         # no_premature_end invariant — the check itself is load-bearing.

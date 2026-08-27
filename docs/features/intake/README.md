@@ -241,7 +241,11 @@ matches with non-default spine provenance (the software_engineering schema
 default cannot vacuously pass its own family), and `requirements_captured`
 asserts a transcript that stated a hard dealbreaker produced a non-empty
 `requirements[]` (the UAT L2-NEW-2 / L1-HRBP-17 regressions, standing since
-2026-08-25). Live mode runs both sides on the `role_intake`
+2026-08-25). Those two checks are emitted only for a scenario that declares
+those keys, so the declaration itself is pinned across BOTH banks by
+`test_every_scenario_carries_both_standing_assertions` — without it a scenario
+added without a `family` or `dealbreakers` would silently lose both assertions
+and still report PASS. Live mode runs both sides on the `role_intake`
 provider; live runs are single-sample probes (shape/turn-budget expectations
 go soft, the family/requirements checks stay hard), the offline mode is the
 gate.

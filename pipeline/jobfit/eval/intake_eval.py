@@ -50,6 +50,11 @@ Reliability invariants (all deterministic, all must hold):
                              pass on a brief that filed every stated condition
                              as prose and picked up one unrelated requirement.
 
+Those last two are emitted only when the scenario declares ``family`` and
+``dealbreakers``, so EVERY scenario in both banks must declare both — omitting
+a key would silently drop the assertion and still report PASS. Pinned by
+tests/test_intake_eval.py::test_every_scenario_carries_both_standing_assertions.
+
 Run: ``python -m pipeline.jobfit.eval.intake_eval --no-llm`` (offline) or
 without the flag for the live pass.
 """
