@@ -246,6 +246,20 @@ provider; live runs are single-sample probes (shape/turn-budget expectations
 go soft, the family/requirements checks stay hard), the offline mode is the
 gate.
 
+`requirements_captured` is checked **per stated condition**, not merely
+non-empty: `brief_core` already demands one must-have, so a bare
+`len(requirements) >= 1` could not fail unless `brief_core` failed too — it
+would pass on exactly the L2-NEW-2 shape (every stated dealbreaker filed as
+`dealbreaker_context` prose, one unrelated requirement picked up instead).
+`unrouted_dealbreakers` therefore asserts each declared dealbreaker got its own
+`requirements[]` row, matching the extraction contract's ROUTING clause
+(`intake.py` prompt v2 — "facets are never an alternative home"). Matching is
+tolerant in both directions, so a live agent narrowing "Flutter or React
+Native" to "Flutter" still passes; only prose is a miss. This pins the
+**routing** half of L2-NEW-2 — the reading half (`briefDealbreakerEvidence`
+tolerating both homes downstream) is deliberate defense in depth, not a licence
+for the extraction to skip the row.
+
 **Market-breadth bank**: `intake_scenarios_gen.py` generates a deterministic
 100-scenario bank spanning ALL 16 taxonomy role families × seniority ×
 need shape (backfill vs first-ever-role story) with concrete per-family

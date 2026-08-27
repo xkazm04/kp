@@ -40,10 +40,15 @@ Reliability invariants (all deterministic, all must hold):
                              organised by family; the software_engineering
                              schema default must not vacuously pass its own
                              family — UAT 2026-08-10 L1-HRBP-17 / B11).
-* ``requirements_captured``— a transcript that stated a hard dealbreaker
-                             produced a non-empty requirements[] (L2-NEW-2:
-                             live sessions filed hard conditions as facet
-                             prose and starved the requirements list).
+* ``requirements_captured``— every hard dealbreaker the transcript stated got
+                             its OWN requirements[] row (L2-NEW-2: live
+                             sessions filed hard conditions as facet prose and
+                             starved the requirements list). Per-condition, not
+                             merely non-empty: ``brief_core`` already demands
+                             one must-have, so a bare ``len(...) >= 1`` cannot
+                             fail unless ``brief_core`` fails too — it would
+                             pass on a brief that filed every stated condition
+                             as prose and picked up one unrelated requirement.
 
 Run: ``python -m pipeline.jobfit.eval.intake_eval --no-llm`` (offline) or
 without the flag for the live pass.
@@ -126,6 +131,26 @@ def simulate(
 # --- deterministic reliability checks --------------------------------------
 
 
+def unrouted_dealbreakers(dealbreakers: list[str], brief: Any) -> list[str]:
+    """Stated hard conditions that never got a requirements[] row of their own.
+
+    The extraction contract (``intake.py``, prompt v2) is explicit: a named
+    skill/tool/certification/licence the requestor calls required "MUST become
+    its OWN requirements[] row", and ``dealbreaker_context`` carries only the
+    STORY behind a condition — "facets are never an alternative home". The
+    downstream reader (``briefDealbreakerEvidence``) tolerates both homes as
+    defense in depth; this eval pins the routing half, which is what L2-NEW-2
+    actually broke.
+
+    Matching is tolerant in BOTH directions because a live agent legitimately
+    splits or narrows the stated phrase ("Flutter" for a stated "Flutter or
+    React Native", "Java 17" for a stated "Java"). What it must not do is
+    leave the condition as prose.
+    """
+    skills = [r.skill.lower() for r in brief.requirements if r.skill]
+    return [d for d in dealbreakers if not any(d.lower() in s or s in d.lower() for s in skills)]
+
+
 def check_dialog(
     scenario: dict,
     turns: list[dict],
@@ -188,8 +213,11 @@ def check_dialog(
             brief.role_family == family
             and brief.spine_provenance.get("role_family", "default") != "default"
         )
-    if scenario.get("dealbreakers"):
-        checks["requirements_captured"] = len(brief.requirements) >= 1
+    dealbreakers = [d for d in (scenario.get("dealbreakers") or []) if d]
+    if dealbreakers:
+        # Per-condition, not merely non-empty — see the module docstring: a
+        # bare len()>=1 is subsumed by brief_core and so can never fail alone.
+        checks["requirements_captured"] = not unrouted_dealbreakers(dealbreakers, brief)
     return checks
 
 

@@ -78,6 +78,55 @@ class IntakeEvalOfflineTest(unittest.TestCase):
         starved["requirements"] = []
         self.assertFalse(check_dialog(scenario, turns, starved, shape, done)["requirements_captured"])
 
+    def test_dealbreaker_filed_as_prose_is_caught(self) -> None:
+        # The check must be PER-CONDITION, not merely non-empty. A brief that
+        # kept one unrelated requirement while filing every stated dealbreaker
+        # as facet prose is exactly the L2-NEW-2 shape, and it satisfies both
+        # `len(requirements) >= 1` and brief_core — so a non-empty check could
+        # never catch it. The extraction contract (intake.py prompt v2) says
+        # each named condition MUST get its own row; assert that.
+        scenario = load_scenarios(["power_unit_backfill"])[0]
+        self.assertEqual(scenario["dealbreakers"], ["Java", "Spring", "Kafka"])
+        turns, brief, shape, done = simulate(None, None, scenario)
+        prose = dict(brief)
+        prose["requirements"] = [
+            {"skill": "team player", "kind": "must_have", "hardness": "learnable",
+             "weight": 0.5, "provenance": "stated", "confidence": 0.6}
+        ]
+        prose["facets"] = [
+            *(brief.get("facets") or []),
+            {"key": "dealbreaker_context", "label": "Must-haves",
+             "value": "Java, Spring and Kafka are non-negotiable", "importance": "core"},
+        ]
+        checks = check_dialog(scenario, turns, prose, shape, done)
+        self.assertTrue(checks["brief_core"], "the decoy must pass brief_core — that is the point")
+        self.assertFalse(checks["requirements_captured"])
+
+    def test_partially_routed_dealbreakers_are_caught(self) -> None:
+        # Two of three routed is still a dropped hard condition.
+        scenario = load_scenarios(["power_unit_backfill"])[0]
+        turns, brief, shape, done = simulate(None, None, scenario)
+        partial = dict(brief)
+        partial["requirements"] = [
+            r for r in brief["requirements"] if "kafka" not in str(r.get("skill", "")).lower()
+        ]
+        self.assertEqual(len(partial["requirements"]), 2)
+        self.assertFalse(check_dialog(scenario, turns, partial, shape, done)["requirements_captured"])
+
+    def test_narrowed_dealbreaker_phrasing_still_passes(self) -> None:
+        # Tolerant in both directions: a live agent that captures "Java 17" for
+        # a stated "Java", or "Flutter" for a stated "Flutter or React Native",
+        # has routed the condition — only prose is a miss.
+        scenario = load_scenarios(["cant_articulate_level"])[0]
+        turns, brief, shape, done = simulate(None, None, scenario)
+        self.assertIn("Flutter or React Native", scenario["dealbreakers"])
+        narrowed = dict(brief)
+        narrowed["requirements"] = [
+            {**r, "skill": "Flutter"} if r.get("skill") == "Flutter or React Native" else r
+            for r in brief["requirements"]
+        ]
+        self.assertTrue(check_dialog(scenario, turns, narrowed, shape, done)["requirements_captured"])
+
 
 if __name__ == "__main__":
     unittest.main()
