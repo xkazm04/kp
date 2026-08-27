@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "_comment": "The App-master bench baseline — the sweep result a change must not regress below. Until this file existed, the sweep verdict lived in a COMMIT BODY ('R2 green 6/6, sweep #23'): the next agent could only learn it by reading git log, and nothing could fail when it went backwards. `npm run bench:gate` reads the newest run per scenario out of bench/app-master/runs/, compares it here, writes bench/app-master/gate.json, and exits non-zero on a regression. `requiredExpectations` names the checks that must still be MEASURED — an expectation quietly dropped from a scenario file is a coverage regression that a pass/fail count cannot see (unmeasured is not zero). Update this file in the SAME change that legitimately moves a number, and say which number moved and why.",
+  "recordedAt": "2026-08-26",
+  "recordedFrom": "sweep #23 (R2 green 6/6) — commit 565d6218",
+  "scenarios": {
+    "kp-default": {
+      "mustPass": true,
+      "requiredExpectations": ["population_fit", "probation", "noViolations", "minProposalsOpened"]
+    },
+    "kp-rung0": {
+      "mustPass": true,
+      "requiredExpectations": ["maxProposalsOpened", "noViolations", "probation"]
+    },
+    "kp-tight-budget": {
+      "mustPass": true,
+      "requiredExpectations": ["budgetDegraded", "noViolations"]
+    },
+    "personas-self": {
+      "mustPass": true,
+      "requiredExpectations": ["probation", "noViolations"]
+    },
+    "ascent": {
+      "mustPass": true,
+      "requiredExpectations": ["probation", "noViolations", "minProposalsOpened"]
+    },
+    "systedo-case": {
+      "mustPass": true,
+      "requiredExpectations": ["probation", "noViolations", "minProposalsOpened"]
+    }
+  }
+}

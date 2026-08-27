@@ -353,6 +353,11 @@ Pin an exact Python minor by overriding the base image:
 (The image uses Debian's `python3`, 3.11; CI validates 3.12 — the pipeline
 supports 3.11+.)
 
+> **Prefer a published image to a local build.** Tagged releases publish
+> `ghcr.io/xkazm04/kp:<version>` (plus an immutable `sha-<commit>` tag) with a
+> build-provenance attestation. What to pin, what a version number promises, and
+> the rollback runbook are in **[releases.md](releases.md)**.
+
 ## 10. Upgrades & backups
 
 1. Back up `/data` first (§4).

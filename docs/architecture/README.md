@@ -5,10 +5,18 @@ map plus the material that used to sit at the bottom of the root README: the
 runtime shape, the source tree, the three default engines and the analysis
 pipeline stages.
 
+The contracts below say **what** each piece does.
+[**decisions/**](decisions/README.md) says **why** — one ADR per settled choice
+that looks surprising on purpose (the pinned canary Next line, one SQLite file,
+a spawned Python pipeline, keyless degradation, capability tokens, AGPL, and the
+rule that a repo law without a gate isn't a law). Read the relevant record before
+proposing to reverse one; each ends with what would change our mind.
+
 ## Contracts in this folder
 
 | Doc | Covers |
 | --- | --- |
+| [decisions/](decisions/README.md) | **Architecture decision records** — the reasoning behind the choices, and what would reopen them |
 | [llm-provider-layer.md](llm-provider-layer.md) | The multi-provider LLM wrapper: adapters, capability matrix, key storage, local model servers, benchmarks harness |
 | [llm-model-matrix.md](llm-model-matrix.md) | Dated judged quality grid — which model for which recruiter task |
 | [engine-setup.md](engine-setup.md) | Setting up the default engines: Claude subscription via the CLI, the ElevenLabs agent, env notes that surprise people |
@@ -16,6 +24,7 @@ pipeline stages.
 | [result-caching.md](result-caching.md) | Analyze-route result cache: key, store, invalidation |
 | [postgres-backend.md](postgres-backend.md) | The Postgres persistence backend and the portability path |
 | [self-hosting.md](self-hosting.md) | Docker / Helm / bare `next start`, air-gap, the edge, production checklist |
+| [releases.md](releases.md) | What an operator pins to, the versioning contract, how a tag becomes an image, and the rollback runbook |
 | [app-structure.md](app-structure.md) | Rules and live tree of `app/features/**` |
 | [localization.md](localization.md) | The four-locale contract |
 | [voice-conversation-plane.md](voice-conversation-plane.md), [voice-tts-package.md](voice-tts-package.md) | The two voice planes: live conversation and spoken output |

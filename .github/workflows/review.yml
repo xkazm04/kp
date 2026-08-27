@@ -1,0 +1,132 @@
+# Something reads every change back.
+#
+# THE GAP THIS CLOSES: ~90% of commits in this repository are AI-written. CI
+# proves the result compiles, lints, typechecks and passes its tests — it has
+# never once asked whether the change does what its message says, whether it
+# quietly widened its own scope, or whether it reversed a decision that was
+# made on purpose. That judgement lived in one maintainer's head and did not
+# scale with agent throughput.
+#
+# TWO LENSES, and the distinction is the point:
+#
+#   constitution  DETERMINISTIC. Regex over the diff for the moves that make a
+#                 gate stop meaning anything: a skipped or deleted test, a
+#                 `.only`, a suppression directive, a RAISED KP_SKIP_BASELINE, a
+#                 new API route with no stated auth posture, a new table that
+#                 never reached the tenancy manifest, a committed credential.
+#                 No key, no network, under a second. RUNS ON EVERY PUSH AND PR
+#                 AND BLOCKS THE MERGE. Escape hatch is a commit trailer
+#                 (`Gate-exemption: <why>`) — a sentence a reviewer can read and
+#                 disagree with, not a suppression flag.
+#
+#   agent-review  JUDGEMENT. Hands the diff to Claude with THIS repository's own
+#                 rules as the rubric (assembled by scripts/review/rubric.mjs
+#                 from .claude/CLAUDE.md and docs/architecture/decisions/, so
+#                 there is no second copy to drift). Posts its findings as a PR
+#                 comment and fails only on a `blocking` finding, which the
+#                 prompt reserves for a NAMED rule with a cited line.
+#
+# HOW TO TELL THE SECOND LENS IS REAL RATHER THAN DECORATIVE: it needs
+# `ANTHROPIC_API_KEY` in repository secrets. Without it the job runs anyway and
+# prints "THE JUDGEMENT LENS DID NOT RUN" in the summary — loudly, rather than
+# passing quietly. A green check that means "not reviewed" is worse than a red
+# one. The deterministic lens gates the change either way.
+#
+# Locally, `npm run review:agent` uses the `claude` CLI — the default provider
+# for this repo — so a maintainer gets the same review with no key at all.
+name: Review
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: review-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  constitution:
+    name: Constitution (deterministic, blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Full history: the lens diffs against the PR base. A shallow clone
+          # would silently degrade every run to "no comparable base" and the
+          # gate would pass without having looked at anything.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      # No `npm ci` — the lens is dependency-free node:* + git.
+      - name: Read the change back
+        run: |
+          BASE="${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}"
+          set +e
+          node scripts/review/constitution-check.mjs --base "$BASE" --head HEAD | tee constitution.txt
+          STATUS=${PIPESTATUS[0]}
+          set -e
+          {
+            echo '### Constitution check'
+            echo
+            echo '```'
+            cat constitution.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
+  agent-review:
+    name: Agent review (judgement)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write # post the review as a PR comment
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      - name: Review the diff against this repo's own rules
+        id: review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Sonnet by default: this runs on every PR, and the rubric work is
+          # judgement over a bounded diff rather than deep synthesis. Override
+          # per-repo with the KP_REVIEW_MODEL variable.
+          KP_REVIEW_MODEL: ${{ vars.KP_REVIEW_MODEL || 'claude-sonnet-5' }}
+        run: |
+          BASE="${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}"
+          set +e
+          node scripts/review/agent-review.mjs --base "$BASE" --head HEAD --out review.md | tee review-stdout.txt
+          # $? here would be tee's. PIPESTATUS[0] is the reviewer's own verdict:
+          # 0 clean or lens unavailable · 1 blocking finding · 2 the lens broke.
+          echo "status=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+          set -e
+          if [ -f review.md ]; then cat review.md >> "$GITHUB_STEP_SUMMARY"; else cat review-stdout.txt >> "$GITHUB_STEP_SUMMARY"; fi
+
+      # Only when the lens actually produced a review, and only on a PR.
+      - name: Post the review on the pull request
+        if: github.event_name == 'pull_request' && hashFiles('review.md') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file review.md
+
+      # A `blocking` finding fails the job. Exit 2 means the lens itself broke
+      # (bad key, unparsable reply) — surfaced as a failure too, because a
+      # reviewer that errors and reports success is the failure mode this whole
+      # workflow exists to avoid.
+      - name: Enforce the verdict
+        run: exit "${{ steps.review.outputs.status }}"

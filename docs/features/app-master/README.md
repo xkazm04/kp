@@ -1112,6 +1112,41 @@ this bench measures whether the record is *readable*, so a lane nobody reported
 renders as a dash plus a named reason, never as a zero that reads like a clean
 run.
 
+### The verdict lives in a file, not in a commit body
+
+`REPORT.md` is written for a human. The durable outcome of a sweep had been
+landing in commit messages ("R2 green 6/6, sweep #23"), which costs twice: the
+next agent can only learn the current standing by reading `git log` and trusting
+the prose, and **nothing fails when the number goes backwards**.
+
+```bash
+npm run bench:app-master     # the sweep
+npm run bench:gate           # the verdict
+```
+
+[`gate.mjs`](../../../scripts/app-master-bench/gate.mjs) reads the newest
+`result.json` per scenario, compares it against the committed baseline
+[`scripts/app-master-bench/baseline.json`](../../../scripts/app-master-bench/baseline.json),
+writes `bench/app-master/gate.json`, and **exits non-zero on a regression**. It
+counts four things as a regression:
+
+| | |
+| --- | --- |
+| `missing` | a baselined scenario has no run in the sweep — not a pass |
+| run incomplete | `result.ok` is false; the failed phase is named |
+| expectation failed | any `expectations[].ok === false`, with its delta |
+| expectation **unmeasured** | a check the baseline requires is absent from the record — a check quietly dropped from a scenario file is a coverage regression a pass/fail count cannot see |
+
+A scenario in the sweep but not in the baseline is reported as `unbaselined` and
+does **not** fail: a new scenario lands before its number is trusted. It is
+printed loudly so nobody reads silence as coverage.
+
+`baseline.json` is pinned to the committed scenarios by `gate.test.mjs` (in
+`npm run test:bench-driver`, now a CI step) in both directions: every baselined
+scenario must have a scenario file, and every `requiredExpectations` name must
+actually be declared in that scenario's `expect` block. Moving a number is
+allowed — edit the baseline in the same change and say which number moved.
+
 ### Honesty properties, and what stays unmeasured
 
 - **`--stub-personas` numbers are canned.** The stub

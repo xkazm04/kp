@@ -9,6 +9,7 @@ still proposed.
 | --- | --- |
 | What the product does today | [features/](features/README.md) |
 | Cross-cutting implementation contracts | [architecture/README.md](architecture/README.md) — runtime shape, source tree, engines, pipeline stages, and the per-concern docs |
+| **Why it is this way** — the settled decisions | [architecture/decisions/](architecture/decisions/README.md) — ADRs for the choices that look surprising on purpose |
 | Design system, tokens, both themes | [design/README.md](design/README.md) |
 | How to build, test, evaluate, calibrate | [development/README.md](development/README.md) — verification commands, eval harness, model benchmarks, CLI reference, DevInspector, logging |
 | Market position, roadmap, enterprise track | [product/](product/) — including the [salary data sources](product/salary-data-sources.md) the anchor bands were calibrated against |
@@ -48,15 +49,37 @@ One deliberate exception: [`TAXONOMY_COVERAGE.md`](TAXONOMY_COVERAGE.md) stays a
 of `docs/` because `pipeline/jobfit/taxonomy_check.py` hardcodes that path as its report
 output and a test gate fails when it drifts. It is generated, not written.
 
+## Decisions vs. descriptions
+
+`features/` and `architecture/` say **what the code does**.
+[`architecture/decisions/`](architecture/decisions/README.md) says **why it is
+allowed to be this way** — one record per settled choice, each ending in the
+observation that would reopen it.
+
+The split matters because an agent scoping a change reads files, not `git log`.
+Before this directory existed, "SQLite, not Postgres" and "spawn Python, don't
+run a service" were justified only in commit bodies, which is the same as not
+being justified at all for anyone who arrives later. When a change would reverse
+a record, argue with the record — add a superseding ADR — rather than editing
+around it.
+
 ## Keeping docs in sync with code
 
-A Stop hook — [`scripts/docs/check-doc-sync.mjs`](../scripts/docs/check-doc-sync.mjs),
-registered in `.claude/settings.json` — watches for the drift that made this
-reorganization necessary. When a turn edits source mapped in
-[`scripts/docs/feature-doc-map.json`](../scripts/docs/feature-doc-map.json) without
-touching any doc under `features/`, `architecture/`, or `design/`, it names the doc that
-probably went stale.
+Three mechanisms, deliberately layered from cheapest to strictest:
 
-Update the doc in the same change, or dismiss it in one sentence when the change really
-was internal-only. Full contract in [`.claude/CLAUDE.md`](../.claude/CLAUDE.md)
-("Documentation Sync"). Fixtures: `node scripts/docs/__tests__/check-doc-sync.test.mjs`.
+1. **The Stop hook** — [`scripts/docs/check-doc-sync.mjs`](../scripts/docs/check-doc-sync.mjs),
+   registered in `.claude/settings.json`. When an agent turn edits source mapped in
+   [`scripts/docs/feature-doc-map.json`](../scripts/docs/feature-doc-map.json) without
+   touching any doc under `features/`, `architecture/`, or `design/`, it names the doc
+   that probably went stale. A nudge, in conversation, immediately.
+2. **The CI gate** — [`scripts/docs/check-doc-sync-diff.mjs`](../scripts/docs/check-doc-sync-diff.mjs)
+   (`npm run docs:check:diff`) applies the *same* rule to the git range, so the
+   obligation survives a human commit, a bot PR, or a dismissed reminder. Its escape
+   hatch is a commit trailer — `Doc-sync: internal-only — <why>` — which a reviewer can
+   read and disagree with.
+3. **The ADR gate** — [`scripts/docs/check-adrs.mjs`](../scripts/docs/check-adrs.mjs)
+   (`npm run docs:check`) fails when a decision record names a `sources:` path that no
+   longer exists, or when the index and the records disagree.
+
+Full contract in [`.claude/CLAUDE.md`](../.claude/CLAUDE.md) ("Documentation Sync").
+Fixtures for all three: `npm run test:docs`.

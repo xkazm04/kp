@@ -63,6 +63,29 @@ behaviours, not bugs — see [`docs/architecture/self-hosting.md`](./docs/archit
 - Candidate consent gates PII reads and expires on a configurable TTL; erasure
   runs as one transaction across transcripts, scorecards and the outbox.
 
+## What runs automatically
+
+The duty of care above is enforced by machinery, not by remembering. All of it
+lives in [`.github/`](./.github) and runs on every push and pull request:
+
+| Check | Where | Fails the build when |
+| --- | --- | --- |
+| CodeQL (`security-extended`) over TypeScript **and** the Python pipeline | [`workflows/security.yml`](./.github/workflows/security.yml) | a new alert appears on the change; results land in the Security tab |
+| `npm audit` | same | a **critical** advisory exists in the npm tree (high and below are reported to the run summary and triaged as Dependabot PRs) |
+| `pip-audit` over the resolved Python environment | same | any advisory affects an installed package |
+| Dependency update PRs — npm (root + `edge/`), pip, GitHub Actions | [`dependabot.yml`](./.github/dependabot.yml) | n/a — it opens PRs; CI decides whether they land |
+
+Two deliberate choices worth stating:
+
+- **No `ignore` rules in `dependabot.yml`.** A GitHub ignore rule silences
+  security updates as well as version updates, so muting a deliberately-pinned
+  package (`next` is pinned exactly, in lockstep with `eslint-config-next`)
+  would suppress exactly the alerts that matter most. Pins are defended in
+  review instead.
+- **Every workflow declares `permissions:`.** `GITHUB_TOKEN` is read-only by
+  default in this repository's CI; only the CodeQL job widens it, and only to
+  `security-events: write` so it can upload its SARIF result.
+
 ## Supported versions
 
 This is a young project on a single release line. Security fixes land on `main`

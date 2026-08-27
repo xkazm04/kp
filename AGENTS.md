@@ -27,3 +27,19 @@ Everything else — commit rules for this shared checkout (pathspec-only
 staging), the design-token and locale-parity gates, keyless e2e setup,
 doc-sync obligations — is stated once in `.claude/CLAUDE.md`; follow it as
 written there.
+
+## Before you reverse something surprising
+
+Several choices here look wrong until you know why they were made: a pinned
+canary Next line, one SQLite file instead of a database server, a Python
+pipeline **spawned per request** rather than run as a service, deterministic
+fallbacks that exist even though "everyone has an API key".
+
+Each of those is a written decision with its own record in
+**[`docs/architecture/decisions/`](./docs/architecture/decisions/README.md)** —
+read the relevant one before proposing to undo it. Every record ends with the
+concrete observation that *would* reopen it, so disagreeing is a supported move;
+doing it silently is not.
+
+Records are machine-checked: `npm run docs:check` fails when an ADR's
+`sources:` paths no longer exist or the index drifts from the records.

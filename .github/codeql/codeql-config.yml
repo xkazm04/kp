@@ -1,0 +1,26 @@
+name: kp CodeQL config
+
+# `security-extended` over the default pack: this codebase's risk surface is
+# candidate PII moving through API route handlers and a SPAWNED Python process
+# (app/_lib/python-runner.ts -> pipeline/jobfit/*). The extended pack is where
+# the command-injection, path-traversal and unsafe-deserialization queries that
+# match that shape live. Quality queries are deliberately NOT enabled — eslint
+# and ruff already own style, and mixing them in buries the security findings.
+queries:
+  - uses: security-extended
+
+paths-ignore:
+  # Build output and vendored trees — never our source.
+  - .next
+  - node_modules
+  - "**/node_modules"
+  # Seed corpora and sample CVs: data, not code. A "hardcoded credential"
+  # finding on a fixture is noise that trains people to ignore the tool.
+  - data
+  - samples
+  # Fixed art direction, no data handling (see .claude/CLAUDE.md — this is the
+  # one directory exempt from the design-token law, and it is presentational).
+  - app/landing
+  # Generated schema bridges: fix the generator (pipeline/jobfit/codegen), not
+  # the output.
+  - "**/*.generated.ts"

@@ -12,6 +12,16 @@ on:
   push:
   pull_request:
 
+# Least privilege for GITHUB_TOKEN. Without this block GitHub hands every job
+# the repository default, which on many repos is write-all: a compromised
+# postinstall script in any transitive dependency would then be running with a
+# token that can push to main. Nothing in this workflow writes anything — it
+# reads the tree, compiles it and runs tests — so `contents: read` is the whole
+# requirement. Add a narrower per-JOB `permissions:` if a future job needs more;
+# never widen it here.
+permissions:
+  contents: read
+
 # A force-push or rapid push train shouldn't queue stale runs.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
@@ -74,11 +84,77 @@ jobs:
       # design:check above.
       - run: npm run i18n:check
 
+      # Decision-record integrity (docs/architecture/decisions/): every ADR's
+      # `sources:` path must still exist and the index must agree with the
+      # records. An ADR that names a moved file reads as current and sends the
+      # next agent to a path that is gone — the same drift class that forced the
+      # docs/ reorganisation, caught mechanically this time.
+      - run: npm run docs:check
+
+      # Release coherence: package.json <-> the chart's appVersion <-> a
+      # CHANGELOG section for the current version. Runs on EVERY push, not only
+      # on a tag, so the three cannot drift apart between releases — an operator
+      # who pins the chart's appVersion must be getting the version whose notes
+      # they read. See docs/architecture/releases.md.
+      - run: npm run release:check
+
+      - run: npm run test:release
+
+      # Fixtures for both doc scripts (the doc-sync hook and the ADR gate).
+      # They are .mjs under scripts/, so `npm run test:unit`'s app/**/*.test.ts
+      # glob never saw them — the hook that guards doc drift was itself ungated.
+      - run: npm run test:docs
+
+      # Fixtures for the review lenses (scripts/review/). Kept next to the other
+      # .mjs fixtures for the same reason: the tools that judge changes have to
+      # be judged by something too.
+      - run: npm run test:review
+
+      # The App-master bench driver's own tests (scripts/app-master-bench/*.test.mjs).
+      # They are dependency-free node:test files that were never in CI: the harness
+      # that measures whether an agent can be trusted with this repo was itself
+      # unmeasured. Includes gate.test.mjs, which pins the committed bench baseline
+      # to the committed scenarios.
+      - run: npm run test:bench-driver
+
       - run: npm run test:unit
 
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+
+  # Doc-sync over the CHANGE, not over the agent transcript.
+  #
+  # scripts/docs/check-doc-sync.mjs is a Stop hook: it reads one agent session's
+  # transcript on one machine. A human commit, a Dependabot PR, a different tool,
+  # or an agent that simply dismissed the reminder all land with the coupled doc
+  # untouched and nothing notices. This job applies the same pure rule to the git
+  # range, which is what makes the obligation checkable instead of trusted.
+  #
+  # WHEN IT FAILS: update the named doc, or state the exemption in a commit body
+  # as `Doc-sync: internal-only — <why>`. The dismissal is a line a reviewer can
+  # read and disagree with, not a suppression flag.
+  doc-sync:
+    name: Doc sync (changed source vs coupled doc)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Need real history: the check diffs against the PR base (or HEAD~1 on
+          # a push). A shallow clone would degrade every run to "no comparable
+          # base" and the gate would pass vacuously.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      # No `npm ci` — the script is dependency-free node:* + git.
+      - name: Check doc sync over the range
+        run: |
+          BASE="${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}"
+          node scripts/docs/check-doc-sync-diff.mjs --base "$BASE" --head HEAD
 
   # Gated Python unittest suite (pipeline/jobfit/tests/run_gated.py): fails when
   # the skip count exceeds the baseline, so a critical test can't silently stop
@@ -126,6 +202,35 @@ jobs:
           #   = 5. The gate trips on skips > 5, so any NEW skip fails the build.
           # Bump deliberately (with a derivation edit) when adding a tolerated skip.
           KP_SKIP_BASELINE: "5"
+
+      # AI-BEHAVIOUR EVALS AS A GATE, not as something someone remembers to run.
+      #
+      # Only the two suites that are DETERMINISTIC AND KEYLESS are gated here —
+      # a red result from either is always a real regression, never a provider
+      # having a bad day:
+      #
+      #   matching_eval --strict     needs no API key by construction (its
+      #     header says so): synthetic profiles routed and matched against the
+      #     committed job corpus. It also carries the FAIRNESS probes — pedigree
+      #     exclusion, socioeconomic inclusion, language neutrality, potential
+      #     monotonicity — which is the part of this product that most deserves
+      #     a gate rather than a periodic look.
+      #
+      #   automation_eval --no-llm --strict   the deterministic-fallback path:
+      #     every automation task's keyless answer plus the hard reliability
+      #     invariants (screening never auto-rejects an early-career candidate,
+      #     rejection text carries no protected-characteristic language). This
+      #     also certifies ADR 0004 — keyless degradation is a product property.
+      #
+      # Deliberately NOT gated: `test:eval:strict` (the Gemini golden set) and
+      # `bench:app-master` (needs a live server + Personas). Those stay
+      # on-demand; the bench's verdict is kept honest by `npm run bench:gate`
+      # against scripts/app-master-bench/baseline.json instead.
+      #
+      # Cost: both are pure-Python over committed fixtures, in the job that has
+      # already paid for the dependency install.
+      - name: Deterministic AI-behaviour evals (keyless, strict)
+        run: npm run test:eval:ci
 
   # Deterministic, KEY-FREE e2e subset — the follow-up the header note promised.
   # Runs only the specs that need no live LLM/provider keys (modal-escape,

@@ -1,0 +1,129 @@
+# Dependency updates for kp.
+#
+# WHY THIS EXISTS: until now, CVE discovery here was a human reading an
+# advisory feed. The `next` 16.3.3 bump (commit 9ccdea4, two critical
+# unauthenticated RCEs) was caught by hand — that is a race this project loses
+# eventually, and SECURITY.md promises candidates better than that.
+#
+# Dependabot opens a PR; CI (.github/workflows/ci.yml) is what decides whether
+# it may land. Nothing here merges anything.
+#
+# Grouping is deliberate: one PR per coherent upgrade unit, so a bump that must
+# move in lockstep (next + eslint-config-next) never arrives as two half-PRs
+# that each fail typecheck on their own.
+#
+# NOTE ON `ignore`: this file has none, on purpose. A GitHub `ignore` rule
+# suppresses SECURITY updates too, so ignoring the deliberately-pinned packages
+# would silence exactly the alerts this project most needs. Pins are defended in
+# review (see docs/architecture/decisions/), not by muting the bot.
+version: 2
+
+updates:
+  # --- Node app (repo root) -------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Prague
+    open-pull-requests-limit: 8
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps(dev)"
+      include: scope
+    labels:
+      - dependencies
+    groups:
+      # next + its eslint config are version-locked to each other (package.json
+      # pins both at the same exact version). Splitting them turns a green bump
+      # into a red one.
+      next:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "react-is"
+          - "@types/react"
+          - "@types/react-dom"
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
+          - "postcss"
+          - "autoprefixer"
+      # Everything else that is not a runtime dependency: one PR a week.
+      dev-minor-patch:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+
+  # --- Cloudflare Worker (edge/) -------------------------------------------
+  # Separate manifest, separate runtime (workerd). Its own PR stream so a
+  # Worker bump never rides along with an app bump.
+  - package-ecosystem: npm
+    directory: "/edge"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Prague
+    open-pull-requests-limit: 4
+    commit-message:
+      prefix: "deps(edge)"
+      include: scope
+    labels:
+      - dependencies
+      - edge
+
+  # --- Python jobfit pipeline ----------------------------------------------
+  # requirements.txt is fully pinned by policy (see its header), which is
+  # exactly the shape Dependabot handles well: every bump is an explicit,
+  # reviewable pin change.
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Prague
+    open-pull-requests-limit: 6
+    commit-message:
+      prefix: "deps(python)"
+      include: scope
+    labels:
+      - dependencies
+      - python
+    groups:
+      llm-sdks:
+        patterns:
+          - "anthropic"
+          - "openai"
+          - "google-genai"
+
+  # --- GitHub Actions -------------------------------------------------------
+  # ci.yml pins every action to a full commit SHA. Dependabot understands that
+  # form and rewrites both the SHA and the trailing `# vX.Y.Z` comment, so the
+  # pinning discipline survives its updates instead of being undone by them.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Prague
+    open-pull-requests-limit: 4
+    commit-message:
+      prefix: "ci(actions)"
+      include: scope
+    labels:
+      - dependencies
+      - github-actions
+    groups:
+      actions:
+        patterns:
+          - "*"

@@ -6,6 +6,7 @@ the tooling that only exists in dev builds, and the command-line entry points.
 | Doc | Covers |
 | --- | --- |
 | [testing-and-evaluation.md](testing-and-evaluation.md) | The verification commands, what each suite covers, the 14-fixture golden-set eval and its thresholds |
+| [change-review.md](change-review.md) | The two lenses that read a change back — a deterministic gate-integrity pass and an LLM review against this repo's own rules |
 | [benchmarks.md](benchmarks.md) | Dated model benchmark (2026-08-05): judged quality, reliability and economics across commercial and open models |
 | [cli-reference.md](cli-reference.md) | `scripts/*.py` analysis CLIs and the `python -m pipeline.jobfit.*` operational CLIs |
 | [dev-inspector.md](dev-inspector.md) | DevInspector — click a component, copy its `File.tsx:line` |

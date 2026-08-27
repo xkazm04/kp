@@ -27,7 +27,16 @@ done
 
 [ "$targets_main" = "1" ] || exit 0
 
-echo "pre-push: push targets main — running the gate (typecheck, lint, design, build)..." >&2
+echo "pre-push: push targets main — running the gate (constitution, typecheck, lint, design, build)..." >&2
+
+# The deterministic review lens runs FIRST because it is the cheapest and the
+# only one that reads the change rather than the result: a skipped test, a
+# `.only`, a raised skip baseline, a new route with no auth posture, a new table
+# that never reached the tenancy manifest, a committed credential. Sub-second,
+# no key, no network. Waive an individual finding with a `Gate-exemption: <why>`
+# trailer in the commit body, not by removing this line.
+node scripts/review/constitution-check.mjs --base "origin/main" --head HEAD \
+  || { echo "pre-push: constitution check failed — push blocked." >&2; exit 1; }
 
 npm run typecheck || { echo "pre-push: typecheck failed — push blocked." >&2; exit 1; }
 npm run lint      || { echo "pre-push: lint failed — push blocked." >&2; exit 1; }
