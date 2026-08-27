@@ -271,3 +271,29 @@ what already failed), repo/journey facts persist across hires on the same projec
 (`dev_memories` outlives any one tenure). Known limits carried, not hidden:
 `dev_memories` has no tier/decay/UI; tag-filtered recall does not exist (client-side
 filter of the candidate pool for now).
+
+## 9. Program close-out (2026-08-27, sweep #31) — reconciliation against the vision
+
+Stopped deliberately after 31 sweeps / ~45 headless hires / 4 repos to rethink the approach.
+Scorecard against the original four-part vision: **(a) role standard ~85%** (rubric
+retranslation-tested, two theses empirically corrected — full-autopilot probation, rung-0 as
+observation role; memory completes it; the HUMAN population never exercised), **(b) intake
++ codebase scan ~90%** (end-to-end incl. keyless honesty; dossier body not on the wire; no
+live human ever sat the dialog), **(c) operate within Personas: exceeded** (mandate/budget
+enforcement proven live, worktree authoring, tenure-scoped honest rollups,
+baseline-relative gates, memory; shipped to GitHub master 4119b2be0), **(d) rings: 1 ✅
+(4/4 #22), 2 ✅ (6/6 #23, memory-live 5/6 #28), 3 ✗ never started.**
+
+What the sweeps proved: integrity solved (0 violations in 31 sweeps; every trap incl. the
+undetectable one answered by real fixes); truthful measurement solved (delivery=commits,
+baseline-relative gates, tenure windows, unmeasured named); mocks lie (3 wire contracts
+died on first live contact; ~40 defects found, ~35 of them harness/measurement — the agent
+was never the problem).
+
+Gaps, in leverage order, for the next approach: (1) **nothing ever ships** — no review/merge
+surface, merged/durability never read, probation never `activated`, ~15 unreviewed branches;
+(2) **value ledger never measured** — kpiDeltas.measured false in every rollup ever;
+(3) **C1 untested** — all work was seeded; unseeded nights graded against the operator's
+backlog is the exam; (4) **no journey/UX lane** — the owner never sees its product;
+(5) human population, Ring 3, and bench-machine fragility (limit windows, sleep, shared
+checkouts).
