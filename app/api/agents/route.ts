@@ -22,6 +22,19 @@ import { AUTOPILOT_MODES, type AutopilotMode } from "@/app/_lib/agent-hire/repor
 //                 just-dispatched App master has no record, and rendering one
 //                 out of six absent counters would be six fabricated zeroes.
 
+/** Memory tier counts the rollup last reported (M3) — pass-through of the
+ *  trust-boundary-validated shape; null when never reported. */
+function memoryOf(raw: unknown): { core: number; active: number; working: number; archived: number } | null {
+  const m = (raw as { memory?: unknown } | null)?.memory;
+  if (!m || typeof m !== "object" || Array.isArray(m)) return null;
+  const o = m as Record<string, unknown>;
+  const n = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x >= 0 ? x : null);
+  const core = n(o.core), active = n(o.active), working = n(o.working), archived = n(o.archived);
+  return core === null || active === null || working === null || archived === null
+    ? null
+    : { core, active, working, archived };
+}
+
 /** The autopilot mode a rollup last reported, if it named a valid one. */
 function autopilotOf(raw: unknown): AutopilotMode | null {
   const mode = (raw as { autopilotMode?: unknown } | null)?.autopilotMode;
@@ -62,6 +75,9 @@ export async function GET() {
           // reported, never from the spec kp dispatched — a spec saying
           // "probation ⇒ suggest" is an intention; the rollup is the reading.
           autopilotMode: autopilotOf(latest?.raw),
+          // Accumulated experience: persona-memory tier counts (M3). Tenure
+          // made visible — a veteran hire and a day-one hire read differently.
+          memory: memoryOf(latest?.raw),
         },
         backbone,
         // The per-objective readings behind the backbone's `objectives` rule.

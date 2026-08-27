@@ -7881,6 +7881,10 @@
           "incomplete": "Not enough was measured",
           "fail": "Below the bar"
         }
+      },
+      "memory": {
+        "chip": "memory {counts}",
+        "title": "Persona memory the agent carries: pinned core beliefs plus its scored working set. Reported by Personas with each rollup."
       }
     },
     "status": {

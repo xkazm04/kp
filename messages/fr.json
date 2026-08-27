@@ -7881,6 +7881,10 @@
           "incomplete": "Trop peu de choses mesurées",
           "fail": "En deçà du niveau attendu"
         }
+      },
+      "memory": {
+        "chip": "mémoire {counts}",
+        "title": "Mémoire de persona portée par l'agent : convictions fondamentales épinglées et ensemble de travail noté. Rapportée par Personas à chaque bilan."
       }
     },
     "status": {

@@ -7881,6 +7881,10 @@
           "incomplete": "Zu wenig gemessen",
           "fail": "Unter der Messlatte"
         }
+      },
+      "memory": {
+        "chip": "Gedächtnis {counts}",
+        "title": "Persona-Gedächtnis des Agenten: angeheftete Kernüberzeugungen plus bewerteter Arbeitsbestand. Von Personas mit jedem Rollup gemeldet."
       }
     },
     "status": {

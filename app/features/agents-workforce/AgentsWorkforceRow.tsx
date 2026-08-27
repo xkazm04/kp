@@ -18,6 +18,7 @@ import {
   specConnectors,
   STATUS_BADGE,
   topConnectors,
+  memoryChip,
   type AgentRosterEntry,
 } from "./agentsWorkforceLogic";
 
@@ -99,6 +100,13 @@ export function AgentsWorkforceRow({
             {appMaster?.autopilotMode ? (
               <span className={CHIP_QUIET}>
                 {t(`appMaster.autopilot.${appMaster.autopilotMode}` as Parameters<typeof t>[0])}
+              </span>
+            ) : null}
+            {memoryChip(appMaster?.memory ?? null) ? (
+              // Accumulated experience (persona-memory tiers) — tenure made
+              // visible: a veteran hire and a day-one hire read differently.
+              <span className={CHIP_QUIET} title={t("appMaster.memory.title")}>
+                {t("appMaster.memory.chip", { counts: memoryChip(appMaster?.memory ?? null) ?? "" })}
               </span>
             ) : null}
           </div>

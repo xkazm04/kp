@@ -246,7 +246,7 @@ function rosterRow(partial: Partial<AgentRosterEntry> = {}): AgentRosterEntry {
     jobId: "",
     jobTitle: "App master",
     intakeId: "intake-1",
-    appMaster: { population: "agent", scopeRung: 2, probationDays: 30, autopilotMode: "suggest" },
+    appMaster: { population: "agent", scopeRung: 2, probationDays: 30, autopilotMode: "suggest", memory: null },
     personaId: null,
     personaName: null,
     requestId: "pr-1",
@@ -281,7 +281,7 @@ test("probationCountdown: counts down while the agent is still on probation, and
   // Not an App master, or no probation window on the spec.
   assert.equal(probationCountdown(rosterRow({ appMaster: null }), NOW), null);
   assert.equal(
-    probationCountdown(rosterRow({ appMaster: { population: "agent", scopeRung: 2, probationDays: null, autopilotMode: null } }), NOW),
+    probationCountdown(rosterRow({ appMaster: { population: "agent", scopeRung: 2, probationDays: null, autopilotMode: null, memory: null } }), NOW),
     null
   );
 });
@@ -293,4 +293,11 @@ test("isAppMaster + the backbone glyphs follow the shared ✓/–/✗ convention
   // judge, and a checkmark there is exactly the green lie the rubric forbids.
   assert.deepEqual(BACKBONE_GLYPH, { pass: "✓", incomplete: "–", fail: "✗" });
   assert.equal(BACKBONE_TEXT.incomplete, "text-score-null");
+});
+
+test("memoryChip renders live tiers only and stays silent with nothing reported", async () => {
+  const { memoryChip } = await import("./agentsWorkforceLogic.ts");
+  assert.equal(memoryChip(null), null);
+  assert.equal(memoryChip({ core: 0, active: 0, working: 0, archived: 12 }), null, "archive-only is history, not a working mind");
+  assert.equal(memoryChip({ core: 1, active: 4, working: 2, archived: 0 }), "1 core · 6 active");
 });

@@ -15,7 +15,19 @@ export type AppMasterProjection = {
   probationDays: number | null;
   /** Personas' own reading, from the latest rollup — null until one reports. */
   autopilotMode: AutopilotMode | null;
+  /** Persona-memory tier counts — accumulated experience; null until reported. */
+  memory: { core: number; active: number; working: number; archived: number } | null;
 };
+
+/** Compact memory chip text: "3 core · 41 active", null when nothing reported.
+ *  Archived is deliberately omitted from the chip — it is history, not the
+ *  working mind; the detail view is where it belongs. */
+export function memoryChip(memory: AppMasterProjection["memory"]): string | null {
+  if (!memory) return null;
+  const live = memory.core + memory.active + memory.working;
+  if (live <= 0) return null;
+  return `${memory.core} core · ${memory.active + memory.working} active`;
+}
 
 /** One roster row as GET /api/agents serves it (report token stripped server-side). */
 export type AgentRosterEntry = Omit<HiredAgentRecord, "reportToken"> & {

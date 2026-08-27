@@ -7881,6 +7881,10 @@
           "incomplete": "Změřeno bylo příliš málo",
           "fail": "Pod laťkou"
         }
+      },
+      "memory": {
+        "chip": "paměť {counts}",
+        "title": "Paměť persony, kterou agent nese: připnutá jádrová přesvědčení a hodnocená pracovní sada. Hlásí ji Personas s každým souhrnem."
       }
     },
     "status": {

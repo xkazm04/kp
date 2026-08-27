@@ -97,6 +97,11 @@ export type RollupBackbone = {
   budgetUnmeasured: boolean;
   ledgerConsistent: boolean | null;
   autopilotMode: AutopilotMode | null;
+  /** Persona-memory tier counts for the App-master persona (M3, 2026-08-27) —
+   *  the tenure's accumulated experience, made visible to the operator. `null`
+   *  when the reporter sent none (older Personas, or an empty/unqueryable
+   *  store — the reporter itself sends nothing rather than four zeros). */
+  memory: { core: number; active: number; working: number; archived: number } | null;
 };
 
 export type ExecutionReport = {
@@ -268,7 +273,20 @@ function rollupBackbone(p: Record<string, unknown>): RollupBackbone | null {
     budgetUnmeasured: declaredUnmeasured ?? (reserved === null && settled === null),
     ledgerConsistent: bool(p.ledgerConsistent),
     autopilotMode: mode,
+    memory: memoryCounts(p.memory),
   };
+}
+
+/** The reporter's memory tier counts — four bounded non-negative ints or null.
+ *  A partial/garbled block is dropped whole: half a reading is not a reading. */
+function memoryCounts(v: unknown): { core: number; active: number; working: number; archived: number } | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const tier = (x: unknown): number | null =>
+    typeof x === "number" && Number.isFinite(x) && x >= 0 ? Math.min(Math.floor(x), 1_000_000) : null;
+  const core = tier(o.core), active = tier(o.active), working = tier(o.working), archived = tier(o.archived);
+  if (core === null || active === null || working === null || archived === null) return null;
+  return { core, active, working, archived };
 }
 
 export function parseAgentReport(payload: unknown): ParseReportResult {
