@@ -89,6 +89,11 @@ export type DbBackend = "sqlite";
  * on a local SQLite file they didn't intend to use in production.
  */
 export function resolveDbBackend(env: NodeJS.ProcessEnv = process.env): DbBackend {
+  // Test runs always use SQLite — assertTestDbIsolated() enforces the correct path.
+  // Skipping the postgres fail-fast here so DATABASE_URL in the environment (e.g. a
+  // Supabase connection string used by other tools, or a CI env that happens to carry
+  // the production URL) does not break every test that touches the DB.
+  if (inTestRun(env)) return "sqlite";
   const explicit = env.KP_DB_BACKEND?.trim().toLowerCase() || "";
   const url = env.DATABASE_URL?.trim() || "";
   const wantsPostgres = explicit === "postgres" || explicit === "postgresql" || /^postgres(ql)?:\/\//i.test(url);
