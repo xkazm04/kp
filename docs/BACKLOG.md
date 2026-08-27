@@ -196,7 +196,10 @@ id at the fix site.
     misclassifications the new assertion surfaced were fixed at the taxonomy
     layer (analytics engineer, wet-lab/protocol terms, creative lead, support
     specialist/head of support + ticket triage, travel/vendor office-admin
-    terms). (`L1-HRBP-17`; §2.11)
+    terms). Hardened 2026-08-27: both checks are conditional on the scenario
+    declaring `family`/`dealbreakers`, so the declaration is now pinned across
+    both banks — previously a scenario added without those keys would have lost
+    both assertions and still reported PASS. (`L1-HRBP-17`; §2.11)
 12. **Delete the dead duplicate `submit` handler** in `JdsIntakeChat.tsx:86-91`
     (duplicates `submitDraft` at `:198-203`, no callers). (`L1-EVA-12` ·
     `L1-TOM-9`; §2.12)
