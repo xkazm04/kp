@@ -13,7 +13,7 @@ websockets==15.0.1
 
 pydantic==2.12.5
 google-genai==1.64.0
-python-dotenv==1.0.1
+python-dotenv==1.2.3
 defusedxml==0.7.1
 # Multi-provider LLM layer (docs/architecture/llm-provider-layer.md) — adapters import these
 # lazily; only the providers you actually route to need their SDK installed.
