@@ -371,15 +371,22 @@ export function listAnalysisRecords(limit = 100, workspaceId: string = DEFAULT_W
     .all(workspaceId, limit) as AnalysisRow[];
   const out: { row: AnalysisRow; payload: unknown }[] = [];
   for (const row of rows) {
-    // OBSERVE, not enforce — deliberately, and with a measured reason. As of 2026-08-28,
-    // 50 of 121 stored analyses fail analysisResultSchema: every `cv-` row written by the
-    // Gemini CV-analysis path omits `keywordCoverage.hits[].status`, which the Python
-    // AnalysisResult model declares as a required enum (403 hits affected). That is real
-    // writer-vs-declaration drift, invisible until now because this layer only ever used
-    // the generated TYPE and never called the generated SCHEMA. Enforcing here would drop
-    // 41% of the list — turning a data defect into an outage. Observe records every
-    // mismatch in getRowHealth() so the drift is measurable while the writer is fixed;
-    // graduate this to enforce once the ledger is clean.
+    // OBSERVE, and this is the END STATE for this column, not a staging post.
+    //
+    // `analysisResultSchema` is the PRODUCER's contract — the full result the Python
+    // pipeline emits. This column is wider than that by design: the app deliberately
+    // tolerates thinner payloads, and says so in its own tests ("a legacy analysis (no
+    // v2Profile) folds to the honest 'unknown' archetype"). candidate-pool.ts reads the
+    // blob defensively for the same reason. Enforcing the producer's schema on a column
+    // that legitimately holds partial shapes would drop those rows from every list — an
+    // outage manufactured out of a schema/column mismatch, which is the failure the
+    // degrade-visibly policy exists to prevent.
+    //
+    // Observe is the honest posture: every payload that departs from the producer's
+    // contract is counted in getRowHealth() with the field path, so real drift is
+    // measurable, while a legitimately thin payload still reaches its consumer. That
+    // measurement is what caught the keywordCoverage.status defect fixed in this change
+    // (a required enum declared 2026-06-01 against a corpus 41% of which predated it).
     const payload = safeRowParse(row.payload_json, "listAnalysisRecords", row.slug, analysisResultSchema, "observe");
     if (payload == null) continue; // corrupt row already logged by safeRowParse; degrade to N-1
     out.push({ row, payload });

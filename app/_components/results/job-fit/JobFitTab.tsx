@@ -261,24 +261,34 @@ function MoreIndicator({ count }: { count: number }) {
 // Chip color is keyed off the single server-computed `status` enum (so the legend,
 // count, and swatch can never drift); the human label is looked up by the same enum
 // from the localized catalog at render.
-const KEYWORD_STATUS_CLS: Record<KeywordCoverage["hits"][number]["status"], string> = {
+// `unknown` is a real fourth state, not a fallback for a missing case. `status` was
+// added on 2026-06-01 and analyses recorded before it carry hits with none, so a
+// legacy row must render as "coverage state unknown" rather than borrow another
+// state's colour — guessing `missing` would invent a keyword gap the candidate does
+// not have, which is worse than admitting the analysis predates the field.
+type KeywordStatusKey = NonNullable<KeywordCoverage["hits"][number]["status"]> | "unknown";
+
+const KEYWORD_STATUS_CLS: Record<KeywordStatusKey, string> = {
   matched: "border-moss/40 bg-moss/10 text-ink",
   missing: "border-coral/40 bg-red-50 text-ink",
   over_used: "border-dial-amber/50 bg-dial-amber/10 text-ink",
+  unknown: "border-stone-200 bg-stone-50 text-steel",
 };
-const KEYWORD_STATUS_KEY: Record<KeywordCoverage["hits"][number]["status"], string> = {
+const KEYWORD_STATUS_KEY: Record<KeywordStatusKey, string> = {
   matched: "panel.kwMatched",
   missing: "panel.kwMissing",
   over_used: "panel.kwOverUsed",
+  unknown: "panel.kwUnknown",
 };
 
 function KeywordRow({ hit }: { hit: KeywordCoverage["hits"][number] }) {
   const t = useTranslations("report");
+  const status: KeywordStatusKey = hit.status ?? "unknown";
   return (
-    <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-base ${KEYWORD_STATUS_CLS[hit.status]}`}>
+    <div className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-base ${KEYWORD_STATUS_CLS[status]}`}>
       <span className="truncate font-medium">{hit.keyword}</span>
       <span className="shrink-0 text-sm font-semibold uppercase tracking-wide text-steel">
-        {t("panel.kwJdCv", { jd: hit.inJd, cv: hit.inCv })} · {t(KEYWORD_STATUS_KEY[hit.status] as Parameters<typeof t>[0])}
+        {t("panel.kwJdCv", { jd: hit.inJd, cv: hit.inCv })} · {t(KEYWORD_STATUS_KEY[status] as Parameters<typeof t>[0])}
       </span>
     </div>
   );

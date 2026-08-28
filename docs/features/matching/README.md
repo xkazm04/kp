@@ -464,6 +464,17 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   across a scoring-model change.
 - `data/taxonomy.json` — 12 top-level role families' worth of skill/seniority
   vocabulary (see coverage table below); regenerated report, not hand-edited.
+- `KeywordHit.status` — **optional**, and deliberately so. It is computed
+  deterministically by `ats._keyword_status` (which is total, so every new hit gets
+  one of `matched` / `missing` / `over_used`), but the field was only added on
+  2026-06-01: analyses recorded before that carry hits with no status at all — 50 of
+  121 rows in the reference DB, 403 hits. Declaring it required made every read of a
+  legacy row a false corruption report, and the UI indexed the status map directly, so
+  those rows rendered an untranslated, unstyled keyword row. `None` now reads as its
+  own state ("not assessed", `panel.kwUnknown`); consumers must render that state and
+  never substitute a value, since guessing `missing` would invent a keyword gap the
+  candidate does not have. Same shape as the `*_total` fields beside it, and the same
+  reason: a field added later is absent on rows written earlier.
 
 ## Taxonomy coverage (generated, verified current)
 

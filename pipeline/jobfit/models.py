@@ -161,7 +161,17 @@ class KeywordHit(_Base):
     in_jd: int
     in_cv: int
     matched: bool
-    status: KeywordStatus
+    # OPTIONAL, deliberately — the same reason the ``*_total`` fields below are.
+    # ``status`` was added on 2026-06-01; analyses recorded before that carry hits
+    # with no status at all (50 of 121 rows in the reference DB, 403 hits). A
+    # required enum here declares something 41% of the persisted corpus predates,
+    # which makes every read of a legacy row a false corruption report rather than
+    # a true one — the declaration was wrong about history, not the data. ``None``
+    # reads as "coverage state unknown"; consumers must render that as its own
+    # state and never guess a value, since guessing "missing" would invent a gap
+    # the candidate does not have. New hits always get a concrete status from
+    # ``ats._keyword_status``, which is total.
+    status: KeywordStatus | None = None
 
 
 class KeywordCoverage(_Base):

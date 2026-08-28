@@ -105,8 +105,20 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # no ANALYSIS_RESPONSE_SCHEMA entry changed, and the checklist is derived on read
 # rather than stored. No cached analysis OUTPUT changed, so PROMPT_VERSION is
 # intentionally NOT bumped.
+# NOTE (/architect 2026-08-28 — KeywordHit.status made optional): re-recorded when
+# `status` on KeywordHit went from a required Literal to `KeywordStatus | None = None`.
+# This is a strict WIDENING: every payload valid under the old schema is still valid
+# under the new one, so no cached analysis can be invalidated by it — the change only
+# stops the schema lying about its own history. `status` was added 2026-06-01, and 50 of
+# 121 analyses in the reference DB were written 2026-05-30, two days earlier, with hits
+# carrying no status at all; a required enum made every read of those rows a false
+# corruption report. keywordCoverage is computed DETERMINISTICALLY in ats.py after the
+# model returns — it is not in the Gemini prompt and has no ANALYSIS_RESPONSE_SCHEMA
+# entry — so no cached analysis OUTPUT changed and PROMPT_VERSION is intentionally NOT
+# bumped. Consumers render the absent state as its own ("not assessed"), never guessing
+# a value: guessing "missing" would invent a keyword gap the candidate does not have.
 EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "e9512251cb332450c9f0b0d3d1ab0158fd75c3671b8fd5ac6f76b1ad77d746e6"
+EXPECTED_ANALYSIS_FINGERPRINT = "367da913343334a677c49fd85965420a9ab89247752504b18815ad4ab356b327"
 
 
 def _strip_ts_comments(text: str) -> str:

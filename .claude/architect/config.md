@@ -174,7 +174,12 @@ which half stayed unverified.
 ## Baseline exclusions
 
 - `app/_lib/schemas.generated.ts`, `app/_lib/taxonomy.generated.ts` — rewritten by `schemas:gen` on
-  every `typecheck`; permanently dirty, never a finding and never staged as your work.
+  every `typecheck`, so they are dirty in almost every session. Never a finding. **But the dirt is
+  only CRLF churn** — the Python generator writes CRLF on Windows while the committed files are LF —
+  so a real semantic change to them hides inside a whole-file diff. When one of these legitimately
+  changes (a Python model edit), run `sed -i 's/\r$//'` on it before staging and the diff collapses to
+  the actual line. Verified 2026-08-28: normalizing reduced a 752-line diff to one line, and left
+  `taxonomy.generated.ts` with no diff at all.
 - `app/landing/` — a fixed art direction, exempt from the token rule by design.
 - `docs/_archive/` — superseded; not current, not a drift finding.
 - The Vibeman `backlog:idea-*` inventory — already-triaged ideas, not architect findings.

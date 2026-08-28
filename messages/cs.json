@@ -390,6 +390,7 @@
       "kwMatched": "shoda",
       "kwMissing": "chybí",
       "kwOverUsed": "příliš často",
+      "kwUnknown": "neposouzeno",
       "kwJdCv": "JD {jd} · CV {cv}",
       "questionNumber": "Otázka {n}",
       "matchingSkills": "Odpovídající dovednosti",

@@ -390,6 +390,7 @@
       "kwMatched": "Treffer",
       "kwMissing": "Fehlt",
       "kwOverUsed": "Zu oft",
+      "kwUnknown": "nicht bewertet",
       "kwJdCv": "JD {jd} · CV {cv}",
       "questionNumber": "Frage {n}",
       "matchingSkills": "Passende Skills",

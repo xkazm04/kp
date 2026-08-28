@@ -390,6 +390,7 @@
       "kwMatched": "présent",
       "kwMissing": "manquant",
       "kwOverUsed": "sur-utilisé",
+      "kwUnknown": "non évalué",
       "kwJdCv": "JD {jd} · CV {cv}",
       "questionNumber": "Question {n}",
       "matchingSkills": "Compétences correspondantes",
