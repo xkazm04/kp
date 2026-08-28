@@ -294,14 +294,42 @@ four `fix(...)` shas; `+n` counts the rest. A blank bug-hunter cell means no evi
 | lens | contexts covered | evidence |
 |---|---|---|
 | `bug-hunter` | 140 / 143 | reconstructed above |
-| `ui-perfectionist` | 0 / 143 | no ledger line names it after 2026-08-05 |
-| `performance` / `code-optimizer` | 1 / 143 | only `ai-analysis-ux` on 2026-08-05, on the retired 285-map — that context id does not exist in the 143-map |
-| `security-auditor` | 0 per-context | 2026-08-20 was a repo-wide *pattern* pass, "not per-context depth" (its own note) |
-| `ambiguity` | 0 / 143 | never run |
+| `ui-perfectionist` | 1 / 143 | **recorded**, not reconstructed — `decisions-ui-1`, 2026-08-28 (see below). Was 0/143: no ledger line named it after 2026-08-05 |
+| `performance` / `code-optimizer` | 4 / 143 | **recorded** 2026-08-28 (see below). The prior `ai-analysis-ux` cell was on the retired 285-map — that context id does not exist in the 143-map, so this map's true prior count was 0 |
+| `security-auditor` | 4 per-context | **recorded** 2026-08-28 (see below). 2026-08-20 was a repo-wide *pattern* pass, "not per-context depth" (its own note) |
+| `ambiguity` | 4 / 143 | **recorded** 2026-08-28 (see below). Never run before that |
+
+Only 3 of the 4 contexts recorded below can carry a `ui-perfectionist` verdict — the other
+three hold no `.tsx`, so their cell reads *n/a*, not *covered*. Counting an n/a as coverage
+is how a 0/143 column quietly becomes a green one without anything being read.
+
+## Recorded per-context coverage — 2026-08-28 (branch `ship/kp-stabilize`)
+
+The first rows in this file that were **written at the moment the context was read**, by the
+STABILIZE round the section above asked for. Ledger twins: the last four lines of
+`scan-sweep.jsonl`. `✓` = read through that lens and judged; *clean* = judged with nothing
+found, which IS coverage; *n/a* = the lens has no surface here (no `.tsx` in a `lib` context).
+
+| context | cat | files read | bug-hunter | ui-perfectionist | security-auditor | performance | ambiguity | fixed |
+|---|---|---|---|---|---|---|---|---|
+| `lib-devcase-12` | lib | 10 / 14 src (+3 branch-new) | ✓ 2 esc | n/a | ✓ clean | ✓ 1 esc | ✓ 2 esc | — |
+| `lib-matching` | lib | 10 / 20 src | ✓ 1 → fixed | n/a | ✓ clean | ✓ clean | ✓ 1 note | `f17f2a26` |
+| `decisions-ui-1` | ui | 21 / 21 | ✓ clean | ✓ 2 → fixed | ✓ clean | ✓ clean | ✓ 1 esc | `a60cb677` `2bbb5141` |
+| `lib-devcase-11` | lib | 8 / 15 src | ✓ clean | n/a | ✓ clean | ✓ clean | ✓ 1 → fixed, 1 esc | `7befae4a` |
+
+**Declared cut.** "files read" counts SOURCE files. The 21 colocated `*.test.ts` files across
+the four contexts were consulted only where a fix touched them — they are the round's honest
+gap, and the map's file counts include them, which is why the `lib` denominators above are
+smaller than the map's 14 / 20 / 15. `lib-devcase-12` and `lib-matching` were covered first
+and completely at source level, per the round's brief.
 
 ## What to do with this file
 
-The next `/scan-sweep` run should **write this file itself**, per context, at the moment
-it picks a context — not reconstruct it afterwards. Until it does, treat every cell here
-as an inference with the confidence stated at the top, and treat the four empty lens
-columns as the real coverage debt.
+A `/scan-sweep` run should **write this file itself**, per context, at the moment it picks
+a context — not reconstruct it afterwards. The 2026-08-28 round did; everything above its
+section did not. So the file now has two kinds of row and they are not interchangeable:
+treat every **reconstructed** cell as an inference with the confidence stated at the top,
+and only the **recorded** table as evidence that a lens actually ran.
+
+The four columns are no longer all empty, and they are still the coverage debt: at
+4 / 143 the recorded rows are 2.8% of the map. Read the counts as "started", not "done".
