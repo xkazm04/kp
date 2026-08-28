@@ -250,6 +250,23 @@ test("a distinct variant sharing the winner's label is still compared (not label
   assert.equal(topLevel, 2, "both non-winner variants are compared, including the one sharing the winner's label");
 });
 
+test("the merged summary sentence agrees with summaryKind when two variants share a filename", () => {
+  // Two DISTINCT variants under one filename, splitting the sections between them:
+  // v0 wins headline (roleSeniority) + bullets (highest total); v1 wins summary
+  // (experience) + skills line. By INDEX that is {0,1} → "split".
+  const v0 = { label: "dup.pdf", analysis: analysisWith({ total: 90, experience: 8, skills: 8, roleSeniority: 22, education: 9, traits: 9, yearsExperience: 9, skillList: ["alphaonly"] }) };
+  const v1 = { label: "dup.pdf", analysis: analysisWith({ total: 60, experience: 24, skills: 29, roleSeniority: 5, education: 9, traits: 9, yearsExperience: 3, skillList: ["betaonly"] }) };
+  const { mergedRecommendation: m } = buildComparison([v0, v1]);
+
+  assert.equal(m.summaryKind, "split");
+  // The prose must say the same thing. It used to be re-derived from the set of
+  // section sourceLABELS, which collapses to one entry here, so the sentence claimed
+  // "wins every section" over a summaryKind of "split" — and CompareTab localizes
+  // off summaryKind, so the two readers of one fact disagreed.
+  assert.ok(!m.summary.includes("wins every section"), `expected a split summary, got: ${m.summary}`);
+  assert.match(m.summary, /pulls /);
+});
+
 // ── One cohort, ONE ranking axis (mixed job-fit reads) ────────────────────────
 // `jobFit` is nullish PER VARIANT (schemas.generated.ts) because every variant is an
 // independent engine call — a JD-bound multi-CV run can come back with a job-fit read

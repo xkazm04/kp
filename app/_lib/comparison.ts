@@ -318,7 +318,7 @@ function buildMergedRecommendation(
     new Set([headlineIdx, summaryIdx, bulletsIdx, skillsIdx]).size === 1 ? "allSame" : "split";
 
   return {
-    summary: buildMergedSummary(best, sectionPicks),
+    summary: buildMergedSummary(best, sectionPicks, summaryKind),
     summaryKind,
     headline,
     headlineParams,
@@ -368,12 +368,21 @@ function mergeBestBullets(inputs: ComparisonInput[], variants: ComparisonVariant
 
 function buildMergedSummary(
   best: ComparisonVariant,
-  picks: ComparisonPayload["mergedRecommendation"]["sectionPicks"]
+  picks: ComparisonPayload["mergedRecommendation"]["sectionPicks"],
+  // The SAME verdict `summaryKind` carries, passed in rather than re-derived.
+  // This used to recompute "did one variant win everything?" from
+  // `new Set(picks.map(p => p.sourceLabel))` — by LABEL, the one identity this
+  // whole module deliberately does not use, because labels aren't unique (two CV
+  // variants can share a filename). Two distinct variants sharing a filename then
+  // collapsed to one label here, so the prose said "wins every section" while
+  // `summaryKind` — computed by INDEX four lines up — said "split", and CompareTab
+  // localizes off `summaryKind`. One fact, two producers, disagreeing exactly where
+  // the rest of the file was fixed to agree (analysis-result-panels #1).
+  summaryKind: "allSame" | "split"
 ): string {
   // Reaches here only with >= MIN_COMPARISON_VARIANTS (buildComparison's
   // contract), so there is always more than one variant's sections to weigh.
-  const distinct = new Set(picks.map((pick) => pick.sourceLabel));
-  if (distinct.size === 1) {
+  if (summaryKind === "allSame") {
     return `"${best.label}" wins every section. Send that variant as-is.`;
   }
   const splits = picks.map((pick) => `${pick.section.toLowerCase()} from "${pick.sourceLabel}"`).join(", ");
