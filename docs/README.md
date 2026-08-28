@@ -14,6 +14,7 @@ still proposed.
 | How to build, test, evaluate, calibrate | [development/README.md](development/README.md) — verification commands, eval harness, model benchmarks, CLI reference, DevInspector, logging |
 | Market position, roadmap, enterprise track | [product/](product/) — including the [salary data sources](product/salary-data-sources.md) the anchor bands were calibrated against |
 | Proposals not yet implemented | [concepts/](concepts/) |
+| **Patterns worth porting to another repo** | [marketing/the-bar.md](marketing/the-bar.md) — the five things that keep a public marketing surface from drifting into lies |
 | Superseded material, kept for context | [_archive/](_archive/) |
 | Known doc gaps and follow-ups | [BACKLOG.md](BACKLOG.md) |
 | Component/sequence diagrams | [diagrams/](diagrams/README.md) |
@@ -35,6 +36,9 @@ still proposed.
   them, what they measure, what their baselines are.
 - **`docs/product`** holds market/roadmap framing (competitor teardown, coverage waves,
   enterprise readiness track). Aspirational by nature — don't mistake it for feature docs.
+- **`docs/marketing`** is the EXPORT lane: patterns proven here, written for someone
+  porting them into a different repository. Not a description of kp's own marketing
+  pages — that lives in [`features/marketing/`](features/marketing/README.md).
 - **`docs/concepts`** is only for not-yet-implemented proposals. When a concept ships,
   move or rewrite it under `features/` or `architecture/` and leave only the remaining
   follow-up work behind.

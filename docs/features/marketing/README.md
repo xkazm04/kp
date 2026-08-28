@@ -10,6 +10,9 @@ These pages are the documented exception to the token rule in
 `app/landing/` is a fixed art direction and uses literal hexes. Nothing else in
 the app may.
 
+The patterns these pages are built on, written for someone porting them into a
+different repository, are in [`docs/marketing/the-bar.md`](../../marketing/the-bar.md).
+
 ## Entry points
 
 | Route | Renders | Purpose |
