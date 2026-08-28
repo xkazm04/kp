@@ -93,7 +93,9 @@ and that `hired` / `reachedInterview` follow roles. Writing it is what surfaced
 the `setPipelineEntryStage` guard above — the store was still refusing stages the
 board itself rendered.
 
-**Still name-coupled**, and deliberately left: `devcase-run.ts`,
+**Still name-coupled**, and deliberately left: `devcase-run.ts` (now via the named
+`DEVCASE_PROMOTE_STAGE`, `app/_lib/devcase-identity.ts` — the coupling is unchanged,
+but it is greppable and has one place for the eventual per-workspace resolution),
 `useAddToPipeline.ts`, `apply/[id]/route.ts`, `rediscover.ts`, `screen-wave.ts`,
 `tasks.ts` and `interview-prep/scorecard` still pass or compare stage literals.
 All are *creation defaults* or *cohort filters* that are correct on the shipped
@@ -547,10 +549,34 @@ itself — **no migration in `db/core.ts` was required or written**, since it al
 carried `ref`, `candidate_ref`, `predicted_score`, `outcome`, `performance`, `note`,
 `recorded_at`, `workspace_id`) now also holds the board's own hires. A board hire is
 keyed `pe:<entryId>` (`PIPELINE_OUTCOME_REF_PREFIX`, so the two id spaces are
-provably disjoint), while a devcase-promoted hire (`ds-<submissionId>`) keeps the
-bare submission id — so a recruiter's rating **updates** the row
-`recordPipelineOutcome` already auto-wrote instead of minting a second decided
-outcome, which `calibrate()` would count twice.
+provably disjoint), while a devcase-promoted hire keeps the bare submission id —
+taken from the entry's `dev_submission_id`, or from a legacy `ds-<submissionId>`
+candidate id for entries written before that column. So a recruiter's rating
+**updates** the row `recordPipelineOutcome` already auto-wrote instead of minting a
+second decided outcome, which `calibrate()` would count twice.
+
+### An entry that came from an assignment says so (`dev_case_id` / `dev_submission_id`)
+
+Two nullable columns, NULL on every entry that did not come from a work sample.
+
+They exist because the dev-case path used to encode those two facts **inside the ids**
+— `job_id: "dc-<caseId>"`, `candidate_id: "ds-<submissionId>"` — which meant neither
+field could hold the real thing. A candidate who applied to a JD's opening and then did
+its assignment therefore appeared twice on the board under two job ids, and the
+synthetic half was unrankable by Matrix, Match and the automation pass's scoring sweep,
+all of which need a `profiles` row. With the links in their own columns, a promoted
+entry carries the real `jd-<slug>` job and a real profile id, and **merges** onto the
+row the opening already created rather than adding a second one.
+
+Reading them is `devCaseIdForEntry` / `submissionIdForEntry`
+(`app/_lib/devcase-identity.ts`), never the columns or the prefixes directly: they take
+the column first and fall back to parsing the legacy prefix, permanently, because
+pre-milestone entries are real hiring history and no one can recover which profile a
+`ds-` id stood for. Writers pass them through `createPipelineEntry`'s `devCaseId` /
+`devSubmissionId`, which are **fill-only** on a re-add — the same additive discipline
+`github_json` carries, so a later promote can never re-point an entry at different
+material. Full rationale in [the dev-case doc](../dev-case/README.md); pinned by
+`app/_lib/db/pipeline-devcase-link.test.ts`.
 
 ## Decisions peer context (comparison data for the review queue)
 

@@ -1,8 +1,10 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevSubmission, type SessionIntegrity } from "./db/devcase";
-import { createPipelineEntry, getPipelineEntry, recordAutomationEvent, setApproval } from "./db/pipeline";
-import { getProfileRecord, listMatrixProfiles, listProfileRecords, updateProfile } from "./db/profiles";
+import { getDevCase, getDevCaseBaseline, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionIntegrity, getPosting, getSubmission, lifecycleByPosting, saveSubmissionEvaluation, type DevCaseRecord, type DevSubmission, type SessionIntegrity } from "./db/devcase";
+import { candidateIdByContact, createPipelineEntry, getPipelineEntry, recordAutomationEvent, setApproval } from "./db/pipeline";
+import { getJob } from "./db/jobs";
+import { getProfileRecord, listMatrixProfiles, listProfileRecords, saveProfile, updateProfile } from "./db/profiles";
+import { FALLBACK_ARCHETYPE } from "./apply";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { inferProfileLocale } from "./comms-locale";
 import { MAX_CODEBASES } from "./devcase-constraints";
@@ -12,7 +14,13 @@ import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, Pipel
 import { buildLlmConfigEnv } from "./llm-config";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 import { isEarlyCareer } from "./archetypes";
-import { devCaseIdForEntry } from "./devcase-identity";
+import {
+  caseJobIdentity,
+  devCaseIdForEntry,
+  DEVCASE_PROMOTE_STAGE,
+  roleFamilyForCase,
+  type CaseJobIdentity,
+} from "./devcase-identity";
 
 // The devcase CLI envelope every run* function below shares: make a temp workdir,
 // write the per-call JSON arg files into it + build the argv, spawn
@@ -388,6 +396,23 @@ function profileForSubmission(sub: DevSubmission): NonNullable<ReturnType<typeof
   return matches.length === 1 ? matches[0] : null;
 }
 
+/** The profile a promoted ENTRY names, when it names a real one.
+ *
+ *  Scoped to the submission's own team (the entry read must not be able to reach
+ *  another tenant's board), and it returns null rather than a record for a legacy
+ *  "ds-" candidate id — there is no profile behind one, so getProfileRecord simply
+ *  misses and the by-ref fallback takes over, which is the pre-existing behaviour for
+ *  exactly those rows. */
+function profileForEntry(
+  entryId: string | null | undefined,
+  sub: DevSubmission
+): NonNullable<ReturnType<typeof getProfileRecord>> | null {
+  if (!entryId) return null;
+  const entry = getPipelineEntry(entryId, sub.workspaceId);
+  if (!entry?.candidateId) return null;
+  return getProfileRecord(entry.candidateId, sub.workspaceId);
+}
+
 /** The take-home twin of mintObservedFromCaseInterview: after a submission is
  *  PROMOTED, run the deterministic transfer gate (live_case.apply_live_case via
  *  `devcase_cli observed-skills`) and — when earned — persist the enriched
@@ -429,7 +454,15 @@ export async function mintObservedFromSubmission(
   const posting = sub.postingId ? getPosting(sub.postingId) : null;
   const devCase = posting?.caseId ? getDevCase(posting.caseId) : null;
   if (!devCase?.case || !devCase.role) return { credited: [], applied: false };
-  const rec = profileForSubmission(sub);
+  // ONE THREAD: when the caller names the promoted ENTRY, that entry's candidate IS
+  // the answer — promote already resolved (or minted) it under the same honest rules
+  // this function's own fallback uses, and it is the identity the reviewer is looking
+  // at. Without this the two halves disagree exactly where it matters most: a freshly
+  // MINTED candidate's profile id is not their `candidate_ref`, so the by-ref lookup
+  // below misses and the deepest evidence the product produces is credited to nobody.
+  // The by-ref path stays for the caller that has no entry, and for legacy "ds-"
+  // entries whose candidate id was never a profile.
+  const rec = profileForEntry(entryId, sub) ?? profileForSubmission(sub);
   if (!rec) return { credited: [], applied: false };
 
   const payload = await runDevcaseCli<{ result: { creditedSkills?: string[]; profile?: Record<string, unknown> } }>(
@@ -746,16 +779,37 @@ export function seedPipelineFromMatches(
   // but the people in them belong to another tenant.
   opts: { caseId: string | null; roleTitle: string; workspaceId?: string },
 ): { added: number } {
+  // ONE THREAD: file these candidates under the assignment's REAL opening when it has
+  // one, so a person sourced for the work sample and a person who applied to the JD
+  // are the same row on the same job — not two rows on two job ids that no query
+  // relates. The synthetic `dc-` id survives only for a case with no linked job (a JD
+  // whose best-effort ingest never ran, or no JD at all), and `dev_case_id` carries
+  // the assignment either way, so the case-grounded interview brief resolves in BOTH
+  // states rather than only the one where the id happened to spell it out.
+  const kase = opts.caseId ? getDevCase(opts.caseId) : null;
+  const identity = caseJobIdentity({
+    caseId: opts.caseId,
+    jobId: kase?.jobId ?? null,
+    jobTitle: kase?.jobTitle ?? null,
+    roleTitle: opts.roleTitle,
+  });
+  const roleFamily = roleFamilyForCase(
+    identity.linked ? getJob(identity.jobId)?.roleFamily : null,
+    caseNeedRoleFamily(kase)
+  );
   let added = 0;
   for (const m of matches) {
     if (!m.candidateId) continue;
     createPipelineEntry({
       candidateId: m.candidateId,
       candidateLabel: m.label,
+      // Already the sourced PROFILE's own archetype (runSourceForRole ranks real
+      // profiles), so nothing is guessed here — this was never the hardcoded half.
       archetype: m.archetype,
-      roleFamily: "software_engineering",
-      jobId: `dc-${opts.caseId}`,
-      jobTitle: opts.roleTitle,
+      roleFamily,
+      jobId: identity.jobId,
+      jobTitle: identity.jobTitle,
+      devCaseId: opts.caseId,
       matchScore: m.score,
       stage: "Accepted",
       // d95fed6d — origin marker for case-sourced candidates.
@@ -770,6 +824,107 @@ export function seedPipelineFromMatches(
     added += 1;
   }
   return { added };
+}
+
+/** The role family the NEED states, when it states one. `dev_cases.need_json` is the
+ *  recruiter's own description of the opening, so it outranks the last-resort literal
+ *  even though it is weaker evidence than the linked job's own field. */
+function caseNeedRoleFamily(kase: DevCaseRecord | null): string | null {
+  return (kase?.need as DevNeed | null | undefined)?.roleFamily ?? null;
+}
+
+/** Who a promoted submission IS, on a board where a candidate is a `profiles` row.
+ *
+ *  `origin` is not decoration: it is written onto the automation trail, because
+ *  "resolved to someone we already knew" and "we created a stub" are different facts
+ *  about the same entry and a reviewer has to be able to tell them apart. */
+type PromotedCandidate = {
+  candidateId: string;
+  /** The person's own archetype. NEVER guessed — see the mint branch. */
+  archetype: string | null;
+  origin: "profile-id" | "contact" | "label" | "minted";
+};
+
+/** Resolve `dev_submissions.candidate_ref` (free text, by schema) to a real candidate,
+ *  minting the minimal profile when this team has never seen the person.
+ *
+ *  This is the second half of the identity fix: promote used to write
+ *  `candidateId: "ds-<submissionId>"`, an id with no `profiles` row behind it, so the
+ *  candidate could not be ranked by Matrix or Match, could not be scored by the
+ *  automation pass, and could not receive observed skills — the assignment produced
+ *  the deepest evidence in the product and it landed on someone the rest of the
+ *  product could not see.
+ *
+ *  Resolution is ordered strongest-evidence-first and every step is UNIQUE-or-skip:
+ *    1. the ref IS a profile id — the candidate surface passes one when it has one;
+ *    2. the ADDRESS this team already files someone under (candidateIdByContact) —
+ *       the join that makes a JD applicant who then did the assignment ONE person;
+ *    3. a unique case-insensitive label match, the historical rule profileForSubmission
+ *       uses for observed skills;
+ *    4. otherwise mint.
+ *
+ *  Ambiguity never resolves — it mints. That looks like the weaker choice and is the
+ *  safer one: a wrong resolution writes an assignment's evidence permanently onto a
+ *  stranger's record, while a duplicate stub is visible, inert, and mergeable by a
+ *  human. The origin on the trail is what tells them it happened.
+ *
+ *  The minted profile's archetype is the fail-closed sentinel, NOT "bau". apply.ts
+ *  spells out why at length: "bau" is a CONCRETE class (an experienced professional),
+ *  so persisting it on a record that asserts nothing was read both mislabels the
+ *  person and strips the early-career fairness shield (`isFairnessProtected("bau")`
+ *  is false), which is exactly what the old hardcoded promote did to every dev-case
+ *  candidate it ever created. */
+function resolvePromotedCandidate(sub: DevSubmission, roleFamily: string): PromotedCandidate {
+  const ref = (sub.candidateRef ?? "").trim();
+  if (ref) {
+    const byId = getProfileRecord(ref, sub.workspaceId);
+    if (byId) return { candidateId: byId.row.id, archetype: byId.row.archetype, origin: "profile-id" };
+  }
+  const byContact = candidateIdByContact(sub.contact, sub.workspaceId);
+  if (byContact) {
+    const rec = getProfileRecord(byContact, sub.workspaceId);
+    return { candidateId: byContact, archetype: rec?.row.archetype ?? null, origin: "contact" };
+  }
+  if (ref) {
+    const needle = ref.toLowerCase();
+    const matches = listProfileRecords(undefined, sub.workspaceId).filter(
+      (p) => (p.row.label ?? "").trim().toLowerCase() === needle
+    );
+    if (matches.length === 1) {
+      return { candidateId: matches[0].row.id, archetype: matches[0].row.archetype, origin: "label" };
+    }
+  }
+  // The stub. `completeness: 0` is the schema's own "nothing is known yet" marker, and
+  // the payload states only what the submission actually proves: a name, the team's
+  // role family, and the assignment it came from. No seniority, no years, no skills —
+  // the evaluation knows those, but promoting them into a profile is the observed-skill
+  // mint's job (mintObservedFromSubmission), which runs AFTER this and has the gates.
+  const label = ref || "Candidate";
+  const { id } = saveProfile(
+    {
+      label,
+      archetype: FALLBACK_ARCHETYPE,
+      roleFamily,
+      completeness: 0,
+      payload: {
+        displayName: label,
+        archetype: FALLBACK_ARCHETYPE,
+        roleFamily,
+        source: "devcase-promote",
+        devcase: { submissionId: sub.id, postingId: sub.postingId },
+      },
+    },
+    sub.workspaceId
+  );
+  return { candidateId: id, archetype: FALLBACK_ARCHETYPE, origin: "minted" };
+}
+
+/** The one-line provenance the automation trail carries: which job this entry was
+ *  filed under and why, and how the candidate was identified. Reconstructing either
+ *  after the fact is impossible — the entry shows the OUTCOME, not the reasoning. */
+function promoteProvenance(identity: CaseJobIdentity, candidate: PromotedCandidate): string {
+  const job = identity.linked ? `job ${identity.jobId} (the assignment's linked JD)` : `job ${identity.jobId} (no linked JD — synthetic)`;
+  return `${job}; candidate ${candidate.candidateId} (${candidate.origin})`;
 }
 
 // The evidence-confidence floor for auto-advance advice — mirrors the Python
@@ -836,15 +991,53 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
   // "Promote to pipeline" reported success while the candidate's name and contact
   // landed on the DEFAULT team's board and never appeared on the promoting team's.
   const workspaceId = sub.workspaceId;
+  // ONE THREAD — the three identities this write used to invent.
+  //
+  // JOB: the assignment's linked opening when it has one, so the candidate lands on
+  // the same board column as everyone who applied to that JD directly. `dc-<caseId>`
+  // survives only for a case with no linked job, and `devCaseId` below carries the
+  // assignment in either state, so nothing downstream has to read a prefix.
+  //
+  // CANDIDATE: a real `profiles` row — resolved to someone this team already knows
+  // where the evidence allows, minted minimally where it does not. Both are honest
+  // identities; `ds-<submissionId>` was neither.
+  //
+  // ARCHETYPE + ROLE FAMILY: derived, not literal. The archetype belongs to the
+  // PERSON and comes from their profile (the mint's fail-closed "unknown" when there
+  // is no person on file yet) — never the old hardcoded "bau", which asserted an
+  // experienced professional about someone nothing had been read about and, being
+  // outside the fairness-protected set, stripped their shield from auto-rejection.
+  // The role family belongs to the OPENING and comes from it, then from the need.
+  const kase = posting?.caseId ? getDevCase(posting.caseId) : null;
+  const identity = caseJobIdentity({
+    caseId: posting?.caseId ?? null,
+    jobId: kase?.jobId ?? null,
+    jobTitle: kase?.jobTitle ?? null,
+    roleTitle: posting?.roleTitle ?? null,
+  });
+  const roleFamily = roleFamilyForCase(
+    identity.linked ? getJob(identity.jobId)?.roleFamily : null,
+    caseNeedRoleFamily(kase)
+  );
+  const candidate = resolvePromotedCandidate(sub, roleFamily);
+  // `created: false` here is the GOOD case, not a failure: the (candidate, job) pair
+  // already has an entry because this person applied to the opening directly, so the
+  // promote backfills its two links onto that row instead of minting the duplicate
+  // this milestone exists to remove. It deliberately leaves that entry's STAGE alone —
+  // a candidate the board has already moved to Interview must not be dragged back to
+  // Screened by a work sample arriving late; the screening_review card below is what
+  // surfaces the assignment's verdict either way.
   const { entry } = createPipelineEntry({
-    candidateId: `ds-${sub.id}`,
+    candidateId: candidate.candidateId,
     candidateLabel: sub.candidateRef ?? "Candidate",
-    archetype: "bau",
-    roleFamily: "software_engineering",
-    jobId: `dc-${posting?.caseId ?? "case"}`,
-    jobTitle: posting?.roleTitle ?? "Dev case",
+    archetype: candidate.archetype,
+    roleFamily,
+    jobId: identity.jobId,
+    jobTitle: identity.jobTitle,
+    devCaseId: posting?.caseId ?? null,
+    devSubmissionId: sub.id,
     matchScore: score,
-    stage: "Screened",
+    stage: DEVCASE_PROMOTE_STAGE,
     contact: sub.contact ?? null,
     locale: lifecycle?.lang ?? null,
     // d95fed6d — origin marker: the drawer says "via dev case" and links back.
@@ -884,6 +1077,6 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
     }),
     workspaceId
   );
-  recordAutomationEvent(entry.id, "screening_hold", `promoted from dev case — ${recommendation}: ${reasons.join("; ")}`, workspaceId);
+  recordAutomationEvent(entry.id, "screening_hold", `promoted from dev case — ${recommendation}: ${reasons.join("; ")} | ${promoteProvenance(identity, candidate)}`, workspaceId);
   return { entryId: entry.id, recommendation, reasons };
 }

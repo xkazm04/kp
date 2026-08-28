@@ -122,8 +122,9 @@ controls](#anti-delegation-controls-shipped) below. All six are shipped.
    `pending`, plus an optional 1..5 `performance` rating); `calibrate()` turns those
    rows into the promote-floor rationale the control room reads
    (`GET|POST /api/devcase/outcomes`, `app/control/CalibrationPanel.tsx`), and
-   `recordPipelineOutcome` auto-writes a row when a promoted `ds-<submissionId>`
-   entry reaches a terminal stage.
+   `recordPipelineOutcome` auto-writes a row when a promoted entry reaches a terminal
+   stage — keyed by the entry's `dev_submission_id`, or by the legacy
+   `ds-<submissionId>` candidate id for entries written before that column.
 
    The five rationales split on whether a band **actually converted**. The `85`
    no-converging-band fallback (no band reached a 50 % hire rate) is *advice*, not a
@@ -144,9 +145,9 @@ controls](#anti-delegation-controls-shipped) below. All six are shipped.
    vocabulary, same tenant scoping, and no schema change: `dev_outcomes` already
    carried every column. The calibration corpus `/control` reads therefore now also
    accrues ordinary board hires whose rating a human entered. A board hire is keyed
-   `pe:<entryId>`; a devcase-promoted hire keeps its bare submission id, so the
-   recruiter's rating **updates** the auto-written row rather than minting a second
-   decided outcome that `calibrate()` would count twice.
+   `pe:<entryId>`; a devcase-promoted hire keeps its bare submission id (resolved
+   the same two ways), so the recruiter's rating **updates** the auto-written row
+   rather than minting a second decided outcome that `calibrate()` would count twice.
 
 ## Anti-delegation controls (shipped)
 
@@ -550,9 +551,67 @@ Consumers: `GET /api/jobs/[id]/assignments` (workspace-scoped, an identity-only
 projection) feeds the job modal's lifecycle strip; the case detail header renders the
 job as a chip that deep-links `?tab=jobs&job=<id>`.
 
-NOT changed by this: promote still mints the synthetic `dc-<caseId>` job id for the
-pipeline entry it creates (`devcase-run.ts`). The schema link exists; making the promoted
-entry use it is a separate piece of work.
+### The promoted candidate is one person on one job (`pipeline_entries.dev_case_id`)
+
+The schema link above is only half of "one thread"; the other half is what the board
+does with it. `promoteSubmission` and the case-sourcing seed (`app/_lib/devcase-run.ts`)
+used to **mint** the identities they wrote instead of joining them —
+`jobId: "dc-<caseId>"`, `candidateId: "ds-<submissionId>"`, `archetype: "bau"`,
+`roleFamily: "software_engineering"`. An id carrying a second meaning cannot also be a
+real reference, so:
+
+- a candidate who applied to the JD's opening and then did the assignment sat on the
+  board **twice**, under two job ids nothing related;
+- Matrix and Match could not rank the assignment half at all — there is no `profiles`
+  row behind a `ds-` id — and neither could the automation pass's scoring sweep;
+- every dev-case candidate was labelled an experienced professional, which (being
+  outside the fairness-protected set) removed their shield from automated rejection.
+
+What replaced each of them:
+
+| Field | Now | Fallback, and when |
+| --- | --- | --- |
+| `job_id` | the assignment's linked job (`dev_cases.job_id`) | `dc-<caseId>` when the case has none — a JD that was never ingested. The board groups by job, so an entry needs one |
+| `candidate_id` | a real `profiles` row | a **minimal profile minted at promote**, when this team has never seen the person |
+| `archetype` | the resolved person's own | `unknown` on a minted profile — the fail-closed sentinel (`FALLBACK_ARCHETYPE`, `app/_lib/apply.ts`), never `bau` |
+| `role_family` | the linked job's | then `need_json.roleFamily`, then the documented `software_engineering` literal |
+| `stage` | `DEVCASE_PROMOTE_STAGE` | a named constant, still deliberately name-coupled — see [the pipeline doc](../pipeline/README.md) |
+
+**Candidate resolution is ordered strongest-evidence-first, and every step is
+unique-or-skip** (`resolvePromotedCandidate`): the `candidate_ref` as a profile id →
+the **email** this team already files someone under (`candidateIdByContact`, the join
+that makes the JD applicant and the assignment candidate one row) → a unique
+case-insensitive label match → otherwise mint. **Ambiguity mints rather than resolves.**
+That is the safer half of the trade: a wrong resolution writes an assignment's evidence
+permanently onto a stranger's record, while a duplicate stub is visible, inert and
+mergeable by a human. Which path was taken is written onto the automation trail
+(`screening_hold` detail: `job … (the assignment's linked JD | no linked JD — synthetic);
+candidate … (profile-id | contact | label | minted)`) — the entry itself shows only the
+outcome.
+
+**Landing on an entry that already exists is the good case.** When the (candidate, job)
+pair already has a row, `createPipelineEntry` returns it and the promote **backfills**
+`dev_case_id` / `dev_submission_id` onto it — fill-only, so a second promote can never
+re-point an entry at different material. It deliberately leaves that entry's **stage**
+alone: a candidate already moved to Interview is not dragged back by a work sample
+arriving late; the `screening_review` card carries the verdict either way.
+
+**Legacy entries keep working, permanently.** `devCaseIdForEntry` /
+`submissionIdForEntry` (`app/_lib/devcase-identity.ts`) read the column first and fall
+back to parsing the `dc-`/`ds-` prefix. That fallback is not a migration window: those
+rows are real hiring history and nothing can know which profile a `ds-` id was meant to
+be, so inventing one retroactively would be exactly the fabrication this replaced. Every
+consumer goes through those two functions — the case-grounded interview brief, its
+candidate-safe projection, `plannedInterviewMinutes`, the observed-skill mint — and
+`dev-outcomes.ts` applies the same order inline (that store stays db-free by design).
+Pinned in `app/_lib/devcase-promote-identity.test.ts`, `devcase-identity.test.ts` and
+`app/_lib/db/pipeline-devcase-link.test.ts`.
+
+Observed skills follow the same identity: `mintObservedFromSubmission` credits the
+profile the promoted **entry** names when the caller passes one, falling back to the
+by-ref lookup. Without that the two halves disagreed exactly where it matters — a freshly
+minted candidate's profile id is not their `candidate_ref`, so the deepest evidence the
+product produces was credited to nobody.
 - Live Work Surface event log — tamper-evident hash-chained rows (per `app/_lib/db/core.ts`)
 
 ## Known gaps
