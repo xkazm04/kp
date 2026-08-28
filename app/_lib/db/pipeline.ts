@@ -565,8 +565,20 @@ export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT
            FROM pipeline_entries WHERE job_id = ? AND status = 'active' AND stage != ? AND workspace_id = ?`
       )
       .all(jobId, hiredStage, workspaceId) as { id: string; candidate_label: string; job_title: string | null; archetype: string; stage: string }[];
+    let withdrawn = 0;
     for (const r of rows) {
-      db.prepare(`UPDATE pipeline_entries SET status='role_closed', approval_kind=NULL, updated_at=? WHERE id=? AND workspace_id=?`).run(now, r.id, workspaceId);
+      // `AND status='active'` re-asserts what the SELECT filtered on, the same guard
+      // reopenEntriesByJobId carries (and for the same reason). Without it this UPDATE
+      // is a lost-update: the transaction is DEFERRED, so a hire — or a human merit
+      // reject — landing on another connection between the SELECT above and this row's
+      // write was overwritten back to `role_closed`, and given a withdrawal event it
+      // never earned. Resolving hiredStage by ROLE rather than by the literal 'Hired'
+      // (above) exists to stop a close from flipping a real hire; that care was undone
+      // one line later by a WHERE that did not re-check the status it had just read.
+      const res = db
+        .prepare(`UPDATE pipeline_entries SET status='role_closed', approval_kind=NULL, updated_at=? WHERE id=? AND status='active' AND workspace_id=?`)
+        .run(now, r.id, workspaceId);
+      if (res.changes === 0) continue; // lost the flip to a concurrent writer
       recordEvent(db, {
         entryId: r.id,
         candidateLabel: r.candidate_label,
@@ -577,8 +589,9 @@ export function closeEntriesByJobId(jobId: string, workspaceId: string = DEFAULT
         toStage: r.stage,
         detail: "Role closed — candidate withdrawn from the pipeline.",
       });
+      withdrawn += 1;
     }
-    return rows.length;
+    return withdrawn;
   });
   return tx();
 }
