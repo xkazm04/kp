@@ -16,7 +16,7 @@
     "dev:inspect:webpack": "cross-env DEV_INSPECT=1 DEV_INSPECT_BUNDLER=webpack DEV_GUARD_MAX_NODE=150 node scripts/dev-guard.mjs next dev --webpack",
     "build": "npm run schemas:gen && next build",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "eslint . --cache --cache-location .eslintcache",
     "schemas:gen": "python -m pipeline.jobfit.codegen",
     "schemas:check": "python -m pipeline.jobfit.codegen --check",
     "taxonomy:check": "python -m pipeline.jobfit.taxonomy_check --check-report",
