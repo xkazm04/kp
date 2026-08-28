@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import type { ApprovalKind } from "../approval-kinds";
 import { openStore } from "../db-path";
 import type { GithubEvidenceSummary } from "../github-summary";
+import { jdJobId } from "../jd-limits";
 import type { PipelineStage } from "../pipeline-stages";
 import { assertTenancyReady } from "../tenancy";
 import { multiWorkspaceEnabled } from "../workspace-lock";
@@ -1371,6 +1372,27 @@ export function ensureDb(): Database.Database {
     // than a new table: the value is one word per tenant, and this repo has no
     // key-value settings store to put it in.
     "ALTER TABLE workspaces ADD COLUMN companion_brain_consent TEXT",
+    // ONE THREAD (JD → assignment): the job this assignment was cut for, i.e.
+    // `jd-<slug>` for the JD the recruiter picked in DevNeedForm. Until now the pick
+    // survived ONLY as `need_json.jdSlug` — a value inside an opaque blob that no
+    // query could join on — so the Jobs surface could not tell that a role had a work
+    // sample at all, and nothing downstream (voice screen, scoring) could travel back
+    // from the assignment to the opening it belongs to.
+    //
+    // Nullable BY CONTRACT, and the NULL is load-bearing rather than a gap: the
+    // JD → Job ingest is best-effort (docs/features/jobs/README.md — `jobIngested:
+    // false`), so a saved JD does not always have a `jd-<slug>` row. Writing the id
+    // anyway would mint a dangling reference that reads exactly like a real link;
+    // resolveCaseJobId (db/devcase.ts) therefore verifies the row EXISTS and leaves
+    // the column NULL when it does not. The case still knows its JD (need_json.jdSlug,
+    // surfaced as DevCaseRecord.jdSlug), and the UI says "picked, not sourced" instead
+    // of showing a link that goes nowhere.
+    //
+    // dev_postings deliberately does NOT get a copy: a posting is a child of exactly
+    // one case (`case_id`) and every consumer already resolves the case from it
+    // (getPostingByToken → getDevCase), so a second column would be a denormalized
+    // duplicate with its own way to drift.
+    "ALTER TABLE dev_cases ADD COLUMN job_id TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
@@ -1391,6 +1413,10 @@ export function ensureDb(): Database.Database {
   // (workspace_id, source_cv_hash) to find a newer same-CV analysis. Created AFTER
   // the ALTER loop so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_profiles_source_cv_hash ON profiles (workspace_id, source_cv_hash)`);
+  // ONE THREAD: "which assignments were cut for this job?" is a per-team lookup keyed
+  // exactly like every other dev-case enumeration (workspace first). Created AFTER the
+  // ALTER loop so a legacy DB already holds the column.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_dev_cases_job ON dev_cases (workspace_id, job_id)`);
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
   // Guarded: a legacy DB may already hold duplicate triples that block the
@@ -1531,6 +1557,33 @@ export function ensureDb(): Database.Database {
   db.prepare(
     `UPDATE dev_outbox SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = dev_outbox.ref), 'workspace') WHERE workspace_id IS NULL`
   ).run();
+  // ONE THREAD backfill (dev_cases.job_id): an assignment created before the column
+  // existed carries its JD only inside need_json. Recover the link for every legacy row
+  // whose picked JD actually HAS an ingested `jd-<slug>` job — and only those, so the
+  // column keeps the contract its comment states: an id here resolves. A JD whose
+  // best-effort ingest never ran stays NULL and reads as "picked, not sourced" rather
+  // than as a dangling reference.
+  //
+  // Written in JS rather than one UPDATE…json_extract so the `jd-` prefix keeps coming
+  // from jdJobId — the single owner of the JD↔Job identity contract (jd-limits.ts) —
+  // instead of being hand-interpolated into SQL a second time. Bounded and idempotent:
+  // only rows still missing the column are read, so this is a no-op on every boot after
+  // the first, and it never overwrites a link a writer already made.
+  const unlinkedCases = db
+    .prepare(`SELECT id, need_json FROM dev_cases WHERE job_id IS NULL AND need_json IS NOT NULL`)
+    .all() as { id: string; need_json: string }[];
+  if (unlinkedCases.length > 0) {
+    const jobExists = db.prepare(`SELECT 1 FROM jobs WHERE id = ?`);
+    const linkCase = db.prepare(`UPDATE dev_cases SET job_id = ? WHERE id = ? AND job_id IS NULL`);
+    for (const row of unlinkedCases) {
+      const need = safeRowParse<{ jdSlug?: unknown }>(row.need_json, "devCase.need.backfill", row.id);
+      const slug = typeof need?.jdSlug === "string" ? need.jdSlug.trim() : "";
+      if (!slug) continue;
+      const jobId = jdJobId(slug);
+      if (!jobExists.get(jobId)) continue;
+      linkCase.run(jobId, row.id);
+    }
+  }
   // channel_spend: widen the single-column PK to (channel, workspace_id) so each team
   // keeps its own per-channel spend. One-time rebuild (SQLite can't alter a PK); guarded
   // by the absence of the workspace_id column so it runs exactly once.

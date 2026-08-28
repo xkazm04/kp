@@ -519,8 +519,40 @@ and published.
 
 ## Data model
 
-- `dev_cases` (case scenario, `baseline_json`) — SQLite, via `app/_lib/db/devcase.ts`
+- `dev_cases` (case scenario, `baseline_json`, `job_id`) — SQLite, via `app/_lib/db/devcase.ts`
 - `devcase_submissions`, `devcase_lifecycle` — orchestration state
+
+### An assignment is linked to its job (`dev_cases.job_id`)
+
+The recruiter picks a saved JD when defining the need (`DevNeedForm.tsx`). That pick is
+persisted twice: inside `need_json.jdSlug` (where it has always been) and, since the
+one-thread milestone, as a real column — `dev_cases.job_id`, holding the `jd-<slug>` id
+of the JD's ingested job (`jdJobId`, `app/_lib/jd-limits.ts`).
+
+- **Resolved once, at write.** `saveDevCase` calls `resolveCaseJobId`
+  (`app/_lib/db/devcase.ts`), so both write paths — the lifecycle's approve transition
+  and the manual `POST /api/devcase` — get the same link without either remembering to.
+- **Verified, not assumed.** JD → Job ingest is best-effort (a save can answer
+  `jobIngested: false`, see [the jobs doc](../jobs/README.md)), so `resolveCaseJobId`
+  checks the `jobs` row EXISTS and stores NULL when it does not. A case can therefore
+  know its JD (`jdSlug`) while having no job to link to — a real state, which the case
+  detail header states out loud rather than rendering as "unlinked".
+- **Read back joined.** Every dev-case read (`getDevCase`, `listDevCases`,
+  `listDevCasesForJob`) LEFT JOINs `jobs` for the title, so `DevCaseRecord` carries
+  `jobId` / `jobTitle` / `jdSlug` and no caller re-fetches the job.
+- **Backfilled.** Cases written before the column existed are relinked on boot from
+  `need_json.jdSlug` — again only where the job row is real (`app/_lib/db/core.ts`).
+- `dev_postings` deliberately has NO copy of the column: a posting is a child of one
+  case (`case_id`) and every consumer already resolves the case from it, so a second
+  column would only give the link a way to drift.
+
+Consumers: `GET /api/jobs/[id]/assignments` (workspace-scoped, an identity-only
+projection) feeds the job modal's lifecycle strip; the case detail header renders the
+job as a chip that deep-links `?tab=jobs&job=<id>`.
+
+NOT changed by this: promote still mints the synthetic `dc-<caseId>` job id for the
+pipeline entry it creates (`devcase-run.ts`). The schema link exists; making the promoted
+entry use it is a separate piece of work.
 - Live Work Surface event log — tamper-evident hash-chained rows (per `app/_lib/db/core.ts`)
 
 ## Known gaps

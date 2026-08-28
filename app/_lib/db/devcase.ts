@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { coerceOutboxStatus, type OutboxStatus } from "../comms-status";
 import { randomId } from "../random-id";
+import { jdJobId } from "../jd-limits";
 import type { DevNeed } from "../devcase-run";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
@@ -24,6 +25,18 @@ export type DevCaseRecord = {
   seed: unknown;
   status: string;
   createdAt: string;
+  /** ONE THREAD — the job (`jd-<slug>`) this assignment was cut for, resolved at
+   *  creation from the picked JD and verified to exist (resolveCaseJobId). NULL when
+   *  no JD was picked, or when the picked JD has no ingested job row: the JD → Job
+   *  ingest is best-effort, and a link that does not resolve is worse than none. */
+  jobId: string | null;
+  /** The linked job's title, joined at read. NULL when jobId is NULL — and also when
+   *  the job row has since been removed, which is the honest reading of a stale link. */
+  jobTitle: string | null;
+  /** The JD the recruiter picked, straight out of need_json. Present even when jobId
+   *  is NULL, which is exactly the case the UI has to explain: a JD was chosen but was
+   *  never sourced into a job, so there is nothing to link to yet. */
+  jdSlug: string | null;
   /** The owning tenant — same rationale as DevSubmission.workspaceId. */
   workspaceId: string;
 };
@@ -41,18 +54,33 @@ type DevCaseRow = {
   seed_json: string | null;
   status: string;
   created_at: string;
+  job_id?: string | null;
+  // Not a column: the LEFT JOIN alias every read below selects (jobs.title).
+  job_title?: string | null;
   // Present on every row (reads are SELECT *); mapped so a caller holding a case
   // never has to be told its tenant.
   workspace_id?: string | null;
 };
 
+// Every dev-case read maps through rowToDevCase, so `jobId` and its joined title can
+// never be present on one read path and missing on another — the drift that put three
+// different mappers on Posting before rowToPosting became the single one.
+//
+// The select-plus-LEFT-JOIN-jobs head the three reads share is deliberately NOT hoisted
+// into a shared constant: devcase-tenancy.test.ts classifies each SQL template literal in
+// this file on its own, and a bare SELECT fragment with no WHERE reads to that guard
+// exactly like an unscoped enumeration. Repeating the join keeps every statement a
+// complete, self-evidently-scoped one. (Which is also why no comment here quotes that
+// head back-ticked — the guard scrapes every backtick block in the file, prose included.)
+
 function rowToDevCase(r: DevCaseRow): DevCaseRecord {
+  const need = safeRowParse<{ jdSlug?: unknown }>(r.need_json, "devCase.need", r.id);
   return {
     id: r.id,
     title: r.title,
     roleTitle: r.role_title,
     seniority: r.seniority,
-    need: safeRowParse(r.need_json, "devCase.need", r.id),
+    need,
     analysis: safeRowParse(r.analysis_json, "devCase.analysis", r.id),
     role: safeRowParse(r.role_json, "devCase.role", r.id),
     case: safeRowParse(r.case_json, "devCase.case", r.id),
@@ -60,8 +88,32 @@ function rowToDevCase(r: DevCaseRow): DevCaseRecord {
     seed: safeRowParse(r.seed_json, "devCase.seed", r.id),
     status: r.status,
     createdAt: r.created_at,
+    jobId: r.job_id ?? null,
+    jobTitle: r.job_title ?? null,
+    jdSlug: typeof need?.jdSlug === "string" && need.jdSlug.trim() ? need.jdSlug.trim() : null,
     workspaceId: (r.workspace_id ?? null) || DEFAULT_WORKSPACE_ID,
   };
+}
+
+/** ONE THREAD — the job id an assignment should carry, given the need it was cut from.
+ *
+ *  The recruiter picks a saved JD in DevNeedForm and that pick rides along as
+ *  `need.jdSlug`; `jdJobId` is the deterministic id its ingested opening would have.
+ *  The EXISTENCE check is the point of this function: the JD → Job ingest is
+ *  best-effort (docs/features/jobs/README.md — a save can answer `jobIngested: false`),
+ *  so writing `jd-<slug>` unconditionally would store a reference that resolves to
+ *  nothing while looking exactly like one that does. Returning null instead keeps
+ *  "this case has a job" a fact rather than an assumption; the JD itself is not lost —
+ *  it stays on the record as `jdSlug`, and the UI says so.
+ *
+ *  Exported so the write paths and their tests agree on one rule. */
+export function resolveCaseJobId(need: unknown): string | null {
+  const slug = (need as { jdSlug?: unknown } | null | undefined)?.jdSlug;
+  const trimmed = typeof slug === "string" ? slug.trim() : "";
+  if (!trimmed) return null;
+  const jobId = jdJobId(trimmed);
+  const db = ensureDb();
+  return db.prepare(`SELECT 1 FROM jobs WHERE id = ?`).get(jobId) ? jobId : null;
 }
 
 /** Persist the case-designed interview scenario on its dev case (one per role). */
@@ -114,13 +166,18 @@ export function saveDevCase(
     case: { title?: string } & Record<string, unknown>;
   },
   workspaceId: string = DEFAULT_WORKSPACE_ID
-): { id: string; createdAt: string } {
+): { id: string; createdAt: string; jobId: string | null } {
   const db = ensureDb();
   const now = new Date().toISOString();
   const id = randomId("dc");
+  // ONE THREAD: resolve the job HERE rather than at each caller. Both write paths — the
+  // lifecycle's approve transition and the manual POST /api/devcase — funnel through
+  // this function, so a single resolution point is what makes "every assignment knows
+  // its job" true of both instead of of whichever one remembered.
+  const jobId = resolveCaseJobId(input.need);
   db.prepare(
-    `INSERT INTO dev_cases (id, title, role_title, seniority, need_json, analysis_json, role_json, case_json, status, created_at, workspace_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?)`
+    `INSERT INTO dev_cases (id, title, role_title, seniority, need_json, analysis_json, role_json, case_json, status, created_at, workspace_id, job_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?)`
   ).run(
     id,
     input.case.title ?? null,
@@ -131,23 +188,45 @@ export function saveDevCase(
     JSON.stringify(input.role ?? null),
     JSON.stringify(input.case ?? null),
     now,
-    workspaceId
+    workspaceId,
+    jobId
   );
-  return { id, createdAt: now };
+  return { id, createdAt: now, jobId };
 }
 
 export function listDevCases(limit = 50, workspaceId: string = DEFAULT_WORKSPACE_ID): DevCaseRecord[] {
   const db = ensureDb();
   const rows = db
-    .prepare(`SELECT * FROM dev_cases WHERE workspace_id = ? ORDER BY created_at DESC LIMIT ?`)
+    .prepare(
+      `SELECT c.*, j.title AS job_title FROM dev_cases c LEFT JOIN jobs j ON j.id = c.job_id
+       WHERE c.workspace_id = ? ORDER BY c.created_at DESC LIMIT ?`
+    )
     .all(workspaceId, limit) as DevCaseRow[];
   return rows.map(rowToDevCase);
 }
 
 export function getDevCase(id: string): DevCaseRecord | null {
   const db = ensureDb();
-  const r = db.prepare(`SELECT * FROM dev_cases WHERE id = ?`).get(id) as DevCaseRow | undefined;
+  const r = db
+    .prepare(`SELECT c.*, j.title AS job_title FROM dev_cases c LEFT JOIN jobs j ON j.id = c.job_id WHERE c.id = ?`)
+    .get(id) as DevCaseRow | undefined;
   return r ? rowToDevCase(r) : null;
+}
+
+/** ONE THREAD — the assignments cut for one job, newest first.
+ *
+ *  Workspace-scoped like every other dev-case ENUMERATION (listDevCases, listPostings):
+ *  the job id alone is not an authority to read a team's cases, and the caller passing a
+ *  job it can see must still only see its own assignments for it. */
+export function listDevCasesForJob(jobId: string, workspaceId: string = DEFAULT_WORKSPACE_ID): DevCaseRecord[] {
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT c.*, j.title AS job_title FROM dev_cases c LEFT JOIN jobs j ON j.id = c.job_id
+       WHERE c.workspace_id = ? AND c.job_id = ? ORDER BY c.created_at DESC`
+    )
+    .all(workspaceId, jobId) as DevCaseRow[];
+  return rows.map(rowToDevCase);
 }
 
 // ---- Dev extension — lifecycle orchestration state (Direction A) -----------
