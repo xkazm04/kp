@@ -788,7 +788,7 @@
           "allowTitle": "Ce qui peut tourner sans vous",
           "gates": {
             "screen": "Présélection",
-            "schedule": "Planification",
+            "offer": "Offre",
             "reject": "Refus"
           },
           "auto": "auto",
@@ -841,7 +841,7 @@
             "title": "Le score face au réel",
             "predicted": "prédit",
             "actual": "constaté",
-            "note": "les barres se rejoignent : le chiffre dit vrai"
+            "note": "voilà à quoi ressemble un score calibré ; si les données sont trop minces ou trop circulaires, le panneau le dit"
           }
         }
       }
@@ -5961,6 +5961,8 @@
       "colSubject": "Objet",
       "colRationale": "Motif",
       "colActor": "Acteur",
+      "actorRoleOnly": "rôle seul",
+      "actorRoleOnlyTitle": "Cet enregistrement nomme un rôle, pas une personne : il a été scellé là où le déploiement ne pouvait pas identifier l’approbateur. Une identité connectée ou KP_OPERATOR_NAME nommera le suivant. Les enregistrements scellés ne sont jamais réécrits.",
       "colSealed": "Scellé",
       "noMatches": "Aucun enregistrement ne correspond aux filtres.",
       "verifiedKeyless": "Intégrité vérifiable, mais non inviolable : {count} enregistrements scellés, chaîne vérifiée, mais scellée sans clé.",

@@ -788,7 +788,7 @@
           "allowTitle": "Was unbeaufsichtigt laufen darf",
           "gates": {
             "screen": "Screening",
-            "schedule": "Planung",
+            "offer": "Angebot",
             "reject": "Absage"
           },
           "auto": "auto",
@@ -841,7 +841,7 @@
             "title": "Score gegen Realität",
             "predicted": "vorhergesagt",
             "actual": "tatsächlich",
-            "note": "die Balken decken sich, also bedeutet die Zahl, was sie sagt"
+            "note": "so sieht ein kalibrierter Score aus; ist die Datenlage zu dünn oder zu zirkulär, sagt das Panel genau das"
           }
         }
       }
@@ -5961,6 +5961,8 @@
       "colSubject": "Betreff",
       "colRationale": "Begründung",
       "colActor": "Akteur",
+      "actorRoleOnly": "nur Rolle",
+      "actorRoleOnlyTitle": "Dieser Datensatz nennt eine Rolle, keine Person: Er wurde dort versiegelt, wo die Installation die genehmigende Person nicht identifizieren konnte. Eine angemeldete Identität oder KP_OPERATOR_NAME benennt den nächsten. Versiegelte Datensätze werden nie überschrieben.",
       "colSealed": "Versiegelt",
       "noMatches": "Kein Eintrag passt zu den Filtern.",
       "verifiedKeyless": "Integritätsnachweis, aber nicht manipulationssicher: {count} versiegelte Datensätze, Kette verifiziert, jedoch ohne Schlüssel versiegelt.",

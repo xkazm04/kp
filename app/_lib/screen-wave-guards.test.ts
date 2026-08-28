@@ -18,6 +18,7 @@ import { saveAnalysis } from "./db/analyses.ts";
 import { runScreenWave, ScreenWaveApprovalError } from "./screen-wave.ts";
 import { screenWaveApprovalToken, SCREEN_WAVE_APPROVAL_MAX_AGE_MS } from "./screen-wave-approval.ts";
 import { listDecisionRecords } from "./decision-record-store.ts";
+import { PLACEHOLDER_APPROVER } from "./auth/operator-approver.ts";
 
 after(() => cleanupUnitDb());
 
@@ -196,4 +197,63 @@ test("a score computed before the JD's last edit seals the staleness caveat the 
   const inputs = sealedInputs(low.id);
   assert.equal(inputs.stale, true, "the immutable record carries the caveat, not just the preview");
   assert.equal(inputs.staleSince, previewRow.staleSince);
+});
+
+// --- 5. the approval has to be SOMEBODY'S (gap G5) ---------------------------
+//
+// The four guards above prove an approval covers this cohort and is recent. None
+// of them proves it was anyone's. With no signed-in user and no KP_OPERATOR_NAME,
+// `approvedBy` falls back to the posture string and the wave used to seal the
+// adverse record to it — 66 such records on the 08-17 host — under a /trust page
+// claiming each record carries a named human. The commit is now refused instead.
+
+test("a commit whose approver cannot be named is refused, and the cohort is untouched", async () => {
+  // The unnamed deployment is the CASE UNDER TEST, so it is established here
+  // rather than inherited: a developer with KP_OPERATOR_NAME exported would
+  // otherwise watch this pass for the wrong reason.
+  delete process.env.KP_OPERATOR_NAME;
+  const jobId = "swg-job-unnamed";
+  const low = seed(jobId, "Unattributed Reject", 11);
+  const preview = await runScreenWave(jobId, RULE, { dryRun: true });
+  assert.equal(preview.decisions.find((d) => d.entryId === low.id)!.action, "reject", "precondition: the wave would reject");
+
+  // Exactly what the route sends from an unattributed deployment: `resolveApprover()`
+  // finds no signed-in user and no KP_OPERATOR_NAME, so it returns the posture string.
+  // The token itself is valid, which isolates attribution from every other guard.
+  await assert.rejects(
+    () =>
+      runScreenWave(jobId, RULE, {
+        dryRun: false,
+        approval: { approvedBy: PLACEHOLDER_APPROVER, token: preview.approvalToken },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof ScreenWaveApprovalError, `expected the 409 path, got ${String(err)}`);
+      // Actionable, and it names BOTH doors — a reader must not have to read the
+      // source to learn how to make the seal attributable.
+      assert.match(err.message, /KP_OPERATOR_NAME/, "the refusal must name the deployment setting to fill");
+      assert.match(err.message, /sign in/i, "and the identity that makes it unnecessary");
+      return true;
+    }
+  );
+  assert.equal(getPipelineEntry(low.id)!.status, "active", "an unattributable rejection must not be committed");
+  assert.equal(listDecisionRecords({ candidateRef: low.id }).length, 0, "and nothing may be sealed");
+
+  // The same cohort commits once the approver has a name — the guard is about
+  // attribution, not about blocking the wave.
+  const named = await runScreenWave(jobId, RULE, {
+    dryRun: false,
+    approval: { approvedBy: "Petra Nováková", token: preview.approvalToken },
+  });
+  assert.equal(named.rejected, 1);
+  assert.equal(getPipelineEntry(low.id)!.status, "rejected");
+});
+
+test("a PREVIEW still runs for an operator who cannot be named", async () => {
+  // A dry run writes nothing, so refusing it would only hide from an operator the
+  // very list they are being asked to take responsibility for.
+  const jobId = "swg-job-unnamed-preview";
+  const low = seed(jobId, "Preview Only", 9);
+  const preview = await runScreenWave(jobId, RULE, { dryRun: true });
+  assert.equal(preview.decisions.find((d) => d.entryId === low.id)!.action, "reject");
+  assert.equal(getPipelineEntry(low.id)!.status, "active");
 });

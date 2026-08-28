@@ -788,7 +788,7 @@
           "allowTitle": "Co smí běžet bez dozoru",
           "gates": {
             "screen": "Screening",
-            "schedule": "Plánování",
+            "offer": "Nabídka",
             "reject": "Zamítnutí"
           },
           "auto": "auto",
@@ -841,7 +841,7 @@
             "title": "Skóre vs. skutečnost",
             "predicted": "předpověď",
             "actual": "skutečnost",
-            "note": "sloupce sedí na sebe, takže číslo znamená, co říká"
+            "note": "takhle vypadá kalibrované skóre; když jsou důkazy příliš tenké nebo kruhové, panel to řekne rovnou"
           }
         }
       }
@@ -5961,6 +5961,8 @@
       "colSubject": "Předmět",
       "colRationale": "Odůvodnění",
       "colActor": "Původce",
+      "actorRoleOnly": "jen role",
+      "actorRoleOnlyTitle": "Tento záznam uvádí roli, ne osobu: byl zapečetěn tam, kde nasazení neumělo schvalovatele identifikovat. Přihlášená identita nebo KP_OPERATOR_NAME pojmenuje ten další. Zapečetěné záznamy se nikdy nepřepisují.",
       "colSealed": "Zapečetěno",
       "noMatches": "Filtrům neodpovídá žádný záznam.",
       "verifiedKeyless": "Průkazné pro integritu, ne odolné proti manipulaci: {count, plural, one {# zapečetěný záznam} few {# zapečetěné záznamy} other {# zapečetěných záznamů}}, řetězec ověřen, ale zapečetěno bez klíče.",

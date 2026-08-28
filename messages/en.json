@@ -788,7 +788,7 @@
           "allowTitle": "What may run unattended",
           "gates": {
             "screen": "Screening",
-            "schedule": "Scheduling",
+            "offer": "Offer",
             "reject": "Rejection"
           },
           "auto": "auto",
@@ -841,7 +841,7 @@
             "title": "Score vs. what happened",
             "predicted": "we predicted",
             "actual": "actually happened",
-            "note": "the bars line up, so the number means what it says"
+            "note": "this is what a calibrated score looks like; when the evidence is too thin or too circular, the panel says that instead"
           }
         }
       }
@@ -5961,6 +5961,8 @@
       "colSubject": "Subject",
       "colRationale": "Rationale",
       "colActor": "Actor",
+      "actorRoleOnly": "role only",
+      "actorRoleOnlyTitle": "This record names a role, not a person: it was sealed where the deployment could not identify the approver. A signed-in identity or KP_OPERATOR_NAME names the next one. Sealed records are never rewritten.",
       "colSealed": "Sealed",
       "noMatches": "No records match the current filters.",
       "verifiedKeyless": "Integrity-evident, not tamper-resistant: {count} sealed records, chain verified, but sealed without a key.",
