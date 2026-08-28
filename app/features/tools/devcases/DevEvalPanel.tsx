@@ -3,6 +3,7 @@
 import { Check, CircleDot, MessageCircleQuestion, Send, TriangleAlert, X, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { formatFraction } from "@/app/_lib/format";
+import { judgeSeatState } from "@/app/_lib/devcase-judge-independence";
 import { describeSource } from "./DevHelpers";
 import { useDimensionLabel, useProbeKindLabel, useProbeStatusLabel } from "./DevLabels";
 import { FollowupQuestionItem } from "./DevShared";
@@ -93,7 +94,15 @@ export function EvalPanel({ ev, onPromote, promoted, promoting = false }: { ev: 
           branch), so it is also the reliable "was this watched?" tell for the checks
           panel below. Bundles saved before either field existed carry neither and
           render nothing at all — an old evaluation must not claim checks it never ran. */}
-      {ev.integrity ? <DevEvalPanelIntegrity integrity={ev.integrity} /> : null}
+      {/* Gap 5 — the strip now carries a SECOND, independent fact: whether the
+          `devcase_judge` seat that grades this pipeline's output is the same engine
+          that produced it. A repo submission has no `integrity` (no observed event
+          log), so gating on `integrity` alone is exactly what would hide a
+          self-grading warning from the take-home half of the product. Only the
+          self-grading state opens the strip — see devcase-judge-independence.ts. */}
+      {ev.integrity || judgeSeatState(ev.judgeIndependence) === "self_grading" ? (
+        <DevEvalPanelIntegrity integrity={ev.integrity ?? null} judgeIndependence={ev.judgeIndependence} />
+      ) : null}
       {ev.observedChecks ? <DevEvalPanelChecks checks={ev.observedChecks} live={ev.integrity != null} /> : null}
 
       {/* probe results (D5) — self-contained from denormalized kind/where, no case re-join */}

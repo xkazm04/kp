@@ -7492,7 +7492,10 @@
       "markerAbsentTitle": "This session's marker is no longer in the submitted files. On its own that proves nothing: the candidate may simply have edited the line away.",
       "markerForeign": "{count, plural, one {# foreign marker} other {# foreign markers}}",
       "markerForeignTitle": "Another work session's marker appears in these files: the tell of a circulated or relayed solution. Verify authorship live.",
-      "footnote": "Tamper-evidence on the recorded log, not a judgement of the work."
+      "footnote": "Tamper-evidence on the recorded log, not a judgement of the work.",
+      "judgeTitle": "Assessment integrity",
+      "judgeSelfGrading": "Judge = generator",
+      "judgeSelfGradingTitle": "The quality gate over this assessment resolves to the same model that produced it, so it shares its blind spots. Pin a different model for the dev-case judge seat in Models settings to make the gate independent."
     },
     "checks": {
       "title": "What the checks found",

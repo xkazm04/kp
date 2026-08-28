@@ -652,6 +652,62 @@ by-ref lookup. Without that the two halves disagreed exactly where it matters �
 minted candidate's profile id is not their `candidate_ref`, so the deepest evidence the
 product produces was credited to nobody.
 
+### The judge is independent by default
+
+The dev-case gates are graded by an LLM: `lifecycle_audits.judge` (1–5 per artifact),
+`role_fit_verdicts`, and the `--strict` certifications in `calibrate.py`,
+`lifecycle_eval.py` and `submission_eval.py`. `llm_judge.py` routes all of them through
+the **`devcase_judge`** seat so an operator can pin a different model for it — but
+routing is not independence, and until now nothing was pinned: with no `KP_LLM_CONFIG`
+both the generator and the judge resolved to `claude_cli` with `model=None`, i.e. the
+same engine on the same default. **Every default install self-graded.** The only trace
+was a stderr line inside offline harnesses no recruiter runs.
+
+**The seat now carries its own default.** `USE_CASE_MODEL_OVERRIDES`
+(`pipeline/jobfit/llm/capabilities.py`) pins `("devcase_judge", "claude_cli")` to
+`JUDGE_CLI_MODEL` (`claude-haiku-4-5` — the versioned id, not the `haiku` alias, because
+`test_llm_base.PriceTest` requires every routed default to resolve a price and prices are
+keyed by version). `resolve_provider`'s CLI branch was the one path that never consulted
+`default_model`; it does now, which is what lets a per-seat default reach this product's
+own local default engine. The change is inert for every other seat —
+`DEFAULT_MODELS["claude_cli"]` is `None`, so an unoverridden use case still gets the
+CLI's configured default. On `anthropic` the same collision existed one level down
+(`devcase_evaluate` has no override, so both seats landed on `claude-haiku-4-5`), and the
+judge takes the cheapest catalogue model that is **distinct** from it.
+
+Two honest limits, both stated rather than papered over:
+
+- **It is a default, not a guarantee.** An operator can point both seats at one model,
+  and then `judge_independence` reports `independent: false` — which is the point of
+  measuring it rather than asserting it.
+- **It cannot be fixed for every engine.** `openai`, `gemini`, `openrouter`, `qwen`,
+  `ollama` and `azure_openai` name at most one model in the catalogue, so there is no
+  distinct default to pick and those installs report `false` until the seat is pinned.
+  And on the CLI, `claude_cli/haiku` vs `claude_cli/default` is a *routing* distinction:
+  if an operator's own CLI default happens to be the same model, the two seats are the
+  same engine and nothing here can see it.
+
+**The flag reaches the reviewer.** `devcase_cli evaluate-submission` now stamps
+`judgeIndependence` — `{generator, judge, independent}`, exactly the shape the four
+offline harnesses already report — onto the evaluation bundle, and
+`DevEvalPanelIntegrity.tsx` renders **"Judge = generator"** when it is false. The
+rendering rule is deliberately asymmetric (`app/_lib/devcase-judge-independence.ts`):
+
+- only the **self-grading** state is shown. The runtime evaluation is not itself judged
+  (the judge seat runs in the calibration and lifecycle harnesses), so a green "judge
+  independent" chip beside a submission's scores would claim a check this bundle never
+  had;
+- the field is **absent** on a keyless deterministic run — no generating model means no
+  judge to be independent *of*, and a fabricated warning there would be worse than the
+  gap — and on any bundle saved before the field existed. Absent renders nothing.
+
+Because a repo submission has no `integrity` block, the strip is no longer gated on one:
+it opens for either fact, and takes the wider heading when only the judge has something
+to say. Pinned in `pipeline/jobfit/tests/test_devcase_judge_independence.py` (default
+resolution, the non-collapse of a provider-only wildcard row, the pinned-same-model case,
+and the three emission states) and `app/_lib/devcase-judge-independence.test.ts` (the
+panel state, including that a legacy bundle never starts reading as self-graded).
+
 ### The voice screen is reachable from the assignment
 
 The evaluation's minted follow-up questions exist to be asked **out loud**: an artifact

@@ -2,6 +2,7 @@ import type { OutboxStatus } from "@/app/_lib/comms-status";
 // Single-sourced from the generated schema (superset of the old local shape —
 // adds roleFamily/languages/promptVersion); see app/_lib/rolespec.ts.
 import type { RoleBrief, RoleSpec } from "@/app/_lib/rolespec";
+import type { JudgeIndependence } from "@/app/_lib/devcase-judge-independence";
 
 // Summary row from GET /api/jds (the saved-JD library backing the NeedForm picker) —
 // mirrors sub_analyze/AnalyzeTypes.JdSummary; kept local so the dev feature doesn't
@@ -331,7 +332,14 @@ export type ObservedChecks = {
   checkEvidence?: string[];
 };
 
-export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; authenticity?: Authenticity | null; seedDiff?: SeedDiff | null; integrity?: Integrity | null; observedChecks?: ObservedChecks; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
+// Gap 5 — the seat identities behind this evaluation (which engine+model produced it,
+// which one the `devcase_judge` gate resolves to, whether they differ). The type and
+// its RENDERING RULE live together in the pure lib module — only the self-grading
+// state is shown, and "absent" covers both a legacy bundle and a keyless
+// deterministic run — so this is a re-export, not a second declaration.
+export type { JudgeIndependence };
+
+export type EvalBundle = { reflection?: Reflection; tooling?: Tooling; evaluation?: CaseEval; transfer?: Transfer; followups?: Followups; authenticity?: Authenticity | null; seedDiff?: SeedDiff | null; integrity?: Integrity | null; observedChecks?: ObservedChecks; judgeIndependence?: JudgeIndependence | null; source?: SourceKind; perStepSources?: PerStepSources; commitCount?: number; processTrace?: ProcessTrace | null };
 
 // At or below this a confidence (self-rated OR propagated) is "low" — the reviewer is warned the
 // inference is thin/ungrounded, or a decision rests on such evidence. Mirrors LOW_CONFIDENCE in

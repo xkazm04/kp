@@ -7492,7 +7492,10 @@
       "markerAbsentTitle": "Le marqueur de cette session n’est plus dans les fichiers rendus. Cela ne prouve rien en soi : la ligne a pu être simplement supprimée.",
       "markerForeign": "{count, plural, one {# marqueur étranger} other {# marqueurs étrangers}}",
       "markerForeignTitle": "Le marqueur d’une autre session de travail apparaît dans ces fichiers : le signe d’une solution qui circule ou a été relayée. Vérifiez la paternité en direct.",
-      "footnote": "Preuve d’inviolabilité du journal, pas un jugement sur le travail."
+      "footnote": "Preuve d’inviolabilité du journal, pas un jugement sur le travail.",
+      "judgeTitle": "Intégrité de l’évaluation",
+      "judgeSelfGrading": "Juge = générateur",
+      "judgeSelfGradingTitle": "Le contrôle qualité de cette évaluation utilise le même modèle que celui qui l’a produite : il partage donc ses angles morts. Attribuez un autre modèle au siège de juge des cas techniques dans les réglages Modèles pour rendre le contrôle indépendant."
     },
     "checks": {
       "title": "Ce que les contrôles ont trouvé",

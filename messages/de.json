@@ -7492,7 +7492,10 @@
       "markerAbsentTitle": "Der Marker dieser Sitzung ist nicht mehr in den eingereichten Dateien. Für sich genommen beweist das nichts: Die Zeile kann schlicht gelöscht worden sein.",
       "markerForeign": "{count, plural, one {# fremder Marker} other {# fremde Marker}}",
       "markerForeignTitle": "In diesen Dateien taucht der Marker einer anderen Arbeitssitzung auf: das Anzeichen einer weitergereichten oder kursierenden Lösung. Urheberschaft live prüfen.",
-      "footnote": "Manipulationsnachweis für das Protokoll, kein Urteil über die Arbeit."
+      "footnote": "Manipulationsnachweis für das Protokoll, kein Urteil über die Arbeit.",
+      "judgeTitle": "Integrität der Bewertung",
+      "judgeSelfGrading": "Prüfer = Generator",
+      "judgeSelfGradingTitle": "Die Qualitätsprüfung dieser Bewertung läuft auf demselben Modell, das sie erzeugt hat, und teilt daher dessen blinde Flecken. Weisen Sie dem Prüfer-Sitz für Dev-Cases in den Modell-Einstellungen ein anderes Modell zu, damit die Prüfung unabhängig wird."
     },
     "checks": {
       "title": "Was die Prüfungen ergaben",

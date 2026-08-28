@@ -7492,7 +7492,10 @@
       "markerAbsentTitle": "Značka této relace už v odevzdaných souborech není. Samo o sobě to nic nedokazuje: kandidát mohl řádek prostě smazat.",
       "markerForeign": "{count, plural, one {# cizí značka} few {# cizí značky} other {# cizích značek}}",
       "markerForeignTitle": "V těchto souborech se objevuje značka jiné pracovní relace: typický příznak kolujícího nebo přeposlaného řešení. Ověřte autorství živě.",
-      "footnote": "Důkaz o neporušenosti záznamu, ne hodnocení odvedené práce."
+      "footnote": "Důkaz o neporušenosti záznamu, ne hodnocení odvedené práce.",
+      "judgeTitle": "Integrita hodnocení",
+      "judgeSelfGrading": "Hodnotitel = generátor",
+      "judgeSelfGradingTitle": "Kontrola kvality tohoto hodnocení používá stejný model, který ho vytvořil, takže sdílí jeho slepá místa. V nastavení Modelů přiřaďte roli hodnotitele případové studie jiný model, aby byla kontrola nezávislá."
     },
     "checks": {
       "title": "Co kontroly zjistily",

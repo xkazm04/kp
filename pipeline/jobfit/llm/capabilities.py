@@ -145,12 +145,52 @@ def default_max_tokens(use_case: str) -> int | None:
     return USE_CASE_MAX_TOKENS.get(use_case)
 
 
-# Quality-sensitive use cases step up a model class when no model is pinned.
+# The Claude CLI model the JUDGE seat is pinned to when nothing is configured: the same
+# cheapest tier DEFAULT_MODELS already names for ``anthropic``.
+#
+# The VERSIONED id, not the ``haiku`` alias the CLI also accepts. The alias would be
+# immune to model retirement, but ``test_llm_base.PriceTest`` requires every routed
+# default to resolve a price and prices are keyed by version — an alias would have made
+# the judge seat the one routed model whose spend could not be costed, which is a worse
+# trade than owning a version bump the catalogue already owns for ``anthropic``.
+JUDGE_CLI_MODEL = "claude-haiku-4-5"
+
+# Per-(use case, provider) model defaults that differ from the provider's own.
+#
+# TWO reasons a seat overrides the provider default, and they pull in OPPOSITE
+# directions — which is why they share one map instead of one of them being "the
+# quality map":
+#
+# QUALITY. A structurally large, judgement-heavy generation (a campaign pack, a whole
+# case design) steps UP a model class when nothing is pinned.
+#
+# INDEPENDENCE. ``devcase_judge`` is a fairness/quality GATE over artifacts another
+# seat produced (llm_judge.py owns the invariant). With nothing configured, BOTH seats
+# fell back to the same engine on the same default — ``claude_cli`` with ``model=None``
+# — so ``judge_independence`` reported False on every default install and the product
+# self-graded out of the box. The seat is now distinct BY DEFAULT: ``claude_cli/haiku``
+# against the generator's ``claude_cli/default``. On ``anthropic`` the collision is the
+# same shape one level down (``devcase_evaluate`` has no override, so both seats land on
+# DEFAULT_MODELS' ``claude-haiku-4-5``), so the judge takes the cheapest model in the
+# catalogue that is DISTINCT from it.
+#
+# The trade-off is stated rather than hidden: on the CLI the default judge is a cheaper
+# tier than the generator, so independence is bought with judge capability. An operator
+# who wants a stronger judge pins the seat in Models config — and if they pin it to the
+# generator's own model, ``judge_independence`` reports False and the reviewer is told
+# instead of the gate quietly certifying itself.
+#
+# It cannot be fixed for every engine: ``openai``, ``gemini``, ``openrouter``, ``qwen``,
+# ``ollama`` and ``azure_openai`` name at most ONE model in this catalogue, so there is
+# no distinct default to pick. Those installs report ``independent: false`` honestly
+# until the operator pins the seat, which is the correct answer, not a gap.
 USE_CASE_MODEL_OVERRIDES: dict[tuple[str, str], str] = {
     ("campaign_pack", "anthropic"): "claude-sonnet-4-6",
     ("devcase_analyze", "anthropic"): "claude-sonnet-4-6",
     ("devcase_role_design", "anthropic"): "claude-sonnet-4-6",
     ("devcase_case_design", "anthropic"): "claude-sonnet-4-6",
+    ("devcase_judge", "claude_cli"): JUDGE_CLI_MODEL,
+    ("devcase_judge", "anthropic"): "claude-sonnet-4-6",
 }
 
 

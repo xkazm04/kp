@@ -16,8 +16,15 @@
 //   2. The watermark MECHANISM is never shown. We render the verdict (intact /
 //      absent / a foreign marker was found) and never the marker string itself —
 //      printing `watermark.expected` would teach a candidate exactly what to strip.
-import { Link2, Link2Off, ShieldCheck, ShieldAlert, ShieldQuestion, Clock, type LucideIcon } from "lucide-react";
+//   3. The JUDGE seat is reported only when it is the GENERATOR. `devcase_judge` is
+//      the gate over this pipeline's own output; when it resolves to the same
+//      engine+model that produced the artifacts, the gate is self-grading and the
+//      reviewer is told. The independent case renders NOTHING — the runtime
+//      evaluation is not itself judged, so a green "judge independent" chip would
+//      claim a check this bundle never had. See app/_lib/devcase-judge-independence.ts.
+import { Link2, Link2Off, ShieldCheck, ShieldAlert, ShieldQuestion, Clock, Gavel, type LucideIcon } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { judgeSeatState } from "@/app/_lib/devcase-judge-independence";
 import type { Integrity } from "./DevTypes";
 
 type Tone = "ok" | "alert" | "unknown";
@@ -36,12 +43,24 @@ function Fact({ tone, Icon, label, title }: { tone: Tone; Icon: LucideIcon; labe
   );
 }
 
-export function DevEvalPanelIntegrity({ integrity }: { integrity: Integrity }) {
+export function DevEvalPanelIntegrity({
+  integrity,
+  judgeIndependence,
+}: {
+  /** null for a REPO submission (there is no observed event log to verify). The strip
+   *  still renders when the judge seat has something to say — the two facts are
+   *  independent, and gating one on the other is what would hide it. */
+  integrity: Integrity | null;
+  judgeIndependence?: unknown;
+}) {
   const t = useTranslations("devcase.integrity");
   const locale = useLocale();
-  const { chain, backdatedEvents, maxClockDriftMs, watermark } = integrity;
+  const judge = judgeSeatState(judgeIndependence);
+  const chain = integrity?.chain ?? null;
+  const backdatedEvents = integrity?.backdatedEvents ?? 0;
+  const watermark = integrity?.watermark ?? null;
   // Seconds, one decimal — the raw ms figure is precise noise to a recruiter.
-  const driftSeconds = Math.round(maxClockDriftMs / 100) / 10;
+  const driftSeconds = Math.round((integrity?.maxClockDriftMs ?? 0) / 100) / 10;
   // Locale-formatted unit (grouping, decimal separator and "s" abbreviation all
   // vary by reader locale), fed into the message as one placeholder rather than
   // gluing a hardcoded "s" onto the raw number in the catalog.
@@ -54,10 +73,21 @@ export function DevEvalPanelIntegrity({ integrity }: { integrity: Integrity }) {
 
   return (
     <div className="mt-2 border-t border-stone-100 pt-2">
-      <p className="mb-1 text-micro font-semibold uppercase tracking-wide text-steel">{t("title")}</p>
+      {/* The heading names what is actually below it. "Log integrity" and its
+          footnote are both about the recorded event log, so a repo submission — which
+          has no log, and reaches this strip only because the judge seat has something
+          to say — gets the wider heading and no log footnote. */}
+      <p className="mb-1 text-micro font-semibold uppercase tracking-wide text-steel">
+        {integrity ? t("title") : t("judgeTitle")}
+      </p>
       <div className="flex flex-wrap items-center gap-1.5">
+        {/* The judge seat, and ONLY when it is the generator (rule 3 above). */}
+        {judge === "self_grading" ? (
+          <Fact tone="alert" Icon={Gavel} label={t("judgeSelfGrading")} title={t("judgeSelfGradingTitle")} />
+        ) : null}
+
         {/* Chain: three states, never two. `null` means we cannot say. */}
-        {chain.valid === true ? (
+        {chain == null ? null : chain.valid === true ? (
           <Fact tone="ok" Icon={Link2} label={t("chainVerified", { count: chain.events })} title={t("chainVerifiedTitle")} />
         ) : chain.valid === false ? (
           <Fact
@@ -73,7 +103,7 @@ export function DevEvalPanelIntegrity({ integrity }: { integrity: Integrity }) {
         {/* Client clock vs server receive window. 0 flagged events is a real
             positive result here (the log was checked and agreed), unlike the
             null-chain case above. */}
-        {backdatedEvents > 0 ? (
+        {chain == null ? null : backdatedEvents > 0 ? (
           <Fact
             tone="alert"
             Icon={Clock}
@@ -87,7 +117,7 @@ export function DevEvalPanelIntegrity({ integrity }: { integrity: Integrity }) {
         {/* Watermark VERDICT only — never the marker. A foreign marker is the
             circulation tell; a merely-absent own marker is a note, not a finding
             (deleting a line proves nothing), so it renders neutral, never coral. */}
-        {watermark.foreign.length > 0 ? (
+        {watermark == null ? null : watermark.foreign.length > 0 ? (
           <Fact
             tone="alert"
             Icon={ShieldAlert}
@@ -100,7 +130,7 @@ export function DevEvalPanelIntegrity({ integrity }: { integrity: Integrity }) {
           <Fact tone="unknown" Icon={ShieldQuestion} label={t("markerAbsent")} title={t("markerAbsentTitle")} />
         )}
       </div>
-      <p className="mt-1 text-micro italic text-steel">{t("footnote")}</p>
+      {integrity ? <p className="mt-1 text-micro italic text-steel">{t("footnote")}</p> : null}
     </div>
   );
 }

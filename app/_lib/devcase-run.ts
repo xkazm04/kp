@@ -10,6 +10,7 @@ import { inferProfileLocale } from "./comms-locale";
 import { MAX_CODEBASES } from "./devcase-constraints";
 import { scoreAuthenticity, PASTE_BULK_CHARS, type Authenticity } from "./devcase-authenticity";
 import { changedPathsFromFiles, seedDiffEvidence, type SeedDiff } from "./devcase-seed-diff";
+import type { JudgeIndependence } from "./devcase-judge-independence";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
@@ -556,6 +557,13 @@ export type SubmissionEvaluation = {
   // LLM-era controls #2/#3/#6 — the mechanical observed-check verdicts persisted
   // beside the LLM interpretation ({} when the submission had no observed inputs).
   observedChecks?: Record<string, unknown>;
+  // ONE THREAD (gap 5) — the seat identities behind this evaluation: which engine +
+  // model produced it, which one the `devcase_judge` gate resolves to, and whether they
+  // differ. A CONFIGURATION fact, stamped where the evidence is weighed. Absent (null)
+  // on a bundle saved before the field existed AND on a deterministic keyless run,
+  // which had no generating model for a judge to be independent of — see
+  // app/_lib/devcase-judge-independence.ts for why only the self-grading state renders.
+  judgeIndependence?: JudgeIndependence | null;
   source: string;
   perStepSources: Record<string, string>; // {reflect, tooling, evaluate, transfer, followups}
   fallbackReason: Record<string, string>; // {step: "<ExceptionType>: <message>"} for steps whose LLM call raised
@@ -613,6 +621,9 @@ export async function runEvaluateSubmission(submissionId: string, signal?: Abort
       // Mechanical observed-check verdicts (canaries, prompt signals, baseline
       // distance) — {} when no observed inputs were available.
       observedChecks?: Record<string, unknown>;
+      // The judge seat's identity beside the generator's; emitted only when an LLM
+      // produced this evaluation (devcase_cli.py).
+      judgeIndependence?: JudgeIndependence;
     };
     source: string;
     perStepSources?: Record<string, string>;
