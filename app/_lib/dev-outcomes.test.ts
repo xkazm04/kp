@@ -214,6 +214,12 @@ test("hireOutcomeRef routes a devcase-promoted hire to its submission ref and ev
   // The namespace is what keeps a seeded entry id like "pe-043" out of the submission
   // ref space; both id spaces are alphanumeric+dash, so the colon cannot occur in one.
   assert.ok(PIPELINE_OUTCOME_REF_PREFIX.includes(":"));
+  // A candidate id that is EXACTLY the legacy prefix names no submission, so it must
+  // fall through to the namespaced entry ref. The old `startsWith("ds-") ? slice(3)`
+  // pair returned the empty string here and used it as the outcome row's key.
+  assert.equal(hireOutcomeRef({ id: "pe-044", candidateId: "ds-" }), `${PIPELINE_OUTCOME_REF_PREFIX}pe-044`);
+  // The entry's own column still outranks the legacy prefix reading.
+  assert.equal(hireOutcomeRef({ id: "pe-045", candidateId: "ds-old", devSubmissionId: "sub_99" }), "sub_99");
 });
 
 test("rating a devcase-promoted hire updates the auto-recorded row — never a second decided outcome", () => {
