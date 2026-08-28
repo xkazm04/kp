@@ -651,6 +651,32 @@ profile the promoted **entry** names when the caller passes one, falling back to
 by-ref lookup. Without that the two halves disagreed exactly where it matters — a freshly
 minted candidate's profile id is not their `candidate_ref`, so the deepest evidence the
 product produces was credited to nobody.
+
+### Observed skills reach every archetype, not just early-career
+
+`mintObservedFromCaseInterview` used to return early unless
+`isEarlyCareer(entry.archetype)`, so a case-grounded interview was evidence for students
+and career switchers only. That was never the doctrine: `observed` is a provenance
+**weight** (1.0, above `professional` — see [the matching
+doc](../matching/README.md)), stated for "a skill demonstrated live in a case or
+case-grounded interview" with no archetype qualifier, and Python's minting gates never
+look at the archetype. What *is* early-career-specific is the routing-confidence
+corroboration, which `live_case._corroborate_routing` gates itself. The TS gate was
+therefore suppressing the whole mint to enforce a rule the layer below already enforced
+on the one field it applies to — and because every promoted entry was hardcoded
+`archetype: "bau"`, the effect was total: the mint could never fire for a dev-case
+candidate. The gate is gone; the honest ones stay (a generated interview scenario, every
+case construct rated on quoted evidence, mean at or above "Above bar", never a
+wide-confidence transcript, and — on the take-home side — a non-`suspect` authenticity
+band, the transfer floor and the evidence-confidence floor).
+
+Both mint paths now run for a promoted `bau` candidate: the take-home one at promote
+(`/api/devcase/promote` and the orchestrator's ranked stage both call
+`mintObservedFromSubmission` with the entry id), and the interview one when a
+case-grounded voice screen completes (`interview-run.ts`). Pinned end to end on a real
+DB and the real deterministic `devcase_cli` in `app/_lib/devcase-observed-promoted.test.ts`;
+the scoring half is `ObservedIsArchetypeIndependentTest` in
+`pipeline/jobfit/tests/test_live_case.py`.
 - Live Work Surface event log — tamper-evident hash-chained rows (per `app/_lib/db/core.ts`)
 
 ## Known gaps

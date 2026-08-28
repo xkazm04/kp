@@ -560,8 +560,11 @@ export async function runInterviewScorecard(
   if (coverage) (result as Record<string, unknown>).coverage = coverage;
   // Case-grounded interviews can mint observed evidence (step 4 of the case-first
   // design): when the conversation worked the role's shared case AND cleared the
-  // honest gates, the candidate's profile gains observed-provenance skills — their
-  // next match credits them at full trust and the early-career band narrows.
+  // honest gates, the candidate's profile gains observed-provenance skills and their
+  // next match credits them at full trust. For ANY archetype: `observed` is a
+  // provenance weight, not an early-career lever (ONE THREAD gap 3 — the
+  // `isEarlyCareer` gate that used to sit inside the mint is gone; the one genuinely
+  // early-career effect, the routing-confidence lift, self-gates in Python).
   // Best-effort enrichment, never a gate on the scorecard itself.
   try {
     const { mintObservedFromCaseInterview } = await import("./devcase-run");

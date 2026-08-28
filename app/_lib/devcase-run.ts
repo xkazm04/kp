@@ -13,7 +13,6 @@ import { changedPathsFromFiles, seedDiffEvidence, type SeedDiff } from "./devcas
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, PipelineError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
-import { isEarlyCareer } from "./archetypes";
 import {
   caseJobIdentity,
   devCaseIdForEntry,
@@ -316,22 +315,39 @@ export type ObservedMintResult = { credited: string[]; applied: boolean };
 
 /** After a CASE-GROUNDED interview completes, run the deterministic observed gate
  *  (live_case.apply_interview_case) over the scorecard and — when earned — persist
- *  the enriched profile, so the candidate's next match credits the observed skills
- *  and narrows their early-career confidence band.
+ *  the enriched profile, so the candidate's next match credits the observed skills.
  *
- *  Quietly returns {applied: false} unless EVERY precondition holds: an
- *  early-career entry with a saved profile, on a dev-case role whose case carries
- *  a generated interview scenario (i.e. the conversation really was case-grounded).
- *  The honest gates themselves (all case constructs rated on quoted evidence, mean
- *  ≥ "Above bar", never from a wide-confidence transcript) live in Python with the
- *  rest of the scoring contract. */
+ *  Quietly returns {applied: false} unless EVERY precondition holds: an entry with a
+ *  saved profile, on a dev-case role whose case carries a generated interview
+ *  scenario (i.e. the conversation really was case-grounded). The honest gates
+ *  themselves (all case constructs rated on quoted evidence, mean ≥ "Above bar",
+ *  never from a wide-confidence transcript) live in Python with the rest of the
+ *  scoring contract.
+ *
+ *  ONE THREAD (gap 3) — the ARCHETYPE gate is gone, and it was never doctrine.
+ *  This used to return early unless `isEarlyCareer(entry.archetype)`, which made a
+ *  case-grounded interview evidence for students and career switchers only. The
+ *  matching doctrine says the opposite: `observed` is a provenance WEIGHT
+ *  (taxonomy.py, 1.0 — above `professional`), stated for "a skill demonstrated live
+ *  in a case or case-grounded interview" with no archetype qualifier. A senior
+ *  engineer who works the shared case in front of an interviewer has demonstrated
+ *  the skill exactly as hard as a graduate has.
+ *
+ *  What IS early-career-specific is the routing-confidence corroboration
+ *  (`live_case._corroborate_routing`), and Python already gates that itself —
+ *  `if profile.archetype not in _EARLY_CAREER: return`. So the TS gate was not
+ *  enforcing that rule; it was suppressing the whole mint to enforce a rule the
+ *  layer below already enforces on the one field it applies to. The consequence
+ *  was total, because until d60fa012 every promoted dev-case entry was hardcoded
+ *  `archetype: "bau"` — the deepest evidence the product produces could not reach
+ *  a single candidate it was minted for. See docs/features/matching/README.md. */
 export async function mintObservedFromCaseInterview(
   entryId: string,
   scorecard: Record<string, unknown>,
   workspaceId: string = DEFAULT_WORKSPACE_ID
 ): Promise<ObservedMintResult> {
   const entry = getPipelineEntry(entryId, workspaceId);
-  if (!entry || !entry.candidateId || !isEarlyCareer(entry.archetype)) return { credited: [], applied: false };
+  if (!entry || !entry.candidateId) return { credited: [], applied: false };
   const caseId = devCaseIdForEntry(entry);
   const devCase = caseId ? getDevCase(caseId) : null;
   if (!devCase?.scenario || !devCase.case || !devCase.role) return { credited: [], applied: false };

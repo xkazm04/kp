@@ -293,5 +293,86 @@ class RoutingCorroborationTest(unittest.TestCase):
         self.assertEqual(enriched.archetype_confidence, 0.65)
 
 
+class ObservedIsArchetypeIndependentTest(unittest.TestCase):
+    """ONE THREAD (gap 3) — observed provenance is a WEIGHT, not an early-career lever.
+
+    Every scoring proof in this file used ``_student()``, so nothing pinned that the
+    same loop closes for an experienced candidate — and the TS caller
+    (``mintObservedFromCaseInterview``) had a matching ``isEarlyCareer`` gate that
+    made a case-grounded interview evidence for students only. It has been lifted;
+    these pin the doctrine it was contradicting: ``taxonomy.PROVENANCE_WEIGHTS``
+    scores ``observed`` at 1.0 for anyone, and the ONE thing that really is
+    early-career-specific (the routing-confidence corroboration) self-gates in
+    ``_corroborate_routing`` rather than needing the whole mint suppressed."""
+
+    ROLE = RoleSpec(title="Backend", role_family="software_engineering", seniority="mid",
+                    must_haves=["Python", "SQL"])
+    TRANSFER = TransferAssessment(transfer_score=82, transfers=["Python", "SQL"], confidence=0.8)
+
+    @staticmethod
+    def _bau() -> CandidateProfileV2:
+        # An experienced candidate whose skills are only SELF-DECLARED (weight 0.4)
+        # — the shape a promoted dev-case candidate arrives in.
+        return CandidateProfileV2(
+            archetype="bau",
+            role_family="software_engineering",
+            seniority="mid",
+            languages=["English"],
+            skill_claims=[
+                SkillClaim(skill="Python", provenance="self_declared"),
+                SkillClaim(skill="SQL", provenance="self_declared"),
+            ],
+        )
+
+    JOB = normalize_job(
+        {
+            "title": "Backend Developer",
+            "seniority": "mid",
+            "role_family": "software_engineering",
+            "languages": ["English"],
+            "description": "Build and run services.",
+            "requirements": [
+                {"skill": "Python", "kind": "must_have", "hardness": "learnable"},
+                {"skill": "SQL", "kind": "must_have", "hardness": "learnable"},
+            ],
+        }
+    )
+
+    def test_a_bau_candidates_work_sample_is_credited_and_the_matcher_weights_it(self):
+        base = score_job(build_match_candidate(self._bau()), self.JOB)
+
+        enriched, credited = apply_live_case(
+            self._bau(), self.ROLE, CaseScenario(title="Mini API"),
+            CaseEvaluation(summary="Handled ambiguity well."), self.TRANSFER,
+        )
+        self.assertEqual(set(credited), {"Python", "SQL"})
+        self.assertTrue(any(e.provenance == "observed" for e in enriched.evidence))
+
+        cand = build_match_candidate(enriched)
+        # transform consolidates the observed Evidence over the self-declared claims
+        # for a bau profile exactly as it does for a student.
+        self.assertEqual(cand.skill_provenance.get("Python"), "observed")
+        self.assertEqual(cand.skill_provenance.get("SQL"), "observed")
+        # 0.4 -> 1.0 on both must-haves: the demonstrated skills genuinely move the score.
+        self.assertGreater(score_job(cand, self.JOB).total, base.total)
+
+    def test_a_case_grounded_interview_credits_a_bau_candidate_too(self):
+        enriched, credited = apply_interview_case(
+            self._bau(), self.ROLE, CaseScenario(title="Order notifications"), _case_scorecard()
+        )
+        self.assertEqual(set(credited), {"Python", "SQL"})
+        self.assertTrue(any(e.provenance == "observed" for e in enriched.evidence))
+
+    def test_the_routing_lift_stays_early_career_only(self):
+        # The half that IS archetype-specific, and the reason the TS gate could be
+        # removed without removing it: Python declines the corroboration itself.
+        enriched, credited = apply_live_case(
+            self._bau(), self.ROLE, CaseScenario(title="Mini API"), CaseEvaluation(), self.TRANSFER
+        )
+        self.assertTrue(credited)
+        self.assertEqual(enriched.archetype_reasons, [])
+        self.assertEqual(enriched.archetype_confidence, 0.5)
+
+
 if __name__ == "__main__":
     unittest.main()
