@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Check, CheckSquare, CircleDollarSign, History, Search, Sparkles, Square, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { defaultOfferTtlDays } from "@/app/_lib/offer-policy";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import { CandidateHead, RecBadge } from "./DecisionsShared";
 import { AiReviewCardBody } from "./DecisionsAiReviewCardBody";
 import { useAiReviewCardLogic } from "./decisionsAiReviewCardLogic";
@@ -58,6 +59,13 @@ export function AiReviewCard({
 }) {
   const t = useTranslations("decisions.aiReview");
   const locale = useLocale();
+  // The offer amount renders in the APP's locale, not the browser/OS one — the same
+  // rule the date chips below already follow (and `ranWhen` in groupEval spells out).
+  // A bare `toLocaleString()` made a cs workspace opened in an en-US browser show
+  // "45,000" on the approval card while the candidate's own offer page showed
+  // "45 000" (OfferClient threads the locale), and made the figure differ between
+  // the server render and the client one.
+  const n = useNumberFormat();
   // Selectable exactly when the parent enabled select mode AND passed a toggle
   // (offer_review cards get no toggle, so they stay one-by-one even in select mode).
   const selecting = selectMode && Boolean(onToggleSelect);
@@ -126,7 +134,7 @@ export function AiReviewCard({
             // (pipeline-entry-action.ts extendOffer), so the card must not invent
             // "CZK" either: an absent currency shows the bare amount, not a wrong unit.
             <span className="font-serif text-base text-ink">
-              {Number(parsed?.recommended ?? 0).toLocaleString()}
+              {n.grouped(Number(parsed?.recommended ?? 0))}
               {parsed?.currency ? ` ${parsed.currency}` : ""}
             </span>
           )
