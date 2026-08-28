@@ -1531,12 +1531,33 @@ export function ensureDb(): Database.Database {
   db.prepare(
     `UPDATE dev_outbox SET workspace_id = COALESCE((SELECT pe.workspace_id FROM pipeline_entries pe WHERE pe.id = dev_outbox.ref), 'workspace') WHERE workspace_id IS NULL`
   ).run();
+  // Run one create-copy-drop-rename PK widening ATOMICALLY and RESUMABLY. SQLite can't
+  // ALTER a PRIMARY KEY, so the three widenings below rebuild their table — and a rebuild
+  // written as four bare statements is a boot wedge waiting to happen: a process killed
+  // between the CREATE and the RENAME leaves an orphan `<t>_new` while the PRAGMA guard
+  // still reads "not yet widened", so the next boot re-enters the block, the bare
+  // `CREATE TABLE <t>_new` throws "table already exists", and — because this path does NOT
+  // go through migrateExec — nothing catches it: ensureDb() throws and the app will not
+  // start until an operator drops the orphan by hand. Two guards fix that: drop any orphan
+  // scratch table first, and run the swap inside a transaction so it commits or rolls back
+  // whole. Uses db.transaction rather than a raw `BEGIN;/COMMIT;` inside exec (the
+  // group-eval.ts idiom) because a raw BEGIN in an exec that throws mid-statement leaves
+  // the transaction OPEN on the connection, corrupting every later step of this function.
+  // Failures are NOT swallowed: an unwidened PK is a live cross-tenant correctness problem
+  // and must stay as loud as migrateExec's own unexpected-error path.
+  const rebuildTable = (scratch: string, ddl: string) => {
+    db.transaction(() => {
+      db.exec(`DROP TABLE IF EXISTS ${scratch};`);
+      db.exec(ddl);
+    })();
+  };
   // channel_spend: widen the single-column PK to (channel, workspace_id) so each team
   // keeps its own per-channel spend. One-time rebuild (SQLite can't alter a PK); guarded
   // by the absence of the workspace_id column so it runs exactly once.
   const spendCols = db.prepare(`PRAGMA table_info(channel_spend)`).all() as { name: string }[];
   if (!spendCols.some((c) => c.name === "workspace_id")) {
-    db.exec(
+    rebuildTable(
+      "channel_spend_new",
       `CREATE TABLE channel_spend_new (
          channel TEXT NOT NULL,
          amount_czk REAL NOT NULL,
@@ -1558,7 +1579,8 @@ export function ensureDb(): Database.Database {
   // for the default workspace.
   const targetCols = db.prepare(`PRAGMA table_info(analytics_targets)`).all() as { name: string }[];
   if (!targetCols.some((c) => c.name === "workspace_id")) {
-    db.exec(
+    rebuildTable(
+      "analytics_targets_new",
       `CREATE TABLE analytics_targets_new (
          metric TEXT NOT NULL,
          target_value REAL NOT NULL,
@@ -1591,7 +1613,8 @@ export function ensureDb(): Database.Database {
   //    single seeded org.
   const usageCols = db.prepare(`PRAGMA table_info(billing_usage)`).all() as { name: string }[];
   if (!usageCols.some((c) => c.name === "org_id")) {
-    db.exec(
+    rebuildTable(
+      "billing_usage_new",
       `CREATE TABLE billing_usage_new (
          org_id TEXT NOT NULL DEFAULT 'org-default',
          meter TEXT NOT NULL,
