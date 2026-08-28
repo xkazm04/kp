@@ -8,6 +8,8 @@ coverage_context_source: ".personas/contexts.txt"
 base_branch: main
 worktree_root: .claude/worktrees
 active_runs_ledger: ""
+knowledge_registry: ../ai-registry
+knowledge_domains: [software-engineering, recruiting, localization]
 ---
 
 # architect overlay — kp
@@ -62,6 +64,35 @@ Beyond the built-in nine, kp-specific themes worth a run:
 - `tenancy-scoping` — workspace scoping across repositories, per `app/_lib/tenancy.ts`'s fail-closed manifest
 - `public-wire` — projections on `[token]` routes; what leaks past the allowlist
 - `python-bridge` — the TS↔Python seam (`app/_lib/python-runner.ts`, `schemas:gen` codegen contract)
+
+## Knowledge registry
+
+`../ai-registry` (the path in `.ai/manifest.yaml` `registry.local`). Resolve a subject through
+`knowledge/<domain>/index.json` → `subjects["<slug>"].file` — **never** build a path from the slug.
+Domains: `software-engineering`, `recruiting`, `localization`.
+
+Theme → governing subject, for the themes this repo actually scans:
+
+| Theme | Subject(s) |
+| --- | --- |
+| `data-modeling` / persistence | `data-access` (techniques: `row-mapping`, `transactions-and-units-of-work`, `layering-rules`, `repo-testing`, `cross-driver-invariant-parity`), `migrations` |
+| `python-bridge`, codegen contract | `codegen` |
+| `api-boundary` / `public-wire` | `authorization`, `ipc-contract` |
+| `keyless-degradation` | the `llm-agent` subjects; cross-check `cost-metering` |
+| `tenancy-scoping` | `authorization`, `audit-logging` |
+| `error-handling` | `data-access` § the honesty contract; the `failure-not-empty-success` law |
+| build/release, gates | `build-economics`, `ci-execution-trust`, `conformance-checking` |
+| a scan of the repo itself | `codebase-scanning`, `concurrent-vcs` |
+
+The laws in `knowledge/software-engineering/_laws.md` are the sharpest instrument here —
+`failure-not-empty-success`, `one-authority-per-vocabulary`, `one-validation-door`,
+`deletion-is-not-repair`. A finding that cites a law is a deviation from a named standard rather
+than a reviewer's opinion, and survives triage on different terms.
+
+**Node applications are thin.** `data-access/applications/` carries `rust--query-construction`,
+`rust--row-mapping`, `node--transactions-and-units-of-work` and
+`node--cross-driver-invariant-parity` — there is **no `node--row-mapping`**. A kp finding about the
+decode seam is therefore a candidate for the `registry` vehicle (7B.d2), not just a local fix.
 
 ## Gates
 

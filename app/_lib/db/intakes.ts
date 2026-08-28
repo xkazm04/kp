@@ -1,6 +1,11 @@
 import type { VoiceTurn } from "../voice/types";
 import type { RoleBrief } from "../rolespec";
 import type { AppMasterSpec, RepoDossier } from "../schemas.generated";
+// The VALUE, not just the type: schemas.generated.ts is the one declaration of these
+// shapes (generated from the Python models, kept fresh by schemas:check), and importing
+// only its types is how a Python-side rename stays invisible until a page renders
+// `undefined`. See readRowColumn in ./core.
+import { repoDossierSchema } from "../schemas.generated.ts";
 import { randomId } from "../random-id";
 import { ensureDb, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
@@ -142,7 +147,11 @@ function fromRow(row: IntakeRow): RoleIntake {
   const transcript = safeRowParse<VoiceTurn[]>(row.transcript_json, "roleIntake.transcript", row.id);
   const brief = safeRowParse<RoleBrief>(row.brief_json, "roleIntake.brief", row.id);
   const attachments = safeRowParse<IntakeAttachment[]>(row.attachment_json, "roleIntake.attachments", row.id);
-  const dossier = safeRowParse<RepoDossier>(row.dossier_json, "roleIntake.dossier", row.id);
+  const dossier = safeRowParse<RepoDossier>(row.dossier_json, "roleIntake.dossier", row.id, repoDossierSchema);
+  // NOT validated against appMasterSpecSchema: this column stores an AppMasterCompose
+  // ({ spec, fit, composedAt }), a wrapper AROUND the generated spec rather than the
+  // spec itself, so that schema would reject every row. The wrapper has no generated
+  // declaration of its own — the honest state is unvalidated, not falsely validated.
   const appMaster = safeRowParse<AppMasterCompose>(row.app_master_spec_json, "roleIntake.appMaster", row.id);
   return {
     id: row.id,

@@ -46,6 +46,29 @@ re-derive the isolation level of every call site by hand: only 9 of the 34 use
 `.immediate()` today, and several of the rest are safe purely because a compensating
 `WHERE` precondition makes a lost race a no-op.
 
+### The decode seam
+
+`db/core.ts` carries the seam where an untyped JSON column becomes a typed value:
+`readRowColumn()` returns `absent | ok | unreadable{corrupt|invalid}`, and `safeRowParse()` is a
+back-compat wrapper collapsing the last two to `null` for its ~76 existing callers. A validator is
+optional and zod-shaped but structurally typed, so `core.ts` imports neither zod nor the generated
+schemas — the data layer keeps its dependency direction.
+
+Two properties a port must preserve, because they are contracts rather than conveniences:
+
+- **`absent` and `unreadable` are different answers.** A NULL column and an undecodable one must not
+  collapse for a by-identity read; reporting a corrupt row as "not found" invites the caller to
+  recreate it, and then the identity exists twice.
+- **Nothing is skipped silently.** Every unreadable column is recorded — context, row id, reason —
+  in a bounded ledger surfaced by `getRowHealth()`, the sibling of `getSeedHealth()`. This is the one
+  layer that sees every row, so it is the only place read-health can be measured at all.
+
+Validation runs in `enforce` (a mismatch makes the column unreadable) or `observe` (the mismatch is
+recorded and the value still returned) — the posture for switching validation on over a table that
+already holds nonconforming rows. `analyses.payload_json` is in `observe` today for a measured
+reason: 50 of 121 stored analyses fail `analysisResultSchema` because the CV-analysis writer omits
+`keywordCoverage.hits[].status`.
+
 Two boot-path details a port inherits from `db/core.ts`: the PK-widening rebuilds
 (`channel_spend`, `analytics_targets`, `billing_usage`) exist only because SQLite
 cannot `ALTER` a PRIMARY KEY — Postgres can, so they become no-ops rather than

@@ -89,20 +89,134 @@ function loadSeedArray<T>(seed: SeedIssue["seed"], filePath: string): T[] | null
   return data as T[];
 }
 
+/** A zod-shaped validator, structurally typed so this module never imports zod (or
+ *  the generated schemas, which would invert the dependency direction the data layer
+ *  is supposed to hold). Any `z.ZodType` satisfies it. */
+export type RowValidator<T> = {
+  safeParse: (value: unknown) => { success: true; data: T } | { success: false; error: unknown };
+};
+
+/** What a JSON column actually was. `absent` (NULL/missing) and `unreadable` are
+ *  DIFFERENT FACTS and deliberately do not share an answer: a by-identity read that
+ *  reports a corrupt row as "not found" invites its caller to recreate the record,
+ *  and then the identity exists twice and the corruption has bred. */
+export type RowColumn<T> =
+  | { state: "absent" }
+  | { state: "ok"; value: T }
+  | { state: "unreadable"; reason: "corrupt" | "invalid"; detail: string };
+
+export type RowIssue = { ctx: string; id: string; reason: "corrupt" | "invalid"; detail: string; at: string };
+
+/** `enforce` — a shape mismatch makes the column unreadable (the end state).
+ *  `observe` — the mismatch is recorded and the value is still returned, for adopting
+ *  validation over a table that already holds nonconforming rows. */
+export type ValidationMode = "enforce" | "observe";
+
+const ROW_ISSUE_SAMPLE = 50;
+const rowIssues: RowIssue[] = [];
+let rowIssueTotal = 0;
+
+/** Read-side accounting for the decode seam. Every row passes here, so this is the
+ *  one layer that can answer "how healthy is the stored data" — and it is unobtainable
+ *  anywhere else, because no other layer sees every row. Sibling of getSeedHealth().
+ *  `total` counts every unreadable column since boot; `issues` retains the most recent
+ *  sample so a flood cannot evict the count itself. */
+export function getRowHealth(): { ok: boolean; total: number; issues: RowIssue[] } {
+  return { ok: rowIssueTotal === 0, total: rowIssueTotal, issues: [...rowIssues] };
+}
+
+/** Test seam — resets the ledger between cases. Not for production paths. */
+export function __resetRowHealth(): void {
+  rowIssues.length = 0;
+  rowIssueTotal = 0;
+}
+
+function recordRowIssue(ctx: string, id: string, reason: "corrupt" | "invalid", detail: string): void {
+  rowIssueTotal += 1;
+  rowIssues.push({ ctx, id, reason, detail, at: new Date().toISOString() });
+  if (rowIssues.length > ROW_ISSUE_SAMPLE) rowIssues.shift();
+  console.error(`[db:${ctx}] ${reason} JSON for row ${id} — ${detail}`);
+}
+
 /**
- * Parse a JSON column from a DB row without letting one corrupt row throw the
- * whole read. A single poisoned payload used to 500 an entire list endpoint
- * (and, for seeds, wedge ensureDb so every request re-threw). We now log the
- * offending row + context and return null so callers degrade to N-1.
+ * The decode seam: an untyped JSON column becomes a typed domain value here or
+ * nowhere. Two failure modes, both recorded, neither silent:
+ *
+ *  - `corrupt`  — the text is not JSON (a crashed write, a hand edit).
+ *  - `invalid`  — the text parses but does not match the declared shape. Only
+ *                 checked when a validator is passed. This is the drift class
+ *                 `schemas:gen` exists to prevent: the Python model renames a field,
+ *                 codegen faithfully regenerates the zod schema, `tsc` still passes
+ *                 because the DB layer only ever used the TYPE — and the mismatch
+ *                 surfaces as `undefined` on a candidate-facing page.
+ *
+ * The seam takes no side on what a failure MEANS: it reports, records, and returns.
+ * The collection site — which knows its consumer — picks fail-whole or degrade-visibly.
+ * What no consumer justifies is skipping silently, which turns corruption into data
+ * that "never existed"; recording before returning is what makes that unavailable.
  */
-export function safeRowParse<T>(json: string | null | undefined, ctx: string, id?: string): T | null {
-  if (json == null) return null;
+export function readRowColumn<T>(
+  json: string | null | undefined,
+  ctx: string,
+  id?: string,
+  validator?: RowValidator<T>,
+  mode: ValidationMode = "enforce"
+): RowColumn<T> {
+  if (json == null) return { state: "absent" };
+  let parsed: unknown;
   try {
-    return JSON.parse(json) as T;
+    parsed = JSON.parse(json);
   } catch (error) {
-    console.error(`[db:${ctx}] corrupt JSON for row ${id ?? "?"} — ${error instanceof Error ? error.message : String(error)}`);
-    return null;
+    const detail = error instanceof Error ? error.message : String(error);
+    recordRowIssue(ctx, id ?? "?", "corrupt", detail);
+    return { state: "unreadable", reason: "corrupt", detail };
   }
+  if (!validator) return { state: "ok", value: parsed as T };
+  const result = validator.safeParse(parsed);
+  if (result.success) return { state: "ok", value: result.data };
+  const detail = summarizeValidationError(result.error);
+  recordRowIssue(ctx, id ?? "?", "invalid", detail);
+  // OBSERVE: the shape is wrong and now counted, but the value is still handed on.
+  // The posture for switching validation on over a table that already holds
+  // nonconforming rows — enforcing immediately would turn a pre-existing data defect
+  // into a 41%-of-the-list outage, which is the failure the degrade-visibly policy
+  // exists to avoid. It is NOT the banned silent skip: the issue is recorded before
+  // it returns, so the drift is visible in getRowHealth() from the first read.
+  // Graduate a column to "enforce" once its ledger is clean.
+  if (mode === "observe") return { state: "ok", value: parsed as T };
+  return { state: "unreadable", reason: "invalid", detail };
+}
+
+/** Zod's error shape without importing zod: `issues[]` with `path` + `message`. */
+function summarizeValidationError(error: unknown): string {
+  const issues = (error as { issues?: { path?: unknown[]; message?: string }[] } | null)?.issues;
+  if (!Array.isArray(issues) || issues.length === 0) return "shape mismatch";
+  return issues
+    .slice(0, 3)
+    .map((i) => `${Array.isArray(i.path) && i.path.length ? i.path.join(".") : "(root)"}: ${i.message ?? "invalid"}`)
+    .join("; ");
+}
+
+/**
+ * Back-compat wrapper over readRowColumn: collapses `absent` and `unreadable` to null
+ * for the ~76 call sites that only need "a value or nothing". Unchanged in behaviour —
+ * a corrupt row still logs and still degrades the caller to N-1 — but it now also
+ * records to the row-health ledger, so the skip is countable rather than only visible
+ * to whoever is reading stderr.
+ *
+ * Prefer readRowColumn directly when the caller is a BY-IDENTITY read: there, "absent"
+ * and "unreadable" are different answers and collapsing them is the bug this seam was
+ * split to expose.
+ */
+export function safeRowParse<T>(
+  json: string | null | undefined,
+  ctx: string,
+  id?: string,
+  validator?: RowValidator<T>,
+  mode: ValidationMode = "enforce"
+): T | null {
+  const column = readRowColumn<T>(json, ctx, id, validator, mode);
+  return column.state === "ok" ? column.value : null;
 }
 
 export function ensureDb(): Database.Database {

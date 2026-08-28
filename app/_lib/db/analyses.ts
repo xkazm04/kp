@@ -1,6 +1,12 @@
 import { ensureDb, insertWithUniqueSlug, prunePromptCache, safeRowParse } from "./core";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { githubAnalysisSchema, type GithubAnalysis } from "../schemas";
+// EXPLICIT `.ts`, matching app/_lib/schemas.ts:2 — the repo's existing value import of
+// this file. Extensionless works for the type-only imports elsewhere because those are
+// erased before runtime, but a value import is resolved for real, and both the test
+// alias loader and the 25 hand-rolled resolve hooks in *.test.ts treat the `.generated`
+// in the basename as the extension, so neither ever tries appending `.ts`.
+import { analysisResultSchema } from "../schemas.generated.ts";
 
 export type AnalysisRow = {
   slug: string;
@@ -365,7 +371,16 @@ export function listAnalysisRecords(limit = 100, workspaceId: string = DEFAULT_W
     .all(workspaceId, limit) as AnalysisRow[];
   const out: { row: AnalysisRow; payload: unknown }[] = [];
   for (const row of rows) {
-    const payload = safeRowParse(row.payload_json, "listAnalysisRecords", row.slug);
+    // OBSERVE, not enforce — deliberately, and with a measured reason. As of 2026-08-28,
+    // 50 of 121 stored analyses fail analysisResultSchema: every `cv-` row written by the
+    // Gemini CV-analysis path omits `keywordCoverage.hits[].status`, which the Python
+    // AnalysisResult model declares as a required enum (403 hits affected). That is real
+    // writer-vs-declaration drift, invisible until now because this layer only ever used
+    // the generated TYPE and never called the generated SCHEMA. Enforcing here would drop
+    // 41% of the list — turning a data defect into an outage. Observe records every
+    // mismatch in getRowHealth() so the drift is measurable while the writer is fixed;
+    // graduate this to enforce once the ledger is clean.
+    const payload = safeRowParse(row.payload_json, "listAnalysisRecords", row.slug, analysisResultSchema, "observe");
     if (payload == null) continue; // corrupt row already logged by safeRowParse; degrade to N-1
     out.push({ row, payload });
   }

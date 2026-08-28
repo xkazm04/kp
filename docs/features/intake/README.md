@@ -215,8 +215,8 @@ shares the diff:
 | Column | Holds |
 | --- | --- |
 | `scan_id` | the `repo_scan` the session was started from. Stamped at CREATE, before any dossier exists, so a reload resumes a running scan |
-| `dossier_json` | the `RepoDossier` that scan returned (`repoDossierSchema`). NULL while it runs or if it failed; the dialog reads it every turn |
-| `app_master_spec_json` | the composed record `{spec: AppMasterSpec, fit: PopulationFit, composedAt}`. Re-composing REPLACES it — a spec is a snapshot of the brief at compose time |
+| `dossier_json` | the `RepoDossier` that scan returned (`repoDossierSchema`). NULL while it runs or if it failed; the dialog reads it every turn. Validated with `repoDossierSchema` on **read** as well as at the write route — a shape that no longer matches the generated declaration is recorded in `getRowHealth()` and the column reads as absent, rather than reaching the dialog as a half-valid object |
+| `app_master_spec_json` | the composed record `{spec: AppMasterSpec, fit: PopulationFit, composedAt}`. Re-composing REPLACES it — a spec is a snapshot of the brief at compose time. Deliberately **not** validated on read: this is an `AppMasterCompose` wrapper *around* the generated spec, and `appMasterSpecSchema` describes the inner `spec` only, so validating with it would reject every row. Unvalidated is the honest state until the wrapper has a declaration of its own |
 
 ## Eval harness (Phase 2)
 
