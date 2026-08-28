@@ -2120,7 +2120,11 @@
     "legend": {
       "awaitingDecision": "Awaiting your decision",
       "aging": "Aging in stage (per-stage SLA)",
-      "intakeDegraded": "Intake degraded, needs manual capture"
+      "intakeDegraded": "Intake degraded, needs manual capture",
+      "scoresTitle": "Score kinds:",
+      "scoreMatch": "Match (unlabelled): how the profile fits this role",
+      "scoreTransfer": "Transfer: work-sample skills that carry to the role, never used to rank",
+      "scoreInterview": "Interview: 1 to 5 rubric ratings, on the drawer's scorecard"
     },
     "candidateRow": {
       "awaitingDecision": "Awaiting your decision",
@@ -2139,7 +2143,8 @@
       "openProfile": "Open profile",
       "menuFor": "Actions for {name}",
       "moreActions": "More actions",
-      "menuHint": " · right-click for actions"
+      "menuHint": " · right-click for actions",
+      "transferSuffix": " · transfer {score}"
     },
     "tokenLink": {
       "copy": "Copy link",
@@ -2533,7 +2538,8 @@
         "saveFailed": "Couldn't save the rating.",
         "purpose": "Record how this hire actually worked out. It is the ground truth behind the quality-of-hire measurement in Analytics.",
         "notAutomated": "Visible in your workspace only. It is never shown to the candidate, and it is not used to make automated decisions."
-      }
+      },
+      "transfer": "transfer"
     },
     "actions": {
       "screen": "Screen with AI",
@@ -2693,6 +2699,10 @@
       "onStage": "{stage} · {count}",
       "moveAll": "Move all to…",
       "moveAria": "Move everyone stranded on {stage} to another stage"
+    },
+    "scoreKind": {
+      "transferShort": "transfer",
+      "transferTitle": "A work-sample transfer score, not a match score. It says how well the skills demonstrated on the assignment carry to this role."
     }
   },
   "decisions": {
@@ -4301,7 +4311,8 @@
     "analysisShort": "from CV analysis",
     "snapshot": "snapshot at add",
     "freshMatch": "scored by this match run",
-    "freshMatchTitle": "Computed now, by this match run, against the role's current text. It is never stored on the candidate, so the pipeline board can honestly show a different number: the score snapshotted when the candidate was added."
+    "freshMatchTitle": "Computed now, by this match run, against the role's current text. It is never stored on the candidate, so the pipeline board can honestly show a different number: the score snapshotted when the candidate was added.",
+    "transfer": "from the work sample"
   },
   "match": {
     "band": {

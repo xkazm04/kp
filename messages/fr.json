@@ -2120,7 +2120,11 @@
     "legend": {
       "awaitingDecision": "En attente de votre décision",
       "aging": "Stagnation dans l’étape (SLA par étape)",
-      "intakeDegraded": "Réception dégradée, saisie manuelle requise"
+      "intakeDegraded": "Réception dégradée, saisie manuelle requise",
+      "scoresTitle": "Types de score :",
+      "scoreMatch": "Correspondance (sans étiquette) : l’adéquation du profil à ce poste",
+      "scoreTransfer": "Transfert : compétences de l’exercice transposables au poste, jamais utilisées pour classer",
+      "scoreInterview": "Entretien : notes de grille de 1 à 5, sur la scorecard du panneau"
     },
     "candidateRow": {
       "awaitingDecision": "En attente de votre décision",
@@ -2139,7 +2143,8 @@
       "openProfile": "Ouvrir le profil",
       "menuFor": "Actions pour {name}",
       "moreActions": "Plus d’actions",
-      "menuHint": " · clic droit pour les actions"
+      "menuHint": " · clic droit pour les actions",
+      "transferSuffix": " · transfert {score}"
     },
     "tokenLink": {
       "copy": "Copier le lien",
@@ -2533,7 +2538,8 @@
         "saveFailed": "Impossible d’enregistrer l’évaluation.",
         "purpose": "Notez comment ce recrutement s’est réellement passé. C’est la donnée de référence derrière la mesure de la qualité des recrutements dans Analytique.",
         "notAutomated": "Visible uniquement dans votre espace de travail. Elle n’est jamais montrée au candidat et n’est pas utilisée pour prendre des décisions automatisées."
-      }
+      },
+      "transfer": "transfert"
     },
     "actions": {
       "screen": "Présélection AI",
@@ -2693,6 +2699,10 @@
       "onStage": "{stage} · {count}",
       "moveAll": "Tout déplacer vers…",
       "moveAria": "Déplacer tous les candidats bloqués à l’étape {stage} vers une autre étape"
+    },
+    "scoreKind": {
+      "transferShort": "transfert",
+      "transferTitle": "Un score de transfert issu de l’exercice, pas un score de correspondance. Il indique dans quelle mesure les compétences démontrées sur l’exercice se transposent à ce poste."
     }
   },
   "decisions": {
@@ -4301,7 +4311,8 @@
     "analysisShort": "d’après l’analyse du CV",
     "snapshot": "instantané à l’ajout",
     "freshMatch": "calculé par cette exécution de matching",
-    "freshMatchTitle": "Calculé maintenant, par cette exécution de matching, sur le texte actuel du poste. Il n’est jamais stocké sur le candidat, donc le tableau du pipeline peut honnêtement afficher un autre nombre : le score figé au moment de l’ajout."
+    "freshMatchTitle": "Calculé maintenant, par cette exécution de matching, sur le texte actuel du poste. Il n’est jamais stocké sur le candidat, donc le tableau du pipeline peut honnêtement afficher un autre nombre : le score figé au moment de l’ajout.",
+    "transfer": "d’après l’exercice"
   },
   "match": {
     "band": {

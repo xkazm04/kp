@@ -36,7 +36,7 @@ import { useTranslations } from "next-intl";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
+import { displayScoreOf } from "@/app/_lib/match-score";
 import { moveTargetStages } from "./pipelineMoveTargets";
 import { PipelineCandidateMenu, type CandidateMenuSection } from "./PipelineCandidateMenu";
 import { candidateRowEqual } from "./pipelineRenderDiet";
@@ -91,8 +91,17 @@ function CandidateRowImpl({
   const days = daysSince(entry.stageChangedAt);
   // Canonical match-score read path (REC-01): the badge shows THE same number as
   // the drawer header and the decisions queue; its provenance rides the tooltip.
-  const score = canonicalScoreOf(entry);
-  const scoreProvenance = provenanceText(provenanceOf(entry));
+  //
+  // ONE THREAD (gap 2): a candidate promoted from an assignment may have no match
+  // score yet and a work-sample TRANSFER score instead. displayScoreOf picks which
+  // of the two this row is showing and names the KIND, so the number is never read
+  // as the other one — an unlabelled badge means "match" (the board legend says so),
+  // and a transfer score wears the kind chip beside it. The board's sort and score
+  // bands stay on the match half, so a transfer score is shown, never ranked.
+  const display = displayScoreOf(entry);
+  const score = display?.score ?? null;
+  const scoreKind = display?.kind ?? "match";
+  const scoreProvenance = provenanceText(display?.provenance);
   // Intake degraded is a data-integrity problem (a non-matchable stub), so it
   // outranks every other cue: degraded (red triangle) > pending (coral pulse) >
   // aging (amber) > archetype color. State never rides on color alone — each
@@ -113,7 +122,11 @@ function CandidateRowImpl({
       : stale
         ? Clock
         : style.icon;
-  const title = `${t("candidateRow.cardTitle", { name: entry.candidateLabel, archetype: archLabel })}${score != null ? `${t("candidateRow.matchSuffix", { score })}${scoreProvenance ? ` (${scoreProvenance})` : ""}` : ""}${days != null ? t("candidateRow.daysInStage", { days }) : ""}${degraded ? t("candidateRow.degradedSuffix") : ""}`;
+  const scoreSuffix =
+    score == null
+      ? ""
+      : `${scoreKind === "transfer" ? t("candidateRow.transferSuffix", { score }) : t("candidateRow.matchSuffix", { score })}${scoreProvenance ? ` (${scoreProvenance})` : ""}`;
+  const title = `${t("candidateRow.cardTitle", { name: entry.candidateLabel, archetype: archLabel })}${scoreSuffix}${days != null ? t("candidateRow.daysInStage", { days }) : ""}${degraded ? t("candidateRow.degradedSuffix") : ""}`;
   const selecting = selectMode && onToggleSelect;
   // Drag only outside select mode (in select mode the row is a checkbox).
   const dragOn = draggable && !selecting;
@@ -227,6 +240,16 @@ function CandidateRowImpl({
       {/* Right-aligned fit score in the shared score→color language (moss/amber/coral),
           so a lane can be triaged at a glance without hovering for the title tooltip.
           Canonical number (REC-01) — provenance rides the row tooltip above. */}
+      {/* The kind marker rides only on a NON-match score. A bare badge means
+          "match" — the board legend states that, and labelling every one of the
+          board's rows with the default word would cost a card-width for no
+          information. What must never be silent is the number that answers a
+          DIFFERENT question, which is the defect this fixes. */}
+      {scoreKind === "transfer" ? (
+        <span className="shrink-0 text-meta uppercase tracking-wide text-steel" title={t("scoreKind.transferTitle")}>
+          {t("scoreKind.transferShort")}
+        </span>
+      ) : null}
       <span className="shrink-0" title={scoreProvenance ?? undefined}>
         <ScoreBadge score={score} />
       </span>

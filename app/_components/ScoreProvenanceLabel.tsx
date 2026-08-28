@@ -22,6 +22,9 @@ export function useScoreProvenanceText(): (p: MatchScoreProvenance | null | unde
         : p.at;
       return t("analysis", { date });
     }
+    // ONE THREAD (gap 2): a transfer score is not a match snapshot, so it must not
+    // borrow the snapshot wording — it names the assignment it came out of.
+    if (p.source === "transfer") return t("transfer");
     return t("snapshot");
   };
 }

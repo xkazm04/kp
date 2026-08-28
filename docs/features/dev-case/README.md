@@ -607,6 +607,45 @@ candidate-safe projection, `plannedInterviewMinutes`, the observed-skill mint �
 Pinned in `app/_lib/devcase-promote-identity.test.ts`, `devcase-identity.test.ts` and
 `app/_lib/db/pipeline-devcase-link.test.ts`.
 
+### The transfer score is not a match score
+
+Promote used to write the work-sample **transfer score** straight into
+`pipeline_entries.match_score` — `score = sub.transferScore ?? Number(transfer.transferScore ?? 0)` —
+and the board rendered it through `canonicalScoreOf` with provenance `snapshot`, i.e.
+as a plain "match". Two different questions shared one number: *how well do the skills
+this person demonstrated on the assignment carry to the role* and *how well does their
+profile fit the opening*. The `?? 0` made it worse — a submission whose evaluation
+carried no transfer score arrived on the board with a genuine-looking `0`, the exact
+fabrication `app/_lib/match-score.ts`'s null-score policy exists to ban, and the number
+a `score < threshold` auto-reject gate acts on.
+
+Now:
+
+- **`match_score` means match again.** Promote writes `matchScore: null`. The entry is
+  honestly unscored for match — and no longer stuck there, because the same milestone
+  gave the candidate a real `profiles` row, so `automation-pass.ts::scoreUnscoredEntries`
+  picks them up and computes a real match score (its `ds-` carve-out used to skip them
+  forever).
+- **The transfer score is not copied anywhere.** It stays on
+  `dev_submissions.transfer_score`, where the evaluation writes it. A copy on the entry
+  would be a second producer of one number, drifting from the submission the moment it
+  is re-evaluated — the same defect one layer down. The entry reaches it through
+  `dev_submission_id` (and, for legacy rows, the `ds-` prefix), resolved by
+  `app/_lib/pipeline-transfer-score.ts` and stamped onto the `/api/pipeline` payload as
+  its own `transferScore` field.
+- **Shown, never ranked.** `displayScoreOf` (`match-score.ts`) is the read for a surface
+  showing one number per candidate: match score first, transfer score second, tagged
+  with its `kind` either way. `canonicalScoreOf` / `provenanceOf` stay match-only, and
+  every ranking, banding and threshold read in the app goes through them — board sort
+  and score bands, decisions peer rank, screen-wave. So Matrix and Match never rank a
+  candidate on a transfer score.
+- **The board says which kind it is.** The drawer header's caption under the number is
+  the score kind; the card wears a `transfer` marker beside the badge (a bare badge means
+  match); the board legend (`PipelineShared.tsx`) states the vocabulary once, including
+  that the drawer scorecard's 1..5 rubric is a third kind.
+
+Pinned in `app/_lib/pipeline-transfer-score.test.ts`.
+
 Observed skills follow the same identity: `mintObservedFromSubmission` credits the
 profile the promoted **entry** names when the caller passes one, falling back to the
 by-ref lookup. Without that the two halves disagreed exactly where it matters — a freshly

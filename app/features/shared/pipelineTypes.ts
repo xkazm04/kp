@@ -50,6 +50,12 @@ export type Entry = {
   // Optional so locally-constructed entries degrade to the matchScore fallback.
   canonicalScore?: number | null;
   scoreProvenance?: MatchScoreProvenance | null;
+  // ONE THREAD (gap 2) — the WORK-SAMPLE transfer score behind an entry promoted
+  // from an assignment, stamped by GET /api/pipeline (pipeline-transfer-score.ts)
+  // from the linked `dev_submissions` row. A different question from the match
+  // score and deliberately a different field: `displayScoreOf` decides which of
+  // the two a surface shows and tags the kind, and nothing ranks on this one.
+  transferScore?: number | null;
 };
 
 // One job "lane" on the pipeline board: PipelineTab builds Position[] (via

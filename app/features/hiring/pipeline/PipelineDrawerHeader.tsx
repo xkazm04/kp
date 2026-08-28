@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, History, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
+import { displayScoreOf } from "@/app/_lib/match-score";
 import { initials } from "@/app/_lib/initials";
 import { styleFor } from "@/app/features/shared/pipelineTypes";
 // The drawer's narrow Pick of the board record — the header only ever renders the
@@ -50,6 +50,7 @@ export function PipelineDrawerHeader({
   const enumLabel = useEnumLabel();
   const locale = useLocale();
   const provenanceText = useScoreProvenanceText();
+  const display = displayScoreOf(entry);
   const a = styleFor(entry.archetype);
   const monogram = initials(entry.candidateLabel);
 
@@ -92,12 +93,17 @@ export function PipelineDrawerHeader({
           and the decisions queue show, with its provenance named — so this
           header can no longer contradict the "CV analysis saved — score N"
           item in the timeline below without saying why. */}
-      {canonicalScoreOf(entry) != null ? (
-        <span className="rounded-md bg-white px-2 py-1 text-center" title={provenanceText(provenanceOf(entry)) ?? undefined}>
-          <span className="block font-serif text-lg leading-none text-ink">{canonicalScoreOf(entry)}</span>
-          <span className="block text-sm uppercase text-steel">{t("match")}</span>
+      {/* ONE THREAD (gap 2): the caption under the number is the SCORE KIND, so a
+          work-sample transfer score — which this header used to print under the
+          word "match", because promote had written it into match_score — names
+          itself. displayScoreOf prefers the match score; the transfer score only
+          fills the slot for a candidate no match run has scored yet. */}
+      {display ? (
+        <span className="rounded-md bg-white px-2 py-1 text-center" title={provenanceText(display.provenance) ?? undefined}>
+          <span className="block font-serif text-lg leading-none text-ink">{display.score}</span>
+          <span className="block text-sm uppercase text-steel">{display.kind === "transfer" ? t("transfer") : t("match")}</span>
           <span className="block max-w-[7rem] text-meta normal-case leading-tight text-steel">
-            {provenanceText(provenanceOf(entry))}
+            {provenanceText(display.provenance)}
           </span>
         </span>
       ) : null}

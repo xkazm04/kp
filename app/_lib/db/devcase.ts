@@ -742,6 +742,49 @@ export function getSubmission(id: string): DevSubmission | null {
   return r ? rowToSubmission(r) : null;
 }
 
+// SQLite's default SQLITE_MAX_VARIABLE_NUMBER is 999; chunk well under it so a
+// board holding hundreds of promoted entries still resolves in one pass per chunk
+// rather than one query per entry.
+const TRANSFER_SCORE_CHUNK = 400;
+
+/** The work-sample transfer scores for a set of submissions, id → score.
+ *
+ *  ONE THREAD (gap 2): the transfer score is a fact about the SUBMISSION and lives
+ *  only here — it is deliberately NOT copied onto `pipeline_entries`, where a copy
+ *  would be a second producer of the same number, drifting from the submission the
+ *  moment it is re-evaluated. The board reaches it through the entry's
+ *  `dev_submission_id` link; see pipeline-transfer-score.ts for the read path and
+ *  app/_lib/match-score.ts for why it is not a match score.
+ *
+ *  Workspace-scoped: an entry on one team's board must never resolve a score off
+ *  another team's submission, even though submission ids are globally unique.
+ *  Submissions with no evaluation yet (NULL transfer_score) are simply absent from
+ *  the map — an unevaluated work sample has no score, and 0 would be a fabrication. */
+export function transferScoresBySubmissionIds(
+  ids: readonly string[],
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): Map<string, number> {
+  const out = new Map<string, number>();
+  const unique = [...new Set(ids.filter((id) => typeof id === "string" && id.trim() !== ""))];
+  if (unique.length === 0) return out;
+  const db = ensureDb();
+  for (let i = 0; i < unique.length; i += TRANSFER_SCORE_CHUNK) {
+    const chunk = unique.slice(i, i + TRANSFER_SCORE_CHUNK);
+    const rows = db
+      .prepare(
+        `SELECT id, transfer_score FROM dev_submissions
+          WHERE workspace_id = ? AND transfer_score IS NOT NULL
+            AND id IN (${chunk.map(() => "?").join(",")})`
+      )
+      .all(workspaceId, ...chunk) as Array<{ id: string; transfer_score: number | null }>;
+    for (const r of rows) {
+      const score = r.transfer_score == null ? null : Number(r.transfer_score);
+      if (score != null && Number.isFinite(score)) out.set(r.id, score);
+    }
+  }
+  return out;
+}
+
 // ---- Live Work Surface (moonshot E) — in-product work sessions ------------
 // Events are typed locally (not imported from the features layer) so the db
 // stays a leaf; the API route coerces the wire JSON into this shape.

@@ -5,6 +5,7 @@ import { knownStageIds } from "@/app/_lib/pipeline-axis";
 import { coerceGithubEvidenceSummary } from "@/app/_lib/github-summary";
 import { inferProfileLocale } from "@/app/_lib/comms-locale";
 import { withCanonicalScoresCached } from "@/app/_lib/pipeline-score-cache";
+import { withTransferScores } from "@/app/_lib/pipeline-transfer-score";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { linkTerminalPriorsToTarget } from "@/app/_lib/rediscovery-prior-link";
 import { safeJsonError } from "@/app/_lib/api-response";
@@ -18,7 +19,10 @@ export async function GET() {
     const ws = await currentWorkspace();
     // Canonical scores via the per-workspace, short-TTL fit-map memo (identical
     // payload shape; only the analyses query is cached — see pipeline-score-cache.ts).
-    const entries = withCanonicalScoresCached(listPipeline(ws), ws);
+    // ONE THREAD (gap 2): the work-sample transfer score rides out BESIDE the match
+    // score, never inside it — `displayScoreOf` picks which one a surface shows and
+    // labels the kind, while every ranking read stays on the match half.
+    const entries = withTransferScores(withCanonicalScoresCached(listPipeline(ws), ws), ws);
     // The board's columns ride out WITH the entries, resolved for this workspace.
     // They used to be the compile-time PIPELINE_STAGES name list, which the board
     // ignored in favour of importing the same constant — so the payload field

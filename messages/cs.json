@@ -2120,7 +2120,11 @@
     "legend": {
       "awaitingDecision": "Čeká na vaše rozhodnutí",
       "aging": "Stárne ve fázi (SLA dle fáze)",
-      "intakeDegraded": "Příjem selhal, vyžaduje ruční zadání"
+      "intakeDegraded": "Příjem selhal, vyžaduje ruční zadání",
+      "scoresTitle": "Druhy skóre:",
+      "scoreMatch": "Shoda (bez popisku): jak profil sedí na tuto roli",
+      "scoreTransfer": "Přenos: dovednosti z pracovní ukázky přenositelné na roli, nikdy se podle nich neřadí",
+      "scoreInterview": "Pohovor: hodnocení 1 až 5 podle rubriky, na scorecardu v panelu"
     },
     "candidateRow": {
       "awaitingDecision": "Čeká na vaše rozhodnutí",
@@ -2139,7 +2143,8 @@
       "openProfile": "Otevřít profil",
       "menuFor": "Akce pro {name}",
       "moreActions": "Další akce",
-      "menuHint": " · akce pravým tlačítkem"
+      "menuHint": " · akce pravým tlačítkem",
+      "transferSuffix": " · přenos {score}"
     },
     "tokenLink": {
       "copy": "Kopírovat odkaz",
@@ -2533,7 +2538,8 @@
         "saveFailed": "Hodnocení se nepodařilo uložit.",
         "purpose": "Zaznamenejte, jak se tento nábor ve skutečnosti osvědčil. Je to skutečný výsledek, na kterém stojí měření kvality náboru v Analytice.",
         "notAutomated": "Viditelné jen ve vašem pracovním prostoru. Kandidátovi se nikdy nezobrazí a nepoužívá se k automatickým rozhodnutím."
-      }
+      },
+      "transfer": "přenos"
     },
     "actions": {
       "screen": "Prověřit přes AI",
@@ -2693,6 +2699,10 @@
       "onStage": "{stage} · {count}",
       "moveAll": "Přesunout všechny do…",
       "moveAria": "Přesunout všechny uvízlé ve fázi {stage} do jiné fáze"
+    },
+    "scoreKind": {
+      "transferShort": "přenos",
+      "transferTitle": "Skóre přenosu z pracovní ukázky, nikoli skóre shody. Říká, jak dobře se dovednosti předvedené na zadání přenášejí na tuto roli."
     }
   },
   "decisions": {
@@ -4301,7 +4311,8 @@
     "analysisShort": "z analýzy CV",
     "snapshot": "snímek při zařazení",
     "freshMatch": "spočítáno tímto během párování",
-    "freshMatchTitle": "Spočítáno teď, tímto během párování, proti aktuálnímu textu role. Ke kandidátovi se neukládá, takže nástěnka náboru může poctivě ukazovat jiné číslo: skóre zachycené při zařazení kandidáta."
+    "freshMatchTitle": "Spočítáno teď, tímto během párování, proti aktuálnímu textu role. Ke kandidátovi se neukládá, takže nástěnka náboru může poctivě ukazovat jiné číslo: skóre zachycené při zařazení kandidáta.",
+    "transfer": "z pracovní ukázky"
   },
   "match": {
     "band": {

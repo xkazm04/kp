@@ -98,7 +98,8 @@ const entrySigCache = new WeakMap<Entry, string>();
 
 /** The render-affecting fields of one board entry, as a compact string. Anything a
  *  CandidateRow can show — identity, label, archetype, stage, the CANONICAL score +
- *  its provenance (what the badge/tooltip render, not the raw snapshot), stage age,
+ *  its provenance (what the badge/tooltip render, not the raw snapshot), the
+ *  work-sample transfer score the badge falls back to, stage age,
  *  approval state, and the intake-degraded state — flips this; nothing else does.
  *  Identity-cached: computed once per entry object (see entrySigCache). */
 export function entrySignature(e: Entry): string {
@@ -112,6 +113,10 @@ export function entrySignature(e: Entry): string {
     e.status,
     canonicalScoreOf(e),
     provenanceOf(e),
+    // ONE THREAD (gap 2): the row renders the transfer score when there is no match
+    // score, so a change to it must flip the signature too — otherwise a work-sample
+    // re-evaluation would leave a stale number on a memoized card.
+    e.transferScore ?? null,
     e.stageChangedAt,
     e.approvalKind,
     e.intakeDegraded ? 1 : 0,

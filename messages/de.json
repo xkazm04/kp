@@ -2120,7 +2120,11 @@
     "legend": {
       "awaitingDecision": "Wartet auf Ihre Entscheidung",
       "aging": "Alterung in Phase (SLA pro Phase)",
-      "intakeDegraded": "Erfassung eingeschränkt, manuelle Erfassung nötig"
+      "intakeDegraded": "Erfassung eingeschränkt, manuelle Erfassung nötig",
+      "scoresTitle": "Score-Arten:",
+      "scoreMatch": "Match (ohne Label): wie das Profil zu dieser Rolle passt",
+      "scoreTransfer": "Transfer: Fähigkeiten aus der Arbeitsprobe, die auf die Rolle übertragen, nie zum Ranking genutzt",
+      "scoreInterview": "Interview: Rubrik-Bewertungen von 1 bis 5, auf der Scorecard im Panel"
     },
     "candidateRow": {
       "awaitingDecision": "Wartet auf Ihre Entscheidung",
@@ -2139,7 +2143,8 @@
       "openProfile": "Profil öffnen",
       "menuFor": "Aktionen für {name}",
       "moreActions": "Weitere Aktionen",
-      "menuHint": " · Rechtsklick für Aktionen"
+      "menuHint": " · Rechtsklick für Aktionen",
+      "transferSuffix": " · Transfer {score}"
     },
     "tokenLink": {
       "copy": "Link kopieren",
@@ -2533,7 +2538,8 @@
         "saveFailed": "Bewertung konnte nicht gespeichert werden.",
         "purpose": "Halten Sie fest, wie sich diese Einstellung tatsächlich entwickelt hat. Sie ist die belastbare Grundlage für die Messung der Einstellungsqualität in Analytics.",
         "notAutomated": "Nur in Ihrem Workspace sichtbar. Sie wird der Kandidatin oder dem Kandidaten nie gezeigt und nicht für automatisierte Entscheidungen verwendet."
-      }
+      },
+      "transfer": "Transfer"
     },
     "actions": {
       "screen": "Mit AI prüfen",
@@ -2693,6 +2699,10 @@
       "onStage": "{stage} · {count}",
       "moveAll": "Alle verschieben nach…",
       "moveAria": "Alle auf {stage} gestrandeten Kandidaten auf eine andere Stufe verschieben"
+    },
+    "scoreKind": {
+      "transferShort": "Transfer",
+      "transferTitle": "Ein Transfer-Score aus der Arbeitsprobe, kein Match-Score. Er sagt, wie gut die in der Aufgabe gezeigten Fähigkeiten auf diese Rolle übertragen."
     }
   },
   "decisions": {
@@ -4301,7 +4311,8 @@
     "analysisShort": "aus CV-Analyse",
     "snapshot": "Snapshot beim Hinzufügen",
     "freshMatch": "von diesem Matching-Lauf berechnet",
-    "freshMatchTitle": "Jetzt berechnet, von diesem Matching-Lauf, gegen den aktuellen Text der Rolle. Der Wert wird nie bei der Kandidatin oder dem Kandidaten gespeichert, deshalb kann das Pipeline-Board ehrlich eine andere Zahl zeigen: den Score, der beim Hinzufügen festgehalten wurde."
+    "freshMatchTitle": "Jetzt berechnet, von diesem Matching-Lauf, gegen den aktuellen Text der Rolle. Der Wert wird nie bei der Kandidatin oder dem Kandidaten gespeichert, deshalb kann das Pipeline-Board ehrlich eine andere Zahl zeigen: den Score, der beim Hinzufügen festgehalten wurde.",
+    "transfer": "aus der Arbeitsprobe"
   },
   "match": {
     "band": {

@@ -1036,7 +1036,27 @@ export function promoteSubmission(submissionId: string, floor: number): PromoteR
     jobTitle: identity.jobTitle,
     devCaseId: posting?.caseId ?? null,
     devSubmissionId: sub.id,
-    matchScore: score,
+    // ONE THREAD (gap 2) — NOT `matchScore: score`. `score` is the work-sample
+    // TRANSFER score: how well the skills this person demonstrated on the
+    // assignment carry to the role. `match_score` answers a different question —
+    // how well their PROFILE fits the opening — and writing one into the other
+    // made a transfer score rankable, auto-rejectable and, on the board, an
+    // undifferentiated "match". Worse, `score` is `?? 0` when the evaluation
+    // carries no transfer score, so an unmeasured candidate was stamped a
+    // genuine-looking 0 — the exact fabrication match-score.ts's null-score policy
+    // exists to ban.
+    //
+    // The transfer score is NOT copied here under a different name either: it is a
+    // fact about the submission, it already lives on `dev_submissions.transfer_score`,
+    // and `devSubmissionId` above is the link that reaches it (pipeline-transfer-score.ts
+    // stamps it onto the /api/pipeline payload; displayScoreOf renders it WITH its
+    // kind). A second copy would drift from the submission on re-evaluation.
+    //
+    // So the entry lands genuinely UNSCORED for match — which is true, and no
+    // longer a dead end: the same milestone gave this candidate a real profile id,
+    // so automation-pass.scoreUnscoredEntries now picks them up and computes a real
+    // match score, where before the "ds-" carve-out skipped them forever.
+    matchScore: null,
     stage: DEVCASE_PROMOTE_STAGE,
     contact: sub.contact ?? null,
     locale: lifecycle?.lang ?? null,

@@ -578,6 +578,30 @@ pre-milestone entries are real hiring history and no one can recover which profi
 material. Full rationale in [the dev-case doc](../dev-case/README.md); pinned by
 `app/_lib/db/pipeline-devcase-link.test.ts`.
 
+### One score legend: match vs transfer vs interview
+
+Four different 0–100 numbers and one 1..5 rubric were rendered on this board in the
+same shape, and the worst of them was structural: a dev-case **transfer score** written
+into `pipeline_entries.match_score` by promote and shown as a plain "match" (see [the
+dev-case doc](../dev-case/README.md#the-transfer-score-is-not-a-match-score)). The
+numbers are separated at the source; the board now states the vocabulary once.
+
+| Kind | What it answers | Where it comes from | Shown as |
+| --- | --- | --- | --- |
+| **match** | how this profile fits this opening | freshest job-matched `analyses.score`, else the `match_score` snapshot (`canonicalScoreOf`) | the score badge, unlabelled; `MATCH` under the drawer header's number |
+| **transfer** | how the skills demonstrated on an assignment carry to the role | `dev_submissions.transfer_score`, reached through the entry's `dev_submission_id` (`pipeline-transfer-score.ts`) | the badge with a `transfer` marker beside it; `TRANSFER` under the drawer number |
+| **interview** | rubric ratings from a voice screen | `interview_sessions.scorecard_json`, 1..5 projected to percent (`format.ts::ratingToPercent`) | the drawer's scorecard rows, never the badge |
+
+`displayScoreOf` (`app/_lib/match-score.ts`) picks which of the first two a surface
+shows — match first, transfer only when no match score exists — and tags the `kind`.
+**Only the match half ranks.** `canonicalScoreOf` / `provenanceOf` are deliberately
+match-only, and the board's sort and score bands (`pipelineBoardFilters.ts`), the
+decisions peer rank (`decisionsPeerCompare.ts`) and screen-wave all read through them.
+Consequence worth knowing: a freshly promoted assignment candidate shows a transfer
+number and still sits in the **unscored** score band, which is true — until the
+automation sweep computes their real match score. The legend lives in
+`PipelineShared.tsx` under the board, beside the archetype/status legend.
+
 ## Decisions peer context (comparison data for the review queue)
 
 `GET /api/decisions/peer-context?jobs=<id,…>` (operator-gated, tenant-scoped)
