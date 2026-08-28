@@ -4,6 +4,17 @@ Job descriptions move from an AI draft to a live, matchable role. This covers
 the JD builder/lifecycle, structured job ingestion, the campaign-pack
 generator, and the specificity linter that runs live in the builder.
 
+**Naming.** The user word for a `jobs` row is **Job**; for the `jds` document it is
+**Job description**; **Role brief** belongs to the intake dialog and nowhere else.
+"Posting" is retired from copy — it named the `jobs` row on some surfaces ("Open the
+posting", the job modal's first tab) and a `dev_postings` apply link on others, which
+is two entities under one word. The `jobs.status` chip resolves its tone through the
+shared five-state table in `app/_lib/status-tone.ts` like every other status on the
+path; full mapping in [../README.md](../README.md) § "One vocabulary along the thread".
+"Role" is still used as a synonym for Job in `jobs.posting.*` and the pricing copy —
+a known, deliberately-deferred gap, because untangling it also touches `roleFamily`,
+the role-intake dialog and the metered `job_posts` allowance.
+
 ## Entry points
 
 - `?tab=jobs` — the Jobs tab (drafts vs. published/closed, publish action).

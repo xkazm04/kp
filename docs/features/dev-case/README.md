@@ -12,6 +12,31 @@ The system also runs six "LLM-era controls" so an unverifiable, fully-AI-authore
 submission cannot be waved through as a strong hire — see [Anti-delegation
 controls](#anti-delegation-controls-shipped) below. All six are shipped.
 
+## Naming — read this before writing any copy here
+
+**The user word is *Assignment*. `case` / `dev case` / `devcase` are identifiers.**
+This doc, the table `dev_cases`, the route `/api/devcase`, the message namespace
+`devcase.*`, the Python package `pipeline/jobfit/devcase/` and every test id keep
+the name they have — renaming them costs a migration and buys nothing a reader can
+see. Every string a recruiter or candidate reads says Assignment.
+
+That split used to be an accident rather than a decision, and it showed: the nav tab
+and the table header said Assignment while the lifecycle row, the close dialog, the
+empty ledger, the candidate's work surface and the sub-tab headings still said
+"case". It is enforced now — `devcase-vocabulary.test.ts` § "the ONE-NAME rule" bans
+the word from the `devcase` / `devApply` / `about` / `palettePreview` / `setup`
+namespaces in `en`, checks its (empty) allowlist for staleness in both directions,
+asserts the three places each locale names the entity bare agree inside that locale,
+and source-guards `DevTabViews.ts`, whose labels are the one piece of copy on this
+surface that lives outside the four catalogs (and are still English-only — a separate
+open gap).
+
+Status chips on this surface — the lifecycle stage, the voice-screen status, the
+submission status — resolve their TONE through `app/_lib/status-tone.ts` and render
+through the shared `StatusChip`. Each keeps its own labels; none keeps its own
+palette. The full mapping table and the five reading states are in
+[../README.md](../README.md) § "One vocabulary along the thread".
+
 ## Entry points
 
 - Recruiter workspace — the **Assignments** tab (`?tab=assignments`; renamed from
