@@ -7,6 +7,7 @@ import { EvalPanel } from "./DevEvalPanel";
 import { useDevSubmissionRow } from "./useDevSubmissionRow";
 import { DevSubmissionRowOutcome } from "./DevSubmissionRowOutcome";
 import { DevSubmissionRowSkillProfile } from "./DevSubmissionRowSkillProfile";
+import { DevVoiceScreenPanel } from "./DevVoiceScreenPanel";
 import type { Submission } from "./DevTypes";
 
 // The transfer-fit chip on the canonical score scale — scoreTone owns the 75/50
@@ -178,6 +179,11 @@ export function SubmissionRow({
         </div>
       ) : null}
       {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
+      {/* ONE THREAD (gap 4) — the voice screen that verifies this evaluation, reachable
+          from the evaluation. Gated on `ev` for the same reason /api/interview/create
+          is: the screen's brief is built from the evaluation's own minted follow-ups,
+          so there is nothing grounded to ask before one exists. */}
+      {ev ? <DevVoiceScreenPanel submissionId={submission.id} /> : null}
       {ev ? <DevSubmissionRowSkillProfile dsp={dsp} onIssue={issueProfile} /> : null}
       {isPromoted ? (
         <DevSubmissionRowOutcome

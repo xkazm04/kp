@@ -1896,6 +1896,41 @@ export function getPipelineEntry(id: string, workspaceId: string = DEFAULT_WORKS
   return row ? rowToEntry(row) : null;
 }
 
+/** The pipeline entry a dev-case SUBMISSION was promoted into, or null when it has not
+ *  been promoted yet — the REVERSE of the link `promoteSubmission` writes.
+ *
+ *  ONE THREAD (gap 4). The voice screen can only be minted for a pipeline entry, so
+ *  "does this assignment candidate already have a screen?" and "which entry do I mint
+ *  one for?" both reduce to this one read. It deliberately adds NO column: the forward
+ *  link `pipeline_entries.dev_submission_id` already exists (written at promote,
+ *  backfilled onto an entry the candidate already had), so the reverse direction is an
+ *  index lookup, not new state that could disagree with the forward one.
+ *
+ *  Same column-first / legacy-prefix-second contract as `submissionIdForEntry`
+ *  (devcase-identity.ts), expressed in SQL because the alternative is loading the whole
+ *  board to filter it in JS: match the column, or the pre-milestone `ds-<submissionId>`
+ *  candidate id those rows still carry. The ORDER BY prefers a real column match, so a
+ *  legacy row can never outrank the entry that actually names this submission.
+ *
+ *  Workspace-scoped even though submission ids are globally unique: the caller resolves
+ *  the tenant from the SUBMISSION row and must not be handed another team's entry. */
+export function findEntryByDevSubmission(
+  submissionId: string,
+  workspaceId: string = DEFAULT_WORKSPACE_ID
+): PipelineEntry | null {
+  const id = (submissionId ?? "").trim();
+  if (!id) return null;
+  const row = ensureDb()
+    .prepare(
+      `SELECT * FROM pipeline_entries
+        WHERE workspace_id = ? AND (dev_submission_id = ? OR candidate_id = ?)
+        ORDER BY (dev_submission_id = ?) DESC, created_at DESC
+        LIMIT 1`
+    )
+    .get(workspaceId, id, `${LEGACY_SUBMISSION_CANDIDATE_PREFIX}${id}`, id) as PipelineRow | undefined;
+  return row ? rowToEntry(row) : null;
+}
+
 /** Read-time consent gate for a candidate's saved-analysis PII (bug-ui-scan-2026-07-09
  *  privacy-consent-provenance #3): does the pipeline entry linked to this candidate_label
  *  currently WITHHOLD PII (consent expired, or already anonymized)? Matched on the

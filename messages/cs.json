@@ -1309,7 +1309,9 @@
     "COMPANION_PROPOSAL_RESOLVED": "Na tento návrh už bylo odpovězeno.",
     "COMPANION_PROPOSAL_FAILED": "Návrh se nepodařilo provést. Nic se nezměnilo.",
     "COMPANION_BRAIN_FAILED": "Nepodařilo se ověřit paměť Candi v tomto počítači. Zkuste to prosím znovu.",
-    "COMPANION_BRAIN_ABSENT": "V tomto počítači není žádná paměť společnice, kterou by šlo připojit."
+    "COMPANION_BRAIN_ABSENT": "V tomto počítači není žádná paměť společnice, kterou by šlo připojit.",
+    "INTERVIEW_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
+    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Před spuštěním hlasového screeningu odevzdání vyhodnoťte."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7645,6 +7647,24 @@
       },
       "pasteTrace": "Vedle nich platí: jediné hromadné vložení bez postupného narůstání se čte jako podezřelé. Podezřelé odevzdání se pozdrží pro živý pohovor ověřující autorství, nikdy nepostupuje automaticky podle skóre.",
       "honestDarkness": "Každý verdikt výše se vám ukáže i s vlastními důkazy, včetně míst, kde kontrola proběhnout nemohla: kontrola, která se nespustila, se nikdy nezobrazí jako kontrola, která prošla. Nic z toho se nerozběhne, dokud případ neexistuje. Popište potřebu a engine navrhne zadání, kolem kterého se tyto kontroly ovinou."
+    },
+    "voiceScreen": {
+      "title": "Hlasový screening",
+      "loading": "Zjišťuji, zda hlasový screening existuje…",
+      "promotesHint": "Vytvořením odkazu se kandidát zároveň dostane do Přehledu, protože hlasový screening je vždy navázaný na záznam v náborové nástěnce.",
+      "mean": "průměrné hodnocení {mean} / {max}",
+      "verdictNote": "Verdikt putuje do fronty Rozhodnutí jako kontrola hodnoticí karty.",
+      "awaitingCall": "Odkaz je aktivní, kandidát hovor zatím neabsolvoval.",
+      "completedUnscored": "Hovor skončil, ale hodnoticí karta nevznikla.",
+      "noVerdict": "Tento screening skončil bez hodnoticí karty.",
+      "boardHint": "Nové vydání odkazu, jeho zrušení i celý přepis najdete v záložce Přehled.",
+      "status": {
+        "created": "Odkaz vydán",
+        "in_progress": "Probíhá hovor",
+        "completed": "Dokončeno",
+        "failed": "Selhalo",
+        "revoked": "Zrušeno"
+      }
     }
   },
   "rubric": {

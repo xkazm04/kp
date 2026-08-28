@@ -163,15 +163,79 @@ by both the portal page and `/api/interview/connect`:
   test `IS NOT NULL AND != '[]'`, so an erased interview reads as **absent**
   everywhere instead of offering a review card with nothing behind it.
 
+## Reachable from the assignment (`submissionId`)
+
+`POST /api/interview/create` used to take a pipeline `entryId` and nothing else, and
+`buildGroundedInterview` reads the whole brief off that entry. That is still true — a
+voice screen is always attached to a board entry — but it made the screen unreachable
+from the surface that most wants it. The reviewer reading a work-sample evaluation
+(Assignments → the submission's eval panel) holds a **submission** id and has never held
+an entry id, so a candidate who did the assignment was interviewable only after somebody
+remembered to promote them first. The transcript and scorecard landed on the entry while
+the evaluation lived on the submission: two evidence bundles about one person, with no
+path between them a UI could act on.
+
+The create door now accepts **either** id:
+
+```jsonc
+POST /api/interview/create  { "entryId": "…" }        // the board drawer, unchanged
+POST /api/interview/create  { "submissionId": "…" }   // the assignment's eval surface
+```
+
+- `entryId` wins when both are sent. It is the more specific request, and resolving a
+  submission can legitimately answer a *different* entry (the candidate applied to the
+  opening directly and the promote backfilled that row), so silently overriding an
+  explicit entry would be the surprising half.
+- `submissionId` resolves through `app/_lib/devcase-interview-entry.ts`:
+  an entry already links this submission → use it; **no entry yet → promote through the
+  shared promote door** (`promoteSubmission`, at `activePromoteFloor()`) and use what it
+  returns. This route mints **no identity of its own** — the promote's rules from the
+  one-thread milestone (real `profiles` row, the JD's real job id, the person's own
+  archetype, ambiguity mints rather than resolves) are the only way a dev-case candidate
+  reaches the board, and a second path "just for the interview" would re-create exactly
+  the minted identity that milestone removed. The same `screening_review` card with the
+  same advance/hold verdict is written either way, so starting a screen from the
+  assignment produces the identical audit trail as pressing Promote and then Create link.
+  What it removes is the *ordering* requirement, which was never a product rule.
+- The response echoes `entryId` and `promoted`, so the caller can say that issuing the
+  link also put the candidate on the board rather than leaving it to be discovered there.
+- Refusals: an unknown submission and **another team's** submission answer alike
+  (404, `INTERVIEW_SUBMISSION_NOT_FOUND`) — a distinct refusal would confirm which
+  submission ids exist on other tenants, and this door can write a stranger's name and
+  contact onto the caller's board. An unevaluated submission is 400,
+  `INTERVIEW_SUBMISSION_NOT_EVALUATED`: there is nothing to promote on, and the brief the
+  screen would carry is built from the evaluation's own minted follow-ups.
+
+**The reverse read** is `GET /api/interview/by-entry?submission=<id>` → `{ session,
+entryId }`. It adds no column and no new session lookup: `pipeline_entries.dev_submission_id`
+already points from the entry at the submission and `interview_sessions.entry_id` already
+points from the session at the entry, so "the screen for this submission" is those two
+existing links composed (`findEntryByDevSubmission`, `app/_lib/db/pipeline.ts` — column
+first, legacy `ds-` candidate id second, workspace-scoped). A `dev_submission_id` on
+`interview_sessions` would have been a *third* statement of one fact, free to disagree
+with the other two the moment a promote backfills onto an entry the candidate already
+had. A submission that was never promoted answers `{ session: null, entryId: null }` —
+an honest empty answer, not a 404, because "this candidate has no voice screen" is
+exactly what was asked. The same read-time consent gate as `?entry=` applies.
+
+The recruiter-facing half is `DevVoiceScreenPanel` (`app/features/tools/devcases/`),
+rendered under the eval panel for every evaluated submission: the screen's status, its
+verdict and mean observed rating when a scorecard exists, and otherwise the **same**
+`PipelineVoiceScreenPanel` the board drawer uses, pointed at this submission. One
+affordance, one endpoint, one set of semantics (billing gate, reissue guard, delivery
+truth) — the revoke control stays entry-scoped and is therefore not rendered there.
+Pinned in `app/_lib/devcase-interview-entry.test.ts`.
+
 ## Surface
 
 | Path | Role |
 |---|---|
 | `app/api/interview/connect/route.ts` | Mints provider credentials + brief override |
-| `app/api/interview/create/route.ts` | Creates a real candidate session |
+| `app/api/interview/create/route.ts` | Creates a real candidate session, from an `entryId` **or** a dev-case `submissionId` |
 | `app/api/interview/complete/route.ts` | Persists transcript, status, usage, scorecard |
 | `app/api/interview/simulate/route.ts` + `attach/route.ts` | Recruiter demo/simulation sessions |
-| `app/api/interview/revoke/route.ts`, `by-entry/route.ts`, `compare/route.ts` | Session management + cross-interview compare |
+| `app/api/interview/revoke/route.ts`, `by-entry/route.ts`, `compare/route.ts` | Session management + cross-interview compare; `by-entry` also answers `?submission=` (the assignment-side reverse read) |
+| `app/_lib/devcase-interview-entry.ts` | Resolves (or promote-then-resolves) the pipeline entry a dev-case submission's screen hangs off |
 | `app/api/interview-prep/route.ts`, `.../scorecard/route.ts` | Prep chronology + scorecard read APIs |
 | `app/_lib/voice/index.ts` | Adapter registry, default-provider policy, candidate-safe default brief |
 | `app/_lib/voice/elevenlabs.ts`, `openai.ts` | The two provider adapters |

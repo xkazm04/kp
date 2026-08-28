@@ -1309,7 +1309,9 @@
     "COMPANION_PROPOSAL_RESOLVED": "That proposal was already answered.",
     "COMPANION_PROPOSAL_FAILED": "Could not run that proposal. Nothing was changed.",
     "COMPANION_BRAIN_FAILED": "Could not check this machine for Candi's memory. Please try again.",
-    "COMPANION_BRAIN_ABSENT": "There is no companion memory on this machine to connect."
+    "COMPANION_BRAIN_ABSENT": "There is no companion memory on this machine to connect.",
+    "INTERVIEW_SUBMISSION_NOT_FOUND": "That submission could not be found.",
+    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Evaluate the submission before starting a voice screen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7645,6 +7647,24 @@
       },
       "pasteTrace": "Alongside them, one bulk paste with no incremental build-up reads as suspect. A suspect submission is held for the live interview that verifies authorship, never auto-advanced on score.",
       "honestDarkness": "Every verdict above is shown to you with its own evidence, including where a check could not run: a control that did not fire is never displayed as one that passed. None of it starts until a case exists. Define the need and the engine designs the assignment these controls wrap around."
+    },
+    "voiceScreen": {
+      "title": "Voice screen",
+      "loading": "Checking for a voice screen…",
+      "promotesHint": "Issuing a link also puts this candidate on the Overview board, because a voice screen is always attached to a board entry.",
+      "mean": "{mean} / {max} mean rating",
+      "verdictNote": "The verdict flows to the Decisions queue as a scorecard review.",
+      "awaitingCall": "The link is live; the candidate has not taken the call yet.",
+      "completedUnscored": "The call finished, but no scorecard was produced.",
+      "noVerdict": "This screen ended without a scorecard.",
+      "boardHint": "Reissue, revoke and the full transcript live in the Overview tab.",
+      "status": {
+        "created": "Link issued",
+        "in_progress": "Call in progress",
+        "completed": "Completed",
+        "failed": "Failed",
+        "revoked": "Revoked"
+      }
     }
   },
   "rubric": {

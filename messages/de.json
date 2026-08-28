@@ -1309,7 +1309,9 @@
     "COMPANION_PROPOSAL_RESOLVED": "Dieser Vorschlag wurde bereits beantwortet.",
     "COMPANION_PROPOSAL_FAILED": "Der Vorschlag konnte nicht ausgeführt werden. Es wurde nichts geändert.",
     "COMPANION_BRAIN_FAILED": "Das Gedächtnis von Candi konnte auf diesem Rechner nicht geprüft werden. Bitte erneut versuchen.",
-    "COMPANION_BRAIN_ABSENT": "Auf diesem Rechner gibt es kein Begleiter-Gedächtnis zum Verbinden."
+    "COMPANION_BRAIN_ABSENT": "Auf diesem Rechner gibt es kein Begleiter-Gedächtnis zum Verbinden.",
+    "INTERVIEW_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
+    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Bewerten Sie die Einreichung, bevor Sie ein Voice-Screening starten."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7645,6 +7647,24 @@
       },
       "pasteTrace": "Daneben gilt: Ein einzelnes massenhaftes Einfügen ohne schrittweisen Aufbau liest sich als verdächtig. Eine verdächtige Einreichung wird für das Interview zurückgehalten, das die Urheberschaft prüft, und nie allein nach Punktzahl automatisch weitergereicht.",
       "honestDarkness": "Jedes Urteil oben wird Ihnen mit seinem eigenen Nachweis gezeigt, auch dort, wo eine Prüfung nicht laufen konnte: eine Kontrolle, die nicht gegriffen hat, erscheint nie als bestandene. Nichts davon startet, bevor ein Fall existiert. Beschreiben Sie den Bedarf, und die Engine entwirft die Aufgabe, um die sich diese Kontrollen legen."
+    },
+    "voiceScreen": {
+      "title": "Voice-Screening",
+      "loading": "Prüfe, ob ein Voice-Screening vorliegt…",
+      "promotesHint": "Mit dem Link kommt diese Person zugleich in die Übersicht, denn ein Voice-Screening hängt immer an einem Eintrag der Pipeline.",
+      "mean": "Durchschnittsbewertung {mean} / {max}",
+      "verdictNote": "Das Urteil geht als Scorecard-Prüfung in die Entscheidungen.",
+      "awaitingCall": "Der Link ist aktiv, das Gespräch wurde noch nicht geführt.",
+      "completedUnscored": "Das Gespräch ist beendet, es entstand aber keine Scorecard.",
+      "noVerdict": "Dieses Screening endete ohne Scorecard.",
+      "boardHint": "Neuausstellung, Widerruf und das vollständige Transkript liegen im Tab Übersicht.",
+      "status": {
+        "created": "Link ausgestellt",
+        "in_progress": "Gespräch läuft",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "revoked": "Widerrufen"
+      }
     }
   },
   "rubric": {

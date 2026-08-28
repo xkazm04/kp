@@ -652,6 +652,48 @@ by-ref lookup. Without that the two halves disagreed exactly where it matters �
 minted candidate's profile id is not their `candidate_ref`, so the deepest evidence the
 product produces was credited to nobody.
 
+### The voice screen is reachable from the assignment
+
+The evaluation's minted follow-up questions exist to be asked **out loud**: an artifact
+can be wholly LLM-produced, so each question verifies live that the candidate owns one of
+their submission's observed decisions. Until now the surface holding those questions could
+not start the call that asks them. `POST /api/interview/create` mints a screen for a
+pipeline **entry** and reads its whole brief off that entry; the reviewer in Assignments
+holds a **submission** id. So the assignment candidate was interviewable only after
+somebody remembered to promote them first, and the transcript + scorecard landed on the
+entry while the evaluation stayed on the submission.
+
+- **The create door takes either id.** `{ submissionId }` is resolved by
+  `app/_lib/devcase-interview-entry.ts`: an entry already links this submission → use it;
+  no entry yet → **promote through the shared door** (`promoteSubmission` at
+  `activePromoteFloor()`) and use what it returns. Nothing here mints an identity: the
+  rules above (real profile, the JD's real job, the person's own archetype,
+  ambiguity-mints-rather-than-resolves) stay the only way a dev-case candidate reaches
+  the board, and the same `screening_review` card with the same advance/hold verdict is
+  written either way. What the join removes is the ordering requirement, not the review.
+- **Refusals are unchanged in substance.** An unknown submission and another team's
+  submission answer alike (404) — a distinct refusal would confirm which submission ids
+  exist on other tenants, and this door can write a stranger's name and contact onto the
+  caller's board. An unevaluated submission is refused outright.
+- **The reverse read adds no column.** `GET /api/interview/by-entry?submission=<id>`
+  composes the two links that already exist — `pipeline_entries.dev_submission_id` and
+  `interview_sessions.entry_id` — via `findEntryByDevSubmission` (column first, legacy
+  `ds-` candidate id second, workspace-scoped). A `dev_submission_id` on
+  `interview_sessions` would have been a third statement of one fact, free to disagree
+  with the other two the moment a promote backfills onto an entry the candidate already
+  had.
+- **Where a reviewer sees it.** `DevVoiceScreenPanel` renders under the eval panel for
+  every evaluated submission: session status, the scorecard's verdict and its mean
+  **observed** rating (not-assessed axes excluded, so a partial interview cannot average
+  toward a middling 3 that looks like a judgement), and otherwise the same
+  `PipelineVoiceScreenPanel` the board drawer uses, pointed at this submission. One
+  minting affordance, not a second copy of one; reissue/revoke and the full transcript
+  stay on the board, where the entry is.
+
+Pinned in `app/_lib/devcase-interview-entry.test.ts` — including that the case-grounded
+scenario still grounds the brief now that the entry carries the JD's **real** job id,
+which is the grounding the old `dc-` prefix parse would have lost.
+
 ### Observed skills reach every archetype, not just early-career
 
 `mintObservedFromCaseInterview` used to return early unless

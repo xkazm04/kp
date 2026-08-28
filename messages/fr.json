@@ -1309,7 +1309,9 @@
     "COMPANION_PROPOSAL_RESOLVED": "Cette proposition a déjà été traitée.",
     "COMPANION_PROPOSAL_FAILED": "Impossible d'exécuter cette proposition. Rien n'a été modifié.",
     "COMPANION_BRAIN_FAILED": "Impossible de vérifier la mémoire de Candi sur cette machine. Veuillez réessayer.",
-    "COMPANION_BRAIN_ABSENT": "Il n'y a aucune mémoire de compagne à connecter sur cette machine."
+    "COMPANION_BRAIN_ABSENT": "Il n'y a aucune mémoire de compagne à connecter sur cette machine.",
+    "INTERVIEW_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
+    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Évaluez la soumission avant de lancer une présélection vocale."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7645,6 +7647,24 @@
       },
       "pasteTrace": "À côté d’eux, un collage massif unique sans construction progressive se lit comme suspect. Un rendu suspect est retenu pour l’entretien en direct qui vérifie la paternité, jamais promu automatiquement sur le score.",
       "honestDarkness": "Chaque verdict ci-dessus vous est montré avec ses propres preuves, y compris là où un contrôle n’a pas pu s’exécuter : un contrôle qui n’a pas joué n’est jamais affiché comme un contrôle réussi. Rien ne démarre tant qu’un cas n’existe pas. Décrivez le besoin et le moteur conçoit l’épreuve autour de laquelle ces contrôles se referment."
+    },
+    "voiceScreen": {
+      "title": "Présélection vocale",
+      "loading": "Vérification d’une présélection vocale…",
+      "promotesHint": "Créer le lien place aussi ce candidat dans la Vue d’ensemble, car une présélection vocale est toujours rattachée à une entrée du tableau.",
+      "mean": "note moyenne {mean} / {max}",
+      "verdictNote": "Le verdict rejoint la file Décisions sous forme de revue de scorecard.",
+      "awaitingCall": "Le lien est actif, le candidat n’a pas encore passé l’appel.",
+      "completedUnscored": "L’appel est terminé, mais aucun scorecard n’a été produit.",
+      "noVerdict": "Cette présélection s’est terminée sans scorecard.",
+      "boardHint": "La réémission, la révocation et la transcription complète se trouvent dans l’onglet Vue d’ensemble.",
+      "status": {
+        "created": "Lien émis",
+        "in_progress": "Appel en cours",
+        "completed": "Terminé",
+        "failed": "Échec",
+        "revoked": "Révoqué"
+      }
     }
   },
   "rubric": {
