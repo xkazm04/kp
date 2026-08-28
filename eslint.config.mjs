@@ -201,6 +201,59 @@ const config = [
     rules: {
       "i18next/no-literal-string": ["error", { mode: "jsx-text-only" }]
     }
+  },
+  {
+    // better-sqlite3 transactions are SYNCHRONOUS. A `db.transaction(cb)` runs cb
+    // between BEGIN and COMMIT on one connection — so an `await` inside cb yields the
+    // event loop mid-transaction, lets other work interleave on the same connection,
+    // and silently breaks the atomicity the transaction was written to provide. There
+    // is no error and no failing test: the code looks transactional and is not.
+    //
+    // The repo currently has ZERO violations across its 34 transaction call sites, and
+    // defends the invariant in prose at the tempting ones (see the comment beside
+    // scrubEntryLinkedPii in app/_lib/db/pipeline.ts: "stays SYNCHRONOUS: a stray await
+    // would silently break the transaction's atomicity"). An /architect scan flagged
+    // that as the cheapest strong-pattern-to-gate conversion available: the invariant
+    // is fully mechanical, and a comment is not a gate (ADR 0007).
+    //
+    // ERROR, not warn, and deliberately: warn is this config's phased-migration level
+    // (see the i18n blocks). There is nothing to migrate here — the rule starts clean,
+    // so anything it ever fires on is a new defect, which is what error is for.
+    //
+    // The long-running-work pattern this rule pushes you toward already exists:
+    // actOnPipelineEntry does the await OUTSIDE the transaction and bridges the gap
+    // with a compare-and-swap on the row it read (expectedStage / expectedApprovalKind),
+    // so a decision computed during a 30-second LLM call is safely dropped if the row
+    // moved. Copy that, don't await inside the lock.
+    files: ["app/**/*.ts", "app/**/*.tsx", "scripts/**/*.mjs", "packages/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "CallExpression[callee.property.name='transaction'] > :matches(ArrowFunctionExpression, FunctionExpression)[async=true]",
+          message:
+            "async callback passed to db.transaction(). better-sqlite3 transactions are synchronous — " +
+            "an async callback breaks atomicity silently. Do the awaited work BEFORE or AFTER the " +
+            "transaction and bridge the gap with a CAS on the row you read (see actOnPipelineEntry " +
+            "in app/_lib/db/pipeline.ts)."
+        },
+        {
+          selector: "CallExpression[callee.property.name='transaction'] AwaitExpression",
+          message:
+            "await inside db.transaction(). better-sqlite3 transactions are synchronous — the await " +
+            "yields mid-transaction and the atomicity is silently lost. Move the awaited work outside " +
+            "and re-check the row's state on the way back in (see actOnPipelineEntry in " +
+            "app/_lib/db/pipeline.ts)."
+        },
+        {
+          selector: "CallExpression[callee.property.name='transaction'] ForOfStatement[await=true]",
+          message:
+            "for-await inside db.transaction(). better-sqlite3 transactions are synchronous — iterate " +
+            "the async source outside the transaction, then commit the collected rows inside it."
+        }
+      ]
+    }
   }
 ];
 

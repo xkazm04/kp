@@ -125,7 +125,10 @@ workspace-scoped. As of this pass:
 - Org/deployment **config + metering** (`billing_*`, `provider_keys`,
   `brand_settings`, `ats_config`, `ats_connections`, `comms_relay_config`,
   `personas_bridge`, `edge_config`, `llm_usage`) is classified **exempt** —
-  org- or install-level, not per-team, by design. (`analytics_targets`,
+  org- or install-level, not per-team, by design. `seed_marks` (which one-shot
+  fixture seeder has run against this database) joins them for the same reason as
+  `scheduler_heartbeat`: deployment bookkeeping, one row per seeder per install,
+  with no tenant to scope it to. (`analytics_targets`,
   `jd_templates` and `decision_config` are *not* on that list: they are scoped,
   the latter two as a dual tier whose `workspace_id IS NULL` rows are the org
   layer every team inherits.)

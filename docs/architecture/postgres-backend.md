@@ -34,6 +34,25 @@ becomes `async`, cascading up through the stores, the `_lib` services, and into 
 route handlers. That cascade, not the SQL, is the cost. It is realistically the
 single largest refactor in the codebase.
 
+The synchrony is now **enforced, not just assumed**: `no-restricted-syntax` in
+`eslint.config.mjs` fails the build on an `await` (or an async callback) inside a
+`db.transaction(...)`, because on better-sqlite3 that silently forfeits atomicity
+between BEGIN and COMMIT with no error and no failing test. The rule shipped clean —
+zero violations across the 34 transaction call sites — which is a useful datum for
+this document: nothing in the codebase currently *wants* to await inside a
+transaction, so the port does not have to untangle one. Whichever adapter wins below
+has to keep that property, and a port that makes `transaction()` genuinely async must
+re-derive the isolation level of every call site by hand: only 9 of the 34 use
+`.immediate()` today, and several of the rest are safe purely because a compensating
+`WHERE` precondition makes a lost race a no-op.
+
+Two boot-path details a port inherits from `db/core.ts`: the PK-widening rebuilds
+(`channel_spend`, `analytics_targets`, `billing_usage`) exist only because SQLite
+cannot `ALTER` a PRIMARY KEY — Postgres can, so they become no-ops rather than
+translations — and they now run through a `rebuildTable` helper that drops the scratch
+table and wraps the swap in a transaction, since the unguarded version could wedge boot
+after an interrupted migration.
+
 **The SQL itself is largely portable** (run `npm run db:pg-audit` for the live list):
 no `strftime` / `json_extract` / `rowid` / `PRAGMA`-in-queries. The whole dialect
 surface is ~11 `AUTOINCREMENT`, ~26 `ON CONFLICT`, ~13 `INSERT OR IGNORE/REPLACE` —

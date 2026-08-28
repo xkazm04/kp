@@ -194,6 +194,25 @@ The ones that actually bite:
   `tsc` error, so an incomplete catalog breaks `npm run typecheck` for
   everyone).
 - **Design tokens:** see the design-system section above (`design:check` is the gate).
+- **Never `await` inside a `db.transaction()`.** better-sqlite3 transactions are
+  synchronous; an await yields the event loop between BEGIN and COMMIT and the
+  atomicity is silently gone — no error, no failing test. Do the slow work (LLM
+  call, Python subprocess, fetch) OUTSIDE the transaction and bridge the gap with
+  a compare-and-swap on the row you read: `actOnPipelineEntry`
+  (`app/_lib/db/pipeline.ts`) is the canonical shape — `.immediate()` plus
+  `expectedStage`/`expectedApprovalKind`, so a decision computed during a
+  30-second call is safely dropped if the row moved. Enforced at `error` by
+  `no-restricted-syntax` in `eslint.config.mjs`.
+- **A read→compute→write either locks or re-checks.** The two valid strategies are
+  `db.transaction(...).immediate()` (write lock at BEGIN) or a compensating
+  precondition in the UPDATE's `WHERE` plus a `res.changes === 0` skip. Pick one
+  deliberately; a plain `tx()` whose UPDATE does not re-assert the status its
+  SELECT filtered on is a lost update (see `closeEntriesByJobId` /
+  `reopenEntriesByJobId` for the wrong and right shapes of the same operation).
+- **A one-shot seeder records that it ran** in `seed_marks`, never `COUNT(*) > 0`
+  — a row count cannot tell "never seeded" from "seeded, then legitimately
+  emptied", and the difference is demo data reappearing in a real install
+  (`app/_lib/db/seed-marks.ts`).
 - **Rate-limit contract tests pin limiter call sites.**
   `app/api/rate-limit-contract.test.ts` asserts which open/paid routes call
   `rateLimit()` and how — adding, moving, or re-keying a limiter means updating
