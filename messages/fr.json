@@ -4076,6 +4076,7 @@
       "lifecycle": {
         "aria": "Cycle de vie du poste",
         "jd": "Fiche de poste",
+        "assignments": "{count, plural, =1 {1 épreuve} other {# épreuves}}",
         "channels": "{count, plural, =0 {Aucun canal à l’écoute} =1 {1 canal à l’écoute} other {# canaux à l’écoute}}",
         "funnel": "{count, plural, =0 {Aucun candidat dans le pipeline} =1 {1 dans le pipeline} other {# dans le pipeline}}",
         "decisions": "{count, plural, =1 {1 décision en attente} other {# décisions en attente}}",
@@ -7590,6 +7591,12 @@
       "promoting": "Promotion…",
       "promote": "Promouvoir vers le pipeline",
       "promoteHint": "→ devient une carte à examiner dans Décisions"
+    },
+    "jobLink": {
+      "linked": "Poste : {title}",
+      "openTitle": "Ouvrir ce poste dans l’onglet Postes",
+      "unsourced": "La fiche « {slug} » n’a pas encore de poste",
+      "unsourcedTitle": "Cette épreuve a été conçue à partir d’une fiche de poste enregistrée qui n’a jamais été transformée en poste. Il n’y a donc encore rien à relier. Transformez-la depuis la bibliothèque et le lien apparaîtra ici."
     },
     "emptyLedger": {
       "eyebrow": "Registre ouvert",

@@ -95,6 +95,13 @@ export type DevCaseDetail = ApprovedCase & {
   // skeleton (seed_materializer.deterministic_seed), not concrete starter files.
   seed?: { files?: unknown[]; note?: string; source?: SourceKind } | null;
   status?: string;
+  // ONE THREAD (db/devcase.ts DevCaseRecord): the job this assignment was cut for, its
+  // title joined at read, and the JD the recruiter actually picked. `jobId` null with
+  // `jdSlug` set is a real, expected state — a saved JD whose best-effort Job ingest
+  // never ran — and the detail header says so rather than showing nothing.
+  jobId?: string | null;
+  jobTitle?: string | null;
+  jdSlug?: string | null;
 };
 export type Submission = {
   id: string;

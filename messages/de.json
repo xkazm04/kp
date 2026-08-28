@@ -4076,6 +4076,7 @@
       "lifecycle": {
         "aria": "Lebenszyklus der Stelle",
         "jd": "Stellenbeschreibung",
+        "assignments": "{count, plural, =1 {1 Aufgabe} other {# Aufgaben}}",
         "channels": "{count, plural, =0 {Kein Kanal empfangsbereit} =1 {1 Kanal empfangsbereit} other {# Kanäle empfangsbereit}}",
         "funnel": "{count, plural, =0 {Keine Kandidat/innen im Funnel} =1 {1 im Funnel} other {# im Funnel}}",
         "decisions": "{count, plural, =1 {1 Entscheidung ausstehend} other {# Entscheidungen ausstehend}}",
@@ -7590,6 +7591,12 @@
       "promoting": "Wird weitergeleitet…",
       "promote": "In die Pipeline weiterleiten",
       "promoteHint": "→ wird zu einer Prüfkarte in Entscheidungen"
+    },
+    "jobLink": {
+      "linked": "Stelle: {title}",
+      "openTitle": "Diese Stelle im Tab Stellen öffnen",
+      "unsourced": "Stellenbeschreibung \"{slug}\" hat noch keine Stelle",
+      "unsourcedTitle": "Diese Aufgabe entstand aus einer gespeicherten Stellenbeschreibung, aus der nie eine Stelle erzeugt wurde. Es gibt also noch nichts zu verknüpfen. Erzeugen Sie die Stelle in der Beschreibungsbibliothek, dann erscheint der Link hier."
     },
     "emptyLedger": {
       "eyebrow": "Journal offen",

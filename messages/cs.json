@@ -4076,6 +4076,7 @@
       "lifecycle": {
         "aria": "Životní cyklus pozice",
         "jd": "Zdrojový popis",
+        "assignments": "{count, plural, =1 {1 zadání} few {# zadání} other {# zadání}}",
         "channels": "{count, plural, =0 {Žádné naslouchající kanály} =1 {1 naslouchající kanál} few {# naslouchající kanály} other {# naslouchajících kanálů}}",
         "funnel": "{count, plural, =0 {Žádní kandidáti v pipeline} =1 {1 v pipeline} few {# v pipeline} other {# v pipeline}}",
         "decisions": "{count, plural, =1 {1 čekající rozhodnutí} few {# čekající rozhodnutí} other {# čekajících rozhodnutí}}",
@@ -7590,6 +7591,12 @@
       "promoting": "Probíhá postup…",
       "promote": "Postoupit do pipeline",
       "promoteHint": "→ vznikne karta k posouzení v Rozhodnutích"
+    },
+    "jobLink": {
+      "linked": "Pozice: {title}",
+      "openTitle": "Otevřít tuto pozici v záložce Pozice",
+      "unsourced": "Popis \"{slug}\" zatím nemá pozici",
+      "unsourcedTitle": "Toto zadání vzniklo z uloženého popisu práce, který nikdy nebyl převeden na pozici, takže zatím není na co odkazovat. Převědte jej v knihovně popisů a odkaz se objeví zde."
     },
     "emptyLedger": {
       "eyebrow": "Kniha otevřena",

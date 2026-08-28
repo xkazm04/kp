@@ -4076,6 +4076,7 @@
       "lifecycle": {
         "aria": "Role lifecycle",
         "jd": "JD source",
+        "assignments": "{count, plural, =1 {1 assignment} other {# assignments}}",
         "channels": "{count, plural, =0 {No channels listening} =1 {1 channel listening} other {# channels listening}}",
         "funnel": "{count, plural, =0 {No candidates in the funnel} =1 {1 in the funnel} other {# in the funnel}}",
         "decisions": "{count, plural, =1 {1 decision pending} other {# decisions pending}}",
@@ -7590,6 +7591,12 @@
       "promoting": "Promoting…",
       "promote": "Promote to pipeline",
       "promoteHint": "→ becomes a Decisions review card"
+    },
+    "jobLink": {
+      "linked": "Role: {title}",
+      "openTitle": "Open this role in the Jobs tab",
+      "unsourced": "JD \"{slug}\" has no role yet",
+      "unsourcedTitle": "This assignment was cut from a saved job description that was never sourced into a role, so there is nothing to link to yet. Source it from the JD library and the link appears here."
     },
     "emptyLedger": {
       "eyebrow": "Ledger open",

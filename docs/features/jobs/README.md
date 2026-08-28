@@ -399,8 +399,8 @@ actually looks at their roles.
 
 ## The job modal's lifecycle strip reads stage ROLES, not stage names
 
-`JobsLifecycleStrip.tsx` renders this role's chain — JD → channels listening →
-funnel → decisions → slots → **offers out** → **hired** — each segment
+`JobsLifecycleStrip.tsx` renders this role's chain — JD → **assignments** → channels
+listening → funnel → decisions → slots → **offers out** → **hired** — each segment
 deep-linking the tab that owns it. The last two are stage questions, and the
 board's axis is workspace data (Settings → Hiring composes it; see
 `app/_lib/pipeline-stages.ts`), so both the counts and the `?stage=` link value
@@ -416,6 +416,22 @@ same shape as `pipelineStageFilter.test.ts`.
 The strip is best-effort — a failed load renders nothing — which now includes a
 **non-2xx** response, not only a thrown fetch: `safeJsonError` answers valid
 JSON, so `p.entries ?? []` used to turn a 500 into a confident "0 in funnel".
+
+### The assignments segment (one thread: JD → assignment)
+
+A role's work samples are now on the strip because they are now in the schema:
+`dev_cases.job_id` holds the `jd-<slug>` id of the JD the case was cut from (see
+[the dev-case doc](../dev-case/README.md)). Before that column, the recruiter's JD pick
+survived only inside an opaque `need_json` blob, so nothing in the Jobs surface could
+tell that a role had an assignment at all.
+
+`GET /api/jobs/[id]/assignments` answers the count — workspace-scoped, and an
+identity-only projection rather than the case rows, because a case payload carries its
+whole internal design (rubric, covert probes). Unlike the two fetches above it filters
+SERVER-side; the segment renders only when there is at least one assignment, since a
+role without a work sample is the normal case and not a gap to nag about. The count
+stays `null` until the fetch lands and after a failure, so an unknown count is an absent
+segment rather than a confident "0".
 
 ## The winnability coach stages the number it actually computed
 

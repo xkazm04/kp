@@ -4,6 +4,7 @@
 // actions, and the confirm-before-publish dialog — split out of DevCaseDetail.tsx.
 import { AlertTriangle, ArrowLeft, FileWarning, MicVocal, Send, Users } from "lucide-react";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
+import { DevCaseJobLink } from "./DevCaseJobLink";
 import type { DevCaseDetail } from "./DevTypes";
 
 export function DevCaseDetailHeader({
@@ -59,6 +60,9 @@ export function DevCaseDetailHeader({
           <ArrowLeft size={14} /> All cases
         </button>
         <span className="text-micro text-steel">created {rel(kase.createdAt) || "—"}</span>
+        {/* ONE THREAD — the role this assignment was cut for, or an honest note that the
+            JD it came from was never sourced into one. */}
+        <DevCaseJobLink jobId={kase.jobId} jobTitle={kase.jobTitle} jdSlug={kase.jdSlug} />
         {hasScenario ? (
           scenarioDegraded ? (
             <span
