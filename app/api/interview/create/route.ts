@@ -3,6 +3,7 @@ import { meterGate, maxBillableInterviewMin } from "@/app/_lib/billing/enforce";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { createInterviewSession, isInterviewSessionLive, liveInterviewByEntry, revokeOpenInterviewSessions } from "@/app/_lib/db/interviews";
 import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { resolveEntryForSubmission } from "@/app/_lib/devcase-interview-entry";
 import { buildGroundedInterview } from "@/app/_lib/interview-run";
 import { dispatchInterviewInvite } from "@/app/_lib/comms-dispatch";
 import { deliveryClaim, type DeliveryClaim } from "@/app/_lib/comms-truth";
@@ -34,7 +35,36 @@ export async function POST(request: NextRequest) {
     // language must look like a language tag — anything else is rejected or
     // dropped rather than passed into the DB layer.
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-    const entryId = typeof body.entryId === "string" ? body.entryId.trim() : "";
+    // ONE THREAD (gap 4) — a screen can be asked for by the entry it hangs off OR by
+    // the SUBMISSION the reviewer is looking at. The eval surface holds a submission
+    // id and never held an entry id, which is why the voice screen was reachable only
+    // from the board. `entryId` still wins when both are sent: it is the more specific
+    // request, and resolving a submission could legitimately answer a DIFFERENT entry
+    // (the candidate applied to the opening directly and the promote backfilled that
+    // row) — silently overriding an explicit entry would be the surprising half.
+    let entryId = typeof body.entryId === "string" ? body.entryId.trim() : "";
+    let promotedForScreen = false;
+    const submissionId = typeof body.submissionId === "string" ? body.submissionId.trim() : "";
+    if (!entryId && submissionId) {
+      if (submissionId.length > 120) {
+        return NextResponse.json({ error: "submissionId is required" }, { status: 400 });
+      }
+      // Resolves, or promotes through the SHARED promote door and then resolves — this
+      // route never mints an identity of its own (devcase-interview-entry.ts).
+      const resolved = resolveEntryForSubmission(submissionId, workspace);
+      if (!resolved.ok) {
+        return resolved.reason === "not_evaluated"
+          ? NextResponse.json(
+              { error: "evaluate the submission first.", code: "INTERVIEW_SUBMISSION_NOT_EVALUATED" },
+              { status: 400 }
+            )
+          : // Unknown id and another team's id answer alike, on purpose: a distinct
+            // 403 would confirm which submission ids exist on other tenants.
+            NextResponse.json({ error: "submission not found", code: "INTERVIEW_SUBMISSION_NOT_FOUND" }, { status: 404 });
+      }
+      entryId = resolved.entryId;
+      promotedForScreen = resolved.promoted;
+    }
     if (!entryId || entryId.length > 120) {
       return NextResponse.json({ error: "entryId is required" }, { status: 400 });
     }
@@ -161,6 +191,12 @@ export async function POST(request: NextRequest) {
       revoked,
       candidateLabel: session.candidateLabel,
       jobTitle: session.jobTitle,
+      // ONE THREAD — the entry this screen hangs off, echoed so a caller who asked by
+      // submissionId learns which board row it landed on, and `promoted` so it can say
+      // that starting the screen also put the candidate there. Both are stated rather
+      // than left for the recruiter to discover from the board.
+      entryId,
+      promoted: promotedForScreen,
     });
   } catch (error) {
     // buildGroundedInterview's not-found is a client-safe business rule, not an

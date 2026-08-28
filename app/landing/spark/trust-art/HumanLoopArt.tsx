@@ -11,17 +11,26 @@ import { CARD, cycle } from "./shared";
 /*
  * 01 · Human in the loop — the pipeline runs itself right up to the barrier.
  *
- * The claim is "no candidate is advanced, offered or rejected by the machine
- * alone", so the drawing is literal: a candidate token rides the rail through
- * intake and scoring on its own, then STOPS at a gate whose barrier is down.
- * Nothing moves again until a stamp lands with a person's name on it. The wait
- * is the point — an illustration where the token sailed through would be
- * arguing the opposite claim.
+ * The claim is the one the paragraph beside it makes: a rejection is always a
+ * person's, and advancing or extending an offer is human-approved BY DEFAULT.
+ * So the drawing is literal: a candidate token rides the rail through intake
+ * and scoring on its own, then STOPS at a gate whose barrier is down. Nothing
+ * moves again until a stamp lands with a person's name on it. The wait is the
+ * point — an illustration where the token sailed through would be arguing the
+ * opposite claim.
  *
  * Below the rail, the three toggles answer the follow-up question a buyer
- * actually asks: *which* steps may run unattended. Two flip. The third does
- * not, because "every adverse decision is reviewed and made by a person — by
- * design, not by a setting" has to survive contact with the setting.
+ * actually asks: *which* steps may run unattended. The two that flip are the
+ * two the product really delegates — `automation-run.ts` reads
+ * getPlanGateForRole("screening") and ("offer"), and nothing else. The third
+ * does not flip, because there is no rejection gate to read: that is the half
+ * of the claim that survives contact with the setting, and the lock says so.
+ *
+ * Scheduling used to hold the second slot. It flipped on screen and answered
+ * nothing — scheduling is not a decision about a candidate, so a buyer reading
+ * this panel learned that a step nobody worried about was configurable, while
+ * the offer — the one delegable step with real consequence — was not on the
+ * card at all. The toggles now argue the same shape as the paragraph.
  */
 
 // One full pass of the pipeline, in seconds. Every keyframe track below is
@@ -45,10 +54,13 @@ const STATIONS = [
   { key: "hired", at: "88%", color: MOSS }
 ] as const;
 
-// Which steps may act unattended. `reject` is locked on purpose — see above.
+// Which steps may act unattended, one entry per gate the product actually has.
+// `screen` and `offer` are the two `automation-run.ts` reads from the hiring
+// plan; both ship set to a human, which is why neither starts on `auto`. Nothing
+// reads a rejection gate, so `reject` is locked — see above.
 const GATES = [
-  { key: "screen", locked: false, auto: true },
-  { key: "schedule", locked: false, auto: true },
+  { key: "screen", locked: false, auto: false },
+  { key: "offer", locked: false, auto: false },
   { key: "reject", locked: true, auto: false }
 ] as const;
 
@@ -60,7 +72,10 @@ const CONFETTI = [
 
 function AllowToggle({ gate }: { gate: (typeof GATES)[number] }) {
   const t = useTranslations("landing");
-  const [auto, setAuto] = useState(gate.auto);
+  // Explicit `boolean`: every GATES entry now ships `auto: false` (the shipped plan
+  // gates all three on a person), so the const assertion would otherwise narrow the
+  // state to the literal `false` and the toggle could never be flipped on.
+  const [auto, setAuto] = useState<boolean>(gate.auto);
   const [refused, setRefused] = useState(0);
   const on = gate.locked ? false : auto;
   const label = t(`trust.art.human.gates.${gate.key}`);

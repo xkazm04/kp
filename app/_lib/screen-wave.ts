@@ -7,7 +7,7 @@ import { dispatchRejection } from "./comms-dispatch";
 import { isFairnessProtected, isKnownArchetype } from "./archetypes";
 import { screenWaveApprovalToken, verifyScreenWaveApprovalToken, ScreenWaveApprovalError } from "./screen-wave-approval";
 import { selectHoldout } from "./screen-wave-holdout";
-import { operatorApprover } from "./auth/operator-approver";
+import { isNamedApprover, NAMED_APPROVER_REQUIRED, operatorApprover } from "./auth/operator-approver";
 import { isScored } from "./match-score";
 import { withCanonicalScores } from "./match-score-resolve";
 import { jdSlugOfJobId } from "./jd-limits";
@@ -333,6 +333,24 @@ export async function runScreenWave(
     }
   }
   const approvedBy = opts?.approval?.approvedBy?.trim() || operatorApprover();
+  // ATTRIBUTION IS PART OF THE APPROVAL (gap G5). Everything above proves the
+  // approval covers THIS cohort and is recent. None of it proves it was anyone's:
+  // with no signed-in user and no KP_OPERATOR_NAME, `approvedBy` is the posture
+  // placeholder, and the wave used to seal 66 adverse records naming nobody while
+  // /trust called Art. 14 enforced and the landing sold "a human signs every call".
+  //
+  // Refused HERE, in the lib, rather than in the route: this is the seal path, and
+  // a second caller (a job, a script, a future bulk surface) would otherwise
+  // inherit the hole. Refused only on COMMIT — a preview writes nothing, so an
+  // unattributed operator can still see what a wave would do, and reads the reason
+  // why it will not run.
+  //
+  // Deliberately NOT applied to every seal in the product. A single recruiter
+  // click on one candidate still seals under the role actor ("human:recruiter"),
+  // because refusing that would take away the one-at-a-time human review this page
+  // exists to require. The bulk adverse wave is the decision whose accountability
+  // is load-bearing, and it is the one gated. The audit table marks the rest.
+  if (!dryRun && !isNamedApprover(approvedBy)) throw new ScreenWaveApprovalError(NAMED_APPROVER_REQUIRED);
 
   const decisions: ScreenDecision[] = [];
   let rejected = 0;

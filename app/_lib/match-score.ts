@@ -59,6 +59,10 @@ export function compareByMatchScoreDesc(a: Scoreable, b: Scoreable): number {
 //       (automation-pass.ts scoreUnscoredEntries → rankPoolForJob → python
 //       score_job total; FILL-ONLY). This is the number DECISIONS act on:
 //       screen-wave thresholds, advance-top-N, the policy pass.
+//       Until the ONE THREAD milestone this column ALSO carried a fifth number
+//       that is not a match at all — the dev-case transfer score, written here by
+//       promoteSubmission. It no longer does; see the score-kind block further
+//       down for where that number lives and why it is not folded in here.
 //   (C) fresh `score_job(candidate, job).total` recomputed at task time —
 //       automation_cli.py re-scores at draft_offer time and prices the salary
 //       from ITS m.total (pipeline/jobfit/automation.py draft_offer); the same
@@ -99,7 +103,11 @@ export type AnalysisFit = {
 
 export type MatchScoreProvenance =
   | { source: "analysis"; at: string; slug: string | null }
-  | { source: "snapshot" };
+  | { source: "snapshot" }
+  // ONE THREAD — the work-sample TRANSFER score (dev_submissions.transfer_score),
+  // reachable from an entry through its dev_submission_id link. NOT a match score
+  // and never produced by getCanonicalMatchScore; see the score-kind block below.
+  | { source: "transfer" };
 
 export type CanonicalMatchScore = { score: number; provenance: MatchScoreProvenance } | null;
 
@@ -144,4 +152,74 @@ export function canonicalScoreOf(e: CanonicalScored): number | null {
 export function provenanceOf(e: CanonicalScored): MatchScoreProvenance | null {
   if (e.canonicalScore != null) return e.scoreProvenance ?? { source: "snapshot" };
   return e.matchScore != null ? { source: "snapshot" } : null;
+}
+
+// ---------------------------------------------------------------------------
+// SCORE KIND — "a transfer score is not a match score" (ONE THREAD, gap 2).
+//
+// The impact analysis counted FOUR 0-100 numbers plus one 1-5 rubric wearing the
+// same badge, and the worst of them was structural: `promoteSubmission` wrote a
+// dev-case TRANSFER score (how well a work sample's demonstrated skills carry to
+// the role) straight into `pipeline_entries.match_score`, defaulting it to `?? 0`
+// — the exact fabrication the null-score policy at the top of this file bans —
+// and the board then rendered it through `canonicalScoreOf` with provenance
+// "snapshot", i.e. as a plain match. Two different questions, one number, no way
+// for a recruiter (or the auto-reject gate) to tell which had been answered.
+//
+// The fix has three parts and they are deliberately separate:
+//
+//   1. STORAGE. The transfer score is a fact about the SUBMISSION and stays where
+//      the evaluation already wrote it — `dev_submissions.transfer_score`. It is
+//      NOT copied onto the entry: a copy is a second producer of one number and
+//      would drift from the submission the moment it is re-evaluated, which is
+//      the same defect one layer down. The entry reaches it through the
+//      `dev_submission_id` link (devcase-identity.ts, which also resolves legacy
+//      "ds-" rows), resolved server-side by pipeline-transfer-score.ts and
+//      stamped onto the /api/pipeline payload as `transferScore`.
+//      `match_score` therefore goes back to meaning "match", and absence stays
+//      absent — a promoted candidate is UNSCORED for match until a real match run
+//      scores them, which the automation sweep now does because the same
+//      milestone gave them a real profile id.
+//
+//   2. RANKING. `canonicalScoreOf` / `provenanceOf` stay MATCH-ONLY. Every
+//      ranking, banding and threshold read in the app goes through them (board
+//      score bands + sort, decisions peer rank, screen-wave), so widening them
+//      would silently re-create the conflation with better labels on it. A
+//      transfer score must never rank a candidate as if it were a match.
+//
+//   3. DISPLAY. `displayScoreOf` is the read for a surface that shows ONE number
+//      per candidate and can say what kind it is. It prefers the match score and
+//      falls back to the transfer score, tagging the kind either way, so a
+//      promoted candidate's evidence is visible instead of being an em dash —
+//      but labelled, and out of every ranking.
+// ---------------------------------------------------------------------------
+
+/** Which question a displayed 0-100 number answers. */
+export type ScoreKind = "match" | "transfer";
+
+/** The kind a provenance belongs to: the two match producers vs the work sample. */
+export function scoreKindOf(p: MatchScoreProvenance): ScoreKind {
+  return p.source === "transfer" ? "transfer" : "match";
+}
+
+/** The work-sample score the /api/pipeline payload stamps for an entry that came
+ *  out of an assignment (pipeline-transfer-score.ts). Absent everywhere else. */
+export type TransferScored = { transferScore?: number | null };
+
+export type DisplayScore = { score: number; provenance: MatchScoreProvenance; kind: ScoreKind };
+
+/** THE one number a candidate row / drawer header shows, WITH the kind it is:
+ *  the canonical match score when the candidate has one, else the work-sample
+ *  transfer score, else null. Never fabricates and never mixes the two — the
+ *  caller renders `kind` so a transfer score is never read as a match. */
+export function displayScoreOf(e: CanonicalScored & TransferScored): DisplayScore | null {
+  const match = canonicalScoreOf(e);
+  if (match != null) {
+    return { score: match, provenance: provenanceOf(e) ?? { source: "snapshot" }, kind: "match" };
+  }
+  const transfer = e.transferScore;
+  if (transfer != null && Number.isFinite(transfer)) {
+    return { score: transfer, provenance: { source: "transfer" }, kind: "transfer" };
+  }
+  return null;
 }

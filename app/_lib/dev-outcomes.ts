@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
+import { LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "./devcase-identity";
 import { z } from "zod";
 
 // Direction E — the outcome loop. Record what actually happened to promoted candidates
@@ -215,18 +216,42 @@ export function recordOutcome(input: OutcomeInput, workspaceId: string = DEFAULT
 // would sit in the same namespace as a submission ref.
 export const PIPELINE_OUTCOME_REF_PREFIX = "pe:";
 
+/** The submission a pre-ONE-THREAD entry named through its candidate id, or "".
+ *
+ *  devcase-identity.ts owns the `ds-` prefix; this reads it from there instead of
+ *  re-spelling the literal AND its length. A `slice(3)` sitting beside a
+ *  `startsWith("ds-")` is two copies of one fact that a rename silently desyncs —
+ *  and the pair had already produced a latent hole: a candidate id that is EXACTLY
+ *  the prefix sliced to "", which hireOutcomeRef then returned as the row key
+ *  instead of falling through to its namespaced entry ref.
+ *
+ *  Only the PREFIX is shared, not `submissionIdForEntry` itself — that resolver's
+ *  `IdentityCarrier` requires a `jobId`, which neither caller here holds. (The
+ *  older note that importing devcase-identity "would pull a db.ts dependency in"
+ *  was never true of that module: its single import is a type-only `PipelineEntry`,
+ *  erased at build.) */
+function legacySubmissionRef(candidateId: string | null | undefined): string {
+  const cid = candidateId ?? "";
+  return cid.startsWith(LEGACY_SUBMISSION_CANDIDATE_PREFIX)
+    ? cid.slice(LEGACY_SUBMISSION_CANDIDATE_PREFIX.length)
+    : "";
+}
+
 /** THE ref a pipeline entry's outcome row is keyed by.
  *
  *  Load-bearing that this mirrors recordPipelineOutcome's derivation: a devcase-
- *  promoted candidate ("ds-<submissionId>") already has an auto-recorded hire row
- *  under the bare submission id, and a recruiter rating that same hire must UPDATE
- *  that row, not mint a second decided "hired" outcome — calibrate() counts decided
- *  rows individually, so a duplicate biases the promote-floor suggestion. Everyone
- *  else (the ordinary board hire, which is the common case) gets the namespaced
- *  entry ref. */
-export function hireOutcomeRef(entry: { id: string; candidateId?: string | null }): string {
-  const cid = entry.candidateId;
-  return cid && cid.startsWith("ds-") ? cid.slice(3) : `${PIPELINE_OUTCOME_REF_PREFIX}${entry.id}`;
+ *  promoted candidate already has an auto-recorded hire row under the bare submission
+ *  id, and a recruiter rating that same hire must UPDATE that row, not mint a second
+ *  decided "hired" outcome — calibrate() counts decided rows individually, so a
+ *  duplicate biases the promote-floor suggestion. Everyone else (the ordinary board
+ *  hire, which is the common case) gets the namespaced entry ref.
+ *
+ *  ONE THREAD: "which submission" comes from `devSubmissionId` first and the legacy
+ *  "ds-" candidate id second — exactly recordPipelineOutcome's order, because the two
+ *  disagreeing is precisely the duplicate-row bug this function exists to prevent. */
+export function hireOutcomeRef(entry: { id: string; candidateId?: string | null; devSubmissionId?: string | null }): string {
+  const linked = (entry.devSubmissionId ?? "").trim();
+  return linked || legacySubmissionRef(entry.candidateId) || `${PIPELINE_OUTCOME_REF_PREFIX}${entry.id}`;
 }
 
 // The write contract for the workspace-side capture surface, validated at the
@@ -293,18 +318,25 @@ export function countRatedHires(workspaceId: string = DEFAULT_WORKSPACE_ID): num
 // transitions. A promoted submission becomes a "ds-<submissionId>" pipeline
 // entry carrying its transferScore as matchScore; when that entry is rejected
 // or hired, the system already knows everything the manual control-room form
-// asked a human to re-type. The "ds-" prefix check mirrors
-// student-interview.submissionIdFromCandidateId — kept inline here because
-// importing it would pull student-interview's db.ts dependency into this
-// deliberately self-contained store (the prefix is minted in
-// devcase-run.promoteSubmission and is a stable contract).
+// asked a human to re-type.
+//
+// ONE THREAD: the submission is now named by the entry's own `devSubmissionId`, and
+// the "ds-" prefix is only the LEGACY reading for entries written before that column
+// existed. Both are consulted, in that order — devcase-identity.submissionIdForEntry
+// is the same rule, not called here only because its `IdentityCarrier` requires a
+// `jobId` this caller has no reason to hold. The prefix itself IS shared, through
+// legacySubmissionRef above.
 export function recordPipelineOutcome(
-  entry: { candidateId: string | null; candidateLabel: string | null; matchScore: number | null },
+  entry: {
+    candidateId: string | null;
+    candidateLabel: string | null;
+    matchScore: number | null;
+    devSubmissionId?: string | null;
+  },
   outcome: "hired" | "rejected"
 ): boolean {
-  const cid = entry.candidateId;
-  if (!cid || !cid.startsWith("ds-")) return false;
-  const ref = cid.slice(3);
+  const ref = (entry.devSubmissionId ?? "").trim() || legacySubmissionRef(entry.candidateId);
+  if (!ref) return false;
   // Tenant DERIVATION (D5), the same pattern devcase.ts uses for outbox/postings/
   // submissions: the auto-record's tenant is the workspace of the SUBMISSION the ref
   // names, read straight from the shared sqlite file. Deriving it here (rather than

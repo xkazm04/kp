@@ -4,7 +4,7 @@ import AboutHome from "@/app/landing/spark/AboutHome";
 
 /*
  * /about — "About the app", not about us. The page explains what the product
- * does (the seven pipeline phases, end to end), so every entry point labels it
+ * does (the pipeline phases, end to end), so every entry point labels it
  * that way: "About the app" / "O aplikaci" / "Über die App" / "À propos de
  * l'app" (landing.nav.about, jobMarket.nav.about). It is the public,
  * user-facing concept introduction (marketing tone, Spark art direction);

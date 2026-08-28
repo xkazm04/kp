@@ -52,7 +52,7 @@ The studio sidebar groups the tabs (tab ids live once in `app/features/shell/tab
 | Tools | Match | Rank the candidate pool against a job (KO filters + scoring + LLM reasoning) — now the candidate-focus mode of the Matrix |
 | Tools | Analyze | The original CV/job-fit/salary analysis (multi-variant compare, history) |
 | Tools | Interview sim | End-to-end pipeline simulation (Design JD → Source → Intake → Screen → Interview → Offer → Hired) with synthetic candidates |
-| Tools | Dev cases | Case-scenario hiring for developers (below) |
+| Tools | Assignments | Work-sample hiring — the module `dev_cases` / `/api/devcase` implements (below) |
 | Insights | Analytics / Matrix / About | Decision log, candidate × JD pivot, methodology docs |
 | Settings | Models, Billing, Branding, Integrations, Organization, Workspace | Provider keys, plans, white-label, calendar/ATS connections, members, workspace data |
 
@@ -87,6 +87,77 @@ mints ephemeral Realtime secrets instead. The interviewer asks 3–4 grounded qu
 (per-candidate prompt overrides), the transcript is stored in `interview_sessions`,
 and a scorecard is generated on completion. No feedback or decisions are given to
 the candidate. Full doc: [interviews/README.md](interviews/README.md).
+
+## One vocabulary along the thread
+
+The core path — job description → assignment → evaluation → voice interview →
+decision — crosses five modules that were each named by whoever built them, so the
+same object arrived at the reader under a different word on every screen. That is
+gap 7 of [`../ship/2026-08-28-one-thread.md`](../ship/2026-08-28-one-thread.md).
+
+**The split is deliberate and it runs in one direction only: the schema and the API
+keep the names they have, and the COPY converges.** A table name, a route segment,
+a message-catalog namespace, a test id and a log line are identifiers — renaming one
+costs a migration and buys nothing a reader can see. So the mapping below is a
+translation layer, not a rename plan, and both columns are load-bearing: an agent
+editing copy needs the left column, an agent editing code needs the right one.
+
+| The user reads | The code says | Where |
+| --- | --- | --- |
+| **Job** — the opening a candidate is hired into | `jobs` table, id `jd-<slug>`, `/api/jobs`, `jobs.*` catalog | Jobs tab, job modal, board, matrix |
+| **Job description** — the document that describes it | `jds` table (+ `jd_revisions`), `/api/jds`, `library.*` catalog | Job descriptions tab, JD builder, `/jds/[slug]` |
+| **Role brief** — the structured intake behind a JD | `role_intakes` table, `RoleBrief` type, `/api/intake` | the role-intake dialog, and nowhere else |
+| **Assignment** — the work sample | `dev_cases` / `dev_postings` / `dev_submissions`, `/api/devcase`, `devcase.*` catalog, `?tab=assignments` (legacy `?tab=dev`) | Assignments tab, detail, lifecycle strip, voice panel, Jobs lifecycle strip, Decisions |
+| **Voice screen** — the AI interview | `interview_sessions`, `/api/interview` | Interview sim, board drawer, assignment detail |
+
+Retired from user-facing copy, with what replaced each:
+
+- **"case" / "dev case"** → *Assignment*. It survived in the lifecycle row, the empty
+  ledger, the close dialog and the candidate work surface while the nav tab already
+  said Assignments. Pinned by `devcase-vocabulary.test.ts` § "the ONE-NAME rule",
+  which bans the word from the `devcase` / `devApply` / `about` / `palettePreview` /
+  `setup` namespaces in `en` and asserts the three places that name the entity bare
+  agree inside each locale.
+- **"posting"** → *Job* where it named the `jobs` row (`Open the posting`, the job
+  modal's first tab), *Channel* where it named a `dev_postings` row (which is an
+  apply link on a channel, not an advertisement).
+
+Known remaining synonyms, stated rather than quietly left:
+
+- **"role"** is still used interchangeably with *Job* in `jobs.posting.*` ("Close
+  role", "Role lifecycle") and in the pricing copy ("published roles"). It was left
+  alone here because the sweep that fixes it also has to decide what happens to
+  `roleFamily`, the role-intake dialog and the metered `job_posts` allowance — a
+  bigger call than a copy pass.
+- **"use case"** in `models.*` / `activity.*` / `analytics.*` names an LLM operation,
+  not an assignment. It shares a word and nothing else; do not normalize it.
+- The marketing tree (`landing.*`, `aboutPage.*`, `jobMarket.*`) and `legal.*` were
+  left as they are — their claims are pinned by their own tests and their drift is
+  tracked as gaps 14–15 of the same record.
+
+### One status legend
+
+Five status axes cross the same path (`jobs.status`, the 10-stage assignment
+lifecycle, the workspace-composed board stages, `interview_sessions.status`,
+`dev_submissions.status`). Each keeps its own labels — they name different things —
+and each declares which of **five shared reading states** it is in:
+
+| Tone | Means | Examples |
+| --- | --- | --- |
+| `neutral` | nothing has happened here yet | job `draft`, assignment `intake`, the board's entry column |
+| `active` | the system is working; nobody is blocked | assignment `collecting`, interview `in_progress`, submission `received` |
+| `waiting` | a **person** has to act | assignment `awaiting_approval`, interview `created` (candidate has not dialled), the board's offer column |
+| `done` | it reached its successful end | assignment `promoted`, interview `completed`, submission `evaluated`, the board's terminal column |
+| `stopped` | it ended without reaching it | job/assignment `closed`, interview `failed` / `revoked` |
+
+The tables live in [`app/_lib/status-tone.ts`](../../app/_lib/status-tone.ts) (pure,
+exhaustive per axis, each tuple pinned to its producer by `status-tone.test.ts`) and
+are drawn by `StatusChip` / `StatusLegend` in
+[`app/_components/StatusChip.tsx`](../../app/_components/StatusChip.tsx), which
+extends the existing `Badge` primitive rather than duplicating it. Two rules worth
+knowing before you extend it: the board axis is toned by stage **role**, never by
+stage name, because board columns are workspace-editable; and `stopped` renders
+muted, never red — a closed job is an outcome, not an error.
 
 ## Writing rules
 

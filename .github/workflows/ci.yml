@@ -310,8 +310,21 @@ jobs:
       # above and skips the config's webServer block entirely (the
       # env-driven override in playwright.config.ts). The positional args
       # are playwright file FILTERS.
+      #
+      # Named one by one rather than by the `journey` prefix they share: this
+      # job is the release gate, and a filter that silently widens as files are
+      # added is how a slow or key-needing spec ends up in the keyless subset
+      # without anyone deciding to put it there. Adding a spec here is the
+      # decision. Both journeys are keyless by construction — see each file's
+      # header for which endpoint on its path degrades deterministically.
       - name: Run deterministic specs
-        run: npx playwright test modal-escape profile-builder journey --project=chromium
+        run: >-
+          npx playwright test
+          modal-escape
+          profile-builder
+          journey-role-to-schedule
+          journey-one-thread
+          --project=chromium
         env:
           KP_E2E_BASE_URL: http://localhost:3101
 

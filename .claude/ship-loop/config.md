@@ -24,7 +24,37 @@ milestone
 Notes: full `/uat` runs are backlog items (dimension 4), not per-milestone. **Run the gate before any push** - parallel sessions pushing ungated commits to main is the loop's known failure mode (CI red all day at CP7).
 
 ## Value journeys
-(none declared - scorecard alone; dimension 9 via the value lens -> `value-case.md`)
+
+Declared 2026-08-28 (milestone 450d1008 "Stabilized for release", goal 4). Once this
+table is non-empty the loop runs a **value ledger above the scorecard**: one readiness
+light per journey, every backlog item carries a journey tag, and a milestone is picked
+as the next slice of one journey rather than as an unattached item.
+
+| tag | journey | owners (Characters) | docs | what it certifies | light |
+|---|---|---|---|---|---|
+| **THR** | The thread: JD -> assignment -> candidate applies -> evaluation -> AI interview -> score/decision | Eva (eng hiring lead), Sam (dev candidate) | `uat/journeys/one-thread.md` · `e2e/journey-one-thread.spec.ts` | **one** job id and **one** candidate identity survive all five steps, and the score each step shows is named for the kind it actually is (transfer score is not rendered as a match score) | 🟡 |
+| **SCH** | The role-to-schedule journey: first-run wizard -> JD in Library -> self-scheduling invite -> candidate books -> candidate withdraws | Marek (coordinator), Tereza (candidate) | `uat/journeys/interview-schedule-prep.md` (owns `/schedule/[token]`) · `e2e/journey-role-to-schedule.spec.ts` | the flagship deterministic spec: a role reaches a booked interview slot without recruiter involvement, and both terminal states pass axe | 🟡 |
+
+**Lights:** 🟢 the journey's spec is green in the keyless CI subset AND its UAT journey
+has an L2 verdict; 🟡 one of those two holds; 🔴 neither. Never set a light from a local
+run alone - the CI keyless job is the certifying surface, because a developer box with
+`.env.local` keys takes every LLM step off the deterministic path.
+
+### Journey-tag conventions
+- Every backlog item gets **exactly one** tag from the table above, or **`-`** when it
+  serves no journey (infrastructure, gates, docs, dependency work). `-` is a legitimate
+  answer - inventing a journey to host an item is how a value ledger stops meaning
+  anything.
+- Tags are written as the first token of the item title in `backlog.md`, e.g.
+  `[THR] promote joins the real job instead of minting dc-<caseId>`.
+- A **milestone** names the journey it advances and which of that journey's steps it
+  covers; a milestone that advances no journey says so and justifies itself on the
+  scorecard instead.
+- A journey is added here only with **both** a `uat/journeys/*.md` (the human-judged
+  definition of done) and a deterministic `e2e/*.spec.ts` (the machine-checked one).
+  One without the other is a backlog item, not a journey.
+- The `uat/` overlay is gitignored and per-machine; the `e2e/` spec is tracked. When
+  they disagree, the spec is what CI enforces and the journey is what the product owes.
 
 ## Dimensions
 | # | name | what it means here |

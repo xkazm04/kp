@@ -645,7 +645,7 @@
     "hero": {
       "badge": "Automatisiertes Recruiting, vom Menschen freigegeben",
       "title": "Ihr Recruiting,<br></br>auf <emph>Autopilot</emph>",
-      "subtitle": "KandiDate übernimmt den gesamten Funnel: jeder Lebenslauf wird gelesen und anhand der Position bewertet, vielversprechende Kandidaten noch am selben Tag interviewt, Termine gebucht, Angebote entworfen, das Onboarding gestartet. Sie entscheiden nur dort, wo es zählt. Die Fleißarbeit erreicht Ihren Schreibtisch gar nicht erst.",
+      "subtitle": "KandiDate übernimmt den gesamten Funnel: jeder Lebenslauf wird gelesen und anhand der Position bewertet, vielversprechende Kandidaten noch am selben Tag interviewt, Termine gebucht, Angebote entworfen, und die Einstellung ist versiegelt, sobald der Kandidat zusagt. Sie entscheiden nur dort, wo es zählt. Die Fleißarbeit erreicht Ihren Schreibtisch gar nicht erst.",
       "proof": "Open Source, AGPL-3.0. Läuft auf Ihrer Maschine, mit Ihren Modellen: das ganze Produkt, kostenlos und ohne Limits. Die bezahlten Pläne kaufen fremde Server.",
       "proofCta": "Selbst betreiben",
       "ctaPrimary": "Kostenlos loslegen",
@@ -671,12 +671,12 @@
     },
     "marquee": [
       "verifizierte Arbeitsproben",
-      "Kandidat oder Modell? Wir erkennen es",
+      "AI erlaubt, der Arbeitsverlauf protokolliert",
       "versiegelte, auditierbare Entscheidungen",
       "AI-Sprachinterviews",
       "Lebenslauf-Scoring in Sekunden",
       "vom Menschen freigegebene Entscheidungen",
-      "Tschechisch + Englisch",
+      "4 Sprachen, auch auf Kandidatenseite",
       "Gehalts-Radar"
     ],
     "proof": {
@@ -689,7 +689,7 @@
         },
         "defend": {
           "title": "Ein Interview über die eigenen Entscheidungen",
-          "body": "Das Sprachinterview greift die zwei Entscheidungen auf, die der Kandidat in der Probe wirklich getroffen hat, und lässt ihn beide laut verteidigen, auf Tschechisch oder Englisch."
+          "body": "Das Sprachinterview greift die zwei Entscheidungen auf, die der Kandidat in der Probe wirklich getroffen hat, und lässt ihn beide laut verteidigen, auf Tschechisch oder Englisch. Es startet direkt aus der Einreichung heraus, ohne Zwischenschritt."
         },
         "sealed": {
           "title": "Entscheidungen versiegelt, nicht behauptet",
@@ -730,8 +730,8 @@
         "body": "Eine neue Stelle bewertet alle früheren Bewerbungen neu. Die Zweitplatzierte von vor acht Monaten erscheint zuerst. Kein neues Sourcing-Budget, und sie hat Ihnen schon einmal zugesagt."
       },
       "offer": {
-        "title": "Vom Angebot zum ersten Tag",
-        "body": "Die Angebotshöhe ist deterministisch: Positionsband × Eignung, kein Modell in der Zahl. Das Schreiben entsteht von selbst, ein Mensch unterschreibt, und die Zusage startet automatisch die Onboarding-Checkliste."
+        "title": "Vom Angebot zur versiegelten Einstellung",
+        "body": "Die Angebotshöhe ist deterministisch: Positionsband × Eignung, kein Modell in der Zahl. Das Schreiben entsteht von selbst, ein Mensch unterschreibt, und die Zusage versiegelt die Einstellung und spiegelt sie in ein angebundenes ATS."
       },
       "gates": {
         "title": "Freigaben & Nachweise",
@@ -760,7 +760,7 @@
       "tablist": "Demonstrationen verantwortungsvoller AI",
       "human": {
         "title": "Human in the Loop",
-        "body": "Kein Kandidat wird allein von der Maschine weitergeleitet, mit einem Angebot bedacht oder abgelehnt. Jede nachteilige Entscheidung wird von einer Person geprüft und getroffen. So ist es bewusst konzipiert, nicht per Einstellung."
+        "body": "Eine Ablehnung trifft immer ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Auch das Weiterreichen und das Unterbreiten eines Angebots sind standardmäßig menschlich freigegeben. Ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder dann unbeaufsichtigte Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
       },
       "oversight": {
         "title": "Bereit für den EU AI Act",
@@ -772,7 +772,7 @@
       },
       "audit": {
         "title": "Belegbar, nicht nur versprochen",
-        "body": "Jede AI-Entscheidung wird in einem manipulationssicheren, exportierbaren Audit-Trail versiegelt, und die Konfidenz wird an echten Ergebnissen gemessen. Sie ist kalibriert, nicht bloß behauptet."
+        "body": "Jede AI-Entscheidung wird in einem manipulationssicheren, exportierbaren Audit-Trail versiegelt. Die Scores werden anschließend an dem gemessen, was tatsächlich passiert ist, und die Messung sagt selbst laut, wenn die Belege dahinter noch zu dünn oder zu zirkulär sind, um ihnen zu trauen."
       },
       "footnote": "Eine funktionierende Demonstration: Dies spiegelt Design und Kontrollen des Produkts wider, keine rechtliche Zertifizierung.",
       "art": {
@@ -789,7 +789,7 @@
           "allowTitle": "Was unbeaufsichtigt laufen darf",
           "gates": {
             "screen": "Screening",
-            "schedule": "Planung",
+            "offer": "Angebot",
             "reject": "Absage"
           },
           "auto": "auto",
@@ -842,7 +842,7 @@
             "title": "Score gegen Realität",
             "predicted": "vorhergesagt",
             "actual": "tatsächlich",
-            "note": "die Balken decken sich, also bedeutet die Zahl, was sie sagt"
+            "note": "so sieht ein kalibrierter Score aus; ist die Datenlage zu dünn oder zu zirkulär, sagt das Panel genau das"
           }
         }
       }
@@ -914,10 +914,10 @@
       "enterprise": {
         "eyebrow": "Auf Organisationsebene",
         "heading": "Recruiting für die ganze Organisation?",
-        "blurb": "Alles oben Genannte liegt im Repository, samt SSO, Audit-Trail und White-Label-Branding. Enterprise kauft die Lieferung: die Bereitstellung gemeinsam mit Ihrem Security-Team und Datenschutzbeauftragten, vertragliche Zusicherungen und eine Support-Linie. Preis nach Ihrem Einstellungsvolumen.",
+        "blurb": "Alles oben Genannte, was heute ausgeliefert wird, liegt im Repository, samt Audit-Trail und White-Label-Branding. Enterprise kauft die Lieferung: die Bereitstellung gemeinsam mit Ihrem Security-Team und Datenschutzbeauftragten, vertragliche Zusicherungen und eine Support-Linie. Preis nach Ihrem Einstellungsvolumen.",
         "cta": "Vertrieb kontaktieren",
         "capabilities": [
-          "Enterprise-SSO & SCIM-Provisionierung",
+          "Enterprise-SSO & SCIM-Provisionierung (geplant)",
           "Mandantenweiter, exportierbarer Audit-Trail",
           "Ihre Marke an jedem Kandidaten-Touchpoint",
           "Bereitstellung gemeinsam mit Ihrem Security-Team",
@@ -1091,7 +1091,7 @@
     "hero": {
       "badge": "die Recruiting-Pipeline, von Anfang bis Ende",
       "title": "Begleiten Sie eine Einstellung<br></br>durch die <emph>ganze Pipeline</emph>.",
-      "subtitle": "Scrollen Sie, und der Weg zeichnet sich von selbst: von der leeren Stelle bis zur unterschriebenen Einstellung. Sieben Schritte, eine durchgehende Linie, ein Mensch an jedem Kontrollpunkt."
+      "subtitle": "Scrollen Sie, und der Weg zeichnet sich von selbst: von der leeren Stelle bis zur unterschriebenen Einstellung. Acht Schritte, eine durchgehende Linie, ein Mensch an jedem Kontrollpunkt."
     },
     "steps": {
       "design": {
@@ -1112,22 +1112,27 @@
       "screen": {
         "eyebrow": "Schritt 04 · Screening",
         "title": "Jeder Lebenslauf, wirklich gelesen",
-        "body": "Jede Bewerbung wird anhand der Stelle von 0–100 bewertet, mit nachvollziehbaren Belegen. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer rücken selbst vor, alles andere wartet auf einen Menschen. Für technische Stellen kann hier eine Arbeitsprobe verschickt werden. Sie geht davon aus, dass der Code von einer AI stammt, und bewertet das Urteilsvermögen drumherum, mit eingebauten Fehlern, deren richtige Antwort wir bereits kennen."
+        "body": "Jede Bewerbung wird anhand der Stelle von 0–100 bewertet, mit nachvollziehbaren Belegen. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer rücken selbst vor, alles andere wartet auf einen Menschen."
+      },
+      "assignment": {
+        "eyebrow": "Schritt 05 · Arbeitsprobe",
+        "title": "Eine Arbeitsprobe, die AI voraussetzt",
+        "body": "Für technische Stellen bekommt der Kandidat eine echte Aufgabe in einer laufenden Arbeitsumgebung. Ein LLM zu nutzen ist erlaubt und wird nie bestraft; bewertet wird das Urteilsvermögen drumherum. Eingebaute Fehler, deren richtige Antwort wir bereits kennen, die tatsächlich verwendeten Prompts und ein manipulationssicheres Protokoll darüber, wie die Arbeit entstanden ist."
       },
       "interview": {
-        "eyebrow": "Schritt 05 · Interview",
+        "eyebrow": "Schritt 06 · Interview",
         "title": "Dann spricht es mit Menschen",
         "body": "Vielversprechende Kandidaten erhalten noch am selben Tag ein warmes AI-Sprachinterview: Fragen aus ihrem Lebenslauf, ein Live-Transkript und eine strukturierte Scorecard, die auf Ihre Entscheidung wartet."
       },
       "offer": {
-        "eyebrow": "Schritt 06 · Angebot",
+        "eyebrow": "Schritt 07 · Angebot",
         "title": "AI entwirft es. Ein Mensch unterschreibt es.",
         "body": "Die Angebotssumme ist deterministisch: Stellenband × Eignung, kein LLM in der Zahl. Das Schreiben entwirft sich selbst, eine Person unterbreitet es, und der Kandidat nimmt über einen sicheren Link an oder lehnt ab."
       },
       "hired": {
-        "eyebrow": "Schritt 07 · Eingestellt",
-        "title": "Eingestellt: Onboarding läuft bereits",
-        "body": "Mit der Zusage wechselt der Kandidat auf „Eingestellt“ und die Onboarding-Übergabe wird ausgelöst: ein Pre-Boarding-Fragebogen und eine Checkliste, sodass der erste Tag schon in Bewegung ist, bevor der Jubel verklungen ist."
+        "eyebrow": "Schritt 08 · Eingestellt",
+        "title": "Eingestellt: das Ergebnis, versiegelt",
+        "body": "Mit der Zusage wechselt der Kandidat auf „Eingestellt“, die Entscheidung wird versiegelt und das Ergebnis festgehalten. Hier hört KandiDate auf: die Einstellung wird in ein angebundenes ATS oder HRIS gespiegelt, dem der erste Tag gehört."
       }
     },
     "closing": {
@@ -1166,6 +1171,19 @@
           "evidence": "Belege · nachverfolgt"
         }
       },
+      "assignment": {
+        "surfaceTitle": "Laufende Arbeitsumgebung",
+        "meta": "Sitzung versiegelt",
+        "events": {
+          "opened": "Startprojekt geöffnet",
+          "asked": "Modell um Prüfung gebeten",
+          "logged": "Entscheidung protokolliert"
+        },
+        "chips": {
+          "flaw": "Eingebauter Fehler erkannt",
+          "prompts": "Prompts protokolliert"
+        }
+      },
       "interview": {
         "screenTitle": "Screening der ersten Runde",
         "meta": "live · 4:12",
@@ -1192,7 +1210,7 @@
     },
     "meta": {
       "title": "Über die App: KandiDate",
-      "description": "Begleiten Sie eine Einstellung durch die ganze Pipeline: Stelle entwerfen, Sourcing, Eingang, Screening, Interview, Angebot, Einstellung. Die AI liest bei jedem Schritt mit; unterschrieben wird jede Entscheidung von einem Menschen.",
+      "description": "Begleiten Sie eine Einstellung durch die ganze Pipeline: Stelle entwerfen, Sourcing, Eingang, Screening, Arbeitsprobe, Interview, Angebot, Einstellung. Die AI liest bei jedem Schritt mit; unterschrieben wird jede Entscheidung von einem Menschen.",
       "ogDescription": "Eine Einstellung durch die ganze Pipeline. Die AI liest, ein Mensch unterschreibt jede Entscheidung."
     }
   },
@@ -1310,7 +1328,9 @@
     "COMPANION_PROPOSAL_RESOLVED": "Dieser Vorschlag wurde bereits beantwortet.",
     "COMPANION_PROPOSAL_FAILED": "Der Vorschlag konnte nicht ausgeführt werden. Es wurde nichts geändert.",
     "COMPANION_BRAIN_FAILED": "Das Gedächtnis von Candi konnte auf diesem Rechner nicht geprüft werden. Bitte erneut versuchen.",
-    "COMPANION_BRAIN_ABSENT": "Auf diesem Rechner gibt es kein Begleiter-Gedächtnis zum Verbinden."
+    "COMPANION_BRAIN_ABSENT": "Auf diesem Rechner gibt es kein Begleiter-Gedächtnis zum Verbinden.",
+    "INTERVIEW_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
+    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Bewerten Sie die Einreichung, bevor Sie ein Voice-Screening starten."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1495,6 +1515,16 @@
       "sending": "Wird gesendet…",
       "thanks": "Vielen Dank. Ihr Feedback wurde erfasst.",
       "failed": "Das hat nicht geklappt. Bitte versuchen Sie es erneut."
+    },
+    "legend": {
+      "title": "Statuslegende"
+    },
+    "tone": {
+      "neutral": "Nicht begonnen",
+      "active": "Läuft",
+      "waiting": "Wartet auf eine Person",
+      "done": "Erledigt",
+      "stopped": "Gestoppt"
     }
   },
   "apply": {
@@ -1832,8 +1862,8 @@
       "latest": "Zuletzt"
     },
     "assignments": {
-      "cases": "Cases",
-      "postings": "Offen",
+      "cases": "Aufgaben",
+      "postings": "Kanäle",
       "submissions": "Abgaben"
     },
     "analytics": {
@@ -1881,7 +1911,7 @@
         "job_posts": "Rollen am Markt",
         "hires": "Einstellungen",
         "ai_candidates": "KI-Kandidaten",
-        "case_designs": "Case-Entwürfe",
+        "case_designs": "Aufgaben-Entwürfe",
         "interview_minutes": "Interviewminuten"
       }
     },
@@ -2121,7 +2151,11 @@
     "legend": {
       "awaitingDecision": "Wartet auf Ihre Entscheidung",
       "aging": "Alterung in Phase (SLA pro Phase)",
-      "intakeDegraded": "Erfassung eingeschränkt, manuelle Erfassung nötig"
+      "intakeDegraded": "Erfassung eingeschränkt, manuelle Erfassung nötig",
+      "scoresTitle": "Score-Arten:",
+      "scoreMatch": "Match (ohne Label): wie das Profil zu dieser Rolle passt",
+      "scoreTransfer": "Transfer: Fähigkeiten aus der Arbeitsprobe, die auf die Rolle übertragen, nie zum Ranking genutzt",
+      "scoreInterview": "Interview: Rubrik-Bewertungen von 1 bis 5, auf der Scorecard im Panel"
     },
     "candidateRow": {
       "awaitingDecision": "Wartet auf Ihre Entscheidung",
@@ -2140,7 +2174,8 @@
       "openProfile": "Profil öffnen",
       "menuFor": "Aktionen für {name}",
       "moreActions": "Weitere Aktionen",
-      "menuHint": " · Rechtsklick für Aktionen"
+      "menuHint": " · Rechtsklick für Aktionen",
+      "transferSuffix": " · Transfer {score}"
     },
     "tokenLink": {
       "copy": "Link kopieren",
@@ -2534,7 +2569,8 @@
         "saveFailed": "Bewertung konnte nicht gespeichert werden.",
         "purpose": "Halten Sie fest, wie sich diese Einstellung tatsächlich entwickelt hat. Sie ist die belastbare Grundlage für die Messung der Einstellungsqualität in Analytics.",
         "notAutomated": "Nur in Ihrem Workspace sichtbar. Sie wird der Kandidatin oder dem Kandidaten nie gezeigt und nicht für automatisierte Entscheidungen verwendet."
-      }
+      },
+      "transfer": "Transfer"
     },
     "actions": {
       "screen": "Mit AI prüfen",
@@ -2694,6 +2730,10 @@
       "onStage": "{stage} · {count}",
       "moveAll": "Alle verschieben nach…",
       "moveAria": "Alle auf {stage} gestrandeten Kandidaten auf eine andere Stufe verschieben"
+    },
+    "scoreKind": {
+      "transferShort": "Transfer",
+      "transferTitle": "Ein Transfer-Score aus der Arbeitsprobe, kein Match-Score. Er sagt, wie gut die in der Aufgabe gezeigten Fähigkeiten auf diese Rolle übertragen."
     }
   },
   "decisions": {
@@ -3429,7 +3469,7 @@
       "ingestAsJob": "Als Stelle übernehmen",
       "ingestAsJobTitle": "Diese Stellenbeschreibung in eine matchbare Position umwandeln, damit sie gesourct, gerankt und gematcht werden kann und Bewerbungen empfängt",
       "ingestedBanner": "{slug} ist jetzt eine Stelle, bereit für Webhooks, Sourcing und Ranking.",
-      "ingestedBannerCta": "Ausschreibung öffnen",
+      "ingestedBannerCta": "Stelle öffnen",
       "ingestedDismiss": "Ausblenden",
       "ingesting": "Wird übernommen…",
       "ingestRetry": "Übernahme erneut versuchen",
@@ -3489,7 +3529,7 @@
       "provEstimated": "geschätzt",
       "salaryUnavailable": "Gehalt nicht verfügbar",
       "sourcesLabel": "Quellen:",
-      "interviewCase": "Interview-Case",
+      "interviewCase": "Aufgabe als Arbeitsprobe",
       "timebox": "Zeitrahmen: ~{hours} Std.",
       "retryFailed": "Erstellung konnte nicht erneut gestartet werden.",
       "notPermitted": "Sie haben keine Berechtigung für diese Aktion. Melden Sie sich als Operator an, um fortzufahren.",
@@ -3540,7 +3580,7 @@
       "shelfRecordLabel": "Der Datensatz, den Sie gleich anlegen",
       "shelfWriteCta": "Erste Beschreibung schreiben",
       "shelfDraftCta": "Vom Builder entwerfen lassen",
-      "shelfCtaNote": "Beides öffnet das Panel „Generieren“. Speichern Sie einen Entwurf unverändert, oder lassen Sie die AI die Beschreibung, ein marktübliches Gehaltsband und einen Interview-Case erstellen.",
+      "shelfCtaNote": "Beides öffnet das Panel „Generieren“. Speichern Sie einen Entwurf unverändert, oder lassen Sie die AI die Beschreibung, ein marktübliches Gehaltsband und eine Aufgabe als Arbeitsprobe erstellen.",
       "shelfReuseLabel": "Ein Blatt lässt sich mehrfach nutzen",
       "shelfReuseAnalyze": "Lebensläufe damit bewerten",
       "shelfReuseIngest": "Als offene Stelle übernehmen",
@@ -3577,7 +3617,7 @@
         "degradedNote": "Die AI ist offline, deshalb läuft stattdessen die geführte Checkliste. Ihre Antworten werden trotzdem erfasst.",
         "sendError": "Die Nachricht kam nicht durch. Bitte versuchen Sie es erneut.",
         "promote": "Stellenbeschreibung erstellen",
-        "promoteCase": "Auch die Arbeitsprobe entwerfen",
+        "promoteCase": "Auch die Aufgabe als Arbeitsprobe entwerfen",
         "promoteMarket": "Auch das Gehaltsband recherchieren",
         "promoting": "Wird erstellt…",
         "promoted": "Stellenbeschreibung erstellt. Sie finden sie unter „Gespeicherte Stellenbeschreibungen“.",
@@ -3850,7 +3890,7 @@
       "optDescriptionHint": "Entwirft aus Ihrem Bedarf die Aufgaben und Anforderungen der Position",
       "optMarket": "Marktrecherche",
       "optMarketHint": "Ein web-gestütztes Gehaltsband mit belegten Quellen",
-      "optCase": "Interview-Case",
+      "optCase": "Aufgabe als Arbeitsprobe",
       "optCaseHint": "Eine Arbeitsprobe, um Kandidat/innen der Shortlist zu prüfen",
       "checklistHint": "Läuft im Hintergrund. Die Stellenbeschreibung erscheint in Ihrer Bibliothek und füllt sich, während sie analysiert wird.",
       "startAnalysis": "Starten",
@@ -4072,11 +4112,12 @@
       "rankInMatrix": "In der Matrix einordnen",
       "copyMarkdown": "Markdown kopieren",
       "copyFailed": "Der Link konnte nicht in die Zwischenablage kopiert werden. Markieren und kopieren Sie ihn manuell.",
-      "postingLanguage": "Anzeigensprache",
+      "postingLanguage": "Sprache der Stelle",
       "viewsAria": "Stellenaufrufe",
       "lifecycle": {
         "aria": "Lebenszyklus der Stelle",
         "jd": "Stellenbeschreibung",
+        "assignments": "{count, plural, =1 {1 Aufgabe} other {# Aufgaben}}",
         "channels": "{count, plural, =0 {Kein Kanal empfangsbereit} =1 {1 Kanal empfangsbereit} other {# Kanäle empfangsbereit}}",
         "funnel": "{count, plural, =0 {Keine Kandidat/innen im Funnel} =1 {1 im Funnel} other {# im Funnel}}",
         "decisions": "{count, plural, =1 {1 Entscheidung ausstehend} other {# Entscheidungen ausstehend}}",
@@ -4084,7 +4125,7 @@
         "offers": "{count, plural, =1 {1 offenes Angebot} other {# offene Angebote}}",
         "hired": "{count, plural, =1 {1 eingestellt} other {# eingestellt}}"
       },
-      "tabPosting": "Anzeige",
+      "tabPosting": "Stelle",
       "tabCoach": "Coach",
       "tabCampaign": "Kampagne",
       "tabCandidates": "Kandidat/innen",
@@ -4301,7 +4342,8 @@
     "analysisShort": "aus CV-Analyse",
     "snapshot": "Snapshot beim Hinzufügen",
     "freshMatch": "von diesem Matching-Lauf berechnet",
-    "freshMatchTitle": "Jetzt berechnet, von diesem Matching-Lauf, gegen den aktuellen Text der Rolle. Der Wert wird nie bei der Kandidatin oder dem Kandidaten gespeichert, deshalb kann das Pipeline-Board ehrlich eine andere Zahl zeigen: den Score, der beim Hinzufügen festgehalten wurde."
+    "freshMatchTitle": "Jetzt berechnet, von diesem Matching-Lauf, gegen den aktuellen Text der Rolle. Der Wert wird nie bei der Kandidatin oder dem Kandidaten gespeichert, deshalb kann das Pipeline-Board ehrlich eine andere Zahl zeigen: den Score, der beim Hinzufügen festgehalten wurde.",
+    "transfer": "aus der Arbeitsprobe"
   },
   "match": {
     "band": {
@@ -5554,7 +5596,7 @@
   },
   "devApply": {
     "workSurface": {
-      "heading": "Bearbeiten Sie den Case hier",
+      "heading": "Bearbeiten Sie die Aufgabe hier",
       "phoneAdvisory": "Diese Aufgabe lässt sich am besten am Computer bearbeiten, und derselbe Link öffnet sie auch dort. Sie können aber auch am Telefon fortfahren.",
       "intro": "Bearbeiten Sie unten die Startdateien. Wir zeichnen Ihr Vorgehen auf: was Sie öffnen, was Sie bearbeiten und was Sie in DECISIONS.md notieren. So bewerten wir die beobachtete Urteilskraft, nicht nur den fertigen Code. Sie dürfen beliebige Tools nutzen, auch AI. Tastatureingaben oder Ihren Bildschirm zeichnen wir nie auf.",
       "submit": "Arbeit einreichen",
@@ -5920,6 +5962,8 @@
       "colSubject": "Betreff",
       "colRationale": "Begründung",
       "colActor": "Akteur",
+      "actorRoleOnly": "nur Rolle",
+      "actorRoleOnlyTitle": "Dieser Datensatz nennt eine Rolle, keine Person: Er wurde dort versiegelt, wo die Installation die genehmigende Person nicht identifizieren konnte. Eine angemeldete Identität oder KP_OPERATOR_NAME benennt den nächsten. Versiegelte Datensätze werden nie überschrieben.",
       "colSealed": "Versiegelt",
       "noMatches": "Kein Eintrag passt zu den Filtern.",
       "verifiedKeyless": "Integritätsnachweis, aber nicht manipulationssicher: {count} versiegelte Datensätze, Kette verifiziert, jedoch ohne Schlüssel versiegelt.",
@@ -6736,7 +6780,7 @@
       "eyebrow": "Selbst gehostet",
       "title": "Diese Installation wird nicht abgerechnet",
       "body": "Sie betreiben Ihre eigene Kopie von KandiDate unter der AGPL. Es gibt hier kein Abonnement und nichts zu kaufen. Die gehosteten Pläne sind für alle, die die Anwendung nicht selbst betreiben möchten.",
-      "meters": "Alle Kontingente sind unbegrenzt: veröffentlichte Stellen, Einstellungen, KI-Kandidaten, Fallentwürfe und Interviewminuten.",
+      "meters": "Alle Kontingente sind unbegrenzt: veröffentlichte Stellen, Einstellungen, KI-Kandidaten, Aufgaben-Entwürfe und Interviewminuten.",
       "modelsCta": "Modelle konfigurieren",
       "modelsNote": "Die einzigen KI-Kosten dieser Installation sind Ihre eigene Anbieterrechnung.",
       "cloudTitle": "Lieber nicht selbst betreiben?",
@@ -6761,7 +6805,7 @@
       "job_posts": "Veröffentlichte Rollen",
       "hires": "Einstellungen",
       "ai_candidates": "AI-Kandidaten",
-      "case_designs": "Case-Designs",
+      "case_designs": "Aufgaben-Entwürfe",
       "interview_minutes": "Interview-Minuten"
     },
     "usage": {
@@ -7177,7 +7221,7 @@
       "values": {
         "role": {
           "title": "Stelle beschreiben",
-          "body": "Die AI entwirft Stellenbeschreibung, Gehaltsband und eine Arbeitsprobe für Sie."
+          "body": "Die AI entwirft Stellenbeschreibung, Gehaltsband und eine Aufgabe als Arbeitsprobe für Sie."
         },
         "channels": {
           "title": "Kanäle öffnen",
@@ -7241,7 +7285,7 @@
         },
         "technical": {
           "title": "Mit Arbeitsprobe",
-          "body": "Ergänzt einen Case-Schritt vor dem Angebot."
+          "body": "Ergänzt einen Aufgaben-Schritt vor dem Angebot."
         }
       },
       "workSampleLabel": "Arbeitsprobe",
@@ -7311,12 +7355,12 @@
         },
         "firstRole": {
           "title": "Erste Stelle anlegen",
-          "body": "Beschreiben Sie den Bedarf. Kandi entwirft Beschreibung, Gehalt und Arbeitsprobe.",
+          "body": "Beschreiben Sie den Bedarf. Kandi entwirft Beschreibung, Gehalt und Aufgabe.",
           "analyzing": "Wird gerade erstellt. Verfolgen Sie den Bibliotheksverlauf.",
           "failed": "Der Lauf ist fehlgeschlagen. Wiederholen Sie ihn im Bibliotheksverlauf."
         },
         "case": {
-          "title": "Arbeitsprobe entwerfen",
+          "title": "Aufgabe als Arbeitsprobe entwerfen",
           "body": "Eine praktische Aufgabe, die echtes Können prüft."
         },
         "channels": {
@@ -7330,12 +7374,12 @@
   "devcase": {
     "lifecycle": {
       "sectionTitle": "Automatisierter Ablauf",
-      "intro": "Jeder Fall läuft regelbasiert weiter: saubere Entwürfe werden automatisch genehmigt, markierte an Sie weitergeleitet, dann veröffentlicht und (sobald Einreichungen eintreffen) bewertet → sortiert → die besten Kandidaten in Entscheidungen übernommen. Keine manuellen Schritte dazwischen.",
+      "intro": "Jede Aufgabe läuft regelbasiert weiter: saubere Entwürfe werden automatisch genehmigt, markierte an Sie weitergeleitet, dann veröffentlicht und (sobald Einreichungen eintreffen) bewertet → sortiert → die besten Kandidaten in Entscheidungen übernommen. Keine manuellen Schritte dazwischen.",
       "untitledRole": "Position",
       "railLabel": "Fortschritt des Ablaufs: {steps}",
       "railStep": "{step}: {state}",
       "stalledBadge": "stockt {days} T",
-      "stalledTitle": "{days, plural, one {Seit # Tag offen und leer} other {Seit # Tagen offen und leer}}. Suchen Sie erneut nach Kandidaten oder schließen Sie den Fall.",
+      "stalledTitle": "{days, plural, one {Seit # Tag offen und leer} other {Seit # Tagen offen und leer}}. Suchen Sie erneut nach Kandidaten oder schließen Sie die Aufgabe.",
       "reSourceTitle": "Die bestehende Kandidatendatenbank nach Eignung für diese Position sortieren und die Pipeline erneut befüllen",
       "reSourcing": "Sourcing läuft…",
       "reSource": "Neues Sourcing",
@@ -7343,11 +7387,11 @@
       "review": "Prüfen & genehmigen",
       "closeTitle": "Nicht weitergeleitete Einreichende abschließen und den Bewerbungslink deaktivieren",
       "closing": "Wird geschlossen…",
-      "close": "Fall schließen",
-      "closeConfirm": "Diesen Fall schließen? Nicht weitergeleitete Einreichende erhalten eine abschließende Nachricht und der Bewerbungslink nimmt keine Einreichungen mehr an.",
+      "close": "Aufgabe schließen",
+      "closeConfirm": "Diese Aufgabe schließen? Nicht weitergeleitete Einreichende erhalten eine abschließende Nachricht und der Bewerbungslink nimmt keine Einreichungen mehr an.",
       "closeFailed": "Schließen fehlgeschlagen.",
       "cancel": "Abbrechen",
-      "closeModalTitle": "Fall schließen",
+      "closeModalTitle": "Aufgabe schließen",
       "closeIrreversible": "Die Abschlussnachrichten lassen sich nicht zurücknehmen.",
       "reSourceFailed": "Neues Sourcing fehlgeschlagen."
     },
@@ -7390,7 +7434,7 @@
     },
     "outbox": {
       "emptyTitle": "Noch keine Nachrichten",
-      "emptyBody": "Sobald Fälle Einreichungen sammeln, schreibt die Pipeline hier jede Eingangsbestätigung, Einladung nach Weiterleitung, Recruiter-Ansprache und Absage mit.",
+      "emptyBody": "Sobald Aufgaben Einreichungen sammeln, schreibt die Pipeline hier jede Eingangsbestätigung, Einladung nach Weiterleitung, Recruiter-Ansprache und Absage mit.",
       "relayHint": "„queued“ = lokal erfasst (Endzustand, solange kein Relay eingerichtet ist); mit <code>COMMS_WEBHOOK_URL</code> wird über einen echten Kanal (E-Mail / ATS) zugestellt, wo Nachrichten als <sent>sent</sent> oder, bei fehlgeschlagener Zustellung, als <failed>failed</failed> enden (Dead Letter, benötigt Aufmerksamkeit).",
       "colKind": "Typ",
       "colRecipient": "Empfänger",
@@ -7456,9 +7500,9 @@
     },
     "probeAudit": {
       "label": "Audit der Prüfpunktstärke",
-      "strong": "{loadBearing} von {total} Prüfpunkten sind tragend. Dieser Fall differenziert.",
+      "strong": "{loadBearing} von {total} Prüfpunkten sind tragend. Diese Aufgabe differenziert.",
       "weak": "Nur {loadBearing} von {total} Prüfpunkten sind tragend. Die meisten trennen Starke nicht von Naiven.",
-      "none": "Keine tragenden Prüfpunkte. Dieser Fall unterscheidet eine starke Einreichung nicht von einer naiven."
+      "none": "Keine tragenden Prüfpunkte. Diese Aufgabe unterscheidet eine starke Einreichung nicht von einer naiven."
     },
     "integrity": {
       "title": "Integrität des Protokolls",
@@ -7479,7 +7523,10 @@
       "markerAbsentTitle": "Der Marker dieser Sitzung ist nicht mehr in den eingereichten Dateien. Für sich genommen beweist das nichts: Die Zeile kann schlicht gelöscht worden sein.",
       "markerForeign": "{count, plural, one {# fremder Marker} other {# fremde Marker}}",
       "markerForeignTitle": "In diesen Dateien taucht der Marker einer anderen Arbeitssitzung auf: das Anzeichen einer weitergereichten oder kursierenden Lösung. Urheberschaft live prüfen.",
-      "footnote": "Manipulationsnachweis für das Protokoll, kein Urteil über die Arbeit."
+      "footnote": "Manipulationsnachweis für das Protokoll, kein Urteil über die Arbeit.",
+      "judgeTitle": "Integrität der Bewertung",
+      "judgeSelfGrading": "Prüfer = Generator",
+      "judgeSelfGradingTitle": "Die Qualitätsprüfung dieser Bewertung läuft auf demselben Modell, das sie erzeugt hat, und teilt daher dessen blinde Flecken. Weisen Sie dem Prüfer-Sitz für Aufgaben in den Modell-Einstellungen ein anderes Modell zu, damit die Prüfung unabhängig wird."
     },
     "checks": {
       "title": "Was die Prüfungen ergaben",
@@ -7493,11 +7540,11 @@
       "canarySummary": "Eingebaute Fehler: {caught} von {graded} bewertbaren erkannt.",
       "canaryNoneGradable": "Eingebaute Fehler: keiner ließ sich mechanisch bewerten.",
       "canaryUngradable": "{count, plural, one {# nicht bewertbar} other {# nicht bewertbar}}",
-      "canaryNotRun": "Für diesen Fall wurden keine Fehler eingebaut. Der deterministische Seed erfindet keine Referenz, diese Prüfung lief also nicht.",
+      "canaryNotRun": "Für diese Aufgabe wurden keine Fehler eingebaut. Der deterministische Seed erfindet keine Referenz, diese Prüfung lief also nicht.",
       "baselineSimilarity": "Überschneidung mit der AI-Baseline aus einem einzigen Durchgang: {pct}.",
       "baselineNeverPenalty": "Kontext für das Gespräch, nie ein Punktabzug.",
       "baselineAimInterview": "Nah an dem, was ein Modell in einem Zug produziert. Fragen Sie live, was die Person darüber hinaus beigetragen hat. Nie ein Punktabzug.",
-      "baselineNotRun": "Für diesen Fall wurde keine AI-Baseline eingefroren, der Vergleich lief daher nicht.",
+      "baselineNotRun": "Für diese Aufgabe wurde keine AI-Baseline eingefroren, der Vergleich lief daher nicht.",
       "promptSummary": "Prompts an den Assistenten: {assistant} (Iterationstiefe {depth}) · Fragen an den Fachbereich: {stakeholder}",
       "verificationAsks": "{count, plural, one {# Nachfrage zur Überprüfung} other {# Nachfragen zur Überprüfung}}",
       "promptsNeverPenalty": "AI-Nutzung ist nie ein Nachteil. Es zählt, wie sie geführt wurde, nicht ob.",
@@ -7514,7 +7561,7 @@
       "perturbationAdapted": "auf die Änderung mitten im Lauf reagiert · {edits, plural, one {# Änderung} other {# Änderungen}}, {decisions, plural, one {# Entscheidungseintrag} other {# Entscheidungseinträge}} nach dem Einblenden",
       "perturbationStale": "die Änderung wurde eingeblendet, es folgten aber keine Bearbeitungen",
       "perturbationTitle": "Die Anforderungsänderung wurde zu einem serverseitig festgehaltenen Zeitpunkt eingeblendet; alles danach ist die beobachtete Anpassung an eine geänderte Aufgabenstellung.",
-      "noSeed": "Für diesen Fall wurde kein konkreter Seed erzeugt, die Seed-Auseinandersetzung ließ sich daher nicht messen.",
+      "noSeed": "Für diese Aufgabe wurde kein konkreter Seed erzeugt, die Seed-Auseinandersetzung ließ sich daher nicht messen.",
       "inProductSession": "Sitzung im Produkt",
       "decisionsLogKept": "DECISIONS-Log: geführt",
       "decisionsLogMissing": "DECISIONS-Log: fehlt",
@@ -7558,7 +7605,8 @@
       "colSubmissions": "Einreichungen",
       "colCreated": "Erstellt",
       "open": "Öffnen",
-      "untitledAssignment": "Aufgabe"
+      "untitledAssignment": "Aufgabe",
+      "stageAria": "Aufgabenphase: {stage}"
     },
     "evalPanel": {
       "capabilityScores": "Kompetenzwerte",
@@ -7592,13 +7640,19 @@
       "promote": "In die Pipeline weiterleiten",
       "promoteHint": "→ wird zu einer Prüfkarte in Entscheidungen"
     },
+    "jobLink": {
+      "linked": "Stelle: {title}",
+      "openTitle": "Diese Stelle im Tab Stellen öffnen",
+      "unsourced": "Stellenbeschreibung \"{slug}\" hat noch keine Stelle",
+      "unsourcedTitle": "Diese Aufgabe entstand aus einer gespeicherten Stellenbeschreibung, aus der nie eine Stelle erzeugt wurde. Es gibt also noch nichts zu verknüpfen. Erzeugen Sie die Stelle in der Beschreibungsbibliothek, dann erscheint der Link hier."
+    },
     "emptyLedger": {
       "eyebrow": "Journal offen",
       "title": "Noch nichts versiegelt",
-      "lede": "Eine Fallaufgabe verlangt nicht nur Code. Sie hält fest, wie die Arbeit entstanden ist, und versiegelt diesen Nachweis, damit Sie dem trauen können, was Sie lesen.",
-      "statCases": "Fälle",
+      "lede": "Eine Aufgabe verlangt nicht nur Code. Sie hält fest, wie die Arbeit entstanden ist, und versiegelt diesen Nachweis, damit Sie dem trauen können, was Sie lesen.",
+      "statCases": "Aufgaben",
       "statSealed": "Versiegelt",
-      "cta": "Ersten Fall anlegen",
+      "cta": "Erste Aufgabe anlegen",
       "controlsHeading": "Was eine versiegelte Einreichung mitbringt",
       "control": {
         "hashChain": {
@@ -7623,12 +7677,35 @@
         },
         "baseline": {
           "name": "Vergleich mit der eingefrorenen Referenzlösung",
-          "proves": "Bei der Freigabe löst ein nacktes Modell den Fall einmal ohne jede Steuerung, und diese Antwort wird eingefroren. Einreichungen werden damit verglichen. Nie als Abzug: Es sagt Ihnen, worauf Sie das Gespräch zur Urheberschaft richten, nicht was Sie bewerten."
+          "proves": "Bei der Freigabe löst ein nacktes Modell die Aufgabe einmal ohne jede Steuerung, und diese Antwort wird eingefroren. Einreichungen werden damit verglichen. Nie als Abzug: Es sagt Ihnen, worauf Sie das Gespräch zur Urheberschaft richten, nicht was Sie bewerten."
         }
       },
       "pasteTrace": "Daneben gilt: Ein einzelnes massenhaftes Einfügen ohne schrittweisen Aufbau liest sich als verdächtig. Eine verdächtige Einreichung wird für das Interview zurückgehalten, das die Urheberschaft prüft, und nie allein nach Punktzahl automatisch weitergereicht.",
-      "honestDarkness": "Jedes Urteil oben wird Ihnen mit seinem eigenen Nachweis gezeigt, auch dort, wo eine Prüfung nicht laufen konnte: eine Kontrolle, die nicht gegriffen hat, erscheint nie als bestandene. Nichts davon startet, bevor ein Fall existiert. Beschreiben Sie den Bedarf, und die Engine entwirft die Aufgabe, um die sich diese Kontrollen legen."
-    }
+      "honestDarkness": "Jedes Urteil oben wird Ihnen mit seinem eigenen Nachweis gezeigt, auch dort, wo eine Prüfung nicht laufen konnte: eine Kontrolle, die nicht gegriffen hat, erscheint nie als bestandene. Nichts davon startet, bevor eine Aufgabe existiert. Beschreiben Sie den Bedarf, und die Engine entwirft die Aufgabe, um die sich diese Kontrollen legen."
+    },
+    "voiceScreen": {
+      "title": "Voice-Screening",
+      "loading": "Prüfe, ob ein Voice-Screening vorliegt…",
+      "promotesHint": "Mit dem Link kommt diese Person zugleich in die Übersicht, denn ein Voice-Screening hängt immer an einem Eintrag der Pipeline.",
+      "mean": "Durchschnittsbewertung {mean} / {max}",
+      "verdictNote": "Das Urteil geht als Scorecard-Prüfung in die Entscheidungen.",
+      "awaitingCall": "Der Link ist aktiv, das Gespräch wurde noch nicht geführt.",
+      "completedUnscored": "Das Gespräch ist beendet, es entstand aber keine Scorecard.",
+      "noVerdict": "Dieses Screening endete ohne Scorecard.",
+      "boardHint": "Neuausstellung, Widerruf und das vollständige Transkript liegen im Tab Übersicht.",
+      "status": {
+        "created": "Link ausgestellt",
+        "in_progress": "Gespräch läuft",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "revoked": "Widerrufen"
+      }
+    },
+    "submissionStatus": {
+      "received": "Eingegangen",
+      "evaluated": "Bewertet"
+    },
+    "eyebrow": "Tools · Aufgaben"
   },
   "rubric": {
     "ratingAnchor": {
@@ -8573,7 +8650,7 @@
       "assignments": {
         "eyebrow": "Aufgaben",
         "title": "Eine Arbeitsprobe, die das Delegieren übersteht",
-        "lede": "Jede Person kann eine Hausaufgabe an ein Modell geben. Die Fallstudie ist deshalb so gebaut, dass sie auch dann aussagekräftig bleibt: Sie enthält bewusste Unschärfe, Fallen, die selbstsicheres Raten bestrafen, und eine Änderung mitten im Lauf, die erst nach Arbeitsbeginn eintrifft. Bewertet wird die gezeigte Überlegung, nicht ob das Ergebnis kompiliert.",
+        "lede": "Jede Person kann eine Hausaufgabe an ein Modell geben. Die Aufgabe ist deshalb so gebaut, dass sie auch dann aussagekräftig bleibt: Sie enthält bewusste Unschärfe, Fallen, die selbstsicheres Raten bestrafen, und eine Änderung mitten im Lauf, die erst nach Arbeitsbeginn eintrifft. Bewertet wird die gezeigte Überlegung, nicht ob das Ergebnis kompiliert.",
         "tab": "Aufgaben öffnen"
       },
       "gates": {
@@ -8683,9 +8760,9 @@
       "deltaSubmission": "von der Person ergänzte Zeilen",
       "note": "Über {aim} gibt das Produkt eine Frage aus, keinen Abzug: prüfen Sie im Gespräch, was diese Person über das nackte Modell hinaus beigetragen hat. Manche Teile einer echten Aufgabe haben genau eine naheliegende Lösung, und Überschneidung als Schuld zu werten würde Menschen dafür bestrafen, dass sie sie richtig gelöst haben.",
       "status": {
-        "s0": "die Fallstudie ist freigegeben und das Ausgangsmaterial erzeugt",
+        "s0": "die Aufgabe ist freigegeben und das Ausgangsmaterial erzeugt",
         "s2": "baseline-solve-v1: ein nacktes Modell, angewiesen vollständig zu delegieren",
-        "s3": "je Fallstudie eingefroren, nie neu erzeugt",
+        "s3": "je Aufgabe eingefroren, nie neu erzeugt",
         "s4": "die Person gibt ab",
         "s5": "beide Seiten werden darauf reduziert, was sie ERGÄNZT haben",
         "s7": "Jaccard über ergänzte Zeilen, je Pfad, nach Vereinigungsgröße gewichtet",

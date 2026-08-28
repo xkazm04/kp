@@ -8,6 +8,7 @@
 // the card shell stays under the 200-line cap.
 import { useTranslations } from "next-intl";
 import { OFFER_TTL_DAYS_MIN, OFFER_TTL_DAYS_MAX } from "@/app/_lib/offer-policy";
+import { useNumberFormat } from "@/app/_lib/use-number-format";
 import type { ParsedApproval } from "./decisionsAiReviewCardLogic";
 
 export function AiReviewCardBody({
@@ -28,6 +29,8 @@ export function AiReviewCardBody({
   setTtlDays: (n: number) => void;
   t: ReturnType<typeof useTranslations<"decisions.aiReview">>;
 }) {
+  // Band bounds in the APP's locale — see the note on the card shell's own formatter.
+  const n = useNumberFormat();
   return (
     <div className="mt-2 rounded-md border border-stone-200 bg-paper/50 p-2.5 text-sm text-ink">
       {/* The meter and the band caption are a POSITION-WITHIN-A-BAND readout;
@@ -45,8 +48,8 @@ export function AiReviewCardBody({
           </div>
           <p className="mt-1 text-sm text-steel">
             {t("band", {
-              min: Number(parsed.salaryMin ?? 0).toLocaleString(),
-              max: Number(parsed.salaryMax ?? 0).toLocaleString(),
+              min: n.grouped(Number(parsed.salaryMin ?? 0)),
+              max: n.grouped(Number(parsed.salaryMax ?? 0)),
               currency: String(parsed.currency ?? ""),
             })}
           </p>

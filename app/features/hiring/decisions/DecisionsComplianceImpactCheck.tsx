@@ -32,8 +32,14 @@ export function DecisionsComplianceImpactCheck() {
       {/* Malformed rows are made VISIBLE, not silently dropped (finding SD-4): a
           four-fifths verdict computed on a silently-reduced set can flip which
           group is the reference. Announce which lines were ignored. */}
+      {/* role=status + aria-live=polite, the pairing the sibling ComplianceSection
+          uses (it switches BOTH together: alert+assertive on a failed save,
+          status+polite otherwise). This carried role="alert" — implicitly assertive
+          — with an explicit aria-live="polite" contradicting it, so the markup asked
+          for two different urgencies for a typed-input parse notice that is not an
+          interruption. Polite is the intent; now only one attribute says so. */}
       {parsed.malformedRows.length > 0 ? (
-        <p role="alert" aria-live="polite" className="mt-2 flex items-start gap-1.5 text-meta font-medium text-coral">
+        <p role="status" aria-live="polite" className="mt-2 flex items-start gap-1.5 text-meta font-medium text-coral">
           <AlertTriangle size={13} className="mt-0.5 shrink-0" />
           <span>
             {t("parseIgnored", {

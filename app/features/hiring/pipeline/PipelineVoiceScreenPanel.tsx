@@ -22,20 +22,40 @@ function deliveryClaimOf(data: Record<string, unknown>, legacyFlag: "delivered" 
   return data[legacyFlag] ? "queued" : "failed";
 }
 
+/** WHICH candidate this screen is for, in whichever id the calling surface holds.
+ *
+ *  ONE THREAD (gap 4): the board drawer holds a pipeline entry id; the assignment's
+ *  eval surface holds a SUBMISSION id and never had an entry id at all — which is the
+ *  whole reason the voice screen was unreachable from the assignment. `POST
+ *  /api/interview/create` now accepts either, so this panel passes the caller's id
+ *  through unchanged rather than each surface growing its own minting affordance
+ *  (the second affordance is how two doors drift into two behaviours). */
+export type VoiceScreenTarget = { entryId: string } | { submissionId: string };
+
 export function PipelineVoiceScreenPanel({
-  entryId,
+  target,
   voiceProvider,
   onProviderChange,
   voice,
   revokeNote,
   onRevoke,
+  onCreated,
 }: {
-  entryId: string;
+  target: VoiceScreenTarget;
   voiceProvider: "openai" | "elevenlabs";
   onProviderChange: (p: "openai" | "elevenlabs") => void;
   voice: UseTokenLink;
-  revokeNote: string | null;
-  onRevoke: () => void;
+  /** Optional: the revoke affordance is entry-scoped (it pulls every live link for a
+   *  board row). A surface that reaches this panel by submission id has no entry to
+   *  revoke until one is minted, so it omits both and the control is not rendered —
+   *  rather than showing a button that cannot know what it would act on. */
+  revokeNote?: string | null;
+  onRevoke?: () => void;
+  /** Fired once a mint attempt has SETTLED (useTokenLink swallows the failure into its
+   *  own `err`, so this is not a success signal). A caller that renders session state
+   *  around this panel re-reads on it — a successful mint turns "no screen yet" into a
+   *  real session; a failed one re-reads to the same nothing, which is correct. */
+  onCreated?: () => void;
 }) {
   const t = useTranslations("pipeline.drawer");
   return (
@@ -62,7 +82,9 @@ export function PipelineVoiceScreenPanel({
       </div>
       <button
         type="button"
-        onClick={() => voice.create({ entryId, provider: voiceProvider })}
+        onClick={() =>
+          void voice.create({ ...target, provider: voiceProvider }).then(() => onCreated?.())
+        }
         disabled={voice.busy}
         className="focus-ring ml-2 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:border-coral/40 disabled:opacity-50"
       >
@@ -101,13 +123,15 @@ export function PipelineVoiceScreenPanel({
 
       {/* W6-4 — pull every live link for this candidate without minting
           a replacement (wrong candidate, shared too widely, changed mind). */}
-      <button
-        type="button"
-        onClick={onRevoke}
-        className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-steel hover:text-coral"
-      >
-        <Ban size={12} aria-hidden /> {t("revokeLinks")}
-      </button>
+      {onRevoke ? (
+        <button
+          type="button"
+          onClick={onRevoke}
+          className="focus-ring mt-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-steel hover:text-coral"
+        >
+          <Ban size={12} aria-hidden /> {t("revokeLinks")}
+        </button>
+      ) : null}
       {revokeNote ? <p className="text-sm text-steel">{revokeNote}</p> : null}
     </div>
   );

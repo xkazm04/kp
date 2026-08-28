@@ -92,6 +92,23 @@ minted by `pipeline/jobfit/live_case.py`) outranks even `professional` — the
 one path by which a candidate with no history can out-rank tenure on a specific
 skill.
 
+**`observed` is archetype-independent, and this is load-bearing.** It is a
+provenance *weight*, not an early-career lever: a senior engineer who works the
+shared case in front of an interviewer has demonstrated the skill exactly as
+hard as a graduate has, and `_mint` / `observed_from_interview` never look at
+the archetype. The one genuinely early-career effect is the **routing-confidence
+corroboration** (`live_case._corroborate_routing`: a passed work sample nudges an
+unsettled `archetype_confidence` up, bounded), and it gates itself —
+`if profile.archetype not in _EARLY_CAREER: return`. The TS caller
+`mintObservedFromCaseInterview` (`app/_lib/devcase-run.ts`) used to carry a
+duplicate `isEarlyCareer(entry.archetype)` gate in front of the *whole* mint,
+which suppressed the credit rather than the lift; combined with promote's old
+hardcoded `archetype: "bau"`, it meant a case-grounded interview could never
+mint for the candidates it was designed around. Removed 2026-08-28. Pinned by
+`ObservedIsArchetypeIndependentTest` (`pipeline/jobfit/tests/test_live_case.py`)
+and `app/_lib/devcase-observed-promoted.test.ts`, which walks promote → mint →
+persisted `observed` evidence for a `bau` candidate on a real DB.
+
 **Default provenance is `self_declared` (0.4), not `professional` (1.0).**
 This changed 2026-07-20 (`SCORING_REBASELINE`, driver: UAT run
 `uat/runs/2026-07-20-cases-scoring`): previously, a skill with **no recorded

@@ -1,6 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Select as UiSelect } from "@/app/_components/Select";
+import { StatusChip } from "@/app/_components/StatusChip";
+import { jobStatusTone } from "@/app/_lib/status-tone";
 import type { JobRequirement, SkippedCandidate } from "./JobsTypes";
 
 // Amber disclosure listing candidates the ranker couldn't score (malformed
@@ -42,22 +44,26 @@ export function ReqChip({ req }: { req: JobRequirement }) {
   );
 }
 
-// Lifecycle chip for a catalog row or posting surface. Quiet by design: a live
-// role (NULL/'published' status) renders nothing — only the two states whose
-// apply links are dead get badged. Draft reuses DraftsPanel's badge recipe;
-// closed gets the existing quiet amber treatment so a retired role reads as
-// "no longer accepting" rather than an error.
+// Lifecycle chip for a catalog row or job surface. Quiet by design: a live job
+// (NULL/'published' status) renders nothing — only the two states whose apply
+// links are dead get badged, and that restraint is the point of the surface, not
+// an accident of styling.
+//
+// ONE THREAD (gap 8): the TONE now comes from the shared axis table
+// (app/_lib/status-tone.ts) and is drawn by the shared StatusChip, so "draft" and
+// "closed" read the same as their counterparts on the assignment, the board, the
+// voice screen and the submission list. It used to paint closed AMBER, which is
+// the colour the very next surface on the thread uses for "waiting for you to
+// approve" — a retired job and an unmet obligation looked alike.
 export function JobStatusBadge({ status }: { status?: string | null }) {
   const t = useTranslations("jobs.shared");
   if (status !== "draft" && status !== "closed") return null;
   return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-micro font-semibold uppercase ${
-        status === "draft" ? "bg-stone-200 text-steel" : "bg-amber-50 text-amber-800"
-      }`}
-    >
-      {status === "draft" ? t("statusDraft") : t("statusClosed")}
-    </span>
+    <StatusChip
+      tone={jobStatusTone(status)}
+      label={status === "draft" ? t("statusDraft") : t("statusClosed")}
+      className="shrink-0 uppercase"
+    />
   );
 }
 

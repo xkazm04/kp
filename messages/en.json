@@ -645,7 +645,7 @@
     "hero": {
       "badge": "Automated hiring, human-approved",
       "title": "Your hiring,<br></br>on <emph>autopilot</emph>",
-      "subtitle": "KandiDate runs the whole funnel: every CV read and scored against the role, promising candidates interviewed the same day, slots booked, offers drafted, onboarding started. You review the calls that matter. The busywork never reaches your desk.",
+      "subtitle": "KandiDate runs the whole funnel: every CV read and scored against the role, promising candidates interviewed the same day, slots booked, offers drafted, and the hire sealed the moment the candidate accepts. You review the calls that matter. The busywork never reaches your desk.",
       "proof": "Open source, AGPL-3.0. Runs on your machine, on your models: the full product, free and unmetered. The paid plans buy someone else's servers.",
       "proofCta": "Run it yourself",
       "ctaPrimary": "Start hiring free",
@@ -671,12 +671,12 @@
     },
     "marquee": [
       "verified work samples",
-      "candidate or model? we can tell",
+      "AI allowed, the process on record",
       "sealed, auditable decisions",
       "AI voice interviews",
       "CV scoring in seconds",
       "human-approved decisions",
-      "Czech + English",
+      "4 languages, candidate side included",
       "salary radar"
     ],
     "proof": {
@@ -689,7 +689,7 @@
         },
         "defend": {
           "title": "An interview about their decisions",
-          "body": "The voice interview picks up the two decisions the candidate really made in the sample and has them defend both out loud, in Czech or English."
+          "body": "The voice interview picks up the two decisions the candidate really made in the sample and has them defend both out loud, in Czech or English. It starts from the submission itself, with no separate step in between."
         },
         "sealed": {
           "title": "Decisions sealed, not asserted",
@@ -730,8 +730,8 @@
         "body": "A new role re-scores everyone who ever applied. The silver medallist from eight months ago surfaces first. No fresh sourcing spend, and they already said yes to you once."
       },
       "offer": {
-        "title": "Offer to day one",
-        "body": "The figure is deterministic: role band × fit, no model in the number. The letter drafts itself, a person signs it, and accepting fires the onboarding checklist automatically."
+        "title": "Offer to sealed hire",
+        "body": "The figure is deterministic: role band × fit, no model in the number. The letter drafts itself, a person signs it, and the candidate's acceptance seals the hire and mirrors it into a connected ATS."
       },
       "gates": {
         "title": "Gates & receipts",
@@ -760,7 +760,7 @@
       "tablist": "Responsible-AI demonstrations",
       "human": {
         "title": "Human in the loop",
-        "body": "No candidate is advanced, offered or rejected by the machine alone. Every adverse decision is reviewed and made by a person. That is by design, not a setting."
+        "body": "A rejection is always a person's: the machine cannot commit one, and a bulk reject needs a signed human approval of that exact list. Advancing and extending an offer are human-approved by default too. A workspace can delegate either one, stage by stage, and every step that then runs unattended is logged with the plan that allowed it."
       },
       "oversight": {
         "title": "EU AI Act ready",
@@ -772,7 +772,7 @@
       },
       "audit": {
         "title": "Provable, not promised",
-        "body": "Every AI decision is sealed into a tamper-evident, exportable audit trail, and confidence is measured against real outcomes. It is calibrated, never just asserted."
+        "body": "Every AI decision is sealed into a tamper-evident, exportable audit trail. Scores are then checked against what actually happened, and the check says out loud when the evidence behind it is still too thin, or too circular, to be trusted."
       },
       "footnote": "A working demonstration: this reflects the product's design and controls, not a legal certification.",
       "art": {
@@ -789,7 +789,7 @@
           "allowTitle": "What may run unattended",
           "gates": {
             "screen": "Screening",
-            "schedule": "Scheduling",
+            "offer": "Offer",
             "reject": "Rejection"
           },
           "auto": "auto",
@@ -842,7 +842,7 @@
             "title": "Score vs. what happened",
             "predicted": "we predicted",
             "actual": "actually happened",
-            "note": "the bars line up, so the number means what it says"
+            "note": "this is what a calibrated score looks like; when the evidence is too thin or too circular, the panel says that instead"
           }
         }
       }
@@ -914,10 +914,10 @@
       "enterprise": {
         "eyebrow": "At org scale",
         "heading": "Hiring across the whole org?",
-        "blurb": "Everything above is in the repository, including SSO, the audit trail and white-label branding. What Enterprise buys is delivery: the deployment run with your security and DPO teams, contractual assurance, and a support line. Priced to your hiring volume.",
+        "blurb": "Everything above that ships today is in the repository, including the audit trail and white-label branding. What Enterprise buys is delivery: the deployment run with your security and DPO teams, contractual assurance, and a support line. Priced to your hiring volume.",
         "cta": "Talk to sales",
         "capabilities": [
-          "Enterprise SSO & SCIM provisioning",
+          "Enterprise SSO & SCIM provisioning (planned)",
           "Tenant-scoped, exportable audit trail",
           "Your brand on every candidate touchpoint",
           "Deployment run with your security team",
@@ -1091,7 +1091,7 @@
     "hero": {
       "badge": "the hiring pipeline, end to end",
       "title": "Walk one hire down<br></br>the <emph>whole pipeline</emph>.",
-      "subtitle": "Scroll, and the path draws itself: from a blank role to a signed hire. Seven steps, one continuous line, a human on every gate."
+      "subtitle": "Scroll, and the path draws itself: from a blank role to a signed hire. Eight steps, one continuous line, a human on every gate."
     },
     "steps": {
       "design": {
@@ -1112,22 +1112,27 @@
       "screen": {
         "eyebrow": "Step 04 · Screen",
         "title": "Every CV, read for real",
-        "body": "Each candidate is scored 0–100 against the role with the evidence traced. A fairness gate runs first; strong, obvious matches advance themselves and everything else is held for a human. For technical roles a work-sample case can go out here. It assumes the code will be AI-written and grades the judgment around it, with planted flaws whose right answer we already know."
+        "body": "Each candidate is scored 0–100 against the role with the evidence traced. A fairness gate runs first; strong, obvious matches advance themselves and everything else is held for a human."
+      },
+      "assignment": {
+        "eyebrow": "Step 05 · Assignment",
+        "title": "A work sample that assumes AI",
+        "body": "For technical roles the candidate gets a real task in a live work surface. Using an LLM is allowed and never penalised; what is graded is the judgment around it. Planted flaws whose right answer we already know, the prompts they actually used, and a tamper-evident log of how the work was made."
       },
       "interview": {
-        "eyebrow": "Step 05 · Interview",
+        "eyebrow": "Step 06 · Interview",
         "title": "Then it talks to people",
         "body": "Promising candidates get a warm AI voice interview the same day: questions grounded in their CV, a live transcript, and a structured scorecard waiting for your call."
       },
       "offer": {
-        "eyebrow": "Step 06 · Offer",
+        "eyebrow": "Step 07 · Offer",
         "title": "AI drafts it. A human signs it.",
         "body": "The offer figure is deterministic: role band × fit, no LLM in the number. The letter drafts itself, a person extends it, and the candidate accepts or declines through a secure link."
       },
       "hired": {
-        "eyebrow": "Step 07 · Hired",
-        "title": "Hired: onboarding already moving",
-        "body": "Accept flips the candidate to Hired and fires the onboarding hand-off: a pre-boarding questionnaire and checklist, so day one is already in motion before the celebration ends."
+        "eyebrow": "Step 08 · Hired",
+        "title": "Hired: the outcome, sealed",
+        "body": "Accept flips the candidate to Hired, seals the decision record and files the outcome. That is where KandiDate stops: the hire is mirrored into a connected ATS or HRIS, which owns day one."
       }
     },
     "closing": {
@@ -1166,6 +1171,19 @@
           "evidence": "Evidence · traced"
         }
       },
+      "assignment": {
+        "surfaceTitle": "Live work surface",
+        "meta": "session sealed",
+        "events": {
+          "opened": "Opened the seed project",
+          "asked": "Asked the model to verify",
+          "logged": "Logged the decision"
+        },
+        "chips": {
+          "flaw": "Planted flaw flagged",
+          "prompts": "Prompts on record"
+        }
+      },
       "interview": {
         "screenTitle": "First-round screen",
         "meta": "live · 4:12",
@@ -1192,7 +1210,7 @@
     },
     "meta": {
       "title": "About the app: KandiDate",
-      "description": "Walk one hire down the whole pipeline: design the role, source, intake, screen, interview, offer, hire. AI does the reading at every step; a human signs every decision.",
+      "description": "Walk one hire down the whole pipeline: design the role, source, intake, screen, work sample, interview, offer, hire. AI does the reading at every step; a human signs every decision.",
       "ogDescription": "Walk one hire down the whole pipeline. AI does the reading, a human signs every decision."
     }
   },
@@ -1310,7 +1328,9 @@
     "COMPANION_PROPOSAL_RESOLVED": "That proposal was already answered.",
     "COMPANION_PROPOSAL_FAILED": "Could not run that proposal. Nothing was changed.",
     "COMPANION_BRAIN_FAILED": "Could not check this machine for Candi's memory. Please try again.",
-    "COMPANION_BRAIN_ABSENT": "There is no companion memory on this machine to connect."
+    "COMPANION_BRAIN_ABSENT": "There is no companion memory on this machine to connect.",
+    "INTERVIEW_SUBMISSION_NOT_FOUND": "That submission could not be found.",
+    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Evaluate the submission before starting a voice screen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -1495,6 +1515,16 @@
       "sending": "Sending…",
       "thanks": "Thank you. Your feedback was recorded.",
       "failed": "That didn't go through. Please try again."
+    },
+    "legend": {
+      "title": "Status legend"
+    },
+    "tone": {
+      "neutral": "Not started",
+      "active": "In progress",
+      "waiting": "Waiting on a person",
+      "done": "Done",
+      "stopped": "Stopped"
     }
   },
   "apply": {
@@ -1832,8 +1862,8 @@
       "latest": "Latest"
     },
     "assignments": {
-      "cases": "Cases",
-      "postings": "Postings",
+      "cases": "Assignments",
+      "postings": "Channels",
       "submissions": "Submissions"
     },
     "analytics": {
@@ -1881,7 +1911,7 @@
         "job_posts": "Roles to market",
         "hires": "Hires",
         "ai_candidates": "AI candidates",
-        "case_designs": "Case designs",
+        "case_designs": "Assignment designs",
         "interview_minutes": "Interview minutes"
       }
     },
@@ -2121,7 +2151,11 @@
     "legend": {
       "awaitingDecision": "Awaiting your decision",
       "aging": "Aging in stage (per-stage SLA)",
-      "intakeDegraded": "Intake degraded, needs manual capture"
+      "intakeDegraded": "Intake degraded, needs manual capture",
+      "scoresTitle": "Score kinds:",
+      "scoreMatch": "Match (unlabelled): how the profile fits this role",
+      "scoreTransfer": "Transfer: work-sample skills that carry to the role, never used to rank",
+      "scoreInterview": "Interview: 1 to 5 rubric ratings, on the drawer's scorecard"
     },
     "candidateRow": {
       "awaitingDecision": "Awaiting your decision",
@@ -2140,7 +2174,8 @@
       "openProfile": "Open profile",
       "menuFor": "Actions for {name}",
       "moreActions": "More actions",
-      "menuHint": " · right-click for actions"
+      "menuHint": " · right-click for actions",
+      "transferSuffix": " · transfer {score}"
     },
     "tokenLink": {
       "copy": "Copy link",
@@ -2534,7 +2569,8 @@
         "saveFailed": "Couldn't save the rating.",
         "purpose": "Record how this hire actually worked out. It is the ground truth behind the quality-of-hire measurement in Analytics.",
         "notAutomated": "Visible in your workspace only. It is never shown to the candidate, and it is not used to make automated decisions."
-      }
+      },
+      "transfer": "transfer"
     },
     "actions": {
       "screen": "Screen with AI",
@@ -2694,6 +2730,10 @@
       "onStage": "{stage} · {count}",
       "moveAll": "Move all to…",
       "moveAria": "Move everyone stranded on {stage} to another stage"
+    },
+    "scoreKind": {
+      "transferShort": "transfer",
+      "transferTitle": "A work-sample transfer score, not a match score. It says how well the skills demonstrated on the assignment carry to this role."
     }
   },
   "decisions": {
@@ -3429,7 +3469,7 @@
       "ingestAsJob": "Ingest as job",
       "ingestAsJobTitle": "Parse this JD into a matchable role so it can be sourced, ranked, matched and applied to",
       "ingestedBanner": "{slug} is now a job, ready for webhooks, sourcing and ranking.",
-      "ingestedBannerCta": "Open the posting",
+      "ingestedBannerCta": "Open the job",
       "ingestedDismiss": "Dismiss",
       "ingesting": "Ingesting…",
       "ingestRetry": "Retry ingest",
@@ -3489,7 +3529,7 @@
       "provEstimated": "estimated",
       "salaryUnavailable": "Salary unavailable",
       "sourcesLabel": "Sources:",
-      "interviewCase": "Interview case",
+      "interviewCase": "Work-sample assignment",
       "timebox": "Timebox: ~{hours}h",
       "retryFailed": "Couldn't retry the build.",
       "notPermitted": "You don't have permission for this action. Sign in as an operator to continue.",
@@ -3540,7 +3580,7 @@
       "shelfRecordLabel": "The record you're about to create",
       "shelfWriteCta": "Write the first spec",
       "shelfDraftCta": "Have the builder draft it",
-      "shelfCtaNote": "Both open the Generate panel. Save a draft as-is, or let the AI build the description, a market salary band and an interview case.",
+      "shelfCtaNote": "Both open the Generate panel. Save a draft as-is, or let the AI build the description, a market salary band and a work-sample assignment.",
       "shelfReuseLabel": "One sheet is reusable for",
       "shelfReuseAnalyze": "Score CVs against it",
       "shelfReuseIngest": "Ingest it as an open role",
@@ -3577,7 +3617,7 @@
         "degradedNote": "AI is offline, so the guided checklist runs instead. Your answers are captured all the same.",
         "sendError": "That message didn't go through. Please try again.",
         "promote": "Create JD",
-        "promoteCase": "Also design the work-sample case",
+        "promoteCase": "Also design the work-sample assignment",
         "promoteMarket": "Research the salary band",
         "promoting": "Creating…",
         "promoted": "JD created. Find it under Saved JDs.",
@@ -3850,7 +3890,7 @@
       "optDescriptionHint": "Draft the role's responsibilities and requirements from your need",
       "optMarket": "Market research",
       "optMarketHint": "A web-grounded salary band with cited sources",
-      "optCase": "Interview case",
+      "optCase": "Work-sample assignment",
       "optCaseHint": "A work-sample exercise to screen shortlisted candidates",
       "checklistHint": "Runs in the background. The JD appears in your library and fills in as it's analyzed.",
       "startAnalysis": "Start",
@@ -4072,11 +4112,12 @@
       "rankInMatrix": "Rank in matrix",
       "copyMarkdown": "Copy markdown",
       "copyFailed": "Couldn't copy to the clipboard. Select and copy the link manually.",
-      "postingLanguage": "Posting language",
+      "postingLanguage": "Job language",
       "viewsAria": "Job views",
       "lifecycle": {
         "aria": "Role lifecycle",
         "jd": "JD source",
+        "assignments": "{count, plural, =1 {1 assignment} other {# assignments}}",
         "channels": "{count, plural, =0 {No channels listening} =1 {1 channel listening} other {# channels listening}}",
         "funnel": "{count, plural, =0 {No candidates in the funnel} =1 {1 in the funnel} other {# in the funnel}}",
         "decisions": "{count, plural, =1 {1 decision pending} other {# decisions pending}}",
@@ -4084,7 +4125,7 @@
         "offers": "{count, plural, =1 {1 offer out} other {# offers out}}",
         "hired": "{count, plural, =1 {1 hired} other {# hired}}"
       },
-      "tabPosting": "Posting",
+      "tabPosting": "Job",
       "tabCoach": "Coach",
       "tabCampaign": "Campaign",
       "tabCandidates": "Candidates",
@@ -4301,7 +4342,8 @@
     "analysisShort": "from CV analysis",
     "snapshot": "snapshot at add",
     "freshMatch": "scored by this match run",
-    "freshMatchTitle": "Computed now, by this match run, against the role's current text. It is never stored on the candidate, so the pipeline board can honestly show a different number: the score snapshotted when the candidate was added."
+    "freshMatchTitle": "Computed now, by this match run, against the role's current text. It is never stored on the candidate, so the pipeline board can honestly show a different number: the score snapshotted when the candidate was added.",
+    "transfer": "from the work sample"
   },
   "match": {
     "band": {
@@ -5554,8 +5596,8 @@
   },
   "devApply": {
     "workSurface": {
-      "heading": "Work the case here",
-      "phoneAdvisory": "This case is easiest to work on a computer, and the same link opens it there. You can still continue on your phone.",
+      "heading": "Work the assignment here",
+      "phoneAdvisory": "This assignment is easiest to work on a computer, and the same link opens it there. You can still continue on your phone.",
       "intro": "Edit the starter files below. We record your process: what you open, what you edit, and what you note in DECISIONS.md. That way we grade the judgment we watch, not just the final code. You may use any tools, including AI. We never record keystrokes or your screen.",
       "submit": "Submit work",
       "submitting": "Submitting…",
@@ -5920,6 +5962,8 @@
       "colSubject": "Subject",
       "colRationale": "Rationale",
       "colActor": "Actor",
+      "actorRoleOnly": "role only",
+      "actorRoleOnlyTitle": "This record names a role, not a person: it was sealed where the deployment could not identify the approver. A signed-in identity or KP_OPERATOR_NAME names the next one. Sealed records are never rewritten.",
       "colSealed": "Sealed",
       "noMatches": "No records match the current filters.",
       "verifiedKeyless": "Integrity-evident, not tamper-resistant: {count} sealed records, chain verified, but sealed without a key.",
@@ -6736,7 +6780,7 @@
       "eyebrow": "Self-hosted",
       "title": "This install isn't metered",
       "body": "You're running your own copy of KandiDate under the AGPL. There is no subscription here and nothing to buy. The hosted plans exist for people who would rather not run it themselves.",
-      "meters": "Every allowance reads unlimited: published roles, hires, AI candidates, case designs and interview minutes.",
+      "meters": "Every allowance reads unlimited: published roles, hires, AI candidates, assignment designs and interview minutes.",
       "modelsCta": "Configure your models",
       "modelsNote": "The only AI spend on this install is your own provider bill.",
       "cloudTitle": "Would rather not run it yourself?",
@@ -6761,7 +6805,7 @@
       "job_posts": "Published roles",
       "hires": "Hires",
       "ai_candidates": "AI candidates",
-      "case_designs": "Case designs",
+      "case_designs": "Assignment designs",
       "interview_minutes": "Interview minutes"
     },
     "usage": {
@@ -7177,7 +7221,7 @@
       "values": {
         "role": {
           "title": "Describe a role",
-          "body": "AI drafts the job description, salary band, and a work-sample case for you."
+          "body": "AI drafts the job description, salary band, and a work-sample assignment for you."
         },
         "channels": {
           "title": "Open your channels",
@@ -7241,7 +7285,7 @@
         },
         "technical": {
           "title": "With a work sample",
-          "body": "Adds a case step before the offer."
+          "body": "Adds an assignment step before the offer."
         }
       },
       "workSampleLabel": "Work sample",
@@ -7311,12 +7355,12 @@
         },
         "firstRole": {
           "title": "Create your first role",
-          "body": "Describe the need. Kandi drafts the description, salary, and case.",
+          "body": "Describe the need. Kandi drafts the description, salary, and assignment.",
           "analyzing": "Building now. Watch the Library ledger.",
           "failed": "The build failed. Retry it from the Library ledger."
         },
         "case": {
-          "title": "Design the work-sample case",
+          "title": "Design the work-sample assignment",
           "body": "A practical assignment that screens for real skill."
         },
         "channels": {
@@ -7330,12 +7374,12 @@
   "devcase": {
     "lifecycle": {
       "sectionTitle": "Automated lifecycle",
-      "intro": "Each case advances under policy: auto-approving clean designs, routing flagged ones to you, publishing, and (as submissions arrive) evaluating → ranking → promoting the top candidates into Decisions. No manual steps between.",
+      "intro": "Each assignment advances under policy: auto-approving clean designs, routing flagged ones to you, publishing, and (as submissions arrive) evaluating → ranking → promoting the top candidates into Decisions. No manual steps between.",
       "untitledRole": "Role",
       "railLabel": "Lifecycle progress: {steps}",
       "railStep": "{step}: {state}",
       "stalledBadge": "stalled {days}d",
-      "stalledTitle": "{days, plural, one {Open and empty for # day} other {Open and empty for # days}}. Re-source the candidate pool or close the case.",
+      "stalledTitle": "{days, plural, one {Open and empty for # day} other {Open and empty for # days}}. Re-source the candidate pool or close the assignment.",
       "reSourceTitle": "Rank the existing candidate DB against this role and seed the pipeline again",
       "reSourcing": "Re-sourcing…",
       "reSource": "Re-source",
@@ -7343,11 +7387,11 @@
       "review": "Review & approve",
       "closeTitle": "Wrap up non-promoted submitters and stop the apply link",
       "closing": "Closing…",
-      "close": "Close case",
-      "closeConfirm": "Close this case? Non-promoted submitters get a wrap-up note and the apply link stops accepting submissions.",
+      "close": "Close assignment",
+      "closeConfirm": "Close this assignment? Non-promoted submitters get a wrap-up note and the apply link stops accepting submissions.",
       "closeFailed": "Close failed.",
       "cancel": "Cancel",
-      "closeModalTitle": "Close case",
+      "closeModalTitle": "Close assignment",
       "closeIrreversible": "The wrap-up comms can't be unsent.",
       "reSourceFailed": "Re-source failed."
     },
@@ -7390,7 +7434,7 @@
     },
     "outbox": {
       "emptyTitle": "No messages yet",
-      "emptyBody": "The pipeline writes every intake acknowledgement, promote invite, recruiter outreach and rejection here as cases collect submissions.",
+      "emptyBody": "The pipeline writes every intake acknowledgement, promote invite, recruiter outreach and rejection here as assignments collect submissions.",
       "relayHint": "“queued” = recorded locally (terminal until a relay is wired); set <code>COMMS_WEBHOOK_URL</code> to relay through a real channel (email / ATS), where messages resolve to <sent>sent</sent> or, on a dropped delivery, <failed>failed</failed> (dead-lettered, needs attention).",
       "colKind": "Kind",
       "colRecipient": "Recipient",
@@ -7456,9 +7500,9 @@
     },
     "probeAudit": {
       "label": "Probe-strength audit",
-      "strong": "{loadBearing} of {total} probes are load-bearing. This case discriminates.",
+      "strong": "{loadBearing} of {total} probes are load-bearing. This assignment discriminates.",
       "weak": "Only {loadBearing} of {total} probes are load-bearing. Most won't separate strong from naive.",
-      "none": "No load-bearing probes. This case can't tell a strong submission from a naive one."
+      "none": "No load-bearing probes. This assignment can't tell a strong submission from a naive one."
     },
     "integrity": {
       "title": "Log integrity",
@@ -7479,7 +7523,10 @@
       "markerAbsentTitle": "This session's marker is no longer in the submitted files. On its own that proves nothing: the candidate may simply have edited the line away.",
       "markerForeign": "{count, plural, one {# foreign marker} other {# foreign markers}}",
       "markerForeignTitle": "Another work session's marker appears in these files: the tell of a circulated or relayed solution. Verify authorship live.",
-      "footnote": "Tamper-evidence on the recorded log, not a judgement of the work."
+      "footnote": "Tamper-evidence on the recorded log, not a judgement of the work.",
+      "judgeTitle": "Assessment integrity",
+      "judgeSelfGrading": "Judge = generator",
+      "judgeSelfGradingTitle": "The quality gate over this assessment resolves to the same model that produced it, so it shares its blind spots. Pin a different model for the assignment judge seat in Models settings to make the gate independent."
     },
     "checks": {
       "title": "What the checks found",
@@ -7493,11 +7540,11 @@
       "canarySummary": "Planted flaws: caught {caught} of {graded} gradable.",
       "canaryNoneGradable": "Planted flaws: none could be graded mechanically.",
       "canaryUngradable": "{count, plural, one {# not gradable} other {# not gradable}}",
-      "canaryNotRun": "No planted flaws for this case. The deterministic seed does not fabricate ground truth, so this check did not run.",
+      "canaryNotRun": "No planted flaws for this assignment. The deterministic seed does not fabricate ground truth, so this check did not run.",
       "baselineSimilarity": "Overlap with the one-shot AI baseline: {pct}.",
       "baselineNeverPenalty": "Context for the interview, never a score penalty.",
       "baselineAimInterview": "Close to what a bare model produces in one shot. Ask live what the candidate added beyond it. Never a score penalty.",
-      "baselineNotRun": "No AI baseline was frozen for this case, so the comparison did not run.",
+      "baselineNotRun": "No AI baseline was frozen for this assignment, so the comparison did not run.",
       "promptSummary": "Assistant prompts: {assistant} (iteration depth {depth}) · stakeholder questions: {stakeholder}",
       "verificationAsks": "{count, plural, one {# verification ask} other {# verification asks}}",
       "promptsNeverPenalty": "Using AI is never a penalty. What counts is how they drove it, not whether they did.",
@@ -7514,7 +7561,7 @@
       "perturbationAdapted": "adapted to the mid-flight change · {edits, plural, one {# edit} other {# edits}}, {decisions, plural, one {# decision entry} other {# decision entries}} after the reveal",
       "perturbationStale": "the mid-flight change was shown but no edits followed it",
       "perturbationTitle": "The requirement change was revealed at a server-recorded moment; everything after it is the candidate's observed adaptation to a changed brief.",
-      "noSeed": "No materialized seed for this case, so seed engagement could not be measured.",
+      "noSeed": "No materialized seed for this assignment, so seed engagement could not be measured.",
       "inProductSession": "in-product session",
       "decisionsLogKept": "DECISIONS log: kept",
       "decisionsLogMissing": "DECISIONS log: missing",
@@ -7558,7 +7605,8 @@
       "colSubmissions": "Submissions",
       "colCreated": "Created",
       "open": "Open",
-      "untitledAssignment": "Assignment"
+      "untitledAssignment": "Assignment",
+      "stageAria": "Assignment stage: {stage}"
     },
     "evalPanel": {
       "capabilityScores": "Capability scores",
@@ -7592,13 +7640,19 @@
       "promote": "Promote to pipeline",
       "promoteHint": "→ becomes a Decisions review card"
     },
+    "jobLink": {
+      "linked": "Role: {title}",
+      "openTitle": "Open this role in the Jobs tab",
+      "unsourced": "JD \"{slug}\" has no role yet",
+      "unsourcedTitle": "This assignment was cut from a saved job description that was never sourced into a role, so there is nothing to link to yet. Source it from the JD library and the link appears here."
+    },
     "emptyLedger": {
       "eyebrow": "Ledger open",
       "title": "Nothing sealed yet",
-      "lede": "A case does not just ask a candidate to write code. It records how the work was made, and seals that record so you can trust what you are reading.",
-      "statCases": "Cases",
+      "lede": "An assignment does not just ask a candidate to write code. It records how the work was made, and seals that record so you can trust what you are reading.",
+      "statCases": "Assignments",
       "statSealed": "Sealed",
-      "cta": "Open the first case",
+      "cta": "Open the first assignment",
       "controlsHeading": "What a sealed submission will carry",
       "control": {
         "hashChain": {
@@ -7623,12 +7677,35 @@
         },
         "baseline": {
           "name": "Frozen baseline comparison",
-          "proves": "At approval the case is solved once by a bare model with nobody steering it, and that answer is frozen. Submissions are compared against it. Never a penalty: it tells you where to aim the authorship interview, not what to score."
+          "proves": "At approval the assignment is solved once by a bare model with nobody steering it, and that answer is frozen. Submissions are compared against it. Never a penalty: it tells you where to aim the authorship interview, not what to score."
         }
       },
       "pasteTrace": "Alongside them, one bulk paste with no incremental build-up reads as suspect. A suspect submission is held for the live interview that verifies authorship, never auto-advanced on score.",
-      "honestDarkness": "Every verdict above is shown to you with its own evidence, including where a check could not run: a control that did not fire is never displayed as one that passed. None of it starts until a case exists. Define the need and the engine designs the assignment these controls wrap around."
-    }
+      "honestDarkness": "Every verdict above is shown to you with its own evidence, including where a check could not run: a control that did not fire is never displayed as one that passed. None of it starts until an assignment exists. Define the need and the engine designs the assignment these controls wrap around."
+    },
+    "voiceScreen": {
+      "title": "Voice screen",
+      "loading": "Checking for a voice screen…",
+      "promotesHint": "Issuing a link also puts this candidate on the Overview board, because a voice screen is always attached to a board entry.",
+      "mean": "{mean} / {max} mean rating",
+      "verdictNote": "The verdict flows to the Decisions queue as a scorecard review.",
+      "awaitingCall": "The link is live; the candidate has not taken the call yet.",
+      "completedUnscored": "The call finished, but no scorecard was produced.",
+      "noVerdict": "This screen ended without a scorecard.",
+      "boardHint": "Reissue, revoke and the full transcript live in the Overview tab.",
+      "status": {
+        "created": "Link issued",
+        "in_progress": "Call in progress",
+        "completed": "Completed",
+        "failed": "Failed",
+        "revoked": "Revoked"
+      }
+    },
+    "submissionStatus": {
+      "received": "Received",
+      "evaluated": "Evaluated"
+    },
+    "eyebrow": "Tools · Assignments"
   },
   "rubric": {
     "ratingAnchor": {
@@ -8573,7 +8650,7 @@
       "assignments": {
         "eyebrow": "Assignments",
         "title": "A work sample that survives being delegated",
-        "lede": "Anyone can hand a take-home to a model. So the case is built to be informative even then: it carries deliberate under-specification, traps that punish confident guessing, and a mid-flight change that arrives after the work has started. What is graded is the reasoning the candidate shows, not whether the answer compiles.",
+        "lede": "Anyone can hand a take-home to a model. So the assignment is built to be informative even then: it carries deliberate under-specification, traps that punish confident guessing, and a mid-flight change that arrives after the work has started. What is graded is the reasoning the candidate shows, not whether the answer compiles.",
         "tab": "Open Assignments"
       },
       "gates": {
@@ -8683,9 +8760,9 @@
       "deltaSubmission": "lines added by the candidate",
       "note": "Above {aim} the product prints a question rather than a deduction: probe live what this person added beyond the bare model. Some parts of a real task have one obvious answer, and scoring overlap as guilt would punish candidates for getting those right.",
       "status": {
-        "s0": "the case is approved, and the seed is materialised",
+        "s0": "the assignment is approved, and the seed is materialised",
         "s2": "baseline-solve-v1: a bare model, told to delegate completely",
-        "s3": "frozen per case, never regenerated",
+        "s3": "frozen per assignment, never regenerated",
         "s4": "the candidate submits",
         "s5": "both sides are reduced to what they ADDED to the seed",
         "s7": "Jaccard over added lines, per path, weighted by union size",

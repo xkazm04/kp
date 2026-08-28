@@ -121,8 +121,15 @@ the corpus is reproducible and a pilot of N is a true prefix of a run of M>N. A 
 Two layers, by design:
 1. **Automated** (`calibrate.py --judge`): the existing `lifecycle_audits.judge`
    (1–5 per artifact) + `role_fit_verdicts` (binary "do the tasks match the role's
-   function?"). Cheap and broad, but it **self-grades** (same engine that generated
-   the case), so it's a breadth signal, not the bar.
+   function?"). Cheap and broad — a breadth signal, not the bar.
+   It used to **self-grade**: the `devcase_judge` seat was routable but unpinned, so with
+   no `KP_LLM_CONFIG` it fell back to the same engine and model that generated the case.
+   That is fixed — the seat carries its own default and `judge_independence` reports the
+   two seat identities on every run (`judgeIndependence` in `judge_report.json`; see
+   [the dev-case doc](../features/dev-case/README.md#the-judge-is-independent-by-default)).
+   It is still the *cheaper* tier, and it is still not the bar; a run whose judge does
+   resolve to the generator is reported as such and refused by `--strict` in
+   `lifecycle_eval` / `submission_eval`.
 2. **Calibration judge (the bar)**: Claude **Opus** — a higher vantage than the
    sonnet-class generator — reads `cases/<id>.json` and scores `JUDGE_RUBRIC.md`'s 7
    dimensions, then synthesizes systematic failure modes that drive the prompt edits.

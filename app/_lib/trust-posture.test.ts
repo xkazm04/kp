@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   CLASSIFICATION,
   DISCLAIMER,
@@ -8,6 +11,12 @@ import {
   byWeakestFirst,
   postureSummary,
 } from "./trust-posture.ts";
+import { INTERVIEW_PLAN_DEFAULT } from "./decision-config-schema.ts";
+import { HUMAN_ROLE_ACTOR, isNamedApprover, PLACEHOLDER_APPROVER } from "./auth/operator-approver.ts";
+import { parseEventActor } from "./decision-attribution.ts";
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const source = (...rel: string[]) => readFileSync(path.join(HERE, ...rel), "utf8");
 
 // This page makes public claims about a regulated system. These tests exist so a future
 // edit cannot quietly turn it into a badge — the failure mode being guarded is
@@ -104,6 +113,111 @@ test("the Art. 14 kill-switch clause matches the control that actually exists", 
     /are not yet wired to it/i,
     "the pre-closure scope claim must not survive: the timed passes ARE wired to the pause now",
   );
+});
+
+/* ── Art. 14 parity with the landing page ────────────────────────────────────
+ *
+ * Both surfaces describe the SAME gate, and on 2026-08-28 they described it
+ * differently for one commit: the landing retired the absolute ("No candidate is
+ * advanced, offered or rejected by the machine alone… not a setting") because
+ * two thirds of it were false, and this row kept it. Two pages making one claim
+ * is one claim; the honest half must be the same half on both.
+ *
+ * These are deliberately the SAME pins `app/landing/spark/MarketingClaims.test.ts`
+ * carries — the shipped default plan, and the auto branches that exist to be
+ * delegated to — read here off the same modules. If the product's real shape
+ * moves, both suites go red together instead of one page quietly outliving it. */
+
+test("the Art. 14 row does not re-assert the absolute the landing retired", () => {
+  const art14 = OBLIGATIONS.find((r) => r.article === "Art. 14")!;
+  assert.doesNotMatch(
+    art14.summary,
+    /by the machine alone/i,
+    "screeningGate:'auto' and offerGate:'auto' exist; a page claiming nothing advances or is offered by the machine alone is false"
+  );
+  assert.doesNotMatch(
+    art14.summary,
+    /not a setting/i,
+    "the gates ARE a setting — Settings → Hiring configures them"
+  );
+  // The honest half, which the landing keeps and which nothing configurable can
+  // take away. Pinned by SUBJECT so the sentence can be reworded.
+  assert.match(art14.summary, /rejection is always a person|no gate can delegate/i, "the rejection absolute is the claim worth making, and it must be made");
+  // And the qualifier that makes the other two honest, exactly as the landing's
+  // four catalogs have to carry "by default" (MarketingClaims.test.ts).
+  assert.match(
+    art14.summary,
+    /\bby default\b/i,
+    "advance/offer are only human-gated BY DEFAULT; the row must say so, as the landing does"
+  );
+});
+
+test("the shipped hiring plan is what makes the 'by default' half true", () => {
+  // Identical to MarketingClaims.test.ts's plan pin, on purpose: the sentence on
+  // /trust rests on the same object, so it must fail on the same change.
+  const steps = INTERVIEW_PLAN_DEFAULT.steps;
+  assert.ok(steps.length > 0, "the default plan governs at least one column");
+  for (const step of steps) {
+    assert.equal(step.gate, "human", `/trust claims every gate is human BY DEFAULT; the shipped default sets ${step.stageId} to "${step.gate}"`);
+    for (const round of step.rounds) {
+      assert.equal(round.gate, "human", `the shipped default leaves a ${round.kind} round at ${step.stageId} unattended`);
+    }
+  }
+});
+
+test("the two gates the Art. 14 row calls delegable are the two that exist", () => {
+  const automation = source("automation-run.ts");
+  for (const role of ["screening", "offer"]) {
+    assert.match(
+      automation,
+      new RegExp(`getPlanGateForRole\\("${role}"[^)]*\\)\\s*===\\s*"auto"`),
+      `automation-run.ts no longer delegates ${role}; the Art. 14 row's "by default" hedge may be too weak now`
+    );
+  }
+  // The absolute that survives. A rejection gate would falsify the first sentence
+  // of the row AND of landing.trust.human.body in four catalogs.
+  assert.doesNotMatch(
+    automation,
+    /getPlanGateForRole\("(rejection|reject)"/,
+    "a rejection gate would falsify the one Art. 14 absolute /trust still asserts"
+  );
+});
+
+/* ── Art. 12: the record has to name somebody ────────────────────────────────
+ *
+ * G5. The chain sealed 66 records naming "operator (single-operator deployment)"
+ * while this row claimed each carries "a named human". The wave now refuses to
+ * commit rather than seal an approval nobody owns, and the audit table marks the
+ * records that predate the refusal. Both halves are pinned, because the row now
+ * says both. */
+
+test("a bulk rejection cannot be sealed to the placeholder approver", () => {
+  assert.equal(isNamedApprover(PLACEHOLDER_APPROVER), false, "the posture string is not a person");
+  assert.equal(isNamedApprover(""), false);
+  assert.equal(isNamedApprover(null), false);
+  assert.equal(isNamedApprover("Petra Nováková"), true);
+
+  const wave = source("screen-wave.ts");
+  assert.match(
+    wave,
+    /!dryRun && !isNamedApprover\(approvedBy\)/,
+    "the seal path must refuse an unnamed approver on COMMIT — in the lib, so a second caller inherits the refusal"
+  );
+  // A preview writes nothing, so it must stay reachable: an operator who cannot
+  // yet be named still needs to see what the wave would do, and why it will not run.
+  assert.match(wave, /if \(!dryRun && !isNamedApprover/, "the refusal must be scoped to a commit, never to a dry run");
+  assert.match(OBLIGATIONS.find((r) => r.article === "Art. 12")!.summary, /name the person|cannot name/i);
+});
+
+test("the audit surface can tell a named approver from a role", () => {
+  // The chain is history and is never rewritten, so the row that predates the
+  // refusal has to be READ correctly rather than edited. This is the exact
+  // discrimination the table's badge renders.
+  assert.deepEqual(parseEventActor(HUMAN_ROLE_ACTOR), { kind: "human", name: null }, "the role token must not read as a person");
+  assert.deepEqual(parseEventActor("human:Petra Nováková"), { kind: "human", name: "Petra Nováková" });
+  const table = source("..", "features", "insights", "analytics", "sections", "DecisionRecordsTable.tsx");
+  assert.match(table, /parseEventActor\(r\.actor\)/, "the actor column must classify the token, not print it raw");
+  assert.match(table, /actorRoleOnly/, "and mark the records whose actor is a role");
 });
 
 test("every subprocessor is optional — the self-host path must stay real", () => {

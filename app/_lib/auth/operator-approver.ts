@@ -15,9 +15,35 @@
  *  single-operator deployment genuinely has no named user, and inventing one would be
  *  the same overclaim in a new coat. resolveApprover() below prefers the real person
  *  and lands here only when there isn't one. */
+export const PLACEHOLDER_APPROVER = "operator (single-operator deployment)";
+
 export function operatorApprover(): string {
-  return process.env.KP_OPERATOR_NAME?.trim() || "operator (single-operator deployment)";
+  return process.env.KP_OPERATOR_NAME?.trim() || PLACEHOLDER_APPROVER;
 }
+
+/** Does this approver string name a PERSON, or is it the posture placeholder?
+ *
+ *  The distinction is the whole of gap G5. `operatorApprover()` is honest about
+ *  having nobody — but honesty about an unattributable approval is not the same
+ *  as an attributable one, and the sealed record is where that difference becomes
+ *  permanent. The 08-17 UAT read the chain and could not tell who had approved
+ *  anything; a reader of a record that says "operator (single-operator
+ *  deployment)" learns only that the system had no idea.
+ *
+ *  Pure and synchronous on purpose: the seal path (screen-wave, a lib with no
+ *  request scope) has to be able to ask this about the approver it is HOLDING,
+ *  not re-derive one. */
+export function isNamedApprover(approver: string | null | undefined): boolean {
+  const who = approver?.trim();
+  return !!who && who !== PLACEHOLDER_APPROVER;
+}
+
+/** Why a seal was refused, naming the two ways to fix it — a sign-in, or the
+ *  deployment setting. An error that says "approver required" and stops there
+ *  sends an operator to the source; this one sends them to a form field or an
+ *  env var. Kept beside the placeholder it is about so the two never drift. */
+export const NAMED_APPROVER_REQUIRED =
+  "This rejection cannot be sealed to a named approver. A bulk rejection is an adverse decision the record has to attribute to a person: sign in with an account whose profile carries a name or email, or set KP_OPERATOR_NAME on the deployment to the reviewer who is accountable for it.";
 
 /** The decision-chain actor token for a human act by an UNIDENTIFIED person — the role,
  *  which is all a session without identity can honestly assert. */

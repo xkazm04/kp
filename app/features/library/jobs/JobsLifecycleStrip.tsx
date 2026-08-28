@@ -39,6 +39,12 @@ export function JobLifecycleStrip({ jobId, jobTitle }: { jobId: string; jobTitle
   const search = useSearchParams();
   const [entries, setEntries] = useState<PipelineEntryLite[] | null>(null);
   const [hooks, setHooks] = useState<number | null>(null);
+  // ONE THREAD — the work samples cut for this role. Until dev_cases.job_id existed the
+  // JD a case was designed from lived only inside its need_json blob, so this surface
+  // could not tell that a role HAD an assignment; the recruiter had to remember. Null
+  // until the fetch lands (and after a failure), which keeps the segment absent rather
+  // than asserting a confident "0 assignments" the strip has not actually established.
+  const [assignments, setAssignments] = useState<number | null>(null);
   // The board's columns ride out WITH the entries (GET /api/pipeline answers
   // `{ entries, stages, retiredStages }`), so the strip resolves offer/terminal
   // through this workspace's OWN axis instead of the shipped names. Null until it
@@ -66,12 +72,23 @@ export function JobLifecycleStrip({ jobId, jobTitle }: { jobId: string; jobTitle
         if (alive) setHooks((p.webhooks ?? []).filter((h) => h.jobId === jobId).length);
       })
       .catch(() => undefined);
+    // Server-filtered (the route reads dev_cases.job_id) rather than fetched-and-filtered
+    // like the two above: a case payload carries its whole internal design, so the count
+    // is answered by a projection instead of shipping every team's assignments to filter
+    // one out of them here.
+    fetch(`/api/jobs/${encodeURIComponent(jobId)}/assignments`)
+      .then(async (r) => {
+        if (!r.ok) return;
+        const p = (await r.json()) as { assignments?: unknown[] };
+        if (alive) setAssignments((p.assignments ?? []).length);
+      })
+      .catch(() => undefined);
     return () => {
       alive = false;
     };
   }, [jobId]);
 
-  if (entries === null && hooks === null) return null;
+  if (entries === null && hooks === null && assignments === null) return null;
 
   const active = (entries ?? []).filter((e) => e.status === "active");
   const decisions = active.filter((e) => e.approvalKind && e.approvalKind !== "calendar").length;
@@ -89,6 +106,10 @@ export function JobLifecycleStrip({ jobId, jobTitle }: { jobId: string; jobTitle
 
   const segs: (Seg | null)[] = [
     jdSlug ? { key: "jd", label: t("jd"), href: `/jds/${encodeURIComponent(jdSlug)}` } : null,
+    // Sits between the JD and the channels because that is where it happens: the case is
+    // cut FROM the JD, before the role is distributed. Rendered only when there is at
+    // least one — a role with no work sample is the normal case, not a gap to nag about.
+    assignments ? { key: "assignments", label: t("assignments", { count: assignments }), tab: "assignments" } : null,
     hooks !== null ? { key: "channels", label: t("channels", { count: hooks }), tab: "channels" } : null,
     entries !== null
       ? { key: "funnel", label: t("funnel", { count: active.length }), tab: "pipeline", params: { q: jobTitle } }

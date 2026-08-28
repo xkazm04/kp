@@ -70,7 +70,7 @@ export const OBLIGATIONS: readonly ObligationRow[] = [
     title: "Record-keeping",
     posture: "enforced",
     summary:
-      "Every decision is sealed into a per-tenant, tamper-evident hash chain (HMAC-SHA256, key rotation, anti-downgrade). Each record carries the acting party — distinguishing an automated actor from a named human — the policy and prompt version, the candidate reference, the rationale and the decisive inputs. Group evaluations additionally seal the model's own reasoning about the candidate it ranked first.",
+      "Every decision is sealed into a per-tenant, tamper-evident hash chain (HMAC-SHA256, key rotation, anti-downgrade). Each record carries the acting party — distinguishing an automated actor from a named human — the policy and prompt version, the candidate reference, the rationale and the decisive inputs. A bulk rejection wave will not seal at all where the deployment cannot name the person who approved it, and the audit table marks every record whose actor is a role rather than a person. Group evaluations additionally seal the model's own reasoning about the candidate it ranked first.",
     gap: "A separate audit log for authentication, configuration and export events, and signed SIEM export, are outstanding.",
   },
   {
@@ -96,8 +96,16 @@ export const OBLIGATIONS: readonly ObligationRow[] = [
     // remaining exemption rather than the old, much wider one. It is still stated as a
     // gap rather than implied away: a reviewer reading Art. 14 is looking for an
     // Art. 14(4)(e) stop control and must know exactly what it does not reach.
+    // THE ABSOLUTE WAS FALSE IN TWO THIRDS, and is not softened here so much as
+    // SPLIT. It used to open "No candidate is rejected, advanced or offered by the
+    // machine alone". The rejection third holds and is the part worth claiming;
+    // the other two do not, because Settings → Hiring exposes a per-stage gate and
+    // `automation-run.ts` reads it (`getPlanGateForRole("screening"|"offer") ===
+    // "auto"`). The landing page retired the same sentence on 2026-08-28 and this
+    // one outlived it by a commit — which is exactly the divergence the test now
+    // pins, off the SAME `INTERVIEW_PLAN_DEFAULT` both surfaces rest on.
     summary:
-      "No candidate is rejected, advanced or offered by the machine alone. Bulk rejections need a signed human approval that the server recomputes and refuses if the cohort drifted; unattended automation queues rejections for a person rather than executing them; advance-top-N stops before Offer; governed evaluation modes cannot be downgraded to auto-seal; and an operator can halt the automated case lifecycle on a single click, with no confirmation step in the way of stopping it.",
+      "A rejection is always a person's: no gate can delegate one, unattended automation queues rejections for review rather than executing them, and a bulk rejection needs a signed human approval of that exact cohort — which the server recomputes and refuses if the set drifted, if the review went stale, or if it cannot name the approver. Advancing and extending an offer are human-approved by default: the shipped hiring plan gates every stage on a person. A workspace can delegate either of those two, stage by stage, and every step that then runs unattended is logged with the plan that allowed it. Advance-top-N stops before Offer; governed evaluation modes cannot be downgraded to auto-seal; and an operator can halt the automated case lifecycle on a single click, with no confirmation step in the way of stopping it.",
     gap: "That pause now halts every discretionary pass the server clock runs — the scheduling policy pass, interview and offer reminders, offer expiry, and the inbound pull/edge drain — as well as the automated case lifecycle. One pass is deliberately exempt: the consent-expiry anonymisation sweep keeps running, because it discharges a statutory retention duty (GDPR Art. 5(1)(e)) rather than making an automated decision, and holding identifiable data past consent expiry is itself the unlawful state — so an operator toggle must not be able to suspend it indefinitely.",
   },
   {

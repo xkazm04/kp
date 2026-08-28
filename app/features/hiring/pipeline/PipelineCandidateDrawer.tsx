@@ -153,7 +153,7 @@ export function CandidateDrawer({ entry, onClose, onChanged, onOpenEntry, cohort
 
           {showLinks ? (
             <PipelineVoiceScreenPanel
-              entryId={entry.id}
+              target={{ entryId: entry.id }}
               voiceProvider={voiceProvider}
               onProviderChange={setVoiceProvider}
               voice={voice}

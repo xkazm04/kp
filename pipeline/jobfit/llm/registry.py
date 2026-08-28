@@ -160,7 +160,14 @@ def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
             if gemini is not None:
                 return gemini
         cli_timeout = (entry.timeout_s if entry else None) or timeout or DEFAULT_TIMEOUT_S
-        cli_model = entry.model if entry else None
+        # The CLI branch consults default_model TOO — it used to be the one path that
+        # did not, so a per-use-case default could never reach the engine that is this
+        # product's local default. That is what left `devcase_judge` on the same
+        # `model=None` as its generator and made every default install self-grading
+        # (capabilities.USE_CASE_MODEL_OVERRIDES states the invariant). Harmless for
+        # every other seat: DEFAULT_MODELS["claude_cli"] is None, so an unoverridden
+        # use case still resolves to None — the CLI's own configured default, unchanged.
+        cli_model = (entry.model if entry else None) or default_model(use_case, "claude_cli")
         # MonitoredClaudeCli IS-A ClaudeCliProvider — identical behavior plus
         # LightTrack emission when observability is configured (monitor.py).
         return MonitoredClaudeCli(model=cli_model, timeout=cli_timeout, use_case=use_case)

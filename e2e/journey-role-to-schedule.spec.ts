@@ -1,7 +1,7 @@
 // Critical-path journey: first-run wizard (through its Pipeline step, which
 // writes the board's columns) → JD in the Library → recruiter mints a
 // self-scheduling invite from the pipeline drawer → the candidate (fresh context,
-// no auth cookie) books a slot on /schedule/[token] → the recruiter's Schedule tab
+// no auth cookie) books a slot on /schedule/[token] → the recruiter's board
 // reflects the confirmed interview → the candidate withdraws (terminal card),
 // freeing the slot so repeated runs don't drain the 21-day horizon.
 //
@@ -21,10 +21,17 @@
 //   npm run build                        # runs schemas:gen (needs Python deps)
 //   npm run start -- --port 3101 &      # prod server against data/kp.sqlite
 //   KP_E2E_BASE_URL=http://localhost:3101 npx playwright test \
-//     e2e/journey-role-to-schedule.spec.ts e2e/modal-escape.spec.ts e2e/profile-builder.spec.ts
-// (Without KP_E2E_BASE_URL the same three specs run against the managed dev
-//  webServer: `npx playwright test e2e/journey-role-to-schedule.spec.ts
-//  e2e/modal-escape.spec.ts e2e/profile-builder.spec.ts`.)
+//     e2e/journey-role-to-schedule.spec.ts e2e/journey-one-thread.spec.ts \
+//     e2e/modal-escape.spec.ts e2e/profile-builder.spec.ts
+// (ci.yml names all four by file rather than by a shared prefix — see the step's
+//  own comment. journey-one-thread.spec.ts walks the OTHER half of the product:
+//  JD → assignment → evaluation → board → voice screen → sealed decision.)
+//
+// LOCALLY, run this against a PRODUCTION build, not `next dev`: a dev server
+// rebuilds on any file write, and a rebuild mid-request leaves the candidate
+// page's client fetch hanging on "Loading…" well past a 30s expect. Measured
+// 2026-08-28 — the same six tests pass in ~15s against `node
+// .next/standalone/server.js` and fail at step 4 against `next dev`.
 //
 // A fresh DB self-seeds pipeline entries from data/seed_pipeline on first boot,
 // and seedDevAuth stamps the first-run gate, so this file needs no manual seed.
@@ -56,6 +63,7 @@ const jdFixture = path.join(process.cwd(), "e2e", "fixtures", "journey-jd.txt");
 
 // Shared across the serial steps.
 let candidateLabel = "";
+let entryId = "";
 let inviteToken = "";
 let inviteUrl = "";
 
@@ -88,15 +96,50 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
     if (!(await target.isVisible())) {
       if (await source.isVisible()) {
         await button.click().catch(() => undefined);
-        await expect(source).toBeHidden({ timeout: 2500 }).catch(() => undefined);
+        // A WAIT, not an assertion. This used to read `await expect(source)
+        // .toBeHidden().catch(() => undefined)` — an expect whose failure was
+        // discarded, i.e. a guard that could not fail and therefore guarded
+        // nothing (scan-sweep batch 13, "5 hollow guards … incl. the flagship
+        // journey"). The only assertion in this helper is the one below, on the
+        // TARGET; settling the source is a timing nicety, so it is now written as
+        // what it is.
+        await source.waitFor({ state: "hidden", timeout: 2500 }).catch(() => undefined);
       }
       await expect(target).toBeVisible({ timeout: 2500 });
     }
   }).toPass({ timeout: 30_000 });
 }
 
+// Open ONE candidate's drawer on the board, by name. `?q=` pre-filters the board
+// to that candidate, so the card is never hidden behind a "+N more" cell
+// overflow. The card's per-row actions live in its context menu (the inline
+// controls were costing ~134px of a 280px stage column, truncating the candidate
+// name); the trigger is the row's keyboard/touch door into the same menu
+// right-click opens, opacity-0 until hover, which Playwright still counts as
+// visible. Same dev-hydration retry as the sibling specs: click until the drawer
+// opens. Shared by the mint step and the confirmed-booking step, which read the
+// same drawer for different halves of the same invite.
+async function openCandidateDrawer(page: Page, label: string): Promise<Locator> {
+  await page.goto(`/?tab=pipeline&q=${encodeURIComponent(label)}`);
+  const drawer = page.getByRole("dialog");
+  const rowMenu = page.getByRole("button", { name: `Actions for ${label}` }).first();
+  await expect(rowMenu).toBeVisible({ timeout: 30_000 });
+  await expect(async () => {
+    if (!(await drawer.isVisible())) {
+      await rowMenu.click().catch(() => undefined);
+      await page
+        .getByRole("menuitem", { name: "AI actions" })
+        .first()
+        .click({ timeout: 2000 })
+        .catch(() => undefined);
+    }
+    await expect(drawer).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 30_000 });
+  return drawer;
+}
+
 test("first-run wizard walks to the hand-off and its Pipeline step saves the board", async ({ page }) => {
-  // Above the suite default (120s): five crossfaded steps plus two server actions
+  // Above the suite default (120s): six crossfaded steps plus two server actions
   // at the end, and against a dev server each of those is a first-call compile.
   test.setTimeout(240_000);
   // `?onboarding=1` is the single-load escape hatch — it opens the LIVE wizard
@@ -121,17 +164,59 @@ test("first-run wizard walks to the hand-off and its Pipeline step saves the boa
   const pipeline = wizard.getByRole("heading", { name: "Shape your hiring board" });
   await advanceStep(team, wizard.getByRole("button", { name: "Continue" }), pipeline);
 
-  // Pipeline step (the one that replaced "First role"): the board's REAL columns
-  // load from /api/decisions/config, so waiting for column 1 to carry a value is
-  // the honest ready signal. Renaming it is the edit that proves the step writes
-  // to the draft — and the one whose stored key must NOT move, which the rest of
-  // this journey then relies on (it filters entries by the stage ID "Screened").
+  // Pipeline step (the one that replaced "First role"). It now opens READ-ONLY —
+  // a plain-language walk down the funnel (SetupPipelineJourneyView), with the
+  // fields one button away (SetupPipelineStep.tsx:12-18, "VIEW FIRST, EDIT ON
+  // DEMAND"). This spec was written against the older always-editable step, so it
+  // waited 30s for a textbox that the step no longer renders until asked — the
+  // CI failure at this line since 2026-08-25.
+  //
+  // The fix is a step, not a selector tweak: press the step's own edit control,
+  // then edit. Both locators stay SEMANTIC (the button's visible text, the
+  // field's accessible name from setup.pipeline.labelAria) rather than
+  // positional, so the next layout change moves neither.
+  //
+  // The board's REAL columns load from /api/decisions/config, so waiting for
+  // column 1 to carry a value is still the honest ready signal. Renaming it is
+  // the edit that proves the step writes to the draft — and the one whose stored
+  // key must NOT move, which the rest of this journey then relies on (it filters
+  // entries by the stage ID "Screened").
+  const editColumns = wizard.getByRole("button", { name: "Change these steps" });
   const firstColumn = wizard.getByRole("textbox", { name: "Name of step 1" });
+  // Same dev-hydration retry the rest of this file uses: the toggle is a client
+  // handler, so a click before hydration is silently dropped. Re-pressed only
+  // while the fields are still absent, and the toggle flips back to "Done" once
+  // edit mode is on — so a duplicate click can never close what it just opened.
+  await expect(async () => {
+    if (!(await firstColumn.isVisible())) {
+      await editColumns.click({ timeout: 2500 }).catch(() => undefined);
+      await expect(firstColumn).toBeVisible({ timeout: 2500 });
+    }
+  }).toPass({ timeout: 30_000 });
   await expect(firstColumn).toHaveValue(/\S/, { timeout: 30_000 });
   await firstColumn.fill(STAGE_LABEL);
 
+  // Companion step — a SIXTH step this spec did not know about (setupSteps.ts,
+  // `setup.steps.companion`). It offers to give Candi a memory folder ON THIS
+  // MACHINE, and this journey declines by leaving it alone: `companionChoice`
+  // starts null (setupSteps.ts:123) and finish() returns early on a null choice
+  // (setupOnboardingFinish.ts:101), so an untouched step writes nothing to disk.
+  //
+  // What is asserted is the DECLINE, in the one form that holds in both states
+  // this step has: the tiles render (skip pre-selected), or the machine lookup
+  // failed and the step renders an alert with no tiles at all — which is what a
+  // keyless standalone server does (`companion.loadFailed`). Either way, no
+  // adopt tile may be pressed. If a future default ever flips to "create her
+  // memory", this fails instead of quietly provisioning a brain on the runner.
+  const companion = wizard.getByRole("heading", { name: "Meet Candi" });
+  await advanceStep(pipeline, wizard.getByRole("button", { name: "Continue" }), companion);
+  const adoptChosen = wizard
+    .getByRole("button", { name: /Connect it|Create her memory/ })
+    .and(wizard.locator('[aria-pressed="true"]'));
+  await expect(adoptChosen, "setup must not adopt or create a companion memory unasked").toHaveCount(0);
+
   const handoff = wizard.getByRole("heading", { name: "You're all set" });
-  await advanceStep(pipeline, wizard.getByRole("button", { name: "Continue" }), handoff);
+  await advanceStep(companion, wizard.getByRole("button", { name: "Continue" }), handoff);
 
   // Finish via "Explore on my own", then assert the STORED axis rather than the
   // request that carried it: a POST in the network log proves an attempt, and this
@@ -209,32 +294,30 @@ test("recruiter mints a self-scheduling invite from the candidate drawer", async
   const { entries } = (await list.json()) as {
     entries: Array<{ id: string; candidateLabel: string; stage: string; status: string }>;
   };
-  const target = entries.find((e) => e.status === "active" && ["Screened", "Interview"].includes(e.stage));
-  expect(target, "seeded pipeline should contain an active Screened/Interview entry").toBeTruthy();
+  // …and one that is NOT already holding a live scheduling invite. `POST
+  // /api/schedule/invite` is idempotent per entry: on a candidate who already
+  // has an open or confirmed link it hands back THAT link rather than minting a
+  // new one, so the candidate leg would then open an already-booked page with no
+  // slots left to pick. That is invisible on CI's fresh database and bites every
+  // local re-run after a partial failure (the withdraw step at the end of this
+  // file is what normally releases the slot, and it does not run when an earlier
+  // step fails). Skipping those entries makes the journey re-runnable against a
+  // dirty dev database without weakening a single assertion.
+  const feed = await page.request.get("/api/schedule");
+  expect(feed.ok(), `GET /api/schedule responded ${feed.status()}`).toBe(true);
+  const held = new Set(
+    ((await feed.json()) as { invites: Array<{ entryId: string | null; status: string }> }).invites
+      .filter((i) => i.entryId && i.status !== "declined" && i.status !== "expired")
+      .map((i) => i.entryId as string)
+  );
+  const target = entries.find(
+    (e) => e.status === "active" && ["Screened", "Interview"].includes(e.stage) && !held.has(e.id)
+  );
+  expect(target, "seeded pipeline should contain an active Screened/Interview entry with no live invite").toBeTruthy();
   candidateLabel = target!.candidateLabel;
+  entryId = target!.id;
 
-  // `?q=` pre-filters the board to the one candidate, so the card is never
-  // hidden behind a "+N more" cell overflow.
-  await page.goto(`/?tab=pipeline&q=${encodeURIComponent(candidateLabel)}`);
-  const drawer = page.getByRole("dialog");
-  // The card's per-row actions live in its context menu now (the inline controls
-  // were costing ~134px of a 280px stage column, truncating the candidate name).
-  // The trigger is the row's keyboard/touch door into the same menu right-click
-  // opens; it is opacity-0 until hover, which Playwright still counts as visible.
-  const rowMenu = page.getByRole("button", { name: `Actions for ${candidateLabel}` }).first();
-  await expect(rowMenu).toBeVisible({ timeout: 30_000 });
-  // Same dev-hydration retry as the sibling specs: click until the drawer opens.
-  await expect(async () => {
-    if (!(await drawer.isVisible())) {
-      await rowMenu.click().catch(() => undefined);
-      await page
-        .getByRole("menuitem", { name: "AI actions" })
-        .first()
-        .click({ timeout: 2000 })
-        .catch(() => undefined);
-    }
-    await expect(drawer).toBeVisible({ timeout: 1500 });
-  }).toPass({ timeout: 30_000 });
+  const drawer = await openCandidateDrawer(page, candidateLabel);
 
   // Mint the link through the drawer's real Self-scheduling panel.
   const inviteResponse = page.waitForResponse(
@@ -292,12 +375,29 @@ test("recruiter side reflects the confirmed booking", async ({ page }) => {
   expect(mine!.status).toBe("confirmed");
   expect(mine!.slotAt).toBeTruthy();
 
-  // And the Schedule tab's lifecycle panel shows the candidate on the agenda.
-  await page.goto("/?tab=schedule");
-  const lifecycle = page
-    .locator("section")
-    .filter({ has: page.getByRole("heading", { name: "Interviews & invites" }) });
-  await expect(lifecycle.getByText(candidateLabel).first()).toBeVisible({ timeout: 30_000 });
+  // The booking is not just an invite row: confirming it runs approve_event on
+  // the entry, which records a `scheduled` event carrying the slot and moves the
+  // candidate onto the board's screening gate unless they are already past it
+  // (app/_lib/db/pipeline.ts:2239-2269). Assert that, not the invite twice.
+  const board = await page.request.get("/api/pipeline");
+  expect(board.ok()).toBe(true);
+  const after = ((await board.json()) as { entries: Array<{ id: string; stage: string }> }).entries.find(
+    (e) => e.id === entryId
+  );
+  expect(after, "the booked candidate should still be on the board").toBeTruthy();
+  expect(after!.stage, "a confirmed slot puts the candidate on the interview gate").toBe("Interview");
+
+  // And the recruiter SEES it. This used to assert the Schedule tab's
+  // "Interviews & invites" lifecycle panel — a surface the shipped default
+  // workspace does not render: that panel lives in ScheduleTab's HUMAN-round
+  // branch (ScheduleTab.tsx:137-147), and the default interview plan declares
+  // only an `ai` round (GET /api/decisions/config → interviewPlan: one round,
+  // kind "ai"), so `hasHumanRound` is false and the tab draws the AI docket
+  // instead. The assertion could therefore never pass on a fresh CI database —
+  // it was written against a plan nobody ships. The candidate drawer's history
+  // is the plan-independent recruiter surface for the same fact.
+  const drawer = await openCandidateDrawer(page, candidateLabel);
+  await expect(drawer.getByText(/interview scheduled/i).first()).toBeVisible({ timeout: 30_000 });
 });
 
 test("candidate withdraws — terminal card renders and passes axe, slot is freed", async ({ browser }) => {

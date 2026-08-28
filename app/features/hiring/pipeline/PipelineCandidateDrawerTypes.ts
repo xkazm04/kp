@@ -16,6 +16,7 @@ export type Entry = Pick<
   | "matchScore"
   | "canonicalScore"
   | "scoreProvenance"
+  | "transferScore"
   | "status"
   | "intakeDegraded"
   | "intakeDegradedReason"

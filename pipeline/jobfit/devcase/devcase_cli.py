@@ -465,11 +465,44 @@ def main(argv: list[str] | None = None) -> int:
             # THIS submission's observed decisions — the scores above are hypotheses the
             # live conversation verifies (the artifact alone can be wholly LLM-produced).
             followups, fsrc = _evaluate.mint_followups(reflection, tooling, evaluation, case, role, extras=extras, provider=provider)
-            _emit(
+            # JUDGE INDEPENDENCE (one-thread gap 5) — a CONFIGURATION fact about the
+            # install, stamped onto the evaluation a reviewer will read.
+            #
+            # `devcase_judge` is the seat that grades this pipeline's own output
+            # (llm_judge.py). Until the seat carried its own default it fell back to the
+            # generator's engine and model, so a default install self-graded, and the
+            # only trace was a stderr line inside offline harnesses no recruiter runs.
+            # Recording it here puts it where the evidence is weighed.
+            #
+            # ONLY when an LLM actually generated this evaluation. A keyless/offline run
+            # produced it deterministically, so there is no generating engine for a judge
+            # to be independent OF — and asserting "judge = generator" about a run with
+            # no model in it would be a fabricated warning. Absent means absent.
+            result_payload = {
                 # observedChecks rides in the result so the TS bundle persists the
                 # mechanical verdicts (canaries, prompt signals, baseline distance)
                 # beside the LLM interpretation that consumed them.
-                {"reflection": reflection, "tooling": tooling, "evaluation": evaluation, "transfer": transfer, "followups": followups, "observedChecks": extras or {}},
+                "reflection": reflection,
+                "tooling": tooling,
+                "evaluation": evaluation,
+                "transfer": transfer,
+                "followups": followups,
+                "observedChecks": extras or {},
+            }
+            if provider is not None:
+                from .llm_judge import judge_independence, resolve_judge_provider
+
+                try:
+                    judge_seat = resolve_judge_provider()
+                except Exception:
+                    # A misconfigured judge row (unknown provider, missing capability)
+                    # raises here. It must never fail an evaluation that has already
+                    # been produced — the independence claim is simply unavailable, and
+                    # judge_independence reports False for an absent seat.
+                    judge_seat = None
+                result_payload["judgeIndependence"] = judge_independence(provider, judge_seat)
+            _emit(
+                result_payload,
                 {"reflect": rsrc, "tooling": tsrc, "evaluate": esrc, "transfer": xsrc, "followups": fsrc},
                 # evaluate/transfer now carry a PROPAGATED confidence (min of upstream), so the
                 # decision artifact is flagged alongside the thin steps it was built from — a

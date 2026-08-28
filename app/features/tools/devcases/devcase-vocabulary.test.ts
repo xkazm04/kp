@@ -160,6 +160,121 @@ test("no locale leaves a vocabulary label empty", () => {
 // six the engine actually runs is stated in DevCasesEmptyLedger.tsx and in
 // docs/features/dev-case/README.md; a machine cannot check that one, a reader can.
 
+// ---- 4. the ONE-NAME rule (ship milestone one-thread, gap 7) ----------------
+//
+// The entity behind `dev_cases` had THREE user-facing names at once: the nav tab
+// and the table header said **Assignment**, the lifecycle row and the empty ledger
+// said **case**, and the API, DB and docs said **devcase**. The last of those is
+// fine and stays — a stable identifier is not copy. The first two were the defect:
+// the same object renamed itself as the reader moved one panel down the page.
+//
+// The decision, recorded in docs/features/README.md § "One vocabulary along the
+// thread": **Assignment** is the only word the user ever sees for it. `case`,
+// `dev case` and `devcase` are identifiers now, not vocabulary.
+//
+// Machine-checkable half, pinned here. English is the source of truth (the other
+// three catalogs are translations OF it), so the word ban is asserted on `en` and
+// the cross-locale half is asserted as agreement between the keys that name the
+// entity BARE — which is exactly where the drift was visible: `nav.tabs.assignments`
+// said "Assignments" while `devcase.emptyLedger.statCases` two clicks away said
+// "Cases", in all four languages.
+
+/** The namespaces that describe the assignment to a user. Deliberately a list, not
+ *  "the whole catalog": `models.*` / `activity.*` / `analytics.*` legitimately say
+ *  "use case" about an LLM operation, which is a different noun that happens to
+ *  share a word. */
+const ASSIGNMENT_NAMESPACES = ["devcase", "devApply", "about", "palettePreview", "setup"] as const;
+
+/** Keys allowed to keep the word, each for a stated reason. Empty is the goal;
+ *  an entry here is a debt, not an exemption granted in advance. */
+const CASE_WORD_ALLOWLIST = new Set<string>([]);
+
+const CASE_WORD = /\b(dev[\s-]?cases?|cases?)\b/i;
+
+test("no English copy about the assignment still calls it a case", () => {
+  const en = JSON.parse(read("messages", "en.json")) as Record<string, unknown>;
+  const offenders: string[] = [];
+  const walk = (node: unknown, path: string) => {
+    if (typeof node === "string") {
+      // ICU placeholders are IDENTIFIERS, not copy — `Interview kit: {case}` names
+      // a variable holding the assignment's title and is not the word on screen.
+      const copy = node.replace(/\{[^{}]*\}/g, " ");
+      if (CASE_WORD.test(copy) && !CASE_WORD_ALLOWLIST.has(path)) offenders.push(`${path} :: ${node}`);
+      return;
+    }
+    if (node && typeof node === "object") {
+      for (const [k, v] of Object.entries(node)) walk(v, path ? `${path}.${k}` : k);
+    }
+  };
+  for (const ns of ASSIGNMENT_NAMESPACES) walk(en[ns], ns);
+  assert.deepEqual(
+    offenders,
+    [],
+    "these strings still name the assignment a 'case'. The user-facing word is Assignment; `dev_cases`, " +
+      "/api/devcase and the devcase.* message namespace stay as identifiers. Fix the copy in all four " +
+      "catalogs — do NOT add the key to CASE_WORD_ALLOWLIST to make this pass"
+  );
+});
+
+test("no allowlisted key has quietly stopped being an offender", () => {
+  // The other half of the fail-loud contract: a stale exemption is as much a lie as
+  // a missing one, and an allowlist nobody prunes is how a ban decays into a list.
+  const en = JSON.parse(read("messages", "en.json")) as Record<string, unknown>;
+  for (const key of CASE_WORD_ALLOWLIST) {
+    const value = key.split(".").reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], en);
+    assert.equal(typeof value, "string", `CASE_WORD_ALLOWLIST holds ${key}, which no longer exists — delete it`);
+    assert.ok(
+      CASE_WORD.test((value as string).replace(/\{[^{}]*\}/g, " ")),
+      `CASE_WORD_ALLOWLIST holds ${key}, which no longer says "case" — delete the exemption`
+    );
+  }
+});
+
+test("the sub-tab headings module does not smuggle the old word past the catalogs", () => {
+  // DevTabViews.ts holds the Assignments studio's sub-tab labels and headings as
+  // plain English string literals — the ONE piece of user copy on this surface that
+  // is not in messages/. That is why it kept saying "Cases" / "Active cases" /
+  // "Click a case" while every catalog-backed label already said Assignment: no
+  // locale gate reads it, so nothing could notice. Its lack of localization is a
+  // separate open gap; the WORD is guarded here.
+  const src = read("app", "features", "tools", "devcases", "DevTabViews.ts");
+  // The COPY fields only. `id:` holds route/state keys ("cases" is a DevView id and
+  // must not move), and a comment is allowed to name the word it retired — a guard
+  // that fires on its own rationale teaches the next reader to delete the rationale.
+  const copy = [...src.matchAll(/\b(?:label|title|blurb):\s*(?:"((?:[^"\\]|\\.)*)"|`((?:[^`\\]|\\.)*)`)/g)].map(
+    (m) => m[1] ?? m[2]
+  );
+  assert.ok(copy.length >= 6, "found no copy fields in DevTabViews.ts — the shape changed and this guard is blind");
+  const offenders = copy.filter((s) => CASE_WORD.test(s.replace(/\$\{[^}]*\}/g, " ")));
+  assert.deepEqual(offenders, [], "DevTabViews.ts still calls the assignment a 'case' in user-visible copy");
+});
+
+/** The three places every locale names the entity with nothing else in the string.
+ *  They must agree WITHIN a locale — that is what "one name" means once translated. */
+const BARE_ASSIGNMENT_NAME_KEYS = [
+  "nav.tabs.assignments",
+  "palettePreview.assignments.cases",
+  "devcase.emptyLedger.statCases",
+] as const;
+
+test("every locale uses ONE word for the assignment wherever it names it bare", () => {
+  for (const locale of LOCALES) {
+    const cat = JSON.parse(read("messages", `${locale}.json`)) as Record<string, unknown>;
+    const values = BARE_ASSIGNMENT_NAME_KEYS.map((key) => {
+      const v = key.split(".").reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], cat);
+      assert.equal(typeof v, "string", `messages/${locale}.json is missing ${key}`);
+      return v as string;
+    });
+    const distinct = [...new Set(values.map((v) => v.trim().toLowerCase()))];
+    assert.equal(
+      distinct.length,
+      1,
+      `messages/${locale}.json names the assignment ${distinct.length} different ways — ` +
+        BARE_ASSIGNMENT_NAME_KEYS.map((k, i) => `${k}="${values[i]}"`).join(", ")
+    );
+  }
+});
+
 test("every locale markets exactly the six controls, name and claim both present", () => {
   assert.equal(LEDGER_CONTROL_IDS.length, 6, "the module ships six anti-delegation controls");
   for (const locale of LOCALES) {

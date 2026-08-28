@@ -7,8 +7,10 @@
 import { ChevronLeft, ChevronRight, History, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
+import { StatusChip } from "@/app/_components/StatusChip";
+import { pipelineStageTone } from "@/app/_lib/status-tone";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
+import { displayScoreOf } from "@/app/_lib/match-score";
 import { initials } from "@/app/_lib/initials";
 import { styleFor } from "@/app/features/shared/pipelineTypes";
 // The drawer's narrow Pick of the board record — the header only ever renders the
@@ -50,6 +52,7 @@ export function PipelineDrawerHeader({
   const enumLabel = useEnumLabel();
   const locale = useLocale();
   const provenanceText = useScoreProvenanceText();
+  const display = displayScoreOf(entry);
   const a = styleFor(entry.archetype);
   const monogram = initials(entry.candidateLabel);
 
@@ -59,7 +62,13 @@ export function PipelineDrawerHeader({
       <div className="min-w-0 flex-1">
         <p id="drawer-title" className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>
         <p className="truncate text-sm text-steel">
-          {enumLabel("archetype", entry.archetype)} · {entry.jobTitle} · <span className="text-ink">{enumLabel("stage", entry.stage)}</span>
+          {enumLabel("archetype", entry.archetype)} · {entry.jobTitle} ·{" "}
+          {/* ONE THREAD (gap 8) — the board stage was the one status on the thread
+              that was not a chip at all: bold ink text in a breadcrumb, so a
+              candidate sitting at Offer read the same as one sitting at Accepted.
+              It is now the shared chip, toned by the stage's ROLE (never its name),
+              which is what keeps it correct once a workspace renames its columns. */}
+          <StatusChip tone={pipelineStageTone(entry.stage)} label={enumLabel("stage", entry.stage)} />
           {/* d95fed6d — provenance: which surface/channel filed this person.
               variant-reaches-the-drawer — append the campaign then the creative
               variant when the entry carries them, so campaign attribution ("via
@@ -92,12 +101,17 @@ export function PipelineDrawerHeader({
           and the decisions queue show, with its provenance named — so this
           header can no longer contradict the "CV analysis saved — score N"
           item in the timeline below without saying why. */}
-      {canonicalScoreOf(entry) != null ? (
-        <span className="rounded-md bg-white px-2 py-1 text-center" title={provenanceText(provenanceOf(entry)) ?? undefined}>
-          <span className="block font-serif text-lg leading-none text-ink">{canonicalScoreOf(entry)}</span>
-          <span className="block text-sm uppercase text-steel">{t("match")}</span>
+      {/* ONE THREAD (gap 2): the caption under the number is the SCORE KIND, so a
+          work-sample transfer score — which this header used to print under the
+          word "match", because promote had written it into match_score — names
+          itself. displayScoreOf prefers the match score; the transfer score only
+          fills the slot for a candidate no match run has scored yet. */}
+      {display ? (
+        <span className="rounded-md bg-white px-2 py-1 text-center" title={provenanceText(display.provenance) ?? undefined}>
+          <span className="block font-serif text-lg leading-none text-ink">{display.score}</span>
+          <span className="block text-sm uppercase text-steel">{display.kind === "transfer" ? t("transfer") : t("match")}</span>
           <span className="block max-w-[7rem] text-meta normal-case leading-tight text-steel">
-            {provenanceText(provenanceOf(entry))}
+            {provenanceText(display.provenance)}
           </span>
         </span>
       ) : null}

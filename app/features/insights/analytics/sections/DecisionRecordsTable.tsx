@@ -19,7 +19,7 @@ import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
-import { kindLabel } from "@/app/_lib/decision-attribution";
+import { kindLabel, parseEventActor } from "@/app/_lib/decision-attribution";
 import { ColumnFilter } from "@/app/_components/table/ColumnFilter";
 import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { clampPage, pageSlice, TablePager } from "@/app/_components/table/TablePager";
@@ -237,7 +237,30 @@ export function DecisionRecordsTable({
                         <span className="sr-only">{t("rationaleToggle")}</span>
                       </button>
                     </td>
-                    <td className="whitespace-nowrap py-2 pr-3 font-mono text-sm text-steel">{r.actor}</td>
+                    {/* G5 — the actor column printed the raw token, so a record
+                        sealed by a PERSON and one sealed by a role nobody can name
+                        rendered as two equally-authoritative strings. The chain is
+                        history and is never rewritten, so the honest move is to
+                        read the existing rows correctly rather than to edit them:
+                        parseEventActor already separates "human:Petra Nováková"
+                        from "human:recruiter", and only the second gets the mark.
+                        New bulk rejections can no longer be sealed this way at all
+                        (screen-wave.ts refuses an unnamed approver) — this is what
+                        the records that predate that refusal look like. */}
+                    <td className="whitespace-nowrap py-2 pr-3 font-mono text-sm text-steel">
+                      {r.actor}
+                      {(() => {
+                        const who = parseEventActor(r.actor);
+                        return who.kind === "human" && who.name === null ? (
+                          <span
+                            className="ml-1.5 rounded border border-amber-300 bg-amber-50 px-1 py-0.5 font-sans text-meta uppercase text-amber-800"
+                            title={t("actorRoleOnlyTitle")}
+                          >
+                            {t("actorRoleOnly")}
+                          </span>
+                        ) : null;
+                      })()}
+                    </td>
                     <td className="whitespace-nowrap py-2 pr-3 text-sm text-steel nums" title={r.createdAt}>
                       {formatAuditTime(r.createdAt, locale, zone) || "—"}
                     </td>

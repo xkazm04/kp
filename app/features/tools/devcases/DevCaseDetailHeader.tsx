@@ -4,6 +4,7 @@
 // actions, and the confirm-before-publish dialog — split out of DevCaseDetail.tsx.
 import { AlertTriangle, ArrowLeft, FileWarning, MicVocal, Send, Users } from "lucide-react";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
+import { DevCaseJobLink } from "./DevCaseJobLink";
 import type { DevCaseDetail } from "./DevTypes";
 
 export function DevCaseDetailHeader({
@@ -56,9 +57,19 @@ export function DevCaseDetailHeader({
           onClick={onBack}
           className="focus-ring inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-semibold text-steel hover:bg-paper hover:text-ink"
         >
-          <ArrowLeft size={14} /> All cases
+          {/* ONE WORD PER ENTITY. This read "All cases" — the last user-facing
+              "case" left on the thread, and the one none of the three vocabulary
+              guards could see: it is a raw JSX literal, so the catalog walk
+              (devcase-vocabulary.test.ts:194-217) never visits it, and it is not
+              in DevTabViews.ts, so the source-level guard (:233-250) misses it
+              too. A reader who opened an Assignment was told to go back to
+              "cases". */}
+          <ArrowLeft size={14} /> All assignments
         </button>
         <span className="text-micro text-steel">created {rel(kase.createdAt) || "—"}</span>
+        {/* ONE THREAD — the role this assignment was cut for, or an honest note that the
+            JD it came from was never sourced into one. */}
+        <DevCaseJobLink jobId={kase.jobId} jobTitle={kase.jobTitle} jdSlug={kase.jdSlug} />
         {hasScenario ? (
           scenarioDegraded ? (
             <span

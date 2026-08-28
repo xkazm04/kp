@@ -17,9 +17,9 @@ import { buildScorecardNotes, coverageFromNotes, transcriptToNotes } from "./int
 import { GROUNDED_DEFAULT_MIN, QUICK_SCREEN_MIN } from "./interview-duration.mjs";
 import { isEarlyCareer } from "./archetypes";
 import { isLocale, type Locale } from "@/i18n/locales";
+import { devCaseIdForEntry } from "./devcase-identity";
 import {
   caseGroundedInterviewerInstructions,
-  devCaseIdFromJobId,
   PERSONA_CRAFT_RULES,
   PERSONA_GENDER_GRAMMAR,
   PERSONA_LANGUAGE_DETECT,
@@ -29,7 +29,6 @@ import {
   STUDENT_SCRIPT_MIN,
   studentInterviewerInstructions,
   studentRunOfShow,
-  submissionIdFromCandidateId,
   type CaseInterviewScenario,
 } from "./student-interview";
 import { extractTelemetry } from "./interview-telemetry";
@@ -314,7 +313,7 @@ export async function buildGroundedInterview(entryId: string, workspaceId?: stri
       jobId: entry.jobId ?? null,
       jobTitle: entry.jobTitle ?? null,
     };
-    const caseId = devCaseIdFromJobId(entry.jobId);
+    const caseId = devCaseIdForEntry(entry);
     const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
     if (scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0) {
       return {
@@ -440,7 +439,7 @@ export function buildCandidateSafeBrief(entryId: string): string | null {
   }
 
   if (isEarlyCareer(entry.archetype)) {
-    const caseId = devCaseIdFromJobId(entry.jobId);
+    const caseId = devCaseIdForEntry(entry);
     const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
     const phases = scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0 ? scenario.phases : STUDENT_SCRIPT;
     const blocks = phases.map(sanitizeScenarioPhase).filter((b): b is CandidateSafeBlock => b !== null);
@@ -542,7 +541,7 @@ export async function runInterviewScorecard(
     const entry = getPipelineEntry(entryId, workspaceId);
     let hintText: string | null = null;
     if (entry && isEarlyCareer(entry.archetype)) {
-      const caseId = devCaseIdFromJobId(entry.jobId);
+      const caseId = devCaseIdForEntry(entry);
       const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
       const phases = scenario?.phases?.length ? scenario.phases : STUDENT_SCRIPT;
       hintText = phases.find((p) => p.caseGrounded && (p.feeds ?? []).includes("Coachability"))?.probe ?? null;
@@ -561,8 +560,11 @@ export async function runInterviewScorecard(
   if (coverage) (result as Record<string, unknown>).coverage = coverage;
   // Case-grounded interviews can mint observed evidence (step 4 of the case-first
   // design): when the conversation worked the role's shared case AND cleared the
-  // honest gates, the candidate's profile gains observed-provenance skills — their
-  // next match credits them at full trust and the early-career band narrows.
+  // honest gates, the candidate's profile gains observed-provenance skills and their
+  // next match credits them at full trust. For ANY archetype: `observed` is a
+  // provenance weight, not an early-career lever (ONE THREAD gap 3 — the
+  // `isEarlyCareer` gate that used to sit inside the mint is gone; the one genuinely
+  // early-career effect, the routing-confidence lift, self-gates in Python).
   // Best-effort enrichment, never a gate on the scorecard itself.
   try {
     const { mintObservedFromCaseInterview } = await import("./devcase-run");

@@ -17,14 +17,47 @@ These tests lock the fix (tiger finding devcase#1):
 
 import contextlib
 import io
+import json
+import os
+import tempfile
 import unittest
+from contextlib import contextmanager
+from pathlib import Path
+from unittest import mock
 
-from pipeline.jobfit.devcase import lifecycle_audits
+from pipeline.jobfit.devcase import devcase_cli, lifecycle_audits
 from pipeline.jobfit.devcase.llm_judge import (
     judge_independence,
     provider_identity,
     resolve_judge_provider,
 )
+from pipeline.jobfit.llm import resolve_provider
+from pipeline.jobfit.llm.capabilities import JUDGE_CLI_MODEL, default_model
+from pipeline.jobfit.llm.config import ENV_VAR
+
+
+# The generator seat this file compares the judge against. Held as a CONSTANT rather
+# than written inline: ``test_byom_coverage._literal_routed_use_cases`` regex-scans every
+# ``pipeline/**/*.py`` — tests included, unlike its AST twin — for
+# ``resolve_provider("<literal>")``, and its non-vacuity anchors assert that
+# ``devcase_evaluate`` reaches the inventory ONLY through devcase_cli's per-command map.
+# A literal here would break that anchor from a file that is not a call site.
+EVALUATE_SEAT = "devcase_evaluate"
+
+
+@contextmanager
+def llm_config(value):
+    """Set (or clear, with None) KP_LLM_CONFIG for the duration of the block.
+
+    Mirrors test_llm_registry.llm_config — the config is re-read from os.environ on every
+    resolve (``config.load_config`` is not cached), so this is the whole stub surface.
+    """
+    payload = json.dumps(value) if isinstance(value, (dict, list)) else value
+    with mock.patch.dict(os.environ, {}, clear=False):
+        os.environ.pop(ENV_VAR, None)
+        if payload is not None:
+            os.environ[ENV_VAR] = payload
+        yield
 
 
 class _FakeProvider:
@@ -179,6 +212,150 @@ class TestStrictRefusesASelfGradedGate(unittest.TestCase):
             code = self.mod.main(["--count", "4", "--strict"])
         self.assertEqual(code, 0)
         self.assertNotIn("judge is not independent", err.getvalue())
+
+
+class _FailingProvider:
+    """Available, carries an identity, and fails every call — so a devcase_cli run reaches
+    the emit with ``provider is not None`` while every step falls back deterministically."""
+
+    def __init__(self, model=None):
+        self.model = model
+
+    def available(self):
+        return True
+
+    def complete_json(self, prompt, system=None):
+        raise RuntimeError("no LLM in tests")
+
+
+class TestJudgeSeatIsIndependentByDefault(unittest.TestCase):
+    """Gap 5 — the DEFAULT install must not self-grade.
+
+    Routing the judge through its own use case (above) made the seat PINNABLE; it did not
+    make it different. With no config both seats resolved to the same engine on the same
+    ``model=None``, so ``judge_independence`` reported False on every out-of-the-box
+    install and the product marked its own homework. The seat now carries its own default.
+    """
+
+    def test_the_cli_judge_seat_carries_its_own_default_model(self):
+        with llm_config(None):
+            judge = resolve_judge_provider()
+            generator = resolve_provider(EVALUATE_SEAT, timeout=120)
+        self.assertEqual(judge.model, JUDGE_CLI_MODEL)
+        # NON-VACUITY: the generator is unchanged — still the CLI's OWN configured
+        # default. If this ever became "haiku" too the seats would collide again and the
+        # assertion below would be measuring nothing.
+        self.assertIsNone(generator.model)
+        self.assertTrue(judge_independence(generator, judge)["independent"])
+
+    def test_no_other_cli_seat_gained_a_pinned_model(self):
+        # The registry change (default_model now consulted on the CLI branch) must be
+        # inert everywhere else: DEFAULT_MODELS["claude_cli"] is None, so every seat
+        # without an explicit override still rides the CLI's configured default.
+        with llm_config(None):
+            for use_case in (EVALUATE_SEAT, "devcase_case_design", "devcase_reflect", "match_reasoning", "automation"):
+                self.assertIsNone(resolve_provider(use_case, timeout=120).model, use_case)
+
+    def test_a_provider_only_wildcard_row_does_not_collapse_the_seats(self):
+        # {"*": {"provider": "claude_cli"}} routes everything to one engine without naming
+        # a model. The per-seat default still applies, so the judge stays distinct — a
+        # wildcard row is not a way to accidentally re-enable self-grading.
+        with llm_config({"useCases": {"*": {"provider": "claude_cli"}}}):
+            judge = resolve_judge_provider()
+            generator = resolve_provider(EVALUATE_SEAT, timeout=120)
+        self.assertEqual(judge.model, JUDGE_CLI_MODEL)
+        self.assertTrue(judge_independence(generator, judge)["independent"])
+
+    def test_the_anthropic_judge_seat_differs_from_the_evaluate_seat(self):
+        # The same collision one level down: devcase_evaluate has no anthropic override,
+        # so both seats landed on DEFAULT_MODELS' claude-haiku-4-5. The judge takes the
+        # cheapest model in the catalogue that is DISTINCT from it.
+        self.assertNotEqual(
+            default_model("devcase_judge", "anthropic"),
+            default_model(EVALUATE_SEAT, "anthropic"),
+        )
+
+    def test_an_operator_pinning_the_same_model_is_still_reported_as_self_grading(self):
+        # The fix is a DEFAULT, not a guarantee. An operator is free to point both seats
+        # at one model — and when they do, the flag says so rather than the gate quietly
+        # certifying itself.
+        cfg = {
+            "useCases": {
+                EVALUATE_SEAT: {"provider": "claude_cli", "model": "opus"},
+                "devcase_judge": {"provider": "claude_cli", "model": "opus"},
+            }
+        }
+        with llm_config(cfg):
+            generator = resolve_provider(EVALUATE_SEAT, timeout=120)
+            judge = resolve_judge_provider()
+        independence = judge_independence(generator, judge)
+        self.assertFalse(independence["independent"])
+        self.assertEqual(independence["judge"], independence["generator"])
+        self.assertEqual(independence["judge"], "claude_cli/opus")
+
+
+class TestEvaluationRecordsTheJudgeSeat(unittest.TestCase):
+    """The flag lands on the bundle a REVIEWER reads.
+
+    Before this, the only trace of a self-grading gate was a stderr line inside offline
+    harnesses (calibrate / lifecycle_eval / submission_eval) that no recruiter runs.
+    ``evaluate-submission`` now stamps the two seat identities onto the evaluation itself,
+    which is what lets DevEvalPanelIntegrity say "Judge = generator" where the evidence is
+    actually being weighed.
+    """
+
+    def _evaluate(self, argv_extra, provider=None):
+        with tempfile.TemporaryDirectory() as d:
+            commits = Path(d) / "commits.json"
+            commits.write_text(json.dumps([{"message": "wip"}]), encoding="utf-8")
+            case = Path(d) / "case.json"
+            case.write_text("{}", encoding="utf-8")
+            role = Path(d) / "role.json"
+            role.write_text(json.dumps({"title": "Backend", "seniority": "medior"}), encoding="utf-8")
+            argv = [
+                "evaluate-submission",
+                "--commits-json", str(commits),
+                "--case-json", str(case),
+                "--role-json", str(role),
+                *argv_extra,
+            ]
+            out, err = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                if provider is None:
+                    code = devcase_cli.main(argv)
+                else:
+                    with mock.patch.object(devcase_cli, "resolve_provider", return_value=provider):
+                        code = devcase_cli.main(argv)
+        lines = [ln for ln in out.getvalue().splitlines() if ln.strip()]
+        return code, json.loads(lines[-1])
+
+    def test_an_llm_backed_evaluation_records_both_seat_identities(self):
+        with llm_config(None):
+            code, payload = self._evaluate([], provider=_FailingProvider())
+        self.assertEqual(code, 0)
+        independence = payload["result"]["judgeIndependence"]
+        self.assertEqual(independence["generator"], "claude_cli/default")
+        self.assertEqual(independence["judge"], "claude_cli/" + JUDGE_CLI_MODEL)
+        self.assertTrue(independence["independent"])
+
+    def test_a_self_grading_install_records_false(self):
+        cfg = {"useCases": {"devcase_judge": {"provider": "claude_cli", "model": "opus"}}}
+        with llm_config(cfg):
+            code, payload = self._evaluate([], provider=_FailingProvider(model="opus"))
+        self.assertEqual(code, 0)
+        independence = payload["result"]["judgeIndependence"]
+        self.assertFalse(independence["independent"])
+        self.assertEqual(independence["generator"], "claude_cli/opus")
+        self.assertEqual(independence["judge"], "claude_cli/opus")
+
+    def test_a_keyless_deterministic_evaluation_claims_nothing(self):
+        # --no-llm produced this bundle with no model at all, so there is no generating
+        # engine for a judge to be independent OF. The key is ABSENT, not False: a
+        # fabricated "judge = generator" warning on a run containing no model would be
+        # exactly the confident wrong answer this field exists to prevent.
+        code, payload = self._evaluate(["--no-llm"])
+        self.assertEqual(code, 0)
+        self.assertNotIn("judgeIndependence", payload["result"])
 
 
 if __name__ == "__main__":

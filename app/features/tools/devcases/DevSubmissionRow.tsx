@@ -1,12 +1,16 @@
 "use client";
 
 import { AlertTriangle, GitBranch, Loader2, Mail, MessageSquare, RotateCcw, Sparkles, UserSearch } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { GithubAnalysisPanel } from "@/app/_components/GithubAnalysisPanel";
+import { StatusChip } from "@/app/_components/StatusChip";
+import { submissionStatusTone } from "@/app/_lib/status-tone";
 import { scoreTone, type ScoreTone } from "@/app/_lib/format";
 import { EvalPanel } from "./DevEvalPanel";
 import { useDevSubmissionRow } from "./useDevSubmissionRow";
 import { DevSubmissionRowOutcome } from "./DevSubmissionRowOutcome";
 import { DevSubmissionRowSkillProfile } from "./DevSubmissionRowSkillProfile";
+import { DevVoiceScreenPanel } from "./DevVoiceScreenPanel";
 import type { Submission } from "./DevTypes";
 
 // The transfer-fit chip on the canonical score scale — scoreTone owns the 75/50
@@ -40,6 +44,9 @@ export function SubmissionRow({
    *  the row sits in the case-wide cross-channel shortlist (omitted per-posting). */
   channel?: string;
 }) {
+  // Producer-owned vocabulary (the DB writes the value), so the has-guard stays:
+  // a status this catalog has not learned yet renders raw rather than throwing.
+  const tStatus = useTranslations("devcase.submissionStatus");
   const {
     owner,
     ghOpen, gh, toggleAuthorGithub, assessAuthor,
@@ -75,6 +82,19 @@ export function SubmissionRow({
             <span className="shrink-0 rounded-full bg-paper px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-steel">
               {channel}
             </span>
+          ) : null}
+          {/* ONE THREAD (gap 8) — `dev_submissions.status` was the one axis on the
+              thread that had no surface at all: the row showed a rank, a channel and
+              a fit score, and whether the work had actually been EVALUATED yet was
+              inferable only from the presence of that score. Now it is the same chip
+              the four other axes use, so "still being evaluated" reads as work in
+              flight rather than as a missing number. */}
+          {submission.status ? (
+            <StatusChip
+              tone={submissionStatusTone(submission.status)}
+              label={tStatus.has(submission.status as "received") ? tStatus(submission.status as "received") : submission.status}
+              className="shrink-0 uppercase"
+            />
           ) : null}
           <GitBranch size={12} className="shrink-0 text-steel" />
           {/* Identity, promoted to text-body so who this is outranks the utilities. */}
@@ -178,6 +198,11 @@ export function SubmissionRow({
         </div>
       ) : null}
       {ev ? <EvalPanel ev={ev} onPromote={promote} promoted={isPromoted} promoting={promoting} /> : null}
+      {/* ONE THREAD (gap 4) — the voice screen that verifies this evaluation, reachable
+          from the evaluation. Gated on `ev` for the same reason /api/interview/create
+          is: the screen's brief is built from the evaluation's own minted follow-ups,
+          so there is nothing grounded to ask before one exists. */}
+      {ev ? <DevVoiceScreenPanel submissionId={submission.id} /> : null}
       {ev ? <DevSubmissionRowSkillProfile dsp={dsp} onIssue={issueProfile} /> : null}
       {isPromoted ? (
         <DevSubmissionRowOutcome

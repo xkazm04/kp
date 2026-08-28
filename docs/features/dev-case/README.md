@@ -12,6 +12,31 @@ The system also runs six "LLM-era controls" so an unverifiable, fully-AI-authore
 submission cannot be waved through as a strong hire — see [Anti-delegation
 controls](#anti-delegation-controls-shipped) below. All six are shipped.
 
+## Naming — read this before writing any copy here
+
+**The user word is *Assignment*. `case` / `dev case` / `devcase` are identifiers.**
+This doc, the table `dev_cases`, the route `/api/devcase`, the message namespace
+`devcase.*`, the Python package `pipeline/jobfit/devcase/` and every test id keep
+the name they have — renaming them costs a migration and buys nothing a reader can
+see. Every string a recruiter or candidate reads says Assignment.
+
+That split used to be an accident rather than a decision, and it showed: the nav tab
+and the table header said Assignment while the lifecycle row, the close dialog, the
+empty ledger, the candidate's work surface and the sub-tab headings still said
+"case". It is enforced now — `devcase-vocabulary.test.ts` § "the ONE-NAME rule" bans
+the word from the `devcase` / `devApply` / `about` / `palettePreview` / `setup`
+namespaces in `en`, checks its (empty) allowlist for staleness in both directions,
+asserts the three places each locale names the entity bare agree inside that locale,
+and source-guards `DevTabViews.ts`, whose labels are the one piece of copy on this
+surface that lives outside the four catalogs (and are still English-only — a separate
+open gap).
+
+Status chips on this surface — the lifecycle stage, the voice-screen status, the
+submission status — resolve their TONE through `app/_lib/status-tone.ts` and render
+through the shared `StatusChip`. Each keeps its own labels; none keeps its own
+palette. The full mapping table and the five reading states are in
+[../README.md](../README.md) § "One vocabulary along the thread".
+
 ## Entry points
 
 - Recruiter workspace — the **Assignments** tab (`?tab=assignments`; renamed from
@@ -122,8 +147,9 @@ controls](#anti-delegation-controls-shipped) below. All six are shipped.
    `pending`, plus an optional 1..5 `performance` rating); `calibrate()` turns those
    rows into the promote-floor rationale the control room reads
    (`GET|POST /api/devcase/outcomes`, `app/control/CalibrationPanel.tsx`), and
-   `recordPipelineOutcome` auto-writes a row when a promoted `ds-<submissionId>`
-   entry reaches a terminal stage.
+   `recordPipelineOutcome` auto-writes a row when a promoted entry reaches a terminal
+   stage — keyed by the entry's `dev_submission_id`, or by the legacy
+   `ds-<submissionId>` candidate id for entries written before that column.
 
    The five rationales split on whether a band **actually converted**. The `85`
    no-converging-band fallback (no band reached a 50 % hire rate) is *advice*, not a
@@ -144,9 +170,9 @@ controls](#anti-delegation-controls-shipped) below. All six are shipped.
    vocabulary, same tenant scoping, and no schema change: `dev_outcomes` already
    carried every column. The calibration corpus `/control` reads therefore now also
    accrues ordinary board hires whose rating a human entered. A board hire is keyed
-   `pe:<entryId>`; a devcase-promoted hire keeps its bare submission id, so the
-   recruiter's rating **updates** the auto-written row rather than minting a second
-   decided outcome that `calibrate()` would count twice.
+   `pe:<entryId>`; a devcase-promoted hire keeps its bare submission id (resolved
+   the same two ways), so the recruiter's rating **updates** the auto-written row
+   rather than minting a second decided outcome that `calibrate()` would count twice.
 
 ## Anti-delegation controls (shipped)
 
@@ -519,8 +545,261 @@ and published.
 
 ## Data model
 
-- `dev_cases` (case scenario, `baseline_json`) — SQLite, via `app/_lib/db/devcase.ts`
+- `dev_cases` (case scenario, `baseline_json`, `job_id`) — SQLite, via `app/_lib/db/devcase.ts`
 - `devcase_submissions`, `devcase_lifecycle` — orchestration state
+
+### An assignment is linked to its job (`dev_cases.job_id`)
+
+The recruiter picks a saved JD when defining the need (`DevNeedForm.tsx`). That pick is
+persisted twice: inside `need_json.jdSlug` (where it has always been) and, since the
+one-thread milestone, as a real column — `dev_cases.job_id`, holding the `jd-<slug>` id
+of the JD's ingested job (`jdJobId`, `app/_lib/jd-limits.ts`).
+
+- **Resolved once, at write.** `saveDevCase` calls `resolveCaseJobId`
+  (`app/_lib/db/devcase.ts`), so both write paths — the lifecycle's approve transition
+  and the manual `POST /api/devcase` — get the same link without either remembering to.
+- **Verified, not assumed.** JD → Job ingest is best-effort (a save can answer
+  `jobIngested: false`, see [the jobs doc](../jobs/README.md)), so `resolveCaseJobId`
+  checks the `jobs` row EXISTS and stores NULL when it does not. A case can therefore
+  know its JD (`jdSlug`) while having no job to link to — a real state, which the case
+  detail header states out loud rather than rendering as "unlinked".
+- **Read back joined.** Every dev-case read (`getDevCase`, `listDevCases`,
+  `listDevCasesForJob`) LEFT JOINs `jobs` for the title, so `DevCaseRecord` carries
+  `jobId` / `jobTitle` / `jdSlug` and no caller re-fetches the job.
+- **Backfilled.** Cases written before the column existed are relinked on boot from
+  `need_json.jdSlug` — again only where the job row is real (`app/_lib/db/core.ts`).
+- `dev_postings` deliberately has NO copy of the column: a posting is a child of one
+  case (`case_id`) and every consumer already resolves the case from it, so a second
+  column would only give the link a way to drift.
+
+Consumers: `GET /api/jobs/[id]/assignments` (workspace-scoped, an identity-only
+projection) feeds the job modal's lifecycle strip; the case detail header renders the
+job as a chip that deep-links `?tab=jobs&job=<id>`.
+
+### The promoted candidate is one person on one job (`pipeline_entries.dev_case_id`)
+
+The schema link above is only half of "one thread"; the other half is what the board
+does with it. `promoteSubmission` and the case-sourcing seed (`app/_lib/devcase-run.ts`)
+used to **mint** the identities they wrote instead of joining them —
+`jobId: "dc-<caseId>"`, `candidateId: "ds-<submissionId>"`, `archetype: "bau"`,
+`roleFamily: "software_engineering"`. An id carrying a second meaning cannot also be a
+real reference, so:
+
+- a candidate who applied to the JD's opening and then did the assignment sat on the
+  board **twice**, under two job ids nothing related;
+- Matrix and Match could not rank the assignment half at all — there is no `profiles`
+  row behind a `ds-` id — and neither could the automation pass's scoring sweep;
+- every dev-case candidate was labelled an experienced professional, which (being
+  outside the fairness-protected set) removed their shield from automated rejection.
+
+What replaced each of them:
+
+| Field | Now | Fallback, and when |
+| --- | --- | --- |
+| `job_id` | the assignment's linked job (`dev_cases.job_id`) | `dc-<caseId>` when the case has none — a JD that was never ingested. The board groups by job, so an entry needs one |
+| `candidate_id` | a real `profiles` row | a **minimal profile minted at promote**, when this team has never seen the person |
+| `archetype` | the resolved person's own | `unknown` on a minted profile — the fail-closed sentinel (`FALLBACK_ARCHETYPE`, `app/_lib/apply.ts`), never `bau` |
+| `role_family` | the linked job's | then `need_json.roleFamily`, then the documented `software_engineering` literal |
+| `stage` | `DEVCASE_PROMOTE_STAGE` | a named constant, still deliberately name-coupled — see [the pipeline doc](../pipeline/README.md) |
+
+**Candidate resolution is ordered strongest-evidence-first, and every step is
+unique-or-skip** (`resolvePromotedCandidate`): the `candidate_ref` as a profile id →
+the **email** this team already files someone under (`candidateIdByContact`, the join
+that makes the JD applicant and the assignment candidate one row) → a unique
+case-insensitive label match → otherwise mint. **Ambiguity mints rather than resolves.**
+That is the safer half of the trade: a wrong resolution writes an assignment's evidence
+permanently onto a stranger's record, while a duplicate stub is visible, inert and
+mergeable by a human. Which path was taken is written onto the automation trail
+(`screening_hold` detail: `job … (the assignment's linked JD | no linked JD — synthetic);
+candidate … (profile-id | contact | label | minted)`) — the entry itself shows only the
+outcome.
+
+**Landing on an entry that already exists is the good case.** When the (candidate, job)
+pair already has a row, `createPipelineEntry` returns it and the promote **backfills**
+`dev_case_id` / `dev_submission_id` onto it — fill-only, so a second promote can never
+re-point an entry at different material. It deliberately leaves that entry's **stage**
+alone: a candidate already moved to Interview is not dragged back by a work sample
+arriving late; the `screening_review` card carries the verdict either way.
+
+**Legacy entries keep working, permanently.** `devCaseIdForEntry` /
+`submissionIdForEntry` (`app/_lib/devcase-identity.ts`) read the column first and fall
+back to parsing the `dc-`/`ds-` prefix. That fallback is not a migration window: those
+rows are real hiring history and nothing can know which profile a `ds-` id was meant to
+be, so inventing one retroactively would be exactly the fabrication this replaced. Every
+consumer goes through those two functions — the case-grounded interview brief, its
+candidate-safe projection, `plannedInterviewMinutes`, the observed-skill mint — and
+`dev-outcomes.ts` applies the same order inline (that store stays db-free by design).
+Pinned in `app/_lib/devcase-promote-identity.test.ts`, `devcase-identity.test.ts` and
+`app/_lib/db/pipeline-devcase-link.test.ts`.
+
+### The transfer score is not a match score
+
+Promote used to write the work-sample **transfer score** straight into
+`pipeline_entries.match_score` — `score = sub.transferScore ?? Number(transfer.transferScore ?? 0)` —
+and the board rendered it through `canonicalScoreOf` with provenance `snapshot`, i.e.
+as a plain "match". Two different questions shared one number: *how well do the skills
+this person demonstrated on the assignment carry to the role* and *how well does their
+profile fit the opening*. The `?? 0` made it worse — a submission whose evaluation
+carried no transfer score arrived on the board with a genuine-looking `0`, the exact
+fabrication `app/_lib/match-score.ts`'s null-score policy exists to ban, and the number
+a `score < threshold` auto-reject gate acts on.
+
+Now:
+
+- **`match_score` means match again.** Promote writes `matchScore: null`. The entry is
+  honestly unscored for match — and no longer stuck there, because the same milestone
+  gave the candidate a real `profiles` row, so `automation-pass.ts::scoreUnscoredEntries`
+  picks them up and computes a real match score (its `ds-` carve-out used to skip them
+  forever).
+- **The transfer score is not copied anywhere.** It stays on
+  `dev_submissions.transfer_score`, where the evaluation writes it. A copy on the entry
+  would be a second producer of one number, drifting from the submission the moment it
+  is re-evaluated — the same defect one layer down. The entry reaches it through
+  `dev_submission_id` (and, for legacy rows, the `ds-` prefix), resolved by
+  `app/_lib/pipeline-transfer-score.ts` and stamped onto the `/api/pipeline` payload as
+  its own `transferScore` field.
+- **Shown, never ranked.** `displayScoreOf` (`match-score.ts`) is the read for a surface
+  showing one number per candidate: match score first, transfer score second, tagged
+  with its `kind` either way. `canonicalScoreOf` / `provenanceOf` stay match-only, and
+  every ranking, banding and threshold read in the app goes through them — board sort
+  and score bands, decisions peer rank, screen-wave. So Matrix and Match never rank a
+  candidate on a transfer score.
+- **The board says which kind it is.** The drawer header's caption under the number is
+  the score kind; the card wears a `transfer` marker beside the badge (a bare badge means
+  match); the board legend (`PipelineShared.tsx`) states the vocabulary once, including
+  that the drawer scorecard's 1..5 rubric is a third kind.
+
+Pinned in `app/_lib/pipeline-transfer-score.test.ts`.
+
+Observed skills follow the same identity: `mintObservedFromSubmission` credits the
+profile the promoted **entry** names when the caller passes one, falling back to the
+by-ref lookup. Without that the two halves disagreed exactly where it matters — a freshly
+minted candidate's profile id is not their `candidate_ref`, so the deepest evidence the
+product produces was credited to nobody.
+
+### The judge is independent by default
+
+The dev-case gates are graded by an LLM: `lifecycle_audits.judge` (1–5 per artifact),
+`role_fit_verdicts`, and the `--strict` certifications in `calibrate.py`,
+`lifecycle_eval.py` and `submission_eval.py`. `llm_judge.py` routes all of them through
+the **`devcase_judge`** seat so an operator can pin a different model for it — but
+routing is not independence, and until now nothing was pinned: with no `KP_LLM_CONFIG`
+both the generator and the judge resolved to `claude_cli` with `model=None`, i.e. the
+same engine on the same default. **Every default install self-graded.** The only trace
+was a stderr line inside offline harnesses no recruiter runs.
+
+**The seat now carries its own default.** `USE_CASE_MODEL_OVERRIDES`
+(`pipeline/jobfit/llm/capabilities.py`) pins `("devcase_judge", "claude_cli")` to
+`JUDGE_CLI_MODEL` (`claude-haiku-4-5` — the versioned id, not the `haiku` alias, because
+`test_llm_base.PriceTest` requires every routed default to resolve a price and prices are
+keyed by version). `resolve_provider`'s CLI branch was the one path that never consulted
+`default_model`; it does now, which is what lets a per-seat default reach this product's
+own local default engine. The change is inert for every other seat —
+`DEFAULT_MODELS["claude_cli"]` is `None`, so an unoverridden use case still gets the
+CLI's configured default. On `anthropic` the same collision existed one level down
+(`devcase_evaluate` has no override, so both seats landed on `claude-haiku-4-5`), and the
+judge takes the cheapest catalogue model that is **distinct** from it.
+
+Two honest limits, both stated rather than papered over:
+
+- **It is a default, not a guarantee.** An operator can point both seats at one model,
+  and then `judge_independence` reports `independent: false` — which is the point of
+  measuring it rather than asserting it.
+- **It cannot be fixed for every engine.** `openai`, `gemini`, `openrouter`, `qwen`,
+  `ollama` and `azure_openai` name at most one model in the catalogue, so there is no
+  distinct default to pick and those installs report `false` until the seat is pinned.
+  And on the CLI, `claude_cli/haiku` vs `claude_cli/default` is a *routing* distinction:
+  if an operator's own CLI default happens to be the same model, the two seats are the
+  same engine and nothing here can see it.
+
+**The flag reaches the reviewer.** `devcase_cli evaluate-submission` now stamps
+`judgeIndependence` — `{generator, judge, independent}`, exactly the shape the four
+offline harnesses already report — onto the evaluation bundle, and
+`DevEvalPanelIntegrity.tsx` renders **"Judge = generator"** when it is false. The
+rendering rule is deliberately asymmetric (`app/_lib/devcase-judge-independence.ts`):
+
+- only the **self-grading** state is shown. The runtime evaluation is not itself judged
+  (the judge seat runs in the calibration and lifecycle harnesses), so a green "judge
+  independent" chip beside a submission's scores would claim a check this bundle never
+  had;
+- the field is **absent** on a keyless deterministic run — no generating model means no
+  judge to be independent *of*, and a fabricated warning there would be worse than the
+  gap — and on any bundle saved before the field existed. Absent renders nothing.
+
+Because a repo submission has no `integrity` block, the strip is no longer gated on one:
+it opens for either fact, and takes the wider heading when only the judge has something
+to say. Pinned in `pipeline/jobfit/tests/test_devcase_judge_independence.py` (default
+resolution, the non-collapse of a provider-only wildcard row, the pinned-same-model case,
+and the three emission states) and `app/_lib/devcase-judge-independence.test.ts` (the
+panel state, including that a legacy bundle never starts reading as self-graded).
+
+### The voice screen is reachable from the assignment
+
+The evaluation's minted follow-up questions exist to be asked **out loud**: an artifact
+can be wholly LLM-produced, so each question verifies live that the candidate owns one of
+their submission's observed decisions. Until now the surface holding those questions could
+not start the call that asks them. `POST /api/interview/create` mints a screen for a
+pipeline **entry** and reads its whole brief off that entry; the reviewer in Assignments
+holds a **submission** id. So the assignment candidate was interviewable only after
+somebody remembered to promote them first, and the transcript + scorecard landed on the
+entry while the evaluation stayed on the submission.
+
+- **The create door takes either id.** `{ submissionId }` is resolved by
+  `app/_lib/devcase-interview-entry.ts`: an entry already links this submission → use it;
+  no entry yet → **promote through the shared door** (`promoteSubmission` at
+  `activePromoteFloor()`) and use what it returns. Nothing here mints an identity: the
+  rules above (real profile, the JD's real job, the person's own archetype,
+  ambiguity-mints-rather-than-resolves) stay the only way a dev-case candidate reaches
+  the board, and the same `screening_review` card with the same advance/hold verdict is
+  written either way. What the join removes is the ordering requirement, not the review.
+- **Refusals are unchanged in substance.** An unknown submission and another team's
+  submission answer alike (404) — a distinct refusal would confirm which submission ids
+  exist on other tenants, and this door can write a stranger's name and contact onto the
+  caller's board. An unevaluated submission is refused outright.
+- **The reverse read adds no column.** `GET /api/interview/by-entry?submission=<id>`
+  composes the two links that already exist — `pipeline_entries.dev_submission_id` and
+  `interview_sessions.entry_id` — via `findEntryByDevSubmission` (column first, legacy
+  `ds-` candidate id second, workspace-scoped). A `dev_submission_id` on
+  `interview_sessions` would have been a third statement of one fact, free to disagree
+  with the other two the moment a promote backfills onto an entry the candidate already
+  had.
+- **Where a reviewer sees it.** `DevVoiceScreenPanel` renders under the eval panel for
+  every evaluated submission: session status, the scorecard's verdict and its mean
+  **observed** rating (not-assessed axes excluded, so a partial interview cannot average
+  toward a middling 3 that looks like a judgement), and otherwise the same
+  `PipelineVoiceScreenPanel` the board drawer uses, pointed at this submission. One
+  minting affordance, not a second copy of one; reissue/revoke and the full transcript
+  stay on the board, where the entry is.
+
+Pinned in `app/_lib/devcase-interview-entry.test.ts` — including that the case-grounded
+scenario still grounds the brief now that the entry carries the JD's **real** job id,
+which is the grounding the old `dc-` prefix parse would have lost.
+
+### Observed skills reach every archetype, not just early-career
+
+`mintObservedFromCaseInterview` used to return early unless
+`isEarlyCareer(entry.archetype)`, so a case-grounded interview was evidence for students
+and career switchers only. That was never the doctrine: `observed` is a provenance
+**weight** (1.0, above `professional` — see [the matching
+doc](../matching/README.md)), stated for "a skill demonstrated live in a case or
+case-grounded interview" with no archetype qualifier, and Python's minting gates never
+look at the archetype. What *is* early-career-specific is the routing-confidence
+corroboration, which `live_case._corroborate_routing` gates itself. The TS gate was
+therefore suppressing the whole mint to enforce a rule the layer below already enforced
+on the one field it applies to — and because every promoted entry was hardcoded
+`archetype: "bau"`, the effect was total: the mint could never fire for a dev-case
+candidate. The gate is gone; the honest ones stay (a generated interview scenario, every
+case construct rated on quoted evidence, mean at or above "Above bar", never a
+wide-confidence transcript, and — on the take-home side — a non-`suspect` authenticity
+band, the transfer floor and the evidence-confidence floor).
+
+Both mint paths now run for a promoted `bau` candidate: the take-home one at promote
+(`/api/devcase/promote` and the orchestrator's ranked stage both call
+`mintObservedFromSubmission` with the entry id), and the interview one when a
+case-grounded voice screen completes (`interview-run.ts`). Pinned end to end on a real
+DB and the real deterministic `devcase_cli` in `app/_lib/devcase-observed-promoted.test.ts`;
+the scoring half is `ObservedIsArchetypeIndependentTest` in
+`pipeline/jobfit/tests/test_live_case.py`.
 - Live Work Surface event log — tamper-evident hash-chained rows (per `app/_lib/db/core.ts`)
 
 ## Known gaps
