@@ -1393,6 +1393,24 @@ export function ensureDb(): Database.Database {
     // (getPostingByToken → getDevCase), so a second column would be a denormalized
     // duplicate with its own way to drift.
     "ALTER TABLE dev_cases ADD COLUMN job_id TEXT",
+    // ONE THREAD (assignment → board): which dev case, and which submission, a
+    // pipeline entry came out of.
+    //
+    // Both facts USED to be encoded in the ids themselves — `jobId: "dc-<caseId>"`
+    // and `candidateId: "ds-<submissionId>"` minted by devcase-run — and that is
+    // precisely the defect: an id that has to carry a second meaning cannot also be
+    // the real job / the real person, so a candidate who came in through the JD's
+    // own opening existed TWICE on the board, and Matrix/Match could not rank the
+    // synthetic half (no `profiles` row behind a "ds-" id). Moving the two links
+    // into their own columns frees `job_id`/`candidate_id` to hold the identities
+    // the rest of the app already uses, WITHOUT losing what the prefixes encoded.
+    //
+    // Nullable, and NULL is the overwhelming majority: every entry that did not come
+    // from an assignment carries neither. A legacy "dc-"/"ds-" entry also carries
+    // neither — devcase-identity.ts falls back to parsing the prefix for exactly
+    // those rows, so nothing written before this change stops resolving.
+    "ALTER TABLE pipeline_entries ADD COLUMN dev_case_id TEXT",
+    "ALTER TABLE pipeline_entries ADD COLUMN dev_submission_id TEXT",
   ]) {
     // Use the same loud-fail migrator as the loop above: a bare `catch {}` here
     // swallowed real failures (corruption, I/O, lock contention) and booted a
@@ -1417,6 +1435,10 @@ export function ensureDb(): Database.Database {
   // exactly like every other dev-case enumeration (workspace first). Created AFTER the
   // ALTER loop so a legacy DB already holds the column.
   db.exec(`CREATE INDEX IF NOT EXISTS idx_dev_cases_job ON dev_cases (workspace_id, job_id)`);
+  // ONE THREAD: "which board entries came out of this assignment?" — the reverse of
+  // the link promote writes, and the read the case detail needs. Created AFTER the
+  // ALTER loop so a legacy DB already holds the column.
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_pipeline_dev_case ON pipeline_entries (workspace_id, dev_case_id)`);
   // Atomic dedup: a (posting, candidate, repo) triple is unique, so two
   // concurrent submits can't both INSERT (double-click / webhook retry storm).
   // Guarded: a legacy DB may already hold duplicate triples that block the
@@ -2117,6 +2139,14 @@ export type PipelineEntry = {
   // captured at intake. NULL when the source carried none.
   sourceCampaign: string | null;
   sourceVariant: string | null;
+  // ONE THREAD — the assignment (dev case) this entry came out of, and the
+  // submission that was promoted, when either applies. NULL on every entry that did
+  // not come from an assignment, AND on the legacy entries that encoded the same two
+  // facts in their ids ("dc-<caseId>" / "ds-<submissionId>"): read them through
+  // devCaseIdForEntry / submissionIdForEntry (devcase-identity.ts), which falls back
+  // to the prefixes for exactly those rows. Never read the prefixes directly.
+  devCaseId: string | null;
+  devSubmissionId: string | null;
   // Persistent per-candidate recruiter note, autosaved from the drawer via the
   // set_notes action (trimmed + bounded there). NULL when none has been written.
   notes: string | null;

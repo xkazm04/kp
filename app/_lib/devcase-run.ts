@@ -12,7 +12,7 @@ import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, Pipel
 import { buildLlmConfigEnv } from "./llm-config";
 import { buildRepoSnapshot, fetchRepoSignals, type RepoSnapshot } from "./repo-snapshot";
 import { isEarlyCareer } from "./archetypes";
-import { devCaseIdFromJobId } from "./student-interview";
+import { devCaseIdForEntry } from "./devcase-identity";
 
 // The devcase CLI envelope every run* function below shares: make a temp workdir,
 // write the per-call JSON arg files into it + build the argv, spawn
@@ -324,7 +324,7 @@ export async function mintObservedFromCaseInterview(
 ): Promise<ObservedMintResult> {
   const entry = getPipelineEntry(entryId, workspaceId);
   if (!entry || !entry.candidateId || !isEarlyCareer(entry.archetype)) return { credited: [], applied: false };
-  const caseId = devCaseIdFromJobId(entry.jobId);
+  const caseId = devCaseIdForEntry(entry);
   const devCase = caseId ? getDevCase(caseId) : null;
   if (!devCase?.scenario || !devCase.case || !devCase.role) return { credited: [], applied: false };
   const rec = getProfileRecord(entry.candidateId, workspaceId);

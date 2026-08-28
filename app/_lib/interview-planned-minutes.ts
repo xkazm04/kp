@@ -19,7 +19,8 @@ import type { PipelineEntry } from "./db/core";
 import { getInterviewPrep } from "./interview-prep";
 import { isEarlyCareer } from "./archetypes";
 import { GROUNDED_DEFAULT_MIN, QUICK_SCREEN_MIN } from "./interview-duration.mjs";
-import { devCaseIdFromJobId, STUDENT_SCRIPT_MIN, submissionIdFromCandidateId, type CaseInterviewScenario } from "./student-interview";
+import { STUDENT_SCRIPT_MIN, type CaseInterviewScenario } from "./student-interview";
+import { devCaseIdForEntry, submissionIdForEntry } from "./devcase-identity";
 
 export type SubmissionFollowup = { id?: string; decision?: string; question?: string; listenFor?: string; redFlag?: string };
 
@@ -32,7 +33,7 @@ export function debriefDurationMin(followupCount: number): number {
 /** The minted authorship questions on an entry's evaluated submission (empty when
  *  the entry isn't a promoted dev-case submission or nothing was minted). */
 export function submissionFollowups(entry: PipelineEntry): SubmissionFollowup[] {
-  const submissionId = submissionIdFromCandidateId(entry.candidateId);
+  const submissionId = submissionIdForEntry(entry);
   const submission = submissionId ? getSubmission(submissionId) : null;
   return ((submission?.evaluation as { followups?: { questions?: SubmissionFollowup[] } } | null)?.followups?.questions ?? []).filter(
     (f) => typeof f?.question === "string" && f.question.trim() !== ""
@@ -53,7 +54,7 @@ export function plannedInterviewMinutes(entry: PipelineEntry): number {
   const followups = submissionFollowups(entry);
   if (followups.length > 0) return debriefDurationMin(followups.length);
   if (isEarlyCareer(entry.archetype)) {
-    const caseId = devCaseIdFromJobId(entry.jobId);
+    const caseId = devCaseIdForEntry(entry);
     const scenario = caseId ? ((getDevCase(caseId)?.scenario as CaseInterviewScenario | null) ?? null) : null;
     if (scenario && Array.isArray(scenario.phases) && scenario.phases.length > 0) {
       return scenario.durationMin || STUDENT_SCRIPT_MIN;

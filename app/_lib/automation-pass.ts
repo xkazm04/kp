@@ -177,6 +177,11 @@ export function runAutomationPass(opts?: { dryRun?: boolean }): Promise<Automati
 // use (LLM-free, sub-second). Best-effort per job: a scoring failure leaves the
 // entry held exactly as before, never blocks the pass.
 async function scoreUnscoredEntries(entries: AutomationEntry[], dryRun: boolean): Promise<void> {
+  // The "ds-" exclusion is a LEGACY carve-out, not a rule about dev-case candidates:
+  // a synthetic "ds-<submissionId>" id has no `profiles` row, so the pool lookup can
+  // only miss. Since the one-thread milestone a promoted submission carries a REAL
+  // profile id (devcase-run.promoteSubmission), so those entries now pass this filter
+  // and get scored like anyone else — which is the point: they were unrankable before.
   const unscored = entries.filter(
     (e) => e.matchScore == null && !e.intakeDegraded && e.candidateId && e.jobId && !e.candidateId.startsWith("ds-")
   );

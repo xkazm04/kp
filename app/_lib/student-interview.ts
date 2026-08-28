@@ -16,6 +16,7 @@
 //     material and ratings stay comparable.
 
 import script from "@/pipeline/jobfit/interview-script.json";
+import { LEGACY_DEV_CASE_JOB_PREFIX, LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "./devcase-identity";
 import type { PrepQuestion, RunOfShow, ChronologyBlock } from "./run-of-show";
 
 export type StudentScriptPhase = {
@@ -254,20 +255,26 @@ export function scenarioRunOfShow(scenario: CaseInterviewScenario): string[] {
   return scenario.phases.map((p) => p.phase);
 }
 
-/** Pipeline entries sourced for a dev case carry jobId "dc-<caseId>"
- *  (devcase-orchestrator's proactive sourcing). Resolve it back to the dev case
- *  id — the key to the role's stored interview scenario — or null for ordinary
- *  jobs. */
+/** LEGACY id parsing. Entries written BEFORE the one-thread milestone encoded their
+ *  assignment in the ids themselves — jobId "dc-<caseId>" from the case-sourcing seed,
+ *  candidateId "ds-<submissionId>" from promoteSubmission. Those rows still exist and
+ *  still have to resolve, so these two functions stay; what changed is that they are no
+ *  longer how a CALLER asks the question.
+ *
+ *  Call `devCaseIdForEntry` / `submissionIdForEntry` (devcase-identity.ts) instead:
+ *  they read the entry's own `dev_case_id` / `dev_submission_id` first and fall back
+ *  to these. A direct call here sees only the legacy half, which is what silently
+ *  un-grounded the case interview the moment an entry started carrying its real
+ *  `jd-<slug>` job. */
 export function devCaseIdFromJobId(jobId: string | null | undefined): string | null {
-  return jobId && jobId.startsWith("dc-") ? jobId.slice(3) : null;
+  return jobId && jobId.startsWith(LEGACY_DEV_CASE_JOB_PREFIX) ? jobId.slice(LEGACY_DEV_CASE_JOB_PREFIX.length) : null;
 }
 
-/** Entries promoted from an evaluated dev-case submission carry candidateId
- *  "ds-<submissionId>" (devcase-run.promoteSubmission). Resolve it back to the
- *  submission id — the key to the eval bundle whose minted interview follow-ups
- *  ground the submission-debrief brief — or null for ordinary candidates. */
+/** @see devCaseIdFromJobId — the candidate-side twin, and the same legacy caveat. */
 export function submissionIdFromCandidateId(candidateId: string | null | undefined): string | null {
-  return candidateId && candidateId.startsWith("ds-") ? candidateId.slice(3) : null;
+  return candidateId && candidateId.startsWith(LEGACY_SUBMISSION_CANDIDATE_PREFIX)
+    ? candidateId.slice(LEGACY_SUBMISSION_CANDIDATE_PREFIX.length)
+    : null;
 }
 
 /** The agent brief for a CASE-DESIGNED interview: same persona contract, but the

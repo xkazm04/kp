@@ -9,6 +9,11 @@ import { randomToken } from "../random-id";
 import { CONSENT_TTL_DAYS, consentExpiresAt, consentWithholdsPii, maskCandidateName, scrubPiiFromPayload } from "../consent";
 import { anonymizeProfile } from "./profiles";
 import { coerceGithubEvidenceSummary, type GithubEvidenceSummary } from "../github-summary";
+// ONE THREAD: devcase-identity.ts owns the legacy "ds-" prefix string. Importing the
+// const rather than re-typing it is what keeps the contact join below and the
+// resolvers there from ever disagreeing about what a synthetic candidate id looks
+// like. That module is deliberately pure, so this is not a cycle.
+import { LEGACY_SUBMISSION_CANDIDATE_PREFIX } from "../devcase-identity";
 import { recordPipelineOutcome } from "../dev-outcomes";
 import { recordAudit } from "../dev-control";
 import { ensureDb, recordEvent, type PipelineEntry } from "./core";
@@ -277,6 +282,9 @@ type PipelineRow = {
   source_channel?: string | null;
   source_campaign?: string | null;
   source_variant?: string | null;
+  // ONE THREAD — the assignment / submission this entry came out of (see PipelineEntry).
+  dev_case_id?: string | null;
+  dev_submission_id?: string | null;
   // Persistent recruiter note (drawer autosave); absent on SELECTs that omit it.
   notes?: string | null;
   // Lead enrichment hand-off columns. Deliberately NOT mapped onto PipelineEntry:
@@ -328,6 +336,8 @@ function rowToEntry(r: PipelineRow): PipelineEntry {
     sourceChannel: r.source_channel ?? null,
     sourceCampaign: r.source_campaign ?? null,
     sourceVariant: r.source_variant ?? null,
+    devCaseId: r.dev_case_id ?? null,
+    devSubmissionId: r.dev_submission_id ?? null,
     notes: r.notes ?? null,
     consentGivenAt: r.consent_given_at ?? null,
     consentExpiresAt: r.consent_expires_at ?? null,
@@ -530,10 +540,13 @@ export function listPipeline(workspaceId: string = DEFAULT_WORKSPACE_ID): Pipeli
       // the channel AND its campaign/creative attribution (variant-reaches-the-drawer)
       // straight from the board-opened entry — the [id] GET already carried them via
       // SELECT *, so this closes the gap for the primary (board) open path.
+      // dev_case_id / dev_submission_id ride it for the same reason: the case-grounded
+      // interview brief and the eval kit are resolved FROM the board-opened entry
+      // (devcase-identity.ts), and an omitted column reads as "not from an assignment".
       `SELECT id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
               stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at,
               intake_degraded, intake_degraded_reason, github_json, github_handle, notes,
-              source_channel, source_campaign, source_variant, workspace_id
+              source_channel, source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id
        FROM pipeline_entries WHERE status NOT IN ${TERMINAL_STATUS_SQL_LIST} AND workspace_id = ?
        ORDER BY job_title, match_score DESC`
     )
@@ -983,6 +996,18 @@ export type CreatePipelineInput = {
   // E5 — campaign/creative attribution captured at intake (bounded by callers).
   sourceCampaign?: string | null;
   sourceVariant?: string | null;
+  // ONE THREAD — the assignment this entry came out of, and (on promote) the
+  // submission that was evaluated. Omitted by every non-devcase caller.
+  //
+  // FILL-ONLY on a re-add, the same additive discipline githubJson/githubHandle
+  // carry: a promote that lands on an entry the JD's own opening already created
+  // BACKFILLS the two links onto it, and a later re-add can never overwrite them
+  // with a different case/submission. That backfill is the point — merging onto
+  // the existing entry instead of minting a second one is what makes the candidate
+  // ONE person on the board, and the links are how the interview brief and the eval
+  // kit still find the assignment afterwards.
+  devCaseId?: string | null;
+  devSubmissionId?: string | null;
   // shortlist-to-group-eval — file the new entry as a pending KEY DECISION
   // (Decisions tab cohort, same gate the seeded rows carry). "decision" is the
   // only kind an add may request: the review kinds are minted by automation
@@ -1047,6 +1072,28 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
         workspaceId
       );
     }
+    // ONE THREAD: same FILL-ONLY rule for the two assignment links. A promote whose
+    // (candidate, job) pair already has an entry — the JD's own opening created it
+    // when the same person applied there — attaches its case/submission to THAT row
+    // rather than minting a parallel one. Never an overwrite: an entry already tied
+    // to an assignment keeps the first one, so a second promote cannot silently
+    // re-point the interview brief at different material.
+    if (input.devCaseId && !existing.dev_case_id) {
+      db.prepare(`UPDATE pipeline_entries SET dev_case_id=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
+        input.devCaseId,
+        new Date().toISOString(),
+        id,
+        workspaceId
+      );
+    }
+    if (input.devSubmissionId && !existing.dev_submission_id) {
+      db.prepare(`UPDATE pipeline_entries SET dev_submission_id=?, updated_at=? WHERE id=? AND workspace_id=?`).run(
+        input.devSubmissionId,
+        new Date().toISOString(),
+        id,
+        workspaceId
+      );
+    }
     // re-surface a previously-closed candidate if a recruiter re-adds them —
     // either a company reject OR a candidate decline (both terminal; a re-add
     // means "let's reconsider them", which applies equally to a past decline).
@@ -1072,11 +1119,11 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
        (id, candidate_id, candidate_label, archetype, role_family, job_id, job_title,
         stage, match_score, status, approval_kind, approval_detail, created_at, stage_changed_at, updated_at,
         intake_degraded, intake_degraded_reason, contact, locale, github_json, github_handle, source_channel,
-        source_campaign, source_variant, workspace_id)
+        source_campaign, source_variant, dev_case_id, dev_submission_id, workspace_id)
      VALUES (@id, @candidate_id, @candidate_label, @archetype, @role_family, @job_id, @job_title,
         @stage, @match_score, 'active', @approval_kind, NULL, @now, @now, @now,
         @intake_degraded, @intake_degraded_reason, @contact, @locale, @github_json, @github_handle, @source_channel,
-        @source_campaign, @source_variant, @workspace_id)`
+        @source_campaign, @source_variant, @dev_case_id, @dev_submission_id, @workspace_id)`
   ).run({
     id,
     candidate_id: input.candidateId,
@@ -1098,6 +1145,8 @@ export function createPipelineEntry(input: CreatePipelineInput): { entry: Pipeli
     source_channel: input.sourceChannel ?? null,
     source_campaign: input.sourceCampaign ?? null,
     source_variant: input.sourceVariant ?? null,
+    dev_case_id: input.devCaseId ?? null,
+    dev_submission_id: input.devSubmissionId ?? null,
     workspace_id: workspaceId,
   });
   recordEvent(db, {
@@ -1129,6 +1178,38 @@ export function findActiveEntriesByCandidateLabel(candidateLabel: string, worksp
     .prepare(`SELECT * FROM pipeline_entries WHERE workspace_id = ? AND status = 'active' AND LOWER(TRIM(candidate_label)) = ?`)
     .all(workspaceId, key) as PipelineRow[];
   return rows.map(rowToEntry);
+}
+
+/** ONE THREAD — the candidate id this team already knows the given contact by, or null.
+ *
+ *  The join that stops one person being two people on the board. An applicant who
+ *  came in through a JD's own opening has an entry whose `contact` is their email
+ *  and whose `candidate_id` is a real `profiles` row; when that same address arrives
+ *  on a dev-case submission, promote must land on THAT identity rather than mint a
+ *  synthetic one. Email is the stronger identity than a display name (normalizeContact's
+ *  own reasoning: two real people share a name, an address is theirs).
+ *
+ *  Honest, not eager, on every axis:
+ *   - UNIQUE or nothing. Two distinct candidate ids under one address is a state we
+ *     cannot resolve without guessing, and the wrong guess writes an assignment's
+ *     evidence onto a stranger's record. Ambiguity returns null and the caller mints.
+ *   - Legacy synthetic ids are excluded. A "ds-<submissionId>" candidate_id is the
+ *     very thing this replaces — resolving to one would re-enter the identity we are
+ *     leaving, so a board that only holds those reads as "no profile yet".
+ *   - Scoped. A contact is not an authority to read another team's board. */
+export function candidateIdByContact(contact: string | null | undefined, workspaceId: string): string | null {
+  const key = normalizeContact(contact);
+  if (!key) return null;
+  const db = ensureDb();
+  const rows = db
+    .prepare(
+      `SELECT DISTINCT candidate_id FROM pipeline_entries
+        WHERE workspace_id = ? AND candidate_id IS NOT NULL AND candidate_id <> ''
+          AND LOWER(TRIM(contact)) = ?`
+    )
+    .all(workspaceId, key) as { candidate_id: string }[];
+  const real = rows.map((r) => r.candidate_id).filter((id) => !id.startsWith(LEGACY_SUBMISSION_CANDIDATE_PREFIX));
+  return real.length === 1 ? real[0] : null;
 }
 
 // d95fed6d — note a practice (simulator) interview transcript on a candidate's
