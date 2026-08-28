@@ -644,7 +644,7 @@
     "hero": {
       "badge": "Automatisiertes Recruiting, vom Menschen freigegeben",
       "title": "Ihr Recruiting,<br></br>auf <emph>Autopilot</emph>",
-      "subtitle": "KandiDate übernimmt den gesamten Funnel: jeder Lebenslauf wird gelesen und anhand der Position bewertet, vielversprechende Kandidaten noch am selben Tag interviewt, Termine gebucht, Angebote entworfen, das Onboarding gestartet. Sie entscheiden nur dort, wo es zählt. Die Fleißarbeit erreicht Ihren Schreibtisch gar nicht erst.",
+      "subtitle": "KandiDate übernimmt den gesamten Funnel: jeder Lebenslauf wird gelesen und anhand der Position bewertet, vielversprechende Kandidaten noch am selben Tag interviewt, Termine gebucht, Angebote entworfen, und die Einstellung ist versiegelt, sobald der Kandidat zusagt. Sie entscheiden nur dort, wo es zählt. Die Fleißarbeit erreicht Ihren Schreibtisch gar nicht erst.",
       "proof": "Open Source, AGPL-3.0. Läuft auf Ihrer Maschine, mit Ihren Modellen: das ganze Produkt, kostenlos und ohne Limits. Die bezahlten Pläne kaufen fremde Server.",
       "proofCta": "Selbst betreiben",
       "ctaPrimary": "Kostenlos loslegen",
@@ -670,12 +670,12 @@
     },
     "marquee": [
       "verifizierte Arbeitsproben",
-      "Kandidat oder Modell? Wir erkennen es",
+      "AI erlaubt, der Arbeitsverlauf protokolliert",
       "versiegelte, auditierbare Entscheidungen",
       "AI-Sprachinterviews",
       "Lebenslauf-Scoring in Sekunden",
       "vom Menschen freigegebene Entscheidungen",
-      "Tschechisch + Englisch",
+      "4 Sprachen, auch auf Kandidatenseite",
       "Gehalts-Radar"
     ],
     "proof": {
@@ -688,7 +688,7 @@
         },
         "defend": {
           "title": "Ein Interview über die eigenen Entscheidungen",
-          "body": "Das Sprachinterview greift die zwei Entscheidungen auf, die der Kandidat in der Probe wirklich getroffen hat, und lässt ihn beide laut verteidigen, auf Tschechisch oder Englisch."
+          "body": "Das Sprachinterview greift die zwei Entscheidungen auf, die der Kandidat in der Probe wirklich getroffen hat, und lässt ihn beide laut verteidigen, auf Tschechisch oder Englisch. Es startet direkt aus der Einreichung heraus, ohne Zwischenschritt."
         },
         "sealed": {
           "title": "Entscheidungen versiegelt, nicht behauptet",
@@ -729,8 +729,8 @@
         "body": "Eine neue Stelle bewertet alle früheren Bewerbungen neu. Die Zweitplatzierte von vor acht Monaten erscheint zuerst. Kein neues Sourcing-Budget, und sie hat Ihnen schon einmal zugesagt."
       },
       "offer": {
-        "title": "Vom Angebot zum ersten Tag",
-        "body": "Die Angebotshöhe ist deterministisch: Positionsband × Eignung, kein Modell in der Zahl. Das Schreiben entsteht von selbst, ein Mensch unterschreibt, und die Zusage startet automatisch die Onboarding-Checkliste."
+        "title": "Vom Angebot zur versiegelten Einstellung",
+        "body": "Die Angebotshöhe ist deterministisch: Positionsband × Eignung, kein Modell in der Zahl. Das Schreiben entsteht von selbst, ein Mensch unterschreibt, und die Zusage versiegelt die Einstellung und spiegelt sie in ein angebundenes ATS."
       },
       "gates": {
         "title": "Freigaben & Nachweise",
@@ -759,7 +759,7 @@
       "tablist": "Demonstrationen verantwortungsvoller AI",
       "human": {
         "title": "Human in the Loop",
-        "body": "Kein Kandidat wird allein von der Maschine weitergeleitet, mit einem Angebot bedacht oder abgelehnt. Jede nachteilige Entscheidung wird von einer Person geprüft und getroffen. So ist es bewusst konzipiert, nicht per Einstellung."
+        "body": "Eine Ablehnung trifft immer ein Mensch: die Maschine kann keine vollziehen, und eine Sammelablehnung braucht eine unterschriebene menschliche Freigabe genau dieser Liste. Auch das Weiterreichen und das Unterbreiten eines Angebots sind standardmäßig menschlich freigegeben. Ein Workspace kann beides Stufe für Stufe an die Automatik übergeben, und jeder dann unbeaufsichtigte Schritt wird samt der Regel protokolliert, die ihn erlaubt hat."
       },
       "oversight": {
         "title": "Bereit für den EU AI Act",
@@ -771,7 +771,7 @@
       },
       "audit": {
         "title": "Belegbar, nicht nur versprochen",
-        "body": "Jede AI-Entscheidung wird in einem manipulationssicheren, exportierbaren Audit-Trail versiegelt, und die Konfidenz wird an echten Ergebnissen gemessen. Sie ist kalibriert, nicht bloß behauptet."
+        "body": "Jede AI-Entscheidung wird in einem manipulationssicheren, exportierbaren Audit-Trail versiegelt. Die Scores werden anschließend an dem gemessen, was tatsächlich passiert ist, und die Messung sagt selbst laut, wenn die Belege dahinter noch zu dünn oder zu zirkulär sind, um ihnen zu trauen."
       },
       "footnote": "Eine funktionierende Demonstration: Dies spiegelt Design und Kontrollen des Produkts wider, keine rechtliche Zertifizierung.",
       "art": {
@@ -913,10 +913,10 @@
       "enterprise": {
         "eyebrow": "Auf Organisationsebene",
         "heading": "Recruiting für die ganze Organisation?",
-        "blurb": "Alles oben Genannte liegt im Repository, samt SSO, Audit-Trail und White-Label-Branding. Enterprise kauft die Lieferung: die Bereitstellung gemeinsam mit Ihrem Security-Team und Datenschutzbeauftragten, vertragliche Zusicherungen und eine Support-Linie. Preis nach Ihrem Einstellungsvolumen.",
+        "blurb": "Alles oben Genannte, was heute ausgeliefert wird, liegt im Repository, samt Audit-Trail und White-Label-Branding. Enterprise kauft die Lieferung: die Bereitstellung gemeinsam mit Ihrem Security-Team und Datenschutzbeauftragten, vertragliche Zusicherungen und eine Support-Linie. Preis nach Ihrem Einstellungsvolumen.",
         "cta": "Vertrieb kontaktieren",
         "capabilities": [
-          "Enterprise-SSO & SCIM-Provisionierung",
+          "Enterprise-SSO & SCIM-Provisionierung (geplant)",
           "Mandantenweiter, exportierbarer Audit-Trail",
           "Ihre Marke an jedem Kandidaten-Touchpoint",
           "Bereitstellung gemeinsam mit Ihrem Security-Team",
@@ -1090,7 +1090,7 @@
     "hero": {
       "badge": "die Recruiting-Pipeline, von Anfang bis Ende",
       "title": "Begleiten Sie eine Einstellung<br></br>durch die <emph>ganze Pipeline</emph>.",
-      "subtitle": "Scrollen Sie, und der Weg zeichnet sich von selbst: von der leeren Stelle bis zur unterschriebenen Einstellung. Sieben Schritte, eine durchgehende Linie, ein Mensch an jedem Kontrollpunkt."
+      "subtitle": "Scrollen Sie, und der Weg zeichnet sich von selbst: von der leeren Stelle bis zur unterschriebenen Einstellung. Acht Schritte, eine durchgehende Linie, ein Mensch an jedem Kontrollpunkt."
     },
     "steps": {
       "design": {
@@ -1111,22 +1111,27 @@
       "screen": {
         "eyebrow": "Schritt 04 · Screening",
         "title": "Jeder Lebenslauf, wirklich gelesen",
-        "body": "Jede Bewerbung wird anhand der Stelle von 0–100 bewertet, mit nachvollziehbaren Belegen. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer rücken selbst vor, alles andere wartet auf einen Menschen. Für technische Stellen kann hier eine Arbeitsprobe verschickt werden. Sie geht davon aus, dass der Code von einer AI stammt, und bewertet das Urteilsvermögen drumherum, mit eingebauten Fehlern, deren richtige Antwort wir bereits kennen."
+        "body": "Jede Bewerbung wird anhand der Stelle von 0–100 bewertet, mit nachvollziehbaren Belegen. Zuerst läuft eine Fairness-Prüfung; eindeutig starke Treffer rücken selbst vor, alles andere wartet auf einen Menschen."
+      },
+      "assignment": {
+        "eyebrow": "Schritt 05 · Arbeitsprobe",
+        "title": "Eine Arbeitsprobe, die AI voraussetzt",
+        "body": "Für technische Stellen bekommt der Kandidat eine echte Aufgabe in einer laufenden Arbeitsumgebung. Ein LLM zu nutzen ist erlaubt und wird nie bestraft; bewertet wird das Urteilsvermögen drumherum. Eingebaute Fehler, deren richtige Antwort wir bereits kennen, die tatsächlich verwendeten Prompts und ein manipulationssicheres Protokoll darüber, wie die Arbeit entstanden ist."
       },
       "interview": {
-        "eyebrow": "Schritt 05 · Interview",
+        "eyebrow": "Schritt 06 · Interview",
         "title": "Dann spricht es mit Menschen",
         "body": "Vielversprechende Kandidaten erhalten noch am selben Tag ein warmes AI-Sprachinterview: Fragen aus ihrem Lebenslauf, ein Live-Transkript und eine strukturierte Scorecard, die auf Ihre Entscheidung wartet."
       },
       "offer": {
-        "eyebrow": "Schritt 06 · Angebot",
+        "eyebrow": "Schritt 07 · Angebot",
         "title": "AI entwirft es. Ein Mensch unterschreibt es.",
         "body": "Die Angebotssumme ist deterministisch: Stellenband × Eignung, kein LLM in der Zahl. Das Schreiben entwirft sich selbst, eine Person unterbreitet es, und der Kandidat nimmt über einen sicheren Link an oder lehnt ab."
       },
       "hired": {
-        "eyebrow": "Schritt 07 · Eingestellt",
-        "title": "Eingestellt: Onboarding läuft bereits",
-        "body": "Mit der Zusage wechselt der Kandidat auf „Eingestellt“ und die Onboarding-Übergabe wird ausgelöst: ein Pre-Boarding-Fragebogen und eine Checkliste, sodass der erste Tag schon in Bewegung ist, bevor der Jubel verklungen ist."
+        "eyebrow": "Schritt 08 · Eingestellt",
+        "title": "Eingestellt: das Ergebnis, versiegelt",
+        "body": "Mit der Zusage wechselt der Kandidat auf „Eingestellt“, die Entscheidung wird versiegelt und das Ergebnis festgehalten. Hier hört KandiDate auf: die Einstellung wird in ein angebundenes ATS oder HRIS gespiegelt, dem der erste Tag gehört."
       }
     },
     "closing": {
@@ -1165,6 +1170,19 @@
           "evidence": "Belege · nachverfolgt"
         }
       },
+      "assignment": {
+        "surfaceTitle": "Laufende Arbeitsumgebung",
+        "meta": "Sitzung versiegelt",
+        "events": {
+          "opened": "Startprojekt geöffnet",
+          "asked": "Modell um Prüfung gebeten",
+          "logged": "Entscheidung protokolliert"
+        },
+        "chips": {
+          "flaw": "Eingebauter Fehler erkannt",
+          "prompts": "Prompts protokolliert"
+        }
+      },
       "interview": {
         "screenTitle": "Screening der ersten Runde",
         "meta": "live · 4:12",
@@ -1191,7 +1209,7 @@
     },
     "meta": {
       "title": "Über die App: KandiDate",
-      "description": "Begleiten Sie eine Einstellung durch die ganze Pipeline: Stelle entwerfen, Sourcing, Eingang, Screening, Interview, Angebot, Einstellung. Die AI liest bei jedem Schritt mit; unterschrieben wird jede Entscheidung von einem Menschen.",
+      "description": "Begleiten Sie eine Einstellung durch die ganze Pipeline: Stelle entwerfen, Sourcing, Eingang, Screening, Arbeitsprobe, Interview, Angebot, Einstellung. Die AI liest bei jedem Schritt mit; unterschrieben wird jede Entscheidung von einem Menschen.",
       "ogDescription": "Eine Einstellung durch die ganze Pipeline. Die AI liest, ein Mensch unterschreibt jede Entscheidung."
     }
   },

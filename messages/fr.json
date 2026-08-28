@@ -644,7 +644,7 @@
     "hero": {
       "badge": "Recrutement automatisé, validé par un humain",
       "title": "Votre recrutement,<br></br>en <emph>pilote automatique</emph>",
-      "subtitle": "KandiDate prend en charge tout l’entonnoir : chaque CV lu et noté face au poste, les candidats prometteurs reçus en entretien le jour même, les créneaux réservés, l’offre rédigée, l’intégration lancée. Vous ne tranchez que là où ça compte. La paperasse n’arrive jamais jusqu’à vous.",
+      "subtitle": "KandiDate prend en charge tout l’entonnoir : chaque CV lu et noté face au poste, les candidats prometteurs reçus en entretien le jour même, les créneaux réservés, l’offre rédigée, et le recrutement scellé dès que le candidat accepte. Vous ne tranchez que là où ça compte. La paperasse n’arrive jamais jusqu’à vous.",
       "proof": "Open source, AGPL-3.0. Tourne sur votre machine, avec vos modèles : tout le produit, gratuit et sans aucune limite. Les offres payantes achètent les serveurs de quelqu'un d'autre.",
       "proofCta": "Hébergez-le vous-même",
       "ctaPrimary": "Recruter gratuitement",
@@ -670,12 +670,12 @@
     },
     "marquee": [
       "travaux pratiques vérifiés",
-      "candidat ou modèle ? on le sait",
+      "AI autorisée, le déroulé enregistré",
       "décisions scellées et auditables",
       "entretiens vocaux par AI",
       "notation des CV en quelques secondes",
       "décisions validées par un humain",
-      "tchèque + anglais",
+      "4 langues, côté candidat compris",
       "radar des salaires"
     ],
     "proof": {
@@ -688,7 +688,7 @@
         },
         "defend": {
           "title": "Un entretien sur ses propres décisions",
-          "body": "L’entretien vocal reprend les deux décisions que le candidat a réellement prises dans le travail pratique et les lui fait défendre à voix haute, en tchèque ou en anglais."
+          "body": "L’entretien vocal reprend les deux décisions que le candidat a réellement prises dans le travail pratique et les lui fait défendre à voix haute, en tchèque ou en anglais. Il se lance directement depuis le rendu, sans étape intermédiaire."
         },
         "sealed": {
           "title": "Des décisions scellées, pas affirmées",
@@ -729,8 +729,8 @@
         "body": "Un nouveau poste réévalue toutes les candidatures passées. Le second d’il y a huit mois remonte en tête. Aucun budget de sourcing supplémentaire, et il vous avait déjà dit oui."
       },
       "offer": {
-        "title": "De l’offre au premier jour",
-        "body": "Le montant est déterministe : fourchette du poste × adéquation, aucun modèle dans le chiffre. La lettre se rédige seule, une personne la signe, et l’acceptation déclenche automatiquement la checklist d’onboarding."
+        "title": "De l’offre au recrutement scellé",
+        "body": "Le montant est déterministe : fourchette du poste × adéquation, aucun modèle dans le chiffre. La lettre se rédige seule, une personne la signe, et l’acceptation scelle le recrutement et le transmet à un ATS connecté."
       },
       "gates": {
         "title": "Contrôles et justificatifs",
@@ -759,7 +759,7 @@
       "tablist": "Démonstrations d’AI responsable",
       "human": {
         "title": "L’humain dans la boucle",
-        "body": "Aucun candidat n’avance, ne reçoit d’offre ni n’est rejeté par la machine seule. Chaque décision défavorable est examinée et prise par une personne. Cela relève de la conception, pas d’un réglage."
+        "body": "Un rejet revient toujours à une personne : la machine ne peut pas en prononcer un, et un rejet en masse exige l’approbation humaine signée de cette liste exacte. L’avancement et la remise d’une offre sont eux aussi validés par un humain par défaut. Un espace de travail peut déléguer l’un ou l’autre, étape par étape, et chaque étape qui s’exécute alors sans surveillance est journalisée avec la règle qui l’a autorisée."
       },
       "oversight": {
         "title": "Prêt pour l’EU AI Act",
@@ -771,7 +771,7 @@
       },
       "audit": {
         "title": "Prouvé, pas promis",
-        "body": "Chaque décision de l’AI est scellée dans une piste d’audit exportable et inviolable, et la confiance est mesurée face à des résultats réels. Elle est calibrée, jamais simplement affirmée."
+        "body": "Chaque décision de l’AI est scellée dans une piste d’audit exportable et inviolable. Les scores sont ensuite confrontés à ce qui s’est réellement passé, et la mesure dit elle-même à voix haute quand les preuves derrière elle sont encore trop minces, ou trop circulaires, pour être crues."
       },
       "footnote": "Une démonstration fonctionnelle : ceci reflète la conception et les contrôles du produit, pas une certification juridique.",
       "art": {
@@ -913,10 +913,10 @@
       "enterprise": {
         "eyebrow": "À l’échelle de l’organisation",
         "heading": "Vous recrutez dans toute l’organisation ?",
-        "blurb": "Tout ce qui précède se trouve dans le dépôt, y compris le SSO, la piste d'audit et la marque blanche. Ce que l'offre Enterprise achète, c'est la livraison : le déploiement mené avec vos équipes sécurité et votre DPO, des garanties contractuelles et une ligne de support. Tarif selon votre volume de recrutement.",
+        "blurb": "Tout ce qui précède et qui existe aujourd'hui se trouve dans le dépôt, y compris la piste d'audit et la marque blanche. Ce que l'offre Enterprise achète, c'est la livraison : le déploiement mené avec vos équipes sécurité et votre DPO, des garanties contractuelles et une ligne de support. Tarif selon votre volume de recrutement.",
         "cta": "Contacter l’équipe commerciale",
         "capabilities": [
-          "SSO d'entreprise et provisionnement SCIM",
+          "SSO d'entreprise et provisionnement SCIM (prévu)",
           "Piste d'audit par client, exportable",
           "Votre marque à chaque point de contact candidat",
           "Déploiement mené avec votre équipe sécurité",
@@ -1090,7 +1090,7 @@
     "hero": {
       "badge": "le pipeline de recrutement, de bout en bout",
       "title": "Suivez un recrutement<br></br>sur <emph>tout le pipeline</emph>.",
-      "subtitle": "Faites défiler, et le chemin se dessine : d’un poste vierge à un recrutement signé. Sept étapes, une ligne continue, un humain à chaque point de contrôle."
+      "subtitle": "Faites défiler, et le chemin se dessine : d’un poste vierge à un recrutement signé. Huit étapes, une ligne continue, un humain à chaque point de contrôle."
     },
     "steps": {
       "design": {
@@ -1111,22 +1111,27 @@
       "screen": {
         "eyebrow": "Étape 04 · Présélection",
         "title": "Chaque CV, lu pour de vrai",
-        "body": "Chaque candidature est notée de 0 à 100 face au poste, preuves à l’appui. Un contrôle d’équité passe en premier ; les correspondances nettes avancent seules et tout le reste attend un humain. Pour les postes techniques, un exercice pratique peut partir d’ici. Il présuppose que le code viendra d’une AI et évalue le jugement autour, avec des défauts implantés dont nous connaissons déjà la bonne réponse."
+        "body": "Chaque candidature est notée de 0 à 100 face au poste, preuves à l’appui. Un contrôle d’équité passe en premier ; les correspondances nettes avancent seules et tout le reste attend un humain."
+      },
+      "assignment": {
+        "eyebrow": "Étape 05 · Travail pratique",
+        "title": "Un travail pratique qui présuppose l’AI",
+        "body": "Pour les postes techniques, le candidat reçoit une vraie tâche dans un environnement de travail en direct. Utiliser un LLM est autorisé et jamais pénalisé ; ce qui est évalué, c’est le jugement autour. Des défauts implantés dont nous connaissons déjà la bonne réponse, les prompts réellement utilisés, et un journal inviolable de la façon dont le travail a été fait."
       },
       "interview": {
-        "eyebrow": "Étape 05 · Entretien",
+        "eyebrow": "Étape 06 · Entretien",
         "title": "Puis il parle aux gens",
         "body": "Les candidats prometteurs passent un entretien vocal chaleureux avec l’AI, le jour même : des questions ancrées dans leur CV, une transcription en direct et une scorecard structurée en attente de votre décision."
       },
       "offer": {
-        "eyebrow": "Étape 06 · Offre",
+        "eyebrow": "Étape 07 · Offre",
         "title": "L’AI la rédige. Un humain la signe.",
         "body": "Le montant de l’offre est déterministe : fourchette du poste × correspondance, aucun LLM dans le chiffre. La lettre se rédige seule, une personne la remet, et le candidat accepte ou refuse via un lien sécurisé."
       },
       "hired": {
-        "eyebrow": "Étape 07 · Recruté",
-        "title": "Recruté(e) : l’intégration est déjà lancée",
-        "body": "L’acceptation fait passer le candidat au statut « Recruté » et déclenche le passage à l’intégration : un questionnaire de pré-intégration et une checklist, pour que le jour J soit déjà en marche avant la fin des célébrations."
+        "eyebrow": "Étape 08 · Recruté",
+        "title": "Recruté(e) : le résultat, scellé",
+        "body": "L’acceptation fait passer le candidat au statut « Recruté », scelle la décision et consigne le résultat. C’est là que KandiDate s’arrête : le recrutement est répercuté dans un ATS ou un HRIS connecté, à qui appartient le jour J."
       }
     },
     "closing": {
@@ -1165,6 +1170,19 @@
           "evidence": "Preuves · tracées"
         }
       },
+      "assignment": {
+        "surfaceTitle": "Environnement de travail en direct",
+        "meta": "session scellée",
+        "events": {
+          "opened": "Projet de départ ouvert",
+          "asked": "Modèle sollicité pour vérifier",
+          "logged": "Décision consignée"
+        },
+        "chips": {
+          "flaw": "Défaut implanté signalé",
+          "prompts": "Prompts enregistrés"
+        }
+      },
       "interview": {
         "screenTitle": "Présélection du premier tour",
         "meta": "en direct · 4:12",
@@ -1191,7 +1209,7 @@
     },
     "meta": {
       "title": "À propos de l’app : KandiDate",
-      "description": "Suivez un recrutement sur tout le pipeline : conception du poste, sourcing, réception, présélection, entretien, offre, embauche. L’AI lit à chaque étape. Chaque décision est signée par un humain.",
+      "description": "Suivez un recrutement sur tout le pipeline : conception du poste, sourcing, réception, présélection, travail pratique, entretien, offre, embauche. L’AI lit à chaque étape. Chaque décision est signée par un humain.",
       "ogDescription": "Un recrutement sur tout le pipeline. L’AI lit, un humain signe chaque décision."
     }
   },

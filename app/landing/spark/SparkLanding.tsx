@@ -75,8 +75,8 @@ export default function SparkLanding() {
           the verified-work story is the headline, the grid is the inventory.
           A "how it works" band used to sit between them, re-telling the funnel
           in three generic steps; /about tells the same story as a scroll-drawn
-          seven-phase timeline, so the landing no longer carries the short,
-          worse version. */}
+          eight-phase timeline (ABOUT_STEP_KEYS), so the landing no longer
+          carries the short, worse version. */}
       <Proof />
       <FeatureGrid preview={preview} pinned={pinned} onHoverOpen={hoverOpen} onPin={pinOpen} onLeave={leave} />
       <VoiceTeaser />

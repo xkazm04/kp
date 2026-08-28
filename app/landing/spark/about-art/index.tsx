@@ -16,11 +16,13 @@ import DesignArt from "./DesignArt";
 import SourceArt from "./SourceArt";
 import IntakeArt from "./IntakeArt";
 import ScreenArt from "./ScreenArt";
+import AssignmentArt from "./AssignmentArt";
 import InterviewArt from "./InterviewArt";
 import OfferArt from "./OfferArt";
 import HiredArt from "./HiredArt";
-import type { AboutStepKey } from "./shared";
+import { ABOUT_STEP_KEYS, type AboutStepKey } from "./shared";
 
+export { ABOUT_STEP_KEYS };
 export type { AboutStepKey };
 
 const ART: Record<AboutStepKey, ComponentType<{ color?: string }>> = {
@@ -28,6 +30,7 @@ const ART: Record<AboutStepKey, ComponentType<{ color?: string }>> = {
   source: SourceArt,
   intake: IntakeArt,
   screen: ScreenArt,
+  assignment: AssignmentArt,
   interview: InterviewArt,
   offer: OfferArt,
   hired: HiredArt

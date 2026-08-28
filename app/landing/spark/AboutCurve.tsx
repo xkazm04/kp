@@ -6,7 +6,7 @@ import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Wordmark from "./Wordmark";
 import { LandingLangSwitch } from "./LandingLangSwitch";
-import { StepArt, type AboutStepKey } from "./about-art";
+import { ABOUT_STEP_KEYS, StepArt, type AboutStepKey } from "./about-art";
 import { ART_TYPE_SCALE } from "./tokens";
 import { useStillMotion } from "./useStillMotion";
 import { useTranslations } from "next-intl";
@@ -14,37 +14,58 @@ import { enterWorkspace } from "@/app/_lib/auth/session-nav";
 
 /*
  * /about — the public concept introduction as a scroll-drawn curved timeline of
- * the seven pipeline phases the app actually walks (SIM_PHASES). Same Spark art
- * direction as the home landing (literal hexes — the docs/design/README.md exemption);
- * all copy resolves through the `aboutPage` i18n namespace. The spine draws with
- * scroll and each step grows to full size at centre, then shrinks as it passes.
+ * the pipeline phases the app actually walks (ABOUT_STEP_KEYS, in about-art/shared.ts).
+ * Same Spark art direction as the home landing (literal hexes — the docs/design/README.md
+ * exemption); all copy resolves through the `aboutPage` i18n namespace. The spine draws
+ * with scroll and each step grows to full size at centre, then shrinks as it passes.
  */
 const DISPLAY = "font-[family-name:var(--font-spark-display)]";
 const HAND = "font-[family-name:var(--font-spark-hand)]";
 
-// Structural only — eyebrow/title/body come from aboutPage.steps.<key>.
-const STEPS: { key: AboutStepKey; color: string }[] = [
-  { key: "design", color: "#42606f" },
-  { key: "source", color: "#caa54c" },
-  { key: "intake", color: "#d65a4a" },
-  { key: "screen", color: "#526b4f" },
-  { key: "interview", color: "#d65a4a" },
-  { key: "offer", color: "#caa54c" },
-  { key: "hired", color: "#526b4f" }
-];
+// Structural only — eyebrow/title/body come from aboutPage.steps.<key>, and the
+// ORDER comes from ABOUT_STEP_KEYS. A `Record` rather than a parallel list, so a
+// phase added to the vocabulary is a type error here until it is given a colour
+// instead of silently drawing in whatever the array's shorter half held.
+const STEP_COLOR: Record<AboutStepKey, string> = {
+  design: "#42606f",
+  source: "#caa54c",
+  intake: "#d65a4a",
+  screen: "#526b4f",
+  assignment: "#42606f",
+  interview: "#d65a4a",
+  offer: "#caa54c",
+  hired: "#526b4f"
+};
+const STEPS = ABOUT_STEP_KEYS.map((key) => ({ key, color: STEP_COLOR[key] }));
 
-// Serpentine spine crossing centre (x=70) at each of the seven node rows
-// (y ≈ 71, 214, … 929 in this 0–1000 viewBox), weaving right/left between them.
+/*
+ * The serpentine spine, DERIVED from the step list rather than hand-plotted.
+ *
+ * It used to be nine literal cubic segments matching seven node rows. That is
+ * the kind of constant nobody re-derives: adding the assignment phase would have
+ * left an eighth node row hanging off the end of a seven-row spine, and the
+ * defect would have been invisible in a diff and visible only on the page.
+ *
+ * Each phase's node sits at the centre of its own 1/N slice of the 0–1000
+ * viewBox, the curve crosses centre (x=70) there, and the control column
+ * alternates 116/24 so the line weaves right, left, right. For N=7 this
+ * reproduces the previous path to within a unit.
+ */
+const ROW_Y = ABOUT_STEP_KEYS.map((_, i) => Math.round(((i + 0.5) * 1000) / ABOUT_STEP_KEYS.length));
 const SPINE = [
   "M70 0",
-  "C 116 24, 116 48, 70 71",
-  "C 24 119, 24 167, 70 214",
-  "C 116 262, 116 310, 70 357",
-  "C 24 405, 24 452, 70 500",
-  "C 116 548, 116 595, 70 643",
-  "C 24 690, 24 738, 70 786",
-  "C 116 833, 116 881, 70 929",
-  "C 70 953, 70 977, 70 1000"
+  ...ROW_Y.map((y, i) => {
+    const from = i === 0 ? 0 : ROW_Y[i - 1];
+    const third = (y - from) / 3;
+    const cx = i % 2 === 0 ? 116 : 24;
+    return `C ${cx} ${Math.round(from + third)}, ${cx} ${Math.round(from + 2 * third)}, 70 ${y}`;
+  }),
+  // The tail runs straight down from the last node to the bottom edge.
+  (() => {
+    const last = ROW_Y[ROW_Y.length - 1];
+    const third = (1000 - last) / 3;
+    return `C 70 ${Math.round(last + third)}, 70 ${Math.round(last + 2 * third)}, 70 1000`;
+  })()
 ].join(" ");
 
 function StepRow({ stepKey, color, n, index }: { stepKey: AboutStepKey; color: string; n: number; index: number }) {

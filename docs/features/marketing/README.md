@@ -15,7 +15,7 @@ the app may.
 | Route | Renders | Purpose |
 | --- | --- | --- |
 | `/` | `app/page.tsx` → `HomeGate` → `app/landing/spark/SparkHome.tsx` → `SparkLanding.tsx` | The landing. Signed-out only; signed-in visitors get the workspace. |
-| `/about` | `app/about/page.tsx` → `AboutHome.tsx` → `AboutCurve.tsx` | **About the app**, not about us — a scroll-drawn timeline of the seven pipeline phases. |
+| `/about` | `app/about/page.tsx` → `AboutHome.tsx` → `AboutCurve.tsx` | **About the app**, not about us — a scroll-drawn timeline of the pipeline phases (`about-art/shared.ts` `ABOUT_STEP_KEYS`). |
 | `/market` | `app/market/page.tsx` → `MarketPulse.tsx` → `market/MarketPulseApp.tsx` → `MarketPulseAtlas.tsx` | "Market Pulse" — the Czech job market from open data. |
 | `/landing`, `/landing/spark` | redirect stubs | Legacy bookmarks → `/`. |
 
@@ -33,7 +33,7 @@ cards that drive it sit inside `FeatureGrid`).
 | `spark/trust-art/` | The four Responsible-AI demonstrations the `#trust` band switches between, plus `shared.tsx` (the fixed stage and the `cycle()` loop helper) and `index.ts` (the key→accent+body registry) |
 | `spark/useStillMotion.ts` | `prefers-reduced-motion` as an external store — the SSR-safe replacement for framer's hook |
 | `spark/previews/` | The nine product mockups a feature card opens, plus `shared.tsx` (the two entrance choreographies and the recurring card/chip/bar shapes) and `index.ts` (the key→icon+body registry) |
-| `spark/about-art/` | One illustration per `/about` pipeline phase, plus `shared.ts` |
+| `spark/about-art/` | One illustration per `/about` pipeline phase, plus `shared.ts` — which owns `ABOUT_STEP_KEYS`, the phase list `AboutCurve` derives its rows AND its spine from |
 | `spark/Wordmark.tsx` | The brand lockup, used by all three pages |
 | `spark/FeatureSpotlight.tsx` | The modal chrome that frames a preview |
 
@@ -74,7 +74,7 @@ hue, not reusing one.
   that actually start something, and the scroll rail already navigates the page.
 - **There is no "how it works" band.** Three generic steps between `#proof` and
   `#features` re-told the funnel that `/about` tells properly, as a scroll-drawn
-  seven-phase timeline. The landing no longer carries the short, worse version;
+  eight-phase timeline. The landing no longer carries the short, worse version;
   `landing.steps.*` and `landing.nav.how` are retired from all four catalogs.
 - **A feature card is title + body over its own watermark.** Each of the nine
   cards renders `sections/FeatureCardArt.tsx` — line art traced from the mockup
@@ -216,6 +216,11 @@ one. Both are commented at the source and in the message keys.
   **text nodes only** and structurally cannot see an attribute — an untranslated
   `aria-label` is invisible in review but is the only thing a screen-reader user
   hears. The directories are at zero, so they are sealed.
+- `app/landing/spark/PricingSection.test.ts` (the price list) and
+  `app/landing/spark/MarketingClaims.test.ts` (the prose claims) — see
+  [The claims are pinned, not proofread](#the-claims-are-pinned-not-proofread).
+  Both read the shipped catalogs and the shipped enforcing module, so there is
+  nothing to keep in sync.
 - `i18next/no-literal-string` runs at **error** for `app/landing/**`,
   `app/about/**` and `app/market/**`. Until this pass the rule was switched
   **off** for `app/landing/**` — a carve-out from when that directory held
@@ -339,29 +344,49 @@ ISPV occupation coverage (`apply-market-salaries.mjs` documents the same gap),
 and `momentum` is `0` across the board until consecutive snapshots differ —
 `MomentumBadge` treats `0` as "no change measured", not as an increase.
 
+## The claims are pinned, not proofread
+
+Everything on these pages is a promise a prospect can hold the product to, and
+it is published in four languages on a page nobody re-reads. `PricingSection.test.ts`
+has always pinned the price list to `billing/plans.ts`. **`MarketingClaims.test.ts`
+now does the same for the prose claims** — each test pins the ONE structural fact
+its claim rests on, so it fails when the code moves rather than when the wording
+is edited:
+
+| Claim | Pinned to |
+| --- | --- |
+| the human gate is the DEFAULT, and delegable | `INTERVIEW_PLAN_DEFAULT` is human on every step and round; `automation-run.ts` still has its two `getPlanGateForRole(…) === "auto"` branches and no rejection branch |
+| no page promises onboarding | `TENANCY_RETIRED_TABLES` still lists the onboarding tables; the ban then sweeps the whole `landing` + `aboutPage` namespaces, per locale |
+| the language claim | `LOCALES.length` — the numeral, read the way the pricing test reads a price |
+| SSO is not sold as shipped | no SAML/OIDC implementation in `_lib/auth/*`; the capability must carry a "(planned)" marker in every locale and the blurb must not name it |
+| `/about` walks every phase | `aboutPage.steps` key order equals `ABOUT_STEP_KEYS`, each eyebrow states its own 1-based position, and the hero states the phase count |
+
+Two of those need a per-locale table in the test (the "by default" qualifier and
+the "(planned)" marker), because **a claim whose honesty lives in a qualifier is
+false the moment a translation drops it**, and key-parity cannot see that. The
+tables' key sets are asserted equal to `LOCALES`, so adding a locale fails the
+test rather than silently exempting it.
+
 ## Known gaps
 
-- **`landing.trust.human.body` overstates the human gate.** It reads "No
-  candidate is advanced, offered or rejected by the machine alone… That is by
-  design, not a setting." Rejection holds — `runScreenWave` refuses to commit
-  without a fresh, set-matching approval token (`screen-wave-approval.ts`).
-  The other two do not. `screenStageOutcome` (`_lib/pipeline-stages.ts`) moves
-  a fresh applicant `Accepted → Screened` unconditionally and `Screened →
-  Interview` on a clean AI verdict, applied with `actor: "system"`; and the
-  Settings → Hiring composer exposes per-stage `Auto`/`Human` gates, so
-  `screeningGate: "auto"` auto-ratifies a held review (`auto_advanced`) and
-  `offerGate: "auto"` extends the offer to the candidate unattended
-  (`offer_auto_extended`, `automation-run.ts`) — the composer even labels that
-  plan "No human gates, fully unattended". `HumanLoopArt`'s "What may run
-  unattended" panel compounds it by listing only screening / scheduling /
-  rejection. Fixing this is a copy change across four catalogs.
-- **`landing.hero.subtitle` and `landing.features.offer.body` promise candidate
-  onboarding that no longer exists.** They claim "onboarding started" and
-  "accepting fires the onboarding checklist automatically". The onboarding
-  module is retired — its tables are in `TENANCY_RETIRED_TABLES`
-  (`_lib/tenancy.ts`), nothing creates them, there is no `app/api/onboarding`,
-  and `POST /api/offer/[token]` on accept does exactly `→ Hired` plus the ATS
-  handoff. Also a four-catalog copy change.
+- **`app/_lib/trust-posture.ts`'s Art. 14 row still carries the old absolute.**
+  It reads "No candidate is rejected, advanced or offered by the machine alone",
+  which is the sentence `landing.trust.human.body` was corrected off on
+  2026-08-28 — `screeningGate: "auto"` auto-ratifies a held review
+  (`auto_advanced`) and `offerGate: "auto"` extends a drafted offer unattended
+  (`offer_auto_extended`, `automation-run.ts`). `/trust` is owned by its own
+  goal and its posture rows were deliberately left untouched here; the same
+  correction is owed there, and `MarketingClaims.test.ts` does not reach it.
+- **`HumanLoopArt`'s "What may run unattended" panel lists screening /
+  scheduling / rejection.** The real per-stage gates are screening and offer;
+  rejection is the one that cannot be delegated, and it is the one the panel
+  draws as a locked toggle. The demonstration is now arguing a slightly
+  different shape from the paragraph beneath it. Art change, not copy.
+- **`landing.trust.art.audit.calibration.note`** ("the bars line up, so the
+  number means what it says") is the same settled-calibration assertion that
+  `trust.audit.body` was softened off. It is demonstration copy inside a
+  stylised chart rather than a claim in a paragraph, so it was left; if the
+  panel is next revised, soften it to match the body.
 - Four landing components still read reduced motion through framer's hook
   against the rule above: `spark/SectionRail.tsx`, `spark/FeatureSpotlight.tsx`,
   `spark/market/parts.tsx` and `spark/market/CzMap.tsx`. The first three branch

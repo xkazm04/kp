@@ -644,7 +644,7 @@
     "hero": {
       "badge": "Automatizovaný nábor, schvaluje člověk",
       "title": "Váš nábor<br></br>na <emph>autopilota</emph>",
-      "subtitle": "KandiDate vede celý nábor za vás: každé CV přečte a porovná s pozicí, slibné kandidáty pozve na pohovor ještě týž den, domluví termíny, připraví nabídku a spustí onboarding. Vy rozhodujete jen tam, kde na tom záleží. Rutina se k vám vůbec nedostane.",
+      "subtitle": "KandiDate vede celý nábor za vás: každé CV přečte a porovná s pozicí, slibné kandidáty pozve na pohovor ještě týž den, domluví termíny, připraví nabídku a ve chvíli, kdy ji kandidát přijme, zapečetí nástup. Vy rozhodujete jen tam, kde na tom záleží. Rutina se k vám vůbec nedostane.",
       "proof": "Otevřený kód, AGPL-3.0. Běží na vašem stroji, na vašich modelech: celý produkt, zdarma a bez limitů. Placené plány kupují cizí servery.",
       "proofCta": "Rozjeďte si to sami",
       "ctaPrimary": "Začít nabírat zdarma",
@@ -670,12 +670,12 @@
     },
     "marquee": [
       "ověřené pracovní ukázky",
-      "kandidát, nebo model? poznáme to",
+      "AI povolena, průběh práce zaznamenán",
       "zapečetěná auditovatelná rozhodnutí",
       "hlasové AI pohovory",
       "hodnocení CV během vteřin",
       "rozhodnutí schválená člověkem",
-      "česky i anglicky",
+      "4 jazyky, kandidátské stránky nevyjímaje",
       "mzdový radar"
     ],
     "proof": {
@@ -688,7 +688,7 @@
         },
         "defend": {
           "title": "Pohovor o vlastních rozhodnutích",
-          "body": "Hlasový pohovor naváže na dvě rozhodnutí, která kandidát v ukázce opravdu udělal, a nechá ho obě obhájit nahlas, česky nebo anglicky."
+          "body": "Hlasový pohovor naváže na dvě rozhodnutí, která kandidát v ukázce opravdu udělal, a nechá ho obě obhájit nahlas, česky nebo anglicky. Spustíte ho rovnou z odevzdané práce, bez mezikroku."
         },
         "sealed": {
           "title": "Rozhodnutí zapečetěná, ne tvrzená",
@@ -729,8 +729,8 @@
         "body": "Nová pozice přeskóruje všechny, kdo se kdy přihlásili. Kandidát, který před osmi měsíci skončil druhý, se objeví první. Žádné další výdaje za sourcing a jednou už vám kývl."
       },
       "offer": {
-        "title": "Od nabídky k prvnímu dni",
-        "body": "Částka je deterministická: pásmo pozice × shoda, žádný model v čísle. Dopis se napíše sám, podepíše ho člověk a přijetí automaticky spustí onboardingový checklist."
+        "title": "Od nabídky k zapečetěnému nástupu",
+        "body": "Částka je deterministická: pásmo pozice × shoda, žádný model v čísle. Dopis se napíše sám, podepíše ho člověk a přijetí zapečetí nástup a propíše ho do napojeného ATS."
       },
       "gates": {
         "title": "Brány a doklady",
@@ -759,7 +759,7 @@
       "tablist": "Ukázky odpovědné AI",
       "human": {
         "title": "Člověk v řídicí smyčce",
-        "body": "Stroj sám žádného kandidáta neposune dál, nezamítne ho ani mu nepošle nabídku. Za každým nepříznivým rozhodnutím stojí člověk, který ho posoudil. Je to tak z principu, ne podle nastavení."
+        "body": "Zamítnutí je vždy na člověku: stroj ho sám provést nemůže a hromadné zamítnutí potřebuje podepsaný lidský souhlas s přesně tímto seznamem. Posun dál i podání nabídky ve výchozím nastavení také schvaluje člověk. Pracovní prostor může kterýkoli z nich svěřit automatice, fázi po fázi, a každý krok, který pak proběhne bez dozoru, se zaznamená i s pravidlem, které ho povolilo."
       },
       "oversight": {
         "title": "Připraveno na EU AI Act",
@@ -771,7 +771,7 @@
       },
       "audit": {
         "title": "Prokazatelné, ne slíbené",
-        "body": "Každé rozhodnutí AI se zapečetí do auditní stopy, která je odolná proti manipulaci a dá se exportovat. Jistotu navíc poměřujeme se skutečnými výsledky. Nestačí nám ji jen tvrdit."
+        "body": "Každé rozhodnutí AI se zapečetí do auditní stopy, která je odolná proti manipulaci a dá se exportovat. Skóre pak porovnáváme s tím, co se skutečně stalo, a měření samo nahlas řekne, když jsou důkazy za ním ještě příliš tenké nebo příliš kruhové, než aby se jim dalo věřit."
       },
       "footnote": "Funkční ukázka: odráží návrh a kontrolní mechanismy produktu, ne právní certifikaci.",
       "art": {
@@ -913,10 +913,10 @@
       "enterprise": {
         "eyebrow": "Pro celou firmu",
         "heading": "Nabíráte napříč celou organizací?",
-        "blurb": "Vše výše uvedené je v repozitáři, včetně SSO, auditní stopy i vlastního brandingu. Enterprise kupuje dodávku: nasazení vedené s vaším bezpečnostním týmem a pověřencem, smluvní záruky a linku podpory. Cena podle objemu náboru.",
+        "blurb": "Vše výše uvedené, co už dnes existuje, je v repozitáři, včetně auditní stopy i vlastního brandingu. Enterprise kupuje dodávku: nasazení vedené s vaším bezpečnostním týmem a pověřencem, smluvní záruky a linku podpory. Cena podle objemu náboru.",
         "cta": "Spojit se s obchodem",
         "capabilities": [
-          "Podnikové SSO a provisioning SCIM",
+          "Podnikové SSO a provisioning SCIM (v plánu)",
           "Auditní stopa pro celého klienta, exportovatelná",
           "Vaše značka na každém kontaktu s kandidátem",
           "Nasazení vedené s vaším bezpečnostním týmem",
@@ -1090,7 +1090,7 @@
     "hero": {
       "badge": "náborová pipeline, od začátku do konce",
       "title": "Projděte s jednou posilou<br></br>celou <emph>pipeline</emph>.",
-      "subtitle": "Posouvejte stránku a cesta se kreslí sama: od prázdné pozice k podepsanému nástupu. Sedm kroků, jedna souvislá linka, u každé brány člověk."
+      "subtitle": "Posouvejte stránku a cesta se kreslí sama: od prázdné pozice k podepsanému nástupu. Osm kroků, jedna souvislá linka, u každé brány člověk."
     },
     "steps": {
       "design": {
@@ -1111,22 +1111,27 @@
       "screen": {
         "eyebrow": "Krok 04 · Screening",
         "title": "Každé CV opravdu přečtené",
-        "body": "Každý kandidát je oproti pozici obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody postoupí samy a vše ostatní čeká na člověka. U technických pozic sem může přijít pracovní ukázka. Počítá s tím, že kód napíše AI, a hodnotí úsudek kolem něj, se zasazenými chybami, jejichž správné řešení už známe."
+        "body": "Každý kandidát je oproti pozici obodován 0–100 s dohledatelnými důkazy. Nejdřív proběhne kontrola férovosti; jednoznačně silné shody postoupí samy a vše ostatní čeká na člověka."
+      },
+      "assignment": {
+        "eyebrow": "Krok 05 · Pracovní ukázka",
+        "title": "Pracovní ukázka, která počítá s AI",
+        "body": "U technických pozic dostane kandidát skutečný úkol v živém pracovním prostředí. Použít AI smí a nikdy za to není penalizován; hodnotí se úsudek kolem toho. Zasazené chyby, jejichž správné řešení už známe, prompty, které opravdu použil, a záznam o průběhu práce odolný proti manipulaci."
       },
       "interview": {
-        "eyebrow": "Krok 05 · Pohovor",
+        "eyebrow": "Krok 06 · Pohovor",
         "title": "Pak si promluví s lidmi",
         "body": "Slibní kandidáti dostanou ještě týž den vřelý hlasový pohovor s AI: otázky vycházejí z jejich CV, přepis běží živě a strukturovaný scorecard čeká na vaše rozhodnutí."
       },
       "offer": {
-        "eyebrow": "Krok 06 · Nabídka",
+        "eyebrow": "Krok 07 · Nabídka",
         "title": "AI ji připraví. Člověk ji podepíše.",
         "body": "Částka nabídky je deterministická: pásmo pozice × vhodnost, žádná AI v čísle. Dopis se připraví sám, člověk nabídku podá a kandidát ji přes zabezpečený odkaz přijme nebo odmítne."
       },
       "hired": {
-        "eyebrow": "Krok 07 · Přijat/a",
-        "title": "Přijat/a: onboarding už běží",
-        "body": "Přijetí překlopí kandidáta na „Přijat/a“ a spustí onboarding: pre-boarding dotazník a checklist, takže první den je v pohybu ještě dřív, než opadne oslava."
+        "eyebrow": "Krok 08 · Přijat/a",
+        "title": "Přijat/a: výsledek zapečetěn",
+        "body": "Přijetí překlopí kandidáta na „Přijat/a“, zapečetí rozhodnutí a zaznamená výsledek. Tady KandiDate končí: nástup se propíše do napojeného ATS nebo HRIS, kterému patří první den."
       }
     },
     "closing": {
@@ -1165,6 +1170,19 @@
           "evidence": "Důkazy · dohledané"
         }
       },
+      "assignment": {
+        "surfaceTitle": "Živé pracovní prostředí",
+        "meta": "relace zapečetěna",
+        "events": {
+          "opened": "Otevřel zadání",
+          "asked": "Požádal model o ověření",
+          "logged": "Zapsal rozhodnutí"
+        },
+        "chips": {
+          "flaw": "Zasazená chyba odhalena",
+          "prompts": "Prompty zaznamenány"
+        }
+      },
       "interview": {
         "screenTitle": "Screening prvního kola",
         "meta": "živě · 4:12",
@@ -1191,7 +1209,7 @@
     },
     "meta": {
       "title": "O aplikaci: KandiDate",
-      "description": "Projděte s jednou posilou celou pipeline: návrh pozice, sourcing, příjem, screening, pohovor, nabídka, přijetí. AI v každém kroku čte za vás; každé rozhodnutí podepisuje člověk.",
+      "description": "Projděte s jednou posilou celou pipeline: návrh pozice, sourcing, příjem, screening, pracovní ukázka, pohovor, nabídka, přijetí. AI v každém kroku čte za vás; každé rozhodnutí podepisuje člověk.",
       "ogDescription": "Projděte s jednou posilou celou pipeline. AI čte, člověk podepisuje každé rozhodnutí."
     }
   },
