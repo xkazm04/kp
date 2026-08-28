@@ -1,6 +1,8 @@
 import type Database from "better-sqlite3";
+import { adoptedExistingSeed, markSeedRan, seedAlreadyRan } from "./seed-marks";
 
 const BENCH_TEAM = "ws-benchmark-north";
+const SEED_MARK = "benchmark-team";
 
 type EnvLike = Record<string, string | undefined>;
 
@@ -35,8 +37,15 @@ export function seedBenchmarkTeam(db: Database.Database, env: EnvLike = process.
   db.prepare(
     `INSERT OR IGNORE INTO workspaces (id, name, org_id, type, created_at) VALUES (?, ?, 'org-default', 'team', ?)`
   ).run(BENCH_TEAM, "Talent Acquisition — North", "2026-01-01T00:00:00.000Z");
+  // Mark-gated for the same reason as the seeders in core.ts: this team's own emptiness
+  // cannot tell "never seeded" from "seeded, then emptied". These rows live in
+  // pipeline_entries, so an operator clearing THEIR pipeline clears this team's rows too —
+  // and before the mark, the next boot silently put all 24 fabricated entries back into a
+  // real org's benchmark, which is the exact contamination bug-ui-scan-2026-07-09
+  // (data-store-persistence #2) added the production gate above to stop.
+  if (seedAlreadyRan(db, SEED_MARK)) return;
   const existing = (db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries WHERE workspace_id = ?`).get(BENCH_TEAM) as { n: number }).n;
-  if (existing > 0) return;
+  if (adoptedExistingSeed(db, SEED_MARK, existing)) return;
 
   // A DIFFERENT-shaped funnel than the default team's, so the "you vs the org" compare is
   // non-trivial: [stage, createdDayOffset, daysToStageChange]. An Accepted row hasn't
@@ -71,4 +80,5 @@ export function seedBenchmarkTeam(db: Database.Database, env: EnvLike = process.
       BENCH_TEAM
     );
   });
+  markSeedRan(db, SEED_MARK);
 }

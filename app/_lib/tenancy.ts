@@ -309,6 +309,14 @@ export const TENANCY_EXEMPT_TABLES: ReadonlySet<string> = new Set([
   // and filtered to the caller's tenant on read (scheduler-store.decisionsForWorkspace).
   "scheduler_runs",
   "scheduler_heartbeat", // one row per deployment: the clock's liveness stamp, not tenant data
+  // One row per one-shot fixture seeder that has run against this database — the
+  // scheduler_heartbeat of seeding, and exempt for the same reason: deployment-level
+  // bookkeeping, one row per seeder per install, no tenant data and no workspace to
+  // scope it to. It replaced a `COUNT(*) > 0` gate that could not tell "never seeded"
+  // from "seeded, then legitimately emptied", so emptying a table resurrected the demo
+  // corpus on the next boot. A per-workspace seed mark would be meaningless: the
+  // seeders write the deployment's default workspace/org, once.
+  "seed_marks",
   // The autonomous dev-case pipeline's CONTROL PLANE (Direction D, dev-control.ts) —
   // deliberately "independent of the main schema". The dev-case CANDIDATE data
   // (dev_cases/lifecycle/postings/submissions/sessions/session_events) is per-team and

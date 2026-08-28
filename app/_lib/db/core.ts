@@ -8,6 +8,7 @@ import type { PipelineStage } from "../pipeline-stages";
 import { assertTenancyReady } from "../tenancy";
 import { multiWorkspaceEnabled } from "../workspace-lock";
 import { seedBenchmarkTeam } from "./seed-benchmark-team";
+import { adoptedExistingSeed, markSeedRan, seedAlreadyRan } from "./seed-marks";
 import { fixtureSeedEnabled } from "./seed-gate";
 
 // Memoized on globalThis (not just module scope): Next dev HMR re-evaluates this
@@ -444,6 +445,21 @@ export function ensureDb(): Database.Database {
     CREATE TABLE IF NOT EXISTS scheduler_heartbeat (
       id TEXT PRIMARY KEY,
       last_tick_at TEXT NOT NULL
+    );
+
+    -- One row per one-shot fixture seeder that has run against THIS database.
+    -- Deployment-global bookkeeping, the scheduler_heartbeat of seeding: it holds no
+    -- tenant data, one row per seeder per install. Exists because a row COUNT cannot
+    -- answer the question the seeders are actually asking. "Is the table empty" conflates
+    -- "never seeded" with "seeded, and the operator has since emptied it" — so a
+    -- self-hosted recruiter who archived every job got the whole ČS demo corpus injected
+    -- back on the next boot, silently and on a timer. seedExampleJd already avoided this
+    -- by checking for its own slug, but per-seeder identity checks only move the problem:
+    -- delete the seeded rows and it still reads as "never seeded". Whether a seeder ran is
+    -- a fact about the DATABASE, so record it as one.
+    CREATE TABLE IF NOT EXISTS seed_marks (
+      name TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS dev_cases (
@@ -1730,8 +1746,9 @@ function seedExampleJd(db: Database.Database): void {
 // users are identity+role only until an invite sets a credential (open dev already
 // grants owner access, so no seeded login is needed).
 function seedOrgMembers(db: Database.Database): void {
+  if (seedAlreadyRan(db, "org-members")) return;
   const { n } = db.prepare(`SELECT COUNT(*) AS n FROM users WHERE org_id = 'org-default'`).get() as { n: number };
-  if (n > 0) return;
+  if (adoptedExistingSeed(db, "org-members", n)) return;
   const members: { id: string; name: string; email: string; role: string; status: string }[] = [
     { id: "usr-seed-petra", name: "Petra Nováková", email: "petra.novakova@csas.cz", role: "owner", status: "active" },
     { id: "usr-seed-jan", name: "Jan Dvořák", email: "jan.dvorak@csas.cz", role: "admin", status: "active" },
@@ -1747,6 +1764,7 @@ function seedOrgMembers(db: Database.Database): void {
     insUser.run(m.id, m.email, m.name, m.status, now);
     insMem.run(`mem-seed-${m.id}`, m.id, m.role, now);
   }
+  markSeedRan(db, "org-members");
 }
 
 const ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
@@ -1856,9 +1874,13 @@ export type JobRecord = {
 const SEED_JOBS_PATH = path.join(process.cwd(), "data", "seed_jobs", "jobs.normalized.json");
 
 function seedJobs(db: Database.Database): void {
+  if (seedAlreadyRan(db, "jobs")) return;
   const count = db.prepare(`SELECT COUNT(*) AS n FROM jobs`).get() as { n: number };
-  if (count.n > 0) return;
+  if (adoptedExistingSeed(db, "jobs", count.n)) return;
   const jobs = loadSeedArray<JobRecord>("jobs", SEED_JOBS_PATH);
+  // A missing or unreadable seed file is NOT a completed seed — leave the mark unset so
+  // a later boot with the file present still seeds. loadSeedArray already records the
+  // read/parse failure in seed health.
   if (!jobs) return;
   const now = new Date().toISOString();
   const insert = db.prepare(`INSERT OR IGNORE INTO jobs
@@ -1893,6 +1915,7 @@ function seedJobs(db: Database.Database): void {
     }
   });
   tx(jobs);
+  markSeedRan(db, "jobs");
 }
 
 // Seed the synthetic candidate population into `profiles`, so Profile / Match /
@@ -2204,9 +2227,11 @@ function backfillDeclinedStatus(db: Database.Database): void {
 }
 
 function seedPipeline(db: Database.Database): void {
+  if (seedAlreadyRan(db, "pipeline")) return;
   const count = db.prepare(`SELECT COUNT(*) AS n FROM pipeline_entries`).get() as { n: number };
-  if (count.n > 0) return;
+  if (adoptedExistingSeed(db, "pipeline", count.n)) return;
   const entries = loadSeedArray<PipelineEntry>("pipeline", SEED_PIPELINE_PATH);
+  // As in seedJobs: an unreadable seed file leaves the mark unset so a later boot retries.
   if (!entries) return;
   const nowMs = Date.now();
   const day = 86_400_000;
@@ -2269,4 +2294,5 @@ function seedPipeline(db: Database.Database): void {
     });
   });
   tx(entries);
+  markSeedRan(db, "pipeline");
 }

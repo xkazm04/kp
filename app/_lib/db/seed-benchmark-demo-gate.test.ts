@@ -8,8 +8,11 @@ import { seedBenchmarkTeam, benchmarkDemoSeedEnabled } from "./seed-benchmark-te
 // org benchmark reads — so seeding it in production contaminated a real tenant's org-wide
 // hire rates and faked the k-anon floor. It must seed ONLY in non-production / on opt-in.
 
-// A throwaway in-memory DB with just the two tables the seeder touches — no ensureDb, so
+// A throwaway in-memory DB with just the tables the seeder touches — no ensureDb, so
 // this proves the gate directly rather than observing the (already-seeded) shared test DB.
+// seed_marks is part of that set since the seeder became mark-gated: its emptiness check
+// keyed off the team's own rows, which an operator clearing THEIR pipeline also clears, so
+// the 24 fabricated entries came back on the next boot.
 function freshDb(): Database.Database {
   const db = new Database(":memory:");
   db.exec(`
@@ -18,6 +21,7 @@ function freshDb(): Database.Database {
       id TEXT PRIMARY KEY, candidate_id TEXT, candidate_label TEXT, job_id TEXT, job_title TEXT,
       stage TEXT, status TEXT, created_at TEXT, stage_changed_at TEXT, updated_at TEXT, workspace_id TEXT
     );
+    CREATE TABLE seed_marks (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL);
   `);
   return db;
 }
@@ -57,7 +61,19 @@ test("seedBenchmarkTeam DOES seed the 24 demo entries in dev / on opt-in (non-va
   seedBenchmarkTeam(optIn, { NODE_ENV: "production", KP_SEED_DEMO: "1" });
   assert.equal(count(optIn).entries, 24, "KP_SEED_DEMO forces the seed even in production");
 
-  // Idempotent: a second call adds nothing (keyed off the team's own emptiness).
+  // Idempotent: a second call adds nothing (keyed off the seed mark).
   seedBenchmarkTeam(dev, { NODE_ENV: "development" });
   assert.equal(count(dev).entries, 24, "re-seeding is idempotent");
+
+  // And the mark, not the row count, is what holds: emptying the team's entries — which an
+  // operator clearing their own pipeline does incidentally — must NOT resurrect them.
+  dev.prepare(`DELETE FROM pipeline_entries WHERE workspace_id = 'ws-benchmark-north'`).run();
+  seedBenchmarkTeam(dev, { NODE_ENV: "development" });
+  assert.equal(count(dev).entries, 0, "an emptied benchmark team stays empty once marked");
+
+  // The production gate still short-circuits BEFORE the mark is consulted, so a
+  // production boot neither seeds nor records a mark it never earned.
+  const prod = freshDb();
+  seedBenchmarkTeam(prod, { NODE_ENV: "production" });
+  assert.equal((prod.prepare(`SELECT COUNT(*) AS n FROM seed_marks`).get() as { n: number }).n, 0);
 });
