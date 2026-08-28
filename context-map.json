@@ -1911,7 +1911,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Lib Matching: 10 source + 10 test file(s) under app/_lib.",
+      "description": "Thread step 5 (scoring): `match-score.ts` documents the coexisting 0-100 score kinds and `canonicalScoreOf` decides which one a surface renders; also fit thresholds, factor points, candidate matching and the match-reasoning cache.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/comparison.test.ts",
@@ -1967,7 +1967,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Matrix UI 1: 17 source + 3 test file(s) under app/features/insights/matrix, app/features/insights/matrix/focus.",
+      "description": "Thread step 5 surface: `MatrixCandidateFocus.tsx` drives `useMatchTabRun.ts` `runMatchFor` - where the retired `sub_match/MatchTab.tsx` run now lives - rendering `MatchResults.tsx` / `MatchCard.tsx` and writing results back to the pipeline.",
       "entry_points": [],
       "file_paths": [
         "app/features/insights/matrix/MatrixDataNotices.tsx",
@@ -2024,7 +2024,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Matrix UI 2: 10 source + 3 test file(s) under app/features/insights/matrix.",
+      "description": "Thread step 5 surface: the candidate-by-role grid itself - `MatrixTab.tsx` at `?tab=matrix`, its toolbar, rows, stats and reasoning popover.",
       "entry_points": [
         "app/features/insights/matrix/MatrixTab.tsx"
       ],
@@ -2122,7 +2122,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Python Scoring Core: 7 source + 4 test file(s) under pipeline/jobfit.",
+      "description": "Thread step 5, Python side: `matching.py` `score_job` is the scorer, `taxonomy.py` holds the provenance weights, and `archetype.py`/`profiling.py`/`transform.py` shape the candidate record it consumes.",
       "entry_points": [],
       "file_paths": [
         "pipeline/jobfit/archetype.py",
@@ -2167,7 +2167,7 @@
         "analyses",
         "gemini_cache"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] Salary & Matching & Analyses: 7 source + 3 test file(s) under app/_lib, app/_lib/db, app/api/benchmarks (+4 more). Serves 5 route handler(s). Reads/writes analyses, gemini_cache.",
+      "description": "Thread step 5 HTTP surface: `/api/match`, `/api/match/reasoning`, `/api/matrix` and the benchmarks routes, over the `analyses` store (score producer A) and the salary-band helper.",
       "entry_points": [
         "app/api/benchmarks/route.ts",
         "app/api/benchmarks/salary/route.ts",
@@ -3670,7 +3670,7 @@
       "category": "api",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] API Devcase 1: 16 source + 4 test file(s) under app/api/devcase/comms, app/api/devcase/control, app/api/devcase/feedback (+13 more). Serves 16 route handler(s).",
+      "description": "Thread steps 2-3: the `/api/devcase/*` route surface for the assignment lifecycle - control, comms, feedback, sessions, postings, publish, and the approve/close gates - with their tenancy and approve-gate tests.",
       "entry_points": [
         "app/api/devcase/comms/route.ts",
         "app/api/devcase/control/route.ts",
@@ -3723,7 +3723,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] API Devcase 2: 12 source + 4 test file(s) under app/_lib, app/api/devcase, app/api/devcase/skill-profile (+4 more). Serves 5 route handler(s).",
+      "description": "Thread steps 2-3: the devcase create and skill-profile routes plus the Python design-time modules they drive (`seed_materializer.py`, `scenarios.py`, `source.py`, `submission_eval.py`) and the GitHub repo-activity/snapshot readers.",
       "entry_points": [
         "app/api/devcase/route.ts",
         "app/api/devcase/skill-profile/route.ts",
@@ -3790,7 +3790,7 @@
         "dev_submissions",
         "pipeline_entries"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] Devcase Candidate & Devcase: 7 source + 4 test file(s) under app/_lib/db, app/devcase/apply/[token]. Reads/writes dev_cases, dev_lifecycle, dev_outbox, dev_postings, dev_session_chat, dev_session_events, ….",
+      "description": "Thread steps 2-3, candidate side: the tokenized `/devcase/apply/[token]` page and `LiveWorkSurface.tsx`, together with the `dev_*` schema (`dev_cases`, `dev_sessions`, `dev_submissions`, `dev_postings`, `dev_lifecycle`, `dev_outbox`) and its tenancy, publish-dedup and seed-freeze tests.",
       "entry_points": [
         "app/devcase/apply/[token]/page.tsx"
       ],
@@ -3838,7 +3838,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Devcase Workspace 1: 19 source + 2 test file(s) under app/features/tools/devcases.",
+      "description": "Thread step 3 (Assignment evaluation) review surface: `DevCaseDetail.tsx` with its publish and seed actions, the analysis and reflection cards, the cohort probe, submission comparison, and `DevEvalPanel.tsx`.",
       "entry_points": [],
       "file_paths": [
         "app/features/tools/devcases/DevAnalysisDesignCard.tsx",
@@ -3896,7 +3896,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Devcase Workspace 2: 18 source + 1 test file(s) under app/features/tools/devcases.",
+      "description": "Thread steps 2-3: `DevNeedForm.tsx` - where the recruiter re-picks a saved JD, the handoff that is stored only as `DevNeed.jdSlug` inside `dev_cases.need_json` - plus the eval panel's scores/integrity/process-trace faces, lifecycle and submission rows, and `DevLabels.ts`, one of the three status catalogs on this path.",
       "entry_points": [],
       "file_paths": [
         "app/features/tools/devcases/DevEvalPanelIntegrity.tsx",
@@ -3952,7 +3952,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Devcase Workspace 3: 14 source + 6 test file(s) under app/features/tools/devcases.",
+      "description": "Thread step 2 (Assignment) entry point: `DevTab.tsx` at `/?tab=assignments` (legacy `?tab=dev`) with its define/cases view switcher, the outbox section, and `devcase-vocabulary.test.ts`, which pins the Assignments-in-UI vs devcase-in-code naming.",
       "entry_points": [
         "app/features/tools/devcases/DevTab.tsx"
       ],
@@ -4016,7 +4016,7 @@
         "dev_outcomes",
         "dev_submissions"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] Lib Devcase 11: 8 source + 7 test file(s) under app/_lib. Reads/writes dev_audit, dev_control, dev_outcomes, dev_submissions.",
+      "description": "Thread step 3: assignment evidence libraries - authenticity scoring, cohort comparison, code-review status, per-case constraints and feedback - over the `dev_outcomes`, `dev_audit`, `dev_control` and `dev_submissions` tables.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/code-review-status.test.ts",
@@ -4067,7 +4067,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Lib Devcase 12: 7 source + 7 test file(s) under app/_lib.",
+      "description": "Thread steps 2-3 engine: `devcase-orchestrator.ts` (the 10 lifecycle stages) and `devcase-run.ts`, whose `promoteSubmission` mints the synthetic `ds-<submissionId>` / `dc-<caseId>` pipeline identity and writes the transfer score into `pipeline_entries.match_score` - the thread's step 3 to step 5 seam.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/devcase-interview-kit.test.ts",
@@ -4117,7 +4117,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Python Devcase 1: 20 source + 0 test file(s) under pipeline/jobfit/devcase.",
+      "description": "Thread steps 2-3, Python side: `analyze.py` and `design.py` build the case, `evaluate.py`/`reflect.py`/`artifact_checks.py`/`process_events.py` grade the submission, and `calibrate.py`/`lifecycle_eval.py` hold the judge seat that falls back to the generating model when `devcase_judge` is unconfigured.",
       "entry_points": [
         "pipeline/jobfit/devcase/devcase_cli.py"
       ],
@@ -4174,7 +4174,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Decisions UI 1: 21 source + 0 test file(s) under app/features/hiring/decisions.",
+      "description": "Thread step 5 (decision): the review cards - AI-review card and ladder, compliance section and impact check, reconsider queue, rules modal, and the screen-wave confirm modal.",
       "entry_points": [],
       "file_paths": [
         "app/features/hiring/decisions/DecisionsAiReviewCard.tsx",
@@ -4231,7 +4231,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Decisions UI 2: 14 source + 6 test file(s) under app/features/hiring/decisions.",
+      "description": "Thread step 5 (decision) entry point: `DecisionsTab.tsx` at `?tab=decisions` with the screen-wave modal, `GroupEvalModal.tsx`, and the queue, selection-hygiene and score-staleness logic behind them.",
       "entry_points": [
         "app/features/hiring/decisions/DecisionsTab.tsx"
       ],
@@ -4401,7 +4401,7 @@
       "db_tables": [
         "decision_config"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] Lib Decisions 1: 5 source + 7 test file(s) under app/_lib. Reads/writes decision_config.",
+      "description": "Thread step 5: decision configuration and attribution - `approval-kinds.ts` (the five kinds, including the `scorecard_review` that step 4's completion raises), the decision-config store and schema, decision hashing, and tenancy tests.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/approval-kinds.ts",
@@ -4448,7 +4448,7 @@
         "decision_records",
         "pipeline_entries"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] Lib Decisions 2: 4 source + 7 test file(s) under app/_lib. Reads/writes decision_records, pipeline_entries.",
+      "description": "Thread step 5: the seal - `decision-record-store.ts` writes the immutable `decision_records`, and `screen-wave.ts` runs the dry-run + signed-approval screening wave with its family floor and holdout.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/decision-record-store.test.ts",
@@ -4604,7 +4604,7 @@
       "category": "api",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] API Pipeline: 11 source + 10 test file(s) under app/api/attention, app/api/pipeline, app/api/pipeline/[id] (+8 more). Serves 11 route handler(s).",
+      "description": "The surface every thread handoff lands on: entry read/update, batch and command routes, stage migration, events, outcomes, consent and attention.",
       "entry_points": [
         "app/api/attention/route.ts",
         "app/api/pipeline/[id]/consent/route.ts",
@@ -4757,7 +4757,7 @@
       "category": "test",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Lib Pipeline: 9 source + 11 test file(s) under app/_lib.",
+      "description": "Pipeline server logic: stages and status, entry actions and commands, the score cache, screening, fairness, the reinstate seal, and the public event projection.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/attention-tenancy.test.ts",
@@ -4926,7 +4926,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Pipeline Board 3: 18 source + 2 test file(s) under app/features/hiring/pipeline.",
+      "description": "The Kanban entry point (`PipelineTab.tsx`, `?tab=pipeline`) plus the today rail, SLA editor, self-scheduling panel, scheduler controls, and `PipelineVoiceScreenPanel.tsx` - the drawer that mints a step-4 voice screen for an entry.",
       "entry_points": [
         "app/features/hiring/pipeline/PipelineTab.tsx"
       ],
@@ -5712,7 +5712,7 @@
       "db_tables": [
         "jds"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] API JD Library: 13 source + 6 test file(s) under app/_lib, app/api/jds, app/api/jds/[slug] (+6 more). Serves 8 route handler(s). Reads/writes jds.",
+      "description": "Thread step 1 (JD): the `jds` HTTP surface and JD build runner. `/api/jds/save` writes the `jds` row and then best-effort ingests it into a `jobs` posting (`save/ingest-job.ts`); also `/api/jds/generate`, per-slug revisions and analyses, and the `jd-lint` / `jd-limits` rules.",
       "entry_points": [
         "app/api/jds/[slug]/analyses/route.ts",
         "app/api/jds/[slug]/ingest-job/route.ts",
@@ -5776,7 +5776,7 @@
         "job_ingests",
         "jobs"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] API Jobs: 17 source + 4 test file(s) under app/_lib, app/api/jobs, app/api/jobs/[id] (+11 more). Serves 13 route handler(s). Reads/writes job_ingests, jobs.",
+      "description": "Thread step 1 (Job): the `jobs` HTTP surface - publish ('Source into Pipeline'), close, per-job candidates and outreach, winnability, campaign, agent-fit, ad ingest, and the rediscovery alert sweep.",
       "entry_points": [
         "app/api/jobs/[id]/agent-fit/route.ts",
         "app/api/jobs/[id]/campaign/route.ts",
@@ -5838,7 +5838,7 @@
       "category": "api",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] API Role Intake: 10 source + 1 test file(s) under app/api/intake, app/api/intake/[id], app/api/intake/[id]/attachments (+7 more). Serves 10 route handler(s).",
+      "description": "Thread step 1 upstream: the `/api/intake/[id]` surface - brief read/write, chat messages, attachments, voice connect/turn/complete, and promote, which turns a RoleBrief into a JD/job.",
       "entry_points": [
         "app/api/intake/[id]/attachments/route.ts",
         "app/api/intake/[id]/brief/route.ts",
@@ -5882,7 +5882,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] JD Library 1: 20 source + 0 test file(s) under app/features/library/jds.",
+      "description": "Thread step 1 (JD): the JD builder and saved-JD ledger UI under `/?tab=library` - `JdsBuilder.tsx` with its checklist/fields/generate panels, `JdsLintPanel.tsx`, and the `JdsLedger*` table whose row action ingests a saved JD into a `jobs` posting.",
       "entry_points": [],
       "file_paths": [
         "app/features/library/jds/JdsBuilder.tsx",
@@ -5938,7 +5938,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] JD Library 2: 16 source + 4 test file(s) under app/features/library/jds.",
+      "description": "Thread step 1 (JD): the JD library's logic half and template manager - `JdsTab.tsx`, `jdsLibrary.ts`, `jdsLedgerLogic.ts`, `useJdEditor.ts` and the `JdsTemplateManager*` components behind the same `/?tab=library` surface.",
       "entry_points": [
         "app/features/library/jds/JdsTab.tsx"
       ],
@@ -6003,7 +6003,7 @@
         "jobs",
         "role_intakes"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] Jobs & Jobs Workspace: 6 source + 7 test file(s) under app/_lib/db, app/features/library/jobs. Reads/writes campaign_packs, jd_revisions, jds, jobs, role_intakes.",
+      "description": "Thread step 1 (JD/Job) persistence: the `jds`, `jd_revisions`, `jobs`, `role_intakes` and `campaign_packs` stores with their tenancy tests; `jobsStatusMerge.ts` reconciles the draft|published|closed axis the Jobs tab renders.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/db/campaign-tenancy.test.ts",
@@ -6050,7 +6050,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Jobs Workspace 1: 20 source + 0 test file(s) under app/features/library/jobs.",
+      "description": "Thread step 1 (Job): the Jobs console UI - posting modal, lifecycle strip, campaign and agent-fit tabs, the winnability coach panel, and the recruiter candidate / compare-interviews views under `/?tab=jobs`.",
       "entry_points": [
         "app/features/library/jobs/JobsAgentFitTab.tsx",
         "app/features/library/jobs/JobsCampaignTab.tsx"
@@ -6109,7 +6109,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Jobs Workspace 2: 17 source + 3 test file(s) under app/features/library/jobs.",
+      "description": "Thread step 1 (Job): the Jobs tab's list surface (`JobsTab.tsx`, `JobsTable.tsx`, filters, results, rows) plus the rediscovery feed and the agent-fit model.",
       "entry_points": [
         "app/features/library/jobs/JobsTab.tsx"
       ],
@@ -6168,7 +6168,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Jobs Workspace 3: 14 source + 6 test file(s) under app/features/library/jobs.",
+      "description": "Thread step 1 (Job): the Jobs tab's pure logic - the winnability coach's apply and salary rules, the ingest latch, posting-modal state, rediscovery add, and the shared request guard.",
       "entry_points": [],
       "file_paths": [
         "app/features/library/jobs/jobsCoachApply.test.ts",
@@ -6272,7 +6272,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Python Jobs Intake: 8 source + 5 test file(s) under pipeline/jobfit.",
+      "description": "Thread step 1, Python side: `rolebrief.py` and `intake.py` build the structured RoleBrief, `jobs.py` and `campaign.py` the posting and campaign packs, `ats.py` the egress payload - each reachable through a `*_cli.py` entry point the Node layer spawns per request.",
       "entry_points": [
         "pipeline/jobfit/campaign_cli.py",
         "pipeline/jobfit/intake_cli.py",
@@ -6319,7 +6319,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Role Intake: 12 source + 1 test file(s) under app/features/library/jds/intake.",
+      "description": "Thread step 1 upstream: the conversational and voice role-intake triptych inside the JD library (`JdsIntakePanel.tsx`, `JdsIntakeChat.tsx`, `JdsIntakeVoice.tsx`, `voiceOrchestration.ts`) that produces a RoleBrief before the JD builder.",
       "entry_points": [],
       "file_paths": [
         "app/features/library/jds/intake/JdsIntakeAttachmentsPane.tsx",
@@ -6369,7 +6369,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Role Intake & Shared Utils: 11 source + 5 test file(s) under app/_lib.",
+      "description": "Thread step 1 upstream: RoleBrief server logic (`intake-brief.ts`, `intake-draft.ts`, `intake-run.ts`, `intake-export.ts`) plus a small set of app-wide React hooks, including `useAddToPipeline`.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/brief-edit.test.ts",
@@ -6984,7 +6984,7 @@
       "db_tables": [
         "interview_sessions"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] API Voice Interview: 12 source + 6 test file(s) under app/_lib, app/api/interview/by-entry, app/api/interview/compare (+7 more). Serves 9 route handler(s). Reads/writes interview_sessions.",
+      "description": "Thread step 4 (AI interview) HTTP spine: `/api/interview/create` (requires a pipeline `entryId`), `connect`, `complete` (which seals the `ai_scorecard` decision), `by-entry` and `compare`, plus `student-interview.ts`, which builds the case-grounded scenario off `dc-` job ids. Owns `interview_sessions`.",
       "entry_points": [
         "app/api/interview/by-entry/route.ts",
         "app/api/interview/compare/route.ts",
@@ -7096,7 +7096,7 @@
         "interview_sessions",
         "pipeline_entries"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] Interview UI & Voice Interview Portal & Interviews: 9 source + 1 test file(s) under app/_lib/db, app/features/tools/interview, app/interview-lab (+1 more). Reads/writes interview_sessions, pipeline_entries.",
+      "description": "Thread step 4 surfaces: the recruiter's Interview-sim tab (`InterviewSimTab.tsx`), the interview lab, and the candidate's `/interview/[token]` portal, over the `interviews.ts` store.",
       "entry_points": [
         "app/features/tools/interview/InterviewSimTab.tsx",
         "app/interview-lab/page.tsx",
@@ -7150,7 +7150,7 @@
         "interview_preps",
         "pipeline_entries"
       ],
-      "description": "[auto-seeded — pending sweep enrichment] Lib Voice Interview 11: 9 source + 6 test file(s) under app/_lib. Reads/writes interview_preps, pipeline_entries.",
+      "description": "Thread step 4: interview preparation and consent - prep runs and staleness, planned minutes and duration, the interview plan, consent records, and `interview-recommendation.ts`, source of the `advance|hold|reject` vocabulary step 5 reads.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/interview-consent.test.ts",
@@ -7200,7 +7200,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Lib Voice Interview 12: 7 source + 7 test file(s) under app/_lib.",
+      "description": "Thread step 4: the interview run itself - `interview-run.ts` (task 5 produces the scorecard), the rubric and rubric catalog, `interview-scorecard.ts` (1-5 ratings, projected to percent for display), transcript handling, telemetry and reminder policy.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/interview-reminder-policy.test.ts",
@@ -7291,7 +7291,7 @@
       "category": "lib",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Voice Runtime 1: 10 source + 9 test file(s) under app/_lib/voice.",
+      "description": "Thread step 4: the voice transport layer - ElevenLabs and OpenAI Realtime clients, connect failover, preflight, language lock, per-minute pricing and finalize status.",
       "entry_points": [],
       "file_paths": [
         "app/_lib/voice/candidate-brief.test.ts",
@@ -7346,7 +7346,7 @@
       "category": "ui",
       "cross_refs": [],
       "db_tables": [],
-      "description": "[auto-seeded — pending sweep enrichment] Voice UI Components: 14 source + 0 test file(s) under app/_components/voice, app/_components/voice/transport.",
+      "description": "Thread step 4: the candidate-facing voice widgets (`VoiceInterview.tsx`, `VoiceTranscript.tsx`, `MicTestPanel.tsx`, live controls, status pill) and the transcript-persistence hook behind them.",
       "entry_points": [],
       "file_paths": [
         "app/_components/voice/InterviewSidebar.tsx",
@@ -7934,191 +7934,235 @@
   "use_cases": [
     {
       "contexts": [
-        "voice-interview",
-        "voice-session-flow",
-        "interview-portal",
-        "voice-adapters",
-        "voice-interview-ui"
+        "api-voice-interview",
+        "voice-runtime-1",
+        "voice-ui-components",
+        "lib-voice-interview-11",
+        "lib-voice-interview-12",
+        "interview-ui-and-voice-interview-portal-and-interviews",
+        "eval-voice-and-voice-runtime",
+        "py-interview-signals"
       ],
       "description": "A candidate receives a tokenized link, joins a browser-based session, and completes a first-round AI voice interview; the platform transcribes, scores, and stores the outcome for the recruiter.",
       "id": "773bf202-bd1d-480f-a70c-4fb22143fe65",
       "kind": "user_flow",
       "name": "AI Voice Screening",
       "pinned": false,
-      "primary_context": "voice-interview",
-      "slug": "ai-voice-screening"
+      "primary_context": "api-voice-interview",
+      "slug": "ai-voice-screening",
+      "note": "Re-pointed 2026-08-28 from retired 285-map ids. Anchors: app/api/interview/create|connect|complete/route.ts (api-voice-interview), app/interview/[token]/page.tsx (interview-ui-and-voice-interview-portal-and-interviews), app/_components/voice/VoiceInterview.tsx (voice-ui-components), app/_lib/interview-run.ts (lib-voice-interview-12)."
     },
     {
       "contexts": [
-        "jd-builder",
-        "jd-management",
-        "jobs-coach-panel",
-        "jd-ledger",
-        "jd-template-manager"
+        "jd-library-1",
+        "jd-library-2",
+        "api-jd-library",
+        "jobs-workspace-1",
+        "jobs-workspace-3",
+        "jobs-and-jobs-workspace",
+        "role-intake",
+        "api-role-intake",
+        "role-intake-and-shared-utils",
+        "py-jobs-intake"
       ],
       "description": "A recruiter fills a brief form; the platform generates a structured, localized job description in the background and scores it for winnability via the coach panel before publishing.",
       "id": "966ed65d-6fb6-4d81-99b8-7ceb3acb0286",
       "kind": "user_flow",
       "name": "AI-Assisted JD Authoring",
       "pinned": false,
-      "primary_context": "jd-builder",
-      "slug": "ai-assisted-jd-authoring"
+      "primary_context": "jd-library-1",
+      "slug": "ai-assisted-jd-authoring",
+      "note": "Re-pointed 2026-08-28. Anchors: app/features/library/jds/JdsBuilder.tsx (jd-library-1), JdsTemplateManager.tsx (jd-library-2), app/api/jds/save/route.ts + generate/route.ts (api-jd-library), JobsCoachPanel.tsx (jobs-workspace-1) with its rules in jobsCoachApply.ts (jobs-workspace-3), pipeline/jobfit/rolebrief.py (py-jobs-intake)."
     },
     {
       "contexts": [
-        "ats-egress",
-        "ats-integration"
+        "lib-ats-integration",
+        "api-ats-integration",
+        "integrations-settings",
+        "py-jobs-intake"
       ],
       "description": "When a candidate is accepted, the platform pushes a structured candidate record to the configured external ATS (Recruitis, Teamio, or webhook), closing the loop with systems the buyer already depends on.",
       "id": "ee18922c-3f99-4c16-b7a2-64ba07c13dfa",
       "kind": "integration",
       "name": "ATS Candidate Egress",
       "pinned": false,
-      "primary_context": "ats-egress",
-      "slug": "ats-candidate-egress"
+      "primary_context": "lib-ats-integration",
+      "slug": "ats-candidate-egress",
+      "note": "Re-pointed 2026-08-28. Anchors: app/_lib/ats-egress-delivery.ts (lib-ats-integration), app/api/ats/candidate/[id]/route.ts (api-ats-integration), IntegrationsAtsPanel.tsx (integrations-settings), pipeline/jobfit/ats.py (py-jobs-intake)."
     },
     {
       "contexts": [
-        "analyze-run-pipeline",
-        "analyze-workspace-ui",
-        "jd-analysis",
-        "analysis-scoring",
-        "cv-analysis-results-panel"
+        "lib-analyze",
+        "analyze-ui-1",
+        "analyze-ui-2",
+        "github-analysis",
+        "salary-and-matching-and-analyses",
+        "ui-result-panels-1",
+        "lib-profile",
+        "db-profiles"
       ],
       "description": "A recruiter uploads one or more CVs (optionally pairing them with a JD), the platform runs a multi-phase AI analysis, and returns a scored report covering job-fit, salary estimate, interview prep, and GitHub evidence.",
       "id": "812b137c-342d-45f6-8466-8b4f024e9afa",
       "kind": "capability",
       "name": "CV Analysis Pipeline",
       "pinned": false,
-      "primary_context": "analyze-run-pipeline",
-      "slug": "cv-analysis-pipeline"
+      "primary_context": "lib-analyze",
+      "slug": "cv-analysis-pipeline",
+      "note": "Re-pointed 2026-08-28. Anchors: app/api/analyze/route.ts + app/_lib/analyze-run.ts (lib-analyze), AnalyzeTab.tsx/AnalyzeForm.tsx and history/HistoryTab.tsx (analyze-ui-1), app/_lib/db/analyses.ts (salary-and-matching-and-analyses)."
     },
     {
       "contexts": [
-        "candidate-application",
         "candidate-apply",
-        "conversational-apply-flow",
-        "quick-apply-flow",
-        "channels-intake"
+        "lib-candidate-apply",
+        "channels-1",
+        "channels-2",
+        "api-comms",
+        "lib-comms-2"
       ],
       "description": "A job seeker discovers an open role and applies via standard form, mobile quick-apply, or a conversational chat flow; the platform deduplicates, scores KO questions, and places them into the pipeline.",
       "id": "8d1c67a6-d844-4a22-a748-c95c318c9f58",
       "kind": "user_flow",
       "name": "Candidate Application Intake",
       "pinned": false,
-      "primary_context": "candidate-application",
-      "slug": "candidate-application-intake"
+      "primary_context": "candidate-apply",
+      "slug": "candidate-application-intake",
+      "note": "Re-pointed 2026-08-28. Anchors: app/apply/[id]/page.tsx + quick/page.tsx (candidate-apply), app/_lib/apply-intake.ts and app/api/apply/[id]/route.ts (lib-candidate-apply), ChannelsEmailIntakeWizard.tsx (channels-1), app/api/channels/inbound/[token]/route.ts (api-comms)."
     },
     {
       "contexts": [
-        "pipeline-board-ui",
-        "pipeline-board-logic",
-        "pipeline-status-flow",
-        "pipeline-bulk-actions",
-        "pipeline-candidate-drawer"
+        "pipeline-board-1",
+        "pipeline-board-2",
+        "pipeline-board-3",
+        "pipeline-board-4",
+        "pipeline-board-5",
+        "api-pipeline",
+        "lib-pipeline",
+        "db-pipeline",
+        "pipeline-composer"
       ],
       "description": "Recruiters move candidates across Kanban stages (screening → interview → offer → hired/rejected), apply bulk actions, set SLA deadlines, and view AI scores — all from a single board.",
       "id": "bee8d1ce-6fe8-42da-a41f-4a4aa6a69179",
       "kind": "user_flow",
       "name": "Candidate Pipeline Board",
       "pinned": false,
-      "primary_context": "pipeline-board-ui",
-      "slug": "candidate-pipeline-board"
+      "primary_context": "pipeline-board-3",
+      "slug": "candidate-pipeline-board",
+      "note": "Re-pointed 2026-08-28. Anchors: app/features/hiring/pipeline/PipelineTab.tsx (pipeline-board-3), app/api/pipeline/[id]/route.ts (api-pipeline), app/_lib/pipeline-stages.ts (lib-pipeline). This is the surface every thread handoff lands on."
     },
     {
       "contexts": [
-        "candidate-self-scheduling-page",
-        "schedule-tab-layout",
-        "schedule-invite-lifecycle",
-        "schedule-types-and-state",
-        "scheduling-calendar"
+        "candidate-scheduling-and-candidate-public",
+        "lib-scheduling",
+        "scheduling-and-interview-prep",
+        "schedule-ui-1",
+        "schedule-ui-2",
+        "calendar-integration"
       ],
       "description": "After advancing in the pipeline, a candidate receives a tokenized invite link, browses available slots, and confirms an interview time without recruiter involvement.",
       "id": "f968337e-b43c-491a-b9e6-96f9a85f3eb4",
       "kind": "user_flow",
       "name": "Candidate Self-Scheduling",
       "pinned": false,
-      "primary_context": "candidate-self-scheduling-page",
-      "slug": "candidate-self-scheduling"
+      "primary_context": "candidate-scheduling-and-candidate-public",
+      "slug": "candidate-self-scheduling",
+      "note": "Re-pointed 2026-08-28. Anchors: app/schedule/[token]/page.tsx (candidate-scheduling-and-candidate-public), app/api/schedule/[token]/route.ts (scheduling-and-interview-prep), app/_lib/schedule-slots.ts (lib-scheduling), ScheduleTab.tsx (schedule-ui-2)."
     },
     {
       "contexts": [
-        "match-run-logic",
-        "candidate-matching",
-        "matrix-logic",
-        "matrix-tab-ui",
-        "match-tab-ui"
+        "lib-matching",
+        "py-scoring-core",
+        "py-match-reasoning",
+        "matrix-ui-1",
+        "matrix-ui-2",
+        "salary-and-matching-and-analyses",
+        "salary-market-and-taxonomy"
       ],
       "description": "The platform scores a pool of candidate profiles against a job description and renders a ranked matrix so recruiters can instantly see fit, skill gaps, and KO reasons across all applicants.",
       "id": "0c4f03d5-d8c0-43b1-8457-4bfc0ce0385d",
       "kind": "capability",
       "name": "Candidate–Job Matching",
       "pinned": false,
-      "primary_context": "candidate-matching",
-      "slug": "candidate-job-matching"
+      "primary_context": "lib-matching",
+      "slug": "candidate-job-matching",
+      "note": "Re-pointed 2026-08-28. Anchors: app/_lib/match-score.ts (lib-matching), pipeline/jobfit/matching.py score_job (py-scoring-core), app/api/match/route.ts + matrix/route.ts (salary-and-matching-and-analyses), MatrixTab.tsx (matrix-ui-2), useMatchTabRun.ts runMatchFor (matrix-ui-1 - this is where the retired sub_match/MatchTab.tsx went)."
     },
     {
       "contexts": [
-        "decisions-queue-core",
-        "decisions-compliance",
-        "autonomy-control-room",
-        "decision-records",
-        "control-room-action-guard"
+        "lib-decisions-2",
+        "lib-decisions-1",
+        "decisions-ui-1",
+        "decisions-ui-2",
+        "lib-group-eval",
+        "group-eval-ui",
+        "py-automation",
+        "lib-automation",
+        "internal-explorers"
       ],
       "description": "Every AI-driven accept/reject passes through a human-in-the-loop queue, is sealed with an Art. 22 compliance tier, and is written to an immutable audit log — satisfying EU AI Act obligations.",
       "id": "7dec620a-5a81-4ffb-a175-7b50defcb1e2",
       "kind": "capability",
       "name": "Compliant Hiring Decision",
       "pinned": false,
-      "primary_context": "decisions-queue-core",
-      "slug": "compliant-hiring-decision"
+      "primary_context": "lib-decisions-2",
+      "slug": "compliant-hiring-decision",
+      "note": "Re-pointed 2026-08-28. Anchors: app/_lib/decision-record-store.ts and screen-wave.ts (lib-decisions-2), approval-kinds.ts (lib-decisions-1), DecisionsTab.tsx (decisions-ui-2), app/api/decisions/screen-wave/route.ts (py-automation), app/control/AutonomyBar.tsx (internal-explorers)."
     },
     {
       "contexts": [
-        "devcase-core",
-        "devcase-evaluation",
-        "devcase-candidate-apply",
-        "devcase-live-work-surface",
-        "devcase-need-and-design"
+        "lib-devcase-12",
+        "lib-devcase-11",
+        "devcase-workspace-1",
+        "devcase-workspace-2",
+        "devcase-workspace-3",
+        "api-devcase-1",
+        "api-devcase-2",
+        "devcase-candidate-and-devcase",
+        "py-devcase-1"
       ],
       "description": "A recruiter designs a seed-based coding challenge, a candidate completes it in the in-browser live workspace, and the platform evaluates the submission for authenticity and quality.",
       "id": "9aae30a8-6558-480f-bb70-d5cfefb0b709",
       "kind": "user_flow",
       "name": "Developer Case Assessment",
       "pinned": false,
-      "primary_context": "devcase-core",
-      "slug": "developer-case-assessment"
+      "primary_context": "lib-devcase-12",
+      "slug": "developer-case-assessment",
+      "note": "Re-pointed 2026-08-28. Anchors: app/_lib/devcase-orchestrator.ts + devcase-run.ts (lib-devcase-12), DevTab.tsx (devcase-workspace-3), DevNeedForm.tsx and DevEvalPanel*.tsx (devcase-workspace-2), app/devcase/apply/[token]/LiveWorkSurface.tsx and the dev_* schema (devcase-candidate-and-devcase), pipeline/jobfit/devcase/*.py (py-devcase-1). UI calls this 'Assignments'."
     },
     {
       "contexts": [
-        "offer-management",
-        "offer-response-page",
-        "candidate-onboarding",
-        "onboarding-core"
+        "lib-offers",
+        "candidate-public-surfaces-1",
+        "candidate-public-surfaces-2",
+        "onboarding-setup-1",
+        "background-tasks-and-onboarding-setup"
       ],
       "description": "A recruiter drafts an offer with approval gates and legal clauses, sends it to the candidate, who accepts or declines via a tokenized page; the accepted hire then flows into onboarding.",
       "id": "e90ca402-b7e0-4d8c-99d5-ea125590b2ed",
       "kind": "user_flow",
       "name": "Offer Lifecycle Management",
       "pinned": false,
-      "primary_context": "offer-management",
-      "slug": "offer-lifecycle-management"
+      "primary_context": "lib-offers",
+      "slug": "offer-lifecycle-management",
+      "note": "Re-pointed 2026-08-28. Anchors: app/_lib/offer-lifecycle.ts + offer-finalize.ts and app/api/offer/[token]/route.ts (lib-offers), app/offer/[token]/OfferClient.tsx (candidate-public-surfaces-1), page.tsx (candidate-public-surfaces-2), SetupOnboardingWizard.tsx (onboarding-setup-1)."
     },
     {
       "contexts": [
-        "analytics-core-tab",
-        "analytics-funnel-forecast",
-        "hiring-analytics",
-        "automation-analytics",
-        "analytics-channel-roi"
+        "analytics-tab-1",
+        "analytics-tab-2",
+        "analytics-tab-3",
+        "lib-analytics-1",
+        "lib-analytics-2",
+        "db-analytics",
+        "analytics-and-market-pulse"
       ],
       "description": "Recruiters and managers view stage-by-stage conversion, time-to-hire, channel ROI, automation impact, and AI cost-per-hire across configurable time windows.",
       "id": "b3146819-f6bb-497b-9a0e-45f176a807cf",
       "kind": "capability",
       "name": "Recruitment Funnel Analytics",
       "pinned": false,
-      "primary_context": "analytics-core-tab",
-      "slug": "recruitment-funnel-analytics"
+      "primary_context": "analytics-tab-3",
+      "slug": "recruitment-funnel-analytics",
+      "note": "Re-pointed 2026-08-28. Anchors: AnalyticsTab.tsx (analytics-tab-3), the section panels (analytics-tab-1/2), app/_lib/analytics-bottleneck.ts (lib-analytics-1), app/_lib/db/analytics-median-tth.test.ts (db-analytics), app/api/analytics/*/route.ts (analytics-and-market-pulse)."
     }
   ]
 }
