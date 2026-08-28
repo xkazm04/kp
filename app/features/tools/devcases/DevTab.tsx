@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import { useTasks } from "@/app/features/shell/tasks/TasksProvider";
 import { useDevTabData } from "./useDevTabData";
 import { useDevTabActions } from "./useDevTabActions";
@@ -19,6 +20,9 @@ const OutboxTable = dynamic(() => import("./OutboxSection").then((m) => ({ defau
 });
 
 export function DevTab() {
+  // Named `tCopy`, not `t`: this file already binds `t` to a Task in three
+  // callbacks below, and a shadowed translator is a rename waiting to break one.
+  const tCopy = useTranslations("devcase");
   const { startTask, tasks } = useTasks();
   const [view, setView] = useState<DevView>("cases");
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
@@ -90,7 +94,11 @@ export function DevTab() {
   return (
     <div className="stagger-children space-y-5" aria-busy={firstLoad}>
       <header>
-        <p className="text-meta uppercase text-coral">Dev extension</p>
+        {/* ONE THREAD (gap 7) — this eyebrow read "Dev extension", hardcoded in
+            English, above a tab the sidebar calls Assignments. It named the module
+            after the engineering team that built it, in the one place a reader looks
+            to find out what surface they are on. */}
+        <p className="text-meta uppercase text-coral">{tCopy("eyebrow")}</p>
         <h2 className="mt-1 font-serif text-display text-ink">{heading.title}</h2>
         <p className="mt-1 max-w-2xl text-body text-steel">{heading.blurb}</p>
       </header>

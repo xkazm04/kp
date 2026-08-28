@@ -7,6 +7,8 @@
 import { ChevronLeft, ChevronRight, History, X } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useScoreProvenanceText } from "@/app/_components/ScoreProvenanceLabel";
+import { StatusChip } from "@/app/_components/StatusChip";
+import { pipelineStageTone } from "@/app/_lib/status-tone";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { displayScoreOf } from "@/app/_lib/match-score";
 import { initials } from "@/app/_lib/initials";
@@ -60,7 +62,13 @@ export function PipelineDrawerHeader({
       <div className="min-w-0 flex-1">
         <p id="drawer-title" className="truncate font-serif text-lg text-ink">{entry.candidateLabel}</p>
         <p className="truncate text-sm text-steel">
-          {enumLabel("archetype", entry.archetype)} · {entry.jobTitle} · <span className="text-ink">{enumLabel("stage", entry.stage)}</span>
+          {enumLabel("archetype", entry.archetype)} · {entry.jobTitle} ·{" "}
+          {/* ONE THREAD (gap 8) — the board stage was the one status on the thread
+              that was not a chip at all: bold ink text in a breadcrumb, so a
+              candidate sitting at Offer read the same as one sitting at Accepted.
+              It is now the shared chip, toned by the stage's ROLE (never its name),
+              which is what keeps it correct once a workspace renames its columns. */}
+          <StatusChip tone={pipelineStageTone(entry.stage)} label={enumLabel("stage", entry.stage)} />
           {/* d95fed6d — provenance: which surface/channel filed this person.
               variant-reaches-the-drawer — append the campaign then the creative
               variant when the entry carries them, so campaign attribution ("via

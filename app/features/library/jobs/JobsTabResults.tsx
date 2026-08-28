@@ -2,6 +2,7 @@
 
 import { SearchX, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { StatusLegend } from "@/app/_components/StatusChip";
 import type { Job, Stats } from "./JobsTypes";
 import { EmptyState } from "./JobsShared";
 import { JobsTableFrame } from "./JobsTable";
@@ -104,6 +105,11 @@ export function JobsTabResults({
                 ))}
               </tbody>
             </JobsTableFrame>
+            {/* ONE THREAD (gap 8) — the same five-state legend the Assignments
+                ledger carries, so the vocabulary is learned once and holds for the
+                rest of the thread. Only rendered beside real rows: a legend over an
+                empty table explains nothing. */}
+            <StatusLegend className="px-1 pt-2" />
           </div>
         )}
       </div>

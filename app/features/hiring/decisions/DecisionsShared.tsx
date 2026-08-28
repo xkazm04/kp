@@ -2,6 +2,8 @@ import { useTranslations } from "next-intl";
 import { Badge, interviewRecommendationToken } from "@/app/_components/Badge";
 import { ScoreBadge } from "@/app/_components/ScoreBadge";
 import { ScoreProvenanceLabel } from "@/app/_components/ScoreProvenanceLabel";
+import { StatusChip } from "@/app/_components/StatusChip";
+import { pipelineStageTone } from "@/app/_lib/status-tone";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
 import { canonicalScoreOf, provenanceOf } from "@/app/_lib/match-score";
 import { INTERVIEW_RECOMMENDATION_FALLBACK, type InterviewRecommendation } from "@/app/_lib/interview-recommendation";
@@ -29,8 +31,14 @@ export function CandidateHead({ entry }: { entry: Entry }) {
       </span>
       <div className="min-w-0">
         <p className="truncate text-base font-semibold text-ink">{entry.candidateLabel}</p>
-        <p className="truncate text-sm text-steel">
-          {enumLabel("archetype", entry.archetype)} · {entry.jobTitle}
+        <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm text-steel">
+          <span className="truncate">{enumLabel("archetype", entry.archetype)} · {entry.jobTitle}</span>
+          {/* ONE THREAD (gap 8) — the decision cards named the role and the
+              archetype but never WHERE on the board this person is standing, which
+              is exactly the fact that tells a reviewer whether "advance" means a
+              screen or an offer. Same chip, same five tones as the board drawer the
+              reviewer just came from. */}
+          <StatusChip tone={pipelineStageTone(entry.stage)} label={enumLabel("stage", entry.stage)} />
         </p>
       </div>
       {score != null ? (

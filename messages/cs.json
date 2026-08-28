@@ -1496,6 +1496,16 @@
       "sending": "Odesílání…",
       "thanks": "Děkujeme. Vaši zpětnou vazbu jsme zaznamenali.",
       "failed": "Odeslání se nezdařilo. Zkuste to prosím znovu."
+    },
+    "legend": {
+      "title": "Legenda stavů"
+    },
+    "tone": {
+      "neutral": "Nezahájeno",
+      "active": "Probíhá",
+      "waiting": "Čeká na člověka",
+      "done": "Hotovo",
+      "stopped": "Zastaveno"
     }
   },
   "apply": {
@@ -1833,8 +1843,8 @@
       "latest": "Poslední"
     },
     "assignments": {
-      "cases": "Případy",
-      "postings": "Zadání",
+      "cases": "Zadání",
+      "postings": "Kanály",
       "submissions": "Odevzdání"
     },
     "analytics": {
@@ -1882,7 +1892,7 @@
         "job_posts": "Role na trh",
         "hires": "Přijetí",
         "ai_candidates": "AI kandidáti",
-        "case_designs": "Návrhy případů",
+        "case_designs": "Návrhy zadání",
         "interview_minutes": "Minuty pohovorů"
       }
     },
@@ -3500,7 +3510,7 @@
       "provEstimated": "odhad",
       "salaryUnavailable": "Mzda není k dispozici",
       "sourcesLabel": "Zdroje:",
-      "interviewCase": "Případová studie",
+      "interviewCase": "Praktické zadání",
       "timebox": "Časový rámec: ~{hours} h",
       "retryFailed": "Sestavení se nepodařilo spustit znovu.",
       "notPermitted": "K této akci nemáte oprávnění. Pokračujte přihlášením jako operátor.",
@@ -3551,7 +3561,7 @@
       "shelfRecordLabel": "Záznam, který se chystáte vytvořit",
       "shelfWriteCta": "Napsat první popis",
       "shelfDraftCta": "Nechat návrh na AI",
-      "shelfCtaNote": "Obojí otevře panel Generovat. Uložte koncept tak, jak je, nebo nechte AI vytvořit popis, tržní mzdové rozpětí a případovou studii k pohovoru.",
+      "shelfCtaNote": "Obojí otevře panel Generovat. Uložte koncept tak, jak je, nebo nechte AI vytvořit popis, tržní mzdové rozpětí a praktické zadání.",
       "shelfReuseLabel": "Jeden list využijete pro",
       "shelfReuseAnalyze": "Hodnocení CV proti němu",
       "shelfReuseIngest": "Převod na otevřenou pozici",
@@ -3588,7 +3598,7 @@
         "degradedNote": "AI je offline, takže pokračujeme vedeným dotazníkem. Vaše odpovědi se ukládají stejně.",
         "sendError": "Zprávu se nepodařilo odeslat. Zkuste to prosím znovu.",
         "promote": "Vytvořit popis pozice",
-        "promoteCase": "Navrhnout rovnou i praktickou úlohu",
+        "promoteCase": "Navrhnout rovnou i praktické zadání",
         "promoteMarket": "Zjistit i mzdové pásmo",
         "promoting": "Vytváření…",
         "promoted": "Inzerát vytvořen. Najdete ho mezi uloženými.",
@@ -3861,7 +3871,7 @@
       "optDescriptionHint": "Sepíše odpovědnosti a požadavky z vaší potřeby",
       "optMarket": "Průzkum trhu",
       "optMarketHint": "Mzdové rozpětí podložené webem s citovanými zdroji",
-      "optCase": "Případová studie",
+      "optCase": "Praktické zadání",
       "optCaseHint": "Praktické zadání pro prověření užšího výběru kandidátů",
       "checklistHint": "Běží na pozadí. Popis pozice se objeví v knihovně a doplní se během analýzy.",
       "startAnalysis": "Spustit",
@@ -4083,7 +4093,7 @@
       "rankInMatrix": "Seřadit v matici",
       "copyMarkdown": "Kopírovat markdown",
       "copyFailed": "Nepodařilo se zkopírovat do schránky. Vyberte a zkopírujte odkaz ručně.",
-      "postingLanguage": "Jazyk inzerátu",
+      "postingLanguage": "Jazyk pozice",
       "viewsAria": "Zobrazení pozice",
       "lifecycle": {
         "aria": "Životní cyklus pozice",
@@ -4097,7 +4107,7 @@
         "hired": "{count, plural, =1 {1 přijat/a} few {# přijati} other {# přijato}}"
       },
       "tabCampaign": "Kampaň",
-      "tabPosting": "Inzerát",
+      "tabPosting": "Pozice",
       "tabCoach": "Kouč",
       "tabCandidates": "Kandidáti",
       "tabRediscover": "Znovuobjevení",
@@ -6749,7 +6759,7 @@
       "eyebrow": "Vlastní instalace",
       "title": "Tato instalace nemá žádné limity",
       "body": "Používáte vlastní kopii KandiDate pod licencí AGPL. Není tu žádné předplatné ani co kupovat. Hostované plány jsou pro ty, kdo si aplikaci nechtějí provozovat sami.",
-      "meters": "Všechny limity jsou neomezené: zveřejněné pozice, nábory, AI kandidáti, návrhy případových studií i minuty pohovorů.",
+      "meters": "Všechny limity jsou neomezené: zveřejněné pozice, nábory, AI kandidáti, návrhy zadání i minuty pohovorů.",
       "modelsCta": "Nastavit modely",
       "modelsNote": "Jediné výdaje za AI na této instalaci jsou vaše vlastní faktury od poskytovatelů.",
       "cloudTitle": "Nechcete aplikaci provozovat sami?",
@@ -6774,7 +6784,7 @@
       "job_posts": "Zveřejněné pozice",
       "hires": "Nábory",
       "ai_candidates": "AI kandidáti",
-      "case_designs": "Návrhy úloh",
+      "case_designs": "Návrhy zadání",
       "interview_minutes": "Minuty pohovorů"
     },
     "usage": {
@@ -7190,7 +7200,7 @@
       "values": {
         "role": {
           "title": "Popište pozici",
-          "body": "AI za vás připraví popis pozice, mzdové rozpětí i praktickou úlohu."
+          "body": "AI za vás připraví popis pozice, mzdové rozpětí i praktické zadání."
         },
         "channels": {
           "title": "Otevřete své kanály",
@@ -7254,7 +7264,7 @@
         },
         "technical": {
           "title": "S praktickou úlohou",
-          "body": "Přidá krok s úlohou před nabídku."
+          "body": "Přidá krok se zadáním před nabídku."
         }
       },
       "workSampleLabel": "Praktická úloha",
@@ -7324,12 +7334,12 @@
         },
         "firstRole": {
           "title": "Vytvořte první pozici",
-          "body": "Popište potřebu. Kandi připraví popis, mzdu i úlohu.",
+          "body": "Popište potřebu. Kandi připraví popis, mzdu i zadání.",
           "analyzing": "Právě se sestavuje. Sledujte přehled v Knihovně.",
           "failed": "Sestavení selhalo. Zkuste to znovu z přehledu v Knihovně."
         },
         "case": {
-          "title": "Navrhněte praktickou úlohu",
+          "title": "Navrhněte praktické zadání",
           "body": "Praktické zadání, které prověří skutečné dovednosti."
         },
         "channels": {
@@ -7343,12 +7353,12 @@
   "devcase": {
     "lifecycle": {
       "sectionTitle": "Automatizovaný průběh",
-      "intro": "Každý případ postupuje podle pravidel: čisté návrhy schvaluje automaticky, označené směruje k vám, publikuje je a (jak přicházejí řešení) vyhodnocuje → řadí → posouvá nejlepší kandidáty do Rozhodnutí. Mezi tím žádné ruční kroky.",
+      "intro": "Každé zadání postupuje podle pravidel: čisté návrhy schvaluje automaticky, označené směruje k vám, publikuje je a (jak přicházejí řešení) vyhodnocuje → řadí → posouvá nejlepší kandidáty do Rozhodnutí. Mezi tím žádné ruční kroky.",
       "untitledRole": "Pozice",
       "railLabel": "Průběh případu: {steps}",
       "railStep": "{step}: {state}",
       "stalledBadge": "stagnuje {days} d",
-      "stalledTitle": "{days, plural, one {Otevřený a prázdný už # den} few {Otevřený a prázdný už # dny} other {Otevřený a prázdný už # dní}}. Obnovte sourcing kandidátů, nebo případ uzavřete.",
+      "stalledTitle": "{days, plural, one {Otevřené a prázdné už # den} few {Otevřené a prázdné už # dny} other {Otevřené a prázdné už # dní}}. Obnovte sourcing kandidátů, nebo zadání uzavřete.",
       "reSourceTitle": "Seřadit stávající databázi kandidátů podle této pozice a znovu naplnit pipeline",
       "reSourcing": "Probíhá sourcing…",
       "reSource": "Nový sourcing",
@@ -7356,11 +7366,11 @@
       "review": "Zkontrolovat a schválit",
       "closeTitle": "Poslat nepostupujícím kandidátům závěrečnou zprávu a vypnout odkaz na přihlášku",
       "closing": "Uzavírání…",
-      "close": "Uzavřít případ",
-      "closeConfirm": "Uzavřít tento případ? Nepostupující kandidáti dostanou závěrečnou zprávu a odkaz na přihlášku přestane přijímat řešení.",
+      "close": "Uzavřít zadání",
+      "closeConfirm": "Uzavřít toto zadání? Nepostupující kandidáti dostanou závěrečnou zprávu a odkaz na přihlášku přestane přijímat řešení.",
       "closeFailed": "Uzavření se nepodařilo.",
       "cancel": "Zrušit",
-      "closeModalTitle": "Uzavřít případ",
+      "closeModalTitle": "Uzavřít zadání",
       "closeIrreversible": "Závěrečné zprávy už nejde vzít zpět.",
       "reSourceFailed": "Nový sourcing se nepodařil."
     },
@@ -7403,7 +7413,7 @@
     },
     "outbox": {
       "emptyTitle": "Zatím žádné zprávy",
-      "emptyBody": "Jak případy sbírají řešení, zapisuje sem pipeline každé potvrzení příjmu, pozvánku po postupu, oslovení od recruitera i zamítnutí.",
+      "emptyBody": "Jak zadání sbírají řešení, zapisuje sem pipeline každé potvrzení příjmu, pozvánku po postupu, oslovení od recruitera i zamítnutí.",
       "relayHint": "„queued“ = zaznamenáno lokálně (koncový stav, dokud není zapojeno relé); nastavením <code>COMMS_WEBHOOK_URL</code> zapnete doručování reálným kanálem (e-mail / ATS), kde zprávy skončí jako <sent>Odesláno</sent> nebo, při ztraceném doručení, jako <failed>Selhalo</failed> (dead-letter, vyžaduje pozornost).",
       "colKind": "Typ",
       "colRecipient": "Příjemce",
@@ -7469,9 +7479,9 @@
     },
     "probeAudit": {
       "label": "Audit síly sond",
-      "strong": "Nosných sond: {loadBearing} z {total}. Tento případ rozlišuje.",
+      "strong": "Nosných sond: {loadBearing} z {total}. Toto zadání rozlišuje.",
       "weak": "Nosné jsou jen {loadBearing} z {total} sond. Většina silné od naivních neodliší.",
-      "none": "Žádné nosné sondy. Tento případ nerozezná silné řešení od naivního."
+      "none": "Žádné nosné sondy. Toto zadání nerozezná silné řešení od naivního."
     },
     "integrity": {
       "title": "Integrita záznamu",
@@ -7495,7 +7505,7 @@
       "footnote": "Důkaz o neporušenosti záznamu, ne hodnocení odvedené práce.",
       "judgeTitle": "Integrita hodnocení",
       "judgeSelfGrading": "Hodnotitel = generátor",
-      "judgeSelfGradingTitle": "Kontrola kvality tohoto hodnocení používá stejný model, který ho vytvořil, takže sdílí jeho slepá místa. V nastavení Modelů přiřaďte roli hodnotitele případové studie jiný model, aby byla kontrola nezávislá."
+      "judgeSelfGradingTitle": "Kontrola kvality tohoto hodnocení používá stejný model, který ho vytvořil, takže sdílí jeho slepá místa. V nastavení Modelů přiřaďte roli hodnotitele zadání jiný model, aby byla kontrola nezávislá."
     },
     "checks": {
       "title": "Co kontroly zjistily",
@@ -7509,11 +7519,11 @@
       "canarySummary": "Nastražené chyby: zachyceno {caught} z {graded} hodnotitelných.",
       "canaryNoneGradable": "Nastražené chyby: žádnou nešlo vyhodnotit mechanicky.",
       "canaryUngradable": "{count, plural, one {# nejde hodnotit} other {# nejde hodnotit}}",
-      "canaryNotRun": "Pro tento případ nejsou nastražené žádné chyby. Deterministický seed si pravdu nevymýšlí, takže tato kontrola neproběhla.",
+      "canaryNotRun": "Pro toto zadání nejsou nastražené žádné chyby. Deterministický seed si pravdu nevymýšlí, takže tato kontrola neproběhla.",
       "baselineSimilarity": "Překryv s jednorázovou AI baseline: {pct}.",
       "baselineNeverPenalty": "Kontext pro pohovor, nikdy srážka z hodnocení.",
       "baselineAimInterview": "Blízké tomu, co model vyprodukuje na jeden pokus. Zeptejte se živě, co kandidát přidal navíc. Nikdy nejde o srážku z hodnocení.",
-      "baselineNotRun": "Pro tento případ nebyla zmrazena žádná AI baseline, takže porovnání neproběhlo.",
+      "baselineNotRun": "Pro toto zadání nebyla zmrazena žádná AI baseline, takže porovnání neproběhlo.",
       "promptSummary": "Prompty pro asistenta: {assistant} (hloubka iterace {depth}) · dotazy na zadavatele: {stakeholder}",
       "verificationAsks": "{count, plural, one {# žádost o ověření} few {# žádosti o ověření} other {# žádostí o ověření}}",
       "promptsNeverPenalty": "Používání AI není nikdy k tíži. Jde o to, jak ji kandidát vedl, ne jestli ji použil.",
@@ -7530,7 +7540,7 @@
       "perturbationAdapted": "zareagoval/a na změnu zadání · {edits, plural, one {# úprava} few {# úpravy} other {# úprav}}, {decisions, plural, one {# záznam rozhodnutí} few {# záznamy rozhodnutí} other {# záznamů rozhodnutí}} po odhalení",
       "perturbationStale": "změnu zadání jsme ukázali, ale nenásledovaly žádné úpravy",
       "perturbationTitle": "Změnu požadavku jsme odhalili v okamžiku, který zaznamenal server; vše po ní je sledovaná reakce kandidáta na změněné zadání.",
-      "noSeed": "Pro tento případ nebyl vytvořen konkrétní seed, práci se seedem tedy nešlo změřit.",
+      "noSeed": "Pro toto zadání nebyl vytvořen konkrétní seed, práci se seedem tedy nešlo změřit.",
       "inProductSession": "relace v produktu",
       "decisionsLogKept": "Log DECISIONS: veden",
       "decisionsLogMissing": "Log DECISIONS: chybí",
@@ -7574,7 +7584,8 @@
       "colSubmissions": "Odevzdání",
       "colCreated": "Vytvořeno",
       "open": "Otevřít",
-      "untitledAssignment": "Zadání"
+      "untitledAssignment": "Zadání",
+      "stageAria": "Fáze zadání: {stage}"
     },
     "evalPanel": {
       "capabilityScores": "Skóre schopností",
@@ -7617,10 +7628,10 @@
     "emptyLedger": {
       "eyebrow": "Kniha otevřena",
       "title": "Zatím nic zapečetěno",
-      "lede": "Případ nežádá kandidáta jen o napsání kódu. Zaznamenává, jak práce vznikala, a ten záznam zapečetí, abyste tomu, co čtete, mohli věřit.",
-      "statCases": "Případy",
+      "lede": "Zadání nežádá kandidáta jen o napsání kódu. Zaznamenává, jak práce vznikala, a ten záznam zapečetí, abyste tomu, co čtete, mohli věřit.",
+      "statCases": "Zadání",
       "statSealed": "Zapečetěno",
-      "cta": "Otevřít první případ",
+      "cta": "Otevřít první zadání",
       "controlsHeading": "Co ponese zapečetěné odevzdání",
       "control": {
         "hashChain": {
@@ -7645,11 +7656,11 @@
         },
         "baseline": {
           "name": "Porovnání se zmrazenou AI baseline",
-          "proves": "Při schválení případ jednou vyřeší holý model, který nikdo neřídí, a tato odpověď se zmrazí. Odevzdání se s ní porovnávají. Nikdy jako postih: říká vám, kam mířit pohovor o autorství, ne co hodnotit."
+          "proves": "Při schválení zadání jednou vyřeší holý model, který nikdo neřídí, a tato odpověď se zmrazí. Odevzdání se s ní porovnávají. Nikdy jako postih: říká vám, kam mířit pohovor o autorství, ne co hodnotit."
         }
       },
       "pasteTrace": "Vedle nich platí: jediné hromadné vložení bez postupného narůstání se čte jako podezřelé. Podezřelé odevzdání se pozdrží pro živý pohovor ověřující autorství, nikdy nepostupuje automaticky podle skóre.",
-      "honestDarkness": "Každý verdikt výše se vám ukáže i s vlastními důkazy, včetně míst, kde kontrola proběhnout nemohla: kontrola, která se nespustila, se nikdy nezobrazí jako kontrola, která prošla. Nic z toho se nerozběhne, dokud případ neexistuje. Popište potřebu a engine navrhne zadání, kolem kterého se tyto kontroly ovinou."
+      "honestDarkness": "Každý verdikt výše se vám ukáže i s vlastními důkazy, včetně míst, kde kontrola proběhnout nemohla: kontrola, která se nespustila, se nikdy nezobrazí jako kontrola, která prošla. Nic z toho se nerozběhne, dokud zadání neexistuje. Popište potřebu a engine navrhne zadání, kolem kterého se tyto kontroly ovinou."
     },
     "voiceScreen": {
       "title": "Hlasový screening",
@@ -7668,7 +7679,12 @@
         "failed": "Selhalo",
         "revoked": "Zrušeno"
       }
-    }
+    },
+    "submissionStatus": {
+      "received": "Přijato",
+      "evaluated": "Vyhodnoceno"
+    },
+    "eyebrow": "Nástroje · Zadání"
   },
   "rubric": {
     "ratingAnchor": {
@@ -8613,7 +8629,7 @@
       "assignments": {
         "eyebrow": "Zadání",
         "title": "Pracovní ukázka, která přežije delegování",
-        "lede": "Domácí úkol může modelu předat kdokoli. Případ je proto postavený tak, aby měl vypovídací hodnotu i pak: obsahuje záměrnou nedourčenost, pasti, které trestají sebejisté hádání, a změnu zadání, která dorazí až po zahájení práce. Hodnotí se úvaha, kterou kandidát předvede, ne to, jestli výsledek zkompiluje.",
+        "lede": "Domácí úkol může modelu předat kdokoli. Zadání je proto postavené tak, aby mělo vypovídací hodnotu i pak: obsahuje záměrnou nedourčenost, pasti, které trestají sebejisté hádání, a změnu zadání, která dorazí až po zahájení práce. Hodnotí se úvaha, kterou kandidát předvede, ne to, jestli výsledek zkompiluje.",
         "tab": "Otevřít Zadání"
       },
       "gates": {
@@ -8723,9 +8739,9 @@
       "deltaSubmission": "řádky přidané kandidátem",
       "note": "Nad {aim} produkt vypíše otázku, ne srážku: proberte naživo, co tento člověk přidal nad rámec holého modelu. Některé části skutečného úkolu mají jedno zjevné řešení a hodnotit překryv jako vinu by kandidáty trestalo za to, že je udělali správně.",
       "status": {
-        "s0": "případ je schválen a výchozí podklady vytvořeny",
+        "s0": "zadání je schváleno a výchozí podklady vytvořeny",
         "s2": "baseline-solve-v1: holý model s pokynem vše delegovat",
-        "s3": "zmrazeno pro každý případ, nikdy se negeneruje znovu",
+        "s3": "zmrazeno pro každé zadání, nikdy se negeneruje znovu",
         "s4": "kandidát odevzdává",
         "s5": "obě strany se zredukují na to, co k podkladům PŘIDALY",
         "s7": "Jaccard nad přidanými řádky, po cestách, vážený velikostí sjednocení",

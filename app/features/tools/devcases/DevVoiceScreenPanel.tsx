@@ -21,6 +21,8 @@ import { Check, CircleDashed, Loader2, MicVocal, Phone, TriangleAlert } from "lu
 import { useTranslations } from "next-intl";
 import { useTokenLink } from "@/app/features/hiring/pipeline/PipelineTokenLink";
 import { PipelineVoiceScreenPanel } from "@/app/features/hiring/pipeline/PipelineVoiceScreenPanel";
+import { StatusChip } from "@/app/_components/StatusChip";
+import { interviewStatusTone } from "@/app/_lib/status-tone";
 import { RATING_MAX } from "@/app/_lib/format";
 import { isNotAssessedRating, type Scorecard } from "@/app/_lib/interview-scorecard";
 import { isInterviewRecommendation } from "@/app/_lib/interview-recommendation";
@@ -36,14 +38,13 @@ type ScreenSession = {
   scorecard: unknown | null;
 };
 
-const STATUS_TONE: Record<string, string> = {
-  created: "bg-stone-100 text-steel",
-  in_progress: "bg-blue-50 text-blue-700",
-  completed: "bg-moss/10 text-moss",
-  failed: "bg-coral/15 text-coral",
-  revoked: "bg-stone-100 text-steel",
-};
-
+// ONE THREAD (gap 8) — the local STATUS_TONE table that stood here is gone. It
+// painted `created` and `revoked` the same neutral stone, which are opposite facts
+// (a link waiting to be dialled vs one that will never be), and `failed` coral,
+// which read as an accusation on a surface that also renders real accusations.
+// The five states now resolve through app/_lib/status-tone.ts like every other
+// axis on the thread. The VERDICT keeps its own colours below, deliberately: a
+// recommendation is a judgement, not a status, and the two must not read alike.
 const REC_TONE: Record<string, string> = {
   advance: "bg-moss/10 text-moss",
   hold: "bg-amber-100 text-amber-700",
@@ -133,15 +134,16 @@ export function DevVoiceScreenPanel({ submissionId }: { submissionId: string }) 
   const scorecard = (session.scorecard ?? null) as Scorecard | null;
   const mean = observedMean(scorecard);
   const rec = isInterviewRecommendation(scorecard?.recommendation) ? scorecard!.recommendation! : null;
-  const statusTone = STATUS_TONE[session.status] ?? "bg-stone-100 text-steel";
 
   return (
     <div className="mt-2 rounded-md border border-stone-200 bg-white p-2.5 text-micro text-ink">
       <p className="flex flex-wrap items-center gap-1.5 text-micro font-semibold uppercase tracking-wide text-coral">
         <MicVocal size={12} aria-hidden /> {t("title")}
-        <span className={`rounded px-1.5 py-0.5 font-semibold uppercase ${statusTone}`}>
-          {t(`status.${session.status}` as "status.created")}
-        </span>
+        <StatusChip
+          tone={interviewStatusTone(session.status)}
+          label={t(`status.${session.status}` as "status.created")}
+          className="uppercase"
+        />
       </p>
 
       {rec || mean != null ? (

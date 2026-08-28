@@ -2,20 +2,20 @@
 
 import { ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { StatusChip, StatusLegend } from "@/app/_components/StatusChip";
+import { assignmentStageTone } from "@/app/_lib/status-tone";
 import { useRelativeTime } from "@/app/_lib/use-relative-time";
 import type { LoadState } from "@/app/_lib/useLoader";
 import { CasesEmpty } from "./DevCasesEmpty";
 import { useStageLabel } from "./DevLabels";
-import { LIVE_STAGES } from "./DevTypes";
 import type { DevCaseDetail, Lifecycle, Posting } from "./DevTypes";
 
-// Stage chip tint: production states (collecting onwards) read "live", the
-// pre-publication states read neutral, the approval gate reads attention.
-function stageChip(stage: string): string {
-  if (stage === "awaiting_approval") return "bg-amber-100 text-amber-700";
-  if ((LIVE_STAGES as readonly string[]).includes(stage)) return "bg-moss/15 text-moss";
-  return "bg-paper text-steel";
-}
+// ONE THREAD (gap 8) — the local `stageChip` tint table is gone. It knew three
+// states (approval gate = amber, LIVE_STAGES = moss, everything else = paper) and
+// so collapsed `intake` and `closed` into the same neutral chip while painting the
+// approval gate the same amber a closed JOB used one tab away. Tone now comes from
+// the shared per-axis table in app/_lib/status-tone.ts, which is exhaustive over
+// all ten orchestrator stages and pinned to that producer by its own test.
 
 /** The Cases tab's first page: every designed assignment as one table row —
  *  stage comes from the case's lifecycle (when one drove it), submission counts
@@ -96,9 +96,12 @@ export function CasesTable({
                 <td className="hidden max-w-0 truncate px-3 py-2.5 text-sm text-ink md:table-cell">{c.roleTitle ?? "—"}</td>
                 <td className="hidden px-3 py-2.5 text-sm uppercase text-steel sm:table-cell">{c.seniority ?? "—"}</td>
                 <td className="px-3 py-2.5">
-                  <span className={`rounded-full px-2 py-0.5 text-micro font-semibold uppercase ${stageChip(stage)}`}>
-                    {stageLabel(stage)}
-                  </span>
+                  <StatusChip
+                    tone={assignmentStageTone(stage)}
+                    label={stageLabel(stage)}
+                    ariaLabel={t("stageAria", { stage: stageLabel(stage) })}
+                    className="uppercase"
+                  />
                 </td>
                 <td className="hidden px-3 py-2.5 text-sm nums text-ink sm:table-cell">{submissions > 0 ? submissions : "—"}</td>
                 <td className="hidden whitespace-nowrap px-3 py-2.5 text-sm text-steel lg:table-cell">{rel(c.createdAt)}</td>
@@ -108,6 +111,12 @@ export function CasesTable({
           })}
         </tbody>
       </table>
+      {/* ONE THREAD (gap 8) — the legend lives here because this is the axis with
+          TEN values: the reader most needs to be told that "designed" and
+          "collecting" are the same kind of state, and that "awaiting approval" is
+          the one that is about them. Same component, same five words, on every
+          surface that carries a status chip. */}
+      <StatusLegend className="border-t border-stone-200 bg-paper/40 px-3 py-2" />
     </div>
   );
 }

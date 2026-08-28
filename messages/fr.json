@@ -1496,6 +1496,16 @@
       "sending": "Envoi…",
       "thanks": "Merci. Votre retour a bien été enregistré.",
       "failed": "L’envoi a échoué. Veuillez réessayer."
+    },
+    "legend": {
+      "title": "Légende des statuts"
+    },
+    "tone": {
+      "neutral": "Pas commencé",
+      "active": "En cours",
+      "waiting": "En attente d’une personne",
+      "done": "Terminé",
+      "stopped": "Arrêté"
     }
   },
   "apply": {
@@ -1833,8 +1843,8 @@
       "latest": "Dernière"
     },
     "assignments": {
-      "cases": "Cas",
-      "postings": "Sujets",
+      "cases": "Exercices",
+      "postings": "Canaux",
       "submissions": "Rendus"
     },
     "analytics": {
@@ -1882,7 +1892,7 @@
         "job_posts": "Postes mis sur le marché",
         "hires": "Recrutements",
         "ai_candidates": "Candidats IA",
-        "case_designs": "Conceptions de cas",
+        "case_designs": "Conceptions d’exercices",
         "interview_minutes": "Minutes d’entretien"
       }
     },
@@ -3440,7 +3450,7 @@
       "ingestAsJob": "Convertir en poste",
       "ingestAsJobTitle": "Transformer cette fiche en un poste exploitable pour le matching, afin qu’il puisse être sourcé, classé, mis en correspondance et recevoir des candidatures",
       "ingestedBanner": "{slug} est désormais un poste, prêt pour les webhooks, le sourcing et le classement.",
-      "ingestedBannerCta": "Ouvrir l’annonce",
+      "ingestedBannerCta": "Ouvrir le poste",
       "ingestedDismiss": "Fermer",
       "ingesting": "Conversion…",
       "ingestRetry": "Réessayer la conversion",
@@ -3500,7 +3510,7 @@
       "provEstimated": "estimé",
       "salaryUnavailable": "Salaire indisponible",
       "sourcesLabel": "Sources :",
-      "interviewCase": "Cas d’entretien",
+      "interviewCase": "Exercice pratique",
       "timebox": "Durée : ~{hours} h",
       "retryFailed": "Impossible de relancer la création.",
       "notPermitted": "Vous n’avez pas l’autorisation d’effectuer cette action. Connectez-vous en tant qu’opérateur pour continuer.",
@@ -3551,7 +3561,7 @@
       "shelfRecordLabel": "L’enregistrement que vous allez créer",
       "shelfWriteCta": "Rédiger la première fiche",
       "shelfDraftCta": "Laisser le générateur la rédiger",
-      "shelfCtaNote": "Les deux ouvrent le panneau Générer. Enregistrez un brouillon tel quel, ou laissez l’AI produire la description, une fourchette de salaire du marché et un cas d’entretien.",
+      "shelfCtaNote": "Les deux ouvrent le panneau Générer. Enregistrez un brouillon tel quel, ou laissez l’AI produire la description, une fourchette de salaire du marché et un exercice pratique.",
       "shelfReuseLabel": "Une fiche sert à",
       "shelfReuseAnalyze": "Évaluer des CV par rapport à elle",
       "shelfReuseIngest": "La convertir en poste ouvert",
@@ -3588,7 +3598,7 @@
         "degradedNote": "L’AI est hors ligne, la liste guidée prend donc le relais. Vos réponses sont enregistrées malgré tout.",
         "sendError": "Le message n’est pas passé. Veuillez réessayer.",
         "promote": "Créer la fiche de poste",
-        "promoteCase": "Concevoir aussi le cas pratique",
+        "promoteCase": "Concevoir aussi l’exercice pratique",
         "promoteMarket": "Rechercher aussi la fourchette salariale",
         "promoting": "Création…",
         "promoted": "Fiche créée. Retrouvez-la parmi les fiches enregistrées.",
@@ -3861,7 +3871,7 @@
       "optDescriptionHint": "Rédiger les responsabilités et exigences du poste à partir de votre besoin",
       "optMarket": "Étude de marché",
       "optMarketHint": "Une fourchette salariale ancrée sur le web avec sources citées",
-      "optCase": "Cas d’entretien",
+      "optCase": "Exercice pratique",
       "optCaseHint": "Un exercice pratique pour évaluer les candidats présélectionnés",
       "checklistHint": "S’exécute en arrière-plan. La fiche apparaît dans votre bibliothèque et se remplit au fil de l’analyse.",
       "startAnalysis": "Démarrer",
@@ -4083,7 +4093,7 @@
       "rankInMatrix": "Classer dans la matrice",
       "copyMarkdown": "Copier le markdown",
       "copyFailed": "Impossible de copier dans le presse-papiers. Sélectionnez et copiez le lien manuellement.",
-      "postingLanguage": "Langue de l’annonce",
+      "postingLanguage": "Langue du poste",
       "viewsAria": "Vues du poste",
       "lifecycle": {
         "aria": "Cycle de vie du poste",
@@ -4096,7 +4106,7 @@
         "offers": "{count, plural, =1 {1 offre envoyée} other {# offres envoyées}}",
         "hired": "{count, plural, =1 {1 recruté} other {# recrutés}}"
       },
-      "tabPosting": "Annonce",
+      "tabPosting": "Poste",
       "tabCoach": "Coach",
       "tabCampaign": "Campagne",
       "tabCandidates": "Candidats",
@@ -5567,8 +5577,8 @@
   },
   "devApply": {
     "workSurface": {
-      "heading": "Traitez le cas ici",
-      "phoneAdvisory": "Ce cas se travaille plus confortablement sur un ordinateur, et le même lien l’y ouvre. Vous pouvez néanmoins continuer sur votre téléphone.",
+      "heading": "Traitez l’exercice ici",
+      "phoneAdvisory": "Cet exercice se travaille plus confortablement sur un ordinateur, et le même lien l’y ouvre. Vous pouvez néanmoins continuer sur votre téléphone.",
       "intro": "Modifiez les fichiers de départ ci-dessous. Nous enregistrons votre démarche : ce que vous ouvrez, ce que vous modifiez et ce que vous notez dans DECISIONS.md. Ainsi, nous évaluons le jugement observé, pas seulement le code final. Vous pouvez utiliser n’importe quel outil, y compris l’AI. Nous n’enregistrons jamais vos frappes ni votre écran.",
       "submit": "Envoyer le travail",
       "submitting": "Envoi…",
@@ -6749,7 +6759,7 @@
       "eyebrow": "Auto-hébergé",
       "title": "Cette installation n'est pas facturée",
       "body": "Vous utilisez votre propre copie de KandiDate sous licence AGPL. Il n'y a ici ni abonnement ni rien à acheter. Les offres hébergées s'adressent à celles et ceux qui préfèrent ne pas l'héberger eux-mêmes.",
-      "meters": "Tous les quotas sont illimités : postes publiés, recrutements, candidats analysés par l'IA, études de cas et minutes d'entretien.",
+      "meters": "Tous les quotas sont illimités : postes publiés, recrutements, candidats analysés par l'IA, conceptions d’exercices et minutes d'entretien.",
       "modelsCta": "Configurer vos modèles",
       "modelsNote": "Les seules dépenses d'IA sur cette installation sont votre propre facture de fournisseur.",
       "cloudTitle": "Vous préférez ne pas l'héberger vous-même ?",
@@ -6774,7 +6784,7 @@
       "job_posts": "Postes publiés",
       "hires": "Recrutements",
       "ai_candidates": "Candidats AI",
-      "case_designs": "Conceptions de cas",
+      "case_designs": "Conceptions d’exercices",
       "interview_minutes": "Minutes d’entretien"
     },
     "usage": {
@@ -7190,7 +7200,7 @@
       "values": {
         "role": {
           "title": "Décrivez un poste",
-          "body": "L’AI rédige pour vous la fiche de poste, la fourchette salariale et un cas pratique."
+          "body": "L’AI rédige pour vous la fiche de poste, la fourchette salariale et un exercice pratique."
         },
         "channels": {
           "title": "Ouvrez vos canaux",
@@ -7254,7 +7264,7 @@
         },
         "technical": {
           "title": "Avec cas pratique",
-          "body": "Ajoute une étape de cas avant l’offre."
+          "body": "Ajoute une étape d’exercice avant l’offre."
         }
       },
       "workSampleLabel": "Cas pratique",
@@ -7324,12 +7334,12 @@
         },
         "firstRole": {
           "title": "Créez votre premier poste",
-          "body": "Décrivez le besoin. Kandi rédige la fiche, le salaire et le cas.",
+          "body": "Décrivez le besoin. Kandi rédige la fiche, le salaire et l’exercice.",
           "analyzing": "Génération en cours. Suivez le registre de la Bibliothèque.",
           "failed": "La génération a échoué. Relancez-la depuis le registre de la Bibliothèque."
         },
         "case": {
-          "title": "Concevez le cas pratique",
+          "title": "Concevez l’exercice pratique",
           "body": "Un exercice concret qui évalue les compétences réelles."
         },
         "channels": {
@@ -7343,12 +7353,12 @@
   "devcase": {
     "lifecycle": {
       "sectionTitle": "Cycle automatisé",
-      "intro": "Chaque cas avance selon les règles : les conceptions propres sont approuvées automatiquement, celles qui sont signalées vous sont transmises, puis publication et (à mesure que les rendus arrivent) évaluation → classement → passage des meilleurs candidats dans Décisions. Aucune étape manuelle entre les deux.",
+      "intro": "Chaque exercice avance selon les règles : les conceptions propres sont approuvées automatiquement, celles qui sont signalées vous sont transmises, puis publication et (à mesure que les rendus arrivent) évaluation → classement → passage des meilleurs candidats dans Décisions. Aucune étape manuelle entre les deux.",
       "untitledRole": "Poste",
       "railLabel": "Progression du cycle : {steps}",
       "railStep": "{step} : {state}",
       "stalledBadge": "bloqué {days} j",
-      "stalledTitle": "{days, plural, one {Ouvert et vide depuis # jour} other {Ouvert et vide depuis # jours}}. Relancez le sourcing de candidats ou clôturez le cas.",
+      "stalledTitle": "{days, plural, one {Ouvert et vide depuis # jour} other {Ouvert et vide depuis # jours}}. Relancez le sourcing de candidats ou clôturez l’exercice.",
       "reSourceTitle": "Classer la base de candidats existante pour ce poste et réamorcer le pipeline",
       "reSourcing": "Sourcing en cours…",
       "reSource": "Relancer le sourcing",
@@ -7356,11 +7366,11 @@
       "review": "Examiner et approuver",
       "closeTitle": "Clôturer les candidats non retenus et désactiver le lien de candidature",
       "closing": "Clôture en cours…",
-      "close": "Clôturer le cas",
-      "closeConfirm": "Clôturer ce cas ? Les candidats non retenus recevront un message de clôture et le lien de candidature n’acceptera plus de rendus.",
+      "close": "Clôturer l’exercice",
+      "closeConfirm": "Clôturer cet exercice ? Les candidats non retenus recevront un message de clôture et le lien de candidature n’acceptera plus de rendus.",
       "closeFailed": "Échec de la clôture.",
       "cancel": "Annuler",
-      "closeModalTitle": "Clôturer le cas",
+      "closeModalTitle": "Clôturer l’exercice",
       "closeIrreversible": "Les messages de clôture ne peuvent pas être annulés.",
       "reSourceFailed": "Échec de la relance du sourcing."
     },
@@ -7403,7 +7413,7 @@
     },
     "outbox": {
       "emptyTitle": "Aucun message pour l’instant",
-      "emptyBody": "À mesure que les cas collectent des rendus, le pipeline consigne ici chaque accusé de réception, invitation après passage, prise de contact du recruteur et refus.",
+      "emptyBody": "À mesure que les exercices collectent des rendus, le pipeline consigne ici chaque accusé de réception, invitation après passage, prise de contact du recruteur et refus.",
       "relayHint": "« queued » = enregistré localement (état final tant qu’aucun relais n’est configuré). Définissez <code>COMMS_WEBHOOK_URL</code> pour acheminer via un canal réel (e-mail / ATS), où les messages deviennent <sent>sent</sent> ou, en cas de livraison perdue, <failed>failed</failed> (mis en file d’erreurs, à traiter).",
       "colKind": "Type",
       "colRecipient": "Destinataire",
@@ -7469,9 +7479,9 @@
     },
     "probeAudit": {
       "label": "Audit de la force des sondes",
-      "strong": "{loadBearing} sondes sur {total} sont porteuses. Ce cas discrimine.",
+      "strong": "{loadBearing} sondes sur {total} sont porteuses. Cet exercice discrimine.",
       "weak": "Seules {loadBearing} sondes sur {total} sont porteuses. La plupart ne sépareront pas les bons des naïfs.",
-      "none": "Aucune sonde porteuse. Ce cas ne distingue pas un rendu solide d’un rendu naïf."
+      "none": "Aucune sonde porteuse. Cet exercice ne distingue pas un rendu solide d’un rendu naïf."
     },
     "integrity": {
       "title": "Intégrité du journal",
@@ -7495,7 +7505,7 @@
       "footnote": "Preuve d’inviolabilité du journal, pas un jugement sur le travail.",
       "judgeTitle": "Intégrité de l’évaluation",
       "judgeSelfGrading": "Juge = générateur",
-      "judgeSelfGradingTitle": "Le contrôle qualité de cette évaluation utilise le même modèle que celui qui l’a produite : il partage donc ses angles morts. Attribuez un autre modèle au siège de juge des cas techniques dans les réglages Modèles pour rendre le contrôle indépendant."
+      "judgeSelfGradingTitle": "Le contrôle qualité de cette évaluation utilise le même modèle que celui qui l’a produite : il partage donc ses angles morts. Attribuez un autre modèle au siège de juge des exercices dans les réglages Modèles pour rendre le contrôle indépendant."
     },
     "checks": {
       "title": "Ce que les contrôles ont trouvé",
@@ -7509,11 +7519,11 @@
       "canarySummary": "Défauts implantés : {caught} détectés sur {graded} évaluables.",
       "canaryNoneGradable": "Défauts implantés : aucun n’a pu être évalué mécaniquement.",
       "canaryUngradable": "{count, plural, one {# non évaluable} other {# non évaluables}}",
-      "canaryNotRun": "Aucun défaut implanté pour ce cas. La base déterministe n’invente pas de vérité de référence, ce contrôle n’a donc pas été exécuté.",
+      "canaryNotRun": "Aucun défaut implanté pour cet exercice. La base déterministe n’invente pas de vérité de référence, ce contrôle n’a donc pas été exécuté.",
       "baselineSimilarity": "Recouvrement avec la référence AI produite en une seule passe : {pct}.",
       "baselineNeverPenalty": "Un élément de contexte pour l’entretien, jamais une pénalité.",
       "baselineAimInterview": "Proche de ce qu’un modèle produit en un seul coup. Demandez en direct ce que le candidat a ajouté au-delà. Jamais une pénalité.",
-      "baselineNotRun": "Aucune référence AI n’a été figée pour ce cas, la comparaison n’a donc pas été exécutée.",
+      "baselineNotRun": "Aucune référence AI n’a été figée pour cet exercice, la comparaison n’a donc pas été exécutée.",
       "promptSummary": "Prompts à l’assistant : {assistant} (profondeur d’itération {depth}) · questions au commanditaire : {stakeholder}",
       "verificationAsks": "{count, plural, one {# demande de vérification} other {# demandes de vérification}}",
       "promptsNeverPenalty": "Recourir à l’AI n’est jamais une pénalité. Ce qui compte est la façon de la piloter, pas le fait de le faire.",
@@ -7530,7 +7540,7 @@
       "perturbationAdapted": "a réagi au changement en cours · {edits, plural, one {# modification} other {# modifications}}, {decisions, plural, one {# entrée de décision} other {# entrées de décision}} après la révélation",
       "perturbationStale": "le changement en cours a été affiché mais aucune modification n’a suivi",
       "perturbationTitle": "Le changement d’exigence a été révélé à un instant enregistré par le serveur. Tout ce qui suit est l’adaptation observée du candidat à un énoncé modifié.",
-      "noSeed": "Aucune base concrète n’a été générée pour ce cas, l’engagement avec la base n’a donc pas pu être mesuré.",
+      "noSeed": "Aucune base concrète n’a été générée pour cet exercice, l’engagement avec la base n’a donc pas pu être mesuré.",
       "inProductSession": "session intégrée",
       "decisionsLogKept": "Journal DECISIONS : tenu",
       "decisionsLogMissing": "Journal DECISIONS : absent",
@@ -7574,7 +7584,8 @@
       "colSubmissions": "Rendus",
       "colCreated": "Créé",
       "open": "Ouvrir",
-      "untitledAssignment": "Épreuve"
+      "untitledAssignment": "Épreuve",
+      "stageAria": "Étape de l’exercice : {stage}"
     },
     "evalPanel": {
       "capabilityScores": "Scores de capacité",
@@ -7617,10 +7628,10 @@
     "emptyLedger": {
       "eyebrow": "Registre ouvert",
       "title": "Rien de scellé pour l’instant",
-      "lede": "Un cas ne demande pas seulement à un candidat d’écrire du code. Il consigne comment le travail a été fait et scelle ce relevé pour que vous puissiez vous fier à ce que vous lisez.",
-      "statCases": "Cas",
+      "lede": "Un exercice ne demande pas seulement à un candidat d’écrire du code. Il consigne comment le travail a été fait et scelle ce relevé pour que vous puissiez vous fier à ce que vous lisez.",
+      "statCases": "Exercices",
       "statSealed": "Scellés",
-      "cta": "Ouvrir le premier cas",
+      "cta": "Ouvrir le premier exercice",
       "controlsHeading": "Ce que portera un rendu scellé",
       "control": {
         "hashChain": {
@@ -7645,11 +7656,11 @@
         },
         "baseline": {
           "name": "Comparaison à la référence figée",
-          "proves": "À l’approbation, le cas est résolu une fois par un modèle nu que personne ne pilote, et cette réponse est figée. Les rendus lui sont comparés. Jamais une pénalité : cela vous dit où viser l’entretien sur la paternité, pas quoi noter."
+          "proves": "À l’approbation, l’exercice est résolu une fois par un modèle nu que personne ne pilote, et cette réponse est figée. Les rendus lui sont comparés. Jamais une pénalité : cela vous dit où viser l’entretien sur la paternité, pas quoi noter."
         }
       },
       "pasteTrace": "À côté d’eux, un collage massif unique sans construction progressive se lit comme suspect. Un rendu suspect est retenu pour l’entretien en direct qui vérifie la paternité, jamais promu automatiquement sur le score.",
-      "honestDarkness": "Chaque verdict ci-dessus vous est montré avec ses propres preuves, y compris là où un contrôle n’a pas pu s’exécuter : un contrôle qui n’a pas joué n’est jamais affiché comme un contrôle réussi. Rien ne démarre tant qu’un cas n’existe pas. Décrivez le besoin et le moteur conçoit l’épreuve autour de laquelle ces contrôles se referment."
+      "honestDarkness": "Chaque verdict ci-dessus vous est montré avec ses propres preuves, y compris là où un contrôle n’a pas pu s’exécuter : un contrôle qui n’a pas joué n’est jamais affiché comme un contrôle réussi. Rien ne démarre tant qu’un exercice n’existe pas. Décrivez le besoin et le moteur conçoit l’exercice autour duquel ces contrôles se referment."
     },
     "voiceScreen": {
       "title": "Présélection vocale",
@@ -7668,7 +7679,12 @@
         "failed": "Échec",
         "revoked": "Révoqué"
       }
-    }
+    },
+    "submissionStatus": {
+      "received": "Reçu",
+      "evaluated": "Évalué"
+    },
+    "eyebrow": "Outils · Exercices"
   },
   "rubric": {
     "ratingAnchor": {
@@ -8613,7 +8629,7 @@
       "assignments": {
         "eyebrow": "Exercices",
         "title": "Un exercice pratique qui résiste à la délégation",
-        "lede": "N'importe qui peut confier un devoir à un modèle. Le cas est donc conçu pour rester instructif même alors : il comporte une sous-spécification délibérée, des pièges qui sanctionnent les suppositions assurées, et un changement de consigne qui arrive après le début du travail. Ce qui est évalué, c'est le raisonnement montré, pas le fait que le résultat compile.",
+        "lede": "N'importe qui peut confier un devoir à un modèle. L'exercice est donc conçu pour rester instructif même alors : il comporte une sous-spécification délibérée, des pièges qui sanctionnent les suppositions assurées, et un changement de consigne qui arrive après le début du travail. Ce qui est évalué, c'est le raisonnement montré, pas le fait que le résultat compile.",
         "tab": "Ouvrir Exercices"
       },
       "gates": {
@@ -8723,9 +8739,9 @@
       "deltaSubmission": "lignes ajoutées par la personne",
       "note": "Au-dessus de {aim}, le produit affiche une question et non un retrait de points : explorez en entretien ce que cette personne a apporté au-delà du modèle nu. Certaines parties d'une tâche réelle n'ont qu'une réponse évidente, et compter le recouvrement comme une faute punirait les candidats de les avoir réussies.",
       "status": {
-        "s0": "le cas est validé et les matériaux de départ sont générés",
+        "s0": "l’exercice est validé et les matériaux de départ sont générés",
         "s2": "baseline-solve-v1 : un modèle nu, à qui on demande de tout déléguer",
-        "s3": "figé par cas, jamais régénéré",
+        "s3": "figé par exercice, jamais régénéré",
         "s4": "la personne rend son travail",
         "s5": "les deux côtés sont réduits à ce qu'ils ont AJOUTÉ aux matériaux",
         "s7": "Jaccard sur les lignes ajoutées, par chemin, pondéré par la taille de l'union",

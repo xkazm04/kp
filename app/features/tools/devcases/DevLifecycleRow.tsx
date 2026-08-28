@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlarmClock, Archive, Eye, RefreshCw } from "lucide-react";
 import { Modal } from "@/app/_components/Modal";
+import { StatusChip } from "@/app/_components/StatusChip";
+import { assignmentStageTone } from "@/app/_lib/status-tone";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { DevLifecycleReviewPanel } from "./DevLifecycleReviewPanel";
 import { lifecycleStall } from "@/app/_lib/devcase-sla";
@@ -103,13 +105,13 @@ export function LifecycleRow({
     <div className="animate-fade-in rounded-lg border border-stone-200 bg-white p-3 shadow-panel transition-shadow motion-reduce:animate-none hover:shadow-lg">
       <div className="flex items-center gap-2">
         <span className="min-w-0 flex-1 truncate text-base font-semibold text-ink">{lc.title || t("lifecycle.untitledRole")}</span>
-        <span
-          className={`rounded-full px-2 py-0.5 text-micro font-semibold uppercase ${
-            awaiting ? "bg-amber-100 text-amber-700" : done ? "bg-moss/15 text-moss" : "bg-paper text-steel"
-          }`}
-        >
-          {stageLabel(lc.stage)}
-        </span>
+        {/* ONE THREAD (gap 8) — this chip used to derive its own three-way tint
+            (awaiting → amber, promoted → moss, else neutral) from the same two
+            booleans the strip below reads. That is one more place the tone could
+            disagree with the Assignments table it sits under; both now resolve the
+            stage through app/_lib/status-tone.ts. `awaiting` / `done` stay: they
+            still drive the review panel and the strip's own progress marker. */}
+        <StatusChip tone={assignmentStageTone(lc.stage)} label={stageLabel(lc.stage)} className="uppercase" />
         {stall.stalled ? (
           <span
             title={t("lifecycle.stalledTitle", { days: stall.ageDays ?? 0 })}
