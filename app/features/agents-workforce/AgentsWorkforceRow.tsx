@@ -166,7 +166,13 @@ export function AgentsWorkforceRow({
           )}
           {appMaster ? (
             <div className="mt-0.5 text-sm text-stone-500">
-              {appMaster.scopeRung != null && appMaster.scopeRung >= 0 && appMaster.scopeRung <= 2
+              {/* INTEGER, not just in range: GET /api/agents accepts whatever
+                  number the composed spec's `mandate.scopeRung` holds, and a
+                  rung of 1.5 clears `>= 0 && <= 2` while indexing RUNG_KEY to
+                  undefined — a translator call on a key that does not exist.
+                  "Mandate not recorded" is the honest read of a rung that is not
+                  one of the three. */}
+              {appMaster.scopeRung != null && Number.isInteger(appMaster.scopeRung) && appMaster.scopeRung >= 0 && appMaster.scopeRung <= 2
                 ? t(RUNG_KEY[appMaster.scopeRung])
                 : t("appMaster.rung.unknown")}
             </div>
