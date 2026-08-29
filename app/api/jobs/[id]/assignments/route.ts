@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { listDevCasesForJob } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
+import { requireOperator } from "@/app/_lib/auth/require-operator";
 
 // ONE THREAD — the assignments (dev cases) cut for one job.
 //
@@ -16,6 +17,8 @@ import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // the row", applied to an internal surface because the payload is large as well as
 // sensitive.
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const denied = await requireOperator();
+  if (denied) return denied;
   const { id } = await context.params;
   try {
     // Workspace-scoped: an enumeration of a team's assignments, keyed by a job id the
