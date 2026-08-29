@@ -768,6 +768,7 @@ with the record of each one written down in the same shape.
 
 ```
 preflight  GET /api/health            ·  GET  /health   (headlessBridge REQUIRED)
+           GET /api/agents  vs  tenures/*.json  →  the orphan fleet audit
 pair       POST /api/agents/pair      ·  POST /pair/request + GET /pair/claim
            ┄┄ the PREAMBLE below is skipped on a --tenure run ┄┄
 scan       POST /api/repo-scan → poll GET /api/repo-scan/[id]
@@ -836,6 +837,32 @@ node scripts/app-master-bench/run.mjs --scenario kp-c1-night --tenure kp-owner
   `result.skippedPhases[]` in the record — and a `--hire-only` run adds two
   `unmeasured` lines (no night ran; the `expect` block was not evaluated). A
   hire-only run is therefore not graded on nights it never ran.
+
+### The fleet audit — orphans, at preflight (c1-exam §4)
+
+Every run's preflight now reads `GET /api/agents` and compares kp's **live**
+hired agents (`dispatched | pending_approval | onboarding | active`) against the
+tenure files on disk. An agent no tenure file names is an **orphan**: nothing
+will ever retire it, and 31 sweeps of exactly that left 100+ personas behind.
+
+```
+  ! fleet audit: 3 of 4 live hired agent(s) are named by no tenure file — …
+      orphan agt_9f21 · active · 4d 06h old · persona p_88a1
+```
+
+- Each orphan is printed with its **age** and lands in `result.fleet` (with the
+  tenure files that were read, and any unreadable one as a warning).
+- A row is claimed by a tenure's `hiredAgentId` **or** its `personaId` — a
+  re-dispatch can leave the two out of step, and an audit that cried orphan over
+  that would be ignored within a week.
+- A `retired`, `rejected` or `failed` row is **not** an orphan. It is the
+  evidence a teardown worked.
+- **The audit does not fail a run by itself** — a bench that refuses to start
+  because of yesterday's mess is a bench nobody runs. `--strict` is the opt-in
+  that blocks preflight on `orphans > 0`, and it is what a P2/P3 session (and
+  CI) should use.
+- A roster read that **refuses** records an `unmeasured` line rather than an
+  orphan count of zero: unknown is not clean.
 
 ### Launching both sides
 

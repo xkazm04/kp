@@ -143,6 +143,74 @@ export function writeTenureFile(file, tenure) {
   return file;
 }
 
+/** `4d 6h` / `6h 12m` / `12m` / `44s` — an orphan's age, at the resolution a
+ *  human reads it at. `null` in, `–` out: an agent row with no createdAt has an
+ *  age nobody measured, which is not an age of zero. */
+export function humanAge(ms) {
+  if (ms === null || ms === undefined || !Number.isFinite(ms)) return "–";
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ${String(m - h * 60).padStart(2, "0")}m`;
+  const d = Math.floor(h / 24);
+  return `${d}d ${String(h - d * 24).padStart(2, "0")}h`;
+}
+
+/**
+ * THE FLEET AUDIT (c1-exam §4). Compare kp's roster against the tenure files on
+ * disk: every LIVE hired agent that no tenure file names is an **orphan**, with
+ * its age.
+ *
+ * This is the guard that turns "100+ agents" into a red preflight the next time
+ * it starts happening. It is deliberately generous about what counts as
+ * "named": a tenure file's `hiredAgentId` OR its `personaId` claims a row,
+ * because a re-dispatch can leave the two out of step and an audit that cried
+ * orphan over that would be ignored within a week.
+ *
+ * Only live rows are audited (`LIVE_AGENT_STATUSES`). A `retired`, `rejected`
+ * or `failed` row is a hire that ended — it is the evidence a teardown worked,
+ * not an agent still costing anything.
+ */
+export function fleetAudit(agents, tenures, { now = Date.now(), liveStatuses = LIVE_AGENT_STATUSES } = {}) {
+  const claimed = new Set();
+  for (const tenure of tenures ?? []) {
+    if (isNonEmptyString(tenure?.hiredAgentId)) claimed.add(tenure.hiredAgentId.trim());
+    if (isNonEmptyString(tenure?.personaId)) claimed.add(tenure.personaId.trim());
+  }
+  const rows = Array.isArray(agents) ? agents.filter((a) => a && typeof a === "object") : [];
+  const live = rows.filter((a) => liveStatuses.includes(a.status));
+  const orphans = [];
+  for (const agent of live) {
+    if (claimed.has(agent.id) || (agent.personaId && claimed.has(agent.personaId))) continue;
+    const created = Date.parse(agent.createdAt ?? "");
+    const ageMs = Number.isFinite(created) ? Math.max(0, now - created) : null;
+    orphans.push({
+      id: agent.id ?? null,
+      personaId: agent.personaId ?? null,
+      personaName: agent.personaName ?? null,
+      status: agent.status ?? null,
+      createdAt: agent.createdAt ?? null,
+      ageMs,
+      age: humanAge(ageMs),
+    });
+  }
+  // Oldest first: the age is the finding, and the oldest orphan is the one that
+  // has been costing the longest.
+  orphans.sort((a, b) => (b.ageMs ?? -1) - (a.ageMs ?? -1));
+  return { rostered: rows.length, live: live.length, tenures: (tenures ?? []).length, orphans };
+}
+
+/** The one line a red fleet audit says, on stderr, in the record and in the
+ *  PhaseError under `--strict`. Written once so all three agree. */
+export function orphanReport(audit) {
+  const list = audit.orphans
+    .map((o) => `${o.id}${o.personaId ? ` / ${o.personaId}` : ""} (${o.status}, ${o.age} old)`)
+    .join("; ");
+  return `fleet audit: ${audit.orphans.length} of ${audit.live} live hired agent(s) are named by no tenure file — ${list}`;
+}
+
 /** Every tenure file in the directory, name-sorted. A missing directory is an
  *  empty list, never a throw: a checkout that has never hired has no tenures. */
 export function listTenureFiles(dir = TENURE_DIR) {

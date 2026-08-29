@@ -14,8 +14,11 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
+  fleetAudit,
+  humanAge,
   listTenureFiles,
   loadTenureFile,
+  orphanReport,
   readAllTenures,
   resolveTenurePath,
   tenureNameFor,
@@ -115,4 +118,86 @@ test("readAllTenures keeps a broken file as a PROBLEM instead of losing the whol
   assert.equal(tenures.length, 1, "the readable tenure is still read");
   assert.equal(problems.length, 1);
   assert.match(problems[0].error, /not readable JSON/);
+});
+
+// ─── the fleet audit (c1-exam §4) ───────────────────────────────────────────
+//
+// The guard that turns "100+ agents" into a red preflight the next time it
+// starts happening: every LIVE hired agent kp holds, against the tenure files
+// on disk. Nothing else in the loop ever notices an agent nobody will retire.
+
+const agent = (over = {}) => ({
+  id: "agt_x",
+  personaId: "p_x",
+  personaName: "App master",
+  status: "active",
+  createdAt: "2026-08-25T10:00:00.000Z",
+  ...over,
+});
+const NOW = Date.parse("2026-08-29T10:00:00.000Z");
+
+test("an agent no tenure file names is an ORPHAN, with its age", () => {
+  const audit = fleetAudit([agent({ id: "agt_1", personaId: "p_1" })], [], { now: NOW });
+  assert.equal(audit.live, 1);
+  assert.equal(audit.orphans.length, 1);
+  assert.equal(audit.orphans[0].id, "agt_1");
+  assert.equal(audit.orphans[0].ageMs, 4 * 24 * 3_600_000);
+  assert.equal(audit.orphans[0].age, "4d 00h");
+});
+
+test("a tenured agent is not an orphan — by either handle", () => {
+  const tenures = [{ hiredAgentId: "agt_1", personaId: "p_1" }];
+  const byAgent = fleetAudit([agent({ id: "agt_1", personaId: "p_OTHER" })], tenures, { now: NOW });
+  assert.deepEqual(byAgent.orphans, [], "the tenure's hiredAgentId claims the row");
+  // A re-dispatch can leave the two out of step; an audit that cried orphan
+  // over that would be ignored within a week.
+  const byPersona = fleetAudit([agent({ id: "agt_OTHER", personaId: "p_1" })], tenures, { now: NOW });
+  assert.deepEqual(byPersona.orphans, [], "the tenure's personaId claims it too");
+});
+
+test("a finished hire is not an orphan — it is the evidence a teardown worked", () => {
+  const rows = ["retired", "rejected", "failed"].map((status, i) => agent({ id: `agt_${i}`, status }));
+  const audit = fleetAudit([...rows, agent({ id: "agt_live" })], [], { now: NOW });
+  assert.equal(audit.rostered, 4);
+  assert.equal(audit.live, 1, "only the live statuses are audited");
+  assert.deepEqual(audit.orphans.map((o) => o.id), ["agt_live"]);
+});
+
+test("orphans come back oldest first, and an unknown createdAt is an unknown age", () => {
+  const audit = fleetAudit(
+    [
+      agent({ id: "young", createdAt: "2026-08-29T09:00:00.000Z" }),
+      agent({ id: "old", createdAt: "2026-08-01T10:00:00.000Z" }),
+      agent({ id: "undated", createdAt: null }),
+    ],
+    [],
+    { now: NOW }
+  );
+  assert.deepEqual(audit.orphans.map((o) => o.id), ["old", "young", "undated"]);
+  assert.equal(audit.orphans[2].ageMs, null, "an unparseable createdAt is not an age of zero");
+  assert.equal(audit.orphans[2].age, "–");
+  assert.equal(audit.orphans[0].age, "28d 00h");
+  assert.equal(audit.orphans[1].age, "1h 00m");
+});
+
+test("an empty roster audits clean, and a non-array one does not throw", () => {
+  assert.deepEqual(fleetAudit([], [], { now: NOW }).orphans, []);
+  const nothing = fleetAudit(null, null, { now: NOW });
+  assert.deepEqual(nothing, { rostered: 0, live: 0, tenures: 0, orphans: [] });
+});
+
+test("the orphan line names each one, its status and its age — one string, three destinations", () => {
+  const audit = fleetAudit([agent({ id: "agt_1", personaId: "p_1", status: "onboarding" })], [], { now: NOW });
+  const line = orphanReport(audit);
+  assert.match(line, /1 of 1 live hired agent/);
+  assert.match(line, /agt_1 \/ p_1 \(onboarding, 4d 00h old\)/);
+});
+
+test("humanAge reads at the resolution a human does, and never invents one", () => {
+  assert.equal(humanAge(null), "–");
+  assert.equal(humanAge(Number.NaN), "–");
+  assert.equal(humanAge(44_000), "44s");
+  assert.equal(humanAge(12 * 60_000), "12m");
+  assert.equal(humanAge(6 * 3_600_000 + 12 * 60_000), "6h 12m");
+  assert.equal(humanAge(4 * 24 * 3_600_000 + 6 * 3_600_000), "4d 06h");
 });

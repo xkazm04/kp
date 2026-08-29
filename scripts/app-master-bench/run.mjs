@@ -66,7 +66,10 @@ import {
 import { dialogAnswers, listScenarioFiles, loadScenarioFile, resolveScenarioPath } from "./scenarios.mjs";
 import {
   LIVE_AGENT_STATUSES,
+  fleetAudit,
   loadTenureFile,
+  orphanReport,
+  readAllTenures,
   resolveTenurePath,
   tenureNameFor,
   tenureRepoLabel,
@@ -703,6 +706,7 @@ async function runScenario(scenario, opts) {
     wallMs: null,
     mode: scenario.mode,
     kp: { baseUrl: kp.base, health: null },
+    fleet: null,
     personas: { baseUrl: personas.base, health: null, stub: !!opts.stub },
     scan: null,
     intakeId: null,
@@ -788,7 +792,59 @@ async function runScenario(scenario, opts) {
           "Personas is not in headless bridge mode (health.headlessBridge is not true) — this driver cannot approve a hire by hand. Start it with PERSONAS_HEADLESS_BRIDGE=1."
         );
       }
-      journal.write("preflight-ok", { kp: result.kp.health?.ok, personas: ph.json });
+      // ── the fleet audit (c1-exam §4) ─────────────────────────────────────
+      //
+      // Every LIVE hired agent kp holds, against the tenure files on disk. An
+      // agent no tenure names is an ORPHAN — nothing will ever retire it, and
+      // 31 sweeps of exactly that left 100+ personas behind. Listing it here,
+      // with its age, is what turns that into a red preflight the next time it
+      // starts happening instead of a discovery six weeks later.
+      //
+      // The audit itself never fails a run: a bench that refuses to start
+      // because of yesterday's mess is a bench nobody runs. `--strict` is the
+      // opt-in that blocks, and it is what CI (and a P2/P3 session) should use.
+      const roster = await kp.get("/api/agents");
+      const { tenures: known, problems } = readAllTenures();
+      if (!roster.ok) {
+        result.unmeasured.push(
+          `fleet audit: GET /api/agents answered ${roster.status || "nothing"} — the orphan count is unknown, which is not the same as zero`
+        );
+        result.fleet = { audited: false, reason: `GET /api/agents → ${roster.status || "no answer"}`, orphans: [] };
+      } else {
+        const audit = fleetAudit(roster.json?.agents ?? [], known, { now: Date.now() });
+        result.fleet = {
+          audited: true,
+          ...audit,
+          tenureFiles: known.map((t) => t.file ?? t.name ?? null),
+          tenureProblems: problems,
+        };
+        journal.write("fleet-audit", {
+          rostered: audit.rostered,
+          live: audit.live,
+          tenures: audit.tenures,
+          orphans: audit.orphans.length,
+        });
+        for (const problem of problems) {
+          result.warnings.push(`fleet audit: ${path.basename(problem.file)} is not a readable tenure file — ${problem.error}`);
+        }
+        if (audit.orphans.length > 0) {
+          const line = orphanReport(audit);
+          result.warnings.push(line);
+          process.stderr.write(`  ! ${line}\n`);
+          for (const orphan of audit.orphans) {
+            process.stderr.write(`      orphan ${orphan.id} · ${orphan.status} · ${orphan.age} old · persona ${orphan.personaId ?? "–"}\n`);
+          }
+          if (opts.strict) {
+            throw new PhaseError(
+              "preflight",
+              `${line}. Retire them (--teardown on the run that hired them) or record them in scripts/app-master-bench/tenures/ — --strict refuses to start a run on top of an orphan fleet.`,
+              { orphans: audit.orphans }
+            );
+          }
+        }
+      }
+
+      journal.write("preflight-ok", { kp: result.kp.health?.ok, personas: ph.json, orphans: result.fleet?.orphans?.length ?? null });
     });
 
     // ── pair ────────────────────────────────────────────────────────────────
@@ -1457,6 +1513,8 @@ async function main() {
         "  --hire-only              run the preamble ONCE and write the tenure file,",
         "                           then stop (no seed, no nights, no probation).",
         "                           With --tenure, that path is the destination.",
+        "  --strict                  a hired agent no tenure file names BLOCKS preflight",
+        "                           (without it the orphans are listed and the run goes on)",
         "  --kp <url>               kp base url            (default http://localhost:3101)",
         "  --personas <url>         Personas base url      (default http://127.0.0.1:9420)",
         "  --personas-key pk_…      skip the driver's own pairing",
@@ -1582,6 +1640,8 @@ async function main() {
     // reporting an unmeasured lane on time beats waiting for one forever.
     settlePollMs: Number(args["settle-poll"] || 90_000),
     settleTimeoutMs: Number(args["settle-timeout"] || 30 * 60_000),
+    // Hygiene, enforced rather than reported: an orphan fleet blocks preflight.
+    strict: !!args.strict,
   };
 
   const results = [];
