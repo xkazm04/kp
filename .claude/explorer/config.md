@@ -154,3 +154,19 @@ _(dated one-liners; repo-specific learnings from `/explorer` runs land here)_
   already carried the exact rule the puml renderer broke, with a prior sighting — which
   reframed the item from "a bug" to "a second instance of a known trap" and made the doc
   update worth writing.
+- 2026-08-29 — **Read `docs/features/<area>/README.md` § Known gaps before wandering.** The
+  highest-value item of run 3 was sitting there fully diagnosed, with the remaining edit
+  named, written and never done (the metric pack's `certifiable` on a thin sample). This repo
+  keeps an honest Known-gaps section per feature area: it is a pre-verified backlog, and
+  reading it is Phase 1 work, not a lucky detour in Phase 4.
+- 2026-08-29 — **Two standing `/architect` questions this loop keeps re-finding**, both
+  ADR 0007's own argument ("a repo law that isn't a gate isn't a law"): `design:check` does
+  not enforce the no-raw-hex law `.claude/CLAUDE.md` cites it for (75 literals in `app/`),
+  and ~18 bare `localeCompare` sites break a collation rule stated in three separate comments
+  (`DecisionRecordsTable`, `useMatrixTab`, `DecisionLogTable`) and enforced nowhere.
+  `no-restricted-syntax` is this repo's idiom for both.
+- 2026-08-29 — **This repo's tests can only be run through `npm run test:unit`.** A direct
+  `node --test <file>` fails on extensionless imports (`ERR_MODULE_NOT_FOUND` on
+  `./candidate-nps`) for any module that has them — that is the invocation, not the code.
+  Single-file `node --test` still works for modules whose imports are all extension-qualified,
+  which is why it looks reliable until it isn't.
