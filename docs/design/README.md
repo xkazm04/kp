@@ -106,6 +106,8 @@ block remaps to dark equivalents.
 | `dial-stone` | `#8c8779` | `#6e7787` | Gauge tracks |
 | `dial-amber` | `#caa54c` | `#e5bd62` | Mid-band score |
 | `score-strong/mid/weak/null` | alias moss / dial-amber / coral / steel | (follow automatically) | Rank colors — see `scoreTone()` |
+| `diagram-{live,gate,gap}-{fill,stroke}` | alias limewash / moss / coralwash / coral / stone-100 / dial-stone | (follow automatically) | Architecture-diagram status trichotomy — read by `puml/constants.ts` and the `/diagrams` legend |
+| `diagram-gap-text` | `#6b6557` | `#9aa3b2` | Muted label on the gap fill — the one diagram value with no brand counterpart |
 
 **Remapped neutrals** (stock Tailwind classes that participate in theming):
 
@@ -255,6 +257,17 @@ element:
   and rendered a cream sheet on a `#141b24` card, with the magnifier handle —
   the one stroke drawn on the card ground rather than on a filled shape —
   at 1.04:1 against it.
+
+  Found a **second** time on 2026-08-29, in the PlantUML diagram renderer
+  (`app/_components/puml/`): its `C` palette imported `MOSS`/`CORAL`/`INK`/`PAPER`/…
+  and its status trichotomy held six hand-copied hexes (one byte-identical to
+  `--color-coral`, which is how a copy announces itself), so every architecture
+  diagram painted a near-white gap box onto the `#141b24` canvas — in the shapes
+  **and** in the legend that explains them. Note what did NOT catch it: importing
+  `brand.ts` puts a literal under the lockstep gate, so the file looked compliant
+  while shipping a light-only drawing. **Lockstep is not theming** — it proves a
+  literal matches its Studio Light token, not that the surface flips. The fix was
+  the rule above: paint `var()`.
 - **Leader emphasis scales with the canvas.** Subtle washes that work on
   cream (`bg-moss/5`) vanish on dark — the comparison table's leader column
   upgrades to `/15` plus a moss edge stroke in dark. When a highlight relies
