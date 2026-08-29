@@ -79,13 +79,16 @@ test("the observed accept rate credits in-flight offer-stage candidates directly
 });
 
 test("an accept rate with no offer leg is ignored (echoed as null)", () => {
+  // A two-column board (entry + terminal) is a legal saved axis — the config
+  // validator requires exactly that much and no more — and it has NO offer leg:
+  // the row before Hired IS the entry row. Reading it as one made offerReached
+  // equal firstReached, so the rebuilt conversion collapsed to the accept rate
+  // itself and the projection read as if every arrival reached an offer.
   const noOffer = [
     { stage: "Accepted", reached: 40, current: 20 },
     { stage: "Hired", reached: 4, current: 0 },
   ];
-  // offerReached = the row before Hired = Accepted (40) — there IS a second-to-last
-  // row, but if it had 0 reached the rate would be ignored. Here prove the null
-  // path: an all-time funnel whose offer row reached 0.
+  // The other null path: a real three-row funnel whose offer row reached 0.
   const zeroOffer = [
     { stage: "Interview", reached: 20, current: 5 },
     { stage: "Offer", reached: 0, current: 0 },
@@ -93,10 +96,27 @@ test("an accept rate with no offer leg is ignored (echoed as null)", () => {
   ];
   const a = forecastHires({ weeklyAdded: [4], funnel: noOffer, avgTimeToHireDays: null, offerAcceptRate: 0.9 });
   const b = forecastHires({ weeklyAdded: [4], funnel: zeroOffer, avgTimeToHireDays: null, offerAcceptRate: 0.9 });
-  // noOffer applies (Accepted is the offer row, reached 40) — so it is NOT null.
-  assert.equal(a.offerAcceptRate, 0.9);
+  assert.equal(a.offerAcceptRate, null, "the entry row is not an offer leg");
   // zeroOffer has offerReached 0 → rate ignored, echoed null.
   assert.equal(b.offerAcceptRate, null);
+});
+
+test("a two-column board projects on its real conversion, not the accept rate", () => {
+  // 10 hires of 100 arrivals = 10 %. Read as an offer leg, the 60 % accept rate
+  // replaced that outright: 10/wk × 12wk × 0.60 = 72 hires instead of 12.
+  const twoColumn = [
+    { stage: "Accepted", reached: 100, current: 30 },
+    { stage: "Hired", reached: 10, current: 10 },
+  ];
+  const f = forecastHires({
+    weeklyAdded: [10, 10],
+    funnel: twoColumn,
+    avgTimeToHireDays: 30,
+    horizonsWeeks: [12],
+    offerAcceptRate: 0.6,
+  });
+  assert.equal(f.offerAcceptRate, null);
+  assert.deepEqual(f.projected, [{ weeks: 12, hires: 12 }]);
 });
 
 test("an empty cohort yields a null conversion and no signal", () => {

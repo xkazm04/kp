@@ -72,7 +72,16 @@ export function forecastHires(input: ForecastInput): Forecast {
   // MEASURED accept rate: (reach → offer) × observed-accept. A null rate (below
   // the gate, or no offer leg) leaves the offer-derived conversion untouched, so
   // the projection is byte-identical to its pre-offer behaviour.
-  const offerRow = funnel.length >= 2 ? funnel[funnel.length - 2] : undefined;
+  //
+  // >= 3, not >= 2: on a two-row funnel `funnel[length - 2]` IS the entry row, so
+  // offerReached === firstReached and the substitution below collapses to
+  // `projectionConversion = observed-accept` — the whole pipeline read as if every
+  // arrival reached an offer. validatePipelineStages (decision-config-schema.ts)
+  // requires only entry + terminal, so a two-column board is a legal saved axis and
+  // the funnel is built 1:1 from it: such a workspace with a measured 60 % accept
+  // and 10 leads/week projected 72 hires at the 12-week horizon. A genuine offer
+  // leg needs a row that is neither the entry nor the hire.
+  const offerRow = funnel.length >= 3 ? funnel[funnel.length - 2] : undefined;
   const offerReached = offerRow?.reached ?? 0;
   const applyAccept = input.offerAcceptRate != null && firstReached > 0 && offerReached > 0;
   const offerAcceptRate = applyAccept ? (input.offerAcceptRate as number) : null;
