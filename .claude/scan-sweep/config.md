@@ -52,6 +52,25 @@ Consequences for a round here:
 
 Backlogged with numbers in the memory outbox (tech-debt-tracker, 2026-08-29).
 
+## The Stop hook only sees the dedicated edit tools
+
+`scripts/docs/check-doc-sync.mjs` walks the turn's transcript for `Edit` / `Write`
+/ `MultiEdit` / `NotebookEdit` calls. **An edit made through the Bash tool — a
+`python` heredoc, `sed -i`, `perl -pi` — is invisible to it.**
+
+So a round that edits source with the Edit tool and updates the doc with a shell
+script gets a doc-sync reminder for a doc it already wrote (observed
+2026-08-29: `llm-provider-layer.md` was updated in all three commits of the
+`lib-llm-config` round and the hook still fired). The reverse is worse and
+quieter: source edited only through the shell never trips the hook at all, so a
+genuinely missing doc update goes unnoticed.
+
+**Write doc updates with the Write/Edit tools**, and keep the shell for the
+mechanical passes (EOL normalisation, restores). If you do hit the reminder after
+having updated the doc, verify with `git log --oneline -- <doc>` and say so with
+the evidence — do not dismiss it as "no doc update needed", which is a different
+claim and an untrue one.
+
 ## Skill improvement log
 
 - **2026-08-29 — Normalize line endings to LF before staging. This is the one
