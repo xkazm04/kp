@@ -54,6 +54,27 @@ npm run test:unit                      # once, at the end of the round (~22s, 42
   em dashes in catalog copy (`docs/i18n/contract.md` §5), which is not obvious
   from reading neighbouring strings.
 
+- **2026-08-29 — Dates go through `useFormatter()`, never `toLocaleString()`.** A bare
+  `toLocaleString()` / `toLocaleDateString()` follows the OS, so a `cs` workspace opened in
+  an en-US browser renders `3/4/2026` inside a Czech sentence. The repo has fixed this six
+  times with explicit comments (`DecisionsAiReviewCard`, `groupEvalHelpers`,
+  `JdsRevisionList`, `JobsCampaignTab`, `ProfileRosterRow`, `useScheduleInviteLifecycle`)
+  and it is a declared fix-as-you-touch migration — `grep -rn "toLocaleString()" app` in
+  any context you read. Canonical shapes: `format.dateTime(new Date(iso), { dateStyle:
+  "medium" })` for a date, `+ timeStyle: "short"` for a timestamp. next-intl falls back to
+  `String(value)` on an invalid date rather than throwing, so no guard is needed unless the
+  value can actually be malformed.
+
+- **2026-08-29 — There is NO component test harness.** Zero `*.test.tsx` repo-wide, and
+  `test:unit` runs node:test with type-stripping and no JSX transform, so a `.tsx` cannot
+  even be imported. A behavioural rule that must be tested has to live in a `.ts` module
+  the way `integrationsPersonasLogic.ts`, `agentsWorkforceLogic.ts` and
+  `integrationsWebhookIdentifiers.ts` do. Plan the fix around that before proposing a test.
+
+- **2026-08-29 — Failure outcomes use `role={ok ? "status" : "alert"}` plus a failure
+  tone.** The convention is set by `IntegrationsAtsForm` and `IntegrationsCallbackBanner`;
+  a result line that is always `role="status"` is a finding.
+
 - **2026-08-29 — `stone-500..700` are deliberately stock in BOTH themes.**
   `app/globals.css` remaps `stone-50..400` (surfaces) and `800/900` (inverted
   controls); 500–700 are the muted text greys and are documented as intentionally
