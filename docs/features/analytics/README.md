@@ -802,14 +802,18 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   same numerator. Whether a shared corpus row is a requisition a team is *carrying* is a product
   definition, not a bug in the route — closing it needs an owned-only count in `db/jobs.ts`
   (`JobRecord` carries no `workspaceId`, so the route cannot tell the two apart today).
-- **`de` group separators still parse as decimals in the inline number editor.**
-  `AnalyticsInlineNumberSave` normalizes whitespace but leaves `,` and `.` alone, because each
-  is a group separator in one shipped locale and a decimal separator in another. `Number()`
-  therefore reads a German operator's `12.000` as **12**, saves it, and answers 200 — a silent
-  wrong write, not a refusal (the `en` `12,000` fails visibly instead). Closing it needs a
-  locale-aware parse (`useLocale()` → strip the locale's group separator, map its decimal
-  separator to `.`), which is a parsing change on a money write path with no component-test
-  layer to pin it.
+- **`de` group separators parsed as decimals in the inline number editor. CLOSED 2026-08-29.**
+  `AnalyticsInlineNumberSave` normalized whitespace but left `,` and `.` alone, so `Number()`
+  read a German operator's `12.000` as **12** and stored it — a silent wrong write on a money
+  path, while the `en` `12,000` failed visibly. `parseLocaleNumber(raw, locale)`
+  (`app/features/insights/analytics/parseLocaleNumber.ts`) now reads the separators from
+  `Intl.NumberFormat().formatToParts()` for the reader's locale, so `1.234` is 1.234 in `en`
+  and 1234 in `de` and neither is right by accident. **The stated blocker — "no component-test
+  layer to pin it" — was dissolved by extracting the parse rather than by accepting more
+  risk:** it is a pure, import-free module, and `parseLocaleNumber.test.ts` exercises every
+  locale × separator combination, the ambiguous `1.234`/`1,234` pair, both non-breaking group
+  spaces, and the refusal cases directly. Group separators are removed, not validated for
+  position (the digit sequence carries the value); a second DECIMAL separator still refuses.
 - **A hire recorded by the agent bridge is invisible to every event-time hire metric.**
   `app/api/agents/report/[token]` and `app/api/agents/[id]/refresh` reach the terminal stage
   through `setPipelineEntryStage`, which writes `kind = "moved"` (and hardcodes the name

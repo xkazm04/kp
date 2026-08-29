@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "next-intl";
+import { parseLocaleNumber } from "./parseLocaleNumber";
 
 // One save-on-blur numeric input: holds the draft, re-seeds when the server
 // `value` changes (the in-render prop-resync pattern), validates (blank → null;
@@ -29,6 +31,7 @@ export function InlineNumberSave({
   id?: string;
   failedTitle: string;
 }) {
+  const locale = useLocale();
   const [draft, setDraft] = useState(value != null ? String(value) : "");
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -41,17 +44,18 @@ export function InlineNumberSave({
   }
 
   const save = async () => {
-    // Strip EVERY space, not just the outer ones. The figure this input corrects is
-    // rendered beside it by `formatGrouped`, which groups with U+00A0 in `cs` and
-    // U+202F in `fr` — so an operator who types back the number they can see handed
-    // `Number()` a NaN and got a coral "Enter a number" for a number they had entered
-    // correctly. A space is a group separator in all four catalogs and a decimal
-    // separator in none, so removing it cannot change a value's meaning. The `en`
-    // comma and the `de` period are NOT normalized on purpose: those two are each a
-    // group separator in one locale and a decimal separator in another, and guessing
-    // between 1.2 and 1200 would turn a visible refusal into a silent wrong write.
-    const trimmed = draft.replace(/\s+/g, "");
-    const parsed = trimmed === "" ? null : Number(trimmed);
+    // Parse in the READER's notation (parseLocaleNumber). The previous version
+    // stripped spaces and handed the rest to `Number()`, which is en-US-only: it
+    // deliberately left `,` and `.` alone because each is a group separator in one
+    // shipped locale and a decimal separator in another, reasoning that guessing
+    // between 1.2 and 1200 "would turn a visible refusal into a silent wrong
+    // write". The asymmetry is that it already WAS one in `de` — `Number("12.000")`
+    // is 12, so an operator correcting a channel's spend to 12.000 stored 12 and
+    // cost-per-applicant answered accordingly, while `en`'s `12,000` failed
+    // visibly. Knowing the locale is what removes the guess: `1.234` is 1.234 in
+    // `en` and 1234 in `de`, and both are now read correctly instead of one being
+    // right by accident.
+    const parsed = parseLocaleNumber(draft, locale);
     if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0)) {
       setFailed(true);
       return;
