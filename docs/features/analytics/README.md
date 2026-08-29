@@ -247,6 +247,16 @@ land leads is never reported as a flat `0` — one lead in 201 is 0.5 %, and `Ma
 *"holds 0% of 201 leads"* about a real lead, and tied every sub-1 % variant together so
 "worst performers first" ordered them arbitrarily. `VARIANT_RULE`'s values are untouched.
 
+**One key vocabulary for a creative.** `variantGroupKey` / `variantRowKey`
+(`app/_lib/source-analytics.ts`) are the single source for the (job × campaign × variant)
+identity: `db/analytics.ts` aggregates its windowed rows by the row key and the pause rules
+re-group them by the group key, so the two halves cannot key differently. Both are **NUL-joined**,
+the same joiner `analytics-cache.ts` uses for its memo keys and for the same reason —
+`source_campaign` and `source_variant` are recruiter-entered free text, and under the previous
+printable `|` joiner a campaign `"spring|A"` × variant `"v1"` and a campaign `"spring"` × variant
+`"A|v1"` produced the identical key, merging two creatives into one row and moving the
+fair-share floor that decides who gets flagged.
+
 ## Quality — calibration honesty
 
 `sections/QualityInstrument.tsx` answers the question that comes before every decision below
@@ -615,6 +625,17 @@ collided stem in any locale and that the self-report label names the model in al
 | `GET /api/benchmarks` | Cross-workspace company benchmark. **Takes no window parameter** |
 | `GET /api/pipeline/outcomes` | Not an analytics route — it belongs to the board — but Quality reads it for the hire-rating accrual counter `{ rated, hires, minOutcomes }` (`requireOperator()`). Capture side: [`../pipeline/README.md`](../pipeline/README.md) |
 
+**The short-TTL memos are bounded, not just expiring.** `createTtlCache`
+(`app/_lib/analytics-cache.ts`) checks expiry on read, so the TTL alone never reclaimed an entry
+whose key was not requested again. Three routes key it on raw query params — `?candidate` on
+`/api/decisions/records`, `?roleFamily` on both calibration routes — none of them a closed
+vocabulary, and `maxDuration` is serverless-only here, so a self-hosted process retained one
+payload per distinct value indefinitely. The store now caps at 256 entries, reclaiming
+TTL-expired entries before evicting any live one. The "no filter" marker in every key builder is
+a doubled NUL separator rather than a printable `*`: those fields arrive from the URL, and
+`?candidate=*` used to key to the same entry as the unfiltered load — serving its empty result
+as the full decision-records list for the rest of the TTL.
+
 Pure computation lives beside the route, not in it: `analytics-forecast.ts`,
 `analytics-momentum.ts`, `analytics-deltas.ts`, `analytics-bottleneck.ts`, `analytics-offer.ts`,
 `analytics-cache.ts`, `automation-roi.ts`, `metric-pack.ts`, `calibration.ts`,
@@ -648,7 +669,13 @@ and **names the acceptance basis it substituted**: when an observed offer-accept
 `forecastHires` rebuilds the offer→hire leg as `(offerReached / firstReached) × acceptRate`, so
 the horizons are NOT `overallConversionPct` — the figure the band's context sentence names — and
 the brief prints `forecast.acceptBasis` ("assuming the observed NN % acceptance, n=…") beside
-them · a rate with no cohort behind it renders `—`, never a confident `0 %` ·
+them. **That substitution requires a funnel of at least three rows.** The offer stage is
+`funnel[length - 2]`, which on a two-column board *is* the entry row: `offerReached` equals
+`firstReached`, the rebuilt conversion collapses to the accept rate itself, and the projection
+reads as if every arrival reached an offer (a measured 60 % accept and 10 leads/week projected
+72 hires at 12 weeks where the real 10 % conversion gives 12). Entry + terminal is a legal saved
+axis — `validatePipelineStages` requires that much and no more — so such a board falls back to
+the funnel-derived conversion and echoes `offerAcceptRate: null` · a rate with no cohort behind it renders `—`, never a confident `0 %` ·
 capped tables say what they dropped and where to reach it · the first-run empty state previews
 the metrics with literal em-dashes and never fabricates sample figures
 (`AnalyticsEmptyPreview.tsx`) · a tamper-evidence claim is conditioned on the key census.
