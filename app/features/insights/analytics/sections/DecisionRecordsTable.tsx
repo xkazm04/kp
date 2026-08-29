@@ -147,8 +147,13 @@ export function DecisionRecordsTable({
           {dossierError}
         </p>
       ) : null}
-      <div className="mt-2 overflow-x-auto">
-        <table className="w-full min-w-[60rem] text-base">
+      {/* A table forced past the viewport by min-w scrolls inside this div. A bare
+                overflow container is not reachable without a pointer in every browser
+                (current Chrome/Firefox focus scroll containers on their own; Safari
+                does not), so it is a NAMED, focusable region -- which also gives the
+                data surface an accessible name it did not have. */}
+      <div className="mt-2 overflow-x-auto" role="region" tabIndex={0} aria-label={t("title")}>
+        <table aria-label={t("title")} className="w-full min-w-[60rem] text-base">
           <thead>
             <tr className="border-b border-stone-200">
               <ColumnHead title={t("colSeq")} sortCol="seq" sort={sort} onSort={toggle} align="right" />

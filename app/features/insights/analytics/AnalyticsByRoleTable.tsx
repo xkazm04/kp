@@ -69,7 +69,7 @@ export function AnalyticsByRoleTable({ data, boardHref }: { data: Analytics; boa
           </button>
         </div>
       </div>
-      <table className="mt-3 w-full text-base">
+      <table aria-label={t("byRole")} className="mt-3 w-full text-base">
         <thead>
           <tr className="border-b border-stone-200 text-left text-meta uppercase text-steel">
             {/* The header IS the search box — the repo's ColumnFilter idiom

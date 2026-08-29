@@ -347,3 +347,33 @@ test("G5 — the sealed-record reads keep the operator gate and the candidate pr
   // whole-workspace read in the handler.
   assert.equal(route.includes("candidateRef: candidate"), true);
 });
+// ---------------------------------------------------------------------------
+// The auditor may not be using a mouse. Both audit tables are forced past the
+// viewport by a min-w, so each scrolls inside an overflow container -- and a bare
+// overflow div is not reachable without a pointer in every browser (current
+// Chrome and Firefox focus scroll containers on their own; Safari does not).
+// Neither table carried an accessible name either, so a screen-reader user
+// listing the tables on this page got unnamed ones on the surface whose entire
+// purpose is "show me what we decided about this person".
+// ---------------------------------------------------------------------------
+
+test("each audit table is named and its scroll region is keyboard-reachable", () => {
+  for (const [label, rel, name] of [
+    ["decision records", RECORDS_TABLE, 't("title")'],
+    ["decision log", LOG_TABLE, 't("title")'],
+  ] as const) {
+    const src = source(rel);
+    const wrapper = /<div className="[^"]*overflow-x-auto"([^>]*)>/.exec(src);
+    assert.ok(wrapper, `${label}: the scrolling wrapper is gone -- re-point this guard`);
+    assert.match(wrapper[1], /role="region"/, `${label}: the scroll container needs a role to be announced`);
+    assert.match(wrapper[1], /tabIndex=\{0\}/, `${label}: the scroll container must be focusable without a pointer`);
+    assert.ok(
+      wrapper[1].includes(`aria-label={${name}}`),
+      `${label}: a region without a name is worse than no region`
+    );
+    assert.ok(
+      src.includes(`<table aria-label={${name}}`),
+      `${label}: the table itself must carry the name too`
+    );
+  }
+});

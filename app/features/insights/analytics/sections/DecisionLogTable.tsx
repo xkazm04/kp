@@ -286,8 +286,13 @@ export function DecisionLogTable({
         <div className="reveal-quiet mt-3 min-h-[15rem]" aria-hidden />
       ) : (
         <>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[52rem] text-base">
+          {/* A table forced past the viewport by min-w scrolls inside this div. A bare
+                overflow container is not reachable without a pointer in every browser
+                (current Chrome/Firefox focus scroll containers on their own; Safari
+                does not), so it is a NAMED, focusable region -- which also gives the
+                data surface an accessible name it did not have. */}
+          <div className="mt-3 overflow-x-auto" role="region" tabIndex={0} aria-label={t("title")}>
+            <table aria-label={t("title")} className="w-full min-w-[52rem] text-base">
               <thead>
                 <tr className="border-b border-stone-200">
                   <ColumnHead title={t("colWhen")} sortCol="createdAt" sort={sort} onSort={onSort} />

@@ -183,8 +183,13 @@ export function EconomicsBoard({ data, reload, tabScopedSearch }: EconomicsProps
         {rows.length === 0 ? (
           <p className="mt-4 rounded-md bg-paper p-3 text-base text-steel">{t("boardEmpty")}</p>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[52rem] text-base">
+          // A table forced past the viewport by min-w scrolls inside this div. A bare
+          // overflow container is not reachable without a pointer in every browser
+          // (current Chrome/Firefox focus scroll containers on their own; Safari does
+          // not), so it is a NAMED, focusable region -- which also gives the data
+          // surface an accessible name it did not have.
+          <div className="mt-4 overflow-x-auto" role="region" tabIndex={0} aria-label={t("boardTitle")}>
+            <table aria-label={t("boardTitle")} className="w-full min-w-[52rem] text-base">
               <thead>
                 <tr className="border-b border-stone-200">
                   <ColumnHead title={t("colSurface")} sortCol="name" sort={sort} onSort={toggle} />
