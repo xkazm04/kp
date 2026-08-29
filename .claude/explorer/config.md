@@ -117,3 +117,19 @@ which half stayed unverified.
 ## Skill improvement log
 
 _(dated one-liners; repo-specific learnings from `/explorer` runs land here)_
+
+- 2026-08-29 — **Pick the area from `.claude/scan-history/coverage-2026-08.md` until this
+  repo's own explorer coverage has depth.** On a cold vault Phase 2b's staleness score ties
+  across all 143 contexts and falls back to file count, which is arbitrary. That reconstructed
+  ledger names the three contexts the 2026-08 scan-sweep left with **zero** `fix(...)`
+  evidence — `lib-analytics-1`, `ui-primitives-and-ui-puml`, `e2e-suite`. The first of them
+  yielded four real bugs on the first pass. Two remain unswept.
+- 2026-08-29 — **The auto-seeded context map misfiles some `app/_lib` modules.**
+  `lib-analytics-2` contains `distribution.ts` (the devcase distribution seam) and
+  `source-repo.ts` (the AGPL source link), neither of which is analytics. Read the file list,
+  not the context name, before scoping a sweep — and the map is 255 commits stale as of this
+  run.
+- 2026-08-29 — **`.personas/contexts.txt` really is the outbox authority.** The analytics
+  slugs there (`analytics-funnel-forecast`, `analytics-channel-roi`, `analytics-core-tab`,
+  `pipeline-analytics`) share **no** name with the map's `lib-analytics-1` / `lib-analytics-2`.
+  One map context maps to several app slugs; emit one node per slug actually touched.
