@@ -47,6 +47,28 @@
   --color-score-null: var(--color-steel);
 
   /*
+   * Architecture-diagram status trichotomy — moss = live/automated, coral =
+   * deliberate human gate, warm stone = remaining gap. ALIASES, not new hues: the
+   * diagram is drawn as raw SVG fill/stroke attributes, so it needs the palette by
+   * NAME, and it had been carrying hand-copied LIGHT hex approximations that never
+   * flipped in Spark Dark (the gate stroke was byte-identical to --color-coral,
+   * which is how the copy announced itself). Because the aliases resolve at use
+   * time, the dark block re-tones the whole diagram by re-tuning the brand tokens
+   * it already re-tunes — same indirection as --color-score-* above.
+   *
+   * Read by app/_components/puml/constants.ts (the shapes) and app/diagrams/page.tsx
+   * (the legend that explains them), so the two can never disagree.
+   */
+  --color-diagram-live-fill: var(--color-limewash);
+  --color-diagram-live-stroke: var(--color-moss);
+  --color-diagram-gate-fill: var(--color-coralwash);
+  --color-diagram-gate-stroke: var(--color-coral);
+  --color-diagram-gap-fill: var(--color-stone-100);
+  --color-diagram-gap-stroke: var(--color-dial-stone);
+  /* The one value with no brand counterpart: muted warm text on the gap fill. */
+  --color-diagram-gap-text: #6b6557;
+
+  /*
    * The shadow tokens point at a SECOND variable instead of holding their value
    * directly, and that indirection is load-bearing.
    *
@@ -220,6 +242,11 @@ body {
   --color-coralwash: #46262b;
   --color-dial-stone: #6e7787;
   --color-dial-amber: #e5bd62;
+
+  /* Diagram status trichotomy: the six aliases above re-resolve through the brand
+     tokens just re-tuned, so only the one non-alias needs a dark value — muted text
+     that stays legible on the dark gap fill (--color-stone-100 -> #283442). */
+  --color-diagram-gap-text: #9aa3b2;
 
   /* Neutrals — `bg-white` is the raised card surface, stone-* the fills and
      hairlines. Mapped onto the same ink-blue ramp as the canvas. */

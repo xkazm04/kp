@@ -4,7 +4,6 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Modal } from "@/app/_components/Modal";
-import { CORAL, DIAL_AMBER, DIAL_STONE, INK, MOSS, PAPER, STEEL, WHITE } from "@/app/_lib/brand";
 import { parsePuml } from "./parse";
 import { isDiagramTooLarge, layoutDiagram, type Box, type PositionedDiagram, type PositionedEdge } from "./layout";
 import { DIAGRAM_PAD, DIAGRAM_STATUS_TOKENS, FONT_FAMILY, LINE_H } from "./constants";
@@ -16,27 +15,42 @@ import { clickableNodeAria, diagramSvgRole } from "./a11y";
 // LINE_H / FONT_FAMILY / DIAGRAM_PAD are shared with measure + layout (see
 // ./constants) so text sizing and positioning never drift.
 
-// The single home for every diagram colour. The top block mirrors globals.css
-// @theme tokens; the shape-fill block holds the bespoke primitive tints that are
-// diagram-only (no CSS-variable equivalent) — they used to live as ~ten orphaned
-// hex literals scattered through the shape renderers (idea-a1c39c26), so retuning
-// a shape meant hunting for a stray hex. One map = one edit to re-tone a diagram.
-// (The component status trichotomy in componentStyle is unified separately.)
-// The brand half is IMPORTED, not re-typed: this block claimed to mirror the
-// @theme tokens while holding `paper: "#f7f5ef"`, the pre-Option-C cream the app
-// canvas had already left behind — the same drift that had gone unnoticed in
-// brand.ts. Reading the mirror puts these under `npm run design:check`.
+// The single home for every diagram colour.
+//
+// The token half resolves through CSS variables, not the app/_lib/brand.ts JS mirror.
+// It USED to import that mirror -- which put the literals under `design:check`'s
+// lockstep rule and so looked correct -- but MOSS/CORAL/INK/PAPER/... are LIGHT-ONLY
+// constants there (brand.ts exports a DARK object for exactly this reason, and this
+// file never forked on it). An in-DOM SVG reads var() straight from a fill/stroke
+// attribute, so the diagram can just use the tokens and flip with the theme for free.
+// The mirror is for surfaces the token system genuinely cannot reach: the
+// edge-runtime OG image and the icons, which render with no stylesheet.
+//
+// `stone`/`stoneSoft` were stock Tailwind hexes (#d6d3d1 / #e7e5e4), so they missed
+// BOTH halves of this repo's warm neutral ramp as well as the dark remap.
+//
+// The shape-fill block below holds the bespoke primitive tints that are diagram-only
+// (no token counterpart) -- they used to live as ~ten orphaned hex literals scattered
+// through the shape renderers (idea-a1c39c26), so retuning a shape meant hunting for a
+// stray hex. One map = one edit to re-tone a diagram.
+// (The component status trichotomy in componentStyle lives in ./constants.)
+//
+// TODO(dark-theme): the shape-fill block is still light-only. Giving a sticky-note
+// face, a cloud silhouette and a database cylinder dark tints is a design decision
+// with no token to derive from, so it is deliberately NOT guessed here -- see the
+// /explorer sweep note of 2026-08-29. The token half above covers every component
+// box, container, edge, label and status colour, i.e. the dominant surface.
 const C = {
-  ink: INK,
-  paper: PAPER,
-  moss: MOSS,
-  coral: CORAL,
-  steel: STEEL,
-  stone: "#d6d3d1",
-  stoneSoft: "#e7e5e4",
-  dialStone: DIAL_STONE,
-  dialAmber: DIAL_AMBER,
-  white: WHITE,
+  ink: "var(--color-ink)",
+  paper: "var(--color-paper)",
+  moss: "var(--color-moss)",
+  coral: "var(--color-coral)",
+  steel: "var(--color-steel)",
+  stone: "var(--color-stone-300)",
+  stoneSoft: "var(--color-stone-200)",
+  dialStone: "var(--color-dial-stone)",
+  dialAmber: "var(--color-dial-amber)",
+  white: "var(--color-white)",
 
   // Database cylinder (body + lid).
   dbFill: "#eef2f3",
@@ -157,7 +171,7 @@ function componentStyle(stereotype?: string): { fill: string; stroke: string; te
   if (/gate|human|review|approval|manual/.test(s))
     return { fill: DIAGRAM_STATUS_TOKENS.gate.fill, stroke: DIAGRAM_STATUS_TOKENS.gate.stroke, text: C.ink };
   if (/todo|planned|gap|missing|future|build/.test(s))
-    return { fill: DIAGRAM_STATUS_TOKENS.gap.fill, stroke: DIAGRAM_STATUS_TOKENS.gap.stroke, text: "#6b6557", dash: true };
+    return { fill: DIAGRAM_STATUS_TOKENS.gap.fill, stroke: DIAGRAM_STATUS_TOKENS.gap.stroke, text: "var(--color-diagram-gap-text)", dash: true };
   // auto / v2 / new / focus
   return { fill: DIAGRAM_STATUS_TOKENS.live.fill, stroke: DIAGRAM_STATUS_TOKENS.live.stroke, text: C.ink };
 }
@@ -617,7 +631,7 @@ function DiagramSvg({
         </marker>
       </defs>
       {onNodeClick || activeNodeId ? (
-        <style>{`.puml-clickable{cursor:pointer;outline:none}.puml-clickable rect,.puml-clickable ellipse,.puml-clickable path{transition:stroke .12s,filter .12s}.puml-clickable:hover rect,.puml-clickable:hover ellipse,.puml-clickable:hover path,.puml-clickable:focus-visible rect,.puml-clickable:focus-visible ellipse,.puml-clickable:focus-visible path{stroke:#d65a4a;stroke-width:2}.puml-active rect,.puml-active ellipse,.puml-active path{stroke:#d65a4a !important;stroke-width:2.5 !important}`}</style>
+        <style>{`.puml-clickable{cursor:pointer;outline:none}.puml-clickable rect,.puml-clickable ellipse,.puml-clickable path{transition:stroke .12s,filter .12s}.puml-clickable:hover rect,.puml-clickable:hover ellipse,.puml-clickable:hover path,.puml-clickable:focus-visible rect,.puml-clickable:focus-visible ellipse,.puml-clickable:focus-visible path{stroke:var(--color-coral);stroke-width:2}.puml-active rect,.puml-active ellipse,.puml-active path{stroke:var(--color-coral) !important;stroke-width:2.5 !important}`}</style>
       ) : null}
       <g transform={`translate(${pad},${pad})`}>
         {layout.containers.map(renderContainer)}

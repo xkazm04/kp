@@ -24,10 +24,21 @@ export const TITLE_FONT = `600 14px ${FONT_FAMILY}`;
 export const DIAGRAM_PAD = 8;
 
 // The diagram's three-state status vocabulary — moss = live/automated, coral =
-// deliberate human gate, dashed stone = remaining gap/to-build — with the
-// fill/stroke hex pair each state renders as. The ONE place these tints live, so
-// the diagram shapes (componentStyle in PlantUml.tsx) and the legend swatches
-// (diagrams/page.tsx) that explain them can never disagree about a status colour.
+// deliberate human gate, dashed warm stone = remaining gap/to-build. These resolve
+// through the design tokens (--color-diagram-* in app/globals.css), NOT through
+// literals: this block used to hold six hand-copied hexes, one of which
+// (`gate.stroke: #d65a4a`) was byte-identical to --color-coral — the copy naming
+// its own origin. The tokens have had dark values since Spark Dark shipped; the
+// copies never did, so the diagram painted a near-white gap box onto a #141b24
+// canvas in both consumers.
+//
+// An in-DOM SVG can read CSS variables from a fill/stroke attribute, so it does not
+// need the app/_lib/brand.ts JS mirror — that mirror is for the surfaces the token
+// system genuinely cannot reach (the edge-runtime OG image, the icons), and using it
+// here bought a literal that could not flip.
+//
+// Still the ONE place these tints live, so the diagram shapes (componentStyle in
+// PlantUml.tsx) and the legend swatches (diagrams/page.tsx) can never disagree.
 // `dashed` flags the gap state, which renders with a dashed border in both.
 export type DiagramStatus = "live" | "gate" | "gap";
 
@@ -35,7 +46,7 @@ export const DIAGRAM_STATUS_TOKENS: Record<
   DiagramStatus,
   { fill: string; stroke: string; dashed?: boolean }
 > = {
-  live: { fill: "#e9f1e2", stroke: "#5d7a57" },
-  gate: { fill: "#fbece8", stroke: "#d65a4a" },
-  gap: { fill: "#f4f2ec", stroke: "#8c8779", dashed: true },
+  live: { fill: "var(--color-diagram-live-fill)", stroke: "var(--color-diagram-live-stroke)" },
+  gate: { fill: "var(--color-diagram-gate-fill)", stroke: "var(--color-diagram-gate-stroke)" },
+  gap: { fill: "var(--color-diagram-gap-fill)", stroke: "var(--color-diagram-gap-stroke)", dashed: true },
 };
