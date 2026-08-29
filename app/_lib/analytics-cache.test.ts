@@ -124,6 +124,29 @@ test("calibrationBandCacheKey isolates every axis including the bin", () => {
   assert.equal(base, calibrationBandCacheKey("ws-a", "pipeline", "eng", 3)); // identical → hit
 });
 
+test("a literal \"*\" filter cannot forge the no-filter key", () => {
+  // Every one of these fields arrives as a raw query param, so the absent-marker
+  // must be unspellable. With the old printable "*" sentinel, `?candidate=*`
+  // computed the FILTERED result (an empty list) and stored it under the key the
+  // full-list view reads — and `?roleFamily=*` did the same to the unfiltered
+  // calibration payload — for the rest of the TTL.
+  assert.notEqual(decisionRecordsCacheKey("ws-a", "*"), decisionRecordsCacheKey("ws-a", null));
+  assert.notEqual(calibrationCacheKey("ws-a", "pipeline", "*"), calibrationCacheKey("ws-a", "pipeline", null));
+  assert.notEqual(
+    calibrationBandCacheKey("ws-a", "pipeline", "*", 3),
+    calibrationBandCacheKey("ws-a", "pipeline", null, 3)
+  );
+  // A "*" family is still a stable key of its own — distinguished, not dropped.
+  assert.equal(calibrationCacheKey("ws-a", "pipeline", "*"), calibrationCacheKey("ws-a", "pipeline", "*"));
+});
+
+test("an empty ?candidate keys as the full list, matching what the route computes", () => {
+  // The route branches on `candidate ? filtered : unfiltered`, so "" IS the full
+  // list. The key used to disagree (`?? "*"` keeps ""), giving the same payload two
+  // entries — a wasted recompute, and two truths for one view.
+  assert.equal(decisionRecordsCacheKey("ws-a", ""), decisionRecordsCacheKey("ws-a", null));
+});
+
 test("decisionRecordsCacheKey isolates workspace and candidate subject", () => {
   assert.notEqual(decisionRecordsCacheKey("ws-a", null), decisionRecordsCacheKey("ws-b", null)); // tenant
   assert.notEqual(decisionRecordsCacheKey("ws-a", null), decisionRecordsCacheKey("ws-a", "cand-1")); // full-list vs dossier

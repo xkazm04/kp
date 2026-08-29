@@ -73,17 +73,32 @@ export function createTtlCache<T>(opts?: { ttlMs?: number; now?: () => number })
 
 // ── Per-route key builders ────────────────────────────────────────────────
 // All NUL-joined for the same reason as analyticsCacheKey: workspace ids, the
-// source token, and role-family names are NUL-free, so the concatenation is
-// collision-free. A null/empty role family collapses to the "*" sentinel so the
-// "no family filter" load keys distinctly from any real family named literally
-// "*" would still differ (family names are never a bare "*" in practice, and the
-// filtered/unfiltered code paths already treat "" as "no filter").
+// source token, role-family names and candidate refs are NUL-free, so the
+// concatenation is collision-free.
+//
+// An ABSENT optional field ("no family filter", "the full records list") is
+// marked with `NONE` — a second, doubled separator, which no real value can
+// forge precisely because values are NUL-free. The previous marker was a
+// printable "*", and every one of these fields arrives as a raw query param:
+// `?roleFamily=*` and `?candidate=*` keyed to the SAME entry as the unfiltered
+// load, so whichever request landed first had its payload served to the other
+// for the rest of the TTL (a `?candidate=*` probe returns an empty list, and
+// that empty list then WAS the full decision-records view). "In practice nobody
+// names a family `*`" is not a property of a URL.
+
+// The "no value here" marker: SEP again, so the key carries two adjacent NULs.
+const NONE = SEP;
+
+/** An optional key field: its own value, or the unforgeable absent-marker. Empty
+ *  string collapses to absent — every caller's filtered/unfiltered branch already
+ *  treats "" as "no filter", so the key must agree with the payload it stores. */
+const field = (value: string | null | undefined): string => (value ? value : NONE);
 
 /** Calibration payload key: (workspace, source, family). The families list is
  *  computed from the UNFILTERED set so it's identical across family keys — that
  *  redundancy is harmless; the payload stays byte-identical to a live compute. */
 export function calibrationCacheKey(workspaceId: string, source: string, roleFamily: string | null): string {
-  return `${workspaceId}${SEP}${source}${SEP}${roleFamily || "*"}`;
+  return `${workspaceId}${SEP}${source}${SEP}${field(roleFamily)}`;
 }
 
 /** Per-bin drilldown key: (workspace, source, family, bin). Each bin is its own
@@ -94,15 +109,16 @@ export function calibrationBandCacheKey(
   roleFamily: string | null,
   bin: number
 ): string {
-  return `${workspaceId}${SEP}${source}${SEP}${roleFamily || "*"}${SEP}${bin}`;
+  return `${workspaceId}${SEP}${source}${SEP}${field(roleFamily)}${SEP}${bin}`;
 }
 
 /** Decision-records key: (workspace, candidate). The heavy work (chain verify +
  *  live-board resolver map) is workspace-only, but the records LIST is filtered by
  *  the optional ?candidate subject, so the subject is part of the key — otherwise a
- *  candidate-scoped load would poison the all-records view. `null` = the full list. */
+ *  candidate-scoped load would poison the all-records view. `null`/"" = the full
+ *  list, and the marker for it cannot be spelled by any `?candidate=` value. */
 export function decisionRecordsCacheKey(workspaceId: string, candidateRef: string | null): string {
-  return `${workspaceId}${SEP}${candidateRef ?? "*"}`;
+  return `${workspaceId}${SEP}${field(candidateRef)}`;
 }
 
 export type AnalyticsCache<T> = {
