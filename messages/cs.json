@@ -1330,7 +1330,9 @@
     "COMPANION_BRAIN_FAILED": "Nepodařilo se ověřit paměť Candi v tomto počítači. Zkuste to prosím znovu.",
     "COMPANION_BRAIN_ABSENT": "V tomto počítači není žádná paměť společnice, kterou by šlo připojit.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Toto odevzdání se nepodařilo najít.",
-    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Před spuštěním hlasového screeningu odevzdání vyhodnoťte."
+    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Před spuštěním hlasového screeningu odevzdání vyhodnoťte.",
+    "AGENT_BRIDGE_KEY_INVALID": "Personas odmítla klíč API tohoto pracovního prostoru. Párovací klíč vypršel nebo byl odvolán; spárujte znovu v Nastavení → Integrace.",
+    "AGENT_BRIDGE_KEY_UNREADABLE": "Uložený klíč pro Personas už nelze přečíst. Od spárování se změnilo tajemství serveru; obnovte je, nebo spárujte znovu v Nastavení → Integrace."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7981,7 +7983,11 @@
       "noMetrics": "Pro tohoto agenta nebyly nastaveny žádné metriky úspěchu.",
       "noData": "zatím bez dat",
       "refresh": "Obnovit stav",
-      "refreshing": "Obnovování…"
+      "refreshing": "Obnovování…",
+      "refreshUpdated": "Personas nyní hlásí „{status}“. Řádek je aktuální.",
+      "refreshUnchanged": "Beze změny: Personas stále hlásí „{status}“.",
+      "refreshFailed": "Nepodařilo se spojit s kp a stav agenta obnovit. Zkuste to znovu.",
+      "refreshUnpollable": "Personas nevrátila pro tohoto agenta žádný nový stav. Zkontrolujte aplikaci Personas nebo propojení v Nastavení → Integrace."
     }
   },
   "simulation": {

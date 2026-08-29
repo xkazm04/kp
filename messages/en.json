@@ -1330,7 +1330,9 @@
     "COMPANION_BRAIN_FAILED": "Could not check this machine for Candi's memory. Please try again.",
     "COMPANION_BRAIN_ABSENT": "There is no companion memory on this machine to connect.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "That submission could not be found.",
-    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Evaluate the submission before starting a voice screen."
+    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Evaluate the submission before starting a voice screen.",
+    "AGENT_BRIDGE_KEY_INVALID": "Personas rejected this workspace's API key. The pairing key has expired or been revoked; re-pair in Settings → Integrations.",
+    "AGENT_BRIDGE_KEY_UNREADABLE": "The stored Personas key can no longer be read. The server secret changed since pairing; restore it, or re-pair in Settings → Integrations."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7981,7 +7983,11 @@
       "noMetrics": "No success metrics were set for this agent.",
       "noData": "no data yet",
       "refresh": "Refresh status",
-      "refreshing": "Refreshing…"
+      "refreshing": "Refreshing…",
+      "refreshUpdated": "Personas now reports “{status}”. The row is up to date.",
+      "refreshUnchanged": "No change: Personas still reports “{status}”.",
+      "refreshFailed": "Couldn't reach kp to refresh this agent. Try again.",
+      "refreshUnpollable": "Personas returned no new state for this agent. Check the Personas app, or the bridge in Settings → Integrations."
     }
   },
   "simulation": {

@@ -93,6 +93,17 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    `failed`, `retired`). The push path is the token-authed public report route; the
    *Refresh* button is the pull fallback (`POST /api/agents/[id]/refresh`). Activation
    auto-moves the pipeline entry to Hired.
+   **The button answers.** The route's reply is a typed non-continuation, not a bare 200:
+   `refreshed:true` with the new `personasStatus`, or `refreshed:false` with either a
+   `reason` (+ `code`) or the unchanged `personasStatus`. The row rendered all of them
+   identically — spinner stops, nothing moves — so a dead 24h pairing key, an agent that
+   was never dispatched and a real transition were the same non-event on screen. Each
+   branch now writes its outcome into a `role="status"` line beside the button, resolved
+   from the machine `code` through `useErrorMessage()` (never the server's English
+   `error`), and only a real transition refetches the roster. `AGENT_BRIDGE_KEY_INVALID`
+   and `AGENT_BRIDGE_KEY_UNREADABLE` are in the `errors` catalog in all four locales.
+   Known gap: the route's "no Personas request to poll" reason carries no code, so it
+   lands on the localized generic rather than on its own sentence.
 5. **Counters flow back**: the hired persona reports executions/rollups/lifecycle events
    through `POST /api/agents/report/[token]`; the Agents module shows aggregates (runs,
    success rate, month spend vs budget, connector use) and a client-computed

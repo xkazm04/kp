@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/app/_components/Badge";
 import { BTN_SECONDARY, CHIP_QUIET, META_LABEL } from "@/app/_components/ui/recipes";
+import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { buildUrl } from "@/app/features/shell/tabs";
 import {
   BACKBONE_GLYPH,
@@ -56,7 +57,9 @@ export function AgentsWorkforceRow({
   const locale = useLocale();
   const router = useRouter();
   const search = useSearchParams();
+  const errorMessage = useErrorMessage();
   const [refreshing, setRefreshing] = useState(false);
+  const [outcome, setOutcome] = useState<{ tone: "ok" | "quiet" | "bad"; text: string } | null>(null);
 
   const badge = STATUS_BADGE[agent.status];
   const name = agent.personaName ?? ((agent.spec as { name?: string } | null)?.name || agent.jobTitle);
@@ -70,12 +73,49 @@ export function AgentsWorkforceRow({
   const spendFraction = budgetFraction(agent.aggregates.monthCostUsd, agent.budgetUsd);
   const successPct = agent.aggregates.successRate != null ? Math.round(agent.aggregates.successRate * 100) : null;
 
+  // The refresh route answers with a TYPED non-continuation, never a bare 200:
+  // `refreshed:false` plus either a `reason` (nothing to poll; or a bridge
+  // failure, whose `code` may be AGENT_BRIDGE_KEY_INVALID — "your 24h pairing
+  // key expired, re-pair in Settings → Integrations") or the unchanged
+  // `personasStatus`. All of it was thrown away here, so a dead pairing key, an
+  // undispatched agent and a genuine status change rendered identically: the
+  // spinner stopped and nothing moved. Every branch now says which one happened.
   const refresh = async () => {
     if (refreshing) return;
     setRefreshing(true);
+    setOutcome(null);
     try {
-      await fetch(`/api/agents/${encodeURIComponent(agent.id)}/refresh`, { method: "POST" });
-      onChanged();
+      const r = await fetch(`/api/agents/${encodeURIComponent(agent.id)}/refresh`, { method: "POST" });
+      const body = (await r.json().catch(() => null)) as
+        | { refreshed?: boolean; reason?: string; personasStatus?: string; error?: string }
+        | null;
+      // Resolved from the machine `code`, never from the server's English
+      // `error` — the one rule in use-error-message.ts.
+      if (!r.ok) {
+        setOutcome({ tone: "bad", text: errorMessage(body, t("detail.refreshFailed")) });
+        return;
+      }
+      if (body?.refreshed) {
+        setOutcome({ tone: "ok", text: t("detail.refreshUpdated", { status: body.personasStatus ?? "" }) });
+        // Only a real transition is worth a roster refetch — the route writes
+        // nothing on the other branches.
+        onChanged();
+        return;
+      }
+      // `reason` is canonical English for the log; AGENT_BRIDGE_KEY_INVALID is
+      // the code that carries the actionable half ("re-pair"). The route's other
+      // reason — no requestId to poll — ships no code, so it lands on the
+      // localized generic rather than on English (see the backlog note in the
+      // sweep: that branch wants a code of its own).
+      setOutcome(
+        body?.reason
+          ? { tone: "bad", text: errorMessage(body, t("detail.refreshUnpollable")) }
+          : { tone: "quiet", text: t("detail.refreshUnchanged", { status: body?.personasStatus ?? "" }) }
+      );
+    } catch {
+      // A rejected fetch (offline, server restarting) was an unhandled promise
+      // rejection before — invisible everywhere except the browser console.
+      setOutcome({ tone: "bad", text: t("detail.refreshFailed") });
     } finally {
       setRefreshing(false);
     }
@@ -290,10 +330,23 @@ export function AgentsWorkforceRow({
               </ul>
             )}
             <p className="mt-2 text-sm text-stone-500">{t("spendNote", { zero: fmtUsd(0, locale) })}</p>
-            <button type="button" onClick={() => void refresh()} disabled={refreshing} className={`${BTN_SECONDARY} mt-3 h-8 px-3 text-sm`}>
-              <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} aria-hidden />
-              {refreshing ? t("detail.refreshing") : t("detail.refresh")}
-            </button>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => void refresh()} disabled={refreshing} className={`${BTN_SECONDARY} h-8 px-3 text-sm`}>
+                <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} aria-hidden />
+                {refreshing ? t("detail.refreshing") : t("detail.refresh")}
+              </button>
+              {/* role="status" alone — its implicit live region is already
+                  polite, and pairing it with an explicit aria-live is the
+                  contradiction the decisions module was fixed for. */}
+              {outcome ? (
+                <p
+                  role="status"
+                  className={`max-w-lg text-sm ${outcome.tone === "bad" ? "text-coral" : outcome.tone === "ok" ? "text-moss" : "text-steel"}`}
+                >
+                  {outcome.text}
+                </p>
+              ) : null}
+            </div>
           </td>
         </tr>
       ) : null}

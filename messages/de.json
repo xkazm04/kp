@@ -1330,7 +1330,9 @@
     "COMPANION_BRAIN_FAILED": "Das Gedächtnis von Candi konnte auf diesem Rechner nicht geprüft werden. Bitte erneut versuchen.",
     "COMPANION_BRAIN_ABSENT": "Auf diesem Rechner gibt es kein Begleiter-Gedächtnis zum Verbinden.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Diese Einreichung wurde nicht gefunden.",
-    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Bewerten Sie die Einreichung, bevor Sie ein Voice-Screening starten."
+    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Bewerten Sie die Einreichung, bevor Sie ein Voice-Screening starten.",
+    "AGENT_BRIDGE_KEY_INVALID": "Personas hat den API-Schlüssel dieses Workspace abgelehnt. Der Pairing-Schlüssel ist abgelaufen oder wurde widerrufen; koppeln Sie neu unter Einstellungen → Integrationen.",
+    "AGENT_BRIDGE_KEY_UNREADABLE": "Der gespeicherte Personas-Schlüssel ist nicht mehr lesbar. Das Server-Secret hat sich seit der Kopplung geändert; stellen Sie es wieder her oder koppeln Sie neu unter Einstellungen → Integrationen."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7981,7 +7983,11 @@
       "noMetrics": "Für diesen Agenten wurden keine Erfolgsmetriken gesetzt.",
       "noData": "noch keine Daten",
       "refresh": "Status aktualisieren",
-      "refreshing": "Wird aktualisiert…"
+      "refreshing": "Wird aktualisiert…",
+      "refreshUpdated": "Personas meldet jetzt „{status}“. Die Zeile ist aktuell.",
+      "refreshUnchanged": "Keine Änderung: Personas meldet weiterhin „{status}“.",
+      "refreshFailed": "kp war für die Aktualisierung dieses Agenten nicht erreichbar. Bitte erneut versuchen.",
+      "refreshUnpollable": "Personas hat für diesen Agenten keinen neuen Status geliefert. Prüfen Sie die Personas-App oder die Verbindung unter Einstellungen → Integrationen."
     }
   },
   "simulation": {

@@ -1330,7 +1330,9 @@
     "COMPANION_BRAIN_FAILED": "Impossible de vérifier la mémoire de Candi sur cette machine. Veuillez réessayer.",
     "COMPANION_BRAIN_ABSENT": "Il n'y a aucune mémoire de compagne à connecter sur cette machine.",
     "INTERVIEW_SUBMISSION_NOT_FOUND": "Cette soumission est introuvable.",
-    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Évaluez la soumission avant de lancer une présélection vocale."
+    "INTERVIEW_SUBMISSION_NOT_EVALUATED": "Évaluez la soumission avant de lancer une présélection vocale.",
+    "AGENT_BRIDGE_KEY_INVALID": "Personas a refusé la clé API de cet espace de travail. La clé d'appairage a expiré ou a été révoquée ; réappairez dans Paramètres → Intégrations.",
+    "AGENT_BRIDGE_KEY_UNREADABLE": "La clé Personas enregistrée n'est plus lisible. Le secret du serveur a changé depuis l'appairage ; restaurez-le, ou réappairez dans Paramètres → Intégrations."
   },
   "resilience": {
     "notFoundEyebrow": "404",
@@ -7981,7 +7983,11 @@
       "noMetrics": "Aucune métrique de réussite n’a été définie pour cet agent.",
       "noData": "pas encore de données",
       "refresh": "Actualiser le statut",
-      "refreshing": "Actualisation…"
+      "refreshing": "Actualisation…",
+      "refreshUpdated": "Personas indique désormais « {status} ». La ligne est à jour.",
+      "refreshUnchanged": "Aucun changement : Personas indique toujours « {status} ».",
+      "refreshFailed": "Impossible de joindre kp pour actualiser cet agent. Réessayez.",
+      "refreshUnpollable": "Personas n'a renvoyé aucun nouvel état pour cet agent. Vérifiez l'application Personas ou la connexion dans Paramètres → Intégrations."
     }
   },
   "simulation": {
