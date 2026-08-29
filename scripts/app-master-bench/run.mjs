@@ -1711,7 +1711,16 @@ async function main() {
       return { tenure: null, tenureFile: file };
     }
     if (!named) return { tenure: null, tenureFile: null };
-    if (!existsSync(file)) throw new Error(`tenure file not found: ${file} — hire one first with --hire-only`);
+    if (!existsSync(file)) {
+      // NOT a throw when the sweep did not ask for this scenario by name: a
+      // tenure-based scenario on a machine that has not hired one yet is
+      // unrunnable, not broken, and one of those must not take the other five
+      // scenarios of `--all` down with it. It is skipped LOUDLY (and `--strict`
+      // still refuses to call a sweep green with a scenario missing from it).
+      const problem = `tenure file not found: ${file} — hire one first with \`--scenario ${scenario.name} --hire-only\``;
+      if (!args.all) throw new Error(problem);
+      return { tenure: null, tenureFile: file, unrunnable: problem };
+    }
     return { tenure: loadTenureFile(file), tenureFile: file };
   };
 
@@ -1805,13 +1814,19 @@ async function main() {
   };
 
   const results = [];
+  const skipped = [];
   try {
     // SERIAL, ALWAYS — and this is a deliberate constraint, not a TODO. A live
     // night runs the App master through the local Claude CLI, which is one
     // subscription seat: two scenarios at once do not halve the wall clock,
     // they collide on the session limit and both degrade. One at a time.
     for (const scenario of scenarios) {
-      const { tenure, tenureFile } = tenureFor(scenario);
+      const { tenure, tenureFile, unrunnable } = tenureFor(scenario);
+      if (unrunnable) {
+        skipped.push({ scenario: scenario.name, reason: unrunnable });
+        process.stderr.write(`\n=== ${scenario.name} SKIPPED — ${unrunnable} ===\n`);
+        continue;
+      }
       const plan = planPhases({ tenure, hireOnly });
       process.stderr.write(
         `\n=== ${scenario.name} (${scenario.mode}, ${scenario.nights} night(s), ${plan.mode}${
@@ -1840,9 +1855,14 @@ wrote ${dest} (${runs} run(s))
     `\n${verdictBanner([
       `${results.length - failed.length}/${results.length} scenarios PASS`,
       failed.length > 0 ? `${failed.length} FAIL: ${failed.map((r) => `${r.scenario.name}${r.failedPhase ? `@${r.failedPhase}` : ""}`).join(", ")}` : "",
+      // A skipped scenario is not a passing one, and the banner says so rather
+      // than quietly reporting a smaller sweep as a green one.
+      skipped.length > 0 ? `${skipped.length} SKIPPED: ${skipped.map((s) => s.scenario).join(", ")}` : "",
     ])}\n`
   );
-  return failed.length === 0 ? 0 : 1;
+  for (const s of skipped) process.stderr.write(`  ${glyph(null)} ${s.scenario} did not run — ${s.reason}\n`);
+  // `--strict` will not call a sweep green with a scenario missing from it.
+  return failed.length === 0 && (!args.strict || skipped.length === 0) ? 0 : 1;
 }
 
 const invokedDirectly = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
