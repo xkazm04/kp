@@ -1909,6 +1909,24 @@ export function getPipelineEntry(id: string, workspaceId: string = DEFAULT_WORKS
   return row ? rowToEntry(row) : null;
 }
 
+/** Batch getPipelineEntry: one chunked IN-query (same pattern as entryIdsWithEvent)
+ *  instead of a point SELECT per id. Returns a keyed map so a missing/foreign-tenant
+ *  id is explicit per key — callers holding many ids (bulk invite) must not loop the
+ *  singular read. */
+export function getPipelineEntriesByIds(ids: readonly string[], workspaceId: string = DEFAULT_WORKSPACE_ID): Map<string, PipelineEntry> {
+  const out = new Map<string, PipelineEntry>();
+  if (ids.length === 0) return out;
+  const db = ensureDb();
+  for (const part of chunk([...ids], SQL_IN_CHUNK)) {
+    const placeholders = part.map(() => "?").join(",");
+    const rows = db
+      .prepare(`SELECT * FROM pipeline_entries WHERE id IN (${placeholders}) AND workspace_id = ?`)
+      .all(...part, workspaceId) as PipelineRow[];
+    for (const row of rows) out.set(row.id, rowToEntry(row));
+  }
+  return out;
+}
+
 /** The pipeline entry a dev-case SUBMISSION was promoted into, or null when it has not
  *  been promoted yet — the REVERSE of the link `promoteSubmission` writes.
  *

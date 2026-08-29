@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { jdSlugOfJobId } from "@/app/_lib/jd-limits";
-import { getJob } from "@/app/_lib/db/jobs";
+import { getJobsByIds } from "@/app/_lib/db/jobs";
 import { listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { freshestAnalysisSlugByLabel, loadAnalysis } from "@/app/_lib/db/analyses";
 import { buildFreshestFits } from "@/app/_lib/match-score-resolve";
@@ -88,9 +88,12 @@ export async function GET(request: Request) {
     return payloadCache.get(slug) ?? null;
   };
 
+  // One chunked IN-query for all requested jobs (getJobsByIds) instead of a point
+  // SELECT per id — up to 50 ids arrive in one request.
+  const jobById = new Map(getJobsByIds(jobIds).map((j) => [j.id, j]));
   const jobs: Record<string, JobPeerContext> = {};
   for (const jobId of jobIds) {
-    const job = getJob(jobId);
+    const job = jobById.get(jobId) ?? null;
     const slug = jdSlugOfJobId(jobId);
     const band = Array.isArray(job?.salaryBand) && job.salaryBand.length >= 2 ? job.salaryBand.slice(0, 2) : null;
     const requirements = (job?.requirements ?? [])

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPipelineEntry } from "@/app/_lib/db/pipeline";
+import { getPipelineEntriesByIds } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { createScheduleInvite } from "@/app/_lib/schedule-store";
@@ -41,7 +41,7 @@ type InviteResult = {
 // anonymous demo-workspace cookie the proxy waves through → 401 (the guided sim's
 // invite step already has a manual-confirm fallback for exactly that case).
 //
-// The workspace is then resolved ONCE and threaded into every getPipelineEntry:
+// The workspace is then resolved ONCE and threaded into the batched entry read:
 // before this, each row resolved against DEFAULT_WORKSPACE_ID, so a non-default team
 // got "not found" for its OWN cohort (a silently broken feature) while a default-
 // workspace caller could reach rows it was never scoped to.
@@ -80,8 +80,11 @@ export async function POST(request: NextRequest) {
 
     const origin = new URL(request.url).origin;
     const results: InviteResult[] = [];
+    // One chunked IN-query for the whole batch (getPipelineEntriesByIds) instead of a
+    // point SELECT per id — the cap is 100, exactly the shape N+1 turns pathological.
+    const entriesById = getPipelineEntriesByIds(ids, ws);
     for (const entryId of ids) {
-      const entry = getPipelineEntry(entryId, ws);
+      const entry = entriesById.get(entryId);
       if (!entry) {
         results.push({ entryId, ok: false, error: "not found" });
         continue;
