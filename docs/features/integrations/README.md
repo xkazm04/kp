@@ -202,6 +202,13 @@ ping (`POST /api/ats/test`).
   deliberate clear from a form that never loaded — one click would wipe a working endpoint
   and its subscriptions. Save is now gated on the config having actually been read back,
   with the reason held on screen beside the button rather than in a toast.
+- **A failed outcome announces itself as one.** Every result line on this tab uses
+  `role={ok ? "status" : "alert"}` with a failure tone — the convention
+  `IntegrationsAtsForm` and `IntegrationsCallbackBanner` already followed and the calendar,
+  Personas and webhook panels did not. The webhook ping was the sharp case: "Not delivered:
+  connection refused" rendered in the same neutral grey, under the same polite role, as
+  "Delivered: endpoint responded 200" — on the panel whose whole design is about never
+  reporting proof a ping did not earn.
 - **The machine identifiers come from their authorities, or are pinned to them.** The
   payload version is imported (`ATS_SCHEMA_VERSION`, app/_lib/ats-record.ts — pure and
   dependency-free by design), so the bump its own comment asks for cannot leave the

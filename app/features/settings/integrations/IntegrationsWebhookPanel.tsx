@@ -55,7 +55,13 @@ export function IntegrationsWebhookPanel() {
   const [events, setEvents] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [test, setTest] = useState<string | null>(null);
+  // The ping RESULT, with its verdict. It used to be a bare string rendered in
+  // neutral grey under role="status" — so "Not delivered: connection refused"
+  // and "Delivered: endpoint responded 200" looked and announced identically,
+  // on the one panel whose whole design is about never reporting proof a ping
+  // did not earn. `role={ok ? "status" : "alert"}` is this tab's own convention
+  // (IntegrationsAtsForm, IntegrationsCallbackBanner).
+  const [test, setTest] = useState<{ text: string; ok: boolean } | null>(null);
   // Has the stored config actually been read back? Save is a WHOLE-DOCUMENT write
   // (webhookUrl + events go up on every submit, and an empty URL is a legitimate
   // "disable delivery"), so the server cannot tell a deliberate clear from a form
@@ -142,12 +148,12 @@ export function IntegrationsWebhookPanel() {
     try {
       const r = await fetch("/api/ats/test", { method: "POST" });
       const d = (await r.json().catch(() => null)) as { ok?: boolean; status?: number; reason?: string } | null;
-      if (r.ok && d?.ok) setTest(t("delivered", { status: d.status ?? 0 }));
+      if (r.ok && d?.ok) setTest({ text: t("delivered", { status: d.status ?? 0 }), ok: true });
       // `reason` is the endpoint's own verbatim refusal (not an { error, code }
       // envelope) — the detail IS the information, so it passes through.
-      else setTest(t("notDelivered", { reason: d?.reason || `HTTP ${r.status}` }));
+      else setTest({ text: t("notDelivered", { reason: d?.reason || `HTTP ${r.status}` }), ok: false });
     } catch (e) {
-      setTest(e instanceof Error ? e.message : t("pingFailed"));
+      setTest({ text: e instanceof Error ? e.message : t("pingFailed"), ok: false });
     } finally {
       setBusy(false);
     }
@@ -195,8 +201,8 @@ export function IntegrationsWebhookPanel() {
       </div>
 
       {test ? (
-        <p role="status" className="mt-2 text-sm text-steel">
-          {test}
+        <p role={test.ok ? "status" : "alert"} className={`mt-2 text-sm ${test.ok ? "text-steel" : "text-coral"}`}>
+          {test.text}
         </p>
       ) : null}
       {error ? (

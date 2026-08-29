@@ -169,7 +169,10 @@ export function IntegrationsCalendarPanel() {
       ) : null}
 
       {note ? (
-        <p role="status" className={`mt-3 text-sm font-medium ${note.ok ? "text-moss" : "text-coral"}`}>
+        // A failed disconnect, and the revoke-failed case ("the grant is still
+        // live at Google, go withdraw it yourself"), are both things the operator
+        // must act on — assertive, per this tab's convention.
+        <p role={note.ok ? "status" : "alert"} className={`mt-3 text-sm font-medium ${note.ok ? "text-moss" : "text-coral"}`}>
           {note.text}
         </p>
       ) : null}

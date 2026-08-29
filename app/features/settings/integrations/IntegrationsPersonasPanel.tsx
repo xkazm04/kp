@@ -133,7 +133,10 @@ export function IntegrationsPersonasPanel() {
       ) : null}
 
       {pairing.note ? (
-        <p role="status" className={`mt-3 text-sm font-medium ${pairing.note.ok ? "text-moss" : "text-coral"}`}>
+        <p
+          role={pairing.note.ok ? "status" : "alert"}
+          className={`mt-3 text-sm font-medium ${pairing.note.ok ? "text-moss" : "text-coral"}`}
+        >
           {pairing.note.text}
         </p>
       ) : null}
