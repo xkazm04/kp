@@ -7,18 +7,10 @@ import { useTranslations } from "next-intl";
 import { KeyRound } from "lucide-react";
 import { TextInput } from "@/app/_components/TextInput";
 import { Checkbox } from "@/app/_components/Checkbox";
-
-// The wire event ids, paired with the catalog key naming each one. Identifiers,
-// not copy — the strings an operator matches against their own system.
-const SUBSCRIBABLE = [
-  { id: "candidate.hired", key: "candidateHired" },
-  { id: "candidate.rejected", key: "candidateRejected" },
-  { id: "offer.accepted", key: "offerAccepted" },
-  { id: "offer.declined", key: "offerDeclined" },
-] as const;
-
-const HIRED_EVENT = "candidate.hired";
-const EXAMPLE_WEBHOOK_URL = "https://your-ats.example.com/hooks/kp";
+// Machine identifiers, not copy — and each one pinned to its authority. See
+// integrationsWebhookIdentifiers.ts for which are imported and which are
+// set-equality asserted by integrationsCatalog.test.ts.
+import { EXAMPLE_WEBHOOK_URL, HIRED_EVENT, SUBSCRIBABLE_EVENT_ROWS } from "./integrationsWebhookIdentifiers";
 
 export function IntegrationsWebhookFields({
   url,
@@ -73,10 +65,10 @@ export function IntegrationsWebhookFields({
       <fieldset>
         <legend className="mb-1 text-sm font-semibold text-ink">{t("events")}</legend>
         <div className="grid grid-cols-2 gap-1.5">
-          {SUBSCRIBABLE.map((e) => (
+          {SUBSCRIBABLE_EVENT_ROWS.map((e) => (
             <label key={e.id} className="flex items-center gap-2 text-sm text-steel">
               <Checkbox checked={events.includes(e.id)} onChange={() => onToggleEvent(e.id)} />
-              {t(`event.${e.key}`)}
+              {t(`event.${e.key}` as Parameters<typeof t>[0])}
             </label>
           ))}
         </div>

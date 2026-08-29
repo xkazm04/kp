@@ -202,6 +202,16 @@ ping (`POST /api/ats/test`).
   deliberate clear from a form that never loaded — one click would wipe a working endpoint
   and its subscriptions. Save is now gated on the config having actually been read back,
   with the reason held on screen beside the button rather than in a toast.
+- **The machine identifiers come from their authorities, or are pinned to them.** The
+  payload version is imported (`ATS_SCHEMA_VERSION`, app/_lib/ats-record.ts — pure and
+  dependency-free by design), so the bump its own comment asks for cannot leave the
+  settings page naming `kp.ats.v1` while the payloads say v2. The rest live in
+  `integrationsWebhookIdentifiers.ts` because app/_lib/ats-webhook.ts pulls `node:crypto`
+  and a client component cannot import it: the checkbox event ids are set-equality asserted
+  against `SUBSCRIBABLE_EVENTS`, the displayed `X-Kp-Signature` against the signer's own
+  header, and the pull endpoint against the route directory that must exist to serve it.
+  The event ids are the sharp one — `ats-config-store.ts` validates a save against that
+  vocabulary, so a drifted checkbox is a 400 on submit, not a cosmetic label.
 - **The panel states its own ceiling**: this is vendor-neutral egress, not a certified
   Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it. Only
   `candidate.hired` fires live today (on offer-accept); the other three are reserved for

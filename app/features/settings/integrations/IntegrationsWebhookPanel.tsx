@@ -6,7 +6,12 @@ import { useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, META_LABEL, PANEL } from "@/app/_components/ui/recipes";
 import { toast } from "@/app/_components/toast-store";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
+// The payload version comes FROM its authority: ats-record.ts is pure and
+// dependency-free by design, its own comment says "bump on any breaking change",
+// and a copy here would keep naming the old contract after that bump.
+import { ATS_SCHEMA_VERSION } from "@/app/_lib/ats-record";
 import { IntegrationsWebhookFields } from "./IntegrationsWebhookFields";
+import { PULL_ENDPOINT, SIGNATURE_HEADER_DISPLAY } from "./integrationsWebhookIdentifiers";
 
 // P1-5 — the ATS/HRIS write-back panel. The only egress used to be a whole-DB JSON
 // dump ("not an integration, that's a backup" — Marcus #12). This configures a
@@ -26,12 +31,11 @@ import { IntegrationsWebhookFields } from "./IntegrationsWebhookFields";
 // Workday/Greenhouse/Lever connector. Point your connector or an iPaaS (Merge.dev,
 // Zapier) at the webhook; the payload is a stable, versioned record (kp.ats.v1).
 
-// Identifiers rendered in mono type: named constants, not JSX text, because they
-// are the literal strings an operator matches against their own system. (The
-// event ids and the example URL live with the fields that render them.)
-const PAYLOAD_VERSION = "kp.ats.v1";
-const SIGNATURE_HEADER = "X-Kp-Signature";
-const PULL_ENDPOINT = "GET /api/ats/candidate/<entryId>";
+// Identifiers rendered in mono type are named constants rather than JSX text
+// because they are the literal strings an operator matches against their own
+// system — and they now come from integrationsWebhookIdentifiers.ts, which ties
+// each one to its authority instead of restating it. Naming them as constants
+// while pointing them at literals was the half-measure this replaces.
 
 type Config = { webhookUrl: string | null; events: string[]; hasSecret: boolean };
 
@@ -159,8 +163,8 @@ export function IntegrationsWebhookPanel() {
       </div>
       <p className="mt-1 max-w-3xl text-sm text-steel">
         {t.rich("intro", {
-          version: PAYLOAD_VERSION,
-          header: SIGNATURE_HEADER,
+          version: ATS_SCHEMA_VERSION,
+          header: SIGNATURE_HEADER_DISPLAY,
           code: (chunks) => <span className="font-mono">{chunks}</span>,
           b: (chunks) => <strong>{chunks}</strong>,
         })}
