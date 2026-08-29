@@ -88,7 +88,7 @@ un-portable construct creeps in, so this surface stays small and known.
 | Concern | Does SQLite+WAL handle it? |
 |---|---|
 | Concurrent readers | Yes — WAL allows many readers during a write. |
-| Concurrent writers, 1–2 users/team | Yes — writers serialize; `busy_timeout=5000` waits briefly. KP's stated scale. |
+| Concurrent writers, 1–2 users/team | Yes — writers serialize; `busy_timeout=5000` waits briefly. KP's stated scale. Basis: **measured 2026-08-30**, `scripts/perf/sqlite-writer-knee.mjs` (the repo's real pragmas, single-row transactions, N=1..5 worker connections, 1000 commits each, dev Windows/NVMe): p95 commit latency stays ~0.1–0.16 ms through N=5 with **zero** SQLITE_BUSY; only the worst-case tail grows (~10 ms at N=1 → ~110–140 ms at N=4–5). So a third writer does NOT degrade the typical commit — the stated 1–2 ceiling has measured headroom for the dominant small-commit shape, and the thing to re-measure if write shapes grow (bulk imports, long transactions) is that tail. Re-run the script and update this line when pragmas or write shapes change. |
 | Durable, backed-up, one-file ops | Yes — copy one file (`docs/architecture/self-hosting.md` §4). |
 | **Multiple app replicas / HA** | **No** — SQLite is a local file; you can't run 2+ Node instances against it. |
 | Managed DB + a customer's DBA tooling | Not with plain SQLite. |
