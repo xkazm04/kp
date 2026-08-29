@@ -822,6 +822,12 @@ node scripts/app-master-bench/run.mjs --scenario kp-c1-night --tenure kp-owner
 - **A scenario can name its own tenure** (`"tenure": "kp-owner"`); `--tenure`
   on the command line beats it. Its `dialog` block then records the mandate the
   tenure was hired under — nothing re-composes it.
+- **A scenario can decline the probation phase** (`"probation": false`, as
+  `kp-c1-night` does): the phase forces the review due *now*, which on a tenure
+  run can bring the tenure home `retired` mid-exam — and c1-exam §5 says a P2
+  exit must not retire it. The phase is then recorded as skipped, with its
+  reason, and no `decision` is written anywhere. Absent means the review runs,
+  so every other scenario is unchanged.
 - **`--hire-only` wins over `--tenure`.** With both, the tenure path is the
   *destination* of the fresh hire, never a hire to resume: anything else would
   re-hire on top of a live tenure, which is exactly the accident that minted the

@@ -190,9 +190,10 @@ loosening a check:**
    text and the mapping only claims phrases that can mean one thing (pinned by a test:
    an auto-triage rule name maps to `null`, never a guess). A real closed vocabulary on
    the triage lane is the eventual fix; until then `declineQuality` reads the truth.
-3. **Probation still fires on tenure runs** (`forceProbation: true`), so a tenure run
-   can come home `retired` — §5 says a P2 exit must not. Make the review optional
-   per-scenario before the third night, or run nights 1–3 without the probation phase.
+3. ~~**Probation still fires on tenure runs**~~ **CLOSED 2026-08-29:** the phase is now
+   optional per scenario — a scenario declares `"probation": false` (as `kp-c1-night`
+   does) and the phase is skipped, recorded as skipped with its reason, and writes no
+   `decision`; absent keeps the review, so every other scenario is unchanged.
 
 Personas' `master` is clippy-red on 7 pre-existing lints in untouched files
 (`context_fingerprints.rs:97` et al., newer-toolchain lints); the touched crates are

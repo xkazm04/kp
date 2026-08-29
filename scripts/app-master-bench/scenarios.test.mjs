@@ -126,6 +126,25 @@ test("a scenario may name the tenure it runs against, and it survives validation
   assert.ok(bad.errors.some((e) => e.includes("tenure must be")));
 });
 
+test("probation is per-scenario, and its ABSENCE is the phase exactly as it always ran", () => {
+  // c1-exam §8 gap 3: the phase forces the review due now, so a tenure run can
+  // come home `retired` mid-exam — which §5 forbids. Declining it is opt-in:
+  // every scenario written before this one carries no `probation` key and must
+  // keep running the review.
+  assert.equal(validateScenario(clone()).scenario.probation, undefined, "omitted stays omitted — the review runs");
+  assert.equal(validateScenario(clone({ probation: false })).scenario.probation, false);
+  assert.equal(validateScenario(clone({ probation: true })).scenario.probation, true);
+  const bad = validateScenario(clone({ probation: "no" }));
+  assert.equal(bad.ok, false);
+  assert.ok(bad.errors.some((e) => e.includes("probation must be a boolean")), bad.errors.join(" | "));
+  // The top-level switch and the expectation of the same name are different
+  // things: one decides whether the review happens, the other asserts what it
+  // decided. A scenario may carry both.
+  const both = validateScenario(clone({ probation: false, expect: { probation: "activated" } }));
+  assert.equal(both.ok, true, both.errors.join("; "));
+  assert.equal(both.scenario.expect.probation, "activated");
+});
+
 test("an unknown expect key is refused — it would assert nothing", () => {
   const raw = clone({ expect: { probaton: "activated" } });
   const { ok, errors } = validateScenario(raw);
@@ -226,6 +245,13 @@ test("the shipped scenarios encode what each one is FOR", () => {
   assert.equal(c1.expect.declineQuality, true, "100% of declines carry a reason from the closed set");
   assert.equal(c1.expect.valueLiteracy, 0.8, ">= 80% of proposals name a journey and an axis");
   assert.equal(c1.expect.maxProposalsOpened, 0, "a rung-0 night that authored a branch violated its mandate (§6)");
+  assert.equal(c1.probation, false, "§5: a P2 exit must NOT retire the tenure — it is the P3 soak's subject");
+  // …and it is the ONLY scenario that declines it: the others hire fresh and
+  // the review is what they are measuring.
+  for (const [name, s] of Object.entries(byName)) {
+    if (name === "kp-c1-night") continue;
+    assert.equal(s.probation, undefined, `${name} must keep the probation phase it always ran`);
+  }
   assert.equal(byName["kp-tight-budget"].dialog.budgetUsd, 1, "the tight-budget scenario runs on $1 - below one session's ~$1.50 projection, so the tenure-scoped governor must refuse night 1");
   assert.equal(byName["kp-tight-budget"].expect.budgetDegraded, true);
   assert.ok(byName["personas-self"].repo.rootPath.endsWith("personas"), "R2's first repo is the Personas checkout");

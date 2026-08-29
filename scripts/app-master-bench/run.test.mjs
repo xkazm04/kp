@@ -21,6 +21,7 @@ import assert from "node:assert/strict";
 import {
   MAX_BUILD_ATTEMPTS,
   PREAMBLE_PHASES,
+  PROBATION_DECLINED,
   RETIRE_ROUTE,
   TEARDOWN_UNAVAILABLE,
   TENURE_PHASES,
@@ -30,6 +31,7 @@ import {
   dispatchedCount,
   mergeTickSummaries,
   planPhases,
+  planProbation,
   settleDispatch,
   teardownHire,
   tenureRecordFrom,
@@ -515,6 +517,53 @@ test("the tenure record keeps the GRANTED mandate, and invents nothing", () => {
   assert.equal(asked.probationDays, 30);
   assert.equal(asked.hiredAgentId, null, "a hire that never stood leaves a null handle, not an empty string");
   assert.equal(asked.personaId, null);
+});
+
+// ─── probation: optional per scenario (c1-exam §8 gap 3, §5) ────────────────
+//
+// The phase forces the review DUE now, because a real probation window is days
+// long and the phase is the run's last. On a TENURE run that lever can bring
+// the tenure home `retired` in the middle of the exam — and §5 says a P2 exit
+// must not retire it, the tenure being the P3 soak's subject.
+
+test("a scenario that says nothing about probation still gets the review", () => {
+  // The default is load-bearing: six of the seven shipped scenarios say nothing,
+  // and `probation` is one of their expectations.
+  for (const scenario of [undefined, null, {}, { name: "kp-default" }, { probation: true }]) {
+    const plan = planProbation(scenario);
+    assert.equal(plan.run, true, `${JSON.stringify(scenario)} must keep the phase`);
+    assert.equal(plan.reason, null, "a phase that runs has nothing to explain");
+  }
+});
+
+test("`probation: false` declines the review, and says why in the words the record uses", () => {
+  const plan = planProbation({ name: "kp-c1-night", probation: false });
+  assert.equal(plan.run, false);
+  assert.equal(plan.reason, PROBATION_DECLINED);
+  assert.match(plan.reason, /tenure outlives the run/);
+  // Only the boolean `false` declines — a truthy-but-wrong value would
+  // otherwise silently skip the phase a scenario meant to keep.
+  for (const value of ["false", 0, null]) {
+    assert.equal(planProbation({ probation: value }).run, true, `${JSON.stringify(value)} is not a declaration`);
+  }
+});
+
+test("a skipped review writes no decision anywhere a decision is read", () => {
+  // The three readers of a probation decision are the report row, the
+  // `probation` expectation and the tenure file. The skip record carries none,
+  // so all three read "not measured" rather than a verdict nobody reached.
+  const record = { skipped: true, reason: PROBATION_DECLINED };
+  assert.equal(record.decision, undefined, "a review that never ran decided nothing");
+  assert.equal(record.decisionSource, undefined);
+  // And the tenure file itself: its shape has no `decision` slot at all, so a
+  // run that skipped the review cannot teach the tenure it was retired.
+  const tenure = tenureRecordFrom({
+    scenario: { name: "kp-c1-night", repo: { rootPath: "/home/me/kp" }, dialog: { scopeRung: 0, probationDays: 30 } },
+    result: { hire: { hiredAgentId: "agt_1", personaId: "p_1", requestId: "req_1" } },
+    at: "2026-08-29T10:00:00.000Z",
+  });
+  assert.ok(!("decision" in tenure), "the tenure record has no decision field to write one into");
+  assert.equal(tenure.rung, 0);
 });
 
 // ─── teardown: retire what you hire (c1-exam §4) ────────────────────────────

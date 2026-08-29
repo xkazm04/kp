@@ -28,6 +28,10 @@
 //     "tenure": "kp-owner",    ← optional: run against an EXISTING hire
 //                                (tenures/kp-owner.json) instead of hiring one.
 //                                `--tenure` on the command line beats it.
+//     "probation": false,      ← optional: SKIP the probation phase. Absent or
+//                                true is the phase as it always ran. Not to be
+//                                confused with `expect.probation`, which asserts
+//                                the decision a review that DID run reached.
 //     "activateTimeoutMs": 5400000,   ← optional per-scenario timeout overrides
 //     "settleTimeoutMs":   1800000,     (how long a night waits for its
 //                                        dispatched fleet before it reports)
@@ -203,6 +207,17 @@ export function validateScenario(raw, { name = "" } = {}) {
     push("tenure must be a tenure name or path (a non-empty string) when present");
   }
 
+  // Whether the probation review runs at all (c1-exam §8, gap 3). The phase
+  // forces the review DUE now (`forceProbation: true`), which on a tenure run
+  // can bring the tenure home `retired` mid-exam — and §5 is explicit that a P2
+  // exit must NOT retire it, because the tenure is the P3 soak's subject. A
+  // scenario whose subject outlives its own exam declares `probation: false`.
+  // Absent means the phase runs, so every scenario written before this is
+  // unchanged.
+  if (raw.probation !== undefined && raw.probation !== null && typeof raw.probation !== "boolean") {
+    push("probation must be a boolean when present — false skips the probation phase");
+  }
+
   // Per-scenario timeout overrides. Both are read by run.mjs and BOTH have to
   // survive validation to reach it — a scenario field the validator drops on
   // the floor is a knob that silently does nothing.
@@ -294,6 +309,7 @@ export function validateScenario(raw, { name = "" } = {}) {
       nights,
       ...timeouts,
       ...(isNonEmptyString(raw.tenure) ? { tenure: raw.tenure.trim() } : {}),
+      ...(typeof raw.probation === "boolean" ? { probation: raw.probation } : {}),
       expect: raw.expect ?? {},
     },
   };

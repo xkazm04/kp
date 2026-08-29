@@ -137,6 +137,26 @@ export function planPhases({ tenure = null, hireOnly = false } = {}) {
   return { mode: "fresh-hire", skip: [], reason: "no tenure and no --hire-only: the full loop, hire included" };
 }
 
+/** The one reason the probation phase does not run. A constant because the run
+ *  record, the journal and the test all have to agree on the words. */
+export const PROBATION_DECLINED = "scenario declares probation: false — the tenure outlives the run";
+
+/**
+ * Does this scenario's probation review run? (c1-exam §8, gap 3.)
+ *
+ * The phase forces the review DUE now (`forceProbation: true`) because a real
+ * probation window is days long and the phase is the run's last. On a TENURE run
+ * that lever can bring the tenure home `retired` in the middle of the exam — and
+ * §5 says a P2 exit must NOT retire the tenure, because it is the P3 soak's
+ * subject. A scenario whose subject outlives its own exam declares
+ * `probation: false`; absent (or true) is the phase exactly as it always ran.
+ *
+ * Pure, so the branch is provable without a server — the way `planPhases` is.
+ */
+export function planProbation(scenario) {
+  return scenario?.probation === false ? { run: false, reason: PROBATION_DECLINED } : { run: true, reason: null };
+}
+
 /**
  * The tenure record a completed preamble produces. Reads the COMPOSED spec
  * first and the scenario's dialog second: the composer clamps a rung and a
@@ -1484,47 +1504,62 @@ async function runScenario(scenario, opts) {
       });
 
       // ── probation ──────────────────────────────────────────────────────────
-      await phase(result, journal, "probation", async () => {
-        const before = await rosterRow();
-        const tick = await personas.post("/api/kp/test/tick", {
-          personaId: result.hire.personaId,
-          phases: ["probation"],
-          // The scenario's probation window is days long and this is its last
-          // phase — force the review DUE now (headless test lever; the decision
-          // policy itself is the production path).
-          forceProbation: true,
+      // OPTIONAL per scenario (c1-exam §8, gap 3): the phase below forces the
+      // review due NOW, and on a tenure run that can bring the tenure home
+      // `retired` mid-exam — which §5 forbids, the tenure being the P3 soak's
+      // subject. `probation: false` declines the review; absent runs it.
+      const probationPlan = planProbation(scenario);
+      if (!probationPlan.run) {
+        skipPhase("probation", probationPlan.reason);
+        // Said out loud in the run record, and carrying NO `decision`: a review
+        // that never ran decided nothing, and nothing downstream — the report
+        // row, the `probation` expectation, the tenure file — may read one out
+        // of a phase that did not happen.
+        result.probation = { skipped: true, reason: probationPlan.reason };
+        result.unmeasured.push(`probation: the phase did not run — ${probationPlan.reason}`);
+      } else {
+        await phase(result, journal, "probation", async () => {
+          const before = await rosterRow();
+          const tick = await personas.post("/api/kp/test/tick", {
+            personaId: result.hire.personaId,
+            phases: ["probation"],
+            // The scenario's probation window is days long and this is its last
+            // phase — force the review DUE now (headless test lever; the decision
+            // policy itself is the production path).
+            forceProbation: true,
+          });
+          const summary = tick.json?.data ?? tick.json ?? null;
+          await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`).catch(() => null);
+          const after = await rosterRow();
+          // Only THIS hire's decision counts: a forced probation used to decide
+          // every undecided mandate in the app, and the generic findFirst read
+          // another project's `retired` as ours (sweeps #18/#21). The tick is now
+          // scoped server-side too; the filter here is the driver's own guarantee.
+          const details = Array.isArray(summary?.phases)
+            ? summary.phases.flatMap((p) => (Array.isArray(p?.details) ? p.details : []))
+            : [];
+          const mine = details.find((d) => d && d.personaId === result.hire.personaId && d.decision);
+          const reported = mine ? mine.decision : undefined;
+          const decision =
+            typeof reported === "string"
+              ? reported
+              : after && after.status !== before?.status
+                ? (STATUS_TO_DECISION[after.status] ?? null)
+                : null;
+          result.probation = {
+            tickOk: tick.ok,
+            tick: summary,
+            ...(tick.ok ? {} : { error: tick.error ?? `${tick.status} ${tick.text.slice(0, 200)}` }),
+            decision,
+            decisionSource: typeof reported === "string" ? "reported" : decision ? "derived-from-status" : "none",
+            statusBefore: before?.status ?? null,
+            statusAfter: after?.status ?? null,
+            backbone: after?.backbone ?? null,
+          };
+          if (!decision) result.unmeasured.push("probation: no decision was reported and the status did not move");
+          journal.write("probation", { decision, source: result.probation.decisionSource, status: after?.status ?? null });
         });
-        const summary = tick.json?.data ?? tick.json ?? null;
-        await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`).catch(() => null);
-        const after = await rosterRow();
-        // Only THIS hire's decision counts: a forced probation used to decide
-        // every undecided mandate in the app, and the generic findFirst read
-        // another project's `retired` as ours (sweeps #18/#21). The tick is now
-        // scoped server-side too; the filter here is the driver's own guarantee.
-        const details = Array.isArray(summary?.phases)
-          ? summary.phases.flatMap((p) => (Array.isArray(p?.details) ? p.details : []))
-          : [];
-        const mine = details.find((d) => d && d.personaId === result.hire.personaId && d.decision);
-        const reported = mine ? mine.decision : undefined;
-        const decision =
-          typeof reported === "string"
-            ? reported
-            : after && after.status !== before?.status
-              ? (STATUS_TO_DECISION[after.status] ?? null)
-              : null;
-        result.probation = {
-          tickOk: tick.ok,
-          tick: summary,
-          ...(tick.ok ? {} : { error: tick.error ?? `${tick.status} ${tick.text.slice(0, 200)}` }),
-          decision,
-          decisionSource: typeof reported === "string" ? "reported" : decision ? "derived-from-status" : "none",
-          statusBefore: before?.status ?? null,
-          statusAfter: after?.status ?? null,
-          backbone: after?.backbone ?? null,
-        };
-        if (!decision) result.unmeasured.push("probation: no decision was reported and the status did not move");
-        journal.write("probation", { decision, source: result.probation.decisionSource, status: after?.status ?? null });
-      });
+      }
     }
   } catch (error) {
     result.failedPhase = error?.phase ?? "unknown";
@@ -1607,7 +1642,11 @@ function printSummary(result) {
     result.failedPhase ? `phase ${result.failedPhase} failed` : `${result.phases.length} phases`,
     result.seed?.requested ? `seeded ${result.seed.seeded ?? "?"}/${result.seed.requested}` : "no seeds",
     `${result.nights.length} night(s)`,
-    result.probation?.decision ? `probation ${result.probation.decision}` : "probation –",
+    result.probation?.decision
+      ? `probation ${result.probation.decision}`
+      : result.probation?.skipped
+        ? "probation skipped"
+        : "probation –",
     result.teardown ? `teardown ${result.teardown.ok ? "retired" : result.teardown.status}` : "",
     humanMs(result.wallMs),
     result.personas.stub ? "STUB Personas" : "",
