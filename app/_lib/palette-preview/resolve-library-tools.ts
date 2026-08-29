@@ -5,7 +5,7 @@
 import type { AttentionCounts } from "@/app/_lib/attention";
 import { listArchetypes } from "@/app/_lib/archetype-registry";
 import { listAnalyses } from "@/app/_lib/db/analyses";
-import { listDevCases, listPostings, listSubmissions } from "@/app/_lib/db/devcase";
+import { countSubmissions, listDevCases, listPostings } from "@/app/_lib/db/devcase";
 import { isInterviewSessionLive, listRecentInterviewSessions } from "@/app/_lib/db/interviews";
 import { jobStats, listJds } from "@/app/_lib/db/jobs";
 import { countMatrixProfiles, listProfiles } from "@/app/_lib/db/profiles";
@@ -86,6 +86,6 @@ export function resolveAssignments(ws: string): PalettePreview {
     view: "assignments",
     cases: listDevCases(200, ws).length,
     postings: listPostings(ws).length,
-    submissions: listSubmissions(undefined, ws).length,
+    submissions: countSubmissions(ws),
   };
 }

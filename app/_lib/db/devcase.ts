@@ -726,14 +726,27 @@ export function createSubmission(input: {
   return { submission: rowToSubmission(row), created };
 }
 
-export function listSubmissions(postingId?: string, workspaceId: string = DEFAULT_WORKSPACE_ID): DevSubmission[] {
+// dev_submissions is the fastest-growing table (public intake writes it), and
+// better-sqlite3 is synchronous — an unbounded workspace-wide SELECT * blocks the
+// event loop for the whole materialization. The per-posting read stays unbounded
+// (close/orchestrator must see every submission of ONE posting); the workspace-wide
+// read is capped, and pure counts go through countSubmissions instead of loading rows.
+const SUBMISSION_LIST_LIMIT = 500;
+
+export function listSubmissions(postingId?: string, workspaceId: string = DEFAULT_WORKSPACE_ID, limit = SUBMISSION_LIST_LIMIT): DevSubmission[] {
   const db = ensureDb();
   const rows = (
     postingId
       ? db.prepare(`SELECT * FROM dev_submissions WHERE posting_id = ? AND workspace_id = ? ORDER BY received_at DESC`).all(postingId, workspaceId)
-      : db.prepare(`SELECT * FROM dev_submissions WHERE workspace_id = ? ORDER BY received_at DESC`).all(workspaceId)
+      : db.prepare(`SELECT * FROM dev_submissions WHERE workspace_id = ? ORDER BY received_at DESC LIMIT ?`).all(workspaceId, limit)
   ) as Array<Record<string, unknown>>;
   return rows.map(rowToSubmission);
+}
+
+/** A COUNT, not a load — for surfaces (palette preview) that only need "how many". */
+export function countSubmissions(workspaceId: string = DEFAULT_WORKSPACE_ID): number {
+  const row = ensureDb().prepare(`SELECT COUNT(*) AS n FROM dev_submissions WHERE workspace_id = ?`).get(workspaceId) as { n: number };
+  return row.n;
 }
 
 export function getSubmission(id: string): DevSubmission | null {
