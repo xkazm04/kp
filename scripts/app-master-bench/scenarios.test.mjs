@@ -113,6 +113,19 @@ test("the per-scenario timeout overrides SURVIVE validation — a dropped knob d
   assert.ok(bad.errors.some((e) => e.includes("settleTimeoutMs")));
 });
 
+test("a scenario may name the tenure it runs against, and it survives validation", () => {
+  // Same lesson as the timeouts above: a field run.mjs reads and the validator
+  // drops is a knob that silently does nothing — here it would mean a fresh
+  // hire on every run of a scenario written for a kept one.
+  const { ok, scenario } = validateScenario(clone({ tenure: "  kp-owner  " }));
+  assert.equal(ok, true);
+  assert.equal(scenario.tenure, "kp-owner");
+  assert.equal(validateScenario(clone()).scenario.tenure, undefined, "omitted stays omitted — the default is a fresh hire");
+  const bad = validateScenario(clone({ tenure: 7 }));
+  assert.equal(bad.ok, false);
+  assert.ok(bad.errors.some((e) => e.includes("tenure must be")));
+});
+
 test("an unknown expect key is refused — it would assert nothing", () => {
   const raw = clone({ expect: { probaton: "activated" } });
   const { ok, errors } = validateScenario(raw);
@@ -175,7 +188,7 @@ test("path tokens expand, and an unknown one is left visibly unresolved", () => 
 
 test("every shipped scenario loads, validates and names a real repo target", () => {
   const files = listScenarioFiles();
-  assert.ok(files.length >= 6, "the six shipped scenarios should be there (4 Ring-1/2 + ascent + systedo-case)");
+  assert.ok(files.length >= 7, "the seven shipped scenarios (4 Ring-1/2 + ascent + systedo-case + kp-c1-night)");
   const names = new Set();
   for (const file of files) {
     const scenario = loadScenarioFile(file, { kpRoot: REPO_ROOT });
@@ -202,6 +215,17 @@ test("the shipped scenarios encode what each one is FOR", () => {
   assert.equal(byName["kp-rung0"].dialog.scopeRung, 0, "the read-only scenario must be rung 0");
   assert.equal(byName["kp-rung0"].expect.maxProposalsOpened, 0, "a rung-0 mandate may open nothing");
   assert.match(byName["kp-rung0"].expect.probation, /extended|retired/);
+  // The C1 exam (c1-exam §2/§3): a tenure, three UNSEEDED rung-0 nights, and
+  // the three checks that read the holder's own judgment rather than its output.
+  const c1 = byName["kp-c1-night"];
+  assert.equal(c1.tenure, "kp-owner", "the exam runs against the kept tenure, never a fresh hire");
+  assert.equal(c1.dialog.scopeRung, 0, "an ideation night reads, ranks and declines — it authors nothing");
+  assert.equal(c1.nights, 3, "three nights in an evening is what rung 0 buys");
+  assert.deepEqual(c1.seeds, [], "unseeded on purpose: the question is whether it can PICK the work");
+  assert.deepEqual(c1.expect.rankVsBacklog, { topK: 5, minHits: 1 }, "the P2 gate: >= 1 proposal in the operator's top-5");
+  assert.equal(c1.expect.declineQuality, true, "100% of declines carry a reason from the closed set");
+  assert.equal(c1.expect.valueLiteracy, 0.8, ">= 80% of proposals name a journey and an axis");
+  assert.equal(c1.expect.maxProposalsOpened, 0, "a rung-0 night that authored a branch violated its mandate (§6)");
   assert.equal(byName["kp-tight-budget"].dialog.budgetUsd, 1, "the tight-budget scenario runs on $1 - below one session's ~$1.50 projection, so the tenure-scoped governor must refuse night 1");
   assert.equal(byName["kp-tight-budget"].expect.budgetDegraded, true);
   assert.ok(byName["personas-self"].repo.rootPath.endsWith("personas"), "R2's first repo is the Personas checkout");
@@ -269,9 +293,17 @@ test("the seed batch cap mirrors the endpoint's, so it fails at load not at the 
   assert.ok(errors.some((e) => e.includes(`caps it at ${SEED_LIMITS.items}`)));
 });
 
-test("every shipped scenario carries seeds — an unseeded night measures nothing", () => {
+test("every shipped DELIVERY scenario carries seeds — an unseeded night measures nothing", () => {
   for (const file of listScenarioFiles()) {
     const s = loadScenarioFile(file, { kpRoot: REPO_ROOT });
+    // …except an IDEATION scenario (c1-exam §2), which is unseeded ON PURPOSE:
+    // a seeded night measures whether the holder can execute work it was
+    // handed — the ring that closed in 2026-08. The C1 question is whether it
+    // can pick the work at all, and a backlog handed to it answers that for it.
+    if (s.tenure && s.dialog.scopeRung === 0) {
+      assert.equal(s.seeds.length, 0, `${s.name} is an ideation scenario: seeding it would hand it the answer`);
+      continue;
+    }
     assert.ok(s.seeds.length >= 1, `${s.name} has no seeds, so its night has nothing to dispatch`);
     for (const seed of s.seeds) {
       assert.ok(seed.title.length > 0);

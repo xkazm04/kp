@@ -838,6 +838,15 @@ node scripts/app-master-bench/run.mjs --scenario kp-c1-night --tenure kp-owner
   `unmeasured` lines (no night ran; the `expect` block was not evaluated). A
   hire-only run is therefore not graded on nights it never ran.
 
+**Known hazard: the probation phase still fires on a tenure run.** It ticks
+`{phases:["probation"], forceProbation: true}` — the same forced day-N review a
+fresh-hire run ends with — so a tenure run can come back with the tenure
+`retired`, which is precisely what c1-exam §5 says a P2 exit must *not* do. The
+decision is recorded (`result.probation.decision`, and the roster status the
+next run's `tenure` phase reads), so it is visible rather than silent; a session
+that sees `retired` has to hire a new tenure. Making the review optional
+per-scenario is the obvious next move and is deliberately not taken here.
+
 ### `--teardown` — retire what you hire (c1-exam §4)
 
 Nothing ever retired a bench hire; that is most of the story behind the 100+
@@ -960,6 +969,7 @@ parent), so a scenario file is portable rather than pinned to one machine's disk
 | `kp-tight-budget` | kp-01 | a $5 ceiling: the budget governor must refuse a night that genuinely tried to spend. One seed, so the ceiling — not an empty backlog — is what stops it |
 | `kp-rung0` | kp-01 | a read-only mandate: **zero** proposals, an honest empty delivery record, and a probation review that extends or retires. The seed is what makes the zero mean something — an unseeded rung-0 night opens nothing because there is nothing to open |
 | `personas-self` | one doc-fix written for that repo | R2's first repo — Personas hires an App master over its own checkout, which is the only way to tell a driver that works from one that works *on kp* |
+| `kp-c1-night` | **none, on purpose** | the **C1 exam**: three unseeded rung-0 ideation nights against `tenures/kp-owner.json`, graded on `rankVsBacklog` + `declineQuality` + `valueLiteracy`. Seeding it would hand the holder the answer — a seeded night measures whether it can execute work it was given, which is the ring that closed in 2026-08; the question here is whether it can *pick* the work. Its `dialog` block is not posted (tenure run); it records the mandate the tenure was hired under |
 
 The `expect` block is asserted by `run.mjs`, and a failed expectation is a
 scenario FAIL with the delta printed, never an exception:

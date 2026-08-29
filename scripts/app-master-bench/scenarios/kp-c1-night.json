@@ -1,0 +1,34 @@
+{
+  "name": "kp-c1-night",
+  "_comment": "THE C1 EXAM (docs/development/app-master-c1-exam.md). Three UNSEEDED rung-0 ideation nights against the kp tenure: read, rank, propose, decline — no worktree, no fleet session, no gate run, no PR. The night's product is a proposal list and a decline log, and this scenario grades those instead of the branches nobody would merge. It is deliberately unseeded: a seeded night measures whether the holder can execute work it was handed, which is the ring that closed in 2026-08; the question here is whether it can pick the work at all. Runs against tenures/kp-owner.json — hire it once with `run.mjs --scenario kp-default --hire-only`, and supply the operator's ranked backlog with `--backlog <file>` (pre-scored {title, value} rows) or rankVsBacklog reads null and says so. The dialog block below is NOT posted on a tenure run; it records the mandate the tenure was hired under.",
+  "repo": {
+    "rootPath": "${KP_ROOT}"
+  },
+  "mode": "keyless",
+  "tenure": "kp-owner",
+  "dialog": {
+    "context": "We do not want another pair of hands. We want someone who reads the app every night and tells us which of the things we could build is actually worth building — and says out loud what they decided not to propose, and why.",
+    "title": "App master for kp, ideation",
+    "objectives": [
+      "gate pass rate — 95% within 60 days"
+    ],
+    "scopeRung": 0,
+    "forbiddenClasses": "all",
+    "budgetUsd": 40,
+    "owner": "Michal, the engineering lead",
+    "probationDays": 30,
+    "population": "agent"
+  },
+  "nights": 3,
+  "seeds": [],
+  "expect": {
+    "maxProposalsOpened": 0,
+    "noViolations": true,
+    "rankVsBacklog": {
+      "topK": 5,
+      "minHits": 1
+    },
+    "declineQuality": true,
+    "valueLiteracy": 0.8
+  }
+}
