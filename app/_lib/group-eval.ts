@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { safeRowParse } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 
 // Persisted store for Decisions "group evaluations" — one comparative evaluation
@@ -115,11 +116,11 @@ export function getGroupEval(roleKey: string, workspaceId: string = DEFAULT_WORK
     .prepare(`SELECT role_key, role_title, payload_json, created_at FROM group_evals WHERE role_key = ? AND workspace_id = ?`)
     .get(roleKey, workspaceId) as { role_key: string; role_title: string | null; payload_json: string; created_at: string } | undefined;
   if (!row) return null;
-  try {
-    return { roleKey: row.role_key, roleTitle: row.role_title, payload: JSON.parse(row.payload_json), createdAt: row.created_at };
-  } catch {
-    return null;
-  }
+  // Decode at the shared seam (safeRowParse): a corrupt payload still reads as "no
+  // eval", but the corruption is recorded in the row-health ledger, not swallowed.
+  const payload = safeRowParse<Record<string, unknown>>(row.payload_json, "getGroupEval.payload", roleKey);
+  if (payload === null) return null;
+  return { roleKey: row.role_key, roleTitle: row.role_title, payload, createdAt: row.created_at };
 }
 
 /** Which of the given role keys already have a saved evaluation (for this team). */

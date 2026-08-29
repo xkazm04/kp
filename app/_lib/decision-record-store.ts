@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { openStore } from "./db-path";
+import { safeRowParse } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { decisionContentHash, decisionContentMac } from "./decision-hash";
 import { chunk, SQL_IN_CHUNK } from "./entries-param";
@@ -405,12 +406,11 @@ export function verifyDecisionChain(workspaceId: string = DEFAULT_WORKSPACE_ID):
   let prevHash = "";
   let seenKeyed = false;
   for (const r of rows) {
-    let payload: unknown;
-    try {
-      payload = JSON.parse(r.payload_json);
-    } catch {
-      return broken(r.seq);
-    }
+    // Decode at the shared seam (safeRowParse): a corrupt payload still breaks the
+    // chain at this seq, but the corruption is also recorded in the row-health
+    // ledger, so "unreadable row" and "hash mismatch" stay distinguishable.
+    const payload = safeRowParse<unknown>(r.payload_json, "decisionChain.payload", String(r.seq));
+    if (payload === null) return broken(r.seq);
     const keyId = r.key_id ?? LEGACY_KEY_ID;
     let expected: string;
     if (keyId === LEGACY_KEY_ID) {

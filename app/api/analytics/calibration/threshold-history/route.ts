@@ -4,6 +4,7 @@ import { listDecisionRecords, type DecisionRecord } from "@/app/_lib/decision-re
 import { computeThresholdEffect } from "@/app/_lib/calibration";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { jsonError } from "@/app/_lib/api-response";
+import { safeRowParse } from "@/app/_lib/db/core";
 
 
 // threshold-story — the floor-over-time strip + the "since last change" effect
@@ -78,12 +79,12 @@ export async function GET(request: Request) {
     const records = [...bySeq.values()].sort((a, b) => b.seq - a.seq);
     const history: HistoryPoint[] = [];
     for (const r of records) {
-      let inputs: SealInputs = {};
-      try {
-        inputs = ((JSON.parse(r.payloadJson) as { inputs?: unknown })?.inputs ?? {}) as SealInputs;
-      } catch {
-        continue; // a record whose payload won't parse is skipped, never guessed
-      }
+      // Decode at the shared seam (safeRowParse): a record whose payload won't parse
+      // is still skipped, never guessed — but the skip is recorded in the row-health
+      // ledger instead of vanishing silently in a bare catch.
+      const payload = safeRowParse<{ inputs?: unknown }>(r.payloadJson, "thresholdHistory.payload", String(r.seq));
+      if (!payload) continue;
+      const inputs = (payload.inputs ?? {}) as SealInputs;
       const recFamily = typeof inputs.roleFamily === "string" && inputs.roleFamily ? inputs.roleFamily : null;
       // Family filter: a family view shows only that family's applies; the all-families
       // (global) view shows only the global (family-less) applies. No cross-bleed.
