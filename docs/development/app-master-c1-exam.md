@@ -163,3 +163,57 @@ and decline log carried on the overnight tick summary.
 
 The driver work is one session. The two Personas changes are the only external
 dependencies, and neither is needed to *hire* the tenure — step 2 can run today.
+
+---
+
+## 8. Seam status (2026-08-29 — both sides SHIPPED, reconciled)
+
+kp driver: `897fb6f8`→`f645f77b` (tenure mode, fleet audit, C1 checks, teardown,
+`kp-c1-night`; `test:bench-driver` 143/143). Personas: `89fc875e3` (retire route,
+idempotent per-half, reuses `archive_persona` + the probation carry-out) and
+`a7955297b` (`proposals[]`/`declines[]` on every overnight summary, existing fields
+byte-identical). The shapes meet: `title` matches, absent lists read `null` and never
+fail a night, a `null` decline reason is "carried none", distinct from a wrong one.
+
+**Three known gaps, all honest readings rather than defects — do not "fix" them by
+loosening a check:**
+
+1. **`valueLiteracy` will read ~0 at first, and that is the true value.** Personas maps
+   `axis` from the idea lane's `scan_type`/`category` (e.g. `"stabilize"`), which is not
+   in `time|risk|gate`, and `journey` comes from `use_case_id`, which scanner-raised
+   ideas never carry. Nothing the plumbing can do makes a holder value-literate. The
+   fix belongs in the **rung-0 night's dispatch prompt**: instruct the holder to name,
+   for each proposal, the journey it moves and the axis (`time|risk|gate`) in its own
+   output, and carry those through the idea lane's free-text fields. Literacy then
+   measures the holder, which is what C1 is.
+2. **Decline reasons will be mostly `null`** — `dev_ideas.rejection_reason` is free
+   text and the mapping only claims phrases that can mean one thing (pinned by a test:
+   an auto-triage rule name maps to `null`, never a guess). A real closed vocabulary on
+   the triage lane is the eventual fix; until then `declineQuality` reads the truth.
+3. **Probation still fires on tenure runs** (`forceProbation: true`), so a tenure run
+   can come home `retired` — §5 says a P2 exit must not. Make the review optional
+   per-scenario before the third night, or run nights 1–3 without the probation phase.
+
+Personas' `master` is clippy-red on 7 pre-existing lints in untouched files
+(`context_fingerprints.rs:97` et al., newer-toolchain lints); the touched crates are
+clippy-clean. Not this program's to fix, but whoever next runs personas' full gate
+should know it is red on arrival.
+
+**P2 is unblocked.** The run, verbatim:
+
+```bash
+# Personas side (after the operator's persona deletion):
+PERSONAS_HEADLESS_BRIDGE=1 personas-daemon
+
+# kp side, throwaway keyless server:
+KP_OFFLINE=1 KP_SECRET=bench KP_EMPTY=1 KP_DB_PATH=/tmp/kp-bench.sqlite \
+KP_APP_MASTER_REPO_ROOTS="C:\Users\kazda\kiro" npx next dev --port 3103
+
+# hire the tenure once (writes tenures/kp-owner.json), then the exam:
+node scripts/app-master-bench/run.mjs kp-default --hire-only
+node scripts/app-master-bench/run.mjs kp-c1-night --tenure kp-owner --backlog <scored-backlog.json>
+```
+
+The `--backlog` file is the operator's top titles scored through `/value-ledger score`
+(pre-scored `{title, value}` rows). The human turn is the 3-per-night decline
+spot-check, ~10 minutes.
