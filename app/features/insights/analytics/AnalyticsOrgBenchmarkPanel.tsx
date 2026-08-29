@@ -19,10 +19,15 @@ type OrgBench = Stats & { available: boolean; contributingTeams: number };
 const pct = (n: number | null) => (n == null ? "—" : `${n}%`);
 const days = (n: number | null) => (n == null ? "—" : `${n}d`);
 
+// `orgVal` used to ride alongside `orgLabel` here: destructured, typed, and never
+// rendered, while each of the three call sites computed a second formatted copy of
+// the org figure to feed it. The org number DOES reach the screen — through
+// `orgLabel`, which is `t("orgLabel", { value })` -> "Org: 42%". So this was dead
+// weight, not a missing benchmark; the distinction is the only reason the prop was
+// worth reading the render for rather than deleting on the lint warning alone.
 function Metric({
   label,
   teamVal,
-  orgVal,
   diff,
   higherBetter,
   orgLabel,
@@ -31,7 +36,6 @@ function Metric({
 }: {
   label: string;
   teamVal: string;
-  orgVal: string;
   diff: number | null;
   higherBetter: boolean;
   orgLabel: string;
@@ -125,7 +129,6 @@ export function OrgBenchmarkPanel() {
             <Metric
               label={t("interviewRate")}
               teamVal={pct(teamInterviewPct)}
-              orgVal={pct(org.interviewRatePct)}
               diff={teamInterviewPct == null ? null : teamInterviewPct - org.interviewRatePct}
               higherBetter
               orgLabel={t("orgLabel", { value: pct(org.interviewRatePct) })}
@@ -135,7 +138,6 @@ export function OrgBenchmarkPanel() {
             <Metric
               label={t("hireRate")}
               teamVal={pct(teamHirePct)}
-              orgVal={pct(org.hireRatePct)}
               diff={teamHirePct == null ? null : teamHirePct - org.hireRatePct}
               higherBetter
               orgLabel={t("orgLabel", { value: pct(org.hireRatePct) })}
@@ -145,7 +147,6 @@ export function OrgBenchmarkPanel() {
             <Metric
               label={t("timeToHire")}
               teamVal={days(team.medianTimeToHireDays)}
-              orgVal={days(org.medianTimeToHireDays)}
               diff={tth}
               higherBetter={false}
               orgLabel={t("orgLabel", { value: days(org.medianTimeToHireDays) })}
