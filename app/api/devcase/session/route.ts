@@ -1,14 +1,9 @@
 import { NextResponse } from "next/server";
 import { countRecentDevSessionsForToken, devSessionWatermark, getPostingByToken, startDevSession } from "@/app/_lib/db/devcase";
 import { jsonError } from "@/app/_lib/api-response";
-
-// bug-ui-scan-2026-07-09 (dev-submissions-live-work-surface #2): a per-token/day session
-// throttle. Apply tokens are shareable public links, so an unauthenticated holder could
-// mint unbounded sessions (each then flushing events) — a cheap storage-exhaustion vector.
-// The cap is generous vs. legitimate use: one posting rarely sees this many genuine live
-// starts in a day, so real candidates are never blocked.
-const SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
-export const MAX_SESSIONS_PER_TOKEN_DAY = 50;
+// The per-token/day session throttle lives in a sibling module: Next's generated
+// route types reject any non-handler `export const` here (backlog item 57).
+import { MAX_SESSIONS_PER_TOKEN_DAY, SESSION_WINDOW_MS } from "./session-limits";
 
 // Live Work Surface (moonshot E) — start an in-product work session for a dev-case
 // apply token. Validates the token maps to an OPEN posting (don't orphan sessions

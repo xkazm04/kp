@@ -29,7 +29,8 @@ import { register } from "node:module";
 // NextResponse.json undefined and every assertion here unreachable.
 register(new URL("../../../_lib/testing/next-server-hooks.mjs", import.meta.url));
 
-const { POST: sessionPost, MAX_SESSIONS_PER_TOKEN_DAY } = await import("./route.ts");
+const { POST: sessionPost } = await import("./route.ts");
+const { MAX_SESSIONS_PER_TOKEN_DAY } = await import("./session-limits.ts");
 const { POST: finalizePost } = await import("./[id]/submit/route.ts");
 const { POST: flushPost } = await import("./[id]/route.ts");
 
