@@ -360,6 +360,16 @@ saving one.
   NAME, bypassing use-case routing; `test_cli.py --provider` drives it. The probe
   runs under its own `KEY_PROBE_USE_CASE = "key_probe"` so admin traffic lands in
   the ledger under its own name instead of inflating a real use case.
+- **A keyless stored row is an ANSWER, not a miss.** Since `KEYLESS_PROVIDERS`, a
+  row carrying a base URL and no key is a valid configuration (a stock Ollama /
+  llama.cpp / LM Studio server checks no credential). `resolveProviderApiKey`
+  therefore returns `""` for it and stops — it does NOT fall through to the
+  provider env var, because doing so would resurrect a deployment credential the
+  operator deliberately configured away from and send it to a server chosen
+  precisely because it needed none. `buildLlmConfigEnv` expresses the same refusal
+  in its own idiom (it omits an empty key from `KP_LLM_CONFIG` rather than
+  emitting `""`). Both halves are pinned by `provider-key-precedence.test.ts`,
+  which fails if the "obvious" fallthrough is added.
 - **The ledger's numbers are bounded non-negative.** `parseLedgerLine`
   (`app/_lib/llm-usage-ledger.ts`) drops a negative token count or cost to `null`
   rather than passing it through. `db/llm.ts` aggregates with

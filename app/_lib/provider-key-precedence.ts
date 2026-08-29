@@ -28,11 +28,29 @@ export type ResolveProviderApiKeyOptions = {
 };
 
 /**
- * Resolve a provider API key with the documented precedence, or undefined when
- * nothing is configured. A configured-but-undecryptable stored key fails LOUD
- * (the decrypt error propagates) rather than silently falling through to the
- * platform/env key — same contract as buildLlmConfigEnv: misattributing a
- * customer's BYOM traffic to another key is worse than failing.
+ * Resolve a provider API key with the documented precedence. Returns undefined
+ * only when NO row and no env var matched.
+ *
+ * A stored row that decrypts to the EMPTY STRING returns "" and stops there — it
+ * does not fall through to the env var. That is deliberate and it is why this
+ * function is not typed as "a key or undefined": since KEYLESS_PROVIDERS
+ * (llm-model-defaults.ts) a row with a base URL and no key is a VALID, intended
+ * configuration — a stock Ollama / llama.cpp / LM Studio server checks no
+ * credential. Falling through would resurrect a deployment env credential the
+ * operator deliberately configured away from, and send it to a server they chose
+ * precisely because it needed none. Callers test truthiness (`if (!apiKey)`), so
+ * "" and undefined read alike at the call site; only a caller comparing
+ * `=== undefined` would be surprised, and there is none. Pinned by
+ * provider-key-precedence.test.ts so the "obvious" fallthrough is not added later.
+ *
+ * This matches buildLlmConfigEnv, which omits an empty key from KP_LLM_CONFIG
+ * rather than emitting "" — the same refusal to substitute a credential,
+ * expressed in that builder's own idiom.
+ *
+ * A configured-but-undecryptable stored key fails LOUD (the decrypt error
+ * propagates) rather than silently falling through to the platform/env key —
+ * same reasoning: misattributing a customer's BYOM traffic to another key is
+ * worse than failing.
  */
 export function resolveProviderApiKey(options: ResolveProviderApiKeyOptions): string | undefined {
   const { provider, rows, decrypt, env = {}, envVars = [] } = options;
