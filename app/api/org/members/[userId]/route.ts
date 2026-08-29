@@ -79,14 +79,26 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ u
 
 // Remove a member entirely (user + credentials + memberships). members:manage;
 // the service refuses to remove the org's last owner.
-export async function DELETE(_request: NextRequest, context: { params: Promise<{ userId: string }> }) {
+//
+// Two modes on one route so preview and act share one implementation (registry:
+// entity-lifecycle/blast-radius-computation — the preview runs the deletion in a
+// counting mode, transaction rolled back). Without `?confirm=true` this DELETE
+// destroys NOTHING and returns the enumerated impact; the destructive path is
+// armed only by the explicit confirm parameter. Both modes sit behind the same
+// capability — the impact enumeration is reconnaissance and must not be cheaper
+// to obtain than the act it previews. The destructive response is a receipt
+// (casualties per table), not a boolean.
+export async function DELETE(request: NextRequest, context: { params: Promise<{ userId: string }> }) {
   const denied = await requireCapability("members:manage");
   if (denied) return denied;
   const { userId } = await context.params;
   const orgId = (await currentUser()).orgId ?? DEFAULT_ORG_ID;
   const target = getUserById(userId);
   if (!target || target.orgId !== orgId) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const r = removeMember(userId);
+  const confirmed = request.nextUrl.searchParams.get("confirm") === "true";
+  const r = removeMember(userId, { dryRun: !confirmed });
   if (!r.ok) return NextResponse.json({ error: r.reason }, { status: opStatus(r.reason) });
-  return NextResponse.json({ ok: true });
+  return confirmed
+    ? NextResponse.json({ ok: true, removed: r.impact })
+    : NextResponse.json({ preview: true, impact: r.impact });
 }

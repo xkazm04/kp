@@ -181,7 +181,9 @@ export function WorkspaceTab() {
 
   async function removeMember(m: OrgMemberDto) {
     const who = memberName(m);
-    const r = await fetch(`/api/org/members/${m.user.id}`, { method: "DELETE" }).catch(() => null);
+    // confirm=true arms the destructive path; a bare DELETE is the read-only
+    // blast-radius preview the confirm modal shows (see the route).
+    const r = await fetch(`/api/org/members/${m.user.id}?confirm=true`, { method: "DELETE" }).catch(() => null);
     if (r && r.ok) {
       toast.success(tm("removed", { name: who }));
       await reload();

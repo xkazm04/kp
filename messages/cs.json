@@ -5479,7 +5479,11 @@
         "title": "Odebrat člena",
         "body": "Odebrat <em>{name}</em> z organizace? Smaže se tím účet i přístup a nejde to vzít zpět.",
         "cancel": "Zrušit",
-        "confirm": "Odebrat člena"
+        "confirm": "Odebrat člena",
+        "impactLoading": "Zjišťuji dopad…",
+        "impactSeats": "{seats, plural, =0 {S účtem nebudou smazána žádná členství v týmech} one {S účtem bude smazáno # členství v týmu} few {S účtem budou smazána # členství v týmech} other {S účtem bude smazáno # členství v týmech}}.",
+        "impactInvites": "{count, plural, one {# odeslaná pozvánka zůstane} few {# odeslané pozvánky zůstanou} other {# odeslaných pozvánek zůstane}}, s atribucí odebraného uživatele.",
+        "impactUnavailable": "Náhled dopadu není k dispozici. Odebrání přesto smaže účet i všechna členství v týmech."
       },
       "confirmRevoke": {
         "title": "Odvolat pozvánku",

@@ -5479,7 +5479,11 @@
         "title": "Retirer le membre",
         "body": "Retirer <em>{name}</em> de l’organisation ? Cela supprime son compte et ses accès, et c’est irréversible.",
         "cancel": "Annuler",
-        "confirm": "Retirer le membre"
+        "confirm": "Retirer le membre",
+        "impactLoading": "Calcul de l’impact…",
+        "impactSeats": "{seats, plural, =0 {Aucun siège d’équipe ne sera supprimé} one {# siège d’équipe sera supprimé} other {# sièges d’équipe seront supprimés}} avec le compte.",
+        "impactInvites": "{count, plural, one {# invitation envoyée restera} other {# invitations envoyées resteront}}, attribuée(s) à un utilisateur retiré.",
+        "impactUnavailable": "Aperçu de l’impact indisponible. Le retrait supprime tout de même le compte et tous les sièges d’équipe."
       },
       "confirmRevoke": {
         "title": "Révoquer l’invitation",

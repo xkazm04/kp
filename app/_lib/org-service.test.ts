@@ -4,7 +4,7 @@ import { cleanupUnitDb } from "./testing/unit-db.ts";
 import { DEFAULT_ORG_ID } from "./db/organizations.ts";
 import { createWorkspace, DEFAULT_WORKSPACE_ID } from "./db/workspaces.ts";
 import { verifyCredentials, getUserByEmail, createUser } from "./db/users.ts";
-import { createInvite } from "./db/invites.ts";
+import { createInvite, getInvite } from "./db/invites.ts";
 import {
   listOrgMembers,
   inviteMember,
@@ -248,4 +248,51 @@ test("removeMemberFromWorkspace refuses to strip the org's last owner seat", () 
   const teamC = createWorkspace("Solo team C", orgId);
   addMemberToWorkspace(owner.id, teamC.id, "viewer");
   assert.deepEqual(removeMemberFromWorkspace(owner.id, teamC.id), { ok: true });
+});
+
+// Wave3 item 4 — docs/specs/2026-08-30-member-removal-blast-radius.md. The
+// removal preview runs the SAME deletes in a rolled-back transaction (registry:
+// entity-lifecycle/blast-radius-computation), so the counts it shows are the
+// counts the act produces — asserted here by running both against one state.
+test("removeMember dry-run enumerates the blast radius and destroys nothing", () => {
+  const orgId = "org-blast";
+  const teamA = createWorkspace("Blast team A", orgId);
+  const teamB = createWorkspace("Blast team B", orgId);
+  const owner = createUser({ orgId, email: "blast.owner@example.test", status: "active", password: "owner-pw-1234" });
+  addMemberToWorkspace(owner.id, teamA.id, "owner");
+  const victim = createUser({ orgId, email: "blast.victim@example.test", status: "active", password: "victim-pw-1234" });
+  addMemberToWorkspace(victim.id, teamA.id, "recruiter");
+  addMemberToWorkspace(victim.id, teamB.id, "viewer");
+  const invite = createInvite({ orgId, email: "invitee@example.test", role: "recruiter", invitedBy: victim.id });
+
+  const preview = removeMember(victim.id, { dryRun: true });
+  assert.ok(preview.ok && preview.impact, "dry-run succeeds with an impact");
+  assert.deepEqual(preview.impact, {
+    casualties: { users: 1, credentials: 1, memberships: 2 },
+    survivors: { invitesAttributed: 1 },
+  });
+  // Destroyed nothing: account, credential, and both seats are intact.
+  assert.ok(verifyCredentials("blast.victim@example.test", "victim-pw-1234"), "credential survives the dry run");
+  const member = listOrgMembers(orgId).find((m) => m.user.id === victim.id);
+  assert.ok(member, "the account survives the dry run");
+  assert.equal(member!.teams.length, 2, "both seats survive the dry run");
+
+  // The real run returns the SAME accounting the preview promised.
+  const receipt = removeMember(victim.id);
+  assert.ok(receipt.ok, "removal succeeds");
+  assert.deepEqual(receipt.impact, preview.impact, "receipt matches the preview");
+  assert.ok(!listOrgMembers(orgId).some((m) => m.user.id === victim.id), "the account is gone");
+  assert.equal(verifyCredentials("blast.victim@example.test", "victim-pw-1234"), null, "the credential is gone");
+  // Survivor by design: the invite they sent stays, attribution retained.
+  const survived = getInvite(invite.token);
+  assert.ok(survived, "the invite survives its sender");
+  assert.equal(survived!.invitedBy, victim.id, "invited_by is retained by design (a dangling id reads as a removed user)");
+});
+
+test("removeMember dry-run reports the last-owner blocker instead of counts", () => {
+  const orgId = "org-blast-blocker";
+  const team = createWorkspace("Blocker team", orgId);
+  const owner = createUser({ orgId, email: "blast.blocker@example.test", status: "active", password: "owner-pw-1234" });
+  addMemberToWorkspace(owner.id, team.id, "owner");
+  assert.deepEqual(removeMember(owner.id, { dryRun: true }), { ok: false, reason: "last_owner" });
 });

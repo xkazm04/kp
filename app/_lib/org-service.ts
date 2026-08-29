@@ -7,8 +7,9 @@ import {
   setUserStatus,
   updateUserName,
   listUsersByOrg,
-  deleteUser,
+  reapUser,
   type User,
+  type UserRemovalImpact,
 } from "./db/users";
 import {
   upsertMembership,
@@ -229,12 +230,20 @@ export function setMemberStatus(userId: string, status: "active" | "disabled"): 
   return { ok: true };
 }
 
+export type RemoveMemberResult = MemberOpResult & { impact?: UserRemovalImpact };
+
 /** Remove a member entirely (user + credentials + memberships). Refuses to remove
- *  the org's last owner. */
-export function removeMember(userId: string): MemberOpResult {
+ *  the org's last owner — in BOTH modes: a preview against a blocked target
+ *  reports the blocker, not counts.
+ *
+ *  `dryRun: true` computes the blast radius through the enforcement path (same
+ *  deletes, executed and rolled back) and destroys nothing; the real run returns
+ *  the same per-table accounting as a receipt, not a boolean. See
+ *  docs/specs/2026-08-30-member-removal-blast-radius.md. */
+export function removeMember(userId: string, opts?: { dryRun?: boolean }): RemoveMemberResult {
   const user = getUserById(userId);
   if (!user) return { ok: false, reason: "no_user" };
   if (isSoleOwner(user.orgId, userId)) return { ok: false, reason: "last_owner" };
-  deleteUser(userId);
-  return { ok: true };
+  const impact = reapUser(userId, { dryRun: opts?.dryRun ?? false });
+  return { ok: true, impact };
 }

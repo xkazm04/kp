@@ -5479,7 +5479,11 @@
         "title": "Mitglied entfernen",
         "body": "<em>{name}</em> aus der Organisation entfernen? Das löscht das Konto und den Zugang und lässt sich nicht rückgängig machen.",
         "cancel": "Abbrechen",
-        "confirm": "Mitglied entfernen"
+        "confirm": "Mitglied entfernen",
+        "impactLoading": "Auswirkungen werden ermittelt…",
+        "impactSeats": "{seats, plural, =0 {Keine Team-Mitgliedschaften werden} one {# Team-Mitgliedschaft wird} other {# Team-Mitgliedschaften werden}} mit dem Konto gelöscht.",
+        "impactInvites": "{count, plural, one {# gesendete Einladung bleibt} other {# gesendete Einladungen bleiben}} erhalten, zugeschrieben einem entfernten Benutzer.",
+        "impactUnavailable": "Vorschau der Auswirkungen nicht verfügbar. Das Entfernen löscht dennoch das Konto und alle Team-Mitgliedschaften."
       },
       "confirmRevoke": {
         "title": "Einladung zurückziehen",

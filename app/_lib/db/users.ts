@@ -104,14 +104,53 @@ export function markUserOnboarding(id: string, outcome: "completed" | "skipped")
   return Number(info.changes) > 0;
 }
 
+/** Per-table accounting of one user deletion — the receipt the destructive act
+ *  returns and the preview the confirm dialog shows. Casualties die with the
+ *  account; survivors persist with a degraded reference (see
+ *  docs/specs/2026-08-30-member-removal-blast-radius.md). */
+export type UserRemovalImpact = {
+  casualties: { users: number; credentials: number; memberships: number };
+  survivors: { invitesAttributed: number };
+};
+
+/** Rollback sentinel for the dry-run mode of the reaper below. */
+class DryRunRollback {
+  constructor(public impact: UserRemovalImpact) {}
+}
+
 /** Delete a user + their credential + memberships (no DB-level FKs, so cascade by
- *  hand). Does NOT delete the user's authored data — that stays attributed by id. */
-export function deleteUser(id: string): boolean {
+ *  hand), counting casualties per table. Does NOT delete the user's authored
+ *  data — that stays attributed by id (invites.invited_by is retained by design;
+ *  pipeline_events.actor carries a denormalized name, never the id).
+ *
+ *  `dryRun: true` is the blast-radius preview: the SAME statements execute inside
+ *  the transaction and are rolled back, so the preview runs the enforcement path
+ *  and cannot drift from it (registry: entity-lifecycle/blast-radius-computation).
+ */
+export function reapUser(id: string, opts?: { dryRun?: boolean }): UserRemovalImpact {
   const db = ensureDb();
-  db.prepare(`DELETE FROM user_credentials WHERE user_id = ?`).run(id);
-  db.prepare(`DELETE FROM memberships WHERE user_id = ?`).run(id);
-  const info = db.prepare(`DELETE FROM users WHERE id = ?`).run(id);
-  return Number(info.changes) > 0;
+  const tx = db.transaction((): UserRemovalImpact => {
+    const credentials = Number(db.prepare(`DELETE FROM user_credentials WHERE user_id = ?`).run(id).changes);
+    const memberships = Number(db.prepare(`DELETE FROM memberships WHERE user_id = ?`).run(id).changes);
+    const users = Number(db.prepare(`DELETE FROM users WHERE id = ?`).run(id).changes);
+    const invitesAttributed = Number(
+      (db.prepare(`SELECT COUNT(*) AS n FROM invites WHERE invited_by = ?`).get(id) as { n: number }).n,
+    );
+    const impact: UserRemovalImpact = { casualties: { users, credentials, memberships }, survivors: { invitesAttributed } };
+    if (opts?.dryRun) throw new DryRunRollback(impact);
+    return impact;
+  });
+  try {
+    return tx();
+  } catch (e) {
+    if (e instanceof DryRunRollback) return e.impact;
+    throw e;
+  }
+}
+
+/** Legacy boolean wrapper over reapUser(). */
+export function deleteUser(id: string): boolean {
+  return reapUser(id).casualties.users > 0;
 }
 
 // ---- Credentials (scrypt, separate table) ---------------------------------

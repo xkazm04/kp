@@ -304,6 +304,10 @@ export function ensureDb(): Database.Database {
       email TEXT NOT NULL,
       role TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
+      -- RETAINED BY DESIGN on member removal (cascade posture: detach). The invite
+      -- has independent meaning; a dangling user id here reads as "a removed user",
+      -- and no reader dereferences it. See docs/specs/2026-08-30-member-removal-
+      -- blast-radius.md — absence of a cleanup is a decision, not an omission.
       invited_by TEXT,
       created_at TEXT NOT NULL,
       expires_at TEXT,

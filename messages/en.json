@@ -5479,7 +5479,11 @@
         "title": "Remove member",
         "body": "Remove <em>{name}</em> from the organization? This deletes their account and access, and it can't be undone.",
         "cancel": "Cancel",
-        "confirm": "Remove member"
+        "confirm": "Remove member",
+        "impactLoading": "Computing impact…",
+        "impactSeats": "{seats, plural, =0 {No team seats} one {# team seat} other {# team seats}} will be deleted with the account.",
+        "impactInvites": "{count, plural, one {# invitation they sent stays} other {# invitations they sent stay}}, attributed to a removed user.",
+        "impactUnavailable": "Impact preview unavailable. Removal still deletes the account and every team seat."
       },
       "confirmRevoke": {
         "title": "Revoke invitation",
