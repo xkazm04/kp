@@ -1186,7 +1186,10 @@
             "adapters"
           ],
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "cv_analysis fold-in (wave3 item 5, docs/specs/2026-08-30-cv-analysis-fold-in.md): the single-door rule now holds for the multimodal CV path - pipeline.py resolves cv_analysis through llm/registry.resolve_provider; TextProvider.complete_document is the file_input verb (base refuses, naming the missing capability); GeminiProvider implements it with the adapter's model+BYOM key threaded into grounded_answer; capabilities.py gemini row DECLARES file_input; the registry's dedicated-gemini.py carve-out is retired. Residual: profile_extract still calls gemini.py directly (named outstanding in docs/architecture/llm-provider-layer.md).",
+          "evaluatedAt": "2026-08-30",
+          "evaluatedAgainst": "sha256:1117665ec59c1168"
         },
         {
           "subject": "quality-gates",
