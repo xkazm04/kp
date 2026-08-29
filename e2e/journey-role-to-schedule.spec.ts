@@ -119,11 +119,32 @@ async function advanceStep(source: Locator, button: Locator, target: Locator): P
 // visible. Same dev-hydration retry as the sibling specs: click until the drawer
 // opens. Shared by the mint step and the confirmed-booking step, which read the
 // same drawer for different halves of the same invite.
+//
+// A CANDIDATE LABEL IS NOT AN ENTRY ID, and this helper can only address the board
+// by label. One person can hold two pipeline entries (two jobs), and both rows
+// render the SAME accessible name — `Actions for {name}` is built from
+// `entry.candidateLabel` alone (PipelineCandidateRow.tsx:265) and the row carries
+// no id anchor in the DOM. So `.first()` opens whichever row the board's column
+// ordering happens to put first, which need not be the entry the caller chose from
+// /api/pipeline. If that row's entry fails the drawer's own gate
+// (`showLinks` = active + Screened|Interview, usePipelineCandidateDrawerState.ts:395)
+// the drawer opens under the RIGHT NAME with the self-scheduling panel absent — a
+// failure that reads as "the button never rendered" and sends you into product code.
+// Measured 2026-08-29 on the operator's dev DB: 3 labels carried two entries each,
+// and for one of them the ineligible twin sorted first. Callers therefore pass a
+// label that is unique on the board (see the mint step), and this asserts it —
+// loudly, naming the ambiguity — rather than silently driving the wrong row.
 async function openCandidateDrawer(page: Page, label: string): Promise<Locator> {
   await page.goto(`/?tab=pipeline&q=${encodeURIComponent(label)}`);
   const drawer = page.getByRole("dialog");
-  const rowMenu = page.getByRole("button", { name: `Actions for ${label}` }).first();
+  const rowMenus = page.getByRole("button", { name: `Actions for ${label}` });
+  const rowMenu = rowMenus.first();
   await expect(rowMenu).toBeVisible({ timeout: 30_000 });
+  await expect(
+    rowMenus,
+    `"${label}" matches more than one board row — the row's accessible name carries no entry id, ` +
+      "so .first() would open an arbitrary one of this person's entries. Pick a label unique on the board."
+  ).toHaveCount(1);
   await expect(async () => {
     if (!(await drawer.isVisible())) {
       await rowMenu.click().catch(() => undefined);
@@ -310,10 +331,25 @@ test("recruiter mints a self-scheduling invite from the candidate drawer", async
       .filter((i) => i.entryId && i.status !== "declined" && i.status !== "expired")
       .map((i) => i.entryId as string)
   );
+  // …and one whose NAME appears exactly once on the board. The drawer is reachable
+  // only by accessible name (see openCandidateDrawer's note), so a person holding two
+  // entries is unaddressable: we would pick the eligible entry here and the helper
+  // could open the other one, whose stage fails the drawer's showLinks gate — the
+  // drawer opens and "Create scheduling link" never renders. Nothing about this
+  // journey needs a particular candidate, so skip the ambiguous ones.
+  const labelCounts = new Map<string, number>();
+  for (const e of entries) labelCounts.set(e.candidateLabel, (labelCounts.get(e.candidateLabel) ?? 0) + 1);
   const target = entries.find(
-    (e) => e.status === "active" && ["Screened", "Interview"].includes(e.stage) && !held.has(e.id)
+    (e) =>
+      e.status === "active" &&
+      ["Screened", "Interview"].includes(e.stage) &&
+      !held.has(e.id) &&
+      labelCounts.get(e.candidateLabel) === 1
   );
-  expect(target, "seeded pipeline should contain an active Screened/Interview entry with no live invite").toBeTruthy();
+  expect(
+    target,
+    "seeded pipeline should contain an active Screened/Interview entry, with no live invite, whose candidate holds exactly one entry"
+  ).toBeTruthy();
   candidateLabel = target!.candidateLabel;
   entryId = target!.id;
 
