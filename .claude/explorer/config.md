@@ -133,3 +133,24 @@ _(dated one-liners; repo-specific learnings from `/explorer` runs land here)_
   slugs there (`analytics-funnel-forecast`, `analytics-channel-roi`, `analytics-core-tab`,
   `pipeline-analytics`) share **no** name with the map's `lib-analytics-1` / `lib-analytics-2`.
   One map context maps to several app slugs; emit one node per slug actually touched.
+- 2026-08-29 — **Normalize to LF before every `git add`.** This checkout is
+  `core.autocrlf`: the committed files are LF, the worktree is CRLF, and editing through
+  anything that preserves the working-tree bytes re-commits the WHOLE file (measured: 861
+  insertions / 812 deletions for a 20-line change to `puml/parse.ts`). The pathspec
+  stage-verify catches a foreign FILE, not a rewritten line ending — read the insertion
+  count too. Fix before staging: `python -c "import io;d=io.open(P,'rb').read();io.open(P,'wb').write(d.replace(b'
+',b'
+'))"`.
+  The architect overlay documents this for the `*.generated.ts` files; it applies to **any**
+  file edited by a tool that round-trips bytes.
+- 2026-08-29 — **`design:check` does NOT enforce the no-raw-hex law.** `.claude/CLAUDE.md`
+  says "Never hardcode colors … Enforced by `npm run design:check`". The gate does
+  brand.ts↔globals.css lockstep plus Tailwind *shade* parity, and never scans for hex
+  literals — 75 sit across `app/`. Treat a raw hex as a finding on its own merits; do not
+  assume the gate saw it. Related trap: importing `app/_lib/brand.ts` puts a literal under
+  the lockstep rule, which proves it matches its **Studio Light** token and says nothing
+  about whether the surface flips. Lockstep is not theming.
+- 2026-08-29 — **Read `docs/design/README.md` before forming a UI finding, not after.** It
+  already carried the exact rule the puml renderer broke, with a prior sighting — which
+  reframed the item from "a bug" to "a second instance of a known trap" and made the doc
+  update worth writing.
