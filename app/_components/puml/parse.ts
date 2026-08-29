@@ -482,7 +482,14 @@ export function parsePuml(source: string, opts?: { strict?: boolean }): PumlDiag
       const anchor = noteMatch[2] ?? noteMatch[3];
       const id = genId(state);
       const node: PumlNode = { type: "node", id, label: cleanLabel(text), kind: "note" };
-      diagram.roots.push(node);
+      // Attach where the note was WRITTEN, like every other element. This pushed to
+      // `diagram.roots` unconditionally, so a note inside a `package { ... }` became a
+      // sibling of that package and ELK laid it out beside the box instead of within
+      // it -- the annotation drifted away from the group it annotates. Live on three
+      // committed diagrams (05-job-ingestion-pipeline, 09-student-transformation x2,
+      // 12-career-switcher). A top-level note is unaffected: currentChildren() returns
+      // diagram.roots when the container stack is empty.
+      currentChildren(state).push(node);
       diagram.index.set(id, node);
       if (anchor) {
         const anchorId = state.aliases.get(anchor.toLowerCase());

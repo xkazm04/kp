@@ -221,6 +221,32 @@ test("a hyphenated word is NOT a connector (no arrowhead, no edge)", () => {
   }
 });
 
+test("a note inside a package stays inside it", () => {
+  // Every other element attaches through currentChildren(); the note path pushed to
+  // diagram.roots, so the annotation rendered OUTSIDE the box it annotates.
+  const d = parsePuml(`@startuml
+package "Group" as g {
+  [A] as a
+  note right
+  inside the group
+  end note
+}
+[B] as b
+note right
+at the top level
+end note
+@enduml`);
+  const g = d.index.get("g");
+  assert.equal(g?.type, "container");
+  const inside = g?.type === "container" ? g.children.filter((c) => c.type === "node" && c.kind === "note") : [];
+  assert.equal(inside.length, 1, "the note declared inside the package must be its child");
+  assert.equal(inside[0].type === "node" ? inside[0].label : "", "inside the group");
+  // A top-level note is unchanged: currentChildren() is diagram.roots with an empty stack.
+  const roots = d.roots.filter((c) => c.type === "node" && c.kind === "note");
+  assert.equal(roots.length, 1);
+  assert.equal(roots[0].type === "node" ? roots[0].label : "", "at the top level");
+});
+
 test("a position-only `note right` is not an anchor request", () => {
   // `note <pos>` with no `of <id>` is PlantUML's most common note form and what all
   // four committed diagram sites write. The direction word used to fall through to
