@@ -7,6 +7,7 @@ import { hasAdvancedPastScreening, screeningGateIndex, stageHasRole, stageIndex,
 import { getPipelineAxis } from "../pipeline-axis-server";
 import { SIM_TITLE_LIKE } from "@/app/features/shell/simulation/constants";
 import { ensureDb } from "./core";
+import { JD_ACTIVE_SQL } from "./jobs";
 import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 import { listChannelSpendDetail } from "./channels";
 
@@ -1069,7 +1070,7 @@ export function searchEntities(query: string, limitPerType = 5, workspaceId: str
   const jds = db
     .prepare(
       `SELECT slug, title FROM jds
-       WHERE (title LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\') AND archived_at IS NULL AND workspace_id = ?
+       WHERE (title LIKE ? ESCAPE '\\' OR slug LIKE ? ESCAPE '\\') AND ${JD_ACTIVE_SQL} AND workspace_id = ?
        ORDER BY created_at DESC LIMIT ?`
     )
     .all(like, like, workspaceId, limitPerType) as { slug: string; title: string }[];

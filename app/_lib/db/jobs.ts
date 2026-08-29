@@ -55,6 +55,13 @@ export type JdListItem = {
 
 const JD_PREVIEW_CHARS = 280;
 
+/** The one authority for "this JD is live" (archive-restore visibility clause).
+ *  Every default list/picker/search over `jds` interpolates this fragment instead
+ *  of re-writing `archived_at IS NULL` by hand — a hand-written archived check in
+ *  a caller is a review flag (the next picker WILL forget it). Explicit
+ *  show-archived surfaces (loadJd's public render) deliberately omit it. */
+export const JD_ACTIVE_SQL = "archived_at IS NULL";
+
 export type SaveJdInput = {
   title: string;
   body: string;
@@ -137,7 +144,7 @@ export function hasJdCaseArtifact(workspaceId: string = DEFAULT_WORKSPACE_ID): b
   const row = ensureDb()
     .prepare(
       `SELECT 1 FROM jds
-       WHERE workspace_id = ? AND archived_at IS NULL AND analysis_status = 'ready'
+       WHERE workspace_id = ? AND ${JD_ACTIVE_SQL} AND analysis_status = 'ready'
          AND json_valid(analysis_json) AND json_extract(analysis_json, '$.case') IS NOT NULL
        LIMIT 1`
     )
@@ -154,7 +161,7 @@ export function listJds(limit = 100, workspaceId: string = DEFAULT_WORKSPACE_ID)
       `SELECT slug, title, created_at, analysis_status, analysis_task_id,
               substr(body, 1, ${JD_PREVIEW_CHARS + 1}) AS body_head,
               length(body) AS body_len
-       FROM jds WHERE archived_at IS NULL AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`
+       FROM jds WHERE ${JD_ACTIVE_SQL} AND workspace_id = ? ORDER BY created_at DESC LIMIT ?`
     )
     .all(workspaceId, limit) as Array<{
     slug: string;
