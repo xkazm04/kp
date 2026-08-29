@@ -100,15 +100,24 @@ night, which is the whole point of rung 0.
 ## 4. Teardown and hygiene
 
 - **Retire on exit.** A scenario that hired fresh retires its persona before the run
-  record closes: kp reports `lifecycle: retired` through the existing report route,
-  and Personas archives the persona (`archive_persona` exists; the bench needs it
-  reachable through the test bridge — `POST /api/kp/test/retire {personaId}` is the
-  one Personas-side change this protocol asks for). A run that cannot retire says so
-  in its record and exits non-zero on `--strict`.
-- **Fleet audit at preflight.** Before any run, `GET /api/agents` on kp and the
-  Personas roster are compared against `tenures/*.json`; any hired agent not in a
-  tenure file is listed as an **orphan** with its age. Orphans > 0 blocks a run under
-  `--strict`. This is the guard that turns "100+ agents" into a red preflight the next
+  record closes: the driver calls `POST /api/kp/test/retire {personaId}` (Personas
+  archives the persona — `archive_persona` exists; making it reachable through the
+  test bridge is the one Personas-side change this protocol asks for), and Personas
+  **pushes** `lifecycle: retired` to kp the way it pushes every other lifecycle
+  event. The driver then refreshes and reads the roster to confirm.
+  *(Corrected 2026-08-29, when the driver was built: an earlier draft said the
+  driver reports the lifecycle event itself. It cannot — the report route's token
+  is minted at dispatch, stored server-side, and stripped by `GET /api/agents`
+  ("the token is the report route's auth capability, not roster data",
+  `app/api/agents/route.ts`). Asking kp to report on its own agent has no caller.)*
+  A run that cannot retire says so in its record and exits non-zero on `--strict`.
+- **Fleet audit at preflight.** Before any run, `GET /api/agents` on kp is compared
+  against `tenures/*.json`; any LIVE hired agent not in a tenure file is listed as an
+  **orphan** with its age. Orphans > 0 blocks a run under `--strict`.
+  *(As built, the audit reads kp's roster only: the headless bridge exposes no
+  persona roster to compare against, and kp's row is the one every other surface
+  already reads. A `retired`/`rejected`/`failed` row is not an orphan — it is the
+  evidence a teardown worked.)* This is the guard that turns "100+ agents" into a red preflight the next
   time it starts happening.
 - **One named tenure per repo.** `kp-owner`, `personas-owner`, `systedo-owner`. A
   second App master on the same repo is a deliberate experiment, named as such
