@@ -33,6 +33,7 @@ import type { SortState } from "@/app/_components/table/useTableSort";
 import { PANEL } from "@/app/_components/ui/recipes";
 import {
   ATTRIBUTION_BADGE,
+  compareNames,
   decisionMeta,
   formatAuditTime,
   resolveAuditTimeZone,
@@ -139,9 +140,16 @@ export function DecisionLogTable({
   const detailText = (d: Decision): string | null =>
     reasonText(d) ?? (d.counterpart ? t("csvRematchCounterpart", { name: d.counterpart.label }) : d.detail);
 
+  // The dropdown's labels are translated, so they must collate under the READER's
+  // locale — a bare localeCompare() uses the RUNTIME's default, which is the
+  // browser's language, not the app's. Under en-US a Czech label beginning Č sorts
+  // as a C variant; cs ranks Č as its own letter after C. `compareNames` is the
+  // Intl.Collator the sibling table in this directory already routes its two text
+  // columns through (DecisionRecordsTable, UAT LUC-ANA-5) — same module, same
+  // import, so the two surfaces of one audit trail cannot order names differently.
   const kindOptions = Object.keys(DECISION_META)
     .map((k) => ({ value: k, label: kindLabel(t, k, { relayConfigured }) }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .sort((a, b) => compareNames(a.label, b.label, locale, "asc"));
 
   const attributionOptions = [
     { value: "auto", label: t("attribution.auto") },
