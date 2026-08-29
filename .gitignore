@@ -109,6 +109,7 @@ data/piper/
 /.claude/skills/spark
 /.claude/skills/tiger
 /.claude/skills/uat
+/.claude/skills/value-ledger
 /.claude/rules/ai-registry-access.md
 /.claude/rules/ai-registry-recruiting.md
 /.claude/rules/ai-registry-software-engineering.md
