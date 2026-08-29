@@ -221,6 +221,41 @@ test("a hyphenated word is NOT a connector (no arrowhead, no edge)", () => {
   }
 });
 
+test("a position-only `note right` is not an anchor request", () => {
+  // `note <pos>` with no `of <id>` is PlantUML's most common note form and what all
+  // four committed diagram sites write. The direction word used to fall through to
+  // the id capture, so the parser asked to anchor to a node called "right" — a miss
+  // today, but a dashed edge to the wrong node in any diagram that aliases one.
+  const d = parsePuml(`@startuml
+[A] as a
+[Right] as right
+note right
+floating body
+end note
+a --> right
+@enduml`);
+  const note = [...d.index.values()].find((el) => el.type === "node" && el.kind === "note");
+  assert.equal(note && note.type === "node" ? note.label : null, "floating body");
+  // The ONLY edge is the declared one: the note anchored to nothing.
+  assert.deepEqual(
+    d.edges.map((e) => `${e.source}->${e.target}`),
+    ["a->right"],
+    "a position word must never be read as an anchor id"
+  );
+});
+
+test("`note <pos> of <id>` still anchors, and a bare id still works", () => {
+  const d = parsePuml(`@startuml
+[A] as a
+note right of a : anchored
+note a : bare
+@enduml`);
+  const notes = [...d.index.values()].filter((el) => el.type === "node" && el.kind === "note");
+  assert.deepEqual(notes.map((n) => (n.type === "node" ? n.label : "")), ["anchored", "bare"]);
+  // Both forms attach to `a`; neither loses its anchor to the regex rework.
+  assert.equal(d.edges.filter((e) => e.source === "a").length, 2);
+});
+
 // ---------------------------------------------------------------------------
 // Unterminated `note` bodies: the section-break fallback (pinned so the linear
 // lookahead memos in parsePuml can't quietly change WHERE a note body ends).

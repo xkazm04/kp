@@ -415,10 +415,22 @@ export function parsePuml(source: string, opts?: { strict?: boolean }): PumlDiag
     }
 
     // note (pos) of <id> [: text] ... end note
-    const noteMatch = /^note\s+(?:(top|bottom|left|right)\s+of\s+)?([A-Za-z_][\w]*)?\s*(?::\s*(.*))?$/i.exec(trimmed);
+    // `note <pos>` with no `of <id>` is a POSITION-only note, and PlantUML's most
+    // common form — every `note right` in the committed diagrams writes it. With the
+    // `of` clause optional as a WHOLE, the direction word fell straight through to
+    // the id capture, so `note right` asked to anchor to a node called "right". It
+    // missed (nothing is aliased that), so the note merely floated — but a diagram
+    // that aliases a node `left`/`right`/`top`/`bottom` would have gained a dashed
+    // edge to it, and the position word was silently discarded either way. The
+    // direction branch now owns its own optional `of <id>`; the bare-id form
+    // (`note foo`) keeps its own alternative, and a word boundary keeps "rightish" an id.
+    const noteMatch =
+      /^note\s+(?:(top|bottom|left|right)\b(?:\s+of\s+([A-Za-z_][\w]*))?|([A-Za-z_][\w]*))?\s*(?::\s*(.*))?$/i.exec(
+        trimmed
+      );
     if (/^note\b/i.test(trimmed) && noteMatch) {
-      let text = noteMatch[3] ?? "";
-      if (!noteMatch[3]) {
+      let text = noteMatch[4] ?? "";
+      if (!noteMatch[4]) {
         // Multi-line note: the body runs until `end note`. Guard that scan —
         // without a terminator the original loop ran to EOF and silently
         // absorbed every following node, edge and container into the note,
@@ -465,7 +477,9 @@ export function parsePuml(source: string, opts?: { strict?: boolean }): PumlDiag
           // else: single-line fallback — leave `i` and the empty `text` untouched.
         }
       }
-      const anchor = noteMatch[2];
+      // The id after `of`, or the bare-id form. A direction word is a POSITION and
+      // never an anchor.
+      const anchor = noteMatch[2] ?? noteMatch[3];
       const id = genId(state);
       const node: PumlNode = { type: "node", id, label: cleanLabel(text), kind: "note" };
       diagram.roots.push(node);
