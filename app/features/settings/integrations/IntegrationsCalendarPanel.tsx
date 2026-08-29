@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CalendarCheck, ExternalLink } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
@@ -31,6 +31,8 @@ const START_URL = "/api/calendar/google/start";
 
 export function IntegrationsCalendarPanel() {
   const t = useTranslations("integrations.calendar");
+  // The reader's locale, not the browser's — see IntegrationsAtsRow.
+  const format = useFormatter();
   const { data, error, reload } = useJsonFetch<Payload>("/api/calendar/google", t("loadFailed"));
   const params = useSearchParams();
 
@@ -133,7 +135,7 @@ export function IntegrationsCalendarPanel() {
             <div>
               <dt className={META_LABEL}>{t("connectedAtLabel")}</dt>
               <dd className="mt-0.5 text-base text-ink">
-                {connection.connectedAt ? new Date(connection.connectedAt).toLocaleString() : "—"}
+                {connection.connectedAt ? format.dateTime(new Date(connection.connectedAt), { dateStyle: "medium", timeStyle: "short" }) : "—"}
               </dd>
             </div>
           </dl>

@@ -212,6 +212,12 @@ ping (`POST /api/ats/test`).
   header, and the pull endpoint against the route directory that must exist to serve it.
   The event ids are the sharp one — `ats-config-store.ts` validates a save against that
   vocabulary, so a drifted checkbox is a 400 on submit, not a cosmetic label.
+- **Timestamps render in the READER's locale**, not the browser's. All three dates this
+  tab shows — the ATS connection's `updatedAt`, the calendar's `connectedAt`, the Personas
+  bridge's `lastOkAt` — went through a bare `toLocaleString()`/`toLocaleDateString()`,
+  which follows the OS: a Czech operator on an en-US machine read `3/4/2026` inside a Czech
+  sentence with no way to tell 3 April from 4 March. They resolve through `useFormatter()`
+  now, the same idiom as `ProfileRosterRow` and the billing panels.
 - **The panel states its own ceiling**: this is vendor-neutral egress, not a certified
   Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it. Only
   `candidate.hired` fires live today (on offer-accept); the other three are reserved for

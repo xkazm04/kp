@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Bot } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { BTN_PRIMARY, BTN_SECONDARY, CARD_PAD, DIVIDER, FIELD, META_LABEL, PANEL, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import type { BridgeConfigPublic } from "@/app/_lib/agent-hire/bridge-store";
@@ -17,6 +17,8 @@ import { usePersonasPairing } from "./integrationsPersonasLogic";
 
 export function IntegrationsPersonasPanel() {
   const t = useTranslations("integrations.personas");
+  // The reader's locale, not the browser's — see IntegrationsAtsRow.
+  const format = useFormatter();
   const { data, error, reload } = useJsonFetch<{ bridge: BridgeConfigPublic }>("/api/agents/bridge", t("loadFailed"));
   const pairing = usePersonasPairing(reload);
   const [baseUrl, setBaseUrl] = useState("");
@@ -53,7 +55,7 @@ export function IntegrationsPersonasPanel() {
           </span>
           <span className="break-all font-mono text-sm text-steel">{bridge.baseUrl}</span>
           {connected && bridge.lastOkAt ? (
-            <span className="text-sm text-steel">{t("lastOk", { time: new Date(bridge.lastOkAt).toLocaleString() })}</span>
+            <span className="text-sm text-steel">{t("lastOk", { time: format.dateTime(new Date(bridge.lastOkAt), { dateStyle: "medium", timeStyle: "short" }) })}</span>
           ) : null}
         </div>
       ) : null}

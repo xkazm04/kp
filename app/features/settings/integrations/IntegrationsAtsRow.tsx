@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { BTN_GHOST, BTN_SECONDARY, CHIP_QUIET, PANEL_SUNKEN } from "@/app/_components/ui/recipes";
 import { Badge } from "@/app/_components/Badge";
 import { Checkbox } from "@/app/_components/Checkbox";
@@ -27,6 +27,10 @@ export function IntegrationsAtsRow({
   onRemove: (forgetLinks: boolean) => void;
 }) {
   const t = useTranslations("integrations.ats");
+  // The READER's locale, not the machine's: a bare toLocaleDateString() formats for
+  // the OS, so a cs operator on an en-US box read "3/4/2026" inside a Czech sentence
+  // with no way to tell 3 April from 4 March. Same idiom as ProfileRosterRow.
+  const format = useFormatter();
   const [confirming, setConfirming] = useState(false);
   const [forgetLinks, setForgetLinks] = useState(false);
 
@@ -44,7 +48,7 @@ export function IntegrationsAtsRow({
         />
         {connection.baseUrl ? <span className="break-all font-mono text-sm text-steel">{connection.baseUrl}</span> : null}
         {connection.updatedAt ? (
-          <span className={CHIP_QUIET}>{t("updatedAt", { date: new Date(connection.updatedAt).toLocaleDateString() })}</span>
+          <span className={CHIP_QUIET}>{t("updatedAt", { date: format.dateTime(new Date(connection.updatedAt), { dateStyle: "medium" }) })}</span>
         ) : null}
         <button
           type="button"
