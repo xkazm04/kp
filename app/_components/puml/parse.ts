@@ -73,8 +73,24 @@ export interface PumlDiagram {
   unresolvedEndpoints: string[];
 }
 
-const NL = ""; // placeholder for an escaped "\n" inside a label
-const MASK = ""; // fill char for masked bracket / quote spans
+// Two private sentinels, written as ESCAPES. They were literal U+0001 / U+0002
+// bytes in the source: on screen, in a diff and in review both rendered as nothing,
+// so they were indistinguishable from each other and from "". That matters because
+// MASK.repeat() silently returning "" would break the length-preservation invariant
+// maskSpans and tryEdge rely on to map masked indices back onto the raw line.
+// Identical values, now legible. Both are regex-metacharacter-free, which is what
+// lets them be interpolated into the patterns below.
+
+/** Placeholder for an escaped "\\n" inside a label. */
+const NL = "\u0001";
+/** Fill char for masked bracket / quote spans. */
+const MASK = "\u0002";
+
+// Hoisted: cleanLabel runs per node, per edge label and per endpoint resolution, and
+// rebuilt this RegExp on every one of those calls. Safe to share despite the `g`
+// flag because String.replace resets lastIndex -- it is never used with .test/.exec,
+// which is where a shared global regex becomes stateful.
+const NL_RE = new RegExp(NL, "g");
 
 const CONTAINER_KEYWORDS = new Set(["package", "database", "folder"]);
 const LEAF_KEYWORDS: Record<string, PumlNodeKind> = {
@@ -120,7 +136,7 @@ function maskSpans(line: string): string {
 }
 
 function cleanLabel(raw: string): string {
-  return raw.replace(new RegExp(NL, "g"), "\n").replace(/\\n/g, "\n").trim();
+  return raw.replace(NL_RE, "\n").replace(/\\n/g, "\n").trim();
 }
 
 /** A key used to resolve `[Label]` / bare-token edge endpoints to a node id. */
