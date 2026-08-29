@@ -25,6 +25,9 @@
 //                                                          /api/kp/test/seed-work
 //                                                          between activate and nights
 //     "nights": 1,
+//     "tenure": "kp-owner",    ← optional: run against an EXISTING hire
+//                                (tenures/kp-owner.json) instead of hiring one.
+//                                `--tenure` on the command line beats it.
 //     "activateTimeoutMs": 5400000,   ← optional per-scenario timeout overrides
 //     "settleTimeoutMs":   1800000,     (how long a night waits for its
 //                                        dispatched fleet before it reports)
@@ -184,6 +187,15 @@ export function validateScenario(raw, { name = "" } = {}) {
     push("nights must be an integer 0..30 (one tick = one compressed night)");
   }
 
+  // The tenure this scenario runs against by default (c1-exam §1): a name in
+  // `tenures/`, or a path. `--tenure` on the command line beats it. A scenario
+  // that names one is asserting it does NOT want a fresh hire — its `dialog`
+  // block then records the mandate the tenure was hired under rather than one
+  // this run will compose.
+  if (raw.tenure !== undefined && raw.tenure !== null && !isNonEmptyString(raw.tenure)) {
+    push("tenure must be a tenure name or path (a non-empty string) when present");
+  }
+
   // Per-scenario timeout overrides. Both are read by run.mjs and BOTH have to
   // survive validation to reach it — a scenario field the validator drops on
   // the floor is a knob that silently does nothing.
@@ -274,6 +286,7 @@ export function validateScenario(raw, { name = "" } = {}) {
       })),
       nights,
       ...timeouts,
+      ...(isNonEmptyString(raw.tenure) ? { tenure: raw.tenure.trim() } : {}),
       expect: raw.expect ?? {},
     },
   };

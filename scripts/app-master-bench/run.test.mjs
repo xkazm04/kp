@@ -18,7 +18,19 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MAX_BUILD_ATTEMPTS, accountedBy, buildFailureReason, buildWithRetry, dispatchedCount, mergeTickSummaries, settleDispatch } from "./run.mjs";
+import {
+  MAX_BUILD_ATTEMPTS,
+  PREAMBLE_PHASES,
+  TENURE_PHASES,
+  accountedBy,
+  buildFailureReason,
+  buildWithRetry,
+  dispatchedCount,
+  mergeTickSummaries,
+  planPhases,
+  settleDispatch,
+  tenureRecordFrom,
+} from "./run.mjs";
 
 /** A journal that records instead of writing, so a test reads what a run would. */
 const recorder = () => {
@@ -431,4 +443,71 @@ test("an instant double-failure earns exactly one waited-out extra attempt; a re
   });
   assert.equal(c.ok, false);
   assert.equal(waits, 1, "the limit-window wait is spent once per scenario, never looped");
+});
+
+// ─── tenure mode (c1-exam §1) ───────────────────────────────────────────────
+//
+// The bench's unit is a TENURE, not a hire: the preamble (scan → activate) is
+// ~14 calls, most of the wall clock, and it re-tests a closed ring every run —
+// 31 sweeps paid it and left 100+ personas behind. These pin which half of the
+// loop each invocation runs, and that a tenure file records the mandate that
+// was GRANTED rather than the one the dialog asked for.
+
+test("without either flag the loop is exactly what it was", () => {
+  const plan = planPhases();
+  assert.equal(plan.mode, "fresh-hire");
+  assert.deepEqual(plan.skip, [], "no flag skips nothing — the default path is untouched");
+});
+
+test("--tenure skips the whole preamble and nothing else", () => {
+  const plan = planPhases({ tenure: { name: "kp-owner", hiredAgentId: "agt_1", personaId: "p_1" } });
+  assert.equal(plan.mode, "tenure");
+  assert.deepEqual(plan.skip, PREAMBLE_PHASES);
+  for (const phase of TENURE_PHASES) {
+    assert.ok(!plan.skip.includes(phase), `${phase} still runs — the tenure exists to be exercised`);
+  }
+  assert.match(plan.reason, /kp-owner/);
+});
+
+test("--hire-only runs the preamble and stops before the first night", () => {
+  const plan = planPhases({ hireOnly: true });
+  assert.equal(plan.mode, "hire-only");
+  assert.deepEqual(plan.skip, TENURE_PHASES);
+  for (const phase of PREAMBLE_PHASES) assert.ok(!plan.skip.includes(phase), `${phase} is the point of --hire-only`);
+});
+
+test("--hire-only WINS over --tenure: the tenure path is a destination, never a hire to resume", () => {
+  // Anything else would silently re-hire on top of a tenure that already
+  // exists — the exact accident that minted 100+ personas.
+  const plan = planPhases({ tenure: { name: "kp-owner", hiredAgentId: "agt_1" }, hireOnly: true });
+  assert.equal(plan.mode, "hire-only");
+  assert.deepEqual(plan.skip, TENURE_PHASES);
+});
+
+test("the tenure record keeps the GRANTED mandate, and invents nothing", () => {
+  const scenario = { name: "kp-default", repo: { rootPath: "/home/me/kp" }, dialog: { scopeRung: 2, probationDays: 30 } };
+  const record = tenureRecordFrom({
+    scenario,
+    // The composer clamped the rung the dialog asked for; the nights run under
+    // what was granted, so that is what the file records.
+    result: { specHighlights: { scopeRung: 0, probationDays: 14 }, hire: { hiredAgentId: "agt_1", personaId: "p_1", requestId: "req_1" } },
+    at: "2026-08-29T10:00:00.000Z",
+  });
+  assert.deepEqual(record, {
+    repo: "kp",
+    hiredAgentId: "agt_1",
+    personaId: "p_1",
+    requestId: "req_1",
+    hiredAt: "2026-08-29T10:00:00.000Z",
+    rung: 0,
+    probationDays: 14,
+    scenario: "kp-default",
+  });
+
+  // Nothing composed ⇒ the scenario's own asks are the only reading there is.
+  const asked = tenureRecordFrom({ scenario, result: { hire: {} }, at: "x" });
+  assert.equal(asked.rung, 2);
+  assert.equal(asked.probationDays, 30);
+  assert.equal(asked.hiredAgentId, null, "a hire that never stood leaves a null handle, not an empty string");
+  assert.equal(asked.personaId, null);
 });

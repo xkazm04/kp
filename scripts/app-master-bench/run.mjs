@@ -26,6 +26,20 @@
 // aggregates). A phase failure exits non-zero WITH THE PHASE NAMED; a failed
 // expectation is a scenario FAIL with the delta printed, never a stack trace.
 //
+// TENURE MODE (docs/development/app-master-c1-exam.md §1). The unit of the
+// bench is a TENURE, not a hire:
+//
+//   run.mjs --scenario kp-default --hire-only          → run the PREAMBLE once,
+//                                                        write tenures/kp-owner.json, stop
+//   run.mjs --scenario kp-c1-night --tenure kp-owner   → skip the preamble, run
+//                                                        seed/nights/probation on those handles
+//
+// With neither flag the loop is exactly what it was. The preamble is ~14 calls
+// and most of the wall clock and it re-tests the intake — a closed ring — every
+// run; paying it once per repo is what it costs in real life, and it is what
+// makes longevity (P3) testable at all: memory accumulates per persona across
+// nights, and a persona that lives one run accumulates nothing.
+//
 // TWO PAIRINGS, ON PURPOSE. kp pairs with Personas to hire (its pk_ key is
 // stored encrypted and never leaves the server — the driver cannot read it).
 // The driver pairs SEPARATELY for its own `personas:test` key, because the test
@@ -51,6 +65,14 @@ import {
 } from "./lib.mjs";
 import { dialogAnswers, listScenarioFiles, loadScenarioFile, resolveScenarioPath } from "./scenarios.mjs";
 import {
+  LIVE_AGENT_STATUSES,
+  loadTenureFile,
+  resolveTenurePath,
+  tenureNameFor,
+  tenureRepoLabel,
+  writeTenureFile,
+} from "./tenures.mjs";
+import {
   evaluateExpectations,
   extractBackboneReading,
   mergeReadings,
@@ -72,6 +94,69 @@ function findFirst(node, key, guard = { n: 0 }) {
     if (hit !== undefined) return hit;
   }
   return undefined;
+}
+
+// ─── tenure mode: which phases run at all ───────────────────────────────────
+//
+// The preamble HIRES; everything after it exercises the holder. A tenure run
+// has the hire already and skips the first half; `--hire-only` wants the hire
+// and skips the second. Kept as a pure decision so the branch is provable
+// without a server (run.test.mjs), the way `settleDispatch` is.
+
+/** scan → activate: the one-time cost of hiring, per repo. */
+export const PREAMBLE_PHASES = ["scan", "intake", "dialog", "compose", "dispatch", "activate"];
+/** Everything that exercises an existing holder. */
+export const TENURE_PHASES = ["seed", "nights", "probation"];
+
+/**
+ * Which phases this invocation skips, and why.
+ *
+ * `--hire-only` WINS over `--tenure`: with both, the tenure path is the
+ * DESTINATION the fresh hire is written to, never a hire to resume. Anything
+ * else would silently re-hire on top of a tenure that already exists.
+ */
+export function planPhases({ tenure = null, hireOnly = false } = {}) {
+  if (hireOnly) {
+    return {
+      mode: "hire-only",
+      skip: [...TENURE_PHASES],
+      reason: "--hire-only stops after the hire: the preamble runs once and writes the tenure file",
+    };
+  }
+  if (tenure) {
+    return {
+      mode: "tenure",
+      skip: [...PREAMBLE_PHASES],
+      reason: `--tenure ${tenure.name || tenure.hiredAgentId}: the hire already exists, so the preamble is not re-run`,
+    };
+  }
+  return { mode: "fresh-hire", skip: [], reason: "no tenure and no --hire-only: the full loop, hire included" };
+}
+
+/**
+ * The tenure record a completed preamble produces. Reads the COMPOSED spec
+ * first and the scenario's dialog second: the composer clamps a rung and a
+ * probation window the dialog only asked for, and a tenure file that recorded
+ * the request rather than the grant would misdescribe the mandate the nights run
+ * under. A field neither side carries stays null.
+ */
+export function tenureRecordFrom({ scenario, result, at = new Date().toISOString() }) {
+  const highlights = result?.specHighlights ?? {};
+  const rung = Number.isInteger(highlights.scopeRung) ? highlights.scopeRung : (scenario?.dialog?.scopeRung ?? null);
+  const probationDays = Number.isInteger(highlights.probationDays)
+    ? highlights.probationDays
+    : (scenario?.dialog?.probationDays ?? null);
+  return {
+    repo: tenureRepoLabel(scenario),
+    hiredAgentId: result?.hire?.hiredAgentId ?? null,
+    personaId: result?.hire?.personaId ?? null,
+    requestId: result?.hire?.requestId ?? null,
+    hiredAt: at,
+    rung,
+    probationDays,
+    scenario: scenario?.name ?? null,
+    ...(result?.hire?.personaName ? { personaName: result.hire.personaName } : {}),
+  };
 }
 
 // ─── the night: overnight → settle → report ─────────────────────────────────
@@ -600,11 +685,20 @@ async function runScenario(scenario, opts) {
     return true;
   };
 
+  // What this invocation is: a fresh hire, a run against an existing tenure, or
+  // a preamble whose only product is the tenure file (c1-exam §1).
+  const tenure = opts.tenure ?? null;
+  const plan = planPhases({ tenure, hireOnly: !!opts.hireOnly });
+
   const result = {
     schemaVersion: 1,
     scenario: { ...scenario, file: scenario.file ?? null },
     runDir,
     startedAt,
+    runMode: plan.mode,
+    tenure: tenure ? { ...tenure } : null,
+    tenureWritten: null,
+    skippedPhases: [],
     finishedAt: null,
     wallMs: null,
     mode: scenario.mode,
@@ -630,7 +724,30 @@ async function runScenario(scenario, opts) {
     failedPhase: null,
   };
 
-  journal.write("run-start", { scenario: scenario.name, kp: kp.base, personas: personas.base, mode: scenario.mode });
+  journal.write("run-start", {
+    scenario: scenario.name,
+    kp: kp.base,
+    personas: personas.base,
+    mode: scenario.mode,
+    runMode: plan.mode,
+    ...(tenure ? { tenure: tenure.file ?? tenure.name ?? null } : {}),
+  });
+
+  /** THIS run's row on kp's roster. Declared here rather than beside `activate`
+   *  because a tenure run has no activate — it resolves the same row from a
+   *  handle it was given. Reads `result.hire` at call time, so the order of
+   *  declaration and assignment does not matter. */
+  const rosterRow = async () => {
+    const roster = must("GET /api/agents", await kp.get("/api/agents"));
+    return (roster.agents ?? []).find((a) => a.id === result.hire?.hiredAgentId) ?? null;
+  };
+
+  /** A phase this invocation does not run. Written down — a silently skipped
+   *  phase is how "nothing measured this" stops being visible. */
+  const skipPhase = (name, reason) => {
+    result.skippedPhases.push({ phase: name, reason });
+    journal.write("phase-skipped", { phase: name, reason });
+  };
 
   try {
     // ── preflight ───────────────────────────────────────────────────────────
@@ -704,496 +821,570 @@ async function runScenario(scenario, opts) {
       journal.write("pair-kp", { paired: true, baseUrl: personas.base });
     });
 
-    // ── scan ────────────────────────────────────────────────────────────────
-    const dossier = await phase(result, journal, "scan", async () => {
-      const target = scenario.repo.rootPath ? { rootPath: scenario.repo.rootPath } : { repoUrl: scenario.repo.url };
-      const started = must(
-        "POST /api/repo-scan",
-        await kp.post("/api/repo-scan", target),
-        scenario.repo.rootPath
-          ? `is KP_APP_MASTER_REPO_ROOTS set on the kp host so it admits ${scenario.repo.rootPath}?`
-          : ""
-      );
-      const scanId = started.scanId;
-      journal.write("scan-started", { scanId, target });
-      const row = await poll(
-        async () => {
-          const res = await kp.get(`/api/repo-scan/${scanId}`);
-          const scan = res.json?.scan;
-          return scan && (scan.status === "complete" || scan.status === "failed") ? scan : null;
-        },
-        { maxMs: opts.scanTimeoutMs, everyMs: 3_000, label: `repo scan ${scanId} to finish` }
-      );
-      if (row.status !== "complete") {
-        throw new PhaseError("scan", `the repo scan failed: ${row.error ?? "no reason recorded"}`, { scanId });
-      }
-      result.scan = {
-        scanId,
-        source: row.source,
-        isLocal: row.isLocal,
-        contexts: row.dossier?.size?.contexts ?? null,
-        files: row.dossier?.size?.files ?? null,
-        declaredGates: row.dossier?.declaredGates ?? [],
-      };
-      if (scenario.mode === "keyless" && row.source !== "heuristic") {
-        throw new PhaseError(
-          "scan",
-          `a keyless run must scan by file walk, but the scan reported source "${row.source}" — is KP_OFFLINE=1 set on the kp host?`
-        );
-      }
-      journal.write("scan-complete", result.scan);
-      return { scanId, dossier: row.dossier };
-    });
-
-    // ── intake ──────────────────────────────────────────────────────────────
-    await phase(result, journal, "intake", async () => {
-      const created = must("POST /api/intake", await kp.post("/api/intake", { lang: "en", scanId: dossier.scanId }));
-      if (created.shape !== "app_master") {
-        throw new PhaseError("intake", `the session was stamped shape "${created.shape}" — a scanId should make it app_master`);
-      }
-      result.intakeId = created.id;
-      must(
-        "POST /api/intake/[id]/dossier",
-        await kp.post(`/api/intake/${created.id}/dossier`, { scanId: dossier.scanId, dossier: dossier.dossier })
-      );
-      journal.write("intake-ready", { intakeId: created.id });
-    });
-
-    // ── dialog ──────────────────────────────────────────────────────────────
-    await phase(result, journal, "dialog", async () => {
-      const answers = dialogAnswers(scenario, runTag);
-      for (let i = 0; i < answers.length; i++) {
-        const res = await kp.post(`/api/intake/${result.intakeId}/message`, { message: answers[i] });
-        const body = must(`POST /api/intake/[id]/message (turn ${i + 1})`, res);
-        const turn = { turn: i + 1, answer: answers[i], source: body.source, ms: res.ms, done: !!body.done };
-        result.dialog.push(turn);
-        journal.write("dialog-turn", { ...turn, reply: String(body.reply ?? "").slice(0, 200) });
-        if (scenario.mode === "keyless" && body.source !== "deterministic") {
+    // ── tenure: the hire this run inherits ──────────────────────────────────
+    //
+    // The whole preamble collapses to one question: do these handles still
+    // resolve to a live hire on THIS kp? A tenure file that names a row from
+    // another machine's DB (or a hire that has since been retired) must fail
+    // here, named — not at the first tick, as an unmeasured night.
+    if (plan.mode === "tenure") {
+      for (const name of PREAMBLE_PHASES) skipPhase(name, plan.reason);
+      await phase(result, journal, "tenure", async () => {
+        result.hire = {
+          hiredAgentId: tenure.hiredAgentId,
+          requestId: tenure.requestId ?? null,
+          personaId: tenure.personaId,
+          personaName: tenure.personaName ?? null,
+          status: null,
+          fromTenure: tenure.file ?? tenure.name ?? null,
+          hiredAt: tenure.hiredAt ?? null,
+          buildAttempts: 0,
+          buildFailures: [],
+        };
+        const row = await rosterRow();
+        if (!row) {
           throw new PhaseError(
-            "dialog",
-            `turn ${i + 1} was answered by source "${body.source}" — a keyless run must run the deterministic slot script (KP_OFFLINE=1 on the kp host)`
+            "tenure",
+            `the tenure names hired agent ${tenure.hiredAgentId}, which is not on kp's roster at ${kp.base} — wrong KP_DB_PATH, or the tenure was written against another install`,
+            { hiredAgentId: tenure.hiredAgentId }
           );
         }
-      }
-    });
-
-    // ── compose ─────────────────────────────────────────────────────────────
-    await phase(result, journal, "compose", async () => {
-      const body = must(
-        "POST /api/intake/[id]/compose-app-master",
-        await kp.post(`/api/intake/${result.intakeId}/compose-app-master`)
-      );
-      result.spec = body.spec;
-      result.populationFit = body.fit ?? null;
-      result.specHighlights = {
-        title: body.spec?.role?.title ?? null,
-        population: body.spec?.role?.population ?? null,
-        scopeRung: body.spec?.mandate?.scopeRung ?? null,
-        forbiddenClasses: body.spec?.mandate?.forbiddenClasses?.length ?? null,
-        approvalGates: body.spec?.mandate?.approvalGates?.length ?? null,
-        budgetUsd: body.spec?.budget?.monthlyUsd ?? null,
-        probationDays: body.spec?.tenure?.probationDays ?? null,
-        objectives: (body.spec?.objectives ?? []).map((o) => o.kpiKey),
-        coercionNotes: body.spec?.coercionNotes ?? [],
-      };
-      journal.write("composed", result.specHighlights);
-    });
-
-    // ── dispatch ────────────────────────────────────────────────────────────
-    //
-    // Callable more than once: a build that dies in Personas is re-dispatched
-    // against the SAME intake and the same composed spec (see MAX_BUILD_ATTEMPTS).
-    const buildFailures = [];
-    const dispatchHire = async (attempt) => {
-      let res = await kp.post("/api/agents/dispatch", { intakeId: result.intakeId });
-      // kp's OWN bridge key expires too (24h, headless auto-pair), and it
-      // surfaces here as a 502 whose code is AGENT_BRIDGE_KEY_INVALID. Re-pair
-      // kp and retry ONCE: a dead credential must not read as a failed hire.
-      if (!res.ok && readsAsBridgeKeyFailure(res) && (await repairKpKey("POST /api/agents/dispatch", res))) {
-        res = await kp.post("/api/agents/dispatch", { intakeId: result.intakeId });
-      }
-      const body = must("POST /api/agents/dispatch", res);
-      // A RE-dispatch has to mint a SECOND hire, never hand the dead one back.
-      // kp's one-live-agent-per-intake read (`getActiveHiredAgentForIntake`)
-      // counts only `dispatched|pending_approval|onboarding|active`, so the
-      // `failed` row the refresh poll just wrote is already out of the way —
-      // which is why this retry needs no kp-side change. `existing: true` here
-      // would mean kp still counts a dead build as live, and a "retry" against
-      // it would measure nothing; it is refused out loud rather than papered over.
-      if (attempt > 1 && body.existing) {
-        throw new PhaseError(
-          "activate",
-          `re-dispatch after a failed build returned the EXISTING hire ${body.hiredAgentId} (status \`${body.status}\`) — kp still counts that build live, so this scenario cannot be retried`,
-          { hiredAgentId: body.hiredAgentId, status: body.status }
-        );
-      }
-      result.hire = {
-        hiredAgentId: body.hiredAgentId,
-        requestId: body.requestId,
-        status: body.status,
-        buildAttempts: attempt,
-        buildFailures,
-      };
-      journal.write("dispatched", { ...result.hire, buildFailures: buildFailures.length });
-      return result.hire;
-    };
-    await phase(result, journal, "dispatch", () => dispatchHire(1));
-
-    // ── activate ────────────────────────────────────────────────────────────
-    const rosterRow = async () => {
-      const roster = must("GET /api/agents", await kp.get("/api/agents"));
-      return (roster.agents ?? []).find((a) => a.id === result.hire.hiredAgentId) ?? null;
-    };
-    /** ONE build's wait. Resolves active/terminal; a timeout throws (orphan). */
-    const attemptActivate = async () => {
-      const seen = [];
-      let terminal = null;
-      const row = await poll(
-        async () => {
-          const res = await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`);
-          // The pull fallback answers 200 with `refreshed:false` when the poll
-          // itself failed — including when Personas rejected kp's key. Repair
-          // and let the next tick re-read rather than waiting out the timeout
-          // against a credential that will never work.
-          if (res.json?.refreshed === false && readsAsBridgeKeyFailure(res)) {
-            await repairKpKey("POST /api/agents/[id]/refresh", res);
-            return null;
-          }
-          const status = res.json?.agent?.status ?? null;
-          if (status && seen[seen.length - 1] !== status) seen.push(status);
-          // A terminal non-active status is an ANSWER, not something to wait
-          // out — a held/failed build now maps to `failed` on the wire. Returned
-          // rather than thrown: `poll` swallows a thrown predicate error and
-          // would keep waiting for the full timeout, which would then be
-          // reported as an orphaned build that is in fact already dead.
-          if (status === "failed" || status === "rejected" || status === "retired") {
-            terminal = status;
-            return { terminal: status };
-          }
-          return status === "active" ? res.json.agent : null;
-        },
-        { maxMs: scenario.activateTimeoutMs ?? opts.activateTimeoutMs, everyMs: 3_000, label: "the hire to reach `active` in Personas (headless mode auto-approves)" }
-      ).catch((error) => {
-        // A TIMED-OUT activate leaves the dispatched build session RUNNING on
-        // the Personas side: the request was accepted, the one-shot Claude Code
-        // build is under way, and there is no cancel endpoint on the bridge to
-        // stop it. The driver cannot clean it up, so it names what it left
-        // behind — the next sweep's operator needs to know which request is
-        // still burning a session and may yet push a report.
-        journal.write("orphan-build", {
-          requestId: result.hire.requestId ?? null,
-          hiredAgentId: result.hire.hiredAgentId,
-          personaId: result.hire.personaId ?? null,
-          lastStatus: seen[seen.length - 1] ?? null,
-          ladder: seen,
-          waitedMs: scenario.activateTimeoutMs ?? opts.activateTimeoutMs,
-          note: "activate timed out; the Personas build session for this request is still running and nothing cancels it (the bridge has no cancel endpoint). It may still reach `active` and push a report after this run ends.",
+        if (!LIVE_AGENT_STATUSES.includes(row.status)) {
+          throw new PhaseError(
+            "tenure",
+            `the tenure's hire reads status \`${row.status}\` on kp's roster — a finished hire has no nights left to run. Hire a new tenure (--hire-only) rather than ticking a dead one.`,
+            { hiredAgentId: tenure.hiredAgentId, status: row.status }
+          );
+        }
+        result.hire.status = row.status;
+        result.hire.personaName = row.personaName ?? result.hire.personaName;
+        // Personas is the side that owns the persona id; a tenure file whose id
+        // no longer matches the roster row is a handle that drifted, and the
+        // ticks would be scoped to the wrong project. Report it, do not "fix" it.
+        if (row.personaId && tenure.personaId && row.personaId !== tenure.personaId) {
+          result.warnings.push(
+            `tenure drift: the tenure file says personaId ${tenure.personaId}, kp's roster row says ${row.personaId} — the ticks below are scoped to the FILE's id, which is what the last run's nights used.`
+          );
+        }
+        journal.write("tenure-resumed", {
+          file: tenure.file ?? null,
+          hiredAgentId: tenure.hiredAgentId,
+          personaId: tenure.personaId,
+          status: row.status,
+          rung: tenure.rung ?? null,
+          hiredAt: tenure.hiredAt ?? null,
         });
-        result.warnings.push(
-          `orphan build: request ${result.hire.requestId ?? "?"} was still building when activate timed out — it is left running (no cancel endpoint) and may push a report after this run.`
-        );
-        throw error;
       });
-      if (terminal) {
-        return {
-          ok: false,
-          terminal,
-          ladder: seen,
-          requestId: result.hire.requestId ?? null,
-          hiredAgentId: result.hire.hiredAgentId,
+    } else {
+
+      // ── scan ───────────────────────────────────────────────────────────────
+      const dossier = await phase(result, journal, "scan", async () => {
+        const target = scenario.repo.rootPath ? { rootPath: scenario.repo.rootPath } : { repoUrl: scenario.repo.url };
+        const started = must(
+          "POST /api/repo-scan",
+          await kp.post("/api/repo-scan", target),
+          scenario.repo.rootPath
+            ? `is KP_APP_MASTER_REPO_ROOTS set on the kp host so it admits ${scenario.repo.rootPath}?`
+            : ""
+        );
+        const scanId = started.scanId;
+        journal.write("scan-started", { scanId, target });
+        const row = await poll(
+          async () => {
+            const res = await kp.get(`/api/repo-scan/${scanId}`);
+            const scan = res.json?.scan;
+            return scan && (scan.status === "complete" || scan.status === "failed") ? scan : null;
+          },
+          { maxMs: opts.scanTimeoutMs, everyMs: 3_000, label: `repo scan ${scanId} to finish` }
+        );
+        if (row.status !== "complete") {
+          throw new PhaseError("scan", `the repo scan failed: ${row.error ?? "no reason recorded"}`, { scanId });
+        }
+        result.scan = {
+          scanId,
+          source: row.source,
+          isLocal: row.isLocal,
+          contexts: row.dossier?.size?.contexts ?? null,
+          files: row.dossier?.size?.files ?? null,
+          declaredGates: row.dossier?.declaredGates ?? [],
         };
-      }
-      return { ok: true, row, ladder: seen };
-    };
-    await phase(result, journal, "activate", async () => {
-      const build = await buildWithRetry({
-        activate: attemptActivate,
-        dispatch: dispatchHire,
-        journal,
-        failures: buildFailures,
-        // Personas' own reading of what killed the build, when it has one. A
-        // refused or silent status read is NOT a reason — it stays null.
-        reasonFor: async (requestId) => {
-          if (!requestId) return null;
-          const res = await personas.get(`/api/kp/persona-requests/${encodeURIComponent(requestId)}`).catch(() => null);
-          return res?.ok ? buildFailureReason(res.json) : null;
-        },
-      });
-      result.hire.buildAttempts = build.attempts;
-      if (build.failures.length > 0) {
-        // A flaky build is a FINDING about Personas, not a detail to swallow:
-        // it rides the run's warnings even when the retry succeeded.
-        result.warnings.push(
-          `build reliability: ${build.failures.length} of ${build.attempts} build(s) for this hire ended \`failed\` in Personas — ${build.failures
-            .map((f) => `attempt ${f.attempt} (${f.requestId ?? "no request id"}): ${f.reason ?? "no reason reported"}`)
-            .join("; ")}`
-        );
-      }
-      if (!build.ok) {
-        throw new PhaseError(
-          "activate",
-          `the hire reached terminal status \`${build.terminal}\` (ladder: ${build.ladder.join(" → ")}) on build attempt ${build.attempts} of ${MAX_BUILD_ATTEMPTS}`
-        );
-      }
-      result.hire.statusLadder = build.ladder;
-      result.hire.personaId = build.row.personaId ?? null;
-      result.hire.personaName = build.row.personaName ?? null;
-      journal.write("activated", {
-        ladder: build.ladder,
-        personaId: result.hire.personaId,
-        buildAttempts: build.attempts,
-        buildFailures: build.failures.length,
-      });
-    });
-
-    // ── seed ────────────────────────────────────────────────────────────────
-    // Between activate and nights, and in that order for a reason: the seed
-    // targets the project the HIRE bound, which does not exist until the hire
-    // is active, and the work has to be on the backlog before the first tick's
-    // triage pass reads it.
-    //
-    // A scenario with no `seeds` skips the phase and SAYS SO in `unmeasured`:
-    // sweeps #11 and #12 dispatched zero for exactly this reason, and a silent
-    // skip is how that stayed invisible for two sweeps.
-    await phase(result, journal, "seed", async () => {
-      const seeds = scenario.seeds ?? [];
-      if (seeds.length === 0) {
-        result.seed = { requested: 0, seeded: 0, skipped: 0, reason: "the scenario declares no seeds" };
-        result.unmeasured.push(
-          "seed: the scenario declares no `seeds`, so the night has no backlog work — every delivery-side backbone field will read null"
-        );
-        journal.write("seed-skipped", { reason: "no seeds in the scenario" });
-        return;
-      }
-
-      const res = await personas.post("/api/kp/test/seed-work", {
-        personaId: result.hire.personaId,
-        // The run stamp rides in the DEDUP KEY (server-side salt), not only in
-        // the title: the ideas normalizer strips bracketed stamps, so titles
-        // alone deduped a later run's seeds to nothing (sweep #18).
-        dedupeSalt: stamp,
-        // Run-unique titles: the ideas store dedupes by normalized title and
-        // never re-offers an already-triaged idea, so the same seed on the same
-        // project dispatches exactly once EVER. Sweep #16 (2026-08-25) seeded
-        // 0/4 because sweep #15 had written the identical four. The stamp keeps
-        // every run's seeds — and the branches named after them — its own.
-        items: seeds.map(({ title, description, acceptance, trap }) => ({
-          title: `${title} [bench ${stamp}]`,
-          ...(description ? { description } : {}),
-          ...(acceptance ? { acceptance } : {}),
-          ...(trap ? { trap } : {}),
-        })),
+        if (scenario.mode === "keyless" && row.source !== "heuristic") {
+          throw new PhaseError(
+            "scan",
+            `a keyless run must scan by file walk, but the scan reported source "${row.source}" — is KP_OFFLINE=1 set on the kp host?`
+          );
+        }
+        journal.write("scan-complete", result.scan);
+        return { scanId, dossier: row.dossier };
       });
 
-      if (res.status === 404) {
-        // 404 on this route means the ROUTE is absent, not the project: the
-        // headless bridge adds `/api/kp/test/*` only while the mode is on, and
-        // preflight already proved the mode IS on. So an older Personas is the
-        // reading — name it rather than letting the run limp to a zero-dispatch
-        // night the scorecard would blame on the agent.
-        throw new PhaseError(
-          "seed",
-          `POST /api/kp/test/seed-work answered 404. Preflight confirmed headlessBridge:true, so the route itself is missing — this Personas build predates the seed endpoint (personas §13.9 of docs/architecture/cloud-integration-bridge.md, commit "feat(kp-bridge): headless seed-work endpoint"). Update and restart personas-desktop, or run with --stub-personas. Body: ${res.text.slice(0, 200)}`,
-          { status: 404, body: res.json }
+      // ── intake ─────────────────────────────────────────────────────────────
+      await phase(result, journal, "intake", async () => {
+        const created = must("POST /api/intake", await kp.post("/api/intake", { lang: "en", scanId: dossier.scanId }));
+        if (created.shape !== "app_master") {
+          throw new PhaseError("intake", `the session was stamped shape "${created.shape}" — a scanId should make it app_master`);
+        }
+        result.intakeId = created.id;
+        must(
+          "POST /api/intake/[id]/dossier",
+          await kp.post(`/api/intake/${created.id}/dossier`, { scanId: dossier.scanId, dossier: dossier.dossier })
         );
-      }
-      const envelope = must("POST /api/kp/test/seed-work", res);
-      const body = envelope.data ?? envelope;
-      const seedOutcome = body.seed ?? body;
+        journal.write("intake-ready", { intakeId: created.id });
+      });
 
-      result.seed = {
-        requested: seeds.length,
-        projectId: seedOutcome.projectId ?? null,
-        seeded: seedOutcome.seeded ?? null,
-        skipped: seedOutcome.skipped ?? null,
-        triageRule: seedOutcome.triageRule ?? null,
-        notes: seedOutcome.notes ?? [],
-        acceptanceStored: body.acceptanceStored ?? null,
-        // The seed→idea mapping the scorecard attributes proposal branches with.
-        items: seedOutcome.items ?? [],
-        response: body,
+      // ── dialog ─────────────────────────────────────────────────────────────
+      await phase(result, journal, "dialog", async () => {
+        const answers = dialogAnswers(scenario, runTag);
+        for (let i = 0; i < answers.length; i++) {
+          const res = await kp.post(`/api/intake/${result.intakeId}/message`, { message: answers[i] });
+          const body = must(`POST /api/intake/[id]/message (turn ${i + 1})`, res);
+          const turn = { turn: i + 1, answer: answers[i], source: body.source, ms: res.ms, done: !!body.done };
+          result.dialog.push(turn);
+          journal.write("dialog-turn", { ...turn, reply: String(body.reply ?? "").slice(0, 200) });
+          if (scenario.mode === "keyless" && body.source !== "deterministic") {
+            throw new PhaseError(
+              "dialog",
+              `turn ${i + 1} was answered by source "${body.source}" — a keyless run must run the deterministic slot script (KP_OFFLINE=1 on the kp host)`
+            );
+          }
+        }
+      });
+
+      // ── compose ────────────────────────────────────────────────────────────
+      await phase(result, journal, "compose", async () => {
+        const body = must(
+          "POST /api/intake/[id]/compose-app-master",
+          await kp.post(`/api/intake/${result.intakeId}/compose-app-master`)
+        );
+        result.spec = body.spec;
+        result.populationFit = body.fit ?? null;
+        result.specHighlights = {
+          title: body.spec?.role?.title ?? null,
+          population: body.spec?.role?.population ?? null,
+          scopeRung: body.spec?.mandate?.scopeRung ?? null,
+          forbiddenClasses: body.spec?.mandate?.forbiddenClasses?.length ?? null,
+          approvalGates: body.spec?.mandate?.approvalGates?.length ?? null,
+          budgetUsd: body.spec?.budget?.monthlyUsd ?? null,
+          probationDays: body.spec?.tenure?.probationDays ?? null,
+          objectives: (body.spec?.objectives ?? []).map((o) => o.kpiKey),
+          coercionNotes: body.spec?.coercionNotes ?? [],
+        };
+        journal.write("composed", result.specHighlights);
+      });
+
+      // ── dispatch ───────────────────────────────────────────────────────────
+      //
+      // Callable more than once: a build that dies in Personas is re-dispatched
+      // against the SAME intake and the same composed spec (see MAX_BUILD_ATTEMPTS).
+      const buildFailures = [];
+      const dispatchHire = async (attempt) => {
+        let res = await kp.post("/api/agents/dispatch", { intakeId: result.intakeId });
+        // kp's OWN bridge key expires too (24h, headless auto-pair), and it
+        // surfaces here as a 502 whose code is AGENT_BRIDGE_KEY_INVALID. Re-pair
+        // kp and retry ONCE: a dead credential must not read as a failed hire.
+        if (!res.ok && readsAsBridgeKeyFailure(res) && (await repairKpKey("POST /api/agents/dispatch", res))) {
+          res = await kp.post("/api/agents/dispatch", { intakeId: result.intakeId });
+        }
+        const body = must("POST /api/agents/dispatch", res);
+        // A RE-dispatch has to mint a SECOND hire, never hand the dead one back.
+        // kp's one-live-agent-per-intake read (`getActiveHiredAgentForIntake`)
+        // counts only `dispatched|pending_approval|onboarding|active`, so the
+        // `failed` row the refresh poll just wrote is already out of the way —
+        // which is why this retry needs no kp-side change. `existing: true` here
+        // would mean kp still counts a dead build as live, and a "retry" against
+        // it would measure nothing; it is refused out loud rather than papered over.
+        if (attempt > 1 && body.existing) {
+          throw new PhaseError(
+            "activate",
+            `re-dispatch after a failed build returned the EXISTING hire ${body.hiredAgentId} (status \`${body.status}\`) — kp still counts that build live, so this scenario cannot be retried`,
+            { hiredAgentId: body.hiredAgentId, status: body.status }
+          );
+        }
+        result.hire = {
+          hiredAgentId: body.hiredAgentId,
+          requestId: body.requestId,
+          status: body.status,
+          buildAttempts: attempt,
+          buildFailures,
+        };
+        journal.write("dispatched", { ...result.hire, buildFailures: buildFailures.length });
+        return result.hire;
       };
-      journal.write("seeded", {
-        requested: seeds.length,
-        seeded: result.seed.seeded,
-        skipped: result.seed.skipped,
-        triageRuleWillAccept: result.seed.triageRule?.willAccept ?? null,
-        notes: result.seed.notes,
-        mapping: (result.seed.items ?? []).map((i) => ({
-          index: i.index,
-          title: i.title,
-          ideaId: i.id ?? null,
-          accepted: i.accepted,
-          trap: i.trap ?? null,
-        })),
-      });
+      await phase(result, journal, "dispatch", () => dispatchHire(1));
 
-      // Personas reports these rather than working around them — so does the
-      // driver. Neither is a phase failure: the night still runs and the
-      // expectations still read what it did.
-      for (const note of result.seed.notes) result.warnings.push(`seed: ${note}`);
-      if (result.seed.triageRule && result.seed.triageRule.willAccept === false) {
-        result.unmeasured.push(
-          "seed: the auto-accept triage rule will not accept these seeds, so tonight's overnight has nothing to dispatch"
-        );
-      }
-      if (result.seed.seeded === 0) {
-        result.unmeasured.push(
-          `seed: all ${seeds.length} item(s) were deduped away — this project already holds them, so tonight's triage pass has no NEW pending work to accept`
-        );
-      }
-    });
-
-    // ── nights ──────────────────────────────────────────────────────────────
-    await phase(result, journal, "nights", async () => {
-      const settleTimeoutMs = scenario.settleTimeoutMs ?? opts.settleTimeoutMs;
-      for (let n = 1; n <= scenario.nights; n++) {
-        const t = Date.now();
-        const tickPhase = async (phases) => {
-          const res = await personas.post("/api/kp/test/tick", { personaId: result.hire.personaId, phases });
+      // ── activate ───────────────────────────────────────────────────────────
+      /** ONE build's wait. Resolves active/terminal; a timeout throws (orphan). */
+      const attemptActivate = async () => {
+        const seen = [];
+        let terminal = null;
+        const row = await poll(
+          async () => {
+            const res = await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`);
+            // The pull fallback answers 200 with `refreshed:false` when the poll
+            // itself failed — including when Personas rejected kp's key. Repair
+            // and let the next tick re-read rather than waiting out the timeout
+            // against a credential that will never work.
+            if (res.json?.refreshed === false && readsAsBridgeKeyFailure(res)) {
+              await repairKpKey("POST /api/agents/[id]/refresh", res);
+              return null;
+            }
+            const status = res.json?.agent?.status ?? null;
+            if (status && seen[seen.length - 1] !== status) seen.push(status);
+            // A terminal non-active status is an ANSWER, not something to wait
+            // out — a held/failed build now maps to `failed` on the wire. Returned
+            // rather than thrown: `poll` swallows a thrown predicate error and
+            // would keep waiting for the full timeout, which would then be
+            // reported as an orphaned build that is in fact already dead.
+            if (status === "failed" || status === "rejected" || status === "retired") {
+              terminal = status;
+              return { terminal: status };
+            }
+            return status === "active" ? res.json.agent : null;
+          },
+          { maxMs: scenario.activateTimeoutMs ?? opts.activateTimeoutMs, everyMs: 3_000, label: "the hire to reach `active` in Personas (headless mode auto-approves)" }
+        ).catch((error) => {
+          // A TIMED-OUT activate leaves the dispatched build session RUNNING on
+          // the Personas side: the request was accepted, the one-shot Claude Code
+          // build is under way, and there is no cancel endpoint on the bridge to
+          // stop it. The driver cannot clean it up, so it names what it left
+          // behind — the next sweep's operator needs to know which request is
+          // still burning a session and may yet push a report.
+          journal.write("orphan-build", {
+            requestId: result.hire.requestId ?? null,
+            hiredAgentId: result.hire.hiredAgentId,
+            personaId: result.hire.personaId ?? null,
+            lastStatus: seen[seen.length - 1] ?? null,
+            ladder: seen,
+            waitedMs: scenario.activateTimeoutMs ?? opts.activateTimeoutMs,
+            note: "activate timed out; the Personas build session for this request is still running and nothing cancels it (the bridge has no cancel endpoint). It may still reach `active` and push a report after this run ends.",
+          });
+          result.warnings.push(
+            `orphan build: request ${result.hire.requestId ?? "?"} was still building when activate timed out — it is left running (no cancel endpoint) and may push a report after this run.`
+          );
+          throw error;
+        });
+        if (terminal) {
           return {
-            ok: res.ok,
-            summary: res.json?.data ?? res.json ?? null,
-            error: res.ok ? null : (res.error ?? `${res.status} ${res.text.slice(0, 200)}`),
-            status: res.status,
+            ok: false,
+            terminal,
+            ladder: seen,
+            requestId: result.hire.requestId ?? null,
+            hiredAgentId: result.hire.hiredAgentId,
           };
-        };
-
-        // (a) dispatch the fleet.
-        const overnight = await tickPhase(["overnight"]);
-        const dispatched = dispatchedCount(overnight.summary);
-        journal.write("night-overnight", {
-          night: n,
-          ok: overnight.ok,
-          dispatched,
-          counts: phaseCounts(overnight.summary, "overnight") ?? null,
-          ...(overnight.error ? { error: overnight.error } : {}),
-        });
-
-        // (b) let the dispatched sessions author their branches, reconciling on
-        //     a poll until the dispatch is accounted for.
-        const settle = await settleDispatch({
-          tickReconcile: () => tickPhase(["reconcile"]),
+        }
+        return { ok: true, row, ladder: seen };
+      };
+      await phase(result, journal, "activate", async () => {
+        const build = await buildWithRetry({
+          activate: attemptActivate,
+          dispatch: dispatchHire,
           journal,
-          night: n,
-          dispatched,
-          pollMs: opts.settlePollMs,
-          timeoutMs: settleTimeoutMs,
-          // A committed proposal, per the roster's tenure-scoped reading (P6o):
-          // push a rollup, read the row, take proposalsOpened.
-          confirmOpened: async () => {
-            await tickPhase(["report"]);
-            const row = await rosterRow();
-            const n = row ? readingFromRoster(row).proposalsOpened : null;
-            return typeof n === "number" ? n : null;
+          failures: buildFailures,
+          // Personas' own reading of what killed the build, when it has one. A
+          // refused or silent status read is NOT a reason — it stays null.
+          reasonFor: async (requestId) => {
+            if (!requestId) return null;
+            const res = await personas.get(`/api/kp/persona-requests/${encodeURIComponent(requestId)}`).catch(() => null);
+            return res?.ok ? buildFailureReason(res.json) : null;
           },
         });
-
-        // (c) only now report: the rollup pushed here is what kp scores.
-        const report = await tickPhase(["report"]);
-
-        const ticks = [overnight, settle.polls.length > 0 ? { ok: true, summary: settle.lastSummary } : null, report];
-        const summary = mergeTickSummaries(ticks.map((x) => x?.summary));
-        const tickOk = overnight.ok && report.ok;
-        const night = {
-          night: n,
-          ms: Date.now() - t,
-          tick: summary,
-          tickOk,
-          settle,
-          reading: {},
-          readingSource: {},
-          backbone: null,
-          appMaster: null,
-        };
-        // DEGRADE HONESTLY: a missing or refusing tick route is recorded as an
-        // unmeasured night, not a driver crash. The expectation checks then
-        // fail on the absence, which is the correct reading.
-        const failures = [
-          ...(overnight.ok ? [] : [`overnight → ${overnight.status || "nothing"}`]),
-          ...(report.ok ? [] : [`report → ${report.status || "nothing"}`]),
-        ];
-        if (failures.length > 0) {
-          night.error = [overnight.error, report.error].filter(Boolean).join(" · ");
-          result.unmeasured.push(`night ${n}: POST /api/kp/test/tick answered ${failures.join(", ")}`);
-        }
-        if (settle.stoppedBy === "timeout" || settle.stoppedBy === "stalled") {
-          result.unmeasured.push(
-            `night ${n}: the settle loop stopped \`${settle.stoppedBy}\` — ${settle.accounted ?? 0} of ${dispatched} dispatched session(s) were accounted for after ${settle.polls.length} reconcile poll(s), so the gate and merge lanes may be reported before the fleet finished`
+        result.hire.buildAttempts = build.attempts;
+        if (build.failures.length > 0) {
+          // A flaky build is a FINDING about Personas, not a detail to swallow:
+          // it rides the run's warnings even when the retry succeeded.
+          result.warnings.push(
+            `build reliability: ${build.failures.length} of ${build.attempts} build(s) for this hire ended \`failed\` in Personas — ${build.failures
+              .map((f) => `attempt ${f.attempt} (${f.requestId ?? "no request id"}): ${f.reason ?? "no reason reported"}`)
+              .join("; ")}`
           );
         }
+        if (!build.ok) {
+          throw new PhaseError(
+            "activate",
+            `the hire reached terminal status \`${build.terminal}\` (ladder: ${build.ladder.join(" → ")}) on build attempt ${build.attempts} of ${MAX_BUILD_ATTEMPTS}`
+          );
+        }
+        result.hire.statusLadder = build.ladder;
+        result.hire.personaId = build.row.personaId ?? null;
+        result.hire.personaName = build.row.personaName ?? null;
+        journal.write("activated", {
+          ladder: build.ladder,
+          personaId: result.hire.personaId,
+          buildAttempts: build.attempts,
+          buildFailures: build.failures.length,
+        });
+      });
 
-        // The push report lands asynchronously; refresh, then read the roster.
-        await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`).catch(() => null);
-        const row = await rosterRow();
-        night.backbone = row?.backbone ?? null;
-        night.appMaster = row?.appMaster ?? null;
-        night.agentStatus = row?.status ?? null;
-        night.kpiDeltas = row?.kpiDeltas ?? null;
-        // The reading is the ROSTER's scored backbone folded over whatever the
-        // tick summary reported inline — see mergeReadings() for which wins.
-        const merged = mergeReadings(tickOk ? extractBackboneReading(summary) : {}, readingFromRoster(row));
-        night.reading = merged.reading;
-        night.readingSource = merged.source;
-        if (typeof row?.aggregates?.costUsd === "number") result.costReportedUsd = row.aggregates.costUsd;
-        if (!night.backbone) result.unmeasured.push(`night ${n}: no backbone was scored — nothing reported one`);
-        result.nights.push(night);
-        journal.write("night", {
-          night: n,
-          ms: night.ms,
-          tickOk,
-          dispatched,
-          settled: { stoppedBy: settle.stoppedBy, polls: settle.polls.length, accounted: settle.accounted, ms: settle.ms },
-          verdict: night.backbone?.verdict ?? null,
-          coverage: night.backbone?.coverage ?? null,
-          reading: night.reading,
-          readingSource: night.readingSource,
+      // ── tenure-write ───────────────────────────────────────────────────────
+      // The preamble's real product on a `--hire-only` run: the handles every
+      // later run resumes from. Written AFTER activate, because a hire with no
+      // personaId is a handle no tick can be scoped by.
+      if (plan.mode === "hire-only") {
+        await phase(result, journal, "tenure-write", async () => {
+          const record = tenureRecordFrom({ scenario, result });
+          writeTenureFile(opts.tenureFile, record);
+          result.tenureWritten = { file: opts.tenureFile, record };
+          journal.write("tenure-written", { file: opts.tenureFile, ...record });
         });
       }
-    });
+    }
 
-    // ── probation ───────────────────────────────────────────────────────────
-    await phase(result, journal, "probation", async () => {
-      const before = await rosterRow();
-      const tick = await personas.post("/api/kp/test/tick", {
-        personaId: result.hire.personaId,
-        phases: ["probation"],
-        // The scenario's probation window is days long and this is its last
-        // phase — force the review DUE now (headless test lever; the decision
-        // policy itself is the production path).
-        forceProbation: true,
+    if (plan.mode === "hire-only") {
+      for (const name of TENURE_PHASES) skipPhase(name, plan.reason);
+      result.unmeasured.push(
+        "--hire-only: no night ran, so nothing about the holder was measured — this run's product is the tenure file"
+      );
+    } else {
+
+      // ── seed ───────────────────────────────────────────────────────────────
+      // Between activate and nights, and in that order for a reason: the seed
+      // targets the project the HIRE bound, which does not exist until the hire
+      // is active, and the work has to be on the backlog before the first tick's
+      // triage pass reads it.
+      //
+      // A scenario with no `seeds` skips the phase and SAYS SO in `unmeasured`:
+      // sweeps #11 and #12 dispatched zero for exactly this reason, and a silent
+      // skip is how that stayed invisible for two sweeps.
+      await phase(result, journal, "seed", async () => {
+        const seeds = scenario.seeds ?? [];
+        if (seeds.length === 0) {
+          result.seed = { requested: 0, seeded: 0, skipped: 0, reason: "the scenario declares no seeds" };
+          result.unmeasured.push(
+            "seed: the scenario declares no `seeds`, so the night has no backlog work — every delivery-side backbone field will read null"
+          );
+          journal.write("seed-skipped", { reason: "no seeds in the scenario" });
+          return;
+        }
+
+        const res = await personas.post("/api/kp/test/seed-work", {
+          personaId: result.hire.personaId,
+          // The run stamp rides in the DEDUP KEY (server-side salt), not only in
+          // the title: the ideas normalizer strips bracketed stamps, so titles
+          // alone deduped a later run's seeds to nothing (sweep #18).
+          dedupeSalt: stamp,
+          // Run-unique titles: the ideas store dedupes by normalized title and
+          // never re-offers an already-triaged idea, so the same seed on the same
+          // project dispatches exactly once EVER. Sweep #16 (2026-08-25) seeded
+          // 0/4 because sweep #15 had written the identical four. The stamp keeps
+          // every run's seeds — and the branches named after them — its own.
+          items: seeds.map(({ title, description, acceptance, trap }) => ({
+            title: `${title} [bench ${stamp}]`,
+            ...(description ? { description } : {}),
+            ...(acceptance ? { acceptance } : {}),
+            ...(trap ? { trap } : {}),
+          })),
+        });
+
+        if (res.status === 404) {
+          // 404 on this route means the ROUTE is absent, not the project: the
+          // headless bridge adds `/api/kp/test/*` only while the mode is on, and
+          // preflight already proved the mode IS on. So an older Personas is the
+          // reading — name it rather than letting the run limp to a zero-dispatch
+          // night the scorecard would blame on the agent.
+          throw new PhaseError(
+            "seed",
+            `POST /api/kp/test/seed-work answered 404. Preflight confirmed headlessBridge:true, so the route itself is missing — this Personas build predates the seed endpoint (personas §13.9 of docs/architecture/cloud-integration-bridge.md, commit "feat(kp-bridge): headless seed-work endpoint"). Update and restart personas-desktop, or run with --stub-personas. Body: ${res.text.slice(0, 200)}`,
+            { status: 404, body: res.json }
+          );
+        }
+        const envelope = must("POST /api/kp/test/seed-work", res);
+        const body = envelope.data ?? envelope;
+        const seedOutcome = body.seed ?? body;
+
+        result.seed = {
+          requested: seeds.length,
+          projectId: seedOutcome.projectId ?? null,
+          seeded: seedOutcome.seeded ?? null,
+          skipped: seedOutcome.skipped ?? null,
+          triageRule: seedOutcome.triageRule ?? null,
+          notes: seedOutcome.notes ?? [],
+          acceptanceStored: body.acceptanceStored ?? null,
+          // The seed→idea mapping the scorecard attributes proposal branches with.
+          items: seedOutcome.items ?? [],
+          response: body,
+        };
+        journal.write("seeded", {
+          requested: seeds.length,
+          seeded: result.seed.seeded,
+          skipped: result.seed.skipped,
+          triageRuleWillAccept: result.seed.triageRule?.willAccept ?? null,
+          notes: result.seed.notes,
+          mapping: (result.seed.items ?? []).map((i) => ({
+            index: i.index,
+            title: i.title,
+            ideaId: i.id ?? null,
+            accepted: i.accepted,
+            trap: i.trap ?? null,
+          })),
+        });
+
+        // Personas reports these rather than working around them — so does the
+        // driver. Neither is a phase failure: the night still runs and the
+        // expectations still read what it did.
+        for (const note of result.seed.notes) result.warnings.push(`seed: ${note}`);
+        if (result.seed.triageRule && result.seed.triageRule.willAccept === false) {
+          result.unmeasured.push(
+            "seed: the auto-accept triage rule will not accept these seeds, so tonight's overnight has nothing to dispatch"
+          );
+        }
+        if (result.seed.seeded === 0) {
+          result.unmeasured.push(
+            `seed: all ${seeds.length} item(s) were deduped away — this project already holds them, so tonight's triage pass has no NEW pending work to accept`
+          );
+        }
       });
-      const summary = tick.json?.data ?? tick.json ?? null;
-      await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`).catch(() => null);
-      const after = await rosterRow();
-      // Only THIS hire's decision counts: a forced probation used to decide
-      // every undecided mandate in the app, and the generic findFirst read
-      // another project's `retired` as ours (sweeps #18/#21). The tick is now
-      // scoped server-side too; the filter here is the driver's own guarantee.
-      const details = Array.isArray(summary?.phases)
-        ? summary.phases.flatMap((p) => (Array.isArray(p?.details) ? p.details : []))
-        : [];
-      const mine = details.find((d) => d && d.personaId === result.hire.personaId && d.decision);
-      const reported = mine ? mine.decision : undefined;
-      const decision =
-        typeof reported === "string"
-          ? reported
-          : after && after.status !== before?.status
-            ? (STATUS_TO_DECISION[after.status] ?? null)
-            : null;
-      result.probation = {
-        tickOk: tick.ok,
-        tick: summary,
-        ...(tick.ok ? {} : { error: tick.error ?? `${tick.status} ${tick.text.slice(0, 200)}` }),
-        decision,
-        decisionSource: typeof reported === "string" ? "reported" : decision ? "derived-from-status" : "none",
-        statusBefore: before?.status ?? null,
-        statusAfter: after?.status ?? null,
-        backbone: after?.backbone ?? null,
-      };
-      if (!decision) result.unmeasured.push("probation: no decision was reported and the status did not move");
-      journal.write("probation", { decision, source: result.probation.decisionSource, status: after?.status ?? null });
-    });
+
+      // ── nights ─────────────────────────────────────────────────────────────
+      await phase(result, journal, "nights", async () => {
+        const settleTimeoutMs = scenario.settleTimeoutMs ?? opts.settleTimeoutMs;
+        for (let n = 1; n <= scenario.nights; n++) {
+          const t = Date.now();
+          const tickPhase = async (phases) => {
+            const res = await personas.post("/api/kp/test/tick", { personaId: result.hire.personaId, phases });
+            return {
+              ok: res.ok,
+              summary: res.json?.data ?? res.json ?? null,
+              error: res.ok ? null : (res.error ?? `${res.status} ${res.text.slice(0, 200)}`),
+              status: res.status,
+            };
+          };
+
+          // (a) dispatch the fleet.
+          const overnight = await tickPhase(["overnight"]);
+          const dispatched = dispatchedCount(overnight.summary);
+          journal.write("night-overnight", {
+            night: n,
+            ok: overnight.ok,
+            dispatched,
+            counts: phaseCounts(overnight.summary, "overnight") ?? null,
+            ...(overnight.error ? { error: overnight.error } : {}),
+          });
+
+          // (b) let the dispatched sessions author their branches, reconciling on
+          //     a poll until the dispatch is accounted for.
+          const settle = await settleDispatch({
+            tickReconcile: () => tickPhase(["reconcile"]),
+            journal,
+            night: n,
+            dispatched,
+            pollMs: opts.settlePollMs,
+            timeoutMs: settleTimeoutMs,
+            // A committed proposal, per the roster's tenure-scoped reading (P6o):
+            // push a rollup, read the row, take proposalsOpened.
+            confirmOpened: async () => {
+              await tickPhase(["report"]);
+              const row = await rosterRow();
+              const n = row ? readingFromRoster(row).proposalsOpened : null;
+              return typeof n === "number" ? n : null;
+            },
+          });
+
+          // (c) only now report: the rollup pushed here is what kp scores.
+          const report = await tickPhase(["report"]);
+
+          const ticks = [overnight, settle.polls.length > 0 ? { ok: true, summary: settle.lastSummary } : null, report];
+          const summary = mergeTickSummaries(ticks.map((x) => x?.summary));
+          const tickOk = overnight.ok && report.ok;
+          const night = {
+            night: n,
+            ms: Date.now() - t,
+            tick: summary,
+            tickOk,
+            settle,
+            reading: {},
+            readingSource: {},
+            backbone: null,
+            appMaster: null,
+          };
+          // DEGRADE HONESTLY: a missing or refusing tick route is recorded as an
+          // unmeasured night, not a driver crash. The expectation checks then
+          // fail on the absence, which is the correct reading.
+          const failures = [
+            ...(overnight.ok ? [] : [`overnight → ${overnight.status || "nothing"}`]),
+            ...(report.ok ? [] : [`report → ${report.status || "nothing"}`]),
+          ];
+          if (failures.length > 0) {
+            night.error = [overnight.error, report.error].filter(Boolean).join(" · ");
+            result.unmeasured.push(`night ${n}: POST /api/kp/test/tick answered ${failures.join(", ")}`);
+          }
+          if (settle.stoppedBy === "timeout" || settle.stoppedBy === "stalled") {
+            result.unmeasured.push(
+              `night ${n}: the settle loop stopped \`${settle.stoppedBy}\` — ${settle.accounted ?? 0} of ${dispatched} dispatched session(s) were accounted for after ${settle.polls.length} reconcile poll(s), so the gate and merge lanes may be reported before the fleet finished`
+            );
+          }
+
+          // The push report lands asynchronously; refresh, then read the roster.
+          await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`).catch(() => null);
+          const row = await rosterRow();
+          night.backbone = row?.backbone ?? null;
+          night.appMaster = row?.appMaster ?? null;
+          night.agentStatus = row?.status ?? null;
+          night.kpiDeltas = row?.kpiDeltas ?? null;
+          // The reading is the ROSTER's scored backbone folded over whatever the
+          // tick summary reported inline — see mergeReadings() for which wins.
+          const merged = mergeReadings(tickOk ? extractBackboneReading(summary) : {}, readingFromRoster(row));
+          night.reading = merged.reading;
+          night.readingSource = merged.source;
+          if (typeof row?.aggregates?.costUsd === "number") result.costReportedUsd = row.aggregates.costUsd;
+          if (!night.backbone) result.unmeasured.push(`night ${n}: no backbone was scored — nothing reported one`);
+          result.nights.push(night);
+          journal.write("night", {
+            night: n,
+            ms: night.ms,
+            tickOk,
+            dispatched,
+            settled: { stoppedBy: settle.stoppedBy, polls: settle.polls.length, accounted: settle.accounted, ms: settle.ms },
+            verdict: night.backbone?.verdict ?? null,
+            coverage: night.backbone?.coverage ?? null,
+            reading: night.reading,
+            readingSource: night.readingSource,
+          });
+        }
+      });
+
+      // ── probation ──────────────────────────────────────────────────────────
+      await phase(result, journal, "probation", async () => {
+        const before = await rosterRow();
+        const tick = await personas.post("/api/kp/test/tick", {
+          personaId: result.hire.personaId,
+          phases: ["probation"],
+          // The scenario's probation window is days long and this is its last
+          // phase — force the review DUE now (headless test lever; the decision
+          // policy itself is the production path).
+          forceProbation: true,
+        });
+        const summary = tick.json?.data ?? tick.json ?? null;
+        await kp.post(`/api/agents/${result.hire.hiredAgentId}/refresh`).catch(() => null);
+        const after = await rosterRow();
+        // Only THIS hire's decision counts: a forced probation used to decide
+        // every undecided mandate in the app, and the generic findFirst read
+        // another project's `retired` as ours (sweeps #18/#21). The tick is now
+        // scoped server-side too; the filter here is the driver's own guarantee.
+        const details = Array.isArray(summary?.phases)
+          ? summary.phases.flatMap((p) => (Array.isArray(p?.details) ? p.details : []))
+          : [];
+        const mine = details.find((d) => d && d.personaId === result.hire.personaId && d.decision);
+        const reported = mine ? mine.decision : undefined;
+        const decision =
+          typeof reported === "string"
+            ? reported
+            : after && after.status !== before?.status
+              ? (STATUS_TO_DECISION[after.status] ?? null)
+              : null;
+        result.probation = {
+          tickOk: tick.ok,
+          tick: summary,
+          ...(tick.ok ? {} : { error: tick.error ?? `${tick.status} ${tick.text.slice(0, 200)}` }),
+          decision,
+          decisionSource: typeof reported === "string" ? "reported" : decision ? "derived-from-status" : "none",
+          statusBefore: before?.status ?? null,
+          statusAfter: after?.status ?? null,
+          backbone: after?.backbone ?? null,
+        };
+        if (!decision) result.unmeasured.push("probation: no decision was reported and the status did not move");
+        journal.write("probation", { decision, source: result.probation.decisionSource, status: after?.status ?? null });
+      });
+    }
   } catch (error) {
     result.failedPhase = error?.phase ?? "unknown";
     if (!(error instanceof PhaseError)) {
@@ -1204,8 +1395,15 @@ async function runScenario(scenario, opts) {
 
   // ── expectations ──────────────────────────────────────────────────────────
   // Evaluated even after a phase failure: what a broken run DID read is still
-  // the most useful thing in the file.
-  const evaluated = evaluateExpectations(scenario, result);
+  // the most useful thing in the file. NOT evaluated on a `--hire-only` run:
+  // the scenario's expect block is about nights that did not run, and grading
+  // an absence as a failure would make the hire look like a bad one.
+  if (plan.mode === "hire-only") {
+    result.unmeasured.push(
+      `expectations: --hire-only ran no night, so ${Object.keys(scenario.expect ?? {}).length} expectation(s) were not evaluated`
+    );
+  }
+  const evaluated = plan.mode === "hire-only" ? { ok: true, checks: [] } : evaluateExpectations(scenario, result);
   result.expectations = evaluated.checks;
   result.ok = result.failedPhase === null && evaluated.ok;
   result.finishedAt = new Date().toISOString();
@@ -1227,6 +1425,8 @@ async function runScenario(scenario, opts) {
 function printSummary(result) {
   const banner = verdictBanner([
     `${result.scenario.name} ${result.ok ? "PASS" : "FAIL"}`,
+    result.runMode && result.runMode !== "fresh-hire" ? result.runMode : "",
+    result.tenureWritten ? `wrote ${path.basename(result.tenureWritten.file)}` : "",
     result.failedPhase ? `phase ${result.failedPhase} failed` : `${result.phases.length} phases`,
     result.seed?.requested ? `seeded ${result.seed.seeded ?? "?"}/${result.seed.requested}` : "no seeds",
     `${result.nights.length} night(s)`,
@@ -1252,6 +1452,11 @@ async function main() {
         "",
         "  --scenario <name|path>   one scenario (default: kp-default)",
         "  --all                    every scenario in scenarios/, SERIALLY",
+        "  --tenure <name|path>     run against an EXISTING hire (tenures/<name>.json):",
+        "                           skips scan/intake/dialog/compose/dispatch/activate",
+        "  --hire-only              run the preamble ONCE and write the tenure file,",
+        "                           then stop (no seed, no nights, no probation).",
+        "                           With --tenure, that path is the destination.",
         "  --kp <url>               kp base url            (default http://localhost:3101)",
         "  --personas <url>         Personas base url      (default http://127.0.0.1:9420)",
         "  --personas-key pk_…      skip the driver's own pairing",
@@ -1292,6 +1497,35 @@ async function main() {
     if (args.nights !== undefined) s.nights = Number(args.nights);
     return s;
   });
+
+  // ── tenure resolution (c1-exam §1) ────────────────────────────────────────
+  // `--tenure` beats the scenario's own `tenure` field; `--hire-only` turns
+  // whichever one is in force into the DESTINATION of a fresh hire. Resolved
+  // here, before anything is paired, so a bad handle fails in a second rather
+  // than forty minutes in.
+  const hireOnly = !!args["hire-only"];
+  const tenureFlag = typeof args.tenure === "string" ? args.tenure : null;
+  if (hireOnly && tenureFlag && scenarios.length > 1) {
+    throw new Error("--hire-only --tenure <file> names ONE destination; run it for one scenario at a time");
+  }
+  const tenureFor = (scenario) => {
+    const named = tenureFlag ?? (typeof scenario.tenure === "string" ? scenario.tenure : null);
+    const file = resolveTenurePath(named ?? tenureNameFor(scenario));
+    if (hireOnly) {
+      // A second App master on the same repo is a deliberate experiment that
+      // names itself (`kp-owner-b`), never an accident of a re-run — so a
+      // hire-only run refuses to overwrite a tenure that already exists.
+      if (existsSync(file)) {
+        throw new Error(
+          `--hire-only would overwrite ${file}, which already names a live tenure. Retire that one first, or name this experiment: --tenure ${path.basename(file, ".json")}-b`
+        );
+      }
+      return { tenure: null, tenureFile: file };
+    }
+    if (!named) return { tenure: null, tenureFile: null };
+    if (!existsSync(file)) throw new Error(`tenure file not found: ${file} — hire one first with --hire-only`);
+    return { tenure: loadTenureFile(file), tenureFile: file };
+  };
 
   const kpUrl = String(args.kp || process.env.KP_BENCH_URL || "http://localhost:3101");
 
@@ -1357,8 +1591,14 @@ async function main() {
     // subscription seat: two scenarios at once do not halve the wall clock,
     // they collide on the session limit and both degrade. One at a time.
     for (const scenario of scenarios) {
-      process.stderr.write(`\n=== ${scenario.name} (${scenario.mode}, ${scenario.nights} night(s)) ===\n`);
-      const result = await runScenario(scenario, opts);
+      const { tenure, tenureFile } = tenureFor(scenario);
+      const plan = planPhases({ tenure, hireOnly });
+      process.stderr.write(
+        `\n=== ${scenario.name} (${scenario.mode}, ${scenario.nights} night(s), ${plan.mode}${
+          tenureFile ? ` → ${path.basename(tenureFile)}` : ""
+        }) ===\n`
+      );
+      const result = await runScenario(scenario, { ...opts, tenure, tenureFile, hireOnly });
       results.push(result);
       printSummary(result);
     }

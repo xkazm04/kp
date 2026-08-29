@@ -747,7 +747,8 @@ rather than fixture-shaped.
 
 ## Mass-test driver — the loop, N scenarios at a time (P6b)
 
-> **2026-08-29 — the unit of the bench is changing from a HIRE to a TENURE.** The
+> **2026-08-29 — the unit of the bench is now a TENURE, not a hire** (driver side
+> landed; see *Tenure mode* below). The
 > 2026-08 sweeps left 100+ personas behind and produced no C1 reading, for five
 > structural reasons the driver's shape below encodes (a fresh hire per run, a
 > preamble that re-tests a closed ring, no teardown, expectations that measure only
@@ -768,6 +769,7 @@ with the record of each one written down in the same shape.
 ```
 preflight  GET /api/health            ·  GET  /health   (headlessBridge REQUIRED)
 pair       POST /api/agents/pair      ·  POST /pair/request + GET /pair/claim
+           ┄┄ the PREAMBLE below is skipped on a --tenure run ┄┄
 scan       POST /api/repo-scan → poll GET /api/repo-scan/[id]
 intake     POST /api/intake {scanId} → POST /api/intake/[id]/dossier
 dialog     9 × POST /api/intake/[id]/message   (the app_master slot script, IN ORDER)
@@ -775,6 +777,7 @@ compose    POST /api/intake/[id]/compose-app-master
 dispatch   POST /api/agents/dispatch {intakeId}
 activate   POST /api/agents/[id]/refresh until `active`
              …a build that ends `failed` is re-dispatched ONCE (P6h, below)
+           ┄┄ --hire-only writes tenures/<repo>-owner.json here and STOPS ┄┄
 seed       POST /api/kp/test/seed-work {personaId, items} → the scenario's tasks
 nights     N × ( tick {phases:["overnight"]}          → dispatch the fleet
                  SETTLE: tick {phases:["reconcile"]}  → every --settle-poll,
@@ -784,6 +787,55 @@ nights     N × ( tick {phases:["overnight"]}          → dispatch the fleet
                  GET /api/agents                      → record the backbone )
 probation  POST /api/kp/test/tick {phases:["probation"]} → record the decision
 ```
+
+### Tenure mode — hire once, tenure many (c1-exam §1)
+
+The preamble (`scan` → `activate`) is ~14 calls and most of a run's wall clock,
+and it re-tests the *intake* — a closed ring — every single time. Thirty-one
+sweeps paid it, left 100+ personas behind and produced no C1 reading. So the
+unit of the bench is now a **tenure**: one App master per repo, hired once, kept.
+
+```bash
+# once per repo: the whole preamble, then STOP — the product is the handle file
+node scripts/app-master-bench/run.mjs --scenario kp-default --hire-only
+#   → scripts/app-master-bench/tenures/kp-owner.json
+
+# every run after that: straight to seed/nights/probation on those handles
+node scripts/app-master-bench/run.mjs --scenario kp-c1-night --tenure kp-owner
+```
+
+```jsonc
+{ "repo": "kp", "hiredAgentId": "agt_…", "personaId": "p_…", "requestId": "…",
+  "hiredAt": "2026-08-29T…", "rung": 0, "probationDays": 30, "scenario": "kp-default" }
+```
+
+- **`tenures/` is committed empty** (a `.gitkeep`); `tenures/*.json` is
+  **gitignored**. A tenure file is a *handle* — a row in one machine's kp DB and
+  a persona in that machine's Personas — so a committed one points every other
+  checkout at a hire that does not exist there.
+- **The name follows the repo, not the scenario**: `kp-owner`,
+  `personas-owner`, `systedo-case-owner` (§4 — one named tenure per repo). A
+  second App master on the same repo is a deliberate experiment that names
+  itself (`--tenure kp-owner-b`); `--hire-only` **refuses to overwrite** an
+  existing tenure file rather than minting a silent duplicate.
+- **A scenario can name its own tenure** (`"tenure": "kp-owner"`); `--tenure`
+  on the command line beats it. Its `dialog` block then records the mandate the
+  tenure was hired under — nothing re-composes it.
+- **`--hire-only` wins over `--tenure`.** With both, the tenure path is the
+  *destination* of the fresh hire, never a hire to resume: anything else would
+  re-hire on top of a live tenure, which is exactly the accident that minted the
+  100+ personas.
+- **The `tenure` phase is a real check, not a shortcut.** It reads
+  `GET /api/agents` for the handle and fails — naming it — when the row is
+  absent (wrong `KP_DB_PATH`, or a tenure written against another install) or
+  when its status is terminal (`retired`/`rejected`/`failed`: a finished hire has
+  no nights left to run). A `personaId` that no longer matches the roster row is
+  reported as **tenure drift**; the ticks stay scoped to the file's id, which is
+  what the previous nights used.
+- **Skipped phases are written down** — `phase-skipped` in the journal and
+  `result.skippedPhases[]` in the record — and a `--hire-only` run adds two
+  `unmeasured` lines (no night ran; the `expect` block was not evaluated). A
+  hire-only run is therefore not graded on nights it never ran.
 
 ### Launching both sides
 
