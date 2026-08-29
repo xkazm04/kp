@@ -148,7 +148,14 @@
       "expandToFullScreen": "Expand diagram to full screen",
       "expand": "Expand",
       "zoomIn": "Zoom in",
-      "zoomOut": "Zoom out"
+      "zoomOut": "Zoom out",
+      "fit": "Fit",
+      "modalTitleFallback": "Diagram",
+      "modalSubtitle": "Scroll to pan · zoom to adjust",
+      "svgLabelTitled": "Diagram: {title}",
+      "svgLabelUntitled": "Component diagram",
+      "tooLarge": "This diagram is too large to render here.",
+      "renderFailed": "Couldn't render this diagram."
     }
   },
   "meta": {

@@ -433,7 +433,7 @@ export function PlantUml({
   if (tooLarge) {
     return (
       <div role="alert" className={`rounded-lg border border-stone-200 bg-paper p-4 text-sm text-steel ${className}`}>
-        This diagram is too large to render here.
+        {tDiagram("tooLarge")}
       </div>
     );
   }
@@ -444,7 +444,7 @@ export function PlantUml({
   if (ready && result.failed) {
     return (
       <div role="alert" className={`rounded-lg border border-stone-200 bg-paper p-4 text-sm text-steel ${className}`}>
-        Couldn&apos;t render this diagram.
+        {tDiagram("renderFailed")}
       </div>
     );
   }
@@ -537,13 +537,19 @@ function ExpandedDiagram({ layout, onClose }: { layout: PositionedDiagram; onClo
         1:1
       </button>
       <button type="button" onClick={fit} className={textBtn}>
-        Fit
+        {t("fit")}
       </button>
     </div>
   );
 
   return (
-    <Modal title={layout.title ?? "Diagram"} subtitle="Scroll to pan · zoom to adjust" size="full" onClose={onClose} footer={controls}>
+    <Modal
+      title={layout.title ?? t("modalTitleFallback")}
+      subtitle={t("modalSubtitle")}
+      size="full"
+      onClose={onClose}
+      footer={controls}
+    >
       <div ref={viewportRef} className="h-full w-full overflow-auto rounded-md border border-stone-200 bg-paper">
         {/* min-w/h-full + margin:auto on the child centers a small diagram but,
             unlike justify/items-center, keeps the start reachable when it
@@ -576,6 +582,10 @@ function DiagramSvg({
   onNodeClick?: NodeClick;
   activeNodeId?: string;
 }) {
+  // The SVG's accessible name is the diagram's only name for AT, so it resolves
+  // through the catalog like every other string in this file. It was English in all
+  // four locales.
+  const t = useTranslations("diagrams.controls");
   const uid = useId().replace(/:/g, "");
   const markerSolid = `puml-arrow-solid-${uid}`;
   const markerDashed = `puml-arrow-dashed-${uid}`;
@@ -591,7 +601,7 @@ function DiagramSvg({
       // must be a `group`, not `img` — role="img" collapses descendants to one
       // opaque image in many AT, hiding its clickable step buttons.
       role={diagramSvgRole(Boolean(onNodeClick))}
-      aria-label={layout.title ? `Diagram: ${layout.title}` : "Component diagram"}
+      aria-label={layout.title ? t("svgLabelTitled", { title: layout.title }) : t("svgLabelUntitled")}
       preserveAspectRatio="xMidYMid meet"
       className={zoomed ? "m-auto block shrink-0" : "mx-auto block h-auto"}
       width={sizing === "natural" ? W : zoomed ? Math.round(W * zoom) : undefined}

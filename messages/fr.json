@@ -148,7 +148,14 @@
       "expandToFullScreen": "Afficher le diagramme en plein écran",
       "expand": "Agrandir",
       "zoomIn": "Zoom avant",
-      "zoomOut": "Zoom arrière"
+      "zoomOut": "Zoom arrière",
+      "fit": "Ajuster",
+      "modalTitleFallback": "Diagramme",
+      "modalSubtitle": "Défilement pour déplacer · zoom pour ajuster",
+      "svgLabelTitled": "Diagramme : {title}",
+      "svgLabelUntitled": "Diagramme de composants",
+      "tooLarge": "Ce diagramme est trop grand pour être affiché ici.",
+      "renderFailed": "Impossible d'afficher ce diagramme."
     }
   },
   "meta": {

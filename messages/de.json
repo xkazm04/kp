@@ -148,7 +148,14 @@
       "expandToFullScreen": "Diagramm im Vollbild anzeigen",
       "expand": "Vollbild",
       "zoomIn": "Vergrößern",
-      "zoomOut": "Verkleinern"
+      "zoomOut": "Verkleinern",
+      "fit": "Anpassen",
+      "modalTitleFallback": "Diagramm",
+      "modalSubtitle": "Scrollen zum Verschieben · Zoomen zum Anpassen",
+      "svgLabelTitled": "Diagramm: {title}",
+      "svgLabelUntitled": "Komponentendiagramm",
+      "tooLarge": "Dieses Diagramm ist zu groß, um hier dargestellt zu werden.",
+      "renderFailed": "Dieses Diagramm konnte nicht dargestellt werden."
     }
   },
   "meta": {

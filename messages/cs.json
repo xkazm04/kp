@@ -148,7 +148,14 @@
       "expandToFullScreen": "Zobrazit diagram na celou obrazovku",
       "expand": "Zvětšit",
       "zoomIn": "Přiblížit",
-      "zoomOut": "Oddálit"
+      "zoomOut": "Oddálit",
+      "fit": "Přizpůsobit",
+      "modalTitleFallback": "Diagram",
+      "modalSubtitle": "Posouvání kolečkem · přiblížení pro detail",
+      "svgLabelTitled": "Diagram: {title}",
+      "svgLabelUntitled": "Diagram komponent",
+      "tooLarge": "Tento diagram je příliš velký, než aby se zde vykreslil.",
+      "renderFailed": "Diagram se nepodařilo vykreslit."
     }
   },
   "meta": {
