@@ -1,0 +1,119 @@
+---
+product: "kp (CandiDate / KP studio)"
+stack: "self-hostable AI recruiting studio — Next.js 16.3 canary (Cache Components + partialPrefetching) + React 19 + TS + Tailwind 4, better-sqlite3 at data/kp.sqlite, custom HMAC session auth, a per-request-spawned Python jobfit pipeline (pipeline/jobfit), a multi-provider LLM layer that degrades keyless, next-intl across 4 locales"
+vault: ["C:/Users/kazda/Documents/Obsidian/kp"]
+vault_subdir: Explorer
+context_map: context-map.json
+coverage_context_source: ".personas/contexts.txt"
+active_runs_ledger: ""
+---
+
+# explorer overlay — kp
+
+Sits beside `.claude/architect/config.md`, `.claude/perfect/config.md` and
+`.claude/ship-loop/config.md` — same repo law, stated for a **daily wander**.
+`/architect` walks contexts for structure, `/perfect` for product value,
+`/scan-sweep` for defect coverage; **`/explorer` wanders one context and surfaces
+10 concrete, anchored items** that a single session can land.
+
+## Context sources
+
+1. `context-map.json` — 143 contexts / 17 groups; machine authority for area scope
+   and file lists (`filePaths`, `apiRoutes`, `description`). Every tracked
+   `.ts/.tsx/.py/.mjs` file belongs to exactly one context.
+2. `.claude/CLAUDE.md` — the real rules file (root `CLAUDE.md` + `AGENTS.md` are thin
+   pointers to it): architecture overview, conventions, the gate list.
+3. `docs/architecture/decisions/README.md` + the ADRs — a finding that re-litigates a
+   settled decision must cite that record's *What would change our mind* clause or be dropped.
+4. `docs/design/README.md` — required before any UI-shaped finding (dual theme).
+
+**The map and the app disagree — the silent-failure case the skill warns about.**
+`.personas/contexts.txt` holds the app's 285 registered names (pre-rescan slugs);
+`context-map.json` holds 143 names from the 2026-08-21 regranulation; measured overlap
+is **6 of 143**. So: **scope by the map, write memory-outbox `context` values from
+`.personas/contexts.txt` verbatim** (one node per slug actually touched). A map name
+written straight through stores a null context and never counts, without erroring.
+
+## Area menu
+
+The context map's 17 groups, the eight richest in wanderable surface:
+
+1. AI & LLM Infrastructure   (14 contexts — provider layer, prompts, python bridge)
+2. Job & JD Management       (13)
+3. Hiring Pipeline           (10 — board, transitions, automation)
+4. Design System & Shared UI (10 — recipes, primitives, dual theme)
+5. Platform Infrastructure   (10 — db, auth, rate limiting, comms transport)
+6. Developer Assessment      (9 — devcase)
+7. Workspace Shell & Onboarding (9)
+8. Candidate Public Surfaces (8 — tokenized routes, the public wire)
+
+## Category menu
+
+The built-in eight, plus:
+
+- `keyless` — an LLM call site's no-key path: is the fallback real, disclosed, tested?
+  (Degrading keyless is a product property here, not a nicety.)
+- `wire` — what a public `[token]` route projects; anything past the field allowlist.
+
+## Gates
+
+Per item, keyed by what it touched (run only what applies — this is a wander, not a release):
+
+- any `.ts`/`.tsx`: `npm run typecheck` then `npm run lint`
+- `app/**` logic: `npm run test:unit`
+- UI / any styling: `npm run design:check`
+- new or changed message keys: `npm run i18n:check`
+- `pipeline/**`: `npm run test:python`
+- mapped source per `scripts/docs/feature-doc-map.json`: `npm run docs:check`
+
+`npm run typecheck` runs `schemas:gen` (Python) BEFORE tsc — Python and repo deps must be
+installed, and it rewrites `app/_lib/*.generated.ts`. Those files being dirty afterwards is
+the toolchain, not your change.
+
+## Repo law
+
+Authority: `.claude/CLAUDE.md`; `docs/design/README.md` for UI; `node_modules/next/dist/docs/` for Next.
+
+- **This is NOT the Next.js you know** — 16.3 canary with `cacheComponents` + `partialPrefetching`;
+  `runtime`/`dynamic` route configs are banned (ADR 0001).
+- **Pathspec commits only.** Parallel agent sessions share this checkout. `git add <path> <path>`,
+  never `-A`/`.`/`-u`; never `git stash`, `reset --hard`, or worktree-touching `restore`/`checkout --`
+  on foreign work. Verify `git diff --cached --stat` before every commit and unstage strangers.
+- **4-locale parity.** A key added to `messages/en.json` lands in `cs`/`de`/`fr` in the same change;
+  next-intl keys are typed, so an incomplete catalog breaks `typecheck` for everyone. An item adding
+  more than a handful of keys is a session of its own — defer it.
+- **Design tokens.** No raw hex/rgba outside `app/landing/`; brand tokens first, then theme-remapped
+  neutrals; compose from `app/_components/ui/recipes.ts`; both themes verified.
+- **Never `await` inside a `db.transaction()`** — better-sqlite3 transactions are synchronous.
+  A read→compute→write either takes `.immediate()` or re-asserts its precondition in the UPDATE's
+  `WHERE` plus a `res.changes === 0` skip (`actOnPipelineEntry` is the canonical shape).
+- **Rate-limit contract tests pin limiter call sites** (`app/api/rate-limit-contract.test.ts`).
+- **Tenancy manifest is fail-closed** (`app/_lib/tenancy.ts`), each table proven by a colocated
+  `*-tenancy.test.ts`.
+- **Candidate token routes carry a projection, not the row** (`publicInviteView`).
+- **`maxDuration` is serverless-only** — self-hosted `next start` does not kill long handlers.
+- **Doc-sync in the same change.** A Stop hook runs `scripts/docs/check-doc-sync.mjs`; mapped source
+  changed without a doc touch exits 2 — update the doc, or reply once why none is needed.
+
+## Baseline exclusions
+
+- `app/_lib/schemas.generated.ts`, `app/_lib/taxonomy.generated.ts` — rewritten by `schemas:gen` on
+  every `typecheck`; never a finding. The dirt is CRLF churn (the Python generator writes CRLF, the
+  committed files are LF); when one legitimately changes, `sed -i 's/\r$//'` before staging and the
+  diff collapses to the real line.
+- `app/landing/` — a fixed art direction, exempt from the token rule by design.
+- `docs/_archive/` — superseded, not drift.
+- The Vibeman `backlog:idea-*` inventory — already-triaged ideas, not explorer findings.
+- Bulk string extraction and bulk token migration — fix-as-you-touch, never a standalone item.
+
+## Smoke
+
+`npm run dev` and read dev-guard's "already running" banner for the live port — the port is volatile
+on this box, do not assume `:3000`. Verify UI in BOTH themes (appearance control on the sidebar rail)
+and at least one non-`en` locale. Without a browser: `curl` the touched route (add
+`-H "Cookie: NEXT_LOCALE=cs"` for locale checks) and grep for the surface's markers, then say plainly
+which half stayed unverified.
+
+## Skill improvement log
+
+_(dated one-liners; repo-specific learnings from `/explorer` runs land here)_
