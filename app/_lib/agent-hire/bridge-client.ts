@@ -1,4 +1,4 @@
-import { markBridgeOk, resolveBridge } from "./bridge-store";
+import { markBridgeOk, resolveBridge, type ResolvedBridge } from "./bridge-store";
 
 // Personas bridge client (WP1) — server-side fetch helpers, NEVER from the
 // browser: the pk_ key rides every call as a bearer header.
@@ -51,6 +51,35 @@ function upstreamFailure(status: number): BridgeFailure {
     return { ok: false, status, code: AGENT_BRIDGE_KEY_INVALID, error: BRIDGE_KEY_INVALID_MESSAGE };
   }
   return { ok: false, status, error: `Personas responded ${status}.` };
+}
+
+/** The stored pk_ key is held encrypted at rest, so `resolveBridge()` THROWS
+ *  when it cannot be read back — KP_SECRET unset or rotated since pairing, or a
+ *  corrupt ciphertext. Every helper below therefore resolves through here, for
+ *  two reasons:
+ *
+ *   1. The module contract at the top of this file — "every helper returns a
+ *      structured result and NEVER throws to the route" — was only true of the
+ *      fetch. `resolveBridge()` sat OUTSIDE the try in the two helpers that
+ *      dispatch and poll, so an unreadable key threw straight past the error
+ *      model and out of the route.
+ *   2. The message it throws talks about the *ATS webhook signing secret* — a
+ *      feature the operator was not using. That is the same wrong-error trap
+ *      `pairing.ts` guards at both pairing phases (see PAIR_NO_SECRET_ERROR);
+ *      the client half was never wired, so a hire failed with an ATS sentence. */
+export const AGENT_BRIDGE_KEY_UNREADABLE = "AGENT_BRIDGE_KEY_UNREADABLE";
+
+export const BRIDGE_KEY_UNREADABLE_MESSAGE =
+  "kp cannot read the stored Personas key: KP_SECRET (or KP_ATS_SECRET_KEY) is unset or has changed since pairing. Restore the secret, or re-pair in Settings → Integrations.";
+
+export type ResolveBridgeResult = { ok: true; bridge: ResolvedBridge } | { ok: false; failure: BridgeFailure };
+
+export function resolveBridgeOrFail(): ResolveBridgeResult {
+  try {
+    return { ok: true, bridge: resolveBridge() };
+  } catch {
+    return { ok: false, failure: { ok: false, code: AGENT_BRIDGE_KEY_UNREADABLE, error: BRIDGE_KEY_UNREADABLE_MESSAGE } };
+  }
 }
 
 /** A `redirect:"manual"` 3xx surfaces as an opaque-redirect response (fetch spec:
@@ -186,7 +215,9 @@ export async function dispatchPersonaRequest(
   reportToken: string,
   appMaster?: unknown
 ): Promise<DispatchResult> {
-  const bridge = resolveBridge();
+  const resolved = resolveBridgeOrFail();
+  if (!resolved.ok) return resolved.failure;
+  const bridge = resolved.bridge;
   if (!bridge.apiKey) {
     return { ok: false, error: "Personas is not paired — no API key configured (pair first, or set PERSONAS_BRIDGE_KEY)." };
   }
@@ -218,7 +249,9 @@ export type RequestStatusResult =
 
 /** Poll fallback for a request's approval state (the push path is the report route). */
 export async function fetchRequestStatus(requestId: string): Promise<RequestStatusResult> {
-  const bridge = resolveBridge();
+  const resolved = resolveBridgeOrFail();
+  if (!resolved.ok) return resolved.failure;
+  const bridge = resolved.bridge;
   if (!bridge.apiKey) return { ok: false, error: "Personas is not paired." };
   try {
     const r = await fetch(`${bridge.baseUrl}/api/kp/persona-requests/${encodeURIComponent(requestId)}`, {

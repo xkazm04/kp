@@ -8,11 +8,13 @@ import { parseAgentReport } from "./report-payload.ts";
 import type { LifecycleReport, RollupBackbone, RollupReport } from "./report-payload.ts";
 import { toAgentFitEnvelope } from "./transform-run.ts";
 import {
+  AGENT_BRIDGE_KEY_UNREADABLE,
   BUILTIN_CONNECTOR_CATALOG,
   dispatchPersonaRequest,
   fetchConnectorCatalog,
   fetchRequestStatus,
 } from "./bridge-client.ts";
+import { setBridgeConfig } from "./bridge-store.ts";
 import { claimPairing, PAIR_NO_SECRET_CODE, startPairing } from "./pairing.ts";
 
 after(() => cleanupUnitDb());
@@ -187,6 +189,65 @@ test("connector catalog: a live Personas catalog wins over the built-in list", a
   const r = await fetchConnectorCatalog();
   assert.equal(r.source, "personas");
   assert.deepEqual(r.connectors, [{ name: "custom-crm", description: "CRM ops" }]);
+});
+
+// bridge-client.ts states, at the top of the file, that "every helper returns a
+// structured result and NEVER throws to the route". That was true of the fetch
+// and false of the line above it: `resolveBridge()` reads the pk_ key back
+// through AES-GCM and THROWS when the master secret has rotated since pairing —
+// and it sat OUTSIDE the try in dispatch, poll AND both pairing phases. The
+// operator rotating KP_SECRET therefore got a raw 500 whose text named the *ATS
+// webhook signing secret*, the exact wrong-error trap pairing.ts already guards.
+// NON-VACUITY: the fetch stub below counts dials, and a pre-fix run never
+// reaches the assertion at all — it throws out of the first await.
+test("an unreadable stored key is a structured failure, not a throw (and never an ATS sentence)", async () => {
+  process.env.KP_SECRET = "the-secret-it-was-paired-under";
+  setBridgeConfig({ baseUrl: "http://127.0.0.1:9420", apiKey: "pk_paired_under_the_old_secret" });
+
+  let dialed = 0;
+  globalThis.fetch = (async () => {
+    dialed += 1;
+    return new Response(JSON.stringify({ requestId: "pr-1" }), { status: 200 });
+  }) as typeof fetch;
+
+  // A live nonce, minted while the key was still readable: claimPairing refuses
+  // an unknown nonce BEFORE it resolves the bridge, so reaching its resolve step
+  // needs the rotation to land BETWEEN the two phases — which is precisely the
+  // "restart mid-pairing" case pairing.ts already reasons about.
+  const started = await startPairing();
+  assert.equal(started.ok, true, "the pairing start must succeed while the key is readable");
+  const nonce = started.ok ? started.nonce : "";
+  assert.equal(dialed, 1);
+
+  // The rotation: same ciphertext, different master key ⇒ the GCM auth tag fails.
+  process.env.KP_SECRET = "a-different-secret-after-rotation";
+
+  const spec = { name: "A", mission: "m", systemPromptDraft: "s", connectors: [], maxBudgetUsd: 10, successMetrics: [] };
+  const kp = { baseUrl: "http://localhost:3000", jobId: "job-1", jobTitle: "Role", workspace: "ws-a" };
+  for (const [label, call] of [
+    ["dispatch", () => dispatchPersonaRequest(spec, kp, "agrpt-token")],
+    ["poll", () => fetchRequestStatus("pr-1")],
+    ["pair start", () => startPairing()],
+    ["pair claim", () => claimPairing(nonce)],
+  ] as const) {
+    const r = await call();
+    assert.equal(r.ok, false, `${label} must refuse, not resolve`);
+    if (!r.ok) {
+      assert.equal(r.code, AGENT_BRIDGE_KEY_UNREADABLE, `${label} names the dead-credential code`);
+      assert.match(r.error, /KP_SECRET/, `${label} names the env var that fixes it`);
+      // Naming KP_ATS_SECRET_KEY (the env var) is the fix; blaming the ATS
+      // WEBHOOK SIGNING SECRET (a feature the operator was not using) is the bug.
+      assert.doesNotMatch(r.error, /webhook signing secret/i, `${label} must not blame the ATS webhook feature`);
+    }
+  }
+  assert.equal(dialed, 1, "a key kp cannot read must not reach Personas at all");
+
+  // NON-VACUITY: with the pairing secret restored, the same calls dial through.
+  process.env.KP_SECRET = "the-secret-it-was-paired-under";
+  const ok = await dispatchPersonaRequest(spec, kp, "agrpt-token");
+  assert.equal(ok.ok, true);
+  assert.equal(dialed, 2);
+  setBridgeConfig({ apiKey: "" }); // unpair — later tests must not inherit this row
 });
 
 /** Narrow a parse result to a rollup's v2 backbone block (or null for a pre-v2

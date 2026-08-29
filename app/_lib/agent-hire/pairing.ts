@@ -1,8 +1,8 @@
 import { atsSecretKeyConfigured } from "../ats-secret";
 import { publicBaseUrl } from "../public-base-url";
 import { randomToken } from "../random-id";
-import { isRedirectResponse, REDIRECT_ERROR } from "./bridge-client";
-import { resolveBridge, markBridgeOk, setBridgeConfig } from "./bridge-store";
+import { isRedirectResponse, REDIRECT_ERROR, resolveBridgeOrFail } from "./bridge-client";
+import { markBridgeOk, setBridgeConfig } from "./bridge-store";
 
 // Personas pairing (WP1) — the human-approved key exchange.
 //
@@ -54,7 +54,12 @@ export async function startPairing(): Promise<PairStartResult> {
   // BEFORE anything is registered: never ask a human to approve a pairing whose
   // key this deployment could not keep.
   if (!atsSecretKeyConfigured()) return { ok: false, error: PAIR_NO_SECRET_ERROR, code: PAIR_NO_SECRET_CODE };
-  const bridge = resolveBridge();
+  // A key configured but UNREADABLE (rotated secret, corrupt ciphertext) is a
+  // different failure from no key at all, and resolving it throws — structured,
+  // like every other refusal here, so a re-pair is never blocked by a crash.
+  const resolved = resolveBridgeOrFail();
+  if (!resolved.ok) return resolved.failure;
+  const bridge = resolved.bridge;
   // randomToken mints prefix + 32 base64url chars — comfortably ≥16 chars of CSPRNG entropy.
   const nonce = randomToken("pairn");
   try {
@@ -106,7 +111,9 @@ export async function claimPairing(nonce: string): Promise<PairClaimResult> {
   sweep(now);
   const exp = pending.get(nonce);
   if (!exp || exp <= now) return { ok: false, error: "Unknown or expired pairing nonce — start pairing again." };
-  const bridge = resolveBridge();
+  const resolved = resolveBridgeOrFail();
+  if (!resolved.ok) return resolved.failure;
+  const bridge = resolved.bridge;
   try {
     const r = await fetch(`${bridge.baseUrl}/pair/claim?nonce=${encodeURIComponent(nonce)}`, {
       // Same origin the request phase declared — the claim is origin-checked.

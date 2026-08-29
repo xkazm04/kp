@@ -76,6 +76,18 @@ reports cost/activity back into kp, where it rides the pipeline like any other h
    morning-after state, not an exotic one. The refresh poll surfaces the same code beside
    its `refreshed:false` reason. A non-401 upstream keeps the generic code — both halves
    pinned by `agents-bridge.test.ts`.
+   **An UNREADABLE key is a third state, not the same one.** The stored `pk_` is held
+   encrypted (`ats-secret.ts`), so `resolveBridge()` *throws* when `KP_SECRET` /
+   `KP_ATS_SECRET_KEY` is unset or has rotated since pairing. That call sat outside the
+   try in dispatch, poll and both pairing phases, so the throw went straight past
+   `bridge-client.ts`'s stated error model ("every helper returns a structured result and
+   NEVER throws to the route") — and the message it carried named the *ATS webhook signing
+   secret*, a feature the operator was not using. Every helper now resolves through
+   `resolveBridgeOrFail()`, which returns code **`AGENT_BRIDGE_KEY_UNREADABLE`** with a
+   Personas sentence naming the env var; nothing dials Personas with a key kp cannot read.
+   This is the client half of the same wrong-error trap `pairing.ts` guards with
+   `AGENT_PAIR_NO_SECRET` (pinned by `agent-hire.test.ts`, which rotates the secret between
+   the pairing phases to reach the claim's resolve step).
 4. **Approve in Personas**: the status ladder is
    `dispatched → pending_approval → onboarding → active` (terminal: `rejected`,
    `failed`, `retired`). The push path is the token-authed public report route; the
