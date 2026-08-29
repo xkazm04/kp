@@ -30,6 +30,28 @@ node --import ./scripts/test-alias-loader.mjs --experimental-transform-types \
 npm run test:unit                      # once, at the end of the round (~22s, 4234 tests)
 ```
 
+## Known gap: the context map under-covers the repo
+
+**The picker walks an incomplete map.** As of 2026-08-29, `context-map.json`
+covers 2 377 files while `git ls-files` finds **2 616** tracked `.ts/.tsx/.py/.mjs`
+— **243 unmapped (9.3%)**, despite CLAUDE.md asserting there is no unmapped
+remainder. Files added between rescans simply fall out (a test file this sweep
+created two rounds ago was already unmapped).
+
+Consequences for a round here:
+
+- `--coverage` / `--next` cannot offer an unmapped area, so those files are never
+  swept. The largest coherent hole is the **operator companion** (`companion-*`,
+  `db/companion*` — an entire feature); `app/_lib/app-master/backbone.ts` is also
+  unmapped.
+- A context's declared `file_paths` may UNDERCOUNT its own files. `lib-llm-config`
+  declares 18 and has 20 on disk (two test files missing). **Glob the context's
+  directory as well as reading its `file_paths`**, or you will judge a module
+  whose test you never saw — `llm-quality.ts` reads as untested from the map and
+  has a good colocated test file.
+
+Backlogged with numbers in the memory outbox (tech-debt-tracker, 2026-08-29).
+
 ## Skill improvement log
 
 - **2026-08-29 — Normalize line endings to LF before staging. This is the one
