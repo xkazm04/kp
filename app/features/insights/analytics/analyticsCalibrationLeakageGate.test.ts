@@ -87,6 +87,20 @@ test("the disclosure renders the note AND the ceiling, keyed off the stable code
   assert.match(header, /"score-caused-label":\s*\{\s*note:/, "the high-leakage code must map to localized copy");
   assert.match(header, /"reviewer-saw-score":\s*\{\s*note:/, "the medium-leakage code must map to localized copy");
   assert.match(header, /"no-automated-leakage":\s*\{\s*note:/, "the clean-arm code must map to localized copy");
+  // The hire axis (UAT KAT-L1-003). Added last and never asserted here, which is
+  // the shape this file exists to catch: `tsc` rejects a MISSING map entry, so a
+  // fourth code cannot go unmapped -- but nothing pinned that this one keeps its
+  // OWN copy. Its whole point is that it must not inherit the screening arm's
+  // claim: on the hire axis the score did not produce the positive label, only
+  // half the negative one, and a badge reading "outcome caused by the score" over
+  // a hire curve overstates the coupling in the opposite direction from the
+  // original defect.
+  assert.match(header, /"score-caused-rejects":\s*\{\s*note:/, "the hire-axis code must map to its OWN localized copy");
+  assert.doesNotMatch(
+    header,
+    /"score-caused-rejects":\s*\{\s*note:\s*"leakageScoreCausedNote"/,
+    "the hire axis must not reuse the screening arm's note"
+  );
   assert.match(header, /t\(copy\.note\)/, "the note must be rendered");
   assert.match(header, /t\(copy\.ceiling\)/, "the ceiling must be rendered beside the note");
   // Above the fold, beside the number — not a tooltip and not a details/summary.
