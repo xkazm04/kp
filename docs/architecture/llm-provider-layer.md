@@ -42,8 +42,12 @@ Backend shipped and in production use:
   produced each field. See `docs/features/app-master/README.md`.
 - LightTrack observability (below) and the benchmark suite (below).
 
-**Outstanding:** `cv_analysis` fold-in (needs multimodal + grounding in the
-adapters — Gemini remains the only capable provider per `capabilities.py`), a
+**Outstanding:** `profile_extract` fold-in (`cv_analysis` folded in 2026-08-30 —
+`docs/specs/2026-08-30-cv-analysis-fold-in.md`: `pipeline.py` resolves
+`cv_analysis` through the registry and the Gemini adapter's `complete_document`
+attaches the file, so the gemini row now declares `file_input`; Gemini remains
+the only capable provider, and `extract_profile_text_with_gemini` still calls
+`gemini.py` directly), a
 deliberate bench run to pick metered default models, org-level (per-tenant)
 `llm_usage` attribution (tracked in `docs/features/organization/README.md` /
 `docs/product/enterprise-readiness.md` §8).
@@ -116,8 +120,11 @@ byte-for-byte the pre-wrapper behavior. Under `NODE_ENV=production` (cloud /
 — but only when Gemini can actually serve (key + SDK resolve; `available()` also
 honors `KP_OFFLINE`), so a keyless self-hosted deployment keeps the unchanged
 CLI default and its deterministic fallbacks. An explicit config row — including
-`claude_cli` — always wins. (`registry._production_gemini_default`; use cases
-needing `file_input` are excluded and keep their dedicated `gemini.py` path.)
+`claude_cli` — always wins. (`registry._production_gemini_default`. Use cases
+needing `file_input` — which the text-only CLI can never serve — resolve to the
+Gemini adapter in dev AND production, un-gated on `available()` so a missing key
+fails at call time with the same actionable error the old direct path raised;
+the former "dedicated `gemini.py` path" carve-out is retired.)
 This default carries the same `USE_CASE_MAX_TOKENS` ceiling as a configured row
 (below) — it used to build the adapter without one, so a config-less cloud box
 ran every heavy-output use case at the 2048 cost cap and shipped the
@@ -429,10 +436,12 @@ is the stored one.
 
 ## Known gaps
 
-- `cv_analysis` / `profile_extract` still Gemini-only (multimodal + grounding not
-  yet in the shared adapter contract) — both are listed in the use-case catalog
-  but route through the dedicated `gemini.py` path; a config row for them has no
-  effect today.
+- `cv_analysis` is folded in (2026-08-30): it routes through
+  `resolve_provider` and the Gemini adapter's `complete_document`, so a config
+  row's model pin and BYOM key now take effect — but Gemini stays the only
+  `file_input`-capable adapter (openai/anthropic/azure rows are still honestly
+  text-only). `profile_extract` still calls the dedicated `gemini.py` path; a
+  config row for it has no effect today.
 - `grounded_salary` (market salary via `market_salary_cli.py`) also calls
   `gemini.py` directly and is not in the use-case catalog — un-routable.
 - Voice (OpenAI Realtime / ElevenLabs) is deliberately outside the provider

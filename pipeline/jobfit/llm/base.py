@@ -273,6 +273,37 @@ class TextProvider:
 
     # -- shared surface (ClaudeCliProvider-compatible) ------------------------
 
+    def complete_document(
+        self,
+        prompt: str,
+        *,
+        file: tuple[bytes, str] | None = None,
+        use_grounding: bool = False,
+        response_mime_type: str | None = None,
+        expected_keys: Sequence[str] = (),
+        temperature: float = 0.1,
+        max_output_tokens: int = 8000,
+    ) -> Any:
+        """Multimodal document analysis — the ``file_input`` capability's verb.
+
+        ``file`` is ``(data, mime_type)`` for one attached document (a CV PDF);
+        ``None`` sends the prompt alone (blind mode carries the redacted text in
+        the prompt instead). Returns a ``gemini.GroundedAnswer``-shaped result:
+        ``.text`` / ``.payload`` / ``.sources`` / ``.usage`` / ``.truncated``.
+
+        The base implementation refuses: routing consults the capability matrix
+        (``capabilities.CAP_FILE_INPUT`` is DECLARED per adapter, never probed at
+        call time), so reaching this on a text-only adapter means a routing layer
+        was bypassed — fail loud instead of silently dropping the attachment and
+        analyzing an empty prompt (docs/specs/2026-08-30-cv-analysis-fold-in.md).
+        """
+        raise LLMError(
+            f"provider {self.name!r} does not implement document analysis "
+            f"(file_input is not a declared capability of its adapter)",
+            provider=self.name,
+            subtype="missing_capability",
+        )
+
     def complete(
         self,
         prompt: str,

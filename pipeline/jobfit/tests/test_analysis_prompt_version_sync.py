@@ -117,8 +117,17 @@ TAXONOMY_JSON = REPO_ROOT / "data" / "taxonomy.json"
 # entry — so no cached analysis OUTPUT changed and PROMPT_VERSION is intentionally NOT
 # bumped. Consumers render the absent state as its own ("not assessed"), never guessing
 # a value: guessing "missing" would invent a keyword gap the candidate does not have.
+# NOTE (wave3 2026-08-30 — cv_analysis fold-in): re-recorded when
+# analyze_profile_with_gemini started routing its model call through the adapter
+# door (`provider.complete_document`, resolved via llm.registry) instead of
+# calling grounded_answer directly (docs/specs/2026-08-30-cv-analysis-fold-in.md).
+# The whole-function source hash is deliberately conservative, so it trips on this
+# routing refactor — but every prompt byte, the ANALYSIS_RESPONSE_SCHEMA, the
+# temperature/max_output_tokens, and the default engine (the same Gemini model on
+# the same key) are unchanged; only WHERE the provider choice is made moved. No
+# cached analysis output changed, so PROMPT_VERSION is intentionally NOT bumped.
 EXPECTED_PROMPT_VERSION = "v5-2026-06-09-lang-cachekey"
-EXPECTED_ANALYSIS_FINGERPRINT = "367da913343334a677c49fd85965420a9ab89247752504b18815ad4ab356b327"
+EXPECTED_ANALYSIS_FINGERPRINT = "ebb1ace02265689527f1e14bf76a5fc16bc471dc5fecc47c56df704df6d2c3ab"
 
 
 def _strip_ts_comments(text: str) -> str:

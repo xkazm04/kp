@@ -191,11 +191,13 @@ def _assert_egress_allowed() -> None:
         )
 
 
-def get_client() -> genai.Client:
+def get_client(api_key: str | None = None) -> genai.Client:
+    """Gemini client. ``api_key`` (a BYOM key threaded from the adapter layer)
+    wins over the env-resolved key; ``None`` keeps the historical env path."""
     _assert_egress_allowed()
     _remove_null_proxy_env()
     return genai.Client(
-        api_key=get_gemini_api_key(),
+        api_key=api_key or get_gemini_api_key(),
         http_options=types.HttpOptions(timeout=_gemini_timeout_ms()),
     )
 
@@ -225,7 +227,7 @@ class GroundedAnswer:
 _MAX_GEMINI_ATTEMPTS = 3
 
 
-def _meter_success(use_case: str | None, usage: dict[str, int], duration_ms: int) -> None:
+def _meter_success(use_case: str | None, usage: dict[str, int], duration_ms: int, model: str = GEMINI_MODEL) -> None:
     """Meter one successful Gemini-direct call through the shared monitor seam
     (usage ledger + LightTrack). The wrapper adapters meter inside
     llm.base.TextProvider.complete(); this direct path (multimodal/grounded
@@ -244,21 +246,21 @@ def _meter_success(use_case: str | None, usage: dict[str, int], duration_ms: int
         output_tokens = int(usage.get("candidate_tokens", 0) or 0)
         monitor.emit_result(
             provider="gemini",
-            model=GEMINI_MODEL,
+            model=model,
             use_case=use_case,
             usage={
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "cached_tokens": int(usage.get("cached_tokens", 0) or 0),
             },
-            cost_usd=price_usd(GEMINI_MODEL, input_tokens, output_tokens),
+            cost_usd=price_usd(model, input_tokens, output_tokens),
             duration_ms=duration_ms,
         )
     except Exception:
         pass  # metering must never break the host call
 
 
-def _meter_failure(use_case: str | None, error: Exception, duration_ms: int) -> None:
+def _meter_failure(use_case: str | None, error: Exception, duration_ms: int, model: str = GEMINI_MODEL) -> None:
     """Error-event counterpart of ``_meter_success`` (LightTrack only — the
     durable ledger records spend, and a failed generate has no usage to bill)."""
     try:
@@ -266,7 +268,7 @@ def _meter_failure(use_case: str | None, error: Exception, duration_ms: int) -> 
 
         monitor.emit_error(
             provider="gemini",
-            model=GEMINI_MODEL,
+            model=model,
             use_case=use_case,
             error=error,
             duration_ms=duration_ms,
@@ -293,7 +295,9 @@ def _is_transient_error(exc: Exception) -> bool:
     )
 
 
-def _generate_with_retry(client: genai.Client, contents: list[Any], config_kwargs: dict[str, Any]) -> Any:
+def _generate_with_retry(
+    client: genai.Client, contents: list[Any], config_kwargs: dict[str, Any], model: str = GEMINI_MODEL
+) -> Any:
     """generate_content with a small bounded retry on transient errors.
 
     Gemini 429 / 5xx / network timeouts are normal recoverable conditions on a
@@ -306,7 +310,7 @@ def _generate_with_retry(client: genai.Client, contents: list[Any], config_kwarg
     for attempt in range(_MAX_GEMINI_ATTEMPTS):
         try:
             return client.models.generate_content(
-                model=GEMINI_MODEL,
+                model=model,
                 contents=contents,
                 config=types.GenerateContentConfig(**config_kwargs),
             )
@@ -330,6 +334,8 @@ def grounded_answer(
     expected_keys: Sequence[str] = (),
     fallback: GroundedAnswer | None = None,
     use_case: str | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
 ) -> GroundedAnswer:
     """Single seam for every Gemini-backed feature.
 
@@ -360,22 +366,29 @@ def grounded_answer(
 
     contents: list[Any] = [prompt, *parts]
 
+    # `model` / `api_key` are threaded from the adapter layer (a config row's
+    # model pin and BYOM key); ``None`` keeps the historical constants, so every
+    # legacy direct caller behaves byte-identically.
+    resolved_model = model or GEMINI_MODEL
+
     started = time.monotonic()
     metered = False
     try:
-        client = get_client()
+        # Zero-arg call on the default path keeps existing get_client() patch
+        # points (tests, callers) signature-compatible.
+        client = get_client(api_key) if api_key else get_client()
         # Route through the bounded transient-retry wrapper (429/5xx/timeout) — the
         # documented intent that was never wired: grounded_answer used to call
         # generate_content directly, so one transient blip aborted the whole
         # analysis with no retry. Permanent failures (auth/4xx) still fail fast.
-        response = _generate_with_retry(client, contents, config_kwargs)
+        response = _generate_with_retry(client, contents, config_kwargs, model=resolved_model)
         text = (response.text or "").strip()
         finish_reason = _finish_reason(response)
         sources = _grounding_sources(response) if use_grounding else []
         usage = _usage_metadata(response)
         # Meter the spend as soon as usage is known: the tokens are paid for even
         # if the JSON parse below fails, so the ledger records them either way.
-        _meter_success(use_case, usage, int((time.monotonic() - started) * 1000))
+        _meter_success(use_case, usage, int((time.monotonic() - started) * 1000), model=resolved_model)
         metered = True
         if not (parse_json and text):
             payload = {}
@@ -390,7 +403,7 @@ def grounded_answer(
         # Exactly one monitor event per generate call: a parse failure AFTER a
         # successful (already-metered) generate is not re-emitted as an error.
         if not metered:
-            _meter_failure(use_case, exc, int((time.monotonic() - started) * 1000))
+            _meter_failure(use_case, exc, int((time.monotonic() - started) * 1000), model=resolved_model)
         if fallback is not None:
             return fallback
         raise
@@ -519,8 +532,15 @@ def analyze_profile_with_gemini(
     lang: str = "en",
     request_id: str | None = None,
     blind_text: str | None = None,
+    provider: Any | None = None,
 ) -> tuple[dict[str, Any], list[str], dict[str, int]]:
-    """Single Gemini call returning a structured analysis payload.
+    """Single multimodal LLM call returning a structured analysis payload.
+
+    ``provider`` is the adapter that serves the call — resolved by the caller
+    through ``llm.registry.resolve_provider("cv_analysis")`` so the enabling
+    point (which provider/model/key) lives in the config layer, not here
+    (docs/specs/2026-08-30-cv-analysis-fold-in.md). ``None`` resolves through
+    the same door for callers that predate the fold-in.
 
     Combines profile extraction, score-shape, salary range, grounded market
     context, and optional job-fit evaluation in one request. Returns
@@ -640,18 +660,25 @@ def analyze_profile_with_gemini(
     # Blind mode reads no file bytes (redacted text only), so it is exempt.
     if not blind:
         _reject_oversized(path)
+    # The model call goes through the adapter door: the registry decided which
+    # provider/model/key serves cv_analysis (capability-gated to file_input), and
+    # complete_document is the one verb that can attach the file. Resolving here
+    # only when the caller passed no provider keeps legacy direct callers on the
+    # same single door.
+    if provider is None:
+        from .llm.registry import resolve_provider
+
+        provider = resolve_provider("cv_analysis")
     # Blind mode sends the redacted text only (no file bytes) so the model can't see
     # the original name/photo; otherwise upload the document for full fidelity.
-    answer = grounded_answer(
+    answer = provider.complete_document(
         prompt=prompt,
-        parts=[] if blind else [types.Part.from_bytes(data=path.read_bytes(), mime_type=_mime_type(path))],
+        file=None if blind else (path.read_bytes(), _mime_type(path)),
         response_mime_type="application/json",
         use_grounding=use_grounding,
         temperature=0.1,
         max_output_tokens=16000,
-        parse_json=True,
         expected_keys=tuple(ANALYSIS_RESPONSE_SCHEMA.keys()),
-        use_case="cv_analysis",
     )
     if request_id:
         write_prompt_artifact(request_id, "response.txt", answer.text or "")

@@ -1,14 +1,17 @@
-"""Gemini text adapter (``google-genai`` SDK, already a project dependency).
+"""Gemini adapter (``google-genai`` SDK, already a project dependency).
 
-Text-in/text-out only: the multimodal + grounded CV-analysis path stays in
-gemini.py until Phase 3 folds it in behind the file_input/grounding
-capabilities. Reuses gemini.py's usage extraction so token accounting stays
-identical across both paths.
+Text via the shared ``_call`` contract, plus ``complete_document`` — the
+``file_input``/``grounding`` verb the CV analysis rides (Phase 3 fold-in,
+docs/specs/2026-08-30-cv-analysis-fold-in.md). The document path delegates to
+``gemini.grounded_answer`` with THIS adapter's model and BYOM key threaded in,
+so the offline seal, bounded retry, truncation handling, and usage-ledger
+metering are the same engine on both doors. Reuses gemini.py's usage extraction
+so token accounting stays identical across both paths.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Sequence
 
 from .. import monitor
 
@@ -95,4 +98,43 @@ class GeminiProvider(TextProvider):
             model=self.model,
             usage=normalized_usage,
             cost_usd=cost_usd,
+        )
+
+    def complete_document(
+        self,
+        prompt: str,
+        *,
+        file: tuple[bytes, str] | None = None,
+        use_grounding: bool = False,
+        response_mime_type: str | None = None,
+        expected_keys: Sequence[str] = (),
+        temperature: float = 0.1,
+        max_output_tokens: int = 8000,
+    ) -> Any:
+        """The ``file_input`` verb (capability DECLARED in capabilities.py).
+
+        Delegates to ``gemini.grounded_answer`` — the proven multimodal engine —
+        with this adapter's model and key threaded in, so a config row's model
+        pin and BYOM key finally reach the CV analysis. The engine meters under
+        this instance's ``use_case`` label and enforces KP_OFFLINE itself.
+        Late module-attribute dispatch (``gemini.grounded_answer``) keeps the
+        tests' patch point intact.
+        """
+        from google.genai import types
+
+        from ... import gemini
+
+        parts = [types.Part.from_bytes(data=file[0], mime_type=file[1])] if file else []
+        return gemini.grounded_answer(
+            prompt=prompt,
+            parts=parts,
+            response_mime_type=response_mime_type,
+            use_grounding=use_grounding,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            parse_json=True,
+            expected_keys=expected_keys,
+            use_case=self.use_case,
+            model=self.model,
+            api_key=self.api_key,
         )

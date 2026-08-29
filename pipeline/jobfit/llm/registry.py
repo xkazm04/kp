@@ -26,20 +26,12 @@ from .config import LLMConfig, load_config
 from .monitor import MonitoredClaudeCli
 
 
-def _production_gemini_default(use_case: str, cfg: LLMConfig | None, timeout: int | None) -> Any | None:
-    """Cloud/non-dev default when NO use-case config exists: prefer the Gemini
-    Flash tier over the Claude CLI (which rarely exists on a cloud box) — but
-    only when Gemini can actually serve (key + SDK resolve; ``available()`` also
-    honors KP_OFFLINE). A keyless self-hosted ``next start`` therefore keeps the
-    unchanged CLI default. Dev (no NODE_ENV=production) is never affected.
-    Explicit routing — a config row, including ``claude_cli`` — always wins
-    before this is consulted."""
-    if os.getenv("NODE_ENV") != "production":
-        return None
-    # Never hand a text-only adapter a use case it can't serve (cv_analysis /
-    # profile_extract need file_input — those keep their dedicated gemini.py path).
-    if unsupported_caps(use_case, "gemini"):
-        return None
+def _gemini_adapter(use_case: str, cfg: LLMConfig | None, timeout: int | None) -> Any:
+    """The Gemini adapter for ``use_case``, built from config keys + per-use-case
+    defaults. Shared by the production text default below and the file-input
+    fallback in ``resolve_provider`` (the cv_analysis fold-in retired the
+    dedicated gemini.py routing carve-out —
+    docs/specs/2026-08-30-cv-analysis-fold-in.md)."""
     keys = cfg.keys.get("gemini") if cfg else None
     kwargs: dict[str, Any] = {
         "model": default_model(use_case, "gemini"),
@@ -57,7 +49,22 @@ def _production_gemini_default(use_case: str, cfg: LLMConfig | None, timeout: in
     max_tokens = default_max_tokens(use_case)
     if max_tokens:
         kwargs["max_tokens"] = max_tokens
-    provider = ADAPTERS["gemini"](**kwargs)
+    return ADAPTERS["gemini"](**kwargs)
+
+
+def _production_gemini_default(use_case: str, cfg: LLMConfig | None, timeout: int | None) -> Any | None:
+    """Cloud/non-dev default when NO use-case config exists: prefer the Gemini
+    Flash tier over the Claude CLI (which rarely exists on a cloud box) — but
+    only when Gemini can actually serve (key + SDK resolve; ``available()`` also
+    honors KP_OFFLINE). A keyless self-hosted ``next start`` therefore keeps the
+    unchanged CLI default. Dev (no NODE_ENV=production) is never affected.
+    Explicit routing — a config row, including ``claude_cli`` — always wins
+    before this is consulted."""
+    if os.getenv("NODE_ENV") != "production":
+        return None
+    if unsupported_caps(use_case, "gemini"):
+        return None
+    provider = _gemini_adapter(use_case, cfg, timeout)
     return provider if provider.available() else None
 
 
@@ -156,6 +163,15 @@ def resolve_provider(use_case: str, *, timeout: int | None = None) -> Any:
 
     if entry is None or entry.provider == "claude_cli":
         if entry is None:
+            # File-input use cases (cv_analysis): the text-only CLI cannot serve
+            # them, and Gemini is the one capable adapter — route there in dev AND
+            # production, exactly as the pre-fold-in code path always went straight
+            # to Gemini on GEMINI_API_KEY. Deliberately NOT gated on available():
+            # a missing key surfaces at call time with the same actionable error
+            # the direct path raised (there is no deterministic CV fallback to
+            # degrade to, so a silent None here would only defer the failure).
+            if unsupported_caps(use_case, "claude_cli"):
+                return _gemini_adapter(use_case, cfg, timeout)
             gemini = _production_gemini_default(use_case, cfg, timeout)
             if gemini is not None:
                 return gemini

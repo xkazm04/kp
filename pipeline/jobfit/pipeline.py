@@ -12,6 +12,7 @@ from .authenticity import authenticity_checks, prompt_injection_checks
 from .credentials import credential_checks
 from .extractors import clean_text, count_letter_spacing, extract_text
 from .gemini import GEMINI_MODEL, analyze_profile_with_gemini
+from .llm.registry import resolve_provider
 from .llm.base import price_usd
 from .redact import redact_pii
 from .insights import (
@@ -132,6 +133,10 @@ def analyze_cv(
                 f"({type(exc).__name__}) — requirement grading fell back to JD text."
             )
 
+    # The model that served (or would serve) cv_analysis — resolved through the
+    # registry below; the constant only covers a failure before resolution.
+    cv_model = GEMINI_MODEL
+
     try:
         _emit(progress, "extract", "active")
         with StageTimer(timings, "extract"):
@@ -174,8 +179,16 @@ def analyze_cv(
 
         _emit(progress, "gemini", "active")
         with StageTimer(timings, "gemini"):
+            # cv_analysis goes through the adapter door: the registry decides
+            # which provider/model/key serves it (config row, BYOM key, or the
+            # Gemini default — the only file_input-capable adapter). The enabling
+            # point for this stage lives here + KP_LLM_CONFIG, not in gemini.py
+            # (docs/specs/2026-08-30-cv-analysis-fold-in.md).
+            cv_provider = resolve_provider("cv_analysis")
+            cv_model = getattr(cv_provider, "model", None) or GEMINI_MODEL
             payload, sources, gemini_usage = analyze_profile_with_gemini(
                 path,
+                provider=cv_provider,
                 job_description_text=job_description_text,
                 company_text=company_text,
                 use_grounding=use_grounding,
@@ -348,18 +361,18 @@ def analyze_cv(
                 cost_in = int(gemini_usage.get("prompt_tokens", 0) or 0)
                 cost_out = int(gemini_usage.get("candidate_tokens", 0) or 0)
                 run_cost = RunCost(
-                    model=GEMINI_MODEL,
+                    model=cv_model,
                     input_tokens=cost_in,
                     output_tokens=cost_out,
                     cached_tokens=gemini_usage.get("cached_tokens"),
-                    cost_usd=price_usd(GEMINI_MODEL, cost_in, cost_out),
+                    cost_usd=price_usd(cv_model, cost_in, cost_out),
                     estimated=True,
                 )
 
             metadata = AnalysisMetadata(
                 analysis_engine="gemini",
                 text_extractor="gemini",
-                model=GEMINI_MODEL,
+                model=cv_model,
                 parsing_notes=parsing_notes,
                 grounding_sources=sources,
                 deterministic_evidence=evidence,
@@ -451,7 +464,7 @@ def analyze_cv(
                 "lang": lang,
                 "duration_ms": int((time.monotonic() - started) * 1000),
                 "stages_ms": timings,
-                "gemini": {"model": GEMINI_MODEL, **gemini_usage},
+                "gemini": {"model": cv_model, **gemini_usage},
                 "status": "error" if error else "ok",
                 "error": error,
             }

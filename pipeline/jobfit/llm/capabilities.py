@@ -14,18 +14,20 @@ CAP_FILE_INPUT = "file_input"
 CAP_GROUNDING = "grounding"
 
 # NOTE: CAP_FILE_INPUT is intentionally NOT advertised by the anthropic/openai/
-# azure_openai/gemini rows even though those vendors support multimodal input.
-# Every adapter in THIS layer implements only text `_call(prompt: str, ...)` — the
-# real multimodal CV path still lives in gemini.py (until Phase 3). Advertising the
-# cap here green-lit routing `cv_analysis`/`profile_extract` to a provider whose
-# adapter silently drops the attachment and analyzes an empty prompt — the exact
+# azure_openai rows even though those vendors support multimodal input. Their
+# adapters implement only text `_call(prompt: str, ...)` — advertising the cap
+# green-lit routing `cv_analysis`/`profile_extract` to a provider whose adapter
+# silently drops the attachment and analyzes an empty prompt — the exact
 # misconfiguration this matrix exists to prevent. Re-add CAP_FILE_INPUT to a row
-# ONLY when that provider's `_call` actually attaches files (llm-provider-layer #1).
+# ONLY when that provider's adapter actually attaches files (the gemini row earned
+# it via `GeminiProvider.complete_document`, the Phase 3 fold-in —
+# docs/specs/2026-08-30-cv-analysis-fold-in.md). Declared, never probed: routing
+# trusts this row, and the base `complete_document` fails loud if it is wrong.
 PROVIDER_CAPABILITIES: dict[str, frozenset[str]] = {
     "anthropic": frozenset({CAP_JSON}),
     "openai": frozenset({CAP_JSON}),
     "azure_openai": frozenset({CAP_JSON}),
-    "gemini": frozenset({CAP_JSON, CAP_GROUNDING}),
+    "gemini": frozenset({CAP_JSON, CAP_GROUNDING, CAP_FILE_INPUT}),
     "claude_cli": frozenset({CAP_JSON}),
     # OpenRouter serves the JSON/text use cases via prompt-embedded JSON; file input
     # varies per proxied model, so it is not advertised here.

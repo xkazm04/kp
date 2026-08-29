@@ -275,16 +275,49 @@ class ValidationTest(unittest.TestCase):
                 resolve_provider("cv_analysis")
 
     def test_cv_analysis_raises_for_text_only_adapters(self) -> None:
-        # llm-provider-layer #1: openai/anthropic/gemini adapters in this layer are
-        # text-only (the real multimodal path lives in gemini.py), so routing the
-        # file-input cv_analysis case to them must fail loud, not silently drop the CV
-        # and analyze an empty prompt. Previously they advertised file_input and were
-        # waved through.
-        for provider in ("openai", "anthropic", "gemini", "azure_openai"):
+        # llm-provider-layer #1: openai/anthropic/azure adapters in this layer are
+        # text-only, so routing the file-input cv_analysis case to them must fail
+        # loud, not silently drop the CV and analyze an empty prompt. (gemini left
+        # this list with the Phase 3 fold-in — its adapter attaches files via
+        # complete_document, so its row now DECLARES file_input.)
+        for provider in ("openai", "anthropic", "azure_openai"):
             with self.subTest(provider=provider):
                 with llm_config({"useCases": {"cv_analysis": {"provider": provider}}}):
                     with self.assertRaises(LLMError):
                         resolve_provider("cv_analysis")
+
+    def test_cv_analysis_routes_to_gemini_when_configured(self) -> None:
+        # The fold-in (docs/specs/2026-08-30-cv-analysis-fold-in.md): a config row
+        # pinning cv_analysis to gemini resolves — model pin and BYOM key finally
+        # reach the CV analysis through the adapter door.
+        cfg = {
+            "useCases": {"cv_analysis": {"provider": "gemini", "model": "gemini-3.6-pro"}},
+            "keys": {"gemini": {"apiKey": "byom-key"}},
+        }
+        with llm_config(cfg):
+            provider = resolve_provider("cv_analysis")
+        self.assertIsInstance(provider, GeminiProvider)
+        self.assertEqual(provider.model, "gemini-3.6-pro")
+        self.assertEqual(provider.api_key, "byom-key")
+        self.assertEqual(provider.use_case, "cv_analysis")
+
+    def test_cv_analysis_defaults_to_gemini_without_config(self) -> None:
+        # No config: the text-only CLI cannot serve a file_input case, so the
+        # registry returns the Gemini adapter in dev too — the same destination
+        # the pre-fold-in code path hardwired. NOT gated on available(): a
+        # missing key must surface at call time (no deterministic CV fallback
+        # exists), never as a silent reroute.
+        with llm_config(None):
+            provider = resolve_provider("cv_analysis")
+        self.assertIsInstance(provider, GeminiProvider)
+        self.assertEqual(provider.use_case, "cv_analysis")
+
+    def test_complete_document_refuses_on_text_only_adapter(self) -> None:
+        # Capability declared, not probed: reaching complete_document on an
+        # adapter without file_input means routing was bypassed — fail loud.
+        provider = AnthropicProvider(model="claude-haiku-4-5", api_key="k")
+        with self.assertRaises(LLMError):
+            provider.complete_document("analyze this")
 
     def test_wildcard_cannot_silently_degrade_multimodal(self) -> None:
         with llm_config({"useCases": {"*": {"provider": "claude_cli"}}}):
