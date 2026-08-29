@@ -44,6 +44,35 @@ function unlockBodyScroll(): void {
 }
 
 /**
+ * Can this element actually take focus, i.e. is it a real boundary of the Tab trap?
+ *
+ * Exported and DOM-API-light on purpose: the trap's edges are the whole contract and
+ * the hook itself needs React, so the predicate lives here where `node --test` can
+ * reach it (the same extraction select-keys.ts and segmented-control-selection.ts
+ * exist for).
+ *
+ * The querySelectorAll above matches by TAG, so it collects things that can never be
+ * focused: `input[type=hidden]` (Select.tsx renders one whenever it is given a form
+ * `name`) and anything inside a display:none subtree. Counting one as a boundary
+ * breaks the trap silently -- as `last`, `active === last` is never true so Tab falls
+ * out of the dialog; as `first`, the open-focus call is a no-op and the dialog opens
+ * with focus still on the page behind it, which is the WCAG contract this hook exists
+ * to keep.
+ *
+ * Visibility is read from getClientRects(): display:none and detached subtrees have
+ * none, while position:fixed elements do. `offsetParent` answers the same question
+ * more cheaply but is `undefined` on SVG elements, which would read as visible.
+ */
+export function isTrapFocusable(el: HTMLElement): boolean {
+  // aria-disabled as well as `disabled`: an aria-disabled button is still tabbable,
+  // so counting it would land focus on a control the user cannot act on.
+  if (el.hasAttribute("disabled")) return false;
+  if (el.getAttribute("aria-disabled") === "true") return false;
+  if (el.tagName === "INPUT" && el.getAttribute("type")?.toLowerCase() === "hidden") return false;
+  return el.getClientRects().length > 0;
+}
+
+/**
  * Wire WCAG dialog behavior onto a dialog/drawer element:
  *  - move focus inside on open (first focusable, else the container) and restore it
  *    to the trigger on close,
@@ -81,12 +110,7 @@ export function useDialogA11y(
       node
         ? Array.from(
             node.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-          ).filter(
-            // Exclude aria-disabled controls too, not just `disabled`: an aria-disabled
-            // button is still tabbable, so counting it as a trap boundary would land
-            // focus on a control the user can't act on.
-            (el) => !el.hasAttribute("disabled") && el.getAttribute("aria-disabled") !== "true"
-          )
+          ).filter(isTrapFocusable)
         : [];
     (focusables()[0] ?? node)?.focus();
 
