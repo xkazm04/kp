@@ -69,6 +69,15 @@ export type MetricPackInput = {
   hired: number;
   medianTimeToHireDays: number | null;
   avgTimeToHireDays: number | null;
+  /** How many hires the time-to-hire statistic was actually measured over. It is
+   *  NARROWER than `hired`: db/analytics.ts computes the median/mean only over
+   *  terminal rows that also carry `created_at`, `stage_changed_at` and a
+   *  non-negative duration. Sampling that metric with `hired` published a
+   *  `certifiable` pack off a sample the pack's own contract calls thin (on the
+   *  shipped corpus: 9 hires, 5 measurable, MIN_SAMPLE 8 — so 9 cleared the floor
+   *  and 5 did not). Optional so an existing caller keeps compiling; absent, it
+   *  falls back to `hired` and the old behaviour. */
+  timeToHireSamples?: number | null;
   costPerHireCzk: number | null;
   automationRoi: { hoursSaved: number; hoursSavedPerHire: number | null; pctOfManualBaseline: number | null; totalActions: number } | null;
   /** Open roles and the recruiters carrying them — the capacity ratio's two terms. */
@@ -183,13 +192,20 @@ export function buildMetricPack(input: MetricPackInput, generatedAt: string, s: 
   const capacityRatio =
     cap && cap.recruiters > 0 && cap.openRoles > 0 ? cap.openRoles / cap.recruiters : null;
 
+  // The sample the TIME-TO-HIRE statistic actually rests on, not the hire count.
+  // `status: measured` has to mean measured.
+  const tthSamples = Math.max(0, input.timeToHireSamples ?? hires);
+
   const metrics: Metric[] = [
     metric(
       "time_to_hire",
       tth,
       "days",
-      hires,
-      input.medianTimeToHireDays != null ? s.basisTimeToHireMedian(hires) : s.basisTimeToHireMean(hires)
+      tthSamples,
+      // The basis says "over N hires", so N must be the measured N too — a basis
+      // that names a bigger population than the statistic is the same lie one
+      // sentence further down.
+      input.medianTimeToHireDays != null ? s.basisTimeToHireMedian(tthSamples) : s.basisTimeToHireMean(tthSamples)
     ),
     metric("cost_per_hire", input.costPerHireCzk, "czk", hires, s.basisCostPerHire(hires)),
     metric(

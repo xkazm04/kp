@@ -727,12 +727,13 @@ either half is dropped. Adding a candidate surface means adding its prefix there
   *"Median days from first contact to hire, over 9 hires"*, `sample: 9`, `status: measured` —
   9 clears `MIN_SAMPLE = 8`, 5 does not, so a `certifiable` pack is published off a sample the
   pack's own contract calls thin. `status: measured` has to mean measured.
-  **Producer half closed:** `pipelineAnalytics` now returns `timeToHireSamples` (`tth.length`)
-  alongside the two statistics, pinned by `analytics-median-tth.test.ts` — nine terminal
-  entries, five with both timestamps, `hired: 9` and `timeToHireSamples: 5`. The remaining
-  edit is one line in `app/api/analytics/metric-pack/route.ts`: pass that field into
-  `MetricPackInput` and sample `time_to_hire` with it instead of `hired`. Until then the
-  divergence is visible in the payload but still published as `sample: 9`.
+  **CLOSED 2026-08-29.** `pipelineAnalytics` returns `timeToHireSamples` (`tth.length`), pinned
+  by `analytics-median-tth.test.ts`; `MetricPackInput` now carries that field and
+  `buildMetricPack` samples `time_to_hire` — and writes its `basis` — from it rather than from
+  `hired`. On the shipped corpus the metric reports `sample: 5`, `status: "thin"`, the basis
+  says *"over 5 hires"*, and `certifiable` is **false**, which is the honest answer: `status:
+  measured` means measured. The field is optional and falls back to `hired`, so any other
+  caller is unchanged; both halves are pinned in `metric-pack.test.ts`.
 - **`recruiter_capacity` is a point-in-time snapshot published under a windowed header.**
   `?days=90` prints *"Window: last 90 days"* over every row, but capacity's two terms
   (open roles, membership roster) are current counts with no window applied — the only row in

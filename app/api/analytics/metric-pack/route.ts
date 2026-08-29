@@ -88,6 +88,10 @@ export async function GET(request: Request) {
       hired: analytics.hired,
       medianTimeToHireDays: analytics.medianTimeToHireDays,
       avgTimeToHireDays: analytics.avgTimeToHireDays,
+      // The narrower population the median/mean was measured over — NOT `hired`.
+      // pipelineAnalytics has returned this since analytics-median-tth.test.ts;
+      // nothing read it, so the pack kept publishing `sample: hired`.
+      timeToHireSamples: analytics.timeToHireSamples,
       costPerHireCzk: analytics.costPerHireCzk,
       automationRoi: analytics.automationRoi,
       capacity: { openRoles, recruiters },

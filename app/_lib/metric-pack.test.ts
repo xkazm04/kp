@@ -142,3 +142,33 @@ test("F15 — the whole document localizes, scaffolding AND basis prose", () => 
   // Czech needs one/few/other agreement on every count the basis sentences carry.
   assert.match(cs, /2 přijetí/);
 });
+
+// ---------------------------------------------------------------------------
+// The time-to-hire sample is the population the STATISTIC was measured over.
+// db/analytics.ts computes the median/mean only over terminal rows that ALSO
+// carry both timestamps and a non-negative duration, so it is narrower than
+// `hired`. Sampling with `hired` published a certifiable pack off a thin sample —
+// on the shipped corpus 9 hires, 5 measurable, MIN_SAMPLE 8: 9 clears the floor
+// and 5 does not, so the pack's own headline broke its own contract.
+// ---------------------------------------------------------------------------
+
+test("time_to_hire is sampled over the measured population, not the hire count", () => {
+  const pack = buildMetricPack(input({ hired: 9, timeToHireSamples: 5 }), AT, EN);
+  const tth = byKey(pack, "time_to_hire");
+  assert.equal(tth.sample, 5, "the sample is the measurable set, not `hired`");
+  assert.equal(tth.status, "thin", `${MIN_SAMPLE} is the floor; 5 may not read as measured`);
+  assert.equal(tth.value, 21, "the VALUE is unchanged — only the claim about it is");
+  assert.match(tth.basis, /over 5 hires/, "the basis names the measured N, not the bigger one");
+  assert.equal(pack.certifiable, false, "a pack resting on a thin sample is not publishable");
+  assert.ok(
+    pack.caveats.some((c) => c.includes("5 observations")),
+    "the thin caveat names the real sample, not the hire count"
+  );
+});
+
+test("an absent timeToHireSamples falls back to `hired` (existing callers unchanged)", () => {
+  const withField = byKey(buildMetricPack(input({ hired: 9, timeToHireSamples: 9 }), AT, EN), "time_to_hire");
+  const without = byKey(buildMetricPack(input({ hired: 9 }), AT, EN), "time_to_hire");
+  assert.deepEqual(without, withField);
+  assert.equal(without.status, "measured", `9 still clears MIN_SAMPLE ${MIN_SAMPLE}`);
+});
