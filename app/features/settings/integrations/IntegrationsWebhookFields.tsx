@@ -64,7 +64,11 @@ export function IntegrationsWebhookFields({
 
       <fieldset>
         <legend className="mb-1 text-sm font-semibold text-ink">{t("events")}</legend>
-        <div className="grid grid-cols-2 gap-1.5">
+        {/* Mobile-first, like the other two grids on this tab (IntegrationsAtsForm,
+            the calendar's detail <dl>): an unconditional two-column split put
+            "Candidate rejected" and "Offer declined" into ~150px columns on a
+            phone, wrapping both labels away from their checkboxes. */}
+        <div className="grid gap-1.5 sm:grid-cols-2">
           {SUBSCRIBABLE_EVENT_ROWS.map((e) => (
             <label key={e.id} className="flex items-center gap-2 text-sm text-steel">
               <Checkbox checked={events.includes(e.id)} onChange={() => onToggleEvent(e.id)} />
