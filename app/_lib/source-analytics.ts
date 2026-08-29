@@ -2,6 +2,29 @@
 // DB-free so the median math and the pause heuristic are unit-tested in
 // isolation (source-analytics.test.ts); db.ts feeds them the windowed rows.
 
+// Campaign and variant names are recruiter-entered free text (source_campaign /
+// source_variant, captured at intake), so a PRINTABLE delimiter inside one of them
+// forges another pair's key: campaign "spring|A" × variant "v1" and campaign
+// "spring" × variant "A|v1" both joined to `job|spring|A|v1`, merging two distinct
+// creatives into one row. That moves groupTotal, and therefore the fair-share floor
+// below and which variants get flagged for pausing. NUL-joined instead, the same
+// reason and the same joiner analytics-cache.ts uses for its memo keys: the field
+// values are NUL-free, so the concatenation cannot be forged.
+const SEP = "\u0000";
+
+/** The creative group a variant competes in: one (job × campaign) — the variants
+ *  bidding for the same audience. */
+export function variantGroupKey(jobId: string | null, campaign: string | null): string {
+  return `${jobId ?? ""}${SEP}${campaign ?? ""}`;
+}
+
+/** One creative: (job × campaign × variant). Exported so the DB layer's row
+ *  aggregation and the group key below can never key differently — the same
+ *  single-sourcing MOMENTUM_EVENT_KINDS does for its SQL IN-list. */
+export function variantRowKey(jobId: string | null, campaign: string | null, variant: string): string {
+  return `${variantGroupKey(jobId, campaign)}${SEP}${variant}`;
+}
+
 export type VariantStat = {
   jobId: string | null;
   jobTitle: string | null;
@@ -69,7 +92,7 @@ export function variantPauseRecommendations(
 ): VariantRecommendation[] {
   const groups = new Map<string, VariantStat[]>();
   for (const row of rows) {
-    const key = `${row.jobId ?? ""}|${row.campaign ?? ""}`;
+    const key = variantGroupKey(row.jobId, row.campaign);
     const group = groups.get(key);
     if (group) group.push(row);
     else groups.set(key, [row]);

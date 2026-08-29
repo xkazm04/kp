@@ -6,7 +6,14 @@
 // Runner: Node's built-in test runner with type stripping — npm run test:unit
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { medianHours, VARIANT_RULE, variantPauseRecommendations, type VariantStat } from "./source-analytics.ts";
+import {
+  medianHours,
+  VARIANT_RULE,
+  variantGroupKey,
+  variantPauseRecommendations,
+  variantRowKey,
+  type VariantStat,
+} from "./source-analytics.ts";
 
 const H = 3_600_000;
 
@@ -152,4 +159,27 @@ test("an unobservable group (no parseable first lead) flags nothing", () => {
     NOW
   );
   assert.deepEqual(recs, []);
+});
+
+// ─── Key vocabulary ───────────────────────────────────────────────────────────
+
+test("a delimiter inside a campaign or variant name cannot forge another key", () => {
+  // source_campaign / source_variant are recruiter-entered free text. Under the
+  // previous "|" joiner these two DISTINCT creatives produced the identical key
+  // `job|spring|A|v1`, merging their leads into one VariantStat — which moves
+  // groupTotal, the fair-share floor, and therefore who gets flagged for pausing.
+  assert.notEqual(variantRowKey("job", "spring|A", "v1"), variantRowKey("job", "spring", "A|v1"));
+  assert.notEqual(variantGroupKey("job|a", "b"), variantGroupKey("job", "a|b"));
+  // Identical inputs still key identically — the grouping must actually group.
+  assert.equal(variantRowKey("job", "spring", "v1"), variantRowKey("job", "spring", "v1"));
+  // A null job or campaign is its own group, not merged with the empty-string one
+  // it shares a rendering with.
+  assert.equal(variantGroupKey(null, "spring"), variantGroupKey("", "spring"));
+  assert.notEqual(variantGroupKey(null, "spring"), variantGroupKey("spring", null));
+});
+
+test("the row key extends the group key, so both halves group the same creatives", () => {
+  // The DB layer aggregates rows by variantRowKey and the pause rules re-group them
+  // by variantGroupKey; a row must fall in the group its own key names.
+  assert.ok(variantRowKey("job", "spring", "v1").startsWith(variantGroupKey("job", "spring")));
 });

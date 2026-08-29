@@ -24,6 +24,7 @@ const notSim = (col = "job_title") => `(${col} IS NULL OR ${col} NOT LIKE ?)`;
 import {
   medianHours,
   variantPauseRecommendations,
+  variantRowKey,
   type VariantRecommendation,
   type VariantStat,
 } from "../source-analytics";
@@ -606,7 +607,7 @@ export function pipelineAnalytics(
   const variantMap = new Map<string, VariantStat>();
   for (const r of rows) {
     if (!r.source_variant) continue;
-    const key = `${r.job_id ?? ""}|${r.source_campaign ?? ""}|${r.source_variant}`;
+    const key = variantRowKey(r.job_id, r.source_campaign, r.source_variant);
     const v =
       variantMap.get(key) ??
       ({
