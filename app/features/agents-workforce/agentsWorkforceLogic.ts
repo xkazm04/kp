@@ -180,16 +180,38 @@ export function expectationsVerdict(
 
 // ---- App master --------------------------------------------------------------
 
-/** The ✓ / – / ✗ convention the eval reports and the intake card already use.
- *  `incomplete` is a DASH, not a soft pass: the backbone reaching "incomplete"
+/** The ✓ / – / ✗ convention the eval reports and the intake card already use,
+ *  as ONE pair of values. Three vocabularies render through it — a backbone
+ *  verdict, a metric row's state, and the bare booleans on a rule or a gate —
+ *  and each used to spell the glyph AND the colour token out for itself: four
+ *  expressions of one rule across two files, of which the test asserted one.
+ *
+ *  `unknown` is a DASH, not a soft pass. The backbone reaching "incomplete"
  *  means it could not read enough to judge, and a checkmark there would be the
- *  green lie the rubric it scores exists to prevent. */
-export const BACKBONE_GLYPH = { pass: "✓", incomplete: "–", fail: "✗" } as const;
-export const BACKBONE_TEXT = {
-  pass: "text-score-strong",
-  incomplete: "text-score-null",
-  fail: "text-score-weak",
+ *  green lie the rubric it scores exists to prevent; an unmeasured rule is the
+ *  same claim, which is why it shares this key rather than borrowing `fail`. */
+export const MARK = {
+  pass: { glyph: "✓", text: "text-score-strong" },
+  unknown: { glyph: "–", text: "text-score-null" },
+  fail: { glyph: "✗", text: "text-score-weak" },
 } as const;
+
+export type MarkState = keyof typeof MARK;
+
+/** Backbone verdict → mark. Exhaustive over the scorer's union, so a new verdict
+ *  is a compile error here until it declares which mark it wears. */
+export const BACKBONE_MARK = {
+  pass: "pass",
+  incomplete: "unknown",
+  fail: "fail",
+} as const satisfies Record<BackboneScore["verdict"], MarkState>;
+
+/** Metric-row state → mark. `nodata` is the dash for the same reason. */
+export const METRIC_MARK = {
+  met: "pass",
+  missed: "fail",
+  nodata: "unknown",
+} as const satisfies Record<MetricRow["state"], MarkState>;
 
 export type ProbationCountdown = {
   totalDays: number;
@@ -197,7 +219,13 @@ export type ProbationCountdown = {
   elapsedDays: number;
   /** Days still to run; 0 once the window has closed. */
   daysLeft: number;
-  /** True once the review is due and no probation_review has landed. */
+  /** True once the window has closed. This says the review is DUE BY THE CLOCK —
+   *  it does NOT mean no probation_review has landed, which is what this line
+   *  used to claim and what the function has no way to know. A review decided
+   *  `extended` deliberately leaves the agent in `onboarding` ("more time is not
+   *  a promotion", report-payload.ts), so the countdown stays at 0 and this stays
+   *  true for a review a human already performed. Telling those two apart needs
+   *  the last decision on the roster row, which GET /api/agents does not project. */
   due: boolean;
 };
 

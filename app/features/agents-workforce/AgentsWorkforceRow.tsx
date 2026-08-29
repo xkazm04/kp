@@ -9,13 +9,14 @@ import { BTN_SECONDARY, CHIP_QUIET, META_LABEL } from "@/app/_components/ui/reci
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { buildUrl } from "@/app/features/shell/tabs";
 import {
-  BACKBONE_GLYPH,
-  BACKBONE_TEXT,
+  BACKBONE_MARK,
   budgetFraction,
   expectationsVerdict,
   fmtUsd,
   metricsOf,
   probationCountdown,
+  MARK,
+  METRIC_MARK,
   specConnectors,
   STATUS_BADGE,
   topConnectors,
@@ -33,9 +34,6 @@ import {
 // proxy, and the expanded detail shows every rule's contribution, the gates, and
 // the probation countdown. Nothing here re-scores anything: the verdict, the
 // contributions and the reasons all come from the server's backbone dict.
-
-const ROW_STATE_GLYPH = { met: "✓", missed: "✗", nodata: "–" } as const;
-const ROW_STATE_TEXT = { met: "text-score-strong", missed: "text-score-weak", nodata: "text-score-null" } as const;
 
 // next-intl keys are typed, so the rung cannot be interpolated. The ladder is
 // closed at 0..2 (3 and 4 are never grantable), so the explicit map is also the
@@ -217,8 +215,8 @@ export function AgentsWorkforceRow({
               n/m objective count is a detail of it, not the headline. */}
           {appMaster && backbone ? (
             <>
-              <span className={`${BACKBONE_TEXT[backbone.verdict]} font-semibold`}>
-                <span aria-hidden>{BACKBONE_GLYPH[backbone.verdict]}</span>{" "}
+              <span className={`${MARK[BACKBONE_MARK[backbone.verdict]].text} font-semibold`}>
+                <span aria-hidden>{MARK[BACKBONE_MARK[backbone.verdict]].glyph}</span>{" "}
                 {t(`appMaster.backbone.verdict.${backbone.verdict}` as Parameters<typeof t>[0])}
               </span>
               <span className="block text-sm text-steel">
@@ -272,9 +270,9 @@ export function AgentsWorkforceRow({
                         <li key={rule.rule} className="flex items-baseline gap-2 text-sm">
                           <span
                             aria-hidden
-                            className={`w-4 shrink-0 text-center font-bold ${rule.measured ? "text-score-strong" : "text-score-null"}`}
+                            className={`w-4 shrink-0 text-center font-bold ${MARK[rule.measured ? "pass" : "unknown"].text}`}
                           >
-                            {rule.measured ? "✓" : "–"}
+                            {MARK[rule.measured ? "pass" : "unknown"].glyph}
                           </span>
                           <span className="min-w-0 flex-1 text-ink">
                             {rule.label}
@@ -295,9 +293,9 @@ export function AgentsWorkforceRow({
                         <li key={gate.gate} className="flex items-baseline gap-2 text-sm">
                           <span
                             aria-hidden
-                            className={`w-4 shrink-0 text-center font-bold ${gate.passed ? "text-score-strong" : "text-score-weak"}`}
+                            className={`w-4 shrink-0 text-center font-bold ${MARK[gate.passed ? "pass" : "fail"].text}`}
                           >
-                            {gate.passed ? "✓" : "✗"}
+                            {MARK[gate.passed ? "pass" : "fail"].glyph}
                           </span>
                           <span className="min-w-0 flex-1 text-steel">{gate.reason}</span>
                         </li>
@@ -316,8 +314,8 @@ export function AgentsWorkforceRow({
               <ul className="mt-1.5 max-w-xl space-y-1">
                 {verdict.rows.map(({ metric, actual, state }) => (
                   <li key={metric.key} className="flex items-baseline gap-2 text-sm">
-                    <span aria-hidden className={`w-4 shrink-0 text-center font-bold ${ROW_STATE_TEXT[state]}`}>
-                      {ROW_STATE_GLYPH[state]}
+                    <span aria-hidden className={`w-4 shrink-0 text-center font-bold ${MARK[METRIC_MARK[state]].text}`}>
+                      {MARK[METRIC_MARK[state]].glyph}
                     </span>
                     <span className="min-w-0 flex-1 text-ink">{metric.label}</span>
                     <span className="shrink-0 text-steel nums">

@@ -6,13 +6,14 @@ import assert from "node:assert/strict";
 import type { AgentAggregates, AgentStatus } from "@/app/_lib/db/agents.ts";
 import type { ReportedKpiDelta } from "@/app/_lib/agent-hire/report-payload.ts";
 import {
-  BACKBONE_GLYPH,
-  BACKBONE_TEXT,
+  BACKBONE_MARK,
   budgetFraction,
   expectationsVerdict,
   fmtUsd,
   isAppMaster,
   metricActual,
+  MARK,
+  METRIC_MARK,
   metricsOf,
   probationCountdown,
   STATUS_BADGE,
@@ -286,13 +287,24 @@ test("probationCountdown: counts down while the agent is still on probation, and
   );
 });
 
-test("isAppMaster + the backbone glyphs follow the shared ✓/–/✗ convention", () => {
+test("isAppMaster + every vocabulary resolves through the one shared ✓/–/✗ mark", () => {
   assert.equal(isAppMaster(rosterRow()), true);
   assert.equal(isAppMaster(rosterRow({ appMaster: null })), false);
-  // `incomplete` is a DASH, not a soft ✓: the scorer could not read enough to
-  // judge, and a checkmark there is exactly the green lie the rubric forbids.
-  assert.deepEqual(BACKBONE_GLYPH, { pass: "✓", incomplete: "–", fail: "✗" });
-  assert.equal(BACKBONE_TEXT.incomplete, "text-score-null");
+  // One pair of values, spelled once. The glyph and its colour token travel
+  // TOGETHER — they used to be separate maps, which is how a ✓ could end up
+  // wearing the null colour (or a dash the strong one) with nothing to catch it.
+  assert.deepEqual(MARK, {
+    pass: { glyph: "✓", text: "text-score-strong" },
+    unknown: { glyph: "–", text: "text-score-null" },
+    fail: { glyph: "✗", text: "text-score-weak" },
+  });
+  // Both mapped vocabularies, and both send their "could not read it" state to
+  // the DASH: the scorer reaching "incomplete" and a metric with no reading are
+  // the same claim, and a checkmark on either is the green lie the rubric forbids.
+  assert.deepEqual(BACKBONE_MARK, { pass: "pass", incomplete: "unknown", fail: "fail" });
+  assert.deepEqual(METRIC_MARK, { met: "pass", missed: "fail", nodata: "unknown" });
+  assert.equal(MARK[BACKBONE_MARK.incomplete].glyph, "–");
+  assert.equal(MARK[METRIC_MARK.nodata].text, "text-score-null");
 });
 
 test("memoryChip renders live tiers only and stays silent with nothing reported", async () => {
