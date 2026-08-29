@@ -120,11 +120,17 @@ export function usePersonasPairing(onPaired: () => void) {
       const p = (await r.json().catch(() => null)) as { error?: string; code?: string } | null;
       if (!r.ok) throw new Error(errMsg(p, t("disconnectFailed")));
       setNote({ text: t("disconnected"), ok: true });
-      onPaired(); // reload the bridge status either way
     } catch (e) {
       setNote({ text: e instanceof Error && e.message ? e.message : t("disconnectFailed"), ok: false });
     } finally {
       setBusy(false);
+      // "Either way" — which is what this line always claimed, from inside the
+      // try, where a failure skipped it. A DELETE that answers non-2xx has still
+      // touched the server: it may have cleared the key before failing, or it may
+      // have 401'd because the session expired. Re-reading the bridge is how the
+      // card stops asserting a state nobody confirmed, and it is exactly the case
+      // where the operator most needs the panel to be telling the truth.
+      onPaired();
     }
   };
 
