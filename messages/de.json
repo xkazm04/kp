@@ -6764,7 +6764,8 @@
       "delivered": "Zugestellt: Endpunkt antwortete {status}.",
       "notDelivered": "Nicht zugestellt: {reason}.",
       "pingFailed": "Ping fehlgeschlagen.",
-      "pullNote": "Einzelne/n Kandidat/in auf Anfrage abrufen: <code>{endpoint}</code> liefert denselben normalisierten Datensatz."
+      "pullNote": "Einzelne/n Kandidat/in auf Anfrage abrufen: <code>{endpoint}</code> liefert denselben normalisierten Datensatz.",
+      "loadBlockedSave": "Die gespeicherten Webhook-Einstellungen konnten nicht geladen werden, deshalb ist Speichern deaktiviert. Dieses leere Formular abzuschicken würde den gespeicherten Endpunkt samt Abonnements überschreiben. Laden Sie die Seite neu."
     }
   },
   "billing": {

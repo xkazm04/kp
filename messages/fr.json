@@ -6764,7 +6764,8 @@
       "delivered": "Livré : le point de terminaison a répondu {status}.",
       "notDelivered": "Non livré : {reason}.",
       "pingFailed": "Échec du ping.",
-      "pullNote": "Récupérer un candidat à la demande : <code>{endpoint}</code> renvoie le même enregistrement normalisé."
+      "pullNote": "Récupérer un candidat à la demande : <code>{endpoint}</code> renvoie le même enregistrement normalisé.",
+      "loadBlockedSave": "Les paramètres de webhook enregistrés n'ont pas pu être chargés, donc l'enregistrement est désactivé. Soumettre ce formulaire vide écraserait le point de terminaison enregistré et ses abonnements. Rechargez la page."
     }
   },
   "billing": {

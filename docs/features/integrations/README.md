@@ -192,10 +192,16 @@ ping (`POST /api/ats/test`).
   until the field matches the URL the server last confirmed, and editing the field retires
   the previous result. Otherwise a ping against the *previous* endpoint would report
   "Delivered: endpoint responded 200" under the new address the operator had just typed.
-- **A failed config load says so.** The panel reads the HTTP status, not just the body: a
-  401 (expired or non-operator session) carries a parseable JSON body, so treating "no
-  `config` in the answer" as a failure is what keeps a blank endpoint field and a
-  "· not set" secret badge from being rendered over a configured deployment.
+- **A failed config load says so — and disables Save.** The panel reads the HTTP status,
+  not just the body: a 401 (expired or non-operator session) carries a parseable JSON body,
+  so treating "no `config` in the answer" as a failure is what keeps a blank endpoint field
+  and a "· not set" secret badge from being rendered over a configured deployment. Saying
+  so was only half the guard, though: the toast scrolls away and Save stayed live over the
+  blank form. Save is a WHOLE-DOCUMENT write (`webhookUrl` + `events` go up on every
+  submit) and an empty URL is a legitimate "disable delivery", so the server cannot tell a
+  deliberate clear from a form that never loaded — one click would wipe a working endpoint
+  and its subscriptions. Save is now gated on the config having actually been read back,
+  with the reason held on screen beside the button rather than in a toast.
 - **The panel states its own ceiling**: this is vendor-neutral egress, not a certified
   Workday/Greenhouse/Lever connector — point a connector or an iPaaS at it. Only
   `candidate.hired` fires live today (on offer-accept); the other three are reserved for

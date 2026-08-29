@@ -6764,7 +6764,8 @@
       "delivered": "Doručeno: endpoint odpověděl {status}.",
       "notDelivered": "Nedoručeno: {reason}.",
       "pingFailed": "Ping selhal.",
-      "pullNote": "Načtení jednoho kandidáta na vyžádání: <code>{endpoint}</code> vrátí stejný normalizovaný záznam."
+      "pullNote": "Načtení jednoho kandidáta na vyžádání: <code>{endpoint}</code> vrátí stejný normalizovaný záznam.",
+      "loadBlockedSave": "Uložené nastavení webhooku se nepodařilo načíst, takže ukládání je vypnuté. Odeslání tohoto prázdného formuláře by přepsalo uložený koncový bod i jeho odběry. Načtěte stránku znovu."
     }
   },
   "billing": {

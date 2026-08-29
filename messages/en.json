@@ -6764,7 +6764,8 @@
       "delivered": "Delivered: endpoint responded {status}.",
       "notDelivered": "Not delivered: {reason}.",
       "pingFailed": "Ping failed.",
-      "pullNote": "Pull a single candidate on demand: <code>{endpoint}</code> returns the same normalized record."
+      "pullNote": "Pull a single candidate on demand: <code>{endpoint}</code> returns the same normalized record.",
+      "loadBlockedSave": "The saved webhook settings could not be loaded, so Save is disabled. Submitting this blank form would overwrite the stored endpoint and its subscriptions. Reload the page to try again."
     }
   },
   "billing": {

@@ -52,6 +52,12 @@ export function IntegrationsWebhookPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [test, setTest] = useState<string | null>(null);
+  // Has the stored config actually been read back? Save is a WHOLE-DOCUMENT write
+  // (webhookUrl + events go up on every submit, and an empty URL is a legitimate
+  // "disable delivery"), so the server cannot tell a deliberate clear from a form
+  // that never loaded. Until this is true there is nothing on screen worth
+  // writing, and the button says so instead of offering the destructive click.
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     fetch("/api/ats/config")
@@ -66,13 +72,19 @@ export function IntegrationsWebhookPanel() {
         setSavedUrl(d.config.webhookUrl ?? "");
         setEvents(d.config.events ?? []);
         setHasSecret(!!d.config.hasSecret);
+        setLoaded(true);
       })
       // A silently-empty form here is dangerous: saving it would overwrite the
-      // stored config with blanks. Say the load failed.
+      // stored config with blanks. Saying the load failed was only half of that —
+      // the toast scrolls away and the Save button stayed live over a blank form,
+      // one click from wiping a working endpoint and its subscriptions. Now the
+      // refusal is structural (`loaded` gates the button) and the reason stays on
+      // screen next to it.
       .catch(() => {
         toast.error(tToast("configLoadFailed"));
+        setError(t("loadBlockedSave"));
       });
-  }, [tToast]);
+  }, [tToast, t]);
 
   const toggle = (id: string) => setEvents((cur) => (cur.includes(id) ? cur.filter((e) => e !== id) : [...cur, id]));
 
@@ -165,7 +177,7 @@ export function IntegrationsWebhookPanel() {
       />
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => void save()} disabled={busy} className={`${BTN_PRIMARY} h-8 px-3 text-sm`}>
+        <button type="button" onClick={() => void save()} disabled={busy || !loaded} className={`${BTN_PRIMARY} h-8 px-3 text-sm`}>
           {t("save")}
         </button>
         <button
