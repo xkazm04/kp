@@ -102,6 +102,43 @@ test("createTtlCache: distinct keys never share an entry", () => {
   assert.equal(calls, 2, "repeat reads served from the memo, no cross-key bleed");
 });
 
+test("the memo is bounded — an unbounded key axis cannot grow it forever", () => {
+  // ?candidate and ?roleFamily are raw query params, so the key axis is open. The
+  // TTL alone never bounded this: expiry was checked on READ only, so an entry
+  // whose key was never asked for again lived as long as the process.
+  const cache = createTtlCache<string>({ now: () => 0, maxEntries: 2 });
+  let calls = 0;
+  const compute = (label: string) => () => {
+    calls += 1;
+    return label;
+  };
+  cache.get("k1", compute("A"));
+  cache.get("k2", compute("B"));
+  cache.get("k3", compute("C")); // over the bound → the oldest live entry goes
+  assert.equal(calls, 3);
+  assert.equal(cache.get("k3", compute("C2")), "C", "the newest entry is retained");
+  assert.equal(calls, 3);
+  cache.get("k1", compute("A2")); // evicted → recomputed, not served stale
+  assert.equal(calls, 4, "the least recently computed key was evicted, not kept forever");
+});
+
+test("expired entries are reclaimed before a fresh one is evicted", () => {
+  let clock = 0;
+  const cache = createTtlCache<string>({ ttlMs: 1_000, now: () => clock, maxEntries: 2 });
+  let calls = 0;
+  const compute = (label: string) => () => {
+    calls += 1;
+    return label;
+  };
+  cache.get("old", compute("OLD"));
+  clock = 5_000; // "old" is now expired; the two below are not
+  cache.get("fresh", compute("FRESH"));
+  cache.get("newest", compute("NEWEST")); // at the bound → sweep must take "old"
+  assert.equal(calls, 3);
+  assert.equal(cache.get("fresh", compute("FRESH2")), "FRESH", "a live entry survives an expired one");
+  assert.equal(calls, 3, "reclaiming the expired entry made room without a recompute");
+});
+
 test("calibrationCacheKey isolates every axis (workspace, source, family)", () => {
   // Workspace axis.
   assert.notEqual(calibrationCacheKey("ws-a", "pipeline", null), calibrationCacheKey("ws-b", "pipeline", null));

@@ -12,6 +12,19 @@
 
 const DEFAULT_TTL_MS = 20_000;
 
+// A hard ceiling on retained entries. The TTL alone is NOT a bound: expiry was
+// only ever checked on READ, so an entry whose key is never requested again sat
+// in the Map for the life of the process. Three call sites key this cache on raw
+// query params -- ?candidate on /api/decisions/records, ?roleFamily on both
+// calibration routes -- none of which is a closed vocabulary, so distinct values
+// accumulated one retained payload each (for the records route, a whole verified
+// chain plus its resolver map). `maxDuration` is serverless-only here, so a
+// self-hosted `next start` process is long-lived by design and nothing ever
+// reclaimed them. 256 is far above the working set of any real read cadence:
+// only entries created inside one TTL window can still be live, and the sweep
+// below reclaims the rest before evicting anything fresh.
+const DEFAULT_MAX_ENTRIES = 256;
+
 // A NUL joiner: workspace ids and the window token are both NUL-free, so the key is
 // unambiguous (no "a" + "bc" vs "ab" + "c" collision across the two fields).
 const SEP = "\u0000";
@@ -49,19 +62,39 @@ export type TtlCache<T> = {
   clear(): void;
 };
 
-/** Build a string-keyed TTL memo. `ttlMs`/`now` are injectable so a test can
- *  drive expiry deterministically without wall-clock sleeps. Module-scope one
- *  per route so it persists across requests. */
-export function createTtlCache<T>(opts?: { ttlMs?: number; now?: () => number }): TtlCache<T> {
+/** Build a string-keyed TTL memo, bounded at `maxEntries` (default
+ *  {@link DEFAULT_MAX_ENTRIES}) so a caller-built key axis cannot grow it without
+ *  limit. `ttlMs`/`now`/`maxEntries` are injectable so a test can drive expiry and
+ *  eviction deterministically without wall-clock sleeps. Module-scope one per route
+ *  so it persists across requests. */
+export function createTtlCache<T>(opts?: { ttlMs?: number; now?: () => number; maxEntries?: number }): TtlCache<T> {
   const ttlMs = opts?.ttlMs ?? DEFAULT_TTL_MS;
   const now = opts?.now ?? Date.now;
+  const maxEntries = Math.max(1, opts?.maxEntries ?? DEFAULT_MAX_ENTRIES);
   const store = new Map<string, Entry<T>>();
   return {
     get(key, compute) {
       const t = now();
       const hit = store.get(key);
       if (hit && hit.expiresAt > t) return hit.value;
+      // Drop a stale hit before recomputing: the re-insert below then moves the key
+      // to the END of the Map's insertion order, which is what makes that order a
+      // usable recency proxy for the eviction pass.
+      if (hit) store.delete(key);
       const value = compute();
+      if (store.size >= maxEntries) {
+        // Reclaim what the TTL already invalidated first -- an expired entry is
+        // free to drop, a fresh one is a recompute someone will pay for.
+        for (const [k, e] of store) if (e.expiresAt <= t) store.delete(k);
+        // Still full: evict oldest-first. Map iterates in insertion order and every
+        // live entry was inserted when it was computed, so the head is the least
+        // recently computed key.
+        while (store.size >= maxEntries) {
+          const oldest = store.keys().next();
+          if (oldest.done) break;
+          store.delete(oldest.value);
+        }
+      }
       store.set(key, { value, expiresAt: t + ttlMs });
       return value;
     },
@@ -130,10 +163,10 @@ export type AnalyticsCache<T> = {
 };
 
 /** Build a TTL memo keyed by (workspace, window). Thin wrapper over the generic
- *  string-keyed core so the /api/analytics route keeps its typed call shape.
- *  `ttlMs`/`now` are injectable so a test can drive expiry deterministically
- *  without wall-clock sleeps. */
-export function createAnalyticsCache<T>(opts?: { ttlMs?: number; now?: () => number }): AnalyticsCache<T> {
+ *  string-keyed core -- inheriting its bound -- so the /api/analytics route keeps
+ *  its typed call shape. `ttlMs`/`now`/`maxEntries` are injectable so a test can
+ *  drive expiry deterministically without wall-clock sleeps. */
+export function createAnalyticsCache<T>(opts?: { ttlMs?: number; now?: () => number; maxEntries?: number }): AnalyticsCache<T> {
   const inner = createTtlCache<T>(opts);
   return {
     get(workspaceId, windowDays, compute) {
