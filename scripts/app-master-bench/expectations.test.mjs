@@ -12,9 +12,12 @@ import {
   collectStrings,
   evaluateExpectations,
   extractBackboneReading,
+  extractNightLists,
   mergeReadings,
+  nightLists,
   overnightCounts,
   phaseCounts,
+  rankNight,
   readingFromRoster,
   reconcileCounts,
 } from "./expectations.mjs";
@@ -493,4 +496,204 @@ test("phaseCounts / reconcileCounts read both wire shapes", () => {
   assert.equal(phaseCounts(real, "overnight"), null);
   assert.equal(reconcileCounts({ phases: { reconcile: { counts: { branchesSeen: 1 } } } }).branchesSeen, 1);
   assert.equal(reconcileCounts(null), null);
+});
+
+// ─── C1: the exam (c1-exam §3) ──────────────────────────────────────────────
+//
+// The three readings 31 sweeps never took. Every one of them shares the rule
+// that makes it safe to ship BEFORE Personas carries the lists: a night with no
+// proposal list reads `null`, says so, and does not fail. An expectation that
+// failed on a missing dependency would be switched off within one sweep, and it
+// would never be switched back on.
+
+/** A night whose tick summary carries the two C1 lists, nested the way a real
+ *  per-phase summary would nest them. */
+const c1night = (n, proposals, declines) => ({
+  night: n,
+  tick: { phases: [{ phase: "overnight", ran: true, ...(proposals ? { proposals } : {}), ...(declines ? { declines } : {}) }] },
+  reading: {},
+  backbone: null,
+});
+
+const BACKLOG = [
+  { title: "Retire the duplicate scan-dedup path", value: 9 },
+  { title: "Close the comms delivery gap", value: 8 },
+  { title: "Type the analyze/api seam", value: 7 },
+  { title: "Paginate the history drawer", value: 6 },
+  { title: "Badge deep links", value: 5 },
+  { title: "Rename the settle poll flag", value: 1 },
+];
+
+test("extractNightLists deep-scans both lists, and an absent one stays ABSENT", () => {
+  const found = extractNightLists({ phases: [{ phase: "overnight", proposals: [{ title: "a" }] }] });
+  assert.deepEqual(found.proposals, [{ title: "a" }]);
+  assert.equal(found.declines, undefined, "a list nobody reported is absent, not empty");
+  // A top-level rollup beats a copy buried deeper — breadth-first, first wins.
+  const nested = extractNightLists({ proposals: [{ title: "top" }], phases: [{ proposals: [{ title: "deep" }] }] });
+  assert.deepEqual(nested.proposals, [{ title: "top" }]);
+  assert.deepEqual(extractNightLists(null), {});
+});
+
+test("nightLists prefers what the driver stored, and falls back to the summary", () => {
+  const stored = nightLists({ c1: { proposals: [{ title: "stored" }], declines: null }, tick: { proposals: [{ title: "tick" }] } });
+  assert.deepEqual(stored.proposals, [{ title: "stored" }]);
+  assert.equal(stored.declines, null);
+  assert.deepEqual(nightLists(c1night(1, [{ title: "from the tick" }])).proposals, [{ title: "from the tick" }]);
+  assert.deepEqual(nightLists({}), { proposals: null, declines: null });
+});
+
+test("rankVsBacklog: one top-5 overlap is the P2 gate", () => {
+  const { ok, checks } = evaluateExpectations(scenario({ rankVsBacklog: { topK: 5, minHits: 1 } }), {
+    backlog: { items: BACKLOG },
+    nights: [c1night(1, [{ title: "Something nobody asked for" }, { title: "Close the comms delivery gap" }])],
+  });
+  assert.equal(ok, true);
+  const check = byName(checks).rankVsBacklog;
+  assert.equal(check.actual, 1);
+  assert.match(check.delta, /Close the comms delivery gap/);
+});
+
+test("rankVsBacklog fails on a night that overlapped nothing — and says how many nights it read", () => {
+  const { ok, checks } = evaluateExpectations(scenario({ rankVsBacklog: 1 }), {
+    backlog: { items: BACKLOG },
+    nights: [c1night(1, [{ title: "Rename the settle poll flag" }]), c1night(2, [{ title: "Invent a new tab" }])],
+  });
+  assert.equal(ok, false, "a bottom-of-the-backlog pick is not a top-5 hit");
+  assert.match(byName(checks).rankVsBacklog.delta, /across 2 night\(s\)/);
+});
+
+test("rankVsBacklog: an absent list or an absent backlog reads null and does NOT fail", () => {
+  const noList = evaluateExpectations(scenario({ rankVsBacklog: 1 }), {
+    backlog: { items: BACKLOG },
+    nights: [c1night(1, null)],
+  });
+  assert.equal(noList.ok, true, "Personas does not ship the list yet — that is not the holder's failing");
+  assert.equal(byName(noList.checks).rankVsBacklog.actual, null);
+  assert.match(byName(noList.checks).rankVsBacklog.delta, /no night carried a proposal list/);
+  assert.match(byName(noList.checks).rankVsBacklog.note, /not a zero overlap/);
+
+  const noBacklog = evaluateExpectations(scenario({ rankVsBacklog: 1 }), { nights: [c1night(1, [{ title: "x" }])] });
+  assert.equal(noBacklog.ok, true);
+  assert.match(byName(noBacklog.checks).rankVsBacklog.delta, /no operator backlog was supplied/);
+});
+
+test("rankVsBacklog: three verbatim backlog titles is CONTAMINATION, and counts no hits (§6)", () => {
+  const { ok, checks } = evaluateExpectations(scenario({ rankVsBacklog: 1 }), {
+    backlog: { items: BACKLOG },
+    nights: [
+      c1night(1, [
+        { title: "Close the comms delivery gap" },
+        { title: "Type the analyze/api seam" },
+        // Measured against the WHOLE backlog: a read-back of middling rows is
+        // just as much a read-back as one of the top.
+        { title: "Rename the settle poll flag" },
+      ]),
+    ],
+  });
+  assert.equal(ok, false, "a list that is the backlog read back is not a ranking");
+  const check = byName(checks).rankVsBacklog;
+  assert.equal(check.actual, 0, "the two top-5 matches are NOT counted as hits");
+  assert.match(check.note, /CONTAMINATED/);
+  assert.match(check.note, /night\(s\) 1/);
+
+  // Two verbatim matches are judgment, not contamination.
+  const clean = evaluateExpectations(scenario({ rankVsBacklog: 1 }), {
+    backlog: { items: BACKLOG },
+    nights: [c1night(1, [{ title: "Close the comms delivery gap" }, { title: "Type the analyze/api seam" }])],
+  });
+  assert.equal(clean.ok, true);
+  assert.equal(byName(clean.checks).rankVsBacklog.note, undefined);
+});
+
+test("rankVsBacklog ranks by the PRE-SCORED value, and keeps file order where nothing is scored", () => {
+  // The holder's own order is its ranking when it scored nothing.
+  const unscored = rankNight([{ title: "first" }, { title: "second" }, { title: "third" }], [], { topK: 2 });
+  assert.deepEqual(unscored.holderTop, ["first", "second"]);
+  // A scored list re-ranks — the bench does not care what order it arrived in.
+  const scored = rankNight([{ title: "low", value: 1 }, { title: "high", value: 9 }], [], { topK: 1 });
+  assert.deepEqual(scored.holderTop, ["high"]);
+  // The bench's own [bench <stamp>] suffix is not part of a title's identity.
+  const stamped = rankNight([{ title: "Close the comms delivery gap [bench 2026-08-29T09-31-02]" }], BACKLOG, { topK: 5 });
+  assert.deepEqual(stamped.hits, ["Close the comms delivery gap [bench 2026-08-29T09-31-02]"]);
+});
+
+test("declineQuality: every decline must carry a reason from the closed set", () => {
+  const clean = evaluateExpectations(scenario({ declineQuality: true }), {
+    nights: [
+      c1night(1, null, [
+        { title: "Rewrite the router", reason: "outside-mandate" },
+        { title: "Add a logo", reason: "low value" },
+        { title: "Type the seam", reason: "already done" },
+        { title: "Drop the CZK layer", reason: "needs a human decision" },
+      ]),
+    ],
+  });
+  assert.equal(clean.ok, true, "the prose forms of the four reasons normalise — punctuation is not the finding");
+  assert.equal(byName(clean.checks).declineQuality.actual, 1);
+  assert.match(byName(clean.checks).declineQuality.note, /spot-check/);
+
+  const sloppy = evaluateExpectations(scenario({ declineQuality: true }), {
+    nights: [
+      c1night(1, null, [
+        { title: "a", reason: "outside-mandate" },
+        { title: "b", reason: "it did not feel right" },
+        { title: "c" },
+      ]),
+    ],
+  });
+  assert.equal(sloppy.ok, false);
+  const check = byName(sloppy.checks).declineQuality;
+  assert.equal(check.actual, 0.3333);
+  assert.match(check.delta, /did not feel right/);
+  assert.match(check.delta, /1 of 3/);
+});
+
+test("declineQuality: no decline log reads null and does not fail", () => {
+  const { ok, checks } = evaluateExpectations(scenario({ declineQuality: true }), { nights: [c1night(1, [{ title: "x" }])] });
+  assert.equal(ok, true);
+  assert.equal(byName(checks).declineQuality.actual, null);
+  assert.match(byName(checks).declineQuality.note, /not a clean one/);
+});
+
+test("valueLiteracy: a proposal naming no journey or no axis is a task-executor's proposal", () => {
+  const short = evaluateExpectations(scenario({ valueLiteracy: 0.8 }), {
+    nights: [
+      c1night(1, [
+        { title: "a", journey: "role-to-schedule", axis: "time" },
+        { title: "b", journey: "cv-to-shortlist", axis: "risk" },
+        // The nested shape reads the same as the flat one.
+        { title: "c", target: { journey: "apply" }, value: { axis: "gate" } },
+        { title: "d", journey: "apply", axis: "vibes" },
+      ]),
+    ],
+  });
+  // 3 of 4 is 0.75, which is BELOW the 0.8 line — the arithmetic is pinned, not
+  // the hope that "most of them named one" is good enough.
+  assert.equal(byName(short.checks).valueLiteracy.actual, 0.75);
+  assert.equal(short.ok, false);
+  assert.match(byName(short.checks).valueLiteracy.delta, /"d" names no axis in time\/risk\/gate/);
+
+  const good = evaluateExpectations(scenario({ valueLiteracy: 0.8 }), {
+    nights: [c1night(1, [{ title: "a", journey: "j", axis: "time" }, { title: "b", journey: "j", axis: "gate" }])],
+  });
+  assert.equal(good.ok, true);
+  assert.equal(byName(good.checks).valueLiteracy.actual, 1);
+});
+
+test("valueLiteracy: no proposal list reads null and does not fail", () => {
+  const { ok, checks } = evaluateExpectations(scenario({ valueLiteracy: 0.8 }), { nights: [c1night(1, null)] });
+  assert.equal(ok, true);
+  assert.equal(byName(checks).valueLiteracy.actual, null);
+  assert.match(byName(checks).valueLiteracy.note, /not an illiterate one/);
+});
+
+test("the C1 checks pool every night, not just the busiest one", () => {
+  const { checks } = evaluateExpectations(scenario({ valueLiteracy: 1, declineQuality: true }), {
+    nights: [
+      c1night(1, [{ title: "a", journey: "j", axis: "time" }], [{ title: "x", reason: "low-value" }]),
+      c1night(2, [{ title: "b" }], [{ title: "y", reason: "nope" }]),
+    ],
+  });
+  assert.equal(byName(checks).valueLiteracy.actual, 0.5, "2 nights, 2 proposals, 1 literate");
+  assert.equal(byName(checks).declineQuality.actual, 0.5);
 });

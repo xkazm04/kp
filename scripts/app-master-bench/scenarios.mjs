@@ -90,6 +90,13 @@ export const EXPECT_KEYS = [
   "minProposalsOpened",
   "noViolations",
   "budgetDegraded",
+  // C1 — value judgment (docs/development/app-master-c1-exam.md §3). These read
+  // the night's own proposal list and decline log, which is the competency 31
+  // sweeps never measured: every check above reads integrity or measurement,
+  // both closed rings.
+  "rankVsBacklog",
+  "declineQuality",
+  "valueLiteracy",
 ];
 
 /** Seed caps, mirroring `personas_db::repos::dev::bench_seed`. Checked here so a

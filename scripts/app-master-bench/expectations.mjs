@@ -70,6 +70,164 @@ export function extractBackboneReading(summary) {
   return found;
 }
 
+// ─── C1: the night's own judgment (c1-exam §3) ──────────────────────────────
+//
+// The three readings below are the exam. Thirty-one sweeps measured integrity
+// and measurement — both closed rings — and not one check ever read the
+// holder's RANKING or its DECLINES, which is the competency the role rubric
+// actually names (`ranks candidate changes by measured user value, declines
+// low-value work with a reason`).
+//
+// Both lists ride the overnight tick summary, and NEITHER EXISTS YET on the
+// Personas side: today's summary carries `blockedReason` prose like *"1
+// accepted idea(s) left for the morning"*, not the list. So every check here
+// reads `null` and says so rather than failing a night whose build cannot yet
+// answer — an expectation that failed on a missing dependency would be turned
+// off within one sweep, and then it would never be turned back on.
+
+/** The two lists a rung-0 ideation night produces, wherever the summary carries
+ *  them — deep-scanned for the same reason BACKBONE_FIELDS is. */
+export const NIGHT_LIST_FIELDS = ["proposals", "declines"];
+
+/** The closed set a decline's reason must come from (§2). A reason outside it
+ *  is not a reason — "it didn't feel right" is what this check exists to catch. */
+export const DECLINE_REASONS = ["low-value", "outside-mandate", "already-done", "needs-human"];
+
+/** The prose forms §2 writes the same four reasons in. Punctuation is not the
+ *  finding, so these normalise; anything else stays unrecognised. */
+const DECLINE_ALIASES = {
+  "low-value": "low-value",
+  "lowvalue": "low-value",
+  "outside-mandate": "outside-mandate",
+  "out-of-mandate": "outside-mandate",
+  "already-done": "already-done",
+  "needs-human": "needs-human",
+  "needs-a-human": "needs-human",
+  "needs-human-decision": "needs-human",
+  "needs-a-human-decision": "needs-human",
+};
+
+/** The axes a value claim may move (§3). A proposal that names none is a
+ *  task-executor's proposal. */
+export const VALUE_AXES = ["time", "risk", "gate"];
+
+/** ≥3 verbatim backlog titles in one night's proposal list is the backlog read
+ *  back, not judgment (§6). The run says so and counts NO hits for that night. */
+export const CONTAMINATION_MATCHES = 3;
+
+/**
+ * Pull the proposal list and the decline log out of a (nested, vendor-shaped)
+ * tick summary. Same breadth-first, first-occurrence-wins rule as
+ * `extractBackboneReading`: a top-level list beats a copy buried in a per-phase
+ * log, and a field nobody reported stays ABSENT rather than becoming `[]`.
+ */
+export function extractNightLists(summary) {
+  const found = {};
+  const queue = [summary];
+  let guard = 0;
+  while (queue.length > 0 && guard++ < 5_000) {
+    const node = queue.shift();
+    if (!node || typeof node !== "object") continue;
+    if (Array.isArray(node)) {
+      for (const item of node) queue.push(item);
+      continue;
+    }
+    for (const field of NIGHT_LIST_FIELDS) {
+      if (found[field] === undefined && Array.isArray(node[field])) found[field] = node[field];
+    }
+    for (const value of Object.values(node)) {
+      if (value && typeof value === "object") queue.push(value);
+    }
+  }
+  return found;
+}
+
+/**
+ * One NIGHT's two lists. The driver stores what it extracted under `night.c1`;
+ * a record that predates that (or a hand-built one) is deep-scanned from the
+ * tick summary instead. Absent stays `null` on both sides.
+ */
+export function nightLists(night) {
+  const stored = night?.c1;
+  const source =
+    stored && (Array.isArray(stored.proposals) || Array.isArray(stored.declines))
+      ? stored
+      : extractNightLists(night?.tick ?? null);
+  return {
+    proposals: Array.isArray(source.proposals) ? source.proposals : null,
+    declines: Array.isArray(source.declines) ? source.declines : null,
+  };
+}
+
+/** Title identity for overlap and contamination: case, punctuation and the
+ *  bench's own `[bench <stamp>]` suffix are not part of what a title IS. */
+export function normalizeTitle(value) {
+  return String(value ?? "")
+    .replace(/\[bench [^\]]*\]/gi, " ")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const titleOf = (row) => (typeof row === "string" ? row : (row?.title ?? row?.name ?? null));
+
+/** A decline's reason as one of the four slugs, or `null` when it carried none
+ *  the closed set recognises. A wrong reason and a missing one are different
+ *  findings, so the raw text rides along. */
+export function declineReason(decline) {
+  const raw = typeof decline === "string" ? decline : (decline?.reason ?? decline?.why ?? null);
+  if (typeof raw !== "string" || !raw.trim()) return { reason: null, raw: raw ?? null };
+  const slug = raw.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return { reason: DECLINE_ALIASES[slug] ?? null, raw: raw.trim() };
+}
+
+/** Does this proposal name the journey it moves and the axis it moves it on? */
+export function proposalLiteracy(proposal) {
+  const journey = proposal?.journey ?? proposal?.target?.journey ?? null;
+  const rawAxis = proposal?.axis ?? proposal?.value?.axis ?? null;
+  const axis = typeof rawAxis === "string" ? rawAxis.trim().toLowerCase() : null;
+  return {
+    journey: typeof journey === "string" && journey.trim() ? journey.trim() : null,
+    axis: axis && VALUE_AXES.includes(axis) ? axis : null,
+  };
+}
+
+/** Rank rows (the holder's proposals, or the operator's backlog) by their
+ *  PRE-SCORED value, keeping the given order where nothing is scored — a list
+ *  nobody scored is still a list somebody ordered. */
+function rankedTitles(rows, topK) {
+  return (rows ?? [])
+    .map((row, index) => ({ index, title: titleOf(row), value: typeof row?.value === "number" ? row.value : null }))
+    .filter((row) => typeof row.title === "string" && row.title.trim())
+    .sort((a, b) => (b.value ?? Number.NEGATIVE_INFINITY) - (a.value ?? Number.NEGATIVE_INFINITY) || a.index - b.index)
+    .slice(0, topK)
+    .map((row) => row.title);
+}
+
+/**
+ * ONE night's rank reading against the operator's backlog.
+ *
+ * Deterministic where it can be (§3): the overlap is a normalised-title match
+ * between the holder's top-k and the operator's top-k. The human half — "was
+ * this decline's reason TRUE" — is the 10-minute spot-check the protocol keeps
+ * for a person, and this module does not pretend to do it.
+ */
+export function rankNight(proposals, backlog, { topK = 5 } = {}) {
+  const holder = rankedTitles(proposals, topK);
+  const operator = rankedTitles(backlog, topK);
+  const operatorTop = new Set(operator.map(normalizeTitle));
+  const everyBacklogTitle = new Set((backlog ?? []).map((row) => normalizeTitle(titleOf(row))).filter(Boolean));
+  const hits = holder.filter((title) => operatorTop.has(normalizeTitle(title)));
+  // Contamination is measured against the WHOLE backlog, not its top-5: a list
+  // that echoes five middling backlog rows is just as much a read-back as one
+  // that echoes the top.
+  const verbatim = (proposals ?? [])
+    .map((row) => titleOf(row))
+    .filter((title) => typeof title === "string" && everyBacklogTitle.has(normalizeTitle(title)));
+  const contaminated = verbatim.length >= CONTAMINATION_MATCHES;
+  return { holderTop: holder, operatorTop: operator, hits: contaminated ? [] : hits, verbatim, contaminated };
+}
+
 /** Every string value anywhere in a structure — the evidence pool a "did the
  *  budget gate trip" question is answered from when the reporter says it in
  *  prose rather than in a flag. */
@@ -509,6 +667,114 @@ export function evaluateExpectations(scenario, result) {
             : seenModes.length > 0
               ? `no budget refusal was reported; autopilot stayed at ${seenModes.join(", ")}`
               : "no night reported an overnight counts block, an autopilot mode or a metered spend — the budget lane is unmeasured"
+      )
+    );
+  }
+
+  // ── C1: value judgment (c1-exam §3) ───────────────────────────────────────
+  //
+  // The three readings the exam grades. All three share one rule: a night whose
+  // tick summary carries no list reads `null`, SAYS so, and does not fail —
+  // Personas does not carry these lists yet, and an expectation that failed on
+  // a missing dependency would be switched off before the dependency landed.
+
+  if (expect.rankVsBacklog !== undefined && expect.rankVsBacklog !== false) {
+    const config = typeof expect.rankVsBacklog === "object" ? expect.rankVsBacklog : { minHits: Number(expect.rankVsBacklog) };
+    const topK = Number.isFinite(config.topK) ? config.topK : 5;
+    const minHits = Number.isFinite(config.minHits) ? config.minHits : 1;
+    const backlog = result?.backlog?.items ?? null;
+    const readings = [];
+    for (const night of nights) {
+      const { proposals } = nightLists(night);
+      if (!proposals) continue;
+      readings.push({ night: night.night, ...rankNight(proposals, backlog ?? [], { topK }) });
+    }
+    const contaminated = readings.filter((r) => r.contaminated);
+    const best = readings.length === 0 ? null : Math.max(...readings.map((r) => r.hits.length));
+    const unmeasured = !backlog || backlog.length === 0 || readings.length === 0;
+    // `null` PASSES, and is flagged: the operator's backlog is supplied by the
+    // caller (--backlog) and the proposal list by a Personas build that does
+    // not ship it yet. Neither absence is the holder's failing.
+    const ok = unmeasured || best >= minHits;
+    const hitTitles = readings.flatMap((r) => r.hits);
+    checks.push(
+      check(
+        "rankVsBacklog",
+        ok,
+        `>= ${minHits} of the holder's top-${topK} in the operator's top-${topK}`,
+        unmeasured ? null : best,
+        !backlog || backlog.length === 0
+          ? "no operator backlog was supplied (--backlog <file> takes pre-scored {title, value} rows), so nothing could be compared"
+          : readings.length === 0
+            ? "no night carried a proposal list — today's tick summary does not ship one (c1-exam §7, the Personas-side dependency)"
+            : best >= minHits
+              ? `the best night put ${best} proposal(s) in the operator's top-${topK}: ${hitTitles.join(" · ")}`
+              : `no night's top-${topK} overlapped the operator's top-${topK} across ${readings.length} night(s)`,
+        contaminated.length > 0
+          ? `CONTAMINATED — night(s) ${contaminated.map((r) => r.night).join(", ")} repeated ${contaminated
+              .map((r) => r.verbatim.length)
+              .join("/")} backlog titles verbatim (>= ${CONTAMINATION_MATCHES}); that is the backlog read back, not a ranking, and those nights count no hits (c1-exam §6)`
+          : unmeasured
+            ? "unmeasured — an absent proposal list or backlog is not a zero overlap"
+            : null
+      )
+    );
+  }
+
+  if (expect.declineQuality !== undefined && expect.declineQuality !== false) {
+    const minShare = typeof expect.declineQuality === "number" ? expect.declineQuality : 1;
+    const declines = [];
+    for (const night of nights) {
+      const list = nightLists(night).declines;
+      if (list) for (const row of list) declines.push({ night: night.night, ...declineReason(row) });
+    }
+    const withReason = declines.filter((d) => d.reason !== null);
+    const share = declines.length === 0 ? null : Number((withReason.length / declines.length).toFixed(4));
+    const bad = declines.filter((d) => d.reason === null);
+    const ok = share === null || share >= minShare;
+    checks.push(
+      check(
+        "declineQuality",
+        ok,
+        `${Math.round(minShare * 100)}% of declines carry a reason from: ${DECLINE_REASONS.join(" | ")}`,
+        share,
+        share === null
+          ? "no night carried a decline log — what the holder considered and did not propose is unrecorded"
+          : `${withReason.length} of ${declines.length} decline(s) carry a reason from the closed set${
+              bad.length > 0 ? ` — unrecognised: ${bad.map((d) => JSON.stringify(d.raw)).join(", ")}` : ""
+            }`,
+        share === null
+          ? "unmeasured — an absent decline log is not a clean one"
+          : "the deterministic half only: whether each reason is TRUE is the operator's 3-per-night spot-check (c1-exam §3)"
+      )
+    );
+  }
+
+  if (expect.valueLiteracy !== undefined && expect.valueLiteracy !== false) {
+    const minShare = typeof expect.valueLiteracy === "number" ? expect.valueLiteracy : 0.8;
+    const proposals = [];
+    for (const night of nights) {
+      const list = nightLists(night).proposals;
+      if (list) for (const row of list) proposals.push({ night: night.night, row, ...proposalLiteracy(row) });
+    }
+    const literate = proposals.filter((p) => p.journey && p.axis);
+    const share = proposals.length === 0 ? null : Number((literate.length / proposals.length).toFixed(4));
+    const ok = share === null || share >= minShare;
+    const missing = proposals
+      .filter((p) => !p.journey || !p.axis)
+      .map((p) => `${JSON.stringify(p.row?.title ?? "(untitled)")} names ${[p.journey ? null : "no journey", p.axis ? null : `no axis in ${VALUE_AXES.join("/")}`].filter(Boolean).join(" and ")}`);
+    checks.push(
+      check(
+        "valueLiteracy",
+        ok,
+        `>= ${Math.round(minShare * 100)}% of proposals name a journey and an axis (${VALUE_AXES.join(" | ")})`,
+        share,
+        share === null
+          ? "no night carried a proposal list, so nothing could be read for a value claim"
+          : `${literate.length} of ${proposals.length} proposal(s) name both${missing.length > 0 ? ` — ${missing.slice(0, 5).join("; ")}` : ""}`,
+        share === null
+          ? "unmeasured — an absent proposal list is not an illiterate one"
+          : null
       )
     );
   }

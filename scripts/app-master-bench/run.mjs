@@ -78,6 +78,7 @@ import {
 import {
   evaluateExpectations,
   extractBackboneReading,
+  extractNightLists,
   mergeReadings,
   phaseCounts,
   phaseEntry,
@@ -708,6 +709,10 @@ async function runScenario(scenario, opts) {
     kp: { baseUrl: kp.base, health: null },
     fleet: null,
     personas: { baseUrl: personas.base, health: null, stub: !!opts.stub },
+    // The operator's own ranked backlog (--backlog), which `rankVsBacklog`
+    // grades the night's proposal list against. PRE-SCORED elsewhere: turning a
+    // title into a value is `/value-ledger`'s job, not the driver's.
+    backlog: opts.backlog ?? null,
     scan: null,
     intakeId: null,
     dialog: [],
@@ -1351,7 +1356,17 @@ async function runScenario(scenario, opts) {
             readingSource: {},
             backbone: null,
             appMaster: null,
+            // C1 (c1-exam §3): the night's OWN judgment — what it proposed and
+            // what it declined. Extracted here so the record carries the lists
+            // rather than only the summary they were buried in; absent stays
+            // absent, and the expectation checks read the absence as `null`.
+            c1: extractNightLists(summary),
           };
+          if (!night.c1.proposals) {
+            result.unmeasured.push(
+              `night ${n}: the tick summary carried no \`proposals\` list — a rung-0 ideation night's product is that list, and this Personas build does not ship it yet (c1-exam §7)`
+            );
+          }
           // DEGRADE HONESTLY: a missing or refusing tick route is recorded as an
           // unmeasured night, not a driver crash. The expectation checks then
           // fail on the absence, which is the correct reading.
@@ -1394,6 +1409,8 @@ async function runScenario(scenario, opts) {
             coverage: night.backbone?.coverage ?? null,
             reading: night.reading,
             readingSource: night.readingSource,
+            proposals: night.c1.proposals ? night.c1.proposals.map((p) => p?.title ?? p).slice(0, 20) : null,
+            declines: night.c1.declines ? night.c1.declines.length : null,
           });
         }
       });
@@ -1515,6 +1532,9 @@ async function main() {
         "                           With --tenure, that path is the destination.",
         "  --strict                  a hired agent no tenure file names BLOCKS preflight",
         "                           (without it the orphans are listed and the run goes on)",
+        "  --backlog <file>         the operator's ranked backlog for `rankVsBacklog`:",
+        "                           JSON [{title, value}] (or {items:[…]}), PRE-SCORED —",
+        "                           scoring a title is /value-ledger's job, not the driver's",
         "  --kp <url>               kp base url            (default http://localhost:3101)",
         "  --personas <url>         Personas base url      (default http://127.0.0.1:9420)",
         "  --personas-key pk_…      skip the driver's own pairing",
@@ -1585,6 +1605,27 @@ async function main() {
     return { tenure: loadTenureFile(file), tenureFile: file };
   };
 
+  // ── the operator's backlog (c1-exam §3) ───────────────────────────────────
+  // Pre-scored rows, read once for the whole sweep. Every row must carry a
+  // title; a row with no `value` keeps its FILE ORDER, so an unscored backlog
+  // is still the order somebody wrote it in rather than a silent re-ranking.
+  let backlog = null;
+  if (args.backlog) {
+    const file = path.resolve(String(args.backlog));
+    if (!existsSync(file)) throw new Error(`backlog file not found: ${file}`);
+    const parsed = JSON.parse(readFileSync(file, "utf8"));
+    const items = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.items) ? parsed.items : null;
+    if (!items) throw new Error(`backlog ${file}: expected a JSON array of {title, value} rows, or { items: [...] }`);
+    const untitled = items.filter((row) => !(typeof row?.title === "string" && row.title.trim())).length;
+    if (untitled > 0) throw new Error(`backlog ${file}: ${untitled} row(s) carry no title — a title is what an overlap is measured on`);
+    backlog = {
+      file,
+      items: items.map((row) => ({ title: String(row.title).trim(), value: typeof row.value === "number" ? row.value : null })),
+      scored: items.filter((row) => typeof row.value === "number").length,
+    };
+    process.stderr.write(`operator backlog: ${backlog.items.length} row(s), ${backlog.scored} scored — ${file}\n`);
+  }
+
   const kpUrl = String(args.kp || process.env.KP_BENCH_URL || "http://localhost:3101");
 
   let stub = null;
@@ -1642,6 +1683,7 @@ async function main() {
     settleTimeoutMs: Number(args["settle-timeout"] || 30 * 60_000),
     // Hygiene, enforced rather than reported: an orphan fleet blocks preflight.
     strict: !!args.strict,
+    backlog,
   };
 
   const results = [];

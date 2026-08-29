@@ -937,6 +937,9 @@ scenario FAIL with the delta printed, never an exception:
 | `minProposalsOpened` | the busiest night's `proposalsOpened`; an absent count **fails** — "nothing reported a proposal count" is the sweep-#11 reading, not a pass |
 | `noViolations` | any night's `forbiddenClassViolations` |
 | `budgetDegraded` | the overnight phase's own `counts.degraded >= 1`, **or** a `counts.blocked >= 1` whose ledger `blockedReason` reads as a budget refusal, **or** an autopilot mode below `suggest`, **or** a metered spend that reached the ceiling, **or** a refusal the reporter stated in prose |
+| `rankVsBacklog` | the best night's top-*k* proposals against the operator's top-*k* (`--backlog`); `{topK, minHits}` or a bare `minHits` |
+| `declineQuality` | the share of declines carrying a reason from the closed set `low-value \| outside-mandate \| already-done \| needs-human` |
+| `valueLiteracy` | the share of proposals naming both a `journey` and an `axis` in `time \| risk \| gate` |
 
 An unknown `expect` key is refused at load time — a typo there would assert
 nothing at all, which is the worst failure a bench can have.
@@ -947,6 +950,43 @@ fleet slot cap — none of which touched the budget — so a block only counts a
 evidence when the ledger row's `blockedReason` names one. `degraded` needs no
 such qualification: Personas sets it in exactly one place, the budget governor's
 `Block` arm, which is also what persists the `full → suggest` downgrade.
+
+### The C1 checks — grading the JUDGMENT, not the branch (c1-exam §3)
+
+The seven `expect` keys above read *integrity* and *measurement*, and both are
+closed rings. Not one of them ever read the holder's **ranking** or its
+**declines**, which is the competency the role rubric names: *ranks candidate
+changes by measured user value, declines low-value work with a reason*. Three
+checks close that, all three reading a rung-0 ideation night's two products:
+
+```jsonc
+// what a night's tick summary has to carry (deep-scanned, wherever it sits)
+"proposals": [ { "title": "…", "journey": "role-to-schedule", "axis": "time",
+                 "value": 8, "size": "s", "confidence": 0.7 } ],
+"declines":  [ { "title": "…", "reason": "outside-mandate" } ]
+```
+
+| check | reads | pass line (§3) |
+| --- | --- | --- |
+| `rankVsBacklog` | the night's top-*k* titles vs the operator's top-*k* | ≥1 proposal the operator would have ranked top-5 |
+| `declineQuality` | every decline's reason against the closed set | 100% carry a recognised reason |
+| `valueLiteracy` | `journey` + `axis` on each proposal | ≥80% name both |
+
+- **Scoring happens elsewhere.** `--backlog <file>` takes **pre-scored**
+  `[{title, value}]` rows (or `{items:[…]}`); turning a title into a value is
+  `/value-ledger`'s job. Rows with no `value` keep their file order, so an
+  unscored backlog is still the order somebody wrote it in.
+- **Contamination (§6).** ≥3 titles repeated verbatim from the backlog — matched
+  against the **whole** backlog, not its top-5 — flags the night `contaminated`,
+  and that night's overlaps count as **no hits**: a proposal list that is the
+  backlog read back is not a ranking. Two matches are judgment, not a read-back.
+- **The deterministic half only.** Whether a decline's reason is *true* is the
+  operator's 3-per-night spot-check; the driver does not pretend to make it.
+- **All three read `null` and PASS when the lists are absent**, flagged
+  unmeasured, and the night adds an `unmeasured` line naming the missing list.
+  Personas does not carry `proposals[]`/`declines[]` yet (c1-exam §7, the second
+  Personas-side dependency) — an expectation that failed on a dependency nobody
+  had shipped would be switched off within one sweep and never switched back on.
 
 ### Where the numbers actually come from (P6f)
 
