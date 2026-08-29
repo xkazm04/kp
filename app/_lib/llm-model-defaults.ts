@@ -4,10 +4,19 @@
 //
 // Its own module, not a constant inside llm-config.ts, for the same reason
 // provider-key-precedence.ts is split out: llm-config.ts imports the SQLite
-// store, so it is loadable neither by `node --test` nor by a client component.
-// The keys panel needs this rule in the browser (to decide whether to ask for a
-// model before probing a key) and the lockstep test needs it under the test
-// runner, so it lives where both can reach it. llm-config.ts re-exports it.
+// store, so it cannot be loaded by a CLIENT COMPONENT — better-sqlite3 has no
+// browser build. The keys panel needs this rule in the browser (to decide
+// whether to ask for a model before probing a key), so it lives where both can
+// reach it. llm-config.ts re-exports it.
+//
+// This header used to say "loadable neither by `node --test` nor by a client
+// component". The `node --test` half was false: ./db/core opens SQLite lazily
+// inside ensureDb(), so nothing touches better-sqlite3 at module-eval time and
+// llm-config.ts imports fine under the unit runner —
+// modelsRoutingSections.test.ts has been doing exactly that, and
+// llm-capabilities-lockstep.test.ts now does too. Left as a caution: a
+// justification for a module split that names the wrong reason invites the next
+// reader to split more files than they need to.
 
 /** The provider ids this rule can name. Kept structural (a plain string list) so
  *  this module stays free of the LlmProvider union's module graph. */

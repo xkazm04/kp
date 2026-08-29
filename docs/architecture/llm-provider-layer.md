@@ -67,6 +67,21 @@ contract) — the wrapper preserves both.
 
 ## Capability matrix (`capabilities.py`)
 
+**The TS mirrors are pinned to it.** `LLM_PROVIDERS` and `LLM_USE_CASES`
+(`app/_lib/llm-config.ts`) and `BENCH_OPS` (`app/_lib/llm-quality.ts`) are
+hand-mirrored copies of `PROVIDER_CAPABILITIES`, `USE_CASE_REQUIREMENTS` and
+`bench/scenarios.REGISTRY_USE_CASE`. Python is authoritative; the TS copies only
+gate what the admin API accepts and what the Models tab offers.
+`llm-capabilities-lockstep.test.ts` reads the Python source and asserts set
+equality in both directions, the way `llm-model-required.test.ts` already did for
+`DEFAULT_MODELS`. Each mirror rots in a direction nothing else can see: a
+provider Python gained and TS did not answers `"Unknown provider."` for a
+provider that works; a use case TS gained and Python did not is a routing pin the
+resolver never reads; and a bench op rolling up to a use case that does not exist
+makes the Models tab silently show no recommendation for it. The test carries a
+shape guard so a re-shaped Python declaration fails loudly instead of parsing to
+an empty list and passing vacuously.
+
 | Capability | gemini | openai | azure_openai | anthropic | claude_cli |
 |---|---|---|---|---|---|
 | json_schema | done | done | done | done | done (via expected_keys) |
