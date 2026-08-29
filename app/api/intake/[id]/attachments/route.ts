@@ -4,6 +4,9 @@ import { loadJd } from "@/app/_lib/db/jobs";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { requireOperator } from "@/app/_lib/auth/require-operator";
 import { safeJsonError } from "@/app/_lib/api-response";
+// The caps live in a sibling module: Next's generated route types reject any
+// non-handler `export const` here (backlog item 57).
+import { ATTACHMENT_LIMIT, ATTACHMENT_TEXT_MAX } from "./attachment-limits";
 
 // POST /api/intake/[id]/attachments — attach reference material to a session
 // (a colleague's note pasted as text, or a saved JD picked from the library),
@@ -15,9 +18,6 @@ import { safeJsonError } from "@/app/_lib/api-response";
 // SERVER-SIDE from the workspace's library (`loadJd`) — the client sends only
 // the slug, never the body, so an attachment of kind "jd" always reflects the
 // stored document. Promoted sessions are frozen (same rule as the brief).
-
-export const ATTACHMENT_LIMIT = 5;
-export const ATTACHMENT_TEXT_MAX = 20_000;
 
 type Body = { action?: unknown; kind?: unknown; title?: unknown; text?: unknown; jdSlug?: unknown; index?: unknown };
 

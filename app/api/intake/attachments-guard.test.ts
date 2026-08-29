@@ -12,6 +12,9 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const src = readFileSync(fileURLToPath(new URL("./[id]/attachments/route.ts", import.meta.url)), "utf8");
+// The caps live in a sibling module (a non-handler `export const` in a route file
+// aborts `next build` — backlog item 57), so the cap guard reads that file.
+const limitsSrc = readFileSync(fileURLToPath(new URL("./[id]/attachments/attachment-limits.ts", import.meta.url)), "utf8");
 
 test("attachments route: operator gate before any work", () => {
   const gate = src.indexOf("await requireOperator()");
@@ -26,8 +29,10 @@ test("attachments route: JD bodies resolve server-side from the workspace librar
 });
 
 test("attachments route: caps are pinned", () => {
-  assert.match(src, /ATTACHMENT_LIMIT = 5/);
-  assert.match(src, /ATTACHMENT_TEXT_MAX = 20_000/);
+  assert.match(limitsSrc, /ATTACHMENT_LIMIT = 5/);
+  assert.match(limitsSrc, /ATTACHMENT_TEXT_MAX = 20_000/);
+  // …and the route still imports them rather than re-declaring its own.
+  assert.match(src, /import \{ ATTACHMENT_LIMIT, ATTACHMENT_TEXT_MAX \} from "\.\/attachment-limits"/);
   assert.match(src, /slice\(0, ATTACHMENT_TEXT_MAX\)/);
 });
 
