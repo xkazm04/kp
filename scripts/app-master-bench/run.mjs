@@ -485,6 +485,73 @@ export async function buildWithRetry({
   }
 }
 
+// ─── teardown: retire what you hire (c1-exam §4) ────────────────────────────
+//
+// Nothing ever retired a bench hire. 31 sweeps × ~4 scenarios × retries is the
+// 100+ personas the operator eventually deleted by hand, and every one of them
+// was a live persona in Personas for weeks.
+//
+// HOW THE RETIREMENT REACHES KP, which is not what the protocol assumed. The
+// driver CANNOT report `lifecycle: retired` itself: the report route's token is
+// minted at dispatch and stored server-side, and `GET /api/agents` strips it on
+// the way out (`app/api/agents/route.ts` — "the token is the report route's auth
+// capability, not roster data"). So a retirement travels the same path every
+// other lifecycle event does — Personas archives the persona and PUSHES the
+// event to `/api/agents/report/<token>` — and the driver's job is to ask, then
+// REFRESH AND READ the roster rather than to claim it happened.
+
+/** The one Personas-side route this protocol asks for (c1-exam §4). */
+export const RETIRE_ROUTE = "/api/kp/test/retire";
+
+/** The exact reading a 404 on that route produces. Pinned as a constant because
+ *  the run record, the warning and the test all have to agree on it. */
+export const TEARDOWN_UNAVAILABLE = "unavailable — Personas has no retire route";
+
+/**
+ * Retire ONE hire. Never throws: the caller decides whether an unretired hire
+ * ends the run (`--strict`) — a teardown that crashed the driver would leave
+ * exactly the orphan it exists to prevent, and lose the run record with it.
+ */
+export async function teardownHire({ personas, refresh = null, rosterRow = null, hiredAgentId = null, personaId = null, journal = null }) {
+  const record = { hiredAgentId, personaId, status: null, retire: null, lifecycle: null, ok: false };
+  if (!personaId) {
+    record.status = "skipped — this run never stood a hire up, so there is nothing to retire";
+    journal?.write("teardown-skipped", { reason: record.status });
+    return record;
+  }
+
+  const res = await personas.post(RETIRE_ROUTE, { personaId });
+  record.retire = { status: res.status, ok: !!res.ok, body: res.json ?? null };
+  if (res.status === 404) {
+    // Preflight already proved `headlessBridge: true`, and the bridge mounts
+    // `/api/kp/test/*` only in that mode — so a 404 is the ROUTE being absent,
+    // the same reading the seed phase takes. The protocol asks for this route;
+    // until it lands, the run says the persona is still live instead of
+    // pretending it cleaned up.
+    record.status = TEARDOWN_UNAVAILABLE;
+    journal?.write("teardown-unavailable", { route: RETIRE_ROUTE, personaId, note: record.status });
+    return record;
+  }
+  if (!res.ok) {
+    record.status = `refused — POST ${RETIRE_ROUTE} answered ${res.status}`;
+    journal?.write("teardown-refused", { route: RETIRE_ROUTE, personaId, status: res.status });
+    return record;
+  }
+
+  // Personas archived it. Now read what kp made of the lifecycle push it sent.
+  await refresh?.().catch(() => null);
+  const row = await rosterRow?.().catch(() => null);
+  record.lifecycle = row?.status ?? null;
+  record.ok = record.lifecycle === "retired";
+  record.status = record.ok
+    ? "retired"
+    : record.lifecycle
+      ? `Personas archived the persona, but kp's roster still reads \`${record.lifecycle}\` — the lifecycle push has not landed`
+      : "Personas archived the persona; kp's roster row could not be read, so the lifecycle is unconfirmed";
+  journal?.write("teardown", { personaId, hiredAgentId, lifecycle: record.lifecycle, ok: record.ok });
+  return record;
+}
+
 // ─── phase helpers ──────────────────────────────────────────────────────────
 
 async function phase(result, journal, name, body) {
@@ -723,6 +790,7 @@ async function runScenario(scenario, opts) {
     seed: null,
     nights: [],
     probation: null,
+    teardown: null,
     costReportedUsd: null,
     unmeasured: [],
     phases: [],
@@ -1466,6 +1534,42 @@ async function runScenario(scenario, opts) {
     journal.write("run-error", { phase: result.failedPhase, error: String(error?.message || error) });
   }
 
+  // ── teardown ──────────────────────────────────────────────────────────────
+  // OUTSIDE the try, deliberately: a run that failed a phase is exactly the run
+  // most likely to have left a live persona behind, and that is when retiring
+  // it matters most. A TENURE is never retired here — it is the subject of the
+  // next night and of the P3 soak (c1-exam §5).
+  if (opts.teardown) {
+    if (plan.mode === "tenure") {
+      skipPhase("teardown", "a tenure is kept, not retired — it is the subject of the next night (c1-exam §5)");
+    } else {
+      try {
+        await phase(result, journal, "teardown", async () => {
+          result.teardown = await teardownHire({
+            personas,
+            journal,
+            hiredAgentId: result.hire?.hiredAgentId ?? null,
+            personaId: result.hire?.personaId ?? null,
+            refresh: () => kp.post(`/api/agents/${result.hire?.hiredAgentId}/refresh`),
+            rosterRow,
+          });
+          if (!result.teardown.ok) {
+            const line = `teardown: ${result.teardown.status}`;
+            result.warnings.push(line);
+            result.unmeasured.push(
+              `${line} — this run's persona ${result.teardown.personaId ?? "(none)"} is still live in Personas and will show up in the next preflight's fleet audit as an orphan`
+            );
+            if (opts.strict) throw new PhaseError("teardown", `${line}. --strict refuses to end a run that left a hire behind.`);
+          }
+        });
+      } catch (error) {
+        // The FIRST failure is the run's headline; a teardown that failed after
+        // a failed phase must not overwrite the phase that actually broke.
+        if (result.failedPhase === null) result.failedPhase = error?.phase ?? "teardown";
+      }
+    }
+  }
+
   // ── expectations ──────────────────────────────────────────────────────────
   // Evaluated even after a phase failure: what a broken run DID read is still
   // the most useful thing in the file. NOT evaluated on a `--hire-only` run:
@@ -1504,6 +1608,7 @@ function printSummary(result) {
     result.seed?.requested ? `seeded ${result.seed.seeded ?? "?"}/${result.seed.requested}` : "no seeds",
     `${result.nights.length} night(s)`,
     result.probation?.decision ? `probation ${result.probation.decision}` : "probation –",
+    result.teardown ? `teardown ${result.teardown.ok ? "retired" : result.teardown.status}` : "",
     humanMs(result.wallMs),
     result.personas.stub ? "STUB Personas" : "",
   ]);
@@ -1530,8 +1635,11 @@ async function main() {
         "  --hire-only              run the preamble ONCE and write the tenure file,",
         "                           then stop (no seed, no nights, no probation).",
         "                           With --tenure, that path is the destination.",
-        "  --strict                  a hired agent no tenure file names BLOCKS preflight",
-        "                           (without it the orphans are listed and the run goes on)",
+        "  --teardown               retire this run's persona before the record closes",
+        "                           (fresh-hire scenarios only — a tenure is kept)",
+        "  --strict                  a hired agent no tenure file names BLOCKS preflight,",
+        "                           and a teardown that could not retire FAILS the run",
+        "                           (without it both are listed and the run goes on)",
         "  --backlog <file>         the operator's ranked backlog for `rankVsBacklog`:",
         "                           JSON [{title, value}] (or {items:[…]}), PRE-SCORED —",
         "                           scoring a title is /value-ledger's job, not the driver's",
@@ -1541,6 +1649,8 @@ async function main() {
         "  --stub-personas          run an in-process stub Personas instead (canned numbers)",
         "  --stub-build-fail-once   with --stub-personas: the FIRST hire build fails the",
         "                           way a real one does, so the build retry runs",
+        "  --stub-retire            with --stub-personas: mount POST /api/kp/test/retire",
+        "                           (off by default — Personas does not ship it yet)",
         "  --mode keyless|keyed     override every scenario's mode",
         "  --nights N               override every scenario's night count",
         "  --throttle-wait <ms>     how long to sit out a kp 429 (default 65000; kp's",
@@ -1644,7 +1754,13 @@ async function main() {
 
   if (args["stub-personas"]) {
     const { startStubPersonas } = await import("./stub.mjs");
-    stub = await startStubPersonas({ kpBaseUrl: kpUrl, buildFailsOnce: !!args["stub-build-fail-once"] });
+    stub = await startStubPersonas({
+      kpBaseUrl: kpUrl,
+      buildFailsOnce: !!args["stub-build-fail-once"],
+      // Off by default, like the real thing: --teardown against the stub takes
+      // the 404 branch unless this says Personas has grown the route.
+      retireRoute: !!args["stub-retire"],
+    });
     personasUrl = stub.url;
     personasKey = null; // the stub mints its own; pair against it for real
     process.stderr.write(`stub Personas (headless bridge, CANNED numbers) at ${personasUrl}\n`);
@@ -1681,8 +1797,10 @@ async function main() {
     // reporting an unmeasured lane on time beats waiting for one forever.
     settlePollMs: Number(args["settle-poll"] || 90_000),
     settleTimeoutMs: Number(args["settle-timeout"] || 30 * 60_000),
-    // Hygiene, enforced rather than reported: an orphan fleet blocks preflight.
+    // Hygiene, enforced rather than reported: an orphan fleet blocks preflight,
+    // and a hire that could not be retired fails the run that made it.
     strict: !!args.strict,
+    teardown: !!args.teardown,
     backlog,
   };
 

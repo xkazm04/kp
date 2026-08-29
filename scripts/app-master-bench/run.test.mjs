@@ -21,6 +21,8 @@ import assert from "node:assert/strict";
 import {
   MAX_BUILD_ATTEMPTS,
   PREAMBLE_PHASES,
+  RETIRE_ROUTE,
+  TEARDOWN_UNAVAILABLE,
   TENURE_PHASES,
   accountedBy,
   buildFailureReason,
@@ -29,8 +31,11 @@ import {
   mergeTickSummaries,
   planPhases,
   settleDispatch,
+  teardownHire,
   tenureRecordFrom,
 } from "./run.mjs";
+import { personasClient } from "./lib.mjs";
+import { startStubPersonas } from "./stub.mjs";
 
 /** A journal that records instead of writing, so a test reads what a run would. */
 const recorder = () => {
@@ -510,4 +515,120 @@ test("the tenure record keeps the GRANTED mandate, and invents nothing", () => {
   assert.equal(asked.probationDays, 30);
   assert.equal(asked.hiredAgentId, null, "a hire that never stood leaves a null handle, not an empty string");
   assert.equal(asked.personaId, null);
+});
+
+// ─── teardown: retire what you hire (c1-exam §4) ────────────────────────────
+//
+// Nothing ever retired a bench hire, and that is most of the story behind 100+
+// live personas. These run against the STUB bridge — the real one, over a real
+// socket — because the branch that matters is the one where the route is not
+// there at all: Personas does not ship `POST /api/kp/test/retire` yet, and a
+// driver that reported a clean teardown against a 404 would be lying in exactly
+// the direction that made the mess.
+
+test("teardown retires the persona and CONFIRMS it on kp's roster", async () => {
+  const stub = await startStubPersonas({ retireRoute: true });
+  try {
+    const personas = personasClient(stub.url, stub.apiKey);
+    // Stand a hire up the way a run does, so the stub has a persona to archive.
+    const dispatched = await personas.post("/api/kp/persona-requests", { spec: { name: "App master" } });
+    const requestId = dispatched.json.data.requestId;
+    const status = await personas.get(`/api/kp/persona-requests/${requestId}`);
+    const personaId = status.json.data.personaId;
+
+    let refreshed = 0;
+    const journal = recorder();
+    const record = await teardownHire({
+      personas,
+      journal,
+      hiredAgentId: "agt_1",
+      personaId,
+      refresh: async () => { refreshed += 1; },
+      // kp's roster after Personas' lifecycle push landed.
+      rosterRow: async () => ({ id: "agt_1", personaId, status: "retired" }),
+    });
+
+    assert.equal(record.ok, true);
+    assert.equal(record.status, "retired");
+    assert.equal(record.lifecycle, "retired");
+    assert.equal(refreshed, 1, "the driver refreshes before reading — the push lands asynchronously");
+    assert.equal(journal.lines.at(-1).kind, "teardown");
+    // The archive is Personas' half — and it is Personas that reports the
+    // lifecycle event to kp, because the report token never leaves kp's server
+    // (GET /api/agents strips it). The driver asks, then reads.
+    assert.equal(record.retire.body.data.archived, true);
+    const after = await personas.get(`/api/kp/persona-requests/${requestId}`);
+    assert.equal(after.json.data.status, "retired", "the archived persona reads retired on the bridge too");
+  } finally {
+    await stub.close();
+  }
+});
+
+test("a retire route that is NOT there reads `unavailable`, and never claims a clean exit", async () => {
+  const stub = await startStubPersonas(); // …as Personas ships today: no retire route
+  try {
+    const personas = personasClient(stub.url, stub.apiKey);
+    const dispatched = await personas.post("/api/kp/persona-requests", { spec: { name: "App master" } });
+    const personaId = (await personas.get(`/api/kp/persona-requests/${dispatched.json.data.requestId}`)).json.data.personaId;
+
+    const journal = recorder();
+    const record = await teardownHire({
+      personas,
+      journal,
+      hiredAgentId: "agt_1",
+      personaId,
+      refresh: async () => assert.fail("nothing was retired, so nothing is worth refreshing"),
+      rosterRow: async () => assert.fail("nothing was retired, so the roster proves nothing"),
+    });
+
+    assert.equal(record.ok, false);
+    assert.equal(record.status, TEARDOWN_UNAVAILABLE);
+    assert.equal(record.status, "unavailable — Personas has no retire route");
+    assert.equal(record.retire.status, 404);
+    assert.equal(record.lifecycle, null, "an unretired hire has no lifecycle reading, not a false one");
+    assert.equal(journal.lines.at(-1).kind, "teardown-unavailable");
+    assert.equal(stub.unknownPaths.at(-1), `POST ${RETIRE_ROUTE}`, "the stub saw the call it does not answer");
+  } finally {
+    await stub.close();
+  }
+});
+
+test("a run that never stood a hire up has nothing to retire, and says so", async () => {
+  const record = await teardownHire({
+    personas: { post: async () => assert.fail("no personaId means no call") },
+    personaId: null,
+  });
+  assert.equal(record.ok, false);
+  assert.match(record.status, /never stood a hire up/);
+});
+
+test("Personas archived it but kp's roster has not moved: reported, never rounded up to retired", async () => {
+  const stub = await startStubPersonas({ retireRoute: true });
+  try {
+    const personas = personasClient(stub.url, stub.apiKey);
+    const dispatched = await personas.post("/api/kp/persona-requests", { spec: { name: "App master" } });
+    const personaId = (await personas.get(`/api/kp/persona-requests/${dispatched.json.data.requestId}`)).json.data.personaId;
+    const record = await teardownHire({
+      personas,
+      hiredAgentId: "agt_1",
+      personaId,
+      refresh: async () => {},
+      rosterRow: async () => ({ id: "agt_1", status: "active" }),
+    });
+    assert.equal(record.ok, false, "the retire call succeeding is not the same as kp knowing about it");
+    assert.equal(record.lifecycle, "active");
+    assert.match(record.status, /roster still reads `active`/);
+
+    // …and a roster that cannot be read at all is unconfirmed, not retired.
+    const blind = await teardownHire({
+      personas,
+      personaId,
+      refresh: async () => {},
+      rosterRow: async () => { throw new Error("roster refused"); },
+    });
+    assert.equal(blind.ok, false);
+    assert.match(blind.status, /unconfirmed/);
+  } finally {
+    await stub.close();
+  }
 });

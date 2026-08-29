@@ -838,6 +838,42 @@ node scripts/app-master-bench/run.mjs --scenario kp-c1-night --tenure kp-owner
   `unmeasured` lines (no night ran; the `expect` block was not evaluated). A
   hire-only run is therefore not graded on nights it never ran.
 
+### `--teardown` — retire what you hire (c1-exam §4)
+
+Nothing ever retired a bench hire; that is most of the story behind the 100+
+live personas. `--teardown` retires **this run's** persona before the record
+closes, on fresh-hire scenarios only — a **tenure is kept**, because it is the
+subject of the next night and of the P3 soak (§5).
+
+It runs **outside** the run's try/catch, deliberately: a run that failed a phase
+is the one most likely to have left a live persona behind, and that is when
+retiring it matters most.
+
+> **The driver cannot report `lifecycle: retired` itself, and the protocol's
+> wording that it should is wrong.** The report route's token is minted at
+> dispatch and stored server-side, and `GET /api/agents` strips it on the way
+> out ("the token is the report route's auth capability, not roster data",
+> `app/api/agents/route.ts`). So the retirement travels the same path every
+> other lifecycle event does: the driver calls
+> **`POST /api/kp/test/retire {personaId}`**, Personas archives the persona and
+> **pushes** `{kind:"lifecycle", event:"retired"}` to
+> `/api/agents/report/<token>`, and the driver then **refreshes and reads the
+> roster** instead of claiming the transition happened.
+
+| what came back | `result.teardown.status` | run |
+| --- | --- | --- |
+| roster reads `retired` | `retired` | ✓ |
+| route answers 404 | `unavailable — Personas has no retire route` | warning + `unmeasured`; **fails only under `--strict`** |
+| retire refused (non-404) | `refused — POST … answered <status>` | same |
+| archived, roster unmoved | `…roster still reads \`active\`` | same — a successful call is not kp knowing about it |
+
+404 is read as *the route is absent*, the same reading the seed phase takes:
+preflight already proved `headlessBridge: true`, and the bridge mounts
+`/api/kp/test/*` only in that mode. The route is the one Personas-side change
+this protocol asks for; `stub.mjs` mounts it only under `retireRoute`
+(`--stub-retire`), **off by default**, so the default stub run exercises the
+404 branch a live `--teardown` takes today.
+
 ### The fleet audit — orphans, at preflight (c1-exam §4)
 
 Every run's preflight now reads `GET /api/agents` and compares kp's **live**

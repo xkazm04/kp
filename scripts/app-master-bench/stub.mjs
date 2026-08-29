@@ -14,6 +14,11 @@
 //   POST /api/kp/test/seed-work     → backlog work for the night to dispatch
 //                                     (P6e; §13.9 of the bridge doc)
 //   POST /api/kp/test/tick          → one compressed night per call
+//   POST /api/kp/test/retire        → archive the persona and push
+//                                     `lifecycle: retired` to kp (c1-exam §4).
+//                                     OFF unless `retireRoute` is set: Personas
+//                                     does not ship it yet, and the stub models
+//                                     what Personas ships.
 //
 // ⚠ EVERYTHING IT REPORTS IS CANNED. The stub does not run an agent, gate a
 // branch or spend a cent. Its numbers exist to exercise the driver's plumbing;
@@ -218,11 +223,18 @@ export const STUB_BUILD_FAILURE = { phase: "design", status: "failed", reason: "
  * instead of `active`. Personas' one-shot build is nondeterministic and a
  * meaningful fraction of hires fail for reasons unrelated to the role; this is
  * the knob that puts the driver's build retry under test without one.
+ *
+ * `retireRoute` mounts `POST /api/kp/test/retire` — the ONE Personas-side route
+ * the C1 protocol asks for (c1-exam §4). It is **off by default on purpose**:
+ * the stub's job is to model what Personas SHIPS, and Personas does not ship
+ * this yet, so the default run exercises the 404 branch a live `--teardown`
+ * takes today. Turn it on to exercise the other half.
  */
 export async function startStubPersonas({
   kpBaseUrl = null,
   branchesAfterReconciles = STUB_BRANCH_DELAY_RECONCILES,
   buildFailsOnce = false,
+  retireRoute = false,
 } = {}) {
   let buildsLeftToFail = buildFailsOnce ? 1 : 0;
   const apiKey = `pk_stub_${Math.random().toString(36).slice(2, 10)}`;
@@ -381,7 +393,9 @@ export async function startStubPersonas({
         }
         json(res, 200, {
           success: true,
-          data: dispatch.buildFails
+          data: dispatch.retired
+            ? { status: "retired", personaId: dispatch.personaId, personaName: dispatch.personaName }
+            : dispatch.buildFails
             ? {
                 status: "failed",
                 personaId: dispatch.personaId,
@@ -472,6 +486,32 @@ export async function startStubPersonas({
             },
           },
         });
+        return;
+      }
+
+      if (method === "POST" && p === "/api/kp/test/retire" && retireRoute) {
+        if (!authorized(req)) {
+          json(res, 401, { success: false, error: "missing or invalid bearer token" });
+          return;
+        }
+        const body = await readJson(req);
+        const dispatch = dispatches.find((d) => d.personaId === body.personaId) ?? null;
+        if (!dispatch) {
+          json(res, 404, { success: false, error: "no hire on this stub matches that personaId" });
+          return;
+        }
+        dispatch.retired = true;
+        // kp is told the way it is told every other lifecycle event: a push to
+        // the report route, whose token the driver never holds. The archive is
+        // Personas' half; the roster flip is kp's.
+        const pushed = await push(dispatch, {
+          kind: "lifecycle",
+          event: "retired",
+          personaId: dispatch.personaId,
+          personaName: dispatch.personaName,
+          note: "retired by the bench teardown",
+        });
+        json(res, 200, { success: true, data: { personaId: dispatch.personaId, archived: true, reported: pushed.ok } });
         return;
       }
 
