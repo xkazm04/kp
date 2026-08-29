@@ -36,7 +36,12 @@ export function IntegrationsCallbackBanner({ code }: { code: string }) {
   // on the known branch — the guard test makes that mapping total by contract.
   type Key = Parameters<typeof t>[0];
   const title = known ? t(`callback.${code}.title` as Key) : t("callback.unknown.title");
-  const body = known ? t(`callback.${code}.body` as Key) : t("callback.unknown.body", { code });
+  // The unknown branch echoes the raw `?calendar=` param so the operator has
+  // something to report — but that param is whatever was in the address bar, and
+  // an unbounded echo puts arbitrary text of arbitrary length inside a styled
+  // error banner (React escapes it, so this is layout and framing, not markup).
+  // 64 characters is more than any real status code and still quotable.
+  const body = known ? t(`callback.${code}.body` as Key) : t("callback.unknown.body", { code: code.slice(0, 64) });
 
   // `cancelled` and a partial grant are `warn`, not faults — announced politely (status),
   // so only a genuine error interrupts a screen reader with `alert`.
