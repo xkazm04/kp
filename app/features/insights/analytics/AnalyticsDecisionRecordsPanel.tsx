@@ -13,6 +13,7 @@ import { DecisionRecordsTable } from "./sections/DecisionRecordsTable";
 // `import type` only — decision-record-store has server imports; types are erased.
 import type { DecisionRecord, ChainVerdict } from "@/app/_lib/decision-record-store";
 
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 // Decision System of Record (moonshot D) — the recruiter/auditor view of the
 // sealed decision chain. The point is the VERIFY BADGE: a tamper-evident proof,
 // not just a log. "Export dossier" hands an auditor / right-to-explanation
@@ -147,7 +148,7 @@ export function DecisionRecordsPanel() {
       ) : !data ? (
         // Loading choreography (docs/design/loading-choreography.md, tier 2): a quiet
         // reserved box — invisible for 150ms — instead of a bare "loading" line.
-        <div className="reveal-quiet mt-4 min-h-[10rem]" aria-hidden />
+        <LoadingGap className="mt-4 min-h-[10rem]" />
       ) : (
         <>
           {/* Tamper-evidence verdict — the headline of this panel. Theme-mapped

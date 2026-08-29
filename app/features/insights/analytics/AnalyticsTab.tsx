@@ -14,6 +14,7 @@ import { AnalyticsSectionNav } from "./sections/AnalyticsSectionNav";
 import { isAnalyticsSectionId, resolveAnalyticsSection, type AnalyticsSectionId } from "./sections/analyticsSections";
 import type { Analytics } from "./AnalyticsTypes";
 
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 // Re-exported for the split-out panels/tests that still import these two
 // primitives (DeltaChip, InlineNumberSave) via "./AnalyticsTab" — the tab
 // entry component's filename is pinned (the shell dynamic-imports it), so
@@ -28,7 +29,7 @@ export type { Analytics } from "./AnalyticsTypes";
 // floor strip, the paged decision log, several tables — was paid on every visit,
 // including by the reader who came for the funnel. Now only the active section's
 // code is fetched. The gap is a quiet reserved box, never a skeleton.
-const sectionGap = () => <div className="reveal-quiet min-h-[28rem]" aria-hidden />;
+const sectionGap = () => <LoadingGap className="min-h-[28rem]" />;
 const PerformanceSection = dynamic(() => import("./sections/PerformanceSection").then((m) => ({ default: m.PerformanceSection })), {
   loading: sectionGap,
 });
@@ -136,7 +137,7 @@ export function AnalyticsTab() {
           then fade the section in. A later refresh re-renders the same branch
           silently — `data` stays non-null across a reload(), so nothing blanks. */}
       {!data && !error ? (
-        <div className="reveal-quiet min-h-[28rem]" aria-hidden />
+        <LoadingGap className="min-h-[28rem]" />
       ) : data ? (
         <AnimatePresence mode="wait" initial={false}>
           <motion.div

@@ -7,6 +7,7 @@ import { AnalyticsCopyViewLink } from "./AnalyticsCopyViewLink";
 import type { AnalyticsSectionId } from "./sections/analyticsSections";
 import { WINDOW_CHOICES, type Analytics } from "./AnalyticsTypes";
 
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 // The tab's header: eyebrow/title/intro, the cohort-window switcher, and the
 // key-stat cluster. Split out of AnalyticsTab.tsx to keep that file under the
 // 200-line cap.
@@ -113,7 +114,7 @@ export function AnalyticsHeader({
       {/* Tier 2: nested inside the (always-rendering) header — quiet reserved
           box while the fetch is in flight, then the real figures fade in place. */}
       {!data && !error ? (
-        <div className="reveal-quiet min-h-[6rem] shrink-0 lg:w-[22rem]" aria-hidden />
+        <LoadingGap className="min-h-[6rem] shrink-0 lg:w-[22rem]" />
       ) : data ? (
         <AnalyticsStatCluster data={data} />
       ) : null}

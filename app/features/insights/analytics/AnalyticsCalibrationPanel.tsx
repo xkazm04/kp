@@ -27,6 +27,7 @@ import { ThresholdSuggestion, ThresholdSuggestionAbsent } from "./AnalyticsThres
 import { ThresholdHistoryStrip } from "./AnalyticsThresholdHistoryStrip";
 import { AnalyticsFamilyFloorChips } from "./AnalyticsFamilyFloorChips";
 
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 // Calibration Engine (moonshot A/C) — the "How accurate are we?" panel. Plots a
 // reliability diagram (predicted probability vs. measured advance rate) against
 // the perfect-calibration diagonal, plus the Brier score. The whole point is
@@ -137,7 +138,7 @@ export function CalibrationPanel() {
       ) : !data ? (
         // Loading choreography (docs/design/loading-choreography.md, tier 2): a quiet
         // reserved box — invisible for 150ms — instead of a bare "loading" line.
-        <div className="reveal-quiet mt-4 min-h-[15rem]" aria-hidden />
+        <LoadingGap className="mt-4 min-h-[15rem]" />
       ) : (
         <>
           {/* The disclosure rides ABOVE the number it qualifies, for the gated state

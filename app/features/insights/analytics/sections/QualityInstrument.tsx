@@ -77,6 +77,7 @@ type HireRatings = { rated: number; hires: number; minOutcomes: number };
 // unenforced guarantee is the exact defect class this drain was about. Re-exported
 // so existing importers of `./QualityInstrument` keep working.
 import { verdictFor, type Verdict } from "../calibrationVerdict";
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 export { verdictFor, type Verdict };
 
 const TONE = {
@@ -129,7 +130,7 @@ export function QualityInstrument() {
         {error ? (
           <p className="mt-2 text-base text-steel">{t("calibrationUnavailable")}</p>
         ) : verdict == null || data == null ? (
-          <div className="reveal-quiet mt-2 min-h-[5rem]" aria-hidden />
+          <LoadingGap className="mt-2 min-h-[5rem]" />
         ) : (
           (() => {
             const v = TONE[verdict];

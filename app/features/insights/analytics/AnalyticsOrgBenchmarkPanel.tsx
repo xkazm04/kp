@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useJsonFetch } from "@/app/_lib/useJsonFetch";
 import { PANEL } from "@/app/_components/ui/recipes";
 
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 // Phase 2 (cross-company reference tier) — "how your team compares to the whole company".
 // Reads /api/benchmarks: the team's own hiring stats + the org-wide AGGREGATE (org_id-join,
 // k-anonymity-withheld below the floor). Everything shown is an aggregate — no candidate,
@@ -83,7 +84,7 @@ export function OrgBenchmarkPanel() {
   // Loading choreography (docs/design/loading-choreography.md, tier 2): a quiet reserved
   // box while the fetch is in flight — invisible for 150ms, so a fast response
   // never flashes it — instead of the skeleton the primary funnel doesn't use either.
-  if (!data) return <div className={`${PANEL} reveal-quiet min-h-[10rem] p-5`} aria-hidden />;
+  if (!data) return <LoadingGap className={`${PANEL} min-h-[10rem] p-5`} />;
   const { team, org } = data;
   // A DENOMINATOR, not a zero. `statsFrom()` (db/org-benchmarks.ts) short-circuits an
   // empty team to `{ totalEntries: 0, interviewRatePct: 0, hireRatePct: 0,

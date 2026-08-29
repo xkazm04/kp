@@ -31,6 +31,7 @@ import { ColumnHead } from "@/app/_components/table/ColumnHead";
 import { pageCount, TABLE_PAGE_SIZE, TablePager } from "@/app/_components/table/TablePager";
 import type { SortState } from "@/app/_components/table/useTableSort";
 import { PANEL } from "@/app/_components/ui/recipes";
+import { LoadingGap } from "@/app/_components/ui/LoadingGap";
 import {
   ATTRIBUTION_BADGE,
   compareNames,
@@ -283,7 +284,7 @@ export function DecisionLogTable({
       {error ? (
         <p role="alert" className="mt-3 rounded-md bg-red-50 p-3 text-base text-red-700">{error}</p>
       ) : !data ? (
-        <div className="reveal-quiet mt-3 min-h-[15rem]" aria-hidden />
+        <LoadingGap className="mt-3 min-h-[15rem]" />
       ) : (
         <>
           {/* A table forced past the viewport by min-w scrolls inside this div. A bare

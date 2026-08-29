@@ -12,6 +12,13 @@ import dynamic from "next/dynamic";
 // heavy below-the-fold panels still arrive on their own chunk.
 //
 // The loading gap is always a quiet reserved box, never a skeleton.
+//
+// These stay DECORATIVE (`aria-hidden`) while the whole-view gaps moved to
+// `<LoadingGap>` (a named `role="status"` region). Five of these mount at once,
+// below a section heading that has ALREADY rendered and been announced: the reader
+// knows which section they are in and that its panels are arriving. Five
+// simultaneous "Loading" announcements would be noise, and noise in a live region
+// is worse than silence. See the rule stated on LoadingGap itself.
 const chunkGap = (minHeight: string) => {
   const Gap = () => <div className={`reveal-quiet ${minHeight}`} aria-hidden />;
   Gap.displayName = "AnalyticsPanelGap";

@@ -421,6 +421,29 @@ checklist.
   stylesheet source. A call site that wants a hard stop still writes
   `motion-reduce:animate-none`, which wins inside the layer.
 
+### Loading gaps are named, except when naming them is noise
+
+The app's waiting state is a quiet reserved box (`reveal-quiet` + a min-height), never a
+shimmering skeleton — and it used to be `aria-hidden`, so a screen-reader user reached a silent
+empty region with no way to tell *still loading* from *this section is empty*, which is the one
+distinction the box exists to draw for sighted readers.
+
+`app/_components/ui/LoadingGap.tsx` is that box with a name (`role="status"`, an `sr-only`
+label, `aria-busy`). The visual is unchanged. The rule for which gaps use it:
+
+| Shape | Treatment | Why |
+| --- | --- | --- |
+| A box standing in for a **whole view or panel body** | `<LoadingGap>` | The wait is the reader's whole experience of that region; it is a status. |
+| An **inline shimmer** for one value inside an already-rendered row (`inline-block h-4 w-24 …`) | stays `aria-hidden` | Decoration. The row already says what is there, and one "Loading" per cell is far worse than silence. |
+| **Several gaps mounting at once** below a heading that already rendered | one status on the section, not one per panel | Five simultaneous announcements are noise, and noise in a live region is worse than silence. |
+
+**Honest limit, stated on the component:** this makes the wait *discoverable*, not
+*announced-on-arrival*. The region unmounts when content replaces it, and a live region that
+disappears cannot announce what took its place; that needs a stable region owned by the section.
+
+Adopted across the Analytics tab (8 sites). ~80 block-level gaps elsewhere in `app/` still use
+the bare `aria-hidden` form — fix-as-you-touch, not a migration.
+
 ### Accessible names on shared primitives
 
 - `Badge` sets `role="img"` + `aria-label` **only** when a token mapper supplies
