@@ -75,3 +75,49 @@ test("non-finite / wrong-typed token counts coerce to null (not NaN)", () => {
   assert.equal(row!.inputTokens, null);
   assert.equal(row!.outputTokens, null);
 });
+
+// db/llm.ts aggregates this table with COALESCE(SUM(cost_usd), 0) and
+// SUM(input_tokens) — the figures the Models usage panel shows and the pricing
+// meters read. A negative row therefore SUBTRACTS from every total containing it,
+// and the result is wrong in the direction nobody audits. Reachable without anyone
+// writing a negative on purpose: cached-token discounts are computed by
+// subtraction on the Python side, so a provider reporting more cached tokens than
+// input tokens produces exactly this shape.
+//
+// Dropped to null rather than clamped to 0: the table already has a word for "we
+// could not price this" — db/llm.ts counts `cost_usd IS NULL` as `unpriced_calls`
+// — and landing there is visible, where landing in the sum is not.
+test("negative tokens and negative cost are dropped, not summed into the ledger", () => {
+  const row = parseLedgerLine(
+    JSON.stringify({
+      use_case: "match_reasoning",
+      provider: "gemini",
+      input_tokens: -5000,
+      output_tokens: 120,
+      cached_tokens: -1,
+      cost_usd: -12.5,
+    })
+  );
+  assert.ok(row);
+  assert.equal(row.inputTokens, null, "a negative token count is unreadable, not a small one");
+  assert.equal(row.cachedTokens, null);
+  assert.equal(row.costUsd, null, "a negative cost belongs in unpriced_calls, never in SUM(cost_usd)");
+  // NON-VACUITY: the valid field beside them still lands.
+  assert.equal(row.outputTokens, 120);
+  // Zero is a real, meaningful reading (a cached-only turn, a CLI call on a
+  // subscription) and must survive the bound.
+  const zero = parseLedgerLine(JSON.stringify({ use_case: "u", provider: "p", input_tokens: 0, cost_usd: 0 }));
+  assert.equal(zero?.inputTokens, 0);
+  assert.equal(zero?.costUsd, 0);
+});
+
+// input_tokens / output_tokens / cached_tokens are INTEGER columns (db/core.ts).
+test("fractional token counts are rounded to the integer columns that hold them", () => {
+  const row = parseLedgerLine(
+    JSON.stringify({ use_case: "u", provider: "p", input_tokens: 1234.6, output_tokens: 0.4, cost_usd: 0.0125 })
+  );
+  assert.equal(row?.inputTokens, 1235);
+  assert.equal(row?.outputTokens, 0);
+  // Cost is a REAL column and genuinely fractional — it must NOT be rounded.
+  assert.equal(row?.costUsd, 0.0125);
+});

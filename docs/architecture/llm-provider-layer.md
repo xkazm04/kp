@@ -360,6 +360,16 @@ saving one.
   NAME, bypassing use-case routing; `test_cli.py --provider` drives it. The probe
   runs under its own `KEY_PROBE_USE_CASE = "key_probe"` so admin traffic lands in
   the ledger under its own name instead of inflating a real use case.
+- **The ledger's numbers are bounded non-negative.** `parseLedgerLine`
+  (`app/_lib/llm-usage-ledger.ts`) drops a negative token count or cost to `null`
+  rather than passing it through. `db/llm.ts` aggregates with
+  `COALESCE(SUM(cost_usd), 0)` and `SUM(input_tokens)`, so one negative row would
+  subtract from every total containing it — wrong in the direction nobody audits.
+  Reachable without anyone writing a negative on purpose: cached-token discounts
+  are computed by subtraction on the Python side. `null` is the right landing
+  place because the table already counts `cost_usd IS NULL` as `unpriced_calls`,
+  which is visible; a row folded into the sum is not. Token counts are rounded to
+  the INTEGER columns that hold them; `cost_usd` is REAL and stays fractional.
 - TS: `buildProviderKeyProbeEnv(provider, scope)` emits a `KP_LLM_CONFIG` with
   exactly the row being asked about and no routing — deliberately NOT
   `buildLlmConfigEnv()`, whose byom-over-platform precedence would let a
