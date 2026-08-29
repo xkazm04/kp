@@ -747,6 +747,17 @@ rather than fixture-shaped.
 
 ## Mass-test driver — the loop, N scenarios at a time (P6b)
 
+> **2026-08-29 — the unit of the bench is changing from a HIRE to a TENURE.** The
+> 2026-08 sweeps left 100+ personas behind and produced no C1 reading, for five
+> structural reasons the driver's shape below encodes (a fresh hire per run, a
+> preamble that re-tests a closed ring, no teardown, expectations that measure only
+> solved rings, and rung-2 nights that author branches to answer a judgment
+> question). The redesign — hire once / tenure many, rung-0 ideation nights, C1
+> grading through `/value-ledger`, retire-on-exit and an orphan-blocking preflight —
+> is `docs/development/app-master-c1-exam.md`. The protocol below stays accurate for
+> the fresh-hire scenarios (`kp-rung0`, `kp-tight-budget`) and is otherwise the
+> one-time preamble that writes a tenure file.
+
 `scripts/app-master-bench/` runs the whole kp→Personas App-master loop
 **unattended**, one scenario after another, against a **live Personas in
 headless bridge mode**. Where the battle test above proves the path works once
