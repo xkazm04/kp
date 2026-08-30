@@ -268,7 +268,7 @@ in `ci.yml` on every push and PR and cost under a second between them.
 | Check | Catches |
 | --- | --- |
 | `npm run review:gate` ([`gate-check.mjs`](../../scripts/review/gate-check.mjs)) | the ruleset requiring a check name no job reports — rename `Agent review (judgement)` and GitHub waits forever for a check that never arrives, until someone drops the requirement to unblock a PR. Also: an `evaluate`-mode ruleset, a required check that never runs on PRs, a lens that left the required set, a workflow with no jobs |
-| `npm run security:actions` ([`check-actions.mjs`](../../scripts/security/check-actions.mjs)) | a workflow with no top-level `permissions:` block; any **new** action pinned to a mutable tag; and any `${{ … }}` substituted into a `run:` script (below). A ratchet: the refs that already float are enumerated with why in [`.github/actions-pin-allowlist.json`](../../.github/actions-pin-allowlist.json), so the list can only shrink — and a list that fails to load excuses nothing rather than everything |
+| `npm run security:actions` ([`check-actions.mjs`](../../scripts/security/check-actions.mjs)) | a workflow with no top-level `permissions:` block; any **new** action pinned to a mutable tag; any `${{ … }}` substituted into a `run:` script or an `actions/github-script` `script:` body; and a `pull_request_target` / `workflow_run` job checking out a ref the event points at (below). A ratchet: the refs that already float are enumerated with why in [`.github/actions-pin-allowlist.json`](../../.github/actions-pin-allowlist.json), so the list can only shrink — and a list that fails to load excuses nothing rather than everything |
 | `npm run hooks:check` ([`install.mjs`](../../scripts/hooks/install.mjs)) | a hook that vanished, or one still shelling out to an npm script or file that was renamed away — the shape of drift that leaves `pre-push` running and no longer checking. Also: a `prepare` that swallows its own failure (below), and a Dockerfile that runs `npm ci` without the installer in the build context |
 
 `npm run review:gate -- --verify` is the online half: it asks GitHub whether the
@@ -330,6 +330,41 @@ the fix would report as the bug. Fixtures, including one that walks every
 workflow in the tree, are in
 [`gate-check.test.mjs`](../../scripts/review/__tests__/gate-check.test.mjs)
 (`npm run test:review`).
+
+### The two sinks that never pass through `run:`
+
+`run-injection` reads shell scripts, so a change that reaches code by any other
+route is invisible to it. Two do, and each is its own blocking rule:
+
+**`script-injection`.** [`actions/github-script`](https://github.com/actions/github-script)
+evaluates its `script:` input as JavaScript, and Actions substitutes into that
+text exactly as it does into a `run:` — the identical bug with `require(…)`
+instead of a semicolon. Nothing here uses the action today; the rule exists so
+the first one that does cannot arrive quietly. The fix is the same shape: put the
+value in `env:` and read `process.env.MY_VAR`. Because `script:` is an ordinary
+word other actions take as a plain string, the rule only reads those bodies in a
+file that actually uses `github-script`.
+
+**`untrusted-checkout`.** On `pull_request` a fork's job gets a read-only token
+whatever the workflow declares. On **`pull_request_target`** and
+**`workflow_run`** it does not: those run with the *base* repository's token and
+secrets while the event describes someone else's pull request. Their default
+checkout is the base branch, which is what makes them usable — but naming an
+event-derived ref swaps a stranger's tree into that privileged job, and then
+`npm ci` alone finishes the job for them, no injected line required:
+
+```yaml
+on: pull_request_target          # base repo's secrets…
+steps:
+  - uses: actions/checkout@…
+    with:
+      ref: ${{ github.event.pull_request.head.sha }}   # …someone else's code
+  - run: npm ci                  # …which runs their lifecycle scripts
+```
+
+Either leave the checkout on the default ref and treat the fork's contents as
+data, or move the job to `pull_request`. No workflow here uses either trigger,
+and a fixture over the whole tree keeps it that way.
 
 ### Burning the pinning debt down
 

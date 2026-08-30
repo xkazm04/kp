@@ -39,7 +39,7 @@
 // already immutable by digest and carries a provenance attestation (release.yml).
 // The exposure here is a build-time base, not a signed published one.
 //
-// THE THIRD RULE — `run-injection` — IS A DIFFERENT FAILURE WITH THE SAME SHAPE.
+// THE INJECTION RULES ARE A DIFFERENT FAILURE WITH THE SAME SHAPE.
 // `${{ ... }}` is not a shell variable. Actions substitutes the expression into
 // the script TEXT before bash is started, so `${{ github.event.issue.title }}` in
 // a `run:` line is the issue title *as code*: an issue called
@@ -55,12 +55,31 @@
 // whose values are produced by earlier steps and are therefore only as trusted
 // as whatever wrote them.
 //
+// TWO MORE SINKS REACH CODE WITHOUT GOING THROUGH `run:`, and each is blocking:
+//
+//   script-injection    `actions/github-script` evaluates its `script:` input as
+//                       JavaScript. Actions substitutes into that text the same
+//                       way, so the rule and the fix are identical — only the
+//                       interpreter differs. Unused here today; a ratchet exists
+//                       to make the first arrival visible rather than to describe
+//                       the present.
+//
+//   untrusted-checkout  `pull_request_target` and `workflow_run` run with the
+//                       BASE repository's token and secrets while the event
+//                       describes someone else's pull request. Checking out a ref
+//                       the event points at puts a fork's tree inside that job,
+//                       and `npm ci` alone is enough to finish the job for them.
+//                       No expression is executed as text here — the code arrives
+//                       as files instead, which is why the `run:` reader cannot
+//                       see it and this rule is separate.
+//
 //   npm run security:actions              # the ratchet (CI runs this)
 //   npm run security:actions -- --resolve # rewrite the allowlisted refs to SHAs
 //   npm run security:actions -- --json
 //
-// EXIT CODES: 0 clean · 1 an unpinned ref outside the allowlist, a workflow
-// with no `permissions:` block, or an expression interpolated into a `run:`.
+// EXIT CODES: 0 clean · 1 an unpinned ref outside the allowlist, a workflow with
+// no `permissions:` block, an expression interpolated into a `run:` or a
+// `script:`, or a privileged trigger checking out an event-derived ref.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -141,21 +160,22 @@ export function hasTopLevelPermissions(text) {
 // --- run: scripts, and what may be substituted into one -----------------------
 
 /**
- * Every line of every `run:` script, with its 1-based line number. Both forms
+ * Every line of every `<key>:` script, with its 1-based line number. Both forms
  * matter: the inline one (`- run: npm ci`) and the block scalar (`run: |`),
  * which is where the multi-line shell that actually gets exploited lives.
  *
  * Deliberately a line reader rather than a YAML parse: this file is dependency-
  * free by design (the ratchet has to run in jobs that never `npm ci`), and the
- * shape it needs — "which lines end up inside a shell script" — is decided by
+ * shape it needs — "which lines end up inside a script" — is decided by
  * indentation, which survives being read line by line.
  */
-export function runScriptLines(text) {
+export function blockScalarLines(text, key = 'run') {
   const lines = text.split(/\r?\n/);
+  const head = new RegExp(`^(\\s*)(-\\s+)?${key}:[ \\t]*(.*)$`);
   const out = [];
   let i = 0;
   while (i < lines.length) {
-    const m = /^(\s*)(-\s+)?run:[ \t]*(.*)$/.exec(lines[i]);
+    const m = head.exec(lines[i]);
     if (!m) {
       i += 1;
       continue;
@@ -177,6 +197,24 @@ export function runScriptLines(text) {
     i = j;
   }
   return out;
+}
+
+/** The shell scripts. `${{ }}` here is substituted into bash's input. */
+export const runScriptLines = (text) => blockScalarLines(text, 'run');
+
+/**
+ * The OTHER interpreter a workflow can hand an expression to. `actions/github-
+ * script` runs its `script:` input as JavaScript, and Actions substitutes into
+ * that text exactly as it does into a `run:` — so `${{ github.event.issue.body }}`
+ * inside one closes the same loop with `require('child_process')` instead of a
+ * semicolon. Nothing in this repository uses the action today; the point of a
+ * ratchet is that the FIRST one cannot arrive unnoticed.
+ *
+ * Gated on the action appearing in the file, because `script:` is an ordinary
+ * word that other actions take as a plain string input.
+ */
+export function githubScriptLines(text) {
+  return /actions\/github-script[@\s]/.test(text) ? blockScalarLines(text, 'script') : [];
 }
 
 /**
@@ -206,11 +244,99 @@ export function contextRefs(expression) {
 
 export const isTrustedInRun = (ref) => TRUSTED_IN_RUN.some((re) => re.test(ref));
 
-/** `[{ ref, line }]` — the substitutions a shell in this workflow would execute. */
-export function untrustedRunRefs(text) {
+/** `[{ ref, line }]` — the untrusted substitutions in a set of script lines. */
+function untrustedIn(scriptLines) {
   const out = [];
-  for (const { line, text: script } of runScriptLines(text)) {
+  for (const { line, text: script } of scriptLines) {
     for (const [, body] of script.matchAll(EXPRESSION_RE)) {
+      for (const ref of contextRefs(body)) {
+        if (!isTrustedInRun(ref)) out.push({ ref, line });
+      }
+    }
+  }
+  return out;
+}
+
+/** `[{ ref, line }]` — the substitutions a shell in this workflow would execute. */
+export const untrustedRunRefs = (text) => untrustedIn(runScriptLines(text));
+
+/** The same, for the JavaScript `actions/github-script` would evaluate. */
+export const untrustedScriptRefs = (text) => untrustedIn(githubScriptLines(text));
+
+// --- pull_request_target: the privileged trigger -------------------------------
+
+/**
+ * Triggers that run with the BASE repository's token and secrets while the event
+ * describes a fork's pull request. That combination is the whole hazard: on
+ * `pull_request` a fork gets a read-only token whatever the file says, but on
+ * these two the job holds everything the repository holds.
+ */
+export const DANGEROUS_TRIGGERS = ['pull_request_target', 'workflow_run'];
+
+/** The top-level `on:` keys. Handles `on: push`, `on: [a, b]` and the block form. */
+export function triggersIn(text) {
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^["']?on["']?:[ \t]*(.*)$/.exec(lines[i]);
+    if (!m) continue;
+    const inline = m[1].trim();
+    if (inline && !inline.startsWith('#')) {
+      return inline
+        .replace(/^\[|\]$/g, '')
+        .split(',')
+        .map((t) => t.trim().replace(/['"]/g, ''))
+        .filter(Boolean);
+    }
+    // Block form: the keys at the FIRST indent level under `on:`. Anything
+    // deeper is a trigger's own filter (`types:`, `branches:`), not a trigger.
+    const out = [];
+    let indent = null;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (lines[j].trim() === '' || /^\s*#/.test(lines[j])) continue;
+      const lead = /^\s*/.exec(lines[j])[0].length;
+      if (lead === 0) break;
+      if (indent === null) indent = lead;
+      if (lead > indent) continue;
+      const k = /^\s*([A-Za-z_][A-Za-z0-9_-]*):/.exec(lines[j]);
+      if (k) out.push(k[1]);
+    }
+    return out;
+  }
+  return [];
+}
+
+/** `[{ value, line }]` — the `ref:` each checkout step is told to fetch. */
+export function checkoutRefs(text) {
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  let inCheckout = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s*#/.test(line)) continue;
+    if (/^\s*-\s/.test(line)) inCheckout = false; // a new step begins
+    const u = USES_RE.exec(line);
+    if (u) {
+      inCheckout = /(?:^|\/)checkout@/.test(u[2]);
+      continue;
+    }
+    if (!inCheckout) continue;
+    const r = /^\s*ref:[ \t]*(.+?)\s*$/.exec(line);
+    if (r) out.push({ value: r[1], line: i + 1 });
+  }
+  return out;
+}
+
+/**
+ * `[{ ref, line }]` — a privileged trigger checking out code the event points at.
+ * On `pull_request_target` the DEFAULT checkout is the base branch and is safe;
+ * naming an event-derived ref is what swaps a stranger's tree into a job that
+ * holds the repository's secrets, and it only has to run their `npm ci`.
+ */
+export function untrustedCheckoutRefs(text) {
+  if (!triggersIn(text).some((t) => DANGEROUS_TRIGGERS.includes(t))) return [];
+  const out = [];
+  for (const { value, line } of checkoutRefs(text)) {
+    for (const [, body] of value.matchAll(EXPRESSION_RE)) {
       for (const ref of contextRefs(body)) {
         if (!isTrustedInRun(ref)) out.push({ ref, line });
       }
@@ -253,6 +379,39 @@ export function runChecks(files, allowlist = PIN_ALLOWLIST) {
             `Move it to \`env:\` on that step (e.g. \`MY_VAR: \${{ ${ref} }}\`) and read \`"$MY_VAR"\` in the ` +
             'script — bash then sees a value. If it is genuinely fixed-shape and repo-controlled, add it to ' +
             'TRUSTED_IN_RUN with the reason, rather than making this pass by moving the line.',
+        ),
+      );
+    }
+
+    for (const { ref, line } of untrustedScriptRefs(text)) {
+      out.push(
+        finding(
+          'blocking',
+          'script-injection',
+          file,
+          line,
+          `\`\${{ ${ref} }}\` is substituted into an \`actions/github-script\` \`script:\` body.`,
+          'That input is evaluated as JavaScript, and the expression is expanded into its text before the ' +
+            `interpreter reads it — the \`run:\` hazard with a different shell. Move it to \`env:\` on that step ` +
+            `(\`MY_VAR: \${{ ${ref} }}\`) and read \`process.env.MY_VAR\`.`,
+        ),
+      );
+    }
+
+    for (const { ref, line } of untrustedCheckoutRefs(text)) {
+      out.push(
+        finding(
+          'blocking',
+          'untrusted-checkout',
+          file,
+          line,
+          `This workflow runs on ${triggersIn(text)
+            .filter((t) => DANGEROUS_TRIGGERS.includes(t))
+            .join('/')} and checks out \`\${{ ${ref} }}\`.`,
+          "Those triggers run with the base repository's token and secrets, so checking out a ref the event " +
+            "points at puts a stranger's tree — its lockfile, its config, its npm lifecycle scripts — inside a " +
+            "privileged job. Leave the checkout on the default (base) ref and read the fork's code as DATA, or " +
+            'move the job to `pull_request`, where a fork token is read-only whatever this file declares.',
         ),
       );
     }
@@ -363,7 +522,7 @@ export function parseArgs(argv) {
 
 export function render(findings) {
   if (findings.length === 0)
-    return 'check-actions: every action is pinned, every workflow scopes its token, and no expression reaches a shell.';
+    return 'check-actions: every action is pinned, every workflow scopes its token, no expression reaches an interpreter, and no privileged trigger checks out an event-derived ref.';
   const lines = findings.map(
     (f) => `${f.severity === 'blocking' ? 'BLOCK' : ' note'}  ${f.file}:${f.line}  [${f.rule}] ${f.message}\n        ${f.fix}`,
   );

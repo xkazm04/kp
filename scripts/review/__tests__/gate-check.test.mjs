@@ -28,7 +28,9 @@ import {
 } from '../gate-check.mjs';
 import {
   ALLOWLIST_PATH,
+  DANGEROUS_TRIGGERS,
   PIN_ALLOWLIST,
+  checkoutRefs,
   hasTopLevelPermissions,
   isPinned,
   isTrustedInRun,
@@ -36,7 +38,10 @@ import {
   rewriteUses,
   runChecks as runActionChecks,
   runScriptLines,
+  triggersIn,
+  untrustedCheckoutRefs,
   untrustedRunRefs,
+  untrustedScriptRefs,
   usesIn,
 } from '../../security/check-actions.mjs';
 import { EXPECTED_HOOKS, dockerPreparesHooks, referencesIn, runChecks as runHookChecks } from '../../hooks/install.mjs';
@@ -345,6 +350,104 @@ check('no workflow in this tree substitutes an expression into a shell', () => {
   for (const file of fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f))) {
     const refs = untrustedRunRefs(fs.readFileSync(path.join(dir, file), 'utf8'));
     assert.deepEqual(refs, [], `${file} interpolates ${JSON.stringify(refs)} into a run: script`);
+  }
+});
+
+// --- the two sinks that reach code without passing through `run:` ---------------
+
+check('an expression in a github-script body is blocking — a different interpreter, the same bug', () => {
+  const text = [
+    'permissions:',
+    '  contents: read',
+    'jobs:',
+    '  a:',
+    '    steps:',
+    '      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea',
+    '        with:',
+    '          script: |',
+    '            core.info("${{ github.event.issue.body }}")',
+  ].join('\n');
+  const f = runActionChecks([{ file: 'w.yml', text }], []);
+  assert.ok(has(f, 'script-injection'));
+  assert.match(f.find((x) => x.rule === 'script-injection').message, /github\.event\.issue\.body/);
+});
+
+check('`script:` is only read as code when github-script is the thing reading it', () => {
+  // Other actions take a `script:` string input that never reaches an
+  // interpreter. Flagging those would train people to ignore the rule.
+  const text = 'jobs:\n  a:\n    steps:\n      - uses: some/other@v1\n        with:\n          script: ${{ github.event.issue.title }}\n';
+  assert.deepEqual(untrustedScriptRefs(text), []);
+});
+
+check('the top-level `on:` keys are read, in all three spellings', () => {
+  assert.deepEqual(triggersIn('on: push\n'), ['push']);
+  assert.deepEqual(triggersIn('on: [push, pull_request]\n'), ['push', 'pull_request']);
+  // Block form: a trigger's own filters are indented deeper and are not triggers.
+  assert.deepEqual(triggersIn('name: X\non:\n  push:\n    branches:\n      - main\n  pull_request_target:\n    types: [opened]\njobs:\n  a:\n'), [
+    'push',
+    'pull_request_target',
+  ]);
+});
+
+check('a checkout `ref:` is attributed to the checkout step, not to whatever follows it', () => {
+  const text = [
+    'jobs:',
+    '  a:',
+    '    steps:',
+    '      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5',
+    '        with:',
+    '          ref: ${{ github.event.pull_request.head.sha }}',
+    '      - uses: other/action@v1',
+    '        with:',
+    '          ref: not-a-checkout',
+  ].join('\n');
+  assert.deepEqual(checkoutRefs(text).map((r) => r.value), ['${{ github.event.pull_request.head.sha }}']);
+});
+
+check('pull_request_target checking out the PR head is blocking', () => {
+  // The one that hands a fork the base repository's secrets: these triggers run
+  // with the full token, and `npm ci` on a stranger's tree is all it takes.
+  const text = [
+    'permissions:',
+    '  contents: read',
+    'on:',
+    '  pull_request_target:',
+    'jobs:',
+    '  a:',
+    '    steps:',
+    '      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5',
+    '        with:',
+    '          ref: ${{ github.event.pull_request.head.sha }}',
+    '      - run: npm ci',
+  ].join('\n');
+  const f = runActionChecks([{ file: 'w.yml', text }], []);
+  assert.ok(has(f, 'untrusted-checkout'));
+  assert.equal(blocking(f).length, 1, 'the checkout is the finding — the run: line is clean');
+});
+
+check('the same checkout on `pull_request` is fine, and so is the default one', () => {
+  const head = '      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5\n        with:\n          ref: ${{ github.event.pull_request.head.sha }}\n';
+  assert.deepEqual(untrustedCheckoutRefs(`on:\n  pull_request:\njobs:\n  a:\n    steps:\n${head}`), []);
+  // On pull_request_target the DEFAULT ref is the base branch, which is the
+  // whole reason the trigger is usable at all.
+  assert.deepEqual(
+    untrustedCheckoutRefs('on:\n  pull_request_target:\njobs:\n  a:\n    steps:\n      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5\n'),
+    [],
+  );
+  // …and a repo-controlled ref stays usable: on this trigger `github.sha` IS base.
+  assert.deepEqual(
+    untrustedCheckoutRefs(`on:\n  workflow_run:\njobs:\n  a:\n    steps:\n      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5\n        with:\n          ref: \${{ github.sha }}\n`),
+    [],
+  );
+});
+
+check('no workflow in this tree pairs a privileged trigger with an event-derived checkout', () => {
+  const dir = path.join(REPO_ROOT, '.github/workflows');
+  for (const file of fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f))) {
+    const text = fs.readFileSync(path.join(dir, file), 'utf8');
+    assert.deepEqual(untrustedScriptRefs(text), [], `${file} interpolates into a github-script body`);
+    const bad = untrustedCheckoutRefs(text);
+    assert.deepEqual(bad, [], `${file} checks out ${JSON.stringify(bad)} under ${triggersIn(text).filter((t) => DANGEROUS_TRIGGERS.includes(t))}`);
   }
 });
 

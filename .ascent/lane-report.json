@@ -2,40 +2,25 @@
   "v": 1,
   "items": [
     {
-      "recommendationId": "5c5e4854-0f79-4e64-8bbc-212099dac828",
-      "verdict": "skipped",
-      "reason": "Already closed before this cycle: I read every run: block in agent-dispatch.yml and autofix.yml and neither interpolates any expression into a shell — issue title/body/comment, PR head ref and PR number all arrive via env: and are read as quoted variables — and scripts/security/check-actions.mjs enforces that as a blocking run-injection rule via npm run security:actions in ci.yml, with fixtures in scripts/review/__tests__/gate-check.test.mjs including one that walks every workflow in the tree (line 343) and one hostile-issue-title case (line 307).",
+      "recommendationId": "085b58a7-4a79-439d-801a-0ad91ef1b2f7",
+      "verdict": "resolved",
+      "reason": "The named half was already enforced and fixture-tested (no `${{ }}` reaches any `run:` in the tree; agent-dispatch.yml and autofix.yml already pass untrusted issue/PR text via `env:`), so I left those workflows untouched and instead closed the half the scan named as missing but nothing enforced: `check-actions.mjs` now blocks a `pull_request_target`/`workflow_run` job that checks out an event-derived ref, and blocks `${{ }}` substituted into an `actions/github-script` `script:` body.",
       "files": [
-        ".github/workflows/agent-dispatch.yml",
-        ".github/workflows/autofix.yml",
         "scripts/security/check-actions.mjs",
-        "scripts/review/__tests__/gate-check.test.mjs"
-      ]
-    },
-    {
-      "recommendationId": "b562137e-1eea-4ea6-acbf-b15f5b556484",
-      "verdict": "skipped",
-      "reason": "Three of the four missing bullets are already closed: .github/workflows/review.yml has an agent-review job that hands the diff to Claude, scripts/review/rubric.mjs assembles the rubric from .claude/CLAUDE.md and docs/architecture/decisions/ (no second copy to drift), the review posts as a PR comment and exits 1 on a blocking finding, and .github/rulesets/main.json lists 'Agent review (judgement)' as a required status check with review:gate --verify asking GitHub whether the ruleset is really applied. I closed the fourth (no documented recovery path for a dispatch that stops) rather than leaving it, but that alone does not close the item as stated.",
-      "files": [
-        ".github/workflows/agent-dispatch.yml",
+        "scripts/review/__tests__/gate-check.test.mjs",
         "docs/development/change-review.md"
       ]
     },
     {
-      "recommendationId": "2d18f73e-9672-4094-ad72-9f5d5fda2225",
+      "recommendationId": "de67379e-c76d-4461-a7eb-609cd35d861b",
       "verdict": "skipped",
-      "reason": "Conventional commits are already enforced, not merely habitual — .githooks/commit-msg runs scripts/release/commit-msg.mjs locally (wired by the prepare installer, verified by npm run hooks:check) and the 'Commit convention (subjects the changelog is cut from)' job in ci.yml is a required status check in .github/rulesets/main.json, with fixtures in npm run test:release. The two genuinely open pieces need capabilities this session lacks: adding Prettier/Biome needs network to regenerate package-lock.json (a devDependency added without it makes npm ci fail hard), and dropping F821 from ruff.toml needs ruff on the machine to prove the tree is clean — inventing either answer would turn CI red rather than raise the bar. Note that a repo-wide formatter is also a recorded position here (autofix.yml and change-review.md both state this tree is deliberately not formatter-owned), so adoption is a maintainer decision, not a gap to fill silently.",
-      "files": [
-        "package.json",
-        ".githooks/commit-msg",
-        "scripts/release/commit-msg.mjs",
-        "ruff.toml"
-      ]
+      "reason": "Needs a shell: `ruff.toml`'s own stated procedure for removing the `F821` ignore is to delete the line and run `ruff check pipeline/` (ruff 0.15.0, the version CI pins) over 245 Python files, and this session has no shell and no network, so the removal could only be guessed — which the config explicitly forbids.",
+      "files": []
     }
   ],
   "lessons": [
-    "Read the repo before believing the scan: in xkazm04/kp all three dispatched items named machinery that already existed and operated (review.yml with a repo-owned rubric and a required-check ruleset, a run-injection ratchet with whole-tree fixtures, a commit-msg hook plus a required CI job). Prior Ascent cycles had shipped them; the scan's snapshot predated the commits. Verifying first turned three would-be duplicate implementations into one real fix.",
-    "This repository's own idiom is that a guard must be provably wired, not merely present: every checker under scripts/ has dependency-free node:test fixtures, a CI job, and an entry in .github/rulesets/main.json, and gate-check.mjs exists solely to catch a required check whose name no job reports. Match that shape when adding anything here — an unfixtured guard reads as decoration to both the maintainer and the next scan.",
-    "GitHub Actions job-level `timeout-minutes` cancels the run, and a cancelled run skips `if: failure()` steps — so any 'report what went wrong' step needs a smaller step-level budget on whatever can hang, or it stays silent on exactly the outcome it was written for."
+    "This repository's guard scripts are ratchets that already implement most of what a maturity scan asks for, and they document themselves in prose headers -- read scripts/security/check-actions.mjs and scripts/review/__tests__/gate-check.test.mjs before concluding a D9 gap is open, because `${{ github.event.* }}` appearing in a workflow's `env:` block is the prescribed FIX and a scanner that pattern-matches on the expression alone will report it as the bug.",
+    "Guards here are only trusted once a fixture proves they detect -- every scripts/<area>/ guard has a colocated __tests__ run by a dedicated npm script in ci.yml, and check-actions.mjs is tested from scripts/review/__tests__/gate-check.test.mjs rather than a sibling directory, so extend that file instead of adding a new test target.",
+    "ruff.toml and check-actions.mjs both encode the same house rule for debt: each exception is enumerated with why it exists and what would remove it, an exception that outlives its justification is itself a blocking finding (`stale-allowlist`), and entries may only be deleted after the verifying command has actually been run. An offline agent can add a rule to these ratchets but cannot retire an entry from one."
   ]
 }
