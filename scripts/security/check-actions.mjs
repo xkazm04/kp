@@ -157,6 +157,78 @@ export function hasTopLevelPermissions(text) {
   return /^permissions:/m.test(text);
 }
 
+/**
+ * `{ <jobId>: { <scope>: <level> } | 'read-all' | null }` — the job-level
+ * `permissions:` block of every job, or `null` for a job that declares none and
+ * therefore inherits the workflow's.
+ *
+ * WHY A READER AND NOT A BOOLEAN: `hasTopLevelPermissions` above answers "is the
+ * token scoped at all", which is the question that catches a NEW workflow. It
+ * cannot answer the one that matters for a workflow already handling untrusted
+ * content — *how much* can a hostile input reach. A scope is widened by adding
+ * one line, in a file most reviewers skim; naming the expected set in a fixture
+ * is what turns that into a deliberate act (see gate-check.test.mjs).
+ *
+ * Line-based for the same reason as `blockScalarLines`: this file stays
+ * dependency-free so the ratchet runs in jobs that never `npm ci`.
+ */
+export function jobPermissions(text) {
+  const lines = text.split(/\r?\n/);
+  const out = {};
+  let i = lines.findIndex((l) => /^jobs:[ \t]*(#.*)?$/.test(l));
+  if (i === -1) return out;
+
+  let jobIndent = null;
+  let job = null;
+  let keyIndent = null;
+  let scopes = null;
+  const close = () => {
+    if (job) out[job] = scopes;
+  };
+
+  for (i += 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim() === '' || /^\s*#/.test(line)) continue;
+    const lead = /^\s*/.exec(line)[0].length;
+    if (lead === 0) break; // back out to a top-level key: `jobs:` is over
+    if (jobIndent === null) jobIndent = lead;
+
+    if (lead === jobIndent) {
+      close();
+      job = /^\s*([A-Za-z_][A-Za-z0-9_-]*):/.exec(line)?.[1] ?? null;
+      keyIndent = null;
+      scopes = null;
+      continue;
+    }
+    if (!job) continue;
+    if (keyIndent === null) keyIndent = lead;
+    // Deeper than the job's own keys — inside `steps:`, `strategy:`, `with:`.
+    // A step input that happens to be called `permissions:` is not this.
+    if (lead !== keyIndent) continue;
+
+    const p = /^\s*permissions:[ \t]*(.*)$/.exec(line);
+    if (!p) continue;
+    // `permissions:` may be followed by a comment rather than a value, in which
+    // case the block below is still the scope — so strip a comment that starts
+    // the remainder, not only one that trails a value.
+    const inline = p[1].replace(/(^|\s)#.*$/, '').trim();
+    if (inline) {
+      // `permissions: read-all` / `write-all` / `{}` — a whole-token verdict.
+      scopes = inline === '{}' ? {} : inline;
+      continue;
+    }
+    scopes = {};
+    for (let j = i + 1; j < lines.length; j++) {
+      if (lines[j].trim() === '' || /^\s*#/.test(lines[j])) continue;
+      if (/^\s*/.exec(lines[j])[0].length <= keyIndent) break;
+      const kv = /^\s*([a-z][a-z-]*):[ \t]*([A-Za-z-]+)/.exec(lines[j]);
+      if (kv) scopes[kv[1]] = kv[2];
+    }
+  }
+  close();
+  return out;
+}
+
 // --- run: scripts, and what may be substituted into one -----------------------
 
 /**

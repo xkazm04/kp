@@ -370,6 +370,44 @@ Either leave the checkout on the default ref and treat the fork's contents as
 data, or move the job to `pull_request`. No workflow here uses either trigger,
 and a fixture over the whole tree keeps it that way.
 
+### …and how much a hostile input would hold
+
+`run-injection` answers whether outside text can become **code**. It says nothing
+about what that code would then **hold** — and the two workflows whose job is to
+take outside content and act on it are the two running with a token that writes:
+
+| workflow | the input somebody else writes | what it does with it |
+| --- | --- | --- |
+| [`agent-dispatch.yml`](../../.github/workflows/agent-dispatch.yml) | an issue title, body and comment | pushes a branch, answers on the issue |
+| [`autofix.yml`](../../.github/workflows/autofix.yml) | a pull request branch, checked out and `npm ci`'d | commits a lint fix, comments on the PR |
+
+Both now declare the smallest scope under which they still work, which in each
+case is *smaller than what they carried*, because the write that matters is done
+by a **PAT** rather than by `GITHUB_TOKEN`:
+
+- **`agent-dispatch.yml`** holds `contents: write` (it pushes with the checkout's
+  own credentials) and `issues: write` (every outcome is spoken on the issue,
+  including `failure()`). It does **not** hold `pull-requests: write` — the draft
+  is opened by `AGENT_PR_TOKEN`. That indirection exists for a different reason
+  (a PR opened with `GITHUB_TOKEN` triggers no workflows and would sit green
+  because nothing ran), and shedding the scope is what it buys on the way.
+  `pin-actions.yml` opens a pull request the same way and likewise declares only
+  `contents: write`.
+- **`autofix.yml`** holds `pull-requests: write` and only **`contents: read`**.
+  The commit is pushed with `AUTOFIX_TOKEN`, which the checkout takes and the
+  push step is gated on; without the PAT that step is skipped by design. So no
+  path exists in which a write scope on the default token is what makes the job
+  work — only one in which it is what a compromised `npm ci` finds lying there.
+
+A scope is widened by adding one line to a file most reviewers skim, so the sets
+above are **pinned by a fixture**, not merely commented. `jobPermissions()` in
+`check-actions.mjs` reads a job's `permissions:` block as a scope map, and
+`gate-check.test.mjs` asserts these two jobs against it — plus that every
+workflow's *top-level* default is still the `contents: read` floor those job
+blocks are widenings of. Adding a scope turns `npm run test:review` red until it
+is written down there too. This is a pin, not a prohibition: if a step genuinely
+needs more, widen both in the same change and say why in the workflow comment.
+
 ### Burning the pinning debt down
 
 Nine action references still float on a major tag, three of them inside

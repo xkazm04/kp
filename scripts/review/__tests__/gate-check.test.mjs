@@ -34,6 +34,7 @@ import {
   hasTopLevelPermissions,
   isPinned,
   isTrustedInRun,
+  jobPermissions,
   loadAllowlist,
   rewriteUses,
   runChecks as runActionChecks,
@@ -350,6 +351,103 @@ check('no workflow in this tree substitutes an expression into a shell', () => {
   for (const file of fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f))) {
     const refs = untrustedRunRefs(fs.readFileSync(path.join(dir, file), 'utf8'));
     assert.deepEqual(refs, [], `${file} interpolates ${JSON.stringify(refs)} into a run: script`);
+  }
+});
+
+// --- …and how much it would reach if it did -----------------------------------
+//
+// `run-injection` asks whether hostile text can become CODE. It says nothing
+// about what that code would then HOLD. The two workflows that take outside
+// content and act on it are the two worth answering that second question for,
+// and the answer is a line in a YAML file that widens by accident.
+
+check('a job-level permissions block is read as a scope map', () => {
+  const text = [
+    'jobs:',
+    '  a:',
+    '    runs-on: ubuntu-latest',
+    '    permissions:',
+    '      contents: read',
+    '      pull-requests: write # a trailing comment is not a level',
+    '    steps:',
+    '      - uses: x/y@v1',
+    '        with:',
+    '          permissions: 0644', // a step input, not the job's scope
+    '  b:',
+    '    runs-on: ubuntu-latest',
+    '  c:',
+    '    permissions: read-all',
+    '  d:',
+    '    permissions: {}',
+    '  e:',
+    '    permissions: # a comment here does not make this an inline value',
+    '      actions: read',
+  ].join('\n');
+  assert.deepEqual(jobPermissions(text), {
+    a: { contents: 'read', 'pull-requests': 'write' },
+    b: null, // declares none — inherits the workflow's
+    c: 'read-all',
+    d: {},
+    e: { actions: 'read' },
+  });
+});
+
+check('the reader stops at the end of `jobs:`', () => {
+  assert.deepEqual(jobPermissions('jobs:\n  a:\n    permissions:\n      contents: read\nconcurrency:\n  group: g\n'), {
+    a: { contents: 'read' },
+  });
+});
+
+// THE CONTRACT. Both entries below are workflows whose input is written by
+// somebody else — an issue body, a pull request branch — and that hold a token
+// which can write. Each scope here is the smallest set under which the job
+// still does its work; the reasoning for each is in the workflow file itself.
+//
+// This is a pin, not a policy: it does not say a scope may never be added. It
+// says adding one cannot happen in a diff nobody read. If a step genuinely
+// needs more, widen the line AND this map in the same change, and say why in
+// the workflow's comment.
+const UNTRUSTED_INPUT_SCOPES = {
+  'agent-dispatch.yml': {
+    // The draft PR is opened with AGENT_PR_TOKEN, so `pull-requests: write` is
+    // deliberately absent from the default token.
+    propose: { contents: 'write', issues: 'write' },
+  },
+  'autofix.yml': {
+    // The commit is pushed with AUTOFIX_TOKEN, so the default token only reads.
+    autofix: { contents: 'read', 'pull-requests': 'write' },
+  },
+};
+
+check('the workflows that handle untrusted content hold the smallest scope that works', () => {
+  for (const [file, expected] of Object.entries(UNTRUSTED_INPUT_SCOPES)) {
+    const text = fs.readFileSync(path.join(REPO_ROOT, '.github/workflows', file), 'utf8');
+    const actual = jobPermissions(text);
+    for (const [jobId, scopes] of Object.entries(expected)) {
+      assert.deepEqual(
+        actual[jobId],
+        scopes,
+        `${file}: job \`${jobId}\` no longer holds the scope this fixture pins. It takes content ` +
+          'an outsider wrote; widening its token is a decision, so make it here too.',
+      );
+    }
+  }
+});
+
+check('every workflow keeps its top-level default at contents: read', () => {
+  // The floor the job-level blocks are widenings OF. A workflow whose top-level
+  // default is write hands that scope to every job that forgot to scope itself.
+  const dir = path.join(REPO_ROOT, '.github/workflows');
+  for (const file of fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f))) {
+    // Split rather than regex over the raw text: every reader in check-actions.mjs
+    // is `\r?\n`-tolerant, and a fixture that goes red only on a Windows checkout
+    // is a fixture people learn to skip.
+    const lines = fs.readFileSync(path.join(dir, file), 'utf8').split(/\r?\n/);
+    const at = lines.findIndex((l) => /^permissions:[ \t]*$/.test(l));
+    assert.notEqual(at, -1, `${file} has no top-level permissions block`);
+    const scopes = [];
+    for (let j = at + 1; j < lines.length && /^[ \t]+\S/.test(lines[j]); j++) scopes.push(lines[j].trim());
+    assert.deepEqual(scopes, ['contents: read'], `${file}: top-level default is not the read-only floor`);
   }
 });
 

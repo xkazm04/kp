@@ -94,10 +94,23 @@ jobs:
       )
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # THE SCOPE THIS JOB WOULD HOLD IF THE ISSUE TEXT WERE HOSTILE. Both are
+    # exercised by the DEFAULT token and neither can be dropped: the branch is
+    # pushed with the checkout's own credentials, and every outcome below is
+    # spoken on the issue.
     permissions:
-      contents: write # push the proposal branch
-      issues: write # answer on the issue that asked
-      pull-requests: write # open the draft
+      contents: write # push the proposal branch (checkout's GITHUB_TOKEN)
+      issues: write # answer on the issue that asked — including on failure()
+      # NOT `pull-requests: write`. The draft is opened by AGENT_PR_TOKEN, never
+      # by the default token — that indirection is the whole point (a PR opened
+      # with GITHUB_TOKEN triggers no workflows, which would leave an
+      # agent-written change green by absence), and it means this job never
+      # needs the scope. pin-actions.yml opens a pull request the same way and
+      # likewise declares only `contents: write`.
+      #
+      # Pinned by a fixture in scripts/review/__tests__/gate-check.test.mjs:
+      # widening this line turns `npm run test:review` red until the widening is
+      # written down there too.
     env:
       ISSUE: ${{ github.event.issue.number }}
       # 'true' / 'false' — the secret itself never appears in a step condition.

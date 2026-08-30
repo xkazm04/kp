@@ -66,9 +66,24 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # THE SCOPE THIS JOB WOULD HOLD IF THE BRANCH IT CHECKS OUT WERE HOSTILE —
+    # and it checks out a contributor's tree and runs `npm ci` over it, so the
+    # question is not hypothetical.
     permissions:
-      contents: write # commit the fix onto the PR branch
-      pull-requests: write # or say, on the PR, that it could not
+      # NOT `contents: write`, which this job carried and never used. The commit
+      # is pushed with AUTOFIX_TOKEN: the checkout below takes that PAT, and the
+      # push step is gated on it being present, so the DEFAULT token is only
+      # ever asked to read. Without the PAT the push step is skipped by design
+      # (a commit pushed with GITHUB_TOKEN triggers no workflows and would leave
+      # this PR showing the checks of code it no longer contains), so there is
+      # no path where a write scope on the default token is the thing that makes
+      # this job work — only a path where it is what a compromised `npm ci`
+      # would find lying there.
+      contents: read
+      pull-requests: write # say on the PR what was fixed — or that it could not
+      #
+      # Pinned by a fixture in scripts/review/__tests__/gate-check.test.mjs:
+      # widening either line turns `npm run test:review` red.
     env:
       # 'true' / 'false' — the secret itself never reaches a step condition.
       HAS_AUTOFIX_TOKEN: ${{ secrets.AUTOFIX_TOKEN != '' }}
