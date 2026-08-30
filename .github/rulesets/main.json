@@ -1,0 +1,42 @@
+{
+  "name": "main — the gate",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [
+    {
+      "actor_id": 5,
+      "actor_type": "RepositoryRole",
+      "bypass_mode": "always"
+    }
+  ],
+  "conditions": {
+    "ref_name": {
+      "include": ["~DEFAULT_BRANCH"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "do_not_enforce_on_create": false,
+        "required_status_checks": [
+          { "context": "Constitution (deterministic, blocking)" },
+          { "context": "Agent review (judgement)" },
+          { "context": "Node quality (typecheck, lint, unit, build)" },
+          { "context": "Doc sync (changed source vs coupled doc)" },
+          { "context": "Commit convention (subjects the changelog is cut from)" },
+          { "context": "Python gated suite" },
+          { "context": "E2E deterministic (chromium, keyless)" },
+          { "context": "CodeQL (javascript-typescript)" },
+          { "context": "CodeQL (python)" },
+          { "context": "npm audit (fails on critical)" },
+          { "context": "pip-audit (jobfit pipeline)" }
+        ]
+      }
+    }
+  ]
+}

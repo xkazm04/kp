@@ -41,6 +41,17 @@ on:
   push:
     branches:
       - main
+  # Re-run the review on demand — after adding ANTHROPIC_API_KEY, after editing
+  # .claude/CLAUDE.md or an ADR (the rubric is assembled from them, so the review
+  # changes without the diff changing), or to re-read a commit that landed while
+  # the judgement lens was unavailable. Without this the only way to get a second
+  # opinion was an empty commit.
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "Base ref to review against (default: the previous commit)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -70,6 +81,7 @@ jobs:
       - name: Read the change back
         run: |
           BASE="${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}"
+          if [ -n "${{ github.event.inputs.base }}" ]; then BASE="${{ github.event.inputs.base }}"; fi
           set +e
           node scripts/review/constitution-check.mjs --base "$BASE" --head HEAD | tee constitution.txt
           STATUS=${PIPESTATUS[0]}
@@ -79,6 +91,36 @@ jobs:
             echo
             echo '```'
             cat constitution.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$STATUS"
+
+      # …AND IS THIS CHECK ACTUALLY REQUIRED?
+      #
+      # Everything above decides whether the run goes red. Only a required status
+      # check decides whether a red run stops a merge, and that lived in
+      # repository settings — un-versioned, and indistinguishable from a review
+      # nobody wired. `.github/rulesets/main.json` is now that configuration, and
+      # this step asks GitHub whether it is really applied.
+      #
+      # Needs GATE_ADMIN_TOKEN (a PAT with `administration: read` — the default
+      # GITHUB_TOKEN cannot read rulesets). Without it the step prints
+      # "THE LIVE HALF DID NOT RUN" and passes: the offline half, which ran in
+      # ci.yml, has already checked that the ruleset and the workflows agree.
+      # WITH it, an unapplied or downgraded ruleset FAILS this job.
+      - name: Is this check actually required?
+        env:
+          GH_TOKEN: ${{ secrets.GATE_ADMIN_TOKEN }}
+        run: |
+          set +e
+          node scripts/review/gate-check.mjs --verify --repo "$GITHUB_REPOSITORY" | tee gate.txt
+          STATUS=${PIPESTATUS[0]}
+          set -e
+          {
+            echo '### Gate configuration'
+            echo
+            echo '```'
+            cat gate.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           exit "$STATUS"
@@ -109,6 +151,7 @@ jobs:
           KP_REVIEW_MODEL: ${{ vars.KP_REVIEW_MODEL || 'claude-sonnet-5' }}
         run: |
           BASE="${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}"
+          if [ -n "${{ github.event.inputs.base }}" ]; then BASE="${{ github.event.inputs.base }}"; fi
           set +e
           node scripts/review/agent-review.mjs --base "$BASE" --head HEAD --out review.md | tee review-stdout.txt
           # $? here would be tee's. PIPESTATUS[0] is the reviewer's own verdict:

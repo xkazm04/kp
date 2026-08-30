@@ -28,6 +28,30 @@ proposing to reverse one; each ends with what would change our mind.
 | [app-structure.md](app-structure.md) | Rules and live tree of `app/features/**` |
 | [localization.md](localization.md) | The four-locale contract |
 | [voice-conversation-plane.md](voice-conversation-plane.md), [voice-tts-package.md](voice-tts-package.md) | The two voice planes: live conversation and spoken output |
+| [../development/change-review.md](../development/change-review.md) | The two review lenses, and the gate configuration that gives them teeth |
+
+## What stops a change
+
+Around 90% of commits here are AI-written, so "what reads this back, and what
+happens when it objects" is a structural question, not a process one. Every
+answer is a file in this tree — deliberately, because a gate that lives only in
+repository settings cannot be told apart from one that was never wired.
+
+| The gate | Where it is | Fires on |
+| --- | --- | --- |
+| the fast local gate | [`.githooks/pre-push`](../../.githooks/pre-push) | a push targeting `main`: both review lenses, typecheck, lint, `design:check`, build |
+| conventional-commit subjects | [`.githooks/commit-msg`](../../.githooks/commit-msg) + the `commit-convention` job | writing the message, then again over the range in CI |
+| the change-reading lenses | [`review.yml`](../../.github/workflows/review.yml) → [`scripts/review/`](../../scripts/review) | every PR, every push to `main`, and on demand |
+| the result gates | [`ci.yml`](../../.github/workflows/ci.yml) | typecheck, lint, unit, design, i18n, docs, ADRs, release coherence, SBOM, Python gate, keyless evals, keyless e2e |
+| supply chain + SAST | [`security.yml`](../../.github/workflows/security.yml) | CodeQL, `npm audit` (critical blocks), `pip-audit`, weekly |
+| **required checks** — what turns any red run into a blocked merge | [`.github/rulesets/main.json`](../../.github/rulesets/README.md) | pull requests to `main` |
+| the checks that the gates are still *wired* | `review:gate` · `security:actions` · `hooks:check`, in `ci.yml` | every push and PR |
+
+The last row is the one that is easy to skip and expensive to omit: a required
+check named after a job that was renamed, a hook shelling out to an npm script
+that no longer exists, or a new action on a mutable tag all leave every gate
+green while it quietly stops holding. See
+[change-review.md](../development/change-review.md#keeping-the-gate-wired).
 
 ## Runtime shape
 

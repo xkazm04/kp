@@ -64,9 +64,21 @@ jobs:
       # commit SHA (see ci.yml's header). The three codeql-action steps below
       # are pinned to the `v3` MAJOR TAG instead, because the author of this
       # file had no network access to verify a SHA against the GitHub API and
-      # inventing one would simply break the workflow. Dependabot's
-      # github-actions ecosystem is configured in .github/dependabot.yml and
-      # will propose the SHA rewrite on its next run; take it.
+      # inventing one would simply break the workflow.
+      #
+      # CORRECTION, and it matters: an earlier version of this note said
+      # Dependabot would propose the SHA rewrite. It will not. Dependabot updates
+      # a reference in the form it finds it — a SHA pin gets a new SHA, a tag pin
+      # gets a newer TAG. Nothing was ever going to convert these on its own, so
+      # the debt sat here reading as scheduled. The one command that closes it:
+      #
+      #     npm run security:actions -- --resolve
+      #
+      # It resolves each tag to the commit it points at (dereferencing annotated
+      # tags), rewrites the files, and leaves the tag as the trailing comment.
+      # Then delete the matching PIN_ALLOWLIST entries in
+      # scripts/security/check-actions.mjs — which is what stops a NEW unpinned
+      # action landing while these are still here.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:

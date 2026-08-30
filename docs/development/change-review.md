@@ -114,22 +114,53 @@ this whole thing exists to avoid.
 | Trigger | What runs | Consequence of a blocking finding |
 | --- | --- | --- |
 | `git push` targeting `main` ([`.githooks/pre-push`](../../.githooks/pre-push)) | constitution, then the agent review, then typecheck / lint / design / build | the push does not happen |
-| pull request ([`review.yml`](../../.github/workflows/review.yml)) | both lenses; the agent review is posted as a PR comment | the `Constitution` / `Agent review` checks go red |
+| pull request ([`review.yml`](../../.github/workflows/review.yml)) | both lenses; the agent review is posted as a PR comment | the `Constitution` / `Agent review` checks go red **and the merge is blocked** — they are required checks |
 | push to `main` ([`review.yml`](../../.github/workflows/review.yml)) | both lenses over `HEAD~1..HEAD` | the run goes red on the landed commit |
-| any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run test:review` — the fixtures for both lenses, because a tool that judges changes has to be judged by something too | CI red |
+| **manual** (`workflow_dispatch` on [`review.yml`](../../.github/workflows/review.yml)) | both lenses on any ref, with an optional `base` input | same as a push run |
+| any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run test:review` — the fixtures for all of this, because a tool that judges changes has to be judged by something too | CI red |
+| any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run review:gate` · `npm run security:actions` · `npm run hooks:check` — the three checks that the gate is still *wired* (below) | CI red |
 
-Two details that decide whether this is real or decorative:
+Run the review by hand from the Actions tab (**Review → Run workflow**) after
+adding `ANTHROPIC_API_KEY`, after editing `.claude/CLAUDE.md` or an ADR — the
+rubric is assembled from them, so the review changes without the diff changing —
+or to re-read a commit that landed while the judgement lens was unavailable.
+
+Three details decide whether this is real or decorative:
 
 - **The judgement lens runs on `pre-push`, not only on PRs.** Most changes here
   reach `main` as a direct push; a reviewer that only sees pull requests would
   have been reviewing the exception. Locally it uses the `claude` CLI, so it
   costs no key. `KP_SKIP_AGENT_REVIEW=1` skips just that lens for a mechanical
   push (`KP_SKIP_GATE=1` skips the whole gate) — both say so loudly on stderr.
-- **Branch protection is where the PR path gets its teeth.** The workflow fails
-  the run; only a required status check stops a merge. Require
-  **`Constitution (deterministic, blocking)`** and **`Agent review (judgement)`**
-  on `main`, alongside the CI jobs. That setting lives in repository settings,
-  not in this tree — which is exactly why it is written down here.
+- **A required status check is what turns a red run into a blocked merge**, and
+  that configuration is now a file:
+  [`.github/rulesets/main.json`](../../.github/rulesets/README.md). It requires
+  both lenses plus every CI and security job, forbids deleting or force-pushing
+  `main`, and lets repository admin bypass — because the maintainer's path is the
+  direct push, which `pre-push` already gates. Apply or re-apply it with
+  `npm run review:gate -- --apply`; `--verify` asks GitHub whether it is really
+  enforced and runs in `review.yml` when `GATE_ADMIN_TOKEN` is set.
+- **`.github/workflows/ai-review.yml` is gone.** It was a scaffold that ran
+  `echo "TODO: invoke the AI review action here"` on every pull request and
+  reported a green **AI review** check. That is worse than no review: the whole
+  problem this page exists to solve is telling a review that runs from one that
+  does not, and a green check that reviewed nothing is the strongest possible
+  claim that it did.
+
+## Keeping the gate wired
+
+A gate stops being one long before anyone deletes it. The three checks below run
+in `ci.yml` on every push and PR and cost under a second between them.
+
+| Check | Catches |
+| --- | --- |
+| `npm run review:gate` ([`gate-check.mjs`](../../scripts/review/gate-check.mjs)) | the ruleset requiring a check name no job reports — rename `Agent review (judgement)` and GitHub waits forever for a check that never arrives, until someone drops the requirement to unblock a PR. Also: an `evaluate`-mode ruleset, a required check that never runs on PRs, a lens that left the required set, a workflow with no jobs |
+| `npm run security:actions` ([`check-actions.mjs`](../../scripts/security/check-actions.mjs)) | a workflow with no top-level `permissions:` block, and any **new** action pinned to a mutable tag. A ratchet: the refs that already float are enumerated in the script with why, so the list can only shrink. `-- --resolve` rewrites them to commit SHAs (needs network) |
+| `npm run hooks:check` ([`install.mjs`](../../scripts/hooks/install.mjs)) | a hook that vanished, or one still shelling out to an npm script or file that was renamed away — the shape of drift that leaves `pre-push` running and no longer checking |
+
+`npm run review:gate -- --verify` is the online half: it asks GitHub whether the
+ruleset is actually applied. Without a token it prints **THE LIVE HALF DID NOT
+RUN** and exits 0, for the same reason lens 2 does.
 
 ## Known gaps
 
@@ -142,7 +173,17 @@ Two details that decide whether this is real or decorative:
 - Until `ANTHROPIC_API_KEY` is set in repository secrets, the judgement lens
   reports "did not run" on every CI run. That is visible in the job summary by
   design.
-- There is no agent **dispatch** path: nothing here opens a change from an issue
-  or a comment. Agents are run locally by the maintainer and their output lands
-  through the same gate as anyone's. Reviewing what an agent produced and
-  dispatching one are separate problems; only the first is solved here.
+- There is no agent **dispatch** path: `workflow_dispatch` re-runs the *review*
+  on demand, but nothing here opens a change from an issue or a comment. Agents
+  are run locally by the maintainer and their output lands through the same gate
+  as anyone's. Reviewing what an agent produced and dispatching one are separate
+  problems; only the first is solved here.
+- The ruleset lets **repository admin bypass** the required checks, so on the
+  maintainer's own direct pushes the teeth are `.githooks/pre-push`, not GitHub.
+  That is deliberate (see [`.github/rulesets/README.md`](../../.github/rulesets/README.md))
+  and it is the weakest joint here: `KP_SKIP_GATE=1` is one environment variable
+  away, and only stderr and the journal record that it was used.
+- `npm run review:gate -- --verify` is only as good as the token it is given.
+  Until `GATE_ADMIN_TOKEN` exists in repository secrets, nothing mechanically
+  confirms the ruleset is still applied — the offline half only proves the file
+  and the workflows agree with each other.

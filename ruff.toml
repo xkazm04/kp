@@ -20,9 +20,17 @@ ignore = [
     "F401",
     # 2x f-strings without placeholders (auto-fixable).
     "F541",
-    # 1x pipeline/jobfit/pipeline.py:674 — `CandidateProfileV2` used in an
-    # annotation without a runtime import. Worth a real look when touching
-    # pipeline.py: if the module ever drops its lazy-annotation posture this
-    # becomes a NameError at def time.
+    # NEXT TO GO — and the only entry here that hides a real bug rather than
+    # untidiness. Its one recorded occurrence (`CandidateProfileV2` in
+    # pipeline.py's `_v2_profile_and_routing` signature, bound nowhere at module
+    # scope) is FIXED: pipeline.py now carries a `TYPE_CHECKING` import. Anything
+    # that resolves annotations — `typing.get_type_hints`, a schema generator —
+    # would have raised NameError there.
+    #
+    # The entry is still here only because deleting it must be verified, not
+    # guessed: `ruff check pipeline/` after removing this line is the whole
+    # procedure, and it needs ruff on the machine doing the removing. Do that and
+    # delete this — an ignore with no known violation is a gate that has stopped
+    # meaning anything, which is the exact failure the review lenses exist for.
     "F821",
 ]

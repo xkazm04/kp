@@ -5,7 +5,7 @@ import math
 import re
 import time
 from pathlib import Path
-from typing import Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 from .ats import evaluate_keyword_coverage, verify_skills_in_cv
 from .authenticity import authenticity_checks, prompt_injection_checks
@@ -54,6 +54,19 @@ from .taxonomy import (
     has_seniority_senior_signal,
     role_band,
 )
+
+if TYPE_CHECKING:
+    # ANNOTATION ONLY. `_v2_profile_and_routing` returns a CandidateProfileV2, and
+    # said so in its signature while the name was bound nowhere at module scope —
+    # the runtime import lives inside `_v2_profile_from_payload`, which keeps the
+    # heavy `.profile` module off the import path of every caller that never asks
+    # for a v2 profile. `from __future__ import annotations` made that harmless in
+    # practice (annotations are strings) and invisible in review: nothing raised,
+    # and ruff's F821 was ignored repo-wide. It is not harmless in principle —
+    # anything that resolves these annotations (`typing.get_type_hints`, a
+    # documentation or schema generator, a runtime validator) raises NameError.
+    # This block binds the name for type checkers and costs nothing at runtime.
+    from .profile import CandidateProfileV2
 
 
 ProgressCallback = Callable[[str, str], None]

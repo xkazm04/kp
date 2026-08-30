@@ -108,10 +108,7 @@ jobs:
             --commit "$GITHUB_SHA" \
             --image "$IMAGE"
 
-      # Pinned to a major tag for the reason recorded in the publish job below:
-      # the SHA could not be verified against the GitHub API when this was
-      # written, and Dependabot's github-actions ecosystem will propose the
-      # rewrite.
+      # Pinned to a major tag for the reason recorded in the publish job below.
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
@@ -134,11 +131,19 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
-      # PINNING NOTE: as in security.yml, these three actions are pinned to
-      # major tags rather than commit SHAs because the author of this file had
-      # no network access to verify a SHA against the GitHub API, and inventing
-      # one breaks the workflow. Dependabot's github-actions ecosystem
-      # (.github/dependabot.yml) will propose the SHA rewrite; take it.
+      # PINNING NOTE — and this is the workflow where it costs the most. These
+      # steps run with `packages: write`, `id-token: write` and
+      # `attestations: write`: they build the image an operator pins to, push it
+      # to GHCR and sign a provenance attestation for it. A mutable tag here is a
+      # pointer someone else can move into that.
+      #
+      # They are on major tags because the author of this file had no network
+      # access to verify a SHA against the GitHub API, and inventing one breaks
+      # the workflow. Dependabot will NOT fix this — it updates a reference in the
+      # form it finds it, so a tag pin just becomes a newer tag pin. Close it with
+      # `npm run security:actions -- --resolve`, then delete the matching
+      # PIN_ALLOWLIST entries in scripts/security/check-actions.mjs. Until then
+      # that ratchet at least stops a NEW unpinned action arriving beside them.
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3

@@ -118,6 +118,30 @@ jobs:
       # be judged by something too.
       - run: npm run test:review
 
+      # IS THE GATE STILL WIRED TO WHAT IT CLAIMS TO GATE?
+      #
+      # .github/rulesets/main.json is the required-status-check configuration —
+      # the thing that turns a red workflow into a blocked merge. It names checks
+      # by their job `name:`, which means a rename here silently un-gates them:
+      # GitHub goes on waiting for a check nothing reports, and the fix someone
+      # reaches for under pressure is to drop the requirement.
+      #
+      # WHEN IT FAILS: a required context no longer matches a job, or a review
+      # lens left the required set. Fix the name, or update the ruleset in the
+      # same change. Offline, sub-second, no token.
+      - run: npm run review:gate
+
+      # Supply chain: every workflow scopes GITHUB_TOKEN, and no NEW action rides
+      # a mutable tag. A ratchet over the refs that already float (enumerated in
+      # scripts/security/check-actions.mjs) — the list can only shrink.
+      - run: npm run security:actions
+
+      # The local half of the gate: .githooks/pre-push is the only thing between a
+      # direct push to main and CI, and most changes here land that way. This
+      # fails when a hook points at an npm script or a file that no longer exists
+      # — the shape of drift that leaves the hook running and no longer checking.
+      - run: npm run hooks:check
+
       # The App-master bench driver's own tests (scripts/app-master-bench/*.test.mjs).
       # They are dependency-free node:test files that were never in CI: the harness
       # that measures whether an agent can be trusted with this repo was itself
