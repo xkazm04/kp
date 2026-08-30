@@ -14,7 +14,7 @@ it mechanically.
 | Kind | deterministic, regex over the diff | LLM judgement over the diff |
 | Needs | nothing — no key, no network | `ANTHROPIC_API_KEY`, or the `claude` CLI locally |
 | Cost | < 1 second | one model call per change |
-| Runs | every push, every PR, and `pre-push` on `main` | every PR |
+| Runs | every push, every PR, and `pre-push` on `main` | every PR, every push to `main`, and `pre-push` on `main` |
 | Blocks | yes, on a blocking finding | yes, on a `blocking` finding |
 | Catches | gate weakening | intent drift, scope creep, reversed decisions |
 
@@ -111,15 +111,25 @@ this whole thing exists to avoid.
 
 ## Where they run
 
-- **`.githooks/pre-push`** — the constitution check runs first in the gate for
-  pushes to `main`, before typecheck, because it is the cheapest and the only
-  one that reads the *change* rather than the result.
-- **[`.github/workflows/review.yml`](../../.github/workflows/review.yml)** — both
-  lenses on every PR. The constitution result goes to the job summary; the agent
-  review is also posted as a PR comment.
-- **[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)** — `npm run
-  test:review` runs the fixtures, because a tool that judges changes has to be
-  judged by something too.
+| Trigger | What runs | Consequence of a blocking finding |
+| --- | --- | --- |
+| `git push` targeting `main` ([`.githooks/pre-push`](../../.githooks/pre-push)) | constitution, then the agent review, then typecheck / lint / design / build | the push does not happen |
+| pull request ([`review.yml`](../../.github/workflows/review.yml)) | both lenses; the agent review is posted as a PR comment | the `Constitution` / `Agent review` checks go red |
+| push to `main` ([`review.yml`](../../.github/workflows/review.yml)) | both lenses over `HEAD~1..HEAD` | the run goes red on the landed commit |
+| any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run test:review` — the fixtures for both lenses, because a tool that judges changes has to be judged by something too | CI red |
+
+Two details that decide whether this is real or decorative:
+
+- **The judgement lens runs on `pre-push`, not only on PRs.** Most changes here
+  reach `main` as a direct push; a reviewer that only sees pull requests would
+  have been reviewing the exception. Locally it uses the `claude` CLI, so it
+  costs no key. `KP_SKIP_AGENT_REVIEW=1` skips just that lens for a mechanical
+  push (`KP_SKIP_GATE=1` skips the whole gate) — both say so loudly on stderr.
+- **Branch protection is where the PR path gets its teeth.** The workflow fails
+  the run; only a required status check stops a merge. Require
+  **`Constitution (deterministic, blocking)`** and **`Agent review (judgement)`**
+  on `main`, alongside the CI jobs. That setting lives in repository settings,
+  not in this tree — which is exactly why it is written down here.
 
 ## Known gaps
 
@@ -132,3 +142,7 @@ this whole thing exists to avoid.
 - Until `ANTHROPIC_API_KEY` is set in repository secrets, the judgement lens
   reports "did not run" on every CI run. That is visible in the job summary by
   design.
+- There is no agent **dispatch** path: nothing here opens a change from an issue
+  or a comment. Agents are run locally by the maintainer and their output lands
+  through the same gate as anyone's. Reviewing what an agent produced and
+  dispatching one are separate problems; only the first is solved here.

@@ -15,12 +15,20 @@
 #             commit passed on main, the tag is the thing being certified.
 #   publish   builds the image and pushes it to GHCR as x.y.z, sha-<commit> and
 #             latest, then attaches a build-provenance attestation so
-#             `gh attestation verify` can prove where the image came from.
+#             `gh attestation verify` can prove where the image came from, and a
+#             BuildKit SPDX SBOM attestation of the image's own filesystem.
 #             If this fails, nothing is published and no release exists.
 #   release   packages the Helm chart and creates the GitHub Release, with the
-#             body taken from this version's CHANGELOG.md section. A tag whose
-#             version has no CHANGELOG section fails here rather than shipping
-#             an empty release note.
+#             body taken from this version's CHANGELOG.md section and the
+#             CycloneDX SBOM attached as an asset. A tag whose version has no
+#             CHANGELOG section fails here rather than shipping an empty release
+#             note.
+#
+# WHY THE SBOM IS CUT IN `gate` AND NOT IN `release`: it lists BOTH runtimes, and
+# the Python half is read from the resolved environment (`pip list`) rather than
+# from requirements.txt, which pins direct dependencies only and would omit every
+# transitive — the packages an advisory is most often about. `gate` is the job
+# that has already installed both toolchains.
 name: Release
 
 on:
@@ -84,6 +92,33 @@ jobs:
           KP_SKIP_BASELINE: "5"
       - run: npm run test:eval:ci
 
+      # The bill of materials for what this tag ships. Both halves of the
+      # runtime: the lockfile's production closure and the resolved Python
+      # environment installed above. The script REFUSES to write a document that
+      # lists suspiciously little (scripts/release/sbom.mjs, checkSbom) — an
+      # empty SBOM published as if complete is worse than no SBOM, because the
+      # operator triaging a CVE would read "not affected" from an omission.
+      - name: Generate the SBOM (CycloneDX)
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:${VERSION}"
+          node scripts/release/sbom.mjs \
+            --out "dist/sbom/kp-${VERSION}.cdx.json" \
+            --version "$VERSION" \
+            --commit "$GITHUB_SHA" \
+            --image "$IMAGE"
+
+      # Pinned to a major tag for the reason recorded in the publish job below:
+      # the SHA could not be verified against the GitHub API when this was
+      # written, and Dependabot's github-actions ecosystem will propose the
+      # rewrite.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: dist/sbom/*.json
+          if-no-files-found: error
+          retention-days: 90
+
   publish:
     name: Publish the image to GHCR
     needs: gate
@@ -137,6 +172,14 @@ jobs:
           # would be a claim we cannot back.
           platforms: linux/amd64
           provenance: true
+          # BuildKit's own SPDX scan of the built filesystem, pushed to the
+          # registry as an attestation beside the provenance one. It answers a
+          # different question from the CycloneDX document attached to the
+          # release: this one describes the IMAGE as built (including the base
+          # OS packages), that one describes the dependency closure the tree
+          # declares. An operator triaging a CVE usually wants both.
+          #   docker buildx imagetools inspect <image> --format '{{ json .SBOM }}'
+          sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
           labels: |
@@ -163,6 +206,13 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
+      # The SBOM cut in `gate`, from the tree and the environment that job
+      # certified. Same pinning note as the actions in `publish`.
+      - uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: dist/sbom
+
       # The release body is the CHANGELOG section for this version, extracted
       # verbatim. If there is no section, this FAILS — shipping a release with
       # empty notes is the failure this whole workflow exists to prevent.
@@ -187,6 +237,9 @@ jobs:
             echo
             echo "Verify provenance: \`gh attestation verify oci://ghcr.io/${GITHUB_REPOSITORY,,}:${VERSION} --repo ${GITHUB_REPOSITORY}\`"
             echo
+            echo "**Bill of materials:** \`kp-${VERSION}.cdx.json\` below (CycloneDX 1.5 — npm production closure + the resolved Python environment)."
+            echo "The image also carries a BuildKit SPDX attestation: \`docker buildx imagetools inspect ghcr.io/${GITHUB_REPOSITORY,,}:${VERSION} --format '{{ json .SBOM }}'\`"
+            echo
             echo "Upgrade and rollback: [docs/architecture/releases.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/architecture/releases.md)"
           } >> RELEASE_NOTES.md
 
@@ -202,4 +255,4 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
             --notes-file RELEASE_NOTES.md \
-            dist/*.tgz
+            dist/*.tgz dist/sbom/*.json

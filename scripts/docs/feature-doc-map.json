@@ -412,6 +412,14 @@
       ]
     },
     {
+      "_comment": "The release machinery: cutting a version, the commit convention the CHANGELOG is cut from, and the bill of materials shipped with each tag. docs/architecture/releases.md is what an operator reads to decide what to pin to and how to go back — a change to any of these scripts that the doc does not follow is precisely the drift this map exists to catch.",
+      "doc": "docs/architecture/releases.md",
+      "sourceGlobs": [
+        "scripts/release/**",
+        ".github/workflows/release.yml"
+      ]
+    },
+    {
       "doc": "docs/architecture/localization.md",
       "sourceGlobs": [
         "app/_lib/use-error-message.ts",

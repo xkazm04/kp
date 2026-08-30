@@ -53,8 +53,27 @@ git push origin main v0.2.0
 
 `prepare.mjs` owns the three places a version lives — `package.json`, the
 chart's `appVersion`, and a `CHANGELOG.md` section — and cuts the section from
-the conventional-commit subjects since the last tag (~90% of subjects here carry
-a prefix; anything it cannot classify lands under **Other**, never dropped).
+the conventional-commit subjects since the last tag (anything it cannot classify
+lands under **Other**, never dropped).
+
+### The subject line is an input to this file, so it is checked
+
+Because the section is cut from subject lines, a subject that loses its `type:`
+prefix does not fail anything at the time — it is filed under **Other** and
+falls out of the release note. [`scripts/release/commit-msg.mjs`](../../scripts/release/commit-msg.mjs)
+closes that: it derives its accepted vocabulary from `prepare.mjs`'s own
+`SECTIONS` table (so the gate and the changelog cut cannot drift — a fixture
+asserts it), and runs in two places:
+
+| Where | When | On failure |
+| --- | --- | --- |
+| [`.githooks/commit-msg`](../../.githooks/commit-msg) | as the message is written (`core.hooksPath` is set by `npm install`) | the commit is rejected; amend and retry |
+| `commit-convention` job in [`ci.yml`](../../.github/workflows/ci.yml) | every push and PR, over the whole range | the build is red until the subject is amended or waived |
+
+Merge, revert and `fixup!` subjects are exempt — those are git's words, not
+ours. An individual message is waived on the record with a
+`Commit-convention-exemption: <why>` trailer in the body, the same shape as
+`Gate-exemption:` and `Doc-sync:`.
 
 `npm run release:check` runs the same coherence check in CI on **every** push,
 so the three cannot drift between releases: a version with no release notes, or
@@ -67,10 +86,34 @@ The tag is what triggers [`.github/workflows/release.yml`](../../.github/workflo
 2. builds and pushes the image to GHCR as `x.y.z`, `sha-<commit>` and `latest`;
 3. attaches a **build-provenance attestation** (`actions/attest-build-provenance`),
    so `gh attestation verify` can prove the image came from this repository at
-   that commit;
+   that commit, plus BuildKit's **SPDX attestation** of the image filesystem
+   (`sbom: true`);
 4. packages the Helm chart;
 5. creates the GitHub Release, with the body taken from this version's
-   `CHANGELOG.md` section and the chart tarball attached.
+   `CHANGELOG.md` section, the chart tarball attached, and the **CycloneDX
+   bill of materials** (`kp-<version>.cdx.json`).
+
+### The bill of materials
+
+Provenance answers *where did this image come from*. The SBOM answers the
+question an operator actually asks when an advisory lands: *is what I am running
+affected?* [`scripts/release/sbom.mjs`](../../scripts/release/sbom.mjs) cuts it
+in the `gate` job — the one that has both toolchains installed — because the
+Python half is read from the **resolved environment**, not from
+`requirements.txt`, which pins direct dependencies only and would omit exactly
+the transitive packages advisories name.
+
+```bash
+npm run sbom                                  # dist/sbom/kp-<version>.cdx.json
+gh release download v0.1.0 --pattern '*.cdx.json'
+jq -r '.components[] | "\(.name) \(.version)"' kp-0.1.0.cdx.json
+```
+
+`npm run sbom` also runs on **every push** in CI, so a lockfile format change
+breaks the build rather than the next release. The generator refuses to write a
+document that lists implausibly little — see [`SECURITY.md`](../../SECURITY.md)
+for the scope of each half and how it relates to the image's own SPDX
+attestation.
 
 ## Rolling back
 

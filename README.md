@@ -126,5 +126,9 @@ Docker, Helm and the production checklist are in the same guide.
   and the candidate-facing pages.
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md) — setup, the verification gate, and the five
   conventions that actually bite. Bug reports, translations and patches welcome.
+- [`docs/development/change-review.md`](docs/development/change-review.md) — most
+  commits here are AI-written, so every change is read back by two lenses before it
+  lands: a deterministic pass over the diff, and a model reviewing it against this
+  repository's own written rules. What runs, where, and what a finding costs.
 - [`SECURITY.md`](./SECURITY.md) — security issues go there, never a public issue.
 - [`LICENSE`](./LICENSE) — AGPL-3.0.

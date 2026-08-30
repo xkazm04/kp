@@ -1,0 +1,22 @@
+#!/bin/sh
+# Conventional-commit check, at the moment the message is written.
+#
+# `scripts/release/prepare.mjs` cuts each CHANGELOG section from these subject
+# lines. A subject that loses its `type:` prefix does not fail anything today —
+# it lands under "Other" and quietly falls out of the release note an operator
+# reads to decide whether to upgrade. This hook is the cheap half of the fix
+# (sub-second, no deps); the `commit-convention` job in .github/workflows/ci.yml
+# is the half with teeth, because a hook only binds the machine that installed
+# it (`npm install` sets core.hooksPath — see the `prepare` script).
+#
+# Waive an individual message with a trailer in the body, on the record:
+#   Commit-convention-exemption: <why>
+# Bypass the hook entirely (it is a local convenience, CI still checks):
+#   git commit --no-verify
+
+command -v node >/dev/null 2>&1 || exit 0
+
+node scripts/release/commit-msg.mjs --file "$1" || {
+  echo "commit-msg: message rejected. Amend it, or add a Commit-convention-exemption trailer." >&2
+  exit 1
+}

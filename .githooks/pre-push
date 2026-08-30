@@ -2,8 +2,9 @@
 # Ship-loop CI-discipline guard (backlog item 50).
 # Pushes to main have repeatedly gone out without the verification gate and
 # turned CI red for a day (see .claude/ship-loop/journal.md, CP7). This hook
-# runs the fast core of the gate — typecheck, lint, design, build — before any
-# push that updates refs/heads/main. Other branches push freely; CI covers them.
+# runs the fast core of the gate — both review lenses, then typecheck, lint,
+# design, build — before any push that updates refs/heads/main. Other branches
+# push freely; CI covers them.
 #
 # `design:check` joined the core because the dual-theme design law was stated in
 # .claude/CLAUDE.md and docs/design/README.md and enforced NOWHERE: nothing in
@@ -27,7 +28,7 @@ done
 
 [ "$targets_main" = "1" ] || exit 0
 
-echo "pre-push: push targets main — running the gate (constitution, typecheck, lint, design, build)..." >&2
+echo "pre-push: push targets main — running the gate (constitution, agent review, typecheck, lint, design, build)..." >&2
 
 # The deterministic review lens runs FIRST because it is the cheapest and the
 # only one that reads the change rather than the result: a skipped test, a
@@ -37,6 +38,30 @@ echo "pre-push: push targets main — running the gate (constitution, typecheck,
 # trailer in the commit body, not by removing this line.
 node scripts/review/constitution-check.mjs --base "origin/main" --head HEAD \
   || { echo "pre-push: constitution check failed — push blocked." >&2; exit 1; }
+
+# The JUDGEMENT lens, on the path work actually lands by.
+#
+# .github/workflows/review.yml runs it on every PR, but most changes here reach
+# main as a direct push, so until now the lens that reads INTENT (does the change
+# do what its message says; did its scope quietly widen; did it reverse an ADR)
+# ran only after the fact. It uses the local `claude` CLI — no key needed — and
+# prints "THE JUDGEMENT LENS DID NOT RUN" and passes when neither a CLI nor a key
+# is present, which is the honest answer rather than a silent green.
+#
+# Exit 1 is a BLOCKING finding: a named rule with a cited line. Exit 2 is the lens
+# itself failing (unparsable reply, bad key) — loud, but not a block, because
+# review.yml re-runs it on the pushed commit and fails there if it is still broken.
+# Skip just this lens for a mechanical push: KP_SKIP_AGENT_REVIEW=1.
+if [ "$KP_SKIP_AGENT_REVIEW" = "1" ]; then
+  echo "pre-push: KP_SKIP_AGENT_REVIEW=1 — the judgement lens was skipped. CI still runs it." >&2
+else
+  node scripts/review/agent-review.mjs --base "origin/main" --head HEAD
+  case "$?" in
+    0) ;;
+    1) echo "pre-push: agent review raised a BLOCKING finding — push blocked. Fix it, or waive it in review.yml's terms." >&2; exit 1 ;;
+    *) echo "pre-push: the judgement lens FAILED to run (see above). Not blocking; review.yml will re-run it on the pushed commit." >&2 ;;
+  esac
+fi
 
 npm run typecheck || { echo "pre-push: typecheck failed — push blocked." >&2; exit 1; }
 npm run lint      || { echo "pre-push: lint failed — push blocked." >&2; exit 1; }

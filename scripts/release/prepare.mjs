@@ -21,6 +21,11 @@
 // The commit history is ~90% conventional-prefixed, which is what makes the
 // section cut worth automating. Commits it cannot classify are not dropped —
 // they land under "Other" so a release note is never quietly incomplete.
+//
+// SECTIONS below is also the VOCABULARY the commit-message check enforces
+// (scripts/release/commit-msg.mjs derives its accepted types from it, and a
+// fixture pins that the two cannot drift). Adding a type here teaches both the
+// changelog cut and the gate at once.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -41,7 +46,12 @@ export const SECTIONS = [
   ['Performance', ['perf']],
   ['Changed', ['refactor', 'style']],
   ['Documentation', ['docs']],
-  ['Internal', ['chore', 'test', 'ci', 'build']],
+  // `deps` is the prefix .github/dependabot.yml gives every bump PR it opens
+  // (`deps`, `deps(dev)`, `deps(edge)`, `deps(python)`). Without it here, the
+  // bot's own commits — the most frequent non-human commits in the tree — fell
+  // through to "Other" and the commit gate would have rejected the repository's
+  // own automation.
+  ['Internal', ['chore', 'test', 'ci', 'build', 'deps']],
   ['Other', []],
 ];
 

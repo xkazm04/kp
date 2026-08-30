@@ -94,7 +94,18 @@ Deeper guidance for automated agents and humans alike lives in
 
 ## Commit and PR style
 
-- Present tense, scoped: `billing: unmeter self-hosted installs`.
+- **Conventional subjects, and this one is checked.** `type(scope): summary` —
+  `feat`, `fix`, `security`, `perf`, `refactor`, `style`, `docs`, `chore`,
+  `test`, `ci`, `build`, `deps`, with a trailing `!` for a breaking change.
+  [`scripts/release/prepare.mjs`](./scripts/release/prepare.mjs) cuts every
+  CHANGELOG section from these prefixes, so a subject without one silently
+  vanishes from the release notes an operator upgrades on.
+  [`.githooks/commit-msg`](./.githooks/commit-msg) rejects it as you write it
+  (installed by `npm install`, which sets `core.hooksPath`), and the
+  `commit-convention` job in CI rejects it in the pushed range. Waive an
+  individual message on the record with a `Commit-convention-exemption: <why>`
+  trailer in the body.
+- Present tense, scoped: `feat(billing): unmeter self-hosted installs`.
 - One logical change per PR. If your PR needs a "and also" in the description,
   it's probably two PRs.
 - Explain **why** in the body. The what is in the diff.

@@ -209,6 +209,16 @@ function callClaudeCli({ system, prompt }) {
   return res.stdout;
 }
 
+/**
+ * The verdict, as an exit code. Extracted from main() so a fixture can pin it:
+ * "blocking means the build fails" is the whole difference between a reviewer
+ * with teeth and a comment nobody has to answer.
+ * @returns 0 nothing blocking · 1 at least one blocking finding
+ */
+export function verdictFor(findings) {
+  return findings.some((f) => f?.severity === 'blocking') ? 1 : 0;
+}
+
 export function renderMarkdown({ backend, model, summary, findings, truncated }) {
   const blocking = findings.filter((f) => f.severity === 'blocking');
   const notes = findings.filter((f) => f.severity !== 'blocking');
@@ -305,7 +315,7 @@ async function main(argv) {
   if (args.out) fs.writeFileSync(args.out, `${md}\n`, 'utf8');
   process.stdout.write(args.json ? `${JSON.stringify({ ...parsed, backend, truncated }, null, 2)}\n` : `${md}\n`);
 
-  return findings.some((f) => f.severity === 'blocking') ? 1 : 0;
+  return verdictFor(findings);
 }
 
 if (process.argv[1]?.endsWith('agent-review.mjs')) {

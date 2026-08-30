@@ -17,6 +17,10 @@ __pycache__
 test-results
 playwright-report
 
+# Release artifacts (npm run sbom, helm package) — regenerated per tag by
+# .github/workflows/release.yml and published as release assets, never committed.
+dist/
+
 # Runtime
 tmp
 uploads

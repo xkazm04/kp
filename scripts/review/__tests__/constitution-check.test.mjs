@@ -14,8 +14,8 @@ import {
   runRules,
   skipBaselineChange,
 } from '../constitution-check.mjs';
-import { budgetDiff, extractJson, renderMarkdown } from '../agent-review.mjs';
-import { adrSummaries, section } from '../rubric.mjs';
+import { budgetDiff, buildPrompt, extractJson, renderMarkdown, verdictFor } from '../agent-review.mjs';
+import { adrSummaries, buildRubric, section } from '../rubric.mjs';
 
 let passed = 0;
 function check(name, fn) {
@@ -342,6 +342,43 @@ check('review markdown separates blocking from notes', () => {
   });
   assert.match(md, /1 blocking · 1 to note/);
   assert.ok(md.indexOf('ADR 0002') < md.indexOf('Unrelated rename'));
+});
+
+check('a blocking finding is a failing exit code; a note never is', () => {
+  assert.equal(verdictFor([]), 0);
+  assert.equal(verdictFor([{ severity: 'note' }, { severity: 'note' }]), 0);
+  assert.equal(verdictFor([{ severity: 'note' }, { severity: 'blocking' }]), 1);
+});
+
+check('the prompt carries THIS repository’s rules, the diff and what the change claims', () => {
+  const prompt = buildPrompt({
+    rubric: buildRubric(),
+    diff: 'diff --git a/x.ts b/x.ts\n+const a = 1;\n',
+    messages: 'feat(x): add a constant',
+    truncated: false,
+    droppedChars: 0,
+    files: ['x.ts'],
+  });
+  // Not a generic "good code" prior: the conventions and the decision list have
+  // to reach the model, or the review is judged against nothing in particular.
+  assert.match(prompt, /Important Conventions/);
+  assert.match(prompt, /ADR \d{4}/);
+  assert.match(prompt, /feat\(x\): add a constant/);
+  assert.match(prompt, /\+const a = 1;/);
+  assert.match(prompt, /"severity": "blocking" \| "note"/);
+});
+
+check('a truncated diff says so in the prompt, rather than reading as complete', () => {
+  const prompt = buildPrompt({
+    rubric: 'r',
+    diff: 'd',
+    messages: 'm',
+    truncated: true,
+    droppedChars: 4242,
+    files: ['a.ts'],
+  });
+  assert.match(prompt, /TRUNCATED: 4242/);
+  assert.match(prompt, /review was partial/);
 });
 
 // --- the rubric reads the REAL repository -----------------------------------

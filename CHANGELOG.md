@@ -36,9 +36,26 @@ section.
   — covering the image roll-back, the SQLite backup/restore path
   (`npm run db:dump` / `db:load`) and what is and is not reversible.
 - **Automated change review.** Two lenses read every change back: a
-  deterministic gate-integrity pass over the diff, and an LLM review against
-  this repository's own written rules. See
+  deterministic gate-integrity pass over the diff
+  (`scripts/review/constitution-check.mjs`), and an LLM review against this
+  repository's own written rules (`scripts/review/agent-review.mjs`, rubric
+  assembled at run time from `.claude/CLAUDE.md` and the ADR set). Both run in
+  [`.github/workflows/review.yml`](.github/workflows/review.yml) on every pull
+  request and every push to `main`, and both now run in `.githooks/pre-push`
+  before a push to `main` — a blocking finding stops the push. See
   [`docs/development/change-review.md`](docs/development/change-review.md).
+- **A bill of materials on every release.** `scripts/release/sbom.mjs` emits a
+  CycloneDX 1.5 document covering both runtimes — the lockfile's production
+  closure with integrity hashes, and the resolved Python environment including
+  transitives — attached to the GitHub Release as `kp-<version>.cdx.json`. The
+  published image additionally carries BuildKit's SPDX attestation
+  (`sbom: true`). An operator can now answer "does this advisory affect what I
+  am running?" without pulling the image. See [`SECURITY.md`](SECURITY.md).
+- **The commit convention is checked, not assumed.** The CHANGELOG is cut from
+  conventional-commit subjects, so `scripts/release/commit-msg.mjs` enforces the
+  vocabulary the release script can actually file — in `.githooks/commit-msg` as
+  the message is written, and in CI's `commit-convention` job over the pushed
+  range. Waivable on the record with a `Commit-convention-exemption:` trailer.
 - **Architecture decision records** under
   [`docs/architecture/decisions/`](docs/architecture/decisions/README.md), with
   a CI gate that fails when a record names a file that no longer exists.

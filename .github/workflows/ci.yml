@@ -100,6 +100,14 @@ jobs:
 
       - run: npm run test:release
 
+      # The SBOM generator, end to end, on a push rather than only on a tag.
+      # It reads package-lock.json AND the pip environment installed above, and
+      # refuses to write a document that lists suspiciously little — so if a
+      # lockfile format change or a missing interpreter breaks it, that surfaces
+      # here rather than in the middle of cutting a release. The output is a
+      # throwaway (dist/ is gitignored); the exit code is the point.
+      - run: npm run sbom
+
       # Fixtures for both doc scripts (the doc-sync hook and the ADR gate).
       # They are .mjs under scripts/, so `npm run test:unit`'s app/**/*.test.ts
       # glob never saw them — the hook that guards doc drift was itself ungated.
@@ -155,6 +163,39 @@ jobs:
         run: |
           BASE="${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}"
           node scripts/docs/check-doc-sync-diff.mjs --base "$BASE" --head HEAD
+
+  # Conventional-commit subjects over the CHANGE.
+  #
+  # scripts/release/prepare.mjs cuts every CHANGELOG section from these subject
+  # lines, so a message that loses its `type:` prefix does not fail anything
+  # today — it lands under "Other" and drops out of the release note an operator
+  # reads to decide whether to upgrade. `.githooks/commit-msg` catches it while
+  # the message is being written, but a hook only binds the machine that
+  # installed it; this job is what makes the convention a check rather than a
+  # habit, for forks, bots and any tool that writes a commit.
+  #
+  # WHEN IT FAILS: amend the subject (`git commit --amend`), or state the
+  # exemption in the commit body as `Commit-convention-exemption: <why>`.
+  commit-convention:
+    name: Commit convention (subjects the changelog is cut from)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          # Real history, same reason as doc-sync: the check reads the commits
+          # in the range, and a shallow clone would narrow it to nothing.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      # No `npm ci` — the script is dependency-free node:* + git.
+      - name: Check the subjects in this range
+        run: |
+          BASE="${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}"
+          node scripts/release/commit-msg.mjs --base "$BASE" --head HEAD
 
   # Gated Python unittest suite (pipeline/jobfit/tests/run_gated.py): fails when
   # the skip count exceeds the baseline, so a critical test can't silently stop
