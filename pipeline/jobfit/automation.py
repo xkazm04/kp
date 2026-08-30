@@ -14,6 +14,7 @@ See docs/features/pipeline/README.md for the full design.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -120,6 +121,57 @@ def coerce_recommendation(value: Any, default: str = RECOMMENDATION_FALLBACK) ->
     both LLM-task coercers use, so the legal set lives in one place."""
     rec = str(value or "").strip().lower()
     return rec if rec in RECOMMENDATIONS else default
+
+
+# --- protected-characteristic guard on candidate-facing letters -------------
+
+# The ONE protected-characteristic vocabulary in this repository. The letter
+# guard below scores against it, and eval/automation_eval.py imports it rather
+# than keeping its own copy — the same single-sourcing rule the early-career
+# archetype set follows, so a fairness eval can never certify a letter against a
+# vocabulary the production guard no longer uses.
+#
+# Word-boundary patterns so "age" flags an explicit age mention but not
+# "manage" / "language".
+PROTECTED_TERM_RE = re.compile(
+    r"\b(age|gender|sex|race|racial|religion|religious|ethnic\w*|pregnan\w*|disab\w*|married|marital|"
+    r"věk|pohlaví|rasa|rasov\w*|nábožen\w*|těhoten\w*)\b",
+    re.IGNORECASE,
+)
+
+
+def protected_language(*parts: Any) -> str | None:
+    """The first protected-characteristic term found across ``parts``, else None.
+
+    ``parts`` are the candidate-visible fields of a letter (subject / body /
+    feedback); ``None`` and empty values are ignored.
+    """
+    blob = " ".join(str(p) for p in parts if p)
+    hit = PROTECTED_TERM_RE.search(blob)
+    return hit.group(0) if hit else None
+
+
+def _letter_is_safe(payload: dict) -> bool:
+    """False when a MODEL-DRAFTED letter mentions a protected characteristic.
+
+    THE FAILURE THIS EXISTS FOR: a provider that is absent degrades cleanly (the
+    deterministic letter ships), and that path is gated on every CI run. A
+    provider that ANSWERS — with a rejection explaining that the candidate is too
+    old — used to be passed straight through, because letter coercion only ever
+    asked whether a field was present, never what was in it. The one thing that
+    would have noticed lived in the eval's reliability check, and the eval had
+    never been pointed at a hostile provider.
+
+    Discarding the whole payload (rather than redacting the offending sentence)
+    is deliberate: a letter whose stated reason has been cut is no longer the
+    letter the model wrote, and the deterministic template is a complete, honest,
+    already-gated answer. The caller reports it as ``deterministic`` for free —
+    ``_generate`` compares the coerced result against the template — so the
+    source label stays truthful without any extra plumbing.
+
+    Recorded expectation: eval/fault_eval.py, mode ``protected_language``.
+    """
+    return protected_language(payload.get("subject"), payload.get("body"), payload.get("feedback")) is None
 
 
 # --- shared LLM-or-fallback helper -----------------------------------------
@@ -524,6 +576,11 @@ def draft_outreach(candidate: MatchCandidate, job: Job, strengths: list[str], *,
         det = deterministic()
         if not isinstance(payload, dict):
             return det
+        # A drafted letter that names a protected characteristic is discarded
+        # whole (see _letter_is_safe) — this one goes to a stranger who never
+        # applied, so it is the least recoverable of the three.
+        if not _letter_is_safe(payload):
+            return det
         return {
             "subject": str(payload.get("subject") or det["subject"]),
             "body": str(payload.get("body") or det["body"]),
@@ -589,6 +646,11 @@ def draft_rejection(candidate: MatchCandidate, job: Job, m, stage: str, *, lang:
     def coerce(payload: Any) -> dict:
         det = deterministic()
         if not isinstance(payload, dict):
+            return det
+        # The rejection is the letter the fairness invariant is written about
+        # (_check_rejection): a model that explains the decision by naming a
+        # protected characteristic has its whole draft discarded.
+        if not _letter_is_safe(payload):
             return det
         # feedback is the one field where "" is a COMPLIANT answer (the prompt asks
         # for an empty string rather than generic advice), so only a genuinely
@@ -1198,6 +1260,9 @@ def draft_offer(candidate: MatchCandidate, job: Job, m, *, lang: str | None = No
     def coerce(payload: Any) -> dict:
         det = deterministic()
         if not isinstance(payload, dict):
+            return det
+        # Same guard as the other two candidate-facing letters (_letter_is_safe).
+        if not _letter_is_safe(payload):
             return det
         return {
             "subject": str(payload.get("subject") or det["subject"]),

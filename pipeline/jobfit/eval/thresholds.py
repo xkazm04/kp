@@ -30,6 +30,17 @@ MATCHING_THRESHOLDS = {
 RELIABILITY_THRESHOLD = 1.0
 QUALITY_THRESHOLD = 3.5
 
+# fault_eval.py — the fault-injection drill (a provider that ANSWERS, badly).
+#
+# 1.0 with NO acceptable range below it, and that is the point of stating it
+# here: every other threshold in this file scores a model's judgement, where a
+# margin is meaningful. This one scores whether the CODE holds its own declared
+# contract when a dependency lies — the fairness gate overrules a hostile
+# verdict, a discarded draft reports itself as deterministic, a failing call is
+# still bounded. There is no "97% of the time" reading of any of those, so a
+# failure is a regression in the product, never a bad day for a provider.
+FAULT_THRESHOLD = 1.0
+
 
 def _validate() -> None:
     for name, table in (("PASS_THRESHOLDS", PASS_THRESHOLDS), ("MATCHING_THRESHOLDS", MATCHING_THRESHOLDS)):
@@ -40,6 +51,11 @@ def _validate() -> None:
         raise ValueError(f"RELIABILITY_THRESHOLD must be in [0, 1], got {RELIABILITY_THRESHOLD!r}")
     if not (1.0 <= QUALITY_THRESHOLD <= 5.0):
         raise ValueError(f"QUALITY_THRESHOLD must be in [1, 5], got {QUALITY_THRESHOLD!r}")
+    if FAULT_THRESHOLD != 1.0:
+        raise ValueError(
+            f"FAULT_THRESHOLD is not a tunable quality bar — a degradation contract either holds "
+            f"or it does not; got {FAULT_THRESHOLD!r}"
+        )
 
 
 _validate()

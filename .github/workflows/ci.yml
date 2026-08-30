@@ -337,6 +337,16 @@ jobs:
       #     rejection text carries no protected-characteristic language). This
       #     also certifies ADR 0004 — keyless degradation is a product property.
       #
+      #   fault_eval --strict         the OTHER degradation: a provider that
+      #     answers, badly. The two above certify what happens when a provider is
+      #     ABSENT, which is the easy failure — the call site knows before it
+      #     spends anything. This one hands the real tasks a provider that hangs,
+      #     returns prose, returns out-of-range values, or drafts a rejection
+      #     letter naming the candidate's age, and holds the product to what it
+      #     owes in each case (docs/development/fault-injection.md). Keyless and
+      #     deterministic by construction: the faults are in-process, so a red
+      #     run is a regression in the code, never a provider having a bad day.
+      #
       # Deliberately NOT gated: `test:eval:strict` (the Gemini golden set) and
       # `bench:app-master` (needs a live server + Personas). Those stay
       # on-demand; the bench's verdict is kept honest by `npm run bench:gate`

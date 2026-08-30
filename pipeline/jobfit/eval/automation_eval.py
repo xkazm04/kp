@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -40,12 +39,11 @@ from ._style import _make_styler, should_color
 from .runner import GLYPH_NA, glyph, verdict_banner
 from .thresholds import QUALITY_THRESHOLD, RELIABILITY_THRESHOLD  # noqa: F401  (re-exported)
 
-# Word-boundary patterns so "age" flags an explicit age mention but not "manage"/"language".
-_PROTECTED_RE = re.compile(
-    r"\b(age|gender|sex|race|racial|religion|religious|ethnic\w*|pregnan\w*|disab\w*|married|marital|"
-    r"věk|pohlaví|rasa|rasov\w*|nábožen\w*|těhoten\w*)\b",
-    re.IGNORECASE,
-)
+# Single-sourced from automation.py — the SAME vocabulary the production letter
+# guard (automation._letter_is_safe) discards a draft on. Keeping a second copy
+# here let this eval certify a letter against a list the shipped guard no longer
+# used; same rule as _EARLY below.
+_PROTECTED_RE = automation.PROTECTED_TERM_RE
 # Single-sourced from the shared registry (archetypes.json) — the same set the
 # automation fairness gate scores on — so this eval can't certify a fairness
 # invariant against a stale early-career set the production code no longer uses.
