@@ -18,6 +18,10 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import path from "node:path";
+import { existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import {
   MAX_BUILD_ATTEMPTS,
   PREAMBLE_PHASES,
@@ -32,10 +36,12 @@ import {
   mergeTickSummaries,
   planPhases,
   planProbation,
+  resolveCliArgs,
   settleDispatch,
   teardownHire,
   tenureRecordFrom,
 } from "./run.mjs";
+import { SCENARIO_DIR } from "./scenarios.mjs";
 import { personasClient } from "./lib.mjs";
 import { startStubPersonas } from "./stub.mjs";
 
@@ -680,4 +686,101 @@ test("Personas archived it but kp's roster has not moved: reported, never rounde
   } finally {
     await stub.close();
   }
+});
+
+// ── the CLI contract (2026-08-30) ───────────────────────────────────────────
+// `run.mjs kp-c1-night --tenure kp-owner --nights 1` SILENTLY ran `kp-default`:
+// scenario selection was `--scenario <name|path>` and the bare positional was
+// dropped on the floor. Against a live tenure that seeded four trap seeds,
+// dispatched three rung-2 fleet sessions ($7.73) and fired probation — the
+// opposite of the rung-0 unseeded exam that was asked for. These pin the rule
+// that replaced it: an argument the driver does not understand is an error,
+// never a fallback.
+
+const RUN_MJS = fileURLToPath(new URL("./run.mjs", import.meta.url));
+
+/** Invoke the driver for real, so the EXIT CODE is the thing under test. */
+const runCli = (...argv) =>
+  spawnSync(process.execPath, [RUN_MJS, ...argv], { encoding: "utf8", timeout: 30_000 });
+
+test("an unknown positional is a hard error that names the token — it never falls back to a default", () => {
+  const res = runCli("kp-c1-nite", "--tenure", "kp-owner");
+  assert.equal(res.status, 2, "usage failures exit 2, distinct from 1 (the bench ran and failed)");
+  assert.match(res.stderr, /unknown argument `kp-c1-nite`/, "the offending token is named");
+  assert.match(res.stderr, /accepted flags:/, "the vocabulary is printed");
+  assert.doesNotMatch(res.stderr, /=== kp-default/, "nothing was run");
+});
+
+test("an unknown flag is a hard error that names it", () => {
+  const res = runCli("--nights", "1", "--overnight-mode", "rung2");
+  assert.equal(res.status, 2);
+  assert.match(res.stderr, /unknown flag `--overnight-mode`/);
+  assert.match(res.stderr, /accepted flags:.*--scenario/s);
+});
+
+test("a value flag with no value is a usage error, not a `true` cast into a filename", () => {
+  const res = runCli("--scenario");
+  assert.equal(res.status, 2);
+  assert.match(res.stderr, /flag `--scenario` needs a value/);
+});
+
+test("--help is still a flag, and still prints", () => {
+  const res = runCli("--help");
+  assert.equal(res.status, 0);
+  assert.match(res.stdout, /App-master mass-test driver/);
+});
+
+test("a bare positional that EXACTLY names a scenario resolves to --scenario, and says so", () => {
+  const { args, notes } = resolveCliArgs(["kp-c1-night", "--tenure", "kp-owner", "--nights", "1"]);
+  assert.equal(path.basename(String(args.scenario)), "kp-c1-night.json");
+  assert.ok(existsSync(String(args.scenario)), "it resolves to a real scenario file");
+  assert.equal(args.tenure, "kp-owner", "the rest of the line is untouched");
+  assert.equal(args.nights, "1");
+  assert.deepEqual(args._, [], "the positional is consumed, not left to be ignored again");
+  assert.equal(notes.length, 1);
+  assert.match(notes[0], /exactly names a scenario/);
+});
+
+test("EXACT only: a scenario name is not a prefix, a suffix or a case-fold", () => {
+  for (const near of ["kp-c1", "kp-c1-night.json", "KP-C1-NIGHT", "night"]) {
+    assert.throws(() => resolveCliArgs([near]), (e) => e.name === "CliUsageError" && e.exitCode === 2 && e.message.includes(near), `\`${near}\` must not pick a scenario`);
+  }
+});
+
+test("a path to an existing scenario file is accepted; a path to a missing one is not", () => {
+  const file = path.join(SCENARIO_DIR, "kp-rung0.json");
+  const { args } = resolveCliArgs([file]);
+  assert.equal(args.scenario, path.resolve(file));
+  assert.throws(() => resolveCliArgs([path.join(SCENARIO_DIR, "nope.json")]), /unknown argument/);
+});
+
+test("--scenario still works, and --all still works", () => {
+  const explicit = resolveCliArgs(["--scenario", "kp-rung0", "--strict"]).args;
+  assert.equal(explicit.scenario, "kp-rung0", "an explicit --scenario is passed through verbatim");
+  assert.equal(explicit.strict, true);
+
+  const all = resolveCliArgs(["--all", "--report"]).args;
+  assert.equal(all.all, true);
+  assert.equal(all.report, true);
+  assert.equal(all.scenario, undefined);
+});
+
+test("a boolean flag no longer swallows the scenario that follows it", () => {
+  // Pre-fix, `--all kp-c1-night` parsed as `all: "kp-c1-night"` — truthy, so
+  // the sweep ran EVERY scenario and the named one vanished. Now the two are
+  // seen for what they are: a conflict.
+  assert.throws(() => resolveCliArgs(["--all", "kp-c1-night"]), /--all asks for every scenario/);
+
+  const after = resolveCliArgs(["--strict", "kp-c1-night", "--nights", "1"]).args;
+  assert.equal(after.strict, true, "the boolean stays a boolean");
+  assert.equal(path.basename(String(after.scenario)), "kp-c1-night.json", "and the word after it is still the scenario");
+
+  const stub = resolveCliArgs(["--stub-personas", "--nights", "2"]).args;
+  assert.equal(stub["stub-personas"], true, "a boolean flag stays boolean");
+  assert.equal(stub.nights, "2");
+});
+
+test("two scenario names, however spelled, are a conflict rather than a coin flip", () => {
+  assert.throws(() => resolveCliArgs(["kp-rung0", "--scenario", "kp-c1-night"]), /pass exactly one/);
+  assert.throws(() => resolveCliArgs(["kp-rung0", "kp-c1-night"]), /unexpected extra argument `kp-c1-night`/);
 });

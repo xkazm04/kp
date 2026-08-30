@@ -766,6 +766,8 @@ through a browser, this exists to iterate on the *role design* with volume: the
 same hire under a different mandate, a different ceiling and a different repo,
 with the record of each one written down in the same shape.
 
+**Any argument the driver does not understand exits 2 before preflight**, naming the token and the accepted flags — a bare word is read as `--scenario` only when it *exactly* names a scenario in `scenarios/` (the 2026-08-29 sweep had `run.mjs kp-c1-night …` silently run `kp-default` against a live tenure).
+
 ```
 preflight  GET /api/health            ·  GET  /health   (headlessBridge REQUIRED)
            GET /api/agents  vs  tenures/*.json  →  the orphan fleet audit

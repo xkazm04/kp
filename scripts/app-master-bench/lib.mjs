@@ -216,8 +216,17 @@ export function personasClient(baseUrl, apiKey = null, { timeoutMs = 600_000, on
   };
 }
 
-/** Minimal `--flag value` / `--flag=value` / `--flag` parser. No deps. */
-export function parseArgs(argv) {
+/**
+ * Minimal `--flag value` / `--flag=value` / `--flag` parser. No deps.
+ *
+ * `booleans` names the flags that take NO value. Without it a bare `--all`
+ * swallows the next bare word (`--all kp-c1-night` → `all: "kp-c1-night"`),
+ * which reads as truthy AND eats the positional — the caller then cannot tell
+ * that a scenario was named at all. Callers that know their flag arity should
+ * pass it; omitting it keeps the original greedy behaviour exactly.
+ */
+export function parseArgs(argv, { booleans = null } = {}) {
+  const takesNoValue = (key) => Array.isArray(booleans) && booleans.includes(key);
   const out = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -232,7 +241,7 @@ export function parseArgs(argv) {
     }
     const key = arg.slice(2);
     const next = argv[i + 1];
-    if (next !== undefined && !next.startsWith("--")) {
+    if (!takesNoValue(key) && next !== undefined && !next.startsWith("--")) {
       out[key] = next;
       i++;
     } else {

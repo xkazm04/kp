@@ -63,7 +63,7 @@ import {
   sleep,
   verdictBanner,
 } from "./lib.mjs";
-import { dialogAnswers, listScenarioFiles, loadScenarioFile, resolveScenarioPath } from "./scenarios.mjs";
+import { SCENARIO_DIR, dialogAnswers, listScenarioFiles, loadScenarioFile, resolveScenarioPath } from "./scenarios.mjs";
 import {
   LIVE_AGENT_STATUSES,
   fleetAudit,
@@ -1660,14 +1660,141 @@ function printSummary(result) {
   process.stderr.write(`  → ${result.runDir}\n`);
 }
 
+// ── the CLI contract ────────────────────────────────────────────────────────
+// Every flag this driver answers to, and whether it takes a value. This table
+// is the WHOLE vocabulary: anything not in it is an error, never a shrug.
+//
+// Why it exists at all: scenario selection is `--scenario <name|path>`, and for
+// one release a bare positional (`run.mjs kp-c1-night --tenure kp-owner`) was
+// silently DROPPED — the driver ran `kp-default` instead. On 2026-08-29 that
+// cost a live tenure four trap seeds, three rung-2 fleet sessions ($7.73) and a
+// probation firing, all against the opposite of the exam the operator asked
+// for. A bench that runs something expensive because it did not understand an
+// argument is worse than a bench that refuses to start.
+export const CLI_FLAGS = {
+  help: "boolean",
+  all: "boolean",
+  "hire-only": "boolean",
+  teardown: "boolean",
+  strict: "boolean",
+  report: "boolean",
+  "stub-personas": "boolean",
+  "stub-build-fail-once": "boolean",
+  "stub-retire": "boolean",
+  scenario: "value",
+  tenure: "value",
+  backlog: "value",
+  kp: "value",
+  personas: "value",
+  "personas-key": "value",
+  mode: "value",
+  nights: "value",
+  out: "value",
+  "scan-timeout": "value",
+  "activate-timeout": "value",
+  "throttle-wait": "value",
+  "settle-poll": "value",
+  "settle-timeout": "value",
+};
+
+export const CLI_BOOLEAN_FLAGS = Object.keys(CLI_FLAGS).filter((f) => CLI_FLAGS[f] === "boolean");
+
+/** A usage failure. Exit code 2 — distinct from 1, which means "the bench ran and something failed". */
+export class CliUsageError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "CliUsageError";
+    this.exitCode = 2;
+  }
+}
+
+const acceptedFlagsLine = () =>
+  `accepted flags: ${Object.keys(CLI_FLAGS)
+    .sort()
+    .map((f) => `--${f}`)
+    .join(", ")}`;
+
+const usage = (...lines) => new CliUsageError([...lines, acceptedFlagsLine()].join("\n"));
+
+/** The scenario a bare positional names, or null. EXACT matches only. */
+function positionalScenarioFile(token, dir) {
+  if (token.includes("/") || token.includes("\\")) {
+    const file = path.resolve(token);
+    return existsSync(file) ? file : null;
+  }
+  const named = listScenarioFiles(dir).find((f) => path.basename(f, ".json") === token);
+  return named ?? null;
+}
+
+/**
+ * Parse argv against `CLI_FLAGS`, or refuse.
+ *
+ * Two rules, and the first is the one that matters:
+ *  1. an unrecognised flag or an unrecognised bare word is a HARD ERROR before
+ *     anything is paired, seeded or dispatched — never a fall-back to the
+ *     default scenario.
+ *  2. as a convenience, ONE bare word that EXACTLY names a scenario in
+ *     `scenarios/` (or is a path to an existing scenario file) is read as
+ *     `--scenario`, and the run says out loud that it did so. Exact only: a
+ *     near-miss is a typo, and a typo must not pick a scenario.
+ */
+export function resolveCliArgs(argv, { scenarioDir = SCENARIO_DIR } = {}) {
+  const args = parseArgs(argv, { booleans: CLI_BOOLEAN_FLAGS });
+  const notes = [];
+
+  for (const key of Object.keys(args)) {
+    if (key === "_") continue;
+    if (!Object.hasOwn(CLI_FLAGS, key)) {
+      throw usage(
+        `bench driver: unknown flag \`--${key}\` — refusing to run, because guessing here means spending money on something nobody asked for.`
+      );
+    }
+    if (CLI_FLAGS[key] === "value" && args[key] === true) {
+      throw usage(`bench driver: flag \`--${key}\` needs a value.`);
+    }
+  }
+
+  const positionals = args._;
+  if (positionals.length > 1) {
+    throw usage(
+      `bench driver: unexpected extra argument \`${positionals[1]}\` — at most ONE bare scenario name is accepted.`
+    );
+  }
+  if (positionals.length === 1) {
+    const token = positionals[0];
+    const file = positionalScenarioFile(token, scenarioDir);
+    if (!file) {
+      const known = listScenarioFiles(scenarioDir).map((f) => path.basename(f, ".json"));
+      throw usage(
+        `bench driver: unknown argument \`${token}\` — refusing to run, because guessing here means spending money on something nobody asked for.`,
+        `a bare argument is read as a scenario ONLY when it exactly names one in ${scenarioDir}, or is a path to an existing scenario file.`,
+        `known scenarios: ${known.join(", ")}`
+      );
+    }
+    if (args.all) {
+      throw usage(`bench driver: \`${token}\` names ONE scenario but --all asks for every scenario — pass one or the other.`);
+    }
+    if (typeof args.scenario === "string") {
+      throw usage(`bench driver: both \`${token}\` and \`--scenario ${args.scenario}\` name a scenario — pass exactly one.`);
+    }
+    args.scenario = file;
+    notes.push(`bare argument \`${token}\` exactly names a scenario — reading it as \`--scenario ${token}\``);
+  }
+  args._ = [];
+  return { args, notes };
+}
+
 async function main() {
-  const args = parseArgs(process.argv.slice(2));
+  const { args, notes } = resolveCliArgs(process.argv.slice(2));
+  for (const note of notes) process.stderr.write(`${note}\n`);
   if (args.help) {
     process.stdout.write(
       [
         "App-master mass-test driver",
         "",
-        "  --scenario <name|path>   one scenario (default: kp-default)",
+        "  --scenario <name|path>   one scenario (default: kp-default). A BARE argument that",
+        "                           exactly names a scenario in scenarios/ is read as this;",
+        "                           anything else the driver does not understand exits 2.",
         "  --all                    every scenario in scenarios/, SERIALLY",
         "  --tenure <name|path>     run against an EXISTING hire (tenures/<name>.json):",
         "                           skips scan/intake/dialog/compose/dispatch/activate",
@@ -1692,6 +1819,8 @@ async function main() {
         "                           (off by default — Personas does not ship it yet)",
         "  --mode keyless|keyed     override every scenario's mode",
         "  --nights N               override every scenario's night count",
+        "  --scan-timeout <ms>      how long a repo scan may take (default 1200000)",
+        "  --activate-timeout <ms>  how long a hire's build session may take (default 5400000)",
         "  --throttle-wait <ms>     how long to sit out a kp 429 (default 65000; kp's",
         "                           per-IP windows are fixed 10-minute buckets)",
         "  --settle-poll <ms>       gap between the reconcile polls that wait out a",
@@ -1911,6 +2040,13 @@ if (invokedDirectly) {
       process.exitCode = code;
     })
     .catch((error) => {
+      // A usage failure is not a bench failure: it exits 2, with the offending
+      // token and the vocabulary — no stack, because nothing ran.
+      if (error instanceof CliUsageError) {
+        process.stderr.write(`${error.message}\n`);
+        process.exitCode = error.exitCode;
+        return;
+      }
       process.stderr.write(`\nbench driver failed: ${String(error?.stack || error)}\n`);
       process.exitCode = 1;
     });
