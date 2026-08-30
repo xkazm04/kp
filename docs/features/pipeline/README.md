@@ -211,7 +211,17 @@ strands nobody, and moving them would rewrite closed history.
    what the CV already shows). The interview prep pack (v2) anchors every
    question in a named highlight and probes stated aspirations. A result whose
    coercion discarded the model's payload now reports `source=deterministic`
-   (`_generate`'s truthful-source rule).
+   (`_generate`'s truthful-source rule), and — since `source` alone cannot say
+   *why* the template served — `_generate` also records the descent reason
+   (`automation.DEGRADATION_REASONS`: `provider_timeout`, `unparseable_output`,
+   `unusable_output`, `provider_error`). `automation_cli` passes
+   `descent or automation.take_degradation_reason()` to `emit_deterministic`, so
+   an operator reading the usage ledger can tell a keyless install from a
+   provider that answered badly — two zero-cost lines that used to look
+   identical. The vocabulary is disjoint from the availability gate's
+   (`offline_policy` / `not_installed` / `unavailable` / `disabled`) on purpose,
+   and which fault must record which reason is gated by
+   [`fault_eval`](../../development/fault-injection.md#what-the-operator-reads-back).
 5. **Offer-stage group evaluation.** `GroupEvalModal` /
    `app/_lib/group-eval-run.ts` compares a role's candidates (incorporating the
    interview scorecard, not just match score) before a recruiter extends an

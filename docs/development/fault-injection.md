@@ -85,11 +85,51 @@ ceiling is where that is held.
   regression `base.complete`'s deadline gate was written for; the assertion carries
   3 s of slack for a loaded runner, because it is there to catch an
   attempts × timeout blow-out, not to measure latency.
+- **THE REASON** — what the *operator* is told. See
+  [What the operator reads back](#what-the-operator-reads-back) below; each fault
+  declares the descent reasons it may legitimately record, and a fault that
+  degrades anonymously fails even when the answer on the wire is correct.
 
 Deliberately **not** asserted: a source label for `nonsense` and
 `fairness_attack`. Their payloads are well-formed, so coercion legitimately keeps
 parts of them — the contract there is the invariant, and everything those two
-modes prove sits in the SHAPE column.
+modes prove sits in the SHAPE column. For the same reason neither declares a
+required reason: either may legitimately ship as the model's own answer.
+
+## What the operator reads back
+
+A deterministic serve is a zero-cost line in the usage ledger whichever way it
+happened. That made the two degradations most worth telling apart look identical:
+**no key configured** (a choice) and **the provider answered with prose** (an
+outage you are paying for).
+
+The availability gate already named its half — `registry.provider_availability`
+returns `offline_policy` / `not_installed` / `unavailable`, the caller adds
+`disabled` for `--no-llm`, and the CLI passes it to `emit_deterministic`. The
+other half was silent: `automation._generate` swallowed the failure and the CLI
+emitted `reason=None`.
+
+`automation._generate` now records it, in a vocabulary deliberately disjoint from
+the gate's so the two can never be confused
+(`automation.DEGRADATION_REASONS`):
+
+| reason | what happened |
+| --- | --- |
+| `provider_timeout` | the call did not come back inside its **total** wall-clock budget (`LLMError.subtype == "deadline_exceeded"`) |
+| `unparseable_output` | it returned text, and not even the corrective re-prompt made it JSON (`subtype == "unparseable_json"`) |
+| `unusable_output` | it returned parseable JSON and coercion kept none of it — the wrong type, every value out of range, or a letter `_letter_is_safe` discarded whole |
+| `provider_error` | anything else the call raised: transport, a 5xx that outlived its retries, a refusal, a missing capability |
+
+`automation_cli` passes `descent or automation.take_degradation_reason()` to
+`emit_deterministic`, so **every** deterministic serve now carries a reason. The
+reason is consumed once, on the thread that generated it: a stale reason attached
+to a later healthy call would be a lie in the one record that exists not to be.
+
+Which faults must produce which reasons is declared on each `Expectation` and
+asserted per row; the drill's report prints the reasons each fault actually
+produced beside the ones it demanded. `test_fault_injection.py` pins the seam
+itself — the vocabulary, the consume-once contract, and that an *absent* provider
+records nothing here, because its descent belongs to the availability gate.
 
 ### The threshold is not a quality bar
 
@@ -111,8 +151,10 @@ failed expectation exits non-zero and fails the job. The unit pins in
 1. Add the mode to `MODES` in `llm/fault.py` (and to `NO_PAYLOAD_MODES` if it
    cannot produce a usable payload), with the payload it returns.
 2. Add an `Expectation` to `EXPECTATIONS` in `eval/fault_eval.py` — the ceiling
-   on paid calls, and one line of `degrades_to` prose that a reader can check the
-   report against.
+   on paid calls, one line of `degrades_to` prose that a reader can check the
+   report against, and the `reasons` the fault may legitimately record (a set,
+   not one value, so a fault whose descent depends on which bound bites first
+   does not flap; empty when the model's answer may legitimately ship).
 3. Add its row to the table above.
 
 Step 2 is not optional and cannot be forgotten: `fault_eval` raises at import
@@ -121,12 +163,14 @@ asserts nothing is worse than one that does not run.
 
 ## Known gaps
 
-- **A mid-call degradation leaves no ledger reason.** When availability fails, the
-  CLIs call `emit_deterministic` and the operator can read *why* the answer was
-  deterministic. When a provider answers unusably, `automation._generate` swallows
-  the exception without one — so the operator sees a deterministic answer and
-  cannot tell "no key configured" from "the provider lied". Closing it means
-  threading a use case into `_generate`. It is worth doing and is not done.
+- **Only the `automation` seam names its descent.** The same private `_generate`
+  is copied in `devcase/{analyze,design,evaluate,reflect}.py`, and
+  `match_reasoning` has its own (it is the path `rematch` takes). Those still fall
+  back anonymously, so a mid-call degradation there is still indistinguishable
+  from a keyless install in the ledger. This drill runs the `automation` tasks, so
+  it can only hold that one seam to the contract; unifying the copies behind one
+  helper is the follow-up, and the vocabulary above is deliberately provider-
+  agnostic so they can adopt it unchanged.
 - **The drill runs three scenarios, not six** (`student_weak_fairness`,
   `czech_outreach`, `bau_weak`). The matrix is fault × task; widening the scenario
   axis mostly multiplies the two modes that intentionally spend wall-clock.

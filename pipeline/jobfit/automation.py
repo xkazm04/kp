@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -176,6 +177,65 @@ def _letter_is_safe(payload: dict) -> bool:
 
 # --- shared LLM-or-fallback helper -----------------------------------------
 
+# WHY A THREAD-LOCAL AND NOT A THIRD TUPLE ELEMENT. `(result, source)` is the
+# shape six task functions return and the TS layer parses; widening it to carry a
+# reason would be a wire change for a diagnostic. The reason is instead recorded
+# beside the call and consumed once by whoever emits the ledger line — the CLI,
+# immediately after the task returns, on the same thread. Thread-local because
+# eval/fault_eval.py drills the tasks through a ThreadPoolExecutor, and a module
+# global there would let one fault's reason be read as another's.
+_degradation = threading.local()
+
+# The reasons a MID-CALL descent can have. Deliberately disjoint from the
+# availability-gate vocabulary in registry.provider_availability ("offline_policy"
+# / "not_installed" / "unavailable") and the caller's "disabled": the whole point
+# is that an operator reading the ledger can tell "there was no provider" from
+# "the provider answered and we threw the answer away".
+DEGRADATION_REASONS: tuple[str, ...] = (
+    # The call never came back inside its TOTAL wall-clock budget.
+    "provider_timeout",
+    # It returned text, and not even the corrective re-prompt made it JSON.
+    "unparseable_output",
+    # It returned parseable JSON, and coercion kept none of it — the wrong type,
+    # every value out of range, or a letter _letter_is_safe discarded whole.
+    "unusable_output",
+    # Anything else the call raised: transport, a 5xx that outlived its retries,
+    # a refusal, a missing capability.
+    "provider_error",
+)
+
+
+def _call_failure_reason(exc: BaseException) -> str:
+    """Classify a failed ``complete_json`` into one of DEGRADATION_REASONS.
+
+    Reads ``LLMError.subtype`` rather than the message, because the subtype is
+    the part base.py maintains as a contract (``deadline_exceeded`` is raised in
+    exactly one place, ``unparseable_json`` in exactly one other)."""
+    subtype = getattr(exc, "subtype", None)
+    if subtype == "deadline_exceeded":
+        return "provider_timeout"
+    if subtype == "unparseable_json":
+        return "unparseable_output"
+    return "provider_error"
+
+
+def _note_degradation(reason: str | None) -> None:
+    _degradation.reason = reason
+
+
+def take_degradation_reason() -> str | None:
+    """Why the last ``_generate`` on THIS thread fell back mid-call, consumed once.
+
+    ``None`` means the last generation did not degrade mid-call — either it
+    served the model's answer, or there was no provider at all and the descent
+    was already named at the availability gate. Consumed once on purpose: a stale
+    reason attached to a later, healthy call would be a lie in the usage ledger,
+    which is the one thing that record exists not to be.
+    """
+    reason = getattr(_degradation, "reason", None)
+    _degradation.reason = None
+    return reason
+
 
 def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple[dict, str]:
     """Try the LLM; on missing provider OR any error, use the deterministic builder.
@@ -184,15 +244,37 @@ def _generate(provider: Any | None, prompt: str, deterministic, coerce) -> tuple
     result is byte-identical to the deterministic template — report THAT as
     ``deterministic`` (the tokens were spent, but the answer on the wire is not
     the model's). The 2026-08-11 bench caught a template-for-template payload
-    graded as the model's work; same honesty rule as match_reasoning._coerce."""
+    graded as the model's work; same honesty rule as match_reasoning._coerce.
+
+    Truthful REASON, too. `source == "deterministic"` says the template served; it
+    does not say why, and until this recorded one the ledger could not tell a
+    keyless install from a provider that answered with prose — the operator saw
+    the same zero-cost line for both. The availability gate names its own descent
+    (the CLI passes it to `emit_deterministic`); this names the descents that
+    happen AFTER the gate said yes, which is every failure fault_eval drills."""
+    _note_degradation(None)
     if provider is None:
+        # No call was made, so there is nothing to diagnose here: the reason for
+        # THIS descent was resolved at the availability gate and is the caller's.
         return deterministic(), "deterministic"
     try:
         payload = provider.complete_json(prompt, system=_system_prompt())
-        result = coerce(payload)
-        return result, ("deterministic" if result == deterministic() else "llm")
-    except Exception:
+    except Exception as exc:  # noqa: BLE001 — every failure degrades; the reason is recorded
+        _note_degradation(_call_failure_reason(exc))
         return deterministic(), "deterministic"
+    try:
+        result = coerce(payload)
+    except Exception:  # noqa: BLE001 — a coercer that trips on the payload IS unusable output
+        # Separated from the call above on purpose: JSON of the wrong TYPE parses
+        # fine and then breaks the coercer, and blaming the provider for that
+        # would file it beside a transport failure in the ledger.
+        _note_degradation("unusable_output")
+        return deterministic(), "deterministic"
+    if result == deterministic():
+        # It answered and was paid for; coercion kept none of it.
+        _note_degradation("unusable_output")
+        return result, "deterministic"
+    return result, "llm"
 
 
 def _str_list(value: Any, limit: int = 8) -> list[str]:

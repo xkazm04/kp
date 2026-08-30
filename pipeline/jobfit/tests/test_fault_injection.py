@@ -11,6 +11,10 @@ halves of that seam honest on their own:
     just as importantly, does NOT fire on an ordinary one. A guard with a false
     positive silently replaces good model output with a template, which is the
     failure nobody would notice.
+  - a mid-call degradation says WHY. ``source == "deterministic"`` is the same
+    answer whether there was no API key or the provider returned prose, and the
+    usage ledger recorded the two identically until ``_generate`` started naming
+    the descent. These pin the vocabulary and the consume-once contract.
 """
 
 from __future__ import annotations
@@ -135,6 +139,83 @@ class ProtectedLanguageGuardTest(unittest.TestCase):
         # The model put "route": "advance" in its payload; routing is decided
         # after coercion and cannot be set from the wire.
         self.assertEqual(out["route"], "hold")
+
+
+class DegradationReasonTest(unittest.TestCase):
+    """What the OPERATOR is told when the fallback serves.
+
+    The recorded expectations per fault live in ``eval/fault_eval.py`` (the drill
+    runs them against every task); these pin the seam itself — the vocabulary,
+    the consume-once contract, and the one distinction the whole thing exists
+    for: an ABSENT provider is diagnosed at the availability gate and records
+    nothing here, a provider that ANSWERED badly is diagnosed here.
+    """
+
+    def setUp(self):
+        self.job = mkjob(title="Backend Engineer", description="A backend team.")
+        self.m = score_job(BAU, self.job)
+        # Never inherit a reason from another test on this thread.
+        automation.take_degradation_reason()
+
+    def _screen(self, provider):
+        automation.screen_candidate(BAU, self.job, self.m, provider=provider)
+        return automation.take_degradation_reason()
+
+    def test_no_provider_records_nothing(self):
+        # The keyless path. Its reason belongs to the availability gate, and
+        # guessing one here would put a false diagnosis in the ledger.
+        self.assertIsNone(self._screen(None))
+
+    def test_a_healthy_answer_records_nothing(self):
+        class _Ok:
+            def complete_json(self, prompt, system=None):
+                return {
+                    "recommendation": "advance",
+                    "confidence": 7,
+                    "rationale": "Strong Django background against a backend brief.",
+                    "strengths": ["Python", "Django"],
+                    "redFlags": [],
+                }
+
+        self.assertIsNone(self._screen(_Ok()))
+
+    def test_a_failed_call_is_named(self):
+        # transient exhausts its retries or its deadline — which of the two bites
+        # first is a timing detail, so both are legitimate answers.
+        self.assertIn(self._screen(FaultProvider("transient", timeout=2)), {"provider_timeout", "provider_error"})
+
+    def test_unparseable_output_is_distinct_from_a_failed_call(self):
+        # It answered, twice (the corrective re-prompt), and never with JSON.
+        for mode in ("malformed", "truncated", "empty"):
+            with self.subTest(mode=mode):
+                self.assertEqual(self._screen(FaultProvider(mode)), "unparseable_output")
+
+    def test_parseable_but_unusable_output_is_named_separately(self):
+        # wrong_shape parses fine (one call, no repair) and dies in the coercer.
+        # Filing that beside a transport failure would tell the operator to go
+        # look at the network.
+        self.assertEqual(self._screen(FaultProvider("wrong_shape")), "unusable_output")
+
+    def test_a_discarded_letter_is_named(self):
+        automation.draft_rejection(BAU, self.job, self.m, "Screened", provider=FaultProvider("protected_language"))
+        self.assertEqual(automation.take_degradation_reason(), "unusable_output")
+
+    def test_every_reason_is_in_the_declared_vocabulary(self):
+        for mode in ("transient", "malformed", "wrong_shape"):
+            with self.subTest(mode=mode):
+                self.assertIn(self._screen(FaultProvider(mode, timeout=2)), automation.DEGRADATION_REASONS)
+
+    def test_the_reason_is_consumed_once(self):
+        # A stale reason read back against a later, healthy call would be a lie in
+        # the usage ledger — the one record that exists not to be.
+        self.assertIsNotNone(self._screen(FaultProvider("wrong_shape")))
+        self.assertIsNone(automation.take_degradation_reason())
+
+    def test_a_later_healthy_call_clears_an_earlier_reason(self):
+        # Even unread: _generate resets on entry, so a reason cannot survive a
+        # generation that did not degrade.
+        automation.screen_candidate(BAU, self.job, self.m, provider=FaultProvider("wrong_shape"))
+        self.assertIsNone(self._screen(None))
 
 
 if __name__ == "__main__":

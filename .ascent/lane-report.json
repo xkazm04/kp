@@ -4,40 +4,48 @@
     {
       "recommendationId": "02abd5a3-5789-4e2d-b7e2-463035848952",
       "verdict": "skipped",
-      "reason": "Already closed in the tree: every ${{ }} in agent-dispatch.yml and autofix.yml sits in env:/if:/concurrency:, issue and comment text reaches scripts/agent/dispatch.mjs as AGENT_TASK_* env data, both jobs already declare minimal per-job scopes, and scripts/review/__tests__/gate-check.test.mjs pins those scopes plus a finding for interpolation inside a run: step — so editing anything here would be work for the scanner, not for the repo.",
-      "files": []
+      "reason": "Already closed and mechanically pinned: no `${{ }}` appears inside any `run:` body in any of the 7 workflows (issue title/body/comment reach scripts/agent/dispatch.mjs only through `env:`), both jobs already hold the smallest scope that works, and scripts/review/__tests__/gate-check.test.mjs asserts all three properties over the real tree on every `npm run test:review`.",
+      "files": [
+        ".github/workflows/agent-dispatch.yml",
+        ".github/workflows/autofix.yml",
+        "scripts/review/__tests__/gate-check.test.mjs"
+      ]
     },
     {
       "recommendationId": "aed354ad-fd97-40ed-80b0-afab4711705b",
-      "verdict": "needs_human",
-      "reason": "The blocking half landed (an ESLint no-restricted-syntax rule on value imports of the @/app/_lib/db barrel, error, zero current violations, enforced by npm run lint in ci.yml node-quality and .githooks/pre-push), but the committed budget file this item asks for needs measured thresholds: the lane sandbox denies all execution, so I could neither run scripts/perf/check-budget.mjs nor calibrate perf-budget.json, and inventing ceilings would produce a gate that fails honest work or passes everything — a human runs `node scripts/perf/check-budget.mjs --record` and adds one `- run: npm run perf:budget` line to finish it.",
+      "verdict": "skipped",
+      "reason": "Needs shell: the budget tool (scripts/perf/check-budget.mjs) and its design doc are already committed, but the artefact the item asks for is the calibrated perf-budget.json, and writing it requires running `node scripts/perf/check-budget.mjs --record` to walk the module graph — this sandbox refused every `node <script>` invocation. Inventing ceilings from the dated numbers in docs/architecture/app-structure.md would have shipped a gate that fails honest work, and wiring the CI step before the file exists turns CI permanently red (loadBudget throws, main returns 1).",
       "files": [
-        "eslint.config.mjs",
         "scripts/perf/check-budget.mjs",
-        "docs/development/performance-budget.md",
-        "docs/architecture/app-structure.md",
-        "docs/development/README.md"
+        "docs/development/performance-budget.md"
       ]
     },
     {
       "recommendationId": "60f34da0-e114-49e1-913a-9360c50b5c27",
       "verdict": "skipped",
-      "reason": "Already closed in the tree: pipeline/jobfit/llm/fault.py (FaultProvider, 10 declared modes) plus pipeline/jobfit/eval/fault_eval.py run every fault against the real automation tasks with a recorded expectation each, gated at FAULT_THRESHOLD=1.0 through npm run test:eval:ci in ci.yml's python-gate — but the doc all four source files point at, docs/development/fault-injection.md, did not exist, which is plausibly why a scan reading the repo could not see the practice; I wrote it rather than touching the harness.",
+      "reason": "The gap as named is already closed: llm/fault.py ships a non-routable FaultProvider with 10 declared fault modes (hang, malformed, truncated, wrong_shape, nonsense, fairness_attack, protected_language, ...), eval/fault_eval.py runs them against the real automation tasks with recorded per-fault expectations, and ci.yml gates it via `npm run test:eval:ci` at FAULT_THRESHOLD 1.0. This change instead closes the residual gap that harness declared in its own docstring — the item's third bullet, operator visibility: automation._generate now names every mid-call descent and automation_cli passes it to emit_deterministic, so the usage ledger can distinguish a keyless install from a provider that answered badly.",
       "files": [
+        "pipeline/jobfit/automation.py",
+        "pipeline/jobfit/automation_cli.py",
+        "pipeline/jobfit/eval/fault_eval.py",
+        "pipeline/jobfit/tests/test_fault_injection.py",
         "docs/development/fault-injection.md",
-        "docs/development/README.md"
+        "docs/features/pipeline/README.md"
       ]
     },
     {
       "recommendationId": "fa3287c5-9bbc-4a8b-8d16-87351824efd7",
       "verdict": "skipped",
-      "reason": "Needs a shell, a network and two installable versions: a rehearsed downgrade means building 0.2.0, running it against data/kp.sqlite, then starting 0.1.0 on the same file and recording what survived — this sandbox denies all execution, node_modules is absent, and no version after 0.1.0 exists yet, so anything I could write would be the documented procedure nobody has executed that the item explicitly rules out.",
-      "files": []
+      "reason": "Needs shell and git: rehearsing a downgrade means checking out the previous tag, booting its DDL against a populated data/kp.sqlite and recording what survived. This session can run nothing (every `node`/`python` invocation beyond `--version` was refused) and is forbidden from running git, so no rehearsal and therefore no record is possible. The forward procedure is already written in docs/architecture/releases.md and honestly flags itself as unexercised; a static DDL checker would be an adjacent artefact, not the drill the item names, and shipping an unrunnable new gate script from a no-execution session is how CI goes red.",
+      "files": [
+        "docs/architecture/releases.md"
+      ]
     }
   ],
   "lessons": [
-    "In this repository a scan gap is often already closed in code but invisible from the docs: the fault-injection drill was gated in CI while docs/development/fault-injection.md — referenced by four source files — was missing. Grep the referenced doc paths before assuming a practice is absent, and fix the dangling reference instead of rebuilding the practice.",
-    "The Ascent lane sandbox allows read-only shell (ls/grep/cat) but denies ALL execution, including `node <script>` and `node --check`. Any item whose artefact needs a measured baseline (a performance budget, a coverage threshold, a lockfile, a downgrade rehearsal) cannot be closed here — pick the sub-gap that is enforceable by a tool the repo already runs (an eslint selector rides `npm run lint`, which is in CI and the pre-push hook) and hand the measurement back as one named command.",
-    "kp's gate scripts follow a house shape worth matching: a long header stating the gap the gate closes, exported pure functions, --json, a ratchet that can only tighten unattended, a refusal to read an unparsable config as 'nothing to check', and colocated fixtures wired into ci.yml. A gate that flaps here gets deleted, so prefer a metric that is a pure function of the committed tree over a wall-clock one."
+    "Check whether the artefact already exists before building it: in this repo two of four dispatched gaps were already closed in-tree (fault_eval.py + llm/fault.py for D8; gate-check.test.mjs's untrustedRunRefs/permissions fixtures for D9), and a third (scripts/perf/check-budget.mjs) was fully written and blocked on one command. Scanner 'missing' lines here describe what a config sample did not show, not what the repository does not do.",
+    "This repository writes its own residual gaps into the artefact that has them — fault_eval.py's docstring and docs/*/README.md 'Known gaps' sections name precisely what is not done and why. Grepping those is a faster and more accurate backlog than re-deriving one, and closing a named gap means deleting the paragraph that named it in the same change.",
+    "An Ascent lane that cannot execute cannot close a gap whose artefact is a MEASUREMENT (a calibrated budget, a rehearsed drill). aed354ad has now been skipped twice for the same reason; these items need a lane with shell access or a human running one command, and re-dispatching them into a read-only lane will keep producing skips.",
+    "When adding an assertion to an existing eval harness, check every row of its matrix against the seam you changed: fault_eval's `rematch` task ranks through match_reasoning.generate, not automation._generate, so a blanket new assertion would have turned the CI gate red for a gap the change did not create. Scoping it to the tasks that use the seam — and naming the exclusion — keeps the un-adopted copy visible instead of hidden."
   ]
 }

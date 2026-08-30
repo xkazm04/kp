@@ -173,7 +173,14 @@ def main(argv: list[str] | None = None) -> int:
             # missing key, or a failed call that fell back) — record it in the
             # usage ledger so keyless traffic stops being invisible (item 22),
             # with the descent reason naming WHY where known (R6).
-            emit_deterministic(use_case, reason=descent)
+            #
+            # `descent` is set only when the AVAILABILITY gate turned the provider
+            # away; it is None when the gate said yes and the call itself then
+            # failed, which used to leave the ledger unable to tell a keyless
+            # install from a provider that answered with prose. take_degradation_
+            # reason() supplies that half (automation.DEGRADATION_REASONS), so
+            # every deterministic serve now carries a reason.
+            emit_deterministic(use_case, reason=descent or automation.take_degradation_reason())
         print(json.dumps({"result": result, "source": source}, ensure_ascii=False))
         return 0
     except NotFoundError as exc:

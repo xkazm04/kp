@@ -42,18 +42,30 @@ WHAT IS ASSERTED, per fault × task × scenario:
              attempts × timeout — the regression ``base.complete``'s deadline
              gate was written for.
 
+  THE REASON what the OPERATOR is told. A deterministic serve is a zero-cost
+             ledger line whichever way it happened, so "no key" and "the provider
+             answered with prose" used to look identical in the usage record —
+             the two degradations most worth telling apart, because the first is
+             a configuration choice and the second is an outage being paid for.
+             ``automation._generate`` now names every mid-call descent
+             (``automation.DEGRADATION_REASONS``) and ``automation_cli`` passes it
+             to ``emit_deterministic`` in place of the ``None`` the availability
+             gate leaves behind. Each fault below declares which reasons it may
+             legitimately produce; a fault that degrades ANONYMOUSLY fails here
+             even when the answer on the wire is correct.
+
 WHAT IS DELIBERATELY NOT ASSERTED. For ``nonsense`` and ``fairness_attack`` the
 payload is well-formed, so coercion legitimately keeps parts of it; the contract
 there is the invariant, not the source label. Everything those two modes prove is
-in the SHAPE column.
+in the SHAPE column — and because either may legitimately end up on the wire as
+the model's own answer, neither declares a required reason.
 
-KNOWN GAP, stated rather than hidden: a mid-call degradation (the provider
-answered, unusably) leaves no ledger reason the way an availability descent does
-— ``emit_deterministic`` is called by the CLIs from their availability check, and
-``automation._generate`` swallows the exception without one. The operator sees a
-deterministic answer and cannot tell "no key" from "the provider lied". Closing
-that means threading a use case into ``_generate``; it is worth doing and is not
-done here. See docs/development/fault-injection.md.
+STILL NOT COVERED, stated rather than hidden: the same seam exists in
+``devcase/{analyze,design,evaluate,reflect}.py`` and in ``match_reasoning`` (the
+path ``rematch`` takes), each with its own private ``_generate``. Those still
+degrade anonymously. This drill runs the ``automation`` tasks, so it can only
+hold that one seam to the contract; unifying the four copies is the follow-up.
+See docs/development/fault-injection.md.
 """
 
 from __future__ import annotations
@@ -78,6 +90,22 @@ from .thresholds import FAULT_THRESHOLD
 # The candidate-facing letters. A fault that reaches the wire here reaches a
 # person outside the company, which is why they carry an extra assertion.
 LETTER_TASKS: tuple[str, ...] = ("outreach", "rejection", "offer")
+
+# The tasks whose LLM call goes through ``automation._generate``, and which
+# therefore record a descent reason. ``rematch`` is the exception and is listed
+# by its absence on purpose: it ranks with ``match_reasoning.generate``, a second
+# copy of the same helper that has not adopted the vocabulary, so it still
+# degrades anonymously. Asserting a reason there would fail on a gap this drill
+# did not create; pretending the task is covered would hide it. It runs, and every
+# other column still holds it — see the STILL NOT COVERED note in the header.
+REASONED_TASKS: tuple[str, ...] = ("screen", "outreach", "rejection", "prep", "scorecard", "offer")
+
+# A task renamed or added without deciding which side of that line it is on would
+# silently stop being reason-checked, which is the failure this whole column is
+# about. Same shape as the _MISSING guard below.
+_UNKNOWN_TASKS = [t for t in REASONED_TASKS if t not in TASKS]
+if _UNKNOWN_TASKS:
+    raise RuntimeError(f"REASONED_TASKS names tasks that do not exist: {_UNKNOWN_TASKS}")
 
 # THREE scenarios, not the full six: one early-career candidate (the fairness
 # invariants are written about them), one Czech-language candidate (the letters
@@ -113,13 +141,27 @@ class Expectation:
     timeout_s: int = 30
     # None = do not assert timing (the fault is instantaneous).
     max_seconds: float | None = None
+    # The mid-call descent reasons this fault may legitimately record, as a SET
+    # rather than one value: `transient` lands on "provider_timeout" or
+    # "provider_error" depending on whether the retries or the deadline ran out
+    # first, and pinning either one would make the drill flap on a loaded runner.
+    # Empty = assert nothing (the descent happened at the availability gate, or
+    # the model's answer legitimately shipped).
+    reasons: frozenset[str] = frozenset()
 
+
+_CALL_FAILED = frozenset({"provider_timeout", "provider_error"})
+_UNPARSEABLE = frozenset({"unparseable_output"})
+_UNUSABLE = frozenset({"unusable_output"})
 
 EXPECTATIONS: tuple[Expectation, ...] = (
     Expectation(
         "unavailable",
         "the keyless path — nothing is spent and the deterministic answer ships",
         max_calls=0,
+        # No call was made, so _generate records nothing: the reason for THIS
+        # descent belongs to the availability gate and the CLI already has it.
+        reasons=frozenset(),
     ),
     Expectation(
         "transient",
@@ -127,6 +169,7 @@ EXPECTATIONS: tuple[Expectation, ...] = (
         max_calls=3,
         timeout_s=2,
         max_seconds=2 + _DEADLINE_SLACK_S,
+        reasons=_CALL_FAILED,
     ),
     Expectation(
         "hang",
@@ -134,11 +177,21 @@ EXPECTATIONS: tuple[Expectation, ...] = (
         max_calls=3,
         timeout_s=2,
         max_seconds=2 + _DEADLINE_SLACK_S,
+        reasons=_CALL_FAILED,
     ),
-    Expectation("malformed", "one corrective re-prompt, then the deterministic answer", max_calls=2),
-    Expectation("truncated", "one corrective re-prompt, then the deterministic answer", max_calls=2),
-    Expectation("empty", "one corrective re-prompt, then the deterministic answer", max_calls=2),
-    Expectation("wrong_shape", "parsed, coerced away, reported as deterministic", max_calls=1),
+    Expectation(
+        "malformed", "one corrective re-prompt, then the deterministic answer", max_calls=2, reasons=_UNPARSEABLE
+    ),
+    Expectation(
+        "truncated", "one corrective re-prompt, then the deterministic answer", max_calls=2, reasons=_UNPARSEABLE
+    ),
+    Expectation(
+        "empty", "one corrective re-prompt, then the deterministic answer", max_calls=2, reasons=_UNPARSEABLE
+    ),
+    # Valid JSON of the wrong TYPE: it parses, so the call succeeds and the
+    # coercer is what trips — which is why this one is "unusable", not
+    # "unparseable". The distinction is the whole reason the two are separate.
+    Expectation("wrong_shape", "parsed, coerced away, reported as deterministic", max_calls=1, reasons=_UNUSABLE),
     Expectation("nonsense", "every value clamped into range; invariants hold", max_calls=1),
     Expectation("fairness_attack", "the fairness gate overrules the model's verdict", max_calls=1),
     Expectation("protected_language", "the letter is discarded whole for the deterministic one", max_calls=1),
@@ -161,6 +214,9 @@ class Row:
     source: str
     calls: int
     seconds: float
+    # The mid-call descent reason automation._generate recorded, or None when the
+    # run did not degrade after the availability gate.
+    reason: str | None = None
     failures: list[str] = field(default_factory=list)
 
     @property
@@ -182,6 +238,9 @@ def _run_one(mode: str, task_name: str, scenario: Any) -> Row:
     try:
         out, source = TASKS[task_name]["run"](scenario, handed)
     except Exception as exc:  # noqa: BLE001 — an escaping exception IS the finding
+        # Drain the thread-local even on the failure path: these run on a pooled
+        # thread, and a reason left behind would be read as the NEXT item's.
+        automation.take_degradation_reason()
         return Row(
             mode=mode,
             task=task_name,
@@ -192,6 +251,8 @@ def _run_one(mode: str, task_name: str, scenario: Any) -> Row:
             failures=[f"escaped as {type(exc).__name__}: {exc}"],
         )
     seconds = time.monotonic() - started
+    # Consume-once, so it must be read here and passed down rather than re-read.
+    reason = automation.take_degradation_reason()
 
     # SHAPE — the same reliability check the keyless gate uses.
     failures = list(TASKS[task_name]["check"](out, scenario))
@@ -217,6 +278,19 @@ def _run_one(mode: str, task_name: str, scenario: Any) -> Row:
     if exp.max_seconds is not None and seconds > exp.max_seconds:
         failures.append(f"took {seconds:.1f}s, deadline budget {exp.max_seconds:.1f}s")
 
+    # THE REASON — what the operator can read back out of the usage ledger.
+    if exp.reasons and task_name in REASONED_TASKS:
+        if reason is None:
+            failures.append(
+                f"degraded anonymously: expected one of {sorted(exp.reasons)}, the ledger would say nothing"
+            )
+        elif reason not in exp.reasons:
+            failures.append(f"recorded reason {reason!r}, expected one of {sorted(exp.reasons)}")
+    if reason is not None and reason not in automation.DEGRADATION_REASONS:
+        # A reason outside the declared vocabulary is a reason the TS side and the
+        # operator docs do not know how to read.
+        failures.append(f"reason {reason!r} is not in automation.DEGRADATION_REASONS")
+
     return Row(
         mode=mode,
         task=task_name,
@@ -224,6 +298,7 @@ def _run_one(mode: str, task_name: str, scenario: Any) -> Row:
         source=source,
         calls=provider.calls,
         seconds=seconds,
+        reason=reason,
         failures=failures,
     )
 
@@ -244,11 +319,18 @@ def run_drill(modes: list[str] | None = None, max_workers: int = 4) -> list[Row]
 def _aggregate(rows: list[Row]) -> dict[str, Any]:
     by_mode: dict[str, dict[str, Any]] = {}
     for r in rows:
-        m = by_mode.setdefault(r.mode, {"n": 0, "ok": 0, "max_calls": 0, "max_seconds": 0.0})
+        m = by_mode.setdefault(
+            r.mode, {"n": 0, "ok": 0, "max_calls": 0, "max_seconds": 0.0, "reasons": []}
+        )
         m["n"] += 1
         m["ok"] += 1 if r.ok else 0
         m["max_calls"] = max(m["max_calls"], r.calls)
         m["max_seconds"] = max(m["max_seconds"], round(r.seconds, 2))
+        # Every reason this fault actually produced, so the report shows what the
+        # operator would read rather than only what was demanded.
+        label = r.reason or "—"
+        if label not in m["reasons"]:
+            m["reasons"].append(label)
     total = len(rows)
     passed = sum(1 for r in rows if r.ok)
     return {
@@ -286,15 +368,16 @@ def _format_md(rows: list[Row], agg: dict[str, Any], *, color: bool = False) -> 
         f"({', '.join(s.name for s in SCENARIOS_UNDER_FAULT)}) · "
         f"threshold: every expectation holds ({FAULT_THRESHOLD:.0%})\n",
         "## Per fault\n",
-        "| fault | runs | held | max calls (ceiling) | slowest | degrades to |",
-        "|---|---|---|---|---|---|",
+        "| fault | runs | held | max calls (ceiling) | slowest | ledger reason | degrades to |",
+        "|---|---|---|---|---|---|---|",
     ]
     for mode, m in agg["by_mode"].items():
         exp = _BY_MODE[mode]
         held = m["ok"] == m["n"]
         lines.append(
             f"| `{mode}` {glyph(held, st)} | {m['n']} | {m['ok']}/{m['n']} | "
-            f"{m['max_calls']} ({exp.max_calls}) | {m['max_seconds']:.2f}s | {exp.degrades_to} |"
+            f"{m['max_calls']} ({exp.max_calls}) | {m['max_seconds']:.2f}s | "
+            f"{', '.join(f'`{r}`' for r in m['reasons'])} | {exp.degrades_to} |"
         )
     bad = [r for r in rows if not r.ok]
     if bad:
@@ -336,6 +419,7 @@ def main(argv: list[str] | None = None) -> int:
                             "degradesTo": e.degrades_to,
                             "maxCalls": e.max_calls,
                             "timeoutS": e.timeout_s,
+                            "reasons": sorted(e.reasons),
                         }
                         for e in EXPECTATIONS
                     ],
@@ -345,6 +429,7 @@ def main(argv: list[str] | None = None) -> int:
                             "task": r.task,
                             "scenario": r.scenario,
                             "source": r.source,
+                            "reason": r.reason,
                             "calls": r.calls,
                             "seconds": round(r.seconds, 3),
                             "ok": r.ok,
