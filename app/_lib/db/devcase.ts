@@ -813,6 +813,7 @@ export type DevSession = {
   createdAt: string;
   updatedAt: string;
   submittedAt: string | null;
+  workspaceId: string;
 };
 
 function rowToSession(r: Record<string, unknown>): DevSession {
@@ -826,6 +827,7 @@ function rowToSession(r: Record<string, unknown>): DevSession {
     createdAt: r.created_at as string,
     updatedAt: r.updated_at as string,
     submittedAt: (r.submitted_at as string) ?? null,
+    workspaceId: ((r.workspace_id as string) ?? null) || DEFAULT_WORKSPACE_ID,
   };
 }
 

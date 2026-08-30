@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { appendDevSessionEvents, getDevCase, getDevSessionEvents, getDevSessionMeta, getPostingByToken, saveDevSessionFiles } from "@/app/_lib/db/devcase";
+import { appendDevSessionEvents, getDevCase, getDevSession, getDevSessionChat, getDevSessionEvents, getDevSessionMeta, getPostingByToken, saveDevSessionFiles } from "@/app/_lib/db/devcase";
 import { jsonError, jsonRefusal } from "@/app/_lib/api-response";
 import { sessionTokenMatches } from "@/app/_lib/devcase-session-auth";
+import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 
 // Per-token mid-flight-update memo (case-sim round 3 canary c2): the flush path
 // fires every ~8s per active candidate, and the token→posting→case chain it used
@@ -27,6 +28,35 @@ function midFlightUpdateForToken(token: string): { afterMinutes: number; update:
   return resolved;
 }
 
+
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const session = getDevSession(id);
+    if (!session) return NextResponse.json({ error: "session not found" }, { status: 404 });
+
+    const callerWorkspace = await currentWorkspace();
+    if (session.workspaceId !== callerWorkspace) {
+      return NextResponse.json({ error: "session not found" }, { status: 404 });
+    }
+
+    const transcript = getDevSessionChat(id);
+
+    return NextResponse.json({
+      session: {
+        id: session.id,
+        status: session.status,
+        candidateRef: session.candidateRef,
+        createdAt: session.createdAt,
+        submittedAt: session.submittedAt,
+      },
+      transcript,
+      files: session.files,
+    });
+  } catch (error) {
+    return jsonError(error, "Failed to read session.");
+  }
+}
 
 // Live Work Surface (moonshot E) — append observed events + save the (editable)
 // seed tree for an active session. Hand-rolled boundary coercion + bounds (the
