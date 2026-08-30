@@ -18,6 +18,14 @@
 #                        Safe fixes only (ruff's default): an F401 removal ruff
 #                        classifies as unsafe, such as a re-export in an
 #                        __init__.py, is left for a human.
+#   ruff-ratchet         …and then RECORDS the burn-down: `--tighten` lowers each
+#     --tighten          `# ratchet: <CODE> <= <N>` ceiling in ruff.toml to what
+#                        the tree now carries and deletes any entry that has
+#                        stopped suppressing anything. Without it the line above
+#                        fixes violations that the ignore list goes on excusing,
+#                        which is how `F821` stayed ignored for weeks after its
+#                        one occurrence was fixed. The blocking half of the same
+#                        ratchet runs in ci.yml's python-gate.
 #
 # Deliberately NOT here: `ruff format`. This tree has never been formatter-owned,
 # and a job whose first act is to reformat 245 files is a job that gets turned off.
@@ -93,7 +101,20 @@ jobs:
           # business, and swallowing that here would hide nothing — `npm run
           # lint` runs on this same commit and blocks.
           npx eslint . --fix || true
-          ruff check pipeline/ --fix --select F401,F541 --exit-zero
+          # `--config 'lint.ignore = []'` is load-bearing, not decoration: a CLI
+          # `--select` replaces ruff.toml's `select` but leaves its `ignore`
+          # standing, and F401/F541 are ON that ignore list — so selecting them
+          # without lifting the ignores matches nothing and this line silently
+          # fixed zero of the two entries it exists to burn down.
+          ruff check pipeline/ --fix --exit-zero --select F401,F541 --config 'lint.ignore = []'
+          # Record the ground the line above just gained: lower each ceiling in
+          # ruff.toml to what the tree now carries, and delete any entry that has
+          # stopped suppressing anything. This is what makes the ratchet shrink
+          # without a maintainer remembering to shrink it — the failure that left
+          # `F821` ignored for weeks after its one occurrence was fixed. A
+          # rewrite the script cannot read back is a no-op (scripts/lint/).
+          node scripts/lint/ruff-ratchet.mjs --tighten ||
+            echo 'autofix: --tighten did not run (see above). The blocking ratchet in ci.yml still reports.'
           if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo 'Autofix: nothing to fix — every machine-applicable finding was already fixed.' >> "$GITHUB_STEP_SUMMARY"

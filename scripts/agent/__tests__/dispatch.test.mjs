@@ -300,6 +300,7 @@ check('every gate file in this tree is inside a protected prefix', () => {
     'scripts/security/check-actions.mjs',
     'scripts/hooks/install.mjs',
     'scripts/docs/check-doc-sync.mjs',
+    'scripts/lint/ruff-ratchet.mjs',
     'scripts/agent/dispatch.mjs',
   ];
   for (const rel of mustBeProtected) {

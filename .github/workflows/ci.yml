@@ -136,6 +136,13 @@ jobs:
       # the guard.
       - run: npm run test:agent
 
+      # Fixtures for the ruff ignore ratchet (scripts/lint/). It is the one gate
+      # that can REWRITE a config file unattended (autofix.yml runs `--tighten`),
+      # so the cases that matter most are the refusals: a ruff answer it cannot
+      # parse must never read as "no violations", and a splice it cannot read
+      # back must be a no-op rather than a commit.
+      - run: npm run test:lint-ratchet
+
       # IS THE GATE STILL WIRED TO WHAT IT CLAIMS TO GATE?
       #
       # .github/rulesets/main.json is the required-status-check configuration —
@@ -277,6 +284,20 @@ jobs:
         run: |
           pip install ruff==0.15.0
           ruff check pipeline/
+
+      # …and the ratchet over the ignore list the step above CANNOT see. `ruff
+      # check` runs WITH ruff.toml's ignores applied, so it reports zero
+      # violations of exactly the rules that are rotting: it can never notice
+      # that an entry now suppresses nothing, or that "5x unused imports" has
+      # become fifty. This re-runs ruff with `lint.ignore` emptied and holds each
+      # entry to the `# ratchet: <CODE> <= <N>` ceiling declared beside it.
+      #
+      # WHEN IT FAILS: an ignore with no ceiling, an ignore over its ceiling, or
+      # an ignore that suppresses nothing (delete it — that is the whole point).
+      # The message names the entry and the edit. Node is preinstalled on the
+      # runner and the script is dependency-free, so no `npm ci` here either.
+      - name: Ruff ignore ratchet
+        run: npm run lint:ruff-ratchet
 
       - name: Run gated Python suite
         run: npm run test:python:gate

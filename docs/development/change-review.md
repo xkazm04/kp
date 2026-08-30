@@ -237,12 +237,13 @@ repository to move a character.
 
 [`autofix.yml`](../../.github/workflows/autofix.yml) runs on every pull request
 from this repository (a fork's PR gets a read-only token, so it is skipped there)
-and applies exactly two things:
+and applies exactly these:
 
 | Fixer | Scope | Why this much |
 | --- | --- | --- |
 | `eslint --fix` | the whole tree | everything `npm run lint` would block on and can repair itself. CI still blocks on the rest |
-| `ruff check --fix --select F401,F541` | `pipeline/` | the two entries [`ruff.toml`](../../ruff.toml) enumerates as debt with *"(auto-fixable)"* beside them. They are **ignored** by the gate, so CI is green while they accumulate — this is the only thing that burns them down. Safe fixes only (ruff's default): an F401 removal ruff calls unsafe, such as a re-export in an `__init__.py`, is left alone |
+| `ruff check --fix --select F401,F541 --config 'lint.ignore = []'` | `pipeline/` | the two entries [`ruff.toml`](../../ruff.toml) enumerates as debt with *"(auto-fixable)"* beside them. They are **ignored** by the gate, so CI is green while they accumulate — this is the only thing that burns them down. Safe fixes only (ruff's default): an F401 removal ruff calls unsafe, such as a re-export in an `__init__.py`, is left alone. The `--config` override is load-bearing: a CLI `--select` replaces the config's `select` and leaves its `ignore` standing, so selecting a rule that is on the ignore list matches nothing |
+| `ruff-ratchet --tighten` | [`ruff.toml`](../../ruff.toml) | records what the line above just gained: lowers each `# ratchet: <CODE> <= <N>` ceiling to what the tree now carries, and deletes any entry that has stopped suppressing anything. Fixing a violation the ignore list goes on excusing is how `F821` stayed ignored for weeks after its one occurrence was fixed. A rewrite the script cannot read back is a no-op, never a commit |
 
 Not included, deliberately: `ruff format`. This tree has never been
 formatter-owned, and a job whose first act is to reformat the whole pipeline is a
@@ -262,14 +263,17 @@ The job never fails the build: everything it can fix is either already gated by
 
 ## Keeping the gate wired
 
-A gate stops being one long before anyone deletes it. The three checks below run
-in `ci.yml` on every push and PR and cost under a second between them.
+A gate stops being one long before anyone deletes it. The checks below run in
+`ci.yml` on every push and PR. The first three are offline and cost under a
+second between them; the ratchet at the end runs in `python-gate`, where ruff is
+already installed.
 
 | Check | Catches |
 | --- | --- |
 | `npm run review:gate` ([`gate-check.mjs`](../../scripts/review/gate-check.mjs)) | the ruleset requiring a check name no job reports — rename `Agent review (judgement)` and GitHub waits forever for a check that never arrives, until someone drops the requirement to unblock a PR. Also: an `evaluate`-mode ruleset, a required check that never runs on PRs, a lens that left the required set, a workflow with no jobs |
 | `npm run security:actions` ([`check-actions.mjs`](../../scripts/security/check-actions.mjs)) | a workflow with no top-level `permissions:` block; any **new** action pinned to a mutable tag; any `${{ … }}` substituted into a `run:` script or an `actions/github-script` `script:` body; and a `pull_request_target` / `workflow_run` job checking out a ref the event points at (below). A ratchet: the refs that already float are enumerated with why in [`.github/actions-pin-allowlist.json`](../../.github/actions-pin-allowlist.json), so the list can only shrink — and a list that fails to load excuses nothing rather than everything |
 | `npm run hooks:check` ([`install.mjs`](../../scripts/hooks/install.mjs)) | a hook that vanished, or one still shelling out to an npm script or file that was renamed away — the shape of drift that leaves `pre-push` running and no longer checking. Also: a `prepare` that swallows its own failure (below), and a Dockerfile that runs `npm ci` without the installer in the build context |
+| `npm run lint:ruff-ratchet` ([`ruff-ratchet.mjs`](../../scripts/lint/ruff-ratchet.mjs), in `python-gate`) | an ignore in [`ruff.toml`](../../ruff.toml) that declares no ceiling, one carrying more violations than it declares, or one that suppresses **nothing** and should have been deleted. `ruff check pipeline/` runs with those ignores applied and so is structurally unable to see any of it; this re-runs ruff with `lint.ignore` emptied and compares. An answer it cannot parse is an error, never "no violations" — otherwise every entry would look dead |
 
 `npm run review:gate -- --verify` is the online half: it asks GitHub whether the
 ruleset is actually applied. Without a token it prints **THE LIVE HALF DID NOT

@@ -6,19 +6,42 @@
 # marker, not a policy. Ratchet by deleting an entry, running
 # `ruff check pipeline/`, fixing what surfaces, and committing both together.
 # Never add an entry to make a red build green without recording why here.
+#
+# THE PAWL IS NO LONGER A COMMENT. Everything above was true and written down for
+# weeks while the list did not move, because a ratchet whose only mechanism is a
+# paragraph ratchets when somebody remembers. `npm run lint:ruff-ratchet`
+# (scripts/lint/ruff-ratchet.mjs, run by ci.yml's python-gate) re-runs ruff with
+# these ignores LIFTED — the gate above cannot see them, by construction — and
+# holds each entry to the `# ratchet: <CODE> <= <N>` ceiling declared beside it:
+#
+#   no ceiling    blocking. Adding an entry costs you a number, which is the
+#                 moment somebody has to look at how big the debt really is.
+#   over ceiling  blocking. The list cannot absorb new debt under an old entry.
+#   ZERO          blocking. The ignore suppresses nothing and must be deleted —
+#                 the one-command verification this header used to ask a human
+#                 for, performed on every push instead.
+#   under ceiling a note. `npm run lint:ruff-ratchet -- --tighten` lowers the
+#                 numbers and deletes dead entries, and autofix.yml runs it on
+#                 every pull request, so the ceilings follow the tree down
+#                 without anyone typing anything.
 [lint]
 # Ruff's default set (pycodestyle errors + pyflakes), pinned explicitly so a
 # future ruff release changing its defaults can't silently widen or narrow CI.
 select = ["E4", "E7", "E9", "F"]
 ignore = [
-    # 1x pipeline/jobfit/taxonomy.py:41 — deliberate late import after the JSON
+    # pipeline/jobfit/taxonomy.py:41 — deliberate late import after the JSON
     # benchmark load it depends on; restructure when touching that module.
+    # ratchet: E402 <= 1
     "E402",
-    # 10x ambiguous single-letter names (l/I/O), e.g. winnability.py:78.
+    # Ambiguous single-letter names (l/I/O), e.g. winnability.py:78.
+    # ratchet: E741 <= 10
     "E741",
-    # 5x unused imports (auto-fixable: `ruff check --fix --select F401`).
+    # Unused imports. Auto-fixable, and autofix.yml applies the fix on every pull
+    # request — so this ceiling should reach 0 on its own and take the entry with it.
+    # ratchet: F401 <= 5
     "F401",
-    # 2x f-strings without placeholders (auto-fixable).
+    # f-strings without placeholders. Auto-fixable, same burn-down as F401 above.
+    # ratchet: F541 <= 2
     "F541",
     # NEXT TO GO — and the only entry here that hides a real bug rather than
     # untidiness. Its one recorded occurrence (`CandidateProfileV2` in
@@ -27,10 +50,15 @@ ignore = [
     # that resolves annotations — `typing.get_type_hints`, a schema generator —
     # would have raised NameError there.
     #
-    # The entry is still here only because deleting it must be verified, not
-    # guessed: `ruff check pipeline/` after removing this line is the whole
-    # procedure, and it needs ruff on the machine doing the removing. Do that and
-    # delete this — an ignore with no known violation is a gate that has stopped
-    # meaning anything, which is the exact failure the review lenses exist for.
+    # The entry survived every session that read this paragraph and agreed with
+    # it, because deleting it must be VERIFIED rather than guessed and the
+    # verification needed ruff on the machine doing the removing. That is now
+    # nobody's memory: the ceiling below says this entry is expected to suppress
+    # nothing, so `lint:ruff-ratchet` reports it `dead` and FAILS the python-gate
+    # until the line is gone — or reports `grew`, in which case a real NameError
+    # has appeared in pipeline/ and the ignore was hiding it, which is the outcome
+    # worth being loud about. Either answer is the one this comment asked for.
+    # `npm run lint:ruff-ratchet -- --tighten` deletes the entry and this block.
+    # ratchet: F821 <= 0
     "F821",
 ]

@@ -27,8 +27,9 @@
 #
 #   WHAT     scripts/agent/dispatch.mjs refuses to write to .github/workflows,
 #            .github/rulesets, .githooks, .claude/ or scripts/{review,security,
-#            hooks,docs,agent}. An agent dispatched from an issue may not edit the
-#            machinery that judges it. That refusal is in the script, has fixtures
+#            hooks,docs,lint,agent}. An agent dispatched from an issue may not
+#            edit the machinery that judges it. That refusal is in the script,
+#            has fixtures
 #            (npm run test:agent), and has no override flag.
 #
 #   INPUT    issue and comment text is attacker-controlled on a public repository.

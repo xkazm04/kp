@@ -20,7 +20,8 @@
 //
 //   2. WHAT. guardPlan() refuses to write outside a repo-relative path, and
 //      refuses PROTECTED_PREFIXES outright — the workflows, the ruleset, the
-//      hooks, the review lenses, the pin ratchet, .claude/. An agent dispatched
+//      hooks, the review lenses, the pin ratchet, the lint ratchet, .claude/.
+//      An agent dispatched
 //      from an issue must not be able to edit the gate that judges it. That
 //      refusal is a hard error, not a warning: there is no flag to pass.
 //
@@ -94,6 +95,7 @@ export const PROTECTED_PREFIXES = [
   { prefix: 'scripts/security/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/hooks/', why: 'the machinery that judges this change' },
   { prefix: 'scripts/docs/', why: 'the machinery that judges this change' },
+  { prefix: 'scripts/lint/', why: 'the machinery that judges this change' },
   { prefix: 'package-lock.json', why: 'a resolved lockfile npm writes, never a model' },
   { prefix: '.env', why: 'secrets' },
 ];

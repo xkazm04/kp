@@ -2,25 +2,32 @@
   "v": 1,
   "items": [
     {
-      "recommendationId": "085b58a7-4a79-439d-801a-0ad91ef1b2f7",
-      "verdict": "resolved",
-      "reason": "The named half was already enforced and fixture-tested (no `${{ }}` reaches any `run:` in the tree; agent-dispatch.yml and autofix.yml already pass untrusted issue/PR text via `env:`), so I left those workflows untouched and instead closed the half the scan named as missing but nothing enforced: `check-actions.mjs` now blocks a `pull_request_target`/`workflow_run` job that checks out an event-derived ref, and blocks `${{ }}` substituted into an `actions/github-script` `script:` body.",
-      "files": [
-        "scripts/security/check-actions.mjs",
-        "scripts/review/__tests__/gate-check.test.mjs",
-        "docs/development/change-review.md"
-      ]
+      "recommendationId": "f4eedd2e-0a03-4373-be94-ccef3da21cd5",
+      "verdict": "skipped",
+      "reason": "The named pattern does not exist in either file: I read both end to end and every `${{ … }}` in agent-dispatch.yml and autofix.yml sits on a `KEY: ${{ … }}` line under `env:` or `with:`, never inside a `run:` body, and every shell use is a quoted `\"$VAR\"` — which is the prescribed remediation, not the bug. It is also already gated: `npm run security:actions` (scripts/security/check-actions.mjs, `run-injection` rule) blocks on every push and PR in ci.yml's node-quality job, and scripts/review/__tests__/gate-check.test.mjs:348 asserts over the real tree that no workflow substitutes an expression into a shell. A previous Ascent cycle (085b58a7) already extended that gate for the adjacent `script:`/`pull_request_target` sinks and the finding still reported 0/10, so the scanner appears to flag untrusted context bound into `env:`; editing the workflows to satisfy it would remove the fix, not the bug.",
+      "files": []
     },
     {
-      "recommendationId": "de67379e-c76d-4461-a7eb-609cd35d861b",
-      "verdict": "skipped",
-      "reason": "Needs a shell: `ruff.toml`'s own stated procedure for removing the `F821` ignore is to delete the line and run `ruff check pipeline/` (ruff 0.15.0, the version CI pins) over 245 Python files, and this session has no shell and no network, so the removal could only be guessed — which the config explicitly forbids.",
-      "files": []
+      "recommendationId": "74ef4d7c-047e-44a4-bb58-5d4c22a8309c",
+      "verdict": "resolved",
+      "reason": "Built the mechanism the ratchet never had: scripts/lint/ruff-ratchet.mjs re-runs ruff with `lint.ignore` emptied (the gate's own `ruff check pipeline/` runs WITH the ignores, so it is structurally unable to see this) and blocks in ci.yml's python-gate when an ignore declares no `# ratchet: <CODE> <= <N>` ceiling, carries more violations than it declares, or suppresses nothing at all — the last rule is exactly the `F821` verification ruff.toml asks a human to run by hand, so the entry now blocks the build until it is deleted or a real NameError is found. `--tighten` performs the shrink (lowers ceilings, deletes dead entries, refusing any rewrite it cannot re-read) and autofix.yml runs it on every PR. Also fixed a no-op in that same job: `ruff --fix --select F401,F541` matched nothing because a CLI `--select` does not clear the config's `ignore`, and both codes are on it — so the only thing burning down the auto-fixable debt had been fixing zero of it. I could not run ruff or the new fixtures in this session (no shell approval), so the seeded ceilings are ruff.toml's own 2026-08-05 counts and the first CI run is what verifies them.",
+      "files": [
+        "scripts/lint/ruff-ratchet.mjs",
+        "scripts/lint/__tests__/ruff-ratchet.test.mjs",
+        "ruff.toml",
+        "package.json",
+        ".github/workflows/ci.yml",
+        ".github/workflows/autofix.yml",
+        "scripts/agent/dispatch.mjs",
+        "scripts/agent/__tests__/dispatch.test.mjs",
+        "docs/development/change-review.md"
+      ]
     }
   ],
   "lessons": [
-    "This repository's guard scripts are ratchets that already implement most of what a maturity scan asks for, and they document themselves in prose headers -- read scripts/security/check-actions.mjs and scripts/review/__tests__/gate-check.test.mjs before concluding a D9 gap is open, because `${{ github.event.* }}` appearing in a workflow's `env:` block is the prescribed FIX and a scanner that pattern-matches on the expression alone will report it as the bug.",
-    "Guards here are only trusted once a fixture proves they detect -- every scripts/<area>/ guard has a colocated __tests__ run by a dedicated npm script in ci.yml, and check-actions.mjs is tested from scripts/review/__tests__/gate-check.test.mjs rather than a sibling directory, so extend that file instead of adding a new test target.",
-    "ruff.toml and check-actions.mjs both encode the same house rule for debt: each exception is enumerated with why it exists and what would remove it, an exception that outlives its justification is itself a blocking finding (`stale-allowlist`), and entries may only be deleted after the verifying command has actually been run. An offline agent can add a rule to these ratchets but cannot retire an entry from one."
+    "This repository answers a maturity gap with a ratchet script, not a config edit, and the shape is always the same: enumerate the debt with a per-entry reason, block anything new, make an exception that outlives its justification a BLOCKING finding of its own (`stale-allowlist` in check-actions.mjs, `dead` in ruff-ratchet.mjs), and colocate fixtures that both prove the rule fires and run it over the real tree. Read scripts/security/check-actions.mjs before writing a new guard here — copying its structure is the fastest way to produce something the maintainer will keep.",
+    "A gate that runs a tool with its own suppressions applied cannot measure those suppressions. `ruff check pipeline/` reports zero violations of precisely the rules ruff.toml ignores, so the ignore list could rot indefinitely behind a green build; the fix is a second invocation with the suppressions lifted (`--config 'lint.ignore = []'`) compared against declared ceilings. The same blind spot is worth looking for wherever a lint/type/audit config carries an ignore, allow or baseline list.",
+    "Ruff's CLI `--select` replaces the config's `select` but leaves its `ignore` standing, so `ruff check --fix --select F401,F541` against a config that ignores F401 and F541 silently fixes nothing. kp's autofix.yml carried that line for weeks as 'the only thing in the repo that burns them down'. Any org repo running a targeted `--select` autofix over a config with an ignore list has probably shipped the same no-op.",
+    "A scanner finding of 'untrusted input in a run step' can be triggered by untrusted context bound into a step's `env:` — which is the documented FIX for script injection. Verify by reading the `run:` bodies before changing a workflow: this repository has now had two Ascent cycles open the same D9 row against two workflows that were already correct and already fixture-tested, and 'resolving' it a second time would only delete the hardening."
   ]
 }
