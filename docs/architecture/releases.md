@@ -75,6 +75,46 @@ ours. An individual message is waived on the record with a
 `Commit-convention-exemption: <why>` trailer in the body, the same shape as
 `Gate-exemption:` and `Doc-sync:`.
 
+#### A prefix is not a description
+
+The vocabulary check above accepts `fix: Done. Here's what I found and did`,
+which is a real subject from this history, and so are these:
+
+```
+fix: All four items are settled. Here's what I found and did
+fix: Done. Three of the four were already answered in-tree; one was
+```
+
+They carry a type, they are under the cap, and they describe a *session* rather
+than a change — the last one stops mid-clause because it was sliced out of an
+agent's closing message. Roughly half the commits here are written by an agent,
+so `git log` is the primary record of what those agents did, and a log in this
+shape cannot be bisected, summarised into a release note, or read after an
+incident.
+
+`checkShape()` in the same file is the smallest rule an automated lane can
+satisfy without a human editing messages: **the subject is one clause about the
+change.** It rejects
+
+| Shape | Example |
+| --- | --- |
+| a second sentence in the subject | `fix(auth): stop the leak. It was in the cookie` |
+| a session-report opener | `Done.` · `Here's what I found` · `Successfully …` |
+| the first person | `fix(auth): I moved the token check` |
+| a line cut mid-phrase | `… when the candidate and` · `… one was` · `retry the outbox,` |
+| an unclosed delimiter | ``fix(db): stop the write in `pipeline`` |
+| a trailing full stop | `fix(auth): stop the leak.` |
+
+and `checkTypeAgainstFiles()` adds the one claim the diff settles outright: a
+commit whose files are **all** documentation is not a `feat` or a `fix`, and one
+whose files are **all** tests is not either — a release note would otherwise
+announce a user-visible change that does not exist. A mixed commit is never
+judged on its type; that judgement belongs to the review lens, not to a regex.
+
+The narrative is not unwelcome, it is *relocated*: the body has no length limit
+and `git log --format=%s` never prints it. Both rules run in the same two places
+as the table above, and both are waived by the same trailer.
+
 `npm run release:check` runs the same coherence check in CI on **every** push,
 so the three cannot drift between releases: a version with no release notes, or
 a chart `appVersion` that disagrees with `package.json`, fails the build.

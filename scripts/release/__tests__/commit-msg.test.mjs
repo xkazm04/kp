@@ -10,7 +10,9 @@ import assert from 'node:assert/strict';
 import { classify } from '../prepare.mjs';
 import {
   KNOWN_TYPES,
+  checkShape,
   checkSubject,
+  checkTypeAgainstFiles,
   isExempt,
   parseArgs,
   review,
@@ -64,6 +66,107 @@ check('a summary too short to read as a release-note line is rejected', () => {
 check('an overlong subject is rejected, a long-but-reasonable one is not', () => {
   ok(`feat(scope): ${'x'.repeat(100)}`);
   bad(`feat(scope): ${'x'.repeat(140)}`);
+});
+
+// --- the shape: one clause about the change ----------------------------------
+//
+// These four are real subjects from this repository's log. Every one of them
+// passed the gate before checkShape existed, which is the gap it closes.
+check('the session-report subjects in this history are rejected', () => {
+  bad('fix: Done. Here\'s what I found and did');
+  bad('fix: All four items are settled. Here\'s what I found and did');
+  bad('fix: Done. Three of the four were already answered in-tree; one was');
+  bad('fix: Done, here is the summary of the work');
+});
+
+check('a subject holding two sentences is rejected, and says where the rest goes', () => {
+  const problems = checkSubject('fix(auth): stop the leak. It was in the session cookie');
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /more than one sentence/);
+  assert.match(problems[0], /body/);
+  // A dotted version or a decimal is not a sentence boundary.
+  ok('deps(deps): bump next from 16.3.0 to 16.3.3');
+  ok('fix(db): honour KP_DB_PATH in app/_lib/db.ts');
+});
+
+check('a subject truncated mid-clause is rejected', () => {
+  bad('fix(schedule): the slot is dropped when the candidate and');
+  bad('feat(ui): a panel that opens when the operator is');
+  // The rule is a tail-word rule, not a parser: a line cut on a noun still
+  // reads as a clause and passes. It catches the cut that leaves a dangling
+  // word, which is the shape a sliced agent message actually produces.
+  ok('feat(ui): a panel that opens for the operator');
+  bad('fix: reconcile the queue against the');
+  bad('chore: regenerate the map because it was');
+  assert.match(checkShape('the slot is dropped when the candidate and')[0], /stops on "and"/);
+});
+
+check('a subject cut on punctuation or an unclosed delimiter is rejected', () => {
+  bad('fix(comms): retry the outbox,');
+  bad('feat(api): add the endpoint (behind a flag');
+  bad('fix(db): stop the write in `pipeline');
+  bad('docs: rewrite the guide...');
+});
+
+check('a first-person or narrative subject is rejected', () => {
+  bad('fix(auth): I moved the token check into the middleware');
+  bad('feat(ui): here is the new empty state');
+  bad('chore: successfully regenerated the context map');
+  bad('fix(db): this change repairs the pipeline writer');
+  // …and the honest ones are not.
+  ok('fix(i18n): add the missing cs plural forms');
+  ok('feat(schedule): honour the candidate timezone');
+});
+
+check('a subject that ends in a full stop is rejected', () => {
+  bad('fix(auth): stop the leak.');
+  ok('fix(auth): stop the leak');
+});
+
+check('descriptive subjects in this repository’s own voice still pass', () => {
+  ok('feat(app-master-bench): ideation nights, graded on the holder’s own ideas');
+  ok('fix(app-master-bench): an unknown argument is an error, never a fallback');
+  ok('chore(registry-map): regenerate - carried verdicts preserved');
+  ok('perf(routes): import the slice, not the barrel, in the health handler');
+  ok('security(deps): next 16.3.3');
+});
+
+// --- the type against the diff ------------------------------------------------
+check('a documentation-only commit may not be typed feat or fix', () => {
+  const problems = checkTypeAgainstFiles('feat(docs): explain self-hosting', ['docs/features/comms/README.md']);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /every file in this commit is documentation/);
+  assert.deepEqual(checkTypeAgainstFiles('docs: explain self-hosting', ['docs/x.md', 'README.md']), []);
+  assert.deepEqual(checkTypeAgainstFiles('chore: prune the archive', ['docs/_archive/old.md']), []);
+});
+
+check('a test-only commit may not be typed feat or fix', () => {
+  assert.match(
+    checkTypeAgainstFiles('fix(db): cover the transaction path', ['app/_lib/db/pipeline.test.ts'])[0],
+    /every file in this commit is a test/,
+  );
+  assert.deepEqual(checkTypeAgainstFiles('test(db): cover the transaction path', ['app/_lib/db/pipeline.test.ts']), []);
+  assert.deepEqual(checkTypeAgainstFiles('ci: pin the e2e shard', ['e2e/journey-role-to-schedule.spec.ts']), []);
+});
+
+check('a mixed commit is never judged on its type', () => {
+  assert.deepEqual(
+    checkTypeAgainstFiles('fix(comms): stop the double send', ['app/_lib/comms.ts', 'docs/features/comms/README.md']),
+    [],
+  );
+  // No file list (a subject checked in isolation) means the rule does not run.
+  assert.deepEqual(checkTypeAgainstFiles('fix: something', []), []);
+  assert.deepEqual(checkTypeAgainstFiles('not conventional at all', ['docs/x.md']), []);
+});
+
+check('review() applies the type rule only when it was given the files', () => {
+  assert.equal(review([{ subject: 'feat: explain the thing', body: '', files: ['docs/x.md'] }]).ok, false);
+  assert.equal(review([{ subject: 'feat: explain the thing', body: '' }]).ok, true);
+  // The waiver covers the type rule too — it is one verdict per commit.
+  assert.equal(
+    review([{ subject: 'feat: explain the thing', body: 'Commit-convention-exemption: doc for an unshipped feature', files: ['docs/x.md'] }]).ok,
+    true,
+  );
 });
 
 // --- what the gate must NOT reject ------------------------------------------

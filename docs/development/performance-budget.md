@@ -9,6 +9,11 @@ gap this page exists to close is precisely *"nothing fails when the app gets
 slower"*, and a page claiming more than is wired would be the same failure in a
 new place.
 
+The sibling budget — *"nothing fails when the **pipeline** gets slower"* — **is**
+wired: `scripts/perf/ci-budget.mjs` runs in its own `ci.yml` job on every run and
+fails it when a job exceeds its declared ceiling. See
+[The other budget](#the-other-budget-how-long-the-pipeline-itself-is-allowed-to-take).
+
 ## What is measured, and why this number
 
 This repo measures cost carefully and gates none of it. 783 tests, e2e,
@@ -152,6 +157,62 @@ node scripts/perf/check-budget.mjs --explain app/api/schedule/route.ts
    script in this repo carries its own tests.
 
 Until step 2 exists, nothing fails when the app gets slower.
+
+## The other budget: how long the pipeline itself is allowed to take
+
+Everything above measures the **app**. `scripts/perf/ci-budget.mjs` measures the
+**pipeline that judges it**, and it is wired: the `Pipeline budget (wall-clock
+against ci-budget.json)` job in `ci.yml` reads what the run actually took from
+the Actions API and fails it when a job, or the run's own wall-clock, exceeds the
+ceiling declared in [`ci-budget.json`](../../ci-budget.json).
+
+Why it exists at all: seven workflows now run lint, three test runtimes, the
+evals, the design-token and locale gates, and SBOM + signing on release. Each
+addition is correct and each costs minutes, and with agents opening changes
+continuously the time a pull request takes to go green is the rate limiter on the
+whole loop. `timeout-minutes` does not measure that — it is a crash barrier at 25
+or 30 minutes, so a job drifting from 6 minutes to 18 passes every gate here
+while halving throughput.
+
+| Aspect | The app budget (`check-budget.mjs`) | The pipeline budget (`ci-budget.mjs`) |
+| --- | --- | --- |
+| Metric | first-party module graph, static | job wall-clock, from the Actions API |
+| Where it runs | (not yet wired — see [Finishing it](#finishing-it)) | the `pipeline-budget` job, `if: always()` |
+| Ceilings | to be recorded from the tree | `ci-budget.json`, seeded at 0.6 × each job's `timeout-minutes` |
+| Ratchet | `--tighten` | `--tighten` |
+| Blocks a merge? | will, once recorded | **not yet** — see below |
+
+**This does not contradict "why a static graph and not a stopwatch" above.** That
+argument says an unmeasured wall-clock ceiling is a bad thing to *block merges*
+on, and it holds: the seeded numbers are derived from timeouts, not measured, so
+the job goes red on the run but is deliberately absent from
+`.github/rulesets/main.json`. `npm run review:gate` reports it as an
+`ungated-job` warn, which is true and is meant to stay visible. The condition for
+requiring it is written in `ci-budget.json`: run
+`npm run ci:budget -- --tighten` against real runs on main until the ceilings are
+observed rather than derived, then add the context to the ruleset.
+
+Three refusals make it a gate rather than a dashboard, and they carry fixtures in
+`scripts/perf/__tests__/ci-budget.test.mjs`:
+
+- **A job with no ceiling is a finding, not a pass.** Adding a gate to `ci.yml`
+  now costs one entry saying how long it may take and why — which is the moment
+  to notice the pipeline just got longer.
+- **A job with no duration is never scored as zero.** Still running (the budget
+  job judging the run it is inside), skipped, or cancelled — all report as *not
+  measured*, and the run's wall-clock is computed from the rest.
+- **`--tighten` can only lower.** An over-budget run is a finding for the gate to
+  report, never a new ceiling to record. Unused headroom is printed in the step
+  summary so tightening is a visible chore rather than an invisible one.
+
+The run's wall-clock is the **span** — first job to start until the last one
+finishes — not the sum of the jobs. A sum would grow every time a gate was moved
+off the critical path onto its own runner, which is an improvement.
+
+The scope is `ci.yml` only: the workflow every pull request waits on. `review.yml`,
+`security.yml` and `release.yml` are unbudgeted, which is a known gap — the same
+job would work there, keyed the same way, and the reason it is not there yet is
+that only `ci.yml` blocks the loop this budget exists to protect.
 
 ## What this budget deliberately does not cover
 

@@ -1,0 +1,57 @@
+{
+  "$comment": [
+    "Per-job wall-clock ceilings for .github/workflows/ci.yml, checked by the",
+    "'Pipeline budget' job against what the run actually took (scripts/perf/ci-budget.mjs).",
+    "",
+    "Keys are job NAMES — the `name:` in the workflow, which is also what the API",
+    "reports and what .github/rulesets/main.json requires. Renaming a job without",
+    "renaming it here is reported as a stale entry, not silently ignored.",
+    "",
+    "THESE FIRST NUMBERS ARE NOT MEASURED. They are each job's own declared",
+    "`timeout-minutes` multiplied by RATIO_OF_TIMEOUT (0.6): a job regularly",
+    "spending more than 60% of its kill-timeout is one bad week from being killed",
+    "by it. That makes them ceilings a run can actually breach — which is the",
+    "point, since a budget set at the timeout could never fire first — without",
+    "claiming a measurement nobody took. `--tighten` replaces them with observed",
+    "durations plus slackPercent, and can only ever lower them.",
+    "",
+    "Raising a ceiling is an edit to this file with a 'why' a reviewer can",
+    "disagree with. That is deliberate: the pipeline getting slower should be a",
+    "decision somebody made, not a number that drifted.",
+    "",
+    "WHEN THIS BECOMES A REQUIRED CHECK: after `npm run ci:budget -- --tighten`",
+    "has run against real runs on main and replaced the seeded numbers below with",
+    "observed ones. Until then the job goes red on the run but does not block a",
+    "merge — an unmeasured wall-clock ceiling that blocks merges is exactly the",
+    "flapping gate scripts/perf/check-budget.mjs argues against, and a gate that",
+    "flaps gets deleted. Add the context to .github/rulesets/main.json then."
+  ],
+  "version": 1,
+  "slackPercent": 25,
+  "run": {
+    "maxMinutes": 24,
+    "why": "wall-clock from the first job starting to the last one finishing — the number 'how long does a pull request take to go green' actually asks about. Not the sum of the jobs: they run in parallel, and a sum would grow every time a gate was moved OFF the critical path onto its own runner, which is an improvement. Seeded just above the longest single job (E2E, 18) plus room for staggered runner acquisition."
+  },
+  "jobs": {
+    "Node quality (typecheck, lint, unit, build)": {
+      "maxMinutes": 15,
+      "why": "the long pole and the one that grows: schemas:gen + tsc + eslint + two ratchets + design/i18n/docs/guidance/release gates + five fixture suites + test:unit + next build. Seeded from its 25-minute timeout. Every new `- run:` line in this job spends from here."
+    },
+    "E2E deterministic (chromium, keyless)": {
+      "maxMinutes": 18,
+      "why": "a full production build, a standalone runtime assembled the way the Dockerfile assembles it, a chromium install and four specs. Seeded from its 30-minute timeout; the Next build cache is what keeps it under, so a cache-key change shows up here first."
+    },
+    "Python gated suite": {
+      "maxMinutes": 6,
+      "why": "pip install + the gated unittest suite. Seeded from its 10-minute timeout; pip resolution is the variable part."
+    },
+    "Doc sync (changed source vs coupled doc)": {
+      "maxMinutes": 3,
+      "why": "a full-history checkout and one dependency-free script over the diff. Seeded from its 5-minute timeout; if this ever approaches it, the checkout is the cost, not the check."
+    },
+    "Commit convention (subjects the changelog is cut from)": {
+      "maxMinutes": 3,
+      "why": "a full-history checkout and one dependency-free script over the range. Same shape and same seed as doc-sync."
+    }
+  }
+}

@@ -105,6 +105,19 @@ Deeper guidance for automated agents and humans alike lives in
   `commit-convention` job in CI rejects it in the pushed range. Waive an
   individual message on the record with a `Commit-convention-exemption: <why>`
   trailer in the body.
+- **The subject is one clause about the change; the session goes in the body.**
+  A prefix is not a description, and the same check enforces the shape behind
+  it: no second sentence in the subject line, no first person, no
+  session-report opener (`Done.`, `Here's what I found`), and no line that
+  stops on a word nothing follows (`… one was`) because it was sliced out of a
+  longer message. A commit typed `feat` or `fix` whose files are *all*
+  documentation, or *all* tests, is rejected on the same grounds — the release
+  note would announce a change that does not exist.
+  This binds automated lanes hardest, and that is the point: with roughly half
+  of the commits here written by an agent, `git log` is the primary record of
+  what those agents did. Everything a session wants to narrate — what it
+  explored, what it found, what it left out — belongs in the body, which has no
+  length limit and which `git log --format=%s` never prints.
 - Present tense, scoped: `feat(billing): unmeter self-hosted installs`.
 - One logical change per PR. If your PR needs a "and also" in the description,
   it's probably two PRs.

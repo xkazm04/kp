@@ -50,6 +50,8 @@
     "review:agent": "node scripts/review/agent-review.mjs",
     "review:gate": "node scripts/review/gate-check.mjs",
     "agent:dispatch": "node scripts/agent/dispatch.mjs",
+    "ci:budget": "node scripts/perf/ci-budget.mjs",
+    "test:perf": "node scripts/perf/__tests__/ci-budget.test.mjs",
     "security:actions": "node scripts/security/check-actions.mjs",
     "test:review": "node scripts/review/__tests__/constitution-check.test.mjs && node scripts/review/__tests__/gate-check.test.mjs",
     "test:agent": "node scripts/agent/__tests__/dispatch.test.mjs",

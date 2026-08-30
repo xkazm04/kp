@@ -1,0 +1,39 @@
+{
+  "$comment": [
+    "What one run of an agent lane is allowed to spend, enforced by",
+    "scripts/agent/budget.mjs. The lanes here already stop on the CLOCK",
+    "(agent-dispatch.yml gives the model rounds `timeout-minutes: 12`); this is",
+    "the bound on the BILL, which wall-clock cannot see — a prompt that quietly",
+    "doubles costs twice as much in the same twelve minutes.",
+    "",
+    "THE UNIT IS TOKENS. They are what the API reports: exact, per call, with no",
+    "table to maintain. `prices.models` below is EMPTY on purpose — a price list",
+    "is your contract with a provider, it differs per account and it changes",
+    "without warning, so the report says 'unpriced' rather than inventing a",
+    "figure. Fill it in and every run summary gains a USD column.",
+    "",
+    "A LANE WITH NO ENTRY HERE CANNOT RUN (scripts/agent/budget.mjs fails closed).",
+    "That is the point: a new lane is a new bill, and it starts by saying how",
+    "large it is allowed to be.",
+    "",
+    "Raising a ceiling is an edit to this file with a 'why'. This file is in",
+    "PROTECTED_PREFIXES, so a dispatched agent cannot raise its own ceiling."
+  ],
+  "version": 1,
+  "lanes": {
+    "dispatch": {
+      "maxTokens": 400000,
+      "maxCalls": 2,
+      "why": "scripts/agent/dispatch.mjs makes exactly two stateless calls — round 1 sends the rubric plus the file inventory, round 2 sends the rubric plus up to MAX_READS (24) files of MAX_READ_BYTES (24 000) each, so round 2 alone is bounded near 150 000 tokens by those constants. maxCalls 2 is therefore exact rather than generous: a third call is a retry loop, not a dispatch."
+    },
+    "review": {
+      "maxTokens": 120000,
+      "maxCalls": 1,
+      "why": "scripts/review/agent-review.mjs makes one call carrying the rubric, the commit messages and a diff already capped at KP_REVIEW_DIFF_BUDGET (160 000 characters, about 40 000 tokens). One review is one call; a second means something re-entered it."
+    }
+  },
+  "prices": {
+    "$comment": "USD per million tokens, by the model id the lane reports. Keys are optional: an unpriced model is reported as unpriced, never as free. `cacheWritePerMTok` defaults to `inputPerMTok` and `cacheReadPerMTok` to 0 when omitted.",
+    "models": {}
+  }
+}

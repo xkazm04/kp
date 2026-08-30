@@ -159,6 +159,14 @@ jobs:
       # back must be a no-op rather than a commit.
       - run: npm run test:lint-ratchet
 
+      # Fixtures for the pipeline wall-clock budget (scripts/perf/). The last
+      # case is the coupling: every job in THIS file must have a ceiling in
+      # ci-budget.json, and that ceiling must be strictly below the job's own
+      # `timeout-minutes` — a budget set at or above the timeout can never fire
+      # first, which makes it decoration. It fails offline, on every push, rather
+      # than waiting for a run to discover a renamed job.
+      - run: npm run test:perf
+
       # IS THE GATE STILL WIRED TO WHAT IT CLAIMS TO GATE?
       #
       # .github/rulesets/main.json is the required-status-check configuration —
@@ -472,3 +480,65 @@ jobs:
       - name: Server log on failure
         if: failure()
         run: tail -100 server.log || true
+
+  # HOW LONG DID THIS PIPELINE TAKE, AND IS THAT ALLOWED?
+  #
+  # Seven workflows now run lint, three test runtimes, the evals, the design and
+  # locale gates, the ratchets, and SBOM + signing on release. Each addition is
+  # correct and each costs minutes, and with agents opening changes continuously
+  # the time a pull request takes to go green IS the rate limiter on the loop.
+  # `timeout-minutes` above does not measure that — it is a crash barrier at 25
+  # or 30 minutes, so a job drifting from 6 minutes to 18 passes every gate in
+  # this repository while halving throughput.
+  #
+  # This job reads what the run ACTUALLY took from the API and holds each job to
+  # the ceiling declared in ci-budget.json, with the run's own wall-clock held to
+  # one of its own. `if: always()` so a red run is still measured — a pipeline
+  # that got slower AND failed is the case where the number matters most — and
+  # `needs:` every other job so their durations exist by the time it looks.
+  #
+  # WHEN IT FAILS: a job took longer than its ceiling, the run took longer than
+  # its own, or a NEW job arrived with no ceiling at all. Make it faster, or
+  # raise the ceiling in ci-budget.json with a `why` a reviewer can disagree
+  # with. Lowering one is `npm run ci:budget -- --tighten`; the step summary
+  # prints the headroom this run did not use, so tightening is a visible chore
+  # rather than an invisible one.
+  #
+  # It reports NOT MEASURED (exit 2) rather than passing when it cannot read the
+  # run — on a fork's pull request the token is read-only but the jobs endpoint
+  # is still readable; if that ever stops being true this job says so out loud
+  # instead of going quietly green.
+  #
+  # DELIBERATELY NOT YET A REQUIRED CHECK in .github/rulesets/main.json, and this
+  # is the trade-off scripts/perf/check-budget.mjs already wrote down: "a
+  # wall-clock budget on a shared CI runner flaps, and a gate that flaps gets
+  # deleted". That argument is why the app's own performance budget measures the
+  # static module graph instead. It does not make wall-clock unmeasurable — it
+  # makes an UNMEASURED wall-clock ceiling a bad thing to block merges on. So
+  # this job goes red on the run (which is the teeth the D3 gap asks for) while
+  # the ceilings are still seeded from timeouts; requiring it is the one-line
+  # ruleset change to make once `--tighten` has replaced them with numbers real
+  # runs produced. ci-budget.json records that as the condition.
+  pipeline-budget:
+    name: Pipeline budget (wall-clock against ci-budget.json)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: [node-quality, doc-sync, commit-convention, python-gate, e2e-deterministic]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      # No `npm ci` — the checker is dependency-free node:* + one API read, the
+      # same rule the doc-sync and commit-convention jobs follow.
+      - name: Measure this run against the budget
+        env:
+          # `contents: read` is enough for the jobs endpoint; nothing here writes.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Its own name, so it excludes itself: it is still running while it
+          # judges, and a job with no end time must not be scored as zero.
+          GITHUB_JOB_NAME: "Pipeline budget (wall-clock against ci-budget.json)"
+        run: node scripts/perf/ci-budget.mjs
