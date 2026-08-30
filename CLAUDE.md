@@ -1,5 +1,14 @@
 @AGENTS.md
 
+> **The canonical guidance for this repository is
+> [`.claude/CLAUDE.md`](./.claude/CLAUDE.md)** — declared as `guidance.canonical`
+> in [`.ai/manifest.yaml`](./.ai/manifest.yaml), which is the machine-readable
+> answer to "which file first?". This file and `AGENTS.md` are projections of it.
+> If your tool does not expand the `@AGENTS.md` include above, open the canonical
+> file directly: it holds the conventions that actually bite (pathspec-only
+> commits in this shared checkout, 4-locale message parity, design tokens, the
+> `db.transaction()` rules), and neither of the projections repeats them.
+
 <!-- personas:context-map:start -->
 ## Project Context Map
 

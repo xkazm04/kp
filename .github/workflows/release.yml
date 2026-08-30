@@ -223,6 +223,11 @@ jobs:
       # verbatim. If there is no section, this FAILS — shipping a release with
       # empty notes is the failure this whole workflow exists to prevent.
       - name: Extract the release notes
+        env:
+          # Through `env:`, not into the script text. A job output is only as
+          # trusted as the step that wrote it, and this one is the release note
+          # of a signed image (`npm run security:actions` enforces the shape).
+          IMAGE_DIGEST: ${{ needs.publish.outputs.digest }}
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           awk -v v="$VERSION" '
@@ -239,7 +244,7 @@ jobs:
             echo "---"
             echo
             echo "**Container image:** \`ghcr.io/${GITHUB_REPOSITORY,,}:${VERSION}\`"
-            echo "(immutable: \`ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}\`, digest \`${{ needs.publish.outputs.digest }}\`)"
+            echo "(immutable: \`ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}\`, digest \`${IMAGE_DIGEST}\`)"
             echo
             echo "Verify provenance: \`gh attestation verify oci://ghcr.io/${GITHUB_REPOSITORY,,}:${VERSION} --repo ${GITHUB_REPOSITORY}\`"
             echo

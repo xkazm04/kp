@@ -91,6 +91,15 @@ jobs:
       # docs/ reorganisation, caught mechanically this time.
       - run: npm run docs:check
 
+      # Guidance-manifest integrity (.ai/manifest.yaml `guidance:`). This repo
+      # ships three agent-guidance files; the manifest names which one is
+      # canonical so a tool never has to rank them. This fails when the canonical
+      # file moved, when a projection stopped naming it (the two-hop `@include`
+      # path breaks for readers that do not expand includes), when a FOURTH
+      # guidance file arrives undeclared, or when the guidance tells an agent to
+      # run an npm script package.json no longer defines.
+      - run: npm run guidance:check
+
       # Release coherence: package.json <-> the chart's appVersion <-> a
       # CHANGELOG section for the current version. Runs on EVERY push, not only
       # on a tag, so the three cannot drift apart between releases — an operator
@@ -192,9 +201,16 @@ jobs:
           node-version: 24
 
       # No `npm ci` — the script is dependency-free node:* + git.
+      # The base ref reaches the script through `env:`, not through `${{ }}` in
+      # the `run:` text — a ref name is event data, and event data substituted
+      # into a shell line is executed by it (`npm run security:actions`).
       - name: Check doc sync over the range
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          BASE="${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}"
+          BASE="HEAD~1"
+          if [ "$EVENT_NAME" = "pull_request" ]; then BASE="origin/$PR_BASE_REF"; fi
           node scripts/docs/check-doc-sync-diff.mjs --base "$BASE" --head HEAD
 
   # Conventional-commit subjects over the CHANGE.
@@ -226,8 +242,12 @@ jobs:
 
       # No `npm ci` — the script is dependency-free node:* + git.
       - name: Check the subjects in this range
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          BASE="${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}"
+          BASE="HEAD~1"
+          if [ "$EVENT_NAME" = "pull_request" ]; then BASE="origin/$PR_BASE_REF"; fi
           node scripts/release/commit-msg.mjs --base "$BASE" --head HEAD
 
   # Gated Python unittest suite (pipeline/jobfit/tests/run_gated.py): fails when

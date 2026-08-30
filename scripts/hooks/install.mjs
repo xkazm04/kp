@@ -18,11 +18,19 @@
 // install; `--check` is the one that has teeth, and it runs where the answer
 // matters.
 //
+// THAT GUARANTEE LIVES HERE, NOT IN package.json. `prepare` used to read
+// `node scripts/hooks/install.mjs || exit 0`, which made the two outcomes this
+// file works hardest to distinguish — "installed" and "could not install, here is
+// why" — indistinguishable from a THIRD one: the installer itself crashing and
+// npm swallowing it. The `|| exit 0` is gone; the `catch` at the bottom is what
+// keeps install non-fatal, and unlike a shell operator it prints what happened.
+//
 //   node scripts/hooks/install.mjs            # `prepare` runs this
 //   npm run hooks:check                       # are the hooks wired AND intact?
 //
-// --check EXIT CODES: 0 wired and intact · 1 a hook is missing, or points at a
-// script that no longer exists.
+// --check EXIT CODES: 0 wired and intact · 1 a hook is missing, points at a
+// script that no longer exists, `prepare` swallows its own failure again, or the
+// Dockerfile runs `npm ci` without this installer in the build context.
 
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -95,15 +103,44 @@ export function runChecks(pkg, hooks, fileExists) {
   }
 
   // `prepare` is the only thing that wires the hooks on a fresh clone.
-  if (!/hooks[/\\]install\.mjs/.test(scripts.prepare ?? '') && !/core\.hooksPath/.test(scripts.prepare ?? '')) {
+  const prepare = scripts.prepare ?? '';
+  if (!/hooks[/\\]install\.mjs/.test(prepare) && !/core\.hooksPath/.test(prepare)) {
     out.push({
       rule: 'prepare-not-wiring-hooks',
       message: 'package.json `prepare` does not install the hooks.',
       fix: `Set it to \`node scripts/hooks/install.mjs\`, or nothing in ${HOOKS_DIR}/ runs on a fresh clone.`,
     });
+  } else if (/\|\|\s*(exit\s+0|true|:)\s*$/.test(prepare.trim())) {
+    // `… || exit 0` was here for years, and it is the whole reason this gap was
+    // invisible: it collapses three different outcomes — installed / could not
+    // install, here is why / the installer was not even there — into one silent
+    // success. The non-fatal guarantee belongs in install.mjs's own catch, which
+    // prints. A shell operator cannot print.
+    out.push({
+      rule: 'prepare-swallows-failure',
+      message: 'package.json `prepare` ends in a `|| exit 0`-style swallow.',
+      fix: 'Drop it. install.mjs already exits 0 on every failure it can have AND says which one happened; ' +
+        'the operator only removes the saying. If it was there because the Dockerfile runs `npm ci` without ' +
+        'the script present, copy scripts/hooks into the image before that line instead.',
+    });
   }
 
   return out;
+}
+
+/**
+ * The coupling the `|| exit 0` was hiding: the image runs `npm ci` — and so
+ * `prepare` — against a context holding only the manifests, so a `prepare` that
+ * can fail on a missing file breaks `docker build` and nothing else. With the
+ * swallow gone, the installer must be in the build context BEFORE `npm ci`.
+ *
+ * Pure: give it the Dockerfile text.
+ */
+export function dockerPreparesHooks(dockerfile) {
+  const lines = dockerfile.split(/\r?\n/);
+  const install = lines.findIndex((l) => /^\s*RUN\s+.*\bnpm ci\b/.test(l));
+  if (install === -1) return true; // no `npm ci` in the image — nothing to couple
+  return lines.slice(0, install).some((l) => /^\s*COPY\s+.*scripts[/\\]hooks/.test(l));
 }
 
 function readHooks() {
@@ -150,6 +187,16 @@ function check() {
   const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
   const findings = runChecks(pkg, readHooks(), (f) => fs.existsSync(path.join(REPO_ROOT, f)));
 
+  const dockerfile = path.join(REPO_ROOT, 'Dockerfile');
+  if (fs.existsSync(dockerfile) && !dockerPreparesHooks(fs.readFileSync(dockerfile, 'utf8'))) {
+    findings.push({
+      rule: 'docker-npm-ci-without-installer',
+      message: 'The Dockerfile runs `npm ci` without scripts/hooks/ in the build context.',
+      fix: 'npm runs `prepare` at the end of `npm ci`, so the image build would die on a missing module. ' +
+        'Add `COPY scripts/hooks ./scripts/hooks` above that line — do not re-add a `|| exit 0` to package.json.',
+    });
+  }
+
   let hooksPath = null;
   try {
     hooksPath = git(['config', '--get', 'core.hooksPath']);
@@ -170,6 +217,21 @@ function check() {
 }
 
 if (process.argv[1]?.endsWith('install.mjs')) {
-  if (process.argv.includes('--check')) process.exit(check());
-  else install();
+  if (process.argv.includes('--check')) {
+    process.exit(check());
+  } else {
+    try {
+      install();
+    } catch (err) {
+      // Anything install() did not already handle — a broken checkout, an
+      // unreadable package.json, a bug in this file. Still exit 0 (`prepare`
+      // must not break `npm ci`), but never silently: an operator who sees
+      // nothing here concludes the hooks are on.
+      console.error('');
+      console.error('  hooks: THE INSTALLER ITSELF FAILED — .githooks/ is NOT wired.');
+      console.error(`  reason: ${err?.stack ?? err}`);
+      console.error(`      git config core.hooksPath ${HOOKS_DIR}`);
+      console.error('');
+    }
+  }
 }

@@ -45,7 +45,8 @@ repository settings cannot be told apart from one that was never wired.
 | the result gates | [`ci.yml`](../../.github/workflows/ci.yml) | typecheck, lint, unit, design, i18n, docs, ADRs, release coherence, SBOM, Python gate, keyless evals, keyless e2e |
 | supply chain + SAST | [`security.yml`](../../.github/workflows/security.yml) | CodeQL, `npm audit` (critical blocks), `pip-audit`, weekly |
 | **required checks** — what turns any red run into a blocked merge | [`.github/rulesets/main.json`](../../.github/rulesets/README.md) | pull requests to `main` |
-| the checks that the gates are still *wired* | `review:gate` · `security:actions` · `hooks:check`, in `ci.yml` | every push and PR |
+| the lens that *writes* — machine-applicable lint fixes, applied | [`autofix.yml`](../../.github/workflows/autofix.yml) | every pull request from this repository |
+| the checks that the gates are still *wired* | `review:gate` · `security:actions` · `hooks:check` · `guidance:check`, in `ci.yml` | every push and PR |
 
 The last row is the one that is easy to skip and expensive to omit: a required
 check named after a job that was renamed, a hook shelling out to an npm script

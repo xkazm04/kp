@@ -9,7 +9,7 @@
   },
   "type": "module",
   "scripts": {
-    "prepare": "node scripts/hooks/install.mjs || exit 0",
+    "prepare": "node scripts/hooks/install.mjs",
     "hooks:install": "node scripts/hooks/install.mjs",
     "hooks:check": "node scripts/hooks/install.mjs --check",
     "dev": "node scripts/dev-guard.mjs next dev",
@@ -36,7 +36,8 @@
     "i18n:check": "node scripts/i18n-check.mjs",
     "docs:check": "node scripts/docs/check-adrs.mjs",
     "docs:check:diff": "node scripts/docs/check-doc-sync-diff.mjs",
-    "test:docs": "node scripts/docs/__tests__/check-doc-sync.test.mjs && node scripts/docs/__tests__/check-adrs.test.mjs",
+    "guidance:check": "node scripts/docs/check-guidance.mjs",
+    "test:docs": "node scripts/docs/__tests__/check-doc-sync.test.mjs && node scripts/docs/__tests__/check-adrs.test.mjs && node scripts/docs/__tests__/check-guidance.test.mjs",
     "release:check": "node scripts/release/prepare.mjs --check",
     "release:prepare": "node scripts/release/prepare.mjs",
     "commit:check": "node scripts/release/commit-msg.mjs",

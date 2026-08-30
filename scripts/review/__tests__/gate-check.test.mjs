@@ -31,12 +31,15 @@ import {
   PIN_ALLOWLIST,
   hasTopLevelPermissions,
   isPinned,
+  isTrustedInRun,
   loadAllowlist,
   rewriteUses,
   runChecks as runActionChecks,
+  runScriptLines,
+  untrustedRunRefs,
   usesIn,
 } from '../../security/check-actions.mjs';
-import { EXPECTED_HOOKS, referencesIn, runChecks as runHookChecks } from '../../hooks/install.mjs';
+import { EXPECTED_HOOKS, dockerPreparesHooks, referencesIn, runChecks as runHookChecks } from '../../hooks/install.mjs';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
@@ -266,6 +269,85 @@ check('--resolve rewrites a tag to a SHA and keeps the tag as the comment', () =
   assert.ok(out.startsWith('      - '), 'indentation is preserved');
 });
 
+// --- nothing an outsider writes reaches a shell ------------------------------
+//
+// The dispatch workflow turns an issue title into an agent run, and the release
+// workflow signs and publishes an image. A `${{ }}` in a `run:` line is the one
+// step between those two facts, because Actions substitutes the expression into
+// the script text before bash exists to quote anything.
+
+check('both `run:` forms are read: the inline scalar and the block', () => {
+  const text = [
+    'jobs:',
+    '  a:',
+    '    steps:',
+    '      - run: echo inline',
+    '      - name: block',
+    '        run: |',
+    '          line one',
+    '',
+    '          line two',
+    '        env:',
+    '          NOT_SCRIPT: ${{ github.event.issue.title }}',
+    '      - run: >-',
+    '          folded one',
+  ].join('\n');
+  const lines = runScriptLines(text).map((l) => l.text.trim());
+  assert.deepEqual(lines, ['echo inline', 'line one', 'line two', 'folded one']);
+});
+
+check('an `env:` block after a `run:` is never mistaken for script', () => {
+  // The whole point of the fix is that the value moves into `env:`. If the
+  // reader counted those lines as script, the fix would report as the bug and
+  // nobody would be able to make this check pass honestly.
+  const text = 'jobs:\n  a:\n    steps:\n      - run: node x.mjs\n        env:\n          T: ${{ github.event.issue.title }}\n';
+  assert.deepEqual(untrustedRunRefs(text), []);
+});
+
+check('an issue title interpolated into a run line is blocking', () => {
+  const text = 'permissions:\n  contents: read\njobs:\n  a:\n    steps:\n      - run: echo "${{ github.event.issue.title }}"\n';
+  const f = runActionChecks([{ file: 'w.yml', text }], []);
+  assert.ok(has(f, 'run-injection'));
+  assert.equal(blocking(f).length, 1);
+  assert.match(f.find((x) => x.rule === 'run-injection').message, /github\.event\.issue\.title/);
+});
+
+check('a context inside format() is found, not hidden by the function call', () => {
+  const text = "jobs:\n  a:\n    steps:\n      - run: |\n          B=\"${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}\"\n";
+  const refs = untrustedRunRefs(text).map((r) => r.ref);
+  assert.deepEqual(refs, ['github.event.pull_request.base.ref']);
+});
+
+check('a step output is untrusted too — it is only as trusted as what wrote it', () => {
+  const refs = untrustedRunRefs('jobs:\n  a:\n    steps:\n      - run: exit "${{ steps.review.outputs.status }}"\n').map((r) => r.ref);
+  assert.deepEqual(refs, ['steps.review.outputs.status']);
+  assert.deepEqual(untrustedRunRefs('jobs:\n  a:\n    steps:\n      - run: echo ${{ needs.publish.outputs.digest }}\n').map((r) => r.ref), [
+    'needs.publish.outputs.digest',
+  ]);
+});
+
+check('the fixed-shape, repo-controlled contexts stay usable', () => {
+  assert.equal(isTrustedInRun('github.repository'), true);
+  assert.equal(isTrustedInRun('github.sha'), true);
+  assert.equal(isTrustedInRun('github.event_name'), true);
+  assert.equal(isTrustedInRun('runner.temp'), true);
+  assert.equal(isTrustedInRun('matrix.language'), true);
+  // Event payload is never on the list, including the parts that look harmless.
+  assert.equal(isTrustedInRun('github.event.repository.default_branch'), false);
+  assert.equal(isTrustedInRun('github.event.pull_request.number'), false);
+  assert.equal(isTrustedInRun('github.head_ref'), false);
+  assert.equal(isTrustedInRun('env.SOMETHING'), false);
+  assert.equal(isTrustedInRun('secrets.ANTHROPIC_API_KEY'), false);
+});
+
+check('no workflow in this tree substitutes an expression into a shell', () => {
+  const dir = path.join(REPO_ROOT, '.github/workflows');
+  for (const file of fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f))) {
+    const refs = untrustedRunRefs(fs.readFileSync(path.join(dir, file), 'utf8'));
+    assert.deepEqual(refs, [], `${file} interpolates ${JSON.stringify(refs)} into a run: script`);
+  }
+});
+
 // --- the local half: hooks ----------------------------------------------------
 
 check('the commands a hook shells out to are extracted', () => {
@@ -295,6 +377,35 @@ check('a `prepare` that stopped installing the hooks is blocking', () => {
   const hooks = EXPECTED_HOOKS.map((h) => ({ name: h.name, source: '' }));
   const f = runHookChecks({ scripts: { prepare: 'echo hi' } }, hooks, () => true);
   assert.ok(has(f, 'prepare-not-wiring-hooks'));
+});
+
+check('a `prepare` that swallows its own failure is blocking', () => {
+  // The shape this repo carried for years. It cannot distinguish "installed"
+  // from "could not install" from "the installer was not even there", which is
+  // why a machine with no hooks looked exactly like a machine with hooks.
+  const hooks = EXPECTED_HOOKS.map((h) => ({ name: h.name, source: '' }));
+  for (const prepare of [
+    'node scripts/hooks/install.mjs || exit 0',
+    'node scripts/hooks/install.mjs || true',
+    'node scripts/hooks/install.mjs ||  exit 0 ',
+  ]) {
+    assert.ok(has(runHookChecks({ scripts: { prepare } }, hooks, () => true), 'prepare-swallows-failure'), prepare);
+  }
+  assert.deepEqual(runHookChecks({ scripts: { prepare: 'node scripts/hooks/install.mjs' } }, hooks, () => true), []);
+});
+
+check('the image must carry the installer, since `npm ci` runs `prepare`', () => {
+  // The coupling the swallow was hiding: with `|| exit 0` gone, a Dockerfile
+  // that copies only the manifests before `npm ci` fails the IMAGE BUILD on a
+  // missing module — discovered at release time, by an operator.
+  assert.equal(dockerPreparesHooks('COPY package.json ./\nRUN npm ci\n'), false);
+  assert.equal(dockerPreparesHooks('COPY package.json ./\nCOPY scripts/hooks ./scripts/hooks\nRUN npm ci\n'), true);
+  assert.equal(dockerPreparesHooks('COPY scripts/hooks ./scripts/hooks\n'), true, 'no npm ci, nothing to couple');
+  assert.equal(dockerPreparesHooks('RUN npm ci\nCOPY scripts/hooks ./scripts/hooks\n'), false, 'order matters');
+});
+
+check('the shipped Dockerfile carries the installer before it runs npm ci', () => {
+  assert.equal(dockerPreparesHooks(fs.readFileSync(path.join(REPO_ROOT, 'Dockerfile'), 'utf8')), true);
 });
 
 // --- and finally: the real tree, right now ------------------------------------

@@ -188,10 +188,11 @@ jobs:
           GH_TOKEN: ${{ secrets.AGENT_PR_TOKEN }}
           BRANCH: ${{ steps.push.outputs.branch }}
           SUBJECT: ${{ steps.propose.outputs.subject }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           gh pr create \
             --draft \
-            --base "${{ github.event.repository.default_branch }}" \
+            --base "$DEFAULT_BRANCH" \
             --head "$BRANCH" \
             --title "$SUBJECT" \
             --body-file "$RUNNER_TEMP/proposal.md"
@@ -234,8 +235,10 @@ jobs:
       # cap, a bad commit subject). Deliberately a RED run: a dispatcher that gets
       # talked into writing outside its lane is the thing worth being loud about.
       - name: Enforce the verdict
+        env:
+          PROPOSE_STATUS: ${{ steps.propose.outputs.status }}
         run: |
-          case "${{ steps.propose.outputs.status }}" in
+          case "$PROPOSE_STATUS" in
             0|3) exit 0 ;;
             1) echo "::error::the proposed change was refused by the guard — see the log"; exit 1 ;;
             *) echo "::error::the dispatcher failed to run"; exit 1 ;;

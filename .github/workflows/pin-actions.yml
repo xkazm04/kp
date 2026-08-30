@@ -112,6 +112,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PIN_PR_TOKEN }}
           BRANCH: ${{ steps.push.outputs.branch }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           {
             echo "Every floating \`uses:\` reference resolved to the commit SHA its tag pointed at."
@@ -124,7 +125,7 @@ jobs:
             echo "Verify a pin before merging: \`gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha\`."
           } > "$RUNNER_TEMP/pr.md"
           gh pr create \
-            --base "${{ github.event.repository.default_branch }}" \
+            --base "$DEFAULT_BRANCH" \
             --head "$BRANCH" \
             --title "ci(actions): pin floating action references to commit SHAs" \
             --body-file "$RUNNER_TEMP/pr.md"

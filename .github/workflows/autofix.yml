@@ -1,0 +1,163 @@
+# The third thing that reads a change back — and this one writes.
+#
+# review.yml has two lenses that JUDGE a diff (a deterministic constitution check
+# and a model against this repo's own rubric). Both can only ever say no. Nothing
+# closed the loop by fixing the class of finding that has one correct answer and
+# no judgement in it at all: an unused import, an f-string with no placeholder, a
+# lint rule with a machine-applicable fix. Those came back to the maintainer as
+# review comments, which is the most expensive way to move a character.
+#
+# WHAT IT FIXES, and why exactly this much:
+#
+#   eslint --fix         everything `npm run lint` would fail the build for and
+#                        can repair itself. CI already blocks on the rest.
+#   ruff --fix F401,F541 the two entries ruff.toml enumerates as debt with
+#                        "(auto-fixable)" written beside them. They are IGNORED
+#                        by the gate, so CI is green while they accumulate —
+#                        this is the only thing in the repo that burns them down.
+#                        Safe fixes only (ruff's default): an F401 removal ruff
+#                        classifies as unsafe, such as a re-export in an
+#                        __init__.py, is left for a human.
+#
+# Deliberately NOT here: `ruff format`. This tree has never been formatter-owned,
+# and a job whose first act is to reformat 245 files is a job that gets turned off.
+#
+# HOW THE RESULT LANDS — the same rule as agent-dispatch.yml and pin-actions.yml:
+#
+#   WITH an `AUTOFIX_TOKEN` secret (a PAT with `contents: write`) the fix is
+#   committed to the pull request's own branch. The push comes from a PAT on
+#   purpose: a push authored by the default GITHUB_TOKEN triggers no workflows,
+#   so the PR would keep displaying the checks of the code it no longer contains.
+#   A green tick against a diff nothing re-read is the one outcome this
+#   repository refuses.
+#
+#   WITHOUT one it posts the patch on the pull request and prints it in the job
+#   summary, and says plainly that nothing was applied. `git apply` the block.
+#
+# It never fails the build. Every problem it can fix is already gated by
+# `npm run lint` in ci.yml or is documented debt in ruff.toml; this job exists to
+# spend the fix, not to add a second opinion about it.
+name: Autofix
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autofix-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  autofix:
+    name: Autofix (applies what a linter can fix itself)
+    # A pull request from a fork gets a read-only token whatever this file
+    # declares, and pushing into someone else's branch is not this job's
+    # business. Their PR still gets every gate in ci.yml and review.yml.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # commit the fix onto the PR branch
+      pull-requests: write # or say, on the PR, that it could not
+    env:
+      # 'true' / 'false' — the secret itself never reaches a step condition.
+      HAS_AUTOFIX_TOKEN: ${{ secrets.AUTOFIX_TOKEN != '' }}
+    steps:
+      # The PR's own branch, not the merge commit: a fix has to be committable.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.AUTOFIX_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      # Pinned to the version ci.yml gates with, so this job can never apply a
+      # fix the gate would then disagree with.
+      - run: pip install ruff==0.15.0
+
+      - name: Apply what the linters can fix themselves
+        id: fix
+        run: |
+          # Both are allowed to exit non-zero: what they CANNOT fix is ci.yml's
+          # business, and swallowing that here would hide nothing — `npm run
+          # lint` runs on this same commit and blocks.
+          npx eslint . --fix || true
+          ruff check pipeline/ --fix --select F401,F541 --exit-zero
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo 'Autofix: nothing to fix — every machine-applicable finding was already fixed.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff > "$RUNNER_TEMP/autofix.patch"
+            {
+              echo '### Autofix'
+              echo
+              echo '```diff'
+              cat "$RUNNER_TEMP/autofix.patch"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          git diff --stat
+
+      - name: Commit the fix onto this branch
+        id: push
+        if: steps.fix.outputs.changed == 'true' && env.HAS_AUTOFIX_TOKEN == 'true'
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          git config user.name "kp autofix"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Pathspec staging, this repo's rule everywhere: commit what was named.
+          # `git add -A` here would also sweep up anything the toolchain left in
+          # the runner's working tree.
+          git diff --name-only -z | xargs -0 --no-run-if-empty git add --
+          git commit -m "style: apply automated lint fixes" \
+            -m "eslint --fix and ruff --fix (F401, F541) over this branch, by .github/workflows/autofix.yml. Nothing here required a decision."
+          git push origin "HEAD:$HEAD_REF"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Say what was fixed
+        if: steps.push.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body "Applied the fixes \`eslint --fix\` and \`ruff --fix\` could make on their own, as one \`style:\` commit on this branch. Nothing in it required a decision — pull before you push again."
+
+      # No token: the patch is handed over rather than applied, and the reason is
+      # stated. Pushing with the default GITHUB_TOKEN would leave this PR showing
+      # the checks of a commit it no longer contains.
+      - name: Hand over the patch (no AUTOFIX_TOKEN)
+        if: steps.fix.outputs.changed == 'true' && env.HAS_AUTOFIX_TOKEN != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo "### Autofix found machine-applicable fixes, and applied none of them"
+            echo
+            echo "There is no \`AUTOFIX_TOKEN\` secret. A commit pushed with the default \`GITHUB_TOKEN\` triggers"
+            echo "no workflows, so this pull request would go on showing the checks of the code it no longer"
+            echo "contains — worse than the lint findings below. Apply it yourself:"
+            echo
+            echo '````'
+            echo "gh pr diff --patch  # …or save the block below as autofix.patch"
+            echo 'git apply autofix.patch && git commit -am "style: apply automated lint fixes"'
+            echo '````'
+            echo
+            echo '```diff'
+            cat "$RUNNER_TEMP/autofix.patch"
+            echo '```'
+          } > "$RUNNER_TEMP/comment.md"
+          gh pr comment "$PR_NUMBER" --body-file "$RUNNER_TEMP/comment.md"

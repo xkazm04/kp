@@ -43,6 +43,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # it green), so we install it verbatim and skip the prerelease-peer conflict —
 # this only relaxes the error, it does not change which versions are installed.
 COPY package.json package-lock.json ./
+# `prepare` (which npm runs at the end of `npm ci`) is `node scripts/hooks/install.mjs`,
+# with no `|| exit 0` behind it any more — the "never fatal" guarantee lives inside that
+# script, where it can also SAY that it did not install, instead of in a shell operator
+# that swallows every outcome including the installer not being there. That means the
+# file has to exist by this line. It is ~7 KB and dependency-free; the layer is cached
+# until .githooks/ or the installer changes. In the image it will report that it could
+# not set core.hooksPath (no git, and nothing in here ever commits) and exit 0.
+# `npm run hooks:check` asserts this COPY stays above the `npm ci` below.
+COPY scripts/hooks ./scripts/hooks
 # --include=dev: this stage sets NODE_ENV=production (correct for the runtime), which
 # would make npm ci OMIT devDependencies — but `next build` needs them (tailwind
 # postcss, typescript, babel, react-is via recharts). Force them in for the build;

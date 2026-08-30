@@ -8,6 +8,27 @@ repo:
   name: kp
   purpose: "A self-hostable hiring workspace: screening behind human approval gates, work samples, voice interviews"
 
+# WHICH GUIDANCE FILE FIRST. Three files in this repo carry agent instructions and
+# they do agree, but only in prose: AGENTS.md says the full guide is
+# .claude/CLAUDE.md, and CLAUDE.md reached it through an `@AGENTS.md` include — a
+# two-hop path that lands a tool which does not expand includes on the shortest of
+# the three. This block is the machine-readable answer, so nothing has to guess.
+#
+#   canonical    the ONE file to load. Every convention that bites lives here.
+#   projections  the other guidance files. Each must exist and must NAME the
+#                canonical path, so a reader that starts at one can reach it.
+#
+# Kept honest by `npm run guidance:check` (scripts/docs/check-guidance.mjs), which
+# runs in ci.yml's node-quality job on every push and PR: it fails on a canonical
+# that does not exist, a projection that never names it, an undeclared fourth
+# guidance file, and on any `npm run <script>` these files tell an agent to run
+# that package.json no longer defines.
+guidance:
+  canonical: .claude/CLAUDE.md
+  projections:
+    - AGENTS.md
+    - CLAUDE.md
+
 # The organization's AI registry - knowledge bundles this repo consumes and the skill
 # marketplace it installs from. Unknown fields MUST be ignored by a reader.
 registry:
