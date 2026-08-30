@@ -416,7 +416,8 @@ authenticity tooltip is not wholly English. Not in phase 1 scope; do it as one u
 |---|---|
 | `app/api/devcase/route.ts` + `.../comms`, `.../control`, `.../feedback`, `.../inbound`, `.../outcomes`, `.../postings`, `.../promote`, `.../publish`, `.../skill-profile`, `.../source`, `.../submit` | Dev case CRUD + lifecycle actions |
 | `app/api/devcase/lifecycle/route.ts` + `[id]/approve`, `[id]/close`, `[id]/redesign` | Decisions-gated lifecycle transitions |
-| `app/api/devcase/session/route.ts` + `[id]`, `[id]/chat`, `[id]/submit` | Live Work Surface session API |
+| `app/api/devcase/session/route.ts` + `[id]` (POST — flush), `[id]/chat`, `[id]/submit` | Live Work Surface session API (candidate-facing, public path, token-authed) |
+| `app/api/devcase/session/[id]/route.ts` GET | Recruiter eval-panel read: returns session metadata, chat transcript, and submitted file tree; gated on workspace ownership (`session.workspaceId === currentWorkspace()`) — **not** protected by the public-path proxy gate, auth is route-level |
 | `app/_lib/devcase-session-auth.ts` | Re-checks the owning apply token on every mutating session sub-route |
 | `app/_lib/devcase-orchestrator.ts`, `devcase-run.ts` | Drives need→scenario→solve→evaluate→promote |
 | `app/_lib/devcase-authenticity.ts` | Process-authenticity scoring (paste-from-LLM tells) |
@@ -430,6 +431,12 @@ Two dev-case surfaces are public by design (`app/_lib/auth/public-routes.ts`): t
 Work Surface (`/api/devcase/session*`) and the application webhook
 (`/api/devcase/inbound`). The candidate has no account — the apply link **is** the
 credential. These rules keep that honest, all sized so a real candidate never meets them:
+
+**Important:** the `GET /api/devcase/session/[id]` recruiter read endpoint sits on the
+same public-path prefix (`/api/devcase/session`) as the candidate POSTs, so the proxy gate
+does NOT block unauthenticated requests to it. Auth is enforced route-level via workspace
+ownership — see `app/api/devcase/session/[id]/route.ts`. Any deployment change to the
+public prefix or the workspace fallback must re-verify this gate.
 
 - **Authorization.** A session id is not a bearer capability. Every mutating sub-route
   (`[id]` flush = event append + file overwrite, `[id]/chat`, `[id]/submit`) re-checks the
