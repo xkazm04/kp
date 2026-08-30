@@ -51,6 +51,38 @@ guidance:
     - test:unit
     - lint
 
+# GUIDANCE THAT ARRIVES WITH THE SCOPE.
+#
+# `guidance.canonical` above answers "which file first". It does not answer "which
+# of its rules bind the files in front of me", and that question got harder as this
+# tree grew: `map` below splits it into 143 contexts across 17 groups, and the
+# canonical document is written for the repository as a whole. An agent handed one
+# context (10-22 files) inherits every global rule and has to infer which apply.
+# Most do not - the `db.transaction()` rules mean nothing in a design-system
+# context, the dual-theme rules mean nothing in a store module.
+#
+#   map          the context/group split. Generated; a snapshot, and it drifts.
+#   constraints  the per-scope constraint record. Keyed by PATH GLOB, not by
+#                context id, precisely because `map` is a generated snapshot -
+#                constraints keyed to its `file_paths` would go stale on a rename
+#                rather than on a change of rule. Paths are what a loader holds
+#                when an agent opens a file.
+#
+# HOW A LOADER USES IT: given a file path, resolve every zone in `constraints`
+# whose `paths` match and prepend its `constraints` array to the agent's context.
+# Zones run general -> specific and a file may match several; all of it applies.
+#
+# Two fields in that file carry the weight. `enforced_by` separates a constraint a
+# gate will catch from one only a reviewer will (`prose` means nothing runs).
+# `status` plus the `coverage` block make "nobody wrote this down" distinguishable
+# from "there is nothing to write" - a path matched only by the `repo-wide` zone
+# has ASSUMED guidance, and `coverage.assumed` names the areas knowingly in that
+# state. That distinction is the point of the file: before it, a context with no
+# written rules and a context whose rules were merely never stated looked identical.
+contexts:
+  map: context-map.json
+  constraints: context-constraints.json
+
 # The organization's AI registry - knowledge bundles this repo consumes and the skill
 # marketplace it installs from. Unknown fields MUST be ignored by a reader.
 registry:

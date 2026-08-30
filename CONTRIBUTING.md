@@ -59,6 +59,16 @@ assumes a provider is present. See the README's "Run it yourself" section.
 Run these before opening a PR. CI runs the same set; a red gate is not a
 review comment, it's a blocked merge.
 
+**Which checks actually block a merge is written down, not inferred from the
+Actions tab:** [`.github/rulesets/main.json`](./.github/rulesets/main.json) is the
+branch ruleset, and [its README](./.github/rulesets/README.md) explains what it
+requires and why repository admin can bypass it. `npm run review:gate` verifies
+offline, on every push, that each required check still matches a real job — a
+renamed job would otherwise un-gate itself silently. How long the pipeline is
+allowed to take is declared per job in [`ci-budget.json`](./ci-budget.json) and
+measured against the real run by the `Pipeline budget` job, so a gate that gets
+slower is a decision somebody makes rather than a number that drifts.
+
 ```bash
 npm run typecheck        # NOTE: runs Python codegen (schemas:gen) before tsc
 npm run test:unit        # node:test over app/**/*.test.ts

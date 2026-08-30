@@ -699,3 +699,51 @@ slice imports — **one** non-type importer of `@/app/_lib/db` remains — and
 so `/api/schedule` no longer drags in `interview-run.ts` (115 modules · 1.14 MB).
 That work is why every API route in the table above now answers in 7–212 ms warm;
 it did **not** move `/`, which is bounded by the 983-module page graph instead.
+
+### Layer boundaries — which context may import which
+
+The barrel rule above is a *cost* rule. Three further import rules are *layering*
+rules, and they exist because `context-map.json` splits this tree into 143
+contexts across 17 groups while nothing read that split back: an agent scoped to
+one context could wire any module to any other and only review would notice.
+
+Each context in the map carries a `category` (`ui` · `api` · `lib` · `data` ·
+`test`), and that category is the layer axis. The rules are keyed to the
+**directory layout** those categories describe rather than to the map's
+per-context `file_paths`, which are a generated snapshot (2026-08-21) that would
+make the rules go red on a rename instead of on a coupling mistake.
+
+| Rule | Scope | What it blocks |
+| --- | --- | --- |
+| `NO_ROUTE_HANDLER_IMPORT` | `app/**`, `packages/**` | importing an `api/**/route.ts` — a route is an HTTP entry point, not a module, and importing one runs its side effects in your graph |
+| `UI_NO_DB_VALUE_IMPORT` | `app/features/**`, `app/_components/**` | a **value** import of `_lib/db/*` from a UI module (`import type` stays legal — erased, free) |
+| `PACKAGES_NO_APP_IMPORT` | `packages/**` | any import of `app/**`, including `import type`, because the breakage is to source portability rather than to bundle size |
+
+All three are `error` in `eslint.config.mjs`, so they run in `npm run lint` —
+`ci.yml`'s `node-quality` job and `.githooks/pre-push` — and a violation is a
+failed build, not a review comment.
+
+**Each started at zero**, verified across `app/` and `packages/` before it was
+written, counting `import type` separately from value imports: every one of the
+~40 `_lib/db` imports under `app/features/**` is already type-only, the value
+imports all live in `app/<route>/page.tsx` server components (outside the UI
+glob, and the right place for them), nothing imports a route handler, and
+`packages/voice-tts` imports nothing from `app/`. So none of them needed a
+ratchet, and anything they ever fire on is new — the same standard the
+transaction rules and the barrel rule were held to.
+
+> **esquery trap.** These are the first selectors in `eslint.config.mjs` to match
+> a *path*, and esquery parses an attribute regex as `"/" [^/]+ "/"` — a literal
+> `/` in the pattern, escaped or not, terminates it early and leaves a selector
+> that matches nothing. A rule green because it is broken is the worst failure a
+> gate has, so the patterns spell the separator `\x2f`, which is the same
+> character to `new RegExp` and invisible to esquery's terminator. Do not
+> "simplify" them back to `\/`.
+
+> **Flat-config trap.** The UI and packages rules live in their own config
+> blocks whose `files:` are *subsets* of the wide `app/**` block. ESLint flat
+> config does not merge a rule's options — the last block matching a file
+> **replaces** them — so those blocks restate `TRANSACTION_SELECTORS`,
+> `DB_BARREL_SELECTOR` and `NO_ROUTE_HANDLER_IMPORT`. Adding a selector to the
+> wide block without adding it to the two narrow ones silently switches it off
+> for the UI layer and for `packages/`.

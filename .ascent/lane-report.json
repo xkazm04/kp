@@ -2,51 +2,51 @@
   "v": 1,
   "items": [
     {
-      "recommendationId": "307e64bc-0860-4abe-98a3-bfbc27fe5c1e",
+      "recommendationId": "0d6ebca6-879f-4b89-a5d5-3dd07bbd5918",
       "verdict": "skipped",
-      "reason": "The gap is already closed and already gated: no `${{ }}` reaches any `run:` in any of the 7 workflows (every untrusted value in agent-dispatch.yml and autofix.yml goes through `env:`), and scripts/security/check-actions.mjs enforces it with a blocking `run-injection` rule plus `script-injection` and `untrusted-checkout`, run as `npm run security:actions` in ci.yml on every push and PR.",
+      "reason": "The named gap is already closed AND already gated: zero `${{ }}` expressions reach a `run:` block in any of the 7 workflows (I checked every expression in the directory — all are in `env:`, `with:`, `if:`, `concurrency:` or `name:`), every untrusted issue/comment value in agent-dispatch.yml goes through `env:` as AGENT_TASK_*, both agent workflows are fully SHA-pinned, and scripts/security/check-actions.mjs enforces it with blocking `run-injection`, `script-injection`, `untrusted-checkout` and `no-permissions` rules via `npm run security:actions` in ci.yml node-quality on every push and PR. The residual 9 floating refs (CodeQL x3, docker x3, upload/download-artifact, attest-build-provenance) are enumerated debt in .github/actions-pin-allowlist.json and need network to resolve a tag to a SHA; pin-actions.yml already runs `--resolve` weekly.",
       "files": [
         ".github/workflows/agent-dispatch.yml",
         ".github/workflows/autofix.yml",
-        "scripts/security/check-actions.mjs"
+        "scripts/security/check-actions.mjs",
+        ".github/actions-pin-allowlist.json"
       ]
     },
     {
-      "recommendationId": "3e565d6a-634f-4dfe-8118-32eb8e1e5f9c",
+      "recommendationId": "91158114-a9b0-48a7-87a6-42c62a1dd9c8",
       "verdict": "skipped",
-      "reason": "Required checks are already declared in a reviewable file — .github/rulesets/main.json lists all 11 required contexts plus deletion/non_fast_forward, .github/rulesets/README.md explains the admin-bypass split, and `npm run review:gate` fails ci.yml when a required context no longer matches a job name (`--verify` asks GitHub whether it is actually applied).",
+      "reason": "Both halves are already answered in-tree. Which checks are required: .github/rulesets/main.json declares all 11 required contexts plus deletion/non_fast_forward, .github/rulesets/README.md explains the direct-push vs PR split and the admin bypass, and `npm run review:gate` fails ci.yml when a required context stops matching a job name. How long a contributor waits: ci-budget.json declares a per-job and whole-run wall-clock ceiling with a stated `why`, and the `Pipeline budget` job reads the real durations from the API and goes red on a breach (`if: always()`, so a red run is still measured). I added a pointer to both from CONTRIBUTING.md's gate section, which was the one place a contributor would look and find neither. The remaining sub-question — which check finds the most failures, so it could run first — needs CI run history and this session has no network.",
       "files": [
         ".github/rulesets/main.json",
         ".github/rulesets/README.md",
-        "scripts/review/gate-check.mjs"
+        "ci-budget.json",
+        "CONTRIBUTING.md"
       ]
     },
     {
-      "recommendationId": "dc8efc7c-9840-415d-8c41-b7dc336b2d12",
+      "recommendationId": "e8207d44-a69a-477c-8075-d53dd7f44c14",
       "verdict": "resolved",
-      "reason": "Added scripts/lint/ts-ratchet.mjs + ts-debt.json: every eslint-disable (per rule it names), every @ts- directive and every directive with no `-- why` in app/ and packages/ is now held to a declared, explained ceiling, blocking in ci.yml's node-quality job and in .githooks/pre-push, with autofix.yml lowering the numbers via `--tighten` on every PR.",
+      "reason": "Added context-constraints.json: 14 path-globbed zones carrying the constraints that actually bind each scope (db stores, api routes, public token surfaces, ui surfaces, shell tabs, landing, i18n, llm layer, python pipeline, packages, ci/agent machinery, e2e, docs, repo-wide), each constraint stating its `why` and an `enforced_by` that names the real gate or says `prose` when nothing runs. Keyed by path glob rather than context id on purpose — context-map.json's file_paths are a generated snapshot that would make the record go stale on a rename. A `coverage.assumed` block names the areas knowingly still uncovered (largest: app/_lib/** outside db/), which is the artefact that makes 'written' distinguishable from 'merely assumed'. Declared as `contexts.constraints` in .ai/manifest.yaml so a loader resolves it without guessing, and CLAUDE.md gained a section (outside the personas regeneration markers) telling an agent how to attach it. Every read_first path was verified to exist; one bad citation (docs/architecture/persistence.md) was caught and corrected before landing.",
       "files": [
-        "scripts/lint/ts-ratchet.mjs",
-        "scripts/lint/__tests__/ts-ratchet.test.mjs",
-        "ts-debt.json",
-        "package.json",
-        ".github/workflows/ci.yml",
-        ".github/workflows/autofix.yml",
-        ".githooks/pre-push",
-        "scripts/review/constitution-check.mjs",
-        "docs/development/change-review.md"
+        "context-constraints.json",
+        ".ai/manifest.yaml",
+        "CLAUDE.md"
       ]
     },
     {
-      "recommendationId": "e49ead13-b894-44e5-a7e5-afe5021c105e",
-      "verdict": "skipped",
-      "reason": "Needs a test run: a mutation score means mutating app/_lib/db/ and re-running the suite per mutant, and this session has no shell execution and no node_modules (no network to `npm ci`), so no baseline could be produced and no honest gate threshold chosen; committing an unrun harness into a repo whose rule is that a gate must operate would be the wrong trade.",
-      "files": []
+      "recommendationId": "d5d90a60-5ef5-4dd2-8226-be4d9b3bcff4",
+      "verdict": "resolved",
+      "reason": "Added three layering rules to eslint.config.mjs at `error`, so they run in `npm run lint` — ci.yml node-quality and .githooks/pre-push — and a violation is a failed build: NO_ROUTE_HANDLER_IMPORT (nothing may import an api/**/route.ts), UI_NO_DB_VALUE_IMPORT (app/features/** and app/_components/** may not value-import a db store; `import type` stays legal), PACKAGES_NO_APP_IMPORT (packages/** may not import app/** at all, because the breakage is to source portability). Each was verified at ZERO violations by exhaustive ripgrep before being written, counting type and value imports separately — all ~40 db imports under app/features are already type-only, the value imports live in app/<route>/page.tsx server components outside the glob, nothing imports a route handler, and packages/voice-tts imports nothing from app/. Starting clean is why none needed a ratchet, matching the standard the transaction and db-barrel rules were held to. The rules are keyed to the directory layout that context-map.json's `category` axis (ui/api/lib/data) describes rather than to its generated file_paths. Documented in docs/architecture/app-structure.md, including the flat-config restatement trap and the esquery `\\x2f` trap.",
+      "files": [
+        "eslint.config.mjs",
+        "docs/architecture/app-structure.md"
+      ]
     }
   ],
   "lessons": [
-    "This repository already answers most maturity findings in-tree, and the answers are scripts, not prose: scripts/security/check-actions.mjs (run-injection, unpinned actions), .github/rulesets/main.json + scripts/review/gate-check.mjs (required checks), scripts/lint/ruff-ratchet.mjs (debt ceilings), scripts/review/constitution-check.mjs (forbidden change classes). Read scripts/ and .github/ before believing a scan's 'missing' list — three of four items dispatched here were already closed.",
-    "The house pattern for a guardrail here is: a declared ceiling in a committed file, a blocking check in CI, a `--tighten` that lowers it unattended in autofix.yml, dependency-free node:* so it runs in jobs without `npm ci`, and an explicit refusal to read 'I found nothing' as 'there is nothing'. Copy that shape rather than inventing one; ruff-ratchet.mjs is the reference implementation.",
-    "An Ascent lane with no shell cannot produce any measured baseline (mutation score, coverage, lockfile, resolved SHA). When a baseline IS derivable by reading files, derive it with a machine (ripgrep counts) using the exact regex the new check will use — a hand-tallied number was off by one on the first attempt, and a wrong ceiling turns a new gate into a red build for everyone."
+    "Verify a scan's 'missing' list against the tree before building anything: this repository answers most maturity findings in-tree with scripts rather than prose, and 2 of the 4 items dispatched here were already fully closed (script injection by scripts/security/check-actions.mjs's blocking run-injection rule; required-checks + feedback latency by .github/rulesets/main.json plus ci-budget.json and the Pipeline budget job). A prior cycle's lane report recorded the same 3-of-4 experience, so this is the repository's steady state, not a one-off.",
+    "eslint's esquery parses an attribute regex as `\"/\" [^/]+ \"/\"`, so a literal `/` in the pattern — escaped or not — terminates it early and yields a selector that silently matches NOTHING. Any import/path rule written as `[source.value=/a\\/b/]` is a gate that is green because it is broken. Spell the separator `\\x2f`: identical to `new RegExp`, invisible to the terminator. This is the highest-value trap found this session and it applies to any repo encoding architecture rules as eslint selectors.",
+    "FINDING FOR A HUMAN, not fixed here because it needs a lint run to confirm: eslint.config.mjs's design-law block (files `app/**/*.{ts,tsx}`, the four hex/rgba `no-restricted-syntax` selectors) is followed by two later blocks matching the same files that also set `no-restricted-syntax`. Flat config REPLACES a rule's options rather than merging them, so the hardcoded-colour selectors appear to be inert for every non-exempt app/** file. The file's own header warns about exactly this trap and spreads TRANSACTION_SELECTORS into the later blocks — the hex selectors were never given the same treatment. `npm run design:check` still covers brand.ts<->globals.css lockstep and dark-mapping parity, so the third design gate (no raw hex) is the part that looks enforced and may not be. My change does not worsen it and introduces no regression. Confirm with: add a `#abcdef` literal to any app/features/*.tsx and run `npm run lint`.",
+    "When a lane has no shell, prefer guardrails whose baseline is derivable by reading files (a rule verified at zero by ripgrep, with type-vs-value imports counted separately) over ones needing a measured baseline. A rule that starts clean needs no ratchet and cannot turn CI red on arrival — which is also this repository's own stated preference for when to use `error` over a phased `warn`."
   ]
 }

@@ -40,3 +40,33 @@ Taxonomy: each context has a `category` (ui · api · lib · data · test); each
 
 > Regenerated 2026-08-21 by a local rescan that recalibrated context granularity (was 285 contexts averaging 6.7 files, with 450 source files unmapped). Edits between the markers are overwritten on the next scan; edit `context-map.json` or rescan instead.
 <!-- personas:context-map:end -->
+
+## Constraints for the scope you were given
+
+The map above tells you **which files** a context holds. It does not tell you
+which rules bind them — and the canonical document is written for the repository
+as a whole, so an agent scoped to one context inherits every global rule and has
+to infer which apply. Most do not: the `db.transaction()` rules mean nothing in a
+design-system context, the dual-theme rules mean nothing in a store module.
+
+[`context-constraints.json`](./context-constraints.json) is the per-scope record
+(declared as `contexts.constraints` in [`.ai/manifest.yaml`](./.ai/manifest.yaml)).
+Given a file path, resolve every zone whose `paths` glob matches and read its
+`constraints`. Zones run general → specific and a file legitimately matches
+several — `app/features/hiring/pipeline/PipelineTab.tsx` matches `ui-surfaces`
+**and** `i18n-catalogs`, and all of it applies.
+
+Two fields carry the weight:
+
+- **`enforced_by`** separates a constraint a gate will catch from one only a
+  reviewer will. `prose` means exactly that — nothing runs, so breaking it costs
+  a review round rather than a red build. Never write an `enforced_by` for a gate
+  you have not confirmed runs: an invented enforcer tells the next agent it is
+  safe to stop thinking.
+- **`status`** and the `coverage` block make *"nobody wrote this down"*
+  distinguishable from *"there is nothing to write"*. A path matched only by the
+  `repo-wide` zone has **assumed** guidance, and `coverage.assumed` names the
+  areas knowingly in that state — the largest being `app/_lib/**` outside `db/`.
+
+When you add a rule that binds one area rather than the whole repository, put it
+in a zone there; the canonical file is for the ones with no scope.

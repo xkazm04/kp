@@ -33,6 +33,95 @@ const TRANSACTION_SELECTORS = [
   }
 ];
 
+// ---------------------------------------------------------------------------
+// LAYER BOUNDARIES — which context may import which.
+//
+// context-map.json splits this tree into 143 contexts across 17 groups, and
+// every context carries a `category` (ui · api · lib · data · test). That
+// category IS the layer axis, and until now nothing read it: an agent scoped to
+// one context could wire any module to any other and only review would notice.
+// A context map is a description; these selectors are the part that holds.
+//
+// WHAT IS DELIBERATELY *NOT* HERE. The map's per-context `file_paths` are a
+// generated snapshot (2026-08-21) that drifts as files move, so a rule keyed to
+// them would go red on a rename rather than on a coupling mistake. These rules
+// are keyed to the DIRECTORY layout the categories describe, which is the part
+// that is stable and that `files:` globs can actually address.
+//
+// Every selector below starts at ZERO violations in this tree — verified across
+// app/ and packages/ before it was written, counting `import type` separately
+// from value imports. That is the same standard TRANSACTION_SELECTORS and the
+// db-barrel rule were held to (see their notes): a rule that starts clean means
+// anything it ever fires on is new, which is what `error` is for. None of these
+// needed a ratchet, so none has one — the debt to declare was empty.
+//
+// `\x2f` IN THE SELECTORS BELOW IS A SLASH, written the long way on purpose.
+// esquery parses an attribute regex as `"/" [^/]+ "/"`, so a literal `/` in the
+// pattern — escaped or not — terminates the regex early and leaves a selector
+// that silently matches nothing: a rule that is green because it is broken, which
+// is the worst failure mode a gate has. Every selector already in this file
+// matches a value or a bare specifier and so never needed a path, which is why
+// none of them hit this. `\x2f` is the same character to `new RegExp` and is
+// invisible to esquery's terminator. Do not "simplify" these back to `\/`.
+// ---------------------------------------------------------------------------
+
+// A route handler is an HTTP entry point, not a module. Importing one runs its
+// module side effects in the importer's graph and couples a caller to a
+// transport shape that only Next is supposed to invoke — and it silently drags
+// the handler's whole server-side graph (db, python-runner, llm) into whatever
+// imported it. The seam between layers is `fetch("/api/…")` or the lib function
+// the handler itself calls; never the handler.
+const NO_ROUTE_HANDLER_IMPORT = {
+  selector: "ImportDeclaration[source.value=/api\\x2f.+\\x2froute(\\.tsx?)?$/]",
+  message:
+    "import of an API route handler. A route is an HTTP entry point, not a module: importing it runs " +
+    "its side effects in your graph and couples you to a transport shape. Call it over HTTP, or — better — " +
+    "import the lib function the handler itself calls (app/_lib/…), which is the seam that was meant to be shared."
+};
+
+// The `ui` contexts (app/features/**, app/_components/**) are the tab modules
+// and shared primitives. They reach data through a route handler; the DB is the
+// `data` layer's business. A VALUE import of a store from here compiles
+// better-sqlite3 into a component graph — and `import type` is exempt because it
+// is erased before bundling and costs nothing, exactly the line the db-barrel
+// rule below already draws. Every one of the ~40 db imports under app/features/
+// today is already an `import type`; the value imports all live in
+// app/<route>/page.tsx server components, which are outside this glob and
+// legitimately read the DB.
+const UI_NO_DB_VALUE_IMPORT = {
+  selector: "ImportDeclaration[importKind!='type'][source.value=/_lib\\x2fdb\\x2f/]",
+  message:
+    "value import of a db store from a UI module. app/features/** and app/_components/** reach data through " +
+    "a route handler — a store imported here pulls better-sqlite3 into a component graph. Use `import type` " +
+    "(erased, free) for the row shape, fetch the data from an /api route, or put the read in a server " +
+    "component under app/<route>/page.tsx, which is where the value imports belong."
+};
+
+// packages/ is the portable lane: packages/voice-tts is built to be lifted out
+// of this repo intact (its providers sit behind /api/tts and are swapped by env).
+// An import of app/ — of ANY kind, including `import type`, because the breakage
+// is to source portability rather than to bundle size — is the edge that quietly
+// makes it unliftable. Dependencies point packages -> nothing, app -> packages.
+const PACKAGES_NO_APP_IMPORT = {
+  selector: "ImportDeclaration[source.value=/^(@\\x2f|(\\.\\.\\x2f)+)app\\x2f/]",
+  message:
+    "a package importing from app/. packages/** is the portable lane — it is meant to be liftable out of " +
+    "this repo, so the dependency only ever points app/ -> packages/. Move the shared value INTO the package " +
+    "(and import it from app/), or take it as a parameter/config the app passes in."
+};
+
+// The cost law, extracted so the blocks below can restate it. `app/_lib/db.ts`
+// is an `export *` barrel over 17 store modules — see the long note on the
+// config block that first carried this rule.
+const DB_BARREL_SELECTOR = {
+  selector: "ImportDeclaration[importKind!='type'][source.value='@/app/_lib/db']",
+  message:
+    "value import of the @/app/_lib/db barrel. It re-exports 17 store modules, and next compiles " +
+    "a route's whole module graph — one barrel import here taxes every route downstream (it cost " +
+    "/api/health 41 modules and 538 KB before the sweep). Import the slice you need " +
+    "(@/app/_lib/db/pipeline, @/app/_lib/db/jobs, …), or make it an `import type`, which is free."
+};
+
 const config = [
   ...nextVitals,
   ...nextTypescript,
@@ -302,14 +391,48 @@ const config = [
         "error",
         // Re-stated, not replaced: see the note beside TRANSACTION_SELECTORS.
         ...TRANSACTION_SELECTORS,
-        {
-          selector: "ImportDeclaration[importKind!='type'][source.value='@/app/_lib/db']",
-          message:
-            "value import of the @/app/_lib/db barrel. It re-exports 17 store modules, and next compiles " +
-            "a route's whole module graph — one barrel import here taxes every route downstream (it cost " +
-            "/api/health 41 modules and 538 KB before the sweep). Import the slice you need " +
-            "(@/app/_lib/db/pipeline, @/app/_lib/db/jobs, …), or make it an `import type`, which is free."
-        }
+        DB_BARREL_SELECTOR,
+        // Nobody imports a route handler — true of every layer, so it rides the
+        // widest block rather than needing one of its own.
+        NO_ROUTE_HANDLER_IMPORT
+      ]
+    }
+  },
+  {
+    // ---------------------------------------------------------------------
+    // The `ui` layer: app/features/** (the tab modules) and app/_components/**
+    // (shared primitives). Both are SUBSETS of the block above, so flat config
+    // applies this one instead of it — which is exactly the trap the note
+    // beside TRANSACTION_SELECTORS describes. Everything the wider block
+    // enforces is therefore restated here; adding a selector there without
+    // adding it here switches it off for the whole UI layer.
+    // ---------------------------------------------------------------------
+    files: ["app/features/**/*.ts", "app/features/**/*.tsx", "app/_components/**/*.ts", "app/_components/**/*.tsx"],
+    // A test is never compiled into a route and is allowed to drive a store
+    // directly to set up its fixture — the same exemption the block above makes.
+    ignores: ["app/**/*.test.ts", "app/**/*.test.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...TRANSACTION_SELECTORS,
+        DB_BARREL_SELECTOR,
+        NO_ROUTE_HANDLER_IMPORT,
+        UI_NO_DB_VALUE_IMPORT
+      ]
+    }
+  },
+  {
+    // The portable lane. Also a subset of the wide block above, so the same
+    // restatement rule applies.
+    files: ["packages/**/*.ts"],
+    ignores: ["packages/**/*.test.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...TRANSACTION_SELECTORS,
+        DB_BARREL_SELECTOR,
+        NO_ROUTE_HANDLER_IMPORT,
+        PACKAGES_NO_APP_IMPORT
       ]
     }
   }
