@@ -12,6 +12,8 @@ the tooling that only exists in dev builds, and the command-line entry points.
 | [dev-inspector.md](dev-inspector.md) | DevInspector — click a component, copy its `File.tsx:line` |
 | [logging.md](logging.md) | Per-request JSONL logs in `tmp/` and the prompt-capture switch |
 | [automation-eval.md](automation-eval.md) | Automation quality gating |
+| [fault-injection.md](fault-injection.md) | The drill for a provider that ANSWERS badly — the ten faults, what each degrades to, and the gate that holds them |
+| [performance-budget.md](performance-budget.md) | The module-graph cost budget: what is measured, how a ceiling moves, and the two steps that still make it a gate |
 | [case-calibration.md](case-calibration.md) | Case-generation calibration framework |
 | [voice-interview-testing.md](voice-interview-testing.md) | Testing the voice interview plane |
 | [role-intake-research.md](role-intake-research.md) | Conversation-design research behind the role-intake dialog |

@@ -677,6 +677,22 @@ at once:
 taxes every route downstream. `import type` is free (erased before bundling), so
 type-only barrel imports need no change.
 
+Nothing used to re-read these graphs, which is how the rule above erodes
+silently: a barrel import back in a hub re-inflates a hundred routes and every
+gate stays green. Two things now read it back:
+
+- **The rule itself is linted.** `eslint.config.mjs` restricts
+  `ImportDeclaration[importKind!='type'][source.value='@/app/_lib/db']` at
+  `error` across `app/**` and `packages/**` (tests exempt — a test file is never
+  compiled into a route). Zero violations when it was added, so anything it fires
+  on is new, and it runs wherever `npm run lint` runs: ci.yml's node-quality job
+  and `.githooks/pre-push`. `import type` stays legal, because it is free.
+- **The graph itself is measurable.** `scripts/perf/check-budget.mjs` walks the
+  same first-party graph statically (no build, no server, no `node_modules`) and
+  holds each route to a recorded ceiling. It is not yet calibrated or wired into
+  CI — see [`../development/performance-budget.md`](../development/performance-budget.md)
+  for the two steps that make it a gate.
+
 Both follow-ups are now done (cfdf06b6): the barrel sweep rewrote 178 files to
 slice imports — **one** non-type importer of `@/app/_lib/db` remains — and
 `plannedInterviewMinutes` moved into the leaf `app/_lib/interview-planned-minutes.ts`,

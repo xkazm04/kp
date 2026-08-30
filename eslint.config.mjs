@@ -2,6 +2,37 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 import i18next from "eslint-plugin-i18next";
 
+// The three `db.transaction()` selectors, named once because TWO config blocks
+// below need them. Flat config does not merge a rule's options: the last block
+// matching a file REPLACES them, so a second `no-restricted-syntax` block that
+// listed only its own selector would silently switch these three off for every
+// file it matched. Spread them into both.
+const TRANSACTION_SELECTORS = [
+  {
+    selector:
+      "CallExpression[callee.property.name='transaction'] > :matches(ArrowFunctionExpression, FunctionExpression)[async=true]",
+    message:
+      "async callback passed to db.transaction(). better-sqlite3 transactions are synchronous — " +
+      "an async callback breaks atomicity silently. Do the awaited work BEFORE or AFTER the " +
+      "transaction and bridge the gap with a CAS on the row you read (see actOnPipelineEntry " +
+      "in app/_lib/db/pipeline.ts)."
+  },
+  {
+    selector: "CallExpression[callee.property.name='transaction'] AwaitExpression",
+    message:
+      "await inside db.transaction(). better-sqlite3 transactions are synchronous — the await " +
+      "yields mid-transaction and the atomicity is silently lost. Move the awaited work outside " +
+      "and re-check the row's state on the way back in (see actOnPipelineEntry in " +
+      "app/_lib/db/pipeline.ts)."
+  },
+  {
+    selector: "CallExpression[callee.property.name='transaction'] ForOfStatement[await=true]",
+    message:
+      "for-await inside db.transaction(). better-sqlite3 transactions are synchronous — iterate " +
+      "the async source outside the transaction, then commit the collected rows inside it."
+  }
+];
+
 const config = [
   ...nextVitals,
   ...nextTypescript,
@@ -227,30 +258,57 @@ const config = [
     // moved. Copy that, don't await inside the lock.
     files: ["app/**/*.ts", "app/**/*.tsx", "scripts/**/*.mjs", "packages/**/*.ts"],
     rules: {
+      "no-restricted-syntax": ["error", ...TRANSACTION_SELECTORS]
+    }
+  },
+  {
+    // ---------------------------------------------------------------------
+    // Cost law: import the SLICE, not the `app/_lib/db` barrel.
+    //
+    // `app/_lib/db.ts` is an `export *` barrel over 17 store modules — 52
+    // first-party modules, ~707 KB of source — and next compiles a route's
+    // ENTIRE module graph, so one value import of it drags the whole data layer
+    // into the importer AND into every route downstream. Measured, not guessed
+    // (docs/architecture/app-structure.md, "API route graphs"): cutting the
+    // barrel out of two hub modules took `/api/health` from 55 modules · 718 KB
+    // to 14 · 180 KB and `/api/attention` from 68 · 863 KB to 43 · 560 KB, and a
+    // 178-file sweep left exactly one non-type importer in the tree.
+    //
+    // That result is currently protected by prose alone. Nothing re-reads a
+    // route graph, so the next `import { … } from "@/app/_lib/db"` in a hub
+    // re-inflates a hundred routes with every gate still green — typecheck
+    // passes, tests pass, the app is just slower. This is the cheapest place to
+    // make it fail instead: `npm run lint` runs in ci.yml (node-quality) and in
+    // .githooks/pre-push.
+    //
+    // `no-restricted-syntax` rather than `no-restricted-imports`, because the
+    // selector can read `importKind`: `import type` is erased before bundling,
+    // costs nothing, and must stay legal — exactly the line app-structure.md
+    // draws. Tests are exempt: a test file is never compiled into a route, so
+    // its graph is not a request cost.
+    //
+    // ERROR, and the rule starts clean at zero violations, so anything it ever
+    // fires on is new. The fix is always the same shape: import the slice
+    // (`@/app/_lib/db/pipeline`), or make it an `import type`.
+    //
+    // The wider budget this belongs to — per-route module ceilings, recorded
+    // and ratcheted — is scripts/perf/check-budget.mjs; see
+    // docs/development/performance-budget.md.
+    // ---------------------------------------------------------------------
+    files: ["app/**/*.ts", "app/**/*.tsx", "packages/**/*.ts"],
+    ignores: ["app/**/*.test.ts", "app/**/*.test.tsx", "packages/**/*.test.ts"],
+    rules: {
       "no-restricted-syntax": [
         "error",
+        // Re-stated, not replaced: see the note beside TRANSACTION_SELECTORS.
+        ...TRANSACTION_SELECTORS,
         {
-          selector:
-            "CallExpression[callee.property.name='transaction'] > :matches(ArrowFunctionExpression, FunctionExpression)[async=true]",
+          selector: "ImportDeclaration[importKind!='type'][source.value='@/app/_lib/db']",
           message:
-            "async callback passed to db.transaction(). better-sqlite3 transactions are synchronous — " +
-            "an async callback breaks atomicity silently. Do the awaited work BEFORE or AFTER the " +
-            "transaction and bridge the gap with a CAS on the row you read (see actOnPipelineEntry " +
-            "in app/_lib/db/pipeline.ts)."
-        },
-        {
-          selector: "CallExpression[callee.property.name='transaction'] AwaitExpression",
-          message:
-            "await inside db.transaction(). better-sqlite3 transactions are synchronous — the await " +
-            "yields mid-transaction and the atomicity is silently lost. Move the awaited work outside " +
-            "and re-check the row's state on the way back in (see actOnPipelineEntry in " +
-            "app/_lib/db/pipeline.ts)."
-        },
-        {
-          selector: "CallExpression[callee.property.name='transaction'] ForOfStatement[await=true]",
-          message:
-            "for-await inside db.transaction(). better-sqlite3 transactions are synchronous — iterate " +
-            "the async source outside the transaction, then commit the collected rows inside it."
+            "value import of the @/app/_lib/db barrel. It re-exports 17 store modules, and next compiles " +
+            "a route's whole module graph — one barrel import here taxes every route downstream (it cost " +
+            "/api/health 41 modules and 538 KB before the sweep). Import the slice you need " +
+            "(@/app/_lib/db/pipeline, @/app/_lib/db/jobs, …), or make it an `import type`, which is free."
         }
       ]
     }
