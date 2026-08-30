@@ -118,7 +118,7 @@ this whole thing exists to avoid.
 | push to `main` ([`review.yml`](../../.github/workflows/review.yml)) | both lenses over `HEAD~1..HEAD` | the run goes red on the landed commit |
 | **manual** (`workflow_dispatch` on [`review.yml`](../../.github/workflows/review.yml)) | both lenses on any ref, with an optional `base` input | same as a push run |
 | any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run test:review` and `npm run test:agent` — the fixtures for all of this, because a tool that judges (or writes) changes has to be judged by something too | CI red |
-| an issue labelled `agent:go`, or a `/agent` comment ([`agent-dispatch.yml`](../../.github/workflows/agent-dispatch.yml)) | a model proposes a change; the guard refuses protected paths before anything is written | the run goes red and no branch is pushed — see [Dispatch](#dispatch--an-issue-becomes-a-proposed-change) |
+| an issue labelled `agent:go`, or a `/agent` comment ([`agent-dispatch.yml`](../../.github/workflows/agent-dispatch.yml)) | a model proposes a change; the guard refuses protected paths before anything is written | the run goes red, no branch is pushed, and the issue is told why — see [Dispatch](#dispatch--an-issue-becomes-a-proposed-change) and [When a dispatch does not finish](#when-a-dispatch-does-not-finish) |
 | any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run review:gate` · `npm run security:actions` · `npm run hooks:check` · `npm run guidance:check` — the checks that the gate, and the guidance an agent reads before touching it, are still *wired* (below) | CI red |
 | pull request ([`autofix.yml`](../../.github/workflows/autofix.yml)) | the lens that WRITES: `eslint --fix` and `ruff --fix` are applied to the branch (below) | never red — it spends the fix, it does not add an opinion |
 
@@ -191,6 +191,41 @@ Caps and refusals, all with fixtures in `npm run test:agent`: at most 25 files a
 240 KB per proposal, no duplicate paths, no test deletions, and a commit subject
 held to the same rule the CHANGELOG is cut from (`checkSubject`, imported from the
 release machinery rather than copied).
+
+### When a dispatch does not finish
+
+Every *outcome* was reported on the issue — the draft PR, the decline, the
+branch-without-a-PR-token. A run that simply **stopped** reported nothing, and
+that is the state a dispatcher is most often in: the person who typed `/agent`
+watched an issue that never replied, while a branch may or may not have been
+pushed. Silence from a lane that sometimes writes is the worst of the answers.
+
+Three things stop a run, and the last step in
+[`agent-dispatch.yml`](../../.github/workflows/agent-dispatch.yml) now comments on
+the issue for all of them, telling them apart by the status the propose step did
+or did not report:
+
+| `steps.propose.outputs.status` | What happened | Is there a branch? |
+| --- | --- | --- |
+| unset | the propose step ran out of its own `timeout-minutes`, or the runner died under it | no — nothing was written |
+| `1` | the guard refused the proposal: a protected path, a cap, a commit subject the CHANGELOG rule rejects | no |
+| `0` | the proposal was fine; the push or the `gh pr create` after it failed | **possibly** — the comment names it |
+
+**The step-level `timeout-minutes: 12` is what makes that reporter possible**, and
+it is the non-obvious half. The job already had `timeout-minutes: 20`, but a
+*job* timeout **cancels** the run, and a cancelled run skips `if: failure()`
+steps — so the reporter would have been silent on precisely the outcome it exists
+for. A *step* budget fails the step and leaves the job alive for the remaining
+minutes, which are the push, the PR and the comment. The two rounds of model call
+are the only step here that can hang, so that is where the budget sits.
+
+**Recovery is manual on purpose.** Nothing re-runs itself: a dispatcher that
+retries after a timeout spends the API bill twice and can push a second branch
+proposing the same change, and unpicking duplicate agent branches costs more than
+the dispatch did. The comment hands over four steps instead — read the run, delete
+any half-finished branch, **narrow the ask** (a smaller task is the fix for a
+timeout; a longer budget only moves where it stops), then re-dispatch with a fresh
+`/agent` comment.
 
 ## Lens 3 — autofix (the one that writes)
 

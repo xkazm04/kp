@@ -43,6 +43,18 @@
 #            was deleted for. So without an `AGENT_PR_TOKEN` secret this workflow
 #            pushes the branch, says so on the issue, and opens NOTHING.
 #
+# EVERY OUTCOME IS SAID ON THE ISSUE, including the ones that are not outcomes.
+# Success, a decline and "no PR token" each answered; a run that stopped — a model
+# call that hung, a guard refusal, a push that lost a race — answered nothing at
+# all, and whoever typed `/agent` was left watching an issue that never replied
+# while a branch may or may not exist. The last step now speaks on `failure()`,
+# and `Write the proposal` carries its own `timeout-minutes` so that it can:
+# a JOB-level timeout CANCELS the run, and a cancelled run skips `if: failure()`
+# steps, so the reporter would be silent on the one outcome it exists for. A
+# STEP-level budget fails the step and leaves the job alive long enough to talk.
+# Nothing retries itself — see docs/development/change-review.md, "When a
+# dispatch does not finish".
+#
 # SECRETS
 #   ANTHROPIC_API_KEY  required. Without it the run declines on the issue and
 #                      produces no branch (a decline is a normal answer).
@@ -121,6 +133,13 @@ jobs:
       # rule the doc-sync and commit-convention jobs follow.
       - name: Write the proposal into the working tree
         id: propose
+        # Deliberately smaller than the job's 20, and this is the whole mechanism
+        # behind the failure reporter at the bottom: the two rounds of model call
+        # are the only step here that can hang, and a step that exhausts its own
+        # budget FAILS (reporter runs) where a job that exhausts its budget is
+        # CANCELLED (reporter skipped). The remaining minutes are the push, the
+        # PR and the comment — the steps that must still be able to run.
+        timeout-minutes: 12
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           KP_AGENT_MODEL: ${{ vars.KP_AGENT_MODEL || 'claude-opus-5' }}
@@ -243,3 +262,61 @@ jobs:
             1) echo "::error::the proposed change was refused by the guard — see the log"; exit 1 ;;
             *) echo "::error::the dispatcher failed to run"; exit 1 ;;
           esac
+
+      # THE RUN THAT DID NOT FINISH — the recovery path, said where the request
+      # was made rather than only in a log nobody is watching.
+      #
+      # It covers all three ways a dispatch stops without an answer, and tells
+      # them apart by the status the propose step did or did not report:
+      #   ''  the step never got to report — its `timeout-minutes` ran out, or
+      #       the runner died under it. Nothing was written.
+      #   1   the guard refused the proposal (protected path, cap, bad subject).
+      #   0   the proposal was fine and something after it failed — the push, the
+      #       draft PR — which is the case where a branch may already exist.
+      #
+      # NOTHING RETRIES ITSELF, on purpose: a re-run spends the API bill again and
+      # pushes a SECOND branch for the same issue, and this repository has already
+      # learned what duplicate agent dispatch costs to unpick. The comment hands a
+      # human the four steps instead.
+      - name: Say on the issue that the run did not finish
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROPOSE_STATUS: ${{ steps.propose.outputs.status }}
+          BRANCH: ${{ steps.push.outputs.branch }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          {
+            echo "### This dispatch did not finish"
+            echo
+            case "$PROPOSE_STATUS" in
+              "")
+                echo "The proposal step never reported a status: it exhausted its own 12-minute budget, or the"
+                echo "runner failed under it. **Nothing was written and no branch exists.**"
+                ;;
+              1)
+                echo "The guard refused what the model proposed — a protected path, a size cap, or a commit"
+                echo "subject the CHANGELOG rule rejects. A deliberate red run; the log names the refusal."
+                echo "**No branch was pushed.**"
+                ;;
+              *)
+                echo "The proposal was written and a later step failed (the push, or opening the draft)."
+                ;;
+            esac
+            if [ -n "$BRANCH" ]; then
+              echo
+              echo "A branch was pushed before the failure: \`$BRANCH\`. Read it before re-dispatching —"
+              echo "a second run opens a second branch for this same issue."
+            fi
+            echo
+            echo "**Recovery.** Nothing retries by itself: a dispatcher that re-runs after a timeout spends the"
+            echo "bill twice and can leave two branches proposing the same change."
+            echo
+            echo "1. Read the run: https://github.com/${REPO}/actions/runs/${RUN_ID}"
+            echo "2. Delete any half-finished branch named above."
+            echo "3. Narrow the ask on this issue. A smaller task is the fix for a timeout — a longer budget"
+            echo "   only moves where it stops."
+            echo "4. Re-dispatch with a fresh \`/agent <instruction>\` comment."
+          } > "$RUNNER_TEMP/failed.md"
+          gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/failed.md"

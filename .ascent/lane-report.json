@@ -2,40 +2,40 @@
   "v": 1,
   "items": [
     {
-      "recommendationId": "05496b71-6af8-411c-b100-e83baa5ab0f0",
-      "verdict": "resolved",
-      "reason": "The model-review half already existed and gates merges (review.yml + .github/rulesets/main.json); the one sub-gap the repo's own doc named as missing — an agent-dispatch path from an issue or comment to a proposed change — is now built as scripts/agent/dispatch.mjs plus .github/workflows/agent-dispatch.yml, with a path guard that refuses the review machinery, fixtures wired into ci.yml and release.yml as npm run test:agent, and no PR opened at all when it could not be gated; the fixtures could not be executed in this session (no shell permission), so CI is their first run.",
+      "recommendationId": "5c5e4854-0f79-4e64-8bbc-212099dac828",
+      "verdict": "skipped",
+      "reason": "Already closed before this cycle: I read every run: block in agent-dispatch.yml and autofix.yml and neither interpolates any expression into a shell — issue title/body/comment, PR head ref and PR number all arrive via env: and are read as quoted variables — and scripts/security/check-actions.mjs enforces that as a blocking run-injection rule via npm run security:actions in ci.yml, with fixtures in scripts/review/__tests__/gate-check.test.mjs including one that walks every workflow in the tree (line 343) and one hostile-issue-title case (line 307).",
       "files": [
-        "scripts/agent/dispatch.mjs",
-        "scripts/agent/__tests__/dispatch.test.mjs",
         ".github/workflows/agent-dispatch.yml",
-        ".github/ISSUE_TEMPLATE/agent_task.md",
-        "scripts/review/agent-review.mjs",
-        "package.json",
-        ".github/workflows/ci.yml",
-        ".github/workflows/release.yml",
-        "docs/development/change-review.md",
-        "docs/architecture/releases.md"
+        ".github/workflows/autofix.yml",
+        "scripts/security/check-actions.mjs",
+        "scripts/review/__tests__/gate-check.test.mjs"
       ]
     },
     {
-      "recommendationId": "4b238da4-5601-4187-9423-bfc22092885e",
-      "verdict": "needs_human",
-      "reason": "The nine floating refs are still tags: resolving a tag to a commit SHA requires asking GitHub what it points at right now, this session has neither network nor shell, and inventing a SHA breaks the workflow rather than pinning it — so instead the burn-down stopped being a maintainer chore with no owner (.github/workflows/pin-actions.yml runs security:actions --resolve weekly, prunes the allowlist it burns, re-runs the ratchet and opens one PR), and a maintainer merging that PR is what actually closes the gap.",
+      "recommendationId": "b562137e-1eea-4ea6-acbf-b15f5b556484",
+      "verdict": "skipped",
+      "reason": "Three of the four missing bullets are already closed: .github/workflows/review.yml has an agent-review job that hands the diff to Claude, scripts/review/rubric.mjs assembles the rubric from .claude/CLAUDE.md and docs/architecture/decisions/ (no second copy to drift), the review posts as a PR comment and exits 1 on a blocking finding, and .github/rulesets/main.json lists 'Agent review (judgement)' as a required status check with review:gate --verify asking GitHub whether the ruleset is really applied. I closed the fourth (no documented recovery path for a dispatch that stops) rather than leaving it, but that alone does not close the item as stated.",
       "files": [
-        ".github/workflows/pin-actions.yml",
-        ".github/actions-pin-allowlist.json",
-        "scripts/security/check-actions.mjs",
-        "scripts/review/__tests__/gate-check.test.mjs",
-        "docs/development/change-review.md",
-        "docs/architecture/releases.md"
+        ".github/workflows/agent-dispatch.yml",
+        "docs/development/change-review.md"
+      ]
+    },
+    {
+      "recommendationId": "2d18f73e-9672-4094-ad72-9f5d5fda2225",
+      "verdict": "skipped",
+      "reason": "Conventional commits are already enforced, not merely habitual — .githooks/commit-msg runs scripts/release/commit-msg.mjs locally (wired by the prepare installer, verified by npm run hooks:check) and the 'Commit convention (subjects the changelog is cut from)' job in ci.yml is a required status check in .github/rulesets/main.json, with fixtures in npm run test:release. The two genuinely open pieces need capabilities this session lacks: adding Prettier/Biome needs network to regenerate package-lock.json (a devDependency added without it makes npm ci fail hard), and dropping F821 from ruff.toml needs ruff on the machine to prove the tree is clean — inventing either answer would turn CI red rather than raise the bar. Note that a repo-wide formatter is also a recorded position here (autofix.yml and change-review.md both state this tree is deliberately not formatter-owned), so adoption is a maintainer decision, not a gap to fill silently.",
+      "files": [
+        "package.json",
+        ".githooks/commit-msg",
+        "scripts/release/commit-msg.mjs",
+        "ruff.toml"
       ]
     }
   ],
   "lessons": [
-    "Read the repository's own Known-gaps sections before designing anything: kp's docs/development/change-review.md already named the exact missing piece ('there is no agent dispatch path') in its own words, and the scan's D4 finding was largely stale — the model-review lens, the versioned rubric and the required-check ruleset all already existed and shipped with fixtures.",
-    "In this org's repos a new gate is only accepted if it also degrades loudly: every check here prints 'THE X DID NOT RUN' and exits 0 rather than passing silently. The corollary for anything that WRITES: a PR opened with the default GITHUB_TOKEN triggers no workflows, so an agent-authored PR would sit green because nothing ran — push the branch and refuse to open the PR instead of shipping a half-gated one.",
-    "kp's doc-sync hook only accepts docs under docs/features/, docs/architecture/ or docs/design/, so scripts/docs/feature-doc-map.json can never point at a docs/development/ page. That is why the review and dispatch machinery has no source-to-doc coupling even though it is the most agent-relevant subsystem in the tree — a real gap, and one that needs the hook's accepted-directory list widened before it can be mapped.",
-    "An allowlist a machine has to edit should not be an array literal in source. Moving kp's action-pin allowlist to .github/actions-pin-allowlist.json is what let --resolve prune the entries it burns down in the same pass, which is the difference between an automated pinning PR that is green and one that is red by construction and therefore ignored."
+    "Read the repo before believing the scan: in xkazm04/kp all three dispatched items named machinery that already existed and operated (review.yml with a repo-owned rubric and a required-check ruleset, a run-injection ratchet with whole-tree fixtures, a commit-msg hook plus a required CI job). Prior Ascent cycles had shipped them; the scan's snapshot predated the commits. Verifying first turned three would-be duplicate implementations into one real fix.",
+    "This repository's own idiom is that a guard must be provably wired, not merely present: every checker under scripts/ has dependency-free node:test fixtures, a CI job, and an entry in .github/rulesets/main.json, and gate-check.mjs exists solely to catch a required check whose name no job reports. Match that shape when adding anything here — an unfixtured guard reads as decoration to both the maintainer and the next scan.",
+    "GitHub Actions job-level `timeout-minutes` cancels the run, and a cancelled run skips `if: failure()` steps — so any 'report what went wrong' step needs a smaller step-level budget on whatever can hang, or it stays silent on exactly the outcome it was written for."
   ]
 }
