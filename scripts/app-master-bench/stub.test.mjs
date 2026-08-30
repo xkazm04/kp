@@ -11,9 +11,16 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { STUB_BUILD_FAILURE, cannedNight, cannedProbation, cannedReconcile, startStubPersonas } from "./stub.mjs";
+import {
+  STUB_BUILD_FAILURE,
+  cannedIdeation,
+  cannedNight,
+  cannedProbation,
+  cannedReconcile,
+  startStubPersonas,
+} from "./stub.mjs";
 import { accountedBy, buildFailureReason, dispatchedCount, settleDispatch } from "./run.mjs";
-import { phaseCounts } from "./expectations.mjs";
+import { DECLINE_REASONS, extractIdeation, extractNightLists, nightLists, phaseCounts } from "./expectations.mjs";
 import { DRIVER_ORIGIN, personasClient } from "./lib.mjs";
 
 const APP_MASTER = {
@@ -101,7 +108,10 @@ async function bootStub(opts = {}) {
     body: { spec: { name: "App master" }, appMaster: APP_MASTER, reportToken: "", kp: {} },
   });
   const personaId = (await call(`/api/kp/persona-requests/${dispatched.json.data.requestId}`)).json.data.personaId;
-  const tick = (phases) => call("/api/kp/test/tick", { method: "POST", body: { personaId, phases } });
+  // `extra` is what a scenario's `night` block puts on the body (c1-exam §2);
+  // omitting it must leave the body exactly what it always was.
+  const tick = (phases, extra = {}) =>
+    call("/api/kp/test/tick", { method: "POST", body: { personaId, phases, ...extra } });
   return { stub, call, personaId, tick };
 }
 
@@ -260,4 +270,89 @@ test("the stub still refuses an unauthorized call and an unknown route", async (
   assert.equal(stub.unauthorizedCalls, 1);
   assert.equal((await call("/api/kp/nope")).status, 404);
   assert.deepEqual(stub.unknownPaths, ["GET /api/kp/nope"]);
+});
+
+// ─── ideation nights (c1-exam §2) ───────────────────────────────────────────
+//
+// Two builds, both real. The DEFAULT stub is the one Personas ships today: it
+// answers a tick that asks for ideation exactly as it answers one that does
+// not — which on 2026-08-30 meant triaging and dispatching 58 pre-tenure
+// accepted ideas on a night that was supposed to cost one reasoning call.
+// `ideationNights` is the build that understood the ask.
+
+test("today's build ignores the ask: an ideation tick dispatches anyway, and reports no ideation", async (t) => {
+  const { stub, call, personaId, tick } = await bootStub();
+  t.after(() => stub.close());
+  await call("/api/kp/test/seed-work", {
+    method: "POST",
+    body: { personaId, items: [{ title: "One" }, { title: "Two" }, { title: "Three" }] },
+  });
+
+  const overnight = await tick(["overnight"], { ideate: true, autopilot: "suggest" });
+  assert.equal(dispatchedCount(overnight.json.data), 3, "the override was not honoured — this is the measured failure");
+  assert.equal(extractIdeation(overnight.json.data), null, "and nothing on the wire says it ideated");
+  assert.deepEqual(extractNightLists(overnight.json.data), {}, "no list either: there is nothing to grade");
+  // The ask still reached the server verbatim — the driver's half worked.
+  assert.deepEqual(stub.ticks.at(-1), { personaId, phases: ["overnight"], ideate: true, autopilot: "suggest" });
+});
+
+test("a build that understands the ask honours the override and answers with a dated list", async (t) => {
+  const { stub, call, personaId, tick } = await bootStub({ ideationNights: true });
+  t.after(() => stub.close());
+  await call("/api/kp/test/seed-work", {
+    method: "POST",
+    body: { personaId, items: [{ title: "One" }, { title: "Two" }, { title: "Three" }] },
+  });
+
+  const overnight = await tick(["overnight"], { ideate: true, autopilot: "suggest" });
+  assert.equal(dispatchedCount(overnight.json.data), 0, "an ideation night opens no branch — that is the whole economy of §2");
+  const ideation = extractIdeation(overnight.json.data);
+  assert.equal(ideation.ran, true);
+  assert.equal(ideation.blocked, null);
+  assert.equal(typeof ideation.lens, "string");
+
+  const lists = extractNightLists(overnight.json.data);
+  assert.equal(lists.proposals.length, 5);
+  assert.equal(ideation.authored, 3, "`authored` counts the holder's own rows, not the deck it read");
+  for (const row of [...lists.proposals, ...lists.declines]) {
+    assert.equal(typeof row.createdAt, "string", `${row.title} is undated — nothing could be attributed`);
+    assert.ok(row.origin, `${row.title} carries no origin`);
+  }
+  for (const decline of lists.declines) assert.ok(DECLINE_REASONS.includes(decline.reason), decline.reason);
+
+  // …and the exam's since-hire filter reads exactly the three that are the
+  // holder's. This is the whole chain — stub wire, extractor, partition — over
+  // one tick, which is the only place the two sides can disagree.
+  const night = { night: 1, tick: overnight.json.data };
+  const graded = nightLists(night, { enabled: true, hiredAt: "2026-08-01T00:00:00.000Z" });
+  assert.equal(graded.proposals.length, 3);
+  assert.equal(graded.preTenure, 3, "two inherited proposals and one inherited decline");
+  assert.equal(graded.undated, 0);
+  assert.ok(
+    graded.proposals.every((p) => p.origin === "night"),
+    "what survives the filter is what the holder authored tonight"
+  );
+});
+
+test("the ideation flag is OFF for a tick that did not ask for it, even on a build that has it", async (t) => {
+  const { stub, call, personaId, tick } = await bootStub({ ideationNights: true });
+  t.after(() => stub.close());
+  await call("/api/kp/test/seed-work", { method: "POST", body: { personaId, items: [{ title: "One" }] } });
+
+  const overnight = await tick(["overnight"]);
+  assert.equal(dispatchedCount(overnight.json.data), 1, "an ordinary night is an ordinary night");
+  assert.equal(extractIdeation(overnight.json.data), null);
+  assert.deepEqual(stub.ticks.at(-1), { personaId, phases: ["overnight"] }, "nothing extra rode the body");
+});
+
+test("cannedIdeation is a fixture with a pre-tenure half — a clean one would prove nothing", () => {
+  const authored = cannedIdeation({ at: "2026-08-30T02:00:00.000Z" });
+  const origins = authored.proposals.map((p) => p.origin);
+  assert.deepEqual(origins.filter((o) => o === "operator-deck").length, 2);
+  assert.deepEqual(origins.filter((o) => o === "night").length, 3);
+  assert.equal(authored.ideation.authored, 3);
+  assert.ok(
+    authored.proposals.filter((p) => p.origin === "night").every((p) => p.journey && p.axis),
+    "the holder's own rows are value-literate, so a literacy reading of 0 means the FILTER broke, not the fixture"
+  );
 });

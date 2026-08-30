@@ -15,6 +15,7 @@ import path from "node:path";
 import {
   EXPECT_KEYS,
   FORBIDDEN_CLASSES,
+  NIGHT_AUTOPILOT_MODES,
   SEED_LIMITS,
   dialogAnswers,
   expandPath,
@@ -368,4 +369,77 @@ test("the seeded scenarios encode the trap story the bench is measuring", () => 
     !byName["personas-self"].seeds[0].title.includes("KP_"),
     "the second repo's seed must be actionable IN that repo"
   );
+});
+
+// ─── the `night` block: what the tick is ASKED for (c1-exam §2) ─────────────
+//
+// Measured 2026-08-30: a tenure night's overnight tick, asked for nothing in
+// particular, triaged and DISPATCHED the project's 58 pre-tenure accepted ideas
+// (~$8) on an exam whose whole design is that a night costs one reasoning call.
+// The block is the ask; these tests are that an unreadable ask is refused at
+// load, by name, rather than posted and ignored.
+
+test("a night block validates and normalises to exactly what it declared", () => {
+  const { ok, scenario, errors } = validateScenario(clone({ night: { ideate: true, autopilot: "suggest" } }));
+  assert.equal(ok, true, errors.join("; "));
+  assert.deepEqual(scenario.night, { ideate: true, autopilot: "suggest" });
+});
+
+test("either half alone is a legal ask, and the other half is NOT invented", () => {
+  const ideateOnly = validateScenario(clone({ night: { ideate: true } }));
+  assert.equal(ideateOnly.ok, true, ideateOnly.errors.join("; "));
+  assert.deepEqual(ideateOnly.scenario.night, { ideate: true }, "no autopilot was asked for, so none is sent");
+  const modeOnly = validateScenario(clone({ night: { autopilot: "measure" } }));
+  assert.equal(modeOnly.ok, true, modeOnly.errors.join("; "));
+  assert.deepEqual(modeOnly.scenario.night, { autopilot: "measure" });
+});
+
+test("an unknown night key is refused BY NAME — a field Personas ignores is a knob that does nothing", () => {
+  const { ok, errors } = validateScenario(clone({ night: { ideate: true, lens: "stabilize" } }));
+  assert.equal(ok, false);
+  assert.ok(
+    errors.some((e) => e.includes('"lens"') && e.includes("night")),
+    `the offending key must be named: ${errors.join("; ")}`
+  );
+});
+
+test("an autopilot value outside the vocabulary is refused, and the message lists the vocabulary", () => {
+  const { ok, errors } = validateScenario(clone({ night: { ideate: true, autopilot: "propose" } }));
+  assert.equal(ok, false);
+  const line = errors.find((e) => e.startsWith("night.autopilot"));
+  assert.ok(line, errors.join("; "));
+  for (const mode of NIGHT_AUTOPILOT_MODES) assert.ok(line.includes(mode), `${mode} is missing from "${line}"`);
+  assert.ok(line.includes('"propose"'), "the rejected value is quoted back");
+});
+
+test("night.ideate is a boolean, not a truthy string", () => {
+  const { ok, errors } = validateScenario(clone({ night: { ideate: "yes" } }));
+  assert.equal(ok, false);
+  assert.ok(errors.some((e) => e === "night.ideate must be a boolean"), errors.join("; "));
+});
+
+test("an empty or non-object night block is refused rather than silently changing nothing", () => {
+  assert.equal(validateScenario(clone({ night: {} })).ok, false, "an empty block asks for nothing");
+  assert.equal(validateScenario(clone({ night: [] })).ok, false, "an array is not a night block");
+  assert.equal(validateScenario(clone({ night: "ideate" })).ok, false, "a string is not a night block");
+  // Absent stays absent: the tick body of every scenario written before this
+  // block existed must not gain a field.
+  const absent = validateScenario(clone());
+  assert.equal(absent.ok, true);
+  assert.ok(!("night" in absent.scenario), "no block means nothing extra on the wire");
+});
+
+test("kp-c1-night is the ONLY shipped scenario that asks for an ideation night", () => {
+  const withNight = [];
+  for (const file of listScenarioFiles()) {
+    const s = loadScenarioFile(file, { kpRoot: REPO_ROOT });
+    if (s.night) withNight.push(s);
+    else assert.ok(!("night" in s), `${s.name} must send the tick body it always sent`);
+  }
+  assert.deepEqual(
+    withNight.map((s) => s.name),
+    ["kp-c1-night"]
+  );
+  assert.deepEqual(withNight[0].night, { ideate: true, autopilot: "suggest" });
+  assert.equal(withNight[0].dialog.scopeRung, 0, "an ideation night is a rung-0 night: it ranks, it does not author");
 });

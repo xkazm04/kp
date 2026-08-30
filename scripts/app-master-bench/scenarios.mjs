@@ -32,6 +32,13 @@
 //                                true is the phase as it always ran. Not to be
 //                                confused with `expect.probation`, which asserts
 //                                the decision a review that DID run reached.
+//     "night": {               ← optional: what to ASK the overnight tick for.
+//       "ideate": true,          Absent leaves the tick body byte-identical to
+//       "autopilot": "suggest"   what it always was. Present, the two fields ride
+//     },                         the `overnight` tick: `ideate` asks the holder to
+//                                author its own list rather than work a seeded
+//                                deck, and `autopilot` overrides the mandate's
+//                                dispatch mode for that night (c1-exam §2).
 //     "activateTimeoutMs": 5400000,   ← optional per-scenario timeout overrides
 //     "settleTimeoutMs":   1800000,     (how long a night waits for its
 //                                        dispatched fleet before it reports)
@@ -83,6 +90,17 @@ export const FORBIDDEN_CLASSES = Object.keys(FORBIDDEN_CLASS_PHRASE);
 
 export const MODES = ["keyless", "keyed"];
 export const POPULATIONS = ["agent", "human", "either"];
+
+/** Everything a scenario's `night` block may say, and the values each field
+ *  accepts. The block is what the driver puts ON the overnight tick body, so an
+ *  unknown key here is a request Personas would ignore in silence — refused at
+ *  load, by name, for the same reason an unknown `expect` key is. */
+export const NIGHT_KEYS = ["ideate", "autopilot"];
+
+/** Autopilot modes, weakest first — the same vocabulary as
+ *  `AUTOPILOT_ORDER` in expectations.mjs and `report-payload.ts`. Repeated
+ *  rather than imported so this module stays pure of the evaluator. */
+export const NIGHT_AUTOPILOT_MODES = ["off", "measure", "suggest", "full"];
 
 /** Every key `expect` may carry. An unknown one is a typo that would otherwise
  *  assert nothing at all — the worst possible failure mode for a bench. */
@@ -218,6 +236,39 @@ export function validateScenario(raw, { name = "" } = {}) {
     push("probation must be a boolean when present — false skips the probation phase");
   }
 
+  // What this scenario ASKS THE NIGHT FOR (c1-exam §2). Absent means the tick
+  // body stays exactly what it has always been — one absent block must not
+  // change a single byte of what six shipped scenarios send. Present, every key
+  // and every value is named on refusal: a field Personas does not read is a
+  // knob that silently does nothing, and a night that quietly ran on the
+  // mandate's own autopilot is how an ideation night dispatched a fleet.
+  const night = {};
+  if (raw.night !== undefined && raw.night !== null) {
+    if (typeof raw.night !== "object" || Array.isArray(raw.night)) {
+      push("night must be an object: { ideate?: boolean, autopilot?: off|measure|suggest|full }");
+    } else {
+      for (const key of Object.keys(raw.night)) {
+        if (!NIGHT_KEYS.includes(key)) {
+          push(`unknown night key ${JSON.stringify(key)} — night accepts ${NIGHT_KEYS.join(", ")}`);
+        }
+      }
+      if (raw.night.ideate !== undefined && raw.night.ideate !== null) {
+        if (typeof raw.night.ideate !== "boolean") push("night.ideate must be a boolean");
+        else night.ideate = raw.night.ideate;
+      }
+      if (raw.night.autopilot !== undefined && raw.night.autopilot !== null) {
+        if (!NIGHT_AUTOPILOT_MODES.includes(raw.night.autopilot)) {
+          push(
+            `night.autopilot must be one of ${NIGHT_AUTOPILOT_MODES.join(" | ")} (got ${JSON.stringify(raw.night.autopilot)})`
+          );
+        } else night.autopilot = raw.night.autopilot;
+      }
+      if (Object.keys(raw.night).length === 0) {
+        push("night declares nothing — drop the block, or give it ideate and/or autopilot");
+      }
+    }
+  }
+
   // Per-scenario timeout overrides. Both are read by run.mjs and BOTH have to
   // survive validation to reach it — a scenario field the validator drops on
   // the floor is a knob that silently does nothing.
@@ -310,6 +361,10 @@ export function validateScenario(raw, { name = "" } = {}) {
       ...timeouts,
       ...(isNonEmptyString(raw.tenure) ? { tenure: raw.tenure.trim() } : {}),
       ...(typeof raw.probation === "boolean" ? { probation: raw.probation } : {}),
+      // Only the keys the scenario actually declared — the driver builds the
+      // tick body from what is here, so an invented default would be this
+      // module deciding what a night asks for.
+      ...(Object.keys(night).length > 0 ? { night } : {}),
       expect: raw.expect ?? {},
     },
   };

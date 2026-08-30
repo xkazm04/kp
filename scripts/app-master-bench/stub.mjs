@@ -117,6 +117,45 @@ export function cannedNight(state, appMaster) {
   return { opened, notes, autopilotMode, blockedReason, degraded, pendingAfter: state.pendingSeeds ?? 0 };
 }
 
+/** A row the operator's own deck held before this App master was hired. Dated
+ *  far enough back that any plausible `hiredAt` is after it — the point of the
+ *  fixture is that the since-hire filter can tell it from tonight's work. */
+const STUB_PRE_TENURE_AT = "2026-01-01T00:00:00.000Z";
+
+/**
+ * ONE ideation night (c1-exam §2), as a build that UNDERSTOOD the ask answers
+ * it: a list, a decline log, and an `ideation` block saying it ran.
+ *
+ * Two properties are the whole reason this exists. First, the override is
+ * HONOURED — `autopilot: "suggest"` means nothing is dispatched, so the driver's
+ * dispatch guard has a clean night to read as clean. Second, the rows are
+ * DATED and they are not all the holder's: two of them are the inherited
+ * operator deck (2026-01-01), which is exactly what the live 2026-08-30 tick
+ * reported back as the holder's `proposals[]`. A stub that only emitted
+ * tonight's work could not tell the driver's since-hire filter from a no-op.
+ */
+export function cannedIdeation({ at = new Date().toISOString() } = {}) {
+  const mine = (title, journey, axis) => ({ title, journey, axis, size: "s", confidence: 0.6, createdAt: at, origin: "night" });
+  const proposals = [
+    { title: "Seed the ISPV band table the salary anchor falls back to", createdAt: STUB_PRE_TENURE_AT, origin: "operator-deck" },
+    { title: "Cache the market-pulse build between refreshes", createdAt: STUB_PRE_TENURE_AT, origin: "operator-deck" },
+    mine("Name the degrade path on every keyless analysis card", "cv-analysis", "risk"),
+    mine("Collapse the two duplicated workspace headers", "workspace-shell", "time"),
+    mine("Fail the schedule token route closed when the projection drifts", "self-scheduling", "gate"),
+  ];
+  const declines = [
+    { title: "Rewrite the pipeline board in a table", reason: "low-value", createdAt: at, origin: "night" },
+    { title: "Bump every dependency to satisfy the audit", reason: "outside-mandate", createdAt: STUB_PRE_TENURE_AT, origin: "operator-deck" },
+  ];
+  const authored = proposals.filter((p) => p.origin === "night").length;
+  return {
+    proposals,
+    declines,
+    ideation: { ran: true, lens: "stabilize", authored, blocked: null },
+    notes: [`overnight ideated: ${authored} proposal(s) authored, ${declines.length} candidate(s) declined. Nothing was dispatched — autopilot suggest.`],
+  };
+}
+
 /** The rollup the report phase pushes — read from the state as it stands WHEN
  *  THE REPORT RUNS, never snapshotted at dispatch time. A night that reported
  *  before its branches reconciled therefore reports zero proposals opened,
@@ -224,6 +263,15 @@ export const STUB_BUILD_FAILURE = { phase: "design", status: "failed", reason: "
  * meaningful fraction of hires fail for reasons unrelated to the role; this is
  * the knob that puts the driver's build retry under test without one.
  *
+ * `ideationNights` makes the tick answer an `ideate: true` body the way a build
+ * that ships ideation would (c1-exam §2): it HONOURS the `autopilot` override —
+ * nothing is dispatched under `suggest` — and its overnight phase carries an
+ * `ideation` block plus dated `proposals[]` / `declines[]`. **Off by default**,
+ * for the same reason `retireRoute` is: today's Personas answers a tick that
+ * asks for ideation exactly as it answers one that does not, which is how a
+ * live ideation night came to dispatch 58 ideas. The default stub models that
+ * build, so the driver's dispatch guard is exercised against it.
+ *
  * `retireRoute` mounts `POST /api/kp/test/retire` — the ONE Personas-side route
  * the C1 protocol asks for (c1-exam §4). It is **off by default on purpose**:
  * the stub's job is to model what Personas SHIPS, and Personas does not ship
@@ -235,6 +283,7 @@ export async function startStubPersonas({
   branchesAfterReconciles = STUB_BRANCH_DELAY_RECONCILES,
   buildFailsOnce = false,
   retireRoute = false,
+  ideationNights = false,
 } = {}) {
   let buildsLeftToFail = buildFailsOnce ? 1 : 0;
   const apiKey = `pk_stub_${Math.random().toString(36).slice(2, 10)}`;
@@ -247,6 +296,9 @@ export async function startStubPersonas({
     url: "",
     apiKey,
     dispatches,
+    // Every tick body the stub answered, in order — the wire record a test
+    // reads to prove what the driver asked for.
+    ticks: [],
     unauthorizedCalls: 0,
     unknownPaths: [],
     pushes: [],
@@ -534,8 +586,33 @@ export async function startStubPersonas({
           ? body.phases
           : ["overnight", "reconcile", "report"];
         const summary = { projectId: dispatch.requestId, personaId: dispatch.personaId, phases: {} };
+        // What the tick was ASKED for, beyond its phases — recorded verbatim so
+        // a test can assert the body the driver actually put on the wire, and
+        // that a scenario with no `night` block put nothing extra on it.
+        const ask = {
+          ...(body.ideate === undefined ? {} : { ideate: body.ideate }),
+          ...(body.autopilot === undefined ? {} : { autopilot: body.autopilot }),
+        };
+        stub.ticks.push({ personaId: body.personaId ?? null, phases: [...phases], ...ask });
 
-        if (phases.includes("overnight")) {
+        if (phases.includes("overnight") && ideationNights && ask.ideate === true) {
+          // A build that understands the ask: a list instead of a dispatch.
+          running.nights += 1;
+          const authored = cannedIdeation();
+          running.awaitingBranches = 0;
+          running.pendingMerges = 0;
+          running.lastNight = { opened: 0, notes: authored.notes, autopilotMode: ask.autopilot ?? "suggest", blockedReason: null, degraded: false };
+          summary.phases.overnight = {
+            nightRunId: `night-stub-${dispatch.requestId}-${running.nights}`,
+            dispatchedCount: 0,
+            notes: authored.notes,
+            autopilotMode: ask.autopilot ?? "suggest",
+            counts: { projects: 1, dispatched: 0, blocked: 0, degraded: 0 },
+            ideation: authored.ideation,
+            proposals: authored.proposals,
+            declines: authored.declines,
+          };
+        } else if (phases.includes("overnight")) {
           running.nights += 1;
           const night = cannedNight(running, dispatch.appMaster);
           running.lastNight = night;

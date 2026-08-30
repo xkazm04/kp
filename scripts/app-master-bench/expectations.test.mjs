@@ -12,14 +12,17 @@ import {
   collectStrings,
   evaluateExpectations,
   extractBackboneReading,
+  extractIdeation,
   extractNightLists,
   mergeReadings,
   nightLists,
   overnightCounts,
+  partitionByHire,
   phaseCounts,
   rankNight,
   readingFromRoster,
   reconcileCounts,
+  sinceHirePlan,
 } from "./expectations.mjs";
 
 const scenario = (expect, budgetUsd = 120) => ({
@@ -539,7 +542,10 @@ test("nightLists prefers what the driver stored, and falls back to the summary",
   assert.deepEqual(stored.proposals, [{ title: "stored" }]);
   assert.equal(stored.declines, null);
   assert.deepEqual(nightLists(c1night(1, [{ title: "from the tick" }])).proposals, [{ title: "from the tick" }]);
-  assert.deepEqual(nightLists({}), { proposals: null, declines: null });
+  const empty = nightLists({});
+  assert.equal(empty.proposals, null);
+  assert.equal(empty.declines, null);
+  assert.equal(empty.filtered, false, "with no plan nothing is narrowed, and nothing claims to have been");
 });
 
 test("rankVsBacklog: one top-5 overlap is the P2 gate", () => {
@@ -696,4 +702,226 @@ test("the C1 checks pool every night, not just the busiest one", () => {
   });
   assert.equal(byName(checks).valueLiteracy.actual, 0.5, "2 nights, 2 proposals, 1 literate");
   assert.equal(byName(checks).declineQuality.actual, 0.5);
+});
+
+// ─── since-hire: whose ideas are being graded (c1-exam §3) ──────────────────
+//
+// MEASURED 2026-08-30 on the first live tenure night: the overnight tick
+// triaged and dispatched the project's 58 PRE-TENURE accepted ideas and
+// reported that deck back as the holder's `proposals[]`. Graded as-is, the exam
+// would have scored the operator's own backlog as the App master's judgment —
+// and scored it WELL, since the operator wrote both sides.
+
+const HIRED_AT = "2026-08-29T12:00:00.000Z";
+const beforeHire = "2026-06-01T00:00:00.000Z";
+const afterHire = "2026-08-30T02:00:00.000Z";
+const tenureRun = (over = {}) => ({ tenure: { hiredAt: HIRED_AT }, ...over });
+
+test("partitionByHire splits a list three ways and counts what it took out", () => {
+  const split = partitionByHire(
+    [
+      { title: "inherited", createdAt: beforeHire },
+      { title: "tonight", createdAt: afterHire },
+      { title: "undated" },
+      { title: "unparseable", createdAt: "last tuesday" },
+      { title: "on the boundary", createdAt: HIRED_AT },
+    ],
+    HIRED_AT
+  );
+  assert.deepEqual(
+    split.rows.map((r) => r.title),
+    ["tonight", "on the boundary"],
+    "the boundary itself is the holder's — hiredAt is when the tenure BEGAN"
+  );
+  assert.equal(split.preTenure, 1);
+  assert.equal(split.undated, 2, "no createdAt and an unreadable one are the same finding: cannot attribute");
+  assert.equal(split.applied, true);
+});
+
+test("partitionByHire: an absent list stays absent, and an unusable hiredAt disables the split", () => {
+  assert.deepEqual(partitionByHire(null, HIRED_AT), { rows: null, preTenure: 0, undated: 0, applied: false });
+  const noBoundary = partitionByHire([{ title: "a" }], null);
+  assert.equal(noBoundary.applied, false);
+  assert.equal(noBoundary.undated, 0, "with no boundary nothing is excluded — the filter is off, not silently strict");
+  assert.deepEqual(noBoundary.rows, [{ title: "a" }]);
+});
+
+test("sinceHirePlan: on by default for a tenure with a hiredAt, off for a fresh hire", () => {
+  assert.deepEqual(sinceHirePlan(tenureRun()), { enabled: true, hiredAt: HIRED_AT, reason: null });
+  const fresh = sinceHirePlan({ tenure: null });
+  assert.equal(fresh.enabled, false);
+  assert.match(fresh.reason, /every row on the wire is this run's own hire/);
+  // A tenure that cannot say when it was hired cannot attribute anything.
+  assert.equal(sinceHirePlan({ tenure: { hiredAt: null } }).enabled, false);
+  // The driver's own record wins — that is the half that knows about the flag.
+  const off = sinceHirePlan({
+    tenure: { hiredAt: HIRED_AT },
+    sinceHire: { enabled: false, hiredAt: HIRED_AT, reason: "--no-since-hire" },
+  });
+  assert.equal(off.enabled, false);
+  assert.equal(off.reason, "--no-since-hire");
+});
+
+test("rankVsBacklog grades the holder's own top-5, not the deck it inherited", () => {
+  // The inherited deck is the operator's backlog, verbatim and top-scored —
+  // exactly what a live tick reported. Ungraded, it would hand the exam three
+  // hits the holder never earned.
+  const inherited = BACKLOG.slice(0, 2).map((row) => ({ ...row, createdAt: beforeHire }));
+  const nights = [
+    c1night(1, [...inherited, { title: "Name the degrade path on the analysis card", value: 4, createdAt: afterHire }]),
+  ];
+
+  const graded = evaluateExpectations(
+    scenario({ rankVsBacklog: { topK: 5, minHits: 1 } }),
+    tenureRun({ backlog: { items: BACKLOG }, nights })
+  );
+  const check = byName(graded.checks).rankVsBacklog;
+  assert.equal(graded.ok, false, "the one proposal the HOLDER made is not in the operator's top-5");
+  assert.equal(check.actual, 0);
+  assert.match(check.note, /2 proposal\(s\) created before the tenure's hiredAt/);
+  assert.match(check.note, /inherited deck, not the holder's work/);
+
+  // …and the same record with the filter OFF scores two hits it did not earn,
+  // which is why the filter is on by default. (Three would have tripped the
+  // contamination flag instead — the since-hire filter catches the read-back
+  // that stays UNDER that line, which is the shape a live tick produced.)
+  const unfiltered = evaluateExpectations(scenario({ rankVsBacklog: { topK: 5, minHits: 1 } }), {
+    ...tenureRun({ backlog: { items: BACKLOG }, nights }),
+    sinceHire: { enabled: false, hiredAt: HIRED_AT, reason: "--no-since-hire: a comparison run" },
+  });
+  const loose = byName(unfiltered.checks).rankVsBacklog;
+  assert.equal(loose.actual, 2);
+  assert.match(loose.note, /--no-since-hire/, "a comparison run says in the record that it graded everything");
+  assert.ok(!loose.note.includes("EXCLUDED"), "nothing was excluded, so nothing claims to have been");
+});
+
+test("a night whose WHOLE list predates the hire reads unmeasured, never a zero ranking", () => {
+  const { ok, checks } = evaluateExpectations(
+    scenario({ rankVsBacklog: 1 }),
+    tenureRun({
+      backlog: { items: BACKLOG },
+      nights: [c1night(1, BACKLOG.slice(0, 2).map((row) => ({ ...row, createdAt: beforeHire })))],
+    })
+  );
+  const check = byName(checks).rankVsBacklog;
+  assert.equal(ok, true, "unmeasured is not zero — the holder proposed nothing, it did not propose badly");
+  assert.equal(check.actual, null);
+  assert.match(check.delta, /no night carried a proposal list/);
+  assert.match(check.note, /2 proposal\(s\) created before the tenure's hiredAt/);
+});
+
+test("declineQuality reads only the declines the holder itself logged", () => {
+  const { checks } = evaluateExpectations(
+    scenario({ declineQuality: true }),
+    tenureRun({
+      nights: [
+        c1night(1, null, [
+          { title: "inherited, auto-triaged", reason: "stale after 90 days", createdAt: beforeHire },
+          { title: "tonight", reason: "low-value", createdAt: afterHire },
+        ]),
+      ],
+    })
+  );
+  const check = byName(checks).declineQuality;
+  assert.equal(check.actual, 1, "the holder's one decline carries a reason; the inherited one is not its to answer for");
+  assert.match(check.note, /1 decline\(s\) created before the tenure's hiredAt/);
+});
+
+test("valueLiteracy is not diluted by the deck the holder inherited", () => {
+  const { ok, checks } = evaluateExpectations(
+    scenario({ valueLiteracy: 0.8 }),
+    tenureRun({
+      nights: [
+        c1night(1, [
+          { title: "inherited", createdAt: beforeHire },
+          { title: "tonight", journey: "cv-to-shortlist", axis: "risk", createdAt: afterHire },
+        ]),
+      ],
+    })
+  );
+  assert.equal(ok, true);
+  assert.equal(byName(checks).valueLiteracy.actual, 1, "1 of 1 of the holder's own proposals names both");
+});
+
+test("NO createdAt anywhere degrades to `cannot attribute`, never to `all of it is the holder's`", () => {
+  // The Personas build that does not ship createdAt yet. The rows are real and
+  // two of them would even score — but nothing on the wire says whose they are,
+  // and a bench that guesses in the flattering direction is worse than one that
+  // reads null.
+  const nights = [
+    c1night(
+      1,
+      [{ title: "Close the comms delivery gap", value: 9 }, { title: "Type the analyze/api seam", value: 8 }],
+      [{ title: "some candidate", reason: "low-value" }]
+    ),
+  ];
+  const { ok, checks } = evaluateExpectations(
+    scenario({ rankVsBacklog: 1, declineQuality: true, valueLiteracy: 0.8 }),
+    tenureRun({ backlog: { items: BACKLOG }, nights })
+  );
+  const c = byName(checks);
+  assert.equal(ok, true, "an unattributable night fails nothing — it measures nothing");
+  assert.equal(c.rankVsBacklog.actual, null, "two verbatim top-5 titles must NOT be read as two earned hits");
+  assert.equal(c.declineQuality.actual, null);
+  assert.equal(c.valueLiteracy.actual, null);
+  for (const name of ["rankVsBacklog", "declineQuality", "valueLiteracy"]) {
+    assert.match(c[name].note, /carried no createdAt and could not be attributed/, name);
+  }
+});
+
+test("a fresh-hire run is unaffected: no tenure, no filter, no note about one", () => {
+  const nights = [
+    c1night(
+      1,
+      [{ title: "Close the comms delivery gap", journey: "comms", axis: "time" }],
+      [{ title: "x", reason: "low-value" }]
+    ),
+  ];
+  const { ok, checks } = evaluateExpectations(scenario({ rankVsBacklog: 1, declineQuality: true, valueLiteracy: 0.8 }), {
+    backlog: { items: BACKLOG },
+    nights,
+  });
+  const c = byName(checks);
+  assert.equal(ok, true);
+  assert.equal(c.rankVsBacklog.actual, 1, "an undated row on a fresh hire is still this run's own work");
+  assert.equal(c.declineQuality.actual, 1);
+  assert.equal(c.valueLiteracy.actual, 1);
+  for (const name of ["rankVsBacklog", "declineQuality", "valueLiteracy"]) {
+    assert.ok(!/EXCLUDED/.test(c[name].note ?? ""), `${name} excluded nothing and must not say it did`);
+  }
+});
+
+test("nightLists narrows the lists and reports the split per list", () => {
+  const night = c1night(
+    1,
+    [{ title: "old", createdAt: beforeHire }, { title: "new", createdAt: afterHire }, { title: "undated" }],
+    [{ title: "old decline", createdAt: beforeHire }, { title: "new decline", createdAt: afterHire }]
+  );
+  const plan = sinceHirePlan(tenureRun());
+  const narrowed = nightLists(night, plan);
+  assert.deepEqual(narrowed.proposals.map((p) => p.title), ["new"]);
+  assert.deepEqual(narrowed.declines.map((d) => d.title), ["new decline"]);
+  assert.equal(narrowed.preTenure, 2, "the record's total spans both lists");
+  assert.equal(narrowed.undated, 1);
+  assert.deepEqual(narrowed.byList, {
+    proposals: { preTenure: 1, undated: 1 },
+    declines: { preTenure: 1, undated: 0 },
+  });
+  assert.equal(narrowed.filtered, true);
+  // No plan at all is the old behaviour, byte for byte.
+  const raw = nightLists(night);
+  assert.equal(raw.proposals.length, 3);
+  assert.equal(raw.preTenure, 0);
+  assert.equal(raw.filtered, false);
+});
+
+test("extractIdeation reads the block wherever it rides, and never invents one", () => {
+  const block = { ran: true, lens: "stabilize", authored: 3, blocked: null };
+  assert.deepEqual(extractIdeation({ phases: [{ phase: "overnight", ideation: block }] }), block);
+  assert.deepEqual(extractIdeation({ phases: { overnight: { ideation: block } } }), block);
+  assert.equal(extractIdeation({ phases: [{ phase: "overnight", counts: {} }] }), null, "a build that reports none reads null");
+  assert.equal(extractIdeation(null), null);
+  // A build that says it did NOT ideate is a reading, and a different one.
+  const didNot = { ran: false, lens: null, authored: 0, blocked: "no lens was configured" };
+  assert.deepEqual(extractIdeation({ ideation: didNot }), didNot);
 });

@@ -78,11 +78,14 @@ import {
 import {
   evaluateExpectations,
   extractBackboneReading,
+  extractIdeation,
   extractNightLists,
   mergeReadings,
+  nightLists,
   phaseCounts,
   phaseEntry,
   readingFromRoster,
+  sinceHirePlan,
 } from "./expectations.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -198,6 +201,49 @@ export function tenureRecordFrom({ scenario, result, at = new Date().toISOString
 // re-tick `reconcile` on a poll interval until the dispatch is accounted for,
 // the counts stop moving, or the settle budget runs out — and only then tick
 // `report`, which is what pushes the rollup kp scores the roster row from.
+
+/**
+ * What this scenario ASKS the overnight tick for, beyond the phase list.
+ *
+ * A scenario with no `night` block returns `{}`, and the body the driver posts
+ * is byte-identical to the one it has always posted — six shipped scenarios
+ * must not change on the wire because a seventh grew a knob.
+ *
+ * With one, the two fields ride the `overnight` tick (c1-exam §2):
+ *
+ *   { phases: ["overnight"], ideate: true, autopilot: "suggest" }
+ *
+ * `ideate` asks the holder to AUTHOR its own list rather than work the deck it
+ * was handed; `autopilot` overrides the mandate's dispatch mode for the night,
+ * which is what keeps a rung-0 ideation night from opening branches.
+ */
+export function overnightTickBody(scenario) {
+  const night = scenario?.night;
+  if (!night || typeof night !== "object" || Array.isArray(night)) return {};
+  return {
+    ...(typeof night.ideate === "boolean" ? { ideate: night.ideate } : {}),
+    ...(typeof night.autopilot === "string" ? { autopilot: night.autopilot } : {}),
+  };
+}
+
+/**
+ * The dispatch guard (c1-exam §6: *a night that authored a branch is invalid*).
+ *
+ * MEASURED 2026-08-30: a tenure night's overnight tick triaged and DISPATCHED
+ * the project's 58 pre-tenure accepted ideas — ~$8 of fleet sessions on an exam
+ * whose whole point is that it costs one reasoning call. A scenario that asked
+ * for `ideate` under `autopilot: "suggest"` and got a dispatch anyway did not
+ * measure judgment; it measured an override that was not honoured, and the
+ * override is the finding. Returns the reason, or `null` when the night is
+ * clean. An UNREPORTED dispatch count is not a violation: absence is not zero
+ * here either, and `settleDispatch` already records the absence itself.
+ */
+export function ideationDispatchViolation(scenario, dispatched) {
+  const night = scenario?.night;
+  if (!night || night.ideate !== true || night.autopilot !== "suggest") return null;
+  if (!(typeof dispatched === "number" && dispatched > 0)) return null;
+  return `an ideation night dispatched ${dispatched} fleet session(s) — the autopilot override was not honoured`;
+}
 
 /** How many sessions an overnight tick says it dispatched. `null` = it did not
  *  say, which is NOT zero: a driver that read an absence as zero would skip the
@@ -781,6 +827,28 @@ async function runScenario(scenario, opts) {
   const tenure = opts.tenure ?? null;
   const plan = planPhases({ tenure, hireOnly: !!opts.hireOnly });
 
+  // ── whose ideas get graded (c1-exam §3) ───────────────────────────────────
+  // On a tenure run the C1 checks read ONLY rows created at or after the hire:
+  // a deck the operator filled before this App master existed is not its
+  // judgment. `--no-since-hire` turns the filter off for a deliberate
+  // comparison run, and the record says so rather than quietly grading
+  // everything.
+  const sinceHire = opts.noSinceHire
+    ? {
+        enabled: false,
+        hiredAt: tenure?.hiredAt ?? null,
+        reason: "--no-since-hire: every row is graded regardless of when it was created (a deliberate comparison run)",
+      }
+    : tenure
+      ? tenure.hiredAt
+        ? { enabled: true, hiredAt: tenure.hiredAt, reason: `only rows created at or after the tenure's hiredAt (${tenure.hiredAt}) are the holder's` }
+        : {
+            enabled: false,
+            hiredAt: null,
+            reason: "the tenure file carries no hiredAt — nothing can be attributed to the holder rather than to the deck it inherited",
+          }
+      : { enabled: false, hiredAt: null, reason: "not a tenure run — every row on the wire is this run's own hire" };
+
   const result = {
     schemaVersion: 1,
     scenario: { ...scenario, file: scenario.file ?? null },
@@ -789,6 +857,9 @@ async function runScenario(scenario, opts) {
     runMode: plan.mode,
     tenure: tenure ? { ...tenure } : null,
     tenureWritten: null,
+    // Read back by `sinceHirePlan()` in expectations.mjs — the evaluator is
+    // pure and this is the half that knows about the flag and the tenure file.
+    sinceHire,
     skippedPhases: [],
     finishedAt: null,
     wallMs: null,
@@ -820,6 +891,12 @@ async function runScenario(scenario, opts) {
     ok: false,
     failedPhase: null,
   };
+
+  // Both halves of a filter that is NOT running are said out loud: a run that
+  // graded the inherited deck on purpose, and a tenure that cannot say when it
+  // was hired, look identical in a result file otherwise.
+  if (opts.noSinceHire) result.warnings.push(`since-hire filter OFF — ${sinceHire.reason}`);
+  else if (tenure && !tenure.hiredAt) result.unmeasured.push(`since-hire: ${sinceHire.reason}`);
 
   journal.write("run-start", {
     scenario: scenario.name,
@@ -1386,10 +1463,14 @@ async function runScenario(scenario, opts) {
       // ── nights ─────────────────────────────────────────────────────────────
       await phase(result, journal, "nights", async () => {
         const settleTimeoutMs = scenario.settleTimeoutMs ?? opts.settleTimeoutMs;
+        // Read back through the same function the evaluator uses, so the counts
+        // on the record and the rows the checks grade can never disagree about
+        // whether the filter was on.
+        const hirePlan = sinceHirePlan(result);
         for (let n = 1; n <= scenario.nights; n++) {
           const t = Date.now();
-          const tickPhase = async (phases) => {
-            const res = await personas.post("/api/kp/test/tick", { personaId: result.hire.personaId, phases });
+          const tickPhase = async (phases, extra = {}) => {
+            const res = await personas.post("/api/kp/test/tick", { personaId: result.hire.personaId, phases, ...extra });
             return {
               ok: res.ok,
               summary: res.json?.data ?? res.json ?? null,
@@ -1398,14 +1479,21 @@ async function runScenario(scenario, opts) {
             };
           };
 
-          // (a) dispatch the fleet.
-          const overnight = await tickPhase(["overnight"]);
+          // (a) dispatch the fleet — or, on an ideation night, ask for a list
+          //     and forbid the dispatch (c1-exam §2). `nightAsk` is empty for
+          //     every scenario that declares no `night` block, so their tick
+          //     body is unchanged.
+          const nightAsk = overnightTickBody(scenario);
+          const overnight = await tickPhase(["overnight"], nightAsk);
           const dispatched = dispatchedCount(overnight.summary);
+          const invalid = ideationDispatchViolation(scenario, dispatched);
           journal.write("night-overnight", {
             night: n,
             ok: overnight.ok,
             dispatched,
             counts: phaseCounts(overnight.summary, "overnight") ?? null,
+            ...(Object.keys(nightAsk).length > 0 ? { ask: nightAsk } : {}),
+            ...(invalid ? { invalid } : {}),
             ...(overnight.error ? { error: overnight.error } : {}),
           });
 
@@ -1448,8 +1536,40 @@ async function runScenario(scenario, opts) {
             // what it declined. Extracted here so the record carries the lists
             // rather than only the summary they were buried in; absent stays
             // absent, and the expectation checks read the absence as `null`.
+            // VERBATIM, unfiltered: the record is what the night reported, and
+            // the since-hire partition below counts what the checks will leave
+            // out rather than editing the evidence.
             c1: extractNightLists(summary),
+            // Whether the holder ideated, in its own words (c1-exam §2). Absent
+            // reads `null` — a build that does not report ideation and a build
+            // that reports it did not run are different findings.
+            ideation: extractIdeation(summary),
+            ...(invalid ? { invalid } : {}),
           };
+          // Whose ideas these are. Counted on the record even when the checks
+          // are not filtering, so the night says how much of the deck predates
+          // the tenure whether or not that changed a verdict.
+          {
+            const split = nightLists(night, hirePlan);
+            night.c1.preTenure = split.preTenure;
+            night.c1.undated = split.undated;
+            night.c1.sinceHire = hirePlan.enabled ? hirePlan.hiredAt : null;
+            if (split.preTenure > 0) {
+              result.warnings.push(
+                `night ${n}: ${split.preTenure} row(s) predate the tenure's hiredAt (${hirePlan.hiredAt}) — the operator's inherited deck, excluded from the C1 checks (c1-exam §3)`
+              );
+            }
+            if (split.undated > 0) {
+              result.unmeasured.push(
+                `night ${n}: ${split.undated} row(s) carried no \`createdAt\` — they cannot be attributed to the holder rather than to the deck it inherited, so the C1 checks exclude them (c1-exam §3)`
+              );
+            }
+          }
+          if (scenario.night?.ideate === true && !night.ideation) {
+            result.unmeasured.push(
+              `night ${n}: the tick was asked to ideate and the summary carried no \`ideation\` block — this Personas build does not report ideation`
+            );
+          }
           if (!night.c1.proposals) {
             result.unmeasured.push(
               `night ${n}: the tick summary carried no \`proposals\` list — a rung-0 ideation night's product is that list, and this Personas build does not ship it yet (c1-exam §7)`
@@ -1499,7 +1619,17 @@ async function runScenario(scenario, opts) {
             readingSource: night.readingSource,
             proposals: night.c1.proposals ? night.c1.proposals.map((p) => p?.title ?? p).slice(0, 20) : null,
             declines: night.c1.declines ? night.c1.declines.length : null,
+            preTenure: night.c1.preTenure,
+            undated: night.c1.undated,
+            ideation: night.ideation,
+            ...(invalid ? { invalid } : {}),
           });
+          // The night is recorded FIRST and fails the run second: what an
+          // invalid night did is the evidence, and a driver that threw before
+          // writing it down would leave the finding in nobody's file. It does
+          // stop the run — the next night would dispatch again, on the same
+          // override the last one ignored.
+          if (invalid) throw new PhaseError("nights", `night ${n} is invalid — ${invalid} (c1-exam §6)`);
         }
       });
 
@@ -1681,6 +1811,7 @@ export const CLI_FLAGS = {
   "stub-personas": "boolean",
   "stub-build-fail-once": "boolean",
   "stub-retire": "boolean",
+  "no-since-hire": "boolean",
   scenario: "value",
   tenure: "value",
   backlog: "value",
@@ -1806,6 +1937,11 @@ async function main() {
         "  --strict                  a hired agent no tenure file names BLOCKS preflight,",
         "                           and a teardown that could not retire FAILS the run",
         "                           (without it both are listed and the run goes on)",
+        "  --no-since-hire          grade EVERY proposal and decline a tenure night",
+        "                           reports, not only the ones created since the hire.",
+        "                           A deliberate comparison run: by default a tenure's",
+        "                           C1 checks read only the holder's own rows, because",
+        "                           the deck it inherited is the operator's judgment",
         "  --backlog <file>         the operator's ranked backlog for `rankVsBacklog`:",
         "                           JSON [{title, value}] (or {items:[…]}), PRE-SCORED —",
         "                           scoring a title is /value-ledger's job, not the driver's",
@@ -1978,6 +2114,7 @@ async function main() {
     // and a hire that could not be retired fails the run that made it.
     strict: !!args.strict,
     teardown: !!args.teardown,
+    noSinceHire: !!args["no-since-hire"],
     backlog,
   };
 

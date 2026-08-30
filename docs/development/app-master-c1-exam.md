@@ -195,6 +195,8 @@ loosening a check:**
    does) and the phase is skipped, recorded as skipped with its reason, and writes no
    `decision`; absent keeps the review, so every other scenario is unchanged.
 
+**A fourth, found by running it — the night has to ASK, and only the holder's own rows may be graded (SHIPPED 2026-08-30, driver side).** The first live tenure night's `overnight` tick, asking for nothing in particular, triaged and DISPATCHED the project's 58 pre-tenure accepted ideas (~$8) and reported that inherited operator deck back as the holder's `proposals[]`. Three driver changes close it: a scenario's `night: {ideate, autopilot}` block rides the tick body (`{phases:["overnight"], ideate:true, autopilot:"suggest"}`), the night record carries the summary's new `ideation` block (absent → `null` + `unmeasured`, never a failed night); `rankVsBacklog`/`declineQuality`/`valueLiteracy` read only rows with `createdAt >= tenure.hiredAt`, reporting the rest as `preTenure: n` and rows with no `createdAt` as `undated: n` — excluded, unmeasured, because a build without `createdAt` must degrade to *cannot attribute*, never to *all of it is the holder's* (`--no-since-hire` disables the filter for a deliberate comparison run); and an ideation night that reports `dispatched > 0` is recorded `invalid` and FAILS, since §6 already calls a night that authored a branch invalid.
+
 Personas' `master` is clippy-red on 7 pre-existing lints in untouched files
 (`context_fingerprints.rs:97` et al., newer-toolchain lints); the touched crates are
 clippy-clean. Not this program's to fix, but whoever next runs personas' full gate

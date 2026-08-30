@@ -830,6 +830,7 @@ node scripts/app-master-bench/run.mjs --scenario kp-c1-night --tenure kp-owner
   exit must not retire it. The phase is then recorded as skipped, with its
   reason, and no `decision` is written anywhere. Absent means the review runs,
   so every other scenario is unchanged.
+- **A scenario can ask for an ideation night** (`"night": {"ideate": true, "autopilot": "suggest"}`, as `kp-c1-night` does): those two fields ride the `overnight` tick body, the night record carries the summary's `ideation` block verbatim (absent reads `null` plus an `unmeasured` line, never a failed night), the three C1 checks grade only rows whose `createdAt >= tenure.hiredAt` — older ones are counted as `preTenure`, undated ones as `undated` and excluded, and `--no-since-hire` turns the filter off for a comparison run — and an ideation night that nevertheless reports `dispatched > 0` is recorded `invalid` and FAILS the scenario (c1-exam §2/§3/§6; measured 2026-08-30, when such a tick dispatched 58 pre-tenure ideas and reported that deck as the holder's proposals). A scenario with no `night` block sends the tick body it always sent.
 - **`--hire-only` wins over `--tenure`.** With both, the tenure path is the
   *destination* of the fresh hire, never a hire to resume: anything else would
   re-hire on top of a live tenure, which is exactly the accident that minted the

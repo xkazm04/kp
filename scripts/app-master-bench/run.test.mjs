@@ -23,6 +23,7 @@ import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
+  CLI_FLAGS,
   MAX_BUILD_ATTEMPTS,
   PREAMBLE_PHASES,
   PROBATION_DECLINED,
@@ -33,7 +34,9 @@ import {
   buildFailureReason,
   buildWithRetry,
   dispatchedCount,
+  ideationDispatchViolation,
   mergeTickSummaries,
+  overnightTickBody,
   planPhases,
   planProbation,
   resolveCliArgs,
@@ -783,4 +786,107 @@ test("a boolean flag no longer swallows the scenario that follows it", () => {
 test("two scenario names, however spelled, are a conflict rather than a coin flip", () => {
   assert.throws(() => resolveCliArgs(["kp-rung0", "--scenario", "kp-c1-night"]), /pass exactly one/);
   assert.throws(() => resolveCliArgs(["kp-rung0", "kp-c1-night"]), /unexpected extra argument `kp-c1-night`/);
+});
+
+// ─── the ideation ask, and the guard on it (c1-exam §2, §6) ─────────────────
+
+test("a scenario with no `night` block puts NOTHING extra on the tick body", () => {
+  assert.deepEqual(overnightTickBody({ name: "kp-default" }), {});
+  assert.deepEqual(overnightTickBody({ night: null }), {});
+  assert.deepEqual(overnightTickBody({ night: "ideate" }), {}, "a malformed block is not an ask");
+  assert.deepEqual(overnightTickBody(null), {});
+});
+
+test("a night block rides the overnight tick, and only the halves it declared", () => {
+  assert.deepEqual(overnightTickBody({ night: { ideate: true, autopilot: "suggest" } }), {
+    ideate: true,
+    autopilot: "suggest",
+  });
+  assert.deepEqual(overnightTickBody({ night: { ideate: true } }), { ideate: true });
+  assert.deepEqual(overnightTickBody({ night: { autopilot: "measure" } }), { autopilot: "measure" });
+  // `ideate: false` is an ask, not an absence: a scenario that says "do not
+  // ideate tonight" must be able to say it.
+  assert.deepEqual(overnightTickBody({ night: { ideate: false } }), { ideate: false });
+});
+
+test("the body the driver composes reaches the bridge verbatim, and an ordinary night's does not change", async (t) => {
+  const stub = await startStubPersonas();
+  t.after(() => stub.close());
+  const personas = personasClient(stub.url, stub.apiKey);
+  const dispatched = await personas.post("/api/kp/persona-requests", { spec: { name: "App master" } });
+  const personaId = (await personas.get(`/api/kp/persona-requests/${dispatched.json.data.requestId}`)).json.data.personaId;
+
+  const post = (scenario) =>
+    personas.post("/api/kp/test/tick", { personaId, phases: ["overnight"], ...overnightTickBody(scenario) });
+
+  await post({ name: "kp-default" });
+  assert.deepEqual(stub.ticks.at(-1), { personaId, phases: ["overnight"] }, "six shipped scenarios must not change on the wire");
+
+  await post({ name: "kp-c1-night", night: { ideate: true, autopilot: "suggest" } });
+  assert.deepEqual(stub.ticks.at(-1), { personaId, phases: ["overnight"], ideate: true, autopilot: "suggest" });
+});
+
+test("the dispatch guard: an ideation night that dispatched is INVALID, and names the count", () => {
+  const ideation = { night: { ideate: true, autopilot: "suggest" } };
+  assert.match(
+    ideationDispatchViolation(ideation, 3),
+    /^an ideation night dispatched 3 fleet session\(s\) — the autopilot override was not honoured$/
+  );
+  assert.equal(ideationDispatchViolation(ideation, 0), null, "a night that dispatched nothing is the night that was asked for");
+  // Absence is not zero anywhere else in this driver, and it is not a violation
+  // here either: a summary that reported no count reported no dispatch either.
+  assert.equal(ideationDispatchViolation(ideation, null), null);
+  // The guard is on the OVERRIDE, not on ideation as such: a scenario that
+  // deliberately asked for `full` asked for the branches it got.
+  assert.equal(ideationDispatchViolation({ night: { ideate: true, autopilot: "full" } }, 3), null);
+  assert.equal(ideationDispatchViolation({ night: { autopilot: "suggest" } }, 3), null, "no ideation was asked for");
+  assert.equal(ideationDispatchViolation({ name: "kp-default" }, 3), null, "an ordinary night dispatching is the point of it");
+});
+
+test("the guard fires against the build that is actually deployed, and stays quiet against the one that isn't", async (t) => {
+  const scenario = { name: "kp-c1-night", night: { ideate: true, autopilot: "suggest" } };
+
+  // Today's Personas: the ask is on the wire and the fleet goes out anyway.
+  const shipping = await startStubPersonas();
+  t.after(() => shipping.close());
+  {
+    const personas = personasClient(shipping.url, shipping.apiKey);
+    const req = await personas.post("/api/kp/persona-requests", { spec: { name: "App master" } });
+    const personaId = (await personas.get(`/api/kp/persona-requests/${req.json.data.requestId}`)).json.data.personaId;
+    await personas.post("/api/kp/test/seed-work", { personaId, items: [{ title: "a" }, { title: "b" }, { title: "c" }] });
+    const tick = await personas.post("/api/kp/test/tick", {
+      personaId,
+      phases: ["overnight"],
+      ...overnightTickBody(scenario),
+    });
+    const dispatched = dispatchedCount(tick.json?.data);
+    assert.equal(dispatched, 3);
+    assert.match(ideationDispatchViolation(scenario, dispatched), /dispatched 3 fleet session\(s\)/);
+  }
+
+  // A build that honours the override: the same scenario, a clean night.
+  const honouring = await startStubPersonas({ ideationNights: true });
+  t.after(() => honouring.close());
+  {
+    const personas = personasClient(honouring.url, honouring.apiKey);
+    const req = await personas.post("/api/kp/persona-requests", { spec: { name: "App master" } });
+    const personaId = (await personas.get(`/api/kp/persona-requests/${req.json.data.requestId}`)).json.data.personaId;
+    await personas.post("/api/kp/test/seed-work", { personaId, items: [{ title: "a" }, { title: "b" }, { title: "c" }] });
+    const tick = await personas.post("/api/kp/test/tick", {
+      personaId,
+      phases: ["overnight"],
+      ...overnightTickBody(scenario),
+    });
+    assert.equal(dispatchedCount(tick.json?.data), 0, "the seeds are still there — they were simply not dispatched");
+    assert.equal(ideationDispatchViolation(scenario, dispatchedCount(tick.json?.data)), null);
+  }
+});
+
+test("--no-since-hire is in the vocabulary, and is a boolean like the rest", () => {
+  assert.equal(CLI_FLAGS["no-since-hire"], "boolean");
+  const args = resolveCliArgs(["kp-c1-night", "--no-since-hire"]).args;
+  assert.equal(args["no-since-hire"], true);
+  assert.match(args.scenario, /kp-c1-night\.json$/, "a boolean flag does not swallow the scenario beside it");
+  // …and a typo of it is still a hard error, not a silently unfiltered run.
+  assert.throws(() => resolveCliArgs(["--no-since-hired"]), /unknown flag `--no-since-hired`/);
 });

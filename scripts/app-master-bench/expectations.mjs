@@ -143,19 +143,152 @@ export function extractNightLists(summary) {
 }
 
 /**
+ * The `ideation` block a night's tick summary carries — `{ ran, lens, authored,
+ * blocked }` — wherever it carries it. Same deep, first-occurrence-wins scan as
+ * the lists above, and the same rule: a build that reports none reads `null`,
+ * never a fabricated `{ ran: false }`. Not reporting ideation and reporting
+ * that it did not run are different findings.
+ */
+export function extractIdeation(summary) {
+  const queue = [summary];
+  let guard = 0;
+  while (queue.length > 0 && guard++ < 5_000) {
+    const node = queue.shift();
+    if (!node || typeof node !== "object") continue;
+    if (Array.isArray(node)) {
+      for (const item of node) queue.push(item);
+      continue;
+    }
+    const value = node.ideation;
+    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    for (const child of Object.values(node)) {
+      if (child && typeof child === "object") queue.push(child);
+    }
+  }
+  return null;
+}
+
+// ─── since-hire: whose ideas are these? (c1-exam §3) ────────────────────────
+//
+// MEASURED 2026-08-30, on the first live tenure night: the overnight tick
+// triaged and dispatched the project's 58 PRE-TENURE accepted ideas (~$8 of
+// fleet sessions) and the summary reported that deck back as the holder's
+// `proposals[]`. Grading it would have scored the operator's own backlog as the
+// App master's judgment — the exact contamination §6 calls invalid, arriving
+// through a door §6 did not name.
+//
+// So on a tenure run the three C1 checks read ONLY rows created at or after the
+// tenure's `hiredAt`. Everything else is partitioned rather than dropped:
+//
+//   preTenure  the inherited deck — counted, reported, not graded
+//   undated    a row with no parseable `createdAt`. NEITHER the holder's nor
+//              discarded in silence: a Personas build that does not ship
+//              createdAt must degrade to "cannot attribute", never to
+//              "everything here is the holder's work".
+
+/**
+ * Split rows by the tenure's hire date. `rows` non-array (nobody reported a
+ * list) stays `null` — an absent list is not an empty one. A `hiredAt` that is
+ * missing or unparseable disables the split rather than guessing an epoch.
+ */
+export function partitionByHire(rows, hiredAt) {
+  if (!Array.isArray(rows)) return { rows: null, preTenure: 0, undated: 0, applied: false };
+  const boundary = typeof hiredAt === "string" ? Date.parse(hiredAt) : NaN;
+  if (!Number.isFinite(boundary)) return { rows, preTenure: 0, undated: 0, applied: false };
+  const kept = [];
+  let preTenure = 0;
+  let undated = 0;
+  for (const row of rows) {
+    const raw = row && typeof row === "object" && !Array.isArray(row) ? row.createdAt : null;
+    const at = typeof raw === "string" ? Date.parse(raw) : NaN;
+    if (!Number.isFinite(at)) undated += 1;
+    else if (at < boundary) preTenure += 1;
+    else kept.push(row);
+  }
+  return { rows: kept, preTenure, undated, applied: true };
+}
+
+/**
+ * Whether this run's C1 checks filter by hire date, and on what boundary.
+ *
+ * The driver writes `result.sinceHire` (it is the half that knows about
+ * `--no-since-hire`); a hand-built record without one derives the default —
+ * ON for a tenure run that carries a `hiredAt`, OFF otherwise, because on a
+ * FRESH hire every row on the wire is by construction this run's own.
+ */
+export function sinceHirePlan(result) {
+  const explicit = result?.sinceHire;
+  if (explicit && typeof explicit === "object" && !Array.isArray(explicit)) {
+    const hiredAt = typeof explicit.hiredAt === "string" ? explicit.hiredAt : null;
+    return {
+      enabled: explicit.enabled === true && !!hiredAt,
+      hiredAt,
+      reason: typeof explicit.reason === "string" ? explicit.reason : null,
+    };
+  }
+  const hiredAt = typeof result?.tenure?.hiredAt === "string" ? result.tenure.hiredAt : null;
+  return {
+    enabled: !!hiredAt,
+    hiredAt,
+    reason: hiredAt ? null : "not a tenure run — every row on the wire is this run's own hire",
+  };
+}
+
+/** The sentence a filtered check appends to its `note`: what was excluded, and
+ *  why that is a reading rather than a loss. `null` when nothing was. */
+export function sinceHireNote(plan, { preTenure = 0, undated = 0, noun = "row" } = {}) {
+  const parts = [];
+  if (plan?.enabled && preTenure > 0) {
+    parts.push(
+      `since-hire: ${preTenure} ${noun}(s) created before the tenure's hiredAt (${plan.hiredAt}) were EXCLUDED — that is the operator's inherited deck, not the holder's work`
+    );
+  }
+  if (undated > 0) {
+    parts.push(
+      `${undated} ${noun}(s) carried no createdAt and could not be attributed to the holder — excluded, and unmeasured rather than counted either way`
+    );
+  }
+  // A filter that is OFF says so only where it COULD have applied — a tenure
+  // whose rows are being graded whole. On a fresh hire there is nothing to
+  // disclose: every row is this run's own by construction, and a note on every
+  // C1 check saying so is noise, not disclosure.
+  if (!plan?.enabled && plan?.hiredAt && plan?.reason) parts.push(plan.reason);
+  return parts.length > 0 ? parts.join("; ") : null;
+}
+
+/**
  * One NIGHT's two lists. The driver stores what it extracted under `night.c1`;
  * a record that predates that (or a hand-built one) is deep-scanned from the
  * tick summary instead. Absent stays `null` on both sides.
+ *
+ * With a `plan` from `sinceHirePlan()`, the lists come back NARROWED to the
+ * holder's own tenure, and what was taken out is counted rather than lost:
+ * `preTenure` / `undated` are the totals across both lists (what the night's
+ * `c1` record carries) and `byList` is the per-list split each check quotes.
  */
-export function nightLists(night) {
+export function nightLists(night, plan = null) {
   const stored = night?.c1;
   const source =
     stored && (Array.isArray(stored.proposals) || Array.isArray(stored.declines))
       ? stored
       : extractNightLists(night?.tick ?? null);
-  return {
+  const raw = {
     proposals: Array.isArray(source.proposals) ? source.proposals : null,
     declines: Array.isArray(source.declines) ? source.declines : null,
+  };
+  const on = plan?.enabled === true && typeof plan.hiredAt === "string";
+  const proposals = on ? partitionByHire(raw.proposals, plan.hiredAt) : null;
+  const declines = on ? partitionByHire(raw.declines, plan.hiredAt) : null;
+  return {
+    proposals: proposals ? proposals.rows : raw.proposals,
+    declines: declines ? declines.rows : raw.declines,
+    preTenure: (proposals?.preTenure ?? 0) + (declines?.preTenure ?? 0),
+    undated: (proposals?.undated ?? 0) + (declines?.undated ?? 0),
+    filtered: on,
+    byList: {
+      proposals: { preTenure: proposals?.preTenure ?? 0, undated: proposals?.undated ?? 0 },
+      declines: { preTenure: declines?.preTenure ?? 0, undated: declines?.undated ?? 0 },
+    },
   };
 }
 
@@ -466,6 +599,15 @@ function check(name, ok, expected, actual, delta, note = null) {
   return { name, ok, expected, actual, delta, ...(note ? { note } : {}) };
 }
 
+/** Append a sentence to the note of the check just pushed. Written this way so
+ *  a check's own note expression stays exactly what it was — the since-hire
+ *  disclosure is an addition to a reading, never a rewrite of one. */
+function noteOn(checks, extra) {
+  const row = checks.at(-1);
+  if (!row || !extra) return;
+  row.note = row.note ? `${row.note} · ${extra}` : extra;
+}
+
 /**
  * Evaluate `scenario.expect` against a run record.
  * Returns `{ ok, checks }` — `ok` false when ANY check failed.
@@ -677,6 +819,11 @@ export function evaluateExpectations(scenario, result) {
   // tick summary carries no list reads `null`, SAYS so, and does not fail —
   // Personas does not carry these lists yet, and an expectation that failed on
   // a missing dependency would be switched off before the dependency landed.
+  //
+  // And all three read only the HOLDER's rows: on a tenure run everything the
+  // deck held before `hiredAt` is the operator's, and grading it would score the
+  // backlog as the App master's judgment (see `sinceHirePlan` above).
+  const sinceHire = sinceHirePlan(result);
 
   if (expect.rankVsBacklog !== undefined && expect.rankVsBacklog !== false) {
     const config = typeof expect.rankVsBacklog === "object" ? expect.rankVsBacklog : { minHits: Number(expect.rankVsBacklog) };
@@ -684,9 +831,18 @@ export function evaluateExpectations(scenario, result) {
     const minHits = Number.isFinite(config.minHits) ? config.minHits : 1;
     const backlog = result?.backlog?.items ?? null;
     const readings = [];
+    let preTenure = 0;
+    let undated = 0;
     for (const night of nights) {
-      const { proposals } = nightLists(night);
+      const { proposals, byList } = nightLists(night, sinceHire);
+      preTenure += byList.proposals.preTenure;
+      undated += byList.proposals.undated;
       if (!proposals) continue;
+      // A night whose WHOLE list was excluded read no ranking at all — scoring
+      // it zero would turn "none of this is attributable to the holder" into
+      // "the holder ranked badly", which is the unmeasured-is-not-zero rule in
+      // the one place it costs a FAIL.
+      if (proposals.length === 0 && byList.proposals.preTenure + byList.proposals.undated > 0) continue;
       readings.push({ night: night.night, ...rankNight(proposals, backlog ?? [], { topK }) });
     }
     const contaminated = readings.filter((r) => r.contaminated);
@@ -719,13 +875,18 @@ export function evaluateExpectations(scenario, result) {
             : null
       )
     );
+    noteOn(checks, sinceHireNote(sinceHire, { preTenure, undated, noun: "proposal" }));
   }
 
   if (expect.declineQuality !== undefined && expect.declineQuality !== false) {
     const minShare = typeof expect.declineQuality === "number" ? expect.declineQuality : 1;
     const declines = [];
+    let preTenure = 0;
+    let undated = 0;
     for (const night of nights) {
-      const list = nightLists(night).declines;
+      const { declines: list, byList } = nightLists(night, sinceHire);
+      preTenure += byList.declines.preTenure;
+      undated += byList.declines.undated;
       if (list) for (const row of list) declines.push({ night: night.night, ...declineReason(row) });
     }
     const withReason = declines.filter((d) => d.reason !== null);
@@ -748,13 +909,18 @@ export function evaluateExpectations(scenario, result) {
           : "the deterministic half only: whether each reason is TRUE is the operator's 3-per-night spot-check (c1-exam §3)"
       )
     );
+    noteOn(checks, sinceHireNote(sinceHire, { preTenure, undated, noun: "decline" }));
   }
 
   if (expect.valueLiteracy !== undefined && expect.valueLiteracy !== false) {
     const minShare = typeof expect.valueLiteracy === "number" ? expect.valueLiteracy : 0.8;
     const proposals = [];
+    let preTenure = 0;
+    let undated = 0;
     for (const night of nights) {
-      const list = nightLists(night).proposals;
+      const { proposals: list, byList } = nightLists(night, sinceHire);
+      preTenure += byList.proposals.preTenure;
+      undated += byList.proposals.undated;
       if (list) for (const row of list) proposals.push({ night: night.night, row, ...proposalLiteracy(row) });
     }
     const literate = proposals.filter((p) => p.journey && p.axis);
@@ -777,6 +943,7 @@ export function evaluateExpectations(scenario, result) {
           : null
       )
     );
+    noteOn(checks, sinceHireNote(sinceHire, { preTenure, undated, noun: "proposal" }));
   }
 
   return { ok: checks.every((c) => c.ok), checks };
