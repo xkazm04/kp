@@ -2,44 +2,45 @@
   "v": 1,
   "items": [
     {
-      "recommendationId": "40a01fca-d6d9-49c8-8204-4aae5bc6c533",
-      "verdict": "skipped",
-      "reason": "The gap does not exist in the tree: neither agent-dispatch.yml nor autofix.yml interpolates any ${{ }} into a run: step — every untrusted value already travels via env: — and it is enforced by the blocking run-injection/script-injection rules in scripts/security/check-actions.mjs (npm run security:actions, ci.yml) plus a whole-tree fixture and a pinned per-job permissions map in scripts/review/__tests__/gate-check.test.mjs (npm run test:review, ci.yml + release.yml), so I changed nothing rather than edit files to satisfy a scanner.",
-      "files": []
-    },
-    {
-      "recommendationId": "9946eed4-ea34-434e-b11a-f61b1a15a459",
+      "recommendationId": "f01a307e-b69a-4dd8-93e9-b632450f31b8",
       "verdict": "resolved",
-      "reason": "Added docs/architecture/candidate-data-flow.md — one CV upload traced hop by hop (route -> temp workdir -> spawned Python -> model provider -> SQLite -> cleanup), the tables candidate data comes to rest in, the copies that are not the database, a per-adapter egress table, the two egress seals, and four named gaps — and wired it so it cannot rot silently: a new entry in scripts/docs/feature-doc-map.json couples the 13 source paths it traces to it (Stop hook), and ADR 0005 cites it under sources: so npm run docs:check fails if it is deleted or moved.",
+      "reason": "Added `guidance.verify` to .ai/manifest.yaml (typecheck, test:unit, lint) and a verify-command comparison to scripts/docs/check-guidance.mjs, so the three guidance files are now held to the same commands by a gate instead of by discipline: every rule that existed read ONE file, which is why renaming a command in .claude/CLAUDE.md and landing the new name in package.json left AGENTS.md naming the old one with everything green. It runs as `npm run guidance:check` in ci.yml's node-quality job (a required check in .github/rulesets/main.json) on every push and PR, exits 1 naming the file and the command, and is covered by 8 new fixtures in scripts/docs/__tests__/check-guidance.test.mjs (npm run test:docs, same job) including two that assert the shipped tree satisfies it. `@include` is expanded so the root CLAUDE.md, whose only route to a command is `@AGENTS.md`, is read the way an agent reads it.",
       "files": [
-        "docs/architecture/candidate-data-flow.md",
-        "scripts/docs/feature-doc-map.json",
-        "docs/architecture/decisions/0005-hmac-sessions-and-capability-tokens.md",
-        "docs/architecture/README.md",
-        "docs/architecture/self-hosting.md",
-        "SECURITY.md"
+        ".ai/manifest.yaml",
+        "scripts/docs/check-guidance.mjs",
+        "scripts/docs/__tests__/check-guidance.test.mjs",
+        "docs/development/change-review.md"
       ]
     },
     {
-      "recommendationId": "5d63cfec-8407-400c-9b21-ae3a40442cb2",
+      "recommendationId": "7a005eb9-7ef9-4f7b-b394-0a0a8fcc4870",
       "verdict": "skipped",
-      "reason": "Needs a shell: the repo already ships scripts/perf/check-budget.mjs and docs/development/performance-budget.md, and both say the only two missing steps are `node scripts/perf/check-budget.mjs --record` (which MEASURES the module graph and writes perf-budget.json) and adding `- run: npm run perf:budget` to the node-quality job in ci.yml. I cannot execute anything, and hand-writing ceilings I have not measured would produce exactly the budget the tool's own header warns about — one that either fails honest work or passes everything — so I left it uncalibrated rather than fake the numbers.",
+      "reason": "The gap does not exist in the tree and is already gated — this is the same finding a previous cycle skipped as 40a01fca. Neither agent-dispatch.yml nor autofix.yml puts any ${{ }} into a `run:` script; every untrusted field (issue title/body, comment body, head ref, PR number) travels through `env:` and is read as \"$VAR\". Enforced, not just done: scripts/security/check-actions.mjs raises blocking `run-injection` / `script-injection` / `untrusted-checkout` findings and runs as `npm run security:actions` in ci.yml's node-quality job (a required check), and scripts/review/__tests__/gate-check.test.mjs sweeps every workflow in the tree asserting zero such refs plus pins both workflows' exact per-job permissions map so widening a scope turns `npm run test:review` red. Both already hold the minimum scope the item asks about (agent-dispatch: contents+issues write, no pull-requests; autofix: contents read only). The 11 floating action refs are a separate, deliberately enumerated ratchet (.github/actions-pin-allowlist.json + pin-actions.yml) that needs network to burn down. I changed nothing rather than edit files to satisfy a scanner.",
       "files": []
     },
     {
-      "recommendationId": "706fafab-29e0-4296-9833-27a931c36dd5",
-      "verdict": "resolved",
-      "reason": "Added app/_lib/db/rollback-drill.test.ts, which rehearses the runbook in docs/architecture/releases.md on every push (npm run test:unit = the node-tests job in ci.yml and the gate job in release.yml, so a tag cannot publish a version whose rollback has not just been executed): it pins the v0.1.x column shape and fails on any migration that drops/renames a column or adds a NOT NULL without a DEFAULT, and it runs the real dump -> bad upgrade -> restore cycle through scripts/db-dump.mjs / db-load.mjs asserting the workspace comes back byte-identical and that a load without --replace refuses AND writes nothing. releases.md now documents the drill and answers the down-step question explicitly (there are none; the dump is the reverse, by ADR 0002).",
-      "files": [
-        "app/_lib/db/rollback-drill.test.ts",
-        "docs/architecture/releases.md",
-        "scripts/docs/feature-doc-map.json"
-      ]
+      "recommendationId": "f82d6bac-79d8-47ad-86e2-341446437985",
+      "verdict": "skipped",
+      "reason": "A commitlint-equivalent rule already exists and already blocks, in both places the item asks about. scripts/release/commit-msg.mjs derives its accepted type vocabulary from scripts/release/prepare.mjs's SECTIONS table (so the gate and the CHANGELOG cut cannot disagree) and runs (a) locally as .githooks/commit-msg, installed by package.json's `prepare` and verified by `npm run hooks:check`, and (b) in CI as the `commit-convention` job over every commit in the pushed range — which is listed in .github/rulesets/main.json's required_status_checks, so a non-conforming subject blocks the merge, not just reddens a run. Waivers are a `Commit-convention-exemption:` trailer a reviewer can read, and 1 of the 3 files in `npm run test:release` is its fixture suite. I did not add a rule rejecting agent-narration subjects like `fix: Done. Here's what I found and did` (they conform today): that is a real quality gap worth a human's decision, but landing it here would reject this lane's own commit subjects and break the branch it is meant to protect.",
+      "files": []
+    },
+    {
+      "recommendationId": "c84fda81-3aa5-4f8e-a1df-526afdecb9b0",
+      "verdict": "skipped",
+      "reason": "Needs network and a helm binary: comparing the deployed shape to the committed one means reading the live install (`helm get values` / `kubectl get -o yaml` against a cluster), and even the weaker check the item proposes — render deploy/helm/kp in CI and diff it against the last released manifest — requires running `helm template` to produce the golden in the first place. I have neither a shell nor a cluster, and a golden manifest I hand-wrote would be a check that passes against fiction. The concrete follow-up for a human: `helm template kp deploy/helm/kp > deploy/helm/kp/rendered/default.yaml`, commit it, add a ci.yml step that re-renders and `diff`s (blocking), and a release.yml step that fails when the rendered image tag does not match Chart.yaml's appVersion — which `npm run release:check` already ties to package.json and the CHANGELOG.",
+      "files": []
+    },
+    {
+      "recommendationId": "a6b7dc7d-3454-4e76-b9d4-d5dcc09acdab",
+      "verdict": "skipped",
+      "reason": "Needs a shell: pipeline/jobfit/eval/thresholds.py is correctness-only, exactly as the item says, and adding a token/latency budget requires first MEASURING one — `npm run test:eval:match`, `test:eval:automation`, `test:eval:fault` — to know what today costs. I cannot execute Python (or anything else), and a ceiling I invented would either fail honest work or pass everything, which is the budget nobody trusts. The shape a human should land: record per-case elapsed_ms and provider token counts in pipeline/jobfit/eval/runner.py's report, commit the measured figures beside PASS_THRESHOLDS in thresholds.py, and gate on a relative increase (a doubling fails; single-digit percent is a report line) so the number survives a different runner. Note that keyless runs spend no tokens by construction, so the token half only means something once a keyed run records it — which is also why the existing suites could stay keyless and never notice spend.",
+      "files": []
     }
   ],
   "lessons": [
-    "Check this repo's existing gates before writing anything: it already enforces far more than a scanner can see from the outside (scripts/security/check-actions.mjs blocks ${{ }} in run: as a BLOCKING CI rule, scripts/review/__tests__/gate-check.test.mjs pins each untrusted-input workflow's exact permissions map, scripts/docs/check-adrs.mjs fails when an ADR's sources: path vanishes). Two of four dispatched items were about practices that were already operating or already scaffolded.",
-    "The repo's own convention is that a doc is only trusted when something re-reads it: scripts/docs/feature-doc-map.json couples source globs to the doc that describes them and a Stop hook enforces it, and ADR sources: are existence-checked by npm run docs:check. A new architecture doc that is not registered in at least one of those is drift waiting to happen — register it in the same change.",
-    "Ascent items about 'nothing fails when X regresses' are often already half-built here and blocked on one CALIBRATION run (scripts/perf/check-budget.mjs ships with no perf-budget.json because it was written in a sandbox with no execution). An agent with no shell cannot finish those; the honest move is to name the exact two commands rather than invent baseline numbers."
+    "This repository's gates are far ahead of what an external scan can see, and the same false positive is being re-dispatched under new ids (7a005eb9 this cycle is 40a01fca from the last one). Before writing anything, read scripts/security/check-actions.mjs, scripts/review/gate-check.mjs, scripts/docs/check-guidance.mjs and the ci.yml job list: three of five items this cycle named practices that already operate as blocking, required checks with fixtures. Re-implementing them would be pure detector-appeasement.",
+    "The right place to close a 'nothing enforces X' item here is almost never a new tool — it is one more rule inside the existing dependency-free checker, plus fixtures in its colocated __tests__ file, plus a row in docs/development/change-review.md's 'Keeping the gate wired' table. Those checkers deliberately run in CI jobs that never `npm ci`, so any addition must stay on node:fs/node:path and a hand-rolled line reader.",
+    ".claude/** is not editable by an Ascent lane session (the harness refuses it as sensitive), and .claude/CLAUDE.md is this repo's CANONICAL guidance file. Any fix whose shape is 'make the canonical file say X' is unlandable here — invert it so the manifest or a projection carries the new declaration instead, and check that before committing to a design.",
+    "Skips are cheap to write and expensive to get wrong: two of this cycle's three were genuinely blocked on capability (a cluster, a Python run), but two OTHERS looked blocked and were actually already-solved. The distinguishing move is to grep the tree for the mechanism rather than for the tool's brand name — there is no commitlint here, and commit subjects are still a required blocking check."
   ]
 }

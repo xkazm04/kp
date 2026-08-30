@@ -32,6 +32,25 @@
 //                         and package.json does not define `<x>`. The same drift
 //                         shape `hooks:check` catches: instructions that read
 //                         fine and no longer connect to anything.
+//   verify-undeclared     `guidance.verify` is absent or empty. It is the list of
+//                         commands that verify a change, and it is what turns the
+//                         two rules below from opinions into a comparison.
+//   verify-command-dangling  `guidance.verify` names an npm script package.json
+//                         does not define — the first half of a rename.
+//   verify-command-missing   a declared guidance file (canonical OR projection)
+//                         never names a verify command. THIS IS THE RULE THIS
+//                         SCRIPT WAS MISSING. Every rule above reads one file at
+//                         a time, so the drift that actually bites is invisible
+//                         to all of them: rename `test:unit` in `.claude/CLAUDE.md`,
+//                         land the new name in package.json, and AGENTS.md goes
+//                         on telling an agent to run the old one while both files
+//                         stay internally consistent. They do not disagree about
+//                         anything a per-file rule can see — they just answer
+//                         "how do I verify a change" differently, and whichever
+//                         file the agent opened decides which answer it gets.
+//                         An `@include` counts: a projection whose only route to
+//                         the command is an include is read the way a tool that
+//                         expands includes reads it (see `resolveIncludes`).
 //
 //   npm run guidance:check
 //
@@ -72,6 +91,7 @@ export function parseGuidance(yaml) {
 
   let canonical = null;
   const projections = [];
+  const verify = [];
   let key = null;
 
   for (let i = start + 1; i < lines.length; i++) {
@@ -86,9 +106,37 @@ export function parseGuidance(yaml) {
       continue;
     }
     const item = /^\s{4,}-\s*(.+)$/.exec(line);
-    if (item && key === 'projections') projections.push(scalar(item[1]));
+    if (!item) continue;
+    if (key === 'projections') projections.push(scalar(item[1]));
+    else if (key === 'verify') verify.push(scalar(item[1]));
   }
-  return { canonical, projections };
+  return { canonical, projections, verify };
+}
+
+/**
+ * `@path/to/file.md` on its own line is an include — Claude Code expands it, and
+ * this repository's root `CLAUDE.md` reaches every rule in the canonical file
+ * through exactly one. A check that read the raw text would report that file as
+ * naming no commands at all, which is true of the bytes and false of what an
+ * agent sees.
+ *
+ * Recursive but cycle-guarded, and anything it cannot resolve — a target that is
+ * missing, a directory, a path that climbs out of the tree — is LEFT AS THE LINE
+ * IT WAS. A missing include is `projection-missing`'s business; this function's
+ * only job is that it must never throw in the middle of a check.
+ */
+export function resolveIncludes(text, root = REPO_ROOT, seen = new Set()) {
+  return text
+    .split(/\r?\n/)
+    .map((line) => {
+      const m = /^@([\w./-]+)\s*$/.exec(line.trim());
+      if (!m || seen.has(m[1])) return line;
+      const target = path.resolve(root, m[1]);
+      if (path.relative(root, target).startsWith('..')) return line; // outside the tree
+      if (!fs.existsSync(target) || !fs.statSync(target).isFile()) return line;
+      return resolveIncludes(fs.readFileSync(target, 'utf8'), root, new Set([...seen, m[1]]));
+    })
+    .join('\n');
 }
 
 /** Every `npm run <script>` a guidance file tells an agent to run. */
@@ -99,8 +147,10 @@ export function commandsIn(source) {
 const finding = (rule, message, fix) => ({ rule, message, fix });
 
 /**
- * Pure. `guidance` is the parsed block, `files` is `[{path, text}]` for every
- * guidance candidate that EXISTS, `scripts` is package.json's scripts object.
+ * Pure. `guidance` is the parsed block, `files` is `[{path, text, expanded?}]`
+ * for every guidance candidate that EXISTS (`expanded` is `text` with `@includes`
+ * resolved; absent means the two are the same), `scripts` is package.json's
+ * scripts object.
  */
 export function runChecks(guidance, files, scripts) {
   const out = [];
@@ -177,6 +227,59 @@ export function runChecks(guidance, files, scripts) {
     }
   }
 
+  // THE COMMANDS THE THREE FILES ARE SUPPOSED TO AGREE ON.
+  //
+  // Everything above reads each guidance file on its own. None of it can see the
+  // drift that actually bites: rename the verify command in the canonical file,
+  // land the new name in package.json, and every rule so far stays green while
+  // AGENTS.md goes on telling an agent to run the old one. Both files are
+  // internally consistent; they just answer "how do I verify a change"
+  // differently, and whichever one the agent opened decides which answer it gets.
+  //
+  // `guidance.verify` in the manifest is the shared answer. A projection may say
+  // LESS than the file it projects about anything else — that is what makes it a
+  // projection — but these it must carry, spelled the same way.
+  const verify = guidance?.verify ?? [];
+  if (verify.length === 0) {
+    out.push(
+      finding(
+        'verify-undeclared',
+        `${MANIFEST_PATH} declares no \`guidance.verify\`.`,
+        'List the commands that verify a change here (typecheck, unit tests, lint). Without them this check ' +
+          'can compare the guidance files for internal consistency and nothing else — which is the state in ' +
+          'which they agreed by discipline rather than by a gate.',
+      ),
+    );
+  }
+
+  for (const cmd of verify) {
+    if (!(cmd in scripts)) {
+      out.push(
+        finding(
+          'verify-command-dangling',
+          `\`guidance.verify\` lists \`npm run ${cmd}\`, which package.json does not define.`,
+          'This is the first half of a rename: the manifest still names the command that went away. Update it ' +
+            'to the new name — the rule below will then name every guidance file that has not caught up.',
+        ),
+      );
+      continue;
+    }
+    for (const f of files) {
+      if (!declared.has(f.path)) continue; // an undeclared file is already a finding
+      if (commandsIn(f.expanded ?? f.text).includes(cmd)) continue;
+      out.push(
+        finding(
+          'verify-command-missing',
+          `${f.path} never names \`npm run ${cmd}\`, which ${MANIFEST_PATH} declares as a verify command.`,
+          `An agent that opens ${f.path} does not learn to run it. Add the command there, or take it out of ` +
+            '`guidance.verify` because it is no longer how a change is verified — one of those is true, and ' +
+            'the manifest is where this repository says which. Do not fix it by deleting the entry unless the ' +
+            'second one is what happened.',
+        ),
+      );
+    }
+  }
+
   return out;
 }
 
@@ -189,7 +292,15 @@ export function runChecks(guidance, files, scripts) {
 export function loadGuidanceFiles(root = REPO_ROOT, declared = []) {
   return [...new Set([...GUIDANCE_CANDIDATES, ...declared.filter(Boolean)])]
     .filter((p) => fs.existsSync(path.join(root, p)))
-    .map((p) => ({ path: p, text: fs.readFileSync(path.join(root, p), 'utf8') }));
+    .map((p) => {
+      const text = fs.readFileSync(path.join(root, p), 'utf8');
+      // `text` is what the file says; `expanded` is what an agent reads. The
+      // rules that judge THIS file (undeclared, not-pointing) use the first —
+      // an include is not this file naming the canonical path. The verify
+      // comparison uses the second, because a command reached through an
+      // include is a command the agent gets.
+      return { path: p, text, expanded: resolveIncludes(text, root, new Set([p])) };
+    });
 }
 
 /** Every path the manifest names, canonical first. */
@@ -197,7 +308,10 @@ export const declaredPaths = (guidance) => [guidance?.canonical, ...(guidance?.p
 
 export function render(findings, guidance) {
   if (findings.length === 0) {
-    return `check-guidance: ${guidance.canonical} is canonical, ${guidance.projections.length} projection(s) point at it, every command they name exists.`;
+    return (
+      `check-guidance: ${guidance.canonical} is canonical, ${guidance.projections.length} projection(s) point at it, ` +
+      `every command they name exists, and all ${guidance.verify?.length ?? 0} verify command(s) are named by every one of them.`
+    );
   }
   return [...findings.map((f) => `BLOCK  [${f.rule}] ${f.message}\n       ${f.fix}`), '', `${findings.length} finding(s).`].join('\n');
 }
@@ -207,6 +321,6 @@ if (process.argv[1]?.endsWith('check-guidance.mjs')) {
   const guidance = parseGuidance(manifest);
   const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
   const findings = runChecks(guidance, loadGuidanceFiles(REPO_ROOT, declaredPaths(guidance)), pkg.scripts ?? {});
-  console.log(render(findings, guidance ?? { canonical: null, projections: [] }));
+  console.log(render(findings, guidance ?? { canonical: null, projections: [], verify: [] }));
   process.exit(findings.length === 0 ? 0 : 1);
 }

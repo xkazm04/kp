@@ -17,17 +17,39 @@ repo:
 #   canonical    the ONE file to load. Every convention that bites lives here.
 #   projections  the other guidance files. Each must exist and must NAME the
 #                canonical path, so a reader that starts at one can reach it.
+#   verify       the commands that verify a change. THE ONE THING THE THREE FILES
+#                MUST SAY IDENTICALLY, and until this list existed nothing
+#                compared them: every other rule reads one file at a time, so
+#                renaming the unit-test script in the canonical file and landing
+#                the new name in package.json left AGENTS.md telling an agent to
+#                run the old one with all three files internally consistent and
+#                the whole check green. They did not disagree about anything a
+#                per-file rule could see — they just answered "how do I verify a
+#                change" differently, and whichever file the agent opened decided
+#                which answer it got. Each entry must exist in package.json AND
+#                be named by every file above (an `@include` counts — CLAUDE.md
+#                reaches these through one).
+#
+#                It is deliberately the SHORT list. Not every command in the
+#                canonical file belongs here; these are the ones a projection is
+#                wrong to be silent about, because they are what an agent runs
+#                before it says it is done.
 #
 # Kept honest by `npm run guidance:check` (scripts/docs/check-guidance.mjs), which
 # runs in ci.yml's node-quality job on every push and PR: it fails on a canonical
 # that does not exist, a projection that never names it, an undeclared fourth
-# guidance file, and on any `npm run <script>` these files tell an agent to run
-# that package.json no longer defines.
+# guidance file, any `npm run <script>` these files tell an agent to run that
+# package.json no longer defines, and any verify command below that package.json
+# or one of these files has stopped naming.
 guidance:
   canonical: .claude/CLAUDE.md
   projections:
     - AGENTS.md
     - CLAUDE.md
+  verify:
+    - typecheck
+    - test:unit
+    - lint
 
 # The organization's AI registry - knowledge bundles this repo consumes and the skill
 # marketplace it installs from. Unknown fields MUST be ignored by a reader.
