@@ -46,6 +46,12 @@ export const GATE_PATHS = [
   /^\.githooks\//,
   /^eslint\.config\.mjs$/,
   /^ruff\.toml$/,
+  // The two debt ceilings and the scripts that hold them. Editing a ceiling is
+  // a legitimate move and a reviewable one — it is also the cheapest way to make
+  // a growing suppression list stop being reported, which is precisely why it
+  // belongs in the category rather than in the diff's forty other lines.
+  /^ts-debt\.json$/,
+  /^scripts\/lint\//,
   /^playwright\.config\.ts$/,
   /^scripts\/design\//,
   /^scripts\/docs\//,

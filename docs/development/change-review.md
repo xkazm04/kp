@@ -243,6 +243,7 @@ and applies exactly these:
 | --- | --- | --- |
 | `eslint --fix` | the whole tree | everything `npm run lint` would block on and can repair itself. CI still blocks on the rest |
 | `ruff check --fix --select F401,F541 --config 'lint.ignore = []'` | `pipeline/` | the two entries [`ruff.toml`](../../ruff.toml) enumerates as debt with *"(auto-fixable)"* beside them. They are **ignored** by the gate, so CI is green while they accumulate — this is the only thing that burns them down. Safe fixes only (ruff's default): an F401 removal ruff calls unsafe, such as a re-export in an `__init__.py`, is left alone. The `--config` override is load-bearing: a CLI `--select` replaces the config's `select` and leaves its `ignore` standing, so selecting a rule that is on the ignore list matches nothing |
+| `ts-ratchet --tighten` | [`ts-debt.json`](../../ts-debt.json) | the same pawl on the TypeScript side. Nothing in the row above removes an `eslint-disable` — `eslint --fix` cannot, and could not know which are deliberate — so this one only ever records a burn-down a human performed, which is exactly the case the ruff ratchet exists for: the fix lands, the ceiling stays at the old number, and the class quietly grows back to it. A ceiling that reaches 0 stays at 0 |
 | `ruff-ratchet --tighten` | [`ruff.toml`](../../ruff.toml) | records what the line above just gained: lowers each `# ratchet: <CODE> <= <N>` ceiling to what the tree now carries, and deletes any entry that has stopped suppressing anything. Fixing a violation the ignore list goes on excusing is how `F821` stayed ignored for weeks after its one occurrence was fixed. A rewrite the script cannot read back is a no-op, never a commit |
 
 Not included, deliberately: `ruff format`. This tree has never been
@@ -265,8 +266,9 @@ The job never fails the build: everything it can fix is either already gated by
 
 A gate stops being one long before anyone deletes it. The checks below run in
 `ci.yml` on every push and PR. The first four are offline and cost under a
-second between them; the ratchet at the end runs in `python-gate`, where ruff is
-already installed.
+second between them; the two ratchets at the end are the debt ceilings — the TS
+one runs in `node-quality`, the ruff one in `python-gate`, where ruff is already
+installed.
 
 | Check | Catches |
 | --- | --- |
@@ -275,6 +277,7 @@ already installed.
 | `npm run hooks:check` ([`install.mjs`](../../scripts/hooks/install.mjs)) | a hook that vanished, or one still shelling out to an npm script or file that was renamed away — the shape of drift that leaves `pre-push` running and no longer checking. Also: a `prepare` that swallows its own failure (below), and a Dockerfile that runs `npm ci` without the installer in the build context |
 | `npm run guidance:check` ([`check-guidance.mjs`](../../scripts/docs/check-guidance.mjs)) | the three agent-guidance files drifting apart. `.ai/manifest.yaml` declares which one is canonical (`.claude/CLAUDE.md`), which are projections of it, and — `guidance.verify` — the commands that verify a change. It fails on a canonical that does not exist, a projection that never names it, an undeclared fourth guidance file, any `npm run <script>` these files name that package.json has dropped, and **any verify command a guidance file has stopped naming**. That last rule is the one no per-file check could see: rename the unit-test script in the canonical file, land the new name in `package.json`, and `AGENTS.md` goes on telling an agent to run the old one with all three files internally consistent. An `@include` counts as naming — the root `CLAUDE.md` reaches its commands through one |
 | `npm run lint:ruff-ratchet` ([`ruff-ratchet.mjs`](../../scripts/lint/ruff-ratchet.mjs), in `python-gate`) | an ignore in [`ruff.toml`](../../ruff.toml) that declares no ceiling, one carrying more violations than it declares, or one that suppresses **nothing** and should have been deleted. `ruff check pipeline/` runs with those ignores applied and so is structurally unable to see any of it; this re-runs ruff with `lint.ignore` emptied and compares. An answer it cannot parse is an error, never "no violations" — otherwise every entry would look dead |
+| `npm run lint:ts-ratchet` ([`ts-ratchet.mjs`](../../scripts/lint/ts-ratchet.mjs), in `node-quality`) | a suppression in `app/` or `packages/` with no ceiling in [`ts-debt.json`](../../ts-debt.json), a class that grew past its ceiling, or a ceiling with no `why`. Same reasoning as the row above, one language across: `npm run lint` is green **by construction** over a suppressed line, so the linter can never report that its own exceptions are multiplying. It counts `eslint-disable` per rule the directive names (a first `no-restricted-syntax` disable must not hide under the 39 `react-hooks/exhaustive-deps`), a blanket `/* eslint-disable */` as `*`, and `@ts-ignore` / `@ts-expect-error` / `@ts-nocheck`. A second ceiling, `directive:unreasoned`, counts the directives with no `-- why` on the line — 42 of today's 59 — so a new suppression must explain itself even when its rule still has room. A walk that reaches no files is an error, never a clean tree |
 
 `npm run review:gate -- --verify` is the online half: it asks GitHub whether the
 ruleset is actually applied. Without a token it prints **THE LIVE HALF DID NOT

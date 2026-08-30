@@ -130,6 +130,14 @@ jobs:
           # rewrite the script cannot read back is a no-op (scripts/lint/).
           node scripts/lint/ruff-ratchet.mjs --tighten ||
             echo 'autofix: --tighten did not run (see above). The blocking ratchet in ci.yml still reports.'
+          # The same pawl on the TypeScript side (ts-debt.json). Nothing above
+          # this line removes an eslint-disable — `eslint --fix` cannot, and
+          # would not know which are deliberate — so this one only ever records
+          # a burn-down a human performed. That is exactly the case the ruff
+          # ratchet was built for: the fix lands, the ceiling stays at the old
+          # number, and the class silently grows back to it.
+          node scripts/lint/ts-ratchet.mjs --tighten ||
+            echo 'autofix: ts --tighten did not run (see above). The blocking ratchet in ci.yml still reports.'
           if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo 'Autofix: nothing to fix — every machine-applicable finding was already fixed.' >> "$GITHUB_STEP_SUMMARY"

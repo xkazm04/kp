@@ -3,8 +3,8 @@
 # Pushes to main have repeatedly gone out without the verification gate and
 # turned CI red for a day (see .claude/ship-loop/journal.md, CP7). This hook
 # runs the fast core of the gate — both review lenses, then typecheck, lint,
-# design, build — before any push that updates refs/heads/main. Other branches
-# push freely; CI covers them.
+# ts-ratchet, design, build — before any push that updates refs/heads/main.
+# Other branches push freely; CI covers them.
 #
 # `design:check` joined the core because the dual-theme design law was stated in
 # .claude/CLAUDE.md and docs/design/README.md and enforced NOWHERE: nothing in
@@ -28,7 +28,7 @@ done
 
 [ "$targets_main" = "1" ] || exit 0
 
-echo "pre-push: push targets main — running the gate (constitution, agent review, typecheck, lint, design, build)..." >&2
+echo "pre-push: push targets main — running the gate (constitution, agent review, typecheck, lint, ts-ratchet, design, build)..." >&2
 
 # The deterministic review lens runs FIRST because it is the cheapest and the
 # only one that reads the change rather than the result: a skipped test, a
@@ -65,6 +65,12 @@ fi
 
 npm run typecheck || { echo "pre-push: typecheck failed — push blocked." >&2; exit 1; }
 npm run lint      || { echo "pre-push: lint failed — push blocked." >&2; exit 1; }
+# …and the ceiling on what lint is allowed to be told to ignore. `npm run lint`
+# is green by construction over a suppressed line, so it can never report that
+# its own exceptions are multiplying. Sub-second, dependency-free, reads
+# ts-debt.json. Here rather than only in CI because most changes reach main as a
+# direct push, and a gate that reports after the fact is not the gate.
+npm run lint:ts-ratchet || { echo "pre-push: ts-ratchet failed — a suppression has no declared ceiling or grew past it. See ts-debt.json." >&2; exit 1; }
 npm run design:check || { echo "pre-push: design:check failed — push blocked. See docs/design/README.md." >&2; exit 1; }
 npm run build     || { echo "pre-push: build failed — push blocked." >&2; exit 1; }
 

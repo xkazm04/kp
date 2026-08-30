@@ -1,0 +1,62 @@
+{
+  "$comment": [
+    "The declared ceiling on every suppression in app/ and packages/. Read by",
+    "scripts/lint/ts-ratchet.mjs, run by ci.yml (node-quality) on every push and",
+    "pull request; autofix.yml lowers the numbers with `--tighten` on every PR.",
+    "",
+    "RATCHET, not aspiration: these are the counts of the tree TODAY (measured",
+    "2026-08-30). Every entry is a debt marker, not a policy. Ratchet by deleting",
+    "the suppressions and letting `--tighten` follow them down. A ceiling that",
+    "reaches 0 STAYS at 0 — that is the lock, and the next one to arrive is a red",
+    "build.",
+    "",
+    "Never raise a number to make a red build green without changing `why` in the",
+    "same commit and saying there what changed. Raising a ceiling is editing the",
+    "gate to pass the change (ADR 0007), and `why` is where a reviewer gets to",
+    "disagree with it.",
+    "",
+    "Explicit `any` has no entry because it has no occurrences: a sweep of app/",
+    "and packages/ on 2026-08-30 (`as any`, `: any`, `any[]`, `<any>`, `, any>`)",
+    "found zero in code — every hit was the English word in a comment or a test",
+    "name. The header of ts-ratchet.mjs says why a textual counter for it would",
+    "be worse than none."
+  ],
+  "ceilings": {
+    "eslint:react-hooks/exhaustive-deps": {
+      "max": 39,
+      "why": "Effects deliberately narrower than their closure: mount-only restores, one-shot hydration, seed-once-per-step. The single largest class here and the one most worth reading twice — 39 places where the compiler's dependency analysis was overruled by hand. Retired by the same move each time: hoist the value into a ref or a stable callback so the honest dependency list is also the correct one."
+    },
+    "directive:unreasoned": {
+      "max": 42,
+      "why": "The second axis: an eslint directive with no `-- why` on its line. 17 of today's 59 explain themselves and 42 do not, which is the difference between a deliberate exception and one nobody has re-read. This ceiling can only fall, so a NEW suppression must carry its reason even when its rule still has room under the ceiling above."
+    },
+    "eslint:react-hooks/set-state-in-effect": {
+      "max": 10,
+      "why": "State seeded from a browser-only source (localStorage, sessionStorage, a URL param) in an effect, because doing it in an initializer would be an SSR hydration mismatch. Retired when the surface moves the read to the server or to a client-only boundary."
+    },
+    "eslint:@next/next/no-img-element": {
+      "max": 5,
+      "why": "Operator-supplied brand and customer logo URLs, which are arbitrary external hosts rather than bundled assets, so next/image would need every one of them in remotePatterns. Retired by routing tenant logos through a first-party image proxy."
+    },
+    "eslint:i18next/no-literal-string": {
+      "max": 2,
+      "why": "One deliberately English-only surface (app/trust) and one fold glyph that is punctuation rather than copy. Both carry their reason at the site. Retired when /trust is localized; the glyph one by making the character a named constant, which is structurally invisible to the rule."
+    },
+    "eslint:react-hooks/refs": {
+      "max": 1,
+      "why": "One guarded once-per-task hydration where the dirty flag must clear atomically with the state seed (useScheduleInterviewPrep). Documented at the site as the render-phase completion pattern."
+    },
+    "eslint:jsx-a11y/media-has-caption": {
+      "max": 1,
+      "why": "The JD-intake voice recorder's live audio element, which has no track to caption. Retired if the recorder ever renders a transcript alongside the stream."
+    },
+    "eslint:*": {
+      "max": 1,
+      "why": "A BLANKET `/* eslint-disable */` — every rule off for a whole file, naming none. The one occurrence is app/_dev-inspector/devInspectorUi.tsx, dev-only chrome behind DEV_INSPECT=1 that is deliberately outside the app's theming and i18n laws. Held at 1 because a second blanket disable should be a decision somebody makes on purpose, not a line somebody copies."
+    },
+    "ts:@ts-expect-error": {
+      "max": 1,
+      "why": "One test that deliberately drops a whole branch from a fixture to exercise a defensive read (app/_lib/voice/eleven-agent-diff.test.ts). `@ts-expect-error` rather than `@ts-ignore` on purpose: it fails if the error it claims stops happening. In product code this ceiling should stay at 1 and the occurrence should stay in a test."
+    }
+  }
+}

@@ -2,45 +2,51 @@
   "v": 1,
   "items": [
     {
-      "recommendationId": "f01a307e-b69a-4dd8-93e9-b632450f31b8",
-      "verdict": "resolved",
-      "reason": "Added `guidance.verify` to .ai/manifest.yaml (typecheck, test:unit, lint) and a verify-command comparison to scripts/docs/check-guidance.mjs, so the three guidance files are now held to the same commands by a gate instead of by discipline: every rule that existed read ONE file, which is why renaming a command in .claude/CLAUDE.md and landing the new name in package.json left AGENTS.md naming the old one with everything green. It runs as `npm run guidance:check` in ci.yml's node-quality job (a required check in .github/rulesets/main.json) on every push and PR, exits 1 naming the file and the command, and is covered by 8 new fixtures in scripts/docs/__tests__/check-guidance.test.mjs (npm run test:docs, same job) including two that assert the shipped tree satisfies it. `@include` is expanded so the root CLAUDE.md, whose only route to a command is `@AGENTS.md`, is read the way an agent reads it.",
+      "recommendationId": "307e64bc-0860-4abe-98a3-bfbc27fe5c1e",
+      "verdict": "skipped",
+      "reason": "The gap is already closed and already gated: no `${{ }}` reaches any `run:` in any of the 7 workflows (every untrusted value in agent-dispatch.yml and autofix.yml goes through `env:`), and scripts/security/check-actions.mjs enforces it with a blocking `run-injection` rule plus `script-injection` and `untrusted-checkout`, run as `npm run security:actions` in ci.yml on every push and PR.",
       "files": [
-        ".ai/manifest.yaml",
-        "scripts/docs/check-guidance.mjs",
-        "scripts/docs/__tests__/check-guidance.test.mjs",
+        ".github/workflows/agent-dispatch.yml",
+        ".github/workflows/autofix.yml",
+        "scripts/security/check-actions.mjs"
+      ]
+    },
+    {
+      "recommendationId": "3e565d6a-634f-4dfe-8118-32eb8e1e5f9c",
+      "verdict": "skipped",
+      "reason": "Required checks are already declared in a reviewable file — .github/rulesets/main.json lists all 11 required contexts plus deletion/non_fast_forward, .github/rulesets/README.md explains the admin-bypass split, and `npm run review:gate` fails ci.yml when a required context no longer matches a job name (`--verify` asks GitHub whether it is actually applied).",
+      "files": [
+        ".github/rulesets/main.json",
+        ".github/rulesets/README.md",
+        "scripts/review/gate-check.mjs"
+      ]
+    },
+    {
+      "recommendationId": "dc8efc7c-9840-415d-8c41-b7dc336b2d12",
+      "verdict": "resolved",
+      "reason": "Added scripts/lint/ts-ratchet.mjs + ts-debt.json: every eslint-disable (per rule it names), every @ts- directive and every directive with no `-- why` in app/ and packages/ is now held to a declared, explained ceiling, blocking in ci.yml's node-quality job and in .githooks/pre-push, with autofix.yml lowering the numbers via `--tighten` on every PR.",
+      "files": [
+        "scripts/lint/ts-ratchet.mjs",
+        "scripts/lint/__tests__/ts-ratchet.test.mjs",
+        "ts-debt.json",
+        "package.json",
+        ".github/workflows/ci.yml",
+        ".github/workflows/autofix.yml",
+        ".githooks/pre-push",
+        "scripts/review/constitution-check.mjs",
         "docs/development/change-review.md"
       ]
     },
     {
-      "recommendationId": "7a005eb9-7ef9-4f7b-b394-0a0a8fcc4870",
+      "recommendationId": "e49ead13-b894-44e5-a7e5-afe5021c105e",
       "verdict": "skipped",
-      "reason": "The gap does not exist in the tree and is already gated — this is the same finding a previous cycle skipped as 40a01fca. Neither agent-dispatch.yml nor autofix.yml puts any ${{ }} into a `run:` script; every untrusted field (issue title/body, comment body, head ref, PR number) travels through `env:` and is read as \"$VAR\". Enforced, not just done: scripts/security/check-actions.mjs raises blocking `run-injection` / `script-injection` / `untrusted-checkout` findings and runs as `npm run security:actions` in ci.yml's node-quality job (a required check), and scripts/review/__tests__/gate-check.test.mjs sweeps every workflow in the tree asserting zero such refs plus pins both workflows' exact per-job permissions map so widening a scope turns `npm run test:review` red. Both already hold the minimum scope the item asks about (agent-dispatch: contents+issues write, no pull-requests; autofix: contents read only). The 11 floating action refs are a separate, deliberately enumerated ratchet (.github/actions-pin-allowlist.json + pin-actions.yml) that needs network to burn down. I changed nothing rather than edit files to satisfy a scanner.",
-      "files": []
-    },
-    {
-      "recommendationId": "f82d6bac-79d8-47ad-86e2-341446437985",
-      "verdict": "skipped",
-      "reason": "A commitlint-equivalent rule already exists and already blocks, in both places the item asks about. scripts/release/commit-msg.mjs derives its accepted type vocabulary from scripts/release/prepare.mjs's SECTIONS table (so the gate and the CHANGELOG cut cannot disagree) and runs (a) locally as .githooks/commit-msg, installed by package.json's `prepare` and verified by `npm run hooks:check`, and (b) in CI as the `commit-convention` job over every commit in the pushed range — which is listed in .github/rulesets/main.json's required_status_checks, so a non-conforming subject blocks the merge, not just reddens a run. Waivers are a `Commit-convention-exemption:` trailer a reviewer can read, and 1 of the 3 files in `npm run test:release` is its fixture suite. I did not add a rule rejecting agent-narration subjects like `fix: Done. Here's what I found and did` (they conform today): that is a real quality gap worth a human's decision, but landing it here would reject this lane's own commit subjects and break the branch it is meant to protect.",
-      "files": []
-    },
-    {
-      "recommendationId": "c84fda81-3aa5-4f8e-a1df-526afdecb9b0",
-      "verdict": "skipped",
-      "reason": "Needs network and a helm binary: comparing the deployed shape to the committed one means reading the live install (`helm get values` / `kubectl get -o yaml` against a cluster), and even the weaker check the item proposes — render deploy/helm/kp in CI and diff it against the last released manifest — requires running `helm template` to produce the golden in the first place. I have neither a shell nor a cluster, and a golden manifest I hand-wrote would be a check that passes against fiction. The concrete follow-up for a human: `helm template kp deploy/helm/kp > deploy/helm/kp/rendered/default.yaml`, commit it, add a ci.yml step that re-renders and `diff`s (blocking), and a release.yml step that fails when the rendered image tag does not match Chart.yaml's appVersion — which `npm run release:check` already ties to package.json and the CHANGELOG.",
-      "files": []
-    },
-    {
-      "recommendationId": "a6b7dc7d-3454-4e76-b9d4-d5dcc09acdab",
-      "verdict": "skipped",
-      "reason": "Needs a shell: pipeline/jobfit/eval/thresholds.py is correctness-only, exactly as the item says, and adding a token/latency budget requires first MEASURING one — `npm run test:eval:match`, `test:eval:automation`, `test:eval:fault` — to know what today costs. I cannot execute Python (or anything else), and a ceiling I invented would either fail honest work or pass everything, which is the budget nobody trusts. The shape a human should land: record per-case elapsed_ms and provider token counts in pipeline/jobfit/eval/runner.py's report, commit the measured figures beside PASS_THRESHOLDS in thresholds.py, and gate on a relative increase (a doubling fails; single-digit percent is a report line) so the number survives a different runner. Note that keyless runs spend no tokens by construction, so the token half only means something once a keyed run records it — which is also why the existing suites could stay keyless and never notice spend.",
+      "reason": "Needs a test run: a mutation score means mutating app/_lib/db/ and re-running the suite per mutant, and this session has no shell execution and no node_modules (no network to `npm ci`), so no baseline could be produced and no honest gate threshold chosen; committing an unrun harness into a repo whose rule is that a gate must operate would be the wrong trade.",
       "files": []
     }
   ],
   "lessons": [
-    "This repository's gates are far ahead of what an external scan can see, and the same false positive is being re-dispatched under new ids (7a005eb9 this cycle is 40a01fca from the last one). Before writing anything, read scripts/security/check-actions.mjs, scripts/review/gate-check.mjs, scripts/docs/check-guidance.mjs and the ci.yml job list: three of five items this cycle named practices that already operate as blocking, required checks with fixtures. Re-implementing them would be pure detector-appeasement.",
-    "The right place to close a 'nothing enforces X' item here is almost never a new tool — it is one more rule inside the existing dependency-free checker, plus fixtures in its colocated __tests__ file, plus a row in docs/development/change-review.md's 'Keeping the gate wired' table. Those checkers deliberately run in CI jobs that never `npm ci`, so any addition must stay on node:fs/node:path and a hand-rolled line reader.",
-    ".claude/** is not editable by an Ascent lane session (the harness refuses it as sensitive), and .claude/CLAUDE.md is this repo's CANONICAL guidance file. Any fix whose shape is 'make the canonical file say X' is unlandable here — invert it so the manifest or a projection carries the new declaration instead, and check that before committing to a design.",
-    "Skips are cheap to write and expensive to get wrong: two of this cycle's three were genuinely blocked on capability (a cluster, a Python run), but two OTHERS looked blocked and were actually already-solved. The distinguishing move is to grep the tree for the mechanism rather than for the tool's brand name — there is no commitlint here, and commit subjects are still a required blocking check."
+    "This repository already answers most maturity findings in-tree, and the answers are scripts, not prose: scripts/security/check-actions.mjs (run-injection, unpinned actions), .github/rulesets/main.json + scripts/review/gate-check.mjs (required checks), scripts/lint/ruff-ratchet.mjs (debt ceilings), scripts/review/constitution-check.mjs (forbidden change classes). Read scripts/ and .github/ before believing a scan's 'missing' list — three of four items dispatched here were already closed.",
+    "The house pattern for a guardrail here is: a declared ceiling in a committed file, a blocking check in CI, a `--tighten` that lowers it unattended in autofix.yml, dependency-free node:* so it runs in jobs without `npm ci`, and an explicit refusal to read 'I found nothing' as 'there is nothing'. Copy that shape rather than inventing one; ruff-ratchet.mjs is the reference implementation.",
+    "An Ascent lane with no shell cannot produce any measured baseline (mutation score, coverage, lockfile, resolved SHA). When a baseline IS derivable by reading files, derive it with a machine (ripgrep counts) using the exact regex the new check will use — a hand-tallied number was off by one on the first attempt, and a wrong ceiling turns a new gate into a red build for everyone."
   ]
 }
