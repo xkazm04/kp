@@ -1,0 +1,41 @@
+{
+  "v": 1,
+  "items": [
+    {
+      "recommendationId": "05496b71-6af8-411c-b100-e83baa5ab0f0",
+      "verdict": "resolved",
+      "reason": "The model-review half already existed and gates merges (review.yml + .github/rulesets/main.json); the one sub-gap the repo's own doc named as missing — an agent-dispatch path from an issue or comment to a proposed change — is now built as scripts/agent/dispatch.mjs plus .github/workflows/agent-dispatch.yml, with a path guard that refuses the review machinery, fixtures wired into ci.yml and release.yml as npm run test:agent, and no PR opened at all when it could not be gated; the fixtures could not be executed in this session (no shell permission), so CI is their first run.",
+      "files": [
+        "scripts/agent/dispatch.mjs",
+        "scripts/agent/__tests__/dispatch.test.mjs",
+        ".github/workflows/agent-dispatch.yml",
+        ".github/ISSUE_TEMPLATE/agent_task.md",
+        "scripts/review/agent-review.mjs",
+        "package.json",
+        ".github/workflows/ci.yml",
+        ".github/workflows/release.yml",
+        "docs/development/change-review.md",
+        "docs/architecture/releases.md"
+      ]
+    },
+    {
+      "recommendationId": "4b238da4-5601-4187-9423-bfc22092885e",
+      "verdict": "needs_human",
+      "reason": "The nine floating refs are still tags: resolving a tag to a commit SHA requires asking GitHub what it points at right now, this session has neither network nor shell, and inventing a SHA breaks the workflow rather than pinning it — so instead the burn-down stopped being a maintainer chore with no owner (.github/workflows/pin-actions.yml runs security:actions --resolve weekly, prunes the allowlist it burns, re-runs the ratchet and opens one PR), and a maintainer merging that PR is what actually closes the gap.",
+      "files": [
+        ".github/workflows/pin-actions.yml",
+        ".github/actions-pin-allowlist.json",
+        "scripts/security/check-actions.mjs",
+        "scripts/review/__tests__/gate-check.test.mjs",
+        "docs/development/change-review.md",
+        "docs/architecture/releases.md"
+      ]
+    }
+  ],
+  "lessons": [
+    "Read the repository's own Known-gaps sections before designing anything: kp's docs/development/change-review.md already named the exact missing piece ('there is no agent dispatch path') in its own words, and the scan's D4 finding was largely stale — the model-review lens, the versioned rubric and the required-check ruleset all already existed and shipped with fixtures.",
+    "In this org's repos a new gate is only accepted if it also degrades loudly: every check here prints 'THE X DID NOT RUN' and exits 0 rather than passing silently. The corollary for anything that WRITES: a PR opened with the default GITHUB_TOKEN triggers no workflows, so an agent-authored PR would sit green because nothing ran — push the branch and refuse to open the PR instead of shipping a half-gated one.",
+    "kp's doc-sync hook only accepts docs under docs/features/, docs/architecture/ or docs/design/, so scripts/docs/feature-doc-map.json can never point at a docs/development/ page. That is why the review and dispatch machinery has no source-to-doc coupling even though it is the most agent-relevant subsystem in the tree — a real gap, and one that needs the hook's accepted-directory list widened before it can be mapped.",
+    "An allowlist a machine has to edit should not be an array literal in source. Moving kp's action-pin allowlist to .github/actions-pin-allowlist.json is what let --resolve prune the entries it burns down in the same pass, which is the difference between an automated pinning PR that is green and one that is red by construction and therefore ignored."
+  ]
+}

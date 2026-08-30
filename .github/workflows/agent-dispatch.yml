@@ -1,0 +1,242 @@
+# An issue becomes a proposed change — and then goes through the same gate as
+# everyone else's.
+#
+# THE GAP THIS CLOSES: docs/development/change-review.md listed it as a known gap
+# in its own words — "workflow_dispatch re-runs the REVIEW on demand, but nothing
+# here opens a change from an issue or a comment". Reviewing what an agent wrote
+# and dispatching one are separate problems; only the first was solved. Agents ran
+# on the maintainer's laptop, which means the work could only start where the
+# maintainer already was.
+#
+# HOW TO TRIGGER
+#   - label an issue `agent:go`, or
+#   - comment `/agent <extra instruction>` on an issue (the command must be the
+#     first line — mentioning `/agent` mid-sentence does nothing).
+#
+# WHAT IT PRODUCES: a branch `agent/issue-<n>-<run>` and a DRAFT pull request.
+# Nothing is merged, nothing is closed, and the PR carries a header saying that
+# no review has run on it yet.
+#
+# THE FOUR THINGS THAT MAKE THIS SAFE, none of which is "we trust the model":
+#
+#   WHO      the first step asks the GitHub API for the ACTOR's permission on this
+#            repository and fails unless it is write, maintain or admin. Note it
+#            checks the person who labelled or commented, NOT the issue author —
+#            so a maintainer can dispatch on a stranger's bug report, and the
+#            stranger cannot dispatch on their own.
+#
+#   WHAT     scripts/agent/dispatch.mjs refuses to write to .github/workflows,
+#            .github/rulesets, .githooks, .claude/ or scripts/{review,security,
+#            hooks,docs,agent}. An agent dispatched from an issue may not edit the
+#            machinery that judges it. That refusal is in the script, has fixtures
+#            (npm run test:agent), and has no override flag.
+#
+#   INPUT    issue and comment text is attacker-controlled on a public repository.
+#            It reaches the script through `env:` and is never interpolated into a
+#            `run:` line, so the worst a crafted issue can do is be a bad prompt —
+#            and the prompt labels it as untrusted before quoting it.
+#
+#   HOW IT LANDS  as a draft PR gated by the ordinary required checks: both review
+#            lenses, every CI job, CodeQL, the audits. A PR opened with the default
+#            GITHUB_TOKEN does NOT trigger workflows, which would leave an
+#            agent-written PR green by absence — the exact failure ai-review.yml
+#            was deleted for. So without an `AGENT_PR_TOKEN` secret this workflow
+#            pushes the branch, says so on the issue, and opens NOTHING.
+#
+# SECRETS
+#   ANTHROPIC_API_KEY  required. Without it the run declines on the issue and
+#                      produces no branch (a decline is a normal answer).
+#   AGENT_PR_TOKEN     a PAT with `contents: write` + `pull_requests: write`.
+#                      Without it: branch only, and the issue says why.
+# VARIABLES
+#   KP_AGENT_MODEL     defaults to claude-opus-5. Writing a change is the deep
+#                      end of the work; the review lens stays on Sonnet.
+name: Agent dispatch
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+# One dispatch per issue at a time. Not cancel-in-progress: a half-run that
+# already pushed a branch should finish and report, not vanish.
+concurrency:
+  group: agent-dispatch-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    name: Propose a change from an issue
+    # Comments on pull requests arrive on this same event. They are not issues and
+    # this path does not handle them.
+    if: >-
+      github.event.issue.pull_request == null &&
+      (
+        (github.event_name == 'issues' && github.event.label.name == 'agent:go') ||
+        (github.event_name == 'issue_comment' && startsWith(github.event.comment.body, '/agent'))
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write # push the proposal branch
+      issues: write # answer on the issue that asked
+      pull-requests: write # open the draft
+    env:
+      ISSUE: ${{ github.event.issue.number }}
+      # 'true' / 'false' — the secret itself never appears in a step condition.
+      HAS_PR_TOKEN: ${{ secrets.AGENT_PR_TOKEN != '' }}
+    steps:
+      # WHO. Before a single token of prompt is spent.
+      - name: Only an actor with write access may dispatch
+        id: actor
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+        run: |
+          LEVEL=$(gh api "repos/$REPO/collaborators/$ACTOR/permission" --jq .permission 2>/dev/null || echo none)
+          echo "$ACTOR has '$LEVEL' permission on $REPO"
+          case "$LEVEL" in
+            admin)          echo "association=OWNER" >> "$GITHUB_OUTPUT" ;;
+            maintain|write) echo "association=COLLABORATOR" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "::error::$ACTOR has '$LEVEL' permission — dispatch spends money and writes a branch, so it is not a public button."
+              exit 1
+              ;;
+          esac
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      # No `npm ci` — the dispatcher is dependency-free node:* + git, the same
+      # rule the doc-sync and commit-convention jobs follow.
+      - name: Write the proposal into the working tree
+        id: propose
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          KP_AGENT_MODEL: ${{ vars.KP_AGENT_MODEL || 'claude-opus-5' }}
+          # Untrusted issue text, passed as DATA. Never inlined into this script.
+          AGENT_TASK_TITLE: ${{ github.event.issue.title }}
+          AGENT_TASK_BODY: ${{ github.event.issue.body }}
+          AGENT_TASK_COMMENT: ${{ github.event.comment.body }}
+          AGENT_TASK_ACTOR: ${{ github.actor }}
+          # The association of the DISPATCHER, resolved from real repository
+          # permission above — not `github.event.issue.author_association`, which
+          # describes whoever filed the issue and would let the two be confused.
+          AGENT_TASK_ASSOCIATION: ${{ steps.actor.outputs.association }}
+        run: |
+          set +e
+          node scripts/agent/dispatch.mjs \
+            --issue "$ISSUE" \
+            --out "$RUNNER_TEMP/proposal.md" \
+            --paths-out "$RUNNER_TEMP/applied.txt"
+          STATUS=$?
+          set -e
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Agent dispatch (exit $STATUS)"
+            echo
+            cat "$RUNNER_TEMP/proposal.md" 2>/dev/null || echo "_no proposal was written_"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit and push the proposal branch
+        id: push
+        if: steps.propose.outputs.status == '0'
+        env:
+          SUBJECT: ${{ steps.propose.outputs.subject }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          BRANCH="agent/issue-${ISSUE}-${GITHUB_RUN_ID}"
+          git config user.name "kp agent dispatch"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          # Pathspec staging, from the list the dispatcher wrote. `git add -A`
+          # would also sweep up anything else the runner left behind, and this
+          # repository's convention is that a commit contains what was named.
+          git add --pathspec-from-file="$RUNNER_TEMP/applied.txt"
+          if git diff --cached --quiet; then
+            echo "the plan applied cleanly but changed nothing" >&2
+            exit 1
+          fi
+          {
+            echo "$SUBJECT"
+            echo
+            echo "Proposed by scripts/agent/dispatch.mjs from issue #${ISSUE}."
+            echo "NOT REVIEWED: this branch has passed no gate at the moment it was written."
+            echo
+            echo "Refs #${ISSUE}"
+            echo "Dispatched-by: ${ACTOR}"
+          } > "$RUNNER_TEMP/message.txt"
+          git commit -F "$RUNNER_TEMP/message.txt"
+          git push origin "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      # WITH a PAT the draft PR triggers `pull_request`, so review.yml, ci.yml and
+      # security.yml all run on it. This is the only path that opens a PR.
+      - name: Open the draft pull request
+        if: steps.push.outputs.branch != '' && env.HAS_PR_TOKEN == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_PR_TOKEN }}
+          BRANCH: ${{ steps.push.outputs.branch }}
+          SUBJECT: ${{ steps.propose.outputs.subject }}
+        run: |
+          gh pr create \
+            --draft \
+            --base "${{ github.event.repository.default_branch }}" \
+            --head "$BRANCH" \
+            --title "$SUBJECT" \
+            --body-file "$RUNNER_TEMP/proposal.md"
+          gh issue comment "$ISSUE" --body "Opened a draft pull request from \`$BRANCH\`. It is gated by the ordinary required checks — read the review before the diff."
+
+      # WITHOUT one, a PR would be opened by GITHUB_TOKEN and would trigger no
+      # workflows: an agent-written change sitting green because nothing ran. The
+      # branch is pushed and the issue says exactly that.
+      - name: Report the branch (no AGENT_PR_TOKEN)
+        if: steps.push.outputs.branch != '' && env.HAS_PR_TOKEN != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.push.outputs.branch }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            cat "$RUNNER_TEMP/proposal.md"
+            echo
+            echo "---"
+            echo
+            echo "**No pull request was opened.** There is no \`AGENT_PR_TOKEN\` secret, and a PR opened with the"
+            echo "default \`GITHUB_TOKEN\` does not trigger workflows — it would sit there green because nothing ran,"
+            echo "which is the one outcome this repository refuses. The branch is pushed:"
+            echo
+            echo "https://github.com/${REPO}/compare/${BRANCH}?expand=1"
+          } > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/comment.md"
+
+      # exit 3 — the model declined, or there was no backend at all. A normal
+      # answer: say it on the issue and end green.
+      - name: Report a decline
+        if: steps.propose.outputs.status == '3'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/proposal.md" 2>/dev/null || \
+            gh issue comment "$ISSUE" --body "The agent produced nothing for this issue and no branch was created. See the run summary for why."
+
+      # exit 1 — the guard refused what the model proposed (a protected path, a
+      # cap, a bad commit subject). Deliberately a RED run: a dispatcher that gets
+      # talked into writing outside its lane is the thing worth being loud about.
+      - name: Enforce the verdict
+        run: |
+          case "${{ steps.propose.outputs.status }}" in
+            0|3) exit 0 ;;
+            1) echo "::error::the proposed change was refused by the guard — see the log"; exit 1 ;;
+            *) echo "::error::the dispatcher failed to run"; exit 1 ;;
+          esac

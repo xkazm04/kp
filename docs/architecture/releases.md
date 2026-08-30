@@ -81,8 +81,11 @@ a chart `appVersion` that disagrees with `package.json`, fails the build.
 
 The tag is what triggers [`.github/workflows/release.yml`](../../.github/workflows/release.yml):
 
-1. re-runs the gate (typecheck, lint, design, i18n, unit, docs, review fixtures,
-   build) — a tag never publishes something CI has not judged;
+1. re-runs the gate (typecheck, lint, design, i18n, unit, docs, review **and
+   dispatch** fixtures, build) — a tag never publishes something CI has not
+   judged. `npm run test:agent` is in that list for the same reason
+   `npm run test:review` is: the tools that judge and produce changes here are
+   themselves shipped in this tree, so a tag certifies them too;
 2. builds and pushes the image to GHCR as `x.y.z`, `sha-<commit>` and `latest`;
 3. attaches a **build-provenance attestation** (`actions/attest-build-provenance`),
    so `gh attestation verify` can prove the image came from this repository at
@@ -92,6 +95,17 @@ The tag is what triggers [`.github/workflows/release.yml`](../../.github/workflo
 5. creates the GitHub Release, with the body taken from this version's
    `CHANGELOG.md` section, the chart tarball attached, and the **CycloneDX
    bill of materials** (`kp-<version>.cdx.json`).
+
+**The signing story is only as strong as its least-pinned input.** Steps 2 and 3
+run with `packages: write`, `id-token: write` and `attestations: write`, and some
+of the actions they use still float on a major tag — a pointer whose owner can
+move it into a signed artifact without a commit here. The refs that still float
+are enumerated with a reason in
+[`.github/actions-pin-allowlist.json`](../../.github/actions-pin-allowlist.json);
+`npm run security:actions` blocks any **new** one on every push, and
+[`pin-actions.yml`](../../.github/workflows/pin-actions.yml) resolves the
+remaining ones to commit SHAs weekly and opens the pull request. Dependabot then
+keeps a SHA pin moving, because it updates a reference in the form it finds it.
 
 ### The bill of materials
 

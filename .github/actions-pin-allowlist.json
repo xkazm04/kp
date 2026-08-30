@@ -1,0 +1,35 @@
+{
+  "$comment": [
+    "The action references that still float on a mutable tag TODAY, each with why.",
+    "A RATCHET: scripts/security/check-actions.mjs passes on what is listed here and",
+    "FAILS on anything that is not, so the debt is enumerable, it cannot grow, and",
+    "burning it down is deleting entries.",
+    "",
+    "This is a JSON file rather than an array literal in the script for one reason:",
+    "`npm run security:actions -- --resolve` prunes the entries it burns down, and",
+    ".github/workflows/pin-actions.yml runs that weekly. An allowlist a machine has",
+    "to edit should not be source code.",
+    "",
+    "Do NOT add an entry to make a red build green. The list is debt already",
+    "incurred, not a way to incur more."
+  ],
+  "allow": [
+    {
+      "uses": "github/codeql-action/init",
+      "ref": "v3",
+      "why": "SHA never verified against the API (see security.yml). Burn down with --resolve."
+    },
+    { "uses": "github/codeql-action/autobuild", "ref": "v3", "why": "same tag as codeql-action/init." },
+    { "uses": "github/codeql-action/analyze", "ref": "v3", "why": "same tag as codeql-action/init." },
+    { "uses": "actions/upload-artifact", "ref": "v4", "why": "SHA never verified against the API (see release.yml)." },
+    { "uses": "actions/download-artifact", "ref": "v4", "why": "SHA never verified against the API (see release.yml)." },
+    {
+      "uses": "actions/attest-build-provenance",
+      "ref": "v2",
+      "why": "SHA never verified against the API (see release.yml)."
+    },
+    { "uses": "docker/setup-buildx-action", "ref": "v3", "why": "SHA never verified against the API (see release.yml)." },
+    { "uses": "docker/login-action", "ref": "v3", "why": "SHA never verified against the API (see release.yml)." },
+    { "uses": "docker/build-push-action", "ref": "v6", "why": "SHA never verified against the API (see release.yml)." }
+  ]
+}

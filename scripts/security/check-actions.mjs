@@ -21,7 +21,14 @@
 // WHY THE LIST IS NOT SIMPLY EMPTIED: resolving a tag to its commit SHA requires
 // asking GitHub what the tag currently points at. Inventing a SHA does not pin an
 // action, it breaks the workflow. `--resolve` does the lookup and rewrites the
-// files in place; it needs network, so it is a maintainer command, not a CI step.
+// files in place; it needs network, so it cannot be part of the ratchet CI runs.
+//
+// IT IS NO LONGER A COMMAND SOMEONE HAS TO REMEMBER. That was the actual reason
+// this list survived every session that read it and agreed with it: the fix was a
+// maintainer chore with no owner. `.github/workflows/pin-actions.yml` now runs
+// `--resolve` weekly on a runner (which has both network and a token), prunes the
+// entries it burned down, and opens the pull request. The ratchet below still
+// blocks anything NEW, on every push and PR, offline.
 //
 // THE DOCKERFILE IS DELIBERATELY OUT OF SCOPE. `ARG NODE_IMAGE=node:24-bookworm-slim`
 // is a build-arg DEFAULT whose whole purpose is to be overridden (its header says
@@ -43,23 +50,33 @@ import path from 'node:path';
 import { REPO_ROOT } from '../review/diff.mjs';
 
 export const WORKFLOW_DIR = '.github/workflows';
+export const ALLOWLIST_PATH = '.github/actions-pin-allowlist.json';
 
-// Known-floating refs. `ref` is matched exactly against the text after `@`.
-export const PIN_ALLOWLIST = [
-  {
-    uses: 'github/codeql-action/init',
-    ref: 'v3',
-    why: 'SHA never verified against the API (see security.yml). Burn down with --resolve.',
-  },
-  { uses: 'github/codeql-action/autobuild', ref: 'v3', why: 'same tag as codeql-action/init.' },
-  { uses: 'github/codeql-action/analyze', ref: 'v3', why: 'same tag as codeql-action/init.' },
-  { uses: 'actions/upload-artifact', ref: 'v4', why: 'SHA never verified against the API (see release.yml).' },
-  { uses: 'actions/download-artifact', ref: 'v4', why: 'SHA never verified against the API (see release.yml).' },
-  { uses: 'actions/attest-build-provenance', ref: 'v2', why: 'SHA never verified against the API (see release.yml).' },
-  { uses: 'docker/setup-buildx-action', ref: 'v3', why: 'SHA never verified against the API (see release.yml).' },
-  { uses: 'docker/login-action', ref: 'v3', why: 'SHA never verified against the API (see release.yml).' },
-  { uses: 'docker/build-push-action', ref: 'v6', why: 'SHA never verified against the API (see release.yml).' },
-];
+/**
+ * Known-floating refs, read from the JSON file so `--resolve` can prune the ones
+ * it burns down. `ref` is matched exactly against the text after `@`.
+ *
+ * A MISSING OR UNREADABLE FILE MEANS AN EMPTY LIST, which makes every floating
+ * ref blocking. That is the safe direction: an allowlist that fails to load must
+ * not read as "everything is excused".
+ */
+export function loadAllowlist(root = REPO_ROOT) {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(root, ALLOWLIST_PATH), 'utf8'));
+    return Array.isArray(parsed.allow) ? parsed.allow : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Write the list back, preserving the `$comment` header a reader needs. */
+export function saveAllowlist(allow, root = REPO_ROOT) {
+  const file = path.join(root, ALLOWLIST_PATH);
+  const current = JSON.parse(fs.readFileSync(file, 'utf8'));
+  fs.writeFileSync(file, `${JSON.stringify({ ...current, allow }, null, 2)}\n`, 'utf8');
+}
+
+export const PIN_ALLOWLIST = loadAllowlist();
 
 const SHA_RE = /^[0-9a-f]{40}$/;
 const USES_RE = /^\s*(?:-\s*)?uses:\s*(['"]?)([^'"\s#]+)\1/;
@@ -246,6 +263,7 @@ async function main() {
 
   if (args.resolve) {
     const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || null;
+    const burned = new Set();
     for (const f of files) {
       let text = f.text;
       let changed = false;
@@ -254,11 +272,26 @@ async function main() {
         const { sha, tag } = await resolveRef(uses, { token });
         text = rewriteUses(text, uses, sha, tag);
         changed = true;
+        burned.add(uses);
         console.log(`  ${f.file}: ${uses} -> ${sha} # ${tag}`);
       }
       if (changed) fs.writeFileSync(path.join(REPO_ROOT, f.file), text);
     }
-    console.log('check-actions: resolved. Delete the PIN_ALLOWLIST entries you just burned down, then re-run.');
+
+    // Prune what was just burned. An allowlist that outlives what it excused is
+    // its own rot — and the `stale-allowlist` rule below would (correctly) make
+    // the resulting pull request red if this did not happen in the same pass.
+    const kept = loadAllowlist().filter((e) => !burned.has(`${e.uses}@${e.ref}`));
+    if (kept.length !== PIN_ALLOWLIST.length) {
+      saveAllowlist(kept);
+      console.log(`  ${ALLOWLIST_PATH}: ${PIN_ALLOWLIST.length - kept.length} entr(ies) pruned, ${kept.length} left.`);
+    }
+
+    console.log(
+      burned.size === 0
+        ? 'check-actions: nothing to resolve — every reference is already a commit SHA.'
+        : `check-actions: resolved ${burned.size} reference(s). Re-run without --resolve to confirm.`,
+    );
     return;
   }
 

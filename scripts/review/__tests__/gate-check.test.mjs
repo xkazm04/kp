@@ -27,9 +27,11 @@ import {
   verifyLive,
 } from '../gate-check.mjs';
 import {
+  ALLOWLIST_PATH,
   PIN_ALLOWLIST,
   hasTopLevelPermissions,
   isPinned,
+  loadAllowlist,
   rewriteUses,
   runChecks as runActionChecks,
   usesIn,
@@ -241,6 +243,21 @@ check('a top-level permissions block is required; job-level does not substitute'
   assert.equal(hasTopLevelPermissions('jobs:\n  a:\n    permissions:\n      contents: read\n'), false);
   const f = runActionChecks([{ file: 'w.yml', text: 'jobs:\n  a:\n    permissions:\n      contents: read\n' }], []);
   assert.ok(has(f, 'no-permissions'));
+});
+
+check('an allowlist that cannot be read excuses NOTHING', () => {
+  // The direction matters: a missing file must not read as "everything is
+  // allowed to float". pin-actions.yml rewrites this file unattended, so the
+  // failure mode of a bad write has to be a red build, not a silent amnesty.
+  assert.deepEqual(loadAllowlist(path.join(REPO_ROOT, 'no', 'such', 'root')), []);
+});
+
+check('the committed allowlist is the one the checks actually use', () => {
+  const onDisk = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, ALLOWLIST_PATH), 'utf8'));
+  assert.deepEqual(PIN_ALLOWLIST, onDisk.allow);
+  for (const e of PIN_ALLOWLIST) {
+    assert.ok(e.uses && e.ref && e.why, `every entry states why it still floats: ${JSON.stringify(e)}`);
+  }
 });
 
 check('--resolve rewrites a tag to a SHA and keeps the tag as the comment', () => {

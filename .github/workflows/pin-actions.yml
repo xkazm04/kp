@@ -1,0 +1,146 @@
+# Burn the action-pinning debt down on a schedule, instead of on a memory.
+#
+# THE GAP THIS CLOSES: nine action references in this repository still float on a
+# mutable major tag, and three of them run in `release.yml`'s `publish` job — with
+# `packages: write`, `id-token: write` and `attestations: write`. That job builds
+# the image operators pin to and signs a provenance attestation for it. A mutable
+# tag there is a pointer someone else can move into a signed artifact, so the
+# signing story is only as strong as its least-pinned input.
+#
+# The fix has existed the whole time: `npm run security:actions -- --resolve`.
+# It never ran, because it needs network and a token, which made it a maintainer
+# chore with no owner — and every session that read the note agreed with it and
+# left it alone. A runner has network and a token. So this runs it.
+#
+# WHAT RUNS, WHEN, AND WHAT FAILURE MEANS
+#   Monday 05:40 UTC, and on demand. Resolves every floating `uses:` to the commit
+#   SHA its tag currently points at (dereferencing annotated tags), rewrites the
+#   workflows keeping the tag as the trailing comment, prunes the matching entries
+#   from .github/actions-pin-allowlist.json, and opens ONE pull request. If
+#   nothing floats, it opens nothing and says so.
+#
+#   It does NOT merge, and it is not a gate: `npm run security:actions` in ci.yml
+#   is the gate, and it already blocks any NEW unpinned reference on every push.
+#   This job only closes debt that is already enumerated.
+#
+# WHY THIS DOES NOT FREEZE THE PINS: Dependabot updates a reference in the form it
+# finds it, so once a ref is a SHA with a `# vX.Y.Z` comment, the weekly
+# github-actions PR stream (.github/dependabot.yml) moves BOTH the SHA and the
+# comment forward. That is the steady state. This job exists to reach it, and
+# afterwards has nothing to do — which is the intended ending, not a fault.
+#
+# SECRET: `PIN_PR_TOKEN`, a PAT with `contents: write` + `pull_requests: write`.
+# A pull request opened with the default GITHUB_TOKEN does not trigger workflows,
+# and an un-reviewed supply-chain PR sitting green because nothing ran is worse
+# than the debt it closes. Without the PAT this job pushes the branch, prints the
+# compare link, and opens nothing.
+name: Pin actions
+
+on:
+  schedule:
+    # Monday, before the 06:00 Europe/Prague Dependabot window, so a freshly
+    # pinned ref is what the bot then updates.
+    - cron: "40 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pin-actions
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    name: Resolve floating action refs to commit SHAs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # push the pinning branch
+    env:
+      HAS_PR_TOKEN: ${{ secrets.PIN_PR_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      # No `npm ci` — check-actions.mjs is dependency-free node:* + fetch.
+      - name: Resolve every floating reference
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/security/check-actions.mjs --resolve | tee "$RUNNER_TEMP/resolve.txt"
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing floats. This job has nothing left to do, which is the intended ending." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo '### security:actions --resolve'
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/resolve.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # The ratchet, re-run over what was just written. A rewrite that produced a
+      # ref this check still rejects must never reach a pull request.
+      - name: The ratchet must be green on the result
+        if: steps.resolve.outputs.changed == 'true'
+        run: npm run security:actions
+
+      - name: Push the pinning branch
+        id: push
+        if: steps.resolve.outputs.changed == 'true'
+        run: |
+          BRANCH="ci/pin-actions-${GITHUB_RUN_ID}"
+          git config user.name "kp pin-actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add .github/workflows .github/actions-pin-allowlist.json
+          git commit -m "ci(actions): pin floating action references to commit SHAs" \
+            -m "Resolved by .github/workflows/pin-actions.yml. Each ref now names the commit its tag pointed at, with the tag kept as the trailing comment so Dependabot goes on updating both."
+          git push origin "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open the pull request
+        if: steps.push.outputs.branch != '' && env.HAS_PR_TOKEN == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PIN_PR_TOKEN }}
+          BRANCH: ${{ steps.push.outputs.branch }}
+        run: |
+          {
+            echo "Every floating \`uses:\` reference resolved to the commit SHA its tag pointed at."
+            echo "The tag is kept as the trailing comment, so Dependabot moves both forward from here."
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/resolve.txt"
+            echo '```'
+            echo
+            echo "Verify a pin before merging: \`gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq .object.sha\`."
+          } > "$RUNNER_TEMP/pr.md"
+          gh pr create \
+            --base "${{ github.event.repository.default_branch }}" \
+            --head "$BRANCH" \
+            --title "ci(actions): pin floating action references to commit SHAs" \
+            --body-file "$RUNNER_TEMP/pr.md"
+
+      - name: Report the branch (no PIN_PR_TOKEN)
+        if: steps.push.outputs.branch != '' && env.HAS_PR_TOKEN != 'true'
+        env:
+          BRANCH: ${{ steps.push.outputs.branch }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            echo "### Pins are ready, but no pull request was opened"
+            echo
+            echo "There is no \`PIN_PR_TOKEN\` secret. A PR opened with the default \`GITHUB_TOKEN\` triggers no"
+            echo "workflows, and a supply-chain change sitting green because nothing ran is worse than the debt"
+            echo "it closes. Open it by hand:"
+            echo
+            echo "https://github.com/${REPO}/compare/${BRANCH}?expand=1"
+          } >> "$GITHUB_STEP_SUMMARY"

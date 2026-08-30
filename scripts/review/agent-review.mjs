@@ -162,7 +162,10 @@ export function extractJson(text) {
   }
 }
 
-async function callAnthropic({ model, system, prompt, apiKey }) {
+// Exported so scripts/agent/dispatch.mjs reaches the same two backends in the
+// same resolution order. A dispatcher that talked to the model differently from
+// the reviewer would be a second copy of the provider policy to drift.
+export async function callAnthropic({ model, system, prompt, apiKey }) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -187,14 +190,14 @@ async function callAnthropic({ model, system, prompt, apiKey }) {
     .join('\n');
 }
 
-function claudeCliAvailable() {
+export function claudeCliAvailable() {
   const probe = spawnSync(process.platform === 'win32' ? 'where' : 'which', ['claude'], {
     encoding: 'utf8',
   });
   return probe.status === 0;
 }
 
-function callClaudeCli({ system, prompt }) {
+export function callClaudeCli({ system, prompt }) {
   // `claude -p` reads the prompt from stdin and prints the reply. The system
   // rules ride at the top of the prompt: the CLI's own flags vary by version and
   // this path must keep working across upgrades.

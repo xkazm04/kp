@@ -85,6 +85,7 @@ jobs:
       - run: npm run docs:check
       - run: npm run test:docs
       - run: npm run test:review
+      - run: npm run test:agent
       - run: npm run test:bench-driver
       - run: npm run test:unit
       - run: npm run test:python:gate

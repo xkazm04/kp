@@ -118,6 +118,15 @@ jobs:
       # be judged by something too.
       - run: npm run test:review
 
+      # Fixtures for the DISPATCH path (scripts/agent/). This is the one piece of
+      # the review machinery that writes rather than reads, from text a stranger
+      # can put in an issue — so its guard (who may dispatch, what may never be
+      # written) is gated here rather than trusted. The last case in the file
+      # asserts every review lens, hook and workflow in the tree is still inside a
+      # protected prefix, which is what catches a lens being moved out from under
+      # the guard.
+      - run: npm run test:agent
+
       # IS THE GATE STILL WIRED TO WHAT IT CLAIMS TO GATE?
       #
       # .github/rulesets/main.json is the required-status-check configuration —
