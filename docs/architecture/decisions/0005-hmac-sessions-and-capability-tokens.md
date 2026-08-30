@@ -12,7 +12,9 @@ sources:
   - app/_lib/auth/public-routes.ts
   - app/_lib/auth/require-operator.ts
   - app/api/schedule/[token]/route.ts
+  - app/_lib/data-held.ts
   - SECURITY.md
+  - docs/architecture/candidate-data-flow.md
 ---
 
 # HMAC operator sessions; capability tokens for candidates
@@ -60,6 +62,13 @@ Two rules ride on that:
   limited**, per IP and per token. `app/api/rate-limit-contract.test.ts` pins
   which call sites do it and how, so moving or re-keying a limiter is a
   deliberate edit to a test rather than a silent deletion.
+- **What a token surface may say back is bounded by what is actually held.**
+  `heldDataCategories()` in `app/_lib/data-held.ts` projects the categories the
+  `/data/[erasureToken]` page reports from the entry's real presence signals,
+  never a hardcoded list — a candidate who only applied is not told we hold
+  interview records. The full path that data took to get there is mapped in
+  [`../candidate-data-flow.md`](../candidate-data-flow.md), which this record
+  cites as a source so `npm run docs:check` fails if it is deleted or moved.
 
 ## Consequences
 

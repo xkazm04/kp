@@ -342,6 +342,25 @@
       ]
     },
     {
+      "_comment": "The candidate-data path — CVs, contact details, interview transcripts. These globs are the hops the map traces: the analyze intake and its upload bounds, the subprocess bridge that carries the file to Python, the two egress seals (TS fetch guard + the Python half the fetch guard cannot see), the stores the data comes to rest in, and the self-service surfaces a candidate reads it back through. Several of them are also owned by a feature doc (candidates, compliance, llm-provider-layer) and that is deliberate: a change to how a CV reaches a model provider should name BOTH the feature doc and this map. A hop this list misses is a hop the map will drift on.",
+      "doc": "docs/architecture/candidate-data-flow.md",
+      "sourceGlobs": [
+        "app/api/analyze/**",
+        "app/_lib/analyze-run.ts",
+        "app/_lib/python-runner.ts",
+        "app/_lib/upload-constraints.ts",
+        "app/_lib/offline.ts",
+        "pipeline/jobfit/llm/offline.py",
+        "pipeline/jobfit/gemini.py",
+        "app/_lib/db/analyses.ts",
+        "app/_lib/db/profiles.ts",
+        "app/_lib/data-held.ts",
+        "app/api/data/**",
+        "instrumentation.ts",
+        "instrumentation-client.ts"
+      ]
+    },
+    {
       "doc": "docs/architecture/app-structure.md",
       "sourceGlobs": [
         "app/features/shell/**",
@@ -412,10 +431,12 @@
       ]
     },
     {
-      "_comment": "The release machinery: cutting a version, the commit convention the CHANGELOG is cut from, and the bill of materials shipped with each tag. docs/architecture/releases.md is what an operator reads to decide what to pin to and how to go back — a change to any of these scripts that the doc does not follow is precisely the drift this map exists to catch.",
+      "_comment": "The release machinery: cutting a version, the commit convention the CHANGELOG is cut from, and the bill of materials shipped with each tag. docs/architecture/releases.md is what an operator reads to decide what to pin to and how to go back — a change to any of these scripts that the doc does not follow is precisely the drift this map exists to catch. db-dump/db-load are here because they ARE the rollback: the doc's 'Going back' runbook is those two commands, and the drill that rehearses it (app/_lib/db/rollback-drill.test.ts) asserts their round trip.",
       "doc": "docs/architecture/releases.md",
       "sourceGlobs": [
         "scripts/release/**",
+        "scripts/db-dump.mjs",
+        "scripts/db-load.mjs",
         ".github/workflows/release.yml"
       ]
     },

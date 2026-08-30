@@ -2,50 +2,44 @@
   "v": 1,
   "items": [
     {
-      "recommendationId": "02abd5a3-5789-4e2d-b7e2-463035848952",
+      "recommendationId": "40a01fca-d6d9-49c8-8204-4aae5bc6c533",
       "verdict": "skipped",
-      "reason": "Already closed and mechanically pinned: no `${{ }}` appears inside any `run:` body in any of the 7 workflows (issue title/body/comment reach scripts/agent/dispatch.mjs only through `env:`), both jobs already hold the smallest scope that works, and scripts/review/__tests__/gate-check.test.mjs asserts all three properties over the real tree on every `npm run test:review`.",
+      "reason": "The gap does not exist in the tree: neither agent-dispatch.yml nor autofix.yml interpolates any ${{ }} into a run: step — every untrusted value already travels via env: — and it is enforced by the blocking run-injection/script-injection rules in scripts/security/check-actions.mjs (npm run security:actions, ci.yml) plus a whole-tree fixture and a pinned per-job permissions map in scripts/review/__tests__/gate-check.test.mjs (npm run test:review, ci.yml + release.yml), so I changed nothing rather than edit files to satisfy a scanner.",
+      "files": []
+    },
+    {
+      "recommendationId": "9946eed4-ea34-434e-b11a-f61b1a15a459",
+      "verdict": "resolved",
+      "reason": "Added docs/architecture/candidate-data-flow.md — one CV upload traced hop by hop (route -> temp workdir -> spawned Python -> model provider -> SQLite -> cleanup), the tables candidate data comes to rest in, the copies that are not the database, a per-adapter egress table, the two egress seals, and four named gaps — and wired it so it cannot rot silently: a new entry in scripts/docs/feature-doc-map.json couples the 13 source paths it traces to it (Stop hook), and ADR 0005 cites it under sources: so npm run docs:check fails if it is deleted or moved.",
       "files": [
-        ".github/workflows/agent-dispatch.yml",
-        ".github/workflows/autofix.yml",
-        "scripts/review/__tests__/gate-check.test.mjs"
+        "docs/architecture/candidate-data-flow.md",
+        "scripts/docs/feature-doc-map.json",
+        "docs/architecture/decisions/0005-hmac-sessions-and-capability-tokens.md",
+        "docs/architecture/README.md",
+        "docs/architecture/self-hosting.md",
+        "SECURITY.md"
       ]
     },
     {
-      "recommendationId": "aed354ad-fd97-40ed-80b0-afab4711705b",
+      "recommendationId": "5d63cfec-8407-400c-9b21-ae3a40442cb2",
       "verdict": "skipped",
-      "reason": "Needs shell: the budget tool (scripts/perf/check-budget.mjs) and its design doc are already committed, but the artefact the item asks for is the calibrated perf-budget.json, and writing it requires running `node scripts/perf/check-budget.mjs --record` to walk the module graph — this sandbox refused every `node <script>` invocation. Inventing ceilings from the dated numbers in docs/architecture/app-structure.md would have shipped a gate that fails honest work, and wiring the CI step before the file exists turns CI permanently red (loadBudget throws, main returns 1).",
-      "files": [
-        "scripts/perf/check-budget.mjs",
-        "docs/development/performance-budget.md"
-      ]
+      "reason": "Needs a shell: the repo already ships scripts/perf/check-budget.mjs and docs/development/performance-budget.md, and both say the only two missing steps are `node scripts/perf/check-budget.mjs --record` (which MEASURES the module graph and writes perf-budget.json) and adding `- run: npm run perf:budget` to the node-quality job in ci.yml. I cannot execute anything, and hand-writing ceilings I have not measured would produce exactly the budget the tool's own header warns about — one that either fails honest work or passes everything — so I left it uncalibrated rather than fake the numbers.",
+      "files": []
     },
     {
-      "recommendationId": "60f34da0-e114-49e1-913a-9360c50b5c27",
-      "verdict": "skipped",
-      "reason": "The gap as named is already closed: llm/fault.py ships a non-routable FaultProvider with 10 declared fault modes (hang, malformed, truncated, wrong_shape, nonsense, fairness_attack, protected_language, ...), eval/fault_eval.py runs them against the real automation tasks with recorded per-fault expectations, and ci.yml gates it via `npm run test:eval:ci` at FAULT_THRESHOLD 1.0. This change instead closes the residual gap that harness declared in its own docstring — the item's third bullet, operator visibility: automation._generate now names every mid-call descent and automation_cli passes it to emit_deterministic, so the usage ledger can distinguish a keyless install from a provider that answered badly.",
+      "recommendationId": "706fafab-29e0-4296-9833-27a931c36dd5",
+      "verdict": "resolved",
+      "reason": "Added app/_lib/db/rollback-drill.test.ts, which rehearses the runbook in docs/architecture/releases.md on every push (npm run test:unit = the node-tests job in ci.yml and the gate job in release.yml, so a tag cannot publish a version whose rollback has not just been executed): it pins the v0.1.x column shape and fails on any migration that drops/renames a column or adds a NOT NULL without a DEFAULT, and it runs the real dump -> bad upgrade -> restore cycle through scripts/db-dump.mjs / db-load.mjs asserting the workspace comes back byte-identical and that a load without --replace refuses AND writes nothing. releases.md now documents the drill and answers the down-step question explicitly (there are none; the dump is the reverse, by ADR 0002).",
       "files": [
-        "pipeline/jobfit/automation.py",
-        "pipeline/jobfit/automation_cli.py",
-        "pipeline/jobfit/eval/fault_eval.py",
-        "pipeline/jobfit/tests/test_fault_injection.py",
-        "docs/development/fault-injection.md",
-        "docs/features/pipeline/README.md"
-      ]
-    },
-    {
-      "recommendationId": "fa3287c5-9bbc-4a8b-8d16-87351824efd7",
-      "verdict": "skipped",
-      "reason": "Needs shell and git: rehearsing a downgrade means checking out the previous tag, booting its DDL against a populated data/kp.sqlite and recording what survived. This session can run nothing (every `node`/`python` invocation beyond `--version` was refused) and is forbidden from running git, so no rehearsal and therefore no record is possible. The forward procedure is already written in docs/architecture/releases.md and honestly flags itself as unexercised; a static DDL checker would be an adjacent artefact, not the drill the item names, and shipping an unrunnable new gate script from a no-execution session is how CI goes red.",
-      "files": [
-        "docs/architecture/releases.md"
+        "app/_lib/db/rollback-drill.test.ts",
+        "docs/architecture/releases.md",
+        "scripts/docs/feature-doc-map.json"
       ]
     }
   ],
   "lessons": [
-    "Check whether the artefact already exists before building it: in this repo two of four dispatched gaps were already closed in-tree (fault_eval.py + llm/fault.py for D8; gate-check.test.mjs's untrustedRunRefs/permissions fixtures for D9), and a third (scripts/perf/check-budget.mjs) was fully written and blocked on one command. Scanner 'missing' lines here describe what a config sample did not show, not what the repository does not do.",
-    "This repository writes its own residual gaps into the artefact that has them — fault_eval.py's docstring and docs/*/README.md 'Known gaps' sections name precisely what is not done and why. Grepping those is a faster and more accurate backlog than re-deriving one, and closing a named gap means deleting the paragraph that named it in the same change.",
-    "An Ascent lane that cannot execute cannot close a gap whose artefact is a MEASUREMENT (a calibrated budget, a rehearsed drill). aed354ad has now been skipped twice for the same reason; these items need a lane with shell access or a human running one command, and re-dispatching them into a read-only lane will keep producing skips.",
-    "When adding an assertion to an existing eval harness, check every row of its matrix against the seam you changed: fault_eval's `rematch` task ranks through match_reasoning.generate, not automation._generate, so a blanket new assertion would have turned the CI gate red for a gap the change did not create. Scoping it to the tasks that use the seam — and naming the exclusion — keeps the un-adopted copy visible instead of hidden."
+    "Check this repo's existing gates before writing anything: it already enforces far more than a scanner can see from the outside (scripts/security/check-actions.mjs blocks ${{ }} in run: as a BLOCKING CI rule, scripts/review/__tests__/gate-check.test.mjs pins each untrusted-input workflow's exact permissions map, scripts/docs/check-adrs.mjs fails when an ADR's sources: path vanishes). Two of four dispatched items were about practices that were already operating or already scaffolded.",
+    "The repo's own convention is that a doc is only trusted when something re-reads it: scripts/docs/feature-doc-map.json couples source globs to the doc that describes them and a Stop hook enforces it, and ADR sources: are existence-checked by npm run docs:check. A new architecture doc that is not registered in at least one of those is drift waiting to happen — register it in the same change.",
+    "Ascent items about 'nothing fails when X regresses' are often already half-built here and blocked on one CALIBRATION run (scripts/perf/check-budget.mjs ships with no perf-budget.json because it was written in a sandbox with no execution). An agent with no shell cannot finish those; the honest move is to name the exact two commands rather than invent baseline numbers."
   ]
 }

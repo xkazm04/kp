@@ -376,6 +376,10 @@ your license terms before deploying in production.
 
 ## 12. See also
 
+- `docs/architecture/candidate-data-flow.md` — the same egress question asked from the
+  candidate's side: one CV upload hop by hop, what comes to rest in SQLite, and which
+  adapters transmit candidate text. §6 above is indexed by destination; that page is
+  indexed by the data.
 - `docs/product/enterprise-readiness.md` — the full enterprise roadmap; E4 is §5.
 - `docs/architecture/llm-provider-layer.md` — the BYOM model-routing layer.
 - `docs/features/billing/README.md` — Polar billing (leave off for a self-host without billing).

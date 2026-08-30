@@ -20,6 +20,7 @@ proposing to reverse one; each ends with what would change our mind.
 | [llm-provider-layer.md](llm-provider-layer.md) | The multi-provider LLM wrapper: adapters, capability matrix, key storage, local model servers, benchmarks harness |
 | [llm-model-matrix.md](llm-model-matrix.md) | Dated judged quality grid — which model for which recruiter task |
 | [engine-setup.md](engine-setup.md) | Setting up the default engines: Claude subscription via the CLI, the ElevenLabs agent, env notes that surprise people |
+| [candidate-data-flow.md](candidate-data-flow.md) | **Where a candidate's CV, contact details and transcript actually go** — every hop, what comes to rest, and which model adapters send it off the machine |
 | [workspace-data.md](workspace-data.md) | The single SQLite workspace file: seeding, dump & restore |
 | [result-caching.md](result-caching.md) | Analyze-route result cache: key, store, invalidation |
 | [postgres-backend.md](postgres-backend.md) | The Postgres persistence backend and the portability path |

@@ -142,6 +142,45 @@ not reversible by swapping the image back.
 So: **take a dump before you upgrade.** It is one command and it is the entire
 difference between a five-minute rollback and a bad afternoon.
 
+### The drill is rehearsed on every push
+
+Everything below used to be prose that nobody had executed, which is the same
+failure class as a doc naming a file that moved: it reads as a procedure and is
+a plan. [`app/_lib/db/rollback-drill.test.ts`](../../app/_lib/db/rollback-drill.test.ts)
+runs it for real in `npm run test:unit` — the `node-tests` job in `ci.yml` **and**
+the `gate` job in `release.yml`, so a tag cannot publish a version whose rollback
+has not just been performed. It covers the two halves separately, because they
+fail differently:
+
+| What it rehearses | The failure it catches | When it goes red |
+| --- | --- | --- |
+| **Downgrade compatibility.** The column shape a v0.1.x image issues SQL against is pinned as `V0_1_X_SHAPE`, and every one of those columns must still exist on the current schema with the same declared type. | A migration that drops or renames a column, or a PK-widening table rebuild that loses one. Repointing the image back then produces an app that will not start. | On the change that removes the column — not on the operator's laptop six months later. |
+| **Downgrade writability.** The `INSERT` statements an older image performs are executed against the current schema and rolled back. | A column added since that is `NOT NULL` with no `DEFAULT`. The rolled-back image boots, looks fine, and fails every write — the worst of the outcomes, because it reads as a successful rollback. | Same. |
+| **The restore drill.** A v0.1.x workspace is dumped, a bad 0.1.1 upgrade wrecks it (schema moved *and* rows corrupted), and the documented recovery below is run. Schema and every row must come back byte-identical. Also asserts that without `--replace` the loader refuses **and writes nothing**. | `db-dump.mjs` / `db-load.mjs` drifting apart, a lost index, or a half-applied restore. | Whenever either script changes in a way that breaks the round trip. |
+
+Redness here has a specific meaning, and it is not "fix the test": per
+[Versioning](#versioning-as-it-applies-here), a change the database cannot be
+read back through is a **major** release. If the break is intended, cut the major
+and edit `V0_1_X_SHAPE` in the same commit, so the incompatibility is a line in a
+diff somebody approved.
+
+What the drill deliberately does *not* claim: it does not boot the previous
+image. It proves the file an older image would open still has the shape that
+image reads and writes, which is the strongest thing assertable from inside one
+checkout — the remaining risk is **semantic** (a release that reinterprets
+existing data), and that is what the dump exists for.
+
+### Does every migration have a down step?
+
+No — and that is the decision, not an oversight. There is no `down()` anywhere
+in `app/_lib/db/core.ts`; migrations are forward-only additive DDL. The reverse
+direction is served by the **dump**, not by a down-migration, for the reason
+[ADR 0002](decisions/0002-sqlite-single-file-persistence.md) gives: the whole
+database is one file, so a byte-exact restore is cheaper and more trustworthy
+than a hand-written inverse of each `ALTER`, and it also reverses the data
+changes a `down()` never could. The drill above is what keeps that trade honest —
+it is the test that a forward-only scheme still leaves a way back.
+
 ### Before upgrading
 
 ```bash

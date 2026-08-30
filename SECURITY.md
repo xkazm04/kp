@@ -4,6 +4,12 @@ KandiDate processes candidate CVs, contact details and interview transcripts.
 A vulnerability here is a personal-data breach for somebody who never chose to
 use this software — the candidate. Please treat it accordingly, and so will we.
 
+Where that data actually goes — every hop from the upload to the model provider,
+what comes to rest in SQLite, and which adapters can send it off the machine — is
+mapped in
+[`docs/architecture/candidate-data-flow.md`](./docs/architecture/candidate-data-flow.md).
+Read it before assessing impact; it also lists the gaps we already know about.
+
 ## Reporting a vulnerability
 
 **Do not open a public issue.**
