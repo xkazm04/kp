@@ -29,36 +29,4 @@
 # future ruff release changing its defaults can't silently widen or narrow CI.
 select = ["E4", "E7", "E9", "F"]
 ignore = [
-    # pipeline/jobfit/taxonomy.py:41 — deliberate late import after the JSON
-    # benchmark load it depends on; restructure when touching that module.
-    # ratchet: E402 <= 1
-    "E402",
-    # Ambiguous single-letter names (l/I/O), e.g. winnability.py:78.
-    # ratchet: E741 <= 10
-    "E741",
-    # Unused imports. Auto-fixable, and autofix.yml applies the fix on every pull
-    # request — so this ceiling should reach 0 on its own and take the entry with it.
-    # ratchet: F401 <= 5
-    "F401",
-    # f-strings without placeholders. Auto-fixable, same burn-down as F401 above.
-    # ratchet: F541 <= 2
-    "F541",
-    # NEXT TO GO — and the only entry here that hides a real bug rather than
-    # untidiness. Its one recorded occurrence (`CandidateProfileV2` in
-    # pipeline.py's `_v2_profile_and_routing` signature, bound nowhere at module
-    # scope) is FIXED: pipeline.py now carries a `TYPE_CHECKING` import. Anything
-    # that resolves annotations — `typing.get_type_hints`, a schema generator —
-    # would have raised NameError there.
-    #
-    # The entry survived every session that read this paragraph and agreed with
-    # it, because deleting it must be VERIFIED rather than guessed and the
-    # verification needed ruff on the machine doing the removing. That is now
-    # nobody's memory: the ceiling below says this entry is expected to suppress
-    # nothing, so `lint:ruff-ratchet` reports it `dead` and FAILS the python-gate
-    # until the line is gone — or reports `grew`, in which case a real NameError
-    # has appeared in pipeline/ and the ignore was hiding it, which is the outcome
-    # worth being loud about. Either answer is the one this comment asked for.
-    # `npm run lint:ruff-ratchet -- --tighten` deletes the entry and this block.
-    # ratchet: F821 <= 0
-    "F821",
 ]
