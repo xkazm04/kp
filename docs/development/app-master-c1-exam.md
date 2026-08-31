@@ -188,6 +188,59 @@ What held: the `suggest` override (dispatched 0), the declined probation, the
 since-hire filter (94 inherited rows excluded), and — the quiet win — every C1
 check read `null` on the empty holder-era list instead of scoring an absence.
 
+## 8c. P2 RESULT (2026-08-31) — three nights run; the human gate PASSED
+
+Runs `08-28-47` (night 1) and `11-42-50` (nights 2–3), tenure `kp-owner`, all
+ticks alive, dispatched 0 on every night, ~$1.80 for the two scan nights.
+
+**Deterministic readings:**
+
+| check | result | reading |
+|---|---|---|
+| rankVsBacklog | 0/5, all nights | title-equality only — see instrument note below |
+| valueLiteracy | **0.125 → 0.5, rising** | the journey/axis prompt instruction works: newly authored ideas carry both; the pre-instruction eight drag the average |
+| declineQuality | never measured | three nights, zero declines on the wire — in `suggest` mode nothing is rejected at triage, so the lane never populates. **Personas gap, filed.** |
+| noViolations / dispatch guard | ✓ / ✓ | |
+
+**The human gate (the exam's §3 definition, answered by the operator 2026-08-31):**
+of the holder's night-1 list, the operator moved its #1 (CSV export) and #5
+(invite-token rate limit) OUT of the top-5 and moved its #6 (BroadcastChannel
+topic scoping — a re-derivation of a once-accepted deck idea) and #7
+(`closeEntriesByJobId` → IMMEDIATE — a re-derivation of a defect
+`.claude/CLAUDE.md` documents by name) IN. Corrected operator top-5 = the
+holder's **{2, 3, 4, 6, 7}** — five of eight proposals operator-endorsed,
+against a gate of ≥1. **P2 passes.**
+
+**The C1 verdict this supports:** idea *generation* strong (5/8 endorsed;
+nights 2–3 found real defects in the newest feature and converged on an
+error-visibility cluster straight out of the repo's own truthful-delivery
+doctrine); idea *ranking* imperfect at the edges (the generic item overrated,
+the two re-derivations of known-true items underrated). The holder finds real
+work and does not yet know which of its finds are gold — which is precisely the
+calibration signal the Director-feedback memory channel exists to carry.
+
+**Instrument notes for the next examiner:**
+
+1. `rankVsBacklog` matches normalized titles for equality, so a re-derivation in
+   different words can NEVER score — night 1's #6 would not have matched even a
+   perfect backlog. The metric catches literal overlap and contamination; the
+   human turn grades substance. Do not "fix" this by fuzzy matching without
+   deciding what a false positive costs.
+2. The operator backlog v1 omitted the Personas deck titles (protocol names them
+   as half the source); v2 (`uat/value/backlog-2026-08-31.json`) merges the 58
+   archived deck rows + the 12 scored rows.
+3. The inherited deck both starved the wire (accepted-first 50-cap selection)
+   and throttled the scanner (backlog backpressure). Mitigated for this exam by
+   operator-approved archival of the 58 pre-tenure rows (undo file:
+   `bench/app-master/pre-tenure-archived-ids.json`); the selection defect
+   stands as a Personas finding: **the summary's proposal selection should be
+   newest-first across the merged set, or the holder's own work is invisible
+   behind any inherited backlog.**
+
+**State handed to P3 (the longevity soak):** tenure `kp-owner` active, probation
+never forced, 3 nights of history, ~16 holder-era ideas in the lane, the
+operator's ranking correction available as the first Director-feedback memory.
+
 ## 8. Seam status (2026-08-29 — both sides SHIPPED, reconciled)
 
 kp driver: `897fb6f8`→`f645f77b` (tenure mode, fleet audit, C1 checks, teardown,
