@@ -1591,7 +1591,10 @@
           ],
           "grounding": "use_when",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "This context's paths are the test suite for pipeline/jobfit/llm/{offline,registry,monitor,base}.py (no context in the map owns those source files directly). offline.py:35 is_offline / :41 is_local_url seals ClaudeCliProvider and every cloud adapter behind KP_OFFLINE while allowing genuinely on-box endpoints, exercised at tests/test_llm_offline.py:139 test_claude_cli_blocked_offline and the OfflineCloudBaseUrlIsSealedTest class (availability-probe's 'policy can veto a healthy probe'). monitor.py:171 emit_deterministic threads a named descent reason (offline_policy/not_installed/disabled) through the usage ledger, pinned at tests/test_llm_monitor.py:318 test_emit_deterministic_records_the_descent_reason (fallback-ladder's 'descent has a reason'); registry.py's resolve_provider/provider_availability is the one shared predicate these tests exercise directly rather than a re-derived copy.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "cv-parsing-and-career-reading",
@@ -1750,7 +1753,10 @@
           ],
           "grounding": "lexical-only",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "pipeline/jobfit/{cli,_cli,extract_cli,codegen,i18n,profile,profile_cli}.py are jobfit's own product CLI (profile extraction/codegen/i18n commands) — argparse tooling for this app's users, not a caller of an agent CLI. Full-file grep for claude_cli/resolve_provider/llm import/subprocess is empty; the matcher scored purely on the literal word 'cli'.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "codegen",
@@ -2698,7 +2704,10 @@
           ],
           "grounding": "use_when",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/billing/* (checkout, portal, webhook routes) and app/_lib/db/billing.ts are the Polar payment-provider integration; no agent-CLI surface. The matcher scored this on 'billing/api' vocabulary overlap only.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         }
       ],
       "governance": "governed"
@@ -2745,7 +2754,10 @@
           ],
           "grounding": "use_when",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/billing/{enforce,entitlements,gateway,mode,plans,polar,price-reconcile,reduce}.ts are plan/entitlement/payment-provider (Polar) logic; no agent-CLI spawn/talk anywhere in the 12 files.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         }
       ],
       "governance": "governed"
@@ -2780,7 +2792,10 @@
           ],
           "grounding": "use_when",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "unknown",
+          "evidence": "billing-ui's assigned files are the presentation layer only (app/features/settings/billing/*) — the ledger/price-table/budget-enforcement mechanics live in app/_lib/billing, outside this context's path set, so most cost-metering techniques have no realization site to judge here. What IS visible is solid: BillingUsageMeterRow.tsx renders per-meter used/limit/depleted/credits with a correctly-guarded progressbar (skips aria-valuemax=0, which is invalid ARIA) and an accessible unlimited/depleted state. No deviation found in what's visible, but too much of the subject (usage-ledgers, budget-enforcement, preflight-estimation, spend-attribution, price-table versioning/staleness) is simply not present in this context's files to call the pair conformant.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "plan-entitlements",
@@ -2819,7 +2834,10 @@
           ],
           "grounding": "use_when",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/settings/billing/*.tsx and helpers are billing-panel UI (plan catalog, self-host panel, usage meter, checkout banner); no agent-CLI spawn/probe/parse surface in any of the 12 files. Lexical match was on 'billing/spend/host' vocabulary, not on any real CLI-transport code.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "plan-review",
@@ -3756,7 +3774,10 @@
           ],
           "grounding": "lexical-only",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/features/insights/matrix/{matrixPopover,matrixTabTypes,matrixStats,MatrixReasoningPopover}.ts(x) are pure viewport/positioning/type/presentation code; no subprocess, spawn, or probe() call anywhere in the context's files (only a comment at useMatrixTab.ts:286 noting the Python spawns happen server-side elsewhere) — the subject's precondition (this context spawns a coding-agent CLI as an LLM transport) does not hold here at all.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         }
       ],
       "governance": "governed"
@@ -3788,7 +3809,10 @@
           ],
           "grounding": "lexical-only",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "group_compare_cli.py:53-64 and reasoning_cli.py:60-71 both call resolve_provider/provider_availability/emit_deterministic from the shared .llm door (imported, never re-derived) and print {\"result\"/\"comparison\", \"source\"} so the served rung travels with every response; deviation would be a call site rolling its own subprocess/env logic instead, which does not happen here. match_cli.py and matrix_cli.py carry no LLM call at all.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "skill-adjacency-and-normalization",
@@ -4794,7 +4818,10 @@
           ],
           "grounding": "use_when",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/channels/* and app/api/comms/* are inbound/outbound communication-channel webhooks and relay/callback routes (email/SMS-style delivery), not an LLM transport; grep across all 12 files finds no CLI/agent surface.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "pre-boarding-and-first-day-handoff",
@@ -6759,7 +6786,10 @@
           ],
           "grounding": "use_when",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/devcase-run.ts:45 spawns a Python subprocess (spawnPython([\"-m\",\"pipeline.jobfit.devcase.devcase_cli\",...], {env: buildLlmConfigEnv()})) — this context talks to Python, not to an agent CLI directly; devcase-run.ts:44 even says '(Python then defaults to the Claude CLI, unchanged)'. The actual spawn/probe/env-strip/parse contract lives two hops down in pipeline/jobfit/claude_cli.py, governed by context py-llm-runtime (aa150c52), already marked conformant. devcase-orchestrator.ts, -interview-kit.ts, -probe-audit.ts (an unrelated interview-question 'probe', not availability-probe), -seed-diff.ts and -session-auth.ts carry no CLI-transport code either.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "llm-era-work-sample-design",
@@ -7077,7 +7107,10 @@
           ],
           "grounding": "use_when",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "GroupEvalAiVerdict.tsx / GroupEvalComparisonTable.tsx / cache-key.ts implement a product feature — an LLM comparing job candidates for a hiring decision (with a rule-based fallback, GroupEvalAiVerdict.tsx:26-34) — not an engineering eval harness measuring the product's OWN AI system for comparability across versions. cache-key.ts's selectionCacheKey is scoped to INCLUDE the candidate-set identity (the opposite of the eval-harness scenario-design technique's cache key, which is deliberately scoped to EXCLUDE candidate-specific material so scenarios stay fixed across candidate/system versions) — a genuine precondition mismatch, not merely thin coverage. The real governing subjects (already matched alongside this one, not in this worker's scope) are recruiting-domain: comparative-shortlist-evaluation and adverse-impact-and-proxy-neutrality.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "adverse-impact-and-proxy-neutrality",
@@ -7398,7 +7431,10 @@
           ],
           "grounding": "use_when",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "Same finding as the sibling group-eval-ui context, from the library side: app/_lib/group-eval-{cohort,dedupe,differentiators,governance,risk-gate}.ts implement candidate-cohort selection, governance-mode (recommendation/committee/eligibility_list) and fairness gating for a hiring decision — group-eval-governance.ts:1-76 is explicitly about statutory/collective hiring process compliance (sealsLead, resolveGovernanceMode, governanceNote), not about pinning a judge or scoring an AI system's own outputs across versions. The eval-harness subject's precondition (repeatable measurement of a model/agent system for cross-time comparability) does not hold; the real governing subjects are recruiting-domain (adverse-impact-and-proxy-neutrality, collective-and-statutory-hiring-governance), already matched alongside this pairing but outside this worker's scope.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "adverse-impact-and-proxy-neutrality",
@@ -7472,7 +7508,10 @@
           ],
           "grounding": "use_when",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "automation_cli.py:125 resolve_provider(use_case)/:128 provider_availability(provider) reuses the one shared predicate (not re-derived); :183 emit_deterministic(use_case, reason=descent or automation.take_degradation_reason()) names the descent reason even when the availability gate itself said yes and a mid-flight failure caused the fallback; the printed {\"result\", \"source\"} envelope carries the rung label to the caller. app/api/decisions/* routes are pure HTTP wrappers with no separate CLI-transport logic of their own.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "combining-signals-into-a-hire-decision",
@@ -8325,7 +8364,10 @@
           ],
           "grounding": "use_when",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/auth/* (current-user, current-workspace, edge-verify, home-gate-server, login-throttle, onboarding-gate, operator-approver, org-authority, password) is session/org auth logic; grep for claude|codex|gemini-cli|cursor-cli|spawnPython|child_process across all 12 files in this context finds nothing — the precondition (this code spawns or talks to an agent CLI as an LLM transport) does not hold.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "fleet-orchestration",
@@ -8507,7 +8549,10 @@
           ],
           "grounding": "use_when",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/_lib/db/{invites,memberships,organizations,users,workspaces}.ts, signup-service.ts, api/auth/login/route.ts are org/identity persistence and signup flow; no agent-CLI involvement anywhere in the 12 files (grep for claude/codex/gemini-cli/cursor-cli/spawnPython/child_process is empty).",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         }
       ],
       "governance": "governed"
@@ -9960,7 +10005,10 @@
           ],
           "grounding": "use_when",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "scripts/docs/check-doc-sync.mjs realizes same-change-enforcement correctly and non-trivially: its isTurnBoundary() (:88-93) fixes exactly the failure mode the golden path names as the subject's central counter-example (a backward transcript walk that stops at the first tool_result-shaped 'user' message and therefore never reaches a real edit) — confirmed by regression tests in check-doc-sync.test.mjs naming that precise bug ('a tool_result line is NOT a turn boundary', 'the walk stops at the previous HUMAN turn'). But source-doc-mapping's coverage-gate wall is unrealized: feature-doc-map.json (32 entries) is read by check-doc-sync.mjs with no companion script validating that every declared sourceGlob still resolves to a real file or that every feature area has an entry — the exact 'gate whose precondition quietly vanished' failure the technique names as its strongest argument for gating coverage, not just membership.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "compensation-banding-and-market-honesty",
@@ -10760,7 +10808,10 @@
           ],
           "grounding": "use_when",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_lib/voice/self-hosted.ts is a strong portable-provider-package realization: one derived signal (elevenLabsBaseUrl / isSelfHostedVoice) rather than a second free/paid flag that could disagree with it (':18-20 two switches that must agree is a bug waiting to happen'), a conservative default (hosted service unless a private/loopback host is explicitly configured, :61-66), and it names the actual portable package by repo (Gravitone, github.com/xkazm04/gravitone) serving the same Agents-API protocol locally. pipeline/jobfit/eval/voice/session_runner.py mints real candidate-mode sessions via /simulate specifically so the eval exercises the real per-provider brief path rather than a stale dashboard prompt (session_runner.py:7-11) — a duplex-agent-sessions-aware eval design.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         }
       ],
       "governance": "governed"
@@ -11022,7 +11073,10 @@
           ],
           "grounding": "lexical-only",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "This context is the strongest realization of duplex-agent-sessions in the tree. index.ts:49-70 and candidate-brief.ts implement the audience-safe-brief allow-list explicitly (candidate-brief.ts:11-19: 'THE SECURITY BOUNDARY IS THE SANITIZER IN THIS FILE... never turn this into a deny-list'), with candidateSafeTopic() scrubbing bracketed assessment asides out of topic labels (candidate-brief.ts:76-87). eleven-agent-diff.mjs is the drift gate the technique asks for: a pure, network-free field-by-field diff between intended and live agent config, defensive-read so a shape change degrades to reported drift rather than a crash (never silently reads as agreement). finalize-status.ts computes a real end-of-call verdict rather than trusting the close event (interviewFinalStatus distinguishes a late-blip-on-a-substantive-call from a real abandonment, and unmountBeaconStatus separately handles the late-arrival/in-flight-End case). connect-failover.ts deliberately builds the served provider's prompt OUTSIDE the failover trigger so a failing brief-build surfaces as itself rather than masquerading as a second real failover (connect-failover.ts:72-78).",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "voice-interview-fidelity",
@@ -11083,7 +11137,10 @@
           ],
           "grounding": "use_when",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "conformant",
+          "evidence": "app/_components/voice/micErrorText.ts maps getUserMedia/connection failures to specific actionable recovery copy (denied/not-found/busy) rather than a raw DOMException message; MicTestPanel.tsx pairs a live level meter with a persistent aria-live=\"polite\" region so the pass/fail verdict is announced (not just painted); VoiceStatusPill.tsx deliberately splits a high-frequency visual-only cue (speaking/listening toggling every turn) from a low-frequency role=\"status\" live region (the unstable-connection warning) to avoid spamming screen-reader output — exactly the golden path's 'everything narrated exists as visible text... capture/playback states announced through non-audio channels' posture. transport/elevenlabs.ts + transport/openai.ts realize engine-abstraction as parallel per-engine adapters behind a shared VoiceTurn/callback-context shape (ui-types.ts).",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         },
         {
           "subject": "voice-interview-fidelity",
@@ -11270,7 +11327,10 @@
           ],
           "grounding": "use_when",
           "confidence": "probable",
-          "state": "unknown"
+          "state": "not-applicable",
+          "evidence": "app/api/{health,ops,search,me/getting-started,me/onboarding}/route.ts and app/_lib/{feedback,feedback-store,workspace-lock}.ts consume engineAvailability() (app/_lib/engine-preflight.ts, outside this context) to report a Claude-CLI-missing state as informational, non-degrading data (api/health/route.ts:83-86) but implement no probe/run/spawn logic themselves. Contrast with the sibling py-llm-runtime context (claude_cli.py), evaluated conformant 2026-08-25 with full per-technique evidence (.ai/registry-conformance.md) — this context is a consumer of the transport's health signal, not a realization of the transport contract, so the subject's techniques have no realization site here.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         }
       ],
       "governance": "governed"
@@ -11702,7 +11762,10 @@
           ],
           "grounding": "use_when",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "Architecture check first: this is a Next.js SPA-shell (app/page.tsx mounts Workspace.tsx once; tab switches are client state, not route navigation), so the golden path's literal 'shell never unmounts' property holds and the hosting/nav-hierarchy rules apply without the frame-continuity correction's alternate reading. nav-hierarchy is mostly realized (NavSectionRail.tsx:163-219 two-level rail+panel, section-scoped; aria-pressed on preview vs aria-current=\"page\" only on the real destination — NavSectionRail.tsx:147, NavPanelItem.tsx:79,85) but NavRailPreferences.tsx:98 exposes the appearance/language triggers' name reveal via the native `title` attribute only, which fails SC 1.4.13 (not Dismissible/Hoverable/Persistent) — the technique's own 'name for AT vs reveal for the eye are two obligations' correction, unmet on the second obligation. badge-and-attention also falls short: WorkspaceNav.tsx/NavPanelItem.tsx render exactly one severity grade (a coral count pill) folding 'failed, needs a decision' and 'N things waiting' into the same integer, and NavSectionRail.tsx's level-one rail button shows no parent-aggregated roll-up of its group's badges, so an unpreviewed section's attention is invisible.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         }
       ],
       "governance": "governed"
@@ -11737,7 +11800,10 @@
           ],
           "grounding": "use_when",
           "confidence": "strong",
-          "state": "unknown"
+          "state": "deviation",
+          "evidence": "Same architecture as shell-nav: Workspace.tsx is the persistent client-state shell (never unmounts, literally). shell-hosted-services is largely conformant (TasksProvider/SimulationProvider/CompanionDockProvider mounted in one declared order at Workspace.tsx:164-169, and the companion dock is deliberately a SIBLING of the re-keyed tab panel rather than a child of it, Workspace.tsx:166-168 comment) but has no named reaper for session-end (sign-out hard-navigates away; nothing enumerates what must flush) and useAttention.ts:29-32 swallows poll failures so a dead attention source is indistinguishable from a healthy quiet one. navigation-model is a deliberate, documented partial: the single-navigate door (shallow-nav.ts) and closed vocabulary (tabs.ts WORKSPACE_TAB_IDS) are real, but back-navigation does not push per-switch history (useUrlInboxState.ts:31-36) and there is no restore-last-location on relaunch (always DEFAULT_TAB, tabs.ts:122) — both explicit violations of the technique's history and restore contracts. lazy-section-loading fixed the placeholder-mismatch flicker (WorkspaceTabChunks.tsx TabChunkGap now deliberately empty) but warm return still re-keys/remounts the destination subtree every switch (WorkspaceTabChunks.tsx:61-62/89) and chunk failure has no automatic retry or version-skew cure.",
+          "evaluatedAt": "2026-08-31",
+          "evaluatedAgainst": "sha256:5215e21162717d59"
         }
       ],
       "governance": "governed"

@@ -1,0 +1,155 @@
+{
+  "worker": "w5-kp-mixed",
+  "evaluatedAt": "2026-08-31",
+  "pairs": [
+    {
+      "context": "6658e0c5-b6bf-42e7-af14-925dd4d3556b",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/insights/matrix/{matrixPopover,matrixTabTypes,matrixStats,MatrixReasoningPopover}.ts(x) are pure viewport/positioning/type/presentation code; no subprocess, spawn, or probe() call anywhere in the context's files (only a comment at useMatrixTab.ts:286 noting the Python spawns happen server-side elsewhere) — the subject's precondition (this context spawns a coding-agent CLI as an LLM transport) does not hold here at all.",
+      "techniques": [
+        { "technique": "availability-probe", "verdict": "not-applicable", "evidence": "no probe()/spawn call in any of matrix-ui-2's files; this is a UI-presentation-only context" },
+        { "technique": "fallback-ladder", "verdict": "not-applicable", "evidence": "same precondition failure; no transport dependency, so no absence/fallback state to design here" }
+      ],
+      "registryProposal": "Coverage note for the registry, not a proposal to change the standard: matrix-ui-2 matched agent-cli-transport at score 324.4 on the single lexical token \"matrix\" (grounding: lexical-only). Worth flagging as a matcher false-positive pattern — a bare word overlap with no use_when signal produced a 'probable' confidence pair that manufactures a deviation risk if judged carelessly."
+    },
+    {
+      "context": "b7eab150-aaef-448f-a5d9-f396e7a1f897",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/{health,ops,search,me/getting-started,me/onboarding}/route.ts and app/_lib/{feedback,feedback-store,workspace-lock}.ts consume engineAvailability() (app/_lib/engine-preflight.ts, outside this context) to report a Claude-CLI-missing state as informational, non-degrading data (api/health/route.ts:83-86) but implement no probe/run/spawn logic themselves. Contrast with the sibling py-llm-runtime context (claude_cli.py), evaluated conformant 2026-08-25 with full per-technique evidence (.ai/registry-conformance.md) — this context is a consumer of the transport's health signal, not a realization of the transport contract, so the subject's techniques have no realization site here.",
+      "techniques": [
+        { "technique": "fallback-ladder", "verdict": "not-applicable", "evidence": "app/api/health/route.ts:83-86 reads the ladder's output (engineAvailability()) but does not implement the ladder itself" },
+        { "technique": "availability-probe", "verdict": "not-applicable", "evidence": "no probe() implementation in any file in this context's path list" }
+      ],
+      "registryProposal": "Same coverage note as matrix-ui-2: api-workspace matched at score 287.9 on tokens {api, health, user} with grounding use_when but confidence only probable — another case where the transport subject's realization lives in a Python context this worker did not judge (py-llm-runtime), while the TS API-route context that merely reads its status got paired too."
+    },
+    {
+      "context": "efe29c62-0b28-4371-a316-bd091b55b004",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "Architecture check first: this is a Next.js SPA-shell (app/page.tsx mounts Workspace.tsx once; tab switches are client state, not route navigation), so the golden path's literal 'shell never unmounts' property holds and the hosting/nav-hierarchy rules apply without the frame-continuity correction's alternate reading. nav-hierarchy is mostly realized (NavSectionRail.tsx:163-219 two-level rail+panel, section-scoped; aria-pressed on preview vs aria-current=\"page\" only on the real destination — NavSectionRail.tsx:147, NavPanelItem.tsx:79,85) but NavRailPreferences.tsx:98 exposes the appearance/language triggers' name reveal via the native `title` attribute only, which fails SC 1.4.13 (not Dismissible/Hoverable/Persistent) — the technique's own 'name for AT vs reveal for the eye are two obligations' correction, unmet on the second obligation. badge-and-attention also falls short: WorkspaceNav.tsx/NavPanelItem.tsx render exactly one severity grade (a coral count pill) folding 'failed, needs a decision' and 'N things waiting' into the same integer, and NavSectionRail.tsx's level-one rail button shows no parent-aggregated roll-up of its group's badges, so an unpreviewed section's attention is invisible.",
+      "techniques": [
+        { "technique": "nav-hierarchy", "verdict": "deviation", "evidence": "NavRailPreferences.tsx:98 `title={...}` is the only name-reveal mechanism for icon-only rail-footer controls; SC 1.4.13 Content on Hover or Focus requires a dismissible/hoverable/persistent reveal the platform tooltip does not provide" },
+        { "technique": "nav-hierarchy", "verdict": "conformant", "evidence": "NavSectionRail.tsx:163-219 (two-level, section-scoped panel), :106-116 + :147 (openSection preview vs aria-pressed, correctly not aria-current), NavPanelItem.tsx:79,85 (aria-current=\"page\" on exactly one row)" },
+        { "technique": "badge-and-attention", "verdict": "deviation", "evidence": "NavPanelItem.tsx:66-73 — a single coral pill grade for all predicates; NavSectionRail.tsx:132-161 — no parent/rail-level aggregation, so a badge in a non-previewed group is off-screen" },
+        { "technique": "lazy-section-loading", "verdict": "conformant", "evidence": "NavPanelItem.tsx:87-92 (pointerenter+focus chunk warm, keyboard-inclusive) and NavSectionRail.tsx:127-146 (group-level warm on hover/focus/click) realize prefetch-on-intent" },
+        { "technique": "navigation-model", "verdict": "unknown", "evidence": "the vocabulary/redirect-table/single-navigate-door files (tabs.ts, shallow-nav.ts, useUrlInboxState.ts) are not in this context's assigned path set (only shallow-nav.test.ts is); judged instead under shell-workspace-1" },
+        { "technique": "entitlement-gating", "verdict": "unknown", "evidence": "no locked/hidden rendering pattern found in shell-nav's own files; the one gating flag in this tree (AGENTS_TAB_IN_NAV) lives in tabs.ts, outside this context" }
+      ],
+      "registryProposal": ""
+    },
+    {
+      "context": "e49f79d9-7653-47f0-a2e3-8f2958111b4f",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "Same architecture as shell-nav: Workspace.tsx is the persistent client-state shell (never unmounts, literally). shell-hosted-services is largely conformant (TasksProvider/SimulationProvider/CompanionDockProvider mounted in one declared order at Workspace.tsx:164-169, and the companion dock is deliberately a SIBLING of the re-keyed tab panel rather than a child of it, Workspace.tsx:166-168 comment) but has no named reaper for session-end (sign-out hard-navigates away; nothing enumerates what must flush) and useAttention.ts:29-32 swallows poll failures so a dead attention source is indistinguishable from a healthy quiet one. navigation-model is a deliberate, documented partial: the single-navigate door (shallow-nav.ts) and closed vocabulary (tabs.ts WORKSPACE_TAB_IDS) are real, but back-navigation does not push per-switch history (useUrlInboxState.ts:31-36) and there is no restore-last-location on relaunch (always DEFAULT_TAB, tabs.ts:122) — both explicit violations of the technique's history and restore contracts. lazy-section-loading fixed the placeholder-mismatch flicker (WorkspaceTabChunks.tsx TabChunkGap now deliberately empty) but warm return still re-keys/remounts the destination subtree every switch (WorkspaceTabChunks.tsx:61-62/89) and chunk failure has no automatic retry or version-skew cure.",
+      "techniques": [
+        { "technique": "navigation-model", "verdict": "deviation", "evidence": "useUrlInboxState.ts:31-36 (back leaves the workspace, no per-switch history push); tabs.ts:122 DEFAULT_TAB always wins on relaunch (no restore-last-location)" },
+        { "technique": "navigation-model", "verdict": "conformant", "evidence": "tabs.ts WORKSPACE_TAB_IDS closed vocabulary + LEGACY_TAB_ALIASES as an explicit redirect table (not a second name); shallow-nav.ts single navigate door with a unit-tested same-document-URL predicate" },
+        { "technique": "shell-hosted-services", "verdict": "deviation", "evidence": "no enumerated session-end reaper (SignOutButton hard-navigates, nothing named flushes residents); useAttention.ts:29-32 keeps stale counts on failure with no dead-worker signal" },
+        { "technique": "shell-hosted-services", "verdict": "conformant", "evidence": "Workspace.tsx:164-169 declared provider order; :166-169 comment states the dock is a sibling of the re-keyed panel, not a child, so it survives tab switches" },
+        { "technique": "lazy-section-loading", "verdict": "deviation", "evidence": "WorkspaceTabChunks.tsx:61-62 re-keys the destination on every switch (no warm-return surface persistence); no automatic retry or refresh-offer on a failed chunk" },
+        { "technique": "lazy-section-loading", "verdict": "conformant", "evidence": "WorkspaceTabChunks.tsx TabChunkGap deliberately empty + 150ms delayed reveal, replacing a mismatched 3-bar skeleton that caused a two-skeleton flicker" },
+        { "technique": "badge-and-attention", "verdict": "conformant", "evidence": "WorkspaceNav.tsx:29-43 fixed a real disclosure leak (anonymous /jds/[slug] visitor could read workspace queue depths) by having the nav resolve isOperator() itself rather than trust a caller-passed prop, with suppression enforced again at the row (total: no pill, no gutter)" }
+      ],
+      "registryProposal": ""
+    },
+    {
+      "context": "9de4d799-279c-429b-a0ca-2afecf4543b1",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "app/_components/voice/micErrorText.ts maps getUserMedia/connection failures to specific actionable recovery copy (denied/not-found/busy) rather than a raw DOMException message; MicTestPanel.tsx pairs a live level meter with a persistent aria-live=\"polite\" region so the pass/fail verdict is announced (not just painted); VoiceStatusPill.tsx deliberately splits a high-frequency visual-only cue (speaking/listening toggling every turn) from a low-frequency role=\"status\" live region (the unstable-connection warning) to avoid spamming screen-reader output — exactly the golden path's 'everything narrated exists as visible text... capture/playback states announced through non-audio channels' posture. transport/elevenlabs.ts + transport/openai.ts realize engine-abstraction as parallel per-engine adapters behind a shared VoiceTurn/callback-context shape (ui-types.ts).",
+      "techniques": [
+        { "technique": "voice-ux-integration", "verdict": "conformant", "evidence": "micErrorText.ts:18-31 (denied/notFound/busy specific recovery copy); VoiceStatusPill.tsx:6-23 (role=\"status\" live region reserved for low-frequency, high-stakes transitions only)" },
+        { "technique": "stt-pipeline", "verdict": "conformant", "evidence": "MicTestPanel.tsx:38-50 live level meter as progressbar + persistent live region announcing heard/silent/denied" },
+        { "technique": "engine-abstraction", "verdict": "conformant", "evidence": "transport/elevenlabs.ts:1-40 and transport/openai.ts implement parallel adapters behind one VoiceTurn/callback shape (ui-types.ts); no surface code names a provider directly" },
+        { "technique": "spoken-intent-parsing", "verdict": "not-applicable", "evidence": "no transcript-to-command parsing in this context; the product is an interview surface, not a voice-command surface" },
+        { "technique": "transcript-normalization", "verdict": "unknown", "evidence": "VoiceTranscript.tsx renders transcript turns but this context's files don't show whether a normalization stage runs before display; not verified" }
+      ],
+      "registryProposal": ""
+    },
+    {
+      "context": "5b6decdf-74e8-4c24-a0f7-d4f87c9c57f3",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "app/_lib/voice/self-hosted.ts is a strong portable-provider-package realization: one derived signal (elevenLabsBaseUrl / isSelfHostedVoice) rather than a second free/paid flag that could disagree with it (':18-20 two switches that must agree is a bug waiting to happen'), a conservative default (hosted service unless a private/loopback host is explicitly configured, :61-66), and it names the actual portable package by repo (Gravitone, github.com/xkazm04/gravitone) serving the same Agents-API protocol locally. pipeline/jobfit/eval/voice/session_runner.py mints real candidate-mode sessions via /simulate specifically so the eval exercises the real per-provider brief path rather than a stale dashboard prompt (session_runner.py:7-11) — a duplex-agent-sessions-aware eval design.",
+      "techniques": [
+        { "technique": "portable-provider-package", "verdict": "conformant", "evidence": "self-hosted.ts:22-30 (elevenLabsBaseUrl, one authority for hosted-vs-local), :67-75 (isSelfHostedVoice derived from the URL, not a parallel flag), :85-90 (isSelfHostedProvider takes the SERVED provider, guarding against a failover mismatch)" },
+        { "technique": "duplex-agent-sessions", "verdict": "conformant", "evidence": "pipeline/jobfit/eval/voice/session_runner.py:7-11 — sessions minted mode=\"candidate\" via /simulate so the eval tests the real candidate-safe brief path, not the ungrounded dashboard fallback" },
+        { "technique": "on-device-vs-cloud", "verdict": "conformant", "evidence": "self-hosted.ts documents an explicit, disclosed, revocable opt-in to a locally-run engine with a conservative hosted default — the residency decision the technique asks for, applied to the duplex-vendor case" }
+      ],
+      "registryProposal": ""
+    },
+    {
+      "context": "5e8c1a9d-62a1-4673-a0eb-2c27ecefc5f7",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "This context is the strongest realization of duplex-agent-sessions in the tree. index.ts:49-70 and candidate-brief.ts implement the audience-safe-brief allow-list explicitly (candidate-brief.ts:11-19: 'THE SECURITY BOUNDARY IS THE SANITIZER IN THIS FILE... never turn this into a deny-list'), with candidateSafeTopic() scrubbing bracketed assessment asides out of topic labels (candidate-brief.ts:76-87). eleven-agent-diff.mjs is the drift gate the technique asks for: a pure, network-free field-by-field diff between intended and live agent config, defensive-read so a shape change degrades to reported drift rather than a crash (never silently reads as agreement). finalize-status.ts computes a real end-of-call verdict rather than trusting the close event (interviewFinalStatus distinguishes a late-blip-on-a-substantive-call from a real abandonment, and unmountBeaconStatus separately handles the late-arrival/in-flight-End case). connect-failover.ts deliberately builds the served provider's prompt OUTSIDE the failover trigger so a failing brief-build surfaces as itself rather than masquerading as a second real failover (connect-failover.ts:72-78).",
+      "techniques": [
+        { "technique": "duplex-agent-sessions", "verdict": "conformant", "evidence": "candidate-brief.ts:11-19,76-87 (allow-list audience-safe brief, not a deny-list); eleven-agent-diff.mjs:113-154 (three-state field-level drift gate, defensive reads); finalize-status.ts:58-73 (session-end as a computed verdict, not the close event); connect-failover.ts:72-78 (brief-build kept outside the failover trigger)" },
+        { "technique": "engine-abstraction", "verdict": "conformant", "evidence": "index.ts:13-24 adapters record + getVoiceAdapter()/voiceAvailability() as the one interface surface code consumes" },
+        { "technique": "stt-pipeline", "verdict": "not-applicable", "evidence": "vendor (brain shape) owns capture-to-transcript entirely under the duplex model; this context has no capture pipeline of its own" },
+        { "technique": "speech-ready-text", "verdict": "not-applicable", "evidence": "vendor's own LLM decides and speaks replies directly under the brain shape; no display-text-to-speech conversion step exists or is needed here" }
+      ],
+      "registryProposal": ""
+    },
+    {
+      "context": "57cb356c-4b1d-4504-ab4e-677f0269bbe7",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "GroupEvalAiVerdict.tsx / GroupEvalComparisonTable.tsx / cache-key.ts implement a product feature — an LLM comparing job candidates for a hiring decision (with a rule-based fallback, GroupEvalAiVerdict.tsx:26-34) — not an engineering eval harness measuring the product's OWN AI system for comparability across versions. cache-key.ts's selectionCacheKey is scoped to INCLUDE the candidate-set identity (the opposite of the eval-harness scenario-design technique's cache key, which is deliberately scoped to EXCLUDE candidate-specific material so scenarios stay fixed across candidate/system versions) — a genuine precondition mismatch, not merely thin coverage. The real governing subjects (already matched alongside this one, not in this worker's scope) are recruiting-domain: comparative-shortlist-evaluation and adverse-impact-and-proxy-neutrality.",
+      "techniques": [
+        { "technique": "scenario-design", "verdict": "not-applicable", "evidence": "cache-key.ts:41-49 keys the comparison cache BY the candidate-set identity — the reverse of the technique's cache-scoping rule, which excludes candidate-specific material so scenarios survive a system-under-test version change" },
+        { "technique": "judge-stability", "verdict": "not-applicable", "evidence": "no pinned-judge-packet/anchor-drift-measurement pattern; GroupEvalAiVerdict.tsx is a product-facing comparison feature with a stated ruleBased/aiBacked fallback, not an internal regression instrument" }
+      ],
+      "registryProposal": "Coverage question for the registry, not a knowledge gap: eval-harness matched group-eval-ui at score 1081.2 (why: eval, cells, comparison) purely on the word 'eval' — the actual subject matter (comparing job candidates) is a recruiting-domain concern already correctly matched alongside it (comparative-shortlist-evaluation, adverse-impact-and-proxy-neutrality, both use_when-grounded). Recommend the matcher down-weight 'eval' as a bare token given how overloaded it is between ML-eval and HR-eval domains."
+    },
+    {
+      "context": "168c7fb0-e73b-415f-a3b4-754200f79447",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "Same finding as the sibling group-eval-ui context, from the library side: app/_lib/group-eval-{cohort,dedupe,differentiators,governance,risk-gate}.ts implement candidate-cohort selection, governance-mode (recommendation/committee/eligibility_list) and fairness gating for a hiring decision — group-eval-governance.ts:1-76 is explicitly about statutory/collective hiring process compliance (sealsLead, resolveGovernanceMode, governanceNote), not about pinning a judge or scoring an AI system's own outputs across versions. The eval-harness subject's precondition (repeatable measurement of a model/agent system for cross-time comparability) does not hold; the real governing subjects are recruiting-domain (adverse-impact-and-proxy-neutrality, collective-and-statutory-hiring-governance), already matched alongside this pairing but outside this worker's scope.",
+      "techniques": [
+        { "technique": "metric-role-contract", "verdict": "not-applicable", "evidence": "group-eval-governance.ts has no optimized-metric/threshold-metric split; its 'governance mode' concept is about who is allowed to seal a hiring decision, not about which score is optimized in a regression suite" },
+        { "technique": "certification-levels", "verdict": "not-applicable", "evidence": "no theoretical-vs-live certification ladder anywhere in the group-eval-* library; this is candidate-selection business logic" }
+      ],
+      "registryProposal": "Same lexical-collision coverage note as group-eval-ui: eval-harness matched at score 812.9 on {eval, selection, run} — all three tokens are equally at home in 'evaluate a group of job candidates' as in 'evaluate a model'. Worth the registry's matcher noting the domain split explicitly (recruiting 'candidate evaluation' vs software-engineering 'model/agent evaluation') since both bundles share the vocabulary."
+    },
+    {
+      "context": "59a7b161-9966-4f57-a48a-11a2d6a68e49",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evidence": "scripts/docs/check-doc-sync.mjs realizes same-change-enforcement correctly and non-trivially: its isTurnBoundary() (:88-93) fixes exactly the failure mode the golden path names as the subject's central counter-example (a backward transcript walk that stops at the first tool_result-shaped 'user' message and therefore never reaches a real edit) — confirmed by regression tests in check-doc-sync.test.mjs naming that precise bug ('a tool_result line is NOT a turn boundary', 'the walk stops at the previous HUMAN turn'). But source-doc-mapping's coverage-gate wall is unrealized: feature-doc-map.json (32 entries) is read by check-doc-sync.mjs with no companion script validating that every declared sourceGlob still resolves to a real file or that every feature area has an entry — the exact 'gate whose precondition quietly vanished' failure the technique names as its strongest argument for gating coverage, not just membership.",
+      "techniques": [
+        { "technique": "same-change-enforcement", "verdict": "conformant", "evidence": "check-doc-sync.mjs:88-93 isTurnBoundary() only treats a message with no tool_result block as a turn boundary; check-doc-sync.test.mjs:156-169 pins the fix with the exact bug-shaped regression case" },
+        { "technique": "source-doc-mapping", "verdict": "deviation", "evidence": "scripts/docs/feature-doc-map.json (32 entries) has no companion validator in this context's files checking that every sourceGlob resolves or that coverage is complete — the map is gated for membership (does the hook find it) but not for coverage (is every glob live, is every feature area declared)" }
+      ],
+      "registryProposal": ""
+    },
+    {
+      "context": "5d3de3a1-60a4-4adb-a227-9aedae3462e5",
+      "subject": "cost-metering",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evidence": "billing-ui's assigned files are the presentation layer only (app/features/settings/billing/*) — the ledger/price-table/budget-enforcement mechanics live in app/_lib/billing, outside this context's path set, so most cost-metering techniques have no realization site to judge here. What IS visible is solid: BillingUsageMeterRow.tsx renders per-meter used/limit/depleted/credits with a correctly-guarded progressbar (skips aria-valuemax=0, which is invalid ARIA) and an accessible unlimited/depleted state. No deviation found in what's visible, but too much of the subject (usage-ledgers, budget-enforcement, preflight-estimation, spend-attribution, price-table versioning/staleness) is simply not present in this context's files to call the pair conformant.",
+      "techniques": [
+        { "technique": "spend-observability", "verdict": "conformant", "evidence": "BillingUsageMeterRow.tsx:33-46 (guarded progressbar, no invalid 0-max render), :48-54 (depleted badge + remaining/credits breakdown)" },
+        { "technique": "price-tables", "verdict": "unknown", "evidence": "billingPlanPriceKind.ts and BillingPlanPrice.tsx single-source the custom/free/paid display decision from a shared PlanDef import, but the actual price-table versioning/staleness-default logic lives in app/_lib/billing, outside this context" },
+        { "technique": "usage-ledgers", "verdict": "unknown", "evidence": "no ledger-write code in this context's files; only a UI reader of MeterOverview" },
+        { "technique": "budget-enforcement", "verdict": "unknown", "evidence": "no enforcement-point code in this context's files" }
+      ],
+      "registryProposal": ""
+    }
+  ]
+}

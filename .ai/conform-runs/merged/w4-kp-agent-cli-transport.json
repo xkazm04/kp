@@ -1,0 +1,139 @@
+{
+  "worker": "w4-kp-agent-cli-transport",
+  "evaluatedAt": "2026-08-31",
+  "pairs": [
+    {
+      "context": "7a2bd7e0-5200-4488-ab28-536d012b7fb2",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/auth/* (current-user, current-workspace, edge-verify, home-gate-server, login-throttle, onboarding-gate, operator-approver, org-authority, password) is session/org auth logic; grep for claude|codex|gemini-cli|cursor-cli|spawnPython|child_process across all 12 files in this context finds nothing — the precondition (this code spawns or talks to an agent CLI as an LLM transport) does not hold.",
+      "techniques": []
+    },
+    {
+      "context": "5d3de3a1-60a4-4adb-a227-9aedae3462e5",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/features/settings/billing/*.tsx and helpers are billing-panel UI (plan catalog, self-host panel, usage meter, checkout banner); no agent-CLI spawn/probe/parse surface in any of the 12 files. Lexical match was on 'billing/spend/host' vocabulary, not on any real CLI-transport code.",
+      "techniques": []
+    },
+    {
+      "context": "e61a8cff-0286-4650-a913-a9412d5f1905",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/db/{invites,memberships,organizations,users,workspaces}.ts, signup-service.ts, api/auth/login/route.ts are org/identity persistence and signup flow; no agent-CLI involvement anywhere in the 12 files (grep for claude/codex/gemini-cli/cursor-cli/spawnPython/child_process is empty).",
+      "techniques": []
+    },
+    {
+      "context": "9768b616-8967-44b6-a919-cde6898667db",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/billing/* (checkout, portal, webhook routes) and app/_lib/db/billing.ts are the Polar payment-provider integration; no agent-CLI surface. The matcher scored this on 'billing/api' vocabulary overlap only.",
+      "techniques": []
+    },
+    {
+      "context": "f60b2a48-56dd-480d-a64a-9187a0db60a1",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/billing/{enforce,entitlements,gateway,mode,plans,polar,price-reconcile,reduce}.ts are plan/entitlement/payment-provider (Polar) logic; no agent-CLI spawn/talk anywhere in the 12 files.",
+      "techniques": []
+    },
+    {
+      "context": "4325f570-ed53-4c67-aad8-7c4db5dd6e0b",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/api/channels/* and app/api/comms/* are inbound/outbound communication-channel webhooks and relay/callback routes (email/SMS-style delivery), not an LLM transport; grep across all 12 files finds no CLI/agent surface.",
+      "techniques": []
+    },
+    {
+      "context": "9083c7ba-cc2c-4ea6-a273-cd6e274a23d1",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "app/_lib/devcase-run.ts:45 spawns a Python subprocess (spawnPython([\"-m\",\"pipeline.jobfit.devcase.devcase_cli\",...], {env: buildLlmConfigEnv()})) — this context talks to Python, not to an agent CLI directly; devcase-run.ts:44 even says '(Python then defaults to the Claude CLI, unchanged)'. The actual spawn/probe/env-strip/parse contract lives two hops down in pipeline/jobfit/claude_cli.py, governed by context py-llm-runtime (aa150c52), already marked conformant. devcase-orchestrator.ts, -interview-kit.ts, -probe-audit.ts (an unrelated interview-question 'probe', not availability-probe), -seed-diff.ts and -session-auth.ts carry no CLI-transport code either.",
+      "techniques": []
+    },
+    {
+      "context": "d9202784-2fa3-4374-a9ca-7fdb9d7da148",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evidence": "pipeline/jobfit/{cli,_cli,extract_cli,codegen,i18n,profile,profile_cli}.py are jobfit's own product CLI (profile extraction/codegen/i18n commands) — argparse tooling for this app's users, not a caller of an agent CLI. Full-file grep for claude_cli/resolve_provider/llm import/subprocess is empty; the matcher scored purely on the literal word 'cli'.",
+      "techniques": []
+    },
+    {
+      "context": "44d2103b-c7fa-4a73-a705-bc86c10ad099",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "This context's paths are the test suite for pipeline/jobfit/llm/{offline,registry,monitor,base}.py (no context in the map owns those source files directly). offline.py:35 is_offline / :41 is_local_url seals ClaudeCliProvider and every cloud adapter behind KP_OFFLINE while allowing genuinely on-box endpoints, exercised at tests/test_llm_offline.py:139 test_claude_cli_blocked_offline and the OfflineCloudBaseUrlIsSealedTest class (availability-probe's 'policy can veto a healthy probe'). monitor.py:171 emit_deterministic threads a named descent reason (offline_policy/not_installed/disabled) through the usage ledger, pinned at tests/test_llm_monitor.py:318 test_emit_deterministic_records_the_descent_reason (fallback-ladder's 'descent has a reason'); registry.py's resolve_provider/provider_availability is the one shared predicate these tests exercise directly rather than a re-derived copy.",
+      "techniques": [
+        { "technique": "availability-probe", "verdict": "conformant",
+          "evidence": "pipeline/jobfit/llm/offline.py:35,41 (policy-veto clause) + pipeline/jobfit/tests/test_llm_offline.py:139" },
+        { "technique": "fallback-ladder", "verdict": "conformant",
+          "evidence": "pipeline/jobfit/llm/monitor.py:171 emit_deterministic + pipeline/jobfit/tests/test_llm_monitor.py:318" },
+        { "technique": "subscription-auth-selection", "verdict": "not-applicable",
+          "evidence": "the metering-key strip/inject decision is made inside claude_cli.py's spawn door (context py-llm-runtime), not in registry/monitor/offline" },
+        { "technique": "output-normalization", "verdict": "not-applicable",
+          "evidence": "envelope parsing is owned by claude_cli.py; monitor.py's MonitoredClaudeCli:283 only wraps the parent's already-normalized complete() with telemetry, it does not re-parse" },
+        { "technique": "permission-stance-enforcement", "verdict": "not-applicable",
+          "evidence": "mode/sandbox enforcement is claude_cli.py's concern; not present in this context's files" },
+        { "technique": "dated-capability-matrix", "verdict": "not-applicable",
+          "evidence": "capabilities.py lives in the separate llm-adapters-and-llm-registry context, not owned or tested here" },
+        { "technique": "child-observed-posture", "verdict": "not-applicable",
+          "evidence": "the three seams (argv, environment, existence) are properties of the direct child spawn in claude_cli.py; this context is one layer above the spawn door" }
+      ]
+    },
+    {
+      "context": "b02c9ae5-749e-43ff-a0ac-2befb7871370",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "group_compare_cli.py:53-64 and reasoning_cli.py:60-71 both call resolve_provider/provider_availability/emit_deterministic from the shared .llm door (imported, never re-derived) and print {\"result\"/\"comparison\", \"source\"} so the served rung travels with every response; deviation would be a call site rolling its own subprocess/env logic instead, which does not happen here. match_cli.py and matrix_cli.py carry no LLM call at all.",
+      "techniques": [
+        { "technique": "fallback-ladder", "verdict": "conformant",
+          "evidence": "reasoning_cli.py:60,63,71 and group_compare_cli.py:53,56,64 — shared predicate reuse, descent reason threaded, source label printed with the result" },
+        { "technique": "availability-probe", "verdict": "not-applicable",
+          "evidence": "install/auth probing is inside resolve_provider/claude_cli.py, not implemented at this call-site layer" },
+        { "technique": "subscription-auth-selection", "verdict": "not-applicable",
+          "evidence": "billing-key strip/inject happens at the claude_cli.py spawn door, not in these CLI entrypoints" },
+        { "technique": "output-normalization", "verdict": "not-applicable",
+          "evidence": "these files consume an already-normalized (result, source) tuple from generate()/match_reasoning, they do not parse a raw CLI envelope" },
+        { "technique": "permission-stance-enforcement", "verdict": "not-applicable",
+          "evidence": "no mode/sandbox concept in scoring/reasoning CLIs; they only read job/candidate JSON" },
+        { "technique": "dated-capability-matrix", "verdict": "not-applicable",
+          "evidence": "capability data lives in llm/capabilities.py, a different context" },
+        { "technique": "child-observed-posture", "verdict": "not-applicable",
+          "evidence": "no direct child-process spawn in this context; the observed seams belong to the spawn door" }
+      ]
+    },
+    {
+      "context": "8d3f924f-69d7-4621-a70a-467598f6d627",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evidence": "automation_cli.py:125 resolve_provider(use_case)/:128 provider_availability(provider) reuses the one shared predicate (not re-derived); :183 emit_deterministic(use_case, reason=descent or automation.take_degradation_reason()) names the descent reason even when the availability gate itself said yes and a mid-flight failure caused the fallback; the printed {\"result\", \"source\"} envelope carries the rung label to the caller. app/api/decisions/* routes are pure HTTP wrappers with no separate CLI-transport logic of their own.",
+      "techniques": [
+        { "technique": "fallback-ladder", "verdict": "conformant",
+          "evidence": "pipeline/jobfit/automation_cli.py:125,128,183 — shared predicate, descent-reason discipline, source label in output" },
+        { "technique": "availability-probe", "verdict": "not-applicable",
+          "evidence": "the zero-token install/auth probe is implemented in claude_cli.py / llm/registry.py, not here" },
+        { "technique": "subscription-auth-selection", "verdict": "not-applicable",
+          "evidence": "billing-key handling happens at the claude_cli.py spawn door" },
+        { "technique": "output-normalization", "verdict": "not-applicable",
+          "evidence": "automation.* functions return an already-normalized (result, source) pair; no raw envelope parsing here" },
+        { "technique": "permission-stance-enforcement", "verdict": "not-applicable",
+          "evidence": "automation tasks are read-only text generation with no workspace-access mode to enforce" },
+        { "technique": "dated-capability-matrix", "verdict": "not-applicable",
+          "evidence": "capability data is llm/capabilities.py's, a different context" },
+        { "technique": "child-observed-posture", "verdict": "not-applicable",
+          "evidence": "no direct child spawn in this context" }
+      ]
+    }
+  ]
+}

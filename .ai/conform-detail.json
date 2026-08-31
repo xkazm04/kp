@@ -1,0 +1,528 @@
+{
+  "schema": "conform-detail/1",
+  "pairs": {
+    "7a2bd7e0-5200-4488-ab28-536d012b7fb2/agent-cli-transport": {
+      "context": "auth-core",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": []
+    },
+    "5d3de3a1-60a4-4adb-a227-9aedae3462e5/agent-cli-transport": {
+      "context": "billing-ui",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": []
+    },
+    "e61a8cff-0286-4650-a913-a9412d5f1905/agent-cli-transport": {
+      "context": "org-and-auth",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": []
+    },
+    "9768b616-8967-44b6-a919-cde6898667db/agent-cli-transport": {
+      "context": "billing",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": []
+    },
+    "f60b2a48-56dd-480d-a64a-9187a0db60a1/agent-cli-transport": {
+      "context": "billing-core",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": []
+    },
+    "4325f570-ed53-4c67-aad8-7c4db5dd6e0b/agent-cli-transport": {
+      "context": "api-comms",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": []
+    },
+    "9083c7ba-cc2c-4ea6-a273-cd6e274a23d1/agent-cli-transport": {
+      "context": "lib-devcase-12",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": []
+    },
+    "d9202784-2fa3-4374-a9ca-7fdb9d7da148/agent-cli-transport": {
+      "context": "py-cli-core-5",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": []
+    },
+    "44d2103b-c7fa-4a73-a705-bc86c10ad099/agent-cli-transport": {
+      "context": "py-cli-core-3",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/llm/offline.py:35,41 (policy-veto clause) + pipeline/jobfit/tests/test_llm_offline.py:139"
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/llm/monitor.py:171 emit_deterministic + pipeline/jobfit/tests/test_llm_monitor.py:318"
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "the metering-key strip/inject decision is made inside claude_cli.py's spawn door (context py-llm-runtime), not in registry/monitor/offline"
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "envelope parsing is owned by claude_cli.py; monitor.py's MonitoredClaudeCli:283 only wraps the parent's already-normalized complete() with telemetry, it does not re-parse"
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "mode/sandbox enforcement is claude_cli.py's concern; not present in this context's files"
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "not-applicable",
+          "evidence": "capabilities.py lives in the separate llm-adapters-and-llm-registry context, not owned or tested here"
+        },
+        {
+          "technique": "child-observed-posture",
+          "verdict": "not-applicable",
+          "evidence": "the three seams (argv, environment, existence) are properties of the direct child spawn in claude_cli.py; this context is one layer above the spawn door"
+        }
+      ]
+    },
+    "b02c9ae5-749e-43ff-a0ac-2befb7871370/agent-cli-transport": {
+      "context": "py-match-reasoning",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": [
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "reasoning_cli.py:60,63,71 and group_compare_cli.py:53,56,64 — shared predicate reuse, descent reason threaded, source label printed with the result"
+        },
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "install/auth probing is inside resolve_provider/claude_cli.py, not implemented at this call-site layer"
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "billing-key strip/inject happens at the claude_cli.py spawn door, not in these CLI entrypoints"
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "these files consume an already-normalized (result, source) tuple from generate()/match_reasoning, they do not parse a raw CLI envelope"
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "no mode/sandbox concept in scoring/reasoning CLIs; they only read job/candidate JSON"
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "not-applicable",
+          "evidence": "capability data lives in llm/capabilities.py, a different context"
+        },
+        {
+          "technique": "child-observed-posture",
+          "verdict": "not-applicable",
+          "evidence": "no direct child-process spawn in this context; the observed seams belong to the spawn door"
+        }
+      ]
+    },
+    "8d3f924f-69d7-4621-a70a-467598f6d627/agent-cli-transport": {
+      "context": "py-automation",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w4-kp-agent-cli-transport",
+      "techniques": [
+        {
+          "technique": "fallback-ladder",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/automation_cli.py:125,128,183 — shared predicate, descent-reason discipline, source label in output"
+        },
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "the zero-token install/auth probe is implemented in claude_cli.py / llm/registry.py, not here"
+        },
+        {
+          "technique": "subscription-auth-selection",
+          "verdict": "not-applicable",
+          "evidence": "billing-key handling happens at the claude_cli.py spawn door"
+        },
+        {
+          "technique": "output-normalization",
+          "verdict": "not-applicable",
+          "evidence": "automation.* functions return an already-normalized (result, source) pair; no raw envelope parsing here"
+        },
+        {
+          "technique": "permission-stance-enforcement",
+          "verdict": "not-applicable",
+          "evidence": "automation tasks are read-only text generation with no workspace-access mode to enforce"
+        },
+        {
+          "technique": "dated-capability-matrix",
+          "verdict": "not-applicable",
+          "evidence": "capability data is llm/capabilities.py's, a different context"
+        },
+        {
+          "technique": "child-observed-posture",
+          "verdict": "not-applicable",
+          "evidence": "no direct child spawn in this context"
+        }
+      ]
+    },
+    "6658e0c5-b6bf-42e7-af14-925dd4d3556b/agent-cli-transport": {
+      "context": "matrix-ui-2",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "no probe()/spawn call in any of matrix-ui-2's files; this is a UI-presentation-only context"
+        },
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "same precondition failure; no transport dependency, so no absence/fallback state to design here"
+        }
+      ],
+      "registryProposal": "Coverage note for the registry, not a proposal to change the standard: matrix-ui-2 matched agent-cli-transport at score 324.4 on the single lexical token \"matrix\" (grounding: lexical-only). Worth flagging as a matcher false-positive pattern — a bare word overlap with no use_when signal produced a 'probable' confidence pair that manufactures a deviation risk if judged carelessly."
+    },
+    "b7eab150-aaef-448f-a5d9-f396e7a1f897/agent-cli-transport": {
+      "context": "api-workspace",
+      "subject": "agent-cli-transport",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "fallback-ladder",
+          "verdict": "not-applicable",
+          "evidence": "app/api/health/route.ts:83-86 reads the ladder's output (engineAvailability()) but does not implement the ladder itself"
+        },
+        {
+          "technique": "availability-probe",
+          "verdict": "not-applicable",
+          "evidence": "no probe() implementation in any file in this context's path list"
+        }
+      ],
+      "registryProposal": "Same coverage note as matrix-ui-2: api-workspace matched at score 287.9 on tokens {api, health, user} with grounding use_when but confidence only probable — another case where the transport subject's realization lives in a Python context this worker did not judge (py-llm-runtime), while the TS API-route context that merely reads its status got paired too."
+    },
+    "efe29c62-0b28-4371-a316-bd091b55b004/app-shell": {
+      "context": "shell-nav",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "nav-hierarchy",
+          "verdict": "deviation",
+          "evidence": "NavRailPreferences.tsx:98 `title={...}` is the only name-reveal mechanism for icon-only rail-footer controls; SC 1.4.13 Content on Hover or Focus requires a dismissible/hoverable/persistent reveal the platform tooltip does not provide"
+        },
+        {
+          "technique": "nav-hierarchy",
+          "verdict": "conformant",
+          "evidence": "NavSectionRail.tsx:163-219 (two-level, section-scoped panel), :106-116 + :147 (openSection preview vs aria-pressed, correctly not aria-current), NavPanelItem.tsx:79,85 (aria-current=\"page\" on exactly one row)"
+        },
+        {
+          "technique": "badge-and-attention",
+          "verdict": "deviation",
+          "evidence": "NavPanelItem.tsx:66-73 — a single coral pill grade for all predicates; NavSectionRail.tsx:132-161 — no parent/rail-level aggregation, so a badge in a non-previewed group is off-screen"
+        },
+        {
+          "technique": "lazy-section-loading",
+          "verdict": "conformant",
+          "evidence": "NavPanelItem.tsx:87-92 (pointerenter+focus chunk warm, keyboard-inclusive) and NavSectionRail.tsx:127-146 (group-level warm on hover/focus/click) realize prefetch-on-intent"
+        },
+        {
+          "technique": "navigation-model",
+          "verdict": "unknown",
+          "evidence": "the vocabulary/redirect-table/single-navigate-door files (tabs.ts, shallow-nav.ts, useUrlInboxState.ts) are not in this context's assigned path set (only shallow-nav.test.ts is); judged instead under shell-workspace-1"
+        },
+        {
+          "technique": "entitlement-gating",
+          "verdict": "unknown",
+          "evidence": "no locked/hidden rendering pattern found in shell-nav's own files; the one gating flag in this tree (AGENTS_TAB_IN_NAV) lives in tabs.ts, outside this context"
+        }
+      ],
+      "registryProposal": ""
+    },
+    "e49f79d9-7653-47f0-a2e3-8f2958111b4f/app-shell": {
+      "context": "shell-workspace-1",
+      "subject": "app-shell",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "navigation-model",
+          "verdict": "deviation",
+          "evidence": "useUrlInboxState.ts:31-36 (back leaves the workspace, no per-switch history push); tabs.ts:122 DEFAULT_TAB always wins on relaunch (no restore-last-location)"
+        },
+        {
+          "technique": "navigation-model",
+          "verdict": "conformant",
+          "evidence": "tabs.ts WORKSPACE_TAB_IDS closed vocabulary + LEGACY_TAB_ALIASES as an explicit redirect table (not a second name); shallow-nav.ts single navigate door with a unit-tested same-document-URL predicate"
+        },
+        {
+          "technique": "shell-hosted-services",
+          "verdict": "deviation",
+          "evidence": "no enumerated session-end reaper (SignOutButton hard-navigates, nothing named flushes residents); useAttention.ts:29-32 keeps stale counts on failure with no dead-worker signal"
+        },
+        {
+          "technique": "shell-hosted-services",
+          "verdict": "conformant",
+          "evidence": "Workspace.tsx:164-169 declared provider order; :166-169 comment states the dock is a sibling of the re-keyed panel, not a child, so it survives tab switches"
+        },
+        {
+          "technique": "lazy-section-loading",
+          "verdict": "deviation",
+          "evidence": "WorkspaceTabChunks.tsx:61-62 re-keys the destination on every switch (no warm-return surface persistence); no automatic retry or refresh-offer on a failed chunk"
+        },
+        {
+          "technique": "lazy-section-loading",
+          "verdict": "conformant",
+          "evidence": "WorkspaceTabChunks.tsx TabChunkGap deliberately empty + 150ms delayed reveal, replacing a mismatched 3-bar skeleton that caused a two-skeleton flicker"
+        },
+        {
+          "technique": "badge-and-attention",
+          "verdict": "conformant",
+          "evidence": "WorkspaceNav.tsx:29-43 fixed a real disclosure leak (anonymous /jds/[slug] visitor could read workspace queue depths) by having the nav resolve isOperator() itself rather than trust a caller-passed prop, with suppression enforced again at the row (total: no pill, no gutter)"
+        }
+      ],
+      "registryProposal": ""
+    },
+    "9de4d799-279c-429b-a0ca-2afecf4543b1/voice-io": {
+      "context": "voice-ui-components",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "voice-ux-integration",
+          "verdict": "conformant",
+          "evidence": "micErrorText.ts:18-31 (denied/notFound/busy specific recovery copy); VoiceStatusPill.tsx:6-23 (role=\"status\" live region reserved for low-frequency, high-stakes transitions only)"
+        },
+        {
+          "technique": "stt-pipeline",
+          "verdict": "conformant",
+          "evidence": "MicTestPanel.tsx:38-50 live level meter as progressbar + persistent live region announcing heard/silent/denied"
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "transport/elevenlabs.ts:1-40 and transport/openai.ts implement parallel adapters behind one VoiceTurn/callback shape (ui-types.ts); no surface code names a provider directly"
+        },
+        {
+          "technique": "spoken-intent-parsing",
+          "verdict": "not-applicable",
+          "evidence": "no transcript-to-command parsing in this context; the product is an interview surface, not a voice-command surface"
+        },
+        {
+          "technique": "transcript-normalization",
+          "verdict": "unknown",
+          "evidence": "VoiceTranscript.tsx renders transcript turns but this context's files don't show whether a normalization stage runs before display; not verified"
+        }
+      ],
+      "registryProposal": ""
+    },
+    "5b6decdf-74e8-4c24-a0f7-d4f87c9c57f3/voice-io": {
+      "context": "eval-voice-and-voice-runtime",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "portable-provider-package",
+          "verdict": "conformant",
+          "evidence": "self-hosted.ts:22-30 (elevenLabsBaseUrl, one authority for hosted-vs-local), :67-75 (isSelfHostedVoice derived from the URL, not a parallel flag), :85-90 (isSelfHostedProvider takes the SERVED provider, guarding against a failover mismatch)"
+        },
+        {
+          "technique": "duplex-agent-sessions",
+          "verdict": "conformant",
+          "evidence": "pipeline/jobfit/eval/voice/session_runner.py:7-11 — sessions minted mode=\"candidate\" via /simulate so the eval tests the real candidate-safe brief path, not the ungrounded dashboard fallback"
+        },
+        {
+          "technique": "on-device-vs-cloud",
+          "verdict": "conformant",
+          "evidence": "self-hosted.ts documents an explicit, disclosed, revocable opt-in to a locally-run engine with a conservative hosted default — the residency decision the technique asks for, applied to the duplex-vendor case"
+        }
+      ],
+      "registryProposal": ""
+    },
+    "5e8c1a9d-62a1-4673-a0eb-2c27ecefc5f7/voice-io": {
+      "context": "voice-runtime-1",
+      "subject": "voice-io",
+      "bundle": "software-engineering",
+      "state": "conformant",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "duplex-agent-sessions",
+          "verdict": "conformant",
+          "evidence": "candidate-brief.ts:11-19,76-87 (allow-list audience-safe brief, not a deny-list); eleven-agent-diff.mjs:113-154 (three-state field-level drift gate, defensive reads); finalize-status.ts:58-73 (session-end as a computed verdict, not the close event); connect-failover.ts:72-78 (brief-build kept outside the failover trigger)"
+        },
+        {
+          "technique": "engine-abstraction",
+          "verdict": "conformant",
+          "evidence": "index.ts:13-24 adapters record + getVoiceAdapter()/voiceAvailability() as the one interface surface code consumes"
+        },
+        {
+          "technique": "stt-pipeline",
+          "verdict": "not-applicable",
+          "evidence": "vendor (brain shape) owns capture-to-transcript entirely under the duplex model; this context has no capture pipeline of its own"
+        },
+        {
+          "technique": "speech-ready-text",
+          "verdict": "not-applicable",
+          "evidence": "vendor's own LLM decides and speaks replies directly under the brain shape; no display-text-to-speech conversion step exists or is needed here"
+        }
+      ],
+      "registryProposal": ""
+    },
+    "57cb356c-4b1d-4504-ab4e-677f0269bbe7/eval-harness": {
+      "context": "group-eval-ui",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "scenario-design",
+          "verdict": "not-applicable",
+          "evidence": "cache-key.ts:41-49 keys the comparison cache BY the candidate-set identity — the reverse of the technique's cache-scoping rule, which excludes candidate-specific material so scenarios survive a system-under-test version change"
+        },
+        {
+          "technique": "judge-stability",
+          "verdict": "not-applicable",
+          "evidence": "no pinned-judge-packet/anchor-drift-measurement pattern; GroupEvalAiVerdict.tsx is a product-facing comparison feature with a stated ruleBased/aiBacked fallback, not an internal regression instrument"
+        }
+      ],
+      "registryProposal": "Coverage question for the registry, not a knowledge gap: eval-harness matched group-eval-ui at score 1081.2 (why: eval, cells, comparison) purely on the word 'eval' — the actual subject matter (comparing job candidates) is a recruiting-domain concern already correctly matched alongside it (comparative-shortlist-evaluation, adverse-impact-and-proxy-neutrality, both use_when-grounded). Recommend the matcher down-weight 'eval' as a bare token given how overloaded it is between ML-eval and HR-eval domains."
+    },
+    "168c7fb0-e73b-415f-a3b4-754200f79447/eval-harness": {
+      "context": "lib-group-eval",
+      "subject": "eval-harness",
+      "bundle": "software-engineering",
+      "state": "not-applicable",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "metric-role-contract",
+          "verdict": "not-applicable",
+          "evidence": "group-eval-governance.ts has no optimized-metric/threshold-metric split; its 'governance mode' concept is about who is allowed to seal a hiring decision, not about which score is optimized in a regression suite"
+        },
+        {
+          "technique": "certification-levels",
+          "verdict": "not-applicable",
+          "evidence": "no theoretical-vs-live certification ladder anywhere in the group-eval-* library; this is candidate-selection business logic"
+        }
+      ],
+      "registryProposal": "Same lexical-collision coverage note as group-eval-ui: eval-harness matched at score 812.9 on {eval, selection, run} — all three tokens are equally at home in 'evaluate a group of job candidates' as in 'evaluate a model'. Worth the registry's matcher noting the domain split explicitly (recruiting 'candidate evaluation' vs software-engineering 'model/agent evaluation') since both bundles share the vocabulary."
+    },
+    "59a7b161-9966-4f57-a48a-11a2d6a68e49/docs-sync": {
+      "context": "build-scripts-1",
+      "subject": "docs-sync",
+      "bundle": "software-engineering",
+      "state": "deviation",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "same-change-enforcement",
+          "verdict": "conformant",
+          "evidence": "check-doc-sync.mjs:88-93 isTurnBoundary() only treats a message with no tool_result block as a turn boundary; check-doc-sync.test.mjs:156-169 pins the fix with the exact bug-shaped regression case"
+        },
+        {
+          "technique": "source-doc-mapping",
+          "verdict": "deviation",
+          "evidence": "scripts/docs/feature-doc-map.json (32 entries) has no companion validator in this context's files checking that every sourceGlob resolves or that coverage is complete — the map is gated for membership (does the hook find it) but not for coverage (is every glob live, is every feature area declared)"
+        }
+      ],
+      "registryProposal": ""
+    },
+    "5d3de3a1-60a4-4adb-a227-9aedae3462e5/cost-metering": {
+      "context": "billing-ui",
+      "subject": "cost-metering",
+      "bundle": "software-engineering",
+      "state": "unknown",
+      "evaluatedAt": "2026-08-31",
+      "worker": "w5-kp-mixed",
+      "techniques": [
+        {
+          "technique": "spend-observability",
+          "verdict": "conformant",
+          "evidence": "BillingUsageMeterRow.tsx:33-46 (guarded progressbar, no invalid 0-max render), :48-54 (depleted badge + remaining/credits breakdown)"
+        },
+        {
+          "technique": "price-tables",
+          "verdict": "unknown",
+          "evidence": "billingPlanPriceKind.ts and BillingPlanPrice.tsx single-source the custom/free/paid display decision from a shared PlanDef import, but the actual price-table versioning/staleness-default logic lives in app/_lib/billing, outside this context"
+        },
+        {
+          "technique": "usage-ledgers",
+          "verdict": "unknown",
+          "evidence": "no ledger-write code in this context's files; only a UI reader of MeterOverview"
+        },
+        {
+          "technique": "budget-enforcement",
+          "verdict": "unknown",
+          "evidence": "no enforcement-point code in this context's files"
+        }
+      ],
+      "registryProposal": ""
+    }
+  }
+}
