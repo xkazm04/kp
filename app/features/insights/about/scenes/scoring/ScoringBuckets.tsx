@@ -86,6 +86,10 @@ const WHY_X = 88;
 const THRESHOLD_X = TRACK_X + TRACK_W * 0.5; // _MATCH_THRESHOLD = 0.5
 
 const NOTE: Rect = { x: 0, y: 80, w: 100, h: 20 };
+// A code identifier the reader matches against matching.py, not copy — named
+// constant, not JSX text (the machine-surface idiom; i18next/no-literal-string
+// is right to refuse it as a literal child).
+const SIBLING_MATCH_LABEL = "_SIBLING_MATCH = 0.4";
 
 const resolvesAt = (i: number) => 3 + i;
 
@@ -169,7 +173,7 @@ export function ScoringBuckets() {
 
         {/* ── Why the middle bucket exists ──────────────────────────────── */}
         <Slot rect={NOTE} stage={stageOf({ shell: 10, body: 10, detail: 10, chosen: null }, phase)} reduced={reduced} className="p-4">
-          <CodeLabel>_SIBLING_MATCH = 0.4</CodeLabel>
+          <CodeLabel>{SIBLING_MATCH_LABEL}</CodeLabel>
           <Part show={at(10)} reduced={reduced} className="mt-1.5 block text-base leading-snug text-ink">
             {t("note")}
           </Part>
