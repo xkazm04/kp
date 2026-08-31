@@ -166,6 +166,28 @@ dependencies, and neither is needed to *hire* the tenure — step 2 can run toda
 
 ---
 
+## 8b. Night-1 live findings (2026-08-31) — two fixes, one lesson
+
+The first real ideation night (run `2026-08-31T08-02-22`) surfaced two defects,
+both fixed in `d4476d10`:
+
+1. **The ideation ask must be project-scoped.** Personas requires `projectId` on
+   an `ideate` tick (a spend guard: one scan agent per eligible project
+   otherwise). The wire contract I handed the two builders omitted it — the
+   Personas builder added it and said so; the driver brief was never
+   reconciled. The handle now rides the tenure file. *The seam failure was the
+   orchestrator's, not either builder's.*
+2. **A cumulative read cannot gate a per-night invariant.** `maxProposalsOpened
+   <= 0` read the roster backbone, which is tenure-cumulative — after any prior
+   proposal it can never pass again, and it failed this exam over a proposal the
+   previous (wrong-scenario) run had opened. Dropped from `kp-c1-night`; §6's
+   invariant is enforced by the per-night dispatch guard, and the scenarios
+   contract test pins the absence.
+
+What held: the `suggest` override (dispatched 0), the declined probation, the
+since-hire filter (94 inherited rows excluded), and — the quiet win — every C1
+check read `null` on the empty holder-era list instead of scoring an absence.
+
 ## 8. Seam status (2026-08-29 — both sides SHIPPED, reconciled)
 
 kp driver: `897fb6f8`→`f645f77b` (tenure mode, fleet audit, C1 checks, teardown,

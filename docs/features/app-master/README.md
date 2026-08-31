@@ -809,8 +809,16 @@ node scripts/app-master-bench/run.mjs --scenario kp-c1-night --tenure kp-owner
 
 ```jsonc
 { "repo": "kp", "hiredAgentId": "agt_…", "personaId": "p_…", "requestId": "…",
-  "hiredAt": "2026-08-29T…", "rung": 0, "probationDays": 30, "scenario": "kp-default" }
+  "hiredAt": "2026-08-29T…", "rung": 0, "probationDays": 30, "scenario": "kp-default",
+  "projectId": "…" }   // optional — the Personas project this tenure owns
 ```
+
+- **`projectId` scopes an ideation night.** Personas refuses an `ideate` tick
+  with no project ("an unscoped tick would spend one scan agent per eligible
+  project" — its spend guard), so `overnightTickBody` adds the tenure's
+  `projectId` to the tick body on an `ideate` ask and only then. Measured
+  2026-08-31 (night 1): the ask went out unscoped, ideation reported `blocked`,
+  and every C1 check honestly read `null` on an empty holder-era list.
 
 - **`tenures/` is committed empty** (a `.gitkeep`); `tenures/*.json` is
   **gitignored**. A tenure file is a *handle* — a row in one machine's kp DB and
