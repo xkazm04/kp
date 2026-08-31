@@ -617,6 +617,25 @@ export function evaluateExpectations(scenario, result) {
   const nights = result?.nights ?? [];
   const checks = [];
 
+  // ALWAYS-ON, not an expect key: a night whose tick itself failed has no
+  // instrument, and a scenario must never PASS over a dead one. Measured
+  // 2026-08-31: an ideate tick died at undici's 300s headers timeout, every C1
+  // check honestly read null, nothing failed, and the banner said PASS — the
+  // one arrangement worse than a red run, because the ledger records a clean
+  // night nobody measured.
+  const deadTicks = nights.filter((n) => n?.tickOk === false);
+  if (deadTicks.length > 0) {
+    checks.push({
+      name: "nightIntegrity",
+      ok: false,
+      expected: "every night's tick answers",
+      actual: `${deadTicks.length} night(s) with a failed tick`,
+      delta: deadTicks
+        .map((n) => `night ${n.night}: the overnight tick failed (${n.tickError ?? n.error ?? "no error recorded"}) — nothing that night claims was measured`)
+        .join("; "),
+    });
+  }
+
   if (expect.population_fit !== undefined) {
     const allowed = asSet(expect.population_fit);
     const actual = result?.populationFit?.verdict ?? null;

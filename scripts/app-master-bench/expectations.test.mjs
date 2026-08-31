@@ -925,3 +925,28 @@ test("extractIdeation reads the block wherever it rides, and never invents one",
   const didNot = { ran: false, lens: null, authored: 0, blocked: "no lens was configured" };
   assert.deepEqual(extractIdeation({ ideation: didNot }), didNot);
 });
+
+// ALWAYS-ON night integrity (2026-08-31): an ideate tick died at undici's 300s
+// headers timeout, every C1 check honestly read null, and the banner said PASS —
+// a clean night nobody measured. A dead tick must fail the scenario regardless
+// of what the expect block asks for.
+test("a night whose tick failed fails the scenario, whatever the expect block says", () => {
+  const result = {
+    nights: [
+      { night: 1, tickOk: false, tickError: "overnight: fetch failed" },
+      { night: 2, tickOk: true },
+    ],
+  };
+  const evaluated = evaluateExpectations({ expect: {} }, result);
+  assert.equal(evaluated.ok, false, "the scenario verdict itself must be FAIL");
+  const integrity = evaluated.checks.find((c) => c.name === "nightIntegrity");
+  assert.ok(integrity, "the check must exist with an empty expect block — it is not opt-in");
+  assert.equal(integrity.ok, false);
+  assert.match(integrity.delta, /night 1/);
+  assert.match(integrity.delta, /fetch failed/);
+  // NON-VACUITY: all ticks alive → no integrity row at all (not a passing one —
+  // silence, so a green run's check list stays what the scenario asked for).
+  const clean = evaluateExpectations({ expect: {} }, { nights: [{ night: 1, tickOk: true }] });
+  assert.equal(clean.ok, true);
+  assert.equal(clean.checks.find((c) => c.name === "nightIntegrity"), undefined);
+});

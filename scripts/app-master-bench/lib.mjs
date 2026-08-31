@@ -53,8 +53,56 @@ export class PhaseError extends Error {
  * journal wants. A transport failure (server down, DNS, abort) comes back as
  * `{ ok:false, status:0, error }` for the same reason.
  */
+/** Long-poll transport for requests that legitimately outlive undici's OWN
+ *  headersTimeout (a hard 300s inside Node's fetch, independent of any
+ *  AbortController we pass): an `ideate` tick holds its HTTP response open while
+ *  Personas polls the scan it launched, bounded server-side at 1200s. Measured
+ *  2026-08-31: the tick died at 305s with a bare "fetch failed" while the scan
+ *  ran on. `undici` is not resolvable here (Next bundles its own), so the long
+ *  path is plain node:http — no headers timeout, one overall deadline, same
+ *  return shape as fetchJson. Loopback-only by usage; no TLS branch needed. */
+async function httpJsonLong(url, { method, body, headers, timeoutMs, started }) {
+  const { request } = await import("node:http");
+  return new Promise((resolve) => {
+    const payload = body !== undefined ? JSON.stringify(body) : null;
+    const u = new URL(url);
+    const req = request(
+      {
+        hostname: u.hostname,
+        port: u.port,
+        path: u.pathname + u.search,
+        method,
+        headers: {
+          ...(payload !== null ? { "content-type": "application/json", "content-length": Buffer.byteLength(payload) } : {}),
+          ...headers,
+        },
+      },
+      (res) => {
+        let text = "";
+        res.setEncoding("utf-8");
+        res.on("data", (c) => (text += c));
+        res.on("end", () => {
+          let json = null;
+          try {
+            json = text ? JSON.parse(text) : null;
+          } catch {
+            json = null;
+          }
+          resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, json, text, ms: Date.now() - started, error: null });
+        });
+      }
+    );
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`request exceeded ${timeoutMs}ms`)));
+    req.on("error", (error) => resolve({ ok: false, status: 0, json: null, text: "", ms: Date.now() - started, error: String(error?.message ?? error) }));
+    if (payload !== null) req.write(payload);
+    req.end();
+  });
+}
+
 export async function fetchJson(url, { method = "GET", body, headers = {}, timeoutMs = 120_000 } = {}) {
   const started = Date.now();
+  // Past undici's un-overridable 300s headersTimeout, fetch() is the wrong tool.
+  if (timeoutMs > 290_000) return httpJsonLong(url, { method, body, headers, timeoutMs, started });
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {

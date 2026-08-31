@@ -1478,8 +1478,8 @@ async function runScenario(scenario, opts) {
         const hirePlan = sinceHirePlan(result);
         for (let n = 1; n <= scenario.nights; n++) {
           const t = Date.now();
-          const tickPhase = async (phases, extra = {}) => {
-            const res = await personas.post("/api/kp/test/tick", { personaId: result.hire.personaId, phases, ...extra });
+          const tickPhase = async (phases, extra = {}, opts = {}) => {
+            const res = await personas.post("/api/kp/test/tick", { personaId: result.hire.personaId, phases, ...extra }, opts);
             return {
               ok: res.ok,
               summary: res.json?.data ?? res.json ?? null,
@@ -1493,7 +1493,10 @@ async function runScenario(scenario, opts) {
           //     every scenario that declares no `night` block, so their tick
           //     body is unchanged.
           const nightAsk = overnightTickBody(scenario, tenure);
-          const overnight = await tickPhase(["overnight"], nightAsk);
+          // An ideate tick holds its response open while Personas waits out the
+          // scan (server bound 1200s) — give it headroom past that, through the
+          // long transport (lib.mjs httpJsonLong; fetch dies at undici's 300s).
+          const overnight = await tickPhase(["overnight"], nightAsk, nightAsk.ideate === true ? { timeoutMs: 1_500_000 } : {});
           const dispatched = dispatchedCount(overnight.summary);
           const invalid = ideationDispatchViolation(scenario, dispatched);
           journal.write("night-overnight", {
@@ -1531,11 +1534,16 @@ async function runScenario(scenario, opts) {
           const ticks = [overnight, settle.polls.length > 0 ? { ok: true, summary: settle.lastSummary } : null, report];
           const summary = mergeTickSummaries(ticks.map((x) => x?.summary));
           const tickOk = overnight.ok && report.ok;
+          // The failure itself rides the record: nightIntegrity quotes it, and a
+          // record that says only `tickOk:false` makes the next reader re-derive
+          // which tick died and how.
+          const tickError = tickOk ? null : [overnight.error && `overnight: ${overnight.error}`, report.error && `report: ${report.error}`].filter(Boolean).join("; ") || "unknown tick failure";
           const night = {
             night: n,
             ms: Date.now() - t,
             tick: summary,
             tickOk,
+            ...(tickError ? { tickError } : {}),
             settle,
             reading: {},
             readingSource: {},

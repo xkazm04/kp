@@ -45,7 +45,7 @@ import {
   tenureRecordFrom,
 } from "./run.mjs";
 import { SCENARIO_DIR } from "./scenarios.mjs";
-import { personasClient } from "./lib.mjs";
+import { fetchJson, personasClient } from "./lib.mjs";
 import { startStubPersonas } from "./stub.mjs";
 
 /** A journal that records instead of writing, so a test reads what a run would. */
@@ -889,4 +889,38 @@ test("--no-since-hire is in the vocabulary, and is a boolean like the rest", () 
   assert.match(args.scenario, /kp-c1-night\.json$/, "a boolean flag does not swallow the scenario beside it");
   // …and a typo of it is still a hard error, not a silently unfiltered run.
   assert.throws(() => resolveCliArgs(["--no-since-hired"]), /unknown flag `--no-since-hired`/);
+});
+
+// The long transport (lib.mjs httpJsonLong): past 290s of asked-for patience,
+// fetch() is the wrong tool — undici's headersTimeout is a hard 300s that no
+// AbortController overrides, and an ideate tick legitimately holds its response
+// open for up to 1200s server-side. The branch swaps to node:http; this proves
+// the swapped path speaks the same JSON contract (the 300s+ hold itself is not
+// cheaply provable in a unit test and is covered by the live run).
+test("fetchJson takes the node:http path for long deadlines and keeps the contract", async () => {
+  const { createServer } = await import("node:http");
+  const srv = createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      setTimeout(() => {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ success: true, data: { echoed: JSON.parse(body).ideate, via: "long" } }));
+      }, 150);
+    });
+  });
+  await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+  const port = srv.address().port;
+  try {
+    const res = await fetchJson(`http://127.0.0.1:${port}/api/kp/test/tick`, {
+      method: "POST",
+      body: { ideate: true },
+      timeoutMs: 1_500_000,
+    });
+    assert.equal(res.ok, true);
+    assert.equal(res.json?.data?.echoed, true);
+    assert.equal(res.error, null);
+  } finally {
+    srv.close();
+  }
 });
