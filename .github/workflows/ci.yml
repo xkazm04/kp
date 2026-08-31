@@ -116,6 +116,30 @@ jobs:
       # run an npm script package.json no longer defines.
       - run: npm run guidance:check
 
+      # POLICY OVER THE DEPLOYED SHAPE (deploy/helm/kp/).
+      #
+      # The release path is signed, attested and rehearsed; the chart it deploys
+      # onto was correct BY REVIEW and by nothing else. `helm template` renders a
+      # privileged pod as happily as an unprivileged one, and until this step
+      # existed nothing in these seven workflows had ever read deploy/.
+      #
+      # Two of the twelve policies are data integrity rather than hardening: the
+      # Deployment must pin `replicas: 1` as a LITERAL and use `Recreate`, because
+      # state is one SQLite file on a ReadWriteOnce volume and a second pod is a
+      # second writer. The tidy-up that wires `replicas: {{ .Values.replicaCount }}`
+      # back up looks like an improvement and corrupts the database.
+      #
+      # It also holds the env-var contract: every key the chart SETS must be one
+      # .env.example documents — a rename on one side of that is an upgrade break
+      # that surfaces as a setting which quietly stopped applying.
+      #
+      # WHEN IT FAILS: fix the chart, or change the policy in
+      # scripts/deploy/check-chart.mjs with the reason. Dependency-free, no helm
+      # binary, no cluster.
+      - run: npm run deploy:check
+
+      - run: npm run test:deploy
+
       # Release coherence: package.json <-> the chart's appVersion <-> a
       # CHANGELOG section for the current version. Runs on EVERY push, not only
       # on a tag, so the three cannot drift apart between releases — an operator

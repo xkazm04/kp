@@ -20,10 +20,13 @@ import os from 'node:os';
 import path from 'node:path';
 
 import {
+  CI_WORKFLOW,
   MANIFEST_PATH,
   REPO_ROOT,
+  ciCommands,
   commandsIn,
   declaredPaths,
+  loadCiCommands,
   loadGuidanceFiles,
   parseGuidance,
   resolveIncludes,
@@ -195,6 +198,131 @@ check('resolveIncludes pulls in a real file, ignores a missing one, and cannot l
   }
 });
 
+// --- the gates: what CI will actually run --------------------------------------
+//
+// `verify` above is a consistency rule — it holds the three files to the same
+// three commands. It says nothing about whether those commands are the ones that
+// decide the build, and that is the drift these cases cover: ci.yml grew to two
+// dozen steps while every guidance file went on naming three, and every rule
+// above stayed green because each of them reads guidance against guidance.
+
+check('only `run:` steps are read — a command NAMED IN A COMMENT is not a gate', () => {
+  // ci.yml's comments name half a dozen scripts it deliberately does not run
+  // (`test:e2e`, `bench:gate`, `ci:budget -- --tighten`). A grep for `npm run`
+  // would seed the gate list with fiction.
+  const yaml = [
+    'jobs:',
+    '  q:',
+    '    steps:',
+    '      # Deliberately NOT gated: npm run test:e2e (needs live keys).',
+    '      - run: npm run lint',
+    '      - name: block scalar',
+    '        run: |',
+    '          # npm run commented:out',
+    '          npm run typecheck',
+    '          npm ci',
+    '        env:',
+    '          FOO: npm run not:a:step',
+    '      - run: >-',
+    '          npx playwright test',
+    '          modal-escape',
+  ].join('\n');
+  assert.deepEqual(ciCommands(yaml), ['lint', 'typecheck']);
+});
+
+check('a block scalar ends at its sibling key, not at the next step', () => {
+  // The `env:` above sits at the same column as `run:`, which is what bounds the
+  // block. Getting this wrong makes every `${{ }}` value part of the script.
+  const yaml = ['      - name: x', '        run: |', '          npm run a', '        env:', '          K: v', '      - run: npm run b'].join('\n');
+  assert.deepEqual(ciCommands(yaml), ['a', 'b']);
+});
+
+const CI = ['lint', 'typecheck'];
+const gateCase = (guidance, files, scripts = SCRIPTS) => runChecks(guidance, files, scripts, CI);
+// `verify` is populated and named by both files so these cases isolate the gate
+// rules instead of also tripping the verify ones.
+const GATE_BASE = { canonical: CANON, projections: ['AGENTS.md'], verify: ['lint'] };
+const gateFiles = (agentsText) => [
+  file(CANON, 'the rules — run `npm run lint`'),
+  file('AGENTS.md', `Full guide: ${CANON}\nrun \`npm run lint\`\n${agentsText}`),
+];
+
+check('the gate rules DO NOT RUN when the caller supplied no workflow', () => {
+  // Three-argument callers get exactly the behaviour they had. A check that
+  // invents its own evidence is worse than one that says it did not run.
+  const f = runChecks(GATE_BASE, gateFiles(''), SCRIPTS);
+  assert.equal(f.filter((x) => x.rule.startsWith('gate')).length, 0);
+});
+
+check('a manifest with no gates list, and none naming the doc that carries it', () => {
+  const f = gateCase(GATE_BASE, gateFiles(''));
+  assert.ok(has(f, 'gates-undeclared'));
+  assert.ok(has(f, 'gates-doc-missing'));
+});
+
+check('THE DRIFT: a step added to ci.yml that no guidance names', () => {
+  const f = gateCase(
+    { ...GATE_BASE, gatesDoc: 'AGENTS.md', gates: ['lint'] },
+    gateFiles('Gates: `npm run lint`.'),
+  );
+  const unlisted = f.filter((x) => x.rule === 'gate-unlisted');
+  assert.equal(unlisted.length, 1);
+  assert.match(unlisted[0].message, /npm run typecheck/);
+  assert.match(unlisted[0].message, new RegExp(CI_WORKFLOW.replace(/[./]/g, '\\$&')));
+});
+
+check('a declared gate CI no longer runs is stale, and says so', () => {
+  // `test:python` exists in package.json — that is what makes this the stale
+  // case rather than the dangling one: the script is fine, the step is gone.
+  const f = gateCase(
+    { ...GATE_BASE, gatesDoc: 'AGENTS.md', gates: ['lint', 'typecheck', 'test:python'] },
+    gateFiles('Gates: `npm run lint`, `npm run typecheck`, `npm run test:python`.'),
+    { ...SCRIPTS, 'test:python': 'python -m unittest' },
+  );
+  const stale = f.filter((x) => x.rule === 'gate-stale');
+  assert.equal(stale.length, 1);
+  assert.match(stale[0].message, /npm run test:python/);
+});
+
+check('a declared gate the gates doc never names is a finding', () => {
+  const f = gateCase(
+    { ...GATE_BASE, gatesDoc: 'AGENTS.md', gates: ['lint', 'typecheck'] },
+    gateFiles('Gates: `npm run lint`.'),
+  );
+  const undocumented = f.filter((x) => x.rule === 'gate-undocumented');
+  assert.equal(undocumented.length, 1);
+  assert.match(undocumented[0].message, /npm run typecheck/);
+});
+
+check('a gate package.json dropped is named before the doc is blamed for it', () => {
+  const f = gateCase(
+    { ...GATE_BASE, gatesDoc: 'AGENTS.md', gates: ['lint', 'typecheck', 'gone:check'] },
+    gateFiles('Gates: `npm run lint`, `npm run typecheck`.'),
+  );
+  assert.ok(has(f, 'gate-command-dangling'));
+  assert.equal(f.filter((x) => x.rule === 'gate-undocumented').length, 0, 'the manifest is what has to change first');
+});
+
+check('the gates doc must be guidance the manifest already declares', () => {
+  // Otherwise the table could live in a file no reader of the guidance opens,
+  // which passes the rule and closes nothing.
+  const f = gateCase(
+    { ...GATE_BASE, gatesDoc: 'docs/somewhere.md', gates: ['lint', 'typecheck'] },
+    gateFiles('Gates: `npm run lint`, `npm run typecheck`.'),
+  );
+  assert.ok(has(f, 'gates-doc-missing'));
+});
+
+check('a manifest whose gates match CI and are all named by the gates doc produces nothing', () => {
+  assert.deepEqual(
+    gateCase(
+      { ...GATE_BASE, gatesDoc: 'AGENTS.md', gates: ['lint', 'typecheck'] },
+      gateFiles('Gates: `npm run lint`, `npm run typecheck`.'),
+    ),
+    [],
+  );
+});
+
 // --- against the real tree ----------------------------------------------------
 
 check(`${MANIFEST_PATH} declares a canonical guidance file`, () => {
@@ -223,10 +351,38 @@ check('every declared guidance file names every verify command — the drift thi
   }
 });
 
+check(`${MANIFEST_PATH} declares exactly the gates ${CI_WORKFLOW} runs`, () => {
+  // The assertion that makes "the documented commands are the gating commands"
+  // a fact rather than a claim. Stated as set equality on purpose: either
+  // direction of drift is a failure, and naming both here means the message says
+  // which one happened before anyone opens the workflow.
+  const g = parseGuidance(fs.readFileSync(path.join(REPO_ROOT, MANIFEST_PATH), 'utf8'));
+  const ci = loadCiCommands(REPO_ROOT);
+  assert.ok(ci.length > 0, `${CI_WORKFLOW} runs no npm scripts — the reader, not the workflow, is what changed`);
+  assert.deepEqual(
+    [...g.gates].sort(),
+    ci,
+    'guidance.gates and the workflow disagree; the extra entries are on whichever side is longer',
+  );
+});
+
+check('every gate is a real npm script, and the declared gates doc names all of them', () => {
+  const g = parseGuidance(fs.readFileSync(path.join(REPO_ROOT, MANIFEST_PATH), 'utf8'));
+  const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
+  assert.ok(g.gatesDoc, 'guidance.gates_doc is unset — nothing has to carry the table');
+  const doc = loadGuidanceFiles(REPO_ROOT, declaredPaths(g)).find((f) => f.path === g.gatesDoc);
+  assert.ok(doc, `${g.gatesDoc} does not exist`);
+  const named = commandsIn(doc.expanded ?? doc.text);
+  for (const cmd of g.gates) {
+    assert.ok(cmd in pkg.scripts, `guidance.gates names \`npm run ${cmd}\`, which package.json does not define`);
+    assert.ok(named.includes(cmd), `${g.gatesDoc} does not tell an agent that \`npm run ${cmd}\` gates its push`);
+  }
+});
+
 check('the shipped guidance files satisfy every rule', () => {
   const g = parseGuidance(fs.readFileSync(path.join(REPO_ROOT, MANIFEST_PATH), 'utf8'));
   const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
-  const f = runChecks(g, loadGuidanceFiles(REPO_ROOT, declaredPaths(g)), pkg.scripts ?? {});
+  const f = runChecks(g, loadGuidanceFiles(REPO_ROOT, declaredPaths(g)), pkg.scripts ?? {}, loadCiCommands(REPO_ROOT));
   assert.deepEqual(f, [], `findings:\n${JSON.stringify(f, null, 2)}`);
 });
 

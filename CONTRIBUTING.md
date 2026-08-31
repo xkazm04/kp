@@ -141,6 +141,37 @@ Deeper guidance for automated agents and humans alike lives in
 - The [PR template](./.github/PULL_REQUEST_TEMPLATE.md) is the checklist form of
   everything above — gate, docs sync, locale parity, CLA. Fill it honestly.
 
+### Provenance trailers — say who wrote it in a form `git log` can read
+
+The rule above fixes the *subject*. It does not make the record queryable: a
+commit body that says "this was produced by an overnight agent run" is honest and
+answers nothing, because no two lanes phrase it the same way. Facts that belong
+in `git log` go in **trailers**, which git already parses and which
+[`scripts/release/provenance.mjs`](./scripts/release/provenance.mjs) reads.
+
+| Trailer | Shape | Says |
+| --- | --- | --- |
+| `Agent-Provenance:` | `agent=<name>; model=<id>; lane=<name>; task=<id>` | an automated lane committed this on an agent's behalf. Every key optional, at least one required. |
+| `Co-Authored-By:` | `Name <email>` | a second author, agent or human. The one trailer this history already carries throughout. |
+| `Ascent-Resolves:` | `<task-id>` | the dispatched task this change closes. |
+
+```bash
+npm run provenance                  # the last 20 commits: agent share, models, lanes, tasks
+npm run provenance -- --base v0.1.0 --head HEAD --json
+```
+
+An **absent** trailer is never an error — most commits have no reason to carry
+one, and a gate demanding a trailer no lane writes yet would go red on every
+automated commit and be bypassed within a day. A trailer that is **present and
+malformed** *is* an error, caught by the same `commit-convention` job: an empty
+value, an `Agent-Provenance:` with no `key=value` pair, a `Co-Authored-By:` with
+no `<email>`. Those look like a recorded fact and answer no query, which is worse
+than the prose they replaced.
+
+If you run an automated lane against this repository, emit `Agent-Provenance:`.
+`npm run provenance` prints how many agent commits are recognisable but not
+attributable, and that number is the size of the gap.
+
 ## AI-assisted contributions
 
 Welcome — half this codebase was built with agents, so there is no purity test

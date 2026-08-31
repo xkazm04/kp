@@ -52,6 +52,38 @@
 //                         the command is an include is read the way a tool that
 //                         expands includes reads it (see `resolveIncludes`).
 //
+// AND THE RULE ABOVE IS STILL NOT FIDELITY. `verify` is the SHORT list — three
+// commands, the ones an agent runs before it says it is done. "Will this change
+// land green" is a different question, and until the four rules below existed
+// nothing asked it: ci.yml's node-quality job runs two dozen npm scripts, three
+// of them are the verify set, and an agent that ran those three and pushed found
+// out about design:check, docs:check, release:check and the rest from a red
+// build. The commands were documented; nobody had checked that the documented
+// commands were the ones that gate.
+//
+//   gates-undeclared      `guidance.gates` is absent or empty — the declaration
+//                         the four rules below compare against.
+//   gate-command-dangling a declared gate package.json does not define.
+//   gate-unlisted         .github/workflows/ci.yml runs `npm run <x>` and the
+//                         manifest does not declare it. A step added to CI that
+//                         the guidance never mentions is the drift itself.
+//   gate-stale            the manifest declares a gate CI no longer runs, so the
+//                         list has become a copy nobody re-read.
+//   gates-doc-missing     `guidance.gates_doc` is absent, names a file that is
+//                         not there, or names one the manifest does not otherwise
+//                         declare as guidance. It is the ONE file that carries the
+//                         gate table, named explicitly rather than assumed, so
+//                         moving the table is a one-line manifest edit instead of
+//                         a rule rewrite.
+//   gate-undocumented     a declared gate `guidance.gates_doc` never names. ONE
+//                         file has to carry it, not all of them: `verify` is the
+//                         short list every projection must repeat, and applying
+//                         that to two dozen gates would make each projection a
+//                         copy of the pipeline and guarantee they drift.
+//
+// The gate rules run only when the caller supplies the workflow's commands. A
+// check that invents its own evidence is worse than one that says it did not run.
+//
 //   npm run guidance:check
 //
 // EXIT CODES: 0 clean · 1 any finding.
@@ -62,6 +94,8 @@ import { fileURLToPath } from 'node:url';
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const MANIFEST_PATH = '.ai/manifest.yaml';
+/** The workflow the gate rules read. Its `run:` steps ARE the definition of "green". */
+export const CI_WORKFLOW = '.github/workflows/ci.yml';
 
 /**
  * Where agent guidance is conventionally found. A file here that the manifest
@@ -90,8 +124,10 @@ export function parseGuidance(yaml) {
   if (start === -1) return null;
 
   let canonical = null;
+  let gatesDoc = null;
   const projections = [];
   const verify = [];
+  const gates = [];
   let key = null;
 
   for (let i = start + 1; i < lines.length; i++) {
@@ -103,14 +139,61 @@ export function parseGuidance(yaml) {
     if (pair) {
       key = pair[1];
       if (key === 'canonical' && pair[2].trim()) canonical = scalar(pair[2]);
+      else if (key === 'gates_doc' && pair[2].trim()) gatesDoc = scalar(pair[2]);
       continue;
     }
     const item = /^\s{4,}-\s*(.+)$/.exec(line);
     if (!item) continue;
     if (key === 'projections') projections.push(scalar(item[1]));
     else if (key === 'verify') verify.push(scalar(item[1]));
+    else if (key === 'gates') gates.push(scalar(item[1]));
   }
-  return { canonical, projections, verify };
+  return { canonical, projections, verify, gates, gatesDoc };
+}
+
+/**
+ * Every `npm run <script>` a GitHub Actions workflow actually runs.
+ *
+ * Reads `run:` step values only — inline (`run: npm run lint`) and block scalars
+ * (`run: |`, `run: >-`), with the block's extent taken from the column of the
+ * `run:` key itself so a sibling `env:` never reads as part of the script. The
+ * naive alternative — grep the file for `npm run` — would pick up every command
+ * NAMED IN A COMMENT, and this workflow's comments name half a dozen scripts it
+ * deliberately does not run (`test:e2e`, `bench:gate`, `ci:budget -- --tighten`).
+ * A gate list seeded from those would be fiction.
+ *
+ * Shell comments inside a block scalar are skipped for the same reason.
+ */
+export function ciCommands(yaml) {
+  const lines = String(yaml ?? '').split(/\r?\n/);
+  const found = new Set();
+  const scan = (s) => {
+    for (const m of s.matchAll(/npm run ([\w:-]+)/g)) found.add(m[1]);
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const m = /^\s*(?:-\s+)?run:\s*(.*)$/.exec(line);
+    if (!m) continue;
+
+    const rest = m[1].trim();
+    if (!/^[|>][+-]?\d*$/.test(rest)) {
+      scan(rest); // an inline command, or an empty value with nothing to read
+      continue;
+    }
+
+    const keyCol = line.indexOf('run:');
+    let j = i + 1;
+    for (; j < lines.length; j++) {
+      const body = lines[j];
+      if (body.trim() === '') continue;
+      if (body.length - body.trimStart().length <= keyCol) break; // back at a sibling key
+      if (body.trimStart().startsWith('#')) continue;
+      scan(body);
+    }
+    i = j - 1;
+  }
+  return [...found].sort();
 }
 
 /**
@@ -150,9 +233,11 @@ const finding = (rule, message, fix) => ({ rule, message, fix });
  * Pure. `guidance` is the parsed block, `files` is `[{path, text, expanded?}]`
  * for every guidance candidate that EXISTS (`expanded` is `text` with `@includes`
  * resolved; absent means the two are the same), `scripts` is package.json's
- * scripts object.
+ * scripts object, and `ci` is the npm scripts .github/workflows/ci.yml runs
+ * (`ciCommands()` above). `ci = null` means the caller did not read the workflow,
+ * and the gate rules DO NOT RUN rather than guessing.
  */
-export function runChecks(guidance, files, scripts) {
+export function runChecks(guidance, files, scripts, ci = null) {
   const out = [];
   const canonical = guidance?.canonical ?? null;
   const declared = new Set([canonical, ...(guidance?.projections ?? [])].filter(Boolean));
@@ -280,6 +365,117 @@ export function runChecks(guidance, files, scripts) {
     }
   }
 
+  // WHAT CI WILL ACTUALLY RUN — the difference between "my change works" and
+  // "my change lands green".
+  //
+  // `verify` above is deliberately short: the three commands an agent runs
+  // before it says it is done, and the only ones every projection must carry.
+  // That is a consistency rule, and the three files passed it while ci.yml grew
+  // to two dozen steps none of them named. An agent that read the canonical
+  // document, ran typecheck/lint/test:unit and pushed learned about
+  // design:check, docs:check, release:check and the rest from a red build.
+  //
+  // `guidance.gates` is the declared answer, compared IN BOTH DIRECTIONS against
+  // the workflow so it cannot decay into a copy nobody re-reads: a step added to
+  // ci.yml that nothing declares is `gate-unlisted`, an entry CI no longer runs
+  // is `gate-stale`. ONE declared guidance file carries the table — named by
+  // `guidance.gates_doc`, because two dozen gates repeated in three files is a
+  // guarantee of drift, and which file it is should be a manifest line rather
+  // than a rule this script hard-codes.
+  if (ci !== null) {
+    const gates = guidance?.gates ?? [];
+    const gatesDoc = guidance?.gatesDoc ?? null;
+    const gatesDocFile = gatesDoc ? files.find((f) => f.path === gatesDoc) : null;
+    const namedByGatesDoc = gatesDocFile ? commandsIn(gatesDocFile.expanded ?? gatesDocFile.text) : [];
+
+    if (!gatesDoc) {
+      out.push(
+        finding(
+          'gates-doc-missing',
+          `${MANIFEST_PATH} declares no \`guidance.gates_doc\`.`,
+          'Name the ONE guidance file that carries the gate table. Without it, `gates` is a list in a manifest ' +
+            'and no document an agent opens has to agree with it.',
+        ),
+      );
+    } else if (!gatesDocFile) {
+      out.push(
+        finding(
+          'gates-doc-missing',
+          `\`guidance.gates_doc\` names ${gatesDoc}, which does not exist.`,
+          'Point it at the file that replaced it.',
+        ),
+      );
+    } else if (!declared.has(gatesDoc)) {
+      out.push(
+        finding(
+          'gates-doc-missing',
+          `\`guidance.gates_doc\` names ${gatesDoc}, which is not the canonical file or one of its projections.`,
+          'The gate table belongs in guidance an agent is already told to read. Declare that file under ' +
+            '`guidance.projections`, or move the table into one that is declared.',
+        ),
+      );
+    }
+
+    if (gates.length === 0) {
+      out.push(
+        finding(
+          'gates-undeclared',
+          `${MANIFEST_PATH} declares no \`guidance.gates\`.`,
+          `List every npm script ${CI_WORKFLOW} runs here. Without it this check can prove the guidance files ` +
+            'agree with each other and nothing about whether following them lands a green build — which is the ' +
+            'state in which the documented commands and the gating commands were two different sets.',
+        ),
+      );
+    }
+
+    for (const cmd of gates) {
+      if (!(cmd in scripts)) {
+        out.push(
+          finding(
+            'gate-command-dangling',
+            `\`guidance.gates\` lists \`npm run ${cmd}\`, which package.json does not define.`,
+            'Update it to the new name, or drop it if the gate went away — the rule below will then name the ' +
+              'workflow step that has not caught up.',
+          ),
+        );
+        continue;
+      }
+      if (!ci.includes(cmd)) {
+        out.push(
+          finding(
+            'gate-stale',
+            `\`guidance.gates\` declares \`npm run ${cmd}\`, which ${CI_WORKFLOW} does not run.`,
+            `Remove it, or restore the step. A gate list that names a command CI dropped tells an agent to spend ` +
+              'time on something nothing checks, which is how the list stops being read at all.',
+          ),
+        );
+      }
+      if (gatesDocFile && !namedByGatesDoc.includes(cmd)) {
+        out.push(
+          finding(
+            'gate-undocumented',
+            `${gatesDoc} never names \`npm run ${cmd}\`, which ${MANIFEST_PATH} declares as a CI gate.`,
+            `An agent that reads the guidance does not learn that this runs on its push, so it finds out from a ` +
+              'red build. Add a row to the gate table saying what it fails on.',
+          ),
+        );
+      }
+    }
+
+    for (const cmd of ci) {
+      if (gates.includes(cmd)) continue;
+      out.push(
+        finding(
+          'gate-unlisted',
+          `${CI_WORKFLOW} runs \`npm run ${cmd}\` and ${MANIFEST_PATH} does not declare it as a gate.`,
+          `Add it to \`guidance.gates\` AND to the gate table in ${guidance?.gatesDoc ?? 'the declared gates doc'} ` +
+            'in the same change. A step that gates every push and appears in no guidance is exactly the drift this ' +
+            'rule exists for — an agent cannot run what it was never told about.',
+        ),
+      );
+    }
+  }
+
   return out;
 }
 
@@ -310,17 +506,34 @@ export function render(findings, guidance) {
   if (findings.length === 0) {
     return (
       `check-guidance: ${guidance.canonical} is canonical, ${guidance.projections.length} projection(s) point at it, ` +
-      `every command they name exists, and all ${guidance.verify?.length ?? 0} verify command(s) are named by every one of them.`
+      `every command they name exists, all ${guidance.verify?.length ?? 0} verify command(s) are named by every one of them, ` +
+      `and all ${guidance.gates?.length ?? 0} CI gate(s) are declared, still run by ${CI_WORKFLOW}, and named by ` +
+      `${guidance.gatesDoc ?? 'the declared gates doc'}.`
     );
   }
   return [...findings.map((f) => `BLOCK  [${f.rule}] ${f.message}\n       ${f.fix}`), '', `${findings.length} finding(s).`].join('\n');
+}
+
+/**
+ * The workflow's commands, or `[]` when it is not there. `[]` rather than `null`
+ * on purpose: a missing ci.yml turns every declared gate into `gate-stale`, which
+ * is loud, where "the gate rules did not run" would be silent.
+ */
+export function loadCiCommands(root = REPO_ROOT) {
+  const p = path.join(root, CI_WORKFLOW);
+  return fs.existsSync(p) ? ciCommands(fs.readFileSync(p, 'utf8')) : [];
 }
 
 if (process.argv[1]?.endsWith('check-guidance.mjs')) {
   const manifest = fs.readFileSync(path.join(REPO_ROOT, MANIFEST_PATH), 'utf8');
   const guidance = parseGuidance(manifest);
   const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
-  const findings = runChecks(guidance, loadGuidanceFiles(REPO_ROOT, declaredPaths(guidance)), pkg.scripts ?? {});
-  console.log(render(findings, guidance ?? { canonical: null, projections: [], verify: [] }));
+  const findings = runChecks(
+    guidance,
+    loadGuidanceFiles(REPO_ROOT, declaredPaths(guidance)),
+    pkg.scripts ?? {},
+    loadCiCommands(REPO_ROOT),
+  );
+  console.log(render(findings, guidance ?? { canonical: null, projections: [], verify: [], gates: [], gatesDoc: null }));
   process.exit(findings.length === 0 ? 0 : 1);
 }

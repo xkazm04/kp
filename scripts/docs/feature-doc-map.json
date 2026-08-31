@@ -332,11 +332,13 @@
       ]
     },
     {
+      "_comment": "scripts/deploy/** is the chart POLICY (npm run deploy:check) and belongs to the same doc as the chart itself: the doc's 'Deployment policy' section is what states which invariants are enforced, and a policy added or relaxed without that section following it is a chart whose guarantees nobody can read.",
       "doc": "docs/architecture/self-hosting.md",
       "sourceGlobs": [
         "Dockerfile",
         "docker-compose.yml",
         "deploy/helm/kp/**",
+        "scripts/deploy/**",
         "app/_lib/offline.ts",
         ".env.example"
       ]

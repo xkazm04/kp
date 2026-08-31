@@ -335,6 +335,50 @@ password/secret are unset — no accidental open deployment. Multi-replica HA ne
 Postgres backend (`docs/architecture/postgres-backend.md`). Validate a values set
 before applying with `helm lint` / `helm template`.
 
+### Deployment policy — what the chart may never grant
+
+Everything in this section was true by review and enforced by nothing. `helm
+template` renders a privileged pod as happily as an unprivileged one and `helm
+lint` has no opinion about replica counts, so a chart edit could regress any of
+it silently. **`npm run deploy:check`** (`scripts/deploy/check-chart.mjs`) is the
+policy: dependency-free, no helm binary and no cluster, running in the
+`node-quality` job of `.github/workflows/ci.yml` on every push and pull request.
+`npm run test:deploy` is its fixture suite, and each fixture breaks one policy to
+prove it fires — the last case runs the shipped chart, so the chart that ships is
+the test.
+
+| Policy | What it refuses |
+| --- | --- |
+| `replicas-not-pinned` | a Deployment that does not pin `replicas: 1` as a **literal** |
+| `strategy-not-recreate` | a rolling update, which overlaps two writers for the length of a deploy |
+| `security-context-not-applied` | a Deployment that stopped applying `.Values.podSecurityContext` / `.Values.securityContext` |
+| `runs-as-root` | `runAsNonRoot` off, or uid 0 |
+| `privilege-escalation-allowed` | `allowPrivilegeEscalation` other than `false` |
+| `capabilities-not-dropped` | a capability set that does not drop `ALL` |
+| `privileged-pod` | `privileged` / `hostNetwork` / `hostPID` / `hostIPC` set true in any template |
+| `service-exposed-by-default` | a default `service.type` other than `ClusterIP` |
+| `secret-literal-in-values` | a value in `auth.*` or `providerKeys`, or any credential-shaped literal in `values.yaml` |
+| `no-memory-limit` | a pod with no memory limit — the Python pipeline spawns subprocesses per request |
+| `no-probes` | liveness/readiness declared but not applied, or missing |
+| `volume-access-mode-shared` | `persistence.accessMode` other than `ReadWriteOnce` |
+| `env-contract-drift` | an env key the chart **sets** that `.env.example` does not document |
+
+The first two and the last are the ones to understand before editing the chart.
+The replica rules are **data integrity, not a scaling preference**: a change that
+helpfully wires `replicas: {{ .Values.replicaCount }}` back up reads as a tidy-up
+and gives you two writers on one SQLite file. `env-contract-drift` exists because
+a release is defined partly by its environment contract
+(`docs/architecture/releases.md` §versioning); a key renamed on one side of it is
+an upgrade break that shows up on a running install as a setting that quietly
+stopped applying, never as a failed deploy.
+
+Changing a policy is a deliberate edit to `POLICIES` in
+`scripts/deploy/check-chart.mjs` with the reason — a line a reviewer can disagree
+with. Loosening a value in `values.yaml` until the check goes quiet is the
+failure mode it exists to prevent. `ENV_CONTRACT_EXEMPT` is the same shape: an
+env key exempt from the contract carries the sentence saying why (today only
+`NODE_ENV`, a Node convention the app never reads as configuration).
+
 ## 9. Build & run without Compose
 
 ```bash

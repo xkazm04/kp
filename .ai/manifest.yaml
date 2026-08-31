@@ -39,8 +39,29 @@ repo:
 # runs in ci.yml's node-quality job on every push and PR: it fails on a canonical
 # that does not exist, a projection that never names it, an undeclared fourth
 # guidance file, any `npm run <script>` these files tell an agent to run that
-# package.json no longer defines, and any verify command below that package.json
-# or one of these files has stopped naming.
+# package.json no longer defines, any verify command below that package.json or
+# one of these files has stopped naming, and any drift between `gates` below and
+# the steps .github/workflows/ci.yml actually runs.
+#   gates        EVERY npm script .github/workflows/ci.yml runs. `verify` above is
+#                the short list an agent runs before saying it is done; this is
+#                the list that decides whether the push lands green, and until it
+#                existed the two were different sets with nothing comparing them.
+#                ci.yml grew to two dozen steps — design:check, docs:check,
+#                release:check, six fixture suites, three ratchets — while all
+#                three guidance files went on naming three commands, and every
+#                rule above stayed green because each of them reads guidance
+#                against guidance. An agent that followed the canonical document
+#                to the letter still discovered half the pipeline from a red build.
+#
+#                Compared IN BOTH DIRECTIONS against the workflow, so this cannot
+#                decay into a copy nobody re-reads: a step added to ci.yml that is
+#                not here fails as `gate-unlisted`, an entry ci.yml no longer runs
+#                fails as `gate-stale`. Each must exist in package.json.
+#   gates_doc    the ONE declared guidance file that carries the gate table, and
+#                that must name every entry in `gates`. Exactly one, unlike
+#                `verify`: three commands repeated in three files is a contract,
+#                two dozen repeated in three files is a guarantee of drift. Named
+#                here rather than assumed so moving the table is a one-line edit.
 guidance:
   canonical: .claude/CLAUDE.md
   projections:
@@ -50,6 +71,38 @@ guidance:
     - typecheck
     - test:unit
     - lint
+  gates_doc: AGENTS.md
+  # In ci.yml's own order: node-quality first, then python-gate. The two gates
+  # that read the COMMIT RANGE rather than the tree (doc-sync, commit-convention)
+  # are not npm scripts and are not listed here; AGENTS.md names them in prose
+  # beside the table.
+  gates:
+    - typecheck
+    - lint
+    - lint:ts-ratchet
+    - design:check
+    - i18n:check
+    - docs:check
+    - guidance:check
+    - deploy:check
+    - release:check
+    - test:release
+    - sbom
+    - test:docs
+    - test:review
+    - test:agent
+    - test:lint-ratchet
+    - test:perf
+    - test:deploy
+    - review:gate
+    - security:actions
+    - hooks:check
+    - test:bench-driver
+    - test:unit
+    - build
+    - lint:ruff-ratchet
+    - test:python:gate
+    - test:eval:ci
 
 # GUIDANCE THAT ARRIVES WITH THE SCOPE.
 #

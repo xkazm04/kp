@@ -115,6 +115,44 @@ The narrative is not unwelcome, it is *relocated*: the body has no length limit
 and `git log --format=%s` never prints it. Both rules run in the same two places
 as the table above, and both are waived by the same trailer.
 
+#### …and a description is not a record of who wrote it
+
+Fixing the subject makes the log *readable*. It does not make it *queryable*, and
+those are different problems with the same cause. Recording that a lane committed
+on an agent's behalf is genuine provenance discipline — it is also prose, phrased
+differently by every lane, so none of the questions worth asking about
+agent-authored change can be answered without reading each message by hand:
+
+> which changes did an agent write, under which model · which of them closed a
+> dispatched task · when a module went wrong, was the change that touched it
+> agent-authored · is the agent share going up or down?
+
+Each is one `git log` away once the facts are **trailers**, which git already
+parses. [`scripts/release/provenance.mjs`](../../scripts/release/provenance.mjs)
+defines the vocabulary — `Agent-Provenance: agent=…; model=…; lane=…; task=…`,
+`Co-Authored-By:`, `Ascent-Resolves:` (shapes and rationale in
+[CONTRIBUTING.md](../../CONTRIBUTING.md#provenance-trailers--say-who-wrote-it-in-a-form-git-log-can-read))
+— and reads it two ways:
+
+| Command | Answers |
+| --- | --- |
+| `npm run provenance` | over a range: the agent share, the models, the lanes, the tasks closed, and how many agent commits are recognisable but **not** attributable |
+| `npm run provenance -- --json` | the same, for a script |
+
+The validation rides the existing `commit-convention` job rather than adding a
+gate: an **absent** trailer is never a finding, because a rule demanding one that
+no lane writes yet would go red on every automated commit and be bypassed within
+a day. A trailer that is **present and malformed** is — an empty value, an
+`Agent-Provenance:` carrying no `key=value` pair, a `Co-Authored-By:` with no
+`<email>`. Those look like a recorded fact and answer nothing.
+
+**The half this repository cannot close by itself.** The reader works on today's
+history, because `Co-Authored-By:` already carries the agent and the model. Lane
+and task only become answerable when the lane emits `Agent-Provenance:`, and a
+lane's commit template is not a file in this tree. `npm run provenance` prints
+the unattributed count precisely so the size of that gap is a number rather than
+an impression.
+
 `npm run release:check` runs the same coherence check in CI on **every** push,
 so the three cannot drift between releases: a version with no release notes, or
 a chart `appVersion` that disagrees with `package.json`, fails the build.

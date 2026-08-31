@@ -65,6 +65,7 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { SECTIONS } from './prepare.mjs';
+import { checkTrailers } from './provenance.mjs';
 
 export const REPO_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
@@ -310,7 +311,15 @@ export function review(commits) {
     // invents its own evidence is worse than one that says it did not run.
     const files = typeof c === 'string' ? null : (c.files ?? null);
     const waiver = body.match(EXEMPTION_RE)?.[1]?.trim() ?? null;
-    const problems = [...checkSubject(subject), ...(files?.length ? checkTypeAgainstFiles(subject, files) : [])];
+    // …and the trailers, which are the only machine-readable thing a commit
+    // carries. NARROW BY CONSTRUCTION (scripts/release/provenance.mjs): a trailer
+    // that is absent is fine, a trailer that is present and unparseable is not —
+    // it looks like a fact that was recorded and answers no query.
+    const problems = [
+      ...checkSubject(subject),
+      ...checkTrailers(body),
+      ...(files?.length ? checkTypeAgainstFiles(subject, files) : []),
+    ];
     return { subject, problems: waiver ? [] : problems, waiver: problems.length ? waiver : null };
   });
 
