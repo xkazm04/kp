@@ -73,8 +73,38 @@ import {
   extractJson,
 } from '../review/agent-review.mjs';
 import { checkSubject } from '../release/commit-msg.mjs';
+import { promptDigest, renderProvenance } from './provenance.mjs';
 
 export const DEFAULT_MODEL = process.env.KP_AGENT_MODEL || 'claude-opus-5';
+
+/**
+ * This driver's own version, as a digest of its source rather than a number.
+ * A hand-maintained version stops being true the first time somebody edits the
+ * guard without bumping it — which is exactly the run you would be looking for.
+ */
+export function harnessVersion() {
+  try {
+    return promptDigest(fs.readFileSync(new URL(import.meta.url), 'utf8')).replace('sha256:', 'sha256-');
+  } catch {
+    return 'unknown';
+  }
+}
+
+/**
+ * The provenance block for THIS run: which model, which driver at which source
+ * state, which instruction text, and where the log is. `KP_AGENT_RUN_URL` is set
+ * by the workflow; without it the answer is `local`, which is a real answer.
+ */
+export function provenanceBlock(model) {
+  return renderProvenance({
+    model: model || 'unknown',
+    harness: `scripts/agent/dispatch.mjs@${harnessVersion()}`,
+    // The SYSTEM prompt — the instruction text. The per-issue task is DATA and is
+    // already linked from the commit body by `Refs #<issue>`.
+    prompt: promptDigest(SYSTEM_PROMPT),
+    run: process.env.KP_AGENT_RUN_URL || 'local',
+  });
+}
 
 /** Only these may dispatch. Everything else is a stranger with a keyboard. */
 export const TRUSTED_ASSOCIATIONS = ['OWNER', 'MEMBER', 'COLLABORATOR'];
@@ -422,10 +452,23 @@ export function renderProposal({ issue, plan, applied, backend, model, declined 
 // --- CLI ----------------------------------------------------------------------
 
 export function parseArgs(argv) {
-  const out = { issue: null, out: null, pathsOut: null, dryRun: false, model: DEFAULT_MODEL, json: false };
+  const out = {
+    issue: null,
+    out: null,
+    pathsOut: null,
+    trailersOut: null,
+    dryRun: false,
+    model: DEFAULT_MODEL,
+    json: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--issue') out.issue = argv[++i];
     else if (argv[i] === '--out') out.out = argv[++i];
+    // The Agent-* provenance trailers for this run, for the commit body. Written
+    // by the driver rather than assembled in the workflow's bash, because the
+    // driver is the only thing that knows which model answered and what
+    // instruction text it was given.
+    else if (argv[i] === '--trailers-out') out.trailersOut = argv[++i];
     // The exact paths that were written, one per line, for
     // `git add --pathspec-from-file`. This repository stages by pathspec and
     // never with `-A`; the dispatcher does not get an exception to that just
@@ -525,6 +568,9 @@ async function main(argv) {
     : applyPlan(plan);
 
   if (args.pathsOut) fs.writeFileSync(args.pathsOut, `${applied.map((a) => a.path).join('\n')}\n`, 'utf8');
+  if (args.trailersOut) {
+    fs.writeFileSync(args.trailersOut, `${provenanceBlock(backend.model ?? `${args.model} (claude-cli)`)}\n`, 'utf8');
+  }
 
   const md = renderProposal({ issue: args.issue, plan, applied, backend: backend.name, model: backend.model });
   if (args.json) {

@@ -58,6 +58,43 @@ cleanly without a Gemini key, includes a11y checks) and `e2e/profile-builder.spe
 e2e subset and how to run it against an already-running server are listed in
 [`.claude/CLAUDE.md`](../../.claude/CLAUDE.md) under "Common Commands".
 
+## Route-handler tests and `next/server`
+
+`npm run test:unit` runs through `scripts/test-alias-loader.mjs`, which teaches Node's
+ESM resolver the two TS conveniences the app source uses (the `@/` alias, extensionless
+relative imports) so a route handler is loadable in a plain `node --test` process.
+
+One more thing happens there, and it only happens in a **linked checkout** — a git
+worktree whose `node_modules` is a junction (Windows) or symlink (POSIX) back to the
+primary clone, which is how agent lanes are given a tree. In that layout `next/server`
+resolves through two module identities and every named export comes back `undefined`, so
+a handler's `NextResponse.json(...)` throws `Cannot read properties of undefined (reading
+'json')` before it can answer. It is an environment artefact, not a product bug: the same
+tests are green in a normal clone.
+
+So the loader redirects `next/server` to
+[`app/_lib/testing/next-server-shim.mjs`](../../app/_lib/testing/next-server-shim.mjs)
+**when, and only when, `node_modules` is a link**:
+
+- normal checkouts and CI (which clones) load the real `next/server`, unchanged — a Next
+  upgrade that drops an export still fails the suite where it should;
+- a worktree lane gets the shim, because there the alternative is not "the real module",
+  it is a suite that cannot run at all.
+
+Two consequences worth knowing before you write a route test:
+
+- A plain `import { POST } from "./route.ts"` is fine. The older pattern —
+  `register(new URL(".../next-server-hooks.mjs", import.meta.url))` followed by
+  `await import("./route.ts")` — still works and is what you want if you need the shim in
+  a *normal* checkout too (e.g. to assert on `Set-Cookie` without Next's cookie jar).
+- The shim's export surface is a hard dependency, not a nicety: an ESM import of a name it
+  does not export is a **link-time SyntaxError**, so a new
+  `import { ImageResponse } from "next/server"` would stop unrelated tests loading, in the
+  worktree only. `app/_lib/testing/next-server-shim.test.ts` scans `app/**` and `proxy.ts`
+  for every name imported from `next/server` and fails if the shim is missing one — it
+  runs in `npm run test:unit`, including in a normal checkout where the shim is otherwise
+  dormant, which is where that import gets written.
+
 ## Eval harness
 
 `pipeline/jobfit/eval/` ships a 14-fixture golden set of synthetic CVs covering the

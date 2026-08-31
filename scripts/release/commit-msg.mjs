@@ -38,6 +38,14 @@
 // deliberate — the narrative is welcome, in the BODY, which is unlimited and
 // which `git log --format=%s` never shows.
 //
+// THE SAME RULE HAS A SECOND SHAPE, and this history carries it too: a subject
+// that reports the SESSION rather than the change — a timeout, a budget, a run
+// that was cut short. It is accurate and it is the one kind of true subject a
+// bisecting reader learns nothing from, because every commit was written by a
+// session and only this one talks about it. SESSION_LIFECYCLE below rejects it
+// and names where it goes instead: the tree that was left behind is the subject,
+// and `Session-interrupted: <why>` in the BODY is the fact about the run.
+//
 // checkTypeAgainstFiles() closes the third one: nearly every agent commit is
 // typed `fix:` whatever it did, which makes the prefix useless to the release
 // cut it exists for. It is a narrow, mechanical claim — a change that touches
@@ -56,6 +64,12 @@
 // is the fast feedback; CI is the teeth, because a hook only binds the machine
 // that has it installed.
 //
+// AND ONE RULE THAT READS THE BODY: `checkProvenance` from
+// scripts/agent/provenance.mjs, which holds an agent-written commit to a
+// COMPLETE `Agent-model` / `Agent-harness` / `Agent-prompt` / `Agent-run` block.
+// It is silent on a commit that claims no provenance and fires on one that
+// claims half of it, because three of four keys cannot be joined on.
+//
 // WAIVER: a `Commit-convention-exemption: <why>` trailer in the commit body,
 // the same shape as `Gate-exemption:` and `Doc-sync:`. A sentence in `git log` a
 // reviewer can read and disagree with, deliberately not a suppression flag.
@@ -66,6 +80,7 @@ import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { SECTIONS } from './prepare.mjs';
 import { checkTrailers } from './provenance.mjs';
+import { checkProvenance } from '../agent/provenance.mjs';
 
 export const REPO_ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd();
 
@@ -121,6 +136,38 @@ export const NARRATIVE_OPENERS = [
 ];
 
 /**
+ * Subjects that report the SESSION's fate rather than the change's. The sibling
+ * of NARRATIVE_OPENERS and a different shape: these can appear anywhere in the
+ * line, and they are the only subjects in this history that are accurate and
+ * still useless — `chore: session timed out at 45 minutes` is true, and a
+ * bisecting reader learns from it that a clock ran out, not what the tree now
+ * holds.
+ *
+ * A stopped session still leaves a tree, and that tree is what the commit is
+ * about: name what landed, then say the session was cut short in the BODY, where
+ * `Session-interrupted: <why>` is the trailer for it (CONTRIBUTING.md). Anything
+ * genuinely unsummarisable has the ordinary waiver.
+ *
+ * ANCHORED AT THE START of the summary, for the same reason NARRATIVE_OPENERS is:
+ * "session", "timed out" and "limit" are all ordinary vocabulary in a product
+ * that has HMAC sessions, interview sessions, a child-process timeout and a rate
+ * limiter. `fix(extract-text): the child process timed out on a 40MB scan` is a
+ * real subject and stays legal. A subject that OPENS on the run's fate is the
+ * shape that only a session report has.
+ */
+export const SESSION_LIFECYCLE = [
+  [/^(?:the\s+)?session\s+(?:timed?\s+out|ended|expired|ran\s+out|stopped|interrupted|aborted|limit)\b/i,
+    'the subject opens on what happened to the session, not on what happened to the tree'],
+  [/^(?:timed\s+out|timeout|ran\s+out\s+of\s+time|out\s+of\s+time|hit\s+the\s+(?:time|token|context|turn)\s+limit)\b/i,
+    'running out of time is a fact about the run, not about the change it left behind'],
+  [/^(?:context|token|turn)\s+(?:limit|window|budget)\b/i, 'a budget the harness exhausted is a fact about the harness'],
+  [/^(?:partial|incomplete|unfinished)\s+(?:work|progress|session|run|state|changes?)\b/i,
+    'say WHAT landed; that it is partial belongs in the body, with what is still missing'],
+  [/^(?:wip|work\s+in\s+progress)\b/i, '"WIP" names the author\'s state, not the commit\'s content'],
+  [/^(?:interrupted|stopped\s+early|cut\s+short|aborted)\b/i, 'how the run ended says nothing about what it left'],
+];
+
+/**
  * Words a subject does not end on. A line that stops here was cut, not written:
  * every one of them needs a following word to mean anything.
  */
@@ -170,6 +217,16 @@ export function checkShape(text) {
   for (const [re, why] of NARRATIVE_OPENERS) {
     if (re.test(s)) {
       problems.push(`the subject opens with a session narrative (${why}) — say what the change does instead`);
+      break;
+    }
+  }
+
+  for (const [re, why] of SESSION_LIFECYCLE) {
+    if (re.test(s)) {
+      problems.push(
+        `the subject records the session rather than the change (${why}) — name what the tree now holds, and ` +
+          'put the interruption in the body as a `Session-interrupted: <why>` trailer',
+      );
       break;
     }
   }
@@ -319,6 +376,11 @@ export function review(commits) {
       ...checkSubject(subject),
       ...checkTrailers(body),
       ...(files?.length ? checkTypeAgainstFiles(subject, files) : []),
+      // …and the one rule that reads the BODY for a half-written Agent-*
+      // provenance block. Silent on a commit that claims none — see
+      // scripts/agent/provenance.mjs. Complements checkTrailers above: that one
+      // polices the trailer vocabulary, this one the Agent-* block's shape.
+      ...checkProvenance(body),
     ];
     return { subject, problems: waiver ? [] : problems, waiver: problems.length ? waiver : null };
   });

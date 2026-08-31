@@ -302,6 +302,9 @@ check('every gate file in this tree is inside a protected prefix', () => {
     'scripts/docs/check-doc-sync.mjs',
     'scripts/lint/ruff-ratchet.mjs',
     'scripts/agent/dispatch.mjs',
+    // The provenance block commit-msg.mjs holds an agent commit to. A dispatched
+    // agent that could edit this could edit the record of what wrote it.
+    'scripts/agent/provenance.mjs',
   ];
   for (const rel of mustBeProtected) {
     assert.ok(fs.existsSync(path.join(REPO_ROOT, rel)), `${rel} moved — update this list AND PROTECTED_PREFIXES`);

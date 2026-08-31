@@ -464,6 +464,17 @@
         "app/api/companion/**",
         "app/features/shell/companion/**"
       ]
+    },
+    {
+      "doc": "docs/architecture/api-contracts.md",
+      "sourceGlobs": [
+        "app/_lib/api-response.ts",
+        "app/_lib/rate-limit.ts",
+        "app/_lib/python-runner.ts",
+        "app/_lib/auth/public-routes.ts",
+        "app/_lib/auth/require-operator.ts",
+        "proxy.ts"
+      ]
     }
   ]
 }

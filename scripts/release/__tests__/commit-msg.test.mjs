@@ -118,6 +118,30 @@ check('a first-person or narrative subject is rejected', () => {
   ok('feat(schedule): honour the candidate timezone');
 });
 
+// --- the shape: a session report is not a subject, even when it is accurate ---
+check('a subject that opens on the run’s fate is rejected', () => {
+  bad('chore: session timed out at 45 minutes');
+  bad('fix: timed out before the last item was checked');
+  bad('chore: context limit reached, stopping here');
+  bad('feat: partial work on the scheduler');
+  bad('chore: WIP on the pipeline board');
+  bad('fix: interrupted before the tests ran');
+  const problems = checkSubject('chore: session timed out at 45 minutes');
+  assert.match(problems[0], /records the session rather than the change/);
+  assert.match(problems[0], /Session-interrupted/);
+});
+
+check('the product’s own vocabulary is not caught by the session rule', () => {
+  // Every one of these is ordinary subject matter in a product with HMAC
+  // sessions, interview sessions, a child-process timeout and an LLM context
+  // window. The rule is anchored at the start of the summary so they stay legal.
+  ok('fix(extract-text): the child process timed out on a 40MB scan');
+  ok('feat(auth): expire the session at the right offset');
+  ok('fix(interview): sessions ended by the operator now settle their usage');
+  ok('feat(api): raise the extract-text timeout to 30s');
+  ok('perf(llm): stay inside the context window on a long transcript');
+});
+
 check('a subject that ends in a full stop is rejected', () => {
   bad('fix(auth): stop the leak.');
   ok('fix(auth): stop the leak');
@@ -199,6 +223,29 @@ check('a waiver on a conforming subject is not announced as one', () => {
   const verdict = review([{ subject: 'fix(auth): stop the leak', body: 'Commit-convention-exemption: unnecessary' }]);
   assert.equal(verdict.ok, true);
   assert.ok(!verdict.report.includes('waived'));
+});
+
+// --- the body rule: provenance is whole or absent -----------------------------
+check('a half-written agent provenance block fails the commit', () => {
+  const partial = review([
+    { subject: 'fix(db): stop the double write', body: 'Agent-model: claude-opus-5\nAgent-run: local' },
+  ]);
+  assert.equal(partial.ok, false);
+  assert.match(partial.report, /Agent-harness/);
+  assert.match(partial.report, /Agent-prompt/);
+});
+
+check('a complete provenance block passes, and a commit claiming none is untouched', () => {
+  const body = [
+    'Agent-model: claude-opus-5',
+    'Agent-harness: scripts/agent/dispatch.mjs@1',
+    'Agent-prompt: sha256:0123456789abcdef',
+    'Agent-run: local',
+  ].join('\n');
+  assert.equal(review([{ subject: 'fix(db): stop the double write', body }]).ok, true);
+  // The overwhelming majority of commits claim no provenance. They must not be
+  // asked to: the rule fires on a partial claim, never on the absence of one.
+  assert.equal(review([{ subject: 'fix(db): stop the double write', body: 'Refs #12' }]).ok, true);
 });
 
 check('one bad subject fails the whole range and names it', () => {

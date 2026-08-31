@@ -166,12 +166,17 @@ jobs:
           # permission above — not `github.event.issue.author_association`, which
           # describes whoever filed the issue and would let the two be confused.
           AGENT_TASK_ASSOCIATION: ${{ steps.actor.outputs.association }}
+          # Where this run's log lives, for the `Agent-run:` provenance trailer.
+          # The driver falls back to `local` when it is unset, so a local
+          # invocation never invents a URL that resolves to nothing.
+          KP_AGENT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set +e
           node scripts/agent/dispatch.mjs \
             --issue "$ISSUE" \
             --out "$RUNNER_TEMP/proposal.md" \
-            --paths-out "$RUNNER_TEMP/applied.txt"
+            --paths-out "$RUNNER_TEMP/applied.txt" \
+            --trailers-out "$RUNNER_TEMP/trailers.txt"
           STATUS=$?
           set -e
           echo "status=$STATUS" >> "$GITHUB_OUTPUT"
@@ -208,6 +213,15 @@ jobs:
             echo
             echo "Refs #${ISSUE}"
             echo "Dispatched-by: ${ACTOR}"
+            # …and WHO WROTE IT, machine-readably: the Agent-model / Agent-harness
+            # / Agent-prompt / Agent-run block the driver rendered for this run.
+            # `Dispatched-by` above names the human who asked; these four name the
+            # conditions that produced the diff, so a bad change is a query
+            # (`git log --grep '^Agent-prompt: sha256:…'`) rather than an
+            # archaeology exercise. scripts/release/commit-msg.mjs refuses a
+            # partial block, so a missing file here fails the commit rather than
+            # silently landing provenance nobody can join on.
+            cat "$RUNNER_TEMP/trailers.txt"
           } > "$RUNNER_TEMP/message.txt"
           git commit -F "$RUNNER_TEMP/message.txt"
           git push origin "$BRANCH"

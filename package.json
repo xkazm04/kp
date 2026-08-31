@@ -58,7 +58,7 @@
     "deploy:check": "node scripts/deploy/check-chart.mjs",
     "test:deploy": "node scripts/deploy/__tests__/check-chart.test.mjs",
     "test:review": "node scripts/review/__tests__/constitution-check.test.mjs && node scripts/review/__tests__/gate-check.test.mjs",
-    "test:agent": "node scripts/agent/__tests__/dispatch.test.mjs",
+    "test:agent": "node scripts/agent/__tests__/dispatch.test.mjs && node scripts/agent/__tests__/provenance.test.mjs",
     "test:lint-ratchet": "node scripts/lint/__tests__/ruff-ratchet.test.mjs && node scripts/lint/__tests__/ts-ratchet.test.mjs",
     "bench:app-master": "node scripts/app-master-bench/run.mjs --all --report",
     "bench:gate": "node scripts/app-master-bench/gate.mjs",

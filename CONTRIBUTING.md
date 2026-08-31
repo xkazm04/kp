@@ -128,6 +128,44 @@ Deeper guidance for automated agents and humans alike lives in
   what those agents did. Everything a session wants to narrate — what it
   explored, what it found, what it left out — belongs in the body, which has no
   length limit and which `git log --format=%s` never prints.
+- **A stopped session still leaves a tree, and the tree is the subject.** The
+  same check rejects a subject that opens on the run's fate — `session timed
+  out`, `context limit reached`, `WIP`, `partial work on …`. Those are accurate
+  and they are the one kind of true subject a bisecting reader learns nothing
+  from, because every commit was written by a session and only these talk about
+  it. Name what landed, then say the run was cut short in the body:
+
+  ```
+  fix(schedule): reject a confirmed slot outside the invite window
+
+  Two of the four items were left untouched — the comms half needs a decision
+  about resend semantics that this run did not have.
+
+  Session-interrupted: 45-minute budget reached after the schedule half
+  ```
+
+- **If an agent wrote it, say which one — as trailers.** A commit body that
+  claims agent provenance must carry the whole block, and
+  [`scripts/agent/provenance.mjs`](./scripts/agent/provenance.mjs) is what
+  refuses half of one (three of four keys cannot be joined on, so a partial
+  block reads like an answer and is not one):
+
+  ```
+  Agent-model: claude-opus-5
+  Agent-harness: scripts/agent/dispatch.mjs@sha256-1f0c…
+  Agent-prompt: sha256:9ab3…
+  Agent-run: https://github.com/xkazm04/kp/actions/runs/123456789
+  ```
+
+  `Agent-harness` is `<driver>@<version>`, `Agent-prompt` is a digest of the
+  instruction text the run was given (a hand-written version number stops being
+  true the first time somebody edits a prompt without bumping it), and
+  `Agent-run` is a URL or the literal `local`. The point is that provenance
+  becomes a query — `git log --format='%H %(trailers:key=Agent-model,valueonly)'`
+  answers "what else did this model, or this prompt, produce" without reading a
+  single body. `.github/workflows/agent-dispatch.yml` emits the block from the
+  driver, so it never depends on an agent remembering; a commit that claims none
+  is untouched by the rule.
 - Present tense, scoped: `feat(billing): unmeter self-hosted installs`.
 - One logical change per PR. If your PR needs a "and also" in the description,
   it's probably two PRs.

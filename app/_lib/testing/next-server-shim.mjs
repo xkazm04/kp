@@ -8,8 +8,21 @@
 // exactly where the interesting server logic lives.
 //
 // The surface below is the whole of what kp's route handlers use, implemented on the
-// platform primitives the handlers already treat them as. Register it via
-// next-server-hooks.mjs BEFORE dynamically importing a route module; never in app code.
+// platform primitives the handlers already treat them as. Never import it from app code.
+//
+// TWO WAYS IN, and you usually need neither:
+//   * scripts/test-alias-loader.mjs redirects `next/server` here for the WHOLE
+//     `npm run test:unit` run — but only when `node_modules` is a junction/symlink, i.e.
+//     only in the linked worktree where the real module is already broken. A normal
+//     checkout and CI keep loading the real `next/server`, so a plain
+//     `import { POST } from "./route.ts"` now works in both. That is the default path.
+//   * next-server-hooks.mjs registers the same redirect from inside a single test, for
+//     tests that want the shim unconditionally (including in a normal checkout). Those
+//     must load the route with `await import(...)`, because hooks only affect later
+//     resolutions.
+// Keep this surface in step with what app code actually imports from `next/server`
+// (today: NextRequest, NextResponse, after, connection) — an ESM import of a name this
+// file does not export is a link-time SyntaxError, not a failed assertion.
 export class NextRequest extends Request {}
 
 // `NextResponse` carries a `cookies` writer that plain `Response` does not, and
