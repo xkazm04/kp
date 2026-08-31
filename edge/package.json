@@ -10,8 +10,8 @@
     "schema": "wrangler d1 execute kp-edge --remote --file=./schema.sql"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260801.0",
-    "typescript": "^5",
+    "@cloudflare/workers-types": "^5.20260831.1",
+    "typescript": "^7.0.2",
     "wrangler": "^4"
   }
 }

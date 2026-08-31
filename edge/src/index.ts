@@ -86,10 +86,17 @@ async function seal(publicJwk: string | null, plaintext: string): Promise<string
     false,
     ["encrypt"]
   );
-  const aes = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt"]);
+  // @cloudflare/workers-types v5 types generateKey/exportKey by their WIDEST
+  // return, so both need narrowing here. Neither is a blind cast: a secret
+  // algorithm ("AES-GCM") yields a single CryptoKey and never a pair, and
+  // exportKey("raw") yields an ArrayBuffer and never a JsonWebKey — the
+  // union only exists because one signature covers every algorithm/format.
+  const aes = (await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, [
+    "encrypt",
+  ])) as CryptoKey;
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aes, new TextEncoder().encode(plaintext));
-  const raw = await crypto.subtle.exportKey("raw", aes);
+  const raw = (await crypto.subtle.exportKey("raw", aes)) as ArrayBuffer;
   const wrapped = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, pub, raw);
   return JSON.stringify({ v: 1, key: b64(wrapped), iv: b64(iv.buffer), data: b64(data) });
 }
