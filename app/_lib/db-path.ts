@@ -30,7 +30,7 @@ export const DB_PATH = process.env.KP_DB_PATH ? path.resolve(process.env.KP_DB_P
  *  NODE_TEST_CONTEXT, and the runner/children carry --test* flags in execArgv. Kept as a
  *  cheap best-effort signal — it only gates the DB-isolation guard below, which is inert
  *  in production regardless. (bug-ui-scan-2026-07-09 data-store-persistence #3) */
-function inTestRun(env: NodeJS.ProcessEnv = process.env): boolean {
+function inTestRun(env: Readonly<Partial<NodeJS.ProcessEnv>> = process.env): boolean {
   return (
     Boolean(env.NODE_TEST_CONTEXT) ||
     env.NODE_ENV === "test" ||
@@ -88,11 +88,15 @@ export type DbBackend = "sqlite";
  * Postgres learns immediately it isn't wired yet, instead of the app quietly running
  * on a local SQLite file they didn't intend to use in production.
  */
-export function resolveDbBackend(env: NodeJS.ProcessEnv = process.env): DbBackend {
+export function resolveDbBackend(env: Readonly<Partial<NodeJS.ProcessEnv>> = process.env): DbBackend {
   const explicit = env.KP_DB_BACKEND?.trim().toLowerCase() || "";
   const url = env.DATABASE_URL?.trim() || "";
   const wantsPostgres = explicit === "postgres" || explicit === "postgresql" || /^postgres(ql)?:\/\//i.test(url);
   if (wantsPostgres) {
+    // In a test run the intent is always a throwaway SQLite file; a Postgres URL in the
+    // shell (e.g. an unrelated project) must not abort tests that have nothing to do with
+    // Postgres. inTestRun() covers NODE_TEST_CONTEXT (child-v8), NODE_ENV=test, and Vitest.
+    if (inTestRun(env)) return "sqlite";
     throw new Error(
       "Postgres backend is configured (KP_DB_BACKEND / DATABASE_URL) but is NOT yet " +
         "implemented — KP runs on SQLite today. The Postgres migration is designed in " +
