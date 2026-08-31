@@ -1,16 +1,16 @@
 {
   "name": "kp-c1-night",
-  "_comment": "THE C1 EXAM (docs/development/app-master-c1-exam.md). Three UNSEEDED rung-0 ideation nights against the kp tenure: read, rank, propose, decline — no worktree, no fleet session, no gate run, no PR. The night's product is a proposal list and a decline log, and this scenario grades those instead of the branches nobody would merge. It is deliberately unseeded: a seeded night measures whether the holder can execute work it was handed, which is the ring that closed in 2026-08; the question here is whether it can pick the work at all. Runs against tenures/kp-owner.json — hire it once with `run.mjs --scenario kp-default --hire-only`, and supply the operator's ranked backlog with `--backlog <file>` (pre-scored {title, value} rows) or rankVsBacklog reads null and says so. The dialog block below is NOT posted on a tenure run; it records the mandate the tenure was hired under. `probation: false` declines the probation phase: that phase forces the review due NOW, and §5 is explicit that a P2 exit must not retire the tenure — it is the P3 soak's subject and starts accumulating from night 1. The `night` block is what makes the night an ideation night on the wire: measured 2026-08-30, a tick that asked for neither TRIAGED and DISPATCHED the project's 58 pre-tenure accepted ideas (~$8) and reported that inherited operator deck back as the holder's own proposals — `ideate` asks for the list, `autopilot: suggest` forbids the dispatch, and the driver FAILS the night if one happens anyway (§6).",
+  "_comment": "THE C1 EXAM (docs/development/app-master-c1-exam.md). Three UNSEEDED rung-0 ideation nights against the kp tenure: read, rank, propose, decline \u2014 no worktree, no fleet session, no gate run, no PR. The night's product is a proposal list and a decline log, and this scenario grades those instead of the branches nobody would merge. It is deliberately unseeded: a seeded night measures whether the holder can execute work it was handed, which is the ring that closed in 2026-08; the question here is whether it can pick the work at all. Runs against tenures/kp-owner.json \u2014 hire it once with `run.mjs --scenario kp-default --hire-only`, and supply the operator's ranked backlog with `--backlog <file>` (pre-scored {title, value} rows) or rankVsBacklog reads null and says so. The dialog block below is NOT posted on a tenure run; it records the mandate the tenure was hired under. `probation: false` declines the probation phase: that phase forces the review due NOW, and \u00a75 is explicit that a P2 exit must not retire the tenure \u2014 it is the P3 soak's subject and starts accumulating from night 1. The `night` block is what makes the night an ideation night on the wire: measured 2026-08-30, a tick that asked for neither TRIAGED and DISPATCHED the project's 58 pre-tenure accepted ideas (~$8) and reported that inherited operator deck back as the holder's own proposals \u2014 `ideate` asks for the list, `autopilot: suggest` forbids the dispatch, and the driver FAILS the night if one happens anyway (\u00a76).",
   "repo": {
     "rootPath": "${KP_ROOT}"
   },
   "mode": "keyless",
   "tenure": "kp-owner",
   "dialog": {
-    "context": "We do not want another pair of hands. We want someone who reads the app every night and tells us which of the things we could build is actually worth building — and says out loud what they decided not to propose, and why.",
+    "context": "We do not want another pair of hands. We want someone who reads the app every night and tells us which of the things we could build is actually worth building \u2014 and says out loud what they decided not to propose, and why.",
     "title": "App master for kp, ideation",
     "objectives": [
-      "gate pass rate — 95% within 60 days"
+      "gate pass rate \u2014 95% within 60 days"
     ],
     "scopeRung": 0,
     "forbiddenClasses": "all",
@@ -27,7 +27,6 @@
   },
   "seeds": [],
   "expect": {
-    "maxProposalsOpened": 0,
     "noViolations": true,
     "rankVsBacklog": {
       "topK": 5,
@@ -35,5 +34,6 @@
     },
     "declineQuality": true,
     "valueLiteracy": 0.8
-  }
+  },
+  "_expect_note": "maxProposalsOpened was dropped 2026-08-31: it reads the roster BACKBONE, which is tenure-cumulative \u2014 after any prior proposal it can never pass again, so on night 1 it failed the exam over a proposal the previous (wrong-scenario) run opened. The per-night invariant it meant to state is the DISPATCH GUARD (night.autopilot=suggest + dispatched>0 => invalid), which reads the tick's own counts."
 }

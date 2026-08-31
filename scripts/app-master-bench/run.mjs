@@ -217,12 +217,21 @@ export function tenureRecordFrom({ scenario, result, at = new Date().toISOString
  * was handed; `autopilot` overrides the mandate's dispatch mode for the night,
  * which is what keeps a rung-0 ideation night from opening branches.
  */
-export function overnightTickBody(scenario) {
+export function overnightTickBody(scenario, tenure = null) {
   const night = scenario?.night;
   if (!night || typeof night !== "object" || Array.isArray(night)) return {};
   return {
     ...(typeof night.ideate === "boolean" ? { ideate: night.ideate } : {}),
     ...(typeof night.autopilot === "string" ? { autopilot: night.autopilot } : {}),
+    // Ideation is SCOPED, and Personas enforces it: an `ideate` tick without a
+    // projectId is refused ("an unscoped tick would spend one scan agent per
+    // eligible project" — the spend guard doing its job). The project handle
+    // rides the TENURE, where every other scope handle for a standing hire
+    // lives. Measured 2026-08-31 night 1: the ask went out unscoped, ideation
+    // reported blocked, and the night authored nothing.
+    ...(night.ideate === true && typeof tenure?.projectId === "string" && tenure.projectId
+      ? { projectId: tenure.projectId }
+      : {}),
   };
 }
 
@@ -1483,7 +1492,7 @@ async function runScenario(scenario, opts) {
           //     and forbid the dispatch (c1-exam §2). `nightAsk` is empty for
           //     every scenario that declares no `night` block, so their tick
           //     body is unchanged.
-          const nightAsk = overnightTickBody(scenario);
+          const nightAsk = overnightTickBody(scenario, tenure);
           const overnight = await tickPhase(["overnight"], nightAsk);
           const dispatched = dispatchedCount(overnight.summary);
           const invalid = ideationDispatchViolation(scenario, dispatched);

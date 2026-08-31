@@ -245,7 +245,13 @@ test("the shipped scenarios encode what each one is FOR", () => {
   assert.deepEqual(c1.expect.rankVsBacklog, { topK: 5, minHits: 1 }, "the P2 gate: >= 1 proposal in the operator's top-5");
   assert.equal(c1.expect.declineQuality, true, "100% of declines carry a reason from the closed set");
   assert.equal(c1.expect.valueLiteracy, 0.8, ">= 80% of proposals name a journey and an axis");
-  assert.equal(c1.expect.maxProposalsOpened, 0, "a rung-0 night that authored a branch violated its mandate (§6)");
+  // maxProposalsOpened is deliberately ABSENT (2026-08-31): it reads the roster
+  // backbone, which is tenure-CUMULATIVE — after any prior proposal it can never
+  // pass again, and on the first live night it failed the exam over a proposal a
+  // previous run opened. The §6 invariant ("a night that authored a branch is
+  // invalid") is the per-night DISPATCH GUARD, asserted via `night` below.
+  assert.equal("maxProposalsOpened" in c1.expect, false, "cumulative backbone reads cannot gate a per-night invariant on a tenure");
+  assert.deepEqual(c1.night, { ideate: true, autopilot: "suggest" }, "the dispatch guard is what enforces §6 per night");
   assert.equal(c1.probation, false, "§5: a P2 exit must NOT retire the tenure — it is the P3 soak's subject");
   // …and it is the ONLY scenario that declines it: the others hire fresh and
   // the review is what they are measuring.

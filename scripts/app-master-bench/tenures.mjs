@@ -85,6 +85,9 @@ export function validateTenure(raw, { name = "" } = {}) {
   if (!isNonEmptyString(raw.hiredAgentId)) errors.push("hiredAgentId is required — it is kp's roster handle for this tenure");
   if (!isNonEmptyString(raw.personaId)) errors.push("personaId is required — every test tick is scoped by it");
   if (!isNonEmptyString(raw.repo)) errors.push("repo is required — one named tenure per repo");
+  if (raw.projectId !== undefined && raw.projectId !== null && !isNonEmptyString(raw.projectId)) {
+    errors.push("projectId must be a non-empty string when present — it scopes an ideation tick to one project");
+  }
   for (const key of ["requestId", "hiredAt"]) {
     if (raw[key] !== undefined && raw[key] !== null && !isNonEmptyString(raw[key])) {
       errors.push(`${key} must be a non-empty string when present`);
@@ -113,6 +116,7 @@ export function validateTenure(raw, { name = "" } = {}) {
       hiredAt: isNonEmptyString(raw.hiredAt) ? raw.hiredAt.trim() : null,
       rung: Number.isInteger(raw.rung) ? raw.rung : null,
       probationDays: Number.isInteger(raw.probationDays) ? raw.probationDays : null,
+      ...(isNonEmptyString(raw.projectId) ? { projectId: raw.projectId.trim() } : {}),
       ...(isNonEmptyString(raw.scenario) ? { scenario: raw.scenario.trim() } : {}),
       ...(isNonEmptyString(raw.personaName) ? { personaName: raw.personaName.trim() } : {}),
     },
