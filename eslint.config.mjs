@@ -257,6 +257,30 @@ const config = [
     ignores: [".next/**", ".next-empty/**", "node_modules/**", "test-results/**", ".claude/**"]
   },
   {
+    // ---------------------------------------------------------------------
+    // Error-door law: a catch body is never empty. An intentional drop carries
+    // its reason IN the block — `/* best-effort: the ledger is telemetry */`,
+    // `/* column already exists — idempotent */` — which is what 164 catch sites
+    // in this tree already do (architect census, 2026-09-01) and what
+    // app/_lib/db/core.ts's migrator comments argue for: a bare `catch {}`
+    // booted a structurally-broken DB and started the "why is everything
+    // empty" hunt. `no-empty` treats a block containing only a comment as
+    // non-empty, so the comment IS the declaration, and `allowEmptyCatch:
+    // false` is the whole point. Shipped at `error` with 0 violations (the
+    // three `catch{}` grep hits in core.ts are inside comments; the one in
+    // app/layout.tsx is inside a <script> string) — so, like the transaction
+    // selectors above, there was no debt to ratchet.
+    //
+    // What this does NOT gate, said plainly: a catch that logs to nowhere or
+    // returns a default without a door is non-empty and passes. That is the
+    // door-coverage census's business (scripts, not lint) — this rule pins the
+    // declaration convention, not routing.
+    // ---------------------------------------------------------------------
+    rules: {
+      "no-empty": ["error", { allowEmptyCatch: false }]
+    }
+  },
+  {
     // i18n gap prevention: flag hardcoded user-facing JSX text so new strings go
     // through messages/*.json (next-intl t()) instead of being baked in. Scoped
     // to component files (.tsx under app/, excluding tests) and held at WARN

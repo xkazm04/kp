@@ -212,6 +212,13 @@ The ones that actually bite:
   `expectedStage`/`expectedApprovalKind`, so a decision computed during a
   30-second call is safely dropped if the row moved. Enforced at `error` by
   `no-restricted-syntax` in `eslint.config.mjs`.
+- **A catch body is never empty — an intentional drop says why, inside the
+  block.** `catch { /* best-effort: the ledger is telemetry, never the request */ }`
+  is the house shape (164 sites); a bare `catch {}` is how `core.ts`'s migrator
+  once booted a structurally-broken DB silently. Enforced at `error` by
+  `no-empty` (`allowEmptyCatch: false`) in `eslint.config.mjs`. The comment is
+  the declaration, not a door: a failure an operator would act on still needs
+  a log line or a `safeJsonError`.
 - **A read→compute→write either locks or re-checks.** The two valid strategies are
   `db.transaction(...).immediate()` (write lock at BEGIN) or a compensating
   precondition in the UPDATE's `WHERE` plus a `res.changes === 0` skip. Pick one
