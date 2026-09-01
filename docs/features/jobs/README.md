@@ -147,6 +147,21 @@ two produced the row.
 > Read `published` as **"Live (sourced)"**, never as external job-board
 > publishing.
 
+### The go-live is one transaction, on one connection
+
+`/publish` runs the billing gate (`jobPostGate`), the status flip
+(`setJobStatus`) and the `job_posts` debit inside one `ensureDb().transaction`,
+so a refused publish never charges and a live role never escapes the meter. That
+was only nominally true until `app/_lib/job-ingest.ts` stopped opening its own
+`openStore()` connection: with the flip committing on a second handle, the gate's
+`billing_state` read had already opened the main handle's WAL snapshot, and the
+debit that followed failed with `SQLITE_BUSY_SNAPSHOT` — the transaction rolled
+back, the route answered 500, and the role was already live and unmetered.
+`job-ingest.ts` now writes the `jobs` corpus through the main handle; `job_ingests`
+(its dedup cache) is created and migrated in `app/_lib/db/core.ts` with the rest
+of the boot DDL. `app/api/jobs/publish-atomicity.test.ts` drives the exact
+sequence against the real modules.
+
 ## JD specificity lint (Erika gap E7)
 
 `app/_lib/jd-lint.ts` is a pure, LLM-free rules module that runs live on every

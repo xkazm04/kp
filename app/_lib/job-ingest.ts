@@ -1,65 +1,32 @@
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
-import Database from "better-sqlite3";
-import { openStore } from "./db-path";
-import type { JobRecord } from "./db/core";
+import type Database from "better-sqlite3";
+import { ensureDb, type JobRecord } from "./db/core";
 import { DEFAULT_WORKSPACE_ID } from "./db/workspaces";
 import { cleanupWorkdir, createWorkdir, parsePythonJson, parseStderrError, spawnPython } from "./python-runner";
 import { buildLlmConfigEnv } from "./llm-config";
 
 // Direction #1: turn authored/ingested job descriptions into structured,
 // matchable Job rows. insertJob writes into the SHARED `jobs` table (so
-// listJobs / the matcher see it) via its own connection — WAL-safe — and a
-// `job_ingests` table content-hash-guards re-ingestion of the same ad. The jobs
-// DDL mirrors db.ts (idempotent) so this module is self-contained.
-
-let _db: Database.Database | null = null;
+// listJobs / the matcher see it) and the `job_ingests` table content-hash-guards
+// re-ingestion of the same ad. Both tables are created and migrated by db/core.ts.
+//
+// ONE CONNECTION, on purpose. This module used to open its own `openStore()`
+// handle (with a mirrored copy of the jobs DDL, "WAL-safe, self-contained"). That
+// made every write here invisible to a transaction a caller opened on the main
+// handle: POST /api/jobs/[id]/publish wraps its quota gate, `setJobStatus` and the
+// meter debit in one `ensureDb().transaction(...)` so a refused publish never
+// charges and a successful one never escapes the meter — but with the flip on a
+// second connection the sequence was A reads billing_state (snapshot), B commits
+// the status UPDATE, A writes the debit → SQLITE_BUSY_SNAPSHOT (a WAL reader whose
+// snapshot another connection has committed past cannot become a writer;
+// busy_timeout does not retry it). The transaction rolled the debit back, the route
+// answered 500, and the role was already live under the error. Writing through the
+// main handle is what makes "one transaction" true. Pinned by
+// app/api/jobs/publish-atomicity.test.ts.
 function db(): Database.Database {
-  if (_db) return _db;
-  const d = openStore();
-  d.exec(`
-    CREATE TABLE IF NOT EXISTS jobs (
-      id TEXT PRIMARY KEY, title TEXT NOT NULL, company TEXT, location TEXT, work_mode TEXT,
-      seniority TEXT, role_family TEXT, employment_type TEXT, min_years REAL, min_education TEXT,
-      languages TEXT, is_entry_eligible INTEGER DEFAULT 0, graduate_friendliness REAL DEFAULT 0,
-      salary_min INTEGER, salary_max INTEGER, payload_json TEXT NOT NULL, created_at TEXT NOT NULL
-    );
-  `);
-  // Phase 1: draft → publish lifecycle + tenancy. The jobs table predates these
-  // columns; ALTER them in (no-op if present, mirroring core.ts on this connection).
-  // status: NULL = seeded/live corpus, authored JDs are 'draft' until published.
-  // workspace_id: NULL = the shared reference corpus, a team's authored openings
-  // carry their id.
-  // published_at: first flip to 'published' (see setJobStatus) — the cycle start
-  // every publish-anchored metric needs. Mirrored from core.ts on this connection.
-  for (const sql of [
-    `ALTER TABLE jobs ADD COLUMN status TEXT`,
-    `ALTER TABLE jobs ADD COLUMN workspace_id TEXT`,
-    `ALTER TABLE jobs ADD COLUMN published_at TEXT`,
-  ]) {
-    try {
-      d.exec(sql);
-    } catch {
-      /* column already exists */
-    }
-  }
-  // job_ingests: content-hash dedup, scoped PER WORKSPACE (composite PK) so a team
-  // never reuses another team's job for identical ad text. Rebuild a pre-P1 table
-  // (single content_hash PK, no workspace_id) — it's a rebuildable cache that just
-  // re-populates on the next ingest.
-  const ingestCols = d.prepare(`PRAGMA table_info(job_ingests)`).all() as { name: string }[];
-  if (ingestCols.length > 0 && !ingestCols.some((c) => c.name === "workspace_id")) {
-    d.exec(`DROP TABLE job_ingests`);
-  }
-  d.exec(
-    `CREATE TABLE IF NOT EXISTS job_ingests (
-       content_hash TEXT NOT NULL, job_id TEXT NOT NULL, created_at TEXT NOT NULL,
-       workspace_id TEXT NOT NULL DEFAULT 'workspace', PRIMARY KEY (content_hash, workspace_id)
-     )`
-  );
-  _db = d;
-  return d;
+  return ensureDb();
 }
 
 export const jobContentHash = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 24);
