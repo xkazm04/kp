@@ -791,6 +791,18 @@ nights     N × ( tick {phases:["overnight"]}          → dispatch the fleet
 probation  POST /api/kp/test/tick {phases:["probation"]} → record the decision
 ```
 
+### The P3 soak — the driver, scheduled nightly (2026-09-01)
+
+`scripts/app-master-bench/soak/night.mjs` runs ONE unattended C1 ideation night
+against the standing tenure and appends an honest per-night record — misses
+included — to `bench/app-master/soak/log.jsonl`. Scheduled by Windows Task
+Scheduler (`kp-app-master-soak`, 02:47 nightly), NOT by any session-bound
+mechanism. The runner boots and stops the kp bench server (on the
+session-independent DB at `%LOCALAPPDATA%\kp-bench\kp-soak.sqlite`) and never
+boots the Personas app — the operator's window down is a recorded `bridge-down`
+miss, which is a measurement. Protocol, per-night record shape, the failure
+taxonomy and the abort criteria: **`docs/development/app-master-soak.md`**.
+
 ### Tenure mode — hire once, tenure many (c1-exam §1)
 
 The preamble (`scan` → `activate`) is ~14 calls and most of a run's wall clock,
