@@ -87,10 +87,15 @@ async function health(url, ms = 4000) {
 
 function finish() {
   rec.ms = Date.now() - t0;
-  // The classified-miss invariant, STRUCTURAL rather than per-path (review
-  // round 8, which supplied this line): no record may say "did not run" without
-  // saying why — whatever new path future edits invent.
-  if (!rec.ran && !rec.miss) rec.miss = "driver-crashed";
+  // The classified-miss invariant, STRUCTURAL rather than per-path (rounds
+  // 8+9): no record may say "did not run" without saying why — and when no
+  // path recorded a reason, the honest class is IGNORANCE, not a named crash
+  // that may never have happened. `unclassified` is itself a finding: the
+  // record-keeping failed, and the weekly pass classifies it by hand.
+  if (!rec.ran && !rec.miss) {
+    rec.miss = "unclassified";
+    rec.anomalies.push("no code path recorded WHY this night did not run — classify by hand and fix the runner path that stayed silent");
+  }
   mkdirSync(SOAK_DIR, { recursive: true });
   const lines = existsSync(LOG) ? readFileSync(LOG, "utf-8").trim().split("\n").filter(Boolean) : [];
   let prior = lines.length;
@@ -224,6 +229,13 @@ try {
     const result = JSON.parse(readFileSync(path.join(runsDir, newest, "result.json"), "utf-8"));
     const n = result.nights?.[0] ?? {};
     rec.ran = n.tickOk === true;
+    // A fresh run dir whose record carries no tickOk is a SHAPE problem, not a
+    // crash (round 9): a partially written result.json or a driver format
+    // change. Say that, or the structural fallback below would have to guess.
+    if (n.tickOk === undefined) {
+      rec.miss = "record-unreadable";
+      rec.anomalies.push(`the run record carries no tickOk (nights: ${Array.isArray(result.nights) ? result.nights.length : "absent"}) — a partially written result.json or a driver shape change; the night may even have run`);
+    }
     rec.ideation = n.ideation ?? null;
     rec.dispatched = n.dispatched ?? null;
     rec.c1 = n.c1 ? { proposals: (n.c1.proposals ?? []).length, declines: (n.c1.declines ?? []).length, preTenure: n.c1.preTenure ?? null, undated: n.c1.undated ?? null } : null;

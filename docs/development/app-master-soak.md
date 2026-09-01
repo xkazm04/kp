@@ -76,6 +76,8 @@ soak night exhibits it:
 | `memory-unreported` | roster carried no tier counts for the window | **1** — and the suspected mechanism makes it structural: episodic write-back is keyed to branch/build events, which rung-0 ideation nights never produce, so an ideation-only soak measures nothing about memory. Personas-side candidate fix: night outcomes (the ideation summary) write a `learned` persona memory even when no branch was authored (§8 already specifies "night outcomes … → persona learned"). Watch nights 2–3 before filing. (Night 1 pre-dated the runner fix that resolves the roster row via the tenure file; from night 2 the three cases — no handle, no row, reporter-sent-none — are recorded apart, per the 2026-09-01 review finding.) |
 | `memory-nonmonotonic` | tier counts moved in a way no night explains (wrong decay / wrong consolidation) | — |
 | `recall-wrong` | a night's output contradicts something the memory should have carried (requires reading the proposals — the weekly human pass) | — |
+| `record-unreadable` | a fresh run dir whose result.json carries no `tickOk` — partial write or driver shape change; the night may even have run | — |
+| `unclassified` | no code path recorded a reason — the record-keeping itself failed; classify by hand at the weekly pass and fix the silent path | — |
 | `machine` | host asleep, node/npm broken, disk, clock — a day the task never fired is BACKFILLED as a `machine` miss at the next firing (`backfilled: true`), so this class is producible and the log stays calendar-continuous | — |
 
 ## The weekly human pass (~15 min)
