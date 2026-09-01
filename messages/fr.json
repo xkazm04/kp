@@ -6418,6 +6418,7 @@
     "exportCsv": "Exporter en CSV",
     "csvCandidate": "Candidat",
     "selectedCount": "{count, plural, one {# sélectionné} other {# sélectionnés}}",
+    "selectedOutsideView": "{count, plural, one {# cellule sélectionnée est hors de cette vue. L’ajout la traite quand même.} other {# cellules sélectionnées sont hors de cette vue. L’ajout les traite quand même.}}",
     "tapToShortlist": "Touchez des cellules pour présélectionner",
     "adding": "Ajout…",
     "addN": "Ajouter {count} au pipeline",

@@ -13,6 +13,7 @@ import { useErrorMessage } from "@/app/_lib/use-error-message";
 import type { Cell } from "./MatrixShared";
 import { STRONG_THRESHOLD } from "./matrixStats";
 import { orderMatrixRows } from "./matrixRows";
+import { matrixCellKey, selectionOutsideVisible, visibleMatrixCellKeys, visibleMatrixColumns } from "./matrixSelection";
 import { computePopoverPosition } from "./matrixPopover";
 import type { Candidate, Matrix, Popover, Position, ReasonState } from "./matrixTabTypes";
 
@@ -169,12 +170,10 @@ export function useMatrixTab() {
 
   // visible columns: a single position when scoped via ?job=, otherwise the
   // role-family filter. Indices are preserved to index back into `cells`.
-  const cols = useMemo(() => {
-    if (!data) return [];
-    const indexed = data.positions.map((p, i) => ({ p, i }));
-    if (jobParam) return indexed.filter(({ p }) => p.id === jobParam);
-    return indexed.filter(({ p }) => family === "all" || p.roleFamily === family);
-  }, [data, family, jobParam]);
+  const cols = useMemo(
+    () => (data ? visibleMatrixColumns(data.positions, { family, jobParam }) : []),
+    [data, family, jobParam],
+  );
 
   const scopedPosition = jobParam ? data?.positions.find((p) => p.id === jobParam) ?? null : null;
   // A shared or bookmarked ?job= deep-link can outlive its position (closed or
@@ -205,6 +204,23 @@ export function useMatrixTab() {
     return orderMatrixRows(inputs, { sortByFit, sortByColumn, minFit, locale });
   }, [data, cols, sortByFit, minFit, sortCol, locale]);
   const rows = rowOrder.order;
+
+  // matrix-shortlist-acts-on-what-you-see. `selected` survives every change to what the
+  // grid shows — setFamily, setMinFit, clearJob and a ?job= arrival all leave it alone —
+  // and `addSelected` files the WHOLE set. That combination let a recruiter tick five
+  // cells, switch the family filter, see two ticks, press "Add 5" and file three
+  // candidates into roles they were no longer looking at.
+  //
+  // The selection is deliberately NOT pruned here. That mirrors the board's pinned
+  // decision in 28463f8f: filtering down to review a subset does not abandon the rest,
+  // and a silently shrunk cohort just swaps over-reach for under-reach. So the grid owes
+  // the recruiter the DIVERGENCE instead — derived, never dispatched, so a filter added
+  // tomorrow is covered without anyone remembering to reconcile from its handler.
+  const visibleCellKeys = useMemo(() => visibleMatrixCellKeys(rows, cols), [rows, cols]);
+  const selectedOutsideCount = useMemo(
+    () => selectionOutsideVisible(selected, visibleCellKeys).length,
+    [selected, visibleCellKeys],
+  );
 
   // The column sort only APPLIES while its column is visible (orderMatrixRows falls back to
   // best-fit/A–Z otherwise — see `sortByColumn` above), so a family filter that hides the
@@ -327,10 +343,9 @@ export function useMatrixTab() {
     if (!cell.blocked) fetchReasoning(cand.id, pos.id);
   };
 
-  const cellKey = (candId: string, posId: string) => `${candId}|${posId}`;
   const toggleCell = (candId: string, posId: string) =>
     setSelected((s) => {
-      const k = cellKey(candId, posId);
+      const k = matrixCellKey(candId, posId);
       const n = new Set(s);
       if (n.has(k)) n.delete(k);
       else n.add(k);
@@ -435,6 +450,9 @@ export function useMatrixTab() {
     setSelectMode,
     selected,
     setSelected,
+    /** How many SELECTED cells the current family filter / min-fit floor / ?job= scope
+     *  hides. The bar states it before "Add N" can run — see the derivation above. */
+    selectedOutsideCount,
     added,
     adding,
     announce,

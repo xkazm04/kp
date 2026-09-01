@@ -6418,6 +6418,7 @@
     "exportCsv": "CSV exportieren",
     "csvCandidate": "Kandidat",
     "selectedCount": "{count} ausgewählt",
+    "selectedOutsideView": "{count, plural, one {# ausgewählte Zelle liegt außerhalb dieser Ansicht. Beim Hinzufügen wird sie trotzdem übernommen.} other {# ausgewählte Zellen liegen außerhalb dieser Ansicht. Beim Hinzufügen werden sie trotzdem übernommen.}}",
     "tapToShortlist": "Zellen antippen für Shortlist",
     "adding": "Wird hinzugefügt…",
     "addN": "{count} zur Pipeline hinzufügen",

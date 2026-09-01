@@ -467,6 +467,19 @@ the rules are pure and pinned in `focus/matchView.ts` (+ `matchView.test.ts`).
   updater: React invokes an updater more than once per dispatch (StrictMode's purity
   double-invoke, a rebased queue), and a fetch inside it spent two reasoning runs — both
   missing the prompt cache — on one cell. A failed key is released so re-opening retries.
+- **The bulk shortlist acts on what you can see — and says when it doesn't.** Select mode
+  keeps `selected` across every change to the visible set (the role-family filter, the
+  min-fit floor, a `?job=` scope), and `addSelected` files the whole set. The selection is
+  deliberately **not** pruned — the same decision the board made in `28463f8f`: filtering
+  down to review a subset does not abandon the rest, and a silently shrunk cohort swaps
+  over-reach for under-reach. So `MatrixSelectBar` states the divergence instead, in its
+  coral warning register with `role="status"`: "3 selected cells are outside this view.
+  Adding still files them." The "Add 5" button keeps naming the full count it will file,
+  so the mismatch is visible before the click rather than discovered on the board.
+  `matrixSelection.ts` derives it — `visibleMatrixColumns` (the column filter itself,
+  shared with the hook) × the rows `orderMatrixRows` kept, diffed against the selection —
+  so a filter added later is covered without any handler remembering to reconcile.
+  Pinned in `matrixSelection.test.ts`.
 - **A bulk add that fully fails says so on screen.** The `CompletionCta` band is gated
   on `ok > 0`; when every row fails, `MatrixTab` renders the same `matrix.addedPartial`
   sentence in the failure register (no board link — nothing landed) instead of leaving

@@ -6418,6 +6418,7 @@
     "exportCsv": "Exportovat CSV",
     "csvCandidate": "Kandidát",
     "selectedCount": "{count} vybráno",
+    "selectedOutsideView": "{count, plural, one {# vybraná buňka je mimo toto zobrazení. Přidání ji přesto zařadí.} few {# vybrané buňky jsou mimo toto zobrazení. Přidání je přesto zařadí.} other {# vybraných buněk je mimo toto zobrazení. Přidání je přesto zařadí.}}",
     "tapToShortlist": "Klepnutím na buňky vyberte",
     "adding": "Přidávání…",
     "addN": "Přidat {count} do pipeline",
