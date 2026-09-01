@@ -56,17 +56,22 @@ export function useJobsTabDeepLink(jobs: Job[] | null) {
   useEffect(() => {
     if (!lookupId) return;
     let cancelled = false;
+    // Only a 404 is a real miss (the route answers 404 for "no such job" AND "another
+    // team's job", so the notice's wording covers both). A 5xx or a dropped connection
+    // is NOT evidence the role is gone — it used to be told to the user as "isn't in
+    // your catalog… may have been removed", which is a claim about the catalog the
+    // client never established. Those simply leave the modal closed; the deep link
+    // re-resolves on the next load.
     fetch(`/api/jobs/${encodeURIComponent(lookupId)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((payload: { job?: Job } | null) => {
+      .then((r) => (r.ok ? r.json() : { missed: r.status === 404 }))
+      .then((payload: { job?: Job; missed?: boolean } | null) => {
         if (cancelled) return;
         if (payload?.job) setOpenJob(payload.job);
-        else setLookupMissed(true);
+        else if (payload?.missed) setLookupMissed(true);
         setLookupId(null);
       })
       .catch(() => {
         if (cancelled) return;
-        setLookupMissed(true);
         setLookupId(null);
       });
     return () => {
