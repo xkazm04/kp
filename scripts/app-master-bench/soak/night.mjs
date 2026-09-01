@@ -297,8 +297,17 @@ try {
   } else if (!row) {
     rec.anomalies.push(`roster has no row for ${wantedId} — wrong DB or wrong tenure, NOT a reporter gap; memory unmeasured tonight`);
   } else {
-    rec.memory = row.appMaster?.memory ?? null;
-    if (rec.memory === null) rec.anomalies.push("the tenure's own roster row carries no memory counts — the reporter sent none this window (longevity unmeasured tonight)");
+    // The last conflation in this block, split (round 12): a row with NO
+    // appMaster block at all is a kp shape change or a non-App-master row —
+    // NOT the Personas reporter gap the taxonomy treats as structural. Weeks
+    // of chasing a Personas memory bug that does not exist is what this line
+    // prevents.
+    if (row.appMaster === undefined || row.appMaster === null) {
+      rec.anomalies.push("the tenure's roster row carries no appMaster block — a kp roster shape change or a non-App-master row; NOT a reporter gap (memory unmeasured tonight)");
+    } else {
+      rec.memory = row.appMaster.memory ?? null;
+      if (rec.memory === null) rec.anomalies.push("the tenure's own roster row carries no memory counts — the reporter sent none this window (longevity unmeasured tonight)");
+    }
   }
 } catch (e) {
   if (!e?.handled) rec.anomalies.push("could not read the roster for memory counts");
