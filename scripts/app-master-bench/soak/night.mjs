@@ -47,8 +47,13 @@ try {
   /* recorded at the read site — the driver will fail loudly on its own */
 }
 
+/** Local calendar date (YYYY-MM-DD) — the soak's unit of time. `night` is a log
+ *  index; DATE is what the gate counts and what gap backfill reasons over. */
+const localDate = (d = new Date()) => d.toLocaleDateString("sv-SE");
+
 const rec = {
   at: new Date().toISOString(),
+  date: localDate(),
   night: null, // filled from the log length below
   ran: false,
   miss: null, // bridge-down | kp-boot-failed | driver-crashed
@@ -82,8 +87,48 @@ async function health(url, ms = 4000) {
 
 function finish() {
   rec.ms = Date.now() - t0;
+  // The classified-miss invariant, STRUCTURAL rather than per-path (review
+  // round 8, which supplied this line): no record may say "did not run" without
+  // saying why — whatever new path future edits invent.
+  if (!rec.ran && !rec.miss) rec.miss = "driver-crashed";
   mkdirSync(SOAK_DIR, { recursive: true });
-  const prior = existsSync(LOG) ? readFileSync(LOG, "utf-8").trim().split("\n").filter(Boolean).length : 0;
+  const lines = existsSync(LOG) ? readFileSync(LOG, "utf-8").trim().split("\n").filter(Boolean) : [];
+  let prior = lines.length;
+  // Calendar-gap backfill (review round 7): a night the task never FIRED wrote
+  // nothing, so the `machine` taxonomy class could never appear and 14 records
+  // were indistinguishable from 14 nights spread over a month. Every calendar
+  // day between the last record and today gets a retrospective `machine` miss —
+  // the silent gap the first design rule forbids is now unrepresentable.
+  try {
+    const last = lines.length ? JSON.parse(lines.at(-1)) : null;
+    const lastDate = last?.date ?? (last?.at ? localDate(new Date(last.at)) : null);
+    if (lastDate) {
+      const cursor = new Date(`${lastDate}T12:00:00`);
+      for (;;) {
+        cursor.setDate(cursor.getDate() + 1);
+        const day = localDate(cursor);
+        if (day >= rec.date) break;
+        prior += 1;
+        appendFileSync(
+          LOG,
+          JSON.stringify({
+            at: new Date().toISOString(),
+            date: day,
+            night: prior,
+            ran: false,
+            miss: "machine",
+            backfilled: true,
+            anomalies: [
+              "the scheduled task did not fire on this calendar day — host asleep, logged off, or powered down (the task is interactive-only, no wake-to-run); recorded retrospectively at the next firing",
+            ],
+            ms: 0,
+          }) + "\n"
+        );
+      }
+    }
+  } catch {
+    rec.anomalies.push("gap backfill failed — calendar continuity of the log is not guaranteed tonight");
+  }
   rec.night = prior + 1;
   appendFileSync(LOG, JSON.stringify(rec) + "\n");
   log(`soak night ${rec.night}: ${rec.ran ? "ran" : `MISS (${rec.miss})`} · anomalies: ${rec.anomalies.length}`);
@@ -211,7 +256,16 @@ try {
     throw { handled: true };
   }
   const wantedId = tenureHandles?.hiredAgentId ?? null;
-  const row = wantedId ? roster.json.agents.find((a) => a.id === wantedId) : null;
+  // The lookup gets its own guard (review round 7b): a payload-shape surprise
+  // inside find/property access must not read as a transport problem — the same
+  // conflation the three-way split below exists to prevent.
+  let row = null;
+  try {
+    row = wantedId ? roster.json.agents.find((a) => a?.id === wantedId) : null;
+  } catch (e) {
+    rec.anomalies.push(`roster payload shape unexpected (${e.message}) — memory unmeasured tonight; NOT a transport problem, the roster answered`);
+    throw { handled: true };
+  }
   // Three DIFFERENT truths, recorded apart — collapsing them was the review's
   // blocking finding: no handle, no row, and a row whose reporter sent nothing.
   if (!wantedId) {
