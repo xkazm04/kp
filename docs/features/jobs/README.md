@@ -50,6 +50,19 @@ JD **markdown** wording only; editing the salary line there changes the
 published wording, not the matchable band, and the salary card says so
 explicitly.
 
+That contract has to survive the edit-time re-sync, and it did not:
+`PATCH /api/jds/[slug]` keeps the linked `jd-<slug>` Job in step with an edited
+body by re-parsing the markdown (`ingestJobAd`) and upserting the result, and
+`insertJob`'s upsert writes `salary_min`/`salary_max` from the parse — so the
+grounded band was replaced by whatever the wording now said (the hand-typed
+override, exactly), or by the taxonomy anchor `normalize_job` stamps as the
+`salary_band` phantom when the edited text states no pay at all. Both ingests
+now pin the band through one helper, `withGroundedBand` (`app/_lib/salary-band.ts`):
+the first ingest passes the analysis's salary, the re-sync passes
+`groundedJdBand(jds.analysis_json)`, and a JD with no usable analysis band (a
+pasted JD, a keyless 0–0 miss) keeps the parsed figure, because for those the
+wording is the only source there is.
+
 ## Templates are a live reformat — a switch warns before discarding edits
 
 The **Template** selector in `JdBuilder` is both a pre-generation choice and a
