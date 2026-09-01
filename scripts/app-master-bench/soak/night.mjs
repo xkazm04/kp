@@ -267,7 +267,10 @@ try {
     rec.anomalies.push("the driver produced NO new run directory this night — nothing below is tonight's data, and nothing stale was read in its place");
   }
 } catch (e) {
-  if (!rec.miss) rec.miss = "driver-crashed";
+  // A record that cannot be READ is record-unreadable, not a crash (round 16):
+  // a driver killed mid-flush or a shape change would otherwise inflate the
+  // crash count with the exact guess round 9 removed.
+  if (!rec.miss) rec.miss = "record-unreadable";
   rec.anomalies.push(`could not read the run record: ${e.message}`);
 }
 

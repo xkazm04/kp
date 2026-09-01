@@ -55,7 +55,9 @@ gap in the log does not.
 
 `{at, night, ran, miss, exitCode, runDir, ideation{ran,lens,authored,blocked},
 c1{proposals,declines,preTenure,undated}, dispatched, budgetSettledUsd,
-memory{core,active,working,archived}, anomalies[], ms}` — `memory` is the
+memory{core,active,working,archived}, anomalies[], ms}` — plus `backfilled:
+true` on retrospective miss rows, which count toward the recorded window and
+NEVER as observations (the gate's ran-quota reads `ran: true` only). `memory` is the
 longevity axis (the persona's tier counts off the roster; the registry's
 coverage-instrumentation applied at the cheapest honest altitude). A `null`
 memory on a night the reporter sent none is recorded as exactly that.
@@ -86,8 +88,10 @@ soak night exhibits it:
 Once a week: read the week's `log.jsonl` rows and the newest proposals; move
 anything real from `anomalies[]` into the taxonomy table with its night numbers;
 accept/reject ideas on the deck (that IS the feedback channel); check the
-memory counts trend. The soak ends at ≥14 recorded nights with the taxonomy
-written — then P4 (the responsibilities layer) is authored FROM it.
+memory counts trend. The soak ends at THE GATE — ≥14 distinct dates recorded,
+≥10 with `ran: true`; count `date` values, never `night` indices, and a
+`backfilled` row is a recorded miss, never an observation — with the taxonomy
+written. Then P4 (the responsibilities layer) is authored FROM it.
 
 ## Abort criteria
 
