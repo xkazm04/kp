@@ -170,3 +170,19 @@ _(dated one-liners; repo-specific learnings from `/explorer` runs land here)_
   `./candidate-nps`) for any module that has them — that is the invocation, not the code.
   Single-file `node --test` still works for modules whose imports are all extension-qualified,
   which is why it looks reliable until it isn't.
+- 2026-09-01 — **The commit-msg hook rejects the skill's `explorer:` subject.** `scripts/release/commit-msg.mjs`
+  only admits conventional types (`fix`, `feat`, `docs`, `security`, …) and also rejects a subject that
+  reads like a report heading ("report a … miss"). Write the subject for the diff — `fix(jobs): …` —
+  and put "Surfaced by /explorer (…, item N)" in the body. Three commits bounced before this was clear.
+- 2026-09-01 — **A source-guard test can pin the SHAPE of a call, not just its presence.**
+  `save-ingest-contract.test.ts` requires `jobId` inside the `insertJob(...)` parentheses; wrapping the
+  argument in a helper broke it. Inline the helper call rather than loosen the guard.
+- 2026-09-01 — **Two unit tests are red on `main` (c6a63199) and are not this area's:**
+  `app/api/decisions/decisions-auth.test.ts` (open-mode reads 500) and
+  `app/api/pipeline/pipeline-routes.test.ts` (reject → `/api/comms?entry=` 500,
+  `request.nextUrl.searchParams` on a plain Request). Verified on a clean `git archive main`.
+- 2026-09-01 — **`scripts/perf/check-budget.mjs` has no `perf-budget.json`** in this checkout, so the
+  module-graph budget for the `job-ingest.ts` hub cannot be run; `ci:budget` is a different check.
+- 2026-09-01 — **This worktree has no `.personas/`** (it lives only in the main checkout), so the
+  memory-outbox step is skipped there; write it from the main checkout if the run is replayed.
+
