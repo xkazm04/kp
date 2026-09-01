@@ -1,6 +1,6 @@
 # App master — the P3 longevity soak
 
-**Status: RUNNING from 2026-09-01.** Subject: tenure `kp-owner`
+**Status: RUNNING from 2026-09-01.** Night 1 ran supervised the same day: authored 7 (business-strategist + ux-reviewer), 36 holder-era proposals, 0 pre-tenure on the wire, marginal cost ~$0 (CLI subscription), one taxonomy entry (`memory-unreported`). Note: the driver exits 1 whenever rankVsBacklog misses — for the SOAK that exit code is a datapoint, not a failure; the runner records and moves on, by design. Subject: tenure `kp-owner`
 (`agent-mtfmew8s-q4o36c` / persona `6f585135…`), hired 2026-08-30, three exam
 nights of history (P2 passed — `app-master-c1-exam.md` §8c). This document is
 the protocol and the taxonomy; the per-night record is
@@ -59,7 +59,7 @@ soak night exhibits it:
 | `ideation-blocked` | scanner refused (quota, scope) — reason recorded | — |
 | `authored-zero` | scanner ran, wrote nothing (backpressure, dedup, drained repo) | — |
 | `dispatch-on-ideation` | the suggest override failed and a branch was authored (exam §6 — CRITICAL) | — |
-| `memory-unreported` | roster carried no tier counts for the window | — |
+| `memory-unreported` | roster carried no tier counts for the window | **1** — and the suspected mechanism makes it structural: episodic write-back is keyed to branch/build events, which rung-0 ideation nights never produce, so an ideation-only soak measures nothing about memory. Personas-side candidate fix: night outcomes (the ideation summary) write a `learned` persona memory even when no branch was authored (§8 already specifies "night outcomes … → persona learned"). Watch nights 2–3 before filing. |
 | `memory-nonmonotonic` | tier counts moved in a way no night explains (wrong decay / wrong consolidation) | — |
 | `recall-wrong` | a night's output contradicts something the memory should have carried (requires reading the proposals — the weekly human pass) | — |
 | `machine` | host asleep, node/npm broken, disk, clock | — |
