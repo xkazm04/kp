@@ -210,7 +210,18 @@ export type JdWriteResult = { ok: true } | { ok: false; reason: "not_found" | "c
  *  JD silently clobbered each other, and the recorded snapshot was the INTERMEDIATE
  *  state, so the lost edit wasn't even reconstructable. Now the read+compare+write run
  *  in ONE synchronous transaction, so a stale base is detected (conflict) and the
- *  caller can prompt "this JD changed — reload". Omit baseBody to force the write. */
+ *  caller can prompt "this JD changed — reload". Omit baseBody to force the write.
+ *
+ *  IMMEDIATE, not the default DEFERRED: a deferred transaction takes only a SHARED
+ *  read lock at the SELECT and does not upgrade until the first write, so a second
+ *  connection (a parallel `next start`, the CLI, a WAL reader-writer) can pass the
+ *  same content-CAS check in the gap and both writes land — last-write-wins, which
+ *  is exactly the failure this function exists to prevent. `.immediate()` takes the
+ *  write lock at BEGIN, so read+compare+write really is one step. Same reasoning as
+ *  `updateIntakeDialog` in intakes.ts. (.claude/CLAUDE.md § "A read→compute→write
+ *  either locks or re-checks"; the other valid strategy — re-asserting `body` in the
+ *  UPDATE's WHERE plus a `changes === 0` skip — would change nothing for the caller
+ *  but is a wider diff for the same guarantee.) */
 export function updateJd(
   slug: string,
   input: { title: string; body: string },
@@ -236,7 +247,7 @@ export function updateJd(
     db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ? AND workspace_id = ?`).run(input.title, input.body, slug, workspaceId);
     return { ok: true };
   });
-  return tx();
+  return tx.immediate();
 }
 
 export type JdRevision = { id: number; slug: string; title: string; body: string; created_at: string };
@@ -271,7 +282,9 @@ export type JdRevertResult =
  *  first (a revert is itself an edit, so it's undoable too), then overwrites. Same
  *  content-CAS as updateJd: `baseBody` is what the page showed when "Revert" was
  *  clicked — if the live body changed since, the revert is refused (conflict) so it
- *  can't silently bury an edit made in the gap. Returns the restored {title, body}. */
+ *  can't silently bury an edit made in the gap. Returns the restored {title, body}.
+ *  IMMEDIATE for the same reason updateJd is — the CAS is only atomic if the write
+ *  lock is held from the SELECT. */
 export function revertJd(
   slug: string,
   revisionId: number,
@@ -298,7 +311,7 @@ export function revertJd(
     db.prepare(`UPDATE jds SET title = ?, body = ? WHERE slug = ? AND workspace_id = ?`).run(rev.title, rev.body, slug, workspaceId);
     return { ok: true, title: rev.title, body: rev.body };
   });
-  return tx();
+  return tx.immediate();
 }
 
 /** Archive / unarchive a JD (W8-4). Archived JDs leave listJds and the
