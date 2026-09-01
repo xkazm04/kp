@@ -193,7 +193,15 @@ The ones that actually bite:
   not work around it (next-intl keys are also TYPED: a `t("missing.key")` is a
   `tsc` error, so an incomplete catalog breaks `npm run typecheck` for
   everyone).
-- **Design tokens:** see the design-system section above (`design:check` is the gate).
+- **Design tokens:** see the design-system section above. TWO gates hold it, and
+  they hold different halves: `npm run lint` catches a raw hex or inline `rgba()`
+  in a component (`no-restricted-syntax` in `eslint.config.mjs`), `npm run
+  design:check` catches `brand.ts` ↔ `globals.css` drift and a shade with no dark
+  mapping. The lint half was silently dead for months — flat config REPLACES a
+  rule's options, and a later `no-restricted-syntax` block shadowed it. If you add
+  a block there, spread every existing selector group into it;
+  `app/lint-selector-coverage.test.ts` asks eslint what it actually resolved and
+  fails if you don't.
 - **Never `await` inside a `db.transaction()`.** better-sqlite3 transactions are
   synchronous; an await yields the event loop between BEGIN and COMMIT and the
   atomicity is silently gone — no error, no failing test. Do the slow work (LLM
@@ -225,6 +233,21 @@ The ones that actually bite:
 - **`maxDuration` is serverless-only.** Self-hosted `next start` does not kill
   long handlers — route-level timeouts (e.g. the extract-text child-process
   timeout) are the real bound; don't rely on the platform.
+- **A failure is answered with a CODE, never with the thrown error's message.**
+  One vocabulary, produced once, consumed by everyone: `STORE_ERRORS` (an
+  accident whose real message must be hidden) and `REFUSAL_ERRORS` (a decision
+  whose message IS the information) in `app/_lib/api-response.ts`. A catch that
+  can surface a store error answers `safeJsonError(err, "api:<route>", "<CODE>")`
+  — the raw error goes to the server log, the client gets the generic message
+  plus the code. `jsonError` forwards `.message` and is for messages that are
+  already client-safe. The client never renders the server's `error` string:
+  `useErrorMessage()` resolves `errors.<CODE>` in the reader's language (the
+  inverted `body.error ?? t(…)` fallback chain was on 84 call sites and shipped
+  English to every locale). `npm run i18n:check` pins both registries to the
+  catalogs, so a new code means four catalogue entries in the same change, and
+  `app/api/error-response-contract.test.ts` ratchets the ~80 handlers that still
+  forward a raw message — never add a line to its ceiling to go green. Full
+  contract: `docs/architecture/api-contracts.md` §1.1.
 - **Candidate token routes carry a projection, not the row.** Public
   `[token]` responses expose an explicit field allowlist (see
   `publicInviteView` in `app/api/schedule/[token]/route.ts`) — never serialize
