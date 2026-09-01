@@ -30,6 +30,16 @@ const PERSONAS_URL = process.env.SOAK_PERSONAS_URL ?? "http://127.0.0.1:9420";
 const DB = process.env.SOAK_KP_DB ?? path.join(process.env.LOCALAPPDATA ?? "", "kp-bench", "kp-soak.sqlite");
 const BACKLOG = process.env.SOAK_BACKLOG ?? path.join(ROOT, "uat", "value", "backlog-2026-08-31.json");
 const TENURE = process.env.SOAK_TENURE ?? "kp-owner";
+// The tenure FILE is the source of the roster handle — never a hardcoded id
+// fragment, or a re-pointed SOAK_TENURE silently reads the wrong row and
+// "memory unreported" conflates three different truths (review 2026-09-01).
+const TENURE_FILE = existsSync(TENURE) ? TENURE : path.join(ROOT, "scripts", "app-master-bench", "tenures", `${TENURE}.json`);
+let tenureHandles = null;
+try {
+  tenureHandles = JSON.parse(readFileSync(TENURE_FILE, "utf-8"));
+} catch {
+  /* recorded at the read site — the driver will fail loudly on its own */
+}
 
 const rec = {
   at: new Date().toISOString(),
@@ -172,9 +182,18 @@ try {
 // ── 5. Longevity axis: persona-memory tier counts off the roster ────────────
 try {
   const roster = await health(`${KP_URL}/api/agents`);
-  const row = roster.json?.agents?.find((a) => a.id.includes("mtfmew8s"));
-  rec.memory = row?.appMaster?.memory ?? null;
-  if (rec.memory === null) rec.anomalies.push("roster carries no memory counts — the reporter sent none this window (longevity unmeasured tonight)");
+  const wantedId = tenureHandles?.hiredAgentId ?? null;
+  const row = wantedId ? roster.json?.agents?.find((a) => a.id === wantedId) : null;
+  // Three DIFFERENT truths, recorded apart — collapsing them was the review's
+  // blocking finding: no handle, no row, and a row whose reporter sent nothing.
+  if (!wantedId) {
+    rec.anomalies.push(`tenure file ${TENURE_FILE} unreadable or missing hiredAgentId — memory unmeasured AND unattributable tonight`);
+  } else if (!row) {
+    rec.anomalies.push(`roster has no row for ${wantedId} — wrong DB or wrong tenure, NOT a reporter gap; memory unmeasured tonight`);
+  } else {
+    rec.memory = row.appMaster?.memory ?? null;
+    if (rec.memory === null) rec.anomalies.push("the tenure's own roster row carries no memory counts — the reporter sent none this window (longevity unmeasured tonight)");
+  }
 } catch {
   rec.anomalies.push("could not read the roster for memory counts");
 }
