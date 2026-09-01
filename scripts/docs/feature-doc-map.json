@@ -303,6 +303,14 @@
       ]
     },
     {
+      "doc": "docs/architecture/voice-stt-package.md",
+      "sourceGlobs": [
+        "packages/voice-stt/**",
+        "app/_lib/stt.ts",
+        "app/api/stt/**"
+      ]
+    },
+    {
       "doc": "docs/architecture/llm-provider-layer.md",
       "sourceGlobs": [
         "pipeline/jobfit/llm/**",

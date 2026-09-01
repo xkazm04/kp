@@ -1,0 +1,11 @@
+{
+  "name": "@kazm/voice-stt",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-provider speech-to-text: one interface, cloud + on-device adapters, honest probes, host-bound preference, capability-gated resolution. Source-only package: copy or link the directory; no build step, no host imports.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./providers/*": "./src/providers/*.ts"
+  }
+}

@@ -6,22 +6,27 @@ bound into kp by `app/_lib/tts.ts`, served by `app/api/tts/route.ts`, compared b
 lives in the ai-registry (`voice-io` → technique `portable-provider-package`); this page is
 kp's realization of it.
 
-## Two voice planes, one preference story
+## Three voice planes, one preference story
 
-kp speaks in two different ways, and they are deliberately separate registries:
+kp handles voice in three different ways, and they are deliberately separate registries:
 
 | Plane | What it is | Registry | Preference var |
 | --- | --- | --- | --- |
 | **Conversation** | a live duplex session: the provider listens, (sometimes) decides, and speaks — OpenAI Realtime, ElevenLabs Agents, or a self-hosted Agents-protocol server | `app/_lib/voice/` (`VoiceAdapter`) | `KP_VOICE_PROVIDER` (openai \| elevenlabs), honored by `pickDefaultProvider` only when that provider is configured |
 | **Spoken output** | text → one audio clip, no listening | `packages/voice-tts` (`TtsProvider`) | `KP_TTS_PROVIDER` (preferred) + `KP_TTS_PROVIDERS` (compare set) |
+| **Transcription** | one audio clip → text, no speaking — see [voice-stt-package.md](./voice-stt-package.md) | `packages/voice-stt` (`SttProvider`) | `KP_STT_PROVIDER` + `KP_STT_PROVIDERS` |
 
-The onboarding skill (`/onboarding voice`) asks both questions and writes both vars. They
-are not merged on purpose: a conversation provider owns turn-taking and barge-in and is
-priced per minute; a TTS provider owns one utterance and is priced per character or runs
-free on-device. The registry's `duplex-agent-sessions` technique governs the first, the
-TTS package the second. The relay-mode path (`docs/architecture/voice-conversation-plane.md`)
-is where the two will meet: a transport-only conversation provider's `speak(text)` can be
-served by this package once a streaming local engine is worth it.
+The onboarding skill (`/onboarding voice`) asks the first two questions and writes both
+vars. They are not merged on purpose: a conversation provider owns turn-taking and barge-in
+and is priced per minute; a TTS provider owns one utterance and is priced per character or
+runs free on-device; an STT provider owns one recording, is priced per audio hour, and is
+the only one of the three whose input is a person's voice rather than kp's own words — which
+is why its package makes on-device the default and gates resolution on capabilities the
+other two do not have. The registry's `duplex-agent-sessions` technique governs the first,
+this package the second, `stt-pipeline` + `on-device-vs-cloud` the third.
+The relay-mode path (`docs/architecture/voice-conversation-plane.md`) is where they will
+meet: a transport-only conversation provider's `speak(text)` can be served by this package,
+and its listening half by the STT one, once a streaming local engine is worth it.
 
 ## The package contract (what makes it reusable)
 

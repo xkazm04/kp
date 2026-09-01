@@ -86,6 +86,16 @@ test("FILE_TOO_LARGE_STATUS is 413", () => {
   assert.equal(FILE_TOO_LARGE_STATUS, 413);
 });
 
+// The audio gate is a SECOND ceiling and the SAME two statuses. The failure this
+// pins is the tempting one: an audio route that answers "too big" with a bare
+// 400 because 25 MB felt like a different kind of problem than 8 MB did.
+test("the audio gate reaches the same FILE_TOO_LARGE_STATUS", () => {
+  const src = read("../_lib/upload-constraints.ts");
+  const branch = src.match(/file\.size > MAX_AUDIO_BYTES[\s\S]{0,160}?status:\s*([A-Za-z0-9_]+)/);
+  assert.ok(branch, "expected a `file.size > MAX_AUDIO_BYTES` guard returning a status");
+  assert.equal(branch[1], "FILE_TOO_LARGE_STATUS", "the audio over-limit branch must return FILE_TOO_LARGE_STATUS");
+});
+
 // The THIRD enforcement point, and the one nothing pinned until now: two more upload
 // routes (`/api/sim/apply-cv`, `/api/channels/inbound/[token]`) never call
 // validateUploadServer themselves — they hand the File to `extractUploadedText`, which
@@ -129,8 +139,12 @@ test("every file-accepting route reaches the one shared upload gate", () => {
   const unguarded = uploaders
     .filter((f) => {
       const s = readFileSync(f, "utf8");
-      // Either gate is fine; both are CALLS, and both end at MAX_FILE_BYTES/413.
-      return !/validateUploadServer\(/.test(s) && !/extractUploadedText\(/.test(s);
+      // Any of the three gates is fine; all are CALLS, and all end at 413 for
+      // "too big" / 400 for "wrong kind". validateAudioUploadServer is the AUDIO
+      // twin (/api/stt): a different ceiling and a different type list, because
+      // 8 MB of PDF/DOCX/TXT/MD is the wrong contract for a recording — but the
+      // same two statuses, which is the part that must never fork.
+      return !/validateUploadServer\(/.test(s) && !/extractUploadedText\(/.test(s) && !/validateAudioUploadServer\(/.test(s);
     })
     .map((f) => path.relative(apiDir, f).replace(/\\/g, "/"))
     .sort();

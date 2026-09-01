@@ -9,11 +9,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  ACCEPT_AUDIO_MIME,
   acceptUpload,
   FILE_TOO_LARGE_STATUS,
   fileTooLargeMessage,
+  MAX_AUDIO_BYTES,
+  MAX_AUDIO_MB,
   MAX_FILE_BYTES,
   MAX_FILE_MB,
+  validateAudioUploadServer,
   validateOptionalUploadServer,
   validateUploadServer,
 } from "./upload-constraints.ts";
@@ -136,4 +140,31 @@ test("validateOptionalUploadServer treats a missing or empty field as accepted",
 test("validateOptionalUploadServer validates a present file like validateUploadServer", () => {
   const rejection = validateOptionalUploadServer(fileOf("scan.jpg", 1024, "image/jpeg"), "company overview");
   assert.deepEqual(rejection, { status: 400, error: "Use PDF, DOCX, TXT, or MD for the company overview." });
+});
+
+// ── The audio contract (voice-stt package, /api/stt) ─────────────────────────
+
+test("validateAudioUploadServer: over-limit is the SHARED 413, wrong kind is a 400", () => {
+  assert.equal(validateAudioUploadServer(fileOf("clip.wav", 1024, "audio/wav"), "recording"), null);
+  assert.deepEqual(validateAudioUploadServer(fileOf("clip.wav", MAX_AUDIO_BYTES + 1, "audio/wav"), "recording"), {
+    status: FILE_TOO_LARGE_STATUS,
+    error: `The recording exceeds the ${MAX_AUDIO_MB} MB upload limit.`,
+  });
+  assert.equal(validateAudioUploadServer(fileOf("cv.pdf", 1024, "application/pdf"), "recording")?.status, 400);
+});
+
+test("validateAudioUploadServer refuses an untyped blob rather than guessing", () => {
+  // No empty-MIME fallback, unlike the document gate: guessing wrong here means
+  // spawning an engine or spending a per-audio-hour rate on a file that is not audio.
+  assert.equal(validateAudioUploadServer(fileOf("clip.wav", 1024, ""), "recording")?.status, 400);
+});
+
+test("the boundary's audio MIME list matches the package's validation door", async () => {
+  // types.ts only — the package index reaches node:fs, and this module is
+  // imported by client components. The door is the authority; ACCEPT_AUDIO_MIME
+  // is the boundary copy, and a copy nothing compares is a copy that drifts:
+  // accepting a container here that the door rejects turns a 400 at the edge
+  // into a 400 after the upload has already been paid for.
+  const { STT_MIME_TYPES } = await import("../../packages/voice-stt/src/types.ts");
+  assert.deepEqual([...ACCEPT_AUDIO_MIME].sort(), [...STT_MIME_TYPES].sort());
 });

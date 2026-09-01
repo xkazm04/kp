@@ -131,6 +131,55 @@ export function validateUploadServer(file: File, label: string): ServerUploadRej
   return null;
 }
 
+// ── The audio upload contract (voice-stt package, /api/stt) ─────────────────
+// A SECOND ceiling, deliberately, and one status. Documents and audio are
+// different kinds with different honest limits — 8 MB is a generous CV and a
+// laughable interview clip, while the PDF/DOCX/TXT/MD type gate would reject
+// every WAV ever recorded. What must NOT fork is how the boundary reports a
+// refusal: "too big" is FILE_TOO_LARGE_STATUS (413) and "wrong kind" is 400
+// wherever a file enters, so a client can branch on the status without knowing
+// which endpoint it hit.
+//
+// The MIME list pairs with STT_MIME_TYPES in packages/voice-stt/src/types.ts —
+// the package's validation door is the authority and this is the boundary copy,
+// because this module is imported by client components and the package's index
+// reaches node:fs. upload-constraints.test.ts asserts the two agree, so the copy
+// cannot drift into accepting a container the door will reject.
+export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+export const MAX_AUDIO_MB = 25;
+
+export const ACCEPT_AUDIO_MIME = new Set([
+  "audio/wav",
+  "audio/x-wav",
+  "audio/mpeg",
+  "audio/mp4",
+  "audio/webm",
+  "audio/ogg",
+  "audio/flac",
+]);
+
+/**
+ * The server gate for an uploaded audio File — the audio twin of
+ * validateUploadServer, ending at the SAME 413 for size and 400 for type.
+ * `label` names the offending input ("recording", "interview clip", …).
+ * Returns null when the file is accepted.
+ *
+ * No empty-MIME fallback here, unlike the document gate: a browser recording
+ * always carries a type, and audio has no short extension list worth trusting
+ * in its place — an unnamed blob claiming nothing is refused rather than
+ * guessed at, because guessing wrong means spawning a transcription engine or
+ * spending a vendor's per-hour rate on a file that is not audio.
+ */
+export function validateAudioUploadServer(file: File, label: string): ServerUploadRejection | null {
+  if (!ACCEPT_AUDIO_MIME.has(file.type)) {
+    return { status: 400, error: `Use WAV, MP3, M4A, WebM, OGG or FLAC for the ${label}.` };
+  }
+  if (file.size > MAX_AUDIO_BYTES) {
+    return { status: FILE_TOO_LARGE_STATUS, error: `The ${label} exceeds the ${MAX_AUDIO_MB} MB upload limit.` };
+  }
+  return null;
+}
+
 /**
  * validateUploadServer for an optional form field: a missing or empty entry is
  * not an error (returns null); a present File is validated. Use for fields like

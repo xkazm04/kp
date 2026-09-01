@@ -80,6 +80,18 @@ const ROUTES: RouteSpec[] = [
     expensive: "getTts().speak(",
   },
   {
+    // ADDED with the route (voice-stt package). The TIGHTEST of the three voice
+    // routes on purpose: one call here is billed per audio HOUR on the cloud
+    // path (AssemblyAI) and occupies a CPU for minutes on the local one
+    // (whisper.cpp), where /api/tts's unit is a sentence. 20/10min per IP.
+    rel: "./stt/route.ts",
+    key: "`stt:${clientIpFrom(request.headers)}`",
+    limit: 20,
+    optsSrc: "STT_RATE_LIMIT",
+    optsDef: "const STT_RATE_LIMIT = { limit: 20, windowMs: 10 * 60_000 };",
+    expensive: "getStt().transcribe(",
+  },
+  {
     rel: "./analyze/route.ts",
     // Per-IP. 30/10min: the UI submits ONE request per run (multi-CV variants
     // ride together inside it), so a single operator never hits this.
