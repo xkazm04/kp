@@ -60,8 +60,11 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
 //   { archived: bool }   — archive/unarchive (archived JDs leave listJds and
 //                          the pickers; the public page renders with a banner).
 export async function PATCH(request: Request, context: { params: Promise<{ slug: string }> }) {
-  // The JD detail page is public/shareable, so edit + archive must be recruiter-only
-  // at the handler — not just hidden in the UI. GET above stays public.
+  // The JD detail PAGE (/jds/[slug]) is public/shareable, so edit + archive must be
+  // recruiter-only at the handler — not just hidden in the UI. This API route is
+  // not: `/api/jds/*` sits behind the session gate (public-routes.ts), and GET above
+  // serves the caller's own library — an earlier revision of this comment called
+  // that GET "public", which it never was.
   const denied = await requireOperator();
   if (denied) return denied;
   const { slug } = await context.params;
