@@ -52,6 +52,16 @@ gap in the log does not.
   named); a soak survivor blocks the next `dev:empty`, never plain `dev`.
   Giving the soak its own distDir needs a `next.config.ts` change — a named
   future item, deliberately not smuggled into the soak kit.
+- **Known collision — the soak can block YOUR push.** `.next-empty/dev/types/**`
+  is in `tsconfig.json`'s `include` (dev:empty's route types are checked), and a
+  bench server killed mid-generation leaves `validator.ts` referencing a
+  `routes.d.ts` that does not exist yet — so `npm run typecheck`, and therefore
+  the pre-push gate, fails on a file no human wrote. Observed 2026-09-01.
+  Unblock: hit any route on the running bench server (`curl
+  localhost:3103/api/health`) so Next finishes writing the types, or delete
+  `.next-empty/dev/types/` while no server is running. The durable fix is a
+  distDir of the soak's own — the same `next.config.ts` change the dev-lock
+  collision above already wants.
 - **The Personas app is the operator's** and stays running for the soak. The
   runner never boots it: down ⇒ a recorded `bridge-down` miss. That is a
   measurement, not a failure of the runner — bench-machine fragility is half
