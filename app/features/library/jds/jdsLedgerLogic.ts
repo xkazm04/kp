@@ -6,10 +6,10 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
-import { useTableSort } from "@/app/_components/table/useTableSort";
+import { compareCells, useTableSort } from "@/app/_components/table/useTableSort";
 import { useJdLibrary } from "./jdsHooks";
 import {
   coachHandoffBlock,
@@ -153,14 +153,26 @@ export function useLedgerLogic() {
   // Column-header dropdown options, each sorted by display name ascending. Field
   // and Seniority are data-driven facets (only values present in the library);
   // Status is the curated lifecycle enum with its per-status counts.
+  //
+  // The labels are TRANSLATED, so they collate under the READER's locale — the same
+  // rule the table body below already gets for free from useTableSort, through the
+  // same collator. A bare `localeCompare()` uses the runtime default, which is the
+  // SERVER's locale during SSR and the browser's after hydration: under `en` a Czech
+  // reader's Field menu orders "Švec, Sýkora" where they expect "Sýkora, Švec", and
+  // the two orders disagree across hydration. See compareCells.
+  const locale = useLocale();
+  const byLabel = useCallback(
+    (a: { label: string }, b: { label: string }) => compareCells(a.label, b.label, "asc", locale),
+    [locale]
+  );
   const fieldOptions = useMemo<FilterOption[]>(
     () =>
       rows
         ? facetCounts(rows, (r) => r.roleFamily)
             .map((o) => ({ value: o.value, label: enumLabel("family", o.value), count: o.count }))
-            .sort((a, b) => a.label.localeCompare(b.label))
+            .sort(byLabel)
         : [],
-    [rows, enumLabel]
+    [rows, enumLabel, byLabel]
   );
   const seniorityOptions = useMemo<FilterOption[]>(
     () =>
@@ -172,9 +184,9 @@ export function useLedgerLogic() {
               // to labelize for any value without an entry) — no per-file English.
               return { value: o.value.toLowerCase(), label: enumLabel("seniority", o.value), count: o.count, icon: meta?.icon };
             })
-            .sort((a, b) => a.label.localeCompare(b.label))
+            .sort(byLabel)
         : [],
-    [rows, enumLabel]
+    [rows, enumLabel, byLabel]
   );
   // Status-filter labels resolve to the SAME localized chip vocabulary the badges
   // use, so a filter option and the chip it selects for can never disagree.
@@ -196,9 +208,9 @@ export function useLedgerLogic() {
     () =>
       STATUS_FILTERS.filter((f) => f.value !== "all")
         .map((f) => ({ value: f.value, label: statusFilterLabel(f.value), count: counts ? counts[f.value] : undefined }))
-        .sort((a, b) => a.label.localeCompare(b.label)),
+        .sort(byLabel),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [counts, t]
+    [counts, t, byLabel]
   );
 
   return {

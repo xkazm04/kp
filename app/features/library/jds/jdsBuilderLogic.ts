@@ -12,6 +12,7 @@ import { builderLintFindings, type GeneratePrefill } from "./jdsLibrary";
 import { fetchTemplates, type Template } from "@/app/features/shared/renderTemplate";
 import { validateJdBuildInput, validateJdFields } from "@/app/_lib/jd-limits";
 import { useEnumLabel } from "@/app/_lib/use-enum-label";
+import { compareCells } from "@/app/_components/table/useTableSort";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { ROLE_FAMILY_SLUGS } from "@/app/_lib/role-families";
 import { readClientOrgName } from "@/app/_lib/org-settings";
@@ -85,10 +86,17 @@ export function useJdBuilderLogic({ onSaved, prefill }: { onSaved: () => void; p
   // is a dev-role feature, so it's shown AND submitted only for software roles.
   const isSoftware = roleFamily === "software_engineering";
   // Field options sorted by display name ascending (the raw slug order is grouped
-  // by domain, not alphabetical).
+  // by domain, not alphabetical). The labels are TRANSLATED, so they collate under
+  // the READER's locale, not the runtime default — `appLocale` is already read above
+  // for the JD's output language. A bare `localeCompare()` sorts the Czech field list
+  // under `en` on the server and under the browser's locale after hydration, and the
+  // two disagree. Same collator the shared tables use (see compareCells).
   const familyOptions = useMemo(
-    () => FAMILIES.map((f) => ({ value: f, label: enumLabel("family", f) })).sort((a, b) => a.label.localeCompare(b.label)),
-    [enumLabel]
+    () =>
+      FAMILIES.map((f) => ({ value: f, label: enumLabel("family", f) })).sort((a, b) =>
+        compareCells(a.label, b.label, "asc", appLocale)
+      ),
+    [enumLabel, appLocale]
   );
 
   // ── Generate: the backgrounded, checklist-driven AI build ──────────────────
