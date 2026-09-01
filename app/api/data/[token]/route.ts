@@ -4,16 +4,35 @@ import { getJob } from "@/app/_lib/db/jobs";
 import { anonymizeEntry, findEntryByErasureToken } from "@/app/_lib/db/pipeline";
 import { heldDataCategories } from "@/app/_lib/data-held";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
+import { clientIpFrom, rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 
+// Abuse containment (2026-09-01): this was the one public token door with NO
+// throttle while status / offer / schedule / apply all have one — and its POST is
+// the most consequential public write in the product, an IRREVERSIBLE scrub. The
+// token is a strong CSPRNG capability, so this is not guessing prevention: it caps
+// what a single link-holder (or a logged/leaked link) can do per minute, and it
+// runs BEFORE the token lookup so a flood is rejected without touching the store.
+// Keyed by token AND client, like the status route, so the untrusted-proxy shared
+// client key still gives each candidate their own bucket.
+//
+// The read side mirrors the status bound: DataClient loads once and re-reads after
+// an erasure; 60/min leaves more than an order of magnitude of headroom. The erase
+// side is tighter: one candidate erases once, so 10/min is generous for a human and
+// hostile to a script.
+const DATA_VIEW_RATE_LIMIT = { limit: 60, windowMs: 60_000 };
+const DATA_ERASE_RATE_LIMIT = { limit: 10, windowMs: 60_000 };
 
 // Public, token-gated GDPR self-service data endpoint (right to erasure, Art. 17).
 // The token is the entry's opaque erasure capability (ensureErasureToken), carried
 // by the "manage your data" footer on every candidate comm. Like the status route,
 // it returns a candidate-safe projection only — role/company/applied-date + consent
 // expiry — never the internal entry id, name, score, archetype or reasoning.
-export async function GET(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params;
+    if (!rateLimit(`data-view:${clientIpFrom(request.headers)}:${token}`, DATA_VIEW_RATE_LIMIT)) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     const entry = findEntryByErasureToken(token);
     if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
     const company = entry.jobId ? getJob(entry.jobId)?.company ?? null : null;
@@ -40,9 +59,14 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ to
 // Candidate-initiated erasure: scrub PII while retaining the de-identified
 // recruitment record (anonymizeEntry, reason "erasure"). Idempotent — the token is
 // nulled on first erasure, so a replay simply 404s. No body required.
-export async function POST(_request: NextRequest, context: { params: Promise<{ token: string }> }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   try {
     const { token } = await context.params;
+    // Throttle BEFORE the lookup: an irreversible write must never be the cheap
+    // thing a flood reaches first.
+    if (!rateLimit(`data-erase:${clientIpFrom(request.headers)}:${token}`, DATA_ERASE_RATE_LIMIT)) {
+      return NextResponse.json({ error: RATE_LIMITED_ERROR }, { status: 429 });
+    }
     const entry = findEntryByErasureToken(token);
     if (!entry) return NextResponse.json({ error: "not found" }, { status: 404 });
     // Tenant (P1): erase inside the entry's OWN team. anonymizeEntry scrubs under
