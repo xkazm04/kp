@@ -430,6 +430,14 @@ destroying it. Same contract in the composer: a refused exchange
 (`send` → false) hands the typed message back rather than losing it with the
 rolled-back optimistic bubble.
 
+The pane's three form controls (note title, note body, JD picker) carry no
+visible `<label>` — it is a compact rail — so each names itself with an
+`aria-label` reusing the very key its placeholder renders. A placeholder is not
+an accessible name: it is not exposed as one by every AT and it vanishes once
+the field has content, so re-entering a half-typed note title announced only
+"edit text". Same idiom as the inline title field in `JdsIntakeBriefTitle`, and
+no catalog entry is added — the spoken name is the visible hint.
+
 Grounding: the dialog prompt gains a fenced `ATTACHED_MATERIAL` block
 (`intake.py::_attachments_block`, budget-truncated to ~8k chars total) framed
 as THIRD-PARTY reference data — the agent may mine it, but values proposed

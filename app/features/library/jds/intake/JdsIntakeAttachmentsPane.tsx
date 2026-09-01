@@ -116,15 +116,25 @@ export function JdsIntakeAttachmentsPane({
             </motion.div>
           ) : mode === "note" ? (
             <motion.div key="note" {...fade} className="space-y-2">
+              {/* A placeholder is not an accessible name: it is not exposed as one by
+                  every AT, and it disappears the moment the field has content — so a
+                  screen-reader user re-entering the note title hears "edit text" and
+                  nothing else. These three controls carry no visible <label> by design
+                  (the pane is a compact rail), so they name themselves. The same
+                  strings, through the same keys: no catalog entry is added, and the
+                  spoken name matches the visible hint exactly. Idiom borrowed from
+                  JdsIntakeBriefTitle's inline title field one directory over. */}
               <input
                 className={`${FIELD} w-full`}
                 value={title}
+                aria-label={t("noteTitlePlaceholder")}
                 placeholder={t("noteTitlePlaceholder")}
                 onChange={(e) => setTitle(e.target.value)}
               />
               <textarea
                 className={`${FIELD} min-h-[8rem] w-full resize-y`}
                 value={text}
+                aria-label={t("notePlaceholder")}
                 placeholder={t("notePlaceholder")}
                 onChange={(e) => setText(e.target.value)}
               />
@@ -144,7 +154,7 @@ export function JdsIntakeAttachmentsPane({
             </motion.div>
           ) : (
             <motion.div key="jd" {...fade} className="space-y-2">
-              <select className={`${FIELD} w-full`} value={jdSlug} onChange={(e) => setJdSlug(e.target.value)}>
+              <select className={`${FIELD} w-full`} aria-label={t("jdPick")} value={jdSlug} onChange={(e) => setJdSlug(e.target.value)}>
                 <option value="">{t("jdPick")}</option>
                 {(jds ?? []).map((j) => (
                   <option key={j.slug} value={j.slug}>
