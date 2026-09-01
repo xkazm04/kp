@@ -480,6 +480,19 @@ and out, the draft crossfades on brief change —
 all flattened under `prefers-reduced-motion`. Both themes are covered at the
 token/recipe level (dark rounded-2xl / sticker shadows on the new surfaces).
 
+### Per-session state does not survive a session switch
+
+`JdsIntakePanel` is mounted **once** (dynamically, by `JdsSavedLedger`) and swaps
+`active` underneath itself — there is no `key`, so nothing inside it remounts when
+the requestor goes Back and opens a different intake. The async half of this was
+already handled: every late voice/compose result is folded through the
+identity-checked `applySession`, "so a result must name the session it belongs to."
+`useAppMasterLogic`'s **synchronous** state now follows the same rule. `scanState`,
+`composeError` and `dispatchState` are cleared in a render-phase guard keyed on the
+intake id (the `jobsTabDeepLink.ts` shape — an effect would let one frame render the
+previous session's claims). `paired` is not reset: the Personas bridge is
+workspace-level, not per-session. Pinned by `jdsIntakeLogic.test.ts`.
+
 ## Known gaps
 
 - Dialog languages are en/cs (UI chrome is 4-locale); de/fr dialogs fall back

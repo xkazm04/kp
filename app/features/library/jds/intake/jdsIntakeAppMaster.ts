@@ -140,6 +140,35 @@ export function useAppMasterLogic(
   const [dispatchState, setDispatchState] = useState<DispatchState>({ status: "idle" });
   const isAppMaster = active?.shape === "app_master";
 
+  // ---- Per-session state does not outlive its session --------------------------
+  //
+  // `scanState`, `composeError` and `dispatchState` each answer a question about ONE
+  // session ("is that session's scan still running", "was that session dispatched"),
+  // but the hook outlives the session: JdsIntakePanel is mounted once by
+  // JdsSavedLedger and swaps `active` underneath it, with no `key` to force a
+  // remount. Without this reset a session switch carried the previous session's
+  // answers onto the new screen:
+  //   - `scanState` (set to e.g. "running" and left there when the watch effect
+  //     early-returns for a session with no scanId) kept rendering "reading the
+  //     codebase…" as JdsIntakePanel's `statusNote` under an unrelated session's
+  //     opener;
+  //   - `dispatchState: "sent"` kept the App-master card claiming "sent to Personas"
+  //     and kept the Dispatch button DISABLED for a session that was never
+  //     dispatched, with a full page reload the only way out.
+  //
+  // Render-phase adjustment rather than an effect, the same shape jobsTabDeepLink.ts
+  // uses for its once-per-param guard: an effect would let one frame render with the
+  // previous session's claims. `paired` is deliberately NOT reset — the Personas
+  // bridge is workspace-level, not per-session, and re-reading it on every switch is
+  // a wasted round trip.
+  const [stateForIntake, setStateForIntake] = useState<string | null>(intakeId);
+  if (stateForIntake !== intakeId) {
+    setStateForIntake(intakeId);
+    setScanState(null);
+    setComposeError(null);
+    setDispatchState({ status: "idle" });
+  }
+
   useEffect(() => {
     if (!isAppMaster || paired !== null) return;
     let cancelled = false;

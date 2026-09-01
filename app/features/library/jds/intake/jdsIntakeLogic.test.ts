@@ -5,6 +5,9 @@
 // it belongs to. Runner: `npm run test:unit`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import {
   foldVoiceExchange,
   foldVoiceSweep,
@@ -112,4 +115,30 @@ test("a repo-scan response is read through its { scan } wrapper, never flat", ()
   assert.equal(readRepoScanResponse({ error: "Repo scan not found." }), null);
   assert.equal(readRepoScanResponse({ scan: null }), null);
   assert.equal(readRepoScanResponse(null), null);
+});
+
+// The same "a result must name the session it belongs to" rule this file opens
+// with, applied to the App-master hook's SYNCHRONOUS state. `applySession` already
+// identity-checks every late async result; `scanState`, `composeError` and
+// `dispatchState` had no such guard and simply outlived their session, because
+// JdsIntakePanel is mounted ONCE by JdsSavedLedger (no `key`) and swaps `active`
+// underneath the hook. A session switch then carried a "reading the codebase…"
+// note onto an unrelated session, and a `sent` dispatch state that disabled the
+// Dispatch button for a session nobody had dispatched. Asserted at the source: the
+// hook needs React to run, and the property is structural, not computational.
+test("useAppMasterLogic resets its per-session state when the intake changes", () => {
+  const src = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "jdsIntakeAppMaster.ts"), "utf8");
+
+  const at = src.indexOf("if (stateForIntake !== intakeId) {");
+  assert.ok(at > 0, "the per-session reset guard moved — re-point this assertion");
+  // To the guard's own closing brace at hook indentation — an inner `}` belongs to
+  // an object literal (`{ status: "idle" }`), not to the block.
+  const block = src.slice(at, src.indexOf("\n  }", at));
+  for (const reset of ["setScanState(null)", "setComposeError(null)", 'setDispatchState({ status: "idle" })']) {
+    assert.ok(block.includes(reset), `a session switch must clear ${reset}`);
+  }
+
+  // NON-VACUITY: `paired` is bridge-level, not per-session, and must NOT be in
+  // the reset — clearing it re-fetches /api/agents/bridge on every switch.
+  assert.ok(!block.includes("setPaired("), "the bridge pairing is not per-session state");
 });
