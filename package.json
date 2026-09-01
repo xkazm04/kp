@@ -64,6 +64,7 @@
     "bench:gate": "node scripts/app-master-bench/gate.mjs",
     "test:bench-driver": "node --test \"scripts/app-master-bench/*.test.mjs\"",
     "design:check": "node scripts/design/check-design-tokens.mjs",
+    "onboard:ui": "node scripts/onboard-ui/server.mjs",
     "polar:setup": "node --import ./scripts/test-alias-loader.mjs --experimental-transform-types --disable-warning=ExperimentalWarning scripts/polar-setup.mjs",
     "market:build": "node scripts/build-market-pulse.mjs",
     "market:earnings": "node scripts/refresh-market-earnings.mjs",

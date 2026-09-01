@@ -1,0 +1,17 @@
+<title>KP Installer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  KP installer wizard — a shell, deliberately.
+
+  All behaviour is in core.js (one state machine, one SSE reader, one set of
+  card logic); the three visual directions are stylesheets plus a copy overlay
+  in variants.js. Every file here is local and dependency-free: no build step,
+  no npm packages, no CDN, no webfonts — an install may be air-gapped, and an
+  installer that needs the network to render is not an installer.
+-->
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="studio.css" id="css-studio">
+<link rel="stylesheet" href="spark.css" id="css-spark" disabled>
+<link rel="stylesheet" href="guide.css" id="css-guide" disabled>
+<script src="variants.js"></script>
+<script src="core.js" defer></script>

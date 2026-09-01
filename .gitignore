@@ -39,6 +39,17 @@ pipeline-sidecar*.log
 data/*.sqlite
 data/*.sqlite-wal
 data/*.sqlite-shm
+
+# Local gate/steward runtime state — SQLite written by the review + gate tooling.
+# Never committed: binary local state in a public repo, and every checkout's is
+# its own. (`Users*kp_gates.db` at the root is the same store written through a
+# MANGLED path — a Windows path built with unescaped backslashes lands as one
+# flat filename; ignored here so it stops dirtying `git status`, and worth
+# fixing where the path is constructed.)
+.kp-gate-results.db
+.kp-scan-logs/
+data/gate-steward.db
+Users*kp_gates.db
 # Workspace dumps (npm run db:dump) — share/seed them out-of-band, don't commit
 data/dumps/
 

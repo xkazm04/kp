@@ -1,0 +1,131 @@
+/*
+ * base.css — structure only.
+ *
+ * Everything a variant is allowed to disagree about (color, type, borders,
+ * radii, shadows, motion, density) lives in studio.css / spark.css / guide.css.
+ * What lives here is the skeleton those three share: the page grid, the flow of
+ * the stage, and the handful of resets that keep a form control from inheriting
+ * a browser's opinion. If a rule here mentions a color, it is a mistake.
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--fs-body, 15px);
+  line-height: 1.55;
+}
+
+/* ------------------------------------------------------------------ grid */
+.wz {
+  display: grid;
+  grid-template-columns: var(--rail-w, 17rem) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "top top" "rail main";
+  min-height: 100vh;
+}
+.wz-top { grid-area: top; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.wz-rail { grid-area: rail; }
+.wz-main { grid-area: main; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+@media (max-width: 900px) {
+  .wz { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "main"; }
+  .wz-rail { display: none; }
+}
+
+/* ---------------------------------------------------------------- header */
+.wz-brand { display: flex; align-items: center; gap: .7rem; flex: 1 1 22rem; min-width: 0; }
+.wz-mark { flex: 0 0 auto; display: block; }
+.wz-mark .mark { display: block; width: var(--mark-size, 34px); height: var(--mark-size, 34px); }
+.wz-brandtext { min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+.wz-title { display: block; }
+.wz-sub { display: block; }
+.wz-controls { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.wz-runwrap { display: inline-flex; align-items: center; gap: .4rem; }
+
+/* --------------------------------------------------------------- stepper */
+.wz-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .15rem; }
+.wz-step { display: flex; align-items: center; gap: .65rem; }
+.wz-stepdot { flex: 0 0 auto; display: grid; place-items: center; }
+.wz-steplabel { min-width: 0; }
+
+.wz-dots { display: none; justify-content: center; gap: .45rem; }
+.wz-dot { display: block; }
+
+/* ----------------------------------------------------------------- stage */
+.wz-statusbar { display: flex; align-items: center; gap: .55rem; }
+.wz-status { margin: 0; }
+.wz-stage { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.wz-asks, .wz-panels { display: flex; flex-direction: column; }
+.wz-receipts ul { list-style: none; margin: 0; padding: 0; }
+.wz-receipt { display: flex; gap: .5rem; align-items: baseline; }
+.wz-receipt-k { flex: 0 0 auto; }
+.wz-receipt-v { min-width: 0; }
+.wz-say { display: flex; gap: .5rem; }
+.wz-say input { flex: 1 1 auto; min-width: 0; }
+
+/* ----------------------------------------------------------------- cards */
+.card { position: relative; }
+.card-title { margin: 0; }
+.card-body { min-width: 0; }
+.card-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.opt { display: flex; gap: .6rem; align-items: flex-start; cursor: pointer; }
+.opt input[type=radio], .opt input[type=checkbox] { flex: 0 0 auto; margin-top: .25rem; }
+.opt-text { min-width: 0; display: flex; flex-direction: column; gap: .15rem; }
+.opt-free { width: 100%; }
+.field input { width: 100%; }
+pre.cmd, .wz-narr pre { overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin: 0; }
+
+/* ---------------------------------------------------------------- panels */
+.panel-title { margin: 0; }
+.probe-list { list-style: none; margin: 0; padding: 0; }
+.probe { display: grid; grid-template-columns: 1.4rem minmax(6rem, auto) minmax(0, 1fr) auto; gap: .6rem; align-items: baseline; }
+.probe-glyph { text-align: center; }
+.probe-detail { min-width: 0; overflow-wrap: anywhere; }
+
+.live { display: flex; align-items: center; gap: .55rem; }
+.live-dot { flex: 0 0 auto; display: block; }
+
+.voice-grid { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }
+.voice-card { display: flex; flex-direction: column; gap: .35rem; }
+.voice-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.voice-actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: auto; }
+
+.matrix-grid { display: grid; gap: .7rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.matrix-card { display: flex; flex-direction: column; gap: .3rem; }
+.matrix-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.matrix-extra { margin: 0; }
+.matrix-extra-k { display: block; }
+
+/* -------------------------------------------------------------- activity */
+.wz-activity { position: fixed; right: 0; bottom: 0; z-index: 40; width: min(34rem, 100vw); }
+.wz-activity-toggle { display: flex; align-items: center; gap: .5rem; width: 100%; cursor: pointer; }
+.wz-badge { margin-left: auto; }
+.wz-activity-body { max-height: 46vh; overflow-y: auto; }
+.wz-activity.is-open .wz-caret { transform: rotate(180deg); }
+.wz-caret { display: inline-block; }
+
+/* -------------------------------------------------------------- switcher */
+.wz-switcher { position: fixed; left: 1rem; bottom: 1rem; z-index: 50; display: flex; gap: .25rem; }
+.wz-switch { cursor: pointer; }
+
+/* ---------------------------------------------------------------- mascot */
+.wz-mascot { display: none; }
+
+/* ------------------------------------------------------------- controls */
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+a.btn { display: inline-block; text-decoration: none; }
+[hidden] { display: none !important; }
+
+/* Markdown blocks inside the activity drawer */
+.wz-narr table, .md table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
+.wz-narr p:first-child, .md p:first-child { margin-top: 0; }
+.wz-narr ul, .wz-narr ol, .md ul, .md ol { padding-left: 1.25rem; }
+
+/* Rail meta — repo path and env-file state, from the `hello` event. */
+.wz-meta { margin-top: 1.4rem; display: flex; flex-direction: column; gap: .2rem; overflow-wrap: anywhere; }
+.wz-meta-k { display: block; }
