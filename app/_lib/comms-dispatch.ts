@@ -14,6 +14,7 @@ import { resolveCommsLocale } from "./comms-locale";
 import { commsTranslator, type CommsTranslator } from "./comms-translator";
 import { namespaceTranslator } from "./catalog-translator";
 import type { Locale } from "@/i18n/locales";
+import { pinLinkLocale } from "./candidate-link-locale";
 
 // Direction #3 — real comms delivery for the hiring pipeline. Routes recruiter
 // automation through the shared sendComm channel (durable local outbox by
@@ -398,7 +399,12 @@ export async function dispatchOffer(
   const startDate = (opts?.startDate ?? "").trim();
   if (startDate) terms.push(t("offer.startLine", { date: startDate }));
   const termsBlock = terms.length > 0 ? `${terms.join("\n")}\n\n` : "";
-  const body = `${letter}\n\n` + termsBlock + t("offer.responseFooter", { link: responseLink });
+  // The response link is pinned to the LETTER's locale here, beside the resolution
+  // above, so the page it opens speaks the language the letter was written in — the
+  // status, erasure and schedule links already do; the offer link was the one bare
+  // door (perfect: offer-door-speaks-the-letter-language, 2026-09-01).
+  const link = pinLinkLocale(responseLink, locale);
+  const body = `${letter}\n\n` + termsBlock + t("offer.responseFooter", { link });
   await sendCandidateComm(entry, t, { subject, body, kind: "offer" }, locale);
   recordAutomationEvent(entry.id, "offer_sent", entry.jobTitle ?? "", entry.workspaceId);
 }
@@ -631,7 +637,9 @@ export async function dispatchOfferReminder(entry: PipelineEntry, link: string, 
   const role = entry.jobTitle ?? t("theRole");
   const deadline = formatOfferDeadline(deadlineIso, entry.locale, entry.workspaceId);
   const subject = t("offerReminder.subject", { role });
-  const body = t("offerReminder.body", { name, role, deadline, link, team: t("team") });
+  // Same pin as dispatchOffer: the nudge must open the same-language page the letter did.
+  const pinned = pinLinkLocale(link, locale);
+  const body = t("offerReminder.body", { name, role, deadline, link: pinned, team: t("team") });
   await sendCandidateComm(entry, t, { subject, body, kind: "offer_reminder", ref: entry.id ?? link }, locale);
   try {
     recordAutomationEvent(entry.id, "offer_reminder_sent", role, entry.workspaceId);

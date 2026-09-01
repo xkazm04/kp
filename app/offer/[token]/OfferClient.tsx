@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { AiDisclosure } from "@/app/_components/AiDisclosure";
+import { LanguageSwitcher } from "@/app/_components/LanguageSwitcher";
 import { Skeleton } from "@/app/_components/Skeleton";
 import { useErrorMessage } from "@/app/_lib/use-error-message";
 import { initials } from "@/app/_lib/initials";
@@ -167,7 +168,15 @@ export function OfferClient() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-paper p-6">
-      <div className="w-full max-w-md overflow-hidden rounded-xl border border-stone-200 bg-white shadow-panel">
+      <div className="w-full max-w-md">
+      {/* The candidate's own escape hatch, mirroring the status page: the emailed
+          offer link is now ?lang=-pinned to the letter's language, but a forwarded
+          link or a stale NEXT_LOCALE cookie can still land them in a language they
+          don't read — and this page has no other chrome. */}
+      <div className="mb-3 flex justify-end">
+        <LanguageSwitcher />
+      </div>
+      <div className="w-full overflow-hidden rounded-xl border border-stone-200 bg-white shadow-panel">
         {/* Brand accent — a premium letterhead strip so the offer reads as official. */}
         <div className="h-1.5 bg-gradient-to-r from-steel via-steel to-coral" aria-hidden="true" />
         <div className="p-7">
@@ -388,6 +397,7 @@ export function OfferClient() {
           </>
         )}
         </div>
+      </div>
       </div>
     </main>
   );
