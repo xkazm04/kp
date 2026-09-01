@@ -167,7 +167,10 @@ if (driver.error) {
 
 // ── 4. Read the newest run record — the driver's truth, not the exit code ───
 try {
-  const newest = readdirSync(runsDir)
+  // Same guard as the pre-spawn snapshot: a fresh checkout has no runs dir yet,
+  // and throwing here left miss:null — an UNCLASSIFIED miss, breaking the
+  // file's first rule (review round 6).
+  const newest = (existsSync(runsDir) ? readdirSync(runsDir) : [])
     .filter((d) => d.includes("kp-c1-night") && !priorRuns.has(d))
     .sort()
     .at(-1);
@@ -192,6 +195,7 @@ try {
     rec.anomalies.push("the driver produced NO new run directory this night — nothing below is tonight's data, and nothing stale was read in its place");
   }
 } catch (e) {
+  if (!rec.miss) rec.miss = "driver-crashed";
   rec.anomalies.push(`could not read the run record: ${e.message}`);
 }
 
