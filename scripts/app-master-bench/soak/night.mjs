@@ -85,9 +85,11 @@ async function health(url, ms = 4000) {
     const t = setTimeout(() => ctrl.abort(), ms);
     const r = await fetch(url, { signal: ctrl.signal });
     clearTimeout(t);
-    return { ok: r.ok || r.status === 503, json: await r.json().catch(() => null), status: r.status };
-  } catch {
-    return { ok: false, json: null, status: 0 };
+    return { ok: r.ok || r.status === 503, json: await r.json().catch(() => null), status: r.status, timedOut: false };
+  } catch (e) {
+    // Refused and wedged are different truths (round 20): a timeout means the
+    // process may be UP and hanging, which is not "down".
+    return { ok: false, json: null, status: 0, timedOut: e?.name === "AbortError" || e?.name === "TimeoutError" };
   }
 }
 
@@ -166,7 +168,9 @@ if (!(personas.json?.headlessBridge === true)) {
   // the flag genuinely off. Only the last earns the config diagnosis.
   rec.anomalies.push(
     personas.status === 0
-      ? "Personas is not running — the soak protocol keeps the app up; this night is a recorded miss"
+      ? personas.timedOut
+        ? "Personas did not answer /health within 4s — the process may be UP and WEDGED (or the host overloaded); NOT known to be down. Check whether it is running before restarting it."
+        : "Personas is not running (connection refused) — the soak protocol keeps the app up; this night is a recorded miss"
       : personas.status >= 200 && personas.status < 300 && personas.json
         ? `Personas is healthy but headlessBridge=${personas.json?.headlessBridge ?? "absent"} — launched without PERSONAS_HEADLESS_BRIDGE=1?`
         : `Personas answered ${personas.status}${personas.json ? "" : " with an unparseable body"} — it is up but erroring; a crash or degraded service, NOT a launch-flag problem`
