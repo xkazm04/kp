@@ -115,24 +115,61 @@ export function OfferClient() {
     load();
   }, [load]);
 
-  // After an ambiguous POST (the request may have landed before the connection
-  // dropped), re-read the AUTHORITATIVE status: if the server already recorded the
-  // response, flip the card to it and clear the inline error — so a candidate on a
-  // flaky phone isn't left unsure whether their accept/decline registered.
-  const reconcile = useCallback(async () => {
+  // Silent re-read of the AUTHORITATIVE view. Two callers: (1) after an ambiguous
+  // POST (the request may have landed before the connection dropped) — if the server
+  // already recorded the response, flip the card to it and clear the inline error, so
+  // a candidate on a flaky phone isn't left unsure whether their accept/decline
+  // registered; (2) the revalidation below, which keeps the SERVER-computed
+  // hoursRemaining honest on a tab left open — the countdown is authored where the
+  // expiry is enforced, but it was computed once at first load and never again, so
+  // "12 hours left" sat on screen over an offer the server had already lapsed.
+  //
+  // Alarm is a budget on this page: a failed refresh NEVER replaces a rendered offer
+  // (no setLoadError here — only the initial load owns that); a 404 is a definite
+  // state change (the link was revoked) and may.
+  const refresh = useCallback(async () => {
     if (!token) return;
     try {
       const r = await fetch(`/api/offer/${token}`);
       const p = await r.json().catch(() => ({}));
-      const s = p?.offer?.status;
-      if (r.ok && (s === "accepted" || s === "declined" || s === "expired")) {
+      if (r.status === 404) {
+        setNotFound(true);
+        return;
+      }
+      if (!r.ok || !p?.offer) return;
+      setOffer(p.offer as OfferView);
+      const s = p.offer.status;
+      if (s === "accepted" || s === "declined" || s === "expired") {
         setResult(s);
         setResponseError(null);
       }
     } catch {
-      /* leave the responseError so the candidate can retry */
+      /* keep the last good view (and any responseError) so the candidate can retry */
     }
   }, [token]);
+
+  // Revalidate on an interval and whenever the tab regains focus, and stop once the
+  // outcome is terminal — a finished offer has nothing to advance to, and every
+  // further fetch is a fresh chance to fail in front of someone whose story is over.
+  // Mirrors StatusClient. Throttle math: GET /api/offer/[token] allows 60/min per
+  // token+client; one poll a minute plus focus churn and manual reloads sits an order
+  // of magnitude under it (pinned by app/offer/offer-revalidate.test.ts).
+  const terminal = result !== null || notFound;
+  useEffect(() => {
+    if (!token || terminal) return;
+    const POLL_MS = 60_000;
+    const id = window.setInterval(() => void refresh(), POLL_MS);
+    const revalidate = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", revalidate);
+    window.addEventListener("focus", revalidate);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", revalidate);
+      window.removeEventListener("focus", revalidate);
+    };
+  }, [token, terminal, refresh]);
 
   const respond = async (response: "accept" | "decline") => {
     setPending(response);
@@ -154,13 +191,13 @@ export function OfferClient() {
         // Prefer the server's stable error `code` (localized via the errors
         // catalog); fall back to the page's own localized respond-failed message.
         setResponseError(errMsg(p, t("respondFailed")));
-        void reconcile();
+        void refresh();
         return;
       }
       setResult(p.status as "accepted" | "declined");
     } catch {
       setResponseError(t("respondFailed"));
-      void reconcile();
+      void refresh();
     } finally {
       setPending(null);
     }
