@@ -53,7 +53,7 @@ gap in the log does not.
 
 ## The per-night record
 
-`{at, night, ran, miss, exitCode, runDir, ideation{ran,lens,authored,blocked},
+`{at, date, night, ran, miss, exitCode, runDir, ideation{ran,lens,authored,blocked},
 c1{proposals,declines,preTenure,undated}, dispatched, budgetSettledUsd,
 memory{core,active,working,archived}, anomalies[], ms}` — plus `backfilled:
 true` on retrospective miss rows, which count toward the recorded window and
@@ -81,7 +81,8 @@ soak night exhibits it:
 | `driver-timeout` | the driver exceeded the runner's 40-min ceiling — observed directly, distinct from a crash | — |
 | `record-unreadable` | a fresh run dir whose result.json carries no `tickOk` — partial write or driver shape change; the night may even have run | — |
 | `unclassified` | no code path recorded a reason — the record-keeping itself failed; classify by hand at the weekly pass and fix the silent path | — |
-| `machine` | host asleep, node/npm broken, disk, clock — a day the task never fired is BACKFILLED as a `machine` miss at the next firing (`backfilled: true`), so this class is producible and the log stays calendar-continuous | — |
+| `no-record` | BACKFILLED at the next firing for any calendar day with no row (`backfilled: true`): the task never fired OR it fired and the runner died before writing — the row states both hypotheses and names the evidence (runner.log, Task Scheduler history); the weekly pass hand-classifies it to `machine` or `unclassified` | — |
+| `machine` | host asleep, node/npm broken, disk, clock — assigned by HAND from a `no-record` row once the evidence says so; never auto-asserted | — |
 
 ## The weekly human pass (~15 min)
 

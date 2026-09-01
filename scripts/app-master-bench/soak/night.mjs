@@ -56,7 +56,13 @@ const rec = {
   date: localDate(),
   night: null, // filled from the log length below
   ran: false,
-  miss: null, // bridge-down | kp-boot-failed | driver-crashed
+  // The FULL closed set — one authority, the taxonomy table in
+  // docs/development/app-master-soak.md, which also says what each demands of
+  // the weekly pass (`unclassified` in particular is a finding to classify by
+  // hand, never background noise):
+  // bridge-down | kp-boot-failed | driver-timeout | driver-crashed |
+  // tick-died | record-unreadable | machine (backfilled) | unclassified
+  miss: null,
   exitCode: null,
   runDir: null,
   ideation: null,
@@ -132,10 +138,10 @@ function finish() {
           date: day,
           night: prior,
           ran: false,
-          miss: "machine",
+          miss: "no-record",
           backfilled: true,
           anomalies: [
-            "the scheduled task did not fire on this calendar day — host asleep, logged off, or powered down (the task is interactive-only, no wake-to-run); recorded retrospectively at the next firing",
+            "no record exists for this calendar day — EITHER the task never fired (host asleep/logged off/powered down; interactive-only, no wake-to-run) OR it fired and the runner died before writing. Distinguish at the weekly pass via bench/app-master/soak/runner.log timestamps and Task Scheduler history, then hand-classify to machine or unclassified.",
           ],
           ms: 0,
         });
