@@ -4,10 +4,14 @@ rem checkout's own location — the committed, reproducible form of the schedule
 rem that docs/development/app-master-soak.md describes. Idempotent: /F replaces
 rem an existing task of the same name. Teardown:
 rem   schtasks /delete /tn kp-app-master-soak /f
-rem MEASURED 2026-09-02: the first scheduled firing NEVER RAN. The host was
-rem asleep at 02:47 (Power-Troubleshooter: awake 01:13, next wake 06:26) and the
+rem PREVENTIVE, from measured HOST behaviour (2026-09-01). An earlier version of
+rem this comment claimed the first firing had been LOST; that was wrong. The task
+rem was registered after that day's 02:47, so it had never been DUE —
+rem LastTaskResult 0x41303 reads "never run" for both cases and it was read as
+rem the wrong one. What IS measured: this host sleeps through 02:47
+rem (Power-Troubleshooter 2026-09-01: awake 01:13, next wake 06:26) and the
 rem default task had StartWhenAvailable=False / DisallowStartIfOnBatteries=True,
-rem so it neither woke the machine nor ran late — a laptop soak would have
+rem so the first real firing would have been skipped outright rather than run late — a laptop soak would have
 rem measured nothing for weeks. The task is therefore created and then PATCHED:
 rem   StartWhenAvailable  run as soon as the host is back, if 02:47 was missed
 rem   DisallowStartIfOnBatteries/StopIfGoingOnBatteries  off — a soak night on

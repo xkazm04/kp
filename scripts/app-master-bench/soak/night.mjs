@@ -291,7 +291,11 @@ try {
 
 // ── 5. Longevity axis: persona-memory tier counts off the roster ────────────
 try {
-  const roster = await health(`${KP_URL}/api/agents`);
+  // 30s, not the 4s default (measured night 2, 2026-09-01): this is the FIRST
+  // hit of /api/agents on a freshly booted `next dev`, which compiles the route
+  // on demand — the roster read timed out and recorded "unreadable" for a server
+  // that was merely still compiling.
+  const roster = await health(`${KP_URL}/api/agents`, 30_000);
   // Transport first: health() swallows errors into {ok:false}, so without this
   // check a 500 or an unreachable roster would fall into the !row branch and be
   // DIAGNOSED as a tenure/DB misconfiguration that never happened (review
