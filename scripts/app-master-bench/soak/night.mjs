@@ -161,10 +161,15 @@ function finish() {
 const personas = await health(`${PERSONAS_URL}/health`);
 if (!(personas.json?.headlessBridge === true)) {
   rec.miss = "bridge-down";
+  // Three truths, apart (round 19): not running, answering-but-erroring (a
+  // crash or degraded service — NOT a launch-flag problem), and healthy with
+  // the flag genuinely off. Only the last earns the config diagnosis.
   rec.anomalies.push(
     personas.status === 0
       ? "Personas is not running — the soak protocol keeps the app up; this night is a recorded miss"
-      : `Personas answered but headlessBridge=${personas.json?.headlessBridge ?? "absent"} — launched without PERSONAS_HEADLESS_BRIDGE=1?`
+      : personas.status >= 200 && personas.status < 300 && personas.json
+        ? `Personas is healthy but headlessBridge=${personas.json?.headlessBridge ?? "absent"} — launched without PERSONAS_HEADLESS_BRIDGE=1?`
+        : `Personas answered ${personas.status}${personas.json ? "" : " with an unparseable body"} — it is up but erroring; a crash or degraded service, NOT a launch-flag problem`
   );
   finish();
 }
