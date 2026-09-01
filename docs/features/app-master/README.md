@@ -798,7 +798,10 @@ against the standing tenure and appends an honest per-night record — misses
 included — to `bench/app-master/soak/log.jsonl`. Scheduled by Windows Task
 Scheduler (`kp-app-master-soak`, 02:47 nightly), NOT by any session-bound
 mechanism — registered per machine by the committed `soak/install.cmd`
-(idempotent; the teardown command is in its header). The runner boots and stops the kp bench server (on the
+(idempotent; the teardown command is in its header). The installer patches the
+task to **run late rather than not at all** (`StartWhenAvailable`, battery
+guards off) after the first scheduled firing was lost to a sleeping host; it
+deliberately does **not** wake the machine. The runner boots and stops the kp bench server (on the
 session-independent DB at `%LOCALAPPDATA%\kp-bench\kp-soak.sqlite`) and never
 boots the Personas app — the operator's window down is a recorded `bridge-down`
 miss, which is a measurement. Protocol, per-night record shape, the failure
