@@ -126,7 +126,17 @@ export async function POST(request: NextRequest) {
         }
         results.push({ entryId, ok: true, token: invite.token, dispatched, delivery });
       } catch (err) {
-        results.push({ entryId, ok: false, error: err instanceof Error ? err.message : "mint failed" });
+        // The throw here is `createScheduleInvite` — a better-sqlite3 write — so its
+        // `.message` is SQLITE_* codes, `UNIQUE constraint failed: …` and the absolute
+        // db path. Every OTHER `error` string this loop pushes is a generic operator
+        // sentence ("not active", "over the … cap"); this one forwarded the raw store
+        // error into the same field. Both hand-listed hygiene guards
+        // (app/api/jds/error-message-hygiene.test.ts, app/api/apply/apply-error-hygiene.test.ts)
+        // key on `NextResponse.json({ error: … })`, so neither could see a leak pushed
+        // into the results array — which is why the repo-wide scan in
+        // app/api/error-response-contract.test.ts exists.
+        console.error(`[schedule:invite:bulk] mint failed for entry ${entryId}:`, err);
+        results.push({ entryId, ok: false, error: "mint failed" });
       }
     }
 
