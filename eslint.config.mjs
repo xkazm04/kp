@@ -113,6 +113,85 @@ const PACKAGES_NO_APP_IMPORT = {
 // The cost law, extracted so the blocks below can restate it. `app/_lib/db.ts`
 // is an `export *` barrel over 17 store modules — see the long note on the
 // config block that first carried this rule.
+// ---------------------------------------------------------------------------
+// DESIGN LAW — no raw six-digit hex, no inline rgb()/rgba(), under app/.
+//
+// These four were declared ONLY in the first config block below and were
+// therefore DEAD for the entire app/ tree: the transaction block's files
+// (`app/**/*.ts`, `app/**/*.tsx`, no ignores) are a strict superset of that
+// block's, it comes later, and flat config REPLACES a rule's options rather
+// than merging them — the exact trap the note beside TRANSACTION_SELECTORS
+// spells out ("Spread them into both"). Every other selector group in this file
+// was restated into each later block; this group never was, so from the moment
+// the second no-restricted-syntax block landed, `npm run lint` stopped seeing a
+// single hardcoded color. Verified 2026-09-01 with a probe file under app/_lib:
+// the transaction selectors fired on it and the hex literal beside them did not.
+//
+// scripts/design/check-design-tokens.mjs says in its header that this half of
+// the design law "is an eslint rule in eslint.config.mjs, so it rides
+// `npm run lint`" — so the two documents describing the law pointed at each
+// other while neither held it. design:check enforces brand.ts <-> globals.css
+// lockstep and dark-shade parity; it never reads a hex out of a component.
+//
+// Named and spread below, like every other group. The exemptions the original
+// block carried as `ignores` cannot ride along — dropping a whole block for
+// app/landing/** would switch the transaction and barrel selectors off there
+// too — so they live in the LAST block in this file, which restates everything
+// except these four for exactly those paths.
+//
+// Revived at ERROR from a measured zero: 0 hex literals and 0 inline rgba under
+// app/ outside the exemptions on 2026-09-01 (the three `#rrggbb` matches left
+// are inside comments, which an AST selector deliberately cannot see).
+// ---------------------------------------------------------------------------
+const DESIGN_TOKEN_SELECTORS = [
+  {
+    selector: "Literal[value=/#[0-9a-fA-F]{6}\\b/]",
+    message:
+      "Hardcoded color. Colors must resolve through tokens so they follow [data-theme=\"dark\"] — " +
+      "use a Tailwind token utility, var(--color-*), or app/_lib/brand.ts for stylesheet-less " +
+      "surfaces. If the color has no token, add one to app/globals.css (both themes). See docs/design/README.md."
+  },
+  {
+    selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{6}\\b/]",
+    message:
+      "Hardcoded color in a template literal. Colors must resolve through tokens so they follow " +
+      "[data-theme=\"dark\"]. See docs/design/README.md."
+  },
+  {
+    selector: "Literal[value=/rgba?\\(\\s*[0-9]/]",
+    message:
+      "Inline rgb()/rgba() color. Shadows and scrims must resolve through tokens so they follow " +
+      "[data-theme=\"dark\"] — add a --color-* or --shadow-* token to app/globals.css instead. " +
+      "See docs/design/README.md."
+  },
+  {
+    selector: "TemplateElement[value.raw=/rgba?\\(\\s*[0-9]/]",
+    message:
+      "Inline rgb()/rgba() color in a template literal. Use a token from app/globals.css. " +
+      "See docs/design/README.md."
+  }
+];
+
+// The paths the design law exempts, quoted from the original block's `ignores`.
+// Tests are NOT here: an app test file's last matching block is the transaction
+// block, which never carried the design selectors, so tests stay exempt without
+// needing a restatement — and restating one would have to drop the db-barrel
+// and ui exemptions those files legitimately rely on.
+const DESIGN_EXEMPT_PATHS = [
+  // Fixed art direction, the one stated exemption in the design law.
+  "app/landing/**",
+  // The documented JS mirror of the @theme tokens (OG card, apple-icon, raw SVG
+  // fills). design:check pins every one of them to its --color-* declaration.
+  "app/_lib/brand.ts",
+  // Traced glyph SOURCE data, never painted — snapToToken() emits var(--color-*).
+  "app/_components/glyph/glyphs/**",
+  // Diagram-only primitive tints with no CSS-variable equivalent.
+  "app/_components/puml/**",
+  // Dev-only inspector chrome: a FIXED devtools skin that must not follow the
+  // app theme, because it has to stay readable while you debug the theme.
+  "app/_dev-inspector/**"
+];
+
 const DB_BARREL_SELECTOR = {
   selector: "ImportDeclaration[importKind!='type'][source.value='@/app/_lib/db']",
   message:
@@ -180,35 +259,11 @@ const config = [
       "app/**/*.test.{ts,tsx}"
     ],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "Literal[value=/#[0-9a-fA-F]{6}\\b/]",
-          message:
-            "Hardcoded color. Colors must resolve through tokens so they follow [data-theme=\"dark\"] — " +
-            "use a Tailwind token utility, var(--color-*), or app/_lib/brand.ts for stylesheet-less " +
-            "surfaces. If the color has no token, add one to app/globals.css (both themes). See docs/design/README.md."
-        },
-        {
-          selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{6}\\b/]",
-          message:
-            "Hardcoded color in a template literal. Colors must resolve through tokens so they follow " +
-            "[data-theme=\"dark\"]. See docs/design/README.md."
-        },
-        {
-          selector: "Literal[value=/rgba?\\(\\s*[0-9]/]",
-          message:
-            "Inline rgb()/rgba() color. Shadows and scrims must resolve through tokens so they follow " +
-            "[data-theme=\"dark\"] — add a --color-* or --shadow-* token to app/globals.css instead. " +
-            "See docs/design/README.md."
-        },
-        {
-          selector: "TemplateElement[value.raw=/rgba?\\(\\s*[0-9]/]",
-          message:
-            "Inline rgb()/rgba() color in a template literal. Use a token from app/globals.css. " +
-            "See docs/design/README.md."
-        }
-      ]
+      // Named above and spread into every later block that matches app/**.
+      // This block is kept rather than deleted: it is the one that carries the
+      // law's exemptions, and if a later block's globs ever narrow, the law
+      // survives here instead of silently going dark again.
+      "no-restricted-syntax": ["error", ...DESIGN_TOKEN_SELECTORS]
     }
   },
   {
@@ -394,7 +449,12 @@ const config = [
         DB_BARREL_SELECTOR,
         // Nobody imports a route handler — true of every layer, so it rides the
         // widest block rather than needing one of its own.
-        NO_ROUTE_HANDLER_IMPORT
+        NO_ROUTE_HANDLER_IMPORT,
+        // The design law, restated here because THIS is the block that wins for
+        // app/_lib/**, app/api/** and app/<route>/page.tsx. Its exemptions are
+        // handled by the last block in this file, not by an `ignores` here —
+        // ignoring app/landing/** here would take the four selectors above with it.
+        ...DESIGN_TOKEN_SELECTORS
       ]
     }
   },
@@ -417,7 +477,11 @@ const config = [
         ...TRANSACTION_SELECTORS,
         DB_BARREL_SELECTOR,
         NO_ROUTE_HANDLER_IMPORT,
-        UI_NO_DB_VALUE_IMPORT
+        UI_NO_DB_VALUE_IMPORT,
+        // The ui layer is where hardcoded colors actually appear, and it is the
+        // block that wins for every file under it — so this is the restatement
+        // the design law most needed and least had.
+        ...DESIGN_TOKEN_SELECTORS
       ]
     }
   },
@@ -433,6 +497,33 @@ const config = [
         DB_BARREL_SELECTOR,
         NO_ROUTE_HANDLER_IMPORT,
         PACKAGES_NO_APP_IMPORT
+      ]
+    }
+  },
+  {
+    // ---------------------------------------------------------------------
+    // THE DESIGN LAW'S EXEMPT SURFACES — and the reason this is a block rather
+    // than an `ignores` list.
+    //
+    // The five paths in DESIGN_EXEMPT_PATHS are exempt from the design law and
+    // from nothing else. Expressing that as `ignores` on the blocks above would
+    // drop the transaction, db-barrel, route-handler and ui-db selectors for
+    // those files too — which is the same shadowing bug this pass is fixing,
+    // committed a second time in the opposite direction. So the exemption is a
+    // LAST block that restates everything EXCEPT the four design selectors.
+    //
+    // Keep this block last. Anything added after it that matches these paths
+    // replaces this list and re-arms the design law on app/landing/**.
+    // ---------------------------------------------------------------------
+    files: DESIGN_EXEMPT_PATHS,
+    ignores: ["app/**/*.test.ts", "app/**/*.test.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...TRANSACTION_SELECTORS,
+        DB_BARREL_SELECTOR,
+        NO_ROUTE_HANDLER_IMPORT,
+        UI_NO_DB_VALUE_IMPORT
       ]
     }
   }
