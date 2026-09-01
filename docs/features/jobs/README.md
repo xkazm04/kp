@@ -302,7 +302,7 @@ still never blanks content that is already correct.
 | `app/api/jobs/[id]/publish/route.ts` | Draft → published + source into Pipeline. |
 | `app/api/jobs/[id]/close/route.ts` | Published/draft → closed + withdraw in-flight entries. |
 | `app/api/jobs/[id]/campaign/route.ts` | Sourcing campaign pack (E1). |
-| `app/api/jobs/[id]/rediscover`, `app/api/jobs/[id]/candidates`, `app/api/jobs/[id]/winnability` | Re-surface past candidates, candidate list, winnability signal. |
+| `app/api/jobs/[id]/rediscover`, `app/api/jobs/[id]/candidates`, `app/api/jobs/[id]/winnability` | Re-surface past candidates, candidate list, winnability signal. Every by-id job route re-applies the list's visibility predicate (`jobVisibleToWorkspace`: the shared seeded corpus plus the caller's own openings) and 404s otherwise — including the candidates ranking and its `candidates/outreach` write, which used to skip it and would rank the caller's pool against, or file an entry under, another team's role. Pinned by `lifecycle-signals.test.ts`. |
 | `app/api/jobs/ingest/route.ts`, `app/api/jobs/status/route.ts` | Bulk ingest / status listing. |
 | `app/_lib/jd-lint.ts` | Live specificity linter (E7). |
 | `pipeline/jobfit/campaign.py`, `campaign_cli.py` | Campaign pack generation engine (E1). |
