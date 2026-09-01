@@ -416,6 +416,21 @@ The requestor can FIX what was captured without a new session:
   (`app/_lib/intake-export.ts`) — the artifact for the director/inspector
   meeting. A defaulted seniority is visibly flagged in the export.
 
+### A facet's confidence is shown when the reading is uncertain
+
+Requirements have carried weight + confidence since the defensibility pass;
+facets did not, and one producer depends on them doing so. `_dossier_facet`
+(`pipeline/jobfit/intake.py`) grades an App-master codebase facet **0.8** when
+Claude Code read the repo and **0.6** when the heuristic file-walk did, under a
+comment stating that "the confidence the panel chips must say so". The chips
+could not: both readings are provenance `inferred` by construction (never
+"stated" — a machine read this), so the panel rendered the identical chip for
+both and the number had no consumer at all. `JdsIntakeBriefPanel` now renders a
+quiet confidence chip on a facet row, reusing the existing
+`library.tab.intake.defense.confidence` key. Confidence `1` renders nothing — a
+value the requestor stated out loud is the common case, and a "100%" chip on
+every line would bury the one number that carries information.
+
 ## Attached reference material ("Materials")
 
 A session can carry up to 5 attachments — a pasted **note** (a colleague's
