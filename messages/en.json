@@ -7942,6 +7942,8 @@
     "runsCount": "{count, plural, one {# run} other {# runs}}",
     "successRate": "{rate}% success",
     "noRuns": "No runs yet",
+    "heardFrom": "Last heard from {when}",
+    "neverHeardFrom": "Never heard from",
     "moreConnectors": "+{count} more",
     "expectationsMet": "{met}/{total} met",
     "expectationsNoData": "No data yet",

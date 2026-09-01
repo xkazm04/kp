@@ -23,8 +23,8 @@ import { DEFAULT_WORKSPACE_ID } from "./workspaces";
 // connection (tests) re-applies it.
 function agentsDb() {
   const d = ensureDb();
-  const marked = d as unknown as { __kpHiredAgentsAppMaster?: boolean };
-  if (!marked.__kpHiredAgentsAppMaster) {
+  const marked = d as unknown as { __kpHiredAgentsCols?: boolean };
+  if (!marked.__kpHiredAgentsCols) {
     for (const col of [
       // The role_intakes row an App-master hire was dispatched FROM. An agent
       // hired for a whole application is composed in the intake dialog, not from
@@ -36,6 +36,14 @@ function agentsDb() {
       // can be re-composed afterwards and the mandate the agent is actually
       // working under is the one that crossed the wire.
       "app_master_spec_json TEXT",
+      // When kp last HEARD from this hire on the public report route — stamped
+      // on every authenticated POST, before the body is even read, so a payload
+      // that 400s still proves reachability. Deliberately NOT `last_activity_at`
+      // (which is derived from ACCEPTED events) and not the bridge's
+      // `last_ok_at` (which says kp can reach Personas, the other direction).
+      // Without it, "Personas never called" and "Personas is calling and we are
+      // rejecting every payload" render identically as silence.
+      "last_report_at TEXT",
     ]) {
       try {
         d.exec(`ALTER TABLE hired_agents ADD COLUMN ${col}`);
@@ -43,7 +51,7 @@ function agentsDb() {
         /* column already exists — idempotent (core.ts's migrateExec benign path) */
       }
     }
-    marked.__kpHiredAgentsAppMaster = true;
+    marked.__kpHiredAgentsCols = true;
   }
   return d;
 }
@@ -168,6 +176,10 @@ export type HiredAgentRecord = {
   reportToken: string;
   createdAt: string;
   updatedAt: string | null;
+  /** When kp last heard from this hire on the report route, whatever the payload
+   *  turned out to be. Null ⇒ never heard from. Distinct from the aggregates'
+   *  `lastActivityAt`, which only moves when a report is ACCEPTED. */
+  lastReportAt: string | null;
 };
 
 type HiredAgentRow = {
@@ -188,6 +200,7 @@ type HiredAgentRow = {
   report_token: string;
   created_at: string;
   updated_at: string | null;
+  last_report_at: string | null;
 };
 
 function rowToHiredAgent(r: HiredAgentRow): HiredAgentRecord {
@@ -209,6 +222,7 @@ function rowToHiredAgent(r: HiredAgentRow): HiredAgentRecord {
     reportToken: r.report_token,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    lastReportAt: r.last_report_at ?? null,
   };
 }
 
@@ -326,6 +340,20 @@ export function getHiredAgentByReportToken(token: string): HiredAgentRecord | nu
     .prepare(`SELECT * FROM hired_agents WHERE report_token = ? AND status != 'retired'`)
     .get(token) as HiredAgentRow | undefined;
   return row ? rowToHiredAgent(row) : null;
+}
+
+/** LIVENESS RECEIPT for the public report route — the inbound twin of the
+ *  channels receiver's `recordChannelWebhookReceipt`. Stamped as soon as a live
+ *  token resolves, BEFORE the body is read or parsed, so a report that is
+ *  rejected for its shape still proves Personas reached kp. Deliberately does
+ *  NOT touch `updated_at` (that tracks lifecycle changes) and does not append to
+ *  `agent_activity` (that ledger is for reported events). An unknown or retired
+ *  token resolves to no row, so nothing is stamped and the 404 stays
+ *  indistinguishable. Returns the stamp so the caller can assert on it. */
+export function recordAgentReportReceipt(id: string, workspaceId: string, at: string = new Date().toISOString()): string {
+  const db = agentsDb();
+  db.prepare(`UPDATE hired_agents SET last_report_at = ? WHERE id = ? AND workspace_id = ?`).run(at, id, workspaceId);
+  return at;
 }
 
 /** Stamp the Personas request id after a successful dispatch (status → pending_approval). */

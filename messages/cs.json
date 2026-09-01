@@ -7942,6 +7942,8 @@
     "runsCount": "{count, plural, one {# běh} few {# běhy} other {# běhů}}",
     "successRate": "úspěšnost {rate} %",
     "noRuns": "Zatím žádné běhy",
+    "heardFrom": "Naposledy se ozval {when}",
+    "neverHeardFrom": "Nikdy se neozval",
     "moreConnectors": "{count, plural, one {+# další} few {+# další} other {+# dalších}}",
     "expectationsMet": "{met}/{total} splněno",
     "expectationsNoData": "Zatím bez dat",

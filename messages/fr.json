@@ -7942,6 +7942,8 @@
     "runsCount": "{count, plural, one {# exécution} other {# exécutions}}",
     "successRate": "{rate} % de réussite",
     "noRuns": "Pas encore d’exécutions",
+    "heardFrom": "Dernier signal {when}",
+    "neverHeardFrom": "Aucun signal reçu",
     "moreConnectors": "+{count} de plus",
     "expectationsMet": "{met}/{total} atteintes",
     "expectationsNoData": "Pas encore de données",

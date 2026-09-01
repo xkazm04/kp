@@ -83,6 +83,28 @@ test("report route: shape errors are deterministic 400s (retryable, never claime
   }
 });
 
+test("report route: a REJECTED payload still stamps the liveness receipt, and never the activity clock", async () => {
+  // The whole point of the receipt: "Personas never called" and "Personas is
+  // calling and every payload is being rejected" must stop reading as the same
+  // silence. lastActivityAt is derived from ACCEPTED events, so it must NOT move.
+  const agent = createHiredAgent({ jobId: "job-r1b", jobTitle: "Role", spec: SPEC }, "ws-a");
+  assert.equal(getHiredAgent(agent.id, "ws-a")?.lastReportAt, null, "a fresh hire has never been heard from");
+
+  const r = await report(agent.reportToken, { kind: "telemetry" });
+  assert.equal(r.status, 400);
+
+  const heard = getHiredAgent(agent.id, "ws-a")?.lastReportAt;
+  assert.ok(heard, "a 400 still proves Personas reached kp");
+  assert.equal(getAgentAggregates(agent.id, "ws-a").lastActivityAt, null, "a rejected report is not activity");
+});
+
+test("report route: an unknown token stamps nothing — the 404 stays indistinguishable", async () => {
+  const agent = createHiredAgent({ jobId: "job-r1c", jobTitle: "Role", spec: SPEC }, "ws-a");
+  const r = await report("agrpt-not-a-token", { kind: "execution", execId: "x", status: "success" });
+  assert.equal(r.status, 404);
+  assert.equal(getHiredAgent(agent.id, "ws-a")?.lastReportAt, null, "no unrelated hire was stamped");
+});
+
 test("report route: executions are accepted once and deduped by exec_id; writes land in the TOKEN's workspace", async () => {
   const agent = createHiredAgent({ jobId: "job-r2", jobTitle: "Role", spec: SPEC }, "ws-b");
   const exec = { kind: "execution", execId: "run-1", costUsd: 0.25, tokensIn: 100, tokensOut: 20, status: "success", durationMs: 900, connectorUses: [{ connector: "gmail", calls: 2 }] };

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getHiredAgentByReportToken, recordAgentExecution, recordAgentLifecycle, updateHiredAgentStatus, upsertAgentRollup, type AgentStatus, type HiredAgentRecord } from "@/app/_lib/db/agents";
+import { getHiredAgentByReportToken, recordAgentExecution, recordAgentLifecycle, recordAgentReportReceipt, updateHiredAgentStatus, upsertAgentRollup, type AgentStatus, type HiredAgentRecord } from "@/app/_lib/db/agents";
 import { createPipelineEntry, recordAutomationEvent, setPipelineEntryStage } from "@/app/_lib/db/pipeline";
 import { jsonOk, safeJsonError } from "@/app/_lib/api-response";
 import { parseAgentReport, type AgentReport, type LifecycleReport } from "@/app/_lib/agent-hire/report-payload";
@@ -143,6 +143,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ to
     // Unknown and retired tokens are deliberately indistinguishable (both 404).
     const agent = getHiredAgentByReportToken(token);
     if (!agent) return NextResponse.json({ error: "Unknown report token." }, { status: 404 });
+
+    // LIVENESS RECEIPT, before the body is read — the same position the channels
+    // inbound receiver stamps its receipt in. An operator staring at a silent
+    // agent needs to tell "Personas never called" from "Personas is calling and
+    // every payload is being rejected", and until this stamp existed both read as
+    // the same absence: the aggregates' lastActivityAt only moves on an ACCEPTED
+    // report, and the bridge's last_ok_at answers the OUTBOUND direction. An
+    // unknown or retired token 404s above, so nothing is stamped for it.
+    recordAgentReportReceipt(agent.id, agent.workspaceId);
 
     // content-length is advisory; the real cap is enforced on bytes read off the wire.
     const declaredLength = Number(request.headers.get("content-length") ?? 0);

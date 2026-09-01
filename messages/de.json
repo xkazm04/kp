@@ -7942,6 +7942,8 @@
     "runsCount": "{count, plural, one {# Lauf} other {# Läufe}}",
     "successRate": "{rate} % Erfolg",
     "noRuns": "Noch keine Läufe",
+    "heardFrom": "Zuletzt gemeldet {when}",
+    "neverHeardFrom": "Noch nie gemeldet",
     "moreConnectors": "+{count} weitere",
     "expectationsMet": "{met}/{total} erfüllt",
     "expectationsNoData": "Noch keine Daten",
