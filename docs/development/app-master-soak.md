@@ -22,7 +22,10 @@ gap in the log does not.
 
 - **Scheduler:** Windows Task Scheduler, task `kp-app-master-soak`, nightly
   02:47 local → `scripts/app-master-bench/soak/soak-night.cmd` →
-  `soak/night.mjs`. (Deliberately NOT the Claude session's cron — that is
+  `soak/night.mjs`. **Registered by the committed installer**
+  `soak/install.cmd` (idempotent, paths derived from its own location, prints
+  the task back for verification) — run it once per machine; the teardown
+  command is in its header. (Deliberately NOT the Claude session's cron — that is
   session-bound and 7-day-capped; a 14–30 night soak needs an OS-level job.)
 - **One night =** the C1 ideation night exactly as the exam ran it:
   `run.mjs --scenario kp-c1-night --tenure kp-owner --nights 1` against the
