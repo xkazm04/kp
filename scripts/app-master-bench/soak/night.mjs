@@ -112,6 +112,11 @@ function finish() {
   // were indistinguishable from 14 nights spread over a month. Every calendar
   // day between the last record and today gets a retrospective `machine` miss —
   // the silent gap the first design rule forbids is now unrepresentable.
+  // ALL rows are built first and written in ONE append (round 14): a per-day
+  // append that dies mid-loop would leave the log claiming calendar continuity
+  // it does not have, with no marker on the missing days. One write, all rows
+  // — the backfills and tonight's record land together or not at all.
+  const rows = [];
   try {
     const last = lines.length ? JSON.parse(lines.at(-1)) : null;
     const lastDate = last?.date ?? (last?.at ? localDate(new Date(last.at)) : null);
@@ -122,28 +127,26 @@ function finish() {
         const day = localDate(cursor);
         if (day >= rec.date) break;
         prior += 1;
-        appendFileSync(
-          LOG,
-          JSON.stringify({
-            at: new Date().toISOString(),
-            date: day,
-            night: prior,
-            ran: false,
-            miss: "machine",
-            backfilled: true,
-            anomalies: [
-              "the scheduled task did not fire on this calendar day — host asleep, logged off, or powered down (the task is interactive-only, no wake-to-run); recorded retrospectively at the next firing",
-            ],
-            ms: 0,
-          }) + "\n"
-        );
+        rows.push({
+          at: new Date().toISOString(),
+          date: day,
+          night: prior,
+          ran: false,
+          miss: "machine",
+          backfilled: true,
+          anomalies: [
+            "the scheduled task did not fire on this calendar day — host asleep, logged off, or powered down (the task is interactive-only, no wake-to-run); recorded retrospectively at the next firing",
+          ],
+          ms: 0,
+        });
       }
     }
   } catch {
     rec.anomalies.push("gap backfill failed — calendar continuity of the log is not guaranteed tonight");
   }
   rec.night = prior + 1;
-  appendFileSync(LOG, JSON.stringify(rec) + "\n");
+  rows.push(rec);
+  appendFileSync(LOG, rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
   log(`soak night ${rec.night}: ${rec.ran ? "ran" : `MISS (${rec.miss})`} · anomalies: ${rec.anomalies.length}`);
   process.exit(0);
 }
