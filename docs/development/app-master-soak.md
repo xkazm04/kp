@@ -1,6 +1,10 @@
 # App master — the P3 longevity soak
 
-**Status: RUNNING from 2026-09-01.** Night 1 ran supervised the same day: authored 7 (business-strategist + ux-reviewer), 36 holder-era proposals, 0 pre-tenure on the wire, marginal cost ~$0 (CLI subscription), one taxonomy entry (`memory-unreported`). Note: the driver exits 1 whenever rankVsBacklog misses — for the SOAK that exit code is a datapoint, not a failure; the runner records and moves on, by design. Subject: tenure `kp-owner`
+**Status: RUNNING from 2026-09-01.** Night 1 ran supervised the same day: authored 7 (business-strategist + ux-reviewer), 36 holder-era proposals, 0 pre-tenure on the wire, one taxonomy entry (`memory-unreported`). **Cost, one definition:**
+`budgetSettledUsd` on the record is the persona's CUMULATIVE settled ledger, so
+a night's cost is the DELTA against the previous record. Measured deltas so
+far: $0.49, $1.82, $0.00 — scans on the CLI's subscription auth often settle
+$0, keyed API calls do not. The abort criterion below keys on that delta. Note: the driver exits 1 whenever rankVsBacklog misses — for the SOAK that exit code is a datapoint, not a failure; the runner records and moves on, by design. Subject: tenure `kp-owner`
 (`agent-mtfmew8s-q4o36c` / persona `6f585135…`), hired 2026-08-30, three exam
 nights of history (P2 passed — `app-master-c1-exam.md` §8c). This document is
 the protocol and the taxonomy; the per-night record is
@@ -24,7 +28,7 @@ gap in the log does not.
   `run.mjs --scenario kp-c1-night --tenure kp-owner --nights 1` against the
   current operator backlog (`uat/value/backlog-2026-08-31.json` — update the
   env `SOAK_BACKLOG` when the deck moves). Rung 0, `autopilot: suggest`, no
-  branches, probation declined, ~$0.90/night measured.
+  branches, probation declined.
 - **The kp bench server** is the runner's: booted if down, on the
   session-independent DB `%LOCALAPPDATA%\kp-bench\kp-soak.sqlite` (the tenure's
   kp-side roster row lives THERE — moved out of a session scratchpad
@@ -76,5 +80,6 @@ written — then P4 (the responsibilities layer) is authored FROM it.
 
 Stop the task (`schtasks /delete /tn kp-app-master-soak`) if: a
 `dispatch-on-ideation` night ever appears (mandate enforcement failed — that is
-a program-stopping finding, not a datapoint), or spend exceeds $2/night twice
-without an explaining anomaly, or the operator says so.
+a program-stopping finding, not a datapoint), or the night-over-night DELTA of
+`budgetSettledUsd` exceeds $2 on two nights without an explaining anomaly, or
+the operator says so.

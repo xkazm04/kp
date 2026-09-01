@@ -109,7 +109,9 @@ if (!kp.ok) {
       KP_SECRET: "bench",
       KP_EMPTY: "1",
       KP_DB_PATH: DB,
-      KP_APP_MASTER_REPO_ROOTS: "C:\\Users\\kazda\\kiro",
+      // The parent of this checkout by default — never a hardcoded user path
+      // (the repo is public; review 2026-09-01 finding 2).
+      KP_APP_MASTER_REPO_ROOTS: process.env.SOAK_REPO_ROOTS ?? path.dirname(ROOT),
     },
     stdio: "ignore",
     detached: false,
