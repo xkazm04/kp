@@ -80,7 +80,7 @@ Theme → governing subject, for the themes this repo actually scans:
 | `api-boundary` / `public-wire` | `authorization`, `ipc-contract` |
 | `keyless-degradation` | the `llm-agent` subjects; cross-check `cost-metering` |
 | `tenancy-scoping` | `authorization`, `audit-logging` |
-| `error-handling` | `data-access` § the honesty contract; the `failure-not-empty-success` law |
+| `error-handling` | **`error-handling`** (its own subject: `error-doors`, `swallowed-error-prevention`, `taxonomy-design`, `structured-propagation`, `user-facing-mapping`, `cancellation-attribution`, `crash-capture`, `reclassification-is-not-repair`, + the `next--taxonomy-design` application); cross-check `data-access` § the honesty contract and the `failure-not-empty-success` law |
 | build/release, gates | `build-economics`, `ci-execution-trust`, `conformance-checking` |
 | a scan of the repo itself | `codebase-scanning`, `concurrent-vcs` |
 
@@ -97,6 +97,9 @@ decode seam is therefore a candidate for the `registry` vehicle (7B.d2), not jus
 ## Gates
 
 - baseline: `npm run typecheck`, `npm run lint`, `npm run test:unit`
+- **`npm run lint` carries NO `--max-warnings`** (`eslint . --cache`): it exits 0 at 139
+  warnings. A new rule at `warn` therefore enforces nothing at commit or merge. Ship at
+  `error` from a measured zero, or use a test guard with a ratchet.
 - step: `npm run typecheck`, `npm run test:unit` (targeted where possible), `npm run lint`
 - final: `npm run typecheck`, `npm run lint`, `npm run test:unit`, `npm run design:check`,
   `npm run i18n:check`, `npm run docs:check`; `npm run test:python` when `pipeline/` was touched
@@ -183,3 +186,32 @@ which half stayed unverified.
 - `app/landing/` — a fixed art direction, exempt from the token rule by design.
 - `docs/_archive/` — superseded; not current, not a drift finding.
 - The Vibeman `backlog:idea-*` inventory — already-triaged ideas, not architect findings.
+
+## Skill improvement log
+
+- **2026-09-01 — the `error-handling` row in the theme→subject table above is wrong, and
+  cost nothing only because the run checked.** It maps `error-handling` to
+  `data-access § the honesty contract` + the `failure-not-empty-success` law. The registry
+  carries a **dedicated `error-handling` subject** (`backend-platform/resilience/`) with
+  eight techniques — `error-doors`, `swallowed-error-prevention`, `taxonomy-design`,
+  `structured-propagation`, `user-facing-mapping`, `cancellation-attribution`,
+  `crash-capture`, `reclassification-is-not-repair` — plus a `next--taxonomy-design`
+  application. Reading it supplied the census predicate the whole run rests on. **Row
+  corrected below; re-derive the other rows from `knowledge/<domain>/index.json` rather
+  than from memory, because this one was written from memory.**
+- **2026-09-01 — `## Gates` should record that `npm run lint` has NO `--max-warnings`.**
+  It is `eslint . --cache` and exits 0 at 139 warnings. Any codification that lands a rule
+  at `warn` therefore enforces nothing at commit or at merge — it changes behaviour only
+  through editor feedback. New rules here are `error` starting from a measured zero (the
+  config's own stated bar), or they are a test guard with a ratchet. There is no third
+  option in this repo, and a run that does not know this will propose one.
+- **2026-09-01 — the coverage clause cannot run from a worktree.** `.personas/` is
+  gitignored, so it exists only in the main checkout; a run that follows Phase 7a's
+  worktree default has no `.personas/memory-outbox.jsonl` to append to and no
+  `contexts.txt` to translate names against. Either write the outbox to the MAIN checkout
+  path explicitly, or accept that worktree runs contribute no coverage — but say which.
+- **2026-09-01 — the skill's `architect: <step>` commit prefix FAILS this repo's
+  commit-msg hook.** `scripts/release/commit-msg.mjs` rejects `architect` as an unknown
+  type (known: build, chore, ci, deps, docs, feat, fix, perf, refactor, security, style,
+  test). Use the repo's convention and carry the decision in an `Architect-decision:`
+  trailer instead. Do not reach for `--no-verify`.
