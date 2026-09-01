@@ -14,7 +14,7 @@ the protocol and the taxonomy; the per-night record is
 when an App master runs for weeks, not rings — memory that decays wrongly, recall
 that injects the wrong thing, beliefs without provenance, and the bench-machine
 fragility the program already named (sleep, limit windows, services down).
-**The gate: a failure taxonomy with ≥14 distinct CALENDAR DATES of record behind it** (the record carries `date`; `night` is only a log index). Not
+**The gate: a failure taxonomy with ≥14 distinct CALENDAR DATES recorded, of which ≥10 actually RAN** (`ran: true`; `backfilled` rows count toward the record — the miss taxonomy is real data — but never toward the ran-quota, or a machine asleep for two weeks would "meet" the gate with zero longevity observations). The record carries `date`; `night` is only a log index. Not
 uptime; a soak with ten recorded misses and honest reasons passes; a soak with a
 gap in the log does not.
 
