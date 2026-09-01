@@ -131,7 +131,9 @@ if (!kp.ok) {
   }
   if (!kp.ok) {
     rec.miss = "kp-boot-failed";
-    rec.anomalies.push("the kp bench server did not answer health within 240s of boot");
+    rec.anomalies.push(
+      "the kp bench server did not answer health within 240s of boot — KP_EMPTY=1 puts it on the .next-empty build dir, so the likeliest holder of .next-empty/dev/lock is a running `npm run dev:empty`; a night while that server is up is a recorded miss (soak doc, Mechanics)"
+    );
     if (kpChild) kpChild.kill();
     finish();
   }
@@ -225,14 +227,16 @@ if (kpChild) {
   try {
     if (process.platform === "win32") {
       // kill() reaches only the cmd.exe wrapper under shell:true; the next dev
-      // underneath survives HOLDING .next/dev/lock and blocks the operator's
-      // morning `npm run dev` (review round 3). taskkill fells the tree.
+      // underneath survives HOLDING .next-empty/dev/lock (KP_EMPTY=1 → distDir
+      // .next-empty, next.config.ts:82) and blocks the operator's `npm run
+      // dev:empty` — not `npm run dev`, whose lock lives in .next (review
+      // rounds 3+4). taskkill fells the tree.
       spawnSync("taskkill", ["/PID", String(kpChild.pid), "/T", "/F"], { stdio: "ignore" });
     } else {
       kpChild.kill();
     }
   } catch {
-    rec.anomalies.push("could not stop the kp bench server this runner started — a survivor may hold .next/dev/lock");
+    rec.anomalies.push("could not stop the kp bench server this runner started — a survivor may hold .next-empty/dev/lock and block `npm run dev:empty`");
   }
 }
 

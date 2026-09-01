@@ -33,6 +33,13 @@ gap in the log does not.
   session-independent DB `%LOCALAPPDATA%\kp-bench\kp-soak.sqlite` (the tenure's
   kp-side roster row lives THERE — moved out of a session scratchpad
   2026-09-01; losing this file orphans the kp half of the tenure).
+- **The soak shares `dev:empty`'s build dir.** `KP_EMPTY=1` puts the bench
+  server on `.next-empty` (next.config.ts:82), so its dev lock contends with
+  `npm run dev:empty` — not with `npm run dev`. A `dev:empty` server left up at
+  02:47 turns the night into a `kp-boot-failed` miss (recorded, with the lock
+  named); a soak survivor blocks the next `dev:empty`, never plain `dev`.
+  Giving the soak its own distDir needs a `next.config.ts` change — a named
+  future item, deliberately not smuggled into the soak kit.
 - **The Personas app is the operator's** and stays running for the soak. The
   runner never boots it: down ⇒ a recorded `bridge-down` miss. That is a
   measurement, not a failure of the runner — bench-machine fragility is half
