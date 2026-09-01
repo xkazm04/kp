@@ -87,6 +87,14 @@ async function health(url, ms = 4000) {
 
 function finish() {
   rec.ms = Date.now() - t0;
+  // ONE record, ONE verdict (round 11): a night whose record proves it RAN
+  // cannot also be a miss — a driver timeout/exit observed AFTER a complete
+  // record was written is a harness note, not the night's fate. The
+  // observation survives in anomalies; the contradiction does not.
+  if (rec.ran && rec.miss) {
+    rec.anomalies.push(`the runner observed "${rec.miss}" AFTER the driver had written a complete record — the night ran; kept here as a harness note, not as the miss`);
+    rec.miss = null;
+  }
   // The classified-miss invariant, STRUCTURAL rather than per-path (rounds
   // 8+9): no record may say "did not run" without saying why — and when no
   // path recorded a reason, the honest class is IGNORANCE, not a named crash
@@ -211,8 +219,9 @@ const driver = spawnSync(
 );
 rec.exitCode = driver.status;
 if (driver.error) {
-  rec.miss = "driver-crashed";
-  rec.anomalies.push(`driver spawn error: ${driver.error.message}`);
+  // A timeout is not a crash (round 11): name what was observed.
+  rec.miss = driver.error.code === "ETIMEDOUT" ? "driver-timeout" : "driver-crashed";
+  rec.anomalies.push(`driver ${rec.miss === "driver-timeout" ? "exceeded its 40min ceiling" : `spawn error: ${driver.error.message}`}`);
 }
 
 // ── 4. Read the newest run record — the driver's truth, not the exit code ───
