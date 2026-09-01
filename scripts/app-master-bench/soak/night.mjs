@@ -184,8 +184,16 @@ try {
 // ── 5. Longevity axis: persona-memory tier counts off the roster ────────────
 try {
   const roster = await health(`${KP_URL}/api/agents`);
+  // Transport first: health() swallows errors into {ok:false}, so without this
+  // check a 500 or an unreachable roster would fall into the !row branch and be
+  // DIAGNOSED as a tenure/DB misconfiguration that never happened (review
+  // 2026-09-01 finding 1 — the outer catch cannot see what health() ate).
+  if (!roster.ok || !Array.isArray(roster.json?.agents)) {
+    rec.anomalies.push(`roster unreadable (status ${roster.status}) — memory unmeasured tonight, and NO diagnosis beyond that`);
+    throw { handled: true };
+  }
   const wantedId = tenureHandles?.hiredAgentId ?? null;
-  const row = wantedId ? roster.json?.agents?.find((a) => a.id === wantedId) : null;
+  const row = wantedId ? roster.json.agents.find((a) => a.id === wantedId) : null;
   // Three DIFFERENT truths, recorded apart — collapsing them was the review's
   // blocking finding: no handle, no row, and a row whose reporter sent nothing.
   if (!wantedId) {
@@ -196,8 +204,8 @@ try {
     rec.memory = row.appMaster?.memory ?? null;
     if (rec.memory === null) rec.anomalies.push("the tenure's own roster row carries no memory counts — the reporter sent none this window (longevity unmeasured tonight)");
   }
-} catch {
-  rec.anomalies.push("could not read the roster for memory counts");
+} catch (e) {
+  if (!e?.handled) rec.anomalies.push("could not read the roster for memory counts");
 }
 
 // ── 6. Leave nothing WE started running ─────────────────────────────────────
