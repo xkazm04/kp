@@ -142,7 +142,7 @@ export function useLedgerLogic() {
   // sort never has to re-implement the filter predicates, and "recent" stays the
   // ordering anyone who never touches a header sees.
   const filtered = useMemo(
-    () => (rows ? filterAndSortJds(rows, { query, status, field, seniority, sort: "recent" }) : []),
+    () => (rows ? filterAndSortJds(rows, { query, status, field, seniority }) : []),
     [rows, query, status, field, seniority]
   );
   const { sorted: visible, sort, toggle: onSort } = useTableSort<JdRow, JdSortCol>(filtered, JD_SORT_ACCESSORS, {
