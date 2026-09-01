@@ -38,6 +38,14 @@ export function useRecruiterCandidatesLogic({
     candidates: CandRow[];
     skipped?: SkippedCandidate[];
     fairness?: FairnessMatrix | null;
+    // Honest cap signal from the route: the corpus exceeds the pool caps
+    // (PROFILE_POOL_CAP + ANALYSIS_POOL_CAP), so some saved candidates were never
+    // scored here — the overflow is EXCLUDED, not ranked low. Shipped by
+    // GET /api/jobs/[id]/candidates since the caps landed and unread until now, so
+    // an over-cap workspace saw a ranking, a KO count and a Pool-Fit count all
+    // computed over a subset with no notice — the same cut-slice-as-whole-set shape
+    // the rediscovery panel closed with its "+N more" line.
+    poolTruncated?: boolean;
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +141,9 @@ export function useRecruiterCandidatesLogic({
   const notEligibleRows = data?.candidates.filter((c) => !c.koPassed) ?? [];
   const notEligible = notEligibleRows.length;
   const skipped = data?.skipped ?? [];
+  // Strictly `=== true`: an older/partial payload without the flag reads as "not
+  // capped" rather than inventing a warning the route never sent.
+  const poolTruncated = data?.poolTruncated === true;
 
   // e1e4e0ea — index the cross-scheme fairness matrix by candidateId so each card
   // can show its robust mean + own-vs-robust delta, and the columns can re-rank by
@@ -234,6 +245,7 @@ export function useRecruiterCandidatesLogic({
     notEligibleRows,
     notEligible,
     skipped,
+    poolTruncated,
     fairness,
     fairById,
     hasFairness,

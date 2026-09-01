@@ -4307,6 +4307,7 @@
       "notEligibleWhy": "{count, plural, one {Non éligible (#) : voir pourquoi} other {Non éligibles (#) : voir pourquoi}}",
       "nearMiss": "de peu",
       "earlyCareerNote": "Les candidats en début de carrière figurent dans un pipeline distinct et sont notés sur le potentiel. Ils ne sont jamais classés sur un chiffre unique face aux candidats expérimentés.",
+      "poolTruncatedNote": "Pas tout le vivier : votre corpus de candidats dépasse les plafonds du classement, donc certains candidats enregistrés n'ont jamais été notés pour ce poste. Le classement et les comptes ici ne couvrent que le sous-ensemble noté.",
       "experienced": "Expérimentés",
       "earlyCareerPipeline": "Pipeline début de carrière",
       "fairnessShielded": "Protégé pour l’équité : noté sur le potentiel, jamais rejeté automatiquement. Les décisions défavorables restent humaines.",

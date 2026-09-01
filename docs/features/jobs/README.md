@@ -360,6 +360,20 @@ either the sweep's outcome ("Checked 12 roles: 3 new matches") or its failure, a
 the failure was painted `text-moss` — this app's "it worked" green — whenever any
 alert was already on screen.
 
+## The Candidates tab says when the pool was capped
+
+`GET /api/jobs/[id]/candidates` returns `poolTruncated` ("the corpus exceeds the
+pool caps, so some candidates were never scored here" — the overflow is excluded,
+not ranked low). The tab shipped that flag unread: `jobsRecruiterCandidatesLogic.ts`
+typed only `candidates` / `skipped` / `fairness`, so an over-cap workspace saw a
+ranking, a KO-filtered count and a Pool-Fit count all computed over a subset,
+presented as the pool — the same cut-slice-as-whole-set shape the rediscovery
+panel closed with its "+N more" line. The hook now reads the flag (strictly
+`=== true`, so an older payload never invents a warning) and
+`JobsRecruiterCandidates` renders `jobs.candidates.poolTruncatedNote` beside the
+skipped-candidates note, in the same advisory amber. The winnability coach's half
+is still open (Known gaps).
+
 ## A rediscovery prior must be another role
 
 `pickPrior` (`app/_lib/rediscover.ts`) picks the one past outcome that justifies
@@ -664,15 +678,12 @@ include `workspace_id`).
   computed only over the page. Same shape as `listJobs`' `LIMIT 300` trap above,
   and the same fix: a `listJdsPage`-style `{ jds, truncated, limit }` plus a
   "showing N of M" line (new `library.tab.*` copy across all four locales).
-- `GET /api/jobs/[id]/candidates` forwards `poolTruncated` (from
-  `buildCandidatePool`) and **nothing reads it**: the `data` state in
-  `app/features/library/jobs/jobsRecruiterCandidatesLogic.ts` types only
-  `candidates` / `skipped` / `fairness`. A workspace whose corpus exceeds
-  `PROFILE_POOL_CAP + ANALYSIS_POOL_CAP` (~160) therefore sees a ranking, a
-  KO-filtered count and a Pool-Fit count all computed over a subset with no
-  notice. `GET /api/jobs/[id]/winnability` drops the same flag on the floor
-  (`const { entries } = buildCandidatePool(ws)`), so its "+N if you loosen this"
-  promises are capped the same way.
+- `GET /api/jobs/[id]/winnability` drops `buildCandidatePool`'s `truncated` flag
+  on the floor (`const { entries } = buildCandidatePool(ws)`), so on a workspace
+  whose corpus exceeds `PROFILE_POOL_CAP + ANALYSIS_POOL_CAP` (~160) the coach's
+  "+N if you loosen this" promises are computed over a capped subset with no
+  notice. The Candidates tab now says so for its own ranking (below); the coach
+  panel still needs the flag forwarded and a matching line.
 - **The Fair Rank audit table ranks one number across cohorts it is not
   comparable within.** `recruiter.fairness_check` is handed *every* validated
   candidate, so its `own` / `mean` arrays include both fairness tracks **and**
@@ -684,11 +695,6 @@ include `workspace_id`).
   experienced candidates"), and a candidate the KO filter rejected outright can
   sit at the top of the bias-defensible record. Fixing it needs `koPassed` +
   `track` passed down from `JobsRecruiterCandidates.tsx`, and a column label.
-- **`poolTruncated` is shipped and unread.** `GET /api/jobs/[id]/candidates`
-  returns it ("the corpus exceeds the pool caps, so some candidates were never
-  scored here"), but `jobsRecruiterCandidatesLogic.ts` does not type or read it,
-  so an over-cap workspace presents a capped ranking as the pool with no note —
-  the same cut-slice-as-whole-set shape rediscovery just closed.
 - No structurally-tracked, independently-provenanced editable salary band yet
   (would need its own `source: "manual"` marker, not a re-parse of the
   markdown).
