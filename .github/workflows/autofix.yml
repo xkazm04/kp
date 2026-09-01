@@ -71,9 +71,10 @@ jobs:
     # question is not hypothetical.
     permissions:
       # NOT `contents: write`, which this job carried and never used. The commit
-      # is pushed with AUTOFIX_TOKEN: the checkout below takes that PAT, and the
-      # push step is gated on it being present, so the DEFAULT token is only
-      # ever asked to read. Without the PAT the push step is skipped by design
+      # is pushed with AUTOFIX_TOKEN, which reaches only the push step (see the
+      # checkout note below — it is deliberately NOT persisted into the
+      # workspace), and that step is gated on the secret being present, so the
+      # DEFAULT token is only ever asked to read. Without the PAT the push step is skipped by design
       # (a commit pushed with GITHUB_TOKEN triggers no workflows and would leave
       # this PR showing the checks of code it no longer contains), so there is
       # no path where a write scope on the default token is the thing that makes
@@ -89,10 +90,22 @@ jobs:
       HAS_AUTOFIX_TOKEN: ${{ secrets.AUTOFIX_TOKEN != '' }}
     steps:
       # The PR's own branch, not the merge commit: a fix has to be committable.
+      #
+      # AND NOTHING IS LEFT ON DISK. This step used to take `token: AUTOFIX_TOKEN`
+      # so that the push at the bottom would be authenticated — which meant
+      # `actions/checkout` wrote that PAT into `.git/config` (persist-credentials
+      # defaults to true) and left it there while `npm ci` ran a contributor's
+      # lockfile two steps later. Every install script in that dependency tree
+      # could read it out of the workspace, and a PAT is precisely the token no
+      # `permissions:` block above bounds: it exists because it can push where the
+      # default token cannot. The read here needs no PAT at all (a same-repo
+      # branch, and the `if:` above is what makes it same-repo), and the push is
+      # given the token directly instead. `npm run security:actions` fails on any
+      # future checkout that takes a non-default token without this line.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.AUTOFIX_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -159,6 +172,11 @@ jobs:
         if: steps.fix.outputs.changed == 'true' && env.HAS_AUTOFIX_TOKEN == 'true'
         env:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          # The PAT reaches ONE command, at the end, as a value in this step's
+          # environment — never `.git/config`, so it is gone the moment this step
+          # is. Actions masks it in the log the same way it masks it anywhere else.
+          AUTOFIX_TOKEN: ${{ secrets.AUTOFIX_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
           git config user.name "kp autofix"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -168,7 +186,7 @@ jobs:
           git diff --name-only -z | xargs -0 --no-run-if-empty git add --
           git commit -m "style: apply automated lint fixes" \
             -m "eslint --fix and ruff --fix (F401, F541) over this branch, by .github/workflows/autofix.yml. Nothing here required a decision."
-          git push origin "HEAD:$HEAD_REF"
+          git push "https://x-access-token:${AUTOFIX_TOKEN}@github.com/${REPO}.git" "HEAD:$HEAD_REF"
           echo "pushed=true" >> "$GITHUB_OUTPUT"
 
       - name: Say what was fixed

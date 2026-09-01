@@ -64,6 +64,18 @@
 //                       to make the first arrival visible rather than to describe
 //                       the present.
 //
+//   persisted-credentials  a checkout handed a PAT rather than the default token,
+//                       without `persist-credentials: false`. Nothing is executed
+//                       as text here either — the credential is simply LEFT IN
+//                       THE WORKSPACE, in `.git/config`, for everything that runs
+//                       after it. The jobs that need a PAT are the jobs that
+//                       check out a contributor's branch and `npm ci` over it, so
+//                       "everything that runs after" includes that branch's own
+//                       install scripts, and the token they find outranks the one
+//                       the `permissions:` block describes. Check out
+//                       credential-free and give the token to the step that
+//                       pushes, through `env:`.
+//
 //   untrusted-checkout  `pull_request_target` and `workflow_run` run with the
 //                       BASE repository's token and secrets while the event
 //                       describes someone else's pull request. Checking out a ref
@@ -79,7 +91,8 @@
 //
 // EXIT CODES: 0 clean · 1 an unpinned ref outside the allowlist, a workflow with
 // no `permissions:` block, an expression interpolated into a `run:` or a
-// `script:`, or a privileged trigger checking out an event-derived ref.
+// `script:`, a privileged trigger checking out an event-derived ref, or a PAT
+// left persisted in a checkout's `.git/config`.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -377,23 +390,90 @@ export function triggersIn(text) {
   return [];
 }
 
-/** `[{ value, line }]` — the `ref:` each checkout step is told to fetch. */
-export function checkoutRefs(text) {
+/**
+ * `[{ line, inputs }]` — every `actions/checkout` step, with the `with:` inputs it
+ * was given as `{ <key>: { value, line } }`.
+ *
+ * Only keys under `with:` are read. The step's `env:` block can carry a key called
+ * `token` that is not the action's input at all, and a reader that conflated the
+ * two would either miss a real `token:` or invent one.
+ */
+export function checkoutSteps(text) {
   const lines = text.split(/\r?\n/);
   const out = [];
-  let inCheckout = false;
+  let step = null; // the checkout step being read, or null
+  let withCol = null; // indentation of the `with:` key, once we are inside one
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (/^\s*#/.test(line)) continue;
-    if (/^\s*-\s/.test(line)) inCheckout = false; // a new step begins
+    if (/^\s*-\s/.test(line)) {
+      step = null; // a new step begins
+      withCol = null;
+    }
     const u = USES_RE.exec(line);
     if (u) {
-      inCheckout = /(?:^|\/)checkout@/.test(u[2]);
+      if (/(?:^|\/)checkout@/.test(u[2])) {
+        step = { line: i + 1, inputs: {} };
+        out.push(step);
+      }
       continue;
     }
-    if (!inCheckout) continue;
-    const r = /^\s*ref:[ \t]*(.+?)\s*$/.exec(line);
-    if (r) out.push({ value: r[1], line: i + 1 });
+    if (!step) continue;
+    const w = /^(\s*)with:[ \t]*(#.*)?$/.exec(line);
+    if (w) {
+      withCol = w[1].length;
+      continue;
+    }
+    if (withCol === null) continue;
+    if (/^\s*/.exec(line)[0].length <= withCol) {
+      withCol = null; // back out to a sibling key of `with:`
+      continue;
+    }
+    const kv = /^\s*([A-Za-z_][\w-]*):[ \t]*(.*?)\s*$/.exec(line);
+    if (kv) step.inputs[kv[1]] = { value: kv[2].replace(/\s+#.*$/, '').trim(), line: i + 1 };
+  }
+  return out;
+}
+
+/** `[{ value, line }]` — the `ref:` each checkout step is told to fetch. */
+export function checkoutRefs(text) {
+  return checkoutSteps(text)
+    .filter((s) => s.inputs.ref)
+    .map((s) => ({ value: s.inputs.ref.value, line: s.inputs.ref.line }));
+}
+
+/** The default token, in the two spellings a workflow writes it. */
+const DEFAULT_TOKEN_RE = /^\$\{\{\s*(?:secrets\.GITHUB_TOKEN|github\.token)\s*\}\}$/;
+
+/**
+ * `[{ line, token }]` — a checkout handed a token that OUTRANKS the default one
+ * and left on disk for the rest of the job.
+ *
+ * `actions/checkout` writes whatever `token:` it is given into `.git/config` as an
+ * auth header and leaves it there (`persist-credentials` defaults to true). For
+ * the default `GITHUB_TOKEN` that is a wash — the job already holds it in `env`,
+ * bounded by the `permissions:` block a reviewer can read. A PAT is the opposite:
+ * it exists BECAUSE it can do something the default token cannot (push a commit
+ * that re-triggers workflows), its scope is invisible to this repository, and no
+ * `permissions:` line constrains it.
+ *
+ * The exposure is everything that runs after the checkout in that job — and the
+ * jobs that need a PAT are exactly the jobs that check out somebody's branch and
+ * run `npm ci` over it, so "everything that runs after" includes a lockfile's
+ * install scripts. `.git/config` is a plain file in the workspace those scripts
+ * are handed.
+ *
+ * The fix is not to stop using the PAT; it is to stop leaving it lying around.
+ * Check out credential-free (`persist-credentials: false`), and give the token to
+ * the ONE step that pushes, through `env:`, as an authenticated remote URL.
+ */
+export function persistedCredentials(text) {
+  const out = [];
+  for (const { inputs } of checkoutSteps(text)) {
+    const token = inputs.token;
+    if (!token || DEFAULT_TOKEN_RE.test(token.value)) continue;
+    if (inputs['persist-credentials']?.value === 'false') continue;
+    out.push({ line: token.line, token: token.value });
   }
   return out;
 }
@@ -466,6 +546,23 @@ export function runChecks(files, allowlist = PIN_ALLOWLIST) {
           'That input is evaluated as JavaScript, and the expression is expanded into its text before the ' +
             `interpreter reads it — the \`run:\` hazard with a different shell. Move it to \`env:\` on that step ` +
             `(\`MY_VAR: \${{ ${ref} }}\`) and read \`process.env.MY_VAR\`.`,
+        ),
+      );
+    }
+
+    for (const { token, line } of persistedCredentials(text)) {
+      out.push(
+        finding(
+          'blocking',
+          'persisted-credentials',
+          file,
+          line,
+          `This checkout is given \`${token}\` and leaves it in \`.git/config\` for the rest of the job.`,
+          'A PAT exists because it outranks the default token, and no `permissions:` line bounds it. ' +
+            '`actions/checkout` persists it by default, so every later step — including a dependency ' +
+            "install running a contributor lockfile's lifecycle scripts — can read it out of the " +
+            'workspace. Add `persist-credentials: false` to this step, and hand the token to the one ' +
+            'step that pushes through `env:` (`git push "https://x-access-token:${TOKEN}@github.com/$REPO.git" …`).',
         ),
       );
     }
@@ -594,7 +691,11 @@ export function parseArgs(argv) {
 
 export function render(findings) {
   if (findings.length === 0)
-    return 'check-actions: every action is pinned, every workflow scopes its token, no expression reaches an interpreter, and no privileged trigger checks out an event-derived ref.';
+    return (
+      'check-actions: every action is pinned, every workflow scopes its token, no expression reaches an ' +
+      'interpreter, no privileged trigger checks out an event-derived ref, and no checkout leaves a PAT ' +
+      'behind in the workspace.'
+    );
   const lines = findings.map(
     (f) => `${f.severity === 'blocking' ? 'BLOCK' : ' note'}  ${f.file}:${f.line}  [${f.rule}] ${f.message}\n        ${f.fix}`,
   );

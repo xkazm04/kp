@@ -2,11 +2,40 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 import i18next from "eslint-plugin-i18next";
 
-// The three `db.transaction()` selectors, named once because TWO config blocks
-// below need them. Flat config does not merge a rule's options: the last block
-// matching a file REPLACES them, so a second `no-restricted-syntax` block that
-// listed only its own selector would silently switch these three off for every
-// file it matched. Spread them into both.
+// ===========================================================================
+// ONE RULE, SIX AUDIENCES — and why this file is composed rather than written.
+//
+// Every law below is a selector for `no-restricted-syntax`, and flat config DOES
+// NOT MERGE A RULE'S OPTIONS: when several config objects match a file, the LAST
+// one's options REPLACE the earlier ones entirely. A block that lists only its
+// own selector therefore switches every other selector OFF for every file it
+// matches — silently, with `npm run lint` still green, because a rule that never
+// runs reports nothing.
+//
+// This file used to answer that by asking each block to re-type the selectors it
+// inherited, in a comment ("Spread them into both", "adding a selector there
+// without adding it here switches it off for the whole UI layer"). That is a
+// convention, and it had already failed: the design-law block — the ONE gate on
+// hardcoded colors, which ci.yml's design:check step names as "an eslint rule, so
+// it rides `npm run lint`" — sat above a `files: ["app/**/*.ts", "app/**/*.tsx"]`
+// block that replaced its options for every file it covered. The colour law had
+// stopped running across the whole of app/ and nothing said so.
+//
+// So the selectors are now DECLARED as sets, and every block is BUILT by
+// `restrict()` from the sets that apply to it. A new law is added to its set
+// once; there is nothing left to forget to restate. The layering rule is the
+// only thing left to get right, and it is stated at the config array below.
+//
+// scripts/lint/__tests__/eslint-gates.test.mjs is the other half: it feeds each
+// law a snippet that must be rejected, at each layer that must reject it, through
+// the real ESLint. A law that stops firing fails a test instead of going quiet.
+// ===========================================================================
+
+/** Every block's `no-restricted-syntax` is built here, never hand-listed. */
+const restrict = (...selectors) => ({ "no-restricted-syntax": ["error", ...selectors] });
+
+// The three `db.transaction()` selectors — the floor, applied to every file this
+// config reaches.
 const TRANSACTION_SELECTORS = [
   {
     selector:
@@ -122,6 +151,101 @@ const DB_BARREL_SELECTOR = {
     "(@/app/_lib/db/pipeline, @/app/_lib/db/jobs, …), or make it an `import type`, which is free."
 };
 
+// ---------------------------------------------------------------------------
+// Design law: no hardcoded colors outside app/landing/.
+//
+// ".claude/CLAUDE.md" has always said "Never hardcode colors (bg-[#...], inline
+// style colors, rgba shadows) outside app/landing/ — everything else resolves
+// through tokens", and for a while nothing enforced it. A literal hex cannot
+// follow [data-theme="dark"], so every one of them is a surface that silently
+// stops theming.
+//
+// AST-based on purpose: it sees string literals and template chunks (so
+// `bg-[#fff]`, style={{ color: "#fff" }} and a `rgba(...)` box-shadow all trip)
+// but NOT comments, which legitimately quote hexes when explaining a token.
+// Six-digit only — three-digit `#abc` collides with issue refs and URL
+// fragments, and the codebase's 3-digit hexes are all test data.
+//
+// The companion checks live in scripts/design/check-design-tokens.mjs (brand.ts
+// <-> globals.css lockstep, and dark-mapping parity for every shade utility),
+// wired as `npm run design:check`.
+// ---------------------------------------------------------------------------
+const COLOR_SELECTORS = [
+  {
+    selector: "Literal[value=/#[0-9a-fA-F]{6}\\b/]",
+    message:
+      "Hardcoded color. Colors must resolve through tokens so they follow [data-theme=\"dark\"] — " +
+      "use a Tailwind token utility, var(--color-*), or app/_lib/brand.ts for stylesheet-less " +
+      "surfaces. If the color has no token, add one to app/globals.css (both themes). See docs/design/README.md."
+  },
+  {
+    selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{6}\\b/]",
+    message:
+      "Hardcoded color in a template literal. Colors must resolve through tokens so they follow " +
+      "[data-theme=\"dark\"]. See docs/design/README.md."
+  },
+  {
+    selector: "Literal[value=/rgba?\\(\\s*[0-9]/]",
+    message:
+      "Inline rgb()/rgba() color. Shadows and scrims must resolve through tokens so they follow " +
+      "[data-theme=\"dark\"] — add a --color-* or --shadow-* token to app/globals.css instead. " +
+      "See docs/design/README.md."
+  },
+  {
+    selector: "TemplateElement[value.raw=/rgba?\\(\\s*[0-9]/]",
+    message:
+      "Inline rgb()/rgba() color in a template literal. Use a token from app/globals.css. " +
+      "See docs/design/README.md."
+  }
+];
+
+/** Where a literal color is the point of the file rather than a mistake. */
+const COLOR_EXEMPT = [
+  // Fixed art direction, the one stated exemption in the design law.
+  "app/landing/**",
+  // The documented JS mirror of the @theme tokens, for surfaces the CSS token
+  // system cannot reach (OG card, apple-icon, raw SVG fills). These literals are
+  // the point of the file — and design:check now pins every one of them to its
+  // --color-* declaration, so they cannot drift.
+  "app/_lib/brand.ts",
+  // Traced glyph SOURCE data, never painted: MotionizedGlyph runs every fill
+  // through snapToToken() (app/_components/glyph/glyphTokens.ts) and emits
+  // var(--color-*). ~250 literals that are already tokens by the time they reach
+  // the DOM — the best-engineered thing in this cluster.
+  "app/_components/glyph/glyphs/**",
+  // Diagram-only primitive tints (database cylinder, cloud, sticky note, group
+  // boxes) with no CSS-variable equivalent. The brand-mirroring half of the
+  // palette now imports from brand.ts; the bespoke half stays literal until the
+  // diagram gets a dark register of its own.
+  "app/_components/puml/**",
+  // Dev-only inspector chrome (DEV_INSPECT=1). Deliberately a FIXED devtools
+  // skin that must not follow the app theme — it has to stay readable while you
+  // are debugging the theme itself.
+  "app/_dev-inspector/**",
+  // Test data: hexes here are inputs and expected values for the color
+  // sanitizers and the glyph token snapper, not rendered color.
+  "app/**/*.test.{ts,tsx}"
+];
+
+/**
+ * A test is never compiled into a route, so its module graph is not a request
+ * cost, and it is allowed to drive a store directly to set up its fixture. The
+ * transaction law has no such exemption: a test that awaits inside a transaction
+ * is testing something that does not work.
+ */
+const TEST_FILES = ["app/**/*.test.ts", "app/**/*.test.tsx", "packages/**/*.test.ts"];
+
+const APP_AND_PACKAGES = ["app/**/*.ts", "app/**/*.tsx", "packages/**/*.ts"];
+const UI_LAYER = [
+  "app/features/**/*.ts",
+  "app/features/**/*.tsx",
+  "app/_components/**/*.ts",
+  "app/_components/**/*.tsx"
+];
+
+// The module-graph laws every non-test file under app/ and packages/ carries.
+const GRAPH_SELECTORS = [DB_BARREL_SELECTOR, NO_ROUTE_HANDLER_IMPORT];
+
 const config = [
   ...nextVitals,
   ...nextTypescript,
@@ -131,85 +255,6 @@ const config = [
     // stale checkouts and reports their (pre-existing, unrelated) violations as
     // if they were this tree's. eslint has no business in .claude.
     ignores: [".next/**", ".next-empty/**", "node_modules/**", "test-results/**", ".claude/**"]
-  },
-  {
-    // ---------------------------------------------------------------------
-    // Design law: no hardcoded colors outside app/landing/.
-    //
-    // ".claude/CLAUDE.md" has always said "Never hardcode colors (bg-[#...],
-    // inline style colors, rgba shadows) outside app/landing/ — everything
-    // else resolves through tokens", and nothing enforced it. A literal hex
-    // cannot follow [data-theme="dark"], so every one of them is a surface
-    // that silently stops theming.
-    //
-    // AST-based on purpose: it sees string literals and template chunks (so
-    // `bg-[#fff]`, style={{ color: "#fff" }} and a `rgba(...)` box-shadow all
-    // trip) but NOT comments, which legitimately quote hexes when explaining
-    // a token. Six-digit only — three-digit `#abc` collides with issue refs
-    // and URL fragments, and the codebase's 3-digit hexes are all test data.
-    //
-    // The companion checks live in scripts/design/check-design-tokens.mjs
-    // (brand.ts <-> globals.css lockstep, and dark-mapping parity for every
-    // shade utility), wired as `npm run design:check`.
-    // ---------------------------------------------------------------------
-    files: ["app/**/*.{ts,tsx}"],
-    ignores: [
-      // Fixed art direction, the one stated exemption in the design law.
-      "app/landing/**",
-      // The documented JS mirror of the @theme tokens, for surfaces the CSS
-      // token system cannot reach (OG card, apple-icon, raw SVG fills). These
-      // literals are the point of the file — and design:check now pins every
-      // one of them to its --color-* declaration, so they cannot drift.
-      "app/_lib/brand.ts",
-      // Traced glyph SOURCE data, never painted: MotionizedGlyph runs every
-      // fill through snapToToken() (app/_components/glyph/glyphTokens.ts) and
-      // emits var(--color-*). ~250 literals that are already tokens by the
-      // time they reach the DOM — the best-engineered thing in this cluster.
-      "app/_components/glyph/glyphs/**",
-      // Diagram-only primitive tints (database cylinder, cloud, sticky note,
-      // group boxes) with no CSS-variable equivalent. The brand-mirroring half
-      // of the palette now imports from brand.ts; the bespoke half stays
-      // literal until the diagram gets a dark register of its own.
-      "app/_components/puml/**",
-      // Dev-only inspector chrome (DEV_INSPECT=1). Deliberately a FIXED
-      // devtools skin that must not follow the app theme — it has to stay
-      // readable while you are debugging the theme itself.
-      "app/_dev-inspector/**",
-      // Test data: hexes here are inputs and expected values for the color
-      // sanitizers and the glyph token snapper, not rendered color.
-      "app/**/*.test.{ts,tsx}"
-    ],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "Literal[value=/#[0-9a-fA-F]{6}\\b/]",
-          message:
-            "Hardcoded color. Colors must resolve through tokens so they follow [data-theme=\"dark\"] — " +
-            "use a Tailwind token utility, var(--color-*), or app/_lib/brand.ts for stylesheet-less " +
-            "surfaces. If the color has no token, add one to app/globals.css (both themes). See docs/design/README.md."
-        },
-        {
-          selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{6}\\b/]",
-          message:
-            "Hardcoded color in a template literal. Colors must resolve through tokens so they follow " +
-            "[data-theme=\"dark\"]. See docs/design/README.md."
-        },
-        {
-          selector: "Literal[value=/rgba?\\(\\s*[0-9]/]",
-          message:
-            "Inline rgb()/rgba() color. Shadows and scrims must resolve through tokens so they follow " +
-            "[data-theme=\"dark\"] — add a --color-* or --shadow-* token to app/globals.css instead. " +
-            "See docs/design/README.md."
-        },
-        {
-          selector: "TemplateElement[value.raw=/rgba?\\(\\s*[0-9]/]",
-          message:
-            "Inline rgb()/rgba() color in a template literal. Use a token from app/globals.css. " +
-            "See docs/design/README.md."
-        }
-      ]
-    }
   },
   {
     // i18n gap prevention: flag hardcoded user-facing JSX text so new strings go
@@ -345,10 +390,14 @@ const config = [
     // with a compare-and-swap on the row it read (expectedStage / expectedApprovalKind),
     // so a decision computed during a 30-second LLM call is safely dropped if the row
     // moved. Copy that, don't await inside the lock.
+    //
+    // THE FLOOR OF THE STACK. The five blocks below are progressively narrower
+    // and each REPLACES this one for the files it matches, so each rebuilds this
+    // set through `restrict()` rather than inheriting it. Read them top to
+    // bottom: every file lands in exactly one, and it is the last one that
+    // matches it.
     files: ["app/**/*.ts", "app/**/*.tsx", "scripts/**/*.mjs", "packages/**/*.ts"],
-    rules: {
-      "no-restricted-syntax": ["error", ...TRANSACTION_SELECTORS]
-    }
+    rules: restrict(...TRANSACTION_SELECTORS)
   },
   {
     // ---------------------------------------------------------------------
@@ -384,57 +433,45 @@ const config = [
     // and ratcheted — is scripts/perf/check-budget.mjs; see
     // docs/development/performance-budget.md.
     // ---------------------------------------------------------------------
-    files: ["app/**/*.ts", "app/**/*.tsx", "packages/**/*.ts"],
-    ignores: ["app/**/*.test.ts", "app/**/*.test.tsx", "packages/**/*.test.ts"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        // Re-stated, not replaced: see the note beside TRANSACTION_SELECTORS.
-        ...TRANSACTION_SELECTORS,
-        DB_BARREL_SELECTOR,
-        // Nobody imports a route handler — true of every layer, so it rides the
-        // widest block rather than needing one of its own.
-        NO_ROUTE_HANDLER_IMPORT
-      ]
-    }
+    // Nobody imports a route handler either — true of every layer, so it rides
+    // this block rather than needing one of its own.
+    files: APP_AND_PACKAGES,
+    ignores: TEST_FILES,
+    rules: restrict(...TRANSACTION_SELECTORS, ...GRAPH_SELECTORS)
+  },
+  {
+    // The design law, over everything under app/ that is not one of the stated
+    // exemptions. Narrower than the block above (it is app/ only and drops the
+    // exempt paths), so it comes after it and carries everything it carried.
+    files: ["app/**/*.ts", "app/**/*.tsx"],
+    ignores: COLOR_EXEMPT,
+    rules: restrict(...TRANSACTION_SELECTORS, ...GRAPH_SELECTORS, ...COLOR_SELECTORS)
   },
   {
     // ---------------------------------------------------------------------
     // The `ui` layer: app/features/** (the tab modules) and app/_components/**
-    // (shared primitives). Both are SUBSETS of the block above, so flat config
-    // applies this one instead of it — which is exactly the trap the note
-    // beside TRANSACTION_SELECTORS describes. Everything the wider block
-    // enforces is therefore restated here; adding a selector there without
-    // adding it here switches it off for the whole UI layer.
+    // (shared primitives), MINUS the colour-exempt paths inside it — the traced
+    // glyph data and the diagram primitives both live under app/_components/.
+    // Those files still owe every other law, which is what this block is for;
+    // the one below adds the colour law back for the rest of the layer.
     // ---------------------------------------------------------------------
-    files: ["app/features/**/*.ts", "app/features/**/*.tsx", "app/_components/**/*.ts", "app/_components/**/*.tsx"],
-    // A test is never compiled into a route and is allowed to drive a store
-    // directly to set up its fixture — the same exemption the block above makes.
-    ignores: ["app/**/*.test.ts", "app/**/*.test.tsx"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...TRANSACTION_SELECTORS,
-        DB_BARREL_SELECTOR,
-        NO_ROUTE_HANDLER_IMPORT,
-        UI_NO_DB_VALUE_IMPORT
-      ]
-    }
+    files: UI_LAYER,
+    ignores: TEST_FILES,
+    rules: restrict(...TRANSACTION_SELECTORS, ...GRAPH_SELECTORS, UI_NO_DB_VALUE_IMPORT)
   },
   {
-    // The portable lane. Also a subset of the wide block above, so the same
-    // restatement rule applies.
+    // The rest of the UI layer: every law, including colour. This is the block
+    // most component files land in, and it is last for that reason.
+    files: UI_LAYER,
+    ignores: COLOR_EXEMPT,
+    rules: restrict(...TRANSACTION_SELECTORS, ...GRAPH_SELECTORS, UI_NO_DB_VALUE_IMPORT, ...COLOR_SELECTORS)
+  },
+  {
+    // The portable lane. `packages/**` is outside app/, so no colour law here —
+    // these modules render nothing.
     files: ["packages/**/*.ts"],
     ignores: ["packages/**/*.test.ts"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...TRANSACTION_SELECTORS,
-        DB_BARREL_SELECTOR,
-        NO_ROUTE_HANDLER_IMPORT,
-        PACKAGES_NO_APP_IMPORT
-      ]
-    }
+    rules: restrict(...TRANSACTION_SELECTORS, ...GRAPH_SELECTORS, PACKAGES_NO_APP_IMPORT)
   }
 ];
 

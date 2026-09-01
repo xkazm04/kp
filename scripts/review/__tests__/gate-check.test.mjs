@@ -31,11 +31,13 @@ import {
   DANGEROUS_TRIGGERS,
   PIN_ALLOWLIST,
   checkoutRefs,
+  checkoutSteps,
   hasTopLevelPermissions,
   isPinned,
   isTrustedInRun,
   jobPermissions,
   loadAllowlist,
+  persistedCredentials,
   rewriteUses,
   runChecks as runActionChecks,
   runScriptLines,
@@ -546,6 +548,92 @@ check('no workflow in this tree pairs a privileged trigger with an event-derived
     assert.deepEqual(untrustedScriptRefs(text), [], `${file} interpolates into a github-script body`);
     const bad = untrustedCheckoutRefs(text);
     assert.deepEqual(bad, [], `${file} checks out ${JSON.stringify(bad)} under ${triggersIn(text).filter((t) => DANGEROUS_TRIGGERS.includes(t))}`);
+  }
+});
+
+// --- the credential the checkout LEAVES BEHIND --------------------------------
+//
+// The third sink, and the one that executes nothing: `actions/checkout` writes
+// its `token:` into `.git/config` and leaves it there. For the default token that
+// is a wash. For a PAT it is not — the PAT exists because it outranks the default
+// token, no `permissions:` line bounds it, and the jobs that need one are exactly
+// the jobs that check out somebody's branch and `npm ci` over it.
+
+check('the `with:` inputs of a checkout step are read, and only that step\'s', () => {
+  const text = [
+    'jobs:',
+    '  a:',
+    '    steps:',
+    '      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5',
+    '        with:',
+    '          ref: main',
+    '          token: ${{ secrets.PAT }}',
+    '        env:',
+    '          token: not-the-action-input', // a sibling key of `with:`, not an input
+    '      - uses: other/action@34e114876b0b11c390a56381ad16ebd13914f8d5',
+    '        with:',
+    '          token: ${{ secrets.OTHER }}',
+  ].join('\n');
+  const steps = checkoutSteps(text);
+  assert.equal(steps.length, 1, 'only the checkout step is a checkout step');
+  assert.equal(steps[0].inputs.ref.value, 'main');
+  assert.equal(steps[0].inputs.token.value, '${{ secrets.PAT }}');
+  assert.equal(steps[0].inputs.token.line, 7, 'the finding points at the token line, not the step');
+});
+
+check('a checkout handed a PAT and left persisted is blocking', () => {
+  const text = [
+    'permissions:',
+    '  contents: read',
+    'jobs:',
+    '  a:',
+    '    steps:',
+    '      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5',
+    '        with:',
+    '          token: ${{ secrets.AUTOFIX_TOKEN }}',
+    '      - run: npm ci',
+  ].join('\n');
+  const f = runActionChecks([{ file: 'w.yml', text }], []);
+  assert.ok(has(f, 'persisted-credentials'));
+  assert.equal(blocking(f).length, 1, 'the checkout is the finding — the run: line is clean');
+  assert.match(f.find((x) => x.rule === 'persisted-credentials').fix, /persist-credentials: false/);
+});
+
+check('the default token is not a PAT, and `persist-credentials: false` clears a PAT', () => {
+  const step = (...withLines) =>
+    [
+      'jobs:',
+      '  a:',
+      '    steps:',
+      '      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5',
+      '        with:',
+      ...withLines.map((l) => `          ${l}`),
+    ].join('\n');
+  // The default token is already in the job's env and is bounded by
+  // `permissions:` — persisting it adds no reach the reviewer cannot see.
+  assert.deepEqual(persistedCredentials(step('token: ${{ secrets.GITHUB_TOKEN }}')), []);
+  assert.deepEqual(persistedCredentials(step('token: ${{ github.token }}')), []);
+  // No `token:` at all is the same case: checkout falls back to the default.
+  assert.deepEqual(persistedCredentials(step('ref: main')), []);
+  // A PAT, opted out of persistence, in either order.
+  assert.deepEqual(persistedCredentials(step('token: ${{ secrets.PAT }}', 'persist-credentials: false')), []);
+  assert.deepEqual(persistedCredentials(step('persist-credentials: false', 'token: ${{ secrets.PAT }}')), []);
+  // …and the one that is not fine.
+  assert.deepEqual(
+    persistedCredentials(step('token: ${{ secrets.PAT }}', 'persist-credentials: true')).map((c) => c.token),
+    ['${{ secrets.PAT }}'],
+  );
+});
+
+check('no workflow in this tree leaves a PAT in the workspace', () => {
+  // The whole-tree half. autofix.yml is the reason this rule exists: it took the
+  // PAT on the checkout, then ran `npm ci` over a contributor's lockfile with the
+  // credential sitting in .git/config. It now checks out credential-free and
+  // hands the token to the push step through `env:`.
+  const dir = path.join(REPO_ROOT, '.github/workflows');
+  for (const file of fs.readdirSync(dir).filter((f) => /\.ya?ml$/.test(f))) {
+    const bad = persistedCredentials(fs.readFileSync(path.join(dir, file), 'utf8'));
+    assert.deepEqual(bad, [], `${file} persists ${JSON.stringify(bad.map((c) => c.token))} into .git/config`);
   }
 });
 
