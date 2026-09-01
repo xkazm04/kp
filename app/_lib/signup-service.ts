@@ -1,4 +1,4 @@
-import { ensureDb } from "./db/core";
+import { ensureDb, isUniqueViolation } from "./db/core";
 import { createOrganization } from "./db/organizations";
 import { createWorkspace } from "./db/workspaces";
 import { createUser, getUserByEmail, normalizeEmail, type User } from "./db/users";
@@ -79,7 +79,9 @@ export function registerAccount(input: RegisterInput): RegisterResult {
   } catch (error) {
     // The UNIQUE(users.email) backstop: a concurrent insert between processes
     // (multi-instance deploy) rolls the whole tenant back — report it as taken.
-    if (error instanceof Error && /UNIQUE/i.test(error.message)) return { ok: false, reason: "email_taken" };
+    // Classified through the db layer's one predicate (structured `code` first),
+    // not a local message regex a driver reword would silently break.
+    if (isUniqueViolation(error)) return { ok: false, reason: "email_taken" };
     throw error;
   }
 }

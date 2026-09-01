@@ -1970,7 +1970,14 @@ function generateSlug(): string {
   return out;
 }
 
-function isUniqueViolation(error: unknown): boolean {
+/** Is this thrown error a SQLite UNIQUE / constraint violation? Classifies on
+ *  the driver's structured `code` first (better-sqlite3's SqliteError carries
+ *  `SQLITE_CONSTRAINT_UNIQUE`), with the message regex as the fallback tier for
+ *  a wrapped error that lost its code. The ONE place this predicate lives —
+ *  signup-service.ts's email backstop reuses it rather than matching prose on
+ *  its own (architect 2026-09-01: two copies of one classifier at different
+ *  rigour is how a driver reword breaks exactly one of them). */
+export function isUniqueViolation(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const code = (error as { code?: unknown }).code;
   return (
