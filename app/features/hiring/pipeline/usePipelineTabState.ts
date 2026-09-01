@@ -93,7 +93,10 @@ export function usePipelineTabState() {
   const isTerminal = (e: Entry) => stageHasRole(e.stage, "terminal", board.axis);
   const activeCount = (entries ?? []).filter((e) => !isTerminal(e)).length;
   const interviewCount = (entries ?? []).filter((e) => interviewStages.includes(e.stage)).length;
-  const isStale = (e: Entry) => !isTerminal(e) && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides);
+  // The threshold resolves by ROLE on the same axis (pipelineTypes.slaForStage): a
+  // workspace's own "Tech round" ages like an interview, not on the flat legacy cut.
+  const isStale = (e: Entry) =>
+    !isTerminal(e) && (daysSince(e.stageChangedAt) ?? 0) >= slaForStage(e.stage, slaOverrides, board.axis);
   const staleCount = (entries ?? []).filter(isStale).length;
   // Stubs from a failed intake normalization: visible, recoverable, and not yet
   // matchable until a recruiter captures the profile. Active-only — a rejected

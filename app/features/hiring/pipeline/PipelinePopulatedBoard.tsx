@@ -70,7 +70,13 @@ export function PipelinePopulatedBoard({
 
       <Collapse show={s.editingSla}>
         <div className="border-b border-stone-200 px-4 py-3">
-          <PipelineSlaEditor t={s.t} enumLabel={enumLabel} slaOverrides={s.slaOverrides} onChangeStageSla={s.setStageSla} />
+          <PipelineSlaEditor
+            t={s.t}
+            enumLabel={enumLabel}
+            axis={s.axis}
+            slaOverrides={s.slaOverrides}
+            onChangeStageSla={s.setStageSla}
+          />
         </div>
       </Collapse>
 

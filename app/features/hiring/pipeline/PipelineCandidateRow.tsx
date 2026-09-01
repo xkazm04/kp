@@ -113,7 +113,7 @@ function CandidateRowImpl({
     : pending
       ? t("candidateRow.awaitingDecision")
       : stale
-        ? t("candidateRow.aging", { days: slaForStage(entry.stage), stage: enumLabel("stage", entry.stage) })
+        ? t("candidateRow.aging", { days: slaForStage(entry.stage, null, axis), stage: enumLabel("stage", entry.stage) })
         : archLabel;
   const StatusIcon = degraded
     ? AlertTriangle

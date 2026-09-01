@@ -45,7 +45,7 @@ export function agingBucket(
   const changed = e.stageChangedAt ? Date.parse(e.stageChangedAt) : NaN;
   if (!Number.isFinite(changed)) return 0;
   const days = Math.floor((now - changed) / DAY_MS);
-  return days >= slaForStage(e.stage, overrides) ? 1 : 0;
+  return days >= slaForStage(e.stage, overrides, axis) ? 1 : 0;
 }
 
 /** Day-bucketed relative-time class for an ISO instant at `now` — EXACTLY the cut

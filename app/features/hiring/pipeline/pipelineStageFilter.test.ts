@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { readStageParam, resolveStageFilter } from "./usePipelineFilters.ts";
 import { DEFAULT_STAGE_AXIS, PIPELINE_STAGES, type StageDef } from "@/app/_lib/pipeline-stages";
+import { ROLE_SLA_DEFAULTS, slaForStage, STAGE_SLA_DEFAULTS, STALE_DAYS } from "@/app/features/shared/pipelineTypes";
 
 // UAT TOM-ANA-11 — the board's ?stage= deep link, pinned against the WORKSPACE axis.
 //
@@ -115,4 +116,52 @@ test("the board's stat counts read stage ROLES, never stage names", () => {
   }
   assert.match(TAB_STATE, /stageHasRole\([^)]*"terminal"[^)]*board\.axis\)/, "the terminal test must resolve against the board's own axis");
   assert.match(TAB_STATE, /stagesWithRole\("interview", board\.axis\)/, "the interview count must cover EVERY interview column");
+  assert.match(
+    TAB_STATE,
+    /slaForStage\(e\.stage, slaOverrides, board\.axis\)/,
+    "the aging threshold must resolve on the board's own axis, not the shipped names"
+  );
+});
+
+// The aging THRESHOLD is the last name-keyed read on the aging path. STAGE_SLA_DEFAULTS
+// was a table over the shipped five names, so on CUSTOM_AXIS above every column a
+// workspace added ("Interview 2") fell through to the flat STALE_DAYS, and a renamed
+// column kept working only because its id had not changed — a threshold that
+// silently switched meaning the day a team split its interview into rounds. The
+// defaults belong to the ROLE a column plays.
+const ROLE_AXIS: readonly StageDef[] = [
+  { id: "Accepted", label: "New applicants", role: "entry" },
+  { id: "Screened", label: "Screened", role: "screening" },
+  { id: "tech_round", label: "Tech round", role: "interview" },
+  { id: "ai_score", label: "AI score", role: "scoring" },
+  { id: "Offer", label: "Offer", role: "offer" },
+  { id: "Placed", label: "Placed", role: "terminal" },
+];
+
+test("slaForStage resolves the default by the column's ROLE on the given axis", () => {
+  assert.equal(slaForStage("tech_round", null, ROLE_AXIS), ROLE_SLA_DEFAULTS.interview, "a workspace-authored interview column ages like an interview");
+  assert.equal(slaForStage("ai_score", null, ROLE_AXIS), ROLE_SLA_DEFAULTS.scoring);
+  assert.equal(slaForStage("Placed", null, ROLE_AXIS), 0, "the terminal column never ages, whatever it is called");
+  assert.equal(slaForStage("Interview 2", null, CUSTOM_AXIS), STALE_DAYS, "a `custom` column maps to no product semantics and keeps the flat legacy cut");
+});
+
+test("slaForStage: the recruiter's override wins, keyed by column id", () => {
+  assert.equal(slaForStage("tech_round", { tech_round: 9 }, ROLE_AXIS), 9);
+  assert.equal(slaForStage("tech_round", { tech_round: 0 }, ROLE_AXIS), ROLE_SLA_DEFAULTS.interview, "a cleared override falls back to the role default");
+});
+
+test("slaForStage is byte-identical on the shipped axis, and STAGE_SLA_DEFAULTS derives from the role table", () => {
+  for (const id of PIPELINE_STAGES) {
+    assert.equal(slaForStage(id), STAGE_SLA_DEFAULTS[id], `${id}: the default-axis read must equal the named table`);
+    assert.equal(slaForStage(id, null, DEFAULT_STAGE_AXIS), STAGE_SLA_DEFAULTS[id]);
+  }
+  assert.deepEqual(STAGE_SLA_DEFAULTS, { Accepted: 14, Screened: 7, Interview: 5, Offer: 3, Hired: 0 }, "the shipped numbers must not move");
+});
+
+test("slaForStage: a retired canonical id off the axis keeps its shipped default; an unknown id gets the flat cut", () => {
+  // ROLE_AXIS retired "Interview" (replaced by tech_round) — a candidate still
+  // standing on it is off-axis, and must keep aging like an interview rather than
+  // reading as fresh or as a 10-day unknown.
+  assert.equal(slaForStage("Interview", null, ROLE_AXIS), STAGE_SLA_DEFAULTS.Interview);
+  assert.equal(slaForStage("never-existed", null, ROLE_AXIS), STALE_DAYS);
 });
