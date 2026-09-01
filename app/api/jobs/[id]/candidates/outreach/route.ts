@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJob } from "@/app/_lib/db/jobs";
+import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { createPipelineEntry } from "@/app/_lib/db/pipeline";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 import { AutomationError, runAutomationTask } from "@/app/_lib/automation-run";
@@ -27,9 +27,15 @@ export const maxDuration = 180;
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const job = getJob(id);
-    if (!job) return NextResponse.json({ error: "Role not found." }, { status: 404 });
     const ws = await currentWorkspace();
+    // Visibility gate, ahead of every read of the role and every spend (see
+    // docs/features/jobs README § "By-id job routes re-apply the list's
+    // visibility predicate"). getJob is a point read over a globally-unique PK,
+    // so ungated this route files another tenant's opening into THIS tenant's
+    // pipeline under that opening's title and drafts a paid outreach mail from
+    // it. 404, not 403, so the endpoint can't be used to probe ids.
+    const job = getJob(id);
+    if (!job || !jobVisibleToWorkspace(id, ws)) return NextResponse.json({ error: "Role not found." }, { status: 404 });
 
     const body = (await request.json().catch(() => ({}))) as {
       candidateId?: string;

@@ -530,9 +530,15 @@ Behavioral coverage: `app/_lib/job-ingest.test.ts`.
 `jobs-tenancy.test.ts` exemption), so *any* `/api/jobs/[id]/*` route answers for
 *any* tenant's job unless it re-checks `jobVisibleToWorkspace(id, ws)` — the by-id
 form of the list's `(workspace_id IS NULL OR workspace_id = ?)` predicate. All of
-`campaign` (GET + POST), `winnability`, `rediscover` and `agent-fit` now do, ahead
+`campaign` (GET + POST), `winnability`, `rediscover`, `agent-fit`, `candidates` and
+`candidates/outreach` now do, ahead
 of the spend, answering `404` (never `403`, so the endpoint can't confirm an id
-exists); seeded corpus rows stay visible to every tenant. `POST /api/jobs/ingest`
+exists); seeded corpus rows stay visible to every tenant. The last two were the
+family members the first pass missed, and they are the two that cost the most when
+ungated: `GET .../candidates` spawns a `recruiter_cli` child fed the role's title,
+body and stated band, and `POST .../candidates/outreach` files a pipeline row
+stamped with that role's title *and* drafts a paid first-touch mail from it — so a
+caller could source and contact against another team's private opening. `POST /api/jobs/ingest`
 carries the write-side twin — an explicit `jobId` is a content overwrite of a
 named row, so it gates on `canWriteJobLifecycle` exactly like `/close` and
 `/publish`, before the Claude ad-parse is spent. Pinned by

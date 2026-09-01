@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getJob } from "@/app/_lib/db/jobs";
+import { getJob, jobVisibleToWorkspace } from "@/app/_lib/db/jobs";
 import { entryIdsWithEvent, listEntriesForJob } from "@/app/_lib/db/pipeline";
 import { buildCandidatePool } from "@/app/_lib/candidate-pool";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -10,17 +10,24 @@ import { PipelineError } from "@/app/_lib/python-runner";
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   try {
+    // Resolved ONCE and reused by the visibility gate, the pool, and the
+    // sourcing-state decoration below: the pool and the pipeline it is decorated
+    // against must be read from the same tenant or the join is nonsense.
+    const workspaceId = await currentWorkspace();
+    // Visibility gate, same as every other by-id job route (docs/features/jobs
+    // README § "By-id job routes re-apply the list's visibility predicate"):
+    // getJob is a point read over a globally-unique PK, so without this the route
+    // answers for ANY tenant's job — and this one is on the expensive side of the
+    // pair, spawning a recruiter_cli child that is fed the role's title, body and
+    // stated band. 404, not 403, so the endpoint can't be used to probe ids.
     const job = getJob(id);
-    if (!job) {
+    if (!job || !jobVisibleToWorkspace(id, workspaceId)) {
       return NextResponse.json({ error: "Job not found." }, { status: 404 });
     }
 
     // Shared pool (v2 profiles + saved CV analyses) — the same population
     // rediscovery scores, so the two views never diverge. Workspace-scoped so a
-    // job only ranks against its own tenant's candidates. Resolved ONCE and reused
-    // by the sourcing-state decoration below: the pool and the pipeline it is
-    // decorated against must be read from the same tenant or the join is nonsense.
-    const workspaceId = await currentWorkspace();
+    // job only ranks against its own tenant's candidates.
     const { entries, truncated } = buildCandidatePool(workspaceId);
 
     if (entries.length === 0) {
