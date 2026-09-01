@@ -81,6 +81,7 @@ lives in [`.github/`](./.github) and runs on every push and pull request:
 | `pip-audit` over the resolved Python environment | same | any advisory affects an installed package |
 | Dependency update PRs — npm (root + `edge/`), pip, GitHub Actions | [`dependabot.yml`](./.github/dependabot.yml) | n/a — it opens PRs; CI decides whether they land |
 | SBOM generation (`npm run sbom`) | [`workflows/ci.yml`](./.github/workflows/ci.yml) | the bill of materials cannot be produced, or lists suspiciously little |
+| Committed-credential scan over every **tracked file** (`npm run security:secrets`, [`secret-scan.mjs`](./scripts/security/secret-scan.mjs)) | [`workflows/ci.yml`](./.github/workflows/ci.yml) | a file git tracks carries an API key, token, service-account file or private-key block. The same table gates each diff as the constitution lens's `secret` rule, which is the one finding a `Gate-exemption:` trailer may **not** waive — the fix is removing the literal and **rotating** the credential, because it is in the object database from the moment the commit exists |
 
 ## What is in the image you are running
 

@@ -55,6 +55,8 @@
     "ci:budget": "node scripts/perf/ci-budget.mjs",
     "test:perf": "node scripts/perf/__tests__/ci-budget.test.mjs",
     "security:actions": "node scripts/security/check-actions.mjs",
+    "security:secrets": "node scripts/security/secret-scan.mjs",
+    "test:security": "node scripts/security/__tests__/secret-scan.test.mjs",
     "deploy:check": "node scripts/deploy/check-chart.mjs",
     "test:deploy": "node scripts/deploy/__tests__/check-chart.test.mjs",
     "test:review": "node scripts/review/__tests__/constitution-check.test.mjs && node scripts/review/__tests__/gate-check.test.mjs",

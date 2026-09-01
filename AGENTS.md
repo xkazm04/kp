@@ -69,6 +69,8 @@ rather than a snapshot.
 | `npm run test:deploy` | fixtures for the chart policy |
 | `npm run review:gate` | a required check in `.github/rulesets/main.json` no longer matches a job name |
 | `npm run security:actions` | a workflow does not scope `GITHUB_TOKEN`, or a NEW action rides a mutable tag |
+| `npm run security:secrets` | a file git tracks carries a credential — the whole tree, not just the diff, and NOT waivable by a commit trailer |
+| `npm run test:security` | fixtures for the credential table: every pattern fires, and the real tracked tree is clean |
 | `npm run hooks:check` | `.githooks/*` points at an npm script or a file that no longer exists |
 | `npm run test:bench-driver` | fixtures for the App-master bench driver and its committed baseline |
 | `npm run test:unit` | the node:test suite over `app/**/*.test.ts` and `packages/**/*.test.ts` |

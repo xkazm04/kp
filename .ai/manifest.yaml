@@ -96,6 +96,8 @@ guidance:
     - test:deploy
     - review:gate
     - security:actions
+    - security:secrets
+    - test:security
     - hooks:check
     - test:bench-driver
     - test:unit

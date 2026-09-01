@@ -209,6 +209,26 @@ jobs:
       # scripts/security/check-actions.mjs) — the list can only shrink.
       - run: npm run security:actions
 
+      # …and the other half of the same question: not "can a stranger's text
+      # reach a shell" but "did we commit a key". Every file git tracks, read
+      # against the credential table in scripts/security/secret-scan.mjs — the
+      # same table the constitution lens applies to a diff, so there is one list
+      # rather than two. The lens only ever sees the range that introduced a
+      # key; this sees the tree, which is the only way a key that landed before
+      # the lens existed is ever found.
+      #
+      # WHEN IT FAILS: remove the literal and ROTATE the credential. It is in
+      # the object database from the moment the commit exists. Do not add a
+      # SECRET_EXEMPT entry to make this pass — `.env.example` and `docs/` are
+      # already where a key SHAPE belongs.
+      - run: npm run security:secrets
+
+      # …and the fixtures for it, for the reason every other rule table here has
+      # them: a quantifier one character off matches nothing, forever, while the
+      # gate above goes on reporting "clean". The last case runs the scanner over
+      # the real tracked tree.
+      - run: npm run test:security
+
       # The local half of the gate: .githooks/pre-push is the only thing between a
       # direct push to main and CI, and most changes here land that way. This
       # fails when a hook points at an npm script or a file that no longer exists

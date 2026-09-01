@@ -37,7 +37,7 @@ App-master programme calls forbidden change classes:
 | `test-only` | blocking | `.only(` lands in a test file — it silently disables every *other* test there |
 | `test-skip` | blocking | a new `describe.skip` / `xit` / `@unittest.skip` / `self.skipTest` |
 | `test-deletion` | blocking | a test file is deleted |
-| `secret` | blocking | a structurally-valid API key or token is committed outside `.env.example` |
+| `secret` | blocking, **un-waivable** | a structurally-valid API key or token is committed outside `.env.example` |
 | `tenancy-manifest` | blocking | `CREATE TABLE` in `app/**` without touching `app/_lib/tenancy.ts` |
 | `route-auth-posture` | blocking | a **new** `app/api/**/route.ts` that neither calls `requireOperator` nor sits under a `PUBLIC_API_PREFIXES` entry |
 | `skip-baseline-raised` | blocking | `KP_SKIP_BASELINE` goes **up** (down is a repair, and passes) |
@@ -62,6 +62,48 @@ That waives every blocking finding in the range and prints the reason. It is a
 sentence in `git log` that a reviewer can read and disagree with — deliberately
 not a per-line `// review-ignore` comment, because those get copy-pasted and
 then nobody sees them again.
+
+**Except `secret`.** The hatch was designed for the rules that are legitimately
+right sometimes, and it downgraded a committed credential along with them — so
+an agent that could write a key into a file could also write the sentence that
+excused it. `UNWAIVABLE_RULES` in `constitution-check.mjs` is that carve-out and
+holds exactly one rule today. A leaked key is not a judgement call: it is in the
+object database the moment the commit exists, deleting the line in the next
+commit does not take it back out, and the fix is rotation rather than a reviewer
+agreeing with a sentence.
+
+### The credential table, and the tree it also reads
+
+The shapes both readers use live **once**, in
+[`scripts/security/secret-scan.mjs`](../../scripts/security/secret-scan.mjs):
+Anthropic, OpenAI (project *and* legacy), OpenRouter, ElevenLabs, Google, a GCP
+service-account file, AWS, GitHub (classic and fine-grained), npm, Slack, and the
+`-----BEGIN … PRIVATE KEY-----` envelope. Bare prefixes and entropy heuristics
+are deliberately absent — a rule that cries wolf gets disabled, and then it
+protects nothing.
+
+```bash
+npm run security:secrets              # every file git tracks
+npm run security:secrets -- --json
+```
+
+The lens above applies that table to a **diff**, so it sees a key exactly once —
+in the range that introduced it. A key that landed before the lens existed, in a
+file no later pull request touches, is invisible to it forever. `security:secrets`
+applies the same table to the **tree**, on every push and PR, and reads what git
+*tracks* rather than what is on disk: a developer's real `.env` is gitignored, is
+not a leak, and must not turn it red, while `node_modules/` and `data/kp.sqlite`
+drop out for free rather than through an ignore list that drifts. It exits 1 when
+it cannot enumerate the tree at all — a gate that says "clean" without having
+looked is the failure it exists to prevent.
+
+Exempt paths are `.env.example`, `docs/`, any `README.md`, and the two script
+directories that *define* the table and its fixtures. Ordinary test files are
+**not** exempt: that is exactly where a fixture key would live.
+
+Fixtures: `npm run test:security`. Every pattern has an inert literal of its real
+shape (a quantifier one character off matches nothing, forever, while the gate
+reports "clean"), and the last case runs the scanner over the real tracked tree.
 
 ## Lens 2 — the agent review (judgement)
 
@@ -119,7 +161,7 @@ this whole thing exists to avoid.
 | **manual** (`workflow_dispatch` on [`review.yml`](../../.github/workflows/review.yml)) | both lenses on any ref, with an optional `base` input | same as a push run |
 | any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run test:review` and `npm run test:agent` — the fixtures for all of this, because a tool that judges (or writes) changes has to be judged by something too | CI red |
 | an issue labelled `agent:go`, or a `/agent` comment ([`agent-dispatch.yml`](../../.github/workflows/agent-dispatch.yml)) | a model proposes a change; the guard refuses protected paths before anything is written | the run goes red, no branch is pushed, and the issue is told why — see [Dispatch](#dispatch--an-issue-becomes-a-proposed-change) and [When a dispatch does not finish](#when-a-dispatch-does-not-finish) |
-| any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run review:gate` · `npm run security:actions` · `npm run hooks:check` · `npm run guidance:check` — the checks that the gate, and the guidance an agent reads before touching it, are still *wired* (below) | CI red |
+| any push or PR ([`ci.yml`](../../.github/workflows/ci.yml)) | `npm run review:gate` · `npm run security:actions` · `npm run security:secrets` · `npm run hooks:check` · `npm run guidance:check` — the checks that the gate, and the guidance an agent reads before touching it, are still *wired* (below) | CI red |
 | pull request ([`autofix.yml`](../../.github/workflows/autofix.yml)) | the lens that WRITES: `eslint --fix` and `ruff --fix` are applied to the branch (below) | never red — it spends the fix, it does not add an opinion |
 
 Run the review by hand from the Actions tab (**Review → Run workflow**) after
@@ -274,6 +316,7 @@ installed.
 | --- | --- |
 | `npm run review:gate` ([`gate-check.mjs`](../../scripts/review/gate-check.mjs)) | the ruleset requiring a check name no job reports — rename `Agent review (judgement)` and GitHub waits forever for a check that never arrives, until someone drops the requirement to unblock a PR. Also: an `evaluate`-mode ruleset, a required check that never runs on PRs, a lens that left the required set, a workflow with no jobs |
 | `npm run security:actions` ([`check-actions.mjs`](../../scripts/security/check-actions.mjs)) | a workflow with no top-level `permissions:` block; any **new** action pinned to a mutable tag; any `${{ … }}` substituted into a `run:` script or an `actions/github-script` `script:` body; and a `pull_request_target` / `workflow_run` job checking out a ref the event points at (below). A ratchet: the refs that already float are enumerated with why in [`.github/actions-pin-allowlist.json`](../../.github/actions-pin-allowlist.json), so the list can only shrink — and a list that fails to load excuses nothing rather than everything |
+| `npm run security:secrets` ([`secret-scan.mjs`](../../scripts/security/secret-scan.mjs)) | a credential committed anywhere git tracks — the tree, not just the diff, so a key that predates the review lenses is still found. Shares its pattern table with the `secret` rule above, which is the un-waivable one. Exits 1 rather than reporting "clean" when it cannot list the tree. Fixtures: `npm run test:security` |
 | `npm run hooks:check` ([`install.mjs`](../../scripts/hooks/install.mjs)) | a hook that vanished, or one still shelling out to an npm script or file that was renamed away — the shape of drift that leaves `pre-push` running and no longer checking. Also: a `prepare` that swallows its own failure (below), and a Dockerfile that runs `npm ci` without the installer in the build context |
 | `npm run guidance:check` ([`check-guidance.mjs`](../../scripts/docs/check-guidance.mjs)) | the three agent-guidance files drifting apart. `.ai/manifest.yaml` declares which one is canonical (`.claude/CLAUDE.md`), which are projections of it, and — `guidance.verify` — the commands that verify a change. It fails on a canonical that does not exist, a projection that never names it, an undeclared fourth guidance file, any `npm run <script>` these files name that package.json has dropped, and **any verify command a guidance file has stopped naming**. That last rule is the one no per-file check could see: rename the unit-test script in the canonical file, land the new name in `package.json`, and `AGENTS.md` goes on telling an agent to run the old one with all three files internally consistent. An `@include` counts as naming — the root `CLAUDE.md` reaches its commands through one |
 | `npm run lint:ruff-ratchet` ([`ruff-ratchet.mjs`](../../scripts/lint/ruff-ratchet.mjs), in `python-gate`) | an ignore in [`ruff.toml`](../../ruff.toml) that declares no ceiling, one carrying more violations than it declares, or one that suppresses **nothing** and should have been deleted. `ruff check pipeline/` runs with those ignores applied and so is structurally unable to see any of it; this re-runs ruff with `lint.ignore` emptied and compares. An answer it cannot parse is an error, never "no violations" — otherwise every entry would look dead |
@@ -457,6 +500,16 @@ which this workflow has nothing to do — the intended ending, not a fault.
   That is deliberate (see [`.github/rulesets/README.md`](../../.github/rulesets/README.md))
   and it is the weakest joint here: `KP_SKIP_GATE=1` is one environment variable
   away, and only stderr and the journal record that it was used.
+- `security:secrets` reads the **working tree**, not history. It answers "is a
+  credential in this repository now", not "was one ever committed" — a key added
+  and removed before this gate existed is still in the object database and still
+  needs rotating, and finding those is a `git log -S` job nothing here automates.
+- Polar's `polar_whs_…` webhook secret has exactly the right shape for the
+  credential table and is **not in it**:
+  `app/_lib/billing/webhook-verify.test.ts` commits a literal of that shape as a
+  fixture, and a rule whose first act is to fail the build on an existing test is
+  a rule that gets deleted rather than obeyed. Replace that fixture with an
+  obviously-inert string and the row can be added in the same change.
 - `npm run review:gate -- --verify` is only as good as the token it is given.
   Until `GATE_ADMIN_TOKEN` exists in repository secrets, nothing mechanically
   confirms the ruleset is still applied — the offline half only proves the file

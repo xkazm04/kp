@@ -36,8 +36,36 @@ import {
   resolveRange,
   revExists,
 } from './diff.mjs';
+import { SECRET_PATTERNS, isExempt as isSecretExempt } from '../security/secret-scan.mjs';
 
 export const EXEMPTION_RE = /^\s*Gate-exemption:\s*(.+)$/im;
+
+/**
+ * The findings a commit trailer may NOT wave through.
+ *
+ * `Gate-exemption:` was built for the rules that are legitimately right
+ * sometimes — a live-only smoke test really does need a skip — and it downgraded
+ * every blocking finding in the range, including a committed credential. An
+ * agent that can write a key into a file can also write the sentence that
+ * excuses it, and a leaked key is not a judgement call: it is in the object
+ * database from the moment the commit exists, and the fix is rotation rather
+ * than a reviewer agreeing with a sentence. So `secret` stands whatever the
+ * trailer says, and the hatch stays open for everything it was designed for.
+ */
+export const UNWAIVABLE_RULES = new Set(['secret']);
+
+/**
+ * Does this set of findings block, given the range's exemption trailer (or null)?
+ *
+ * The single answer both `render()` and the exit code read, so the message a
+ * human sees and the code CI reads can never disagree.
+ */
+export function blockedBy(findings, exemption) {
+  const blocking = findings.filter((f) => f.severity === 'blocking');
+  if (blocking.length === 0) return false;
+  if (!exemption) return true;
+  return blocking.some((f) => UNWAIVABLE_RULES.has(f.rule));
+}
 
 // Paths whose edits change how changes are JUDGED. Not wrong — but a reviewer
 // should always see them called out as a category rather than as 40 more lines.
@@ -56,6 +84,10 @@ export const GATE_PATHS = [
   /^scripts\/design\//,
   /^scripts\/docs\//,
   /^scripts\/review\//,
+  // The workflow ratchet and the credential table. Widening SECRET_EXEMPT is a
+  // one-line edit that stops a whole directory being read for keys — precisely
+  // the shape this category exists to put in front of a reviewer.
+  /^scripts\/security\//,
   /^scripts\/i18n-check\.mjs$/,
   /^pipeline\/jobfit\/tests\/run_gated\.py$/,
   /^app\/api\/rate-limit-contract\.test\.ts$/,
@@ -88,14 +120,13 @@ const ONLY_RE = /\b(?:it|test|describe)\.only\s*\(/;
 // Credential shapes with enough structure that a match is worth stopping for.
 // Loose prefixes (a bare `sk-`) are deliberately absent: a rule that cries wolf
 // gets disabled, and then it protects nothing.
-const SECRET_PATTERNS = [
-  { re: /sk-ant-api\d{2}-[A-Za-z0-9_-]{20,}/, what: 'an Anthropic API key' },
-  { re: /sk-proj-[A-Za-z0-9_-]{20,}/, what: 'an OpenAI project key' },
-  { re: /AIza[0-9A-Za-z_-]{35}/, what: 'a Google API key' },
-  { re: /gh[pousr]_[A-Za-z0-9]{36}/, what: 'a GitHub token' },
-  { re: /xox[baprs]-[A-Za-z0-9-]{10,}/, what: 'a Slack token' },
-];
-const SECRET_EXEMPT = [/^\.env\.example$/, /^docs\//, /(^|\/)README\.md$/];
+//
+// THE TABLE MOVED, and it is one table now. `scripts/security/secret-scan.mjs`
+// reads the whole tracked TREE with it (`npm run security:secrets`), because
+// this lens only ever sees one range — a key that landed before it existed, in a
+// file no later pull request touches, is invisible here forever. Two copies of a
+// credential list is two lists, and the one nobody edits is the one that decides
+// whether a leak is caught.
 
 // This directory DEFINES the patterns above, so scanning its own source for
 // them reports the rule table as a violation of itself. Content rules skip it;
@@ -211,7 +242,7 @@ export function runRules(files, context = {}) {
       }
 
       // --- 5. Hardcoded credentials -----------------------------------------
-      if (!matches(SECRET_EXEMPT, p)) {
+      if (!isSecretExempt(p)) {
         for (const s of SECRET_PATTERNS) {
           if (s.re.test(text)) {
             out.push(
@@ -222,7 +253,9 @@ export function runRules(files, context = {}) {
                 line,
                 `This line looks like ${s.what}.`,
                 'Move it to an env var and ROTATE the key — it is in the object database now, ' +
-                  'even if the next commit removes the line.',
+                  'even if the next commit removes the line. This one finding is NOT waivable by ' +
+                  '`Gate-exemption:`; the same table reads the whole tree in ' +
+                  '`npm run security:secrets`.',
               ),
             );
             break;
@@ -379,7 +412,8 @@ export function render(findings, exemption) {
     return { text: lines.join('\n'), blocked: false };
   }
 
-  const blocked = blocking.length > 0 && !exemption;
+  const blocked = blockedBy(findings, exemption);
+  const unwaivable = blocking.filter((f) => UNWAIVABLE_RULES.has(f.rule));
   const order = [...blocking, ...warns];
   lines.push(`constitution: ${blocking.length} blocking · ${warns.length} to note\n`);
   for (const f of order) {
@@ -389,7 +423,11 @@ export function render(findings, exemption) {
     lines.push(`      → ${f.fix}`);
     lines.push('');
   }
-  if (blocking.length && exemption) {
+  if (unwaivable.length && exemption) {
+    lines.push(`  A commit trailer is on the record — "${exemption.trim()}" — and it does NOT waive`);
+    lines.push(`  ${unwaivable.map((f) => `[${f.rule}]`).join(' ')}. A committed credential is not a`);
+    lines.push('  judgement call: remove the literal and rotate the key.');
+  } else if (blocking.length && exemption) {
     lines.push(`  Blocking findings waived by commit trailer — "${exemption.trim()}"`);
     lines.push('  The waiver is on the record; a reviewer can disagree with it.');
   } else if (blocked) {
@@ -420,16 +458,15 @@ function main(argv) {
   const exemptionMatch = messagesForRange(range).match(EXEMPTION_RE);
   const exemption = exemptionMatch ? exemptionMatch[1] : null;
 
+  const blocked = blockedBy(findings, exemption);
+
   if (args.json) {
-    process.stdout.write(
-      `${JSON.stringify({ range, exemption, findings, blocked: findings.some((f) => f.severity === 'blocking') && !exemption }, null, 2)}\n`,
-    );
+    process.stdout.write(`${JSON.stringify({ range, exemption, findings, blocked }, null, 2)}\n`);
   } else {
     const { text } = render(findings, exemption);
     process.stdout.write(`${text}\n`);
   }
 
-  const blocked = findings.some((f) => f.severity === 'blocking') && !exemption;
   return blocked ? 1 : 0;
 }
 

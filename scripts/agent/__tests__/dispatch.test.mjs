@@ -298,6 +298,9 @@ check('every gate file in this tree is inside a protected prefix', () => {
     'scripts/review/constitution-check.mjs',
     'scripts/review/gate-check.mjs',
     'scripts/security/check-actions.mjs',
+    // The credential table. An agent that could widen SECRET_EXEMPT could commit
+    // a key into the path it just excused.
+    'scripts/security/secret-scan.mjs',
     'scripts/hooks/install.mjs',
     'scripts/docs/check-doc-sync.mjs',
     'scripts/lint/ruff-ratchet.mjs',

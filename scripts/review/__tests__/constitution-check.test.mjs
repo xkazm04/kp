@@ -8,7 +8,9 @@ import assert from 'node:assert/strict';
 import { parseDiff } from '../diff.mjs';
 import {
   EXEMPTION_RE,
+  UNWAIVABLE_RULES,
   allowlistCovers,
+  blockedBy,
   parseArgs,
   render,
   runRules,
@@ -153,6 +155,41 @@ check('.env.example may show key SHAPES', () => {
 check('a bare "sk-" prefix does not fire — a rule that cries wolf gets disabled', () => {
   const f = rules(diff({ path: 'app/_lib/a.ts', added: ['const id = "sk-task-42";'] }));
   assert.ok(!has(f, 'secret'));
+});
+
+// The table is now shared with scripts/security/secret-scan.mjs, which reads the
+// whole tracked tree. This case is the wiring: a shape that only exists in the
+// shared table has to reach THIS lens too, or the two readers have quietly
+// become one reader again.
+check('the shared table reaches the diff lens — a shape this repo never had before blocks', () => {
+  const f = rules(diff({ path: 'app/_lib/a.ts', added: ['const id = "AKIAIOSFODNN7EXAMPLE";'] }));
+  assert.equal(sev(f, 'secret'), 'blocking');
+  const pem = rules(diff({ path: 'deploy/key.txt', added: ['-----BEGIN OPENSSH PRIVATE KEY-----'] }));
+  assert.equal(sev(pem, 'secret'), 'blocking');
+});
+
+// --- what a commit trailer may NOT wave through ------------------------------
+check('a committed credential is not waivable by Gate-exemption', () => {
+  assert.ok(UNWAIVABLE_RULES.has('secret'));
+  const findings = rules(diff({ path: 'app/_lib/a.ts', added: ['const k = "AIzaSyA1234567890123456789012345678901234";'] }));
+  assert.equal(blockedBy(findings, null), true);
+  const waived = render(findings, ' this key is only for the demo tenant ');
+  assert.equal(waived.blocked, true, 'a trailer must not wave a leaked key through');
+  assert.match(waived.text, /does NOT waive/);
+});
+
+check('one un-waivable finding does not un-waive the rest — it just still blocks', () => {
+  const both = rules(
+    [
+      diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }),
+      diff({ path: 'app/_lib/a.ts', added: ['const k = "AIzaSyA1234567890123456789012345678901234";'] }),
+    ].join('\n'),
+  );
+  assert.equal(blockedBy(both, 'a reason'), true);
+  const onlyWaivable = rules(diff({ path: 'app/_lib/a.test.ts', added: ['it.only("x", () => {});'] }));
+  assert.equal(blockedBy(onlyWaivable, 'a reason'), false);
+  assert.equal(blockedBy([], null), false);
+  assert.equal(blockedBy([{ severity: 'warn', rule: 'suppression' }], null), false);
 });
 
 // --- tenancy ----------------------------------------------------------------
