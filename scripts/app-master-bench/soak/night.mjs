@@ -232,7 +232,10 @@ try {
     // A fresh run dir whose record carries no tickOk is a SHAPE problem, not a
     // crash (round 9): a partially written result.json or a driver format
     // change. Say that, or the structural fallback below would have to guess.
-    if (n.tickOk === undefined) {
+    // PRECEDENCE (round 10): a DIRECTLY OBSERVED cause — the runner watched the
+    // spawn fail — is never overwritten by a record-derived guess. Both
+    // record-derived classes below only fill an empty miss.
+    if (n.tickOk === undefined && !rec.miss) {
       rec.miss = "record-unreadable";
       rec.anomalies.push(`the run record carries no tickOk (nights: ${Array.isArray(result.nights) ? result.nights.length : "absent"}) — a partially written result.json or a driver shape change; the night may even have run`);
     }
@@ -241,7 +244,7 @@ try {
     rec.c1 = n.c1 ? { proposals: (n.c1.proposals ?? []).length, declines: (n.c1.declines ?? []).length, preTenure: n.c1.preTenure ?? null, undated: n.c1.undated ?? null } : null;
     rec.budgetSettledUsd = n.reading?.budgetSettledUsd ?? null;
     if (n.tickOk === false) {
-      rec.miss = "tick-died";
+      if (!rec.miss) rec.miss = "tick-died";
       rec.anomalies.push(`tick failed: ${n.tickError ?? "no error recorded"}`);
     }
     if (n.ideation?.ran === false) rec.anomalies.push(`ideation did not run: ${n.ideation?.blocked ?? "no reason"}`);
