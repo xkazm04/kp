@@ -10,6 +10,7 @@ import { sourceLabelKey } from "@/app/features/hiring/decisions/groupEval/groupE
 import { governanceText, summaryText, type Translate } from "./groupEval/localize";
 import { LegacyView } from "@/app/features/hiring/decisions/groupEval/GroupEvalLegacyView";
 import { Notices } from "@/app/features/hiring/decisions/groupEval/GroupEvalNotices";
+import type { GovernanceCacheMismatch } from "@/app/features/hiring/decisions/groupEval/governanceCacheSync";
 import { PerCandidateTabs } from "@/app/features/hiring/decisions/groupEval/GroupEvalPerCandidateTabs";
 import { Risks } from "@/app/features/hiring/decisions/groupEval/GroupEvalRisks";
 import type { GroupEvalPayload } from "@/app/features/shared/groupEvalTypes";
@@ -28,6 +29,7 @@ export function GroupEvalModal({
   error,
   createdAt,
   poolDrift,
+  governanceMismatch,
   onClose,
   onRerun,
   onDecide,
@@ -46,6 +48,10 @@ export function GroupEvalModal({
   /** How many candidates were added/removed from the role's pool since this
    *  evaluation ran. > 0 means the comparison may be stale. */
   poolDrift?: number;
+  /** Set when this SAVED evaluation ran under a different governance mode than the
+   *  control now shows (see groupEval/governanceCacheSync.ts). The modal discloses it
+   *  rather than letting a comparison answer a question it was not asked. */
+  governanceMismatch?: GovernanceCacheMismatch | null;
   onClose: () => void;
   onRerun: () => void;
   /** Advance/reject a candidate inline from the comparison (DEC3). The first arg is the
@@ -110,7 +116,7 @@ export function GroupEvalModal({
         <p className="text-base text-steel">{t("noEval")}</p>
       ) : (
         <div className="space-y-5">
-          <Notices drift={drift} ranAt={ranAt} evaluation={evaluation} />
+          <Notices drift={drift} ranAt={ranAt} evaluation={evaluation} governanceMismatch={governanceMismatch} />
           {/* Governance (P1-3): in committee / eligibility-list mode the AI is advisory —
               a banner makes clear it didn't pick or seal a hire. */}
           {governanceText(tt, evaluation) ? (

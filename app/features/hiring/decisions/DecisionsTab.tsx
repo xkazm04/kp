@@ -26,6 +26,7 @@ export function DecisionsTab() {
     waveCommsFailed, setWaveCommsFailed,
     summaryEntry, setSummaryEntry, waveRole, setWaveRole,
     evalRole, setEvalRole, evalMode, setEvalMode, evalData, setEvalData,
+    evalGovernanceMismatch,
     evalCreatedAt, setEvalCreatedAt, evalTaskId, setEvalTaskId, evalError, setEvalError,
     evaluated, reconsider, reinstating, reinstate,
     reconsiderOpen, setReconsiderOpen, reconsiderRef, revealReconsider,
@@ -181,6 +182,7 @@ export function DecisionsTab() {
         setEvalError={setEvalError}
         evalGroup={evalGroup}
         evalDrift={evalDrift}
+        evalGovernanceMismatch={evalGovernanceMismatch}
         openGroupEval={openGroupEval}
         act={act}
         rulesOpen={rulesOpen}

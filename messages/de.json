@@ -3044,6 +3044,8 @@
       "unavailable": "Bewertung nicht verfügbar.",
       "noEval": "Noch keine Bewertung. Führen Sie eine aus, um die Kandidaten dieser Stelle zu vergleichen.",
       "driftNotice": "<b>{count, plural, one {# Kandidat hat sich geändert} other {# Kandidaten haben sich geändert}}</b> seit diese Bewertung ausgeführt wurde{when}. Die Rangfolge unten schließt womöglich einen neu hinzugefügten Kandidaten aus oder empfiehlt einen bereits entschiedenen. Führen Sie sie für einen aktuellen Vergleich erneut aus.",
+      "governanceMismatch": "Diese gespeicherte Bewertung entstand im Modus <b>{ranUnder}</b>; das Steuerelement steht auf <b>{selected}</b>. Führen Sie sie erneut aus, um im ausgewählten Modus zu bewerten.",
+      "governanceMismatchWeaker": "Diese gespeicherte Bewertung entstand im Modus <b>{ranUnder}</b>, in dem die KI eine Favoritin oder einen Favoriten wählen und festschreiben darf. Das Steuerelement steht auf <b>{selected}</b>, wo die KI beratend bleibt. Führen Sie sie erneut aus, um im ausgewählten Modus zu bewerten.",
       "capped": "Zeigt die Top {cap} von {total} Kandidaten, nach Eignung sortiert.",
       "selectionNote": "Vergleicht Ihre Auswahl von {count} von {total} Kandidaten.",
       "aiComparison": "AI-Vergleich",
