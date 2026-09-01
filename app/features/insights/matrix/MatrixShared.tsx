@@ -7,8 +7,22 @@ export type Cell = { score: number | null; blocked: boolean; koKeys?: string[] }
 
 // Blocked/empty cells get a diagonal hatch so they read as "not applicable"
 // without relying on the grey fill alone (color-independent legibility).
+//
+// hatch-through-the-token-seam: the stripe was a raw `#d6d3d1` (stock Tailwind
+// stone-300) — the one hardcoded color left outside app/landing/. The ESLint hex gate
+// missed it because it anchored on `\b` after the hex and Tailwind spells spaces as
+// `_`, a word character, so `#d6d3d1_0px` had no boundary to find. Result: in Spark
+// Dark the FILL re-mapped through --color-stone-100 (#f1ebdd -> #283442) while the
+// stripe stayed light-theme stone-300 — a pale grey hatch burned across a dark cell.
+//
+// It now resolves through the token, which Tailwind 4 emits verbatim into the compiled
+// arbitrary value (measured: `background-image: repeating-linear-gradient(45deg,
+// var(--color-stone-300) 0px,…)`), so the stripe follows [data-theme="dark"] like every
+// other surface. Note the LIGHT stripe moves #d6d3d1 -> #d6cbb4: this repo's stone-300
+// is the warm Option-C neutral, not Tailwind's cool stock one, so the hatch now sits on
+// the same ramp as the stone-100 fill it is drawn over instead of one hue off it.
 export const BLOCKED_CELL =
-  "bg-stone-100 text-stone-400 [background-image:repeating-linear-gradient(45deg,#d6d3d1_0px,#d6d3d1_1px,transparent_1px,transparent_5px)]";
+  "bg-stone-100 text-stone-400 [background-image:repeating-linear-gradient(45deg,var(--color-stone-300)_0px,var(--color-stone-300)_1px,transparent_1px,transparent_5px)]";
 
 // diverging score scale: poor -> coral, fair -> amber, good/strong -> moss.
 // Bands single-sourced in MATRIX_BANDS (matrix-stats.ts) — pick the highest band

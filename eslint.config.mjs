@@ -7,6 +7,55 @@ import i18next from "eslint-plugin-i18next";
 // matching a file REPLACES them, so a second `no-restricted-syntax` block that
 // listed only its own selector would silently switch these three off for every
 // file it matched. Spread them into both.
+// The design law's four selectors (no raw hex / rgba outside app/landing/), named
+// once for the same reason as TRANSACTION_SELECTORS below: the ui-layer and
+// import-law blocks further down match the same app/** files, and flat config
+// REPLACES a rule's options rather than merging them — so from the day those
+// blocks were added, the design-law block's selectors were silently switched off
+// for every file they matched (measured 2026-09-01: a bare `bg-[#d6d3d1]` in
+// app/_components/ and app/features/ linted clean). Restated in every later block
+// that matches app/**; the design-law EXEMPTIONS (landing, brand.ts, glyph and puml
+// fixtures, the dev inspector, tests) get trailing blocks of their own that carry
+// everything EXCEPT these four, so an exemption stays exempt.
+//
+// The end-of-hex anchor is `(?![0-9a-fA-F])`, NOT `\b`: `\b` needs a word/non-word
+// transition, and Tailwind spells the space inside an arbitrary value as `_`, a word
+// character — so `#d6d3d1_0px` inside `[background-image:...]` had no boundary to
+// find even where the rule was live. The lookahead only exempts a LONGER hex run.
+const DESIGN_LAW_SELECTORS = [
+  {
+    selector: "Literal[value=/#[0-9a-fA-F]{6}(?![0-9a-fA-F])/]",
+    message:
+      "Hardcoded color. Colors must resolve through tokens so they follow [data-theme=\"dark\"] — " +
+      "use a Tailwind token utility, var(--color-*), or app/_lib/brand.ts for stylesheet-less " +
+      "surfaces. If the color has no token, add one to app/globals.css (both themes). See docs/design/README.md."
+  },
+  {
+    selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{6}(?![0-9a-fA-F])/]",
+    message:
+      "Hardcoded color in a template literal. Colors must resolve through tokens so they follow " +
+      "[data-theme=\"dark\"]. See docs/design/README.md."
+  },
+  {
+    selector: "Literal[value=/rgba?\\(\\s*[0-9]/]",
+    message:
+      "Inline rgb()/rgba() color. Shadows and scrims must resolve through tokens so they follow " +
+      "[data-theme=\"dark\"] — add a --color-* or --shadow-* token to app/globals.css instead. " +
+      "See docs/design/README.md."
+  },
+  {
+    selector: "TemplateElement[value.raw=/rgba?\\(\\s*[0-9]/]",
+    message:
+      "Inline rgb()/rgba() color in a template literal. Resolve it through a token so it follows " +
+      "[data-theme=\"dark\"]. See docs/design/README.md."
+  }
+];
+
+// Exactly the design-law block's ignores, single-sourced so the trailing exemption
+// blocks below cannot drift from them.
+const DESIGN_LAW_EXEMPT_LIB = ["app/landing/**/*.{ts,tsx}", "app/_lib/brand.ts", "app/_dev-inspector/**/*.{ts,tsx}"];
+const DESIGN_LAW_EXEMPT_UI = ["app/_components/glyph/glyphs/**/*.{ts,tsx}", "app/_components/puml/**/*.{ts,tsx}"];
+
 const TRANSACTION_SELECTORS = [
   {
     selector:
@@ -180,35 +229,17 @@ const config = [
       "app/**/*.test.{ts,tsx}"
     ],
     rules: {
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "Literal[value=/#[0-9a-fA-F]{6}\\b/]",
-          message:
-            "Hardcoded color. Colors must resolve through tokens so they follow [data-theme=\"dark\"] — " +
-            "use a Tailwind token utility, var(--color-*), or app/_lib/brand.ts for stylesheet-less " +
-            "surfaces. If the color has no token, add one to app/globals.css (both themes). See docs/design/README.md."
-        },
-        {
-          selector: "TemplateElement[value.raw=/#[0-9a-fA-F]{6}\\b/]",
-          message:
-            "Hardcoded color in a template literal. Colors must resolve through tokens so they follow " +
-            "[data-theme=\"dark\"]. See docs/design/README.md."
-        },
-        {
-          selector: "Literal[value=/rgba?\\(\\s*[0-9]/]",
-          message:
-            "Inline rgb()/rgba() color. Shadows and scrims must resolve through tokens so they follow " +
-            "[data-theme=\"dark\"] — add a --color-* or --shadow-* token to app/globals.css instead. " +
-            "See docs/design/README.md."
-        },
-        {
-          selector: "TemplateElement[value.raw=/rgba?\\(\\s*[0-9]/]",
-          message:
-            "Inline rgb()/rgba() color in a template literal. Use a token from app/globals.css. " +
-            "See docs/design/README.md."
-        }
-      ]
+      // The end-of-hex anchor is `(?![0-9a-fA-F])`, NOT `\b`, and that is the whole
+      // point of it. `\b` asks for a word/non-word transition, so a hex followed by
+      // ANY word character was silently exempt — and Tailwind spells the space inside
+      // an arbitrary value as `_`, a word character. That is exactly how
+      // `[background-image:repeating-linear-gradient(45deg,#d6d3d1_0px,…)]` sat on the
+      // Fit Matrix's blocked cell for months while `npm run lint` and
+      // `npm run design:check` both reported clean (design:check delegates the hex gate
+      // to this rule). The negative lookahead only exempts a LONGER hex run (an 8-digit
+      // #rrggbbaa, which `\b` also let through), so every non-hex follower — `_`, `)`,
+      // `;`, a quote, end of string — is now caught.
+      "no-restricted-syntax": ["error", ...DESIGN_LAW_SELECTORS]
     }
   },
   {
@@ -391,6 +422,7 @@ const config = [
         "error",
         // Re-stated, not replaced: see the note beside TRANSACTION_SELECTORS.
         ...TRANSACTION_SELECTORS,
+        ...DESIGN_LAW_SELECTORS,
         DB_BARREL_SELECTOR,
         // Nobody imports a route handler — true of every layer, so it rides the
         // widest block rather than needing one of its own.
@@ -415,10 +447,33 @@ const config = [
       "no-restricted-syntax": [
         "error",
         ...TRANSACTION_SELECTORS,
+        ...DESIGN_LAW_SELECTORS,
         DB_BARREL_SELECTOR,
         NO_ROUTE_HANDLER_IMPORT,
         UI_NO_DB_VALUE_IMPORT
       ]
+    }
+  },
+  {
+    // ---------------------------------------------------------------------
+    // Design-law EXEMPTIONS, restated last so they win: these paths keep every
+    // import/transaction selector their layer carries, minus the four design-law
+    // ones (landing is a fixed art direction; brand.ts is the token mirror; the
+    // glyph/puml fixtures and the dev inspector are documented exemptions). Tests
+    // are already exempt: both blocks above ignore them, so the wide transaction
+    // block is the last match there. See DESIGN_LAW_SELECTORS.
+    // ---------------------------------------------------------------------
+    files: DESIGN_LAW_EXEMPT_LIB,
+    ignores: ["app/**/*.test.ts", "app/**/*.test.tsx"],
+    rules: {
+      "no-restricted-syntax": ["error", ...TRANSACTION_SELECTORS, DB_BARREL_SELECTOR, NO_ROUTE_HANDLER_IMPORT]
+    }
+  },
+  {
+    files: DESIGN_LAW_EXEMPT_UI,
+    ignores: ["app/**/*.test.ts", "app/**/*.test.tsx"],
+    rules: {
+      "no-restricted-syntax": ["error", ...TRANSACTION_SELECTORS, DB_BARREL_SELECTOR, NO_ROUTE_HANDLER_IMPORT, UI_NO_DB_VALUE_IMPORT]
     }
   },
   {

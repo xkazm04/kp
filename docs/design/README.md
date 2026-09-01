@@ -314,7 +314,7 @@ hook**:
 |---|---|---|
 | Lockstep | `npm run design:check` | Every literal in `app/_lib/brand.ts` equals its `--color-*` declaration, in **both** blocks. A constant whose token doesn't exist fails rather than being skipped, so a new one is covered automatically. |
 | Shade parity | `npm run design:check` | Every `-(red\|amber\|green\|blue\|stone\|…)-N` utility used outside `app/landing/` has a `[data-theme="dark"]` value. |
-| No literal color | `npm run lint` | `no-restricted-syntax` bans six-digit hex and inline `rgb()/rgba()` in `app/**`. AST-based, so it sees strings and template chunks but not comments. |
+| No literal color | `npm run lint` | `no-restricted-syntax` bans six-digit hex and inline `rgb()/rgba()` in `app/**`. AST-based, so it sees strings and template chunks but not comments. The four selectors live in `DESIGN_LAW_SELECTORS` and are RESTATED in every later `no-restricted-syntax` block that matches `app/**` (flat config replaces a rule's options, it never merges them) - from 2026-08 until 2026-09-01 they were silently off for the whole ui/import layer for exactly that reason; the exemptions (`DESIGN_LAW_EXEMPT_LIB` / `_UI`) get trailing blocks that carry everything but these four. The hex end-anchor is a lookahead, not ``: Tailwind spells a space as `_`, a word character, so `#d6d3d1_0px` inside an arbitrary value had no boundary to find. |
 
 Both live in [`scripts/design/check-design-tokens.mjs`](../../scripts/design/check-design-tokens.mjs)
 and `eslint.config.mjs`. **Neither is ever relaxed to make a change pass.** An
