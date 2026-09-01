@@ -19,6 +19,7 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,7 +28,12 @@ const SOAK_DIR = path.join(ROOT, "bench", "app-master", "soak");
 const LOG = path.join(SOAK_DIR, "log.jsonl");
 const KP_URL = process.env.SOAK_KP_URL ?? "http://localhost:3103";
 const PERSONAS_URL = process.env.SOAK_PERSONAS_URL ?? "http://127.0.0.1:9420";
-const DB = process.env.SOAK_KP_DB ?? path.join(process.env.LOCALAPPDATA ?? "", "kp-bench", "kp-soak.sqlite");
+// A stable PER-USER location on every OS — never repo-relative: the doc warns
+// that losing this file orphans the kp half of the tenure, and a fallback
+// inside the checkout is one `git clean` from proving it (review round 3).
+const DB =
+  process.env.SOAK_KP_DB ??
+  path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), ".local", "share"), "kp-bench", "kp-soak.sqlite");
 const BACKLOG = process.env.SOAK_BACKLOG ?? path.join(ROOT, "uat", "value", "backlog-2026-08-31.json");
 const TENURE = process.env.SOAK_TENURE ?? "kp-owner";
 // The tenure FILE is the source of the roster handle — never a hardcoded id
@@ -132,6 +138,12 @@ if (!kp.ok) {
 }
 
 // ── 3. One night through the real driver ────────────────────────────────────
+// Snapshot BEFORE the spawn: a crashed driver must not let step 4 read
+// YESTERDAY's newest run dir as tonight's record (review round 3 — it set
+// ran:true, overwrote the miss and copied stale ideation/c1/budget wholesale).
+const runsDir = path.join(ROOT, "bench", "app-master", "runs");
+const priorRuns = new Set(existsSync(runsDir) ? readdirSync(runsDir) : []);
+
 const driver = spawnSync(
   process.execPath,
   [
@@ -153,9 +165,8 @@ if (driver.error) {
 
 // ── 4. Read the newest run record — the driver's truth, not the exit code ───
 try {
-  const runsDir = path.join(ROOT, "bench", "app-master", "runs");
   const newest = readdirSync(runsDir)
-    .filter((d) => d.includes("kp-c1-night"))
+    .filter((d) => d.includes("kp-c1-night") && !priorRuns.has(d))
     .sort()
     .at(-1);
   if (newest) {
@@ -175,7 +186,8 @@ try {
     if (n.ideation?.ran === true && n.ideation?.authored === 0) rec.anomalies.push("ideation ran and authored 0 — backpressure, dedup, or a drained repo; worth a look");
     if (typeof n.dispatched === "number" && n.dispatched > 0) rec.anomalies.push(`IDEATION NIGHT DISPATCHED ${n.dispatched} — the autopilot override failed (exam §6)`);
   } else {
-    rec.anomalies.push("no kp-c1-night run directory found after the driver exited");
+    if (!rec.miss) rec.miss = "driver-crashed";
+    rec.anomalies.push("the driver produced NO new run directory this night — nothing below is tonight's data, and nothing stale was read in its place");
   }
 } catch (e) {
   rec.anomalies.push(`could not read the run record: ${e.message}`);
@@ -211,11 +223,16 @@ try {
 // ── 6. Leave nothing WE started running ─────────────────────────────────────
 if (kpChild) {
   try {
-    kpChild.kill();
-    // best-effort: the shell:true wrapper can orphan node.exe; the next night's
-    // health probe treats a survivor as "already up", which is harmless.
+    if (process.platform === "win32") {
+      // kill() reaches only the cmd.exe wrapper under shell:true; the next dev
+      // underneath survives HOLDING .next/dev/lock and blocks the operator's
+      // morning `npm run dev` (review round 3). taskkill fells the tree.
+      spawnSync("taskkill", ["/PID", String(kpChild.pid), "/T", "/F"], { stdio: "ignore" });
+    } else {
+      kpChild.kill();
+    }
   } catch {
-    /* recorded by absence — next night boots or reuses */
+    rec.anomalies.push("could not stop the kp bench server this runner started — a survivor may hold .next/dev/lock");
   }
 }
 
