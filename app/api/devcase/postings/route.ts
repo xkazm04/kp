@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { listPostings, listSubmissions } from "@/app/_lib/db/devcase";
 import { latestOutcomeByRefs } from "@/app/_lib/dev-outcomes";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -26,6 +27,6 @@ export async function GET() {
     }));
     return NextResponse.json({ postings: merged });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to list postings." }, { status: 500 });
+    return safeJsonError(error, "api:devcase/postings", "DEVCASE_POSTINGS_FAILED");
   }
 }

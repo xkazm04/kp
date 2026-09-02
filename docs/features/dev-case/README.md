@@ -468,11 +468,20 @@ Two store-backed writes stopped forwarding their thrown message in the same pass
 (better-sqlite3 + `buildFeedbackBrief`'s model call) now answer
 `safeJsonError(..., "DEVCASE_PUBLISH_FAILED" / "DEVCASE_FEEDBACK_FAILED")`, and both files
 are **off** the `error-response-contract.test.ts` ceiling list rather than lowered on it.
-The other 17 raw-message catches under `app/api/devcase/**` remain, each still ceilinged
-there: `comms` (1), `control` (2), `inbound` (1), `lifecycle` + its `[id]/approve`,
-`[id]/close`, `[id]/redesign` (5), `outcomes` (2), `postings` (1), `promote` (1),
-`devcase/route.ts` (2), `source` (1), `submit` (1). They are recruiter-side, not candidate
--facing, which is why these two went first.
+Thirteen of the other seventeen followed (/perfect 2026-09-02): `comms` (1), `control` (2),
+`inbound` (1), `lifecycle` + its `[id]/approve`, `[id]/close`, `[id]/redesign` (5),
+`outcomes` (2), `postings` (1) and `promote` (1) now answer
+`safeJsonError(error, "api:devcase/<route>", "DEVCASE_*_FAILED")` against twelve new
+`STORE_ERRORS` codes — `DEVCASE_OUTBOX_FAILED`, `DEVCASE_CONTROL_FAILED` (both control
+handlers share it), `DEVCASE_INTAKE_FAILED`, `DEVCASE_LIFECYCLE_LIST_FAILED`,
+`DEVCASE_LIFECYCLE_START_FAILED`, `DEVCASE_APPROVE_FAILED`, `DEVCASE_CLOSE_FAILED`,
+`DEVCASE_REDESIGN_FAILED`, `DEVCASE_OUTCOMES_FAILED`, `DEVCASE_OUTCOME_SAVE_FAILED`,
+`DEVCASE_POSTINGS_FAILED`, `DEVCASE_PROMOTE_FAILED` — each with its four catalogue
+entries. `/api/devcase/inbound` is the one of the thirteen that is candidate-facing: its
+500 previously handed an applicant a `SQLITE_*` code or the absolute db path. All ten
+files are **off** the `error-response-contract.test.ts` ceiling rather than lowered on it.
+Four raw-message catches remain under `app/api/devcase/**`, each still ceilinged there:
+`devcase/route.ts` (2), `source` (1), `submit` (1).
 
 ### The Assignments studio reads in four languages
 

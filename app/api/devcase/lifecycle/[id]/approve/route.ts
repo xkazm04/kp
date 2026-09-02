@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { approveLifecycleCase } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
@@ -129,6 +130,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const task = startTask("lifecycle", { lifecycleId: id, title: lc.title }, lc.workspaceId);
     return NextResponse.json({ ok: true, task });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Approve failed." }, { status: 500 });
+    // approveLifecycleCase is a store transaction and the resumed runner spawns Python:
+    // the thrown message carries SQLITE_* codes, the db path or child stderr.
+    return safeJsonError(error, "api:devcase/lifecycle/approve", "DEVCASE_APPROVE_FAILED");
   }
 }

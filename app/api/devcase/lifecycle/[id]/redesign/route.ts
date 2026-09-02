@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { meterGate, recordMeterUsage } from "@/app/_lib/billing";
 import { updateLifecycle } from "@/app/_lib/db/devcase";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
@@ -90,6 +91,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     });
     return NextResponse.json({ ok: true, role: designed.role, case: designed.case, source: designed.source });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Redesign failed." }, { status: 500 });
+    // runDesignArtifacts spawns the devcase CLI: the thrown message carries Python
+    // tracebacks and provider stderr as well as SQLITE_* store detail.
+    return safeJsonError(error, "api:devcase/lifecycle/redesign", "DEVCASE_REDESIGN_FAILED");
   }
 }

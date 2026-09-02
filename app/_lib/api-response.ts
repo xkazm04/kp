@@ -109,6 +109,24 @@ export const STORE_ERRORS = {
   // the absolute db path or provider stderr, and both routes were forwarding it whole.
   DEVCASE_PUBLISH_FAILED: "Could not publish this case. Please try again.",
   DEVCASE_FEEDBACK_FAILED: "Could not draft the candidate feedback. Please try again.",
+  // The rest of the dev-case studio's store/spawn catches (/perfect 2026-09-02,
+  // api-devcase-1). Thirteen handlers here were still forwarding the thrown message
+  // whole - better-sqlite3 SQLITE_* codes, the absolute db path, Python tracebacks from
+  // the devcase CLI, a distribution/relay provider's upstream body. They are OFF the
+  // error-response-contract ceiling now rather than lowered on it.
+  DEVCASE_OUTBOX_FAILED: "Could not load the dev-case outbox. Please try again.",
+  DEVCASE_CONTROL_FAILED: "Could not load the assignment control room. Please try again.",
+  // The PUBLIC candidate intake - an applicant must never read a store detail.
+  DEVCASE_INTAKE_FAILED: "Your submission could not be recorded. Please try again.",
+  DEVCASE_LIFECYCLE_LIST_FAILED: "Could not load the assignment runs. Please try again.",
+  DEVCASE_LIFECYCLE_START_FAILED: "Could not start that assignment run. Please try again.",
+  DEVCASE_APPROVE_FAILED: "Could not approve this assignment. Please try again.",
+  DEVCASE_CLOSE_FAILED: "Could not close this assignment. Please try again.",
+  DEVCASE_REDESIGN_FAILED: "Could not regenerate this assignment. Please try again.",
+  DEVCASE_OUTCOMES_FAILED: "Could not load the hire outcomes. Please try again.",
+  DEVCASE_OUTCOME_SAVE_FAILED: "Could not record that outcome. Please try again.",
+  DEVCASE_POSTINGS_FAILED: "Could not load the assignment postings. Please try again.",
+  DEVCASE_PROMOTE_FAILED: "Could not promote this submission. Please try again.",
   // Scheduling & offer public token routes (converted alongside, same class).
   SCHEDULE_INVITE_FAILED: "Could not create the scheduling link. Please try again.",
   SCHEDULE_INVITE_BULK_FAILED: "Could not send the scheduling links. Please try again.",

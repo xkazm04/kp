@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { listLifecycles } from "@/app/_lib/db/devcase";
 import { getActiveTaskByDedupe } from "@/app/_lib/db/tasks";
 import { getAutonomy, listAudit, recordAudit, setAutonomy } from "@/app/_lib/dev-control";
@@ -41,7 +42,9 @@ export async function GET() {
       audit: listAudit(),
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed." }, { status: 500 });
+    // The control room sits on better-sqlite3 AND spawns lifecycle runners, so the
+    // thrown message carries SQLITE_* codes, the db path or child stderr.
+    return safeJsonError(error, "api:devcase/control", "DEVCASE_CONTROL_FAILED");
   }
 }
 
@@ -66,6 +69,6 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Failed." }, { status: 500 });
+    return safeJsonError(error, "api:devcase/control", "DEVCASE_CONTROL_FAILED");
   }
 }

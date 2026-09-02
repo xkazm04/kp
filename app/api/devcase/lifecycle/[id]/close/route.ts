@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 import { claimLifecycleClose, listPostings, listSubmissions, setPostingStatus, updateLifecycle } from "@/app/_lib/db/devcase";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
@@ -124,6 +125,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     });
     return NextResponse.json({ ok: true, notified, notifyFailures, postingsClosed: postings.length, noPostings });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Close failed." }, { status: 500 });
+    // The close writes through better-sqlite3 and dispatches over the comms relay, so
+    // the thrown message can carry SQLITE_* detail or an upstream provider body.
+    return safeJsonError(error, "api:devcase/lifecycle/close", "DEVCASE_CLOSE_FAILED");
   }
 }

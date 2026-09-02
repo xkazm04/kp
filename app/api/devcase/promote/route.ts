@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { safeJsonError } from "@/app/_lib/api-response";
 // The shared by-id owner guard (sibling module - a route file may export only handlers).
 import { ownedSubmission } from "../devcase-owned-lifecycle";
 import { currentWorkspace } from "@/app/_lib/auth/current-workspace";
@@ -53,6 +54,8 @@ export async function POST(request: NextRequest) {
       observedSkills,
     });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Promote failed." }, { status: 500 });
+    // promoteSubmission writes pipeline rows and the observed-skill mint spawns; the
+    // thrown message carries SQLITE_* detail, the db path or child stderr.
+    return safeJsonError(error, "api:devcase/promote", "DEVCASE_PROMOTE_FAILED");
   }
 }

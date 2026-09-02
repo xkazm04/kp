@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPostingByToken } from "@/app/_lib/db/devcase";
 import { intakeSubmission, PostingClosedError } from "@/app/_lib/distribution";
-import { jsonRefusal } from "@/app/_lib/api-response";
+import { jsonRefusal, safeJsonError } from "@/app/_lib/api-response";
 import { rateLimit, RATE_LIMITED_ERROR } from "@/app/_lib/rate-limit";
 import { resumeCollectingLifecycle } from "@/app/_lib/tasks";
 
@@ -87,6 +87,9 @@ export async function POST(request: NextRequest) {
     if (error instanceof PostingClosedError) {
       return jsonRefusal("POSTING_CLOSED", 410);
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Intake failed." }, { status: 500 });
+    // A PUBLIC candidate door: the thrown message is a store/spawn detail (SQLITE_*
+    // codes, the absolute db path, relay stderr) and must never reach an applicant.
+    // The code is what the apply surface localizes.
+    return safeJsonError(error, "api:devcase/inbound", "DEVCASE_INTAKE_FAILED");
   }
 }
