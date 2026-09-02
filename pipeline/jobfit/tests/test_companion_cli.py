@@ -1,9 +1,11 @@
 """One companion turn end to end, with the provider stubbed.
 
 What is worth pinning here is the CONTRACT the route consumes and the property
-the design exists for: both halves of the exchange reach disk as episodes even
-when the model does not answer. A turn that lost the operator's own words to a
-provider timeout would be the one failure mode the disk-first ordering is for.
+the design exists for: the operator's own words reach disk as an episode before
+the model is ever called, so a provider timeout cannot lose them - that is the
+one failure mode the disk-first ordering is for. Candi's half is written only
+when she actually said something: a deterministic turn is answered but not
+remembered, so outage prose never becomes recallable memory.
 """
 
 from __future__ import annotations
@@ -90,13 +92,40 @@ class CompanionCliTestCase(unittest.TestCase):
         self.assertIn("About the operator", provider.system or "")
         self.assertIn("unreviewed", provider.prompt or "")
 
-    def test_a_dead_provider_still_answers_honestly_and_still_logs(self):
+    def test_a_dead_provider_still_answers_honestly_and_still_logs_the_operator(self):
         with mock.patch.object(companion_cli, "resolve_provider", return_value=_DeadProvider()):
             payload = companion_cli.run_turn(dict(TURN))
         self.assertEqual(payload["source"], "deterministic")
         self.assertEqual(payload["reply"], companion_cli.UNREACHABLE_REPLY["en"])
         self.assertIn("TimeoutError", payload["fallbackReason"])
-        self.assertEqual(len(payload["episodePaths"]), 2)
+        # The operator's half survives the outage; Candi's apology is not memory.
+        self.assertEqual(len(payload["episodePaths"]), 1)
+        self.assertTrue(payload["episodePaths"][0].endswith("_user.md"))
+
+    def test_a_deterministic_turn_records_the_operator_but_never_the_outage_prose(self):
+        """A degraded turn is ANSWERED, not REMEMBERED.
+
+        "I could not reach a model just now" is not something Candi knows; it is
+        the absence of anything to know. Writing it as an episode made outage
+        prose permanently recallable, competing with real memory a week later
+        (surface_recall drops echoes and same-day commands, not this). The
+        operator's own message still lands - the person said it, and losing their
+        words to a provider timeout is exactly the failure the disk-first
+        ordering exists to prevent.
+        """
+        with mock.patch.object(companion_cli, "resolve_provider", return_value=_DeadProvider()):
+            payload = companion_cli.run_turn(dict(TURN, message="the platform rubric is wrong"))
+        self.assertEqual(payload["source"], "deterministic")
+        self.assertEqual(len(payload["episodePaths"]), 1)
+        self.assertTrue(payload["episodePaths"][0].endswith("_user.md"))
+        written = "\n".join(
+            (brain.brain_root() / rel).read_text(encoding="utf-8") for rel in payload["episodePaths"]
+        )
+        self.assertIn("the platform rubric is wrong", written)
+        self.assertNotIn(companion_cli.UNREACHABLE_REPLY["en"], written)
+        # Nothing on disk carries the outage prose, so it can never be recalled.
+        for note in brain.brain_root().rglob("*_assistant.md"):
+            self.assertNotIn(companion_cli.UNREACHABLE_REPLY["en"], note.read_text(encoding="utf-8"))
 
     def test_recall_from_an_earlier_turn_reaches_the_next_prompt(self):
         brain.append_episode("user", "The platform devcase needs a rubric.", "kp-workspace")

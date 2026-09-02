@@ -210,6 +210,16 @@ the exchange are appended as episodes — the operator's message *before* the mo
 timeout can never cost them their own words. Keyless or unreachable, the reply
 says so in the operator's language rather than inventing an answer.
 
+- **A deterministic reply is answered, not remembered.** When `source` is
+  `deterministic` (`_worth_remembering` in `companion_cli.py`), `run_turn`
+  writes the operator's episode and **no assistant episode** — the person said
+  their half, but `UNREACHABLE_REPLY` is not something Candi knows, and appending
+  it made outage prose a permanently recallable memory that competes with the
+  real thing (`surface_recall` drops echoes and same-day commands, not this). A
+  keyless install would otherwise fill its own brain with apologies. `memoryEnabled`,
+  `indexSkipped` and the memory-off path are unchanged; the digest leg still
+  writes its degraded episode (see Known gaps).
+
 ## What she is allowed to remember at you
 
 **Storage is never filtered. Surfacing is.** Every exchange is written and
@@ -1063,3 +1073,8 @@ is worse, and a control that is visibly not ready yet is the honest third option
   it. Same standing caveat WP3 carries for the proposal card.
 - Nothing prunes or consolidates episodes on the kp side. With Personas
   installed, its sleep cycle does that for the shared tree.
+- **The digest leg still remembers its own outage.** `run_turn` skips the
+  assistant episode when `source` is `deterministic`; `run_digest` does not yet,
+  so a keyless install's daily digest appends one apology episode per day. The
+  gate is one line beside `_worth_remembering` plus the count assertion in
+  `pipeline/jobfit/tests/test_companion_actions.py::test_a_dead_provider_still_produces_an_honest_digest`.

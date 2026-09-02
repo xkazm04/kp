@@ -371,6 +371,23 @@ def _complete(
         return UNREACHABLE_REPLY[locale], "deterministic", f"{type(exc).__name__}: {exc}"[:200]
 
 
+def _worth_remembering(source: str) -> bool:
+    """Whether Candi's half of this turn belongs in the brain.
+
+    A deterministic reply is ANSWERED but not REMEMBERED. ``UNREACHABLE_REPLY``
+    is not something Candi knows - it is the absence of anything to know, and
+    appending it made outage prose a permanent, recallable episode that competes
+    with real memory forever after (``surface_recall`` drops echoes and same-day
+    commands, but a degraded reply looks like ordinary text to it). The keyless
+    install, where every turn is deterministic, would otherwise fill its own
+    brain with nothing but apologies.
+
+    The OPERATOR's message of such a turn is still recorded: the person said it,
+    and losing their words to a provider timeout is the one failure the
+    disk-first ordering in ``run_turn`` exists to prevent."""
+    return source != "deterministic"
+
+
 def _episode_text(reply: str, blocks: list[dict]) -> str:
     """What the brain remembers of an answer. Blocks are a rendering, but their
     SUBJECT is part of what was said - an episode that dropped it would make
@@ -495,7 +512,7 @@ def run_turn(turn: dict) -> dict:
     )
 
     reply, blocks, blockErrors, actions, actionErrors, voiceReply = _shape(raw, locale, catalog, source)
-    if memory:
+    if memory and _worth_remembering(source):
         episodes.append(append_episode("assistant", _episode_text(reply, blocks), session))
     return _payload(
         reply, voiceReply, blocks, blockErrors, actions, actionErrors, hits, episodes, source, fallbackReason, memory
@@ -548,6 +565,9 @@ def run_digest(turn: dict) -> dict:
     )
     raw, source, fallbackReason = _complete(prompt, locale, catalog, digest=True, memory=memory)
     reply, blocks, blockErrors, actions, actionErrors, voiceReply = _shape(raw, locale, catalog, source)
+    # NOT yet gated on _worth_remembering: the digest leg's degraded episode is
+    # the same noise, but pinning that change belongs with test_companion_actions
+    # (which asserts the current count) and is deliberately left as one edit.
     episodes = [append_episode("assistant", _episode_text(reply, blocks), session)] if memory else []
     return _payload(
         reply, voiceReply, blocks, blockErrors, actions, actionErrors, hits, episodes, source, fallbackReason, memory
