@@ -1508,8 +1508,6 @@
     "eraseFailed": "Die Löschung konnte derzeit nicht abgeschlossen werden. Bitte versuchen Sie es erneut.",
     "confirmTitle": "Ihre Daten endgültig löschen?",
     "confirmBody": "Dies kann nicht rückgängig gemacht werden. Ihr Name, Ihre Kontaktdaten, Ihr Lebenslauf und Ihre Interviewantworten werden sofort entfernt; nur der anonymisierte Bewertungsdatensatz bleibt erhalten.",
-    "confirmTitle": "Ihre Daten endgültig löschen?",
-    "confirmBody": "Dies kann nicht rückgängig gemacht werden. Ihr Name, Ihre Kontaktdaten, Ihr Lebenslauf und Ihre Interviewantworten werden sofort entfernt; nur der anonymisierte Bewertungsdatensatz bleibt erhalten.",
     "forRole": "Ihre Bewerbung für {role}",
     "forRoleGeneric": "Ihre Bewerbung",
     "heldTitle": "Was wir über Sie gespeichert haben",

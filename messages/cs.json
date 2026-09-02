@@ -1508,8 +1508,6 @@
     "eraseFailed": "Výmaz se teď nepodařilo dokončit. Zkuste to prosím znovu.",
     "confirmTitle": "Trvale vymazat vaše údaje?",
     "confirmBody": "Tuto akci nelze vrátit zpět. Vaše jméno, kontaktní údaje, životopis i odpovědi z pohovoru budou okamžitě odstraněny; zůstane pouze anonymizovaný záznam o hodnocení.",
-    "confirmTitle": "Trvale vymazat vaše údaje?",
-    "confirmBody": "Tuto akci nelze vrátit zpět. Vaše jméno, kontaktní údaje, životopis i odpovědi z pohovoru budou okamžitě odstraněny; zůstane pouze anonymizovaný záznam o hodnocení.",
     "forRole": "Vaše přihláška na pozici {role}",
     "forRoleGeneric": "Vaše přihláška",
     "heldTitle": "Co o vás evidujeme",
