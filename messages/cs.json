@@ -1285,6 +1285,7 @@
     "SCHEDULE_CANDIDATE_INACTIVE": "Tento kandidát už není aktivní, proto se nic nerezervovalo.",
     "SCHEDULE_BOOK_FAILED": "Termín se nepodařilo rezervovat. Obnovte stránku a vyberte znovu.",
     "SCHEDULE_SLOT_UNRESOLVED": "Toto pole kalendáře se nepodařilo převést na čas. Načtěte kalendář znovu a vyberte jiné.",
+    "SCHEDULE_CALENDAR_BUSY": "Váš připojený kalendář je v tu dobu obsazený. Vyberte jiný čas.",
     "SEARCH_FAILED": "Vyhledávání je momentálně nedostupné. Zkuste to prosím znovu.",
     "ATTENTION_FAILED": "Nepodařilo se načíst počty položek k vyřízení. Zkuste to prosím znovu.",
     "STATUS_LOOKUP_FAILED": "Nepodařilo se načíst stav vaší přihlášky. Zkuste to prosím znovu.",

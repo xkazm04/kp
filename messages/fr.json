@@ -1285,6 +1285,7 @@
     "SCHEDULE_CANDIDATE_INACTIVE": "Ce candidat n’est plus actif, rien n’a été réservé.",
     "SCHEDULE_BOOK_FAILED": "Impossible de réserver ce créneau. Actualisez la page et choisissez à nouveau.",
     "SCHEDULE_SLOT_UNRESOLVED": "Impossible de convertir cette case du calendrier en heure. Rechargez le calendrier et choisissez à nouveau.",
+    "SCHEDULE_CALENDAR_BUSY": "Votre agenda connecté est occupé à ce moment. Choisissez un autre horaire.",
     "SEARCH_FAILED": "La recherche est indisponible pour le moment. Veuillez réessayer.",
     "ATTENTION_FAILED": "Impossible de charger les points en attente. Veuillez réessayer.",
     "STATUS_LOOKUP_FAILED": "Impossible de charger le statut de votre candidature. Veuillez réessayer.",

@@ -18,7 +18,7 @@ import {
 import { actOnPipelineEntry, getPipelineEntry } from "@/app/_lib/db/pipeline";
 import { plannedInterviewMinutes } from "@/app/_lib/interview-planned-minutes";
 import { dateSlotToIso, gridSlotToIso, hourBucketKey, offeredSlotFor, proposedSlotFor, proposeSlots, scheduledSealOutcome } from "@/app/_lib/schedule-slots";
-import { proposeFreeSlots } from "@/app/_lib/calendar/available-slots";
+import { proposeFreeSlots, slotStillFree } from "@/app/_lib/calendar/available-slots";
 import { removeInterviewEvent, syncInterviewEvent } from "@/app/_lib/calendar/event-sync";
 import { publicBaseUrl } from "@/app/_lib/public-base-url";
 import { sealDecisionSafe } from "@/app/_lib/decision-record-store";
@@ -178,6 +178,26 @@ export async function POST(request: Request) {
         bookedSlots(ws).some((iso) => iso !== invite.slotAt && hourBucketKey(iso) === targetBucket)
       ) {
         return jsonRefusal("SCHEDULE_SLOT_TAKEN", 409);
+      }
+      // W1.4 PARITY (Direction 2): the CANDIDATE confirm re-asks the interviewer's
+      // connected calendar at the moment of booking (slotStillFree in the token
+      // route); the recruiter's grid never did. So the very hour a candidate was
+      // refused as a definite conflict was bookable from the other side of the same
+      // app, and the interviewer's calendar was the thing kp was supposed to be
+      // protecting. Same seam, same THREE-VALUED contract: only a definite `false`
+      // refuses; `null` (no calendar connected, or the lookup failed) proceeds
+      // exactly as it did before this check existed, because an outage must never
+      // block a booking. No override affordance: a recruiter who genuinely wants the
+      // hour clears it on their own calendar and books again.
+      //
+      // The entry's OWN confirmed booking at this instant is skipped: kp writes a
+      // real calendar event for it, so re-confirming the same cell would be refused
+      // by kp's own event.
+      if (!(invite.status === "confirmed" && invite.slotAt === resolved.value)) {
+        const calendarFree = await slotStillFree(resolved.value, ws, invite.durationMin ?? undefined);
+        if (calendarFree === false) {
+          return jsonRefusal("SCHEDULE_CALENDAR_BUSY", 409);
+        }
       }
       let bookedInvite: ScheduleInvite;
       if (invite.status === "confirmed") {

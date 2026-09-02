@@ -472,6 +472,10 @@ export const REFUSAL_ERRORS = {
   /** The submitted grid cell did not resolve to a real instant (400) — a stale
    *  week pager, or a slot grammar this server no longer parses. */
   SCHEDULE_SLOT_UNRESOLVED: "That grid slot couldn't be resolved to a time.",
+  /** The interviewer's connected calendar says that hour is busy (409). The
+   *  recruiter's twin of the candidate confirm-time re-check: only a DEFINITE busy
+   *  refuses, an unknown (no calendar, failed lookup) proceeds. */
+  SCHEDULE_CALENDAR_BUSY: "Your connected calendar is busy then. Pick another time.",
 } as const;
 
 export type RefusalErrorCode = keyof typeof REFUSAL_ERRORS;

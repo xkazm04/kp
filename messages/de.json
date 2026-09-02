@@ -1285,6 +1285,7 @@
     "SCHEDULE_CANDIDATE_INACTIVE": "Diese Person ist nicht mehr aktiv, es wurde nichts gebucht.",
     "SCHEDULE_BOOK_FAILED": "Diese Zeit konnte nicht gebucht werden. Laden Sie neu und wählen Sie erneut.",
     "SCHEDULE_SLOT_UNRESOLVED": "Dieses Kalenderfeld konnte keiner Zeit zugeordnet werden. Laden Sie den Kalender neu und wählen Sie erneut.",
+    "SCHEDULE_CALENDAR_BUSY": "Ihr verbundener Kalender ist zu dieser Zeit belegt. Wählen Sie eine andere Zeit.",
     "SEARCH_FAILED": "Die Suche ist derzeit nicht verfügbar. Bitte versuchen Sie es erneut.",
     "ATTENTION_FAILED": "Die offenen Punkte konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "STATUS_LOOKUP_FAILED": "Der Status Ihrer Bewerbung konnte nicht geladen werden. Bitte versuchen Sie es erneut.",

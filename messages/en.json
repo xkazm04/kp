@@ -1285,6 +1285,7 @@
     "SCHEDULE_CANDIDATE_INACTIVE": "That candidate is no longer active, so nothing was booked.",
     "SCHEDULE_BOOK_FAILED": "Couldn't book that time. Refresh and pick again.",
     "SCHEDULE_SLOT_UNRESOLVED": "That calendar cell couldn't be resolved to a time. Reload the calendar and pick again.",
+    "SCHEDULE_CALENDAR_BUSY": "Your connected calendar is busy then. Pick another time.",
     "SEARCH_FAILED": "Search is unavailable right now. Please try again.",
     "ATTENTION_FAILED": "Could not load attention counts. Please try again.",
     "STATUS_LOOKUP_FAILED": "Could not load your application status. Please try again.",
