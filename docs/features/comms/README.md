@@ -333,7 +333,9 @@ power is "may talk to this queue". Once the install publishes a sealing key
 (Channels → Edge → Enable sealing, `POST /api/edge/pair`), it cannot read what it
 stores either: bodies are AES-256-GCM sealed under a key wrapped to the install's
 public RSA key (`app/_lib/edge-crypto.ts`), and the private half never leaves the
-machine. `edge_config` is a deployment-level table, exempt in `tenancy.ts` for the
+machine. The keypair is minted **once**: two "Enable sealing" clicks publish one
+key, the loser re-reading the winner, because a second keypair would orphan
+everything already sealed to the first. `edge_config` is a deployment-level table, exempt in `tenancy.ts` for the
 same reason `comms_relay_config` is; the leads it produces are filed into the
 workspace of the RECEIVER TOKEN they were addressed to, by the core.
 
@@ -359,7 +361,10 @@ pinned across the two runtimes by `edge-drain.test.ts`.
 **The nudge** — "your studio needs to run" — lives on the Worker's cron, not here,
 for the obvious reason: the machine that is switched off cannot be the machine
 that notices it is switched off. One nudge per quiet period (`nudged_at` is
-cleared by the next heartbeat), carrying COUNTS, never names.
+cleared by the next heartbeat), carrying COUNTS, never names. `nudged_at` is
+stamped **only after a 2xx** from the nudge target: a failed POST is logged with
+its status and left unstamped, so the next cron tick tries again instead of the
+backlog going quiet until the install happens to wake on its own.
 
 **Mail is stored as headers only** (sender + subject). An emailed CV therefore
 arrives as a *lead* whose acknowledgement carries the enrichment link, not as a
